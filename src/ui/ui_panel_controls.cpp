@@ -1088,7 +1088,12 @@ void ControlsPanel::handle_save_z_offset() {
         offset_microns = lv_subject_get_int(subj);
     }
 
-    if (offset_microns == 0) {
+    // Nothing dirty at all — machine-wide OR any tool. Checking only the
+    // machine-wide offset here would refuse the save on exactly the case the
+    // button is now shown for: a tool adjusted while the global stayed 0.
+    const bool tools_dirty =
+        lv_subject_get_int(helix::ToolState::instance().get_any_tool_z_dirty_subject()) == 1;
+    if (offset_microns == 0 && !tools_dirty) {
         spdlog::debug("[{}] No Z-offset adjustment to save", get_name());
         return;
     }
@@ -1150,8 +1155,13 @@ void ControlsPanel::handle_save_z_offset_confirm() {
     NOTIFY_INFO(lv_tr("Saving Z-offset..."));
 
     auto tok = lifetime_.token();
-    helix::zoffset::apply_and_save(
-        api_, save_config_watch_, strategy,
+    // save_dirty_offsets(), not apply_and_save(): on a tool changer the button
+    // is shown when EITHER the machine-wide offset or any tool's is dirty (the
+    // same condition the header button carries), so saving only the machine-wide
+    // one would silently drop the tool the user actually adjusted.
+    helix::zoffset::save_dirty_offsets(
+        api_, save_config_watch_, strategy, printer_state_.get_discovery(),
+        lv_subject_get_int(printer_state_.get_gcode_z_offset_subject()) != 0,
         [this, tok, offset_mm]() {
             tok.defer("ControlsPanel::save_z_offset_done", [this, offset_mm]() {
                 NOTIFY_SUCCESS(lv_tr("Z-offset saved ({:+.3f}mm). Klipper restarting..."),

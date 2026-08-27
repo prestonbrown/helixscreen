@@ -21,6 +21,11 @@
 class IMoonrakerAPI;
 
 namespace helix {
+class IMoonrakerClient;
+}
+using helix::IMoonrakerClient;
+
+namespace helix {
 
 // Forward declaration
 class PrinterDiscovery;
@@ -40,6 +45,14 @@ struct ToolInfo {
     float gcode_x_offset = 0.0f;
     float gcode_y_offset = 0.0f;
     float gcode_z_offset = 0.0f;
+    /// Whether gcode_z_offset has ever been reported for this tool. 0.000 is a
+    /// legitimate offset, so the value alone cannot say "not known yet".
+    bool gcode_z_offset_known = false;
+    /// The offset as last persisted (or as first seen, which is the config
+    /// value on a fresh connect). gcode_z_offset differing from this is what
+    /// makes the tool dirty — a runtime SET_TOOL_PARAMETER is lost on the next
+    /// Klipper restart unless it is saved.
+    float gcode_z_offset_saved = 0.0f;
     bool active = false;
     bool mounted = false;
     DetectState detect_state = DetectState::UNAVAILABLE;
@@ -212,10 +225,62 @@ class ToolState {
         return &show_tool_badge_;
     }
 
+    /// Whether this printer keeps a z-offset per toolhead (1) or a single
+    /// machine-wide one (0). Gates the tune panel's tool selector.
+    lv_subject_t* get_per_tool_z_supported_subject() {
+        return &per_tool_z_supported_;
+    }
+    /// The active tool's own z-offset, in microns. Independent of
+    /// gcode_z_offset — a tool changer applies both.
+    lv_subject_t* get_active_tool_z_offset_subject() {
+        return &active_tool_z_offset_;
+    }
+    /// 1 once an offset has been reported for the active tool. Separate because
+    /// 0 microns is a legitimate offset and cannot double as "nothing known".
+    lv_subject_t* get_active_tool_z_offset_valid_subject() {
+        return &active_tool_z_offset_valid_;
+    }
+    /// 1 when ANY tool's z-offset differs from what is persisted. Drives the
+    /// save affordance together with the machine-wide gcode_z_offset.
+    lv_subject_t* get_any_tool_z_dirty_subject() {
+        return &any_tool_z_dirty_;
+    }
+
+    /// One-shot query for the per-tool z-offsets after init_tools().
+    ///
+    /// The subscription alone is not enough: Moonraker sends the tool objects
+    /// once in the initial snapshot, which arrives BEFORE tools_ exists (so
+    /// update_from_status() drops it), and thereafter republishes only what
+    /// CHANGED. Without this the selector would sit at "no value reported"
+    /// until someone happened to move an offset.
+    void query_tool_z_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
+
+    /// Tools whose z-offset differs from what is persisted, lowest index first.
+    /// Empty when nothing needs saving.
+    [[nodiscard]] std::vector<int> dirty_tool_z_indices() const;
+
+    /// A tool's current z-offset in mm, or 0 when the index is out of range or
+    /// nothing has been reported for it.
+    [[nodiscard]] float tool_z_offset_mm(int tool_index) const;
+
+    /// Record that tool @p tool_index's current offset is now the persisted one.
+    /// Call after the save gcode has been accepted, not before — an optimistic
+    /// clear would hide a save that failed.
+    void mark_tool_z_saved(int tool_index);
+
   private:
     friend class ToolStateTestAccess;
 
+    /// Republish the active tool's z-offset subjects from tools_. Handles both
+    /// a new value arriving and the active tool changing.
+    void refresh_active_tool_z_offset();
+
+    /// Recompute any_tool_z_dirty from tools_.
+    void refresh_any_tool_z_dirty();
+
     ToolState() = default;
+
+
     SubjectManager subjects_;
     /// See get_subjects_lifetime(). Created with the object and REPLACED (never
     /// nulled) by deinit_subjects(), so the accessor never hands out an empty
@@ -238,6 +303,14 @@ class ToolState {
     lv_subject_t tool_badge_text_{};
     char tool_badge_text_buf_[16] = {};
     lv_subject_t show_tool_badge_{};
+
+    // Per-tool z-offset (helix::tool_offsets). Only a tool changer has one;
+    // on every other printer per_tool_z_supported_ stays 0 and the rest are
+    // never published.
+    lv_subject_t per_tool_z_supported_{};
+    lv_subject_t active_tool_z_offset_{};
+    lv_subject_t active_tool_z_offset_valid_{};
+    lv_subject_t any_tool_z_dirty_{};
 
     std::vector<ToolInfo> tools_;
     int active_tool_index_ = 0;

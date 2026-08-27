@@ -11,6 +11,9 @@
 
 #include "tool_state.h"
 
+#include "i_moonraker_client.h"
+#include "tool_offsets.h"
+
 #include "ui_update_queue.h"
 
 #include "ams_state.h"
@@ -61,6 +64,14 @@ void ToolState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(tools_version, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(tool_badge_text, "", subjects_, register_xml);
     INIT_SUBJECT_INT(show_tool_badge, 0, subjects_, register_xml);
+
+    // Per-tool z-offset. Defaults say "this printer has none and we know
+    // nothing", which is the correct answer until init_tools() sees the
+    // hardware and a status frame carries a value.
+    INIT_SUBJECT_INT(per_tool_z_supported, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(active_tool_z_offset, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(active_tool_z_offset_valid, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(any_tool_z_dirty, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
 
@@ -120,6 +131,16 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
     ams_topology_tool_name_prefix_ = "T";
+
+    // Whether this printer keeps a z-offset per toolhead. Asked once, here,
+    // because this is the only place ToolState sees the hardware; the status
+    // path has no PrinterDiscovery to hand.
+    const bool per_tool_z = helix::tool_offsets::supports_per_tool_z(hardware);
+    lv_subject_set_int(&per_tool_z_supported_, per_tool_z ? 1 : 0);
+    if (per_tool_z) {
+        spdlog::info("[ToolState] Per-tool z-offset via {}",
+                     helix::tool_offsets::provider_name(hardware));
+    }
 
     if (hardware.has_snapmaker()) {
         // Snapmaker U1: 4 fixed toolheads, not using viesturz tool objects
@@ -253,6 +274,8 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                 t.gcode_x_offset = previous[i].gcode_x_offset;
                 t.gcode_y_offset = previous[i].gcode_y_offset;
                 t.gcode_z_offset = previous[i].gcode_z_offset;
+                t.gcode_z_offset_known = previous[i].gcode_z_offset_known;
+                t.gcode_z_offset_saved = previous[i].gcode_z_offset_saved;
             }
             tools_.push_back(std::move(t));
         }
@@ -390,10 +413,10 @@ void ToolState::update_from_status(const nlohmann::json& status) {
             tool.gcode_y_offset = tool_status["gcode_y_offset"].get<float>();
             changed = true;
         }
-        if (tool_status.contains("gcode_z_offset") && tool_status["gcode_z_offset"].is_number()) {
-            tool.gcode_z_offset = tool_status["gcode_z_offset"].get<float>();
-            changed = true;
-        }
+        // gcode_z_offset is NOT parsed here: which store is authoritative is a
+        // per-firmware question helix::tool_offsets owns, and on a MedusaHC the
+        // value on this object is not the one the machine prints with. The
+        // per-tool z-offset is read from the whole frame below.
 
         if (tool_status.contains("extruder") && tool_status["extruder"].is_string()) {
             std::string ext = tool_status["extruder"].get<std::string>();
@@ -414,11 +437,138 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         }
     }
 
+    // Per-tool z-offset, in its own pass over tools_ rather than inside the loop
+    // above. That loop skips a tool whose `tool T<n>` object is not in this
+    // frame, and on a firmware that keeps every tool's offset on ONE object
+    // (see helix::tool_offsets) that would skip the offsets entirely.
+    if (lv_subject_get_int(&per_tool_z_supported_) == 1) {
+        for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+            auto microns = helix::tool_offsets::read_tool_z_microns(status, i, tools_[i].name);
+            if (!microns) {
+                // No news. Moonraker republishes only what CHANGED, so this is
+                // routine and must not be read as a reset to zero.
+                continue;
+            }
+            float mm = static_cast<float>(*microns) / 1000.0f;
+            if (!tools_[i].gcode_z_offset_known) {
+                // First value seen for this tool is the persisted one: on a
+                // fresh connect the runtime offset IS what the config holds.
+                // Seeding the baseline here is what stops a freshly-connected
+                // printer from claiming unsaved work it does not have.
+                tools_[i].gcode_z_offset_saved = mm;
+            }
+            if (tools_[i].gcode_z_offset != mm || !tools_[i].gcode_z_offset_known) {
+                tools_[i].gcode_z_offset = mm;
+                tools_[i].gcode_z_offset_known = true;
+                changed = true;
+            }
+        }
+        // After the reads, so this covers both a new value arriving and the
+        // active tool having changed in this same frame with no value of its
+        // own — otherwise the panel would keep showing the previous tool's
+        // number beside the new selection.
+        refresh_active_tool_z_offset();
+        refresh_any_tool_z_dirty();
+    }
+
     if (changed) {
         // Tool badge formatting handled by UI-layer observer on tools_version_
         int version = lv_subject_get_int(&tools_version_) + 1;
         lv_subject_set_int(&tools_version_, version);
         spdlog::trace("[ToolState] Status updated, version {}", version);
+    }
+}
+
+void ToolState::query_tool_z_offsets(IMoonrakerClient* client,
+                                     const helix::PrinterDiscovery& hardware) {
+    if (!client || tools_.empty() ||
+        lv_subject_get_int(&per_tool_z_supported_) != 1) {
+        return;
+    }
+
+    // Every tool's own object, plus whatever else the firmware keeps its
+    // offsets in. The module owns the second list so a machine that stores all
+    // four on one macro is covered without naming it here.
+    nlohmann::json objects = nlohmann::json::object();
+    for (const auto& tool : tools_) {
+        objects["tool " + tool.name] = nullptr;
+    }
+    for (const auto& obj : helix::tool_offsets::required_status_objects(hardware)) {
+        objects[obj] = nullptr;
+    }
+
+    // The response lands on the WebSocket thread, so the parse is marshalled
+    // back to the UI thread — update_from_status() writes subjects, and
+    // lv_subject_set_int() off the main thread fires observers into LVGL
+    // (CLAUDE.md § Threading invariant 1). bg_cb also drops the body if the
+    // subjects were torn down while the request was in flight.
+    auto cb = async_lifetime_.bg_cb(
+        "ToolState::query_tool_z_offsets", [this](nlohmann::json response) {
+            if (!response.contains("result") || !response["result"].contains("status")) {
+                spdlog::debug("[ToolState] Tool z-offset query returned no status");
+                return;
+            }
+            update_from_status(response["result"]["status"]);
+            spdlog::debug("[ToolState] Seeded per-tool z-offsets from query");
+        });
+    client->send_jsonrpc("printer.objects.query", nlohmann::json{{"objects", objects}},
+                         std::move(cb));
+}
+
+std::vector<int> ToolState::dirty_tool_z_indices() const {
+    std::vector<int> dirty;
+    for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+        if (tools_[i].gcode_z_offset_known &&
+            tools_[i].gcode_z_offset != tools_[i].gcode_z_offset_saved) {
+            dirty.push_back(i);
+        }
+    }
+    return dirty;
+}
+
+float ToolState::tool_z_offset_mm(int tool_index) const {
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size()) ||
+        !tools_[tool_index].gcode_z_offset_known) {
+        return 0.0f;
+    }
+    return tools_[tool_index].gcode_z_offset;
+}
+
+void ToolState::mark_tool_z_saved(int tool_index) {
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+        return;
+    }
+    tools_[tool_index].gcode_z_offset_saved = tools_[tool_index].gcode_z_offset;
+    refresh_any_tool_z_dirty();
+}
+
+void ToolState::refresh_any_tool_z_dirty() {
+    const int dirty = dirty_tool_z_indices().empty() ? 0 : 1;
+    if (lv_subject_get_int(&any_tool_z_dirty_) != dirty) {
+        lv_subject_set_int(&any_tool_z_dirty_, dirty);
+    }
+}
+
+void ToolState::refresh_active_tool_z_offset() {
+    const bool have = active_tool_index_ >= 0 &&
+                      active_tool_index_ < static_cast<int>(tools_.size()) &&
+                      tools_[active_tool_index_].gcode_z_offset_known;
+
+    // valid_ is latched separately because 0 microns is a legitimate offset and
+    // cannot double as "nothing known" — the UI needs to tell a tool sitting at
+    // zero from one that has never reported. Dropping it back to 0 matters as
+    // much as raising it: on a tool change to a tool we have no value for, the
+    // previous tool's number must not stay on screen beside the new selection.
+    const int microns =
+        have ? static_cast<int>(std::lround(tools_[active_tool_index_].gcode_z_offset * 1000.0f))
+             : 0;
+
+    if (lv_subject_get_int(&active_tool_z_offset_) != microns) {
+        lv_subject_set_int(&active_tool_z_offset_, microns);
+    }
+    const int valid = have ? 1 : 0;
+    if (lv_subject_get_int(&active_tool_z_offset_valid_) != valid) {
+        lv_subject_set_int(&active_tool_z_offset_valid_, valid);
     }
 }
 

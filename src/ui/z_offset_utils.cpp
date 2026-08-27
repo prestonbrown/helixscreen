@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "z_offset_utils.h"
+#include "ui_modal.h"
+#include <optional>
+#include "static_subject_registry.h"
+#include "app_globals.h"
+#include "tool_state.h"
+#include "tool_offsets.h"
 
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -287,6 +293,134 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
         });
 
     return AdjustResult{delta_mm, new_offset, true, false};
+}
+
+namespace {
+
+/// Owns the header button's SaveConfigWatch. Not a function-local static of the
+/// watch itself: its destructor resets an ObserverGuard, which at process exit
+/// would run after lv_deinit() had freed the subject it observes (#705). Held
+/// in an optional and destroyed from a StaticSubjectRegistry deinit instead,
+/// which runs while LVGL is still up.
+std::optional<helix::ui::SaveConfigWatch>& shared_save_watch_storage() {
+    static std::optional<helix::ui::SaveConfigWatch> storage;
+    return storage;
+}
+
+/// The watch, constructing it on first use and registering the teardown that
+/// destroys it while LVGL is still up. Deliberately NOT reached through the
+/// same call that re-creates it: the deinit callback touches the storage
+/// directly, or resetting it here would immediately construct a fresh one.
+helix::ui::SaveConfigWatch& shared_save_watch() {
+    auto& storage = shared_save_watch_storage();
+    if (!storage) {
+        storage.emplace();
+        StaticSubjectRegistry::instance().register_deinit(
+            "zoffset::shared_save_watch", [] { shared_save_watch_storage().reset(); });
+    }
+    return *storage;
+}
+
+} // namespace
+
+namespace {
+
+/// The save itself, once any confirmation has been answered.
+void run_shared_save() {
+    IMoonrakerAPI* api = get_moonraker_api();
+    PrinterState& ps = get_printer_state();
+    if (!api) {
+        NOTIFY_ERROR("{}", lv_tr("No printer connection"));
+        return;
+    }
+    const bool global_dirty = lv_subject_get_int(ps.get_gcode_z_offset_subject()) != 0;
+
+    NOTIFY_INFO(lv_tr("Saving Z-offset..."));
+    save_dirty_offsets(
+        api, shared_save_watch(), ps.get_z_offset_calibration_strategy(), ps.get_discovery(),
+        global_dirty, []() { NOTIFY_SUCCESS("{}", lv_tr("Z-offset saved")); },
+        [](const std::string& error) { NOTIFY_ERROR("{}", error); }, &ps);
+}
+
+} // namespace
+
+void save_dirty_offsets_shared() {
+    PrinterState& ps = get_printer_state();
+    const bool global_dirty = lv_subject_get_int(ps.get_gcode_z_offset_subject()) != 0;
+    const bool tools_dirty =
+        lv_subject_get_int(helix::ToolState::instance().get_any_tool_z_dirty_subject()) == 1;
+
+    // Only warn when a restart is actually coming. The machine-wide save always
+    // ends in SAVE_CONFIG, and so does a tool-only save on firmware that stages
+    // its parameters — but a firmware that persists immediately restarts
+    // nothing, and a confirmation promising a disconnect would be a lie.
+    const bool restart_expected =
+        global_dirty ||
+        (tools_dirty && helix::tool_offsets::persist_requires_save_config(ps.get_discovery()));
+
+    if (!restart_expected) {
+        run_shared_save();
+        return;
+    }
+
+    // Same warning the Controls button gives. A one-tap header button that
+    // silently restarts Klipper mid-session is the worse failure.
+    helix::ui::modal_show_confirmation(
+        lv_tr("Save Z-Offset?"),
+        lv_tr("This will save the Z-offset and restart Klipper to write the configuration. The "
+              "printer will briefly disconnect."),
+        ModalSeverity::Warning, lv_tr("Save"),
+        [](lv_event_t*) { run_shared_save(); }, nullptr, nullptr);
+}
+
+void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                        ZOffsetCalibrationStrategy strategy, const helix::PrinterDiscovery& hw,
+                        bool global_dirty, std::function<void()> on_success,
+                        std::function<void(const std::string& error)> on_error, PrinterState* ps) {
+    if (!api) {
+        if (on_error) {
+            on_error("No printer connection");
+        }
+        return;
+    }
+
+    auto& ts = helix::ToolState::instance();
+    const std::vector<int> dirty_tools = ts.dirty_tool_z_indices();
+
+    // Tool offsets first: on klipper-toolchanger SAVE_TOOL_PARAMETER only STAGES
+    // a config change, which the machine-wide SAVE_CONFIG below then commits in
+    // the same restart. Sending them after it would leave them staged until
+    // some later save happened to flush them.
+    for (int tool : dirty_tools) {
+        const int microns =
+            static_cast<int>(std::lround(ts.tool_z_offset_mm(tool) * 1000.0));
+        const std::string gcode = helix::tool_offsets::save_tool_z_gcode(hw, tool, microns);
+        if (gcode.empty()) {
+            continue;
+        }
+        api->execute_gcode(gcode, nullptr, nullptr);
+        // Marked here rather than in a callback: execute_gcode's error path only
+        // logs, so there is no rejection signal to wait for. A later status
+        // frame carrying a different value re-dirties the tool anyway.
+        ts.mark_tool_z_saved(tool);
+    }
+
+    if (global_dirty) {
+        // Commits its own change AND any tool parameters staged above.
+        apply_and_save(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps);
+        return;
+    }
+
+    if (!dirty_tools.empty() && helix::tool_offsets::persist_requires_save_config(hw)) {
+        // Nothing machine-wide to apply, but the staged tool parameters still
+        // need committing — and that restarts Klipper, so the caller must be
+        // told to expect it exactly as apply_and_save() would.
+        api->execute_gcode("SAVE_CONFIG", nullptr, nullptr);
+    }
+
+    if (on_success) {
+        on_success();
+    }
 }
 
 } // namespace helix::zoffset

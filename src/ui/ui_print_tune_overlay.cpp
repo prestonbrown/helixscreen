@@ -22,6 +22,9 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include "tool_offsets.h"
+#include "tool_state.h"
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -70,6 +73,14 @@ static void on_tune_reset_clicked_cb(lv_event_t* /*e*/) {
 }
 
 // Z-offset step amount selector (user_data = index "0"-"3")
+static void on_tune_z_target_cb(lv_event_t* e) {
+    const char* idx_str = static_cast<const char*>(lv_event_get_user_data(e));
+    if (!idx_str) {
+        return;
+    }
+    get_print_tune_overlay().handle_z_target_select(atoi(idx_str));
+}
+
 static void on_tune_z_step_cb(lv_event_t* e) {
     const char* idx_str = static_cast<const char*>(lv_event_get_user_data(e));
     if (!idx_str)
@@ -195,18 +206,21 @@ void PrintTuneOverlay::init_subjects_internal() {
     UI_MANAGED_SUBJECT_STRING(z_farther_icon_subject_, z_farther_icon_buf_, "arrow_up",
                               "tune_z_farther_icon", subjects_);
 
-    // Z-offset step amount boolean subjects (L040: one per button for bind_style radio pattern)
-    // Seed from the last-persisted choice rather than a hardcoded default so
-    // the panel reopens on the same step the user left it on.
+    // Which z-step amount is selected. Seeded from the last-persisted choice
+    // rather than a hardcoded default so the panel reopens on the step the
+    // user left it on.
     selected_z_step_idx_ = helix::zoffset::persisted_step_index();
-    UI_MANAGED_SUBJECT_INT(z_step_active_subjects_[0], selected_z_step_idx_ == 0 ? 1 : 0,
-                           "z_step_0_active", subjects_);
-    UI_MANAGED_SUBJECT_INT(z_step_active_subjects_[1], selected_z_step_idx_ == 1 ? 1 : 0,
-                           "z_step_1_active", subjects_);
-    UI_MANAGED_SUBJECT_INT(z_step_active_subjects_[2], selected_z_step_idx_ == 2 ? 1 : 0,
-                           "z_step_2_active", subjects_);
-    UI_MANAGED_SUBJECT_INT(z_step_active_subjects_[3], selected_z_step_idx_ == 3 ? 1 : 0,
-                           "z_step_3_active", subjects_);
+    UI_MANAGED_SUBJECT_INT(z_step_selected_subject_, selected_z_step_idx_, "z_step_selected_idx",
+                           subjects_);
+
+    // Which z-offset the direction buttons drive. Always starts machine-wide:
+    // that is the only target every printer has, and it is what the panel meant
+    // before a tool changer was in the picture.
+    UI_MANAGED_SUBJECT_INT(z_tune_target_subject_, 0, "z_tune_target", subjects_);
+    UI_MANAGED_SUBJECT_STRING(tune_z_other_subject_, tune_z_other_buf_, "", "tune_z_other_display",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(tune_z_tool_label_subject_, tune_z_tool_label_buf_, "T0",
+                              "tune_z_tool_label", subjects_);
 
     // Register XML event callbacks
     register_xml_callbacks({
@@ -215,6 +229,7 @@ void PrintTuneOverlay::init_subjects_internal() {
         {"on_tune_reset_clicked", on_tune_reset_clicked_cb},
         {"on_tune_save_z_offset", on_tune_save_z_offset_cb},
         {"on_tune_z_step", on_tune_z_step_cb},
+        {"on_tune_z_target", on_tune_z_target_cb},
         {"on_tune_z_adjust", on_tune_z_adjust_cb},
     });
 
@@ -264,6 +279,27 @@ void PrintTuneOverlay::setup_panel() {
         extruder_vel_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
             printer_state_->get_live_extruder_velocity_subject(), this,
             [](PrintTuneOverlay* self, int /*value*/) { self->update_actual_flow_display(); });
+    }
+
+    // Per-tool z-offset. ToolState's lifetime is passed on every one of these:
+    // it is a singleton whose deinit_subjects() frees the observer nodes, and a
+    // guard without the token would call lv_observer_remove() on freed memory
+    // (CLAUDE.md rule 4).
+    {
+        auto& ts = helix::ToolState::instance();
+        const auto ts_lifetime = ts.get_subjects_lifetime();
+        tool_z_offset_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
+            ts.get_active_tool_z_offset_subject(), this,
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
+            ts_lifetime);
+        tool_z_valid_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
+            ts.get_active_tool_z_offset_valid_subject(), this,
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
+            ts_lifetime);
+        active_tool_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
+            ts.get_active_tool_subject(), this,
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
+            ts_lifetime);
     }
 
     spdlog::debug("[PrintTuneOverlay] Panel setup complete");
@@ -468,19 +504,102 @@ void PrintTuneOverlay::handle_z_step_select(int idx) {
     }
     selected_z_step_idx_ = idx;
     helix::zoffset::set_persisted_step_index(idx);
-
-    // Update boolean subjects (only one active at a time, like filament panel)
-    for (int i = 0; i < static_cast<int>(std::size(helix::zoffset::kZStepAmountsMm)); i++) {
-        lv_subject_set_int(&z_step_active_subjects_[i], i == idx ? 1 : 0);
-    }
+    lv_subject_set_int(&z_step_selected_subject_, idx);
 
     spdlog::debug("[PrintTuneOverlay] Z-offset step selected: {}mm",
                   helix::zoffset::kZStepAmountsMm[idx]);
 }
 
+void PrintTuneOverlay::handle_z_target_select(int target) {
+    if (target != 0 && target != 1) {
+        spdlog::warn("[PrintTuneOverlay] Invalid z-offset target: {}", target);
+        return;
+    }
+    // Deliberately NOT persisted, unlike the step amount. The tool target is
+    // only meaningful while a specific tool is mounted, and reopening the panel
+    // pointed at a tool the user has since swapped away from would aim the
+    // buttons somewhere they are not looking.
+    lv_subject_set_int(&z_tune_target_subject_, target);
+    update_tool_z_displays();
+    spdlog::debug("[PrintTuneOverlay] Z-offset target: {}", target == 0 ? "machine" : "tool");
+}
+
+void PrintTuneOverlay::update_tool_z_displays() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    auto& ts = helix::ToolState::instance();
+    const int tool_index = lv_subject_get_int(ts.get_active_tool_subject());
+
+    std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "T%d", tool_index);
+    lv_subject_copy_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
+
+    // The muted label carries whichever target the buttons are NOT on, so both
+    // numbers are readable without a second row.
+    const bool on_tool = lv_subject_get_int(&z_tune_target_subject_) == 1;
+    if (on_tool) {
+        std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "%s %s", lv_tr("Global"),
+                 tune_z_offset_buf_);
+    } else if (lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) == 1) {
+        char tool_mm[16];
+        helix::format::format_distance_mm(
+            lv_subject_get_int(ts.get_active_tool_z_offset_subject()) / 1000.0, 3, tool_mm,
+            sizeof(tool_mm));
+        std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "T%d %s", tool_index, tool_mm);
+    } else {
+        // Never reported. Showing 0.000 here would be a claim we cannot make —
+        // 0 is a legitimate offset, so the blank is the honest answer.
+        tune_z_other_buf_[0] = '\0';
+    }
+    lv_subject_copy_string(&tune_z_other_subject_, tune_z_other_buf_);
+}
+
 void PrintTuneOverlay::handle_z_adjust(int direction) {
-    double amount = helix::zoffset::kZStepAmountsMm[selected_z_step_idx_];
+    const double amount = helix::zoffset::kZStepAmountsMm[selected_z_step_idx_];
+    if (lv_subject_get_int(&z_tune_target_subject_) == 1) {
+        handle_tool_z_offset_changed(direction * amount);
+        return;
+    }
     handle_z_offset_changed(direction * amount);
+}
+
+void PrintTuneOverlay::handle_tool_z_offset_changed(double delta) {
+    if (!api_ || !printer_state_) {
+        return;
+    }
+    auto& ts = helix::ToolState::instance();
+    const int tool_index = lv_subject_get_int(ts.get_active_tool_subject());
+
+    // Adjust from the value we DISPLAYED, same rule the machine-wide path
+    // follows: the firmware takes an absolute offset, so a delta applied to
+    // anything else would land somewhere the user did not ask for. Without a
+    // reported value there is no base to adjust from, so refuse rather than
+    // assume zero and overwrite whatever the tool actually holds.
+    if (lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) != 1) {
+        spdlog::warn("[PrintTuneOverlay] No reported offset for T{} — refusing to adjust",
+                     tool_index);
+        return;
+    }
+    const int base_microns = lv_subject_get_int(ts.get_active_tool_z_offset_subject());
+    const int new_microns = base_microns + static_cast<int>(std::lround(delta * 1000.0));
+
+    const std::string gcode = helix::tool_offsets::set_tool_z_gcode(printer_state_->get_discovery(),
+                                                                    tool_index, new_microns);
+    if (gcode.empty()) {
+        return;
+    }
+    api_->execute_gcode(gcode, nullptr, nullptr);
+
+    // Optimistic local update: the firmware echoes the new value back on its
+    // next status frame, but the button must not feel dead until then.
+    lv_subject_set_int(ts.get_active_tool_z_offset_subject(), new_microns);
+    update_tool_z_displays();
+
+    if (tune_panel_) {
+        if (lv_obj_t* indicator = lv_obj_find_by_name(tune_panel_, "z_offset_indicator")) {
+            ui_z_offset_indicator_flash_direction(indicator, delta > 0 ? 1 : -1);
+        }
+    }
 }
 
 void PrintTuneOverlay::handle_save_z_offset() {

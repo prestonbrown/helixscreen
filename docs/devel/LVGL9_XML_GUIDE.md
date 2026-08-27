@@ -129,6 +129,17 @@ lv_xml_register_component_from_file("A:ui_xml/home_panel.xml");
 
 ## Core Concepts
 
+> **Engine semantics live in the engine repo.** Subjects, every binding element,
+> the expression language, `<if>`/`<repeat>`, and the two silent-failure rules
+> (`cond=` vs `<subject_expr>` resolution order; flag binds being two-way) are
+> documented — and pinned by tests — in
+> [`lib/helix-xml/docs/BINDINGS.md`](../../lib/helix-xml/docs/BINDINGS.md).
+> Read that for what a construct *does*.
+>
+> What follows is HelixScreen's use of it: our widgets (`ui_button`, `ui_card`,
+> `text_*`), our design tokens, our `ui_breakpoint` tiers, and the conventions
+> that only make sense against this codebase.
+
 ### 1. XML Components
 
 Components are reusable UI pieces defined with the `<component>` tag.
@@ -471,16 +482,22 @@ The evaluator is an integer-only expression language over subjects: nonzero is t
 
 Inside a component's `<subjects>` block, `<subject_expr name="X" expr="EXPR"/>` creates an int subject `X` that recomputes and updates automatically whenever any subject referenced by `EXPR` changes. It's a sibling of `<subject>`/`<int>` entries, and it can itself be referenced by widget bindings just like any other subject.
 
-**Every subject referenced by `expr` must already be declared** before the `<subject_expr>` line — either globally (C++-registered) or earlier in the same `<subjects>` block. Forward references don't compile (the XML parser logs a warning and the derived subject is silently not registered).
+**Every subject referenced by `expr` must already be declared** before the `<subject_expr>` line — either globally (C++-registered *and registered early enough*, see below) or earlier in the same `<subjects>` block. Forward references don't compile (the XML parser logs a warning and the derived subject is silently not registered).
 
-```xml
-<subjects>
-    <int name="demo_temp" value="50"/>
-    <int name="demo_threshold" value="70"/>
-    <int name="demo_error" value="0"/>
-    <subject_expr name="demo_alarm" expr="demo_error or demo_temp gt demo_threshold"/>
-</subjects>
-```
+##### Which phase registers the subject decides which construct you can use
+
+`<subject_expr>` resolves its operands when the **component is registered**
+(Phase 8c, `register_xml_components()`); `cond=` resolves when the **view is
+created**. So an expression over a subject that some `init_subjects()` creates
+at Phase 9a compiles only in the `cond=` form — as a `<subject_expr>` it
+silently never registers.
+
+Full rule, both directions, and the tests that pin it:
+[`lib/helix-xml/docs/BINDINGS.md` § *When each is resolved*](../../lib/helix-xml/docs/BINDINGS.md#when-each-is-resolved--the-trap).
+HelixScreen phases are in
+[`architecture/01-declarative-ui.md`](architecture/01-declarative-ui.md).
+Worked examples in this tree: `ui_xml/temp_graph_overlay.xml`
+(`temp_graph_mode`) and `ui_xml/header_bar.xml` (`any_tool_z_dirty`).
 
 **2. `<bind_flag_if cond="EXPR" flag="FLAG" invert="true|false"/>`** — child of any object. Adds `flag` when `EXPR` is truthy, removes it when falsy. `invert="true"` flips that (apply when falsy) — the common case for `flag="hidden"` when the markup wants to read as "show when `cond`" instead of "hide when `cond`":
 
@@ -577,6 +594,16 @@ These are parse-time only -- the hidden state does not change after creation. Fo
 **❌ No `bind_text_if_eq`** - use multiple labels with `bind_flag_if_*` for conditional text.
 
 **✅ Compound conditions are supported** via the expression evaluator (see "Expression Conditionals" above) — `cond="a or b gt c"` on `bind_flag_if`/`bind_state_if`/`bind_style_if`, or a `<subject_expr>` derived subject for a condition reused in multiple places. This replaces stacking several single-subject `bind_flag_if_*` elements or writing a hand-rolled C++ derived subject for "OR of two subjects" type logic.
+
+**Reuse alone does not pick `<subject_expr>`** — check the phase table above first. If any referenced subject comes from an `init_subjects()` (Phase 9a), the derived subject silently never registers and you must repeat the `cond=` at each site instead.
+
+**❌ Never put two flag bindings for the same flag on one widget.** The flag
+binds are two-way — a non-matching `bind_flag_if_eq` actively *removes* the flag
+rather than abstaining — so two of them do not AND, they overwrite each other.
+Combine into one expression (`cond="can and dirty"`) instead. Two binds for one
+flag are safe only on different widgets, which is why the broken form can look
+correct in nested markup. Worked example and the tests that pin it:
+[`lib/helix-xml/docs/BINDINGS.md` § *The flag binds are two-way*](../../lib/helix-xml/docs/BINDINGS.md#the-flag-binds-are-two-way).
 
 #### Repeating fragments with `<repeat>`
 

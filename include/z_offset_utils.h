@@ -11,6 +11,10 @@
 
 class IMoonrakerAPI;
 
+namespace helix {
+class PrinterDiscovery;
+}
+
 namespace helix::ui {
 class SaveConfigWatch;
 }
@@ -161,6 +165,42 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
+
+/// Persist EVERY unsaved z-offset: the machine-wide one and each tool's.
+///
+/// One entry point because two surfaces offer the save (the header button and
+/// the Controls panel button) and they must not diverge on what "save" means.
+///
+/// Tool offsets go first and unconditionally, because their command carries the
+/// value: on klipper-toolchanger SAVE_TOOL_PARAMETER stages a config change
+/// that the machine-wide SAVE_CONFIG then commits in the SAME restart, so
+/// ordering them the other way would strand them until the next save. When only
+/// tools are dirty and the firmware still needs a SAVE_CONFIG, this issues one;
+/// when the firmware persists immediately (a save-variables store) it does not,
+/// and the caller is told not to expect a restart.
+///
+/// @param api        Moonraker API (must not be null)
+/// @param save_watch Restart watch, shared with apply_and_save()
+/// @param strategy   Calibration strategy for the machine-wide save
+/// @param hw         Hardware, for the per-tool capability questions
+/// @param global_dirty  Whether the machine-wide offset needs saving
+/// @param on_success Called once everything is known to have been saved
+/// @param on_error   Called with a user-facing message on a real failure
+/// @param ps         Forwarded to apply_and_save()
+/// Save every dirty z-offset from a surface that owns no panel state — the
+/// header button, which appears on any panel and cannot borrow one panel's
+/// SaveConfigWatch.
+///
+/// The watch it uses is torn down through StaticSubjectRegistry, i.e. BEFORE
+/// lv_deinit(): a process-lifetime static would run ~SaveConfigWatch (and its
+/// ObserverGuard::reset()) after LVGL was gone (#705).
+void save_dirty_offsets_shared();
+
+void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                        ZOffsetCalibrationStrategy strategy, const PrinterDiscovery& hw,
+                        bool global_dirty, std::function<void()> on_success,
+                        std::function<void(const std::string& error)> on_error,
+                        PrinterState* ps = nullptr);
 
 /// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.
 ///

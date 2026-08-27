@@ -97,14 +97,22 @@
             <icon src="chevron_right" size="xs" variant="secondary"/>
           </lv_obj>
         </lv_obj>
-        <!-- Save Z-Offset button: hidden when firmware auto-saves (GCODE_OFFSET strategy)
-             or when gcode_z_offset == 0. Wrapper binds to strategy, button binds to offset. -->
+        <!-- Save Z-Offset button: hidden when firmware auto-saves (GCODE_OFFSET
+             strategy) or when nothing is dirty. Wrapper binds to strategy, button
+             to the dirty condition.
+
+             Inline cond= rather than a shared <subject_expr>: subject_expr is
+             evaluated at component-load (Phase 8c) and any_tool_z_dirty is not
+             registered until ToolState::init_subjects() (Phase 9a), so a derived
+             subject would silently fail to register. The header's save button
+             carries the identical expression — the two must agree, or one surface
+             offers a save the other says is unnecessary. -->
         <lv_obj width="100%" height="content" hidden="true" style_pad_all="0" style_bg_opa="0" style_border_width="0">
           <bind_flag_if_eq subject="z_offset_can_save" flag="hidden" ref_value="0"/>
           <ui_button name="btn_save_z_offset"
                      width="100%" height="#button_height_sm" variant="success" icon="check" text="Save Z-Offset"
                      translation_tag="Save Z-Offset" hidden="true">
-            <bind_flag_if_eq subject="gcode_z_offset" flag="hidden" ref_value="0"/>
+            <bind_flag_if cond="gcode_z_offset ne 0 or any_tool_z_dirty" flag="hidden" invert="true"/>
             <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_controls_save_z_offset"/>
           </ui_button>

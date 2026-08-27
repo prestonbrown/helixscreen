@@ -10,6 +10,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <map>
+#include <mutex>
 #include <memory>
 #include <optional>
 #include <set>
@@ -901,6 +902,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     std::string chamber_filter_pin_object() const;
 
+    /// Current mock z-offset for a tool, in mm. Seeded distinct per tool and
+    /// updated by SET_TOOL_PARAMETER, so a value set earlier in the session
+    /// survives into a later status snapshot instead of silently reverting.
+    /// Public because the object handlers are free-function lambdas taking a
+    /// MoonrakerClientMock*, not members.
+    double tool_z_offset(int tool) const;
+
   private:
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
@@ -1092,6 +1100,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @brief Dispatch gcode_move status update (for Z offset changes)
      */
     void dispatch_gcode_move_update();
+    /// Republish one tool's gcode_z_offset after SET_TOOL_PARAMETER.
+    void dispatch_tool_update(int tool);
 
     /**
      * @brief Dispatch manual_probe status update (for Z-offset calibration)
@@ -1447,6 +1457,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // G-code offset tracking
     std::atomic<double> gcode_offset_z_{0.0}; // Z offset from SET_GCODE_OFFSET
+    /// Per-tool z-offsets, indexed by tool number, driven by
+    /// SET_TOOL_PARAMETER. Seeded DISTINCT rather than all-zero: an all-zero
+    /// seed makes "every tool reads the same value" — the exact bug a per-tool
+    /// display can have — look correct.
+    mutable std::mutex tool_z_offsets_mutex_;
+    std::map<int, double> tool_z_offsets_;
 
     // Manual probe state (for Z-offset calibration: PROBE_CALIBRATE, TESTZ, ACCEPT, ABORT)
     std::atomic<bool> manual_probe_active_{false}; // true when in probe mode
