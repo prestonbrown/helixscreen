@@ -44,8 +44,10 @@ struct SafetyLimits {
 
     /// Per-heater ceilings read from the printer's own config, keyed by the
     /// lower-cased `configfile.settings` section header. Empty until
-    /// update_safety_limits_from_printer() has run. Read through
-    /// max_temp_for(), never directly.
+    /// update_safety_limits_from_printer() has run. Read through max_temp_for()
+    /// and written through set_max_temp_for(), never directly - those two share
+    /// normalize_heater_key(), and a raw insert is how the key casing drifts
+    /// apart from the lookup.
     std::map<std::string, double> heater_max_temp_celsius;
     double min_extrude_temp_celsius = 170.0; ///< Minimum temp for extrusion (Klipper default)
     double max_fan_speed_percent = 100.0;
@@ -73,18 +75,35 @@ struct SafetyLimits {
      *
      * Keys are `configfile.settings` section headers, which is what a send
      * carries: TemperatureController::resolved_name() yields "extruder",
-     * "heater_bed", or the whole "heater_generic chamber_heater". Moonraker
-     * lower-cases those headers, so the lookup lower-cases too rather than
-     * trusting however a discovery name was capitalised.
+     * "heater_bed", or the whole "heater_generic chamber_heater".
      *
      * @param heater Heater name as passed to set_temperature().
      */
     double max_temp_for(const std::string& heater) const {
-        std::string key = heater;
-        std::transform(key.begin(), key.end(), key.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        const auto it = heater_max_temp_celsius.find(key);
+        const auto it = heater_max_temp_celsius.find(normalize_heater_key(heater));
         return it != heater_max_temp_celsius.end() ? it->second : max_temperature_celsius;
+    }
+
+    /// Record one heater's ceiling, normalizing the key the same way
+    /// max_temp_for() normalizes its lookup.
+    void set_max_temp_for(const std::string& heater, double max_temp) {
+        heater_max_temp_celsius[normalize_heater_key(heater)] = max_temp;
+    }
+
+    /// Fold a heater name to its map key.
+    ///
+    /// Klipper keeps whatever case the user wrote a section header in, and the
+    /// discovery name carries it through untouched - `heater_generic CHAMBER`
+    /// is a real shape, pinned by tests/unit/test_chamber_temperature.cpp. So
+    /// the two sides of the map cannot be allowed to disagree about casing:
+    /// lower-casing only the lookup made a ceiling stored under an upper-cased
+    /// header unreachable, and an unreachable ceiling falls back to the global
+    /// sanity net - which is #1355 again, on the one heater (a chamber) most
+    /// likely to sit far below it.
+    static std::string normalize_heater_key(std::string heater) {
+        std::transform(heater.begin(), heater.end(), heater.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return heater;
     }
 
     /**
