@@ -364,7 +364,8 @@ void FavoriteMacroWidget::fetch_and_execute() {
     // parameter-entry modal. Dangerous macros are handled above and never reach
     // here, so the opt-out cannot disarm them.
     if (!require_confirmation_) {
-        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]");
+        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]",
+                                   get_printer_state().get_discovery());
         return;
     }
 
