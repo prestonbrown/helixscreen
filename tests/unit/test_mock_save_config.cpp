@@ -129,6 +129,58 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: staging one tool leaves the others al
     CHECK(client.tool_z_offset(0) == Catch::Approx(0.0));
 }
 
+TEST_CASE_METHOD(SaveConfigFixture, "mock: printer.restart reverts an unsaved offset too",
+                 "[mock][toolchanger]") {
+    // printer.restart used to fake only the klippy state, so a restart reached
+    // through the RPC kept every unsaved runtime value alive - the same
+    // unfalsifiable persist path, just through the other door. Both restart
+    // entry points now share trigger_restart().
+    //
+    // This fixture never pumps LVGL, which is the second half of the fix: the
+    // old handler scheduled its return to READY on an lv_timer that would never
+    // fire here.
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
+    REQUIRE(client.tool_z_offset(1) == Catch::Approx(-0.075));
+
+    bool acked = false;
+    client.send_jsonrpc(
+        "printer.restart", json::object(), [&acked](const json&) { acked = true; },
+        [](const MoonrakerError&) {});
+
+    // Moonraker's do_restart() catches "Klippy Disconnected" and returns "ok",
+    // so unlike SAVE_CONFIG this one really does ack (klippy_apis.py).
+    CHECK(acked);
+    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.025));
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: a committed offset survives printer.restart",
+                 "[mock][toolchanger]") {
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
+    gcode("SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset");
+    gcode("SAVE_CONFIG");
+
+    client.send_jsonrpc(
+        "printer.restart", json::object(), [](const json&) {}, [](const MoonrakerError&) {});
+
+    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: a restart clears the print, as Klipper's does",
+                 "[mock][toolchanger]") {
+    // The other half of what the hand-rolled handler left out. A mock that
+    // reports a print still running on a machine that just rebooted will let a
+    // restart-during-print test pass against behaviour no printer has.
+    client.send_jsonrpc(
+        "printer.print.start", json{{"filename", "test.gcode"}}, [](const json&) {},
+        [](const MoonrakerError&) {});
+    REQUIRE(client.get_print_phase() != MoonrakerClientMock::MockPrintPhase::IDLE);
+
+    client.send_jsonrpc(
+        "printer.restart", json::object(), [](const json&) {}, [](const MoonrakerError&) {});
+
+    CHECK(client.get_print_phase() == MoonrakerClientMock::MockPrintPhase::IDLE);
+}
+
 TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_CONFIG's own rpc still fails, as Klipper's does",
                  "[mock][toolchanger]") {
     // cmd_SAVE_CONFIG ends in request_restart(), so it never acks: Moonraker

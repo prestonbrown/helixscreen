@@ -918,6 +918,25 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// value}} with STRING values - configfile.set() stores str(value).
     nlohmann::json save_config_pending_items() const;
 
+    /**
+     * @brief Simulate a Klipper restart - the ONE model of what a restart does
+     *
+     * Sets klippy_state to STARTUP, clears the active print, zeroes heater
+     * targets, drops excluded objects, reloads everything Klipper would re-read
+     * from printer.cfg (per-tool z-offsets), dispatches the webhooks status
+     * update a real restart arrives as, then returns to READY after a delay on a
+     * tracked thread (not an lv_timer - this must work in tests that never pump
+     * LVGL).
+     *
+     * Public because the printer.restart / printer.firmware_restart handlers are
+     * free-function lambdas taking a MoonrakerClientMock*, not members. They
+     * delegate here rather than each faking a restart differently.
+     *
+     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s),
+     *                    both divided by the speedup factor
+     */
+    void trigger_restart(bool is_firmware);
+
   private:
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
@@ -1079,17 +1098,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param state New state string ("printing", "paused", "complete", etc.)
      */
     void dispatch_print_state_notification(const std::string& state);
-
-    /**
-     * @brief Trigger Klipper restart simulation
-     *
-     * Sets klippy_state to STARTUP, clears active print, sets heater targets to 0,
-     * then spawns a thread to restore READY state after delay. Temps continue
-     * cooling naturally during the restart period.
-     *
-     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s)
-     */
-    void trigger_restart(bool is_firmware);
 
     /**
      * @brief Set fan speed internally and dispatch status update
