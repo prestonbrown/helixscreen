@@ -526,6 +526,34 @@ def write_sidecar(rows, path=SIDECAR):
                     % (doc, ref, line, resolved, primary, context))
 
 
+UNRESOLVED_KEY = 'max-unresolved:'
+
+
+def load_ceiling(path=BASELINE):
+    """The `max-unresolved:` ceiling, or None when the file does not set one.
+
+    A key set alone cannot see this class at all. A citation whose PATH does not
+    resolve is skipped by every check here and deferred to check_refs — which is
+    right, that is its job — but check_refs passes a bare basename the moment
+    ANY file in the tree shares it, submodules included (`file.cpp` resolves to
+    lib/cpp-terminal's). So a citation can be unanchorable AND unreported, and
+    nothing counts how many of those exist. Combined with the range hole that
+    used to hide dead paths, that is a bucket things fall into quietly. A count
+    is the only handle: the members change as docs are edited, the SIZE is what
+    must not grow.
+    """
+    if not os.path.isfile(path):
+        return None
+    for raw in open(path, errors='ignore'):
+        raw = raw.strip()
+        if raw.startswith(UNRESOLVED_KEY):
+            try:
+                return int(raw[len(UNRESOLVED_KEY):].strip())
+            except ValueError:
+                return None
+    return None
+
+
 def load_baseline(path=BASELINE):
     known = set()
     if not os.path.isfile(path):
@@ -534,15 +562,19 @@ def load_baseline(path=BASELINE):
         raw = raw.strip()
         if not raw or raw.startswith('#'):
             continue
+        if raw.startswith(UNRESOLVED_KEY):
+            continue
         parts = raw.split('\t')
         if len(parts) >= 2:
             known.add((parts[0], parts[1]))
     return known
 
 
-def write_baseline(entries, path=BASELINE):
+def write_baseline(entries, path=BASELINE, unresolved=None):
     with open(path, 'w') as f:
         f.write(BASELINE_HEADER)
+        if unresolved is not None:
+            f.write('%s %d\n\n' % (UNRESOLVED_KEY, unresolved))
         for doc, ref, line, reason in sorted(entries):
             f.write('%s\t%s:%d\t%s\n' % (doc, ref, line, reason))
 
@@ -562,7 +594,7 @@ class Finding:
         return (self.doc, self.doc_line) < (other.doc, other.doc_line)
 
 
-def run(targets, stored, devel=True, write=False, audit=False):
+def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False):
     """Resolve every citation's anchor; optionally rewrite docs and sidecar.
 
     Returns (findings, fresh_rows, blanks, rewrites, stats). `stored` is the
@@ -571,12 +603,16 @@ def run(targets, stored, devel=True, write=False, audit=False):
     resolution even for citations that are already correct, so the tier
     histogram reflects how much of the corpus leans on the context tiebreak.
     """
-    baselined = load_baseline()
+    # --write-baseline has to see the citations the baseline is already hiding,
+    # or it re-derives the file from what is left after they were skipped —
+    # which is nothing, so it empties the very list it was asked to rewrite.
+    # (It did: one invocation wiped 13 entries and a second put them back.)
+    baselined = set() if rebaseline else load_baseline()
     resolver = Resolver(devel=devel)
     findings, blanks, rewrites = [], [], []
     fresh = {}
     seen_keys = set()
-    stats = {'in_place': 0, 'unique': 0, 'context': 0,
+    stats = {'in_place': 0, 'unique': 0, 'context': 0, 'unresolved': 0,
              'bootstrapped': 0, 'skipped': 0, 'cites': 0}
 
     target_set = set(targets)
@@ -611,6 +647,8 @@ def run(targets, stored, devel=True, write=False, audit=False):
             # every anchor into it would read as 'gone'.
             if path is None or not len(idx):
                 stats['skipped'] += 1
+                if path is None:
+                    stats['unresolved'] += 1
                 if stored is not None and key in stored:
                     seen_keys.add(key)
                     fresh[key] = stored[key]
@@ -813,7 +851,8 @@ def main():
         stored = {}
 
     findings, fresh, blanks, rewrites, stats = run(
-        targets, stored, write=not check_only, audit=args.audit)
+        targets, stored, write=not check_only, audit=args.audit,
+        rebaseline=args.write_baseline)
 
     if not check_only:
         # A doc outside this run's scope keeps its rows: a targeted regen must
@@ -845,9 +884,20 @@ def main():
             entries = set(blanks)
             if args.paths:
                 entries |= _existing_baseline_entries()
-            write_baseline(entries)
+            # The ceiling is only re-derived by a FULL run, for the same reason
+            # the key set is: a targeted run counted a subset and would ratchet
+            # the number down to it, failing the next full run over citations it
+            # never looked at.
+            write_baseline(entries, unresolved=None if args.paths
+                           else stats['unresolved'])
             blanks = []
             findings = [f for f in findings if f.kind not in QUALITY_KINDS]
+
+    # A citation whose path does not resolve is nobody's finding here — it is
+    # deferred to check_refs — so the only way this class can be held is by
+    # counting it. Enforced on any run that did not just rewrite the number.
+    ceiling = load_ceiling()
+    over = (ceiling is not None and stats['unresolved'] > ceiling)
 
     hard = [f for f in findings if f.kind in HARD_KINDS]
     soft = [f for f in findings if f.kind not in HARD_KINDS]
@@ -881,6 +931,12 @@ def main():
                   'sentence, re-cite it, then `make regen-doc-links`.' % len(hard))
         elif soft:
             print('   Run: make regen-doc-links')
+        if over:
+            _report_over(stats['unresolved'], ceiling)
+        return 1
+
+    if over:
+        _report_over(stats['unresolved'], ceiling)
         return 1
 
     if check_only:
@@ -890,6 +946,17 @@ def main():
               '%d bootstrapped)' % (len(fresh), len(targets), len(rewrites),
                                     stats['bootstrapped']))
     return 0
+
+
+def _report_over(count, ceiling):
+    print('❌ Citation anchors: %d citations name a path that does not resolve, '
+          'over the baseline of %d.' % (count, ceiling))
+    print('   These are anchored by nothing and reported by nothing — '
+          'check_refs passes a bare basename as soon as ANY file in the tree '
+          'shares it, submodules included.')
+    print('   Fix the path, or unbacktick it if it is external/device-side. '
+          'The number may fall, never rise; `--write-baseline` re-derives it '
+          'after review.')
 
 
 def _existing_baseline_entries():
@@ -904,6 +971,8 @@ def _existing_baseline_entries():
     for raw in open(BASELINE, errors='ignore'):
         raw = raw.strip()
         if not raw or raw.startswith('#'):
+            continue
+        if raw.startswith(UNRESOLVED_KEY):
             continue
         parts = raw.split('\t')
         if len(parts) < 3:

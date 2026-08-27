@@ -470,3 +470,60 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"past the end of the file"* ]]
 }
+
+@test "unresolved ceiling: a new dead-path citation fails the ratchet" {
+    # A citation whose PATH does not resolve is skipped by every check here and
+    # deferred to check_refs — which passes a bare basename as soon as ANY file
+    # in the tree shares it. So this class can be both unanchorable and
+    # unreported, and only a count can hold it.
+    seed_src
+    echo 'Real: `src/zz_anchor.cpp:10`. Dead: `src/zz_gone_a.cpp:3`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" >/dev/null
+    # Only a FULL run may re-derive the ceiling: a targeted run counted a subset
+    # and would ratchet the number down to it, failing the next full run over
+    # citations it never looked at.
+    python3 "$ANCH" --write-baseline >/dev/null
+    grep -q '^max-unresolved: 1$' scripts/doc_cite_anchor_baseline.txt
+
+    run python3 "$ANCH" --check
+    [ "$status" -eq 0 ]
+
+    # One more dead path and the bucket has grown.
+    echo 'Real: `src/zz_anchor.cpp:10`. Dead: `src/zz_gone_a.cpp:3` `src/zz_gone_b.cpp:4`.' > "$DOC"
+    run python3 "$ANCH" --check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"does not resolve, over the baseline of 1"* ]]
+}
+
+@test "unresolved ceiling: absent from the baseline, the count is not enforced" {
+    seed_src
+    echo 'Real: `src/zz_anchor.cpp:10`. Dead: `src/zz_gone_a.cpp:3`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" >/dev/null
+    # No baseline file at all: the ratchet has not been adopted here, and the
+    # miniature-repo meta-tests of the sibling gates rely on that staying inert.
+    [ ! -f scripts/doc_cite_anchor_baseline.txt ]
+    run python3 "$ANCH" --check
+    [ "$status" -eq 0 ]
+}
+
+@test "write-baseline: rewriting is idempotent, not self-erasing" {
+    # --write-baseline used to re-derive the file from what was left AFTER the
+    # existing entries were skipped — which is nothing, so one invocation wiped
+    # the list and a second put it back.
+    {
+        for i in $(seq 9); do echo "// filler $i"; done
+        echo "}"
+        echo "void zz_marker_alpha(void) { return; }"
+    } > "$SRC"
+    echo 'The brace at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    run python3 "$ANCH" --write-baseline docs/devel
+    grep -q 'src/zz_anchor.cpp:10' scripts/doc_cite_anchor_baseline.txt
+    cp scripts/doc_cite_anchor_baseline.txt "$BATS_TEST_TMPDIR/first"
+
+    run python3 "$ANCH" --write-baseline docs/devel
+    grep -q 'src/zz_anchor.cpp:10' scripts/doc_cite_anchor_baseline.txt
+    diff "$BATS_TEST_TMPDIR/first" scripts/doc_cite_anchor_baseline.txt
+}

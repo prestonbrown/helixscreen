@@ -129,8 +129,27 @@ PLACEHOLDER_CHARS = ('<', '>', '*', '$', '…', '{')
 # caught the moment the path rotted, the range form was invisible to every gate
 # at once. Verified by probe — a `:70` cite to a bogus path fails the refs
 # check, the same path as `:63-65` produced no finding from anything.
+# ONE extension list, shared by both citation regexes below. They are documented
+# to agree on what counts as a citation and they silently did not: `cfg` had been
+# added to LINE_REF_RE alone, so a `.cfg` citation was content-anchored while its
+# PATH was never checked. Spelling the list once is the only version that cannot
+# drift, and it is the same shape as the range hole - a one-line edit away from
+# recurring for whatever extension somebody adds next.
+#
+# `cfg` is deliberately NOT here. A `.cfg` citation in these docs is a Klipper
+# config that lives on the PRINTER - `printer.cfg`, `box.cfg`,
+# `Macros/toolchanger.cfg` - and 45 of the 48 in the tree are exactly that, so
+# admitting the extension would fail the path check on all of them for being
+# correct. It bought nothing on the anchor side either: every `.cfg` citation
+# LINE_REF_RE made visible sat permanently unresolved, since the file is not in
+# the repo to hash. The three real in-repo .cfg files have never been line-cited.
+# Checking device-side config would need a different mechanism, not this one.
+CITED_EXTENSIONS = ('md', 'cpp', 'cc', 'h', 'hpp', 'c', 'xml', 'py', 'sh',
+                    'json', 'mk', 'bats', 'yml', 'yaml', 'html', 'txt')
+_EXT = '|'.join(CITED_EXTENSIONS)
+
 PATH_RE = re.compile(
-    r'`([A-Za-z0-9_./-]+\.(?:md|cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|yaml|html|txt)'
+    r'`([A-Za-z0-9_./-]+\.(?:' + _EXT + r')'
     r'(?::\d+(?:[-–]\d+)?|:[A-Za-z0-9_]+\(\))?)`')
 
 # Markdown [text](target) links. Link text must be non-empty — `[](...)` is a
@@ -185,8 +204,8 @@ def unwrap_links(text):
 # SYMBOL_CITE_B_RE: positional numbering there shifts with every group added
 # here, and it shifts SILENTLY into reading the wrong capture.
 LINE_REF_RE = re.compile(
-    r'`(?P<ref>[A-Za-z0-9_./-]+\.(?:cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|'
-    r'yaml|html|txt|md|cfg)):(?P<line>\d+)(?:(?P<rdash>[-–])(?P<rend>\d+))?`')
+    r'`(?P<ref>[A-Za-z0-9_./-]+\.(?:' + _EXT + r')):(?P<line>\d+)'
+    r'(?:(?P<rdash>[-–])(?P<rend>\d+))?`')
 
 # A line-cited reference plus the symbol the sentence claims lives there, in the
 # two shapes the docs actually use:
