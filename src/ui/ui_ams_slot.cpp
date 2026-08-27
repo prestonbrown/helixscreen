@@ -787,8 +787,25 @@ static void setup_slot_observers(AmsSlotData* data) {
         data->material_observer = helix::ui::observe_string<lv_obj_t>(
             material_subject, obj, [](lv_obj_t* o, const char* mat) {
                 auto* d = get_slot_data(o);
-                if (d)
-                    apply_slot_material(d, mat);
+                if (!d)
+                    return;
+                apply_slot_material(d, mat);
+                // An identity-only change (assigning a spool to an already-EMPTY
+                // lane) moves the material subject but NOT the status subject, so
+                // apply_slot_status() never re-runs and the spool stays hidden
+                // behind the unassigned-empty placeholder while the label reads
+                // the new material. The two disagree because they are applied by
+                // separate observers off the same predicate. Re-derive the spool
+                // presentation here so a lane that just gained an assignment
+                // ghosts instead of staying blank.
+                //
+                // Cannot recurse: apply_slot_status() reaches the label through
+                // refresh_slot_material_label(), which READS the subject and
+                // calls apply_slot_material() directly — it never writes the
+                // subject, so this observer is not re-entered.
+                if (d->last_status == SlotStatus::EMPTY) {
+                    apply_slot_status(d, static_cast<int>(SlotStatus::EMPTY));
+                }
             });
     }
 

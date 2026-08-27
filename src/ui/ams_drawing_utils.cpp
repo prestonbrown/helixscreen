@@ -870,6 +870,11 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
             lv_obj_align(plus, LV_ALIGN_CENTER, 0, 0);
             lv_obj_add_flag(plus, LV_OBJ_FLAG_EVENT_BUBBLE);
         }
+        // Named so lv_obj_find_by_name() reaches it — it is the one element that
+        // exists in both the flat and 3D branches, which makes it the stable
+        // handle for "is this lane rendering as unassigned-empty?" from tests
+        // and from `helix-screen ctl`.
+        lv_obj_set_name(ph, "empty_placeholder");
         sv.empty_placeholder = ph;
     }
 
