@@ -66,11 +66,11 @@
 #     (`theme_manager.cpp:1966` for a function at 1975, `ams_state.cpp:829` for a
 #     block at 849). The finding prints the nearest distinctive code so the next
 #     one is a one-line repair, and doc_cite_anchor_baseline.txt records the ones
-#     not yet repaired. It holds 41 entries covering 48 citations — the rot the
-#     bootstrap inherited and then maintained, surfaced all at once when this
-#     check was added. Every entry is a citation pointing somewhere a reader
-#     cannot use. SHRINK IT, never grow it: an entry leaves by re-citing the line
-#     the sentence actually describes.
+#     not yet repaired. Adding this check surfaced 48 citations across 41 keys of
+#     inherited rot; the semantic re-pin audit cleared most of it, leaving 13
+#     entries. Every one is a citation pointing somewhere a reader cannot use,
+#     and every one is off by a line or two — the finding names the distinctive
+#     line to move to. SHRINK IT, never grow it.
 #   - a citation whose file cannot be resolved to exactly one path. That is
 #     check_doc_refs' dead-path check talking, not ours. Its anchor row is KEPT
 #     rather than reaped — see the unreadable-target branch in run().
@@ -832,7 +832,20 @@ def main():
         merged.update(fresh)
         write_sidecar(merged)
         if args.write_baseline:
-            write_baseline(set(blanks) | _existing_baseline_entries())
+            # A FULL run just walked every scanned doc, so `blanks` IS the whole
+            # set and the file is rewritten from it — that is the only way an
+            # entry whose citation has since been repaired ever leaves. Union
+            # only on a TARGETED run, where the entries for docs this run never
+            # opened would otherwise be dropped on the floor.
+            #
+            # Without the split the ratchet is a one-way valve: it can only
+            # grow, which is exactly the slack 02da71dbe went round removing
+            # from the count baselines. Measured after the semantic audit
+            # landed: 28 of 41 entries named citations that no longer exist.
+            entries = set(blanks)
+            if args.paths:
+                entries |= _existing_baseline_entries()
+            write_baseline(entries)
             blanks = []
             findings = [f for f in findings if f.kind not in QUALITY_KINDS]
 
