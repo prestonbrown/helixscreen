@@ -621,10 +621,13 @@ bool PrintStartController::should_warn_remap_unsupported(
     // even though caps.editable is false — so the toast would be a stale false
     // alarm. Only warn when the backend can neither edit its mapping nor apply
     // it via a pre-print send.
-    if (applies_via_preprint) {
-        return false;
-    }
-    return !caps.supported || !caps.editable;
+    //
+    // Which is exactly the shared rule, called rather than restated:
+    // AmsState::effective_auto_match() asks the same question to decide whether
+    // the auto-color toggle is a live control, and a second copy of the two-route
+    // test would drift into a printer that warns the remap is unsupported while
+    // still honoring it (or the reverse).
+    return !helix::printer::honors_user_tool_mapping(caps, applies_via_preprint);
 }
 
 bool PrintStartController::apply_filament_remaps() {

@@ -984,11 +984,17 @@ bool AmsState::any_bypass_active() const {
 
 bool AmsState::effective_auto_match() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
-    bool card_editable = false;
+    // Ask whether the user's choice can be carried out at all, not whether the
+    // mapping card is editable. Editability is only one of the two routes, and
+    // the backend it gets wrong is the one where the toggle does the most
+    // damage: the U1 honors every pick through its pre-print send, so pinning
+    // auto-match there left color proximity rewriting the print's routing with
+    // no way for the user to decline it.
+    bool user_choice_honored = false;
     if (auto* backend = get_backend(0)) {
-        card_editable = backend->get_tool_mapping_capabilities().editable;
+        user_choice_honored = backend->honors_user_tool_mapping();
     }
-    return !card_editable || helix::SettingsManager::instance().get_auto_color_map();
+    return !user_choice_honored || helix::SettingsManager::instance().get_auto_color_map();
 }
 
 AmsBackend* AmsState::get_backend() const {

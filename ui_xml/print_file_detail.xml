@@ -184,6 +184,11 @@
              whenever any used tool's AMS slot is empty). -->
         <ui_card name="color_requirements_card" width="100%" style_pad_all="0" style_border_width="0" flex_flow="column">
           <bind_flag_if_eq subject="color_swatches_visible" flag="hidden" ref_value="0"/>
+          <!-- Tapping this card is the ONLY way into the remap picker on a
+               backend whose inline filament_mapping_card is hidden (Snapmaker
+               U1). Clickable only when that tap actually opens something, so the
+               card never swallows a tap it would silently drop. -->
+          <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
@@ -191,6 +196,18 @@
             <icon name="empty_tools_warning_icon"
                   src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="empty_tools_warning" flag="hidden" ref_value="0"/>
+            </icon>
+            <!-- Spacer: pushes the tap cue to the trailing edge without giving
+                 the label a width that would fight the warning icon. -->
+            <lv_obj name="color_card_header_spacer"
+                    width="content" height="1" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false" clickable="false" event_bubble="true"/>
+            <!-- The tap cue. Same chevron every tappable row in the app uses
+                 (setting_action_row.xml, ams_edit_overlay.xml), so it reads as
+                 "this opens something" without a label to translate. -->
+            <icon name="color_card_remap_chevron"
+                  src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
             </icon>
           </lv_obj>
           <lv_obj name="color_swatches_row"

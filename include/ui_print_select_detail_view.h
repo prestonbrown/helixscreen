@@ -173,6 +173,20 @@ class PrintSelectDetailView : public OverlayBase {
     void on_color_card_clicked();
 
     /**
+     * @brief Does a tap on the color-requirements card open the remap picker?
+     *
+     * The single predicate behind both the chevron and the card's clickable
+     * flag, and the same one on_color_card_clicked() guards on. Split out
+     * because the card is the ONLY way into the picker on a backend whose
+     * inline mapping card is hidden (Snapmaker U1): before this it was a bare
+     * "FILAMENTS" strip of swatches with nothing saying it could be tapped, so
+     * the picker existed and worked and no user could find it. On a backend
+     * that cannot remap, the same predicate stops the card claiming a tap it
+     * would silently drop.
+     */
+    [[nodiscard]] static bool color_card_opens_remap();
+
+    /**
      * @brief Set the visible subject for XML binding
      *
      * The subject should be initialized to 0 (hidden).
@@ -666,7 +680,11 @@ class PrintSelectDetailView : public OverlayBase {
     lv_subject_t filament_mismatch_{};        // 1 = material mismatch warning visible
     lv_subject_t filament_mapping_visible_{}; // 1 = filament mapping card visible (AMS+tools)
     lv_subject_t color_swatches_visible_{};   // 1 = legacy color swatches card visible
-    lv_subject_t empty_tools_warning_{};      // 1 = at least one used tool's slot is empty
+    // 1 = tapping the color-requirements card opens the remap picker. Drives BOTH
+    // the chevron that advertises the tap and the card's own clickable flag, so a
+    // card that cues a tap and a card that answers one can never disagree.
+    lv_subject_t color_card_remappable_{};
+    lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
     // source of truth driving filament_mismatch_ + empty_tools_warning_ (works

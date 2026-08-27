@@ -1936,6 +1936,11 @@ std::vector<int> AmsBackendSnapmaker::get_tool_mapping() const {
 
 std::string AmsBackendSnapmaker::build_preprint_gcode(const std::set<int>& tools_used,
                                                       const std::map<int, int>& remap) const {
+    return preprint_gcode(tools_used, remap);
+}
+
+std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
+                                                const std::map<int, int>& remap) {
     if (tools_used.empty()) {
         return "";
     }

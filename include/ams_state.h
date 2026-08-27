@@ -277,14 +277,22 @@ class AmsState {
      * have to answer it the same way or the swatches promise a lane the viewer
      * then colors from a different one.
      *
-     * Non-editable-card backends (Snapmaker U1 / ACE) have no card UI anywhere
-     * that can flip the persisted auto-color preference, so they always
-     * auto-match; otherwise the persisted default (FALSE) forces positional
-     * matching and picks the wrong lane. Editable backends honor
-     * SettingsManager::get_auto_color_map().
+     * A backend that can carry out an explicit user tool->lane choice — by
+     * EITHER route, an editable mapping card or a firmware-native pre-print send
+     * (AmsBackend::honors_user_tool_mapping) — has a picker the user reaches,
+     * and that picker carries the auto-color toggle. Its setting wins both ways.
+     * A backend that can honor the choice by NEITHER route (ACE) has no picker,
+     * so nothing can have flipped the persisted preference and the default
+     * (FALSE) would force positional matching and pick the wrong lane; those
+     * always auto-match.
      *
-     * Asks the PRIMARY backend: editability is a property of the card the user
-     * would reach, and the card reflects backend 0.
+     * The predicate was once caps.editable alone, which put the Snapmaker U1 in
+     * the second group. It reaches the same shared picker as everyone else, so
+     * the toggle there was a control the user could move and AmsState ignored —
+     * and pinning auto-match on meant color proximity rewrote the print's tool
+     * routing with no way to decline.
+     *
+     * Asks the PRIMARY backend: the picker the user reaches reflects backend 0.
      */
     [[nodiscard]] bool effective_auto_match() const;
 

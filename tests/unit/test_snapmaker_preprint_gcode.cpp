@@ -177,8 +177,9 @@ TEST_CASE("get_effective_remap identity-filter drops identity + auto entries",
 }
 
 // End-to-end of the U1 routing emit: an AUTO color match (what
-// PrintSelectDetailView::get_effective_remap now sources from effective_mappings
-// on the U1, where the card is hidden) → identity-filter → build_preprint_gcode.
+// PrintSelectDetailView::get_effective_remap sources from effective_mappings on
+// the U1, where the inline card is hidden and the user has left auto-color on)
+// → identity-filter → build_preprint_gcode.
 // Proves the emitted SET_PRINT_EXTRUDER_MAP / SET_PRINT_USED_EXTRUDERS route each
 // logical tool to the physical head holding its matched filament — not identity.
 //
@@ -208,7 +209,9 @@ TEST_CASE("Snapmaker routing: real U1 4-color-ring auto match drives the extrude
         {3, 0, 0xF4C032, "PLA", false, -1}, // head 3: yellow loaded
     };
 
-    // Auto match (U1 has no editable card, so effective_mappings runs the match).
+    // Auto match: what effective_mappings() runs when the auto-color toggle is
+    // on. It is passed explicitly here — AmsState::effective_auto_match() decides
+    // it in production, and this case is about the emit, not that decision.
     auto mappings = helix::FilamentMapper::effective_mappings(tools, slots, /*auto=*/true);
     auto remap = effective_remap(mappings);
 

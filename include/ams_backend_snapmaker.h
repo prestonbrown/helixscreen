@@ -245,6 +245,19 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] std::string build_preprint_gcode(const std::set<int>& tools_used,
                                                    const std::map<int, int>& remap) const override;
 
+    /// The builder above, as a free-standing function.
+    ///
+    /// It reads no member state — the routing is entirely a function of its two
+    /// arguments — so the virtual is a one-line forward to this. Exposed because
+    /// the mock backend has to emit the SAME bytes when emulating a U1: it
+    /// advertises requires_preprint_send() and so promises the controller there
+    /// is work to do, and returning nothing there made the whole remap chain a
+    /// silent no-op under --test. Calling this keeps the command format in ONE
+    /// place; a copy in the mock would teach the wrong shape the moment the
+    /// format moved.
+    [[nodiscard]] static std::string preprint_gcode(const std::set<int>& tools_used,
+                                                    const std::map<int, int>& remap);
+
     /// Applied logical-tool -> physical-head routing for the CURRENT print.
     ///
     /// The capability question generic code asks; the vendor knowledge (that the
