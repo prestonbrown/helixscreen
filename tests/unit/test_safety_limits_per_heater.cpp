@@ -37,6 +37,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/temperature_controller_test_access.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -44,6 +45,7 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
+#include "tool_state.h"
 
 #include <atomic>
 #include <chrono>
@@ -235,6 +237,11 @@ struct KeypadCeilingFixture {
         : client(MoonrakerClientMock::PrinterType::VORON_24), api(client, state),
           controller(std::make_shared<helix::TemperatureController>(state, &api)) {
         state.init_subjects(false);
+        // Three of the panel's observers watch the AmsState/ToolState singletons
+        // rather than `state`, so those need their subjects too - same pair the
+        // SafetyTextHarness in test_safety_limits_negative_min_temp.cpp sets up.
+        helix::ToolState::instance().init_subjects(true);
+        AmsState::instance().init_subjects(true);
         helix::PanelWidgetManager::instance().register_shared_resource(controller);
         panel = std::make_unique<::FilamentPanel>(state, &api);
     }
