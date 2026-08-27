@@ -317,7 +317,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
    sensor. The code's own candidate is `filament_feed.channel_state`: `load_finish`
    (fed to nozzle) vs `preload_finish` (firmware assist stops short of the gear) -
    both already parsed into the channel-state machine
-   (`ams_backend_snapmaker.cpp:135-138`, `:560-567`). What is missing is rig
+   (`ams_backend_snapmaker.cpp:135-138`, `:569-576`). What is missing is rig
    confirmation that the state reliably means "filament at the gear" before the gate
    is revived.
 3. End-to-end timing of the pre-print `SET_PRINT_USED_EXTRUDERS` is unverified live.
