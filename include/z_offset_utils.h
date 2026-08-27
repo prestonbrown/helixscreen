@@ -187,6 +187,15 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
 /// @param on_success Called once everything is known to have been saved
 /// @param on_error   Called with a user-facing message on a real failure
 /// @param ps         Forwarded to apply_and_save()
+/// Save every dirty z-offset from a surface that owns no panel state — the
+/// header button, which appears on any panel and cannot borrow one panel's
+/// SaveConfigWatch.
+///
+/// The watch it uses is torn down through StaticSubjectRegistry, i.e. BEFORE
+/// lv_deinit(): a process-lifetime static would run ~SaveConfigWatch (and its
+/// ObserverGuard::reset()) after LVGL was gone (#705).
+void save_dirty_offsets_shared();
+
 void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                         ZOffsetCalibrationStrategy strategy, const PrinterDiscovery& hw,
                         bool global_dirty, std::function<void()> on_success,

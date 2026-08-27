@@ -34,6 +34,7 @@
 #include "ui_text.h"
 #include "ui_text_input.h"
 #include "ui_z_offset_indicator.h"
+#include "z_offset_utils.h"
 
 #include "boot_yield.h"
 #include "layout_manager.h"
@@ -334,6 +335,10 @@ void register_xml_components() {
     lv_xml_register_event_cb(nullptr, "on_toggle_password_visibility",
                              on_toggle_password_visibility);
     lv_xml_register_event_cb(nullptr, "on_setting_info_clicked", on_setting_info_clicked);
+    // Header save button. Global because header_bar is instantiated by ~40
+    // panels and the button can surface on any of them.
+    lv_xml_register_event_cb(nullptr, "on_header_save_z_offset",
+                             [](lv_event_t*) { helix::zoffset::save_dirty_offsets_shared(); });
     lv_xml_register_event_cb(nullptr, "on_edit_done_clicked",
                              [](lv_event_t*) { get_global_home_panel().exit_grid_edit_mode(); });
     lv_xml_register_event_cb(nullptr, "on_edit_add_widget_clicked",

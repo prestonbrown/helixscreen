@@ -164,6 +164,41 @@
       <bind_flag_if_eq subject="$action_button_hidden_subject" flag="hidden" ref_value="1"/>
       <event_cb trigger="clicked" callback="$action_button_callback"/>
     </ui_button>
+    <!-- Unsaved z-offset. Built into the header rather than driven through the
+         action_button props because those slots are already spoken for — 14
+         panels set action_button, 4 set action_button_2 — and this must be able
+         to appear on any of them.
+
+         Global on purpose: an unsaved offset is lost on the next Klipper
+         restart no matter which screen you are looking at, so the affordance
+         follows you. The Controls panel keeps its own full-width Save button
+         for the moment you close the tune overlay and land back on it; both
+         carry the IDENTICAL condition and call the same handler, or one surface
+         would offer a save the other says is unnecessary.
+
+         Inline cond= rather than a shared <subject_expr>: subject_expr resolves
+         at component-load (Phase 8c) and any_tool_z_dirty is not registered
+         until ToolState::init_subjects() (Phase 9a), so a derived subject would
+         silently never register. See docs/devel/LVGL9_XML_GUIDE.md
+         § "Expression Conditionals".
+
+         Icon-only: the micro header is 28px tall with 22px buttons and the
+         title already flex-grows, so a labelled button here eats the title. -->
+    <ui_button name="header_save_z_offset"
+               width="content" height="$action_button_height" style_max_height="#header_button_height"
+               style_bg_color="#success" icon="check" icon_size="sm" hidden="true">
+      <!-- ONE binding, both conditions. Two flag bindings on the same widget
+           fight: bind_flag_if_eq is two-way, so a separate
+           `subject="z_offset_can_save" ref_value="0"` does not merely hide when
+           the firmware auto-saves — with the subject at 1 it REMOVES hidden,
+           overriding the dirty test beside it and leaving the button on screen
+           permanently. The Controls panel gets away with the pair only because
+           its two bindings sit on different widgets (button inside wrapper). -->
+      <bind_flag_if cond="z_offset_can_save and (gcode_z_offset ne 0 or any_tool_z_dirty)"
+                    flag="hidden" invert="true"/>
+      <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+      <event_cb trigger="clicked" callback="on_header_save_z_offset"/>
+    </ui_button>
     <!-- E-Stop spacer: rightmost reserved gutter — NO button inside. The
          floating e-stop circle lives at the panel root (full-height parent) so
          it never clips and stays fully hit-testable (#1204). This spacer just
