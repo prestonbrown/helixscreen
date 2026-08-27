@@ -2,6 +2,42 @@
 # `make regen-doc-links`, never hand-edit. See scripts/doc_cite_anchors.py.
 #
 # doc	cited-path	line	resolved-path	line-hash	context-hash
+.claude/worktrees/agent-a0281c334a06e0388/CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
+.claude/worktrees/agent-a0281c334a06e0388/CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
+.claude/worktrees/agent-a0281c334a06e0388/CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+.claude/worktrees/agent-a0281c334a06e0388/CLAUDE.md	temperature_service.cpp	667	src/ui/temperature_service.cpp	e74974af928e	d25d16c60305
+.claude/worktrees/agent-a0281c334a06e0388/docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
+.claude/worktrees/agent-a0281c334a06e0388/docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	.claude/worktrees/agent-a0281c334a06e0388/docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
+.claude/worktrees/agent-a433b097f38d6d7eb/CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
+.claude/worktrees/agent-a433b097f38d6d7eb/CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
+.claude/worktrees/agent-a433b097f38d6d7eb/CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+.claude/worktrees/agent-a433b097f38d6d7eb/CLAUDE.md	temperature_service.cpp	667	src/ui/temperature_service.cpp	e74974af928e	d25d16c60305
+.claude/worktrees/agent-a433b097f38d6d7eb/docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
+.claude/worktrees/agent-a433b097f38d6d7eb/docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	.claude/worktrees/agent-a433b097f38d6d7eb/docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
+.claude/worktrees/agent-a79cee982bda3f4ab/CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
+.claude/worktrees/agent-a79cee982bda3f4ab/CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
+.claude/worktrees/agent-a79cee982bda3f4ab/CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+.claude/worktrees/agent-a79cee982bda3f4ab/CLAUDE.md	temperature_service.cpp	667	src/ui/temperature_service.cpp	e74974af928e	d25d16c60305
+.claude/worktrees/agent-a79cee982bda3f4ab/docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
+.claude/worktrees/agent-a79cee982bda3f4ab/docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	.claude/worktrees/agent-a79cee982bda3f4ab/docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
+.claude/worktrees/agent-a92021a608ceb5de6/CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
+.claude/worktrees/agent-a92021a608ceb5de6/CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
+.claude/worktrees/agent-a92021a608ceb5de6/CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+.claude/worktrees/agent-a92021a608ceb5de6/CLAUDE.md	temperature_service.cpp	667	src/ui/temperature_service.cpp	e74974af928e	d25d16c60305
+.claude/worktrees/agent-a92021a608ceb5de6/docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
+.claude/worktrees/agent-a92021a608ceb5de6/docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	.claude/worktrees/agent-a92021a608ceb5de6/docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
+.claude/worktrees/agent-ac6237c3e9f2fde5c/CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
+.claude/worktrees/agent-ac6237c3e9f2fde5c/CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
+.claude/worktrees/agent-ac6237c3e9f2fde5c/CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+.claude/worktrees/agent-ac6237c3e9f2fde5c/CLAUDE.md	temperature_service.cpp	667	src/ui/temperature_service.cpp	e74974af928e	d25d16c60305
+.claude/worktrees/agent-ac6237c3e9f2fde5c/docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
+.claude/worktrees/agent-ac6237c3e9f2fde5c/docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	.claude/worktrees/agent-ac6237c3e9f2fde5c/docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
+.claude/worktrees/agent-af7993afceccddd55/CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
+.claude/worktrees/agent-af7993afceccddd55/CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
+.claude/worktrees/agent-af7993afceccddd55/CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+.claude/worktrees/agent-af7993afceccddd55/CLAUDE.md	temperature_service.cpp	667	src/ui/temperature_service.cpp	e74974af928e	d25d16c60305
+.claude/worktrees/agent-af7993afceccddd55/docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
+.claude/worktrees/agent-af7993afceccddd55/docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	.claude/worktrees/agent-af7993afceccddd55/docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
 CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
 CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
 CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
