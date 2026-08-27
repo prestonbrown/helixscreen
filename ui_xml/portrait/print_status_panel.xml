@@ -229,8 +229,8 @@
                  in front of you) AND the build has camera support compiled in
                  (platform_extras_available gates the ESP32 v1 cut). -->
             <ui_button name="btn_camera"
-                       height="#button_height" flex_grow="1" icon="webcam"
-                       bind_text="camera_button_label" icon_position="top">
+                       height="#button_height" flex_grow="1" icon="webcam" bind_text="camera_button_label"
+                       icon_position="top">
               <bind_flag_if cond="printer_has_webcam and moonraker_is_remote and platform_extras_available"
                             flag="hidden" invert="true"/>
               <event_cb trigger="clicked" callback="on_print_status_camera"/>

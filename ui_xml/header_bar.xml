@@ -194,8 +194,7 @@
            overriding the dirty test beside it and leaving the button on screen
            permanently. The Controls panel gets away with the pair only because
            its two bindings sit on different widgets (button inside wrapper). -->
-      <bind_flag_if cond="z_offset_can_save and (gcode_z_offset ne 0 or any_tool_z_dirty)"
-                    flag="hidden" invert="true"/>
+      <bind_flag_if cond="z_offset_can_save and (gcode_z_offset ne 0 or any_tool_z_dirty)" flag="hidden" invert="true"/>
       <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_header_save_z_offset"/>
     </ui_button>
