@@ -110,6 +110,21 @@
       <bind_flag_if_eq subject="$action_button_hidden_subject" flag="hidden" ref_value="1"/>
       <event_cb trigger="clicked" callback="$action_button_callback"/>
     </ui_button>
+    <!-- Save Z-offset: appears on every header the moment an unsaved offset
+         exists, so a tune made from one panel is savable from wherever the user
+         ends up. Mirrors the base header_bar - see there for why this is ONE
+         bind_flag_if rather than two bind_flag_if_eq (they fight: the binding is
+         two-way, so a non-matching one REMOVES hidden and pins the button on
+         screen), and why the condition is inline rather than a subject_expr
+         (any_tool_z_dirty registers at Phase 9a, after component load). -->
+    <ui_button name="header_save_z_offset"
+               width="content" height="$action_button_height" style_bg_color="#success" icon="check"
+               icon_size="sm" hidden="true">
+      <bind_flag_if cond="z_offset_can_save and (gcode_z_offset ne 0 or any_tool_z_dirty)"
+                    flag="hidden" invert="true"/>
+      <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+      <event_cb trigger="clicked" callback="on_header_save_z_offset"/>
+    </ui_button>
     <!-- E-Stop spacer: rightmost reserved gutter — NO button inside. The
          floating circle lives at the panel root; this just keeps the title and
          any action button clear of it. See base header_bar for full design. -->

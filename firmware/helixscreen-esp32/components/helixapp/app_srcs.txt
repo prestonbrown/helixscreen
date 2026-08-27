@@ -181,6 +181,7 @@ src/printer/standard_macros.cpp
 src/printer/toolchanger_addon.cpp
 src/printer/toolhead_homing.cpp
 src/printer/tool_state.cpp
+src/printer/tool_offsets.cpp
 src/sensors/accel_sensor_manager.cpp
 src/sensors/humidity_sensor_manager.cpp
 src/sensors/probe_sensor_manager.cpp
