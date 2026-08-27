@@ -131,8 +131,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC eject retains by default, clears with set
 TEST_CASE_METHOD(LVGLTestFixture, "Non-id backends: eject rule inert, field merge intact",
                  "[ams][cfs][override-merge]") {
     // CFS keeps firmware spoolman_id at 0 (it never reports one) yet carries a
-    // real override. Even with retention OFF nothing clears — and the CFS
-    // EMPTY->AVAILABLE promotion tail must keep working. Fixture mirrors the
+    // real override. Even with retention OFF nothing clears. Presence is NOT
+    // part of that: the override paints identity onto a bay firmware calls
+    // empty, and the bay stays EMPTY so the lane ghosts. Fixture mirrors the
     // "override loaded at init" test in test_ams_backend_cfs.cpp.
     auto& settings = SettingsManager::instance();
     settings.init_subjects();
@@ -171,9 +172,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "Non-id backends: eject rule inert, field merg
         nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{{"box", box}}, 0})}});
 
     const auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Polymaker");            // override still paints
-    CHECK(info.spoolman_id == 0);                // firmware id 0 — nothing cleared it
-    CHECK(info.status == SlotStatus::AVAILABLE); // CFS tail promoted EMPTY->AVAILABLE
+    CHECK(info.brand == "Polymaker");        // override still paints
+    CHECK(info.spoolman_id == 0);            // firmware id 0 — nothing cleared it
+    CHECK(info.status == SlotStatus::EMPTY); // presence is firmware's, not the override's
     // The in-memory override entry survived the merge.
     const auto survived = CfsTestAccess::get_override(backend, 0);
     REQUIRE(survived.has_value());

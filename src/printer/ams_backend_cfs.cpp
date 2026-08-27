@@ -148,9 +148,8 @@ bool is_vender_sentinel(const std::string& v) {
 /// `material_type` IS user-writable now too (same command, PART=material_type,
 /// #968) — but only ever with a code the firmware itself previously reported,
 /// so a non-sentinel value still means "either a tag was read or the user
-/// labeled this bay". That second case is handled at the presence rule: a
-/// user-labeled untagged bay reads EMPTY from firmware fields and is promoted
-/// back to AVAILABLE by its override in apply_overrides.
+/// labeled this bay". That second case is carried by `vender`, which reports
+/// occupancy for any seated spool independently of what the RFID fields say.
 bool is_material_code_sentinel(const std::string& v) {
     return v.empty() || v == "none" || v == "None" || v == "-1" || v == "unknown";
 }
@@ -930,15 +929,16 @@ AmsSystemInfo AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_js
             //
             //     `material_type` IS written by the identity push too (#968),
             //     so a non-sentinel code is no longer PROOF of a tag — it may
-            //     be the user's own label. The consequence is bounded: a
-            //     user-labeled untagged bay suppresses this fallback (reads
-            //     EMPTY from firmware fields), and apply_overrides immediately
-            //     promotes it back to AVAILABLE from the override the same
-            //     edit staged. Untagged bays the user never labeled keep the
-            //     fallback, which is the #1077 population it protects.
+            //     be the user's own label, which suppresses this fallback for
+            //     that bay. On CFS 1.1.3 that costs nothing: `vender` reports
+            //     occupancy for a seated untagged spool, so the bay is already
+            //     AVAILABLE from the first arm and never reaches the fallback.
+            //     Untagged bays the user never labeled keep it either way,
+            //     which is the #1077 population it protects.
             //
-            // A user override can still promote a firmware-EMPTY bay back to
-            // AVAILABLE (see apply_overrides).
+            // An override never promotes presence. It supplies IDENTITY only —
+            // a bay that reads EMPTY here stays EMPTY, and the retained
+            // identity is what ui_ams_slot.cpp ghosts (see apply_overrides).
             const bool remain_present = slot.remaining_length_m > 0.0f;
             const bool has_tag_payload = !is_material_code_sentinel(mat_code_raw);
             const bool untagged_present = !has_tag_payload && remain_present;
@@ -3610,7 +3610,7 @@ void AmsBackendCfs::apply_overrides(SlotInfo& slot, int slot_index) {
     helix::ams::MergeOptions opts;
     opts.printer_reports_spool_ids = printer_reports_spool_ids();
     opts.keep_spool_info_on_eject = SettingsManager::instance().get_ams_keep_spool_info_on_eject();
-    // Read the override BEFORE any erase — the CFS presence tail below needs it.
+    // Read the override BEFORE any erase — merge_override below needs it.
     const auto& o = it->second;
     // Own-write echo suppression (SlotFingerprintTracker::expect()
     // semantics): the flat-schema fork re-writes SPOOLMAN_ID via
@@ -3622,16 +3622,21 @@ void AmsBackendCfs::apply_overrides(SlotInfo& slot, int slot_index) {
     opts.suppress_rebind_firmware_new_id = own_new_id;
     const auto result = helix::ams::merge_override(slot, o, opts);
 
-    // Trust the user's assignment for presence. Untagged 3rd-party spools
-    // always read RFID -1, so firmware reports the bay EMPTY even though a
-    // spool is physically present. If the override carries a real assignment,
-    // the user has told us a spool is in this bay — promote it to AVAILABLE.
-    // (CFS-specific presence policy, not §5 merge policy — stays here.)
-    const bool real_assignment = o.spoolman_id > 0 || !o.material.empty() || !o.brand.empty() ||
-                                 !o.spool_name.empty() || o.color_set;
-    if (real_assignment && slot.status == SlotStatus::EMPTY) {
-        slot.status = SlotStatus::AVAILABLE;
-    }
+    // Presence is deliberately NOT touched here. An override says what the user
+    // assigned to this bay, which is a permanent fact; presence is a live one.
+    // Deriving the second from the first made presence a one-way function — it
+    // could rise to AVAILABLE and never fall back — so an assigned bay whose
+    // spool had been pulled rendered as a seated spool forever, and the
+    // "assigned, not present" ghost in ui_ams_slot.cpp (EMPTY + retained
+    // identity, LV_OPA_20) became unreachable on CFS.
+    //
+    // The untagged-spool case that motivated the promotion is covered upstream
+    // by the parse: `vender` reads non-sentinel for ANY occupied bay on CFS
+    // 1.1.3, tagged or not (verified on a K2 Plus holding only third-party
+    // spools — both seated bays reported vender "unknown" with no Creality RFID
+    // anywhere), and `untagged_present` still backstops firmware that does not.
+    // Identity survives an empty bay via clear_stale_override_on_removal_locked;
+    // that is what the ghost renders from.
 
     if (result.cleared_rebind || result.cleared_eject) {
         overrides_.erase(it);
