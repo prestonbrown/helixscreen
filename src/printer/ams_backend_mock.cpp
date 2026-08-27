@@ -549,6 +549,28 @@ bool AmsBackendMock::is_filament_loaded() const {
     return system_info_.filament_loaded;
 }
 
+bool AmsBackendMock::can_unload_from_toolhead(int slot_index) const {
+    bool tool_changer = false;
+    int carriage = -1;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        tool_changer = tool_changer_mode_;
+        carriage = system_info_.current_slot;
+        if (tool_changer && (slot_index < 0 || slot_index >= system_info_.total_slots)) {
+            return false;
+        }
+    }
+
+    // Lane-based modes keep the inherited status rule; only a changer narrows to
+    // the carriage. Called outside the lock because the base walks get_slot_info()
+    // and get_topology(), both of which take it.
+    if (!tool_changer) {
+        return AmsBackend::can_unload_from_toolhead(slot_index);
+    }
+
+    return carriage >= 0 && slot_index == carriage;
+}
+
 std::optional<bool> AmsBackendMock::toolhead_filament_unaccounted() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!mock_toolhead_unaccounted_) {

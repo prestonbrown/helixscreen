@@ -71,6 +71,22 @@ class AmsBackendMock : public AmsBackend {
     [[nodiscard]] int get_current_slot() const override;
     [[nodiscard]] bool is_filament_loaded() const override;
 
+    /**
+     * @brief Only the carriage tool is an unmount target, matching the real backend.
+     *
+     * Mirrors AmsBackendToolChanger::can_unload_from_toolhead(). Without this the
+     * mock inherits AmsBackend's PARALLEL rule (slot.is_present()), which holds for
+     * every toolhead forever — so the context menu offered Unload on tools parked in
+     * their docks and, through decide_can_load()'s inverted `!toolhead_unload`
+     * factor, disabled Load on all of them. That is prestonbrown/helixscreen#1199,
+     * fixed in the real backend but never reproduced here, which left the fix
+     * unguarded against regression in every mock-driven check.
+     *
+     * Scoped to tool-changer mode: the mock also stands in for lane-based systems,
+     * where the inherited LOADED-status rule is the correct one.
+     */
+    [[nodiscard]] bool can_unload_from_toolhead(int slot_index) const override;
+
     // Capability flag (overridable in tests; production mock returns default false)
     [[nodiscard]] bool tracks_consumption_natively() const override {
         return tracks_consumption_natively_;
