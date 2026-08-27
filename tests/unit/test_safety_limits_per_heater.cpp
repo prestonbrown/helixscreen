@@ -171,6 +171,29 @@ TEST_CASE("Heater lookup is case-insensitive", "[safety_limits][1355]") {
     REQUIRE(limits.max_temp_for("HEATER_BED") == 400.0); // absent, so the net answers
 }
 
+TEST_CASE("An upper-cased section header is stored where the lookup will find it",
+          "[safety_limits][1355]") {
+    // The test above seeds a lower-cased key by hand, so it only ever exercised
+    // the lookup half of the normalization and would stay green with the store
+    // half missing - which it was. Klipper keeps whatever case the user wrote a
+    // section header in and the discovery name carries it through untouched;
+    // `heater_generic CHAMBER` is a real shape, pinned by
+    // tests/unit/test_chamber_temperature.cpp. Storing that verbatim while
+    // lower-casing the lookup put the ceiling at a key nothing could reach, and
+    // an unreachable ceiling falls back to the permissive global - #1355 again,
+    // on a chamber whose real ceiling is far below it.
+    SafetyLimits limits;
+    limits.set_max_temp_for("heater_generic CHAMBER", 70.0);
+
+    // The key itself is folded, not just the lookup.
+    REQUIRE(limits.heater_max_temp_celsius.count("heater_generic chamber") == 1);
+
+    REQUIRE(limits.max_temp_for("heater_generic CHAMBER") == 70.0);
+    REQUIRE(limits.max_temp_for("heater_generic chamber") == 70.0);
+    REQUIRE_FALSE(is_safe_temperature(200.0, limits, "heater_generic CHAMBER"));
+    REQUIRE(is_safe_temperature(65.0, limits, "heater_generic CHAMBER"));
+}
+
 // ---------------------------------------------------------------------------
 // The other half of #1355: the keypad's own ceiling.
 //

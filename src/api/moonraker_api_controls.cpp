@@ -704,15 +704,17 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                         value.is_object()) {
                         if (value.contains("max_temp") && value["max_temp"].is_number()) {
                             double max_temp = value["max_temp"].get<double>();
-                            // Keyed on the section header exactly as it appears
-                            // here, because that IS the name a send arrives with:
+                            // Keyed on the section header, because that IS the
+                            // name a send arrives with:
                             // TemperatureController::resolved_name() hands
                             // set_temperature() "extruder", "heater_bed", or the
                             // whole "heater_generic chamber_heater". Adopted as-is
                             // rather than widened - a 290C hotend has to be able to
                             // LOWER its bound, which is exactly what the global
-                            // below cannot do (#1355).
-                            safety_limits_.heater_max_temp_celsius[key] = max_temp;
+                            // below cannot do (#1355). set_max_temp_for() folds the
+                            // case so the key matches the lookup whatever Klipper
+                            // reported; a raw insert here does not.
+                            safety_limits_.set_max_temp_for(key, max_temp);
                             updated = true;
 
                             // The global stays a permissive sanity net for callers
