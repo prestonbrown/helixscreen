@@ -1000,7 +1000,6 @@ const std::vector<ConfigDefault>& expected_defaults() {
         {"/input/scroll_throw", 25},
         {"/input/scroll_limit", 10},
         {"/input/long_press_time", 500},
-        {"/input/jitter_threshold", 5},
         {"/input/calibration/valid", false},
         // Identity matrix: a=1, b=0, c=0, d=0, e=1, f=0
         {"/input/calibration/a", 1.0},

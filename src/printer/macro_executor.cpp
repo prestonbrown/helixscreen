@@ -3,11 +3,13 @@
 
 #include "macro_executor.h"
 
+#include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
+#include "moonraker_error.h"
 #include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
@@ -29,6 +31,17 @@ const std::unordered_set<std::string> DANGEROUS_MACROS = {
 std::string upper_copy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
     return s;
+}
+
+/// Does this error message name a Klippy disconnect?
+///
+/// Moonraker's wording is "Klippy Disconnected"; matching the two words
+/// independently, uppercased, keeps a "klippy has disconnected" phrasing from
+/// slipping past while still refusing Klipper's own G-code complaints.
+bool contains_klippy_disconnect(const std::string& message) {
+    const std::string upper = upper_copy(message);
+    return upper.find("KLIPPY") != std::string::npos &&
+           upper.find("DISCONNECT") != std::string::npos;
 }
 
 /// Commands a macro body issues, uppercased, in command position only.
@@ -100,7 +113,8 @@ std::string build_macro_gcode(const std::string& macro_name, const MacroParamRes
 }
 
 void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
-                         const MacroParamResult& result, const char* caller_tag) {
+                         const MacroParamResult& result, const char* caller_tag,
+                         const PrinterDiscovery& hw) {
     if (!api) {
         spdlog::warn("{} No API available — cannot execute macro", caller_tag);
         return;
@@ -108,6 +122,10 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
 
     std::string gcode = build_macro_gcode(macro_name, result);
     spdlog::info("{} Executing: {}", caller_tag, gcode);
+
+    // Resolved before the send, not inside the callback: the callback runs on
+    // the WebSocket thread, and PrinterDiscovery is not ours to read from there.
+    const bool restarts_host = is_dangerous_macro(macro_name, hw);
 
     std::string macro_copy = macro_name;
     std::string tag_copy = caller_tag;
@@ -121,7 +139,25 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
                 ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
             });
         },
-        [tag_copy, macro_copy, display_name](const MoonrakerError& err) {
+        [tag_copy, macro_copy, display_name, restarts_host](const MoonrakerError& err) {
+            if (classify_macro_rpc_failure(restarts_host, err) ==
+                MacroFailureReport::ExpectedRestart) {
+                spdlog::info("{} {} restarted the host, so its rpc was dropped ({}) - "
+                             "reporting the restart rather than a failure",
+                             tag_copy, macro_copy, err.message);
+                // Armed HERE rather than before the send, because this is when
+                // the restart actually happens. The suppression window is 15s
+                // and a wrapping macro can run for minutes (a full bed level),
+                // so arming it at send time would have expired long before
+                // Klipper went down and suppressed nothing. Also completes the
+                // contract: the klippy-READY observer says "Printer ready" when
+                // it comes back, and the recovery dialog still appears if it
+                // does not. The literal is the one the PID and input-shaper
+                // saves already use for this event, so it costs no new
+                // translation key.
+                helix::ui::begin_expected_klippy_restart("Firmware restarting...");
+                return;
+            }
             spdlog::error("{} {} failed: {}", tag_copy, macro_copy, err.message);
             std::string msg = display_name + " failed";
             helix::ui::queue_update([msg]() {
@@ -197,6 +233,33 @@ bool is_dangerous_macro(const std::string& name) {
 
 bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw) {
     return is_dangerous_macro(name) || hw.macro_restarts_host(name);
+}
+
+MacroFailureReport classify_macro_rpc_failure(bool macro_restarts_host, const MoonrakerError& err) {
+    if (!macro_restarts_host) {
+        return MacroFailureReport::Error;
+    }
+
+    switch (err.type) {
+    case MoonrakerErrorType::CONNECTION_LOST:
+    case MoonrakerErrorType::TIMEOUT:
+    case MoonrakerErrorType::NOT_READY:
+        // The socket, the reply, or Klipper itself went away. Nothing here can
+        // be Klipper's opinion of the macro.
+        return MacroFailureReport::ExpectedRestart;
+    default:
+        break;
+    }
+
+    // Moonraker fails the pending request with 503 "Klippy Disconnected" when
+    // the host it was talking to restarts, and that arrives as a JSON-RPC error
+    // like any other. Klipper's OWN rejections come through the same channel
+    // carrying its complaint ("Unknown command", "Must home axis first"), so the
+    // text is what separates them.
+    if (err.code == 503 || contains_klippy_disconnect(err.message)) {
+        return MacroFailureReport::ExpectedRestart;
+    }
+    return MacroFailureReport::Error;
 }
 
 } // namespace helix

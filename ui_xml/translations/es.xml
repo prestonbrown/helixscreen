@@ -20,6 +20,7 @@
   <translation tag="%zu changes" es="%zu cambios"/>
   <translation tag="%zu events queued" es="%zu eventos en cola"/>
   <translation tag="%zu plugins failed to load" es="%zu plugins no se cargaron"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" es="&apos;{}&apos; ya existe. ¿Reemplazar la malla guardada?"/>
   <translation tag="(different grade)" es="(grado diferente)"/>
   <translation tag="(incompatible)" es="(incompatible)"/>
   <translation tag="(multi-tool)" es="(multiherramienta)"/>
@@ -341,6 +342,7 @@
   <translation tag="Calibrate Gear" es="Calibrar el engranaje"/>
   <translation tag="Calibrate X" es="Calibrar X"/>
   <translation tag="Calibrate Y" es="Calibrar Y"/>
+  <translation tag="Calibrate and tune scroll feel" es="Calibrar y ajustar la sensibilidad de desplazamiento"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" es="Calibrar input shaping para reducir artefactos de resonancia en impresiones"/>
   <translation tag="Calibrate your touchscreen for accurate input" es="Calibrar la pantalla táctil para una entrada precisa"/>
   <translation tag="Calibrate, tune jitter and scroll feel" es="Calibrar, ajustar jitter y sensibilidad de desplazamiento"/>
@@ -774,6 +776,7 @@
   <translation tag="Enter New PIN" es="Ingrese Nuevo PIN"/>
   <translation tag="Enter PIN" es="Ingrese PIN"/>
   <translation tag="Enter WiFi Password" es="Ingrese Contraseña WiFi"/>
+  <translation tag="Enter a name for this profile" es="Ingrese un nombre para este perfil"/>
   <translation tag="Enter a name for your custom theme:" es="Ingrese un nombre para su tema personalizado:"/>
   <translation tag="Enter a name to save this profile" es="Ingrese un nombre para guardar este perfil"/>
   <translation tag="Enter network name" es="Ingrese el nombre de la red"/>
@@ -1983,6 +1986,8 @@
   <translation tag="Rename failed at save step" es="Error al renombrar en paso de guardado"/>
   <translation tag="Render Now" es="Renderizar Ahora"/>
   <translation tag="Rendering timelapse..." es="Renderizando timelapse..."/>
+  <translation tag="Replace" es="Reemplazar"/>
+  <translation tag="Replace Profile?" es="¿Reemplazar Perfil?"/>
   <translation tag="Replay Welcome Tour" es="Repetir Tour de Bienvenida"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" es="Reporte guardado en crash_report.txt"/>

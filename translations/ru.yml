@@ -21,6 +21,7 @@ translations:
   '%zu changes': '%zu изменений'
   '%zu events queued': '%zu событий в очереди'
   '%zu plugins failed to load': Не удалось загрузить %zu плагинов
+  "'{}' already exists. Replace the stored mesh?": "'{}' уже существует. Заменить сохранённую сетку?"
   (different grade): (другая марка)
   (incompatible): (несовместимо)
   (multi-tool): (мультиинструмент)
@@ -369,6 +370,7 @@ translations:
   Calibrate Gear: 'Калибровать шестерню'
   Calibrate X: Калибровать X
   Calibrate Y: Калибровать Y
+  Calibrate and tune scroll feel: "Калибровка и настройка прокрутки"
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации
     вибраций для уменьшения артефактов звона
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для
@@ -857,6 +859,7 @@ translations:
   Enter New PIN: Введите новый PIN
   Enter PIN: Введите PIN
   Enter WiFi Password: Введите пароль WiFi
+  Enter a name for this profile: "Введите имя для этого профиля"
   'Enter a name for your custom theme:': 'Введите название для вашей темы:'
   Enter a name to save this profile: Введите имя для сохранения профиля
   Enter network name: Введите имя сети
@@ -2188,6 +2191,8 @@ translations:
   Rename failed at save step: Ошибка переименования при сохранении
   Render Now: Отрендерить сейчас
   Rendering timelapse...: Рендеринг таймлапса...
+  Replace: "Заменить"
+  Replace Profile?: "Заменить профиль?"
   Replay Welcome Tour: Повторить приветственный тур
   'Replenishing filament...': ''
   Report saved to crash_report.txt: Отчёт сохранён в crash_report.txt

@@ -917,19 +917,37 @@ void FilamentPanel::apply_preset_pick(int slot, const helix::printer::EffectiveF
                  slot, ef.id, ef.nozzle_recommended, ef.bed_temp);
 }
 
+/// Keypad ceiling for one heater, from the printer's own config where it is
+/// known. ControlsPanel already asked TemperatureController this question for
+/// its three keypads; the filament panel used compiled-in members instead, so a
+/// 290C machine offered targets up to 400 (nozzle) and every bed and chamber
+/// keypad stopped at a hardcoded 150 regardless of the printer
+/// (prestonbrown/helixscreen#1355). ensure_limits() is a no-op once the
+/// heater's section has been read.
+float FilamentPanel::keypad_max_for(helix::HeaterType type, int fallback_deg) {
+    if (auto* c = get_temperature_controller()) {
+        c->ensure_limits(type);
+        const float configured = c->keypad_range(type).max;
+        if (configured > 0.0f) {
+            return configured;
+        }
+    }
+    return static_cast<float>(fallback_deg);
+}
+
 void FilamentPanel::handle_nozzle_temp_tap() {
     spdlog::debug("[{}] Opening custom nozzle temperature keypad", get_name());
 
-    ui_keypad_config_t config = {.initial_value =
-                                     static_cast<float>(nozzle_target_ > 0 ? nozzle_target_ : 200),
-                                 .min_value = 0.0f,
-                                 .max_value = static_cast<float>(nozzle_max_temp_),
-                                 .title_label = lv_tr("Nozzle Temperature"),
-                                 .unit_label = "°C",
-                                 .allow_decimal = false,
-                                 .allow_negative = false,
-                                 .callback = custom_nozzle_keypad_cb,
-                                 .user_data = this};
+    ui_keypad_config_t config = {
+        .initial_value = static_cast<float>(nozzle_target_ > 0 ? nozzle_target_ : 200),
+        .min_value = 0.0f,
+        .max_value = keypad_max_for(helix::HeaterType::Nozzle, nozzle_max_temp_),
+        .title_label = lv_tr("Nozzle Temperature"),
+        .unit_label = "°C",
+        .allow_decimal = false,
+        .allow_negative = false,
+        .callback = custom_nozzle_keypad_cb,
+        .user_data = this};
 
     ui_keypad_show(&config);
 }
@@ -940,7 +958,7 @@ void FilamentPanel::handle_bed_temp_tap() {
     ui_keypad_config_t config = {.initial_value =
                                      static_cast<float>(bed_target_ > 0 ? bed_target_ : 60),
                                  .min_value = 0.0f,
-                                 .max_value = static_cast<float>(bed_max_temp_),
+                                 .max_value = keypad_max_for(helix::HeaterType::Bed, bed_max_temp_),
                                  .title_label = lv_tr("Bed Temperature"),
                                  .unit_label = "°C",
                                  .allow_decimal = false,
@@ -954,22 +972,23 @@ void FilamentPanel::handle_bed_temp_tap() {
 void FilamentPanel::handle_chamber_temp_tap() {
     spdlog::debug("[{}] Opening custom chamber temperature keypad", get_name());
 
-    ui_keypad_config_t config = {.initial_value = static_cast<float>(
-                                     chamber_target_ > 0 ? deci_to_degrees(chamber_target_) : 50),
-                                 .min_value = 0.0f,
-                                 .max_value = static_cast<float>(chamber_max_temp_),
-                                 .title_label = lv_tr("Chamber Temperature"),
-                                 .unit_label = "°C",
-                                 .allow_decimal = false,
-                                 .allow_negative = false,
-                                 .callback =
-                                     [](float value, void* user_data) {
-                                         auto* self = static_cast<FilamentPanel*>(user_data);
-                                         if (self) {
-                                             self->handle_custom_chamber_confirmed(value);
-                                         }
-                                     },
-                                 .user_data = this};
+    ui_keypad_config_t config = {
+        .initial_value =
+            static_cast<float>(chamber_target_ > 0 ? deci_to_degrees(chamber_target_) : 50),
+        .min_value = 0.0f,
+        .max_value = keypad_max_for(helix::HeaterType::Chamber, chamber_max_temp_),
+        .title_label = lv_tr("Chamber Temperature"),
+        .unit_label = "°C",
+        .allow_decimal = false,
+        .allow_negative = false,
+        .callback =
+            [](float value, void* user_data) {
+                auto* self = static_cast<FilamentPanel*>(user_data);
+                if (self) {
+                    self->handle_custom_chamber_confirmed(value);
+                }
+            },
+        .user_data = this};
 
     ui_keypad_show(&config);
 }

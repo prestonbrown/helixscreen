@@ -522,7 +522,6 @@ Located in the `input` section:
     "scroll_throw": 25,
     "scroll_limit": 10,
     "long_press_time": 500,
-    "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
     "home_edit_mode_enabled": true,
@@ -587,17 +586,6 @@ Matches LVGL's native default of 10.
 **Description:** USB input devices that HelixScreen ignores entirely for keyboard and barcode-scanner input. Each entry is a `"vid:pid"` pair of lowercase 4-digit hex IDs. Use this when a USB barcode scanner enumerates as a plain HID keyboard and HelixScreen keeps claiming it — for example when an external tool like `afc-spool-scan` needs exclusive access to the scanner. A blacklisted device is skipped by both the persistent keyboard binding and the in-app scan overlay, but still appears in the Barcode Scanner settings device list so you can identify it.
 
 **Finding a device's VID:PID:** Open **Settings > Hardware & Devices > Spoolman > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
-
-### `jitter_threshold`
-**Type:** integer
-**Default:** `5`
-**Range:** `0` - `30`
-**Description:** Touch jitter filter dead zone in pixels. Capacitive touch controllers (notably Goodix GT9xx on FlashForge displays) report 2–5 px of coordinate drift even with a stationary finger. Without filtering, that drift accumulates past `scroll_limit` and a stationary tap gets cancelled as if it were a scroll. The filter freezes reported coordinates to the initial press point while movement stays within this radius.
-
-- **Raise** if stationary taps are still being misread as swipes or scrolls on a noisy panel (typical fix: 15–25).
-- **Lower / 0** if the filter is suppressing intentional short-travel gestures.
-
-Can also be overridden with the `HELIX_TOUCH_JITTER` environment variable.
 
 ### `scroll_guard`
 **Type:** boolean
@@ -1858,7 +1846,6 @@ These can be set in the systemd service file or before running the binary:
 | `HELIX_TOUCH_CALIBRATE` | Force touch calibration on next launch (`1` to enable) |
 | `HELIX_MOUSE_DEVICE` | Override USB mouse device (e.g., `/dev/input/event4`) |
 | `HELIX_KEYBOARD_DEVICE` | Override USB keyboard device (e.g., `/dev/input/event5`) |
-| `HELIX_TOUCH_JITTER` | Override `jitter_threshold` dead zone in pixels (`0`–`30`) |
 | `HELIX_SCROLL_GUARD` | Override `scroll_guard` post-scroll tap suppression (`1` to enable) |
 | `HELIX_SCROLL_GUARD_COOLDOWN_MS` | Override `scroll_guard_cooldown_ms` window in milliseconds |
 
@@ -1922,7 +1909,6 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
   "input": {
     "scroll_throw": 25,
     "scroll_limit": 10,
-    "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
     "touch_device": "",

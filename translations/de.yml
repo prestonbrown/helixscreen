@@ -21,6 +21,7 @@ translations:
   '%zu changes': '%zu Änderungen'
   '%zu events queued': '%zu Ereignisse in Warteschlange'
   '%zu plugins failed to load': '%zu Plugins konnten nicht geladen werden'
+  "'{}' already exists. Replace the stored mesh?": "'{}' existiert bereits. Gespeichertes Netz ersetzen?"
   (different grade): (andere Klasse)
   (incompatible): (inkompatibel)
   (multi-tool): (Multi-Werkzeug)
@@ -381,6 +382,7 @@ translations:
   Calibrate Gear: 'Zahnrad kalibrieren'
   Calibrate X: X kalibrieren
   Calibrate Y: Y kalibrieren
+  Calibrate and tune scroll feel: "Kalibrieren und Scroll-Verhalten einstellen"
   Calibrate input shaping to reduce ringing artifacts in prints: Input Shaping kalibrieren,
     um Ringing-Artefakte im Druck zu reduzieren
   Calibrate your touchscreen for accurate input: Touchscreen für präzise Eingabe kalibrieren
@@ -874,6 +876,7 @@ translations:
   Enter New PIN: Neue PIN eingeben
   Enter PIN: PIN eingeben
   Enter WiFi Password: WiFi-Passwort eingeben
+  Enter a name for this profile: "Geben Sie einen Namen für dieses Profil ein"
   'Enter a name for your custom theme:': 'Geben Sie einen Namen für Ihr benutzerdefiniertes
     Thema ein:'
   Enter a name to save this profile: Geben Sie einen Namen ein, um dieses Profil zu
@@ -2222,6 +2225,8 @@ translations:
   Rename failed at save step: Umbenennung beim Speichern fehlgeschlagen
   Render Now: Jetzt rendern
   Rendering timelapse...: Zeitraffer wird gerendert...
+  Replace: "Ersetzen"
+  Replace Profile?: "Profil ersetzen?"
   Replay Welcome Tour: Willkommens-Rundgang erneut abspielen
   'Replenishing filament...': ''
   Report saved to crash_report.txt: Bericht in crash_report.txt gespeichert

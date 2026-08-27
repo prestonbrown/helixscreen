@@ -20,6 +20,7 @@
   <translation tag="%zu changes" ja="%zu件の変更"/>
   <translation tag="%zu events queued" ja="%zu 件のイベントを待機中"/>
   <translation tag="%zu plugins failed to load" ja="%zu 個のプラグインの読み込みに失敗しました"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" ja="&apos;{}&apos; は既に存在します。保存されたメッシュを置き換えますか？"/>
   <translation tag="(different grade)" ja="(グレード違い)"/>
   <translation tag="(incompatible)" ja="(非対応)"/>
   <translation tag="(multi-tool)" ja="(マルチツール)"/>
@@ -341,6 +342,7 @@
   <translation tag="Calibrate Gear" ja="ギアをキャリブレート"/>
   <translation tag="Calibrate X" ja="X軸をキャリブレート"/>
   <translation tag="Calibrate Y" ja="Y軸をキャリブレート"/>
+  <translation tag="Calibrate and tune scroll feel" ja="キャリブレーションとスクロール感度の調整"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ja="入力シェーピングをキャリブレートして印刷のリンギングを軽減します"/>
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
   <translation tag="Calibrate, tune jitter and scroll feel" ja="キャリブレーション、ジッターとスクロール感度の調整"/>
@@ -774,6 +776,7 @@
   <translation tag="Enter New PIN" ja="新しい PIN を入力"/>
   <translation tag="Enter PIN" ja="PIN を入力"/>
   <translation tag="Enter WiFi Password" ja="WiFi パスワードを入力"/>
+  <translation tag="Enter a name for this profile" ja="このプロファイルの名前を入力"/>
   <translation tag="Enter a name for your custom theme:" ja="カスタムテーマの名前を入力してください:"/>
   <translation tag="Enter a name to save this profile" ja="このプロファイルを保存する名前を入力"/>
   <translation tag="Enter network name" ja="ネットワーク名を入力"/>
@@ -1983,6 +1986,8 @@
   <translation tag="Rename failed at save step" ja="名前変更が保存ステップで失敗しました"/>
   <translation tag="Render Now" ja="今すぐレンダリング"/>
   <translation tag="Rendering timelapse..." ja="タイムラプスをレンダリング中..."/>
+  <translation tag="Replace" ja="置き換え"/>
+  <translation tag="Replace Profile?" ja="プロファイルを置き換えますか？"/>
   <translation tag="Replay Welcome Tour" ja="ウェルカムツアーを再生"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" ja="crash_report.txt にレポートを保存しました"/>

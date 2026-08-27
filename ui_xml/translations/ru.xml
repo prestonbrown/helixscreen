@@ -20,6 +20,7 @@
   <translation tag="%zu changes" ru="%zu изменений"/>
   <translation tag="%zu events queued" ru="%zu событий в очереди"/>
   <translation tag="%zu plugins failed to load" ru="Не удалось загрузить %zu плагинов"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" ru="&apos;{}&apos; уже существует. Заменить сохранённую сетку?"/>
   <translation tag="(different grade)" ru="(другая марка)"/>
   <translation tag="(incompatible)" ru="(несовместимо)"/>
   <translation tag="(multi-tool)" ru="(мультиинструмент)"/>
@@ -341,6 +342,7 @@
   <translation tag="Calibrate Gear" ru="Калибровать шестерню"/>
   <translation tag="Calibrate X" ru="Калибровать X"/>
   <translation tag="Calibrate Y" ru="Калибровать Y"/>
+  <translation tag="Calibrate and tune scroll feel" ru="Калибровка и настройка прокрутки"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
   <translation tag="Calibrate, tune jitter and scroll feel" ru="Калибровка, настройка дрожания и поведения прокрутки"/>
@@ -774,6 +776,7 @@
   <translation tag="Enter New PIN" ru="Введите новый PIN"/>
   <translation tag="Enter PIN" ru="Введите PIN"/>
   <translation tag="Enter WiFi Password" ru="Введите пароль WiFi"/>
+  <translation tag="Enter a name for this profile" ru="Введите имя для этого профиля"/>
   <translation tag="Enter a name for your custom theme:" ru="Введите название для вашей темы:"/>
   <translation tag="Enter a name to save this profile" ru="Введите имя для сохранения профиля"/>
   <translation tag="Enter network name" ru="Введите имя сети"/>
@@ -1983,6 +1986,8 @@
   <translation tag="Rename failed at save step" ru="Ошибка переименования при сохранении"/>
   <translation tag="Render Now" ru="Отрендерить сейчас"/>
   <translation tag="Rendering timelapse..." ru="Рендеринг таймлапса..."/>
+  <translation tag="Replace" ru="Заменить"/>
+  <translation tag="Replace Profile?" ru="Заменить профиль?"/>
   <translation tag="Replay Welcome Tour" ru="Повторить приветственный тур"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" ru="Отчёт сохранён в crash_report.txt"/>

@@ -76,7 +76,8 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
     auto cached = helix::MacroParamCache::instance().get(ctx.macro_name);
     switch (cached.knowledge) {
     case helix::MacroParamKnowledge::KNOWN_NO_PARAMS:
-        helix::execute_macro_gcode(ctx.api, ctx.macro_name, {}, "[FavoriteMacroWidget]");
+        helix::execute_macro_gcode(ctx.api, ctx.macro_name, {}, "[FavoriteMacroWidget]",
+                                   get_printer_state().get_discovery());
         break;
     case helix::MacroParamKnowledge::KNOWN_PARAMS:
         if (ctx.parent_screen) {
@@ -85,7 +86,8 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
             get_shared_param_modal().show_for_macro(
                 ctx.parent_screen, ctx.macro_name, cached.params,
                 [api, name](const helix::MacroParamResult& result) {
-                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]");
+                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]",
+                                               get_printer_state().get_discovery());
                 });
         }
         break;
@@ -96,7 +98,8 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
             get_shared_param_modal().show_for_unknown_params(
                 ctx.parent_screen, ctx.macro_name,
                 [api, name](const helix::MacroParamResult& result) {
-                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]");
+                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]",
+                                               get_printer_state().get_discovery());
                 });
         }
         break;
@@ -132,7 +135,8 @@ void run_confirm_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroWidget] run_confirm_cb");
     auto* ctx = static_cast<MacroExecCtx*>(lv_event_get_user_data(e));
     Modal::hide(Modal::get_top());
-    helix::execute_macro_gcode(ctx->api, ctx->macro_name, {}, "[FavoriteMacroWidget]");
+    helix::execute_macro_gcode(ctx->api, ctx->macro_name, {}, "[FavoriteMacroWidget]",
+                               get_printer_state().get_discovery());
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -392,7 +396,8 @@ void FavoriteMacroWidget::fetch_and_execute() {
     }
 
     if (run_without_params) {
-        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]");
+        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]",
+                                   get_printer_state().get_discovery());
         return;
     }
 

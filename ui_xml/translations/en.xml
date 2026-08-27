@@ -20,6 +20,7 @@
   <translation tag="%zu changes" en="%zu changes"/>
   <translation tag="%zu events queued" en="%zu events queued"/>
   <translation tag="%zu plugins failed to load" en="%zu plugins failed to load"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" en="&apos;{}&apos; already exists. Replace the stored mesh?"/>
   <translation tag="(different grade)" en="(different grade)"/>
   <translation tag="(incompatible)" en="(incompatible)"/>
   <translation tag="(multi-tool)" en="(multi-tool)"/>
@@ -341,6 +342,7 @@
   <translation tag="Calibrate Gear" en="Calibrate Gear"/>
   <translation tag="Calibrate X" en="Calibrate X"/>
   <translation tag="Calibrate Y" en="Calibrate Y"/>
+  <translation tag="Calibrate and tune scroll feel" en="Calibrate and tune scroll feel"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" en="Calibrate input shaping to reduce ringing artifacts in prints"/>
   <translation tag="Calibrate your touchscreen for accurate input" en="Calibrate your touchscreen for accurate input"/>
   <translation tag="Calibrate, tune jitter and scroll feel" en="Calibrate, tune jitter and scroll feel"/>
@@ -774,6 +776,7 @@
   <translation tag="Enter New PIN" en="Enter New PIN"/>
   <translation tag="Enter PIN" en="Enter PIN"/>
   <translation tag="Enter WiFi Password" en="Enter WiFi Password"/>
+  <translation tag="Enter a name for this profile" en="Enter a name for this profile"/>
   <translation tag="Enter a name for your custom theme:" en="Enter a name for your custom theme:"/>
   <translation tag="Enter a name to save this profile" en="Enter a name to save this profile"/>
   <translation tag="Enter network name" en="Enter network name"/>
@@ -1983,6 +1986,8 @@
   <translation tag="Rename failed at save step" en="Rename failed at save step"/>
   <translation tag="Render Now" en="Render Now"/>
   <translation tag="Rendering timelapse..." en="Rendering timelapse..."/>
+  <translation tag="Replace" en="Replace"/>
+  <translation tag="Replace Profile?" en="Replace Profile?"/>
   <translation tag="Replay Welcome Tour" en="Replay Welcome Tour"/>
   <translation tag="Replenishing filament..." en="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" en="Report saved to crash_report.txt"/>

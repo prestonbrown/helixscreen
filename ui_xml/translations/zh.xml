@@ -20,6 +20,7 @@
   <translation tag="%zu changes" zh="%zu 项更改"/>
   <translation tag="%zu events queued" zh="%zu 个事件已排队"/>
   <translation tag="%zu plugins failed to load" zh="%zu 个插件加载失败"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" zh="&apos;{}&apos; 已存在。替换已保存的网格？"/>
   <translation tag="(different grade)" zh="（等级不同）"/>
   <translation tag="(incompatible)" zh="(不兼容)"/>
   <translation tag="(multi-tool)" zh="(多工具)"/>
@@ -341,6 +342,7 @@
   <translation tag="Calibrate Gear" zh="校准齿轮"/>
   <translation tag="Calibrate X" zh="校准 X 轴"/>
   <translation tag="Calibrate Y" zh="校准 Y 轴"/>
+  <translation tag="Calibrate and tune scroll feel" zh="校准并调整滚动手感"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
   <translation tag="Calibrate, tune jitter and scroll feel" zh="校准、调整抖动和滚动手感"/>
@@ -774,6 +776,7 @@
   <translation tag="Enter New PIN" zh="输入新 PIN"/>
   <translation tag="Enter PIN" zh="输入 PIN"/>
   <translation tag="Enter WiFi Password" zh="输入 WiFi 密码"/>
+  <translation tag="Enter a name for this profile" zh="输入此配置的名称"/>
   <translation tag="Enter a name for your custom theme:" zh="输入自定义主题名称："/>
   <translation tag="Enter a name to save this profile" zh="输入名称以保存此配置"/>
   <translation tag="Enter network name" zh="输入网络名称"/>
@@ -1983,6 +1986,8 @@
   <translation tag="Rename failed at save step" zh="重命名在保存步骤失败"/>
   <translation tag="Render Now" zh="立即渲染"/>
   <translation tag="Rendering timelapse..." zh="正在渲染延时摄影..."/>
+  <translation tag="Replace" zh="替换"/>
+  <translation tag="Replace Profile?" zh="替换配置？"/>
   <translation tag="Replay Welcome Tour" zh="重播欢迎漫游"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" zh="报告已保存到 crash_report.txt"/>

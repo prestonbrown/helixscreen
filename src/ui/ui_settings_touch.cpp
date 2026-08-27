@@ -35,8 +35,8 @@ TouchSettingsOverlay::~TouchSettingsOverlay() {
 
 void TouchSettingsOverlay::init_subjects() {
     // All bound subjects (settings_debug_touches, settings_scroll_guard,
-    // settings_jitter_threshold, settings_scroll_limit) are owned by
-    // InputSettingsManager and registered globally at startup.
+    // settings_scroll_limit) are owned by InputSettingsManager and registered
+    // globally at startup.
     subjects_initialized_ = true;
 }
 
@@ -109,7 +109,6 @@ void TouchSettingsOverlay::init_input_sliders() {
         }
     };
 
-    sync_slider("row_jitter_threshold", input.get_jitter_threshold());
     sync_slider("row_scroll_limit", input.get_scroll_limit());
     sync_slider("row_long_press_time", input.get_long_press_time());
 }

@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <string>
 
 /**
  * @brief Reason the recovery dialog is being shown
@@ -300,9 +301,11 @@ constexpr uint32_t EXPECTED_RESTART_DISCONNECT_MODAL_MS = 15000;
  * run on the WebSocket thread (z_offset_utils.cpp).
  *
  * @param message UNTRANSLATED source string; translated on the main thread
- *                when the toast is shown
+ *                when the toast is shown. Taken by value because that happens
+ *                on a later tick - the previous const char* form kept only the
+ *                pointer, which outlived any caller-owned buffer.
  */
-void begin_expected_klippy_restart(const char* message);
+void begin_expected_klippy_restart(std::string message);
 
 } // namespace ui
 } // namespace helix
