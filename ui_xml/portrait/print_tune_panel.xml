@@ -128,32 +128,59 @@
         <lv_obj width="100%"
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
           <ui_button name="btn_z_step_0" height="#button_height_sm" flex_grow="1" text="0.05">
-            <bind_style name="z_step_selected" subject="z_step_0_active" ref_value="1"/>
-            <bind_style name="z_step_unselected" subject="z_step_0_active" ref_value="0"/>
+            <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 0"/>
+            <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 0"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
           </ui_button>
           <ui_button name="btn_z_step_1" height="#button_height_sm" flex_grow="1" text="0.025">
-            <bind_style name="z_step_selected" subject="z_step_1_active" ref_value="1"/>
-            <bind_style name="z_step_unselected" subject="z_step_1_active" ref_value="0"/>
+            <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 1"/>
+            <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 1"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
           </ui_button>
           <ui_button name="btn_z_step_2" height="#button_height_sm" flex_grow="1" text="0.01">
-            <bind_style name="z_step_selected" subject="z_step_2_active" ref_value="1"/>
-            <bind_style name="z_step_unselected" subject="z_step_2_active" ref_value="0"/>
+            <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 2"/>
+            <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 2"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
           </ui_button>
           <ui_button name="btn_z_step_3" height="#button_height_sm" flex_grow="1" text="0.005">
-            <bind_style name="z_step_selected" subject="z_step_3_active" ref_value="1"/>
-            <bind_style name="z_step_unselected" subject="z_step_3_active" ref_value="0"/>
+            <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 3"/>
+            <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 3"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>
           </ui_button>
         </lv_obj>
         <!-- Help text. Wraps: the portrait content box is narrower than the
              single-line width, and an unwrapped label sets its row's minimum
-             width, pushing the whole z-offset row past the screen edge. -->
+             width, pushing the whole z-offset row past the screen edge.
+
+             Hidden on a tool changer, where the target selector below takes
+             this slot. Unlike landscape this sits at section level, with no
+             indicator slack to absorb the difference, so the swap costs this
+             section ~9px — on a layout that already scrolls at 272x480. -->
         <text_small width="100%"
                     long_mode="wrap" text="Closer = more squish | Farther = less squish"
-                    translation_tag="Closer = more squish | Farther = less squish"/>
+                    translation_tag="Closer = more squish | Farther = less squish">
+          <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
+        </text_small>
+        <!-- Which z-offset the direction buttons drive. See the landscape
+             variant for why a tool changer has two independent offsets. -->
+        <lv_obj name="z_target_row"
+                width="100%" height="content" style_pad_all="0" flex_flow="row"
+                style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false"
+                hidden="true">
+          <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="0"/>
+          <ui_button name="btn_z_target_global" height="#button_height_sm" flex_grow="1"
+                     text="Global" translation_tag="Global">
+            <bind_style_if name="z_step_selected" cond="z_tune_target eq 0"/>
+            <bind_style_if name="z_step_unselected" cond="z_tune_target ne 0"/>
+            <event_cb trigger="clicked" callback="on_tune_z_target" user_data="0"/>
+          </ui_button>
+          <ui_button name="btn_z_target_tool" height="#button_height_sm" flex_grow="1"
+                     bind_text="tune_z_tool_label">
+            <bind_style_if name="z_step_selected" cond="z_tune_target eq 1"/>
+            <bind_style_if name="z_step_unselected" cond="z_tune_target ne 1"/>
+            <event_cb trigger="clicked" callback="on_tune_z_target" user_data="1"/>
+          </ui_button>
+        </lv_obj>
         <text_small name="z_offset_help_text_manual"
                     width="100%" long_mode="wrap"
                     text="Temporary adjustment for this print, unless saved on Controls panel"

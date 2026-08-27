@@ -111,23 +111,23 @@
               <lv_obj height="content"
                       flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
                 <ui_button name="btn_z_step_0" height="#button_height_sm" flex_grow="1" text="0.05">
-                  <bind_style name="z_step_selected" subject="z_step_0_active" ref_value="1"/>
-                  <bind_style name="z_step_unselected" subject="z_step_0_active" ref_value="0"/>
+                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 0"/>
+                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 0"/>
                   <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
                 </ui_button>
                 <ui_button name="btn_z_step_1" height="#button_height_sm" flex_grow="1" text="0.025">
-                  <bind_style name="z_step_selected" subject="z_step_1_active" ref_value="1"/>
-                  <bind_style name="z_step_unselected" subject="z_step_1_active" ref_value="0"/>
+                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 1"/>
+                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 1"/>
                   <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
                 </ui_button>
                 <ui_button name="btn_z_step_2" height="#button_height_sm" flex_grow="1" text="0.01">
-                  <bind_style name="z_step_selected" subject="z_step_2_active" ref_value="1"/>
-                  <bind_style name="z_step_unselected" subject="z_step_2_active" ref_value="0"/>
+                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 2"/>
+                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 2"/>
                   <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
                 </ui_button>
                 <ui_button name="btn_z_step_3" height="#button_height_sm" flex_grow="1" text="0.005">
-                  <bind_style name="z_step_selected" subject="z_step_3_active" ref_value="1"/>
-                  <bind_style name="z_step_unselected" subject="z_step_3_active" ref_value="0"/>
+                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 3"/>
+                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 3"/>
                   <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>
                 </ui_button>
               </lv_obj>
@@ -146,10 +146,45 @@
             <!-- Help text. Wraps rather than setting the row's minimum width:
                  an unwrapped label here is what pushes the whole z-offset row
                  past the screen edge once the string is longer than the box,
-                 which English fits on one line but translations need not. -->
+                 which English fits on one line but translations need not.
+
+                 Hidden on a tool changer, where the target selector below takes
+                 this slot. The swap is what keeps the section the same height:
+                 the controls column has ~28px of slack under the indicator at
+                 800x480 and ~23px at 480x272, enough for the taller selector
+                 only because the label goes away. -->
             <text_small width="100%"
                         long_mode="wrap" text="Closer = more squish | Farther = less squish"
-                        translation_tag="Closer = more squish | Farther = less squish"/>
+                        translation_tag="Closer = more squish | Farther = less squish">
+              <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
+            </text_small>
+            <!-- Which z-offset the buttons above drive. Only a tool changer has
+                 two: Klipper's machine-wide gcode_move offset, and the active
+                 tool's own. They are independent — the firmware applies both —
+                 so this picks a target rather than a mode. -->
+            <lv_obj name="z_target_row"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row"
+                    style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false"
+                    hidden="true">
+              <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="0"/>
+              <ui_button name="btn_z_target_global" height="#button_height_sm" flex_grow="1"
+                         text="Global" translation_tag="Global">
+                <bind_style_if name="z_step_selected" cond="z_tune_target eq 0"/>
+                <bind_style_if name="z_step_unselected" cond="z_tune_target ne 0"/>
+                <event_cb trigger="clicked" callback="on_tune_z_target" user_data="0"/>
+              </ui_button>
+              <ui_button name="btn_z_target_tool" height="#button_height_sm" flex_grow="1"
+                         bind_text="tune_z_tool_label">
+                <bind_style_if name="z_step_selected" cond="z_tune_target eq 1"/>
+                <bind_style_if name="z_step_unselected" cond="z_tune_target ne 1"/>
+                <event_cb trigger="clicked" callback="on_tune_z_target" user_data="1"/>
+              </ui_button>
+              <!-- The target you are NOT on, so both numbers are visible without
+                   a second row. Muted: it is context, not the value the buttons
+                   act on. -->
+              <text_small name="z_target_other" width="content"
+                          bind_text="tune_z_other_display" style_text_color="#text_muted"/>
+            </lv_obj>
           </lv_obj>
         </lv_obj>
         <text_small name="z_offset_help_text_manual"
