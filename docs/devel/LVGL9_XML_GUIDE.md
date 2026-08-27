@@ -129,6 +129,17 @@ lv_xml_register_component_from_file("A:ui_xml/home_panel.xml");
 
 ## Core Concepts
 
+> **Engine semantics live in the engine repo.** Subjects, every binding element,
+> the expression language, `<if>`/`<repeat>`, and the two silent-failure rules
+> (`cond=` vs `<subject_expr>` resolution order; flag binds being two-way) are
+> documented — and pinned by tests — in
+> [`lib/helix-xml/docs/BINDINGS.md`](../../lib/helix-xml/docs/BINDINGS.md).
+> Read that for what a construct *does*.
+>
+> What follows is HelixScreen's use of it: our widgets (`ui_button`, `ui_card`,
+> `text_*`), our design tokens, our `ui_breakpoint` tiers, and the conventions
+> that only make sense against this codebase.
+
 ### 1. XML Components
 
 Components are reusable UI pieces defined with the `<component>` tag.
@@ -475,27 +486,18 @@ Inside a component's `<subjects>` block, `<subject_expr name="X" expr="EXPR"/>` 
 
 ##### Which phase registers the subject decides which construct you can use
 
-This is the trap, and it fails silently:
+`<subject_expr>` resolves its operands when the **component is registered**
+(Phase 8c, `register_xml_components()`); `cond=` resolves when the **view is
+created**. So an expression over a subject that some `init_subjects()` creates
+at Phase 9a compiles only in the `cond=` form — as a `<subject_expr>` it
+silently never registers.
 
-| Construct | Resolved at | Sees subjects registered by |
-|---|---|---|
-| `<subject_expr>` | **component-load, Phase 8c** (`register_xml_components()`) | anything registered before XML components — *not* a panel's `init_subjects()` |
-| `cond=` on `bind_flag_if` / `bind_state_if` / `bind_style_if` | **view-creation**, when the widget is built | everything above, plus Phase 9a `init_subjects()` |
-
-Both phases are in [`architecture/01-declarative-ui.md`](architecture/01-declarative-ui.md) (Phase 8c registers components, Phase 9a initializes subjects).
-
-So a `<subject_expr>` referencing a subject created by some panel's or manager's `init_subjects()` **silently never registers** — the subject does not exist yet when the expression compiles. Use `cond=` for those. `ui_xml/temp_graph_overlay.xml` carries a worked example (`temp_graph_mode`), and `ui_xml/header_bar.xml` another (`any_tool_z_dirty`, from `ToolState::init_subjects()`).
-
-The reverse constraint is real too: a view created *before* Phase 9a — anything in the app chrome, e.g. `navigation_bar.xml` — cannot rely on `cond=` against a 9a subject either. There the answer is to register the subject earlier, not to change the binding.
-
-```xml
-<subjects>
-    <int name="demo_temp" value="50"/>
-    <int name="demo_threshold" value="70"/>
-    <int name="demo_error" value="0"/>
-    <subject_expr name="demo_alarm" expr="demo_error or demo_temp gt demo_threshold"/>
-</subjects>
-```
+Full rule, both directions, and the tests that pin it:
+[`lib/helix-xml/docs/BINDINGS.md` § *When each is resolved*](../../lib/helix-xml/docs/BINDINGS.md#when-each-is-resolved--the-trap).
+HelixScreen phases are in
+[`architecture/01-declarative-ui.md`](architecture/01-declarative-ui.md).
+Worked examples in this tree: `ui_xml/temp_graph_overlay.xml`
+(`temp_graph_mode`) and `ui_xml/header_bar.xml` (`any_tool_z_dirty`).
 
 **2. `<bind_flag_if cond="EXPR" flag="FLAG" invert="true|false"/>`** — child of any object. Adds `flag` when `EXPR` is truthy, removes it when falsy. `invert="true"` flips that (apply when falsy) — the common case for `flag="hidden"` when the markup wants to read as "show when `cond`" instead of "hide when `cond`":
 
@@ -595,18 +597,13 @@ These are parse-time only -- the hidden state does not change after creation. Fo
 
 **Reuse alone does not pick `<subject_expr>`** — check the phase table above first. If any referenced subject comes from an `init_subjects()` (Phase 9a), the derived subject silently never registers and you must repeat the `cond=` at each site instead.
 
-**❌ Never put two flag bindings for the same flag on one widget.** `bind_flag_if_eq` is two-way: it adds the flag when the subject matches and **removes** it when it does not. So a "hide when `a` is 0" binding beside a "hide when `b` is falsy" binding does not AND them — whichever fires last wins, and a non-matching `bind_flag_if_eq` will happily un-hide what the other just hid. Combine them into one expression instead:
-
-```xml
-<!-- WRONG: with can_save at 1 this un-hides, overriding the dirty test -->
-<bind_flag_if cond="dirty" flag="hidden" invert="true"/>
-<bind_flag_if_eq subject="can_save" flag="hidden" ref_value="0"/>
-
-<!-- RIGHT: one binding, both conditions -->
-<bind_flag_if cond="can_save and dirty" flag="hidden" invert="true"/>
-```
-
-Two bindings are only safe when they sit on *different* widgets (e.g. a wrapper and the button inside it), which is why that pattern appears to work in some panels.
+**❌ Never put two flag bindings for the same flag on one widget.** The flag
+binds are two-way — a non-matching `bind_flag_if_eq` actively *removes* the flag
+rather than abstaining — so two of them do not AND, they overwrite each other.
+Combine into one expression (`cond="can and dirty"`) instead. Two binds for one
+flag are safe only on different widgets, which is why the broken form can look
+correct in nested markup. Worked example and the tests that pin it:
+[`lib/helix-xml/docs/BINDINGS.md` § *The flag binds are two-way*](../../lib/helix-xml/docs/BINDINGS.md#the-flag-binds-are-two-way).
 
 #### Repeating fragments with `<repeat>`
 
