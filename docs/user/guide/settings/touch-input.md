@@ -1,6 +1,6 @@
 # Settings: Touch & Input
 
-Reached from **Settings → System → Touch & Input**. Groups every setting that affects how the screen reads finger input — calibration, debug visualization, jitter filtering, scroll feel, and long-press behavior.
+Reached from **Settings → System → Touch & Input**. Groups every setting that affects how the screen reads finger input — calibration, debug visualization, scroll feel, and long-press behavior.
 
 ---
 
@@ -24,20 +24,6 @@ Toggles a debug overlay that draws a ripple at every touch point. Useful when ta
 Takes effect immediately — no restart required.
 
 > Persistent equivalent: `HELIX_DEBUG_TOUCH=1` in `helixscreen.env`. The Settings toggle and the env var read the same flag.
-
----
-
-## Touch Jitter Filter
-
-A dead zone in pixels that suppresses tiny coordinate noise from the touch controller. Range `0`–`30`, default `5` — which works for most panels.
-
-| Symptom | Suggested value |
-|---|---|
-| Stationary taps register as swipes (common on Goodix GT9xx capacitive controllers) | **15–25** |
-| Default — works on most panels | **5** |
-| Disable the filter entirely (ultra-precise touch) | **0** |
-
-Requires a restart to take effect. HelixScreen offers a restart prompt automatically after you change the slider.
 
 ---
 

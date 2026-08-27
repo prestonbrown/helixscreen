@@ -12,7 +12,6 @@
       "f": -2.2605438232421875,
       "valid": true
     },
-    "jitter_threshold": 5,
     "scroll_limit": 10,
     "scroll_throw": 25
   },

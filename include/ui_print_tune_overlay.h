@@ -210,7 +210,6 @@ class PrintTuneOverlay : public OverlayBase {
     /// Owns the SAVE_CONFIG contract for the z-offset save: absorbs the rpc the
     /// restart drops and reports success only once Klipper is back (#1359).
     helix::ui::SaveConfigWatch save_config_watch_;
-
     helix::PrinterState* printer_state_ = nullptr;
     lv_obj_t* tune_panel_ = nullptr;
 
@@ -239,8 +238,8 @@ class PrintTuneOverlay : public OverlayBase {
     /// Label for the tool button ("T1"). Not tool_badge_text: that one is
     /// deliberately index-only, sized for a disc overlaid on the nozzle glyph.
     lv_subject_t tune_z_tool_label_subject_;
-    lv_subject_t z_closer_icon_subject_;     ///< Icon name for closer button (kinematic-aware)
-    lv_subject_t z_farther_icon_subject_;    ///< Icon name for farther button (kinematic-aware)
+    lv_subject_t z_closer_icon_subject_;  ///< Icon name for closer button (kinematic-aware)
+    lv_subject_t z_farther_icon_subject_; ///< Icon name for farther button (kinematic-aware)
 
     // Actual speed/flow display subjects
     lv_subject_t tune_actual_speed_subject_;

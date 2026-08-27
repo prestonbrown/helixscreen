@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Touch & Input Settings Overlay -->
-<!-- Calibration, debug visualization, jitter filter, scroll feel -->
+<!-- Calibration, debug visualization, scroll feel -->
 <component>
   <view name="settings_touch_overlay"
         extends="overlay_panel" title="Touch &amp; Input" title_tag="Touch &amp; Input" bg_color="#screen_bg">
@@ -26,12 +26,6 @@
                             description="Draw a ripple at each touch — helps diagnose offsets"
                             description_tag="Draw a ripple at each touch — helps diagnose offsets"
                             subject="settings_debug_touches" callback="on_debug_touches_changed"/>
-        <setting_slider_row name="row_jitter_threshold"
-                            label="Touch Jitter Filter" label_tag="Touch Jitter Filter" icon="waveform"
-                            description="Dead zone in pixels (raise if taps register as swipes; 0 disables)"
-                            description_tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" min="0"
-                            max="30" value="5" min_icon="minus" max_icon="plus" trigger="released"
-                            callback="on_jitter_threshold_changed"/>
         <setting_slider_row name="row_scroll_limit"
                             label="Scroll Engage Distance" label_tag="Scroll Engage Distance" icon="swap_vertical"
                             description="Pixels before a press becomes a scroll (lower = scrolls engage sooner)"

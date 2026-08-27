@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu 项更改'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）
   (incompatible): (不兼容)
   (multi-tool): (多工具)
@@ -349,6 +350,7 @@ translations:
   Calibrate Gear: '校准齿轮'
   Calibrate X: 校准 X 轴
   Calibrate Y: 校准 Y 轴
+  Calibrate and tune scroll feel: "校准并调整滚动手感"
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
   Calibrate, tune jitter and scroll feel: 校准、调整抖动和滚动手感
@@ -796,6 +798,7 @@ translations:
   Enter New PIN: 输入新 PIN
   Enter PIN: 输入 PIN
   Enter WiFi Password: 输入 WiFi 密码
+  Enter a name for this profile: "输入此配置的名称"
   'Enter a name for your custom theme:': 输入自定义主题名称：
   Enter a name to save this profile: 输入名称以保存此配置
   Enter network name: 输入网络名称
@@ -1075,6 +1078,7 @@ translations:
   Gear sync: 齿轮同步
   Generic: 通用
   Get help and share feedback: 获取帮助和反馈
+  Global: ''
   Good: 良好
   Good Accuracy: 精度良好
   Got it: 知道了
@@ -1686,6 +1690,7 @@ translations:
   On/Off: 开/关
   On/Off (state-aware): 开/关（状态跟踪）
   'On:': '开:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: '减少渗漏'
   Open: 打开
   Open Source Licenses: 开源许可证
@@ -1943,6 +1948,7 @@ translations:
   Profile renamed: 配置文件已重命名
   Profiles: 配置
   Progress, file, and time remaining: 进度、文件和剩余时间
+  Prompt before running this macro: ''
   Pulling filament back: 正在回抽耗材
   Purge: 排料
   Purge & Wipe: '排料与擦拭'
@@ -2043,12 +2049,15 @@ translations:
   Rename failed at save step: 重命名在保存步骤失败
   Render Now: 立即渲染
   Rendering timelapse...: 正在渲染延时摄影...
+  Replace: "替换"
+  Replace Profile?: "替换配置？"
   Replay Welcome Tour: 重播欢迎漫游
   'Replenishing filament...': ''
   Report saved to crash_report.txt: 报告已保存到 crash_report.txt
   Reprint: 重新打印
   Reprint Last: 重印上次
   Request Failed: 请求失败
+  Require Confirmation?: ''
   Require confirmation before emergency stop: 紧急停止前需要确认
   Requires Moonraker power device: '需要 Moonraker 电源设备'
   Requires Moonraker-Timelapse plugin: 需要 Moonraker-Timelapse 插件
@@ -2137,7 +2146,6 @@ translations:
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): 即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）
   Run test sequence on all lanes: '在所有料仓运行测试流程'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: 在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。
-  Run without parameter prompt: 运行时不提示参数
   Run {}?: 运行 {}？
   Running {}...: 正在运行 {}...
   Runout: '用尽'
@@ -2599,6 +2607,7 @@ translations:
   This will reset all settings to defaults. This action cannot be undone.: 这将把所有设置重置为默认值。此操作无法撤销。
   This will restart Klipper firmware. Any active operations will be interrupted.: 将重启Klipper固件。所有正在进行的操作将被中断。
   This will restart Klipper.: 这将重启 Klipper。
+  This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: ''
   Thorough: 全面
   Thumbnail Only: 仅缩略图
   'Thumbnail: ': '缩略图: '
@@ -2888,6 +2897,7 @@ translations:
   Z-offset calibration timed out: Z 偏移校准超时
   'Z-offset failed: {}': 'Z 偏移失败: {}'
   Z-offset is auto-saved by firmware: Z 偏移由固件自动保存
+  Z-offset saved: ''
   Z-offset saved ({:+.3f}mm). Klipper restarting...: Z 偏移已保存 ({:+.3f}mm)。Klipper 正在重启...
   Z-offset saved - Klipper restarting...: Z 偏移已保存 - Klipper 重启中...
   'Z:': 'Z:'

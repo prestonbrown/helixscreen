@@ -38,7 +38,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/hardware.md` | Hardware issues, printers, multi-filament systems, fans, sensors, LEDs, power devices, Spoolman |
 | `guide/settings/safety.md` | E-Stop confirmation, cancel escalation, print completion alert |
 | `guide/settings/system.md` | Security, network, host, touch & input link, plugins, telemetry, reset |
-| `guide/settings/touch-input.md` | Touch calibration, debug viz, jitter filter, scroll engage distance, scroll guard |
+| `guide/settings/touch-input.md` | Touch calibration, debug viz, scroll engage distance, scroll guard |
 | `guide/settings/help-about.md` | Debug bundles, Discord, docs, version, updates, print hours |
 | `guide/settings/led-settings.md` | LED strip selection, auto-state, macro devices, setup guides |
 | `guide/fans.md` | Discovered fans grouped by controllable vs. automatic, live speed dials, RPM readouts, per-fan renaming |

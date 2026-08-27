@@ -14,7 +14,6 @@ namespace helix {
  * Owns all input-related LVGL subjects and persistence:
  * - scroll_throw (momentum decay rate, 5-50)        — restart required
  * - scroll_limit (pixels before scrolling starts, 1-20) — restart required
- * - jitter_threshold (touch jitter dead zone px, 0-30) — restart required
  * - scroll_guard (suppress phantom click after scroll)  — restart required
  * - debug_touches (draw ripple at each touch point)     — live-applied
  *
@@ -88,18 +87,6 @@ class InputSettingsManager {
      */
     void set_long_press_time(int value);
 
-    /** @brief Get jitter threshold in pixels (0-30; 0 disables) */
-    int get_jitter_threshold() const;
-
-    /**
-     * @brief Set jitter threshold (touch coordinate dead zone)
-     *
-     * Persists to config. Requires restart to take effect.
-     *
-     * @param value Dead zone in pixels (0-30; 0 disables)
-     */
-    void set_jitter_threshold(int value);
-
     /** @brief Get scroll guard enable state */
     bool get_scroll_guard() const;
 
@@ -172,11 +159,6 @@ class InputSettingsManager {
         return &long_press_time_subject_;
     }
 
-    /** @brief Jitter threshold subject (integer: 0-30) */
-    lv_subject_t* subject_jitter_threshold() {
-        return &jitter_threshold_subject_;
-    }
-
     /** @brief Scroll guard subject (integer: 0 or 1) */
     lv_subject_t* subject_scroll_guard() {
         return &scroll_guard_subject_;
@@ -201,7 +183,6 @@ class InputSettingsManager {
     lv_subject_t scroll_throw_subject_;
     lv_subject_t scroll_limit_subject_;
     lv_subject_t long_press_time_subject_;
-    lv_subject_t jitter_threshold_subject_;
     lv_subject_t scroll_guard_subject_;
     lv_subject_t debug_touches_subject_;
     lv_subject_t home_edit_mode_enabled_subject_;

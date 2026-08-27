@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The v22 -> v23 migration TAGS every saved home layout rather than converting
+// The v23 -> v24 migration TAGS every saved home layout rather than converting
 // or clearing it. Saved col/row/span are cell counts against a grid whose track
 // count and cell size both changed, and this runs at config load, before any
 // screen size is known — so the conversion cannot happen here. It can happen at
@@ -32,7 +32,7 @@ using namespace helix;
 
 namespace {
 
-class MigrationV23Fixture {
+class MigrationV24Fixture {
   protected:
     Config config;
     std::string temp_dir;
@@ -91,19 +91,19 @@ class MigrationV23Fixture {
     }
 
   public:
-    MigrationV23Fixture() {
+    MigrationV24Fixture() {
         SetUp();
     }
-    ~MigrationV23Fixture() {
+    ~MigrationV24Fixture() {
         TearDown();
     }
 };
 
 } // namespace
 
-TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: preserves every coordinate and span",
-                 "[config][migration][23]") {
-    write_and_init({{"config_version", 22},
+TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: preserves every coordinate and span",
+                 "[config][migration][24]") {
+    write_and_init({{"config_version", 23},
                     {"active_printer_id", "default"},
                     {"printers",
                      {{"default",
@@ -139,13 +139,13 @@ TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: preserves every coo
     // reads cell counts as track counts.
     auto panel = panel_of();
     CHECK(panel["layout_units"] == "cells_v21");
-    CHECK(config.get<int>("/config_version", 0) == 23);
+    CHECK(config.get<int>("/config_version", 0) == 24);
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture,
-                 "Config migration v23: a user trash keeps its hide, an engine disable does not",
-                 "[config][migration][23]") {
-    write_and_init({{"config_version", 22},
+TEST_CASE_METHOD(MigrationV24Fixture,
+                 "Config migration v24: a user trash keeps its hide, an engine disable does not",
+                 "[config][migration][24]") {
+    write_and_init({{"config_version", 23},
                     {"active_printer_id", "default"},
                     {"printers",
                      {{"default",
@@ -183,10 +183,10 @@ TEST_CASE_METHOD(MigrationV23Fixture,
     CHECK(widgets[2]["id"] == "led");
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: covers every printer profile",
-                 "[config][migration][23]") {
+TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: covers every printer profile",
+                 "[config][migration][24]") {
     write_and_init(
-        {{"config_version", 22},
+        {{"config_version", 23},
          {"active_printer_id", "default"},
          {"printers",
           {{"default",
@@ -206,15 +206,15 @@ TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: covers every printe
     }
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: handles a legacy flat array",
-                 "[config][migration][23]") {
+TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: handles a legacy flat array",
+                 "[config][migration][24]") {
     // Configs written before the multi-page format hold a bare array, which
     // PanelWidgetConfig::load() routes down a separate branch that can decide
     // the config is pre-grid and replace it with build_defaults(), discarding
     // every deliberate hide. The migration converts the array to the page shape
     // so that branch is never reached, and tags it like any other panel.
     write_and_init(
-        {{"config_version", 22},
+        {{"config_version", 23},
          {"active_printer_id", "default"},
          {"printers",
           {{"default",
@@ -239,15 +239,15 @@ TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: handles a legacy fl
     CHECK(widgets[0]["colspan"] == 4);
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture,
-                 "Config migration v23: carries the cached row count onto the panel",
-                 "[config][migration][23]") {
+TEST_CASE_METHOD(MigrationV24Fixture,
+                 "Config migration v24: carries the cached row count onto the panel",
+                 "[config][migration][24]") {
     // /ui/cached_grid/<panel>/rows is a row count in cells of the old grid. It
     // is the one thing about that grid a saved layout cannot re-derive on its
     // own — the old row axis was sized from the widgets in use, with this as a
     // floor for widgets whose hardware gate had not yet fired. So it moves onto
     // the panel beside the tag rather than being dropped, and /ui loses the key.
-    write_and_init({{"config_version", 22},
+    write_and_init({{"config_version", 23},
                     {"ui", {{"cached_grid", {{"home", {{"rows", 4}}}}}}},
                     {"active_printer_id", "default"},
                     {"printers",
@@ -265,12 +265,12 @@ TEST_CASE_METHOD(MigrationV23Fixture,
     CHECK(panel_of()["legacy_rows"] == 4);
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: a panel with no cache records zero",
-                 "[config][migration][23]") {
+TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: a panel with no cache records zero",
+                 "[config][migration][24]") {
     // Absent cache is not the same as a cache of zero rows, but the port treats
     // both as "unknown" and reads the row count off the layout, so the tag can
     // carry a plain 0 rather than an optional.
-    write_and_init({{"config_version", 22},
+    write_and_init({{"config_version", 23},
                     {"active_printer_id", "default"},
                     {"printers",
                      {{"default",
@@ -286,9 +286,9 @@ TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: a panel with no cac
     CHECK(panel_of()["layout_units"] == "cells_v21");
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: is idempotent",
-                 "[config][migration][23]") {
-    write_and_init({{"config_version", 23},
+TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: is idempotent",
+                 "[config][migration][24]") {
+    write_and_init({{"config_version", 24},
                     {"active_printer_id", "default"},
                     {"printers",
                      {{"default",
@@ -300,7 +300,7 @@ TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: is idempotent",
                                           {"colspan", 1},
                                           {"rowspan", 1}}})}}}}}}}});
 
-    // Already stamped 23 — the migration must not run and must not touch a
+    // Already stamped 24 — the migration must not run and must not touch a
     // layout the user arranged after upgrading.
     auto widgets = widgets_of();
     REQUIRE(widgets.size() == 1);
@@ -310,35 +310,35 @@ TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: is idempotent",
     CHECK(widgets[0]["rowspan"] == 1);
 }
 
-TEST_CASE_METHOD(MigrationV23Fixture, "Config migration v23: survives every missing node",
-                 "[config][migration][23]") {
+TEST_CASE_METHOD(MigrationV24Fixture, "Config migration v24: survives every missing node",
+                 "[config][migration][24]") {
     // No printers at all; a printers value that is not an object; a page that is
     // a string; a widgets value that is an object. Each must migrate and stamp
     // rather than throw.
-    write_and_init({{"config_version", 22}});
-    CHECK(config.get<int>("/config_version", 0) == 23);
+    write_and_init({{"config_version", 23}});
+    CHECK(config.get<int>("/config_version", 0) == 24);
 
     TearDown();
     SetUp();
     write_and_init(
-        {{"config_version", 22},
+        {{"config_version", 23},
          {"printers",
           {{"default", {{"panel_widgets", {{"home", {{"pages", json::array({"main"})}}}}}}}}}});
-    CHECK(config.get<int>("/config_version", 0) == 23);
+    CHECK(config.get<int>("/config_version", 0) == 24);
 
     TearDown();
     SetUp();
-    write_and_init({{"config_version", 22},
+    write_and_init({{"config_version", 23},
                     {"printers",
                      {{"default",
                        {{"panel_widgets",
                          {{"home",
                            {{"pages", json::array({json{{"id", "main"},
                                                         {"widgets", json::object()}}})}}}}}}}}}});
-    CHECK(config.get<int>("/config_version", 0) == 23);
+    CHECK(config.get<int>("/config_version", 0) == 24);
 
     TearDown();
     SetUp();
-    write_and_init({{"config_version", 22}, {"printers", "not-an-object"}});
-    CHECK(config.get<int>("/config_version", 0) == 23);
+    write_and_init({{"config_version", 23}, {"printers", "not-an-object"}});
+    CHECK(config.get<int>("/config_version", 0) == 24);
 }

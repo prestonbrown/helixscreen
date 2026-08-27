@@ -72,10 +72,6 @@ TEST_CASE_METHOD(InputSettingsFixture, "InputSettingsManager default values afte
         REQUIRE(input().get_scroll_limit() == 10);
     }
 
-    SECTION("jitter_threshold defaults to 5") {
-        REQUIRE(input().get_jitter_threshold() == 5);
-    }
-
     SECTION("scroll_guard defaults to off") {
         REQUIRE(input().get_scroll_guard() == false);
     }
@@ -181,7 +177,7 @@ TEST_CASE_METHOD(InputSettingsFixture, "InputSettingsManager subject values matc
 }
 
 // ============================================================================
-// debug_touches / jitter_threshold / scroll_guard
+// debug_touches / scroll_guard
 // ============================================================================
 
 TEST_CASE_METHOD(InputSettingsFixture, "InputSettingsManager debug_touches live-apply contract",
@@ -210,29 +206,6 @@ TEST_CASE_METHOD(InputSettingsFixture, "InputSettingsManager debug_touches live-
         RuntimeConfig::set_debug_touches(false); // simulate a fresh process
         restart();
         REQUIRE(RuntimeConfig::debug_touches() == true);
-    }
-}
-
-TEST_CASE_METHOD(InputSettingsFixture, "InputSettingsManager jitter_threshold clamps and persists",
-                 "[input_settings]") {
-    SECTION("values above 30 clamp to 30") {
-        input().set_jitter_threshold(50);
-        REQUIRE(input().get_jitter_threshold() == 30);
-    }
-
-    SECTION("values below 0 clamp to 0") {
-        input().set_jitter_threshold(-5);
-        REQUIRE(input().get_jitter_threshold() == 0);
-    }
-
-    SECTION("in-range round trip") {
-        input().set_jitter_threshold(15);
-        REQUIRE(input().get_jitter_threshold() == 15);
-    }
-
-    SECTION("marks restart_pending") {
-        input().set_jitter_threshold(20);
-        REQUIRE(input().is_restart_pending() == true);
     }
 }
 

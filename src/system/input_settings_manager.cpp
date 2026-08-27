@@ -51,12 +51,6 @@ void InputSettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(long_press_time_subject_, long_press_time, "settings_long_press_time",
                            subjects_);
 
-    // Jitter threshold (default: 5, range 0-30; 0 disables)
-    int jitter_threshold = config->get<int>("/input/jitter_threshold", 5);
-    jitter_threshold = std::max(0, std::min(30, jitter_threshold));
-    UI_MANAGED_SUBJECT_INT(jitter_threshold_subject_, jitter_threshold, "settings_jitter_threshold",
-                           subjects_);
-
     // Scroll guard (default: false; AD5M/AD5X presets enable it via hardware preset)
     bool scroll_guard = config->get<bool>("/input/scroll_guard", false);
     UI_MANAGED_SUBJECT_INT(scroll_guard_subject_, scroll_guard ? 1 : 0, "settings_scroll_guard",
@@ -82,9 +76,8 @@ void InputSettingsManager::init_subjects() {
         "InputSettingsManager", []() { InputSettingsManager::instance().deinit_subjects(); });
 
     spdlog::debug("[InputSettingsManager] Subjects initialized: scroll_throw={}, scroll_limit={}, "
-                  "long_press_time={}, jitter={}, scroll_guard={}, debug_touches={}",
-                  scroll_throw, scroll_limit, long_press_time, jitter_threshold, scroll_guard,
-                  debug_touches);
+                  "long_press_time={}, scroll_guard={}, debug_touches={}",
+                  scroll_throw, scroll_limit, long_press_time, scroll_guard, debug_touches);
 }
 
 void InputSettingsManager::deinit_subjects() {
@@ -173,23 +166,6 @@ void InputSettingsManager::set_long_press_time(int value) {
         }
     }
     // No restart_pending_ — applies immediately.
-}
-
-int InputSettingsManager::get_jitter_threshold() const {
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&jitter_threshold_subject_));
-}
-
-void InputSettingsManager::set_jitter_threshold(int value) {
-    int clamped = std::max(0, std::min(30, value));
-    spdlog::info("[InputSettingsManager] set_jitter_threshold({})", clamped);
-
-    lv_subject_set_int(&jitter_threshold_subject_, clamped);
-
-    Config* config = Config::get_instance();
-    config->set<int>("/input/jitter_threshold", clamped);
-    config->save();
-
-    restart_pending_ = true;
 }
 
 bool InputSettingsManager::get_scroll_guard() const {

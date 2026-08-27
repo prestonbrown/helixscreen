@@ -60,10 +60,10 @@ class FavoriteMacroWidget : public PanelWidget {
     lv_obj_t* icon_label_ = nullptr;
     lv_obj_t* name_label_ = nullptr;
 
-    std::string macro_name_;         ///< Assigned macro (e.g., "CLEAN_NOZZLE")
-    std::string icon_name_;          ///< Custom icon name, empty = "play" default
-    uint32_t icon_color_ = 0;        ///< Custom icon color (RGB), 0 = theme secondary
-    bool skip_param_prompt_ = false; ///< Run directly without the parameter-entry modal
+    std::string macro_name_;           ///< Assigned macro (e.g., "CLEAN_NOZZLE")
+    std::string icon_name_;            ///< Custom icon name, empty = "play" default
+    uint32_t icon_color_ = 0;          ///< Custom icon color (RGB), 0 = theme secondary
+    bool require_confirmation_ = true; ///< Gate runs behind the param modal / confirm dialog
     helix::AsyncLifetimeGuard lifetime_;
 
     std::unique_ptr<FavoriteMacroConfigModal> config_modal_;

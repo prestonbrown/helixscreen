@@ -20,6 +20,7 @@
   <translation tag="%zu changes" zh="%zu 项更改"/>
   <translation tag="%zu events queued" zh="%zu 个事件已排队"/>
   <translation tag="%zu plugins failed to load" zh="%zu 个插件加载失败"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" zh="&apos;{}&apos; 已存在。替换已保存的网格？"/>
   <translation tag="(different grade)" zh="（等级不同）"/>
   <translation tag="(incompatible)" zh="(不兼容)"/>
   <translation tag="(multi-tool)" zh="(多工具)"/>
@@ -344,6 +345,7 @@
   <translation tag="Calibrate Gear" zh="校准齿轮"/>
   <translation tag="Calibrate X" zh="校准 X 轴"/>
   <translation tag="Calibrate Y" zh="校准 Y 轴"/>
+  <translation tag="Calibrate and tune scroll feel" zh="校准并调整滚动手感"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
   <translation tag="Calibrate, tune jitter and scroll feel" zh="校准、调整抖动和滚动手感"/>
@@ -781,6 +783,7 @@
   <translation tag="Enter New PIN" zh="输入新 PIN"/>
   <translation tag="Enter PIN" zh="输入 PIN"/>
   <translation tag="Enter WiFi Password" zh="输入 WiFi 密码"/>
+  <translation tag="Enter a name for this profile" zh="输入此配置的名称"/>
   <translation tag="Enter a name for your custom theme:" zh="输入自定义主题名称："/>
   <translation tag="Enter a name to save this profile" zh="输入名称以保存此配置"/>
   <translation tag="Enter network name" zh="输入网络名称"/>
@@ -1052,6 +1055,7 @@
   <translation tag="Gear sync" zh="齿轮同步"/>
   <translation tag="Generic" zh="通用"/>
   <translation tag="Get help and share feedback" zh="获取帮助和反馈"/>
+  <translation tag="Global"/>
   <translation tag="Good" zh="良好"/>
   <translation tag="Good Accuracy" zh="精度良好"/>
   <translation tag="Got it" zh="知道了"/>
@@ -1640,6 +1644,7 @@
   <translation tag="On/Off" zh="开/关"/>
   <translation tag="On/Off (state-aware)" zh="开/关（状态跟踪）"/>
   <translation tag="On:" zh="开:"/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" zh="减少渗漏"/>
   <translation tag="Open" zh="打开"/>
   <translation tag="Open Source Licenses" zh="开源许可证"/>
@@ -1887,6 +1892,7 @@
   <translation tag="Profile renamed" zh="配置文件已重命名"/>
   <translation tag="Profiles" zh="配置"/>
   <translation tag="Progress, file, and time remaining" zh="进度、文件和剩余时间"/>
+  <translation tag="Prompt before running this macro"/>
   <translation tag="Pulling filament back" zh="正在回抽耗材"/>
   <translation tag="Purge" zh="排料"/>
   <translation tag="Purge &amp; Wipe" zh="排料与擦拭"/>
@@ -1986,12 +1992,15 @@
   <translation tag="Rename failed at save step" zh="重命名在保存步骤失败"/>
   <translation tag="Render Now" zh="立即渲染"/>
   <translation tag="Rendering timelapse..." zh="正在渲染延时摄影..."/>
+  <translation tag="Replace" zh="替换"/>
+  <translation tag="Replace Profile?" zh="替换配置？"/>
   <translation tag="Replay Welcome Tour" zh="重播欢迎漫游"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" zh="报告已保存到 crash_report.txt"/>
   <translation tag="Reprint" zh="重新打印"/>
   <translation tag="Reprint Last" zh="重印上次"/>
   <translation tag="Request Failed" zh="请求失败"/>
+  <translation tag="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" zh="紧急停止前需要确认"/>
   <translation tag="Requires Moonraker power device" zh="需要 Moonraker 电源设备"/>
   <translation tag="Requires Moonraker-Timelapse plugin" zh="需要 Moonraker-Timelapse 插件"/>
@@ -2079,7 +2088,6 @@
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" zh="即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）"/>
   <translation tag="Run test sequence on all lanes" zh="在所有料仓运行测试流程"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." zh="在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。"/>
-  <translation tag="Run without parameter prompt" zh="运行时不提示参数"/>
   <translation tag="Run {}?" zh="运行 {}？"/>
   <translation tag="Running {}..." zh="正在运行 {}..."/>
   <translation tag="Runout" zh="用尽"/>
@@ -2502,6 +2510,7 @@
   <translation tag="This will reset all settings to defaults. This action cannot be undone." zh="这将把所有设置重置为默认值。此操作无法撤销。"/>
   <translation tag="This will restart Klipper firmware. Any active operations will be interrupted." zh="将重启Klipper固件。所有正在进行的操作将被中断。"/>
   <translation tag="This will restart Klipper." zh="这将重启 Klipper。"/>
+  <translation tag="This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect."/>
   <translation tag="Thorough" zh="全面"/>
   <translation tag="Thumbnail Only" zh="仅缩略图"/>
   <translation tag="Thumbnail: " zh="缩略图: "/>
@@ -2779,6 +2788,7 @@
   <translation tag="Z-offset calibration timed out" zh="Z 偏移校准超时"/>
   <translation tag="Z-offset failed: {}" zh="Z 偏移失败: {}"/>
   <translation tag="Z-offset is auto-saved by firmware" zh="Z 偏移由固件自动保存"/>
+  <translation tag="Z-offset saved"/>
   <translation tag="Z-offset saved ({:+.3f}mm). Klipper restarting..." zh="Z 偏移已保存 ({:+.3f}mm)。Klipper 正在重启..."/>
   <translation tag="Z-offset saved - Klipper restarting..." zh="Z 偏移已保存 - Klipper 重启中..."/>
   <translation tag="Z:" zh="Z:"/>

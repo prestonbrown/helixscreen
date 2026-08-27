@@ -3,7 +3,7 @@
 
 /**
  * @file ui_settings_touch.h
- * @brief Touch & Input settings overlay — calibration, debug viz, jitter, scroll feel
+ * @brief Touch & Input settings overlay — calibration, debug viz, scroll feel
  *
  * Reached from Settings → System → Touch & Input. Groups everything that affects
  * how the screen reads finger input so System overlay stays focused on admin tasks.

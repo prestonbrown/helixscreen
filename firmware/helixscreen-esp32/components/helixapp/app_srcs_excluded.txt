@@ -89,7 +89,6 @@ src/application/splash_screen_manager.cpp  # not in the v1 Core+AMS cut
 src/application/xml_hot_reloader.cpp  # not in the v1 Core+AMS cut
 src/helix_splash.cpp  # not in the v1 Core+AMS cut
 src/helix_watchdog.cpp  # not in the v1 Core+AMS cut
-src/lvgl_init.cpp  # not in the v1 Core+AMS cut
 src/main.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_api.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_events.cpp  # not in the v1 Core+AMS cut

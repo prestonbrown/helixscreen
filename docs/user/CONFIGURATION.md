@@ -74,7 +74,7 @@ The configuration file is JSON format with several top-level sections:
 
 ```json
 {
-  "config_version": 23,
+  "config_version": 24,
   "dark_mode": false,
   "brightness": 80,
   "sounds_enabled": true,
@@ -124,7 +124,7 @@ When multiple printers are configured, the config file uses a versioned schema w
 
 ```json
 {
-  "config_version": 23,
+  "config_version": 24,
   "active_printer_id": "voron-24",
   "printers": {
     "voron-24": {
@@ -550,7 +550,6 @@ Located in the `input` section:
     "scroll_throw": 25,
     "scroll_limit": 10,
     "long_press_time": 500,
-    "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
     "home_edit_mode_enabled": true,
@@ -615,17 +614,6 @@ Matches LVGL's native default of 10.
 **Description:** USB input devices that HelixScreen ignores entirely for keyboard and barcode-scanner input. Each entry is a `"vid:pid"` pair of lowercase 4-digit hex IDs. Use this when a USB barcode scanner enumerates as a plain HID keyboard and HelixScreen keeps claiming it — for example when an external tool like `afc-spool-scan` needs exclusive access to the scanner. A blacklisted device is skipped by both the persistent keyboard binding and the in-app scan overlay, but still appears in the Barcode Scanner settings device list so you can identify it.
 
 **Finding a device's VID:PID:** Open **Settings > Hardware & Devices > Spoolman > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
-
-### `jitter_threshold`
-**Type:** integer
-**Default:** `5`
-**Range:** `0` - `30`
-**Description:** Touch jitter filter dead zone in pixels. Capacitive touch controllers (notably Goodix GT9xx on FlashForge displays) report 2–5 px of coordinate drift even with a stationary finger. Without filtering, that drift accumulates past `scroll_limit` and a stationary tap gets cancelled as if it were a scroll. The filter freezes reported coordinates to the initial press point while movement stays within this radius.
-
-- **Raise** if stationary taps are still being misread as swipes or scrolls on a noisy panel (typical fix: 15–25).
-- **Lower / 0** if the filter is suppressing intentional short-travel gestures.
-
-Can also be overridden with the `HELIX_TOUCH_JITTER` environment variable.
 
 ### `scroll_guard`
 **Type:** boolean
@@ -1272,13 +1260,17 @@ Each widget object has:
 | `fan` | `fan` | Name of the fan to monitor |
 | `sensor` | `thermistor` | Name of the sensor to display |
 | `sensors` | `thermistor`, `temp_graph` | Array of sensor names to include |
-| `macro`, `color`, `skip_param_prompt` | `favorite_macro` | Macro to run, icon tint, and whether to skip the parameter prompt |
+| `macro`, `color`, `require_confirmation` | `favorite_macro` | Macro to run, icon tint, and whether tapping prompts before it runs |
 | `device` | `power_device` | Name of the Moonraker power device to bind |
 | `icon` | `favorite_macro`, `power_device`, `temp_stack`, `fan_stack`, `tool_switcher` | Icon name override |
 | `rotation`, `flip_h`, `flip_v` | `camera` | `0`/`90`/`180`/`270`, and booleans |
 | `source`, `danger_threshold` | `clog_detection` | Detection source and danger-zone percentage |
 | `source` | `filament` | Which sensor role the tile follows: `"auto"` (default), `"runout"`, `"toolhead"`, or `"entry"` |
 | `material_index` | `preheat` | Which material profile the buttons preheat to |
+
+`require_confirmation` is the one worth spelling out: omitted (the default) means tapping the button prompts first - a parameter form when the macro takes parameters, otherwise the Settings > Safety confirmation dialog. `false` runs the macro on a single tap with no parameters and no dialog. Dangerous macros confirm regardless. Set it from the widget's **Options** tab; see [Macro Button confirmation](guide/home-panel.md#macro-button-confirmation).
+
+> Configs written before `config_version` 23 stored the inverse of this as `skip_param_prompt`, which suppressed only the parameter form. HelixScreen rewrites it to `require_confirmation` on first launch.
 
 Setting these through Edit Mode is far easier than editing them here, and it is the only way that validates the value against your printer.
 
@@ -1964,7 +1956,6 @@ These can be set in the systemd service file or before running the binary:
 | `HELIX_TOUCH_CALIBRATE` | Force touch calibration on next launch (`1` to enable) |
 | `HELIX_MOUSE_DEVICE` | Override USB mouse device (e.g., `/dev/input/event4`) |
 | `HELIX_KEYBOARD_DEVICE` | Override USB keyboard device (e.g., `/dev/input/event5`) |
-| `HELIX_TOUCH_JITTER` | Override `jitter_threshold` dead zone in pixels (`0`–`30`) |
 | `HELIX_SCROLL_GUARD` | Override `scroll_guard` post-scroll tap suppression (`1` to enable) |
 | `HELIX_SCROLL_GUARD_COOLDOWN_MS` | Override `scroll_guard_cooldown_ms` window in milliseconds |
 
@@ -1994,7 +1985,7 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
 
 ```json
 {
-  "config_version": 23,
+  "config_version": 24,
   "dark_mode": true,
   "brightness": 70,
   "sounds_enabled": true,
@@ -2029,7 +2020,6 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
   "input": {
     "scroll_throw": 25,
     "scroll_limit": 10,
-    "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
     "touch_device": "",

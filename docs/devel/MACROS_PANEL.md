@@ -14,6 +14,11 @@ The Macros Panel is an overlay that lists all discovered Klipper macros, handles
 Home Panel
 ├── MacrosWidget (1x1) ──────────→ Opens MacrosPanel overlay
 ├── FavoriteMacroWidget (1x1) ──→ Executes a single configured macro
+│   └── fetch_and_execute()
+│       ├── Dangerous? → modal_show_confirmation()   (always, ignores the toggle)
+│       ├── require_confirmation off → execute_macro_gcode(), no params, no dialog
+│       └── require_confirmation on  → same three knowledge levels as the panel,
+│                                      with the Safety confirm on KNOWN_NO_PARAMS
 │
 MacrosPanel (overlay)
 ├── macro_panel.xml ──→ overlay_panel with title "Macros"
@@ -53,6 +58,9 @@ MacrosPanel (overlay)
 | `include/macro_modification_manager.h` | PRINT_START enhancement wizard (beta-gated) |
 | `include/ui_settings_macro_buttons.h` | Settings overlay for quick buttons + standard macro config |
 | `include/favorite_macro_widget.h` | Home panel 1x1 widget for favorite macro execution |
+| `include/favorite_macro_config.h` | Per-instance widget config (macro, icon, color, `require_confirmation`) |
+| `include/favorite_macro_config_modal.h` | The widget's Macro / Appearance / Options config modal |
+| `ui_xml/favorite_macro_config_modal.xml` | Layout for that modal, including the Options tab |
 | `src/ui/panel_widgets/macros_widget.h` | Home panel 1x1 widget to open Macros overlay |
 | `ui_xml/components/panel_widget_macros.xml` | XML for macros home panel widget |
 | `ui_xml/components/panel_widget_favorite_macro.xml` | XML for favorite macro home widget |
@@ -84,6 +92,44 @@ These macros show a confirmation dialog before execution:
 - `EMERGENCY_STOP`
 
 The confirmation uses `modal_show_confirmation()` with appropriate severity level.
+
+Dangerous macros are the one gate nothing can turn off. The Macro Button widget's
+per-instance "Require Confirmation?" opt-out (below) is checked *after* this
+branch has already returned, so opting out cannot arm a one-tap `EMERGENCY_STOP`
+(#925).
+
+---
+
+## Macro Button: per-widget confirmation
+
+Each Macro Button widget instance carries its own `require_confirmation` flag
+(`FavoriteMacroConfig`, default `true`), edited on the Options tab of the widget's
+config modal. It governs both prompts a run can raise:
+
+| `require_confirmation` | Tapping the widget |
+|------------------------|--------------------|
+| `true` (default) | `KNOWN_PARAMS` / `UNKNOWN` → `MacroParamModal`. `KNOWN_NO_PARAMS` → the Settings → Safety "Confirm before running macros" dialog, when that setting is on. |
+| `false` | `execute_macro_gcode()` with no parameters and no dialog. |
+
+The two prompts collapse into one switch because they answer the same question:
+for a macro with parameters the param modal *is* the confirmation step, so a
+widget that wants one-tap execution has to suppress both. Note the asymmetry with
+the global Safety setting — that one only ever gated `KNOWN_NO_PARAMS` runs, and
+still does; `require_confirmation` sits in front of it.
+
+`UNKNOWN` is worth calling out: macros registered through Klipper's
+`register_command` have no `gcode_macro` template to parse, so they land there and
+would otherwise raise the freeform param modal on every tap regardless of whether
+they take arguments. Turning confirmation off is how a user says "this one takes
+nothing, just run it".
+
+**Storage.** `require_confirmation` is written into the widget's `config` object
+under `panel_widgets/<panel>/pages[]/widgets[]`, and omitted when `true` to keep
+the JSON minimal. Before config v23 the same switch was stored inverted as
+`skip_param_prompt`, which suppressed only the param modal. `migrate_v22_to_v23()`
+(`src/system/config.cpp`) rewrites it in place;
+`favorite_macro_config_from_json()` also reads the legacy key, for configs the
+migration cannot reach (preset assets, hand-edited files).
 
 ---
 

@@ -32,7 +32,7 @@ class FavoriteMacroConfigModal : public Modal {
     static void tab_appearance_cb(lv_event_t* e);
     static void tab_options_cb(lv_event_t* e);
     static void close_cb(lv_event_t* e);
-    static void skip_params_cb(lv_event_t* e);
+    static void require_confirm_cb(lv_event_t* e);
     static void macro_row_cb(lv_event_t* e);
     static void icon_cell_cb(lv_event_t* e);
     static void color_swatch_cb(lv_event_t* e);
@@ -50,7 +50,7 @@ class FavoriteMacroConfigModal : public Modal {
     void select_macro(const std::string& name);
     void select_icon(const std::string& name);
     void select_color(uint32_t color);
-    void select_skip_param(bool enabled);
+    void select_require_confirmation(bool enabled);
     IMoonrakerAPI* get_api() const;
 
     std::string widget_id_;
@@ -60,7 +60,7 @@ class FavoriteMacroConfigModal : public Modal {
     std::string macro_name_;
     std::string icon_name_;
     uint32_t icon_color_ = 0;
-    bool skip_param_prompt_ = false;
+    bool require_confirmation_ = true;
 
     lv_obj_t* macro_list_ = nullptr;
     lv_obj_t* icon_grid_ = nullptr;
@@ -69,7 +69,8 @@ class FavoriteMacroConfigModal : public Modal {
     static FavoriteMacroConfigModal* s_active_;
 };
 
-/// Registers the two C++-owned subjects (process-lifetime) used by the modal XML.
+/// Registers the two C++-owned subjects (process-lifetime) used by the modal XML:
+/// fav_macro_config_tab and fav_macro_require_confirm.
 /// Called from register_favorite_macro_widgets(). Idempotent.
 void register_favorite_macro_config_subjects();
 

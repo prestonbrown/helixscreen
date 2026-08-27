@@ -122,9 +122,32 @@ class DispatchSurfaceFixture : public LVGLTestFixture {
     }
 
     /// No macro configured anywhere — forces the tier-3 raw gcode fallback.
+    ///
+    /// reset() alone does not produce that state. It clears detected_macro only;
+    /// configured_macro and fallback_macro survive it by design, and
+    /// FALLBACK_MACROS seeds UnloadFilament with HELIX_UNLOAD_FILAMENT in the
+    /// constructor. A fresh singleton therefore reaches the unload cases with the
+    /// slot already non-empty, plan_unload() answers Macro instead of RawGcode,
+    /// and the raw-gcode assertion fails. It only passed because an earlier test
+    /// in the same process had run init() against hardware without that macro,
+    /// which is what clears a fallback — so the case was pinned by execution
+    /// order rather than by its own setup.
+    ///
+    /// init() against bare hardware empties all three sources: it restores the
+    /// fallback from the table and then drops it (this printer defines no helix
+    /// macros), and validate_configured() demotes anything load_from_config()
+    /// picked up into missing_macro.
     void clear_filament_macros() {
+        helix::PrinterDiscovery bare;
+        nlohmann::json objects = {"extruder"};
+        bare.parse_objects(objects);
         StandardMacros::instance().reset();
+        StandardMacros::instance().init(bare);
+        // Every slot these tests dispatch against, not just LoadFilament: its
+        // table entry is "" so it is the one slot that cannot catch this.
         REQUIRE(StandardMacros::instance().get(StandardMacroSlot::LoadFilament).is_empty());
+        REQUIRE(StandardMacros::instance().get(StandardMacroSlot::UnloadFilament).is_empty());
+        REQUIRE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
     }
 
     [[nodiscard]] bool gcode_sent_containing(const std::string& needle) const {

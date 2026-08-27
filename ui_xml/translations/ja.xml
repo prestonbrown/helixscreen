@@ -20,6 +20,7 @@
   <translation tag="%zu changes" ja="%zu件の変更"/>
   <translation tag="%zu events queued" ja="%zu 件のイベントを待機中"/>
   <translation tag="%zu plugins failed to load" ja="%zu 個のプラグインの読み込みに失敗しました"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" ja="&apos;{}&apos; は既に存在します。保存されたメッシュを置き換えますか？"/>
   <translation tag="(different grade)" ja="(グレード違い)"/>
   <translation tag="(incompatible)" ja="(非対応)"/>
   <translation tag="(multi-tool)" ja="(マルチツール)"/>
@@ -344,6 +345,7 @@
   <translation tag="Calibrate Gear" ja="ギアをキャリブレート"/>
   <translation tag="Calibrate X" ja="X軸をキャリブレート"/>
   <translation tag="Calibrate Y" ja="Y軸をキャリブレート"/>
+  <translation tag="Calibrate and tune scroll feel" ja="キャリブレーションとスクロール感度の調整"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ja="入力シェーピングをキャリブレートして印刷のリンギングを軽減します"/>
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
   <translation tag="Calibrate, tune jitter and scroll feel" ja="キャリブレーション、ジッターとスクロール感度の調整"/>
@@ -781,6 +783,7 @@
   <translation tag="Enter New PIN" ja="新しい PIN を入力"/>
   <translation tag="Enter PIN" ja="PIN を入力"/>
   <translation tag="Enter WiFi Password" ja="WiFi パスワードを入力"/>
+  <translation tag="Enter a name for this profile" ja="このプロファイルの名前を入力"/>
   <translation tag="Enter a name for your custom theme:" ja="カスタムテーマの名前を入力してください:"/>
   <translation tag="Enter a name to save this profile" ja="このプロファイルを保存する名前を入力"/>
   <translation tag="Enter network name" ja="ネットワーク名を入力"/>
@@ -1052,6 +1055,7 @@
   <translation tag="Gear sync" ja="ギア同期"/>
   <translation tag="Generic" ja="汎用"/>
   <translation tag="Get help and share feedback" ja="ヘルプとフィードバック"/>
+  <translation tag="Global"/>
   <translation tag="Good" ja="良好"/>
   <translation tag="Good Accuracy" ja="良好な精度"/>
   <translation tag="Got it" ja="了解"/>
@@ -1640,6 +1644,7 @@
   <translation tag="On/Off" ja="オン/オフ"/>
   <translation tag="On/Off (state-aware)" ja="オン/オフ（状態追跡）"/>
   <translation tag="On:" ja="オン:"/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" ja="にじみ低減"/>
   <translation tag="Open" ja="開く"/>
   <translation tag="Open Source Licenses" ja="オープンソースライセンス"/>
@@ -1887,6 +1892,7 @@
   <translation tag="Profile renamed" ja="プロファイル名を変更しました"/>
   <translation tag="Profiles" ja="プロファイル"/>
   <translation tag="Progress, file, and time remaining" ja="進行状況、ファイル、残り時間"/>
+  <translation tag="Prompt before running this macro"/>
   <translation tag="Pulling filament back" ja="フィラメントを引き戻し中"/>
   <translation tag="Purge" ja="パージ"/>
   <translation tag="Purge &amp; Wipe" ja="パージとワイプ"/>
@@ -1986,12 +1992,15 @@
   <translation tag="Rename failed at save step" ja="名前変更が保存ステップで失敗しました"/>
   <translation tag="Render Now" ja="今すぐレンダリング"/>
   <translation tag="Rendering timelapse..." ja="タイムラプスをレンダリング中..."/>
+  <translation tag="Replace" ja="置き換え"/>
+  <translation tag="Replace Profile?" ja="プロファイルを置き換えますか？"/>
   <translation tag="Replay Welcome Tour" ja="ウェルカムツアーを再生"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" ja="crash_report.txt にレポートを保存しました"/>
   <translation tag="Reprint" ja="再印刷"/>
   <translation tag="Reprint Last" ja="前回を再印刷"/>
   <translation tag="Request Failed" ja="要求に失敗しました"/>
+  <translation tag="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" ja="緊急停止前に確認を求める"/>
   <translation tag="Requires Moonraker power device" ja="Moonraker電源デバイスが必要です"/>
   <translation tag="Requires Moonraker-Timelapse plugin" ja="Moonraker-Timelapse プラグインが必要です"/>
@@ -2079,7 +2088,6 @@
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" ja="ノズルがコールドの状態でもフィラメントの装填/取り出しを実行（ノズルを自身で加熱するマクロ向け）"/>
   <translation tag="Run test sequence on all lanes" ja="全レーンでテストシーケンスを実行"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ja="このプリンターのターミナルで HelixScreen インストーラーを --update 付きで実行してください。プラットフォーム別のコマンドはスキャンして確認できます。"/>
-  <translation tag="Run without parameter prompt" ja="パラメータ入力なしで実行"/>
   <translation tag="Run {}?" ja="{} を実行しますか？"/>
   <translation tag="Running {}..." ja="{} を実行中..."/>
   <translation tag="Runout" ja="フィラメント切れ"/>
@@ -2502,6 +2510,7 @@
   <translation tag="This will reset all settings to defaults. This action cannot be undone." ja="これはすべての設定をデフォルトにリセットします。この操作は元に戻せません。"/>
   <translation tag="This will restart Klipper firmware. Any active operations will be interrupted." ja="Klipperファームウェアを再起動します。実行中の操作は中断されます。"/>
   <translation tag="This will restart Klipper." ja="これにより Klipper が再起動します。"/>
+  <translation tag="This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect."/>
   <translation tag="Thorough" ja="徹底的"/>
   <translation tag="Thumbnail Only" ja="サムネイルのみ"/>
   <translation tag="Thumbnail: " ja="サムネイル: "/>
@@ -2779,6 +2788,7 @@
   <translation tag="Z-offset calibration timed out" ja="Zオフセットキャリブレーションがタイムアウトしました"/>
   <translation tag="Z-offset failed: {}" ja="Zオフセットに失敗しました: {}"/>
   <translation tag="Z-offset is auto-saved by firmware" ja="Z-offset はファームウェアにより自動保存されます"/>
+  <translation tag="Z-offset saved"/>
   <translation tag="Z-offset saved ({:+.3f}mm). Klipper restarting..." ja="Zオフセットを保存しました ({:+.3f}mm)。Klipper を再起動中..."/>
   <translation tag="Z-offset saved - Klipper restarting..." ja="Z-offset を保存しました - Klipper を再起動中..."/>
   <translation tag="Z:" ja="Z:"/>

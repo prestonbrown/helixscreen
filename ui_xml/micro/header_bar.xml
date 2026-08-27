@@ -110,6 +110,17 @@
       <bind_flag_if_eq subject="$action_button_hidden_subject" flag="hidden" ref_value="1"/>
       <event_cb trigger="clicked" callback="$action_button_callback"/>
     </ui_button>
+    <!-- Unsaved-z-offset save. Mirrors the base header_bar; see its comment for
+         why the condition is inline and why one binding carries both tests.
+         No style_max_height here: #header_button_height lives in the base
+         file's <consts>, and the micro override carries no consts block. -->
+    <ui_button name="header_save_z_offset"
+               width="content" height="$action_button_height" style_bg_color="#success" icon="check" icon_size="sm"
+               hidden="true">
+      <bind_flag_if cond="z_offset_can_save and (gcode_z_offset ne 0 or any_tool_z_dirty)" flag="hidden" invert="true"/>
+      <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+      <event_cb trigger="clicked" callback="on_header_save_z_offset"/>
+    </ui_button>
     <!-- E-Stop spacer: rightmost reserved gutter — NO button inside. The
          floating circle lives at the panel root; this just keeps the title and
          any action button clear of it. See base header_bar for full design. -->

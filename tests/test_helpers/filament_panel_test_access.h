@@ -98,6 +98,15 @@ struct FilamentPanelTestAccess {
     static void op_succeeded_extrude(FilamentPanel& p) {
         p.op_succeeded(FilamentPanel::FilamentOp::Extrude);
     }
+
+    // --- Per-heater keypad ceiling (#1355) -------------------------------
+    // The value the three temperature keypads are handed as max_value. Reaching
+    // the real method is what proves the panel asks TemperatureController
+    // rather than reading its compiled-in member.
+
+    static float keypad_max_for(::FilamentPanel& p, helix::HeaterType type, int fallback_deg) {
+        return p.keypad_max_for(type, fallback_deg);
+    }
 };
 
 } // namespace helix::ui

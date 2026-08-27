@@ -20,6 +20,7 @@
   <translation tag="%zu changes" es="%zu cambios"/>
   <translation tag="%zu events queued" es="%zu eventos en cola"/>
   <translation tag="%zu plugins failed to load" es="%zu plugins no se cargaron"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" es="&apos;{}&apos; ya existe. ¿Reemplazar la malla guardada?"/>
   <translation tag="(different grade)" es="(grado diferente)"/>
   <translation tag="(incompatible)" es="(incompatible)"/>
   <translation tag="(multi-tool)" es="(multiherramienta)"/>
@@ -344,6 +345,7 @@
   <translation tag="Calibrate Gear" es="Calibrar el engranaje"/>
   <translation tag="Calibrate X" es="Calibrar X"/>
   <translation tag="Calibrate Y" es="Calibrar Y"/>
+  <translation tag="Calibrate and tune scroll feel" es="Calibrar y ajustar la sensibilidad de desplazamiento"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" es="Calibrar input shaping para reducir artefactos de resonancia en impresiones"/>
   <translation tag="Calibrate your touchscreen for accurate input" es="Calibrar la pantalla táctil para una entrada precisa"/>
   <translation tag="Calibrate, tune jitter and scroll feel" es="Calibrar, ajustar jitter y sensibilidad de desplazamiento"/>
@@ -781,6 +783,7 @@
   <translation tag="Enter New PIN" es="Ingrese Nuevo PIN"/>
   <translation tag="Enter PIN" es="Ingrese PIN"/>
   <translation tag="Enter WiFi Password" es="Ingrese Contraseña WiFi"/>
+  <translation tag="Enter a name for this profile" es="Ingrese un nombre para este perfil"/>
   <translation tag="Enter a name for your custom theme:" es="Ingrese un nombre para su tema personalizado:"/>
   <translation tag="Enter a name to save this profile" es="Ingrese un nombre para guardar este perfil"/>
   <translation tag="Enter network name" es="Ingrese el nombre de la red"/>
@@ -1052,6 +1055,7 @@
   <translation tag="Gear sync" es="Sincronización de engranaje"/>
   <translation tag="Generic" es="Genérico"/>
   <translation tag="Get help and share feedback" es="Obtén ayuda y comparte comentarios"/>
+  <translation tag="Global"/>
   <translation tag="Good" es="Bueno"/>
   <translation tag="Good Accuracy" es="Buena Precisión"/>
   <translation tag="Got it" es="Entendido"/>
@@ -1640,6 +1644,7 @@
   <translation tag="On/Off" es="Encendido/Apagado"/>
   <translation tag="On/Off (state-aware)" es="On/Off (con estado)"/>
   <translation tag="On:" es="Encendido:"/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" es="Reducción de goteo"/>
   <translation tag="Open" es="Abrir"/>
   <translation tag="Open Source Licenses" es="Licencias de código abierto"/>
@@ -1887,6 +1892,7 @@
   <translation tag="Profile renamed" es="Perfil renombrado"/>
   <translation tag="Profiles" es="Perfiles"/>
   <translation tag="Progress, file, and time remaining" es="Progreso, archivo y tiempo restante"/>
+  <translation tag="Prompt before running this macro"/>
   <translation tag="Pulling filament back" es="Retrayendo filamento"/>
   <translation tag="Purge" es="Purgar"/>
   <translation tag="Purge &amp; Wipe" es="Purgar y limpiar"/>
@@ -1986,12 +1992,15 @@
   <translation tag="Rename failed at save step" es="Error al renombrar en paso de guardado"/>
   <translation tag="Render Now" es="Renderizar Ahora"/>
   <translation tag="Rendering timelapse..." es="Renderizando timelapse..."/>
+  <translation tag="Replace" es="Reemplazar"/>
+  <translation tag="Replace Profile?" es="¿Reemplazar Perfil?"/>
   <translation tag="Replay Welcome Tour" es="Repetir Tour de Bienvenida"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" es="Reporte guardado en crash_report.txt"/>
   <translation tag="Reprint" es="Reimprimir"/>
   <translation tag="Reprint Last" es="Reimprimir última"/>
   <translation tag="Request Failed" es="Solicitud Fallida"/>
+  <translation tag="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" es="Requerir confirmación antes de parada de emergencia"/>
   <translation tag="Requires Moonraker power device" es="Requiere un dispositivo de energía de Moonraker"/>
   <translation tag="Requires Moonraker-Timelapse plugin" es="Requiere plugin Moonraker-Timelapse"/>
@@ -2079,7 +2088,6 @@
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" es="Ejecutar la carga/descarga de filamento incluso con la boquilla fría (para macros que calientan la boquilla por sí mismas)"/>
   <translation tag="Run test sequence on all lanes" es="Ejecutar la secuencia de prueba en todos los carriles"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." es="Ejecuta el instalador de HelixScreen con --update desde un terminal en esta impresora. Escanea para ver el comando de tu plataforma."/>
-  <translation tag="Run without parameter prompt" es="Ejecutar sin solicitud de parámetros"/>
   <translation tag="Run {}?" es="¿Ejecutar {}?"/>
   <translation tag="Running {}..." es="Ejecutando {}..."/>
   <translation tag="Runout" es="Agotamiento"/>
@@ -2502,6 +2510,7 @@
   <translation tag="This will reset all settings to defaults. This action cannot be undone." es="Esto restablecerá todos los ajustes a los valores predeterminados. Esta acción no se puede deshacer."/>
   <translation tag="This will restart Klipper firmware. Any active operations will be interrupted." es="Se reiniciará el firmware de Klipper. Las operaciones activas se interrumpirán."/>
   <translation tag="This will restart Klipper." es="Esto reiniciará Klipper."/>
+  <translation tag="This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect."/>
   <translation tag="Thorough" es="Exhaustivo"/>
   <translation tag="Thumbnail Only" es="Solo miniatura"/>
   <translation tag="Thumbnail: " es="Miniatura: "/>
@@ -2780,6 +2789,7 @@
   <translation tag="Z-offset calibration timed out" es="Calibración de Z-offset — tiempo de espera agotado"/>
   <translation tag="Z-offset failed: {}" es="Error en Z-offset: {}"/>
   <translation tag="Z-offset is auto-saved by firmware" es="Z-offset se guarda automáticamente por el firmware"/>
+  <translation tag="Z-offset saved"/>
   <translation tag="Z-offset saved ({:+.3f}mm). Klipper restarting..." es="Z-offset guardado ({:+.3f}mm). Klipper reiniciando..."/>
   <translation tag="Z-offset saved - Klipper restarting..." es="Z-offset guardado - Klipper reiniciando..."/>
   <translation tag="Z:" es="Z:"/>

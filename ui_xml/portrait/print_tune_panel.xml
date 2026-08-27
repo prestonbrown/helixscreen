@@ -164,22 +164,24 @@
         <!-- Which z-offset the direction buttons drive. See the landscape
              variant for why a tool changer has two independent offsets. -->
         <lv_obj name="z_target_row"
-                width="100%" height="content" style_pad_all="0" flex_flow="row"
-                style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false"
-                hidden="true">
+                width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
+                style_flex_cross_place="center" scrollable="false" hidden="true">
           <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="0"/>
-          <ui_button name="btn_z_target_global" height="#button_height_sm" flex_grow="1"
-                     text="Global" translation_tag="Global">
+          <ui_button name="btn_z_target_global"
+                     height="#button_height_sm" flex_grow="1" text="Global" translation_tag="Global">
             <bind_style_if name="z_step_selected" cond="z_tune_target eq 0"/>
             <bind_style_if name="z_step_unselected" cond="z_tune_target ne 0"/>
             <event_cb trigger="clicked" callback="on_tune_z_target" user_data="0"/>
           </ui_button>
-          <ui_button name="btn_z_target_tool" height="#button_height_sm" flex_grow="1"
-                     bind_text="tune_z_tool_label">
+          <ui_button name="btn_z_target_tool" height="#button_height_sm" flex_grow="1" bind_text="tune_z_tool_label">
             <bind_style_if name="z_step_selected" cond="z_tune_target eq 1"/>
             <bind_style_if name="z_step_unselected" cond="z_tune_target ne 1"/>
             <event_cb trigger="clicked" callback="on_tune_z_target" user_data="1"/>
           </ui_button>
+          <!-- The target you are NOT on, so both numbers are visible without a
+               second row. Muted: it is context, not the value the buttons act on. -->
+          <text_small name="z_target_other"
+                      width="content" bind_text="tune_z_other_display" style_text_color="#text_muted"/>
         </lv_obj>
         <text_small name="z_offset_help_text_manual"
                     width="100%" long_mode="wrap"

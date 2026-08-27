@@ -1,5 +1,5 @@
 {
-  "config_version": 23,
+  "config_version": 24,
   "_config_version_comment": "Config schema version. MUST be present and current: Config::init treats a missing version as 0, reads that as a tarball default, and will restore a rolling backup over this file. Pinned by tests/unit/test_settings_template_contract.cpp.",
   "dark_mode": true,
   "brightness": 80,
@@ -56,8 +56,6 @@
     "scroll_limit": 10,
     "_scroll_throw_comment": "Scroll momentum decay rate (1-99). Higher = faster decay. Default LVGL is 10, we use 25 for better touchpad feel.",
     "_scroll_limit_comment": "Pixels of movement before scrolling starts. Lower = more responsive. Default LVGL is 10, we use 10 to match.",
-    "jitter_threshold": 5,
-    "_jitter_threshold_comment": "Touch jitter filter dead zone in pixels (0 to disable). Suppresses coordinate noise from touch controllers like Goodix GT9xx that causes taps to register as swipes.",
     "touch_device": "",
     "_touch_device_comment": "Override touch/pointer input device (e.g., '/dev/input/event1'). Empty string enables auto-detection. Auto-detection finds touch or pointer capable devices.",
     "device_blacklist": [],

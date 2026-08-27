@@ -6,6 +6,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
+#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
@@ -249,6 +250,13 @@ void EmergencyStopOverlay::create() {
                         // Reset restart flag - operation complete
                         inst.restart_in_progress_ = false;
 
+                        // Klippy came back, so anything the suppression window
+                        // was holding describes a state that no longer exists.
+                        // Drop it before the re-check timer can surface a
+                        // recovery dialog for a shutdown that already resolved.
+                        inst.pending_recovery_reason_.store(static_cast<int>(RecoveryReason::NONE),
+                                                            std::memory_order_relaxed);
+
                         // Klipper is back, so any "Printer Error" alert raised
                         // while it was down describes a condition that no longer
                         // exists. Leaving them up made a recovered printer look
@@ -431,6 +439,13 @@ void EmergencyStopOverlay::show_recovery_for(RecoveryReason reason) {
     // later is waste.
     if (is_recovery_suppressed()) {
         spdlog::info("[KlipperRecovery] Suppressing recovery dialog (suppression active)");
+        // Held back, not dropped. Both producers of this dialog fire once on an
+        // edge, so a shutdown that lands inside the window has no second chance
+        // to announce itself - without the latch and the re-check below, an
+        // intentional-restart window that happens to cover a real, permanent
+        // shutdown removes the dialog for good rather than delaying it.
+        pending_recovery_reason_.store(static_cast<int>(reason), std::memory_order_relaxed);
+        helix::ui::queue_update([]() { instance().arm_recovery_recheck(); });
         return;
     }
 
@@ -495,6 +510,9 @@ void EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
     }
 
     recovery_reason_ = reason;
+    // Whatever the latch was holding is now being shown.
+    pending_recovery_reason_.store(static_cast<int>(RecoveryReason::NONE),
+                                   std::memory_order_relaxed);
 
     // Already on the main thread (show_recovery_for marshalled us here), so this
     // is no longer the thread hop it once was — it is kept because the dialog is
@@ -517,6 +535,68 @@ void EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
             inst.update_recovery_dialog_content();
         },
         nullptr);
+}
+
+EmergencyStopOverlay::~EmergencyStopOverlay() {
+    cancel_recovery_recheck_timer();
+}
+
+void EmergencyStopOverlay::arm_recovery_recheck() {
+    const uint32_t deadline = suppress_recovery_until_.load(std::memory_order_relaxed);
+    if (deadline == 0) {
+        return;
+    }
+    // is_recovery_suppressed() already owns the wraparound-safe "is the deadline
+    // still ahead of us" question, so ask it rather than re-deriving the
+    // comparison here and risking the two disagreeing. When it is still ahead,
+    // lv_tick_elaps(deadline) is (now - deadline) in unsigned arithmetic, so
+    // negating it gives the remaining ms; +1 lands the timer strictly past the
+    // deadline rather than exactly on it. When it is already behind us, re-check
+    // on the next tick.
+    const uint32_t delay = is_recovery_suppressed() ? (0u - lv_tick_elaps(deadline)) + 1 : 1;
+
+    cancel_recovery_recheck_timer();
+    recovery_recheck_timer_ =
+        lv_timer_create(&EmergencyStopOverlay::recovery_recheck_cb, delay, nullptr);
+    // One-shot. Also what makes it runnable under the test harness, which only
+    // executes timers with a finite repeat count (tests/ui_test_utils.h).
+    lv_timer_set_repeat_count(recovery_recheck_timer_, 1);
+}
+
+void EmergencyStopOverlay::cancel_recovery_recheck_timer() {
+    if (!recovery_recheck_timer_) {
+        return;
+    }
+    helix::ui::lv_timer_cancel_safe(recovery_recheck_timer_);
+    recovery_recheck_timer_ = nullptr;
+}
+
+void EmergencyStopOverlay::recovery_recheck_cb(lv_timer_t* /*timer*/) {
+    auto& inst = instance();
+    // LVGL deletes a spent one-shot itself, so drop our handle before anything
+    // below can re-arm and overwrite it.
+    inst.recovery_recheck_timer_ = nullptr;
+
+    if (inst.is_recovery_suppressed()) {
+        // The window was extended while we waited (a chained config write, say).
+        // Follow it rather than reporting a shutdown the user is still expecting.
+        inst.arm_recovery_recheck();
+        return;
+    }
+
+    const int pending = inst.pending_recovery_reason_.exchange(
+        static_cast<int>(RecoveryReason::NONE), std::memory_order_relaxed);
+    if (pending == static_cast<int>(RecoveryReason::NONE)) {
+        // Klipper came back inside the window, or nothing was ever held. The
+        // guard against manufacturing a dialog at the end of every restart.
+        return;
+    }
+
+    spdlog::info(
+        "[KlipperRecovery] Suppression window expired with {} still pending - surfacing it",
+        recovery_reason_str(static_cast<RecoveryReason>(pending)));
+    // Already on the main thread: this is an lv_timer callback.
+    inst.show_recovery_for_main(static_cast<RecoveryReason>(pending));
 }
 
 void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
@@ -734,15 +814,19 @@ void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
 namespace helix {
 namespace ui {
 
-void begin_expected_klippy_restart(const char* message) {
+void begin_expected_klippy_restart(std::string message) {
     // The suppression writes are atomic deadline stores, safe right here on
     // any thread; the toast is LVGL-facing so it hops to the main thread.
     EmergencyStopOverlay::instance().suppress_recovery_dialog(RecoverySuppression::LONG);
     if (auto* api = get_moonraker_api()) {
         api->suppress_disconnect_modal(EXPECTED_RESTART_DISCONNECT_MODAL_MS);
     }
-    queue_update("begin_expected_klippy_restart", [message]() {
-        ToastManager::instance().show(ToastSeverity::INFO, lv_tr(message), 3000);
+    // By value, because the toast is shown on a later main-thread tick. The
+    // previous `const char*` captured the POINTER into the deferred lambda, so
+    // it read the caller's buffer after the call had returned - safe only for
+    // the string literals every caller happened to pass.
+    queue_update("begin_expected_klippy_restart", [message = std::move(message)]() {
+        ToastManager::instance().show(ToastSeverity::INFO, lv_tr(message.c_str()), 3000);
     });
 }
 

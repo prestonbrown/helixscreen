@@ -17,11 +17,24 @@ jobs:
   validate-shell:
     name: Validate Shell Scripts
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
+
+    # test_lvgl_event_code_gate.bats reads lib/lvgl/src/misc/lv_event.h, and it
+    # needs the PATCHED enum: lvgl_display_sync_cb.patch inserts four values
+    # (LV_EVENT_SYNC_{,WAIT_}{START,FINISH}) and renumbers everything after
+    # them, so the committed worker table only matches a patched checkout.
+    # Without these steps setup() dies on a missing header and takes the whole
+    # file down -- which is what blocked the v0.99.117 tag. build.yml got this
+    # in 83b0b9d51; this job is the same gate on the release path.
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    - name: Apply submodule patches
+      run: make apply-patches
 
     - name: Install bats
       run: sudo npm install -g bats

@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu件の変更'
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
+  "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
   (different grade): (グレード違い)
   (incompatible): (非対応)
   (multi-tool): (マルチツール)
@@ -350,6 +351,7 @@ translations:
   Calibrate Gear: 'ギアをキャリブレート'
   Calibrate X: X軸をキャリブレート
   Calibrate Y: Y軸をキャリブレート
+  Calibrate and tune scroll feel: "キャリブレーションとスクロール感度の調整"
   Calibrate input shaping to reduce ringing artifacts in prints: 入力シェーピングをキャリブレートして印刷のリンギングを軽減します
   Calibrate your touchscreen for accurate input: タッチスクリーンの入力精度をキャリブレートします
   Calibrate, tune jitter and scroll feel: キャリブレーション、ジッターとスクロール感度の調整
@@ -802,6 +804,7 @@ translations:
   Enter New PIN: 新しい PIN を入力
   Enter PIN: PIN を入力
   Enter WiFi Password: WiFi パスワードを入力
+  Enter a name for this profile: "このプロファイルの名前を入力"
   'Enter a name for your custom theme:': 'カスタムテーマの名前を入力してください:'
   Enter a name to save this profile: このプロファイルを保存する名前を入力
   Enter network name: ネットワーク名を入力
@@ -1081,6 +1084,7 @@ translations:
   Gear sync: ギア同期
   Generic: 汎用
   Get help and share feedback: ヘルプとフィードバック
+  Global: ''
   Good: 良好
   Good Accuracy: 良好な精度
   Got it: 了解
@@ -1694,6 +1698,7 @@ translations:
   On/Off: オン/オフ
   On/Off (state-aware): オン/オフ（状態追跡）
   'On:': 'オン:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: 'にじみ低減'
   Open: 開く
   Open Source Licenses: オープンソースライセンス
@@ -1952,6 +1957,7 @@ translations:
   Profile renamed: プロファイル名を変更しました
   Profiles: プロファイル
   Progress, file, and time remaining: 進行状況、ファイル、残り時間
+  Prompt before running this macro: ''
   Pulling filament back: フィラメントを引き戻し中
   Purge: パージ
   Purge & Wipe: 'パージとワイプ'
@@ -2052,12 +2058,15 @@ translations:
   Rename failed at save step: 名前変更が保存ステップで失敗しました
   Render Now: 今すぐレンダリング
   Rendering timelapse...: タイムラプスをレンダリング中...
+  Replace: "置き換え"
+  Replace Profile?: "プロファイルを置き換えますか？"
   Replay Welcome Tour: ウェルカムツアーを再生
   'Replenishing filament...': ''
   Report saved to crash_report.txt: crash_report.txt にレポートを保存しました
   Reprint: 再印刷
   Reprint Last: 前回を再印刷
   Request Failed: 要求に失敗しました
+  Require Confirmation?: ''
   Require confirmation before emergency stop: 緊急停止前に確認を求める
   Requires Moonraker power device: 'Moonraker電源デバイスが必要です'
   Requires Moonraker-Timelapse plugin: Moonraker-Timelapse プラグインが必要です
@@ -2146,7 +2155,6 @@ translations:
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): ノズルがコールドの状態でもフィラメントの装填/取り出しを実行（ノズルを自身で加熱するマクロ向け）
   Run test sequence on all lanes: '全レーンでテストシーケンスを実行'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: このプリンターのターミナルで HelixScreen インストーラーを --update 付きで実行してください。プラットフォーム別のコマンドはスキャンして確認できます。
-  Run without parameter prompt: パラメータ入力なしで実行
   Run {}?: '{} を実行しますか？'
   Running {}...: '{} を実行中...'
   Runout: 'フィラメント切れ'
@@ -2609,6 +2617,7 @@ translations:
   This will reset all settings to defaults. This action cannot be undone.: これはすべての設定をデフォルトにリセットします。この操作は元に戻せません。
   This will restart Klipper firmware. Any active operations will be interrupted.: Klipperファームウェアを再起動します。実行中の操作は中断されます。
   This will restart Klipper.: これにより Klipper が再起動します。
+  This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: ''
   Thorough: 徹底的
   Thumbnail Only: サムネイルのみ
   'Thumbnail: ': 'サムネイル: '
@@ -2898,6 +2907,7 @@ translations:
   Z-offset calibration timed out: Zオフセットキャリブレーションがタイムアウトしました
   'Z-offset failed: {}': 'Zオフセットに失敗しました: {}'
   Z-offset is auto-saved by firmware: Z-offset はファームウェアにより自動保存されます
+  Z-offset saved: ''
   Z-offset saved ({:+.3f}mm). Klipper restarting...: Zオフセットを保存しました ({:+.3f}mm)。Klipper
     を再起動中...
   Z-offset saved - Klipper restarting...: Z-offset を保存しました - Klipper を再起動中...

@@ -180,6 +180,7 @@ src/printer/plr_offer.cpp
 src/printer/standard_macros.cpp
 src/printer/toolchanger_addon.cpp
 src/printer/toolhead_homing.cpp
+src/printer/tool_offsets.cpp
 src/printer/tool_state.cpp
 src/sensors/accel_sensor_manager.cpp
 src/sensors/humidity_sensor_manager.cpp
@@ -237,6 +238,7 @@ src/ui/action_prompt_manager.cpp
 src/ui/ams_drawing_utils.cpp
 src/ui/backdrop_blur.cpp
 src/ui/bed_coord_mapper.cpp
+src/ui/bed_mesh_profile_name.cpp
 src/ui/console_filter_engine.cpp
 src/ui/fan_spin_animation.cpp
 src/ui/fault_modal_registry.cpp

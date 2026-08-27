@@ -158,7 +158,6 @@ json future_config(int version) {
 /// Several values are deliberately set to what a migration's trigger looks for,
 /// so a replay is visible rather than a no-op:
 ///   brightness 50              — the v6→v7 / v8→v9 "still on the old default" bump
-///   jitter_threshold 15        — the v2→v3 reset
 ///   toolhead_style 2 and 3     — POST-v8 values that the v7→v8 remap also matches
 ///   screensaver_type 1         — the v15→v16 Flying Toasters disable
 ///   sleep_backlight_off/hardware_blank — the v12→v13 / v14→v15 AD5X repair
@@ -556,17 +555,20 @@ TEST_CASE_METHOD(MigrationFutureFixture,
 }
 
 TEST_CASE_METHOD(MigrationFutureFixture,
-                 "Config round trip: a rollback past v3 resets a deliberate jitter_threshold",
+                 "Config round trip: a rollback past v3 no longer rewrites jitter_threshold",
                  "[config][migration][roundtrip]") {
-    // FINDING. migrate_v2_to_v3() (config.cpp:343) reads 15 as "the old
-    // default" and drops it to 5. Narrowest of the four — 15 is the one value
+    // migrate_v2_to_v3() used to read 15 as "the old default" and drop it to 5,
+    // which was the narrowest of the four replay findings: 15 was the one value
     // affected, and a user on a genuinely noisy panel is exactly who would have
-    // set it back.
+    // set it back. The setting it retuned never reached the input pipeline and
+    // has since been removed (prestonbrown/helixscreen#1358), so the step is now
+    // empty and a rollback past v3 leaves the stored value alone. The key itself
+    // is inert; what this pins is that the retired migration does not touch it.
     const json baseline = boot(populated_config());
     REQUIRE(baseline["input"]["jitter_threshold"] == 15);
 
     CHECK(replay_from(baseline, 3)["input"]["jitter_threshold"] == 15);
-    CHECK(replay_from(baseline, 2)["input"]["jitter_threshold"] == 5);
+    CHECK(replay_from(baseline, 2)["input"]["jitter_threshold"] == 15);
 }
 
 TEST_CASE_METHOD(MigrationFutureFixture,

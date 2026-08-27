@@ -20,6 +20,7 @@
   <translation tag="%zu changes" ru="%zu изменений"/>
   <translation tag="%zu events queued" ru="%zu событий в очереди"/>
   <translation tag="%zu plugins failed to load" ru="Не удалось загрузить %zu плагинов"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" ru="&apos;{}&apos; уже существует. Заменить сохранённую сетку?"/>
   <translation tag="(different grade)" ru="(другая марка)"/>
   <translation tag="(incompatible)" ru="(несовместимо)"/>
   <translation tag="(multi-tool)" ru="(мультиинструмент)"/>
@@ -344,6 +345,7 @@
   <translation tag="Calibrate Gear" ru="Калибровать шестерню"/>
   <translation tag="Calibrate X" ru="Калибровать X"/>
   <translation tag="Calibrate Y" ru="Калибровать Y"/>
+  <translation tag="Calibrate and tune scroll feel" ru="Калибровка и настройка прокрутки"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
   <translation tag="Calibrate, tune jitter and scroll feel" ru="Калибровка, настройка дрожания и поведения прокрутки"/>
@@ -781,6 +783,7 @@
   <translation tag="Enter New PIN" ru="Введите новый PIN"/>
   <translation tag="Enter PIN" ru="Введите PIN"/>
   <translation tag="Enter WiFi Password" ru="Введите пароль WiFi"/>
+  <translation tag="Enter a name for this profile" ru="Введите имя для этого профиля"/>
   <translation tag="Enter a name for your custom theme:" ru="Введите название для вашей темы:"/>
   <translation tag="Enter a name to save this profile" ru="Введите имя для сохранения профиля"/>
   <translation tag="Enter network name" ru="Введите имя сети"/>
@@ -1052,6 +1055,7 @@
   <translation tag="Gear sync" ru="Синхронизация шестерни"/>
   <translation tag="Generic" ru="Общий"/>
   <translation tag="Get help and share feedback" ru="Получить помощь и поделиться отзывом"/>
+  <translation tag="Global"/>
   <translation tag="Good" ru="Хорошо"/>
   <translation tag="Good Accuracy" ru="Хорошая точность"/>
   <translation tag="Got it" ru="Понятно"/>
@@ -1640,6 +1644,7 @@
   <translation tag="On/Off" ru="Вкл/Выкл"/>
   <translation tag="On/Off (state-aware)" ru="Вкл/Выкл (с отслеживанием)"/>
   <translation tag="On:" ru="Вкл:"/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" ru="Снижение подтекания"/>
   <translation tag="Open" ru="Открыть"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
@@ -1887,6 +1892,7 @@
   <translation tag="Profile renamed" ru="Профиль переименован"/>
   <translation tag="Profiles" ru="Профили"/>
   <translation tag="Progress, file, and time remaining" ru="Прогресс, файл и остаток времени"/>
+  <translation tag="Prompt before running this macro"/>
   <translation tag="Pulling filament back" ru="Откат филамента"/>
   <translation tag="Purge" ru="Продуть"/>
   <translation tag="Purge &amp; Wipe" ru="Продувка и очистка"/>
@@ -1986,12 +1992,15 @@
   <translation tag="Rename failed at save step" ru="Ошибка переименования при сохранении"/>
   <translation tag="Render Now" ru="Отрендерить сейчас"/>
   <translation tag="Rendering timelapse..." ru="Рендеринг таймлапса..."/>
+  <translation tag="Replace" ru="Заменить"/>
+  <translation tag="Replace Profile?" ru="Заменить профиль?"/>
   <translation tag="Replay Welcome Tour" ru="Повторить приветственный тур"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" ru="Отчёт сохранён в crash_report.txt"/>
   <translation tag="Reprint" ru="Повторить печать"/>
   <translation tag="Reprint Last" ru="Перепечатать последнюю"/>
   <translation tag="Request Failed" ru="Запрос не выполнен"/>
+  <translation tag="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" ru="Требовать подтверждение перед аварийной остановкой"/>
   <translation tag="Requires Moonraker power device" ru="Требуется устройство питания Moonraker"/>
   <translation tag="Requires Moonraker-Timelapse plugin" ru="Требуется плагин Moonraker-Timelapse"/>
@@ -2079,7 +2088,6 @@
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" ru="Выполнять загрузку/выгрузку филамента даже при холодном сопле (для макросов, которые сами нагревают сопло)"/>
   <translation tag="Run test sequence on all lanes" ru="Запустить тестовую последовательность на всех слотах"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ru="Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы."/>
-  <translation tag="Run without parameter prompt" ru="Запускать без запроса параметров"/>
   <translation tag="Run {}?" ru="Запустить {}?"/>
   <translation tag="Running {}..." ru="Выполнение {}..."/>
   <translation tag="Runout" ru="Окончание"/>
@@ -2502,6 +2510,7 @@
   <translation tag="This will reset all settings to defaults. This action cannot be undone." ru="Это сбросит все настройки к значениям по умолчанию. Это действие нельзя отменить."/>
   <translation tag="This will restart Klipper firmware. Any active operations will be interrupted." ru="Прошивка Klipper будет перезапущена. Активные операции будут прерваны."/>
   <translation tag="This will restart Klipper." ru="Это перезапустит Klipper."/>
+  <translation tag="This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect."/>
   <translation tag="Thorough" ru="Тщательно"/>
   <translation tag="Thumbnail Only" ru="Только миниатюра"/>
   <translation tag="Thumbnail: " ru="Миниатюра: "/>
@@ -2779,6 +2788,7 @@
   <translation tag="Z-offset calibration timed out" ru="Калибровка Z-offset — время ожидания истекло"/>
   <translation tag="Z-offset failed: {}" ru="Ошибка Z-offset: {}"/>
   <translation tag="Z-offset is auto-saved by firmware" ru="Z-смещение автосохраняется прошивкой"/>
+  <translation tag="Z-offset saved"/>
   <translation tag="Z-offset saved ({:+.3f}mm). Klipper restarting..." ru="Z-offset сохранён ({:+.3f}мм). Перезапуск Klipper..."/>
   <translation tag="Z-offset saved - Klipper restarting..." ru="Z-смещение сохранено — Klipper перезапускается..."/>
   <translation tag="Z:" ru="Z:"/>

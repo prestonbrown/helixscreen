@@ -21,6 +21,7 @@ translations:
   '%zu changes': '%zu Änderungen'
   '%zu events queued': '%zu Ereignisse in Warteschlange'
   '%zu plugins failed to load': '%zu Plugins konnten nicht geladen werden'
+  "'{}' already exists. Replace the stored mesh?": "'{}' existiert bereits. Gespeichertes Netz ersetzen?"
   (different grade): (andere Klasse)
   (incompatible): (inkompatibel)
   (multi-tool): (Multi-Werkzeug)
@@ -387,6 +388,7 @@ translations:
   Calibrate Gear: 'Zahnrad kalibrieren'
   Calibrate X: X kalibrieren
   Calibrate Y: Y kalibrieren
+  Calibrate and tune scroll feel: "Kalibrieren und Scroll-Verhalten einstellen"
   Calibrate input shaping to reduce ringing artifacts in prints: Input Shaping kalibrieren,
     um Ringing-Artefakte im Druck zu reduzieren
   Calibrate your touchscreen for accurate input: Touchscreen für präzise Eingabe kalibrieren
@@ -887,6 +889,7 @@ translations:
   Enter New PIN: Neue PIN eingeben
   Enter PIN: PIN eingeben
   Enter WiFi Password: WiFi-Passwort eingeben
+  Enter a name for this profile: "Geben Sie einen Namen für dieses Profil ein"
   'Enter a name for your custom theme:': 'Geben Sie einen Namen für Ihr benutzerdefiniertes
     Thema ein:'
   Enter a name to save this profile: Geben Sie einen Namen ein, um dieses Profil zu
@@ -1190,6 +1193,7 @@ translations:
   Gear sync: Zahnradsynchronisation
   Generic: Generisch
   Get help and share feedback: Hilfe erhalten und Feedback teilen
+  Global: ''
   Good: Gut
   Good Accuracy: Gute Genauigkeit
   Got it: Verstanden
@@ -1855,6 +1859,7 @@ translations:
   On/Off: Ein/Aus
   On/Off (state-aware): Ein/Aus (zustandsbewusst)
   'On:': 'Ein:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: 'Ooze-Reduzierung'
   Open: Öffnen
   Open Source Licenses: Open-Source-Lizenzen
@@ -2132,6 +2137,7 @@ translations:
   Profile renamed: Profil umbenannt
   Profiles: Profile
   Progress, file, and time remaining: Fortschritt, Datei und Restzeit
+  Prompt before running this macro: ''
   Pulling filament back: Filament wird zurückgezogen
   Purge: Entlüften
   Purge & Wipe: 'Entlüften & Abwischen'
@@ -2239,12 +2245,15 @@ translations:
   Rename failed at save step: Umbenennung beim Speichern fehlgeschlagen
   Render Now: Jetzt rendern
   Rendering timelapse...: Zeitraffer wird gerendert...
+  Replace: "Ersetzen"
+  Replace Profile?: "Profil ersetzen?"
   Replay Welcome Tour: Willkommens-Rundgang erneut abspielen
   'Replenishing filament...': ''
   Report saved to crash_report.txt: Bericht in crash_report.txt gespeichert
   Reprint: Erneut drucken
   Reprint Last: Letzten nachdrucken
   Request Failed: Anfrage fehlgeschlagen
+  Require Confirmation?: ''
   Require confirmation before emergency stop: Bestätigung vor Notaus erforderlich
   Requires Moonraker power device: 'Erfordert ein Moonraker-Stromgerät'
   Requires Moonraker-Timelapse plugin: Erfordert Moonraker-Timelapse-Plugin
@@ -2340,7 +2349,6 @@ translations:
     aufheizen)
   Run test sequence on all lanes: 'Testsequenz auf allen Spuren ausführen'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: HelixScreen-Installer mit --update in einem Terminal auf diesem Drucker ausführen. Für den passenden Befehl den Code scannen.
-  Run without parameter prompt: Ohne Parameterabfrage ausführen
   Run {}?: '{} ausführen?'
   Running {}...: '{} wird ausgeführt...'
   Runout: 'Auslauf'
@@ -2876,6 +2884,7 @@ translations:
   This will restart Klipper firmware. Any active operations will be interrupted.: Klipper-Firmware
     wird neu gestartet. Aktive Vorgänge werden unterbrochen.
   This will restart Klipper.: Dies startet Klipper neu.
+  This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: ''
   Thorough: Gründlich
   Thumbnail Only: Nur Vorschaubild
   'Thumbnail: ': 'Miniaturbild: '
@@ -3190,6 +3199,7 @@ translations:
   Z-offset calibration timed out: Z-Offset-Kalibrierung Zeitüberschreitung
   'Z-offset failed: {}': 'Z-Offset fehlgeschlagen: {}'
   Z-offset is auto-saved by firmware: Z-Offset wird automatisch von Firmware gespeichert
+  Z-offset saved: ''
   Z-offset saved ({:+.3f}mm). Klipper restarting...: Z-Offset gespeichert ({:+.3f}mm).
     Klipper startet neu...
   Z-offset saved - Klipper restarting...: Z-Offset gespeichert - Klipper wird neu

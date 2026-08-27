@@ -1000,7 +1000,6 @@ const std::vector<ConfigDefault>& expected_defaults() {
         {"/input/scroll_throw", 25},
         {"/input/scroll_limit", 10},
         {"/input/long_press_time", 500},
-        {"/input/jitter_threshold", 5},
         {"/input/calibration/valid", false},
         // Identity matrix: a=1, b=0, c=0, d=0, e=1, f=0
         {"/input/calibration/a", 1.0},
@@ -1993,6 +1992,107 @@ TEST_CASE("Config: v13→v14 does NOT overwrite existing /telemetry_enabled",
     REQUIRE(test_config.get<bool>("/telemetry_enabled") == true);
     // File still gets removed — it's dead weight either way.
     REQUIRE_FALSE(std::filesystem::exists(legacy_path));
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+// v22→v23: the Macro Button widget's per-instance run gate flipped polarity and
+// name (skip_param_prompt -> require_confirmation). The rewrite must be lossless
+// in both directions, must not invent a value for widgets that never carried the
+// key, and must clear the legacy key so it cannot be read back later.
+TEST_CASE("Config: v22→v23 rewrites macro widget skip_param_prompt",
+          "[core][config][migration][v23]") {
+    std::string temp_dir = "/tmp/helix_test_v22_to_v23";
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string settings_path = temp_dir + "/test_config.json";
+
+    json v22_config = {{"config_version", 22},
+                       {"active_printer_id", "default"},
+                       {"printers",
+                        {{"default",
+                          {{"panel_widgets",
+                            {{"home",
+                              {{"pages",
+                                {{{"id", "main"},
+                                  {"widgets",
+                                   {// legacy true -> confirmation off
+                                    {{"id", "favorite_macro:1"},
+                                     {"enabled", true},
+                                     {"config", {{"macro", "PURGE"}, {"skip_param_prompt", true}}}},
+                                    // legacy false -> confirmation on
+                                    {{"id", "favorite_macro:2"},
+                                     {"enabled", true},
+                                     {"config", {{"macro", "G28"}, {"skip_param_prompt", false}}}},
+                                    // never carried the key -> left alone
+                                    {{"id", "favorite_macro:3"},
+                                     {"enabled", true},
+                                     {"config", {{"macro", "LOAD_FILAMENT"}}}},
+                                    // an unrelated widget's config must not be touched
+                                    {{"id", "camera"},
+                                     {"enabled", true},
+                                     {"config", {{"url", "rtsp://x"}}}}}}}}}}}}}}}}}};
+    {
+        std::ofstream o(settings_path);
+        o << v22_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(settings_path);
+
+    const std::string base = "/printers/default/panel_widgets/home/pages/0/widgets/";
+
+    REQUIRE(test_config.get<bool>(base + "0/config/require_confirmation") == false);
+    REQUIRE_FALSE(test_config.exists(base + "0/config/skip_param_prompt"));
+
+    REQUIRE(test_config.get<bool>(base + "1/config/require_confirmation") == true);
+    REQUIRE_FALSE(test_config.exists(base + "1/config/skip_param_prompt"));
+
+    // No key before, no key after — the default lives in the struct, not the file.
+    REQUIRE_FALSE(test_config.exists(base + "2/config/require_confirmation"));
+    REQUIRE(test_config.get<std::string>(base + "2/config/macro") == "LOAD_FILAMENT");
+
+    REQUIRE(test_config.get<std::string>(base + "3/config/url") == "rtsp://x");
+
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+// A config already stamped at v23 must survive untouched — re-running the
+// migration over a rewritten document would be a no-op only by luck otherwise.
+TEST_CASE("Config: v22→v23 leaves an already-migrated config alone",
+          "[core][config][migration][v23]") {
+    std::string temp_dir = "/tmp/helix_test_v23_idempotent";
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string settings_path = temp_dir + "/test_config.json";
+
+    json v23_config = {
+        {"config_version", CURRENT_CONFIG_VERSION},
+        {"active_printer_id", "default"},
+        {"printers",
+         {{"default",
+           {{"panel_widgets",
+             {{"home",
+               {{"pages",
+                 {{{"id", "main"},
+                   {"widgets",
+                    {{{"id", "favorite_macro:1"},
+                      {"enabled", true},
+                      {"config",
+                       {{"macro", "PURGE"}, {"require_confirmation", false}}}}}}}}}}}}}}}}}};
+    {
+        std::ofstream o(settings_path);
+        o << v23_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(settings_path);
+
+    REQUIRE(test_config.get<bool>("/printers/default/panel_widgets/home/pages/0/widgets/0/config/"
+                                  "require_confirmation") == false);
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
 
     std::filesystem::remove_all(temp_dir);
 }
