@@ -36,15 +36,19 @@
 # The index check is what makes lazy loading trustworthy: a doc missing from the
 # routing table is a doc nobody will find.
 #
-# KNOWN GAPS — checked by nothing today, each wanting its own change:
+# KNOWN GAPS — each wanting its own change:
 #
-#   bare `:857` shorthand. The guide's convention for "another line in the file
-#     I just cited" (`ams_state.cpp:709` … the immediate sync at `:762`). 444 of
-#     them across 25 docs, and none is verified: the shorthand carries no path,
-#     so resolving one means tracking the last full citation on the line, in the
-#     paragraph, or in the table row. Every one inspected by hand so far was
-#     stale. Wants a sweep of its own, because the resolution rule is a guess
-#     until it is measured against the real prose.
+#   bare `:857` shorthand, the rest of it. 447 in the scanned docs. 276 now
+#     resolve against the nearest preceding full citation on their own line
+#     (`doc_cite_anchors.py --bare-refs`, a REVIEW LIST that anchors nothing —
+#     11 of 12 hand-checked were wrong, so bootstrapping them would freeze the
+#     rot). Of the remainder, 28 sit after a citation that names a PATH with no
+#     line — `` `scripts/quality-checks.sh` … (`:1583`) ``, the table form —
+#     which LINE_REF_RE cannot be the antecedent for; widening the antecedent
+#     search to PATH_RE matches would pick those up. The last 143 have no
+#     antecedent on their line at all, and some have none anywhere: one names
+#     three call sites "in the detail view", a prose antecedent no rule can
+#     resolve. Those need prose edits, not a better regex.
 #
 #   templated symbol spellings. SYMBOL_CITE_*_RE's symbol charset is
 #     [A-Za-z_][A-Za-z0-9_]* plus `::`, so anything carrying angle brackets is
@@ -56,6 +60,19 @@
 #     `std::shared_ptr<bool>` that yields `shared_ptr<bool>`, which does not
 #     appear literally in code that says `std::shared_ptr<bool>` with different
 #     spacing. Extract the bare identifier first, then widen.
+#
+#   a bare basename passes check_refs as soon as ANY file in the tree shares it,
+#     submodules included — `file.cpp` in prose resolves to
+#     lib/cpp-terminal/cpp-terminal/private/file.cpp. Harmless for a deliberate
+#     placeholder, but it means the path check cannot be read as proof that the
+#     file the sentence MEANT exists. doc_cite_anchors.py holds the size of that
+#     bucket at `max-unresolved:` instead.
+#
+#   NOT a gap, measured rather than assumed: citations inside fenced code blocks.
+#     Both this gate and the anchor generator skip fences deliberately, and a
+#     census of the corpus found ZERO real citations inside one, so the
+#     exclusion costs nothing today. Non-backticked prose mentions
+#     (`zmod_ifs.py:1149`, unbackticked as external) are likewise deliberate.
 #
 # Usage:
 #   check_doc_refs.py            # everything: every CLAUDE.md, .claude/skills/,
