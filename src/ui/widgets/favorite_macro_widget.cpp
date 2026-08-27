@@ -39,8 +39,8 @@ void register_favorite_macro_widgets() {
     helix::register_favorite_macro_config_subjects();
     lv_xml_register_event_cb(nullptr, "fav_macro_config_close_cb",
                              FavoriteMacroConfigModal::close_cb);
-    lv_xml_register_event_cb(nullptr, "fav_macro_config_skip_cb",
-                             FavoriteMacroConfigModal::skip_params_cb);
+    lv_xml_register_event_cb(nullptr, "fav_macro_config_confirm_cb",
+                             FavoriteMacroConfigModal::require_confirm_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_macro_cb",
                              FavoriteMacroConfigModal::tab_macro_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_appearance_cb",
@@ -163,10 +163,10 @@ void FavoriteMacroWidget::set_config(const nlohmann::json& config) {
         spdlog::warn("[FavoriteMacroWidget] Unknown icon '{}' in config, using default", c.icon);
     }
     icon_color_ = c.color;
-    skip_param_prompt_ = c.skip_param_prompt;
-    spdlog::debug("[FavoriteMacroWidget] Config: {}={} icon={} color=0x{:06X} skip_params={}",
+    require_confirmation_ = c.require_confirmation;
+    spdlog::debug("[FavoriteMacroWidget] Config: {}={} icon={} color=0x{:06X} require_confirm={}",
                   widget_id_, macro_name_, icon_name_.empty() ? "default" : icon_name_, icon_color_,
-                  skip_param_prompt_);
+                  require_confirmation_);
 }
 
 void FavoriteMacroWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -314,11 +314,12 @@ void FavoriteMacroWidget::update_display() {
 }
 
 void FavoriteMacroWidget::save_config() {
-    helix::FavoriteMacroConfig c{macro_name_, icon_name_, icon_color_, skip_param_prompt_};
+    helix::FavoriteMacroConfig c{macro_name_, icon_name_, icon_color_, require_confirmation_};
     save_widget_config(helix::favorite_macro_config_to_json(c));
-    spdlog::debug("[FavoriteMacroWidget] Saved config: {}={} icon={} color=0x{:06X} skip_params={}",
-                  widget_id_, macro_name_, icon_name_.empty() ? "default" : icon_name_, icon_color_,
-                  skip_param_prompt_);
+    spdlog::debug(
+        "[FavoriteMacroWidget] Saved config: {}={} icon={} color=0x{:06X} require_confirm={}",
+        widget_id_, macro_name_, icon_name_.empty() ? "default" : icon_name_, icon_color_,
+        require_confirmation_);
 }
 
 void FavoriteMacroWidget::fetch_and_execute() {
@@ -353,21 +354,27 @@ void FavoriteMacroWidget::fetch_and_execute() {
         return;
     }
 
+    // Per-widget "Require Confirmation?" off: one tap runs the macro with no
+    // parameters and no dialog. This is the whole point of the opt-out, so it
+    // suppresses the Settings → Safety confirmation as well as the
+    // parameter-entry modal. Dangerous macros are handled above and never reach
+    // here, so the opt-out cannot disarm them.
+    if (!require_confirmation_) {
+        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]");
+        return;
+    }
+
     auto cached = MacroParamCache::instance().get(macro_name_);
 
-    // "Run without parameter prompt" favorites — and macros with genuinely no
-    // params — execute with empty params and never show the parameter-entry
-    // modal. Macros registered via Klipper's register_command report UNKNOWN
-    // params (no gcode_macro template to parse), which would otherwise force the
-    // popup on every tap regardless of the confirm setting; the per-widget
-    // toggle lets the user opt out of it.
-    bool run_without_params =
-        skip_param_prompt_ || cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS;
+    // Macros with genuinely no params have nothing to prompt for, so the
+    // confirmation dialog is the only gate left for them. Macros registered via
+    // Klipper's register_command report UNKNOWN params (no gcode_macro template
+    // to parse) and still get the param modal, which is itself the implicit
+    // confirmation step — same as KNOWN_PARAMS.
+    bool run_without_params = cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS;
 
     // Optional run-confirmation gate (Settings → Safety toggle, default on).
-    // Only applies when running without a param modal — for KNOWN_PARAMS /
-    // UNKNOWN the param modal is itself the implicit confirmation step. Mirrors
-    // MacrosPanel logic.
+    // Only applies when running without a param modal. Mirrors MacrosPanel logic.
     if (run_without_params && parent_screen_ &&
         helix::SafetySettingsManager::instance().get_macro_require_confirmation()) {
         auto* ctx = new MacroExecCtx{macro_name_, api, parent_screen_};
@@ -389,7 +396,7 @@ void FavoriteMacroWidget::fetch_and_execute() {
         return;
     }
 
-    // Has params (and not skipped) — show the parameter-entry modal.
+    // Has params, or params unknown — show the parameter-entry modal.
     run_macro_after_confirm({macro_name_, api, parent_screen_});
 }
 

@@ -87,14 +87,27 @@
       </lv_obj>
     </lv_obj>
 
-    <!-- Section: Options (tab 2) -->
+    <!-- Section: Options (tab 2). The consequence line below is bound to the
+         same subject as the toggle, so turning confirmation off reveals what
+         that costs without a line of C++ driving it. -->
     <lv_obj name="section_options"
             width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm"
             scrollable="true" hidden="true">
       <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="2"/>
-      <setting_toggle_row label="Run without parameter prompt"
-                          label_tag="Run without parameter prompt" subject="fav_macro_skip_params"
-                          callback="fav_macro_config_skip_cb"/>
+      <setting_toggle_row name="row_require_confirm"
+                          label="Require Confirmation?" label_tag="Require Confirmation?" icon="script_text"
+                          description="Prompt before running this macro"
+                          description_tag="Prompt before running this macro" subject="fav_macro_require_confirm"
+                          callback="fav_macro_config_confirm_cb"/>
+      <!-- Visible only while confirmation is off. Dangerous macros are named
+           explicitly because the per-widget opt-out deliberately does not
+           reach them. -->
+      <info_note name="run_immediately_hint"
+                 icon="flash" icon_variant="warning"
+                 text="One tap runs this macro with no parameters. Dangerous macros still ask."
+                 text_tag="One tap runs this macro with no parameters. Dangerous macros still ask.">
+        <bind_flag_if_eq subject="fav_macro_require_confirm" flag="hidden" ref_value="1"/>
+      </info_note>
     </lv_obj>
   </view>
 </component>

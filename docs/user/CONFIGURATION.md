@@ -1225,8 +1225,16 @@ Each widget object has:
 - `rowspan` — Number of rows the widget spans
 
 > **What `col: -1` / `row: -1` means.** The widget is switched on but has nowhere to sit right now, usually because the grid was full when HelixScreen last laid out the page. It is *not* disabled: as soon as a cell frees up - you remove another widget, unplug the hardware another widget needed, or view the same layout on a screen with a bigger grid - it places itself again automatically. You do not need to re-add it from the catalog.
-- `config` — (optional) Per-widget settings object. Currently used by `temp_stack` and `fan_stack` for display mode:
-  - `display_mode` — `"stack"` (default) or `"carousel"`. Stack shows compact rows; carousel shows swipeable full-size pages. Toggle via long-press on the widget.
+- `config` — (optional) Per-widget settings object. Used by:
+  - `temp_stack` / `fan_stack`:
+    - `display_mode` — `"stack"` (default) or `"carousel"`. Stack shows compact rows; carousel shows swipeable full-size pages. Toggle via long-press on the widget.
+  - `favorite_macro:<n>` (Macro Button):
+    - `macro` — Name of the Klipper macro this button runs. Empty means unconfigured.
+    - `icon` — Icon name. Omitted means the default (`play`).
+    - `color` — Icon color as a decimal RGB integer. Omitted means the theme color.
+    - `require_confirmation` — Omitted (the default) means tapping the button prompts first: a parameter form when the macro takes parameters, otherwise the Settings > Safety confirmation dialog. `false` runs the macro on a single tap with no parameters and no dialog. Dangerous macros confirm regardless. Set it from the widget's **Options** tab; see [Macro Button confirmation](guide/home-panel.md#macro-button-confirmation).
+
+    > Configs written before `config_version` 23 stored the inverse of this as `skip_param_prompt`, which suppressed only the parameter form. HelixScreen rewrites it to `require_confirmation` on first launch.
 
 **Available widget IDs:**
 

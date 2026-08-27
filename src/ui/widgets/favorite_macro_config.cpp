@@ -16,8 +16,17 @@ FavoriteMacroConfig favorite_macro_config_from_json(const nlohmann::json& j) {
         if (v >= 0 && v <= 0xFFFFFF)
             c.color = static_cast<uint32_t>(v);
     }
-    if (j.contains("skip_param_prompt") && j["skip_param_prompt"].is_boolean())
-        c.skip_param_prompt = j["skip_param_prompt"].get<bool>();
+    // Two spellings of the same switch. "require_confirmation" is what this
+    // build writes; "skip_param_prompt" is the pre-v23 key with the opposite
+    // polarity, still read here so a config that never passed through
+    // migrate_v22_to_v23() (a preset asset, a hand-edited file, a widget config
+    // restored from an older backup) keeps the user's choice instead of
+    // silently reverting to the default.
+    if (j.contains("require_confirmation") && j["require_confirmation"].is_boolean()) {
+        c.require_confirmation = j["require_confirmation"].get<bool>();
+    } else if (j.contains("skip_param_prompt") && j["skip_param_prompt"].is_boolean()) {
+        c.require_confirmation = !j["skip_param_prompt"].get<bool>();
+    }
     return c;
 }
 
@@ -28,8 +37,10 @@ nlohmann::json favorite_macro_config_to_json(const FavoriteMacroConfig& c) {
         j["icon"] = c.icon;
     if (c.color != 0)
         j["color"] = c.color;
-    if (c.skip_param_prompt)
-        j["skip_param_prompt"] = true;
+    // Default (true) is omitted; the legacy key is never written back, so a
+    // config that still carries it sheds it on the next save.
+    if (!c.require_confirmation)
+        j["require_confirmation"] = false;
     return j;
 }
 

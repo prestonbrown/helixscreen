@@ -1662,6 +1662,7 @@ translations:
   On/Off: 开/关
   On/Off (state-aware): 开/关（状态跟踪）
   'On:': '开:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: '减少渗漏'
   Open: 打开
   Open G-code command console: '打开 G-code 命令控制台'
@@ -1921,6 +1922,7 @@ translations:
   Profile name (e.g., default): 配置名称（例如：default）
   Profile renamed: 配置文件已重命名
   Profiles: 配置
+  Prompt before running this macro: ''
   Pulling filament back: 正在回抽耗材
   Purge: 排料
   Purge & Wipe: '排料与擦拭'
@@ -2030,6 +2032,7 @@ translations:
   Reprint: 重新打印
   Reprint Last: 重印上次
   Request Failed: 请求失败
+  Require Confirmation?: ''
   Require confirmation before emergency stop: 紧急停止前需要确认
   Requires Moonraker power device: '需要 Moonraker 电源设备'
   Requires Moonraker-Timelapse plugin: 需要 Moonraker-Timelapse 插件
@@ -2118,7 +2121,6 @@ translations:
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): 即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）
   Run test sequence on all lanes: '在所有料仓运行测试流程'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: 在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。
-  Run without parameter prompt: 运行时不提示参数
   Run {}?: 运行 {}？
   Running {}...: 正在运行 {}...
   Runout: '用尽'

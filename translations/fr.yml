@@ -1838,6 +1838,7 @@ translations:
   On/Off: Marche/Arrêt
   On/Off (state-aware): On/Off (avec suivi d'état)
   'On:': 'Marche :'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: 'Réduction du suintement'
   Open: Ouvrir
   Open G-code command console: 'Ouvrir la console de commandes G-code'
@@ -2121,6 +2122,7 @@ translations:
   Profile name (e.g., default): 'Nom du profil (ex : default)'
   Profile renamed: Profil renommé
   Profiles: Profils
+  Prompt before running this macro: ''
   Pulling filament back: Rétraction du filament
   Purge: Purger
   Purge & Wipe: 'Purge et essuyage'
@@ -2239,6 +2241,7 @@ translations:
   Reprint: Réimprimer
   Reprint Last: Réimprimer la dernière
   Request Failed: Requête échouée
+  Require Confirmation?: ''
   Require confirmation before emergency stop: Demander confirmation avant l'arrêt
     d'urgence
   Requires Moonraker power device: 'Nécessite un périphérique d''alimentation Moonraker'
@@ -2335,7 +2338,6 @@ translations:
     buse elles-mêmes)
   Run test sequence on all lanes: 'Exécuter la séquence de test sur toutes les voies'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Lancez l'installateur HelixScreen avec --update depuis un terminal sur cette imprimante. Scannez pour obtenir la commande adaptée à votre plateforme.
-  Run without parameter prompt: Exécuter sans demande de paramètre
   Run {}?: Exécuter {} ?
   Running {}...: Exécution de {}...
   Runout: 'Fin de filament'

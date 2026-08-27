@@ -1290,6 +1290,67 @@ static void migrate_v21_to_v22(json& config) {
     }
 }
 
+/// Migration v22→v23: the Macro Button widget's per-instance run gate changed
+/// polarity and name.
+///
+/// It used to be "skip_param_prompt" (default false), which suppressed only the
+/// parameter-entry modal — the Settings → Safety confirmation still fired, so a
+/// user who asked for a one-tap macro button got a dialog anyway. It is now
+/// "require_confirmation" (default true), governing both prompts, and its
+/// off-state is what actually delivers the one-tap run.
+///
+/// The two keys are exact inverses, so the rewrite is lossless: a widget that
+/// had skip_param_prompt:true becomes require_confirmation:false and keeps
+/// running without a parameter prompt, now without the confirmation too.
+/// Widgets that never carried the key keep the default and are left untouched,
+/// which is why nothing is written when the key is absent.
+///
+/// The same fallback lives in favorite_macro_config_from_json() for configs this
+/// migration cannot reach (preset assets under panel_widgets/<preset>/, an
+/// imported widget config). This pass exists so the legacy key does not linger
+/// on disk for users who never reopen the widget's config modal.
+static void migrate_v22_to_v23(json& config) {
+    if (!config.contains("printers") || !config["printers"].is_object())
+        return;
+
+    int rewritten = 0;
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        if (!printer.is_object() || !printer.contains("panel_widgets") ||
+            !printer["panel_widgets"].is_object())
+            continue;
+        for (auto& [panel_id, panel] : printer["panel_widgets"].items()) {
+            if (!panel.is_object() || !panel.contains("pages") || !panel["pages"].is_array())
+                continue;
+            for (auto& page : panel["pages"]) {
+                if (!page.is_object() || !page.contains("widgets") || !page["widgets"].is_array())
+                    continue;
+                for (auto& widget : page["widgets"]) {
+                    if (!widget.is_object() || !widget.contains("config") ||
+                        !widget["config"].is_object())
+                        continue;
+                    json& wc = widget["config"];
+                    if (!wc.contains("skip_param_prompt"))
+                        continue;
+                    // A non-boolean legacy value was never honoured by the
+                    // reader either; drop it rather than inventing a meaning.
+                    if (wc["skip_param_prompt"].is_boolean() &&
+                        !wc.contains("require_confirmation")) {
+                        wc["require_confirmation"] = !wc["skip_param_prompt"].get<bool>();
+                    }
+                    wc.erase("skip_param_prompt");
+                    ++rewritten;
+                }
+            }
+        }
+    }
+
+    if (rewritten > 0) {
+        spdlog::info("[Config] Migration v23: rewrote skip_param_prompt -> require_confirmation "
+                     "on {} macro widget(s)",
+                     rewritten);
+    }
+}
+
 /// Lift a legacy root-level "preset" marker into the active printer's node.
 ///
 /// The marker predates multi-printer support and stayed at the config root while
@@ -1415,6 +1476,8 @@ static void run_versioned_migrations(json& config, const std::string& config_pat
         migrate_v20_to_v21(config);
     if (version < 22)
         migrate_v21_to_v22(config);
+    if (version < 23)
+        migrate_v22_to_v23(config);
 
     config["config_version"] = CURRENT_CONFIG_VERSION;
 }

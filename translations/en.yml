@@ -1773,6 +1773,7 @@ translations:
   On/Off: On/Off
   On/Off (state-aware): On/Off (state-aware)
   'On:': 'On:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: One tap runs this macro with no parameters. Dangerous macros still ask.
   Ooze Reduction: Ooze Reduction
   Open: Open
   Open G-code command console: Open G-code command console
@@ -2047,6 +2048,7 @@ translations:
   Profile name (e.g., default): Profile name (e.g., default)
   Profile renamed: Profile renamed
   Profiles: Profiles
+  Prompt before running this macro: Prompt before running this macro
   Pulling filament back: Pulling filament back
   Purge: Purge
   Purge & Wipe: Purge & Wipe
@@ -2163,6 +2165,7 @@ translations:
   Reprint: Reprint
   Reprint Last: Reprint Last
   Request Failed: Request Failed
+  Require Confirmation?: Require Confirmation?
   Require confirmation before emergency stop: Require confirmation before emergency
     stop
   Requires Moonraker power device: Requires Moonraker power device
@@ -2258,7 +2261,6 @@ translations:
     themselves)
   Run test sequence on all lanes: Run test sequence on all lanes
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.
-  Run without parameter prompt: Run without parameter prompt
   Run {}?: Run {}?
   Running {}...: Running {}...
   Runout: Runout

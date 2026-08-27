@@ -100,7 +100,7 @@ TEST_CASE_METHOD(MigrationV22Fixture, "v22 keeps a printer's live external spool
                   {{"external_spool",
                     {{"assigned", true}, {"material", "ASA-GF"}, {"spoolman_id", 145}}}}}}}}}});
 
-    CHECK(config.get<int>("/config_version", 0) == 22);
+    CHECK(config.get<int>("/config_version", 0) == helix::CURRENT_CONFIG_VERSION);
     // The live value survives untouched...
     CHECK(config.get<std::string>("/printers/k2/filament/external_spool/material", "") == "ASA-GF");
     CHECK(config.get<int>("/printers/k2/filament/external_spool/spoolman_id", 0) == 145);
