@@ -741,7 +741,7 @@ if [ -f "scripts/check_hardcoded_pixels.py" ]; then
     PIXELS_ARGS=""
   fi
   # shellcheck disable=SC2086
-  if python3 scripts/check_hardcoded_pixels.py --max-allowed 162 --summary $PIXELS_ARGS \
+  if python3 scripts/check_hardcoded_pixels.py --max-allowed 155 --summary $PIXELS_ARGS \
       >/tmp/hardcoded_pixels.out 2>&1; then
     tail -1 /tmp/hardcoded_pixels.out
   else
@@ -1996,7 +1996,7 @@ fi
 # procedural canvas renderers, and helix-splash (a separate binary that does not
 # link ThemeManager). Ratcheting baseline — port these to theme_manager_get_color().
 HEX_ALLOW='theme_manager|src/rendering/|canvas|confetti|glyph|src/helix_splash.cpp'
-HEX_BASELINE=34
+HEX_BASELINE=33
 HEX_COUNT=$(grep -rn 'lv_color_hex(0x' src include 2>/dev/null | grep -vcE "$HEX_ALLOW" || true)
 if [ "$HEX_COUNT" -gt "$HEX_BASELINE" ]; then
   echo ""

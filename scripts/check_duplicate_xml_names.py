@@ -82,7 +82,7 @@ OPT_OUT = 'DUPLICATE_NAME_OK'
 DUPLICATE_NAME_BASELINE: dict[str, int] = {
     'ui_xml/about_settings_overlay.xml::row_icon': 2,
     'ui_xml/about_settings_overlay.xml::label': 2,
-    'ui_xml/about_settings_overlay.xml::value': 12,
+    'ui_xml/about_settings_overlay.xml::value': 11,
     'ui_xml/printer_manager_overlay.xml::value': 3,
 }
 
