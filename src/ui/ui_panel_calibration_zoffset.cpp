@@ -743,7 +743,7 @@ void ZOffsetCalibrationPanel::send_accept() {
             [this, strategy, api = api_, accept_token]() {
                 spdlog::info("[ZOffsetCal] ACCEPT success, applying and saving");
                 helix::zoffset::apply_and_save(
-                    api, strategy,
+                    api, save_config_watch_, strategy,
                     [this, accept_token]() {
                         accept_token.defer(
                             "ZOffsetCalibrationPanel::on_calibration_result(accept_ok)",

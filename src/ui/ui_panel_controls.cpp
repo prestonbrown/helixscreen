@@ -1160,7 +1160,7 @@ void ControlsPanel::handle_save_z_offset_confirm() {
 
     auto tok = lifetime_.token();
     helix::zoffset::apply_and_save(
-        api_, strategy,
+        api_, save_config_watch_, strategy,
         [this, tok, offset_mm]() {
             tok.defer("ControlsPanel::save_z_offset_done", [this, offset_mm]() {
                 NOTIFY_SUCCESS(lv_tr("Z-offset saved ({:+.3f}mm). Klipper restarting..."),

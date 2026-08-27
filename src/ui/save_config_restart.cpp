@@ -109,6 +109,16 @@ void SaveConfigWatch::begin(IMoonrakerAPI* api, const char* initiation_message,
         }));
 }
 
+void SaveConfigWatch::begin_from_background(IMoonrakerAPI* api, const char* initiation_message,
+                                            std::function<void()> on_saved,
+                                            std::function<void(const std::string&)> on_failed) {
+    lifetime_.bg_cb("SaveConfigWatch::begin_from_background",
+                    [this, api, initiation_message, on_saved = std::move(on_saved),
+                     on_failed = std::move(on_failed)]() mutable {
+                        begin(api, initiation_message, std::move(on_saved), std::move(on_failed));
+                    })();
+}
+
 void SaveConfigWatch::end() {
     in_flight_ = false;
     klippy_observer_.reset();

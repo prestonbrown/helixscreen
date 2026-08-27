@@ -11,6 +11,10 @@
 
 class IMoonrakerAPI;
 
+namespace helix::ui {
+class SaveConfigWatch;
+}
+
 namespace helix::zoffset {
 
 /// Returns true and shows toast if strategy auto-persists (FIRMWARE_MANAGED).
@@ -69,12 +73,19 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
 ///   ENDSTOP -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
 ///   FIRMWARE_MANAGED -> no-op (firmware/macros auto-persist)
 ///
+/// SAVE_CONFIG's rpc is dropped by the restart it triggers, so @p save_watch -
+/// not the rpc - decides the outcome: it absorbs the dropped reply and reports
+/// success once Klipper is back READY. Reporting the drop told the user every
+/// successful save had failed (prestonbrown/helixscreen#1359).
+///
 /// @param api           Moonraker API for gcode execution (must not be null)
+/// @param save_watch    Owned by the caller (a panel member), because it has to
+///                      outlive the restart it is watching for
 /// @param strategy      Calibration strategy determining command sequence
-/// @param on_success    Called after SAVE_CONFIG succeeds (Klipper will restart)
-/// @param on_error      Called with user-facing message on any failure
-void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
-                    std::function<void()> on_success,
+/// @param on_success    Called once the save is known to have succeeded
+/// @param on_error      Called with user-facing message on a REAL failure
+void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error);
 
 /// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.
