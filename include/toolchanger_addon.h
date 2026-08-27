@@ -99,10 +99,11 @@ struct ToolReading {
     /// nullopt when the frame did not say.
     std::optional<bool> head_loaded;
     /// Frame-side gripper released. nullopt when this machine does not report it
-    /// at all - only the Python controller publishes `feeder_open`, and the
-    /// difference between "closed" and "never said" is what decides whether the
-    /// step bar can name the release/grip phases (see
-    /// AmsBackendToolChanger::get_operation_step_model).
+    /// at all. BOTH MedusaHC controllers publish `feeder_open`, so in practice
+    /// every machine carrying [medusahc] fills this in; the nullopt case is a
+    /// changer with no such extra. The difference between "closed" and "never
+    /// said" is what decides whether the step bar can name the release/grip
+    /// phases (see AmsBackendToolChanger::get_operation_step_model).
     std::optional<bool> feeder_open;
 };
 

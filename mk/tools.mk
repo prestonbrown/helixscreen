@@ -272,27 +272,44 @@ regen-tokens:
 	$(ECHO) "$(GREEN)✓ token table regenerated — commit src/generated/theme_token_table.cpp if it changed$(RESET)"
 
 # ==============================================================================
-# Architecture-guide file links (Python)
+# Doc citations: line numbers and links, both derived (Python)
 # ==============================================================================
-# The guide's backticked citations (`src/printer/printer_state.cpp:622`) are the
-# source of truth; the markdown link around each one is derived from that text on
-# every run. Write plain backticks, run this, commit. A renamed file is fixed in
-# one place — the citation — and every link follows.
+# Two derived things hang off one hand-written citation.
+#
+#   `src/printer/printer_state.cpp:622`
+#     the LINE NUMBER is derived from a content anchor (scripts/doc_cite_anchors.py)
+#     the markdown LINK is derived from the citation text (scripts/gen_doc_links.py)
+#
+# So nobody maintains either by hand. Write the citation once, run this, commit.
+# Code that MOVED is re-pinned automatically; only a cited line whose own text
+# changed stops the run and asks a human to re-read the sentence.
+#
+# Order is load-bearing: anchors rewrite the number INSIDE the link text, so the
+# link generator has to run second or it would re-derive a URL from a number
+# that is about to change.
 #
 # Targets:
-#   make regen-doc-links     — rewrite docs/devel/ARCHITECTURE.md and
-#                              docs/devel/architecture/*.md in place
+#   make regen-doc-links     — re-pin citations, then relink the guide
+#   make regen-doc-anchors   — re-pin citation line numbers only
 #   make check-doc-links     — report-only; what quality-checks.sh runs
+#   make check-doc-anchors   — report-only; also run inside check_doc_refs.py
 
-.PHONY: regen-doc-links check-doc-links
+.PHONY: regen-doc-links check-doc-links regen-doc-anchors check-doc-anchors
 
-regen-doc-links:
+regen-doc-anchors:
+	$(ECHO) "$(BLUE)[GEN]$(RESET) re-pinning doc citation line numbers"
+	$(Q)python3 scripts/doc_cite_anchors.py
+
+regen-doc-links: regen-doc-anchors
 	$(ECHO) "$(BLUE)[GEN]$(RESET) linking architecture-guide citations"
 	$(Q)python3 scripts/gen_doc_links.py
-	$(ECHO) "$(GREEN)✓ doc links regenerated — commit the guide if it changed$(RESET)"
+	$(ECHO) "$(GREEN)✓ doc citations regenerated — commit the docs, scripts/doc_cite_anchors.tsv included, if they changed$(RESET)"
 
 check-doc-links:
 	$(Q)python3 scripts/gen_doc_links.py --check
+
+check-doc-anchors:
+	$(Q)python3 scripts/doc_cite_anchors.py --check
 
 # ==============================================================================
 # LVGL event-code table for the crash worker (Python)

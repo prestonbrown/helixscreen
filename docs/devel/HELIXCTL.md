@@ -436,7 +436,7 @@ Mode already selects whatever widget was under the press and starts dragging it
 catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp:1012-1046`) - so a
 second long press on a tile starts a drag instead. The nav bar's `+`
 (`ui_xml/navigation_bar.xml:22-28`) goes straight to `HomePanel::open_widget_catalog()`
-(`src/xml_registration.cpp:331-332`) with no such condition. A press that lands on empty
+(`src/xml_registration.cpp:339-340`) with no such condition. A press that lands on empty
 grid selects nothing, and *then* a second long press does open the catalog - but the
 button is the case that always works.
 

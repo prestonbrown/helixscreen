@@ -405,6 +405,35 @@ std::vector<int> FilamentMapper::effective_routing(const std::vector<int>& publi
     return {};
 }
 
+std::optional<std::map<int, int>>
+FilamentMapper::reprint_remap(const std::vector<int>& last_routing,
+                              const std::set<int>& tools_used) {
+    if (last_routing.empty()) {
+        // The backend never saw a configured task, so we do not know how this
+        // job was routed. Returning an empty map instead would read one layer up
+        // as "this print needs no remap" and write an identity table over
+        // whatever crossover it actually used — the same empty-means-two-things
+        // trap effective_routing() exists to close.
+        return std::nullopt;
+    }
+
+    std::map<int, int> remap;
+    for (int tool : tools_used) {
+        if (tool < 0 || static_cast<size_t>(tool) >= last_routing.size()) {
+            return std::nullopt;
+        }
+        const int head = last_routing[static_cast<size_t>(tool)];
+        if (head < 0) {
+            // The status parser records an unreadable or out-of-range head as -1
+            // rather than clamping it to 0. One unroutable used tool makes the
+            // whole map a guess, and the map is written to the firmware in full.
+            return std::nullopt;
+        }
+        remap[tool] = head;
+    }
+    return remap;
+}
+
 std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
                                                          const std::vector<AvailableSlot>& slots) {
     if (tool_to_head.empty()) {

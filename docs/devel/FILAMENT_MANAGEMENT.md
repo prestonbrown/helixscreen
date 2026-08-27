@@ -613,7 +613,7 @@ the precise string verbatim is what caused the original bug: OrcaSlicer resolves
 unmatched `material` to **the first library preset whose name contains "PLA"**
 (Preset.cpp:3300), and because that bogus id then resolves cleanly it
 **short-circuits the similarity search** that would otherwise have found a closer
-type (`PresetBundle.cpp:3320-3346`). So `ASA-GF` synced as *Generic PLA* — PLA
+type (PresetBundle.cpp:3320-3346). So `ASA-GF` synced as *Generic PLA* — PLA
 temperatures on a glass-filled ASA — while the color came through untouched.
 (Verified against the pinned OrcaSlicer source, not secondhand docs.)
 
@@ -1805,7 +1805,7 @@ Where the override lands, by backend:
 | Happy Hare | Runtime from `[mmu_machine] has_bypass`; `false` until first status | Only when `has_bypass: 0` | Consults `bypass_available_for()`; `MMU_SELECT_BYPASS` runs |
 | CFS | Converges on first full box frame: true (Fork: + payload `external` entry) | no | Consults `bypass_available_for()` — real `T<external>` on Fork, sensor-derived declaration on stock |
 | ACE | Hardcoded `false` (`ams_backend_ace.cpp:44`) | yes | `not_supported` |
-| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:240`) | yes | `not_supported` |
+| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:241`) | yes | `not_supported` |
 | Tool Changer | Hardcoded `false` (`:31`) | yes | `not_supported` |
 | QIDI Box | Hardcoded `false` (`:193`) | yes | `not_supported` |
 

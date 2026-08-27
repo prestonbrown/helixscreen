@@ -253,3 +253,120 @@ TEST_CASE("Snapmaker build_preprint_gcode overwrites a previous print's remap",
                     "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0");
     REQUIRE(next.find("MAP_EXTRUDER=2") == std::string::npos);
 }
+
+// ============================================================================
+// reprint_remap — where a REPRINT's routing comes from
+// ============================================================================
+//
+// A reprint has no detail view, no swatch card and no picker, so nothing on
+// that path can recompute a colour match. The reprint used to hand
+// build_preprint_gcode an EMPTY remap, and an absent tool resolves to its
+// firmware-default head — so "we do not know how this job was routed" was
+// emitted as "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n", which
+// actively erases the crossover the original print installed. Same shape as the
+// attachment-map-as-routing bug in effective_routing(): an empty container
+// standing in for a confident identity answer.
+
+TEST_CASE("reprint_remap: an unknown routing is NOT identity", "[snapmaker][preprint][reprint]") {
+    // The backend never observed a configured task (app started after the print
+    // ended, or the printer never reported one). There is no answer to give.
+    REQUIRE_FALSE(helix::FilamentMapper::reprint_remap({}, {0, 2}).has_value());
+}
+
+TEST_CASE("reprint_remap: the recorded crossover survives into the reprint gcode",
+          "[snapmaker][preprint][reprint]") {
+    // The routing the U1 ran the job with: T0 printed from head 2, T2 from head
+    // 0 — a genuine crossover, the case that cannot be reprinted today.
+    std::vector<int> routing(32, 0);
+    routing[0] = 2;
+    routing[1] = 1;
+    routing[2] = 0;
+    routing[3] = 3;
+
+    const std::set<int> tools_used = {0, 2};
+
+    const auto remap = helix::FilamentMapper::reprint_remap(routing, tools_used);
+    REQUIRE(remap.has_value());
+    REQUIRE(*remap == std::map<int, int>{{0, 2}, {2, 0}});
+
+    SnapmakerProbe sm;
+    const std::string gcode = sm.build_preprint_gcode(tools_used, *remap);
+    REQUIRE(gcode == "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=2\n"
+                     "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=0\n"
+                     "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,2");
+
+    // The bug, stated: the empty remap the reprint used to pass writes the
+    // crossover back to identity and names the wrong heads as used.
+    REQUIRE(sm.build_preprint_gcode(tools_used, {}) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=2\n"
+            "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,2");
+    REQUIRE(gcode != sm.build_preprint_gcode(tools_used, {}));
+}
+
+TEST_CASE("reprint_remap: a routing that cannot answer for every used tool refuses",
+          "[snapmaker][preprint][reprint]") {
+    SECTION("an entry the parser could not read (-1) poisons the whole answer") {
+        // handle_status_update records an out-of-range or non-integer head as -1
+        // rather than clamping to head 0. One unroutable used tool makes the rest
+        // a guess, and a partly-guessed map is still written to the firmware in
+        // full.
+        std::vector<int> routing(32, 0);
+        routing[0] = 2;
+        routing[2] = -1;
+        REQUIRE_FALSE(helix::FilamentMapper::reprint_remap(routing, {0, 2}).has_value());
+        // The same table DOES answer for a tool set it covers.
+        REQUIRE(helix::FilamentMapper::reprint_remap(routing, {0}).has_value());
+    }
+
+    SECTION("a used tool past the end of the table refuses") {
+        const std::vector<int> routing = {0, 1, 2, 3}; // 4 entries, no extended tools
+        REQUIRE_FALSE(helix::FilamentMapper::reprint_remap(routing, {0, 7}).has_value());
+    }
+}
+
+TEST_CASE("reprint_remap: a genuinely-identity print still answers",
+          "[snapmaker][preprint][reprint]") {
+    // Known-identity and unknown must not collapse into the same value: the
+    // firmware still needs SET_PRINT_USED_EXTRUDERS for the spurious-feed
+    // suppression, so a job that really did print identity has to produce a
+    // sendable answer rather than the "do not send" nullopt.
+    std::vector<int> routing(32, 0);
+    routing[0] = 0;
+    routing[1] = 1;
+    routing[2] = 2;
+    routing[3] = 3;
+
+    const auto remap = helix::FilamentMapper::reprint_remap(routing, {1, 3});
+    REQUIRE(remap.has_value());
+    REQUIRE(*remap == std::map<int, int>{{1, 1}, {3, 3}});
+
+    SnapmakerProbe sm;
+    REQUIRE(sm.build_preprint_gcode({1, 3}, *remap) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=1\n"
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=3 MAP_EXTRUDER=3\n"
+            "SET_PRINT_USED_EXTRUDERS EXTRUDERS=1,3");
+}
+
+TEST_CASE("reprint_remap: extended tools follow the table, not the 4-head default",
+          "[snapmaker][preprint][reprint]") {
+    // Tools 4-31 fall to head 0 by firmware default, but the table is what the
+    // print actually ran with — the U1's runout auto-replenish rewrites it to
+    // redirect a logical tool at a replacement head, and a reprint has to follow
+    // that, not the default.
+    std::vector<int> routing(32, 0);
+    routing[5] = 3;
+
+    const auto remap = helix::FilamentMapper::reprint_remap(routing, {5});
+    REQUIRE(remap.has_value());
+    REQUIRE(*remap == std::map<int, int>{{5, 3}});
+
+    SnapmakerProbe sm;
+    REQUIRE(sm.build_preprint_gcode({5}, *remap) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=5 MAP_EXTRUDER=3\n"
+            "SET_PRINT_USED_EXTRUDERS EXTRUDERS=3");
+    // Without the table the same tool collapses to head 0.
+    REQUIRE(sm.build_preprint_gcode({5}, {}) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=5 MAP_EXTRUDER=0\n"
+            "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0");
+}

@@ -741,7 +741,7 @@ if [ -f "scripts/check_hardcoded_pixels.py" ]; then
     PIXELS_ARGS=""
   fi
   # shellcheck disable=SC2086
-  if python3 scripts/check_hardcoded_pixels.py --max-allowed 162 --summary $PIXELS_ARGS \
+  if python3 scripts/check_hardcoded_pixels.py --max-allowed 155 --summary $PIXELS_ARGS \
       >/tmp/hardcoded_pixels.out 2>&1; then
     tail -1 /tmp/hardcoded_pixels.out
   else
@@ -1024,6 +1024,17 @@ if [ -n "$FILES" ]; then
       # Leading space is load-bearing: a message below prints "git add$FORMAT_ISSUES".
       FORMAT_ISSUES="$(sed 's|^| |' "$CF_DIRTY" | tr -d '
 ')"
+      # Which of the dirty files already carried unstaged work, captured BEFORE
+      # clang-format -i runs: afterwards every reformatted file differs from the
+      # index, so the question can no longer be asked. Mirrors XML_PRE_DIRTY in
+      # the XML formatter below.
+      CF_PRE_DIRTY=""
+      if [ "$STAGED_ONLY" = true ] && [ -s "$CF_DIRTY" ]; then
+        while IFS= read -r cf_f; do
+          [ -n "$cf_f" ] || continue
+          git diff --quiet -- "$cf_f" || CF_PRE_DIRTY="$CF_PRE_DIRTY $cf_f "
+        done < "$CF_DIRTY"
+      fi
       if [ -n "$FORMAT_ISSUES" ] && [ "$AUTO_FIX" = true ]; then
         case "$CF_VER" in
           18.*)
@@ -1046,9 +1057,28 @@ if [ -n "$FILES" ]; then
         if [ "$AUTO_FIX" = true ]; then
           # Auto-stage formatted files when in pre-commit mode (--staged-only)
           if [ "$STAGED_ONLY" = true ]; then
-            git add $FORMAT_ISSUES
-            echo "✅ Auto-formatted and re-staged files:"
-            echo "$FORMAT_ISSUES" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
+            # Re-stage only files with NOTHING unstaged. `git add` takes the whole
+            # working-tree file, so on a partially staged file it would sweep in
+            # hunks deliberately held back - the commit would carry work its author
+            # never staged. Those get formatted on disk and named instead. Same
+            # rule the XML formatter below applies.
+            CF_RESTAGE=""; CF_HELD=""
+            for cf_f in $FORMAT_ISSUES; do
+              case "$CF_PRE_DIRTY" in
+                *" $cf_f "*) CF_HELD="$CF_HELD $cf_f" ;;
+                *)           CF_RESTAGE="$CF_RESTAGE $cf_f" ;;
+              esac
+            done
+            if [ -n "$CF_RESTAGE" ]; then
+              # shellcheck disable=SC2086  # word splitting is the point: a path list
+              git add $CF_RESTAGE
+              echo "✅ Auto-formatted and re-staged files:"
+              echo "$CF_RESTAGE" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
+            fi
+            if [ -n "$CF_HELD" ]; then
+              echo "⚠️  Formatted but NOT re-staged (partially staged):$CF_HELD"
+              echo "ℹ️  This commit still carries unformatted C++. Stage it with: git add$CF_HELD"
+            fi
           else
             echo "✅ Auto-formatted files - re-stage them before committing:"
             echo "$FORMAT_ISSUES" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
@@ -1966,7 +1996,7 @@ fi
 # procedural canvas renderers, and helix-splash (a separate binary that does not
 # link ThemeManager). Ratcheting baseline — port these to theme_manager_get_color().
 HEX_ALLOW='theme_manager|src/rendering/|canvas|confetti|glyph|src/helix_splash.cpp'
-HEX_BASELINE=34
+HEX_BASELINE=33
 HEX_COUNT=$(grep -rn 'lv_color_hex(0x' src include 2>/dev/null | grep -vcE "$HEX_ALLOW" || true)
 if [ "$HEX_COUNT" -gt "$HEX_BASELINE" ]; then
   echo ""
@@ -2085,6 +2115,21 @@ if [ -f "scripts/check_doc_refs.py" ]; then
     echo ""
     cat /tmp/doc_refs.out
   else
+    # A stale / unanchored / orphaned citation anchor is mechanically
+    # repairable: the line number is DERIVED from a committed content hash, so
+    # --auto-fix (what the pre-commit hook passes) re-pins it in place and the
+    # committer only has to stage the result. It still FAILS, for the same
+    # reason qc_doc_links does — the repair lands in the working tree, not the
+    # index, and passing here would commit the stale doc behind a green run.
+    # Deliberately not auto-fixed: a "gone" or "blank" anchor, which
+    # check_doc_refs.py reports without the regen hint. There the cited line's
+    # own text changed, and no generator can decide whether the sentence around
+    # it is still true.
+    if [ "$AUTO_FIX" = true ] && grep -q "Run: make regen-doc-links" /tmp/doc_refs.out; then
+      python3 scripts/doc_cite_anchors.py >>/tmp/doc_refs.out 2>&1
+      python3 scripts/gen_doc_links.py >>/tmp/doc_refs.out 2>&1
+      echo "   Re-pinned in place — 'git add' the docs plus scripts/doc_cite_anchors.tsv, then commit again." >>/tmp/doc_refs.out
+    fi
     section_time $SECTION_START
     echo ""
     cat /tmp/doc_refs.out
@@ -2650,7 +2695,7 @@ qc_trigger_re() {
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
     qc_test_widget_registry)
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
-    qc_doc_refs)        echo '\.md$|^scripts/check_doc_refs\.py$' ;;
+    qc_doc_refs)        echo '\.md$|^scripts/(check_doc_refs|doc_cite_anchors)\.py$|^scripts/doc_cite_anchors\.tsv$|^scripts/doc_cite_anchor_baseline\.txt$' ;;
     qc_doc_links)       echo '^docs/devel/ARCHITECTURE\.md$|^docs/devel/architecture/|^scripts/gen_doc_links\.py$' ;;
     qc_lvgl_event_codes)
                         echo '^server/crash-worker/|^scripts/gen_lvgl_event_codes\.py$|^lib/lvgl$|^lv_conf\.h$' ;;
@@ -2679,6 +2724,18 @@ qc_wanted() {
   # A deletion can invalidate a doc citation, so doc_refs also wakes on any D.
   if [ "$1" = "qc_doc_refs" ] && git diff --cached --name-only --diff-filter=D 2>/dev/null | grep -q .; then
     return 0
+  fi
+  # A citation rots when the file it points AT moves, not when the doc changes,
+  # so a code-only commit has to wake this check or the whole content-anchor
+  # scheme never gets a chance to re-pin. The sidecar's resolved-path column is
+  # exactly the set of files a citation names — a few hundred out of ~19k — so
+  # this stays far tighter than "any .cpp" and a commit touching nothing cited
+  # still skips the check.
+  if [ "$1" = "qc_doc_refs" ] && [ -f scripts/doc_cite_anchors.tsv ]; then
+    grep -v '^#' scripts/doc_cite_anchors.tsv | cut -f4 | sort -u > "$QC_TMP/cited_paths.txt"
+    if printf '%s\n' "$QC_STAGED_ALL" | grep -qxF -f "$QC_TMP/cited_paths.txt"; then
+      return 0
+    fi
   fi
   if printf '%s\n' "$QC_STAGED_ALL" | grep -qE "$re"; then
     return 0

@@ -150,7 +150,7 @@ The same capture-then-forward appears at every layer that wraps:
 |------|-------------|
 | `MoonrakerAPI::execute_gcode()` | `src/api/moonraker_api_controls.cpp:373-375` — before the activity-counter wrapping |
 | `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp:401-403` — also the site that sets `silent = (on_error != nullptr)` |
-| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:529-533` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
+| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:546` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
 | `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:446-449` — the G28 leg forwards the *caller's* answer, not the wrapper's |
 | `LedController::send_led_command()` / strobe | `src/led/led_controller.cpp:1023`, `:1050` — `caller_surfaces_errors && (on_error != nullptr)` |
 
@@ -161,7 +161,7 @@ The same capture-then-forward appears at every layer that wraps:
 
 | Method | Declared |
 |--------|----------|
-| `execute_gcode()` | `include/i_moonraker_api.h:206-213` |
+| `execute_gcode()` | `include/i_moonraker_api.h:211-220` |
 | `set_temperature()` | `include/i_moonraker_api.h:176-181` |
 | `set_led()` | `include/i_moonraker_api.h:190-196` |
 | `set_strobe_frequency()` | `include/i_moonraker_sub_apis.h:348-353` |
@@ -169,7 +169,7 @@ The same capture-then-forward appears at every layer that wraps:
 It defaults to `true`, which is right for the common case — a UI callback that toasts. **A
 callback that only `spdlog`s, only resets internal state, or does both must pass `false`.**
 `AmsSubscriptionBackend::handle_dispatch_error()`
-(`src/printer/ams_subscription_backend.cpp:480-493`) is exactly that shape by default: with no
+(`src/printer/ams_subscription_backend.cpp:481-493`) is exactly that shape by default: with no
 caller `on_error` it logs and sets `AmsAction::IDLE`, which no user sees.
 
 Direct `send_jsonrpc()` callers do not pass an intent at all. The tracker infers
@@ -238,7 +238,7 @@ look for.
 ## The gate
 
 `scripts/check_gcode_error_ownership.py`, run at `--max-allowed 0` from
-`scripts/quality-checks.sh:1311-1336`.
+`scripts/quality-checks.sh:1666-1692`.
 
 It scans `src/` for `execute_gcode()` calls with an inline `[…](const MoonrakerError&)` lambda
 whose body is *entirely* logging or empty, and which pass neither `caller_surfaces_errors` nor

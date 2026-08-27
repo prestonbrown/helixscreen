@@ -105,7 +105,7 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe_int_sync<Panel>()` from `observer_factory.h` |
 | **Icon sync** | Add icon, forget fonts | `include/ui_icon_codepoints.h` + `make regen-fonts` + rebuild |
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
-| **Arch-guide citations** | Hand-writing the markdown link, or editing a chapter and skipping the regen | Write the plain backticked citation (`src/printer/printer_state.cpp:622`), then `make regen-doc-links` — `scripts/gen_doc_links.py` derives every link in `docs/devel/architecture/` from the citation text, so a renamed target is fixed once. `quality-checks.sh` fails a chapter that is out of date with the generator. |
+| **Doc citations** | Hand-writing the markdown link, or hand-fixing a `:123` line number after moving code | Write the plain backticked citation (`src/printer/printer_state.cpp:622`), then `make regen-doc-links`. Both halves are derived: `scripts/doc_cite_anchors.py` re-pins the line number from a committed content hash of the cited line (so moved code self-heals across every scanned doc, not just the guide), then `scripts/gen_doc_links.py` derives the link URL in `docs/devel/architecture/` from the citation text. `quality-checks.sh` fails a doc that is out of date with either, and the pre-commit hook repairs it in place — re-stage and commit. The one thing you must fix by hand: a cited line whose **own text changed**, which is a hard error because the sentence may no longer be true. |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
 | **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"` (libhv's bundled version) |
 | **Build system** | `cmake`, `ninja` | `make -j` (pure Makefile) |
@@ -126,7 +126,7 @@ Edit the file under `lib/<sub>/`, then `cd lib/<sub> && git diff -- <the files y
 
 **DATA in C++, APPEARANCE in XML, Subjects connect them.**
 
-**Absolute for new code.** The tree still has 380 sites that break these rules
+**Absolute for new code.** The tree still has 379 sites that break these rules
 (`scripts/check_imperative_ui.py --list`). Some were deliberate pragmatism from when the XML
 engine could not express what was needed; some are plain mistakes that got through review.
 Both are debt, tracked in prestonbrown/helixscreen#1140 and being ported. **Existing imperative
@@ -153,7 +153,7 @@ count may fall, never rise.
 | `LV_EVENT_DELETE` cleanup, draw hooks (`DRAW_MAIN`/`DRAW_POST`), `SIZE_CHANGED`, gestures/scroll | No declarative equivalent exists |
 | Measured layout and computed fonts (`decide_nozzle_layout()`, breakpoint fonts) | Depends on runtime pixel measurement — see rule 8 |
 | Widgets created in C++ (`lv_*_create`) — canvas and procedural rendering | Never had an XML layer |
-| Per-item payload on generated collections | `lv_obj_set_user_data()` on a `ui_button` overwrites `UiButtonData*` (`temperature_service.cpp:667`) |
+| Per-item payload on generated collections | `lv_obj_set_user_data()` on a `ui_button` overwrites `UiButtonData*` (`temperature_service.cpp:669`) |
 | `helix-screen ctl` remote control (`remote_control_server.cpp`) | Its job is reaching into an arbitrary live widget tree on command |
 | CLI stdout (`cli_args.cpp`, `detect_printer_cmd.cpp`, `helix_splash.cpp`) | stdout *is* the product there; spdlog is for logging |
 | Widget pool recycling, chart data, animations | Churn or per-frame data that a subject would not model |

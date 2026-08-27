@@ -80,7 +80,7 @@ At boot, `Application` runs the phases in a fixed order (phase numbers and lines
 
 Creation happens later, on demand. When navigation needs a panel, `PanelFactory` calls `lv_xml_create(parent, "bed_temp_panel", attrs)`. The engine (`lib/helix-xml/src/xml/lv_xml.c:438`) first looks the name up in the widget-processor table — the built-in `lv_label`/`lv_slider` types plus our custom `ui_*` widgets. If that misses, it looks up a registered component scope and instantiates the template: recursively creating child widgets, applying attributes, and resolving bindings as it goes.
 
-Components compose. A panel's `<view extends="overlay_panel">` inherits a registered wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), registered at [`src/xml_registration.cpp:414`](../../../src/xml_registration.cpp#L414)) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c:200`). A component file may also declare `<consts>` — named values visible to that component's bindings and styles — which is where per-panel colors and sizes live when they are not global theme tokens.
+Components compose. A panel's `<view extends="overlay_panel">` inherits a registered wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), registered at [`src/xml_registration.cpp:428`](../../../src/xml_registration.cpp#L428)) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c:200`). A component file may also declare `<consts>` — named values visible to that component's bindings and styles — which is where per-panel colors and sizes live when they are not global theme tokens.
 
 Widget naming follows a three-level precedence, set in the engine at `lib/helix-xml/src/xml/lv_xml.c:514`: an explicit `name="..."` at the instantiation site wins; otherwise a `name` the component set on its own `<view>` root is kept; otherwise the object gets a default `<component>_#`. (Older docs claimed `<view name>` never propagated and unnamed instances were unfindable — our fork fixed that; an instance-site name that displaces a `<view>` name now logs a one-time warning, `lib/helix-xml/src/xml/lv_xml.c:473`.)
 
@@ -146,7 +146,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
   {"on_heater_preset_clicked", on_heater_preset_clicked},
   ```
 
-  The handler at [`src/ui/temperature_service.cpp:830`](../../../src/ui/temperature_service.cpp#L830) receives the click with the button's user data.
+  The handler at [`src/ui/temperature_service.cpp:831`](../../../src/ui/temperature_service.cpp#L831) receives the click with the button's user data.
 
 Three files, no direct references between them. The XML names a subject and a callback; C++ publishes both by name; the engine ties them at instantiation. This is the shape essentially every interactive element in the app takes.
 

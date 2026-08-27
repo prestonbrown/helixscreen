@@ -67,7 +67,7 @@ actually trips on.
 `make -j`, `make test`, and `make test-run` build disjoint artifacts. `make -j` (the default `all`
 target, [`mk/rules.mk:123`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
 splash, watchdog, the binary, stripping, and the optional Bluetooth plugin. `make test`
-([`mk/tests.mk:393`](../../../mk/tests.mk#L393)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk:400`](../../../mk/tests.mk#L400)) builds it and
+([`mk/tests.mk:397`](../../../mk/tests.mk#L397)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk:400`](../../../mk/tests.mk#L400)) builds it and
 runs it as Catch2 shards across 3×cores processes with the `~[.] ~[slow]` filter. The split is a
 speed feature and a trap: after a C++ change, rebuild the artifact you are about to use — running a
 stale `helix-tests` against new code, or a stale `helix-screen` against new XML, silently verifies
@@ -165,7 +165,7 @@ end-user installer — modular POSIX shell with KIAUH and Moonraker-updater inte
 - **Switching `PLATFORM_TARGET` auto-cleans the native build dir** ([`mk/rules.mk:49`](../../../mk/rules.mk#L49)). Don't be surprised by a full rebuild after toggling between `native` and a cross target; cross targets are isolated in `build/<target>/` and unaffected.
 - **Remote control and dev panels are native-only by default.** A device build has no helixctl server; force it for a dev image with `make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=yes` (`Makefile:463`).
 - **A new patch file must be wired into [`mk/patches.mk`](../../../mk/patches.mk)** — an apply block plus, if it touches new files, an entry in `LVGL_PATCHED_FILES`/`LIBHV_PATCHED_FILES`. The stamp's wiring check fails the build if you forget, which is the polite outcome; before that check existed, unwired patches silently never applied.
-- **Test builds reach the patch stamp only through the PCH prerequisite** ([`mk/rules.mk:208`](../../../mk/rules.mk#L208)); the `test` target does not itself gate on `apply-patches`. After a patch red-line or submodule bump, run `make -j` or `make reapply-patches` — don't assume `make test-run` re-verified the tree (#1212).
+- **Test builds reach the patch stamp only through the PCH prerequisite** ([`mk/rules.mk:214`](../../../mk/rules.mk#L214)); the `test` target does not itself gate on `apply-patches`. After a patch red-line or submodule bump, run `make -j` or `make reapply-patches` — don't assume `make test-run` re-verified the tree (#1212).
 - **Never hand-edit `lib/lvgl/` or `lib/libhv/` sources directly** — changes there belong in `patches/*.patch`, because the next `git submodule update` wipes direct edits. `lib/helix-xml` is the deliberate exception: it is our own submodule, edited and committed in place, never patched.
 - **Generated assets regenerate; don't hand-edit them.** New icons mean [`include/ui_icon_codepoints.h`](../../../include/ui_icon_codepoints.h) plus `make regen-fonts` plus a rebuild; user-facing strings flow through `make translation-sync` / `make translations`. If a font or translation "won't update", you are probably editing the generated file.
 - **There is no `sonicpad` target.** The Sonic Pad runs the `pi32` binary on SonicPad-Debian; QIDI runs the `pi` binary. Device support is often a release-artifact question, not a new-platform question — check what the installer auto-detects before adding a target.
@@ -190,7 +190,7 @@ Read in this order; about 25 minutes total.
 1. `Makefile:1` — the header contract: always `make`, never invoke the compiler directly, and what the build system handles for you.
 2. [`mk/rules.mk:78`](../../../mk/rules.mk#L78) — the two-phase `all` target: unlimited-`-j` detection and re-invocation; then `:123` for what a build actually gates on (`apply-patches` first).
 3. [`mk/rules.mk:49`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
-4. [`mk/tests.mk:393`](../../../mk/tests.mk#L393) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
+4. [`mk/tests.mk:397`](../../../mk/tests.mk#L397) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
 5. [`mk/cross.mk:8`](../../../mk/cross.mk#L8) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
 6. [`mk/cross.mk:644`](../../../mk/cross.mk#L644) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
 7. `Makefile:464` — `ENABLE_REMOTE_CONTROL`'s native-default-on / cross-default-off wiring; `:486` does the same for dev panels.
@@ -198,5 +198,5 @@ Read in this order; about 25 minutes total.
 9. [`src/api/display_backend.cpp:199`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk:187`](../../../mk/patches.mk#L187) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk:905`](../../../mk/cross.mk#L905) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1376` is the help text that renders the same menu for humans.
+12. [`mk/cross.mk:914`](../../../mk/cross.mk#L914) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1376` is the help text that renders the same menu for humans.
 13. [`scripts/setup-worktree.sh:1`](../../../scripts/setup-worktree.sh#L1) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.

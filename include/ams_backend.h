@@ -1826,6 +1826,30 @@ class AmsBackend {
     }
 
     /**
+     * @brief Routing the printer last ran a CONFIGURED print task with.
+     *
+     * get_tool_mapping() answers "what routing is live right now" and goes empty
+     * the moment the task ends — which is exactly when a reprint needs the
+     * answer. This is the snapshot taken while the task was still configured:
+     * logical tool -> physical head for the most recent print, retained after the
+     * firmware clears its used-heads flags and (on some firmware) resets the
+     * table itself.
+     *
+     * EMPTY means NOT KNOWN — no configured task has been observed. A caller must
+     * not read that as identity; run it through FilamentMapper::reprint_remap(),
+     * which turns "not known" into "do not send" rather than into a default map.
+     *
+     * Not keyed to a file: it describes the most recent print, which is the only
+     * job a reprint can target.
+     *
+     * Default empty: only backends that need a pre-print send
+     * (requires_preprint_send()) have anything to answer.
+     */
+    [[nodiscard]] virtual std::vector<int> last_print_tool_mapping() const {
+        return {}; // Default: not known
+    }
+
+    /**
      * @brief Does this backend echo its tool mapping back from the printer?
      *
      * get_tool_mapping() is written from two directions — a backend updates it
