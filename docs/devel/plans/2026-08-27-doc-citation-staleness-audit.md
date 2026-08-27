@@ -6,27 +6,37 @@
 `docs/devel/RPC_ERROR_OWNERSHIP.md` and `docs/devel/architecture/15-known-debt.md`
 (being repaired concurrently on another branch).
 
-## The problem this audits
+## Three ways a citation goes wrong
 
-`scripts/doc_cite_anchors.py` pins each `` `file:N` `` citation to a content anchor, so
-the number self-heals when code moves. It works. But it was **bootstrapped from the
-citations already in the docs**, and some of those were already wrong. The bootstrapper
-derived an anchor from whatever line the stale citation happened to land on, so the gate
-now faithfully maintains a wrong number and reports green forever.
+The anchor gate has two independent blind spots, and this audit is about the second and
+third. Naming all three keeps them from being confused for each other:
 
-This class is undetectable by the gate by construction: the anchor is unique and resolves
-cleanly. It just resolves to a line that does not support the sentence citing it. Only a
-semantic comparison of prose against the cited line finds it.
+1. **Ambiguous anchor, wrong guess.** The primary hash matches several lines, context does
+   not narrow it, and the `nearest` fallback picks the wrong one. *Mechanical* — the gate
+   can be made to catch this, and is being hardened for it separately.
+2. **Unique anchor, resolves cleanly, points somewhere meaningless.** The sidecar was
+   **bootstrapped from the citations already in the docs**, and some were already wrong.
+   The bootstrapper derived an anchor from whatever line the stale citation happened to
+   land on, so the gate now faithfully maintains a wrong number and reports green forever.
+   Undetectable by construction — only a semantic comparison of prose against the cited
+   line finds it. **This is the audit's main target.**
+3. **A citation form the gate cannot parse at all.** `LINE_REF_RE` only matches a
+   backticked `` `path.ext:N` ``. Every other way this tree names a line — the bare
+   follow-on `` `:857` ``, the bare range `` `1755-1796` `` riding after a full citation,
+   the unbackticked `(:720)` — is invisible to every check and drifts freely with every
+   edit to the file. Nothing has ever verified one. **459 of them remain** (below).
 
 ## Numbers
 
 | | |
 |---|---|
-| Citations in the corpus | **715** unique `(doc, path, line)` keys / 846 occurrences |
-| **Confirmed wrong and fixed** | **59** (8.3% of the corpus) — every one hand-verified against both the prose and the source |
-| Untracked bare `` `:N` `` follow-ons also repaired | 8 |
-| Estimated *total* wrong, including what the heuristic missed | **~110–140 (15–20%)**, wide interval — see below |
-| Left unfixed, deliberately | 3 (below) |
+| Gate-visible citations in the corpus | **718** unique `(doc, path, line)` keys / 850 occurrences |
+| **Class-2 confirmed wrong and fixed** | **59** (8.3% of the corpus) — every one hand-verified against both the prose and the source |
+| **Class-3 references repaired and promoted to gate-visible** | **4** |
+| Class-3 bare `` `:N` `` follow-ons corrected in passing | 8 |
+| Estimated *total* class-2 wrong, including what the heuristic missed | **~110–140 (15–20%)**, wide interval — see below |
+| Class-3 references still unverifiable by any gate | **459** |
+| Left unfixed, deliberately | 4 (below) |
 
 **This is a project, not a cleanup — but a bounded one.** 8.3% is established fact. The
 15–20% figure is an extrapolation from a 40-citation random audit of the population the
@@ -101,6 +111,64 @@ and `:576`→**597** (both exactly 21 lines stale), `ams_state.h:1186`→**1247*
 `application.cpp:2962`→**3110**, `moonraker_manager.cpp:450`→**481**,
 `z_offset_persistence.cpp:69`→**13**.
 
+## Class 3: the forms no gate can parse
+
+Caught live during this audit. A merge inserted ~20 lines at
+`ams_backend_snapmaker.cpp:1508` and ~8 more at `:1934`. `make regen-doc-links` shifted
+five citations in `FILAMENT_BACKEND_SNAPMAKER_U1.md` correctly. A sixth did not move,
+because it is a **bare range with no path prefix**:
+
+```
+(`ams_backend_snapmaker.cpp:1692-1739`, `1755-1796`).
+```
+
+The first range shifted +20. The second could not be attributed to a file, so nothing
+checked it and it kept pointing at `port_present_changed = true;` mid-block. The prose
+describes `apply_overrides()` layering user fields over firmware truth; that function is
+**1780-1823**. (A naive +20 would give `1775-1816`, but 1775 is a blank line — which the
+anchor tool refuses to anchor anyway — and 1816 lands inside the `clear_async` lambda.
+The function's own span is the right answer.)
+
+**Census over the whole scanned doc set:**
+
+| Form | Count |
+|---|---|
+| backticked `` `:N` `` / `` `:N-M` `` follow-on | 444 |
+| backticked bare `` `N-M` `` sharing a line with a citation | 14 |
+| unbackticked `(:N)` shorthand | 1 |
+| real `` `path:N` `` citation inside a fenced block | 0 |
+| **total unparseable** | **459**, across 26 docs (463 before this audit's four repairs) |
+| *gate-visible, for comparison* | *850* |
+
+**35% of every line reference in the docs is unverifiable by any gate** (459 against 850
+tracked). Worst
+concentrations: `11-startup-shutdown.md` (69), `07-filament-ams.md` (42),
+`12-system-services.md` (38), `03-threading-lifetime.md` (36). The count is an upper
+bound — a few are teaching examples rather than live references (`CLAUDE.md:108` uses
+`` `:123` `` to *describe* the syntax) — but the great majority are real.
+
+The rot rate in this class looks bad, on a small sample. Of the 12 examined by hand
+across this audit, **11 were wrong**: the one above, three more bare ranges in the same
+file, all three follow-ons in `PAGE_SCROLL_BUTTONS.md`'s list of `on_root_shown` call
+sites (`:1744`/`:1979`/`:2085` → `1870`/`2105`/`2211`), and four others corrected
+alongside the citations they trail. That is a biased sample — I looked where a full
+citation was already suspect — but nothing in this class has *ever* been checked, so
+there is no reason to expect it to be healthier than the checked population.
+
+Three further bare ranges in `FILAMENT_BACKEND_SNAPMAKER_U1.md` were verified and
+repaired, each promoted to a full path-qualified citation so the gate now tracks it:
+
+| Doc line | Was | Now | Why |
+|---|---|---|---|
+| :110 | `860-869` | `ams_backend_snapmaker.cpp:869-878` | started 9 lines early in unrelated `lane_data` commentary; the SUB_TYPE guard + write are 869-878 |
+| :178 | `1694-1699` | `ams_backend_snapmaker.cpp:1764-1769` | pointed inside the parse-convergence comment; `mark_slot_unloaded` and its grace-window comment are 1764-1769 — **70 lines stale** |
+| :282 | `942-948` | `ams_backend_snapmaker.cpp:951-957` | stopped at the section banner; both `not_supported` bypass entry points are 951-957 |
+
+Two others in that file (`1171-1204` for the RFID apply loop, `1321-1354` for the
+error-latch guard) were checked and are correct; they were left in bare form, because
+converting 459 references by hand is the wrong fix. The generator change below is the
+right one.
+
 ## What was fixed
 
 59 citations across 21 files. Grouped by what the citation was *for*:
@@ -138,6 +206,10 @@ AMS detection ladder (536→593), the verbatim-quoted notification unpack (293�
 (315→319), Snapmaker U1 detection (413→414), and the AD5X `head_filament_` untrustworthy
 note (808→80).
 
+Plus the four class-3 repairs above (`apply_overrides` 1755→1780, SUB_TYPE 860→869,
+grace window 1694→1764, bypass 942→951), each promoted from a bare range to a
+path-qualified citation — which is why the tracked corpus grew from 714 to 718.
+
 `make regen-doc-links` was run after the edits and **converges** — the second consecutive
 run reports `0 rewritten, 0 bootstrapped` for anchors and `0 rewritten` for links.
 `scripts/check_doc_refs.py` is green on all six of its checks.
@@ -164,9 +236,15 @@ run reports `0 rewritten, 0 bootstrapped` for anchors and `0 rewritten` for link
    `caller_surfaces_errors.value_or(on_error != nullptr)`, but 529 is the `if (!api_)`
    synthetic-error branch.
 
-3. **~40–80 citations the heuristic did not surface.** The 40-sample audit says they
-   exist; finding them needs either a better signal or a pass a human actually reads. Not
-   attempted here.
+3. **~40–80 class-2 citations the heuristic did not surface.** The 40-sample audit says
+   they exist; finding them needs either a better signal or a pass a human actually reads.
+   Not attempted here.
+
+4. **459 class-3 references.** Verifying them by hand means resolving each against the
+   citation it trails and reading the prose — the same cost per item as the main audit,
+   for a population 65% as large. Do the generator change first; it converts most of them
+   into ordinary tracked citations that the existing gate then keeps honest for free, and
+   turns "verify 458 by hand, once" into "the gate tells you which ones broke".
 
 ## Recommendation
 
@@ -180,14 +258,34 @@ The same is true of `}` — the audit found 29 of them and 29 were defects or ne
 `scripts/doc_cite_anchor_baseline.txt` is the ready-made escape hatch for a citation
 where a brace is genuinely the point.
 
+Measured effect of the repairs: sidecar rows still anchored to a low-information line fell
+from roughly 30 to **12 of 754 (1.6%)** — and 7 of those 12 are the same
+`temperature_service.cpp:667` row duplicated across stale `.claude/worktrees/*/CLAUDE.md`
+snapshots. The genuinely distinct remainder is about five, each hand-checked and
+defensible (a `/**` that opens the doc block a reading-list entry names, the `{` that
+opens a JSON file, the `// ====` banner that opens the FULL-LOAD path). A gate would hold
+it there rather than let it climb back.
+
 Do **not** promote the symbol-proximity heuristic as a gate at 21–61% precision. It earned
 its keep as a triage tool for a one-time human pass and should stay one.
 
-**Second, close the bare-`:N` blind spot.** There are **443** follow-on references of the
-form `` `:71` `` / `` `:294` `` in the docs — more than half the size of the tracked
-corpus — and the gate cannot see a single one. They rot identically: of the eight this
-audit touched incidentally, **all eight were wrong**, including all three follow-ons in
-`PAGE_SCROLL_BUTTONS.md`'s list of `on_root_shown` call sites. The fix is small: resolve a
-bare `` `:N` `` against the file named by the nearest preceding full citation on the same
-line, and anchor it like any other. That roughly doubles the gate's coverage for a modest
-change to `iter_citations()`.
+**Second, and larger: teach `iter_citations()` the three unparseable forms.** 459
+references — **35% of every line reference in the docs** — are invisible to every gate,
+and 11 of the 12 examined by hand were wrong. The change is small and mechanical:
+
+- **`` `:N` `` and `` `:N-M` `` (444)** — resolve against the file named by the nearest
+  preceding full citation *on the same line*, then anchor like any other citation. The
+  same-line rule matters: `check_doc_refs`' `SYMBOL_CITE_B_RE` already learned the hard
+  way that `\s*` spanning newlines pairs a trailing citation with the next bullet's
+  symbol. Attribution across lines would repeat that bug.
+- **bare `` `N-M` `` after a citation (14)** — same rule, same owner. This is the form
+  that produced the live failure above.
+- **unbackticked `(:N)` (1)** — one instance; either fix the doc or ignore the form.
+
+A doc-side alternative exists for the last two — write them path-qualified, as the four
+repaired here now are — but at 458 sites that is a bulk hand-edit, which this repo's own
+convention says to replace with a generator plus a gate. Do it in the resolver.
+
+Rough coverage arithmetic: 850 tracked today, ~1300 after. The existing anchor machinery
+then keeps all of them honest with no further human passes, which is the whole point of
+having built it.

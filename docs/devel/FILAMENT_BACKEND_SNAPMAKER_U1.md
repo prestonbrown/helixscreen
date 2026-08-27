@@ -107,7 +107,7 @@ The RFID tag exposes no color *name* — `color_name` stays firmware-unset and i
 user-editable only. `SUB_TYPE` is recognized as a product line only when it matches one
 of eight known literals ("Basic", "Matte", "SnapSpeed", "Silk", "Support", "HF", "95A",
 "95A HF"); a free-form user `spool_name` is never round-tripped to firmware as a
-SUB_TYPE (`ams_backend_snapmaker.cpp:39-49`, `860-869`).
+SUB_TYPE (`ams_backend_snapmaker.cpp:39-49`, `ams_backend_snapmaker.cpp:869-878`).
 
 Every row above is code-verified against `parse_rfid_info()` and the apply loop
 (`ams_backend_snapmaker.cpp:999-1054`, `1171-1204`): tag identity rides
@@ -175,7 +175,7 @@ user printing TPU without feeders (field report recorded at
 `ams_backend_snapmaker.cpp:1387-1401`). Lanes reaching `unload_finish` are reported to
 `AmsState::mark_slot_unloaded()` after the mutex is released so `FilamentSensorManager`
 suppresses the runout modal during the expected pull-out grace window
-(`ams_backend_snapmaker.cpp:1414-1423`, `1694-1699`) — the deferral exists because
+(`ams_backend_snapmaker.cpp:1414-1423`, `ams_backend_snapmaker.cpp:1764-1769`) — the deferral exists because
 calling into `AmsState` under our mutex inverted `add_backend()`'s lock order (TSan,
 2026-08-16).
 
@@ -258,7 +258,7 @@ swapped — clear the stale override; empty UID is "no signal" and never clears;
 observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 `OverwriteAlways` so OrcaSlicer's MoonrakerPrinterAgent sees the spool, then
 `apply_overrides()` layering the user's fields back over firmware truth
-(`ams_backend_snapmaker.cpp:1692-1739`, `1755-1796`).
+(`ams_backend_snapmaker.cpp:1692-1739`, `ams_backend_snapmaker.cpp:1780-1823`).
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
@@ -279,7 +279,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
 |---------|-----------|-------|
 | Endless Spool | `Unsupported` | No `get_endless_spool_capabilities()` override — base default |
 | Tool Mapping | Per-print only | Physical attachment fixed 1:1 and non-editable (`set_tool_mapping()` = `not_supported`); per-print ROUTING is set via `SnapmakerNative` pre-print gcode and read back from `extruder_map_table` by `get_tool_mapping()` |
-| Bypass | No | `supports_bypass = false`; both entry points `not_supported` — no external spool on a toolchanger (`ams_backend_snapmaker.cpp:241`, `942-948`) |
+| Bypass | No | `supports_bypass = false`; both entry points `not_supported` — no external spool on a toolchanger (`ams_backend_snapmaker.cpp:241`, `ams_backend_snapmaker.cpp:951-957`) |
 | Dryer | No | Not supported |
 | Recover / Reset / Cancel | No | All three return `not_supported` (`ams_backend_snapmaker.cpp:553-563`) |
 | Operation step bar | Yes | Firmware-driven per-direction steps via `ams_operation_phase`; Heat step live |
