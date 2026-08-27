@@ -916,13 +916,14 @@ std::vector<uint32_t> AmsState::routed_tool_colors() const {
     // answers from it; one whose physical map IS the routing (AFC, Happy Hare,
     // a plain tool changer) answers from that. Vendor knowledge stays inside the
     // backend — nothing here names a firmware.
-    std::vector<int> routing = backend->get_tool_mapping();
-    if (routing.empty()) {
-        // No separate routing published. tool_to_slot_map is the answer for the
-        // backends that have only one (ACE and friends); when that is empty too
-        // we genuinely do not know and say so.
-        routing = backend->get_system_info().tool_to_slot_map;
-    }
+    // Whether the attachment map may stand in when the backend publishes no
+    // routing is a real decision, so it is a named one (FilamentMapper::
+    // effective_routing) rather than an `if` here: on a tool changer that map is
+    // which slot each head owns, never which head prints a tool, and letting it
+    // stand in silently converts "no opinion" into a confident identity answer.
+    std::vector<int> routing = helix::FilamentMapper::effective_routing(
+        backend->get_tool_mapping(), backend->get_system_info().tool_to_slot_map,
+        /*attachment_is_routing=*/!is_tool_changer(backend->get_type()));
 
     auto colors = helix::FilamentMapper::routed_tool_colors(routing, collect_available_slots());
     spdlog::debug("[AmsState] routed_tool_colors: {} routing entries -> {} color(s)",

@@ -387,6 +387,24 @@ FilamentMapper::effective_tool_colors(const std::vector<GcodeToolInfo>& tools,
     return out;
 }
 
+std::vector<int> FilamentMapper::effective_routing(const std::vector<int>& published,
+                                                   const std::vector<int>& attachment_map,
+                                                   bool attachment_is_routing) {
+    if (!published.empty()) {
+        return published;
+    }
+    // Empty published routing means the backend has NO OPINION — not "assume
+    // identity". Only a backend whose physical map is genuinely the print
+    // routing may answer from attachment; on a tool changer that map is which
+    // slot each head owns, so using it here would resolve every logical tool to
+    // its own index and invert any file whose tools do not line up with the
+    // lanes. Staying empty leaves the slicer's own colours in place.
+    if (attachment_is_routing) {
+        return attachment_map;
+    }
+    return {};
+}
+
 std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
                                                          const std::vector<AvailableSlot>& slots) {
     if (tool_to_head.empty()) {

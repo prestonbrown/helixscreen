@@ -177,6 +177,26 @@ class FilamentMapper {
     static std::vector<uint32_t> routed_tool_colors(const std::vector<int>& tool_to_head,
                                                     const std::vector<AvailableSlot>& slots);
 
+    /// Which routing to colour by, given what a backend published and what its
+    /// physical map says. Named and pure because getting it wrong is silent: an
+    /// empty @p published means "no opinion", and substituting the attachment
+    /// map there turns that into a confident identity answer that paints every
+    /// tool in head-index order.
+    ///
+    /// @param published Routing the backend published (may be empty).
+    /// @param attachment_map AmsSystemInfo::tool_to_slot_map — which slot each
+    ///        head physically owns.
+    /// @param attachment_is_routing True only for backends whose physical map IS
+    ///        the print routing (AFC, Happy Hare, ACE — one path, many lanes).
+    ///        False for a tool changer, where each head owns its own filament,
+    ///        so attachment says nothing about which head prints a given tool.
+    /// @return @p published when non-empty; @p attachment_map when that is the
+    ///         routing; otherwise EMPTY, so callers leave the slicer's colours
+    ///         alone instead of overwriting them with a guess. Pure; no AMS.
+    static std::vector<int> effective_routing(const std::vector<int>& published,
+                                              const std::vector<int>& attachment_map,
+                                              bool attachment_is_routing);
+
     /// Weighted RGB distance between two colors (luminance-weighted).
     /// Uses standard luminance coefficients: R=0.30, G=0.59, B=0.11.
     static int color_distance(uint32_t a, uint32_t b);

@@ -440,3 +440,73 @@ TEST_CASE("Routing: a tool routed to an EMPTY lane resolves unknown, not to its 
     REQUIRE(colors[0] != 0xE72F1D); // NOT the stale colour it still reports
     REQUIRE(colors[1] == 0x080A0D); // the loaded head still answers normally
 }
+
+// ============================================================================
+// effective_routing — which map may answer when the backend publishes nothing
+// ============================================================================
+//
+// This is the seam the identity answer came back through. The pure colour
+// resolver already refused an empty routing, but its CALLER substituted the
+// attachment map first, so the refusal never ran: on a U1 with no print task
+// configured the preview resolved every tool to its own head index and rendered
+// a red-body/black-tail file as black body, red tail. Hardware-observed.
+
+TEST_CASE("effective_routing: a tool changer's attachment map is not routing",
+          "[gcode][toolchanger][routing]") {
+    // Identity attachment: head N owns slot N. True of the hardware, and
+    // useless as routing — it says nothing about which head prints which tool.
+    const std::vector<int> attachment = {0, 1, 2, 3};
+
+    SECTION("no published routing stays EMPTY, it does not become identity") {
+        const auto routing = helix::FilamentMapper::effective_routing(
+            {}, attachment, /*attachment_is_routing=*/false);
+        REQUIRE(routing.empty());
+    }
+
+    SECTION("and therefore no colours are pushed over the slicer palette") {
+        const auto routing = helix::FilamentMapper::effective_routing(
+            {}, attachment, /*attachment_is_routing=*/false);
+        REQUIRE(helix::FilamentMapper::routed_tool_colors(routing, u1_lanes()).empty());
+    }
+
+    SECTION("the inversion this prevents, stated explicitly") {
+        // Had the attachment map stood in, T0 would resolve to head 0 (black)
+        // and T2 to head 2 (red) — exactly backwards for a file whose T0 is red
+        // and T2 is black, which is what was seen on the printer.
+        const auto wrong = helix::FilamentMapper::routed_tool_colors(attachment, u1_lanes());
+        REQUIRE(wrong.size() == 4);
+        REQUIRE(wrong[0] == 0x080A0D); // black — the wrong answer for a red T0
+        REQUIRE(wrong[2] == 0xE72F1D); // red   — the wrong answer for a black T2
+
+        const auto routing = helix::FilamentMapper::effective_routing(
+            {}, attachment, /*attachment_is_routing=*/false);
+        REQUIRE(helix::FilamentMapper::routed_tool_colors(routing, u1_lanes()).empty());
+    }
+}
+
+TEST_CASE("effective_routing: a filament system still answers from its own map",
+          "[gcode][toolchanger][routing]") {
+    // AFC / Happy Hare / ACE: one nozzle fed by many lanes, so the physical map
+    // IS the print routing. Excluding tool changers must not regress these.
+    // Non-identity so a pass cannot be a coincidence.
+    const std::vector<int> attachment = {2, 0, 1};
+
+    const auto routing =
+        helix::FilamentMapper::effective_routing({}, attachment, /*attachment_is_routing=*/true);
+
+    REQUIRE(routing == attachment);
+    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes());
+    REQUIRE(colors.size() == 3);
+    REQUIRE(colors[0] == 0xE72F1D); // lane 2
+}
+
+TEST_CASE("effective_routing: published routing always wins", "[gcode][toolchanger][routing]") {
+    const std::vector<int> published = {2, 1, 0, 3}; // the U1 crossover
+    const std::vector<int> attachment = {0, 1, 2, 3};
+
+    for (bool attachment_is_routing : {false, true}) {
+        const auto routing =
+            helix::FilamentMapper::effective_routing(published, attachment, attachment_is_routing);
+        REQUIRE(routing == published);
+    }
+}
