@@ -815,6 +815,8 @@ translations:
   'Error: Invalid download': 'エラー: 無効なダウンロード'
   'Error: No update available': 'エラー: 利用可能な更新がありません'
   'Error: Not enough disk space': 'エラー: ディスク容量が不足しています'
+  'Error: Previous download still finishing': 'エラー: 前回のダウンロードがまだ終了していません'
+  "Error: This install can't update itself": 'エラー: このインストールは自身を更新できません'
   'Error: Verification failed': 'エラー: 検証に失敗しました'
   'Error: Wrong architecture': 'エラー: アーキテクチャが正しくありません'
   'Error: `unzip` not installed': 'エラー: `unzip` がインストールされていません'

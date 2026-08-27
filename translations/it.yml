@@ -895,6 +895,8 @@ translations:
   'Error: Invalid download': 'Errore: Download non valido'
   'Error: No update available': 'Errore: Nessun aggiornamento disponibile'
   'Error: Not enough disk space': 'Errore: Spazio su disco insufficiente'
+  'Error: Previous download still finishing': 'Errore: Il download precedente non è ancora terminato'
+  "Error: This install can't update itself": 'Errore: Questa installazione non può aggiornarsi da sola'
   'Error: Verification failed': 'Errore: Verifica fallita'
   'Error: Wrong architecture': 'Errore: Architettura errata'
   'Error: `unzip` not installed': 'Errore: `unzip` non installato'

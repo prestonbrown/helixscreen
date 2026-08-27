@@ -866,6 +866,8 @@ translations:
   'Error: Invalid download': 'Error: Invalid download'
   'Error: No update available': 'Error: No update available'
   'Error: Not enough disk space': 'Error: Not enough disk space'
+  'Error: Previous download still finishing': 'Error: Previous download still finishing'
+  "Error: This install can't update itself": "Error: This install can't update itself"
   'Error: Verification failed': 'Error: Verification failed'
   'Error: Wrong architecture': 'Error: Wrong architecture'
   'Error: `unzip` not installed': 'Error: `unzip` not installed'

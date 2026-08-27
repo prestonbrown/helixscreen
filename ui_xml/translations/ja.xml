@@ -800,6 +800,8 @@
   <translation tag="Error: Invalid download" ja="エラー: 無効なダウンロード"/>
   <translation tag="Error: No update available" ja="エラー: 利用可能な更新がありません"/>
   <translation tag="Error: Not enough disk space" ja="エラー: ディスク容量が不足しています"/>
+  <translation tag="Error: Previous download still finishing" ja="エラー: 前回のダウンロードがまだ終了していません"/>
+  <translation tag="Error: This install can&apos;t update itself" ja="エラー: このインストールは自身を更新できません"/>
   <translation tag="Error: Verification failed" ja="エラー: 検証に失敗しました"/>
   <translation tag="Error: Wrong architecture" ja="エラー: アーキテクチャが正しくありません"/>
   <translation tag="Error: `unzip` not installed" ja="エラー: `unzip` がインストールされていません"/>

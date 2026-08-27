@@ -21,22 +21,31 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/live_thread_count.h"
+#include "../test_helpers/update_checker_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
 #include "lvgl.h"
 #include "version.h"
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <mutex>
+#include <netinet/in.h>
 #include <optional>
+#include <poll.h>
 #include <string>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -2316,4 +2325,319 @@ TEST_CASE("ReleaseInfo::is_downgrade defaults to false", "[update_checker][chann
     // confirmation on ordinary upgrades.
     UpdateChecker::ReleaseInfo info;
     CHECK_FALSE(info.is_downgrade);
+}
+
+// ============================================================================
+// Download worker lifetime — the LVGL thread must never wait on it
+//
+// A Snapmaker U1 user reported in-app updates "always froze and required a
+// reboot for the screen to respond again". start_download() joined the download
+// thread on the LVGL thread, and the worker sits inside libhv's SYNCHRONOUS
+// requests::downloadFile() whose req->timeout is 3600 seconds with no abort
+// hook (lib/libhv/http/client/requests.h). Cancelling only sets a flag the
+// worker reads AFTER downloadFile() returns, while the modal immediately resets
+// the status to Idle — so "Install -> Cancel -> Install" walked straight past
+// the DownloadStatus guard and into an hour-long join on the UI thread.
+// ============================================================================
+
+namespace {
+
+/// A loopback TCP listener that accepts connections and then never answers.
+///
+/// Reproduces the production stall exactly: libhv connects, sends the GET and
+/// blocks waiting for a response header that never comes. Nothing else in the
+/// test suite can put the download worker into that state, and a worker that
+/// finished on its own would make every assertion below vacuous.
+///
+/// `arm_release_after()` is what keeps a REGRESSION from hanging the whole
+/// suite: the socket is closed after a bounded delay, so a build that still
+/// blocks on the UI thread finishes late (and fails the elapsed-time
+/// assertion) instead of never finishing at all.
+class StalledHttpServer {
+  public:
+    StalledHttpServer() {
+        listen_fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+        REQUIRE(listen_fd_ >= 0);
+        int one = 1;
+        ::setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        addr.sin_port = 0;
+        REQUIRE(::bind(listen_fd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0);
+        REQUIRE(::listen(listen_fd_, 4) == 0);
+        socklen_t len = sizeof(addr);
+        REQUIRE(::getsockname(listen_fd_, reinterpret_cast<sockaddr*>(&addr), &len) == 0);
+        port_ = ntohs(addr.sin_port);
+        accept_thread_ = std::thread([this] { accept_loop(); });
+    }
+
+    ~StalledHttpServer() {
+        cancel_armed_release();
+        release();
+    }
+
+    StalledHttpServer(const StalledHttpServer&) = delete;
+    StalledHttpServer& operator=(const StalledHttpServer&) = delete;
+
+    std::string url() const {
+        return "http://127.0.0.1:" + std::to_string(port_) + "/helixscreen-update.tar.gz";
+    }
+
+    /// True once libhv has actually connected, i.e. the worker is parked in
+    /// downloadFile(). Every "a worker is still running" assertion is gated on
+    /// this so none of them can pass against an already-finished worker.
+    bool connected() const {
+        return connected_.load();
+    }
+
+    /// Close the socket after `delay`, unless cancel_armed_release() runs first.
+    void arm_release_after(std::chrono::milliseconds delay) {
+        release_thread_ = std::thread([this, delay] {
+            std::unique_lock<std::mutex> lk(arm_mu_);
+            arm_cv_.wait_for(lk, delay, [this] { return arm_cancel_; });
+            const bool cancelled = arm_cancel_;
+            lk.unlock();
+            if (!cancelled) {
+                release();
+            }
+        });
+    }
+
+    void cancel_armed_release() {
+        {
+            std::lock_guard<std::mutex> lk(arm_mu_);
+            arm_cancel_ = true;
+        }
+        arm_cv_.notify_all();
+        if (release_thread_.joinable()) {
+            release_thread_.join();
+        }
+    }
+
+    /// Close everything so a blocked downloadFile() unwinds. Idempotent.
+    void release() {
+        if (released_.exchange(true)) {
+            return;
+        }
+        stop_.store(true);
+        if (accept_thread_.joinable()) {
+            accept_thread_.join();
+        }
+        if (listen_fd_ >= 0) {
+            ::close(listen_fd_);
+            listen_fd_ = -1;
+        }
+        std::lock_guard<std::mutex> lk(mu_);
+        for (int fd : conns_) {
+            ::shutdown(fd, SHUT_RDWR);
+            ::close(fd);
+        }
+        conns_.clear();
+    }
+
+  private:
+    void accept_loop() {
+        while (!stop_.load()) {
+            struct pollfd pfd {};
+            pfd.fd = listen_fd_;
+            pfd.events = POLLIN;
+            const int pr = ::poll(&pfd, 1, 20);
+            if (pr <= 0) {
+                continue;
+            }
+            const int fd = ::accept(listen_fd_, nullptr, nullptr);
+            if (fd < 0) {
+                continue;
+            }
+            {
+                std::lock_guard<std::mutex> lk(mu_);
+                conns_.push_back(fd);
+            }
+            connected_.store(true);
+        }
+    }
+
+    int listen_fd_ = -1;
+    int port_ = 0;
+    std::thread accept_thread_;
+    std::thread release_thread_;
+    std::atomic<bool> stop_{false};
+    std::atomic<bool> connected_{false};
+    std::atomic<bool> released_{false};
+    std::mutex mu_;
+    std::vector<int> conns_;
+    std::mutex arm_mu_;
+    std::condition_variable arm_cv_;
+    bool arm_cancel_ = false;
+};
+
+/// Poll `pred` until it is true or `limit` elapses.
+template <typename Pred> bool wait_until_true(Pred pred, std::chrono::milliseconds limit) {
+    const auto deadline = std::chrono::steady_clock::now() + limit;
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (pred()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    return pred();
+}
+
+/// Common preamble for the stall tests: an idle printer, an initialised
+/// checker, and a seeded release pointing at `server`.
+void arm_stalled_download(UpdateChecker& checker, StalledHttpServer& server) {
+    // update_install_suppressed() returns from start_download() before anything
+    // else, so on a suppressed tree every assertion below would pass vacuously.
+    REQUIRE_FALSE(update_install_suppressed());
+
+    auto& state = get_printer_state();
+    state.init_subjects(false);
+    drive_lifecycle(state, "standby", PrintStartPhase::IDLE);
+    REQUIRE(state.get_print_lifecycle() == PrintState::Idle);
+
+    checker.init();
+    UpdateCheckerTestAccess::seed_available_update(checker, "9.9.9", server.url());
+
+    checker.start_download();
+
+    // The load-bearing precondition: libhv is really parked in downloadFile().
+    REQUIRE(wait_until_true([&] { return server.connected(); }, std::chrono::seconds(10)));
+    REQUIRE(checker.download_in_flight());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(GlobalPrintStateFixture,
+                 "UpdateChecker start_download does not block on a still-running worker",
+                 "[update_checker][download][reentry][slow]") {
+    auto& checker = UpdateChecker::instance();
+    StalledHttpServer server;
+    arm_stalled_download(checker, server);
+
+    // Reproduce the reported trap. cancel_download() only sets a flag that the
+    // worker reads after downloadFile() returns, and
+    // AboutSettingsOverlay::hide_update_download_modal() immediately resets the
+    // status to Idle. The enum now says "nothing is happening" while the worker
+    // is still inside an hour-long blocking call.
+    checker.cancel_download();
+    checker.report_download_status(UpdateChecker::DownloadStatus::Idle, 0, "");
+    REQUIRE(checker.get_download_status() == UpdateChecker::DownloadStatus::Idle);
+    REQUIRE(checker.download_in_flight()); // the enum lies; worker liveness does not
+
+    // Safety net so a regression fails instead of hanging the suite for an hour.
+    server.arm_release_after(std::chrono::seconds(4));
+
+    const auto t0 = std::chrono::steady_clock::now();
+    checker.start_download(); // ran on the LVGL thread in production
+    const auto elapsed = std::chrono::steady_clock::now() - t0;
+
+    server.cancel_armed_release();
+
+    // The whole bug: this call used to join() the live worker. Anything near
+    // the 4s release delay means it waited on the worker rather than refusing.
+    CHECK(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() < 1000);
+
+    // ...and the refusal must be visible. Every early return from
+    // start_download() has to leave a status behind: the modal binds every
+    // container to a NON-ZERO download_status, so returning at Idle leaves a
+    // dialog with no content and no buttons.
+    CHECK(checker.get_download_status() == UpdateChecker::DownloadStatus::Error);
+    CHECK(checker.get_download_error().find("still finishing") != std::string::npos);
+
+    server.release();
+    CHECK(wait_until_true([&] { return !checker.download_in_flight(); }, std::chrono::seconds(20)));
+    UpdateCheckerTestAccess::clear(checker);
+    helix::ui::UpdateQueue::instance().drain();
+    checker.shutdown();
+}
+
+TEST_CASE_METHOD(GlobalPrintStateFixture,
+                 "UpdateChecker shutdown returns promptly with a download in flight",
+                 "[update_checker][download][shutdown][slow]") {
+    auto& checker = UpdateChecker::instance();
+    StalledHttpServer server;
+    arm_stalled_download(checker, server);
+
+    // Same safety net: without the fix shutdown() joins the stuck worker, so
+    // the only thing that ever ends it is the socket closing.
+    server.arm_release_after(std::chrono::seconds(6));
+
+    const auto t0 = std::chrono::steady_clock::now();
+    checker.shutdown();
+    const auto elapsed = std::chrono::steady_clock::now() - t0;
+
+    server.cancel_armed_release();
+
+    // Quitting or restarting mid-download must not wait on libhv.
+    CHECK(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() < 2500);
+
+    // Giving up on the join must not leak the thread past the test: once the
+    // socket closes the worker still has to unwind.
+    server.release();
+    CHECK(wait_until_true([&] { return !checker.download_in_flight(); }, std::chrono::seconds(20)));
+    UpdateCheckerTestAccess::clear(checker);
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "UpdateChecker paints the terminal status before the restart runs",
+                 "[update_checker][download][restart][slow]") {
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+    UpdateCheckerTestAccess::reset_restart_state(checker);
+    UpdateCheckerTestAccess::set_status_hold_ms(checker, 60, 60);
+
+    std::atomic<int> status_when_restarted{-1};
+    std::atomic<bool> restarted{false};
+    UpdateCheckerTestAccess::set_restart_action(checker, [&] {
+        status_when_restarted.store(lv_subject_get_int(checker.download_status_subject()));
+        restarted.store(true);
+    });
+
+    checker.report_download_status(UpdateChecker::DownloadStatus::Installing, 100, "");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(lv_subject_get_int(checker.download_status_subject()) ==
+            static_cast<int>(UpdateChecker::DownloadStatus::Installing));
+
+    // The download worker's half: install.sh has returned 0, publish the
+    // terminal frames and hand the restart over.
+    std::thread worker([&] {
+        UpdateCheckerTestAccess::finish_install_and_restart(checker, "/tmp/helix-test-install-root",
+                                                            "9.9.9");
+    });
+
+    // The LVGL thread's half: keep draining so the deferred subject writes
+    // actually land, and record what the screen would have shown.
+    std::vector<int> seen;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    while (!restarted.load() && std::chrono::steady_clock::now() < deadline) {
+        helix::ui::UpdateQueue::instance().drain();
+        seen.push_back(lv_subject_get_int(checker.download_status_subject()));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    worker.join();
+
+    REQUIRE(restarted.load());
+
+    // ::_exit(0) used to fire from the download worker while the Complete write
+    // was still sitting in the UpdateQueue, so the last frame the user ever saw
+    // was "Installing... Do not power off your printer."
+    CHECK(status_when_restarted.load() ==
+          static_cast<int>(UpdateChecker::DownloadStatus::Restarting));
+
+    // Restarting (7) is rendered by update_download_modal.xml and was reachable
+    // from nothing in C++ — the modal's own comment described a transition that
+    // did not exist.
+    CHECK(std::find(seen.begin(), seen.end(),
+                    static_cast<int>(UpdateChecker::DownloadStatus::Restarting)) != seen.end());
+    CHECK(std::find(seen.begin(), seen.end(),
+                    static_cast<int>(UpdateChecker::DownloadStatus::Complete)) != seen.end());
+
+    UpdateCheckerTestAccess::set_restart_action(checker, nullptr);
+    UpdateCheckerTestAccess::reset_restart_state(checker);
+    checker.report_download_status(UpdateChecker::DownloadStatus::Idle, 0, "");
+    helix::ui::UpdateQueue::instance().drain();
+    checker.shutdown();
 }

@@ -908,6 +908,8 @@ translations:
   'Error: Invalid download': 'Erreur : téléchargement invalide'
   'Error: No update available': 'Erreur : aucune mise à jour disponible'
   'Error: Not enough disk space': 'Erreur : espace disque insuffisant'
+  'Error: Previous download still finishing': "Erreur : le téléchargement précédent n'est pas terminé"
+  "Error: This install can't update itself": 'Erreur : cette installation ne peut pas se mettre à jour'
   'Error: Verification failed': 'Erreur : échec de la vérification'
   'Error: Wrong architecture': 'Erreur : mauvaise architecture'
   'Error: `unzip` not installed': 'Erreur : `unzip` non installé'

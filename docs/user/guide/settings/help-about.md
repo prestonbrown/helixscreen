@@ -83,11 +83,13 @@ Tap the **About** row at the bottom of the Settings panel to open the About over
 Tap **Check for Updates** to look for a newer release on your selected [update channel](#update-channels). If one is available, an update dialog walks you through installing it. You'll see the following stages:
 
 1. **Update Available** — Shows the new version. Tap **Install** to begin, or **Cancel** to dismiss.
-2. **Downloading...** — A progress bar tracks the download. You can still **Cancel** at this point.
+2. **Downloading...** — A progress bar tracks the download. You can still **Cancel** at this point. The dialog closes straight away, but the download itself keeps running quietly in the background until the current transfer finishes; the partly-downloaded file is then thrown away. If you start another update before that has happened, you'll get an **Update Failed** screen reading **"Previous download still finishing"** — wait a few seconds and tap **Retry**.
 3. **Verifying...** — HelixScreen checks the downloaded file before installing.
 4. **Installing...** — The new version is written into place. **Do not power off your printer** while this is in progress.
 5. **Update installed!** — Confirmation that the new version is in place.
 6. **Hang on, we'll be right back!** — HelixScreen restarts itself to run the new version.
+
+Steps 5 and 6 are each shown only for a moment: the install is already finished by then, and the short pause exists so you can see that it succeeded before the app exits and comes back.
 
 If something goes wrong, an **Update Failed** screen appears with a **Retry** button so you can try again, or **Close** to dismiss.
 
