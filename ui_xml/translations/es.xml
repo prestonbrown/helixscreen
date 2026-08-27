@@ -312,7 +312,6 @@
   <translation tag="Bypass Mode" es="Modo Bypass"/>
   <translation tag="Bypass active — this print runs on the external spool." es="Bypass activo: esta impresión se realiza con la bobina externa."/>
   <translation tag="Bypass cannot be changed while printing" es="El bypass no se puede cambiar durante la impresión"/>
-  <translation tag="Bypass controlled by hardware sensor" es="Bypass controlado por sensor de hardware"/>
   <translation tag="Bypass controlled by sensor" es="Bypass controlado por sensor"/>
   <translation tag="Bypass disabled" es="Bypass desactivado"/>
   <translation tag="Bypass enabled" es="Bypass activado"/>
@@ -345,7 +344,6 @@
   <translation tag="Calibrate and tune scroll feel" es="Calibrar y ajustar la sensibilidad de desplazamiento"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" es="Calibrar input shaping para reducir artefactos de resonancia en impresiones"/>
   <translation tag="Calibrate your touchscreen for accurate input" es="Calibrar la pantalla táctil para una entrada precisa"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" es="Calibrar, ajustar jitter y sensibilidad de desplazamiento"/>
   <translation tag="Calibrated" es="Calibrado"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -642,7 +640,6 @@
   <translation tag="Date (newest)" es="Fecha (más reciente)"/>
   <translation tag="Date (oldest)" es="Fecha (más antiguo)"/>
   <translation tag="Day" es="Día"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" es="Zona muerta en píxeles (auméntala si los toques se registran como deslizamientos; 0 desactiva)"/>
   <translation tag="Debug" es="Depuración"/>
   <translation tag="Default border thickness" es="Grosor de borde predeterminado"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" es="Predeterminado: boquilla %d-%d°C, cama %d°C"/>
@@ -982,7 +979,6 @@
   <translation tag="Filament is pulling tight" es="El filamento está tirando tenso"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." es="El filamento sigue en la boquilla tras la descarga. Es posible que el corte o la retracción no se hayan completado. Limpie el cabezal antes de cargar otra bobina."/>
   <translation tag="Filament load failed: {}" es="Error al cargar filamento: {}"/>
-  <translation tag="Filament loaded" es="Filamento cargado"/>
   <translation tag="Filament operation failed" es="Falló la operación de filamento"/>
   <translation tag="Filament operation timed out" es="Operación de filamento — tiempo de espera agotado"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." es="El filamento se agotó - no queda nada en el cabezal y la impresión está en pausa."/>
@@ -1480,7 +1476,6 @@
   <translation tag="Name (optional)" es="Nombre (opcional)"/>
   <translation tag="Name:" es="Nombre:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
-  <translation tag="Named actions in the LED control panel (long-press)." es="Acciones con nombre en el panel de control LED (presión larga)."/>
   <translation tag="Needs adjustment" es="Necesita ajuste"/>
   <translation tag="Needs the {} package to switch spools" es="Necesita el plugin {} para cambiar de bobina"/>
   <translation tag="Net Weight (g)" es="Peso Neto (g)"/>
@@ -1509,7 +1504,6 @@
   <translation tag="No Camera" es="Sin Cámara"/>
   <translation tag="No Filament Detected" es="No se Detectó Filamento"/>
   <translation tag="No History" es="Sin Historial"/>
-  <translation tag="No LED macros detected on your printer." es="No se detectaron macros de LED en su impresora."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." es="No se detectaron macros de LED en su impresora. Agregue primero macros de Klipper para el control de LED."/>
   <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" es="No se detectaron tiras LED"/>
@@ -1898,7 +1892,6 @@
   <translation tag="Purge &amp; Wipe" es="Purgar y limpiar"/>
   <translation tag="Purge Length" es="Longitud de purga"/>
   <translation tag="Purge failed: {}" es="Error al purgar: {}"/>
-  <translation tag="Purge macro not configured" es="Macro de purga no configurado"/>
   <translation tag="Purge may still be running — response timed out" es="La purga puede seguir en curso — tiempo de espera agotado"/>
   <translation tag="Purge to bucket" es="Purgar al cubo"/>
   <translation tag="Purge tower and brush settings" es="Ajustes de torre de purga y cepillo"/>
@@ -2558,7 +2551,6 @@
   <translation tag="Touch &amp; Input" es="Toque y entrada"/>
   <translation tag="Touch Cal" es="Cal Táctil"/>
   <translation tag="Touch Calibration" es="Calibración Táctil"/>
-  <translation tag="Touch Jitter Filter" es="Filtro de jitter táctil"/>
   <translation tag="Touch anywhere to test calibration" es="Toque en cualquier lugar para probar la calibración"/>
   <translation tag="Touch anywhere to verify accuracy" es="Toca en cualquier lugar para verificar la precisión"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." es="La entrada táctil no siguió la nueva calibración. Se conservó su configuración anterior."/>

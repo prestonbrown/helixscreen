@@ -344,7 +344,6 @@ translations:
   Bypass Mode: Modo Bypass
   Bypass active — this print runs on the external spool.: 'Bypass ativo: esta impressão usa o carretel externo.'
   Bypass cannot be changed while printing: O bypass não pode ser alterado durante a impressão
-  Bypass controlled by hardware sensor: Bypass controlado por sensor de hardware
   Bypass controlled by sensor: Bypass controlado por sensor
   Bypass disabled: Bypass desativado
   Bypass enabled: Bypass ativado
@@ -380,8 +379,6 @@ translations:
     para reduzir artefatos de ringing nas impressões
   Calibrate your touchscreen for accurate input: Calibrar a tela touch para entrada
     precisa
-  Calibrate, tune jitter and scroll feel: Calibrar, ajustar tremulação e sensação
-    de rolagem
   Calibrated: Calibrado
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -729,8 +726,6 @@ translations:
   Date (newest): Data (mais recente)
   Date (oldest): Data (mais antigo)
   Day: Dia
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Zona morta em
-    pixels (aumente se toques forem registados como deslizes; 0 desativa)
   Debug: Depuração
   Default border thickness: Espessura padrão da borda
   'Default: %d-%d°C nozzle, %d°C bed': 'Padrão: %d-%d°C bico, %d°C mesa'
@@ -1096,7 +1091,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : O filamento ainda está no bico após o descarregamento. O corte ou a retração pode não ter sido concluído. Limpe o cabeçote antes de carregar outro carretel.
   'Filament load failed: {}': 'Falha ao carregar filamento: {}'
-  Filament loaded: Filamento carregado
   Filament operation failed: Falha na operação de filamento
   Filament operation timed out: Operação de filamento — tempo esgotado
   Filament ran out - nothing at the toolhead and the print is paused.: 'O filamento acabou - não há nada no cabeçote e a impressão está pausada.'
@@ -1664,8 +1658,6 @@ translations:
   Name (optional): Nome (opcional)
   'Name:': 'Nome:'
   Named actions in the LED Controls widget. Not shown under LED selection.: ''
-  Named actions in the LED control panel (long-press).: Ações nomeadas no painel de
-    controle LED (pressionar e segurar).
   Needs adjustment: Precisa de ajuste
   Needs the {} package to switch spools: 'Precisa do plugin {} para trocar de carretel'
   Net Weight (g): Peso Líquido (g)
@@ -1694,7 +1686,6 @@ translations:
   No Camera: Sem câmera
   No Filament Detected: Filamento Não Detectado
   No History: Sem Histórico
-  No LED macros detected on your printer.: Nenhuma macro de LED detectada na sua impressora.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: Nenhuma
     macro de LED detectada na sua impressora. Adicione macros Klipper para controle
     de LED primeiro.
@@ -2122,7 +2113,6 @@ translations:
   Purge & Wipe: 'Purgar e limpar'
   Purge Length: 'Comprimento de purga'
   'Purge failed: {}': 'Falha ao purgar: {}'
-  Purge macro not configured: Macro de purga não configurado
   Purge may still be running — response timed out: A purga pode ainda estar em execução
     — tempo esgotado
   Purge to bucket: 'Purgar no recipiente'
@@ -2918,7 +2908,6 @@ translations:
   Touch & Input: Toque e entrada
   Touch Cal: Cal de Toque
   Touch Calibration: Calibração de Toque
-  Touch Jitter Filter: Filtro de tremulação do toque
   Touch anywhere to test calibration: Toque em qualquer lugar para testar a calibração
   Touch anywhere to verify accuracy: Toque em qualquer lugar para verificar a precisão
   Touch input did not track the new calibration. Your previous settings were kept.: A entrada de toque não acompanhou a nova calibração. Suas configurações anteriores foram mantidas.

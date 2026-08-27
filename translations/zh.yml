@@ -313,7 +313,6 @@ translations:
   Bypass Mode: 旁路模式
   Bypass active — this print runs on the external spool.: 旁路已启用 — 本次打印使用外部料盘。
   Bypass cannot be changed while printing: 打印时无法切换旁路
-  Bypass controlled by hardware sensor: 旁路由硬件传感器控制
   Bypass controlled by sensor: 旁通由传感器控制
   Bypass disabled: 旁通已禁用
   Bypass enabled: 旁通已启用
@@ -347,7 +346,6 @@ translations:
   Calibrate and tune scroll feel: "校准并调整滚动手感"
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
-  Calibrate, tune jitter and scroll feel: 校准、调整抖动和滚动手感
   Calibrated: 已校准
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -648,8 +646,6 @@ translations:
   Date (newest): 日期（最新）
   Date (oldest): 日期（最早）
   Day: 日
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): 死区像素值（如果点击被识别为滑动则调高；0
-    表示禁用）
   Debug: 调试
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
@@ -996,7 +992,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : 卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。
   'Filament load failed: {}': '耗材加载失败: {}'
-  Filament loaded: 耗材已加载
   Filament operation failed: 耗材操作失败
   Filament operation timed out: 耗材操作超时
   Filament ran out - nothing at the toolhead and the print is paused.: '耗材已用尽 - 工具头处没有耗材，打印已暂停。'
@@ -1510,7 +1505,6 @@ translations:
   Name (optional): 名称（可选）
   'Name:': '名称:'
   Named actions in the LED Controls widget. Not shown under LED selection.: ''
-  Named actions in the LED control panel (long-press).: LED 控制面板中的命名操作（长按）。
   Needs adjustment: 需要调整
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'
   Net Weight (g): 净重（克）
@@ -1538,7 +1532,6 @@ translations:
   No Camera: 无摄像头
   No Filament Detected: 未检测到耗材
   No History: 无历史记录
-  No LED macros detected on your printer.: 未在打印机上检测到 LED 宏。
   No LED macros detected on your printer. Add Klipper macros for LED control first.: 未在打印机上检测到
     LED 宏。请先添加用于 LED 控制的 Klipper 宏。
   No LED macros detected. Type a macro name below.: ''
@@ -1940,7 +1933,6 @@ translations:
   Purge & Wipe: '排料与擦拭'
   Purge Length: '排料长度'
   'Purge failed: {}': '清洗失败: {}'
-  Purge macro not configured: 清洗宏未配置
   Purge may still be running — response timed out: 清洗可能仍在运行 — 响应超时
   Purge to bucket: '排料到废料桶'
   Purge tower and brush settings: '排料塔与刷子设置'
@@ -2640,7 +2632,6 @@ translations:
   Touch & Input: 触摸和输入
   Touch Cal: 触摸校准
   Touch Calibration: 触摸校准
-  Touch Jitter Filter: 触摸抖动过滤
   Touch anywhere to test calibration: 触摸任意位置测试校准
   Touch anywhere to verify accuracy: 触摸任意位置验证精度
   Touch input did not track the new calibration. Your previous settings were kept.: 触摸输入未能跟随新的校准，已保留您之前的设置。

@@ -312,7 +312,6 @@
   <translation tag="Bypass Mode" zh="旁路模式"/>
   <translation tag="Bypass active — this print runs on the external spool." zh="旁路已启用 — 本次打印使用外部料盘。"/>
   <translation tag="Bypass cannot be changed while printing" zh="打印时无法切换旁路"/>
-  <translation tag="Bypass controlled by hardware sensor" zh="旁路由硬件传感器控制"/>
   <translation tag="Bypass controlled by sensor" zh="旁通由传感器控制"/>
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
@@ -345,7 +344,6 @@
   <translation tag="Calibrate and tune scroll feel" zh="校准并调整滚动手感"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" zh="校准、调整抖动和滚动手感"/>
   <translation tag="Calibrated" zh="已校准"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -642,7 +640,6 @@
   <translation tag="Date (newest)" zh="日期（最新）"/>
   <translation tag="Date (oldest)" zh="日期（最早）"/>
   <translation tag="Day" zh="日"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" zh="死区像素值（如果点击被识别为滑动则调高；0 表示禁用）"/>
   <translation tag="Debug" zh="调试"/>
   <translation tag="Default border thickness" zh="默认边框厚度"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" zh="默认: 喷嘴 %d-%d°C,热床 %d°C"/>
@@ -982,7 +979,6 @@
   <translation tag="Filament is pulling tight" zh="耗材拉紧"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
   <translation tag="Filament load failed: {}" zh="耗材加载失败: {}"/>
-  <translation tag="Filament loaded" zh="耗材已加载"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." zh="耗材已用尽 - 工具头处没有耗材，打印已暂停。"/>
@@ -1480,7 +1476,6 @@
   <translation tag="Name (optional)" zh="名称（可选）"/>
   <translation tag="Name:" zh="名称:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
-  <translation tag="Named actions in the LED control panel (long-press)." zh="LED 控制面板中的命名操作（长按）。"/>
   <translation tag="Needs adjustment" zh="需要调整"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
@@ -1509,7 +1504,6 @@
   <translation tag="No Camera" zh="无摄像头"/>
   <translation tag="No Filament Detected" zh="未检测到耗材"/>
   <translation tag="No History" zh="无历史记录"/>
-  <translation tag="No LED macros detected on your printer." zh="未在打印机上检测到 LED 宏。"/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." zh="未在打印机上检测到 LED 宏。请先添加用于 LED 控制的 Klipper 宏。"/>
   <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" zh="未检测到 LED 灯带"/>
@@ -1898,7 +1892,6 @@
   <translation tag="Purge &amp; Wipe" zh="排料与擦拭"/>
   <translation tag="Purge Length" zh="排料长度"/>
   <translation tag="Purge failed: {}" zh="清洗失败: {}"/>
-  <translation tag="Purge macro not configured" zh="清洗宏未配置"/>
   <translation tag="Purge may still be running — response timed out" zh="清洗可能仍在运行 — 响应超时"/>
   <translation tag="Purge to bucket" zh="排料到废料桶"/>
   <translation tag="Purge tower and brush settings" zh="排料塔与刷子设置"/>
@@ -2558,7 +2551,6 @@
   <translation tag="Touch &amp; Input" zh="触摸和输入"/>
   <translation tag="Touch Cal" zh="触摸校准"/>
   <translation tag="Touch Calibration" zh="触摸校准"/>
-  <translation tag="Touch Jitter Filter" zh="触摸抖动过滤"/>
   <translation tag="Touch anywhere to test calibration" zh="触摸任意位置测试校准"/>
   <translation tag="Touch anywhere to verify accuracy" zh="触摸任意位置验证精度"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." zh="触摸输入未能跟随新的校准，已保留您之前的设置。"/>

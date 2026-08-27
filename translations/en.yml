@@ -332,7 +332,6 @@ translations:
   Bypass Mode: Bypass Mode
   Bypass active — this print runs on the external spool.: Bypass active — this print runs on the external spool.
   Bypass cannot be changed while printing: Bypass cannot be changed while printing
-  Bypass controlled by hardware sensor: Bypass controlled by hardware sensor
   Bypass controlled by sensor: Bypass controlled by sensor
   Bypass disabled: Bypass disabled
   Bypass enabled: Bypass enabled
@@ -368,7 +367,6 @@ translations:
     to reduce ringing artifacts in prints
   Calibrate your touchscreen for accurate input: Calibrate your touchscreen for accurate
     input
-  Calibrate, tune jitter and scroll feel: Calibrate, tune jitter and scroll feel
   Calibrated: Calibrated
   'Calibrating Probe...': 'Calibrating Probe...'
   'Calibrating bed mesh...': 'Calibrating bed mesh...'
@@ -699,8 +697,6 @@ translations:
   Date (newest): Date (newest)
   Date (oldest): Date (oldest)
   Day: Day
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Dead zone in
-    pixels (raise if taps register as swipes; 0 disables)
   Debug: Debug
   Default border thickness: Default border thickness
   'Default: %d-%d°C nozzle, %d°C bed': 'Default: %d-%d°C nozzle, %d°C bed'
@@ -1062,7 +1058,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   'Filament load failed: {}': 'Filament load failed: {}'
-  Filament loaded: Filament loaded
   Filament operation failed: Filament operation failed
   Filament operation timed out: Filament operation timed out
   Filament ran out - nothing at the toolhead and the print is paused.: Filament ran out - nothing at the toolhead and the print is paused.
@@ -1616,8 +1611,6 @@ translations:
   Name (optional): Name (optional)
   'Name:': 'Name:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Named actions in the LED Controls widget. Not shown under LED selection.
-  Named actions in the LED control panel (long-press).: Named actions in the LED control
-    panel (long-press).
   Needs adjustment: Needs adjustment
   Needs the {} package to switch spools: Needs the {} package to switch spools
   Net Weight (g): Net Weight (g)
@@ -1646,7 +1639,6 @@ translations:
   No Camera: No Camera
   No Filament Detected: No Filament Detected
   No History: No History
-  No LED macros detected on your printer.: No LED macros detected on your printer.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: No
     LED macros detected on your printer. Add Klipper macros for LED control first.
   No LED macros detected. Type a macro name below.: No LED macros detected. Type a macro name below.
@@ -2066,7 +2058,6 @@ translations:
   Purge & Wipe: Purge & Wipe
   Purge Length: Purge Length
   'Purge failed: {}': 'Purge failed: {}'
-  Purge macro not configured: Purge macro not configured
   Purge may still be running — response timed out: Purge may still be running — response
     timed out
   Purge to bucket: Purge to bucket
@@ -2836,7 +2827,6 @@ translations:
   Touch & Input: Touch & Input
   Touch Cal: Touch Cal
   Touch Calibration: Touch Calibration
-  Touch Jitter Filter: Touch Jitter Filter
   Touch anywhere to test calibration: Touch anywhere to test calibration
   Touch anywhere to verify accuracy: Touch anywhere to verify accuracy
   Touch input did not track the new calibration. Your previous settings were kept.: Touch input did not track the new calibration. Your previous settings were kept.

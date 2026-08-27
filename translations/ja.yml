@@ -314,7 +314,6 @@ translations:
   Bypass Mode: バイパスモード
   Bypass active — this print runs on the external spool.: バイパス使用中 — この印刷は外部スプールから供給されます。
   Bypass cannot be changed while printing: 印刷中はバイパスを変更できません
-  Bypass controlled by hardware sensor: ハードウェアセンサーによるバイパス制御
   Bypass controlled by sensor: バイパスはセンサーで制御中
   Bypass disabled: バイパス無効
   Bypass enabled: バイパス有効
@@ -348,7 +347,6 @@ translations:
   Calibrate and tune scroll feel: "キャリブレーションとスクロール感度の調整"
   Calibrate input shaping to reduce ringing artifacts in prints: 入力シェーピングをキャリブレートして印刷のリンギングを軽減します
   Calibrate your touchscreen for accurate input: タッチスクリーンの入力精度をキャリブレートします
-  Calibrate, tune jitter and scroll feel: キャリブレーション、ジッターとスクロール感度の調整
   Calibrated: キャリブレーション済み
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -652,8 +650,6 @@ translations:
   Date (newest): 日付（新しい順）
   Date (oldest): 日付（古い順）
   Day: 日
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): デッドゾーン (ピクセル)
-    — タップがスワイプとして認識される場合は増やす (0で無効)
   Debug: デバッグ
   Default border thickness: デフォルトの境界線の太さ
   'Default: %d-%d°C nozzle, %d°C bed': 'デフォルト: ノズル %d〜%d°C、ベッド %d°C'
@@ -1002,7 +998,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。
   'Filament load failed: {}': 'フィラメントの装填に失敗しました: {}'
-  Filament loaded: フィラメントを装填しました
   Filament operation failed: フィラメント操作に失敗しました
   Filament operation timed out: フィラメント操作がタイムアウトしました
   Filament ran out - nothing at the toolhead and the print is paused.: 'フィラメントが切れました - ツールヘッドには何も残っておらず、印刷は一時停止しています。'
@@ -1517,7 +1512,6 @@ translations:
   Name (optional): 名前（オプション）
   'Name:': '名前:'
   Named actions in the LED Controls widget. Not shown under LED selection.: ''
-  Named actions in the LED control panel (long-press).: LEDコントロールパネルの名前付きアクション（長押し）。
   Needs adjustment: 調整が必要
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
   Net Weight (g): 正味重量（g）
@@ -1546,7 +1540,6 @@ translations:
   No Camera: カメラなし
   No Filament Detected: フィラメント未検出
   No History: 履歴なし
-  No LED macros detected on your printer.: プリンターで LED マクロが検出されませんでした。
   No LED macros detected on your printer. Add Klipper macros for LED control first.: プリンターで
     LED マクロが検出されませんでした。先に LED 制御用の Klipper マクロを追加してください。
   No LED macros detected. Type a macro name below.: ''
@@ -1949,7 +1942,6 @@ translations:
   Purge & Wipe: 'パージとワイプ'
   Purge Length: 'パージ長'
   'Purge failed: {}': 'パージに失敗しました: {}'
-  Purge macro not configured: パージマクロが未設定です
   Purge may still be running — response timed out: パージがまだ実行中の可能性があります — 応答タイムアウト
   Purge to bucket: 'バケツへパージ'
   Purge tower and brush settings: 'パージタワーとブラシの設定'
@@ -2650,7 +2642,6 @@ translations:
   Touch & Input: タッチと入力
   Touch Cal: タッチキャリブレーション
   Touch Calibration: タッチキャリブレーション
-  Touch Jitter Filter: タッチジッターフィルター
   Touch anywhere to test calibration: どこでもタッチしてキャリブレーションをテスト
   Touch anywhere to verify accuracy: どこかをタッチして精度を確認
   Touch input did not track the new calibration. Your previous settings were kept.: タッチ入力が新しいキャリブレーションに追従しませんでした。以前の設定を維持しました。

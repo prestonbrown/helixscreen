@@ -351,7 +351,6 @@ translations:
   Bypass Mode: Bypass-Modus
   Bypass active — this print runs on the external spool.: 'Bypass aktiv: Dieser Druck läuft über die externe Spule.'
   Bypass cannot be changed while printing: Bypass kann während des Drucks nicht geändert werden
-  Bypass controlled by hardware sensor: Bypass wird durch Hardware-Sensor gesteuert
   Bypass controlled by sensor: Bypass durch Sensor gesteuert
   Bypass disabled: Bypass deaktiviert
   Bypass enabled: Bypass aktiviert
@@ -386,8 +385,6 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Input Shaping kalibrieren,
     um Ringing-Artefakte im Druck zu reduzieren
   Calibrate your touchscreen for accurate input: Touchscreen für präzise Eingabe kalibrieren
-  Calibrate, tune jitter and scroll feel: Kalibrieren, Jitter und Scroll-Verhalten
-    einstellen
   Calibrated: Kalibriert
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -733,8 +730,6 @@ translations:
   Date (newest): Datum (neueste)
   Date (oldest): Datum (älteste)
   Day: Tag
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Totzone in Pixeln
-    (erhöhen, wenn Taps als Wischen erkannt werden; 0 deaktiviert)
   Debug: Debug
   Default border thickness: Standard-Rahmendicke
   'Default: %d-%d°C nozzle, %d°C bed': 'Standard: %d-%d°C Düse, %d°C Bett'
@@ -1110,7 +1105,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Nach dem Entladen befindet sich noch Filament an der Düse. Schnitt oder Rückzug sind möglicherweise nicht abgeschlossen. Räumen Sie den Werkzeugkopf frei, bevor Sie eine andere Spule laden.
   'Filament load failed: {}': 'Filament laden fehlgeschlagen: {}'
-  Filament loaded: Filament geladen
   Filament operation failed: Filament-Vorgang fehlgeschlagen
   Filament operation timed out: Filament-Vorgang Zeitüberschreitung
   Filament ran out - nothing at the toolhead and the print is paused.: 'Filament zu Ende - am Werkzeugkopf ist nichts mehr und der Druck ist pausiert.'
@@ -1671,8 +1665,6 @@ translations:
   Name (optional): Name (optional)
   'Name:': 'Name:'
   Named actions in the LED Controls widget. Not shown under LED selection.: ''
-  Named actions in the LED control panel (long-press).: Benannte Aktionen im LED-Bedienfeld
-    (gedrückt halten).
   Needs adjustment: Anpassung erforderlich
   Needs the {} package to switch spools: 'Benötigt das Plugin {} für den Spulenwechsel'
   Net Weight (g): Nettogewicht (g)
@@ -1701,7 +1693,6 @@ translations:
   No Camera: Keine Kamera
   No Filament Detected: Kein Filament erkannt
   No History: Kein Verlauf
-  No LED macros detected on your printer.: Keine LED-Makros auf Ihrem Drucker erkannt.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: Keine
     LED-Makros auf Ihrem Drucker erkannt. Fügen Sie zuerst Klipper-Makros zur LED-Steuerung
     hinzu.
@@ -2129,7 +2120,6 @@ translations:
   Purge & Wipe: 'Entlüften & Abwischen'
   Purge Length: 'Entlüftungslänge'
   'Purge failed: {}': 'Purge fehlgeschlagen: {}'
-  Purge macro not configured: Purge-Makro nicht konfiguriert
   Purge may still be running — response timed out: Purge läuft möglicherweise noch
     — Zeitüberschreitung
   Purge to bucket: 'In den Behälter entlüften'
@@ -2918,7 +2908,6 @@ translations:
   Touch & Input: Touch & Eingabe
   Touch Cal: Touch-Kal.
   Touch Calibration: Touch-Kalibrierung
-  Touch Jitter Filter: Berührungs-Jitter-Filter
   Touch anywhere to test calibration: Tippen Sie irgendwo, um die Kalibrierung zu
     testen
   Touch anywhere to verify accuracy: Berühren Sie irgendwo, um die Genauigkeit zu

@@ -339,7 +339,6 @@ translations:
   Bypass Mode: Режим обхода
   Bypass active — this print runs on the external spool.: Байпас активен — эта печать идёт с внешней катушки.
   Bypass cannot be changed while printing: Байпас нельзя переключить во время печати
-  Bypass controlled by hardware sensor: Обход управляется аппаратным датчиком
   Bypass controlled by sensor: Байпас управляется датчиком
   Bypass disabled: Байпас отключён
   Bypass enabled: Байпас включён
@@ -375,8 +374,6 @@ translations:
     вибраций для уменьшения артефактов звона
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для
     точного ввода
-  Calibrate, tune jitter and scroll feel: Калибровка, настройка дрожания и поведения
-    прокрутки
   Calibrated: Откалиброван
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -716,8 +713,6 @@ translations:
   Date (newest): Дата (новые)
   Date (oldest): Дата (старые)
   Day: День
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Мёртвая зона
-    в пикселях (увеличьте, если касания распознаются как свайпы; 0 отключает)
   Debug: Отладка
   Default border thickness: Толщина границы по умолчанию
   'Default: %d-%d°C nozzle, %d°C bed': 'По умолчанию: сопло %d-%d°C, стол %d°C'
@@ -1083,7 +1078,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
   'Filament load failed: {}': 'Ошибка загрузки филамента: {}'
-  Filament loaded: Филамент загружен
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
   Filament ran out - nothing at the toolhead and the print is paused.: 'Филамент закончился - у печатающей головки ничего нет, печать приостановлена.'
@@ -1641,8 +1635,6 @@ translations:
   Name (optional): Название (необязательно)
   'Name:': 'Имя:'
   Named actions in the LED Controls widget. Not shown under LED selection.: ''
-  Named actions in the LED control panel (long-press).: Именованные действия в панели
-    управления LED (долгое нажатие).
   Needs adjustment: Требуется регулировка
   Needs the {} package to switch spools: 'Для смены катушки нужен плагин {}'
   Net Weight (g): Вес нетто (г)
@@ -1671,7 +1663,6 @@ translations:
   No Camera: Нет камеры
   No Filament Detected: Филамент не обнаружен
   No History: Нет истории
-  No LED macros detected on your printer.: На вашем принтере не обнаружены LED-макросы.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: На
     вашем принтере не обнаружены LED-макросы. Сначала добавьте макросы Klipper для
     управления LED.
@@ -2095,7 +2086,6 @@ translations:
   Purge & Wipe: 'Продувка и очистка'
   Purge Length: 'Длина продувки'
   'Purge failed: {}': 'Ошибка прочистки: {}'
-  Purge macro not configured: Макрос прочистки не настроен
   Purge may still be running — response timed out: Прочистка может ещё выполняться
     — время ожидания истекло
   Purge to bucket: 'Продувка в контейнер'
@@ -2873,7 +2863,6 @@ translations:
   Touch & Input: Касание и ввод
   Touch Cal: Кал. касания
   Touch Calibration: Калибровка касания
-  Touch Jitter Filter: Фильтр дрожания касания
   Touch anywhere to test calibration: Коснитесь в любом месте для проверки калибровки
   Touch anywhere to verify accuracy: Коснитесь в любом месте для проверки точности
   Touch input did not track the new calibration. Your previous settings were kept.: Сенсорный ввод не соответствовал новой калибровке. Прежние настройки сохранены.
