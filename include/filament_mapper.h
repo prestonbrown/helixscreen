@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -196,6 +198,35 @@ class FilamentMapper {
     static std::vector<int> effective_routing(const std::vector<int>& published,
                                               const std::vector<int>& attachment_map,
                                               bool attachment_is_routing);
+
+    /// The remap a REPRINT must send, from the routing the printer last ran a
+    /// configured task with.
+    ///
+    /// A reprint has no detail view, no swatch card and no picker, so nothing on
+    /// that path can recompute a colour match — the only thing that knows how the
+    /// job was routed is the printer, and only while the task was still
+    /// configured (AmsBackend::last_print_tool_mapping() is that snapshot).
+    ///
+    /// Named and pure for the same reason effective_routing() is: getting it
+    /// wrong is silent. An empty remap flows into build_preprint_gcode(), which
+    /// resolves a tool it is not told about to that tool's firmware-default head,
+    /// so "we do not know how this job was routed" was emitted as
+    /// SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n — actively erasing
+    /// the crossover the original print installed.
+    ///
+    /// @param last_routing Index = logical tool, value = physical head, -1 = the
+    ///        parser could not read that entry. EMPTY means the backend never
+    ///        observed a configured task, i.e. not known.
+    /// @param tools_used   Logical tools the file uses.
+    /// @return An explicit head for EVERY used tool — including the ones landing
+    ///         on their default head, so the firmware table says exactly what
+    ///         this print means. std::nullopt when the routing cannot answer for
+    ///         all of them (no table, a -1 entry, a tool past the end): that means
+    ///         DO NOT SEND, never identity. An empty @p tools_used answers with an
+    ///         empty map, which build_preprint_gcode() turns into no gcode anyway.
+    ///         Pure; no AMS.
+    static std::optional<std::map<int, int>> reprint_remap(const std::vector<int>& last_routing,
+                                                           const std::set<int>& tools_used);
 
     /// Weighted RGB distance between two colors (luminance-weighted).
     /// Uses standard luminance coefficients: R=0.30, G=0.59, B=0.11.
