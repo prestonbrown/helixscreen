@@ -10,11 +10,18 @@ jobs:
   compile-ubuntu:
     name: Compile (Ubuntu 22.04)
     runs-on: ubuntu-22.04
-    # The two build steps below budget 75 + 70 minutes, so a 120-minute job cap
-    # could kill the job before either step reached its own timeout — and did
-    # come within 30 seconds of it on a cold cache. Sized to cover the step
-    # budgets plus setup rather than silently undercutting them.
-    timeout-minutes: 165
+    # Sized to cover the step budgets below plus setup, rather than silently
+    # undercutting them: a job cap shorter than the sum kills the job before
+    # either step reaches its own timeout.
+    #
+    # The budgets themselves have to fit a COLD ccache, which is what a branch's
+    # first run gets. Measured on devel/1.1's first-ever run (2026-08-27, run
+    # 33115426986): the app took 64.5 min of its 75, and the test build timed out
+    # at 70 with roughly 5% of the files left. That failure is self-perpetuating
+    # -- a timed-out step cancels the job, so "Save ccache" never runs and the
+    # next run is cold for the same reason. A cold run has to be able to FINISH
+    # once for the cache to exist at all.
+    timeout-minutes: 200
 
     steps:
     - name: Checkout repository
@@ -128,7 +135,8 @@ jobs:
       run: make venv-setup
 
     - name: Build HelixScreen
-      timeout-minutes: 75
+      # 64.5 min cold (see the job comment); 90 leaves headroom instead of 10 min.
+      timeout-minutes: 90
       env:
         CC: ccache clang
         CXX: ccache clang++
@@ -138,7 +146,8 @@ jobs:
         ccache -s
 
     - name: Build tests
-      timeout-minutes: 70
+      # The larger half, and the one that actually timed out cold at 70.
+      timeout-minutes: 95
       env:
         CC: ccache clang
         CXX: ccache clang++
