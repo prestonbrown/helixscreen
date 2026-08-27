@@ -100,6 +100,38 @@ from re import error
 
 SKIP_DIRS = {'.git', '.worktrees', 'build', 'node_modules', '.venv', 'venv'}
 
+# Pruned by PATH rather than by name, because the name alone is load-bearing
+# elsewhere. `.claude` CANNOT go in SKIP_DIRS: the agent-doc walk deliberately
+# collects `.claude/skills/*.md`, and skipping the whole directory would drop
+# them silently. But `.claude/worktrees/` holds the harness's own ephemeral
+# agent checkouts, each a complete copy of this repo — CLAUDE.md, docs/ and all.
+# Walking those made every doc and every citation appear once per live agent:
+# six copies of CLAUDE.md's `temperature_service.cpp:667`, anchored against a
+# source tree that is not the one being checked. It went unnoticed for as long
+# as the resolver had a nearest-to-old-line fallback to swallow them with, and
+# turned main red the moment ambiguity became a hard failure. Deleting the
+# worktrees is not the fix: they carry other agents' uncommitted work.
+SKIP_PATHS = {os.path.join('.claude', 'worktrees')}
+
+
+def prune_dirs(root, dirs, extra=()):
+    """In-place prune of a walk's directory list, by name AND by path.
+
+    Every walk in this file has to use it. A by-name prune cannot express
+    "`.claude/skills` yes, `.claude/worktrees` no", and that distinction is the
+    whole point.
+    """
+    rel = os.path.relpath(root, '.')
+    keep = []
+    for d in dirs:
+        if d in SKIP_DIRS or d in extra:
+            continue
+        if os.path.normpath(os.path.join(rel, d)) in SKIP_PATHS:
+            continue
+        keep.append(d)
+    dirs[:] = keep
+    return dirs
+
 # Paths that are intentionally absent from a clean checkout.
 # NOTE: a developer machine has a built, patched tree, so these all resolve
 # locally and only ever fail in CI - which checks out clean and does not build.
@@ -314,7 +346,7 @@ def repo_files():
     out = set()
     seen = set()
     for root, dirs, files in os.walk('.', followlinks=True):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        prune_dirs(root, dirs)
         keep = []
         for d in dirs:
             real = os.path.realpath(os.path.join(root, d))
@@ -352,7 +384,7 @@ def scan_targets():
     plus the extra scanned docs (the public docs index)."""
     targets = []
     for root, dirs, files in os.walk('.'):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        prune_dirs(root, dirs)
         rel = root[2:]
         if rel.startswith('lib/'):
             continue
@@ -375,8 +407,7 @@ def scan_devel_targets(paths):
     def walk_md(root):
         out = []
         for dirpath, dirs, files in os.walk(root):
-            dirs[:] = [d for d in dirs
-                       if d not in SKIP_DIRS and d not in DEVEL_EXEMPT_SUBDIRS]
+            prune_dirs(dirpath, dirs, extra=DEVEL_EXEMPT_SUBDIRS)
             for f in files:
                 if f.endswith('.md'):
                     out.append(os.path.join(dirpath, f))
