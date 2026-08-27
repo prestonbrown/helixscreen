@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main, "claude/**" ]
+    branches: [ main, "claude/**", "devel/**" ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, "devel/**" ]
 
 jobs:
   compile-ubuntu:
@@ -604,34 +604,44 @@ jobs:
     if: always()
 
     steps:
+    # Collects every failed job rather than exiting on the first, so one run
+    # names the whole set instead of hiding the rest behind whichever job the
+    # ladder happened to test first.
+    #
+    # devel/** is reported, never blocked: the summary goes loud and the status
+    # stays green, because an integration branch going red should send someone
+    # to fix it, not stop the next merge. Everywhere else this still fails.
     - name: Check build results
+      env:
+        TOLERATE: ${{ startsWith(github.ref, 'refs/heads/devel/') || startsWith(github.base_ref, 'devel/') }}
       run: |
-        if [ "${{ needs.compile-ubuntu.result }}" != "success" ]; then
-          echo "Ubuntu compile failed"
-          exit 1
+        failed=()
+        [ "${{ needs.compile-ubuntu.result }}" = "success" ]        || failed+=("Ubuntu compile")
+        [ "${{ needs.test-ubuntu.result }}" = "success" ]           || failed+=("Ubuntu tests")
+        [ "${{ needs.build-macos.result }}" = "success" ]           || failed+=("macOS build")
+        [ "${{ needs.build-android.result }}" = "success" ]         || failed+=("Android build")
+        [ "${{ needs.test-shell.result }}" = "success" ]            || failed+=("Shell tests")
+        [ "${{ needs.test-telemetry-worker.result }}" = "success" ] || failed+=("Telemetry worker tests")
+        [ "${{ needs.link-aux-binaries.result }}" = "success" ]     || failed+=("splash/watchdog link check")
+
+        if [ ${#failed[@]} -eq 0 ]; then
+          echo "All builds passed"
+          echo "## All builds passed" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
         fi
-        if [ "${{ needs.test-ubuntu.result }}" != "success" ]; then
-          echo "Ubuntu tests failed"
-          exit 1
+
+        {
+          echo "## Build FAILED: ${#failed[@]} job(s)"
+          echo
+          for f in "${failed[@]}"; do echo "- $f"; done
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$TOLERATE" = "true" ]; then
+          echo "::warning title=Build FAILED on ${{ github.ref_name }}::${failed[*]} - tolerated because this is an integration branch, but a merge out of it carries the breakage."
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tolerated on this branch, so the run is green and blocks nothing." >> "$GITHUB_STEP_SUMMARY"
+          exit 0
         fi
-        if [ "${{ needs.build-macos.result }}" != "success" ]; then
-          echo "macOS build failed"
-          exit 1
-        fi
-        if [ "${{ needs.build-android.result }}" != "success" ]; then
-          echo "Android build failed"
-          exit 1
-        fi
-        if [ "${{ needs.test-shell.result }}" != "success" ]; then
-          echo "Shell tests failed"
-          exit 1
-        fi
-        if [ "${{ needs.test-telemetry-worker.result }}" != "success" ]; then
-          echo "Telemetry worker tests failed"
-          exit 1
-        fi
-        if [ "${{ needs.link-aux-binaries.result }}" != "success" ]; then
-          echo "splash/watchdog link check failed"
-          exit 1
-        fi
-        echo "All builds passed"
+
+        for f in "${failed[@]}"; do echo "::error title=Build failure::$f"; done
+        exit 1
