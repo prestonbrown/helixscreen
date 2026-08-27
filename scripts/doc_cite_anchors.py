@@ -980,8 +980,15 @@ def main():
         # else forever. Only a FULL run sweeps: a targeted run has no business
         # judging docs it was not pointed at.
         scope = set(targets)
-        merged = {k: v for k, v in stored.items()
-                  if k[0] not in scope and (args.paths or os.path.isfile(k[0]))}
+        # A full run's scope IS the scanned corpus, so anything outside it is by
+        # definition dead: a deleted doc, or one the walk should never have been
+        # reaching. Keying the sweep on the corpus rather than on os.path.isfile
+        # matters because the `.claude/worktrees/agent-*/` copies EXIST — they
+        # are live agent checkouts holding other people's uncommitted work — so
+        # an existence test preserved their rows forever while the scoping fix
+        # stopped anything from refreshing them.
+        merged = ({k: v for k, v in stored.items() if k[0] not in scope}
+                  if args.paths else {})
         merged.update(fresh)
         write_sidecar(merged)
         if args.write_baseline:

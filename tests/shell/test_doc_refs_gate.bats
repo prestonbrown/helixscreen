@@ -156,3 +156,48 @@ MD
     run python3 "$CHECK" --devel "$FIX/rangeok.md"
     [ "$status" -eq 0 ]
 }
+
+@test "scope: .claude/worktrees is skipped, .claude/skills is not" {
+    # The harness keeps its live agent checkouts under .claude/worktrees/, each
+    # a COMPLETE copy of this repo — CLAUDE.md, docs/ and all. A by-name prune
+    # cannot express "skip that but keep .claude/skills", so the walk descended
+    # into them and every doc and citation appeared once per running agent. Six
+    # copies of CLAUDE.md's `temperature_service.cpp:667` turned main red, and
+    # only after the resolver stopped having a nearest-line fallback to swallow
+    # them with. Nothing asserted the walk's scope, which is why it survived.
+    REPO="$BATS_TEST_TMPDIR/scoperepo"
+    mkdir -p "$REPO/.claude/worktrees/agent-deadbeef" "$REPO/.claude/skills/thing" \
+             "$REPO/docs/devel" "$REPO/src"
+    echo 'Root doc.' > "$REPO/CLAUDE.md"
+    echo 'A live agent copy of the root doc.' \
+        > "$REPO/.claude/worktrees/agent-deadbeef/CLAUDE.md"
+    printf -- '---\nname: thing\n---\nA real skill doc.\n' \
+        > "$REPO/.claude/skills/thing/SKILL.md"
+    cd "$REPO"
+
+    run python3 "$CHECK" --list
+    [ "$status" -eq 0 ]
+    # The skills doc is deliberately in scope...
+    [[ "$output" == *".claude/skills/thing/SKILL.md"* ]]
+    # ...and the agent worktree is deliberately not.
+    [[ "$output" != *"agent-deadbeef"* ]]
+    # The repo's own CLAUDE.md is still scanned, exactly once.
+    [ "$(printf '%s\n' "$output" | grep -c 'scanned: CLAUDE.md$')" -eq 1 ]
+}
+
+@test "scope: a doc inside .claude/worktrees cannot fail the gate" {
+    # The end-to-end shape of the bug: a citation that resolves against the
+    # AGENT's tree, not the one being checked, reported against a path nobody
+    # can act on. Deleting those worktrees is not available as a fix — they hold
+    # other agents' uncommitted work.
+    REPO="$BATS_TEST_TMPDIR/scoperepo2"
+    mkdir -p "$REPO/.claude/worktrees/agent-deadbeef" "$REPO/docs/devel"
+    echo 'Clean.' > "$REPO/CLAUDE.md"
+    echo 'Cites `src/zz_definitely_missing.cpp` which does not exist.' \
+        > "$REPO/.claude/worktrees/agent-deadbeef/CLAUDE.md"
+    cd "$REPO"
+
+    run python3 "$CHECK" --refs
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"zz_definitely_missing"* ]]
+}
