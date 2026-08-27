@@ -50,6 +50,15 @@ PrinterDiscovery toolchanger_printer(int tool_count = 4) {
     return hw;
 }
 
+/// A single-toolhead printer that happens to define a TOOL_OFFSET macro.
+PrinterDiscovery macro_but_one_tool() {
+    json objects = json::array({"gcode_move", "toolhead", "extruder"});
+    objects.push_back("gcode_macro TOOL_OFFSET");
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
 /// A MedusaHC-style machine: klipper-toolchanger PLUS the TOOL_OFFSET macro.
 /// This is the real shape - MedusaHC ships [toolchanger] and [tool T0..T3].
 PrinterDiscovery tool_offset_macro_printer(int tool_count = 4) {
@@ -125,6 +134,42 @@ TEST_CASE("tool offsets: a frame carrying both schemas reads the authoritative o
     auto microns = to_::read_tool_z_microns(status, 1, "T1");
     REQUIRE(microns.has_value());
     CHECK(*microns == -200);
+}
+
+TEST_CASE("tool offsets: a TOOL_OFFSET macro alone is not a tool changer", "[tool_offsets]") {
+    // supports_per_tool_z() gates the tune panel's selector, and its contract is
+    // "false on every single-toolhead printer". TOOL_OFFSET is a plausible name
+    // for a hand-written macro, and matching on it alone put the selector on a
+    // single-extruder machine and aimed its buttons at `t0_off_z` in a macro
+    // with no such variable.
+    PrinterDiscovery hw = macro_but_one_tool();
+
+    CHECK_FALSE(to_::supports_per_tool_z(hw));
+    CHECK(to_::set_tool_z_gcode(hw, 0, -50).empty());
+}
+
+TEST_CASE("tool offsets: a delta frame does not fall through to the other store",
+          "[tool_offsets]") {
+    // The by-schema read resolves in table order, which is right when both
+    // schemas are in ONE frame. Moonraker's notify_status_update carries only
+    // what changed, so a MedusaHC frame with just `tool T0` used to fall past
+    // the authoritative TOOL_OFFSET row and answer from klipper-toolchanger's
+    // copy — the store this module says is NOT the authority. That value then
+    // overwrote the real one and became the base for the next adjustment.
+    json delta = json{{"tool T0", json{{"gcode_z_offset", -0.05}}}};
+
+    // No TOOL_OFFSET object in this frame at all -> the macro provider is not
+    // the owner here, so answering from the tool object is correct.
+    CHECK(*to_::read_tool_z_microns(delta, 0, "T0") == -50);
+
+    // But once the macro IS present and simply has nothing for this tool, the
+    // frame belongs to it and the tool object must not be consulted.
+    json macro_frame = json{
+        {"gcode_macro TOOL_OFFSET", json{{"t1_off_z", -0.20}}},
+        {"tool T0", json{{"gcode_z_offset", -0.05}}},
+    };
+    CHECK_FALSE(to_::read_tool_z_microns(macro_frame, 0, "T0").has_value());
+    CHECK(*to_::read_tool_z_microns(macro_frame, 1, "T1") == -200);
 }
 
 // ============================================================================

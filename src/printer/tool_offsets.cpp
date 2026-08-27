@@ -27,6 +27,9 @@ struct Provider {
     std::string (*save_gcode)(int tool_index, int microns);
     /// Whether save_gcode() only stages the change, awaiting SAVE_CONFIG.
     bool persist_needs_save_config;
+    /// Whether this provider's store appears in the frame at all, regardless of
+    /// the tool asked for. Guards the by-schema fallthrough above.
+    bool (*store_present)(const nlohmann::json& status);
 };
 
 /// Render a double as a bare decimal literal - the form every firmware here
@@ -79,7 +82,13 @@ const nlohmann::json* status_object(const nlohmann::json& status, const std::str
 // this store is covered and the row does not go stale when the hardware is
 // rebranded.
 bool detect_tool_offset_macro(const PrinterDiscovery& hw) {
-    return hw.has_macro("TOOL_OFFSET");
+    // The macro AND more than one toolhead. `TOOL_OFFSET` is a plausible name
+    // for a hand-written macro on a single-extruder machine, and matching on it
+    // alone put the tool selector on such a printer and pointed its buttons at
+    // `t0_off_z` in a macro that has no such variable and a [save_variables]
+    // section that need not exist. supports_per_tool_z() promises false on
+    // every single-toolhead printer; this is what keeps that promise.
+    return hw.has_macro("TOOL_OFFSET") && hw.tool_names().size() > 1;
 }
 
 std::optional<int> read_tool_offset_macro(const nlohmann::json& status, int tool_index,
@@ -127,6 +136,10 @@ std::string save_tool_offset_macro(int tool_index, int microns) {
 // Older builds folded tool offsets into the user's gcode_move offset, where a
 // baby-step and a tool change fight each other; we do not detect or paper over
 // that.
+bool tool_offset_macro_present(const nlohmann::json& status) {
+    return status_object(status, "gcode_macro TOOL_OFFSET") != nullptr;
+}
+
 bool detect_toolchanger(const PrinterDiscovery& hw) {
     return hw.has_tool_changer();
 }
@@ -166,9 +179,10 @@ const std::vector<Provider>& providers() {
     // and the second one would write a store its macros never read.
     static const std::vector<Provider> table = {
         {"TOOL_OFFSET macro", &detect_tool_offset_macro, {"gcode_macro TOOL_OFFSET"},
-         &read_tool_offset_macro, &set_tool_offset_macro, &save_tool_offset_macro, false},
+         &read_tool_offset_macro, &set_tool_offset_macro, &save_tool_offset_macro, false,
+         &tool_offset_macro_present},
         {"klipper-toolchanger", &detect_toolchanger, {}, &read_toolchanger, &set_toolchanger,
-         &save_toolchanger, true},
+         &save_toolchanger, true, nullptr},
     };
     return table;
 }
@@ -197,13 +211,27 @@ std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
 
 std::optional<int> read_tool_z_microns(const nlohmann::json& status, int tool_index,
                                        const std::string& tool_name) {
-    // Read by schema rather than by detected firmware, for the same reason
-    // helix::zoffset does: this runs on the status path, which has no
-    // PrinterDiscovery to hand. Table order still decides, so a machine
-    // carrying both schemas resolves to the authoritative one.
+    // Read by schema rather than by detected firmware, because this runs on the
+    // status path, which has no PrinterDiscovery to hand.
+    //
+    // Table order alone is NOT enough here. It resolves a frame carrying BOTH
+    // schemas — the query seed does — but Moonraker's delta frames carry only
+    // what changed, so a MedusaHC frame with just `tool T0` would fall past the
+    // authoritative TOOL_OFFSET row and read klipper-toolchanger's copy, the
+    // store this module's own table says is not the authority. That value would
+    // then overwrite the real one and become the base for the next adjustment.
+    //
+    // So a lower-priority row is only allowed to answer when no higher-priority
+    // row's store is present in the frame AT ALL — absent is "no news", not
+    // "ask someone else".
     for (const auto& p : providers()) {
         if (auto microns = p.read(status, tool_index, tool_name)) {
             return microns;
+        }
+        if (p.store_present && p.store_present(status)) {
+            // This provider owns the frame and simply has nothing for this
+            // tool. Falling through would answer from the wrong store.
+            return std::nullopt;
         }
     }
     return std::nullopt;

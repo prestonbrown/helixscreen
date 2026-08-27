@@ -181,6 +181,16 @@
             <event_cb trigger="clicked" callback="on_tune_z_target" user_data="1"/>
           </ui_button>
         </lv_obj>
+        <!-- The target you are NOT on. Landscape carries this beside the
+             buttons; portrait has no room on that row, so it gets its own
+             line. Without it, adjusting a tool on a 272x480 changer produced
+             no numeric feedback at all — the heading shows the selected
+             target, and the other value appeared nowhere. -->
+        <text_small name="z_target_other"
+                    width="100%" bind_text="tune_z_other_display"
+                    style_text_color="#text_muted" hidden="true">
+          <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="0"/>
+        </text_small>
         <text_small name="z_offset_help_text_manual"
                     width="100%" long_mode="wrap"
                     text="Temporary adjustment for this print, unless saved on Controls panel"
