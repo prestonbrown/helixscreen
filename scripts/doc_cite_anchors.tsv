@@ -116,6 +116,11 @@ docs/devel/PRINT_STATE_MACHINE.md	src/print/print_completion.cpp	141	src/print/p
 docs/devel/PRINT_STATE_MACHINE.md	src/printer/print_lifecycle_state.cpp	96	src/printer/print_lifecycle_state.cpp	d62ca1f7629b	d0dc2cfddb1b
 docs/devel/PRINT_STATE_MACHINE.md	src/printer/printer_print_state.cpp	1513	src/printer/printer_print_state.cpp	a4ebc5aac956	403018efe7d6
 docs/devel/QIDI_BOX_HEATER.md	include/ams_backend_qidi.h	285	include/ams_backend_qidi.h	de744ac21fbf	b810e13e2a7b
+docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1027	src/printer/ams_backend_qidi.cpp	56a622b77823	70d7e140eada
+docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1034	src/printer/ams_backend_qidi.cpp	dd5c11bf6a9a	b7d84c90b86c
+docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1048	src/printer/ams_backend_qidi.cpp	8a96f4820e1a	5ae9af48feba
+docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1108	src/printer/ams_backend_qidi.cpp	cf6a97bc9c10	0246eb2f9395
+docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1157	src/printer/ams_backend_qidi.cpp	a92ad7ffc917	59bd70427a97
 docs/devel/RELEASE_1_0_CHECKLIST.md	config.cpp	343	src/system/config.cpp	f2207e847fec	3607e00d9e70
 docs/devel/RELEASE_1_0_CHECKLIST.md	scripts/generate-manifest.sh	36	scripts/generate-manifest.sh	b672608bdf3d	588242abc9c0
 docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2452	mk/cross.mk	e4f16f861f61	4c3084a9242a

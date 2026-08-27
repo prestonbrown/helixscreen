@@ -24,7 +24,7 @@ third. Naming all three keeps them from being confused for each other:
    backticked `` `path.ext:N` ``. Every other way this tree names a line — the bare
    follow-on `` `:857` ``, the bare range `` `1755-1796` `` riding after a full citation,
    the unbackticked `(:720)` — is invisible to every check and drifts freely with every
-   edit to the file. Nothing has ever verified one. **459 of them remain** (below).
+   edit to the file. Nothing has ever verified one. **458 of them remain** (below).
 
 ## Numbers
 
@@ -35,7 +35,7 @@ third. Naming all three keeps them from being confused for each other:
 | **Class-3 references repaired and promoted to gate-visible** | **4** |
 | Class-3 bare `` `:N` `` follow-ons corrected in passing | 8 |
 | Estimated *total* class-2 wrong, including what the heuristic missed | **~110–140 (15–20%)**, wide interval — see below |
-| Class-3 references still unverifiable by any gate | **459** |
+| Class-3 references still unverifiable by any gate | **458** |
 | Left unfixed, deliberately | 4 (below) |
 
 **This is a project, not a cleanup — but a bounded one.** 8.3% is established fact. The
@@ -135,12 +135,12 @@ The function's own span is the right answer.)
 |---|---|
 | backticked `` `:N` `` / `` `:N-M` `` follow-on | 444 |
 | backticked bare `` `N-M` `` sharing a line with a citation | 14 |
-| unbackticked `(:N)` shorthand | 1 |
+| unbackticked `(:N)` shorthand | 0 — the single instance was `QIDI_BOX_HEATER.md:205`, removed by the rewrite |
 | real `` `path:N` `` citation inside a fenced block | 0 |
-| **total unparseable** | **459**, across 26 docs (463 before this audit's four repairs) |
+| **total unparseable** | **458**, across 25 docs (463 before this audit's repairs) |
 | *gate-visible, for comparison* | *850* |
 
-**35% of every line reference in the docs is unverifiable by any gate** (459 against 850
+**35% of every line reference in the docs is unverifiable by any gate** (458 against 854
 tracked). Worst
 concentrations: `11-startup-shutdown.md` (69), `07-filament-ams.md` (42),
 `12-system-services.md` (38), `03-threading-lifetime.md` (36). The count is an upper
@@ -166,7 +166,7 @@ repaired, each promoted to a full path-qualified citation so the gate now tracks
 
 Two others in that file (`1171-1204` for the RFID apply loop, `1321-1354` for the
 error-latch guard) were checked and are correct; they were left in bare form, because
-converting 459 references by hand is the wrong fix. The generator change below is the
+converting 458 references by hand is the wrong fix. The generator change below is the
 right one.
 
 ## What was fixed
@@ -240,7 +240,7 @@ run reports `0 rewritten, 0 bootstrapped` for anchors and `0 rewritten` for link
    they exist; finding them needs either a better signal or a pass a human actually reads.
    Not attempted here.
 
-4. **459 class-3 references.** Verifying them by hand means resolving each against the
+4. **458 class-3 references.** Verifying them by hand means resolving each against the
    citation it trails and reading the prose — the same cost per item as the main audit,
    for a population 65% as large. Do the generator change first; it converts most of them
    into ordinary tracked citations that the existing gate then keeps honest for free, and
@@ -269,7 +269,7 @@ it there rather than let it climb back.
 Do **not** promote the symbol-proximity heuristic as a gate at 21–61% precision. It earned
 its keep as a triage tool for a one-time human pass and should stay one.
 
-**Second, and larger: teach `iter_citations()` the three unparseable forms.** 459
+**Second, and larger: teach `iter_citations()` the two surviving unparseable forms.** 458
 references — **35% of every line reference in the docs** — are invisible to every gate,
 and 11 of the 12 examined by hand were wrong. The change is small and mechanical:
 
@@ -280,12 +280,14 @@ and 11 of the 12 examined by hand were wrong. The change is small and mechanical
   symbol. Attribution across lines would repeat that bug.
 - **bare `` `N-M` `` after a citation (14)** — same rule, same owner. This is the form
   that produced the live failure above.
-- **unbackticked `(:N)` (1)** — one instance; either fix the doc or ignore the form.
+- **unbackticked `(:N)`** — zero remain. The corpus had exactly one, in
+  `QIDI_BOX_HEATER.md`, and the prose rewrite there removed it. The form needs no
+  resolver support.
 
 A doc-side alternative exists for the last two — write them path-qualified, as the four
 repaired here now are — but at 458 sites that is a bulk hand-edit, which this repo's own
 convention says to replace with a generator plus a gate. Do it in the resolver.
 
-Rough coverage arithmetic: 850 tracked today, ~1300 after. The existing anchor machinery
+Rough coverage arithmetic: 854 tracked today, ~1300 after. The existing anchor machinery
 then keeps all of them honest with no further human passes, which is the whole point of
 having built it.
