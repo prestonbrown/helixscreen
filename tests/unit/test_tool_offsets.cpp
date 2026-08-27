@@ -69,6 +69,17 @@ PrinterDiscovery tool_offset_macro_printer(int tool_count = 4) {
     return hw;
 }
 
+/// The same machine, but printer.cfg spells the section `[gcode_macro
+/// Tool_Offset]`. Klipper accepts any casing and uppercases only the COMMAND
+/// alias, so this is a legal config that behaves identically on the printer.
+PrinterDiscovery mixed_case_macro_printer(int tool_count = 4) {
+    json objects = toolchanger_objects(tool_count);
+    objects.push_back("gcode_macro Tool_Offset");
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
 bool contains(const std::vector<std::string>& v, const std::string& s) {
     return std::find(v.begin(), v.end(), s) != v.end();
 }
@@ -170,6 +181,70 @@ TEST_CASE("tool offsets: a delta frame does not fall through to the other store"
     };
     CHECK_FALSE(to_::read_tool_z_microns(macro_frame, 0, "T0").has_value());
     CHECK(*to_::read_tool_z_microns(macro_frame, 1, "T1") == -200);
+}
+
+// ============================================================================
+// Config casing: detection is case-insensitive, Klipper's keys are not
+// ============================================================================
+
+TEST_CASE("tool offsets: a mixed-case macro is subscribed as printer.cfg spells it",
+          "[tool_offsets]") {
+    // has_macro() is case-insensitive because the callable command is the
+    // UPPERCASED alias. The status object key is not: Klipper publishes the
+    // config section verbatim, and an object it cannot look up is silently
+    // absent from every frame rather than an error. So subscribing to the
+    // uppercased name on this machine reads empty forever - the selector shows
+    // nothing, and the reader falls through to klipper-toolchanger's copy, the
+    // store this module's own table says is not the authority.
+    PrinterDiscovery hw = mixed_case_macro_printer();
+
+    REQUIRE(to_::supports_per_tool_z(hw));
+    CHECK(to_::provider_name(hw) == "TOOL_OFFSET macro");
+    CHECK(contains(to_::required_status_objects(hw), "gcode_macro Tool_Offset"));
+    CHECK_FALSE(contains(to_::required_status_objects(hw), "gcode_macro TOOL_OFFSET"));
+}
+
+TEST_CASE("tool offsets: a mixed-case macro's writes use the config-case mux key",
+          "[tool_offsets]") {
+    // SET_GCODE_VARIABLE's MACRO= is a mux key registered on the config-case
+    // name (klippy/extras/gcode_macro.py registers `name`, not `self.alias`),
+    // so a capitalised MACRO= is REJECTED - the adjustment errors outright
+    // rather than quietly missing.
+    PrinterDiscovery hw = mixed_case_macro_printer();
+
+    const std::string set = to_::set_tool_z_gcode(hw, 1, -50);
+    CHECK(set.find("MACRO=Tool_Offset ") != std::string::npos);
+    CHECK(set.find("MACRO=TOOL_OFFSET") == std::string::npos);
+
+    // The save carries the runtime half, so it is subject to the same trap.
+    const std::string save = to_::save_tool_z_gcode(hw, 1, -50);
+    CHECK(save.find("MACRO=Tool_Offset ") != std::string::npos);
+    CHECK(save.find("SAVE_VARIABLE VARIABLE=t1_gcode_z_offset") != std::string::npos);
+}
+
+TEST_CASE("tool offsets: a mixed-case macro object is still read", "[tool_offsets]") {
+    // The read path has no PrinterDiscovery to resolve the casing through, so
+    // it scans. Two sections differing only in case would register the same
+    // command alias and Klipper would refuse to start, so the scan cannot be
+    // ambiguous.
+    json status = json{{"gcode_macro Tool_Offset", json{{"t2_off_z", -0.15}}}};
+
+    auto microns = to_::read_tool_z_microns(status, 2, "T2");
+    REQUIRE(microns.has_value());
+    CHECK(*microns == -150);
+}
+
+TEST_CASE("tool offsets: a mixed-case macro still owns its frame", "[tool_offsets]") {
+    // The fallthrough guard keys off the macro being PRESENT. Matching that
+    // case-sensitively would make a Tool_Offset frame look like it had no macro
+    // at all, and the tool object underneath would answer for it.
+    json frame = json{
+        {"gcode_macro Tool_Offset", json{{"t1_off_z", -0.20}}},
+        {"tool T0", json{{"gcode_z_offset", -0.05}}},
+    };
+
+    CHECK_FALSE(to_::read_tool_z_microns(frame, 0, "T0").has_value());
+    CHECK(*to_::read_tool_z_microns(frame, 1, "T1") == -200);
 }
 
 // ============================================================================
