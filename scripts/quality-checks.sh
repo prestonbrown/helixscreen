@@ -1024,6 +1024,17 @@ if [ -n "$FILES" ]; then
       # Leading space is load-bearing: a message below prints "git add$FORMAT_ISSUES".
       FORMAT_ISSUES="$(sed 's|^| |' "$CF_DIRTY" | tr -d '
 ')"
+      # Which of the dirty files already carried unstaged work, captured BEFORE
+      # clang-format -i runs: afterwards every reformatted file differs from the
+      # index, so the question can no longer be asked. Mirrors XML_PRE_DIRTY in
+      # the XML formatter below.
+      CF_PRE_DIRTY=""
+      if [ "$STAGED_ONLY" = true ] && [ -s "$CF_DIRTY" ]; then
+        while IFS= read -r cf_f; do
+          [ -n "$cf_f" ] || continue
+          git diff --quiet -- "$cf_f" || CF_PRE_DIRTY="$CF_PRE_DIRTY $cf_f "
+        done < "$CF_DIRTY"
+      fi
       if [ -n "$FORMAT_ISSUES" ] && [ "$AUTO_FIX" = true ]; then
         case "$CF_VER" in
           18.*)
@@ -1046,9 +1057,28 @@ if [ -n "$FILES" ]; then
         if [ "$AUTO_FIX" = true ]; then
           # Auto-stage formatted files when in pre-commit mode (--staged-only)
           if [ "$STAGED_ONLY" = true ]; then
-            git add $FORMAT_ISSUES
-            echo "✅ Auto-formatted and re-staged files:"
-            echo "$FORMAT_ISSUES" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
+            # Re-stage only files with NOTHING unstaged. `git add` takes the whole
+            # working-tree file, so on a partially staged file it would sweep in
+            # hunks deliberately held back - the commit would carry work its author
+            # never staged. Those get formatted on disk and named instead. Same
+            # rule the XML formatter below applies.
+            CF_RESTAGE=""; CF_HELD=""
+            for cf_f in $FORMAT_ISSUES; do
+              case "$CF_PRE_DIRTY" in
+                *" $cf_f "*) CF_HELD="$CF_HELD $cf_f" ;;
+                *)           CF_RESTAGE="$CF_RESTAGE $cf_f" ;;
+              esac
+            done
+            if [ -n "$CF_RESTAGE" ]; then
+              # shellcheck disable=SC2086  # word splitting is the point: a path list
+              git add $CF_RESTAGE
+              echo "✅ Auto-formatted and re-staged files:"
+              echo "$CF_RESTAGE" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
+            fi
+            if [ -n "$CF_HELD" ]; then
+              echo "⚠️  Formatted but NOT re-staged (partially staged):$CF_HELD"
+              echo "ℹ️  This commit still carries unformatted C++. Stage it with: git add$CF_HELD"
+            fi
           else
             echo "✅ Auto-formatted files - re-stage them before committing:"
             echo "$FORMAT_ISSUES" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
