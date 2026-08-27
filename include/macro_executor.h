@@ -41,6 +41,16 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
 /// name check below and the macro-body analysis.
 [[nodiscard]] const std::unordered_set<std::string>& dangerous_command_names();
 
+/// Commands after which the host comes back on its own (SAVE_CONFIG and the
+/// restarts). A dropped rpc from one of these is a restart in progress.
+[[nodiscard]] const std::unordered_set<std::string>& host_restarting_command_names();
+
+/// Commands after which the host stays down until someone intervenes (M112 and
+/// the shutdowns). A dropped rpc from one of these is a halt, not a restart -
+/// telling the user "Firmware restarting..." there promises a recovery that is
+/// not coming.
+[[nodiscard]] const std::unordered_set<std::string>& host_halting_command_names();
+
 /// Macro names, uppercased, whose bodies reach one of those commands - directly
 /// or through other macros.
 ///
@@ -53,6 +63,12 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
 [[nodiscard]] std::unordered_set<std::string>
 analyze_host_restarting_macros(const nlohmann::json& config_settings);
 
+/// Same call-graph walk, seeded with the halting commands instead. Separate from
+/// the restarting set rather than a flag on it because a macro can reach both,
+/// and the two answers differ in what the user is promised afterwards.
+[[nodiscard]] std::unordered_set<std::string>
+analyze_host_halting_macros(const nlohmann::json& config_settings);
+
 /// Check if a macro name is potentially dangerous (SAVE_CONFIG, FIRMWARE_RESTART, etc.).
 [[nodiscard]] bool is_dangerous_macro(const std::string& name);
 
@@ -61,11 +77,27 @@ analyze_host_restarting_macros(const nlohmann::json& config_settings);
 /// a confirmation is being decided; the name-only form cannot see a wrapper.
 [[nodiscard]] bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw);
 
+/// What a macro does to the Klipper host, which decides how to read a dropped rpc.
+enum class MacroHostEffect {
+    None,     ///< An ordinary macro. A failed rpc is a failure.
+    Restarts, ///< The host goes away and comes back (SAVE_CONFIG, RESTART).
+    Halts,    ///< The host goes away and stays down (M112, SHUTDOWN, EMERGENCY_STOP).
+};
+
 /// What to tell the user when a macro's G-code RPC comes back failed.
 enum class MacroFailureReport {
     Error,           ///< A genuine failure. Show it.
-    ExpectedRestart, ///< The host went away mid-command. The RPC was dropped, not failed.
+    ExpectedRestart, ///< The host went away mid-command and is coming back.
+    ExpectedHalt,    ///< The host went away mid-command and is NOT coming back.
 };
+
+/// Which effect @p name has on this printer, name check plus its own wrappers.
+///
+/// Halts wins a tie. A macro whose body reaches both a restart and a halt leaves
+/// the host down, and promising a restart there is the failure mode this
+/// distinction exists to prevent.
+[[nodiscard]] MacroHostEffect macro_host_effect(const std::string& name,
+                                                const PrinterDiscovery& hw);
 
 /// Decide which of those a failed macro RPC actually is.
 ///
@@ -85,10 +117,15 @@ enum class MacroFailureReport {
 /// vanishing host produces are absorbed; anything carrying Klipper's own
 /// complaint is still a real failure and still gets said out loud.
 ///
-/// @param macro_restarts_host  is_dangerous_macro(name, hw) - the name check
-///                             plus this printer's own wrappers.
-/// @param err                  The error the RPC came back with.
-[[nodiscard]] MacroFailureReport classify_macro_rpc_failure(bool macro_restarts_host,
+/// The halt case is why this reports three outcomes rather than two. Both are
+/// absorbed - the macro did what it said - but only a restart may arm
+/// begin_expected_klippy_restart(), which suppresses the recovery dialog. A halt
+/// needs that dialog promptly, and needs no toast of its own: the dialog says
+/// everything a toast could, and says it about a printer that has stopped.
+///
+/// @param effect  macro_host_effect(name, hw).
+/// @param err     The error the RPC came back with.
+[[nodiscard]] MacroFailureReport classify_macro_rpc_failure(MacroHostEffect effect,
                                                             const MoonrakerError& err);
 
 } // namespace helix
