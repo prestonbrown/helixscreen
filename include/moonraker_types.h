@@ -87,7 +87,7 @@ struct SafetyLimits {
     /// Record one heater's ceiling, normalizing the key the same way
     /// max_temp_for() normalizes its lookup.
     void set_max_temp_for(const std::string& heater, double max_temp) {
-        heater_max_temp_celsius[heater] = max_temp; // MUTATION
+        heater_max_temp_celsius[normalize_heater_key(heater)] = max_temp;
     }
 
     /// Fold a heater name to its map key.
