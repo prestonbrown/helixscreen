@@ -156,7 +156,7 @@ conservative prefix/suffix fallback for unknown future states
   fail states. This latch — not the motion sensor — is the authority for
   `slot_has_filament_at_toolhead()`, `can_unload_from_toolhead()`, and the NOZZLE path
   segment, because the per-tool encoder fails to drop to false after an unload on
-  current firmware (`include/ams_backend_snapmaker.h:332-348`,
+  current firmware (`include/ams_backend_snapmaker.h:352-368`,
   `ams_backend_snapmaker.cpp:500-526`).
 - **Action lifecycle and errors.** `*_fail` states and `channel_error` tokens surface as
   `AmsAction::ERROR` with a direction-aware message ("No filament in lane N. Load
@@ -208,7 +208,7 @@ because that signal cannot distinguish "stale encoder" from "preloaded 4 inches 
 the gear"; it is kept as detection infrastructure for a deferred follow-up
 (`ams_backend_snapmaker.cpp:569-593`). The active tool's port-present flag it builds on
 is still published to `AmsState::set_active_tool_port_present()` on change (#991), which
-is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1721-1742`).
+is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1741-1762`).
 
 ### Pre-Print Remap (RemapStrategy::SnapmakerNative)
 
@@ -236,7 +236,7 @@ doc's "Still UNCERTAIN" list.
 one `SET_PRINT_EXTRUDER_MAP` per user remap entry, then one
 `SET_PRINT_USED_EXTRUDERS` with the deduplicated, ascending physical-head CSV resolved
 through the remap. Logical tools 4-31 without an explicit remap fall to head 0, matching
-the firmware's default map (`ams_backend_snapmaker.cpp:1937-1986`). Full command
+the firmware's default map (`ams_backend_snapmaker.cpp:1965-2014`). Full command
 semantics — logical (0-31) vs physical (0-3) index rules, persistence behavior, the
 `filament_official` FORCE gate — live in
 [Firmware API: `print_task_config`](#firmware-api-print_task_config) below.
@@ -258,14 +258,14 @@ swapped — clear the stale override; empty UID is "no signal" and never clears;
 observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 `OverwriteAlways` so OrcaSlicer's MoonrakerPrinterAgent sees the spool, then
 `apply_overrides()` layering the user's fields back over firmware truth
-(`ams_backend_snapmaker.cpp:1672-1719`, `1755-1796`).
+(`ams_backend_snapmaker.cpp:1692-1739`, `1755-1796`).
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
-hardware swap (`include/ams_backend_snapmaker.h:361-377`). Clears preserve
+hardware swap (`include/ams_backend_snapmaker.h:381-397`). Clears preserve
 firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset only
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
-identity) (`ams_backend_snapmaker.cpp:1848-1884`).
+identity) (`ams_backend_snapmaker.cpp:1868-1904`).
 
 User edits round-trip to firmware through `POST /printer/filament_detect/set`
 (`channel` + `info` with `VENDOR`/`MAIN_TYPE`/`SUB_TYPE`/`RGB_1`/`ALPHA`/temps) — an
