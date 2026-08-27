@@ -872,6 +872,24 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     void dispatch_gcode_response(const std::string& line);
 
+    /**
+     * @brief Simulate a Klipper restart - the ONE model of what a restart does
+     *
+     * Sets klippy_state to STARTUP, clears the active print, zeroes heater
+     * targets, drops excluded objects, dispatches the webhooks status update a
+     * real restart arrives as, then returns to READY after a delay on a tracked
+     * thread (not an lv_timer - this must work in tests that never pump LVGL).
+     * Temps continue cooling naturally during the restart period.
+     *
+     * Public because the printer.restart / printer.firmware_restart handlers are
+     * free-function lambdas taking a MoonrakerClientMock*, not members. They
+     * delegate here rather than each faking a restart differently.
+     *
+     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s),
+     *                    both divided by the speedup factor
+     */
+    void trigger_restart(bool is_firmware);
+
   private:
     /**
      * @brief Populate hardware lists based on configured printer type
@@ -1029,17 +1047,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param state New state string ("printing", "paused", "complete", etc.)
      */
     void dispatch_print_state_notification(const std::string& state);
-
-    /**
-     * @brief Trigger Klipper restart simulation
-     *
-     * Sets klippy_state to STARTUP, clears active print, sets heater targets to 0,
-     * then spawns a thread to restore READY state after delay. Temps continue
-     * cooling naturally during the restart period.
-     *
-     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s)
-     */
-    void trigger_restart(bool is_firmware);
 
     /**
      * @brief Set fan speed internally and dispatch status update
