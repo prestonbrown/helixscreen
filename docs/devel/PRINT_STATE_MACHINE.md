@@ -189,7 +189,7 @@ a private previous-state variable. `PrinterPrintState` publishes
 `print_lifecycle_prev` (`include/printer_print_state.h:321`-333) from the same
 place that computes the transition, with three deliberate properties:
 
-- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp:1432`-1437). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
+- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp:1513`-1518). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
 - **Written *before* `print_lifecycle`**, so an observer firing on the new value already sees a consistent pair.
 - **Initialized to `Idle`**, so booting straight into a terminal state reads as `Idle -> Complete` and correctly does not notify.
 

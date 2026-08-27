@@ -67,7 +67,7 @@ Reference: lesson **L046**.
 **Fix:** Register in one of two places:
 
 - **Global / reusable callbacks:** `register_xml_components()` in `src/xml_registration.cpp`.
-- **Panel / modal-specific callbacks:** In the class's `register_callbacks()` method or constructor. Example: `src/ui/ui_panel_macros.cpp:85`.
+- **Panel / modal-specific callbacks:** In the class's `register_callbacks()` method or constructor. Example: `src/ui/ui_panel_macros.cpp:102`.
 
 ```cpp
 lv_xml_register_event_cb(nullptr, "on_my_button_clicked", on_my_button_clicked);

@@ -192,7 +192,7 @@ Read in this order; about 30 minutes total.
 8. [`src/application/application.cpp:1968`](../../../src/application/application.cpp#L1968) — `init_ui()`: the timed `lv_xml_create`, navbar wiring, `PanelFactory` handoff.
 9. [`src/application/application.cpp:3985`](../../../src/application/application.cpp#L3985) — `main_loop()`: read only the splash-handoff and 11s-failsafe blocks (`:4154`–`:4205`); chapter 02 owns the rest.
 10. [`src/application/application.cpp:5004`](../../../src/application/application.cpp#L5004) — `shutdown()`: walk the ladder against the "How it works" list; the long comments at `:5173` and `:5207` are the two UAF post-mortems.
-11. [`src/application/display_manager.cpp:630`](../../../src/application/display_manager.cpp#L630) — `DisplayManager::shutdown()`: `lv_deinit()` → `lv_xml_deinit()` and the style-ownership comment above them.
+11. [`src/application/display_manager.cpp:632`](../../../src/application/display_manager.cpp#L632) — `DisplayManager::shutdown()`: `lv_deinit()` → `lv_xml_deinit()` and the style-ownership comment above them.
 12. [`src/application/static_subject_registry.cpp:54`](../../../src/application/static_subject_registry.cpp#L54) — `deinit_all()`: 25 lines; the detached-copy/reverse-iteration trick.
 13. [`src/helix_watchdog.cpp:1099`](../../../src/helix_watchdog.cpp#L1099) — `run_watchdog()`: fork/supervise loop, exit-code translation at `:1221`, crash-loop branch at `:1336`.
 14. [`src/helix_watchdog.cpp:875`](../../../src/helix_watchdog.cpp#L875) — `create_crash_dialog()`: raw LVGL, hardcoded colors, countdown.
