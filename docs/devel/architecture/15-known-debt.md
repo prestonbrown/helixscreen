@@ -15,7 +15,7 @@ flowchart TD
         E["event 68"]
     end
 
-    GATE["scripts/check_imperative_ui.py<br/>baseline 380, enforced in<br/>scripts/quality-checks.sh:1289"]
+    GATE["scripts/check_imperative_ui.py<br/>baseline 380, enforced in<br/>scripts/quality-checks.sh:1583"]
     LEDGER -->|"port a site, lower the baseline"| GATE
     GATE -->|"count rises → build fails"| NEW
 
@@ -36,7 +36,7 @@ flowchart TD
 | File | Role |
 |------|------|
 | [`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) | The ratchet gate: counts imperative mutations of XML-owned widgets; `--list` prints every site |
-| [`scripts/quality-checks.sh`](../../../scripts/quality-checks.sh) | CI entry that runs the gate with `--max-allowed 380` (`:1289`) — the number to ratchet down |
+| [`scripts/quality-checks.sh`](../../../scripts/quality-checks.sh) | CI entry that runs the gate with `--max-allowed 380` (`:1583`) — the number to ratchet down |
 | [`docs/devel/SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) | Unbuilt XML-deduplication proposals and the measured limits of the expression evaluator |
 | [`src/ui/panel_widgets/fan_stack_widget.cpp`](../../../src/ui/panel_widgets/fan_stack_widget.cpp) | Duplication example: `bind_fan_observer()` (`:653`), one of a pair of twin helpers |
 | [`src/ui/panel_widgets/led_widget.cpp`](../../../src/ui/panel_widgets/led_widget.cpp) | The other twin: `bind_led()` (`:109`) with the same workaround solved independently |
@@ -65,7 +65,7 @@ Four catalogues: the ledger and its ratchet, the duplication debt, the deliberat
   TOTAL         380
 ```
 
-(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1319`](../../../scripts/quality-checks.sh#L1319) runs the gate with `--max-allowed 380`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
+(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1583`](../../../scripts/quality-checks.sh#L1583) runs the gate with `--max-allowed 380`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
 
 Where the 380 lives, by directory:
 
@@ -168,7 +168,7 @@ Every port verifies the same three ways:
 
 - **Existing imperative code is not precedent.** The 380 sites are bounded debt, not an alternative style. A nearby `lv_label_set_text()` never justifies yours.
 - **No opportunistic refactors.** Do not port an imperative site as a side effect of an unrelated change — the port and the feature get reviewed separately, and the baseline drop lands in the port commit.
-- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1319`](../../../scripts/quality-checks.sh#L1319) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
+- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1583`](../../../scripts/quality-checks.sh#L1583) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
 - **A port touches both sides.** XML edits need no rebuild, but a port *removes* C++ and *adds* XML plus registrations — the binary must be rebuilt, or the new bindings silently stay dead (chapter 01's drift trap).
 - **Annotate with a reason or not at all.** `DECLARATIVE_OK` without a real justification is a lint suppressant, and reviewers should treat it that way. If you cannot name the structural reason, it does not qualify.
 - **Duplication review is cheap at commit time.** Each forked helper above cost one question at review — "does a near-fit already exist?" — and costs a refactoring project once merged. [`REVIEW_RUBRIC.md`](../REVIEW_RUBRIC.md) carries this.
@@ -188,7 +188,7 @@ Every port verifies the same three ways:
 Read in this order; about 25 minutes total.
 
 1. [`scripts/check_imperative_ui.py:10`](../../../scripts/check_imperative_ui.py#L10) — the header comment: what is flagged, what is structurally exempt, and the ratchet philosophy. The whole chapter in 40 lines.
-2. [`scripts/quality-checks.sh:1271`](../../../scripts/quality-checks.sh#L1271) — where the baseline 380 is enforced and how a port ratchets it down.
+2. [`scripts/quality-checks.sh:1583`](../../../scripts/quality-checks.sh#L1583) — where the baseline 380 is enforced and how a port ratchets it down.
 3. [`src/ui/ui_panel_gcode_test.cpp:391`](../../../src/ui/ui_panel_gcode_test.cpp#L391) — the archetype of the 68 event sites: find by name, add callback, null-check each. First project #1 is this block.
 4. [`ui_xml/gcode_test_panel.xml:61`](../../../ui_xml/gcode_test_panel.xml#L61) — the same buttons from the XML side, callback-less today; picture the `<event_cb>` the port adds.
 5. [`src/ui/ui_overlay_network_settings.cpp:651`](../../../src/ui/ui_overlay_network_settings.cpp#L651) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.
