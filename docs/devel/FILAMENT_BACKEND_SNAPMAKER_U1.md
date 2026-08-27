@@ -156,7 +156,7 @@ conservative prefix/suffix fallback for unknown future states
   fail states. This latch — not the motion sensor — is the authority for
   `slot_has_filament_at_toolhead()`, `can_unload_from_toolhead()`, and the NOZZLE path
   segment, because the per-tool encoder fails to drop to false after an unload on
-  current firmware (`include/ams_backend_snapmaker.h:352-368`,
+  current firmware (`include/ams_backend_snapmaker.h:365-381`,
   `ams_backend_snapmaker.cpp:500-526`).
 - **Action lifecycle and errors.** `*_fail` states and `channel_error` tokens surface as
   `AmsAction::ERROR` with a direction-aware message ("No filament in lane N. Load
@@ -262,7 +262,7 @@ observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
-hardware swap (`include/ams_backend_snapmaker.h:381-397`). Clears preserve
+hardware swap (`include/ams_backend_snapmaker.h:394-410`). Clears preserve
 firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset only
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
 identity) (`ams_backend_snapmaker.cpp:1868-1904`).
