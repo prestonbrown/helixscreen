@@ -913,13 +913,19 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                 {
                                     auto restarting =
                                         helix::analyze_host_restarting_macros(settings);
-                                    if (!restarting.empty()) {
+                                    // The halting family is walked separately: a
+                                    // macro wrapping M112 leaves the host DOWN,
+                                    // and a dropped rpc from one of those must
+                                    // not promise a restart that is not coming.
+                                    auto halting = helix::analyze_host_halting_macros(settings);
+                                    if (!restarting.empty() || !halting.empty()) {
                                         spdlog::debug("[Discovery] {} macro(s) reach a host "
-                                                      "restart",
-                                                      restarting.size());
+                                                      "restart, {} reach a host halt",
+                                                      restarting.size(), halting.size());
                                     }
                                     std::lock_guard<std::mutex> lock(hardware_mutex_);
                                     hardware_.set_host_restarting_macros(std::move(restarting));
+                                    hardware_.set_host_halting_macros(std::move(halting));
                                 }
 
                                 helix::MacroFanAnalyzer analyzer;

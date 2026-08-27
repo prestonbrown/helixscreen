@@ -778,6 +778,7 @@ class PrinterDiscovery {
         // Macros
         macros_.clear();
         host_restarting_macros_.clear();
+        host_halting_macros_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
         purge_line_macro_.clear();
@@ -1184,6 +1185,23 @@ class PrinterDiscovery {
         return host_restarting_macros_;
     }
 
+    /// Macros reaching a command that leaves the host DOWN, from
+    /// helix::analyze_host_halting_macros(); stored uppercased like macros_.
+    void set_host_halting_macros(std::unordered_set<std::string> macros) {
+        host_halting_macros_ = std::move(macros);
+    }
+
+    /// Does this macro reach M112/SHUTDOWN/EMERGENCY_STOP, directly or through
+    /// another macro? Separate from macro_restarts_host() because the two differ
+    /// in what the user is promised once the rpc comes back dropped.
+    [[nodiscard]] bool macro_halts_host(const std::string& name) const {
+        return host_halting_macros_.count(to_upper(name)) > 0;
+    }
+
+    [[nodiscard]] const std::unordered_set<std::string>& host_halting_macros() const {
+        return host_halting_macros_;
+    }
+
     [[nodiscard]] std::string nozzle_clean_macro() const {
         return nozzle_clean_macro_;
     }
@@ -1563,6 +1581,7 @@ class PrinterDiscovery {
     // Macros
     std::unordered_set<std::string> macros_;
     std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
+    std::unordered_set<std::string> host_halting_macros_;    ///< Macros that reach a host halt
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;

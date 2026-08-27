@@ -192,7 +192,8 @@ MoonrakerError klipper_rejection(const char* what) {
 } // namespace
 
 TEST_CASE("A dropped rpc from a restarting macro is not a failure", "[macro][restart][1345]") {
-    const auto verdict = classify_macro_rpc_failure(true, klippy_disconnect_error());
+    const auto verdict =
+        classify_macro_rpc_failure(MacroHostEffect::Restarts, klippy_disconnect_error());
     REQUIRE(verdict == MacroFailureReport::ExpectedRestart);
 }
 
@@ -200,8 +201,99 @@ TEST_CASE("The same error from a macro that does NOT restart is still a failure"
           "[macro][restart][1345]") {
     // The flag is half the decision. A plain macro whose rpc dies because the
     // printer went away really did fail, and the user has to hear about it.
-    const auto verdict = classify_macro_rpc_failure(false, klippy_disconnect_error());
+    const auto verdict =
+        classify_macro_rpc_failure(MacroHostEffect::None, klippy_disconnect_error());
     REQUIRE(verdict == MacroFailureReport::Error);
+}
+
+// ---------------------------------------------------------------------------
+// Restart vs halt: what the user is promised once the rpc comes back dropped.
+//
+// Both families take the host away mid-command, so both absorb the false
+// "<name> failed". They differ in what happens next, and the difference is
+// user-visible: a restart comes back on its own and may suppress the recovery
+// dialog while it does; a halt sits there until someone intervenes, so the
+// dialog is exactly what the user needs and "Firmware restarting..." promises a
+// recovery that is not coming.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("A dropped rpc from a halting macro is a halt, not a restart", "[macro][restart][halt]") {
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Halts, klippy_disconnect_error()) ==
+            MacroFailureReport::ExpectedHalt);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Halts,
+                                       MoonrakerError::timeout("printer.gcode.script", 5000)) ==
+            MacroFailureReport::ExpectedHalt);
+}
+
+TEST_CASE("Klipper's own rejection of a halting macro is still reported",
+          "[macro][restart][halt]") {
+    // The halt family gets no free pass either: a macro Klipper refused to run
+    // did not stop the printer, and saying nothing would leave the user with a
+    // button that silently does nothing.
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Halts,
+                                       klipper_rejection("Unknown command:\"PANIC\"")) ==
+            MacroFailureReport::Error);
+}
+
+TEST_CASE("A macro wrapping M112 is a halt; one wrapping SAVE_CONFIG is a restart",
+          "[macro][restart][halt]") {
+    // The wrapper is the case that actually reaches a user: M112 and
+    // EMERGENCY_STOP are not gcode_macros, so they never appear in the macro
+    // list a home-screen button picks from. A user macro calling one does.
+    nlohmann::json settings = {
+        {"gcode_macro PANIC", {{"gcode", "M112"}}},
+        {"gcode_macro SAVE_IT", {{"gcode", "SAVE_CONFIG"}}},
+        {"gcode_macro PLAIN", {{"gcode", "G28"}}},
+    };
+
+    const auto halting = analyze_host_halting_macros(settings);
+    const auto restarting = analyze_host_restarting_macros(settings);
+
+    REQUIRE(halting.count("PANIC") == 1);
+    REQUIRE(halting.count("SAVE_IT") == 0);
+    REQUIRE(halting.count("PLAIN") == 0);
+
+    REQUIRE(restarting.count("SAVE_IT") == 1);
+    REQUIRE(restarting.count("PANIC") == 0);
+}
+
+TEST_CASE("The halt family propagates through a wrapper chain", "[macro][restart][halt]") {
+    // Same fixpoint the restart family gets: a name-only check cannot see two
+    // levels down, which is the whole reason analyze_* exists.
+    nlohmann::json settings = {
+        {"gcode_macro _STOP_INNER", {{"gcode", "EMERGENCY_STOP"}}},
+        {"gcode_macro STOP_MIDDLE", {{"gcode", "_STOP_INNER"}}},
+        {"gcode_macro STOP_OUTER", {{"gcode", "STOP_MIDDLE"}}},
+    };
+
+    const auto halting = analyze_host_halting_macros(settings);
+    REQUIRE(halting.count("STOP_OUTER") == 1);
+    REQUIRE(halting.count("STOP_MIDDLE") == 1);
+    REQUIRE(halting.count("_STOP_INNER") == 1);
+}
+
+TEST_CASE("A macro reaching both a restart and a halt is reported as a halt",
+          "[macro][restart][halt]") {
+    // Ties go to the halt: the host is down either way, and promising a restart
+    // is the failure this split exists to prevent.
+    helix::PrinterDiscovery hw;
+    nlohmann::json settings = {
+        {"gcode_macro CLEANUP", {{"gcode", "SAVE_CONFIG\nM112"}}},
+    };
+    hw.set_host_restarting_macros(analyze_host_restarting_macros(settings));
+    hw.set_host_halting_macros(analyze_host_halting_macros(settings));
+
+    REQUIRE(hw.macro_restarts_host("CLEANUP"));
+    REQUIRE(hw.macro_halts_host("CLEANUP"));
+    REQUIRE(macro_host_effect("CLEANUP", hw) == MacroHostEffect::Halts);
+}
+
+TEST_CASE("An ordinary macro has no host effect", "[macro][restart][halt]") {
+    helix::PrinterDiscovery hw;
+    REQUIRE(macro_host_effect("LOAD_FILAMENT", hw) == MacroHostEffect::None);
+    // And the name-only families still resolve without any discovery data.
+    REQUIRE(macro_host_effect("M112", hw) == MacroHostEffect::Halts);
+    REQUIRE(macro_host_effect("SAVE_CONFIG", hw) == MacroHostEffect::Restarts);
 }
 
 TEST_CASE("Klipper's own rejection of a restarting macro is still reported",
@@ -209,11 +301,14 @@ TEST_CASE("Klipper's own rejection of a restarting macro is still reported",
     // The trap in absorbing on the flag alone: Klipper rejects G-code through
     // the same JSON-RPC channel the disconnect arrives on. A macro that never
     // ran must not be reported as a restart in progress.
-    REQUIRE(classify_macro_rpc_failure(true, klipper_rejection("Unknown command:\"BED_LEVEL\"")) ==
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts,
+                                       klipper_rejection("Unknown command:\"BED_LEVEL\"")) ==
             MacroFailureReport::Error);
-    REQUIRE(classify_macro_rpc_failure(true, klipper_rejection("Must home axis first")) ==
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts,
+                                       klipper_rejection("Must home axis first")) ==
             MacroFailureReport::Error);
-    REQUIRE(classify_macro_rpc_failure(true, klipper_rejection("Extrude below minimum temp")) ==
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts,
+                                       klipper_rejection("Extrude below minimum temp")) ==
             MacroFailureReport::Error);
 }
 
@@ -224,17 +319,21 @@ TEST_CASE("Transport-level failures of a restarting macro are the restart",
     MoonrakerError lost;
     lost.type = MoonrakerErrorType::CONNECTION_LOST;
     lost.message = "WebSocket closed";
-    REQUIRE(classify_macro_rpc_failure(true, lost) == MacroFailureReport::ExpectedRestart);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts, lost) ==
+            MacroFailureReport::ExpectedRestart);
 
     const auto timed_out = MoonrakerError::timeout("printer.gcode.script", 300000);
-    REQUIRE(classify_macro_rpc_failure(true, timed_out) == MacroFailureReport::ExpectedRestart);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts, timed_out) ==
+            MacroFailureReport::ExpectedRestart);
 
     const auto halted = MoonrakerError::not_ready("printer.gcode.script", "Klipper is halted");
-    REQUIRE(classify_macro_rpc_failure(true, halted) == MacroFailureReport::ExpectedRestart);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts, halted) ==
+            MacroFailureReport::ExpectedRestart);
 
     // ...and none of them get absorbed for an ordinary macro.
-    REQUIRE(classify_macro_rpc_failure(false, lost) == MacroFailureReport::Error);
-    REQUIRE(classify_macro_rpc_failure(false, timed_out) == MacroFailureReport::Error);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::None, lost) == MacroFailureReport::Error);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::None, timed_out) ==
+            MacroFailureReport::Error);
 }
 
 TEST_CASE("A 503 is read as the disconnect whatever it says", "[macro][restart][1345]") {
@@ -243,18 +342,22 @@ TEST_CASE("A 503 is read as the disconnect whatever it says", "[macro][restart][
     // false failure toast.
     MoonrakerError err = klipper_rejection("Service Unavailable");
     err.code = 503;
-    REQUIRE(classify_macro_rpc_failure(true, err) == MacroFailureReport::ExpectedRestart);
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts, err) ==
+            MacroFailureReport::ExpectedRestart);
 }
 
 TEST_CASE("Disconnect wording is matched case- and phrasing-insensitively",
           "[macro][restart][1345]") {
-    REQUIRE(classify_macro_rpc_failure(true, klipper_rejection("klippy disconnected")) ==
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts,
+                                       klipper_rejection("klippy disconnected")) ==
             MacroFailureReport::ExpectedRestart);
-    REQUIRE(classify_macro_rpc_failure(true, klipper_rejection("Klippy has disconnected")) ==
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts,
+                                       klipper_rejection("Klippy has disconnected")) ==
             MacroFailureReport::ExpectedRestart);
     // Only one of the two words is not enough - "klippy" alone appears in
     // plenty of ordinary Moonraker errors.
-    REQUIRE(classify_macro_rpc_failure(true, klipper_rejection("Klippy is not ready")) ==
+    REQUIRE(classify_macro_rpc_failure(MacroHostEffect::Restarts,
+                                       klipper_rejection("Klippy is not ready")) ==
             MacroFailureReport::Error);
 }
 
@@ -265,16 +368,21 @@ TEST_CASE("The ZMOD bed-level chain reaches the report, not just the dialog",
     // being called a failure. Neither half is useful without the other.
     PrinterDiscovery hw;
     hw.set_host_restarting_macros(analyze_host_restarting_macros(zmod_bed_level_config()));
+    hw.set_host_halting_macros(analyze_host_halting_macros(zmod_bed_level_config()));
 
-    const bool restarts = is_dangerous_macro("AUTO_FULL_BED_LEVEL", hw);
-    REQUIRE(restarts);
-    REQUIRE(classify_macro_rpc_failure(restarts, klippy_disconnect_error()) ==
+    const MacroHostEffect effect = macro_host_effect("AUTO_FULL_BED_LEVEL", hw);
+    REQUIRE(effect == MacroHostEffect::Restarts);
+    REQUIRE(classify_macro_rpc_failure(effect, klippy_disconnect_error()) ==
             MacroFailureReport::ExpectedRestart);
+    // Still worth a confirmation before it runs; the split only changes what is
+    // said once the rpc comes back dropped.
+    REQUIRE(is_dangerous_macro("AUTO_FULL_BED_LEVEL", hw));
 
     // A macro from the same config that reaches nothing dangerous keeps the
     // honest error path.
-    const bool plain = is_dangerous_macro("_STOP", hw);
-    REQUIRE_FALSE(plain);
+    const MacroHostEffect plain = macro_host_effect("_STOP", hw);
+    REQUIRE(plain == MacroHostEffect::None);
+    REQUIRE_FALSE(is_dangerous_macro("_STOP", hw));
     REQUIRE(classify_macro_rpc_failure(plain, klippy_disconnect_error()) ==
             MacroFailureReport::Error);
 }
