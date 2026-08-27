@@ -334,6 +334,23 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// status frame - the phase WORDS are not, since "picking" only appears once
     /// a swap is already running and the step bar has to be built before that.
     bool direction_reported_ = false;
+    /// Whether a real non-idle operation frame ("dropping"/"picking"/"changing")
+    /// has been seen since the idle-with-gripper-open hold in
+    /// apply_tool_sensor_locked() last released. That hold exists because a
+    /// swap's own FIRST frame is idle-with-the-gripper-open, but its condition
+    /// is partly derived from the action the hold itself sets - so without a
+    /// separate signal, a machine that settles into a LATER idle-with-open
+    /// frame (e.g. an unmount that ends with the head empty and nothing to
+    /// re-grip) would keep re-satisfying the same condition forever and never
+    /// reach IDLE again. Bounding the hold with this flag means it can only
+    /// ever catch the leading idle-with-open frame: once a real operation
+    /// frame has confirmed the swap is actually running, a SUBSEQUENT idle
+    /// frame means it has settled, not recurred, and must be believed.
+    /// Reset to false when the hold releases into IDLE, and again at the start
+    /// of every fresh dispatch (begin_dispatch_locked()) in case the prior
+    /// swap reached IDLE through a path that bypassed the idle branch below
+    /// (e.g. parse_toolchanger_state() alone, on a frame with no addon data).
+    bool operation_confirmed_ = false;
 
     /**
      * @brief Parse toolchanger state from Moonraker JSON

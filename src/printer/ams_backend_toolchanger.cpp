@@ -567,15 +567,18 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     if (op == "picking") {
         system_info_.action = AmsAction::SELECTING;
         system_info_.operation_detail = op;
+        operation_confirmed_ = true;
     } else if (op == "dropping") {
         system_info_.action = AmsAction::UNLOADING;
         system_info_.operation_detail = op;
+        operation_confirmed_ = true;
     } else if (op == "changing") {
         // Direction unknown on this controller. SELECTING is the honest generic
         // "a swap is running": every caller treats it as busy, and the only
         // thing that wants the direction is the step bar, which asks separately.
         system_info_.action = AmsAction::SELECTING;
         system_info_.operation_detail = op;
+        operation_confirmed_ = true;
     } else if (op == "idle" || op == "ready") {
         // A swap RELEASES the filament before it moves, so its first frame is
         // idle-with-the-gripper-open. Reporting IDLE there ends the operation in
@@ -585,8 +588,20 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         // Tied to an operation actually being in flight, because the user can
         // open the gripper by hand from the feeder panel while genuinely idle,
         // and that must NOT read as busy.
-        if (!(feeder_state_reported_ && feeder_open_ && was_mid_operation)) {
+        //
+        // Bounded by operation_confirmed_: was_mid_operation is partly derived
+        // from the action this hold itself sets, so on its own every later
+        // idle-with-open frame would re-satisfy the condition that created it
+        // and never let go. Once a real dropping/picking/changing frame has
+        // confirmed the swap is actually running, a SUBSEQUENT idle frame means
+        // it has settled - closed normally, or open because the carriage ended
+        // empty with nothing to re-grip - not its own opening frame recurring,
+        // so it must be believed.
+        const bool holding_opening_frame = feeder_state_reported_ && feeder_open_ &&
+                                           was_mid_operation && !operation_confirmed_;
+        if (!holding_opening_frame) {
             system_info_.action = AmsAction::IDLE;
+            operation_confirmed_ = false;
             // The gripper latch is NOT cleared here. This same frame is the
             // closing grip, and the phase computation below needs the latch to
             // recognise it as such; clearing first made it report no step at the
@@ -880,6 +895,15 @@ uint64_t AmsBackendToolChanger::begin_dispatch_locked(AmsAction action) {
     // drops it, so it can never resolve the operation now running.
     const uint64_t generation = ++dispatch_generation_;
     pending_dispatch_action_ = action;
+
+    // A prior swap can reach IDLE without ever passing through the idle/ready
+    // branch of apply_tool_sensor_locked() - e.g. a frame carrying only
+    // toolchanger.status == "ready" with no addon data in it, parsed by
+    // parse_toolchanger_state() alone - which would leave operation_confirmed_
+    // stale at true. Left alone, THIS dispatch's own opening idle-with-open
+    // frame would fail to hold: a stale "already confirmed" skips the hold
+    // just as surely as a genuinely settled swap does.
+    operation_confirmed_ = false;
 
     system_info_.action = action;
     // Otherwise the sidebar keeps showing the previous operation's detail (the

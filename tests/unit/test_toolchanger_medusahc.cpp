@@ -597,6 +597,74 @@ TEST_CASE("An idle frame with the gripper open does not end a running swap",
     CHECK(idle_tc.get_current_action() == AmsAction::IDLE);
 }
 
+TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
+          "[ams][toolchanger][steps]") {
+    // A real firmware unmount can end with the carriage empty and nothing to
+    // re-grip, so the gripper stays open on the swap's LAST idle frame too -
+    // the other helpers in this file always close it before ending, so this
+    // drives the backend through a real dropping frame first. Before the fix,
+    // the hold in apply_tool_sensor_locked() re-armed itself forever:
+    // was_mid_operation is partly derived from the action the hold itself
+    // sets, so every later idle+open frame satisfied the same condition that
+    // created it and the backend never reached IDLE again.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // Settle at idle with tool 0 mounted.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    // The unmount releases the filament and confirms it is actually running.
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(tc.get_current_action() != AmsAction::IDLE);
+
+    // The head ends up empty, and the gripper never re-closes over nothing.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(tc.get_system_info().is_busy());
+
+    // A later swap must still get the ordinary hold on ITS OWN opening frame -
+    // the fix must not have removed the hold outright, and the bound must have
+    // reset rather than staying latched true from the aborted swap above.
+    REQUIRE(tc.change_tool(1).success());
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() != AmsAction::IDLE);
+}
+
+TEST_CASE("A fresh dispatch gets its own hold even after a stale confirmation",
+          "[ams][toolchanger][steps]") {
+    // toolchanger.status can settle back to "ready" in a frame that carries no
+    // medusahc data at all - parse_toolchanger_state() sets IDLE straight from
+    // that, bypassing the idle/ready branch in apply_tool_sensor_locked() that
+    // normally resets operation_confirmed_. Left stale at true from an earlier
+    // confirmed swap, a LATER dispatch's own opening idle-with-open frame
+    // would read "already confirmed" and skip the hold instead of starting
+    // one. begin_dispatch_locked() has to re-arm the bound itself for this
+    // reason.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // Confirm a swap is running (operation_confirmed_ -> true)...
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(tc.get_current_action() != AmsAction::IDLE);
+
+    // ...then let it settle via the OTHER status source, bypassing the reset.
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    // A brand new dispatch must still get the ordinary hold on its own
+    // opening frame, not read the stale confirmation as its own.
+    REQUIRE(tc.change_tool(1).success());
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() != AmsAction::IDLE);
+}
+
 // ============================================================================
 // Wording and refusals
 // ============================================================================
