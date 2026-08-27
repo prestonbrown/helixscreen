@@ -101,7 +101,7 @@ struct ScopedCountingBackend {
         // The confirmation observer hangs off AmsState's data-revision subject.
         // Without init_subjects() that subject is never initialized, so it
         // notifies nobody and every confirmation silently fails to arrive.
-        AmsState::instance().init_subjects(false);
+        AmsState::instance().init_subjects(true);
         auto be = std::make_unique<CountingAfcBackend>();
         be->current = std::move(current_mapping);
         backend = be.get();

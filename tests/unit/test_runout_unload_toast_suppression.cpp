@@ -127,7 +127,7 @@ class UnloadToastFixture : public LVGLTestFixture {
   public:
     UnloadToastFixture() {
         get_printer_state().init_subjects(false);
-        AmsState::instance().init_subjects(false);
+        AmsState::instance().init_subjects(true);
         // No AMS backend: the post-unload grace is the ONLY thing that can
         // suppress the warning here, so a pass cannot be some other gate's doing.
         AmsState::instance().clear_backends();

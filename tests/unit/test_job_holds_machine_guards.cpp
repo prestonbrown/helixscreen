@@ -99,7 +99,7 @@ class Ad5xToastFixture : public LVGLTestFixture {
         printer_state.init_subjects(false);
 
         AmsState::instance().deinit_subjects();
-        AmsState::instance().init_subjects(false);
+        AmsState::instance().init_subjects(true);
         AmsState::instance().set_backend(std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr));
 
         PostUnloadGraceTestAccess::reset(mgr);

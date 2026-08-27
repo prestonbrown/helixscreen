@@ -106,7 +106,7 @@ TEST_CASE("AmsState self-registers cleanup on init_subjects", "[shutdown][self-r
     AmsState::instance().deinit_subjects();
     registry.clear();
 
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
 
     REQUIRE(registry.count() > 0);
 

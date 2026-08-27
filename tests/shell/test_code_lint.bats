@@ -665,3 +665,54 @@ EOF
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
+
+# --- AmsState is initialized with its XML names, always -------------------------
+#
+# AmsState is a process-wide singleton and init_subjects() returns early once
+# initialized_ is set, so the FIRST call in a test binary decides whether the
+# `ams_*` XML names exist. A single init_subjects(false) - written because the
+# test under it binds through the C++ accessors - leaves lv_xml_get_subject()
+# answering null for every later case in the same shard, and an XML layout that
+# binds one of those names comes up empty rather than erroring. Four
+# clog_detection cases went red exactly this way, and only in the shard split
+# that put an ams_slot case first, which is why the shard order looked like the
+# bug. Publishing costs a test nothing: XML subjects share one global scope in
+# the test build whatever this argument says.
+
+ams_state_unpublished_init_files() {
+    grep -rlE 'AmsState::instance\(\)\.init_subjects\([[:space:]]*false' "$@" 2>/dev/null || true
+}
+
+@test "no test initializes AmsState without its XML names" {
+    run ams_state_unpublished_init_files tests/ --include='*.cpp' --include='*.h'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the AmsState init gate fires on a false register_xml" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local d="${BATS_TEST_TMPDIR}/ams_unpublished"
+    mkdir -p "$d"
+    cat > "$d/offender.cpp" <<'EOF'
+TEST_CASE("binds through the C++ accessor only") {
+    AmsState::instance().init_subjects(false);
+}
+EOF
+    run ams_state_unpublished_init_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"offender.cpp"* ]]
+}
+
+@test "the AmsState init gate stays quiet on a published init" {
+    local d="${BATS_TEST_TMPDIR}/ams_published"
+    mkdir -p "$d"
+    cat > "$d/ok.cpp" <<'EOF'
+TEST_CASE("publishes the names") {
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().init_subjects();
+}
+EOF
+    run ams_state_unpublished_init_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}

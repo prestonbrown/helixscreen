@@ -36,7 +36,7 @@ namespace {
 /// Install a 4-slot mock backend so dispatch reaches real backend calls
 /// rather than short-circuiting on the "no MFS available" guard.
 void install_mock_backend() {
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     auto mock = AmsBackend::create_mock(4);
     AmsState::instance().set_backend(std::move(mock));
     AmsState::instance().sync_from_backend();
@@ -101,7 +101,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: EJECT reaches the backend",
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: claims actions even with no backend",
                  "[ui][ams][context_menu][dispatch][1258]") {
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     AmsState::instance().set_backend(nullptr);
 
     // With no MFS the user still gets a warning toast — the action is handled,

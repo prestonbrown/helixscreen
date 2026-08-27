@@ -62,7 +62,7 @@ struct AutoMatchFixture : public LVGLTestFixture {
         // set_backend() publishes into AmsState's subjects; without this they
         // are uninitialized. register_xml=false keeps the names out of the
         // process-wide XML scope.
-        AmsState::instance().init_subjects(false);
+        AmsState::instance().init_subjects(true);
     }
 
     ~AutoMatchFixture() override {

@@ -774,7 +774,7 @@ TEST_CASE_METHOD(ToolStateFixture,
     REQUIRE(mock->start());
     auto* mock_ptr = mock.get();
     AmsState::instance().deinit_subjects();
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     AmsState::instance().set_backend(std::move(mock));
     REQUIRE(AmsState::instance().get_backend() != nullptr);
 
@@ -839,7 +839,7 @@ TEST_CASE_METHOD(
     // Set up AMS backend with 0 slots (loaded but no hardware configured)
     auto mock = std::make_unique<AmsBackendMock>(0);
     mock->set_operation_delay(0);
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     AmsState::instance().set_backend(std::move(mock));
 
     // With 0 slots, backend_manages_tool is false → falls through to gcode path.
@@ -893,7 +893,7 @@ TEST_CASE_METHOD(
     ts.init_subjects(false);
 
     // Clear any AMS backend from previous tests
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     AmsState::instance().set_backend(nullptr);
 
     helix::PrinterDiscovery hw;

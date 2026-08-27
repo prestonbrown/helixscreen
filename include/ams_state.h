@@ -149,7 +149,16 @@ class AmsState {
      * Can be called multiple times safely - subsequent calls are ignored.
      *
      * @param register_xml If true, registers subjects with LVGL XML system (default).
-     *                     Set to false in tests to avoid XML observer creation.
+     *
+     * Pass true. On this process-wide singleton the FIRST call decides: a later
+     * init_subjects(true) hits the already-initialized guard and returns without
+     * publishing anything, so one register_xml=false leaves lv_xml_get_subject()
+     * answering null for the rest of the process and every XML binding on an
+     * `ams_*` name resolves to nothing instead of failing. A test that binds
+     * only through the C++ accessors still costs nothing by publishing - XML
+     * subjects live in one global scope in the test build either way. Enforced
+     * by "no test initializes AmsState without its XML names" in
+     * tests/shell/test_code_lint.bats.
      */
     void init_subjects(bool register_xml = true);
 

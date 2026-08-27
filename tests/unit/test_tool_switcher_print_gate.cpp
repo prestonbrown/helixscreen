@@ -97,7 +97,7 @@ struct ToolSwitcherGateFixture : public LVGLTestFixture {
         REQUIRE(backend_owned->start());
         backend = backend_owned.get();
         AmsState::instance().deinit_subjects();
-        AmsState::instance().init_subjects(false);
+        AmsState::instance().init_subjects(true);
         AmsState::instance().set_backend(std::move(backend_owned));
 
         helix::ui::set_test_notification_warning_hook(

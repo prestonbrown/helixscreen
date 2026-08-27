@@ -156,7 +156,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: out-of-range fill subject value c
     // -1 "no data" skip are covered by "fill renders from subject without panel
     // push".
     ui_ams_slot_register();
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
 
     lv_subject_t* fill = AmsState::instance().get_slot_fill_subject(0);
     REQUIRE(fill != nullptr);
@@ -178,9 +178,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: out-of-range fill subject value c
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: fill renders from subject without panel push",
                  "[ui][ams_slot][fill]") {
     ui_ams_slot_register();
-    // init_subjects is idempotent on the shared singleton; register_xml=false is
-    // fine because the widget observes via the C++ accessor, not an XML name.
-    AmsState::instance().init_subjects(false);
+    // Always register_xml=true on this shared singleton, even though the widget
+    // observes via the C++ accessor: the initialized_ guard makes the FIRST init
+    // in the process decide, so a false here leaves the XML names unpublished
+    // for every later case in the same shard.
+    AmsState::instance().init_subjects(true);
 
     // Write the per-slot fill subject exactly as sync_from_backend would (50%).
     lv_subject_t* fill = AmsState::instance().get_slot_fill_subject(0);
@@ -218,9 +220,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: fill renders from subject without
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject without panel push",
                  "[ui][ams_slot][material][1065]") {
     ui_ams_slot_register();
-    // The widget observes via the C++ accessor, not an XML name, so
-    // register_xml=false is fine (mirrors the fill test).
-    AmsState::instance().init_subjects(false);
+    // register_xml=true for the shared-singleton reason in the fill test above.
+    AmsState::instance().init_subjects(true);
 
     // Seed the per-slot material subject exactly as sync_from_backend would.
     lv_subject_t* mat = AmsState::instance().get_slot_material_subject(0);
@@ -308,8 +309,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material label binds to subject",
     // LVGLUITestFixture does not init AmsState subjects. Without this the
     // per-slot material subject is raw memory, sync_from_backend()'s
     // lv_subject_copy_string lands nowhere, and the label stays at "--".
-    // register_xml=false is enough — the widget observes via the C++ accessor.
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
 
     // Set up mock backend with known data
     auto mock = AmsBackend::create_mock(4);
