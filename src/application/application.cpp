@@ -3434,6 +3434,15 @@ void Application::setup_discovery_callbacks() {
                                                                          std::string log_context) {
                 helix::ui::queue_update([spool, try_assign_active_spool_to_tool,
                                          log_context = std::move(log_context)]() {
+                    // An AMS slot assignment sets Moonraker's global active spool
+                    // too, so mirroring it onto the bypass unconditionally used to
+                    // overwrite the bypass with whichever lane was assigned last.
+                    if (!AmsState::instance().active_spool_describes_bypass()) {
+                        spdlog::debug("[Application] Active spool {} belongs to a lane, not the "
+                                      "bypass — not syncing external spool",
+                                      spool.id);
+                        return;
+                    }
                     // This record is the freshest view of the spool we will get
                     // — it arrives from the startup sync and from every
                     // notify_active_spool_set. Refresh the identity side
@@ -3530,9 +3539,23 @@ void Application::setup_discovery_callbacks() {
                         }
 
                         if (spool_id <= 0) {
-                            spdlog::info("[Application] Active spool cleared via notification");
-                            helix::ui::queue_update(
-                                []() { AmsState::instance().clear_external_spool_info(); });
+                            // Same global-vs-bypass confusion as the sync arm, with
+                            // a worse blast radius: clearing an AMS lane makes
+                            // commit_slot_edit post set_active_spool(0), which comes
+                            // straight back as this notification. Taken at face
+                            // value it erased the whole bypass record — one tap on a
+                            // lane's "Clear Spool" and the user's bypass assignment
+                            // was gone.
+                            helix::ui::queue_update([]() {
+                                auto& ams = AmsState::instance();
+                                if (!ams.active_spool_describes_bypass()) {
+                                    spdlog::debug("[Application] Active spool cleared for a lane, "
+                                                  "not the bypass — keeping external spool");
+                                    return;
+                                }
+                                spdlog::info("[Application] Active spool cleared via notification");
+                                ams.clear_external_spool_info();
+                            });
                             return;
                         }
 

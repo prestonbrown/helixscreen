@@ -267,6 +267,23 @@ class AmsState {
     [[nodiscard]] bool any_bypass_active() const;
 
     /**
+     * @brief Does Moonraker's global active Spoolman spool describe the bypass?
+     *
+     * Spoolman models "active spool" as a single global value, but HelixScreen
+     * has one bypass record plus N lanes, and an AMS slot edit sets the active
+     * spool too (commit_slot_edit's link/unlink arms). So the active spool
+     * identifies the bypass only when the bypass is the path actually in use —
+     * or when there is no AMS at all and nothing else could own it.
+     *
+     * Both arms of Application's notify_active_spool_set handler must ask this
+     * before writing the bypass record. Without it, assigning a spool to lane 3
+     * overwrote the bypass with that lane's spool, and clearing lane 3 erased
+     * the bypass record entirely (the unlink arm posts spool_id=0, and the
+     * handler's clear arm took that at face value).
+     */
+    [[nodiscard]] bool active_spool_describes_bypass() const;
+
+    /**
      * @brief Does auto (color+type) lane matching apply for the active backend?
      *
      * The other companion to collect_available_slots(): the toggle-aware flag
