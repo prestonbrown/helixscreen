@@ -352,6 +352,25 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// (e.g. parse_toolchanger_state() alone, on a frame with no addon data).
     bool operation_confirmed_ = false;
 
+    /// Snapshot of feeder_state_reported_ / direction_reported_ taken the last
+    /// time get_operation_step_model() built a sequence. step_index_for_phase_locked()
+    /// resolves its index against this SAME snapshot, not whatever the latches
+    /// read right now: the model is captured once (at operation start, by the
+    /// sidebar) while the index is recomputed on every frame, and Moonraker
+    /// republishes only the fields that CHANGED. A latch that flips mid-
+    /// operation without the model being rebuilt would otherwise put the index
+    /// computation against a longer/different sequence than the one actually
+    /// on screen. get_operation_step_model() is const, so these are mutable.
+    ///
+    /// step_model_captured_ stays false until the first call: nothing has
+    /// pinned a sequence yet, so step_index_for_phase_locked() falls back to
+    /// the LIVE latches rather than the (false, false) power-on default, which
+    /// would otherwise build an always-empty sequence for any caller that asks
+    /// for the phase without ever having asked for the model first.
+    mutable bool step_model_captured_ = false;
+    mutable bool step_model_feeder_reported_ = false;
+    mutable bool step_model_direction_reported_ = false;
+
     /**
      * @brief Parse toolchanger state from Moonraker JSON
      *

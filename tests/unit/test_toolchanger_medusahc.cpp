@@ -563,6 +563,40 @@ TEST_CASE("A phase-less frame leaves the step alone", "[ams][toolchanger][steps]
     CHECK(tc.get_system_info().operation_phase == 1);
 }
 
+TEST_CASE("The step index stays pinned to the model actually on screen",
+          "[ams][toolchanger][steps]") {
+    // get_operation_step_model() and step_index_for_phase_locked() both derive
+    // their sequence from tc_step_sequence(), but the model is captured once
+    // (by the sidebar, at operation start) while the index is recomputed on
+    // EVERY frame from whatever feeder_state_reported_/direction_reported_
+    // read right then. A machine whose early frames carry `operation` without
+    // `feeder_open` gets a 2-step model (Dock/Pick); before the fix, the
+    // moment a later frame reported feeder_open for the FIRST time, the index
+    // computation would silently start resolving against the 4-step
+    // Release/Dock/Pick/Grip sequence instead - landing "dropping" on index 1
+    // (Pick, on the model actually rendered) instead of 0 (Dock).
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
+
+    // No feeder_open field at all yet: feeder_state_reported_ stays false.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
+    REQUIRE(tc.change_tool(2).success());
+
+    // The sidebar captures the model at operation start, before feeder_open
+    // has ever been reported on this backend.
+    const auto model = tc.get_operation_step_model(StepOperationType::LOAD_SWAP);
+    REQUIRE(step_labels(model) == std::vector<std::string>{"Dock tool", "Pick up tool"});
+
+    // The FIRST frame to ever report feeder_open arrives mid-operation.
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    // Against the 2-step model actually on screen, "dropping" is step 0
+    // (Dock) - not step 1, which is only where Dock sits in the 4-step
+    // sequence this same frame would build if the model were asked for fresh.
+    CHECK(tc.get_system_info().operation_phase == 0);
+}
+
 TEST_CASE("An idle frame with the gripper open does not end a running swap",
           "[ams][toolchanger][steps]") {
     // A swap RELEASES the filament before it moves, so its first frame is

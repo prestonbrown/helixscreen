@@ -221,9 +221,21 @@ namespace {
 /// One step in a tool changer's operation bar.
 ///
 /// Which steps a machine gets depends on what it reports, so the MODEL and the
-/// phase-to-index mapping are both derived from tc_step_sequence() below. They
-/// cannot drift: a step added to the sequence appears in the bar and is
-/// addressable by the same index in the same edit.
+/// phase-to-index mapping are both derived from tc_step_sequence() below - but
+/// at DIFFERENT times: the model once, when the sidebar builds the bar, and
+/// the index on every frame after. Deriving both from the same function does
+/// not by itself keep them in sync - the feeder/direction latches the
+/// sequence depends on can flip between those two moments (Moonraker
+/// republishes only what CHANGED), so a step index recomputed against the
+/// CURRENT latches is not guaranteed to match the sequence the bar was
+/// actually built from.
+///
+/// What actually prevents that: get_operation_step_model() snapshots the
+/// latches into step_model_feeder_reported_ / step_model_direction_reported_,
+/// and step_index_for_phase_locked() resolves against that SAME snapshot
+/// rather than the live latches. Once a model exists, its index is pinned to
+/// the exact sequence it was built from until the next model build refreshes
+/// the snapshot.
 enum class TcStep { Release, Dock, Pick, Change, Grip };
 
 /// Steps this machine can actually drive, in order.
@@ -286,7 +298,14 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     OperationStepModel model;
-    const auto sequence = tc_step_sequence(op, feeder_state_reported_, direction_reported_);
+    // Snapshot the latches this model is built from: step_index_for_phase_locked()
+    // must resolve every frame's index against this SAME sequence, not
+    // whatever the latches read by the time a later frame arrives.
+    step_model_feeder_reported_ = feeder_state_reported_;
+    step_model_direction_reported_ = direction_reported_;
+    step_model_captured_ = true;
+    const auto sequence =
+        tc_step_sequence(op, step_model_feeder_reported_, step_model_direction_reported_);
     int index = 0;
     for (TcStep step : sequence) {
         model.steps.push_back({lv_tr(tc_step_label(step)), index++, false, /*live_temp=*/false});
@@ -312,9 +331,19 @@ int AmsBackendToolChanger::step_index_for_phase_locked(const std::string& operat
                                                        bool mid_operation) const {
     // Against the operation the sidebar is CURRENTLY rendering: load, unload and
     // swap have different-length sequences, so an index is only meaningful
-    // relative to one of them.
+    // relative to one of them. And, once a model has actually been built,
+    // against the SAME feeder/direction snapshot get_operation_step_model()
+    // built that sequence from - not the live latches, which can flip mid-
+    // operation without the rendered model being rebuilt (see
+    // step_model_feeder_reported_ in the header). Before the first model is
+    // ever built, there is nothing to stay pinned to, so fall back to the
+    // live latches rather than the snapshot's (false, false) power-on default.
+    const bool has_feeder =
+        step_model_captured_ ? step_model_feeder_reported_ : feeder_state_reported_;
+    const bool names_direction =
+        step_model_captured_ ? step_model_direction_reported_ : direction_reported_;
     const auto sequence = tc_step_sequence(AmsState::instance().get_active_step_operation(),
-                                           feeder_state_reported_, direction_reported_);
+                                           has_feeder, names_direction);
     if (sequence.empty()) {
         return -1;
     }
@@ -341,7 +370,7 @@ int AmsBackendToolChanger::step_index_for_phase_locked(const std::string& operat
         // observes the stale end index the instant it is built and paints itself
         // complete before the carriage has moved. Snapmaker and AD5X park at -1
         // when idle for the same reason.
-        if (!feeder_state_reported_ || !mid_operation) {
+        if (!has_feeder || !mid_operation) {
             return -1;
         }
         if (feeder_open_) {
