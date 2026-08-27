@@ -10,8 +10,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <map>
-#include <mutex>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -909,6 +909,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// MoonrakerClientMock*, not members.
     double tool_z_offset(int tool) const;
 
+    /// Klipper's configfile.save_config_pending - whether a SAVE_CONFIG is owed.
+    /// Set by anything routed through configfile.set() (here:
+    /// SAVE_TOOL_PARAMETER), cleared when SAVE_CONFIG commits.
+    bool save_config_pending() const;
+
+    /// Klipper's configfile.save_config_pending_items, {section: {option:
+    /// value}} with STRING values - configfile.set() stores str(value).
+    nlohmann::json save_config_pending_items() const;
+
   private:
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
@@ -1102,6 +1111,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void dispatch_gcode_move_update();
     /// Republish one tool's gcode_z_offset after SET_TOOL_PARAMETER.
     void dispatch_tool_update(int tool);
+
+    /// Klipper's configfile.set(): stage one option for the next SAVE_CONFIG.
+    /// Does NOT change any runtime value - on a real printer the runtime write
+    /// already happened (SET_TOOL_PARAMETER) and this only marks the config
+    /// dirty.
+    void stage_config_change(const std::string& section, const std::string& option,
+                             const std::string& value);
+
+    /// Klipper's cmd_SAVE_CONFIG: fold the staged options into the durable
+    /// stores and clear the pending set. The restart is the caller's, matching
+    /// Klipper, where writing the file and restarting are separate steps.
+    void commit_pending_config();
+
+    /// Republish configfile.save_config_pending{,_items}.
+    void dispatch_configfile_update();
 
     /**
      * @brief Dispatch manual_probe status update (for Z-offset calibration)
@@ -1463,6 +1487,19 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// display can have — look correct.
     mutable std::mutex tool_z_offsets_mutex_;
     std::map<int, double> tool_z_offsets_;
+    /// The durable copy - what printer.cfg holds, i.e. what the tool comes back
+    /// with after a restart. SAVE_CONFIG commits the staged values into here.
+    ///
+    /// Keeping this SEPARATE from the runtime map is the whole point: without
+    /// it an offset that was set and never saved survived a restart too, so the
+    /// mock could not tell a persisted save from a forgotten one and no test of
+    /// the persist path could fail.
+    std::map<int, double> tool_z_offsets_saved_;
+
+    /// Klipper's configfile.save_config_pending_items - {section: {option:
+    /// value}}, values stringified as configfile.set() does.
+    mutable std::mutex pending_config_mutex_;
+    std::map<std::string, std::map<std::string, std::string>> pending_config_items_;
 
     // Manual probe state (for Z-offset calibration: PROBE_CALIBRATE, TESTZ, ACCEPT, ABORT)
     std::atomic<bool> manual_probe_active_{false}; // true when in probe mode

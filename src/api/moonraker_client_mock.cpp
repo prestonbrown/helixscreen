@@ -2459,6 +2459,10 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (gcode.find("SAVE_CONFIG") != std::string::npos) {
         spdlog::info("[MoonrakerClientMock] SAVE_CONFIG - config written; restarting, and its "
                      "RPC is dropped (as on real Klipper)");
+        // Write the file BEFORE restarting, in that order, because the restart
+        // reloads every runtime value from the durable stores. Committing after
+        // would reload the pre-save values and throw the save away.
+        commit_pending_config();
         trigger_restart(/*is_firmware=*/false);
         {
             std::lock_guard<std::mutex> lock(gcode_error_mutex_);
@@ -2614,6 +2618,31 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
                 spdlog::info("[MoonrakerClientMock] SET_TOOL_PARAMETER T={} gcode_z_offset={:.3f}",
                              tool, value);
                 dispatch_tool_update(tool);
+            } catch (...) {
+            }
+        }
+    }
+
+    // Per-tool z-offset, durable half - SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset
+    //
+    // klipper-toolchanger's Tool.save_parameter() is configfile.set(self.name,
+    // name, self.params[name]): it persists whatever the tool ALREADY holds and
+    // takes no VALUE=. So this stages the current runtime value and changes
+    // nothing live - the change only lands when SAVE_CONFIG writes it out.
+    if (gcode.find("SAVE_TOOL_PARAMETER") != std::string::npos &&
+        gcode.find("PARAMETER=gcode_z_offset") != std::string::npos) {
+        auto t_pos = gcode.find("T=");
+        if (t_pos != std::string::npos) {
+            try {
+                int tool = std::stoi(gcode.substr(t_pos + 2));
+                char value[32];
+                std::snprintf(value, sizeof(value), "%.6g", tool_z_offset(tool));
+                // Section is Klipper's config section verbatim, which for
+                // [tool T1] is "tool T1" - the same key the status object uses.
+                stage_config_change("tool T" + std::to_string(tool), "gcode_z_offset", value);
+                spdlog::info("[MoonrakerClientMock] SAVE_TOOL_PARAMETER T={} gcode_z_offset={} "
+                             "- staged, awaiting SAVE_CONFIG",
+                             tool, value);
             } catch (...) {
             }
         }
@@ -4982,6 +5011,72 @@ double MoonrakerClientMock::tool_z_offset(int tool) const {
     return -0.025 * tool;
 }
 
+bool MoonrakerClientMock::save_config_pending() const {
+    std::lock_guard<std::mutex> lock(pending_config_mutex_);
+    return !pending_config_items_.empty();
+}
+
+json MoonrakerClientMock::save_config_pending_items() const {
+    std::lock_guard<std::mutex> lock(pending_config_mutex_);
+    json items = json::object();
+    for (const auto& [section, options] : pending_config_items_) {
+        json opts = json::object();
+        for (const auto& [option, value] : options) {
+            opts[option] = value;
+        }
+        items[section] = opts;
+    }
+    return items;
+}
+
+void MoonrakerClientMock::stage_config_change(const std::string& section, const std::string& option,
+                                              const std::string& value) {
+    {
+        std::lock_guard<std::mutex> lock(pending_config_mutex_);
+        pending_config_items_[section][option] = value;
+    }
+    dispatch_configfile_update();
+}
+
+void MoonrakerClientMock::commit_pending_config() {
+    std::map<std::string, std::map<std::string, std::string>> pending;
+    {
+        std::lock_guard<std::mutex> lock(pending_config_mutex_);
+        pending.swap(pending_config_items_);
+    }
+    if (pending.empty()) {
+        return;
+    }
+    for (const auto& [section, options] : pending) {
+        // "tool T<n>" is the only section anything here stages. Others are
+        // accepted and cleared without a durable store, which is enough to
+        // model the pending flag for features that only care a save is owed.
+        if (section.rfind("tool T", 0) != 0) {
+            continue;
+        }
+        auto opt = options.find("gcode_z_offset");
+        if (opt == options.end()) {
+            continue;
+        }
+        try {
+            int tool = std::stoi(section.substr(6));
+            std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
+            tool_z_offsets_saved_[tool] = std::stod(opt->second);
+        } catch (...) {
+        }
+    }
+    spdlog::info("[MoonrakerClientMock] SAVE_CONFIG committed {} pending section(s)",
+                 pending.size());
+    dispatch_configfile_update();
+}
+
+void MoonrakerClientMock::dispatch_configfile_update() {
+    json update = {{"configfile",
+                    {{"save_config_pending", save_config_pending()},
+                     {"save_config_pending_items", save_config_pending_items()}}}};
+    dispatch_status_update(update);
+}
+
 // ============================================================================
 // Manual Probe Helper Methods (Z-offset calibration)
 // ============================================================================
@@ -5425,6 +5520,15 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
 
     // Reset PRINT_START simulation phase
     simulated_print_start_phase_.store(static_cast<uint8_t>(SimulatedPrintStartPhase::NONE));
+
+    // Per-tool z-offsets come back from printer.cfg, so anything SET_TOOL_PARAMETER
+    // wrote but SAVE_TOOL_PARAMETER + SAVE_CONFIG never committed is lost here -
+    // as on a real printer. Tools with no saved entry fall back to the distinct
+    // seed in tool_z_offset().
+    {
+        std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
+        tool_z_offsets_ = tool_z_offsets_saved_;
+    }
 
     // Dispatch klippy state change notification
     json status = {{"webhooks",
