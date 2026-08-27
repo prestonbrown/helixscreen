@@ -171,7 +171,14 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// feeds or purges, so the filament vocabulary never saw the operation at
     /// all - neither its start nor, half way through, its continuation.
     [[nodiscard]] bool action_tracks_step_operation(AmsAction action) const override {
-        return action == AmsAction::SELECTING || action == AmsAction::UNLOADING;
+        // HEATING is here despite a changer never heating: it is the optimistic
+        // marker AmsOperationSidebar::start_operation() sets the moment a user
+        // starts an operation, before any frame arrives. Omitting it made the
+        // sidebar hide the bar and clear target_load_slot_ on our OWN dispatch,
+        // after which the rest of a user-initiated swap read as externally
+        // started.
+        return action == AmsAction::SELECTING || action == AmsAction::UNLOADING ||
+               action == AmsAction::HEATING;
     }
 
     /// Explains the one refusal a user can do something about: the dock sensors
@@ -307,6 +314,21 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// feeder_open is not the machine retracting the capability.
     bool feeder_open_ = false;
     bool feeder_state_reported_ = false;
+    /// Dock sensors cannot say what is on the head. Latched rather than inferred
+    /// from current_slot, because the sensor-error path deliberately HOLDS the
+    /// last known tool: current_slot stays >= 0 through the fault and names a
+    /// tool that may not be there.
+    bool sensor_error_ = false;
+    /// The gripper has been open at some point during the operation currently
+    /// running. Cleared when it ends.
+    ///
+    /// Without this, idle-with-the-gripper-closed is ambiguous in a THIRD way:
+    /// it is the resting state, it is the closing grip at the end of a swap, and
+    /// it is also every frame between dispatching SELECT_TOOL and the machine
+    /// actually moving. Treating that last one as the closing grip paints the
+    /// bar complete for the second before the swap starts. The closing grip is
+    /// only recognisable once the gripper has actually opened.
+    bool feeder_opened_this_operation_ = false;
     /// Whether this machine's phase word names the swap DIRECTION. Latched from
     /// ToolReading::phase_names_direction, which is answerable from the first
     /// status frame - the phase WORDS are not, since "picking" only appears once
@@ -327,8 +349,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
 
     /// Step index for `operation` under the model this machine gets, or -1 when
-    /// the phase does not map to a step. Caller holds mutex_.
-    int step_index_for_phase_locked(const std::string& operation) const;
+    /// the phase does not map to a step. `mid_operation` says whether a swap was
+    /// running when the frame arrived, which is the only thing separating the
+    /// closing grip of one from the resting closed gripper. Caller holds mutex_.
+    int step_index_for_phase_locked(const std::string& operation, bool mid_operation) const;
 
     /// Layer the user's stored spool metadata over a slot. Caller holds mutex_.
     ///
