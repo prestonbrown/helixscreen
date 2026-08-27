@@ -1508,6 +1508,26 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 }
             }
 
+            // Snapshot the routing while the task is still configured. Both
+            // fields are members, so this is evaluated against the accumulated
+            // state rather than only what THIS frame carried — an incremental
+            // update that names one of them still lands on the right answer.
+            //
+            // This is the only moment the routing is knowable. Once the print
+            // ends the firmware clears extruders_used and resets the table, and a
+            // reprint has nothing left to read: no detail view, no picker, no
+            // colour match to recompute. An empty table is never snapshotted —
+            // "known: nothing" is indistinguishable from a real answer to the
+            // caller, and the honest value is "not known".
+            const bool task_configured_now = std::any_of(
+                extruders_used_.begin(), extruders_used_.end(), [](bool b) { return b; });
+            if (task_configured_now && !extruder_map_table_.empty() &&
+                last_task_extruder_map_ != extruder_map_table_) {
+                last_task_extruder_map_ = extruder_map_table_;
+                spdlog::debug("[AMS Snapmaker] recorded task routing ({} entries) for reprint",
+                              last_task_extruder_map_.size());
+            }
+
             // filament_exist: [bool, bool, bool, bool] — whether filament is loaded per slot
             if (ptc.contains("filament_exist") && ptc["filament_exist"].is_array()) {
                 const auto& exist_arr = ptc["filament_exist"];
@@ -1932,6 +1952,14 @@ std::vector<int> AmsBackendSnapmaker::get_tool_mapping() const {
         return {};
     }
     return extruder_map_table_;
+}
+
+std::vector<int> AmsBackendSnapmaker::last_print_tool_mapping() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Deliberately NOT gated on a task being configured: the whole point is to
+    // answer after the task has ended, which is when a reprint asks. Empty means
+    // no configured task has ever been observed.
+    return last_task_extruder_map_;
 }
 
 std::string AmsBackendSnapmaker::build_preprint_gcode(const std::set<int>& tools_used,
