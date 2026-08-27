@@ -42,6 +42,17 @@ static constexpr uint32_t NORMAL = 10000; ///< Standard restarts (firmware resta
 /// unrecoverable shutdown landing in the same span — observed at 57s after
 /// SAVE_CONFIG, which a 60s window would have hidden from the user entirely.
 /// Prefer a spurious dialog over a silently-eaten shutdown.
+///
+/// That preference is enforced now, not merely aimed at by keeping the window
+/// short: a suppressed reason is latched and re-checked when the window expires
+/// (EmergencyStopOverlay::arm_recovery_recheck), so a shutdown covered by any of
+/// these durations is delayed by at most the window rather than dropped. It had
+/// to be, because both producers of the dialog fire once on an edge - the
+/// klippy_state observer on a transition, MoonrakerEventRoute::RecoveryShutdown
+/// on an event - and a host that goes down and stays down produces exactly one
+/// of each. Widening a duration is no longer a way to lose a real shutdown, but
+/// it is still a way to make the user wait for one, so the reasoning above
+/// stands.
 static constexpr uint32_t LONG = 15000;
 static constexpr uint32_t EXTRA = 30000; ///< Multi-step operations (PID→MPC migration)
 } // namespace RecoverySuppression
@@ -180,7 +191,15 @@ class EmergencyStopOverlay {
 
   private:
     EmergencyStopOverlay() = default;
-    ~EmergencyStopOverlay() = default;
+
+    // Not `= default`, and defined out of line in ui_emergency_stop.cpp: an armed
+    // re-check timer must not outlive this object, because
+    // StaticPanelRegistry::destroy_all() runs before lv_deinit() and a timer left
+    // armed here fires on freed memory (CLAUDE.md § Threading rule 5). Out of
+    // line so the cancel is visible in the same TU as the lv_timer_create() that
+    // pairs with it - check_timer_destructor_cancel.py reads the TU, and an
+    // inline body here looks to it exactly like no destructor at all.
+    ~EmergencyStopOverlay();
 
     // Non-copyable
     EmergencyStopOverlay(const EmergencyStopOverlay&) = delete;
@@ -218,6 +237,25 @@ class EmergencyStopOverlay {
     // thread. Plain uint32_t here was a data race.
     std::atomic<uint32_t> suppress_recovery_until_{0};
 
+    // The recovery reason held back by an active suppression window, so the
+    // window can hand it back when it expires instead of dropping it.
+    //
+    // Both producers of the dialog are edge- or event-driven: the klippy_state
+    // observer fires on a transition and MoonrakerEventRoute::RecoveryShutdown
+    // on an event. A host that goes down and STAYS down produces exactly one of
+    // each, so a suppression window covering them did not delay the dialog, it
+    // removed it - which is the "silently-eaten shutdown" RecoverySuppression's
+    // own comment says to prefer a spurious dialog over. Atomic for the same
+    // reason as suppress_recovery_until_: latched from whichever thread called
+    // show_recovery_for(), read on the main thread.
+    std::atomic<int> pending_recovery_reason_{static_cast<int>(RecoveryReason::NONE)};
+
+    // One-shot timer that re-checks the latch when the window expires. Raw
+    // pointer rather than a guard because it is armed from a queued callback and
+    // cancelled from both cleanup and the destructor; see
+    // cancel_recovery_recheck_timer().
+    lv_timer_t* recovery_recheck_timer_ = nullptr;
+
     // Visibility subject (1=visible, 0=hidden) - drives XML bindings
     lv_subject_t estop_visible_;
 
@@ -251,6 +289,17 @@ class EmergencyStopOverlay {
     friend class EmergencyStopOverlayTestAccess;
 
     void show_recovery_dialog();
+
+    /// Arm the one-shot re-check for the current suppression deadline.
+    /// Main thread only - it calls lv_timer_create().
+    void arm_recovery_recheck();
+
+    /// Cancel the re-check timer via lv_timer_cancel_safe(), which self-guards
+    /// on lv_is_initialized() and neuters rather than unlinking, so this is safe
+    /// from the destructor and from inside lv_timer_handler.
+    void cancel_recovery_recheck_timer();
+
+    static void recovery_recheck_cb(lv_timer_t* timer);
     /// Main-thread half of show_recovery_for(). Reads and writes
     /// recovery_dialog_/recovery_reason_ and queries ModalStack, none of which
     /// may be touched from the libhv thread.

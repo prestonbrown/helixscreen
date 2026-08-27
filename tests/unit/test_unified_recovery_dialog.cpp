@@ -2,6 +2,7 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -39,6 +40,73 @@ TEST_CASE_METHOD(LVGLTestFixture, "Recovery suppression - basic timing", "[recov
         lv_tick_inc(50);
         REQUIRE_FALSE(estop.is_recovery_suppressed());
     }
+}
+
+// ============================================================================
+// A suppressed shutdown must not be a swallowed shutdown (#1345)
+// ============================================================================
+//
+// suppress_recovery_dialog() exists so an intentional restart does not flash a
+// recovery dialog on its way down. Both producers of that dialog are edge- or
+// event-driven - the klippy_state observer fires on a transition, and
+// MoonrakerEventRoute::RecoveryShutdown on an event - and a host that goes down
+// and STAYS down produces exactly one of each. Land both inside the window and
+// the dialog is not delayed, it is gone: nothing ever re-raises it.
+//
+// RecoverySuppression::LONG's own comment already states the rule this
+// restores - "Prefer a spurious dialog over a silently-eaten shutdown" - and
+// every caller of the suppression is exposed to it, not just the macro path
+// that made it reachable from a home-screen button.
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A shutdown that lands inside a suppression window surfaces when it expires",
+                 "[recovery][suppress][1345]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+
+    // A macro that takes the host down arms this before Klipper disappears.
+    estop.suppress_recovery_dialog(50);
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Correctly swallowed while the host is still expected back.
+    REQUIRE(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::NONE);
+
+    // It never came back. Past the window the shutdown is real and the user has
+    // to be told - this is the assertion that fails without the re-check.
+    // process_lvgl(), not lv_tick_inc() + lv_timer_handler(): the raw handler's
+    // do-while loop does not terminate under the test harness (see
+    // ui_test_utils.h lv_timer_handler_safe()), and the fixture helper is what
+    // advances the virtual clock and runs ready timers together.
+    process_lvgl(100);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE_FALSE(estop.is_recovery_suppressed());
+    REQUIRE(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::SHUTDOWN);
+
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "An expiring window with no shutdown behind it raises nothing",
+                 "[recovery][suppress][1345]") {
+    // The guard on the test above: the re-check must surface a shutdown that
+    // actually arrived, not manufacture one at the end of every suppression
+    // window. A firmware restart that completes cleanly suppresses, reports
+    // nothing, and expires silently.
+    auto& estop = EmergencyStopOverlay::instance();
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+
+    estop.suppress_recovery_dialog(50);
+
+    process_lvgl(100);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::NONE);
+
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Expected restart - tracks SAVE_CONFIG suppression window",
