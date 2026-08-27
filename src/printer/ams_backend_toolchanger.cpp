@@ -597,8 +597,8 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         // it has settled - closed normally, or open because the carriage ended
         // empty with nothing to re-grip - not its own opening frame recurring,
         // so it must be believed.
-        const bool holding_opening_frame = feeder_state_reported_ && feeder_open_ &&
-                                           was_mid_operation && !operation_confirmed_;
+        const bool holding_opening_frame =
+            feeder_state_reported_ && feeder_open_ && was_mid_operation && !operation_confirmed_;
         if (!holding_opening_frame) {
             system_info_.action = AmsAction::IDLE;
             operation_confirmed_ = false;
