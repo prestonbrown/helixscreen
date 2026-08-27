@@ -209,13 +209,13 @@ chapters 03 and 04 own.
 **`RemoteControlServer`** ([`include/remote_control_server.h:62`](../../../include/remote_control_server.h#L62)) is a JSON-RPC 2.0 server that drives the live
 UI: `navigate`, `click`, `ls`/`describe_screen`, `text`, `geom`, `set_value`, `scroll`, `long_press`,
 `screenshot`, `demo`, `scenario`, and more, registered in `register_builtin_handlers()`
-([`remote_control_server.cpp:285`](../../../src/remote/remote_control_server.cpp#L285)). It auto-starts at boot phase 14c under `--test` (opt-in with `--remote`
-elsewhere; [`application.cpp:1012`](../../../src/application/application.cpp#L1012)), is compiled in only when `ENABLE_REMOTE_CONTROL=yes` — default ON for the
-native dev build, OFF for release/cross builds (`Makefile:465`) — and a failed start is non-fatal. The default
+([`remote_control_server.cpp:286`](../../../src/remote/remote_control_server.cpp#L286)). It auto-starts at boot phase 14c under `--test` (opt-in with `--remote`
+elsewhere; [`application.cpp:1012`](../../../src/application/application.cpp#L1012)), is compiled in only when `ENABLE_REMOTE_CONTROL=yes` — default ON for every
+developer build, native and cross, OFF only for production packaging builds (`Makefile:465`) — and a failed start is non-fatal. The default
 transport is a Unix socket; `RemoteConfig::Transport::Http` switches to a TCP listener bound loopback by default
 (port 7130) for LAN control. The accept loop runs on its own thread; every UI-affecting handler posts a lambda
 through `ui_queue_update()` and blocks on a `std::promise` until the main thread executes it
-([`remote_control_server.cpp:248`](../../../src/remote/remote_control_server.cpp#L248)). Name-based targeting resolves through [`widget_resolution.cpp`](../../../src/remote/widget_resolution.cpp), which also
+([`remote_control_server.cpp:249`](../../../src/remote/remote_control_server.cpp#L249)). Name-based targeting resolves through [`widget_resolution.cpp`](../../../src/remote/widget_resolution.cpp), which also
 decides which widget classes accept `set_value` (`is_value_control`); synthetic gestures come from
 `RemotePointer` ([`src/remote/remote_pointer.cpp`](../../../src/remote/remote_pointer.cpp)), an LVGL input device whose read callback publishes atomics
 set by RPC; and [`mock_scenarios.cpp`](../../../src/remote/mock_scenarios.cpp) holds the named subject presets behind `ctl scenario`. The client is the
@@ -224,7 +224,7 @@ same binary: `helix-screen ctl` / `repl` subcommands dispatch before any app ini
 
 Socket discipline: the first instance owns `$XDG_RUNTIME_DIR/helixscreen-control.sock` (falling back to `/tmp`),
 later instances take a pid-suffixed path rather than stealing it, and sockets left by crashed instances are
-swept before the decision ([`remote_control_server.cpp:101`](../../../src/remote/remote_control_server.cpp#L101)–`126`). The client mirrors this: it checks
+swept before the decision ([`remote_control_server.cpp:102`](../../../src/remote/remote_control_server.cpp#L102)–`126`). The client mirrors this: it checks
 *liveness*, not existence, refuses to guess between live instances, and exits listing them
 ([`remote_client.cpp:198`](../../../src/remote/remote_client.cpp#L198)) — but it still targets the well-known path by default, so **always pin both sides**
 (`--remote-socket` + `ctl -s`) when running parallel instances.
@@ -241,7 +241,7 @@ swept before the decision ([`remote_control_server.cpp:101`](../../../src/remote
 - **[`remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp) is imperative by charter** — it is on the declarative-UI exception list precisely because its job is reaching into an arbitrary live widget tree on command. Don't copy its patterns into feature code.
 - **BT callbacks arrive on background threads — the settings screens show the pattern.** Discovery results and pairing state are marshaled with `helix::ui::queue_update()` plus a lifetime token at every consumer site ([`src/ui/ui_settings_label_printer.cpp:1117`](../../../src/ui/ui_settings_label_printer.cpp#L1117), `:1356`); a new BT-adjacent UI that skips the token is an L081-shaped bug.
 - **mDNS must tolerate a dead network silently** — the wizard runs on boxes with no network stack configured yet; a hard failure there reads as "the wizard is broken".
-- **The remote-control server can be compiled out entirely** — code that assumes it exists (e.g. screenshot tooling) must check `HELIX_ENABLE_REMOTE_CONTROL` or degrade gracefully, the same way `--test`-only features do. A device dev image opts in explicitly: `make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=yes` (`Makefile:463`).
+- **The remote-control server can be compiled out entirely** — code that assumes it exists (e.g. screenshot tooling) must check `HELIX_ENABLE_REMOTE_CONTROL` or degrade gracefully, the same way `--test`-only features do. That happens on the production packaging path, which sets `HELIX_PACKAGING=1`; a device DEV image gets the server without asking (`Makefile:463`).
 
 ## Going deeper
 
@@ -270,6 +270,6 @@ Read in this order; about 30 minutes total.
 11. [`src/ui/ui_overlay_qr_scanner.cpp:383`](../../../src/ui/ui_overlay_qr_scanner.cpp#L383) — the overlay racing both scanner paths (`:312` for the snapshot viewfinder, `:383` for the evdev wedge).
 12. [`include/mdns_discovery.h:54`](../../../include/mdns_discovery.h#L54) — the class doc: PIMPL, threading, and callback contract.
 13. [`include/remote_control_server.h:15`](../../../include/remote_control_server.h#L15) — the file doc: thread model, transports, and the `RemoteConfig` options.
-14. [`src/remote/remote_control_server.cpp:248`](../../../src/remote/remote_control_server.cpp#L248) — the promise/`ui_queue_update` dispatch every UI command rides; then `:101` for socket-path resolution and the pid-suffix rule.
+14. [`src/remote/remote_control_server.cpp:249`](../../../src/remote/remote_control_server.cpp#L249) — the promise/`ui_queue_update` dispatch every UI command rides; then `:101` for socket-path resolution and the pid-suffix rule.
 15. [`src/remote/remote_client.cpp:198`](../../../src/remote/remote_client.cpp#L198) — the client's mirror-image resolution and its refusal to guess among live instances.
 16. [`docs/devel/HELIXCTL.md`](../HELIXCTL.md) — skim the command tables; this is the doc you'll actually use daily.

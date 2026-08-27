@@ -129,7 +129,7 @@ Full mechanism and the one-line `dots` alternative: `LVGL9_XML_GUIDE.md`, "Text 
 
 **Cause:** A container in your XML is scrollable when you did not intend it to be, so `PageScrollAutoInject` treated it as a scroll region and attached the page-scroll gutter over it. In XML an `<lv_obj>` keeps LVGL's `LV_OBJ_FLAG_SCROLLABLE` default, which is **on**, unless you write `scrollable="false"`. Our theme overrides width, height, border, background, and padding on `lv_obj` - it does **not** override scrollable, so "our theme makes `lv_obj` a pure layout container" is only true of appearance.
 
-**Fix:** Add `scrollable="false"` to every container that is not a real scroll region. Confirm with `helix-screen ctl geom <name>`, which prints the `scrollable` flag and the scroll extents (`HELIXCTL.md:566-567`).
+**Fix:** Add `scrollable="false"` to every container that is not a real scroll region. Confirm with `helix-screen ctl geom <name>`, which prints the `scrollable` flag and the scroll extents (`HELIXCTL.md:570-571`).
 
 ```xml
 <!-- ✗ Scrollable, and therefore gutter-eligible -->

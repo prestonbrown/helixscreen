@@ -209,6 +209,12 @@ $(FBDEV_TARGET): $(APP_C_OBJS) $(FBDEV_APP_OBJS) $(FBDEV_GLES_VARIANT_OBJS) $(FB
 		echo "$(RED)$(BOLD)✗ Fbdev linking failed!$(RESET)"; \
 		exit 1; \
 	}
+	@# Same stamp the DRM link writes (mk/rules.mk). Both binaries come out of
+	@# one compile with one ENABLE_REMOTE_CONTROL, but they land in separate bin
+	@# dirs — and `make deploy-pi-fbdev` and `make release-pi` both read the
+	@# stamp from the dir they are handling. Without this the fbdev half looked
+	@# like a binary from before the stamp existed.
+	$(Q)printf 'remote_control=%s\n' "$(ENABLE_REMOTE_CONTROL)" > $(dir $@).build-features
 
 # =============================================================================
 # Symbol extraction and stripping for both binaries

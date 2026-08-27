@@ -457,14 +457,25 @@ ifneq ($(ENABLE_MOCKS),yes)
 endif
 
 # Remote-control subsystem (helixctl server + socket/HTTP transport + the folded
-# `ctl`/`repl` client). Dev/test-only: default ON for the native dev build, OFF
-# for release/cross builds so shipped devices don't build it or pay the overhead.
-# Force it into a device dev/test image by overriding on the command line:
-#   make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=yes
-ifeq ($(PLATFORM_TARGET),native)
-    ENABLE_REMOTE_CONTROL ?= yes
-else
+# `ctl`/`repl` client).
+#
+# ON for every DEVELOPER build, native or cross. A device binary you cannot
+# drive from your desk means walking to the printer for every check, and the
+# cross targets are how test rigs get built. OFF only for the PRODUCTION
+# packaging/release builds, so shipped devices neither build it nor pay the
+# overhead — that is what HELIX_PACKAGING marks. mk/cross.mk sets it on the
+# package-* targets; CI's release workflow passes it on the command line.
+#
+# Compiled in but left off is not a state worth having: the server only listens
+# under --remote / HELIX_REMOTE_CONTROL=1, so `make deploy-*` reads the stamp
+# mk/rules.mk writes beside the binary and flips the device switch to match.
+#
+# Override either way on the command line:
+#   make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=no
+ifeq ($(HELIX_PACKAGING),1)
     ENABLE_REMOTE_CONTROL ?= no
+else
+    ENABLE_REMOTE_CONTROL ?= yes
 endif
 
 ifeq ($(ENABLE_REMOTE_CONTROL),yes)

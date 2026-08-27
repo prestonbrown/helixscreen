@@ -48,7 +48,7 @@ docs/devel/BUILD_SYSTEM.md	mk/cross.mk	728	mk/cross.mk	da1cc2e857c5	6c300046c8f9
 docs/devel/BUILD_SYSTEM.md	mk/fonts.mk	107	mk/fonts.mk	4b9fe8a0823e	d3a88479c470
 docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	808	include/ams_backend_ad5x_ifs.h	69dd369d6e7b	d3ec168c9dca
 docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	63	docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	6baa6bd78f7d	632f53243594
-docs/devel/CONTRIBUTOR_GOTCHAS.md	HELIXCTL.md	566	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
+docs/devel/CONTRIBUTOR_GOTCHAS.md	HELIXCTL.md	570	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/page_scroll_auto_inject.cpp	67	src/ui/page_scroll_auto_inject.cpp	79ddc99d9874	18d2db06eb9c
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/panel_widget_manager.cpp	825	src/ui/panel_widget_manager.cpp	72f8492f0ba4	f76a9843d3ba
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/ui_panel_macros.cpp	85	src/ui/ui_panel_macros.cpp	92af3c56b600	c23abc6a613c
@@ -117,8 +117,8 @@ docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_internal.h	17	src/ui/ui_fila
 docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_internal.h	383	src/ui/ui_filament_path_internal.h	9bd9f2378422	aced41c116d2
 docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_layers.cpp	183	src/ui/ui_filament_path_layers.cpp	d92b1c584386	f21fd8060b28
 docs/devel/HELIXCTL.md	include/remote_pointer.h	38	include/remote_pointer.h	e6324d01d270	dbbbef636869
-docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	1998	src/remote/remote_control_server.cpp	78bda741eafd	1f5e0732ac8c
-docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	2031	src/remote/remote_control_server.cpp	2e05457ec3e8	ad5c18d9a774
+docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	2004	src/remote/remote_control_server.cpp	78bda741eafd	1f5e0732ac8c
+docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	2037	src/remote/remote_control_server.cpp	2e05457ec3e8	ad5c18d9a774
 docs/devel/HELIXCTL.md	src/ui/grid_edit_mode.cpp	66	src/ui/grid_edit_mode.cpp	fb0dcaca5e05	00b829be4d38
 docs/devel/HELIXCTL.md	src/ui/grid_edit_mode.cpp	1012	src/ui/grid_edit_mode.cpp	cca1a0cc4772	839aa2b215ef
 docs/devel/HELIXCTL.md	src/ui/ui_panel_home.cpp	43	src/ui/ui_panel_home.cpp	caa3f0b0e11a	9e4f253e3530
@@ -133,7 +133,7 @@ docs/devel/HELIXCTL.md	ui_xml/navigation_bar.xml	22	ui_xml/navigation_bar.xml	4c
 docs/devel/HELIXCTL.md	ui_xml/navigation_bar.xml	25	ui_xml/navigation_bar.xml	b8462dac300f	6fa0d0450bae
 docs/devel/LAYOUT_SYSTEM.md	src/ui/page_scroll_auto_inject.cpp	67	src/ui/page_scroll_auto_inject.cpp	79ddc99d9874	18d2db06eb9c
 docs/devel/LED_CONTROL.md	src/led/led_controller.cpp	1023	src/led/led_controller.cpp	157ed2ec9d35	c1a18c3021ee
-docs/devel/LVGL9_XML_GUIDE.md	HELIXCTL.md	566	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
+docs/devel/LVGL9_XML_GUIDE.md	HELIXCTL.md	570	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
 docs/devel/PAGE_SCROLL_BUTTONS.md	page_scroll_auto_inject.cpp	47	src/ui/page_scroll_auto_inject.cpp	c1e52e07f95a	b4ecd2f33892
 docs/devel/PAGE_SCROLL_BUTTONS.md	src/application/application.cpp	4713	src/application/application.cpp	df17b7a40fb2	e1d6b6d9807b
 docs/devel/PAGE_SCROLL_BUTTONS.md	src/system/display_settings_manager.cpp	234	src/system/display_settings_manager.cpp	6fe83201e704	fd80af7a8d0a
@@ -152,7 +152,7 @@ docs/devel/QIDI_BOX_HEATER.md	ams_backend_qidi.cpp	688	src/printer/ams_backend_q
 docs/devel/QIDI_BOX_HEATER.md	include/ams_backend_qidi.h	285	include/ams_backend_qidi.h	de744ac21fbf	b810e13e2a7b
 docs/devel/RELEASE_1_0_CHECKLIST.md	config.cpp	343	src/system/config.cpp	f2207e847fec	3607e00d9e70
 docs/devel/RELEASE_1_0_CHECKLIST.md	scripts/generate-manifest.sh	36	scripts/generate-manifest.sh	b672608bdf3d	588242abc9c0
-docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2452	mk/cross.mk	e4f16f861f61	4c3084a9242a
+docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2451	mk/cross.mk	e4f16f861f61	4c3084a9242a
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/ams_subscription_backend.h	111	include/ams_subscription_backend.h	3f9b832313a2	57284619e5b5
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_api.h	176	include/i_moonraker_api.h	c454282fb554	63661987b10e
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_api.h	190	include/i_moonraker_api.h	6003065bf5c4	8db77f9c2826
@@ -652,15 +652,15 @@ docs/devel/architecture/13-peripherals.md	include/usb_scanner_monitor.h	26	inclu
 docs/devel/architecture/13-peripherals.md	label_printer_utils.cpp	227	src/system/label_printer_utils.cpp	5592caa531de	f04df640531e
 docs/devel/architecture/13-peripherals.md	label_printer_utils.cpp	313	src/system/label_printer_utils.cpp	c6d1520f09fa	b59eb7d32944
 docs/devel/architecture/13-peripherals.md	remote_client.cpp	198	src/remote/remote_client.cpp	f8e2704e57fb	2752b1692ae8
-docs/devel/architecture/13-peripherals.md	remote_control_server.cpp	101	src/remote/remote_control_server.cpp	47b49bc2114c	74e7b6878a4c
-docs/devel/architecture/13-peripherals.md	remote_control_server.cpp	248	src/remote/remote_control_server.cpp	b8cd3f024128	9a1507e573a4
-docs/devel/architecture/13-peripherals.md	remote_control_server.cpp	285	src/remote/remote_control_server.cpp	c7ea118359e8	14bd92d964ba
+docs/devel/architecture/13-peripherals.md	remote_control_server.cpp	102	src/remote/remote_control_server.cpp	47b49bc2114c	74e7b6878a4c
+docs/devel/architecture/13-peripherals.md	remote_control_server.cpp	249	src/remote/remote_control_server.cpp	b8cd3f024128	9a1507e573a4
+docs/devel/architecture/13-peripherals.md	remote_control_server.cpp	286	src/remote/remote_control_server.cpp	c7ea118359e8	14bd92d964ba
 docs/devel/architecture/13-peripherals.md	src/bluetooth/bt_bus_thread.h	19	src/bluetooth/bt_bus_thread.h	c6bc333f5acf	fcbf1ca472ee
 docs/devel/architecture/13-peripherals.md	src/bluetooth/bt_bus_thread.h	27	src/bluetooth/bt_bus_thread.h	87d6d8b9bc0f	2f19aedb8b00
 docs/devel/architecture/13-peripherals.md	src/bluetooth/bt_plugin.cpp	53	src/bluetooth/bt_plugin.cpp	736a84da064f	9f4ea0809c68
 docs/devel/architecture/13-peripherals.md	src/main.cpp	126	src/main.cpp	ed80bad325cc	2af1aa515807
 docs/devel/architecture/13-peripherals.md	src/remote/remote_client.cpp	198	src/remote/remote_client.cpp	f8e2704e57fb	2752b1692ae8
-docs/devel/architecture/13-peripherals.md	src/remote/remote_control_server.cpp	248	src/remote/remote_control_server.cpp	b8cd3f024128	9a1507e573a4
+docs/devel/architecture/13-peripherals.md	src/remote/remote_control_server.cpp	249	src/remote/remote_control_server.cpp	b8cd3f024128	9a1507e573a4
 docs/devel/architecture/13-peripherals.md	src/system/bt_print_utils.cpp	23	src/system/bt_print_utils.cpp	00af1e8de8d0	6c9d46d2f5b6
 docs/devel/architecture/13-peripherals.md	src/system/camera_stream.cpp	58	src/system/camera_stream.cpp	894b6bf964e2	b4abbef7d189
 docs/devel/architecture/13-peripherals.md	src/system/label_printer_utils.cpp	86	src/system/label_printer_utils.cpp	f2e40b1d7f59	702588d835da

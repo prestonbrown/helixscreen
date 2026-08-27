@@ -52,10 +52,14 @@ helix-screen ctl                      # no command → also drops into the REPL
 
 > **Dev/test only.** The entire remote-control subsystem (server, transports,
 > and this client) is compiled in **only when `HELIX_ENABLE_REMOTE_CONTROL` is
-> defined** — the default for native dev builds. Release/cross builds for
-> shipped devices exclude it entirely (no code, no overhead). A plain `make -j`
-> builds it; to put it in a device dev image, build with
-> `make PLATFORM_TARGET=<t> ENABLE_REMOTE_CONTROL=yes`.
+> defined** — the default for every DEVELOPER build, native or cross. A plain
+> `make -j` builds it and so does `make PLATFORM_TARGET=<t>` or `make <t>-docker`,
+> so a test rig is drivable from your desk without remembering a flag. The
+> PRODUCTION packaging/release builds exclude it entirely (no code, no
+> overhead): `make package-*` sets `HELIX_PACKAGING=1`, CI's release workflow
+> passes it explicitly, and `make release-*` refuses outright to package a
+> binary whose `.build-features` stamp says the server is in it. Opt out of a
+> dev build with `make PLATFORM_TARGET=<t> ENABLE_REMOTE_CONTROL=no`.
 >
 > **The matching deploy turns it on for you.** The build flag alone is only half
 > the story: the server still listens only under `--remote`, and the init scripts
@@ -371,7 +375,7 @@ connection, so the hold elapses with no client attached, and the command that fo
 re-samples the device in a way that restarts the press. `long_press` exists because the
 hold has to happen server-side. It latches the press, holds without touching the pointer
 while LVGL keeps sampling it on its own timer - exactly as under a resting finger - and
-then releases (`src/remote/remote_control_server.cpp:1998-2035`).
+then releases (`src/remote/remote_control_server.cpp:2004-2041`).
 
 `hold_ms` is optional. Omitted, the server derives the hold from the **configured**
 long-press time (`InputSettingsManager::get_long_press_time()`, the Touch & Input
@@ -401,7 +405,7 @@ helix-screen ctl release
 
 Separate commands are right for those last two: what matters is where the pointer goes,
 not how long it rests, and the press stays latched between connections. `long_press`
-always ends in its own release (`src/remote/remote_control_server.cpp:2031`), so a
+always ends in its own release (`src/remote/remote_control_server.cpp:2037`), so a
 hold-then-slide gesture - long-press to raise a popover, then slide onto it - has no
 single-command form.
 
@@ -947,6 +951,7 @@ See `scripts/screenshot-recipes.sh` for every recognized token.
 - **Sample-data screens** — `helix::show_demo_overlay()` in
   `src/application/application.cpp`.
 - **Compile gate** — the whole subsystem is filtered out of the build unless
-  `ENABLE_REMOTE_CONTROL=yes` (`Makefile`); the `HELIX_ENABLE_REMOTE_CONTROL`
-  define guards the server start/stop, the demo bringup, and the `ctl`/`repl`
-  dispatch in `main.cpp`.
+  `ENABLE_REMOTE_CONTROL=yes` (`Makefile`), which is the default everywhere
+  except a production packaging build (`HELIX_PACKAGING=1`); the
+  `HELIX_ENABLE_REMOTE_CONTROL` define guards the server start/stop, the demo
+  bringup, and the `ctl`/`repl` dispatch in `main.cpp`.
