@@ -166,7 +166,7 @@ The full exclusion state machine — confirmation modal, 5s undo window, `EXCLUD
 
 ## Patterns & gotchas
 
-- **Streaming and full-file are mutually exclusive by construction** — each setter nulls the other's pointer ([`gcode_layer_renderer.cpp:134`](../../../src/rendering/gcode_layer_renderer.cpp#L134) vs `:148`). Never hand a renderer both; the second call silently wins.
+- **Streaming and full-file are mutually exclusive by construction** — each setter nulls the other's pointer ([`gcode_layer_renderer.cpp:134`](../../../src/rendering/gcode_layer_renderer.cpp#L134) vs `:150`). Never hand a renderer both; the second call silently wins.
 - **A streaming hit-test must never seek and parse.** `pick_object_at()` consults only cached layers; an uncached layer costs one unrecognized tap instead of a multi-second UI freeze.
 - **The footer read may only ever be faster.** Every failure mode falls through to the full scan — keep it that way when extending the summary keys.
 - **Cache writes must be authoritative.** Persisting a degraded result (empty set from a failed download) freezes a wrong answer; `finish_scan(authoritative=false)` skips the write for exactly this reason.
@@ -193,9 +193,9 @@ Read in this order; about 30 minutes total.
 4. [`include/gcode_streaming_controller.h:169`](../../../include/gcode_streaming_controller.h#L169) — the controller: cache budget floor, prefetch radius, and `try_get_layer_segments()`'s shared_ptr contract at `:294`.
 5. [`src/ui/ui_print_select_detail_view.cpp:637`](../../../src/ui/ui_print_select_detail_view.cpp#L637) — `ensure_gcode_downloaded()`: the local-read/join/disk/start order and why each precedes the next.
 6. [`src/ui/ui_print_select_detail_view.cpp:592`](../../../src/ui/ui_print_select_detail_view.cpp#L592) — `local_gcode_source()`: the same-host probe and size staleness check; then `reclaim_download()` at `:619` for the delete gate.
-7. [`include/gcode_footer_summary.h:23`](../../../include/gcode_footer_summary.h#L23) — the whole footer contract in one header: `GcodeFooterSummary`, the exact-key rules at `:48`, and the window bounds at `:88`.
+7. [`include/gcode_footer_summary.h:23`](../../../include/gcode_footer_summary.h#L23) — the whole footer contract in one header: `GcodeFooterSummary`, the exact-key rules at `:62`, and the window bounds at `:88`.
 8. [`src/ui/ui_print_select_detail_view.cpp:1842`](../../../src/ui/ui_print_select_detail_view.cpp#L1842) — `start_tail_summary_scan()`: the local-vs-HTTP tail read, pure parse off the main thread, stale-file guard, and the need-dependent fall-through.
-9. [`include/tools_used_cache.h:20`](../../../include/tools_used_cache.h#L20) — the cache: keying, LRU bound, and the "empty set is legitimate" contract at `:24`. Then its three call sites in the detail view (`:481`, `:1411`, `:1755`).
+9. [`include/tools_used_cache.h:20`](../../../include/tools_used_cache.h#L20) — the cache: keying, LRU bound, and the "empty set is legitimate" contract at `:24`. Then its three call sites in the detail view (`:481`, `:1407`, `:1745`).
 10. [`include/gcode_render_mode_policy.h:44`](../../../include/gcode_render_mode_policy.h#L44) — `decide_render_mode()`: case-sensitive matching and the unrecognized-is-2D asymmetry, in 60 lines.
 11. [`src/ui/ui_panel_print_status.cpp:1079`](../../../src/ui/ui_panel_print_status.cpp#L1079) — the precedence chain applied; then the pinned-mode guard at `:346`.
 12. [`src/rendering/gcode_layer_renderer.cpp:1389`](../../../src/rendering/gcode_layer_renderer.cpp#L1389) — `pick_object_at()` in full: stage-1 clamping and skips (`:1424-1501`), the single-candidate return (`:1499`), the downward walk (`:1533`), and the cache-only streaming branch (`:1544`).

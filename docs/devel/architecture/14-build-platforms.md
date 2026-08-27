@@ -198,5 +198,5 @@ Read in this order; about 25 minutes total.
 9. [`src/api/display_backend.cpp:199`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk:187`](../../../mk/patches.mk#L187) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk:914`](../../../mk/cross.mk#L914) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1376` is the help text that renders the same menu for humans.
+12. [`mk/cross.mk:914`](../../../mk/cross.mk#L914) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
 13. [`scripts/setup-worktree.sh:1`](../../../scripts/setup-worktree.sh#L1) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.
