@@ -190,7 +190,7 @@ runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 Related capability flags: `recovers_filament_on_resume() = true` (Resume re-feeds, so
 the runout dialog presents Resume as primary) and
 `should_suppress_idle_runout_modal() = true` (the U1 drives load/unload itself, so an
-idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h:179-192`).
+idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h:194-200`).
 
 `is_stuck_motion_sensor_runout()` (motion sensor false, port sensor true = stale encoder)
 currently has **no caller in tree** — the auto-recover path that consumed it was pulled
@@ -206,7 +206,7 @@ is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1671-1692`
 so the config must land before `PRINT_START`. `requires_preprint_send() = true` is
 **always-on, even with no remap**: `SET_PRINT_USED_EXTRUDERS` suppresses the spurious
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
-empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:222-229`,
+empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:230-237`,
 `src/ui/ui_print_start_controller.cpp:315-332`).
 
 Send ordering is guaranteed on our side of the wire. Both start paths gate on
@@ -249,7 +249,7 @@ observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
-hardware swap (`include/ams_backend_snapmaker.h:317-334`). Clears preserve
+hardware swap (`include/ams_backend_snapmaker.h:318-334`). Clears preserve
 firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset only
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
 identity) (`ams_backend_snapmaker.cpp:1798-1834`).

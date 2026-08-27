@@ -16,7 +16,7 @@
 #   - a lesson taught lv_xml_component_register_from_file(), a transposed name
 #     that exists nowhere
 #
-# Five checks:
+# Six checks:
 #   refs   — every backticked path in an agent-facing doc resolves
 #   links  — every markdown [text](target) link in a scanned doc resolves
 #   index  — every doc in docs/devel/ is listed in docs/devel/CLAUDE.md
@@ -24,6 +24,14 @@
 #   cites  — the symbol a sentence names next to a `file.cpp:123` cite must
 #            still appear near that line (ratcheted; a resolved path pointing
 #            at the wrong lines is the drift class the path check cannot see)
+#   anchors— every `file.cpp:123` cite has a committed content hash of the line
+#            it points at (scripts/doc_cite_anchors.tsv), and the number in the
+#            doc must still resolve to it. This is the check that covers the
+#            other three quarters of the citations: the symbol shape only
+#            appears beside about a quarter of them, and files mostly grow, so
+#            a stale number normally still lands inside the file. Moved code
+#            self-heals via `make regen-doc-links`; only a line whose own text
+#            changed reaches a human. See scripts/doc_cite_anchors.py.
 #
 # The index check is what makes lazy loading trustworthy: a doc missing from the
 # routing table is a doc nobody will find.
@@ -50,6 +58,7 @@ import argparse
 import os
 import re
 import sys
+from re import error
 
 SKIP_DIRS = {'.git', '.worktrees', 'build', 'node_modules', '.venv', 'venv'}
 
@@ -107,13 +116,41 @@ LINK_RE = re.compile(r'\[[^\]]+\]\(([^)#\s]+)(?:#[^)]*)?\)')
 LINKED_SPAN_RE = re.compile(r'\[(`[^`\n]+`)\]\([^)\s]*\)')
 
 
+# A range end written OUTSIDE the citation's backticks — `file.cpp:10`-20, and in
+# the architecture guide [`file.cpp:10`](url)-20, which is the guide's dominant
+# range spelling. LINE_REF_RE stops at the closing backtick, so the "-20" is a
+# separate token that has to be found by looking ahead from the citation's end,
+# skipping any generated link wrapper on the way.
+TRAILING_RANGE_RE = re.compile(r'(?:\]\([^)\s]*\))?([-–])(\d+)')
+
+
+def trailing_range(text, pos):
+    """(dash, end, span) for a range end just after a citation, or None."""
+    m = TRAILING_RANGE_RE.match(text, pos)
+    if not m:
+        return None
+    return m.group(1), int(m.group(2)), (m.start(1), m.end(2))
+
+
 def unwrap_links(text):
     return LINKED_SPAN_RE.sub(lambda m: m.group(1), text)
 
 # `path/file.cpp:123` citations. The path charset mirrors PATH_RE's so the two
 # agree on what counts as a line-cited reference.
+# The line part may be a RANGE: `src/foo.cpp:63-65` names a block, not a point.
+# Ranges used not to match here at all, which is the worst possible failure mode
+# for a lint — 96 citations in this tree, 13% of the corpus, silently exempt
+# from the past-EOF check, the symbol check and the content anchor alike, with
+# nothing anywhere reporting that they were being skipped. The START is the
+# anchor; `rend` is carried so a re-pin can move the whole block and keep the
+# authored span length.
+#
+# Named groups, because this pattern is embedded inside SYMBOL_CITE_A_RE and
+# SYMBOL_CITE_B_RE: positional numbering there shifts with every group added
+# here, and it shifts SILENTLY into reading the wrong capture.
 LINE_REF_RE = re.compile(
-    r'`([A-Za-z0-9_./-]+\.(?:cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|yaml|html|txt)):(\d+)`')
+    r'`(?P<ref>[A-Za-z0-9_./-]+\.(?:cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|'
+    r'yaml|html|txt|md|cfg)):(?P<line>\d+)(?:(?P<rdash>[-–])(?P<rend>\d+))?`')
 
 # A line-cited reference plus the symbol the sentence claims lives there, in the
 # two shapes the docs actually use:
@@ -126,11 +163,38 @@ LINE_REF_RE = re.compile(
 # see — the .115 audit found 30+ such cites, every one of them a resolved path
 # pointing at the wrong lines (printer_state.h:208 citing a class that had moved
 # 23 lines up; ams_backend_afc.cpp:2219 landing inside a different parse block).
-SYMBOL_CITE_A_RE = re.compile(          # `sym` (`path:N`)
-    r'`([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z0-9_]+)*(?:\(\))?)`\s*\((?:`)?'
-    + LINE_REF_RE.pattern[1:-1] + '(?:`)?\\)')
+# Both shapes carry a TAIL between the cite and the delimiter, and the tail must
+# never switch the check off — a citation that says a bit more about itself is
+# not making a weaker claim. It did switch it off: 16 citations rode through
+# unchecked behind a range suffix, one of them (`manages_active_spool()` at
+# `src/printer/ams_state.cpp:2647`-2658) 277 lines stale AND pointing at a blank
+# line, while every gate reported green.
+#
+# Only shape A gets a tail. Its tail sits INSIDE the parenthesis, so ')' and '`'
+# already fence it and it can safely hold a range end or a short aside
+# ("-2658", ", null on real runs") without reaching a second citation.
+#
+# Shape B deliberately gets NONE. Allowing even ')' there inverts what the
+# citation attaches to: `(...h:327`) — `MoonrakerAPIMock` ...` is a parenthetical
+# on the text BEFORE it, and the dash opens a new clause about a different
+# symbol, so pairing the two reports drift on a citation that is correct. Tried
+# it; it produced exactly one true pairing and one false one, which is not a
+# check, it is a coin flip.
+A_CITE_TAIL = r'[^)`\n]{0,24}'
+
+SYMBOL_CITE_A_RE = re.compile(          # `sym` (`path:N`), (`path:N`-M)
+    r'`(?P<sym>[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z0-9_]+)*(?:\(\))?)`\s*\((?:`)?'
+    + LINE_REF_RE.pattern[1:-1] + '(?:`)?'
+    + r'(?:[-–](?P<aend>\d+))?' + A_CITE_TAIL + '\\)')
+
+# Shape B's separator must stay on the citation's OWN line. `\s*` spanned
+# newlines, which pairs a cite that merely ENDS a bullet with the symbol opening
+# the NEXT one ("...print_status.cpp:379).\n- `decide_render_mode()`") — four
+# such false pairings in this tree. No current match spans a newline, so
+# horizontal-only whitespace costs nothing and buys immunity to markdown lists.
 SYMBOL_CITE_B_RE = re.compile(          # `path:N` — `sym`
-    LINE_REF_RE.pattern[1:-1] + r'`\s*[—–-]+\s*`([A-Za-z_][A-Za-z0-9_]*'
+    LINE_REF_RE.pattern[1:-1]
+    + r'`[^\S\n]*[—–-]+[^\S\n]*`(?P<sym>[A-Za-z_][A-Za-z0-9_]*'
     r'(?:::[A-Za-z0-9_]+)*(?:\(\))?)`')
 SYMBOL_WINDOW = 5
 
@@ -386,18 +450,45 @@ def check_line_refs(targets, devel=False):
         except OSError:
             continue
         for m in LINE_REF_RE.finditer(text):
-            ref, n = m.group(1), int(m.group(2))
+            ref, n = m.group('ref'), int(m.group('line'))
             if any(s in ref for s in EXEMPT_SUBSTRINGS):
                 continue
             resolved = _resolve_cited(ref, base, devel)
             if not resolved:
                 continue          # unresolved paths are check_refs' failure, not ours
             lines = _file_lines(resolved, cache)
-            if lines and n > len(lines):
+            if not lines:
+                continue
+            # Both ends of a range have to land inside the file. Checking only
+            # the start would pass `foo.cpp:900-9000` on a 1000-line file.
+            end = int(m.group('rend')) if m.group('rend') else n
+            if end == n:
+                tail = trailing_range(text, m.end())
+                if tail:
+                    end = tail[1]
+            worst = max(n, end)
+            if worst > len(lines):
                 line = text.count('\n', 0, m.start()) + 1
-                problems.append((target, line, '%s:%d (file has %d lines)'
-                                 % (ref, n, len(lines))))
+                shown = ('%s:%d-%d' % (ref, n, end)) if end != n else '%s:%d' % (ref, n)
+                problems.append((target, line, '%s (file has %d lines)'
+                                 % (shown, len(lines))))
     return problems
+
+
+def _cite_end(m):
+    """Last line a citation claims: the range end if it has one, else the start.
+
+    A range reaches the checks two ways — inside the backticks (`f.cpp:10-20`)
+    or trailing the closing one (`f.cpp:10`-20) — and both mean the same thing.
+    """
+    for group in ('rend', 'aend'):
+        try:
+            v = m.group(group)
+        except (IndexError, error):
+            v = None
+        if v:
+            return int(v)
+    return int(m.group('line'))
 
 
 def check_symbol_cites(targets, devel=False):
@@ -417,10 +508,12 @@ def check_symbol_cites(targets, devel=False):
             continue
         pairs = []
         for m in SYMBOL_CITE_A_RE.finditer(text):
-            pairs.append((m, m.group(2), int(m.group(3)), m.group(1)))
+            pairs.append((m, m.group('ref'), int(m.group('line')),
+                          m.group('sym'), _cite_end(m)))
         for m in SYMBOL_CITE_B_RE.finditer(text):
-            pairs.append((m, m.group(1), int(m.group(2)), m.group(3)))
-        for m, ref, n, sym in pairs:
+            pairs.append((m, m.group('ref'), int(m.group('line')),
+                          m.group('sym'), _cite_end(m)))
+        for m, ref, n, sym, hi in pairs:
             if any(s in ref for s in EXEMPT_SUBSTRINGS):
                 continue
             resolved = _resolve_cited(ref, base, devel)
@@ -430,7 +523,11 @@ def check_symbol_cites(targets, devel=False):
             if lines is None:
                 continue
             ident = sym.split('(')[0].split('::')[-1]
-            window = lines[max(0, n - 1 - SYMBOL_WINDOW):n + SYMBOL_WINDOW]
+            # A range names a BLOCK, so the symbol may sit anywhere inside it.
+            # Windowing on the start line alone turned three correct citations
+            # into findings the moment ranges started being checked at all —
+            # `snapmaker_resume.h:11-19` naming `sdcard`, which lives at 17.
+            window = lines[max(0, n - 1 - SYMBOL_WINDOW):hi + SYMBOL_WINDOW]
             if any(ident in w for w in window):
                 continue
             line = text.count('\n', 0, m.start()) + 1
@@ -438,6 +535,38 @@ def check_symbol_cites(targets, devel=False):
                              '`%s` cited at `%s:%d` — "%s" is not within '
                              '±%d lines' % (sym, ref, n, ident, SYMBOL_WINDOW)))
     return findings
+
+
+def check_anchors(targets, devel=True):
+    """Content anchors: the number in a `file:N` cite must still resolve.
+
+    Returns (findings, stats), or (None, None) when scripts/doc_cite_anchors.tsv
+    is absent — a tree without the sidecar has not opted in, which is what lets
+    the miniature-repo meta-tests of the other gates keep passing.
+
+    The import is deliberately lazy. scripts/doc_cite_anchors.py imports THIS
+    module (for LINE_REF_RE / EXEMPT_SUBSTRINGS / _resolve_cited) and
+    gen_doc_links.py, so importing it at module scope here would be a cycle. By
+    the time this function runs, everything it needs is defined. Running this
+    file as __main__ does mean doc_cite_anchors ends up importing a second copy
+    of it under its real name — harmless, since everything it reaches for is a
+    compiled regex, a constant tuple, or a pure function.
+    """
+    import doc_cite_anchors as anchors
+    stored = anchors.load_sidecar()
+    if stored is None:
+        return None, None
+    # Narrow to docs this repo actually scans. A --devel run pointed at a
+    # scratch fixture (which is how the sibling gates' meta-tests drive this
+    # script) would otherwise be measured against the real repo's sidecar and
+    # fail on citations that were never meant to be anchored.
+    scanned = set(anchors.default_targets())
+    scoped = [t for t in targets if t in scanned]
+    if not scoped:
+        return [], {'in_place': 0}
+    findings, _fresh, _blanks, _rewrites, stats = anchors.run(
+        scoped, stored, devel=devel, write=False)
+    return findings, stats
 
 
 CITE_BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -692,6 +821,32 @@ def main():
         else:
             print('✅ Symbol cites: %d findings, all %d baselined'
                   % (len(cite_findings), len(cite_findings) - len(new)))
+
+        # Content anchors: the strongest of the four citation checks and the
+        # only self-healing one. Every cited line's own text is hashed into
+        # scripts/doc_cite_anchors.tsv, so code moving does not rot the doc —
+        # `make regen-doc-links` re-derives the number. What lands here is
+        # either auto-repairable (stale/unanchored/orphan) or a line whose text
+        # genuinely changed, which no generator can decide for a human.
+        anchor_findings, anchor_stats = check_anchors(targets, devel=devel)
+        if anchor_findings is None:
+            print('⚠️  Citation anchors: %s absent — line numbers unverified'
+                  % 'scripts/doc_cite_anchors.tsv')
+        elif anchor_findings:
+            hard = [f for f in anchor_findings if f.kind in ('gone', 'blank')]
+            print('❌ Citation anchors out of sync (%d):' % len(anchor_findings))
+            for f in sorted(anchor_findings):
+                where = '%s:%d' % (f.doc, f.doc_line) if f.doc_line else f.doc
+                print('   %s: %s' % (where, f.detail))
+            if hard:
+                print('   A gone/blank anchor is not auto-repairable: re-read '
+                      'the sentence and re-pin the line by hand.')
+            else:
+                print('   Run: make regen-doc-links')
+            exit_code = 1
+        else:
+            print('✅ Citation anchors: %d cited lines still resolve'
+                  % anchor_stats['in_place'])
 
     if do_index:
         unindexed, present = check_index()

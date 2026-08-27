@@ -101,7 +101,7 @@ Two cooperating pieces apply it, both behind [`theme_manager.h`](../../../includ
 - **`ThemeManager`** ([`src/ui/theme_manager_new.cpp`](../../../src/ui/theme_manager_new.cpp)) owns a fixed table of 40 shared `lv_style_t` objects, one per `StyleRole` (`Card`, `ButtonPrimary`, `SeverityDanger`, …), each configured by a `configure_*` function in [`style_configs.cpp`](../../../src/ui/style_configs.cpp). Widgets add these styles *by reference* — nobody copies palette colors into private styles.
 - **The `helix_theme` wrapper** ([`src/ui/theme_manager.cpp:209`](../../../src/ui/theme_manager.cpp#L209)) is the bridge into LVGL's own theming. Its apply callback (`helix_theme_apply`, [`src/ui/theme_manager.cpp:562`](../../../src/ui/theme_manager.cpp#L562)) runs for every widget created: first it calls through to `lv_theme_default_init()`'s theme for base padding and tracks, then layers the appropriate shared styles per widget class — buttons get `Button` + `Pressed` + `Focused`, textareas get `InputBg`, sliders get track/indicator/knob styles, dropdowns get contrast-selected list styling. `theme_manager_init()` (called from `Application`, [`src/application/application.cpp:1630`](../../../src/application/application.cpp#L1630)) wires it up with `lv_theme_set_apply_cb()`.
 
-Live switching is the payoff, and `theme_manager_apply_theme(theme, dark)` is the single entry point ([`src/ui/theme_manager.cpp:1966`](../../../src/ui/theme_manager.cpp#L1966)). The sequence, in order:
+Live switching is the payoff, and `theme_manager_apply_theme(theme, dark)` is the single entry point ([`src/ui/theme_manager.cpp:1975`](../../../src/ui/theme_manager.cpp#L1975)). The sequence, in order:
 
 1. Capture the old palette, then build **color swap maps** (old value → new value) for the container colors — used later to fix widgets whose inline styles baked literal colors at parse time.
 2. `theme_update_colors()` reconfigures the 40 shared styles and both stored palettes in `ThemeManager`.
@@ -195,7 +195,7 @@ The traps, in rough order of how often they bite:
 6. [`src/ui/theme_manager.cpp:1085`](../../../src/ui/theme_manager.cpp#L1085) — `theme_manager_resolve_px_tokens()`: the two-axis suffix choice, the `nav_width` special case, the required-triplet rule.
 7. [`src/ui/theme_manager.cpp:1490`](../../../src/ui/theme_manager.cpp#L1490) — `theme_manager_register_semantic_colors()`: theme JSON palette → `card_bg`/`card_bg_light`/`card_bg_dark` consts.
 8. [`src/ui/theme_manager.cpp:2575`](../../../src/ui/theme_manager.cpp#L2575) — `theme_manager_get_color()`: the `_light`/`_dark` probe order and the partial-variant error path.
-9. [`src/ui/theme_manager.cpp:1974`](../../../src/ui/theme_manager.cpp#L1974) — `theme_manager_apply_theme()`: the whole live-switch sequence from swap maps to generation bump.
+9. [`src/ui/theme_manager.cpp:1975`](../../../src/ui/theme_manager.cpp#L1975) — `theme_manager_apply_theme()`: the whole live-switch sequence from swap maps to generation bump.
 10. [`include/ui_breakpoint.h:26`](../../../include/ui_breakpoint.h#L26) — the `UiBreakpoint` ladder, the narrow-axis thresholds, and `breakpoint_for()`/`responsive_pick()`.
 11. [`ui_xml/globals.xml:42`](../../../ui_xml/globals.xml#L42) — the `space_*` ladder in situ; note the comments documenting the register-before-parse ordering traps.
 12. [`src/layout_manager.cpp:111`](../../../src/layout_manager.cpp#L111) — `detect_layout_type()`: aspect-ratio classification; then `variant_chain()` at [`src/layout_manager.cpp:69`](../../../src/layout_manager.cpp#L69).

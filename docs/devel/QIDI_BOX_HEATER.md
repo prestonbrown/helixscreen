@@ -261,7 +261,7 @@ type                           = PLA
 | `[colordict]` | Numeric id → hex color; per-slot color is stored as a color id referencing this table |
 | `[vendor_list]` | Numeric id → vendor name |
 
-`AmsBackendQidi::apply_filas_list()` (declared but unimplemented, `include/ams_backend_qidi.h:164`) should parse this into `fila_profiles_` to seed material presets, nozzle ranges, and per-material drying defaults. The colordict/vendor tables decode the per-slot saved state (see Known Unknowns — where per-slot type/color is persisted is still TBD; `box1.cfg` has **no** `SAVE_VARIABLE` for filament attributes, so it likely lives in `box_rfid.so` state or another saved-variable namespace).
+`AmsBackendQidi::apply_filas_list()` (declared but unimplemented, `include/ams_backend_qidi.h:285`) should parse this into `fila_profiles_` to seed material presets, nozzle ranges, and per-material drying defaults. The colordict/vendor tables decode the per-slot saved state (see Known Unknowns — where per-slot type/color is persisted is still TBD; `box1.cfg` has **no** `SAVE_VARIABLE` for filament attributes, so it likely lives in `box_rfid.so` state or another saved-variable namespace).
 
 ---
 

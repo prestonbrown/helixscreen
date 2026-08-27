@@ -98,7 +98,7 @@ One consequence is easy to miss: on a streamed load there is **no `ParsedGCodeFi
 
 ### Getting the file: two acquisition paths, one shared transfer each
 
-The **print-status panel** path ([`src/ui/ui_panel_print_status.cpp:3425`](../../../src/ui/ui_panel_print_status.cpp#L3425)) checks the gates first — Thumbnail Only mode skips all downloading (`:3409`), as does `gcode_3d_enabled=false` (`:3418`) — then probes a persistent cache copy under `get_helix_cache_dir("gcode_temp")` hashed from the filename, and otherwise fetches metadata, applies the shared OOM gate `is_gcode_2d_streaming_safe(size)` (`:3494`), and streams the file to disk via `transfers().download_file_to_path()` (`:3469`).
+The **print-status panel** path ([`src/ui/ui_panel_print_status.cpp:3430`](../../../src/ui/ui_panel_print_status.cpp#L3430)) checks the gates first — Thumbnail Only mode skips all downloading (`:3409`), as does `gcode_3d_enabled=false` (`:3418`) — then probes a persistent cache copy under `get_helix_cache_dir("gcode_temp")` hashed from the filename, and otherwise fetches metadata, applies the shared OOM gate `is_gcode_2d_streaming_safe(size)` (`:3494`), and streams the file to disk via `transfers().download_file_to_path()` (`:3469`).
 
 The **detail view** has one canonical entry point, `ensure_gcode_downloaded()` ([`src/ui/ui_print_select_detail_view.cpp:637`](../../../src/ui/ui_print_select_detail_view.cpp#L637)), because two consumers need the file — the viewer preview and the tools scan — and they must not race each other into two transfers. Its order matters:
 

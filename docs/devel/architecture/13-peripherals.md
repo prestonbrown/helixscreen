@@ -226,7 +226,7 @@ Socket discipline: the first instance owns `$XDG_RUNTIME_DIR/helixscreen-control
 later instances take a pid-suffixed path rather than stealing it, and sockets left by crashed instances are
 swept before the decision ([`remote_control_server.cpp:101`](../../../src/remote/remote_control_server.cpp#L101)–`126`). The client mirrors this: it checks
 *liveness*, not existence, refuses to guess between live instances, and exits listing them
-([`remote_client.cpp:193`](../../../src/remote/remote_client.cpp#L193)) — but it still targets the well-known path by default, so **always pin both sides**
+([`remote_client.cpp:198`](../../../src/remote/remote_client.cpp#L198)) — but it still targets the well-known path by default, so **always pin both sides**
 (`--remote-socket` + `ctl -s`) when running parallel instances.
 
 ## Patterns & gotchas
@@ -271,5 +271,5 @@ Read in this order; about 30 minutes total.
 12. [`include/mdns_discovery.h:54`](../../../include/mdns_discovery.h#L54) — the class doc: PIMPL, threading, and callback contract.
 13. [`include/remote_control_server.h:15`](../../../include/remote_control_server.h#L15) — the file doc: thread model, transports, and the `RemoteConfig` options.
 14. [`src/remote/remote_control_server.cpp:248`](../../../src/remote/remote_control_server.cpp#L248) — the promise/`ui_queue_update` dispatch every UI command rides; then `:101` for socket-path resolution and the pid-suffix rule.
-15. [`src/remote/remote_client.cpp:193`](../../../src/remote/remote_client.cpp#L193) — the client's mirror-image resolution and its refusal to guess among live instances.
+15. [`src/remote/remote_client.cpp:198`](../../../src/remote/remote_client.cpp#L198) — the client's mirror-image resolution and its refusal to guess among live instances.
 16. [`docs/devel/HELIXCTL.md`](../HELIXCTL.md) — skim the command tables; this is the doc you'll actually use daily.
