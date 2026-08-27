@@ -452,10 +452,38 @@ void PrintStartController::initiate_reprint(const std::string& filename, const s
 
     // Backends that need a pre-print send (Snapmaker U1) emit the firmware-native
     // print_task_config gcode BEFORE the reprint starts, same as the normal start
-    // path. remap is empty (no reprint remap UI) → identity, which reproduces the
-    // spurious-feed fix. On native-send error the modal is shown and on_error runs.
+    // path. On native-send error the modal is shown and on_error runs.
     AmsBackend* backend = AmsState::instance().get_backend();
     if (backend && backend->requires_preprint_send()) {
+        // Where the reprint's routing comes from. The normal start path reads
+        // the detail view's colour/type match; a reprint has no detail view, no
+        // swatch card and no picker, so the only thing that knows how this job
+        // was routed is the printer — and only while its task was configured,
+        // which is what last_print_tool_mapping() snapshots.
+        //
+        // This used to pass an empty remap. build_preprint_gcode resolves a tool
+        // it is not told about to that tool's firmware-default head, so the
+        // reprint wrote SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n
+        // for every used tool and erased the crossover the original print ran
+        // with — a remapped file could not be reprinted correctly at all.
+        const auto remap =
+            helix::FilamentMapper::reprint_remap(backend->last_print_tool_mapping(), tools_used);
+        if (!remap) {
+            // Not known (no configured task observed — e.g. the app started after
+            // the print ended). Sending anything here means inventing a routing:
+            // the identity map this used to emit is a confident wrong answer for
+            // exactly the files that need one. Start with the firmware holding
+            // whatever the last job left, and say so.
+            //
+            // The cost is the SET_PRINT_USED_EXTRUDERS spurious-feed suppression,
+            // which cannot be computed either — the used-head set is derived from
+            // the same routing.
+            spdlog::warn("[PrintStartController] Reprint: no recorded print routing — skipping the "
+                         "pre-print config rather than writing a default map over it");
+            start();
+            return;
+        }
+
         // The abort path has to retire the job this function armed above.
         // execute_print_start() avoids the problem by arming INSIDE its
         // success-only lambda; reprint arms before the pre-send because the
@@ -469,7 +497,7 @@ void PrintStartController::initiate_reprint(const std::string& filename, const s
                 on_error();
             }
         };
-        send_snapmaker_preprint_then(tools_used, /*remap=*/{}, start, abort);
+        send_snapmaker_preprint_then(tools_used, *remap, start, abort);
         return; // start fires from the send continuation — do NOT also start here
     }
 

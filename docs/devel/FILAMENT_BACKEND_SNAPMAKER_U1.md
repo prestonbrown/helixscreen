@@ -156,7 +156,7 @@ conservative prefix/suffix fallback for unknown future states
   fail states. This latch — not the motion sensor — is the authority for
   `slot_has_filament_at_toolhead()`, `can_unload_from_toolhead()`, and the NOZZLE path
   segment, because the per-tool encoder fails to drop to false after an unload on
-  current firmware (`include/ams_backend_snapmaker.h:332-348`,
+  current firmware (`include/ams_backend_snapmaker.h:352-368`,
   `ams_backend_snapmaker.cpp:500-526`).
 - **Action lifecycle and errors.** `*_fail` states and `channel_error` tokens surface as
   `AmsAction::ERROR` with a direction-aware message ("No filament in lane N. Load
@@ -208,7 +208,7 @@ because that signal cannot distinguish "stale encoder" from "preloaded 4 inches 
 the gear"; it is kept as detection infrastructure for a deferred follow-up
 (`ams_backend_snapmaker.cpp:569-593`). The active tool's port-present flag it builds on
 is still published to `AmsState::set_active_tool_port_present()` on change (#991), which
-is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1721-1742`).
+is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1741-1762`).
 
 ### Pre-Print Remap (RemapStrategy::SnapmakerNative)
 
@@ -236,7 +236,7 @@ doc's "Still UNCERTAIN" list.
 one `SET_PRINT_EXTRUDER_MAP` per user remap entry, then one
 `SET_PRINT_USED_EXTRUDERS` with the deduplicated, ascending physical-head CSV resolved
 through the remap. Logical tools 4-31 without an explicit remap fall to head 0, matching
-the firmware's default map (`ams_backend_snapmaker.cpp:1937-1986`). Full command
+the firmware's default map (`ams_backend_snapmaker.cpp:1965-2014`). Full command
 semantics — logical (0-31) vs physical (0-3) index rules, persistence behavior, the
 `filament_official` FORCE gate — live in
 [Firmware API: `print_task_config`](#firmware-api-print_task_config) below.
@@ -258,14 +258,14 @@ swapped — clear the stale override; empty UID is "no signal" and never clears;
 observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 `OverwriteAlways` so OrcaSlicer's MoonrakerPrinterAgent sees the spool, then
 `apply_overrides()` layering the user's fields back over firmware truth
-(`ams_backend_snapmaker.cpp:1672-1719`, `1755-1796`).
+(`ams_backend_snapmaker.cpp:1692-1739`, `1755-1796`).
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
-hardware swap (`include/ams_backend_snapmaker.h:361-377`). Clears preserve
+hardware swap (`include/ams_backend_snapmaker.h:381-397`). Clears preserve
 firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset only
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
-identity) (`ams_backend_snapmaker.cpp:1848-1884`).
+identity) (`ams_backend_snapmaker.cpp:1868-1904`).
 
 User edits round-trip to firmware through `POST /printer/filament_detect/set`
 (`channel` + `info` with `VENDOR`/`MAIN_TYPE`/`SUB_TYPE`/`RGB_1`/`ALPHA`/temps) — an
@@ -423,6 +423,20 @@ will actually print it. Three gating rules, all from observation on a real U1:
 - Power loss and a klippy crash mid-print are **not** covered by those observations. The
   gate above is what makes the read safe on those paths too: it does not depend on the
   reset happening, only on a task being configured.
+
+**Reprint.** That same gate is what makes the table unreadable at the one moment a reprint
+needs it: the print has ended, so `extruders_used` is all-false and the table has been reset
+to identity. Nothing else on the reprint path can reconstruct the routing either - there is
+no detail view, no swatch card and no picker, so there is no colour/type match to recompute.
+`AmsBackendSnapmaker::last_print_tool_mapping()` is therefore a snapshot of the table taken
+on every `print_task_config` frame that arrives with the gate **open**, i.e. the routing the
+most recent print actually ran with. `PrintStartController::initiate_reprint()` runs it
+through `FilamentMapper::reprint_remap()`, which answers `nullopt` when no configured task
+was ever observed - and the reprint then sends **nothing** rather than defaulting, because an
+empty remap makes `build_preprint_gcode()` write every used tool to its firmware-default head
+and erase the crossover the print used. Provenance is the point: a value in the snapshot came
+from a frame where the firmware said a task was configured, which is what `reprint_info`
+below cannot say about any of its own entries.
 
 #### `SET_PRINT_USED_EXTRUDERS` — the feed-gate primitive
 ```python
@@ -746,6 +760,12 @@ which sets the map and derives `extruders_used` from per-tool usage in one comma
   whether the stock screen always follows it with a save — a save step is inferred but the
   gui's exact call order was not captured live.
 - **Whether `reprint_info.extruder_map_table` is re-applied on a firmware-initiated
-  reprint.** `SET_PRINT_EXTRUDER_MAP` writes that mirror as well as the live table, but
-  where the mirror is consumed was not read. HelixScreen's own reprint path sends an
-  explicit map for every used tool, so it does not depend on the answer.
+  reprint**, and whether it appears in the exported status object at all - no live payload
+  carrying it has been captured. `SET_PRINT_EXTRUDER_MAP` writes that mirror as well as the
+  live table, but where the mirror is consumed was not read. It is the obvious candidate for
+  making HelixScreen's reprint routing survive an app restart (the in-app snapshot above does
+  not), with one hazard to settle first: both writers only ever set entries and neither
+  clears, so the mirror accumulates across prints and an entry carries no evidence of which
+  print wrote it. `SET_PRINT_TASK_PARAMETERS` - the bulk path the stock screen and the cloud
+  use - is not documented as writing the mirror at all, so a screen-started print would leave
+  a previous job's entries in place looking exactly like fresh ones.
