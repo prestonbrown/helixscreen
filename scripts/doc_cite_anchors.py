@@ -118,6 +118,10 @@ FENCE_RE = re.compile(r'^\s*```')
 # one would edit the teaching example.
 DISPLAY_SPAN_RE = re.compile(r'``.+?``')
 
+# The `:857` follow-on shorthand: a line number with no path, meaning "in the
+# file the sentence just cited".
+BARE_REF_RE = re.compile(r'`:(?P<line>\d+)(?:(?P<rdash>[-\u2013])(?P<rend>\d+))?`')
+
 # 6 bytes of blake2b. The primary hash is only ever looked up inside ONE file's
 # line table, so 48 bits is far more collision headroom than a few thousand
 # lines need, and 12 hex characters keep the sidecar readable in a diff.
@@ -366,7 +370,7 @@ class Resolver:
         return idx
 
 
-def iter_citations(text):
+def iter_citations(text, include_bare=False, resolve_len=None):
     """Yield (doc_line, span, ref, n) for every live `path:N` citation.
 
     Fenced blocks and ``literal`` spans are skipped: both hold syntax samples,
@@ -384,20 +388,60 @@ def iter_citations(text):
         if fenced or '`' not in line:
             continue          # no code span, so no citation: skip two regex scans
         display = [m.span() for m in DISPLAY_SPAN_RE.finditer(line)]
-        for m in gate.LINE_REF_RE.finditer(line):
-            if any(a <= m.start() < b for a, b in display):
-                continue
+        full = [m for m in gate.LINE_REF_RE.finditer(line)
+                if not any(a <= m.start() < b for a, b in display)]
+        for m in full:
             tail = gate.trailing_range(line, m.end())
             yield Cite(doc_line, m.span(), m.group('ref'), int(m.group('line')),
                        m.group('rdash'), m.group('rend'), tail)
+        if not include_bare or not full:
+            continue
+        # A bare `:857` means "another line in the file I just cited". Resolve it
+        # against the nearest preceding full citation ON THE SAME LINE and no
+        # further: SYMBOL_CITE_B_RE already learned what happens when a pattern
+        # is allowed to span newlines — it paired a citation ending one bullet
+        # with the symbol opening the next, four times over. A shorthand whose
+        # antecedent is in another paragraph is not resolvable by rule, and
+        # guessing is how this whole class of bug started.
+        for b in BARE_REF_RE.finditer(line):
+            if any(a <= b.start() < c for a, c in display):
+                continue
+            prior = [m for m in full if m.end() <= b.start()]
+            if not prior:
+                continue
+            # Nearest-preceding is the right rule but not sufficient on its own:
+            # a sentence that cites two files ("...ui_nav_manager.cpp:1678...
+            # ensure_delete_hook() (ui_nav_manager.h:632): ... at `:1466`")
+            # leaves the nearest antecedent as the WRONG one — 1466 is past the
+            # end of the 812-line header and plainly belongs to the .cpp. So
+            # prefer the nearest antecedent whose file actually contains the
+            # line, and only fall back to the truly nearest when none does,
+            # which then surfaces as past-EOF and is a real finding rather than
+            # a mispairing.
+            n = int(b.group('line'))
+            src = prior[-1]
+            if resolve_len is not None:
+                for cand in reversed(prior):
+                    if n <= resolve_len(cand.group('ref')):
+                        src = cand
+                        break
+            yield Cite(doc_line, b.span(), src.group('ref'), n,
+                       b.group('rdash'), b.group('rend'), None, derived=True)
 
 
 class Cite:
     """One `path:N` (or `path:N-M`) citation as it stands in a doc."""
 
-    __slots__ = ('doc_line', 'span', 'ref', 'line', 'rdash', 'rend', 'tail')
+    __slots__ = ('doc_line', 'span', 'ref', 'line', 'rdash', 'rend', 'tail',
+                 'derived')
 
-    def __init__(self, doc_line, span, ref, line, rdash, rend, tail=None):
+    def __init__(self, doc_line, span, ref, line, rdash, rend, tail=None,
+                 derived=False):
+        # True when the file name was inferred from a preceding citation rather
+        # than written here. Off by default at every call site that feeds the
+        # gate, so a derived citation cannot reach the bootstrapper — see
+        # review_bare().
+        self.derived = derived
         self.doc_line, self.span, self.ref, self.line = doc_line, span, ref, line
         self.rdash, self.rend = rdash, (int(rend) if rend else None)
         # A range end written outside the backticks, with its own span so the
@@ -526,6 +570,34 @@ def write_sidecar(rows, path=SIDECAR):
                     % (doc, ref, line, resolved, primary, context))
 
 
+UNRESOLVED_KEY = 'max-unresolved:'
+
+
+def load_ceiling(path=BASELINE):
+    """The `max-unresolved:` ceiling, or None when the file does not set one.
+
+    A key set alone cannot see this class at all. A citation whose PATH does not
+    resolve is skipped by every check here and deferred to check_refs — which is
+    right, that is its job — but check_refs passes a bare basename the moment
+    ANY file in the tree shares it, submodules included (`file.cpp` resolves to
+    lib/cpp-terminal's). So a citation can be unanchorable AND unreported, and
+    nothing counts how many of those exist. Combined with the range hole that
+    used to hide dead paths, that is a bucket things fall into quietly. A count
+    is the only handle: the members change as docs are edited, the SIZE is what
+    must not grow.
+    """
+    if not os.path.isfile(path):
+        return None
+    for raw in open(path, errors='ignore'):
+        raw = raw.strip()
+        if raw.startswith(UNRESOLVED_KEY):
+            try:
+                return int(raw[len(UNRESOLVED_KEY):].strip())
+            except ValueError:
+                return None
+    return None
+
+
 def load_baseline(path=BASELINE):
     known = set()
     if not os.path.isfile(path):
@@ -534,15 +606,19 @@ def load_baseline(path=BASELINE):
         raw = raw.strip()
         if not raw or raw.startswith('#'):
             continue
+        if raw.startswith(UNRESOLVED_KEY):
+            continue
         parts = raw.split('\t')
         if len(parts) >= 2:
             known.add((parts[0], parts[1]))
     return known
 
 
-def write_baseline(entries, path=BASELINE):
+def write_baseline(entries, path=BASELINE, unresolved=None):
     with open(path, 'w') as f:
         f.write(BASELINE_HEADER)
+        if unresolved is not None:
+            f.write('%s %d\n\n' % (UNRESOLVED_KEY, unresolved))
         for doc, ref, line, reason in sorted(entries):
             f.write('%s\t%s:%d\t%s\n' % (doc, ref, line, reason))
 
@@ -562,7 +638,7 @@ class Finding:
         return (self.doc, self.doc_line) < (other.doc, other.doc_line)
 
 
-def run(targets, stored, devel=True, write=False, audit=False):
+def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False):
     """Resolve every citation's anchor; optionally rewrite docs and sidecar.
 
     Returns (findings, fresh_rows, blanks, rewrites, stats). `stored` is the
@@ -571,12 +647,16 @@ def run(targets, stored, devel=True, write=False, audit=False):
     resolution even for citations that are already correct, so the tier
     histogram reflects how much of the corpus leans on the context tiebreak.
     """
-    baselined = load_baseline()
+    # --write-baseline has to see the citations the baseline is already hiding,
+    # or it re-derives the file from what is left after they were skipped —
+    # which is nothing, so it empties the very list it was asked to rewrite.
+    # (It did: one invocation wiped 13 entries and a second put them back.)
+    baselined = set() if rebaseline else load_baseline()
     resolver = Resolver(devel=devel)
     findings, blanks, rewrites = [], [], []
     fresh = {}
     seen_keys = set()
-    stats = {'in_place': 0, 'unique': 0, 'context': 0,
+    stats = {'in_place': 0, 'unique': 0, 'context': 0, 'unresolved': 0,
              'bootstrapped': 0, 'skipped': 0, 'cites': 0}
 
     target_set = set(targets)
@@ -611,6 +691,8 @@ def run(targets, stored, devel=True, write=False, audit=False):
             # every anchor into it would read as 'gone'.
             if path is None or not len(idx):
                 stats['skipped'] += 1
+                if path is None:
+                    stats['unresolved'] += 1
                 if stored is not None and key in stored:
                     seen_keys.add(key)
                     fresh[key] = stored[key]
@@ -727,6 +809,54 @@ def run(targets, stored, devel=True, write=False, audit=False):
     return findings, fresh, blanks, rewrites, stats
 
 
+def review_bare(targets, devel=True):
+    """The `:857` shorthand refs, as a REVIEW LIST. Never anchors anything.
+
+    Deliberately not wired into the gate and deliberately not fed to the
+    bootstrapper. A census of this class put it at 459 citations across 26 docs
+    — 35% of every line reference in the tree — and a hand-check of twelve found
+    ELEVEN wrong. Anchoring those where they sit would freeze ~400 bad citations
+    and make them look maintained, which is precisely the failure the original
+    bootstrap committed, at four times the scale. So this reports, a human
+    repairs, and only then does anything anchor.
+
+    Rows are sorted worst-first by the signal that actually predicts a defect:
+    the cited line being low-information. The dominant shape in the corpus is a
+    citation sitting on the closing brace of the PREVIOUS function, two lines
+    above the one the prose names.
+    """
+    resolver = Resolver(devel=devel)
+    rows = []
+    for doc in targets:
+        try:
+            text = open(doc, errors='ignore').read()
+        except OSError:
+            continue
+        def length_of(ref, _doc=doc):
+            hit = resolver.path_for(ref, _doc)
+            return len(resolver.index(hit)) if hit else 0
+
+        for cite in iter_citations(text, include_bare=True,
+                                   resolve_len=length_of):
+            if not cite.derived or not anchorable(cite.ref):
+                continue
+            path = resolver.path_for(cite.ref, doc)
+            if path is None:
+                rows.append((doc, cite, None, 'unresolved-path', ''))
+                continue
+            idx = resolver.index(path)
+            if not 1 <= cite.line <= len(idx):
+                rows.append((doc, cite, path, 'past-EOF', ''))
+                continue
+            txt = idx.norm_line(cite.line)
+            rows.append((doc, cite, path, anchor_quality(txt) or 'ok', txt))
+    return rows
+
+
+RANK = {'unresolved-path': 0, 'past-EOF': 1, 'blank': 2, 'banner': 3,
+        'low-information': 4, 'ok': 5}
+
+
 def span_key(doc_line, span):
     return (doc_line, span[0], span[1])
 
@@ -794,6 +924,9 @@ def main():
                     help='implies --check; list the rewrites it would make')
     ap.add_argument('--write-baseline', action='store_true',
                     help='re-list unanchorable citations after reviewing them')
+    ap.add_argument('--bare-refs', action='store_true',
+                    help='report the `:857` follow-on shorthand refs as a '
+                         'review list; anchors nothing and never fails')
     ap.add_argument('--audit', action='store_true',
                     help='implies --check; resolve every anchor the long way '
                          'and print how many need each tier')
@@ -804,6 +937,25 @@ def main():
         print('❌ No .md files to process')
         return 1
 
+    if args.bare_refs:
+        rows = review_bare(targets)
+        suspect = [r for r in rows if r[3] != 'ok']
+        print('Bare `:N` follow-on refs: %d resolved against the preceding '
+              'citation on their line, across %d docs.'
+              % (len(rows), len({r[0] for r in rows})))
+        print('%d land on a line that cannot be anchored — review these first; '
+              'the rest still need their PROSE checked, which no rule can do.'
+              % len(suspect))
+        print()
+        for doc, cite, path, why, txt in sorted(
+                rows, key=lambda r: (RANK.get(r[3], 9), r[0], r[1].doc_line)):
+            if why == 'ok':
+                continue
+            print('  %-52s %s -> %s:%d  [%s] %s'
+                  % ('%s:%d' % (doc, cite.doc_line), cite.as_written,
+                     path or '?', cite.line, why, repr(txt)[:44]))
+        return 0
+
     check_only = args.check or args.diff or args.audit
     stored = load_sidecar()
     if stored is None and check_only:
@@ -813,7 +965,8 @@ def main():
         stored = {}
 
     findings, fresh, blanks, rewrites, stats = run(
-        targets, stored, write=not check_only, audit=args.audit)
+        targets, stored, write=not check_only, audit=args.audit,
+        rebaseline=args.write_baseline)
 
     if not check_only:
         # A doc outside this run's scope keeps its rows: a targeted regen must
@@ -845,9 +998,20 @@ def main():
             entries = set(blanks)
             if args.paths:
                 entries |= _existing_baseline_entries()
-            write_baseline(entries)
+            # The ceiling is only re-derived by a FULL run, for the same reason
+            # the key set is: a targeted run counted a subset and would ratchet
+            # the number down to it, failing the next full run over citations it
+            # never looked at.
+            write_baseline(entries, unresolved=None if args.paths
+                           else stats['unresolved'])
             blanks = []
             findings = [f for f in findings if f.kind not in QUALITY_KINDS]
+
+    # A citation whose path does not resolve is nobody's finding here — it is
+    # deferred to check_refs — so the only way this class can be held is by
+    # counting it. Enforced on any run that did not just rewrite the number.
+    ceiling = load_ceiling()
+    over = (ceiling is not None and stats['unresolved'] > ceiling)
 
     hard = [f for f in findings if f.kind in HARD_KINDS]
     soft = [f for f in findings if f.kind not in HARD_KINDS]
@@ -881,6 +1045,12 @@ def main():
                   'sentence, re-cite it, then `make regen-doc-links`.' % len(hard))
         elif soft:
             print('   Run: make regen-doc-links')
+        if over:
+            _report_over(stats['unresolved'], ceiling)
+        return 1
+
+    if over:
+        _report_over(stats['unresolved'], ceiling)
         return 1
 
     if check_only:
@@ -890,6 +1060,17 @@ def main():
               '%d bootstrapped)' % (len(fresh), len(targets), len(rewrites),
                                     stats['bootstrapped']))
     return 0
+
+
+def _report_over(count, ceiling):
+    print('❌ Citation anchors: %d citations name a path that does not resolve, '
+          'over the baseline of %d.' % (count, ceiling))
+    print('   These are anchored by nothing and reported by nothing — '
+          'check_refs passes a bare basename as soon as ANY file in the tree '
+          'shares it, submodules included.')
+    print('   Fix the path, or unbacktick it if it is external/device-side. '
+          'The number may fall, never rise; `--write-baseline` re-derives it '
+          'after review.')
 
 
 def _existing_baseline_entries():
@@ -904,6 +1085,8 @@ def _existing_baseline_entries():
     for raw in open(BASELINE, errors='ignore'):
         raw = raw.strip()
         if not raw or raw.startswith('#'):
+            continue
+        if raw.startswith(UNRESOLVED_KEY):
             continue
         parts = raw.split('\t')
         if len(parts) < 3:

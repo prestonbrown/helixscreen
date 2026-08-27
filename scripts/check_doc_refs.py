@@ -36,15 +36,19 @@
 # The index check is what makes lazy loading trustworthy: a doc missing from the
 # routing table is a doc nobody will find.
 #
-# KNOWN GAPS — checked by nothing today, each wanting its own change:
+# KNOWN GAPS — each wanting its own change:
 #
-#   bare `:857` shorthand. The guide's convention for "another line in the file
-#     I just cited" (`ams_state.cpp:709` … the immediate sync at `:762`). 444 of
-#     them across 25 docs, and none is verified: the shorthand carries no path,
-#     so resolving one means tracking the last full citation on the line, in the
-#     paragraph, or in the table row. Every one inspected by hand so far was
-#     stale. Wants a sweep of its own, because the resolution rule is a guess
-#     until it is measured against the real prose.
+#   bare `:857` shorthand, the rest of it. 447 in the scanned docs. 276 now
+#     resolve against the nearest preceding full citation on their own line
+#     (`doc_cite_anchors.py --bare-refs`, a REVIEW LIST that anchors nothing —
+#     11 of 12 hand-checked were wrong, so bootstrapping them would freeze the
+#     rot). Of the remainder, 28 sit after a citation that names a PATH with no
+#     line — `` `scripts/quality-checks.sh` … (`:1583`) ``, the table form —
+#     which LINE_REF_RE cannot be the antecedent for; widening the antecedent
+#     search to PATH_RE matches would pick those up. The last 143 have no
+#     antecedent on their line at all, and some have none anywhere: one names
+#     three call sites "in the detail view", a prose antecedent no rule can
+#     resolve. Those need prose edits, not a better regex.
 #
 #   templated symbol spellings. SYMBOL_CITE_*_RE's symbol charset is
 #     [A-Za-z_][A-Za-z0-9_]* plus `::`, so anything carrying angle brackets is
@@ -56,6 +60,19 @@
 #     `std::shared_ptr<bool>` that yields `shared_ptr<bool>`, which does not
 #     appear literally in code that says `std::shared_ptr<bool>` with different
 #     spacing. Extract the bare identifier first, then widen.
+#
+#   a bare basename passes check_refs as soon as ANY file in the tree shares it,
+#     submodules included — `file.cpp` in prose resolves to
+#     lib/cpp-terminal/cpp-terminal/private/file.cpp. Harmless for a deliberate
+#     placeholder, but it means the path check cannot be read as proof that the
+#     file the sentence MEANT exists. doc_cite_anchors.py holds the size of that
+#     bucket at `max-unresolved:` instead.
+#
+#   NOT a gap, measured rather than assumed: citations inside fenced code blocks.
+#     Both this gate and the anchor generator skip fences deliberately, and a
+#     census of the corpus found ZERO real citations inside one, so the
+#     exclusion costs nothing today. Non-backticked prose mentions
+#     (`zmod_ifs.py:1149`, unbackticked as external) are likewise deliberate.
 #
 # Usage:
 #   check_doc_refs.py            # everything: every CLAUDE.md, .claude/skills/,
@@ -129,8 +146,27 @@ PLACEHOLDER_CHARS = ('<', '>', '*', '$', '…', '{')
 # caught the moment the path rotted, the range form was invisible to every gate
 # at once. Verified by probe — a `:70` cite to a bogus path fails the refs
 # check, the same path as `:63-65` produced no finding from anything.
+# ONE extension list, shared by both citation regexes below. They are documented
+# to agree on what counts as a citation and they silently did not: `cfg` had been
+# added to LINE_REF_RE alone, so a `.cfg` citation was content-anchored while its
+# PATH was never checked. Spelling the list once is the only version that cannot
+# drift, and it is the same shape as the range hole - a one-line edit away from
+# recurring for whatever extension somebody adds next.
+#
+# `cfg` is deliberately NOT here. A `.cfg` citation in these docs is a Klipper
+# config that lives on the PRINTER - `printer.cfg`, `box.cfg`,
+# `Macros/toolchanger.cfg` - and 45 of the 48 in the tree are exactly that, so
+# admitting the extension would fail the path check on all of them for being
+# correct. It bought nothing on the anchor side either: every `.cfg` citation
+# LINE_REF_RE made visible sat permanently unresolved, since the file is not in
+# the repo to hash. The three real in-repo .cfg files have never been line-cited.
+# Checking device-side config would need a different mechanism, not this one.
+CITED_EXTENSIONS = ('md', 'cpp', 'cc', 'h', 'hpp', 'c', 'xml', 'py', 'sh',
+                    'json', 'mk', 'bats', 'yml', 'yaml', 'html', 'txt')
+_EXT = '|'.join(CITED_EXTENSIONS)
+
 PATH_RE = re.compile(
-    r'`([A-Za-z0-9_./-]+\.(?:md|cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|yaml|html|txt)'
+    r'`([A-Za-z0-9_./-]+\.(?:' + _EXT + r')'
     r'(?::\d+(?:[-–]\d+)?|:[A-Za-z0-9_]+\(\))?)`')
 
 # Markdown [text](target) links. Link text must be non-empty — `[](...)` is a
@@ -185,8 +221,8 @@ def unwrap_links(text):
 # SYMBOL_CITE_B_RE: positional numbering there shifts with every group added
 # here, and it shifts SILENTLY into reading the wrong capture.
 LINE_REF_RE = re.compile(
-    r'`(?P<ref>[A-Za-z0-9_./-]+\.(?:cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|'
-    r'yaml|html|txt|md|cfg)):(?P<line>\d+)(?:(?P<rdash>[-–])(?P<rend>\d+))?`')
+    r'`(?P<ref>[A-Za-z0-9_./-]+\.(?:' + _EXT + r')):(?P<line>\d+)'
+    r'(?:(?P<rdash>[-–])(?P<rend>\d+))?`')
 
 # A line-cited reference plus the symbol the sentence claims lives there, in the
 # two shapes the docs actually use:

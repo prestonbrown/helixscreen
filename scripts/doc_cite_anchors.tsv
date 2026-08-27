@@ -147,7 +147,7 @@ docs/devel/RPC_ERROR_OWNERSHIP.md	src/application/gcode_error_router.cpp	323	src
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/led/led_controller.cpp	1023	src/led/led_controller.cpp	157ed2ec9d35	c1a18c3021ee
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	446	src/printer/ams_subscription_backend.cpp	5bb0eabbfab1	0ce274dc4e64
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	481	src/printer/ams_subscription_backend.cpp	8d6a1131138d	3cdd3709bc93
-docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	529	src/printer/ams_subscription_backend.cpp	5a185bb9da5b	f8e252b75f10
+docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	546	src/printer/ams_subscription_backend.cpp	359b20bf7fb8	acb8114396cc
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/toolhead_homing.cpp	60	src/printer/toolhead_homing.cpp	06f16f5e4b64	adcc7a362fa0
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	281	lib/helix-xml/src/xml/lv_xml.c	088d8240b210	33197fcbf9b6
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	438	lib/helix-xml/src/xml/lv_xml.c	daa12916c9dd	5547864e6a2e
@@ -654,7 +654,7 @@ docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	242	sr
 docs/devel/architecture/15-known-debt.md	include/sensor_registry.h	60	include/sensor_registry.h	7f03fa23f905	68f5a7ddc2d4
 docs/devel/architecture/15-known-debt.md	scripts/check_imperative_ui.py	10	scripts/check_imperative_ui.py	10d17ed720c9	02bdf36e7680
 docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1583	scripts/quality-checks.sh	bdd7bb103b0b	6b373a10db4b
-docs/devel/architecture/15-known-debt.md	src/api/moonraker_discovery_sequence.cpp	741	src/api/moonraker_discovery_sequence.cpp	99349a08a9a4	f78383475757
+docs/devel/architecture/15-known-debt.md	src/api/moonraker_discovery_sequence.cpp	856	src/api/moonraker_discovery_sequence.cpp	859d76692100	84ebb0feab81
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	96	src/printer/printer_discovery.cpp	701fe2945490	d988be8c6ecc
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	105	src/printer/printer_discovery.cpp	b4eafb8019aa	2173247c26a9
 docs/devel/architecture/15-known-debt.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
