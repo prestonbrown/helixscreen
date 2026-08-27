@@ -219,14 +219,24 @@ struct KeypadCeilingFixture {
     helix::PrinterState state;
     MoonrakerAPI api;
     std::shared_ptr<helix::TemperatureController> controller;
-    ::FilamentPanel panel;
+    /// Built in the constructor BODY, not the member-initializer list. The panel's
+    /// constructor installs seven observers on PrinterState subjects (four through
+    /// TemperatureObserverBundle, three on chamber/print-state), and a member
+    /// initializer runs before init_subjects() below - so they would attach to
+    /// subjects that do not exist yet. lv_subject_add_observer() hands back a null
+    /// observer for those, ObserverGuard::reset() short-circuits on it and never
+    /// runs its `delete ctx` cleanup, and the panel silently observes nothing.
+    /// That is fourteen at-exit leaks under ASan (#1279) plus a fixture that tests
+    /// less than it looks. Same ordering the SafetyTextHarness in
+    /// test_safety_limits_negative_min_temp.cpp uses.
+    std::unique_ptr<::FilamentPanel> panel;
 
     KeypadCeilingFixture()
         : client(MoonrakerClientMock::PrinterType::VORON_24), api(client, state),
-          controller(std::make_shared<helix::TemperatureController>(state, &api)),
-          panel(state, &api) {
+          controller(std::make_shared<helix::TemperatureController>(state, &api)) {
         state.init_subjects(false);
         helix::PanelWidgetManager::instance().register_shared_resource(controller);
+        panel = std::make_unique<::FilamentPanel>(state, &api);
     }
 
     ~KeypadCeilingFixture() {
@@ -236,13 +246,16 @@ struct KeypadCeilingFixture {
         // hands them to whichever test drains next, which then notifies the
         // subjects that died here (#1166, #1146). Drain before each owner dies.
         helix::ui::UpdateQueue::instance().drain();
+        // The panel goes first, while the subjects it observes are still alive:
+        // an ObserverGuard whose subject already died skips lv_observer_remove().
+        panel.reset();
         helix::PanelWidgetManager::instance().clear_shared_resources();
         helix::ui::UpdateQueue::instance().drain();
         state.deinit_subjects();
     }
 
     float ceiling(helix::HeaterType type, int fallback) {
-        return helix::ui::FilamentPanelTestAccess::keypad_max_for(panel, type, fallback);
+        return helix::ui::FilamentPanelTestAccess::keypad_max_for(*panel, type, fallback);
     }
 };
 
