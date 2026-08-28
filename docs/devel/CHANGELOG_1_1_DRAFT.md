@@ -32,6 +32,21 @@ what gets saved.
 
 ### Added
 
+- **Belt tension is measured by plucking, not by a driven sweep (#1303, #1231)** - park the
+  gantry, pluck each belt by hand, and the tool listens on Klipper's live accelerometer
+  stream and reports the belt's fundamental. It reads the fundamental off the whole
+  harmonic series rather than the tallest peak, which is what the old sweep got wrong: a
+  belt whose 2nd harmonic dominates reported exactly one octave sharp. The number you act
+  on is the median of five accepted plucks. The `TEST_RESONANCES` sweep, the strobe path
+  and the never-measurable Z-belt path are deleted.
+
+  > **⚠ RELEASE BLOCKER - do not ship 1.1 with this marked done.** This is green in CI and
+  > has **never measured a real belt**. Its gate thresholds were measured against captures
+  > from one Voron 2.4 on one evening, and the algorithm was then tuned against that same
+  > set - circular, and not yet broken. It stays beta-gated and must not be promoted until
+  > the hardware matrix in `BELT_TUNER.md` § Validation status has actually been run.
+  > Delete this box only when that is done, not when the code looks finished.
+
 - **The home screen is one square-cell grid on every panel (#1126)** - both axes now divide the
   panel by the same per-breakpoint track size, so a cell is square everywhere and a rotated
   panel transposes its grid exactly. The per-layout-type branches, the fixed count table and

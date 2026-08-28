@@ -15,6 +15,12 @@
  * 5-9x pitch estimation was right 64% of the time, and above 9x it was right
  * 95% of the time. Rejecting weak strikes contributes more accuracy than
  * averaging does - ungated, a median never exceeded 48% at any sample count.
+ *
+ * Those 60 captures are one Voron 2.4 on one evening, and this algorithm was
+ * then tuned against them - the thresholds are circular and the circle has
+ * not been broken. Before changing any constant here, read
+ * docs/devel/BELT_TUNER.md section "Validation status", which records what a
+ * hardware session still has to prove and how to capture into the corpus.
  */
 
 namespace helix::calibration {
