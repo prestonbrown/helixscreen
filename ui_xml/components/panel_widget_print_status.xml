@@ -179,9 +179,9 @@
                 style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true"
                 clickable="false" event_bubble="true">
           <bind_flag_if_eq subject="print_show_progress" flag="hidden" ref_value="0"/>
-          <text_small width="100%"
-                      bind_text="print_display_filename" style_text_color="#text" long_mode="wrap"
-                      style_text_align="center" clickable="false" event_bubble="true"/>
+          <text_small name="library_active_filename"
+                      width="100%" bind_text="print_display_filename" style_text_color="#text"
+                      long_mode="scroll_circular" style_text_align="center" clickable="false" event_bubble="true"/>
           <progress_bar name="print_progress_bar"
                         width="90%" bind_value="print_progress_display" clickable="false" event_bubble="true"/>
           <text_small bind_text="print_progress_text" clickable="false" event_bubble="true"/>

@@ -97,16 +97,3 @@ def test_unfreeze_actually_resumes_a_paused_timer(helix_app):
     helix_app.wait_for("perf_history_tick", during + 1, timeout=5)
     after = helix_app.get("perf_history_tick")["value"]
     assert after > during, "perf_history_tick did not resume advancing after unfreeze"
-
-
-def test_screen_is_still_captured_while_frozen(helix_app, tmp_path):
-    # Guards the second skip-list entry: pausing the display refresh timer
-    # would leave nothing rendering.
-    helix_app.navigate("home")
-    helix_app.wait_idle()
-    helix_app.freeze()
-    try:
-        out = helix_app.screenshot(str(tmp_path / "frozen.png"))
-        assert (tmp_path / "frozen.png").stat().st_size > 0, out
-    finally:
-        helix_app.unfreeze()

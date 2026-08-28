@@ -3,6 +3,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "filament_variants.h"
 
 #include <sstream>
 
@@ -425,6 +426,77 @@ TEST_CASE_METHOD(XMLTestFixture, "preselect_product_id survives a dropdown round
     CHECK(sel.current_type() == "PLA");
     REQUIRE(sel.highlighted() != nullptr);
     CHECK(sel.highlighted()->id == "sunlu-pla-plus-2-0");
+
+    sel.detach();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a Spoolman-only vendor still offers material types",
+                 "[filament_picker][catalog_selector]") {
+    // K2 Plus, 2026-08-24: lanes 2 and 3 held Ambrosia ASA-GF. The vendor
+    // dropdown offers every live Spoolman vendor, but the bundled catalog
+    // carries 21 brands and "Ambrosia" is not one, so types_for_brand() came
+    // back empty and the Type dropdown rendered with ZERO rows — the material
+    // could not be set at all.
+    lv_obj_t* root = make_fragment();
+    REQUIRE(root != nullptr);
+
+    FilamentCatalogSelector sel;
+    sel.attach(root);
+    // Mirrors AmsEditOverlay: configure() deliberately clears the extra vendor
+    // list, and the host re-supplies it AFTER populate() once the async Spoolman
+    // vendor fetch lands. set_additional_vendors() rebuilds both dropdowns.
+    // TEST_MIRROR_OK: what is mirrored is the HOST's call ORDER, and the three
+    //                 calls below are the real FilamentCatalogSelector methods.
+    //                 The selector's own logic is never reimplemented here.
+    sel.configure(std::nullopt, std::nullopt, std::string("Ambrosia"));
+    sel.populate();
+    sel.set_additional_vendors({"Ambrosia"});
+
+    REQUIRE(sel.current_vendor() == "Ambrosia");
+    CHECK_FALSE(sel.current_type().empty());
+
+    sel.detach();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "an off-catalog vendor still seeds the slot's material family",
+                 "[filament_picker][catalog_selector]") {
+    // The slot claims ASA-GF. Headings are FAMILIES by design (PLA-CF shows
+    // under "PLA"), so the dropdown lands on ASA and the variant stays selectable
+    // in the product list underneath — what matters is that it is no longer
+    // stranded on an empty dropdown with no family at all.
+    lv_obj_t* root = make_fragment();
+    REQUIRE(root != nullptr);
+
+    FilamentCatalogSelector sel;
+    sel.attach(root);
+    sel.configure(std::string("ASA-GF"), std::nullopt, std::string("Ambrosia"));
+    sel.populate();
+    sel.set_additional_vendors({"Ambrosia"});
+
+    CHECK(sel.current_type() == filament::display_family("ASA-GF"));
+    CHECK_FALSE(sel.current_type().empty());
+
+    sel.detach();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a material no catalog product carries is still offered",
+                 "[filament_picker][catalog_selector]") {
+    // A family the fallback list cannot supply -- free-text Spoolman materials
+    // reduce to nothing -- must still be appended, or reopening the editor
+    // silently reassigns the slot's material to whatever sorts first.
+    lv_obj_t* root = make_fragment();
+    REQUIRE(root != nullptr);
+
+    FilamentCatalogSelector sel;
+    sel.attach(root);
+    sel.configure(std::string("Ambrosia House Blend"), std::nullopt, std::string("Ambrosia"));
+    sel.populate();
+    sel.set_additional_vendors({"Ambrosia"});
+
+    CHECK(sel.current_type() == "Ambrosia House Blend");
 
     sel.detach();
     helix::ui::UpdateQueue::instance().drain();

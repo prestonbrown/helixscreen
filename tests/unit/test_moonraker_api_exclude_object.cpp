@@ -26,6 +26,7 @@
 
 #include <chrono>
 #include <thread>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -478,38 +479,40 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture,
 
 TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
                  "exclude_object sends correct G-code via mock client", "[mock][print][slow]") {
+    // Catch2 rebuilds the fixture for every leaf SECTION, so each starts with an
+    // empty gcode_script_history() and the assertions below see only their own send.
     SECTION("Valid object name sends EXCLUDE_OBJECT command") {
         api->exclude_object(
             "Part_1", [this]() { this->success_callback(); },
             [this](const MoonrakerError& err) { this->error_callback(err); });
 
-        // No validation error
         REQUIRE_FALSE(error_called);
-
-        // Mock client should have received the G-code via execute_gcode
-        // which sends "gcode.script" RPC method
-        // Note: Success callback won't be called since mock doesn't invoke callbacks
+        REQUIRE(success_called);
+        REQUIRE(mock_client.gcode_script_history() ==
+                std::vector<std::string>{"EXCLUDE_OBJECT NAME=Part_1"});
     }
 
     SECTION("Object with underscore and numbers") {
-        reset_callbacks();
         api->exclude_object(
             "Model_42_copy", [this]() { this->success_callback(); },
             [this](const MoonrakerError& err) { this->error_callback(err); });
 
         REQUIRE_FALSE(error_called);
+        REQUIRE(mock_client.gcode_script_history() ==
+                std::vector<std::string>{"EXCLUDE_OBJECT NAME=Model_42_copy"});
     }
 
     SECTION("Injection attempt does not send G-code") {
-        reset_callbacks();
         api->exclude_object(
             "Part\nG28\n", [this]() { this->success_callback(); },
             [this](const MoonrakerError& err) { this->error_callback(err); });
 
-        // Error callback should have been called with validation error
         REQUIRE(error_called);
         REQUIRE(captured_error.type == MoonrakerErrorType::VALIDATION_ERROR);
-        // No G-code should have been sent (validation fails before RPC call)
+        // The point of the validation gate: nothing reached the wire, so the
+        // injected G28 was never queued behind an EXCLUDE_OBJECT.
+        REQUIRE(mock_client.gcode_script_history().empty());
+        REQUIRE(mock_client.last_send_method().empty());
     }
 }
 
@@ -517,36 +520,18 @@ TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
 // G-code Format Verification
 // ============================================================================
 
-TEST_CASE_METHOD(ExcludeObjectTestFixture,
+TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
                  "exclude_object generates correct EXCLUDE_OBJECT command", "[gcode][print]") {
-    // These tests verify the expected G-code format:
-    // EXCLUDE_OBJECT NAME=<object_name>
+    // Klipper object names are case-sensitive and slicers emit mixed case, so the
+    // name must reach the wire byte-for-byte. Read the recorded script rather than
+    // the normalized one: the mock upper-cases only the leading command token.
+    api->exclude_object(
+        "MyObject", [this]() { this->success_callback(); },
+        [this](const MoonrakerError& err) { this->error_callback(err); });
 
-    SECTION("Command format for simple name") {
-        // Validation should pass for valid names
-        api->exclude_object(
-            "Part_1", [this]() { this->success_callback(); },
-            [this](const MoonrakerError& err) { this->error_callback(err); });
-
-        // Validation should pass - if error, it should be network error not validation
-        if (error_called) {
-            REQUIRE(captured_error.type != MoonrakerErrorType::VALIDATION_ERROR);
-        }
-        // The actual G-code sent would be: "EXCLUDE_OBJECT NAME=Part_1"
-    }
-
-    SECTION("Command format preserves case") {
-        reset_callbacks();
-        api->exclude_object(
-            "MyObject", [this]() { this->success_callback(); },
-            [this](const MoonrakerError& err) { this->error_callback(err); });
-
-        // Validation should pass - if error, it should be network error not validation
-        if (error_called) {
-            REQUIRE(captured_error.type != MoonrakerErrorType::VALIDATION_ERROR);
-        }
-        // The actual G-code sent would be: "EXCLUDE_OBJECT NAME=MyObject"
-    }
+    REQUIRE_FALSE(error_called);
+    REQUIRE(mock_client.gcode_script_history() ==
+            std::vector<std::string>{"EXCLUDE_OBJECT NAME=MyObject"});
 }
 
 // ============================================================================

@@ -220,7 +220,7 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
         // std::system_error(resource_deadlock_would_occur). Defer the swap to
         // the main/UI thread via UpdateQueue so the init thread can unwind
         // before stop() joins it. The shared instance is owned by
-        // g_shared_wifi_manager for the life of the process, but tests build
+        // the never-freed global holder for the life of the process, but tests build
         // their own on the stack, so the swap is routed through the guard rather
         // than relying on that (#1165).
         async_lifetime_.defer("WiFiManager::fallback_to_wpa_supplicant", [this, silent]() {
@@ -674,7 +674,8 @@ WiFiError WiFiManager::apply_radio_enabled(bool enabled) {
     return backend_->set_radio_enabled(enabled);
 }
 
-void WiFiManager::report_radio_result(bool enabled, const WiFiError& result) {
+void WiFiManager::report_radio_result(bool enabled, const WiFiError& result,
+                                      bool has_wired_fallback) {
     if (result.success()) {
         spdlog::debug("[WiFiManager] WiFi radio {}", enabled ? "enabled" : "disabled");
         return;
@@ -684,10 +685,14 @@ void WiFiManager::report_radio_result(bool enabled, const WiFiError& result) {
     // backend just can't reach wpa_supplicant's control socket; the
     // radio is not actually off. Don't surface a hard error toast for
     // an unmanageable-but-up link (helixscreen#1059).
-    if (os_link_up()) {
-        spdlog::debug("[WiFiManager] Radio {} failed but OS link is up "
-                      "(system-managed) — suppressing user error: {}",
-                      enabled ? "enable" : "disable",
+    // Same reasoning for a wired path: on a printer whose Ethernet is carrying
+    // the connection, the radio genuinely may not come up (the driver refuses to
+    // raise the interface), but the user has working networking and a modal that
+    // says only "Failed to enable WiFi" is alarming and unactionable.
+    if (os_link_up() || has_wired_fallback) {
+        spdlog::debug("[WiFiManager] Radio {} failed but a network path is up "
+                      "({}) — suppressing user error: {}",
+                      enabled ? "enable" : "disable", os_link_up() ? "wireless" : "wired",
                       result.user_msg.empty() ? result.technical_msg : result.user_msg);
     } else {
         NOTIFY_ERROR("Failed to {} WiFi: {}", enabled ? "enable" : "disable",
@@ -708,7 +713,7 @@ bool WiFiManager::set_enabled(bool enabled) {
     }
 
     WiFiError result = apply_radio_enabled(enabled);
-    report_radio_result(enabled, result);
+    report_radio_result(enabled, result, has_non_wifi_fallback());
     return result.success();
 }
 
@@ -748,38 +753,40 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
     // Route through HttpExecutor::fast() (bounded 4-worker pool) rather than a
     // detached std::thread — per-call spawns fail with pthread EAGAIN under
     // thread exhaustion on memory-constrained ARM devices (#724).
-    helix::http::HttpExecutor::fast().submit(
-        [this, enabled, token, mgr_token, cb = std::move(on_complete)]() mutable {
-            // `this` is valid for the whole body: ~WiFiManager blocks on
-            // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
-            // single member.
-            WiFiError result = apply_radio_enabled(enabled);
-            const bool success = result.success();
-            const bool actual = backend_->is_running() && backend_->is_radio_enabled();
+    helix::http::HttpExecutor::fast().submit([this, enabled, token, mgr_token,
+                                              cb = std::move(on_complete)]() mutable {
+        // `this` is valid for the whole body: ~WiFiManager blocks on
+        // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
+        // single member.
+        WiFiError result = apply_radio_enabled(enabled);
+        const bool success = result.success();
+        const bool actual = backend_->is_running() && backend_->is_radio_enabled();
 
-            // Neither deferred body dereferences `this`: report_radio_result is
-            // static, and the caller's lambda carries its own captures. That keeps
-            // both safe even if the manager is destroyed between here and the next
-            // UpdateQueue tick.
-            mgr_token.defer("WiFiManager::report_radio_result",
-                            [enabled, result]() { report_radio_result(enabled, result); });
-            if (cb) {
-                token.defer("WiFiManager::set_enabled_async",
-                            [cb = std::move(cb), success, actual]() { cb(success, actual); });
-            }
-
-            {
-                // Notify under the lock, not after it. wait_for_radio_ops() wakes
-                // as soon as the count reaches zero, and ~WiFiManager() destroys
-                // radio_op_cv_ right after it returns -- which would be while this
-                // thread was still inside notify_all(). Holding the mutex across
-                // the notify keeps the waiter blocked on reacquiring it until we
-                // are done touching the condition variable.
-                std::lock_guard<std::mutex> lock(radio_op_mutex_);
-                --radio_ops_inflight_;
-                radio_op_cv_.notify_all();
-            }
+        // Neither deferred body dereferences `this`: report_radio_result is
+        // static, and the caller's lambda carries its own captures. That keeps
+        // both safe even if the manager is destroyed between here and the next
+        // UpdateQueue tick.
+        const bool wired_fallback = has_non_wifi_fallback();
+        mgr_token.defer("WiFiManager::report_radio_result", [enabled, result, wired_fallback]() {
+            report_radio_result(enabled, result, wired_fallback);
         });
+        if (cb) {
+            token.defer("WiFiManager::set_enabled_async",
+                        [cb = std::move(cb), success, actual]() { cb(success, actual); });
+        }
+
+        {
+            // Notify under the lock, not after it. wait_for_radio_ops() wakes
+            // as soon as the count reaches zero, and ~WiFiManager() destroys
+            // radio_op_cv_ right after it returns -- which would be while this
+            // thread was still inside notify_all(). Holding the mutex across
+            // the notify keeps the waiter blocked on reacquiring it until we
+            // are done touching the condition variable.
+            std::lock_guard<std::mutex> lock(radio_op_mutex_);
+            --radio_ops_inflight_;
+            radio_op_cv_.notify_all();
+        }
+    });
 }
 
 void WiFiManager::wait_for_radio_ops() {
@@ -1014,11 +1021,16 @@ void WiFiManager::handle_disconnected(const std::string& event_data) {
     // on). Without it the queued lambda can never resolve to a live manager
     // anyway — and skipping the enqueue matters concretely: backend_->stop()
     // in the destructor fires this same DISCONNECTED path synchronously,
-    // with scan_timer_ already torn down and self_ never set in tests that
-    // construct WiFiManager directly (self_ is singleton-only), so an
-    // unconditional enqueue there outlives the test with nothing left to
-    // drain it — an UpdateQueue isolation leak.
-    if (self_) {
+    // with scan_timer_ already torn down and self_ either never set (tests that
+    // construct WiFiManager directly) or already expired (the weak self-
+    // reference goes flat the moment refcount hits zero), so an unconditional
+    // enqueue there outlives the test with nothing left to drain it — an
+    // UpdateQueue isolation leak.
+    // std::weak_ptr::expired(), not LifetimeToken::expired(), so there is no
+    // TOCTOU on `this`: the backend thread running this handler is joined by
+    // backend_->stop() before ~WiFiManager returns, and the member access the
+    // gate sees is inside the queued lambda's weak_self.lock() on the main thread.
+    if (!self_.expired()) { // L081_OK: std::weak_ptr expiry, not a LifetimeToken
         std::weak_ptr<WiFiManager> weak_self = self_;
         helix::ui::queue_update("WiFiManager::handle_disconnected(scan_scheduler)", [weak_self]() {
             if (auto manager = weak_self.lock()) {
@@ -1277,9 +1289,24 @@ void WiFiManager::notify_state_observers() {
 // Shared Singleton Instance
 // ============================================================================
 
-// Global shared WiFiManager instance
-// Using static local ensures thread-safe lazy initialization (C++11 guarantee)
-static std::shared_ptr<WiFiManager> g_shared_wifi_manager;
+// Global shared WiFiManager instance.
+//
+// DELIBERATELY NEVER DESTROYED. The holder is heap-allocated and never freed, so
+// the manager it owns outlives static destruction instead of racing it. A plain
+// static shared_ptr would release its last use from __run_exit_handlers, running
+// ~WiFiManager -> backend_->stop() -> spdlog::info() after spdlog's own static
+// sinks have been destroyed: a use-after-free that segfaults inside
+// sink::should_log(). The manager is process-lifetime state that the app never
+// tears down on purpose, so leaking it at exit is the intended trade -- the same
+// reason the destructor reports through fprintf rather than spdlog.
+//
+// This is NOT a licence for the class to leak generally: a WiFiManager built by
+// anyone else (every test fixture, for one) is still owned by its caller and
+// destroyed normally, which is what self_ being a weak_ptr buys.
+static std::shared_ptr<WiFiManager>& shared_wifi_manager() {
+    static auto* holder = new std::shared_ptr<WiFiManager>();
+    return *holder;
+}
 static std::mutex g_wifi_manager_mutex;
 
 namespace helix {
@@ -1287,16 +1314,17 @@ namespace helix {
 std::shared_ptr<WiFiManager> get_wifi_manager() {
     std::lock_guard<std::mutex> lock(g_wifi_manager_mutex);
 
-    if (!g_shared_wifi_manager) {
+    auto& instance = shared_wifi_manager();
+    if (!instance) {
         spdlog::debug("[WiFiManager] Creating global instance");
         // Use silent=true for global instance since it's used for passive status monitoring
         // (e.g., home panel WiFi icon). Avoids modal popup when WiFi hardware is unavailable
         // on development machines or when WiFi is simply turned off.
-        g_shared_wifi_manager = std::make_shared<WiFiManager>(/*silent=*/true);
-        g_shared_wifi_manager->init_self_reference(g_shared_wifi_manager);
+        instance = std::make_shared<WiFiManager>(/*silent=*/true);
+        instance->init_self_reference(instance);
     }
 
-    return g_shared_wifi_manager;
+    return instance;
 }
 
 } // namespace helix

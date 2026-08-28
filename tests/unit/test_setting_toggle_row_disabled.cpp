@@ -1,5 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: instantiates the shipped ui_xml/components/setting_toggle_row.xml
+//                 through lv_xml_create() and asserts on the real switch's LVGL state.
+//                 ../lvgl_ui_test_fixture.h pulls in include/moonraker_api.h.
 
 /**
  * @file test_setting_toggle_row_disabled.cpp

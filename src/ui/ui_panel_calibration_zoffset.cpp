@@ -17,10 +17,12 @@
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
+#include "probe_preparation.h"
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
 #include "static_panel_registry.h"
 #include "toolhead_homing.h"
+#include "z_offset_persistence.h"
 #include "z_offset_utils.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -428,9 +430,9 @@ void ZOffsetCalibrationPanel::arm_saving_timeout() {
         save_restart_latch_.note_restart_expected(
             EmergencyStopOverlay::instance().is_expected_restart());
 
-        if (helix::zoffset::should_extend_save_timeout(save_restart_latch_.restart_latched(),
-                                                       saving_timeout_extensions_,
-                                                       SAVING_TIMEOUT_MAX_EXTENSIONS)) {
+        if (helix::ui::should_extend_save_timeout(save_restart_latch_.restart_latched(),
+                                                  saving_timeout_extensions_,
+                                                  SAVING_TIMEOUT_MAX_EXTENSIONS)) {
             saving_timeout_extensions_++;
             spdlog::info("[ZOffsetCal] Save still pending across an expected Klipper restart — "
                          "extending timeout ({}/{})",
@@ -602,6 +604,9 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                 break;
             }
         }
+        // Prepare the probe after homing, immediately before the calibrate command.
+        const uint32_t prep_timeout_ms = helix::probe_prep::append_preparation(
+            gcode, helix::probe_prep::Operation::ZOffsetCalibrate, calibrate_cmd);
         gcode += calibrate_cmd;
 
         spdlog::info("[ZOffsetCal] Starting {} (strategy={})", calibrate_cmd,
@@ -628,7 +633,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                     });
                 }
             },
-            MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS);
+            MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
     }
 }
 
@@ -690,8 +695,23 @@ void ZOffsetCalibrationPanel::send_accept() {
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Apply cumulative delta as gcode Z offset
         set_state(State::SAVING);
-        char cmd[64];
-        snprintf(cmd, sizeof(cmd), "SET_GCODE_OFFSET Z=%.3f", cumulative_z_delta_);
+        // ZMOD persists this as `z - _TEST_POINT.temp_z_offset`, and through
+        // 1.7.2 that variable survived END_PRINT/CANCEL_PRINT - calibration
+        // typically follows a print, so without clearing it first the accepted
+        // value is stored minus the last print's probe delta
+        // (ghzserg/zmod#699; fixed upstream after 1.7.2, where the clear
+        // becomes a no-op).
+        // Calibration is an idle activity; the print gate still holds in case
+        // an accept ever fires under a running print, where the subtraction
+        // excludes the live transient and is correct.
+        std::string cmd = fmt::format("SET_GCODE_OFFSET Z={:.3f}", cumulative_z_delta_);
+        if (lv_subject_get_int(get_printer_state().get_print_active_subject()) == 0) {
+            std::string clear =
+                helix::zoffset::stale_probe_delta_clear_gcode(get_printer_state().get_discovery());
+            if (!clear.empty()) {
+                cmd = clear + "\n" + cmd;
+            }
+        }
         spdlog::info("[ZOffsetCal] Applying gcode_offset: {}", cmd);
 
         auto tok = lifetime_.token();
@@ -723,7 +743,7 @@ void ZOffsetCalibrationPanel::send_accept() {
             [this, strategy, api = api_, accept_token]() {
                 spdlog::info("[ZOffsetCal] ACCEPT success, applying and saving");
                 helix::zoffset::apply_and_save(
-                    api, strategy,
+                    api, save_config_watch_, strategy,
                     [this, accept_token]() {
                         accept_token.defer(
                             "ZOffsetCalibrationPanel::on_calibration_result(accept_ok)",

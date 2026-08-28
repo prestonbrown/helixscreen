@@ -4,10 +4,13 @@
 #pragma once
 
 #include "ams_subscription_backend.h"
+#include "filament_slot_override_store.h"
+#include "toolchanger_addon.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class ToolChangerTestAccess;
@@ -157,6 +160,47 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     [[nodiscard]] bool can_unload_from_toolhead(int slot_index) const override;
 
+    /// Load is SELECT_TOOL and unload is UNSELECT_TOOL: a mount and an unmount,
+    /// with no filament motion of any kind. See do_load_filament().
+    [[nodiscard]] bool load_mounts_tool() const override {
+        return true;
+    }
+
+    /// A swap is SELECTING for its whole duration on a controller that names no
+    /// direction, and UNLOADING then SELECTING on one that does. Nothing heats,
+    /// feeds or purges, so the filament vocabulary never saw the operation at
+    /// all - neither its start nor, half way through, its continuation.
+    [[nodiscard]] bool action_tracks_step_operation(AmsAction action) const override {
+        // HEATING is here despite a changer never heating: it is the optimistic
+        // marker AmsOperationSidebar::start_operation() sets the moment a user
+        // starts an operation, before any frame arrives. Omitting it made the
+        // sidebar hide the bar and clear target_load_slot_ on our OWN dispatch,
+        // after which the rest of a user-initiated swap read as externally
+        // started.
+        return action == AmsAction::SELECTING || action == AmsAction::UNLOADING ||
+               action == AmsAction::HEATING;
+    }
+
+    /// Explains the one refusal a user can do something about: the dock sensors
+    /// cannot say which tool is on the head, so every slot's Unmount is
+    /// disabled and none of them look like the reason.
+    [[nodiscard]] std::string unload_blocked_reason(int slot_index) const override;
+
+    /// Step bar for a swap, built from what THIS machine actually reports.
+    ///
+    /// A hotend changer's phases are the add-on's `operation` (dropping/picking)
+    /// and, where the controller publishes it, the frame-side gripper opening
+    /// and closing around them. A changer with neither - plain
+    /// klipper-toolchanger, or MedusaHC stock, whose only signal is
+    /// `toolchanger.status == "changing"` - returns a SUPPRESSED model: it has no
+    /// phases to show, and the generic Heat/Feed/Purge fallback describes a
+    /// filament system rather than a tool changer.
+    [[nodiscard]] OperationStepModel get_operation_step_model(StepOperationType op) const override;
+
+    /// The shared operation-phase subject. apply_tool_sensor_locked() writes the
+    /// step index into system_info_.operation_phase, the same route the U1 uses.
+    [[nodiscard]] lv_subject_t* get_operation_step_index_subject(StepOperationType op) override;
+
     // NOTE: has_per_slot_loaded_authority() is deliberately NOT overridden, and
     // this backend has a reason none of the others do: it carries no filament
     // signal at all. get_slot_filament_segment() returns NOZZLE unconditionally,
@@ -195,7 +239,30 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
-    // Device Actions (stub - not applicable for tool changers)
+    /**
+     * @brief Declare the filament feeder this machine exposes, if any
+     *
+     * Resolved from discovery by toolchanger_addon::resolve_feeder() and handed over at
+     * construction. Absent by default, so a tool changer nobody told anything
+     * exposes no device actions -- which is every klipper-toolchanger build
+     * that swaps a whole toolhead.
+     */
+    void set_feeder(helix::toolchanger_addon::Feeder feeder) override {
+        feeder_ = std::move(feeder);
+    }
+
+    /// Dock-sensor reader. When set, its answer overrides toolchanger.tool_number.
+    void set_tool_sensor(helix::toolchanger_addon::ToolSensor sensor) override {
+        tool_sensor_ = std::move(sensor);
+    }
+
+    /// Swap commands for a machine without klipper-toolchanger. Absent leaves
+    /// SELECT_TOOL/UNSELECT_TOOL in place.
+    void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) override {
+        tool_commands_ = std::move(commands);
+    }
+
+    // Device Actions -- the feeder, when the machine has one.
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
     AmsError execute_device_action(const std::string& action_id,
@@ -208,6 +275,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // --- AmsSubscriptionBackend hooks ---
     AmsError additional_start_checks() override;
+
+    /// Post-start work. Loads the slot-override store here and NOT in
+    /// additional_start_checks(), which start() calls with mutex_ held.
+    void on_started() override;
     void handle_status_update(const nlohmann::json& notification) override;
     const char* backend_log_tag() const override {
         return "[AMS ToolChanger]";
@@ -223,6 +294,83 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void on_home_confirmation_declined() override;
 
   private:
+    /// Feeder this machine exposes; absent unless set_feeder() said otherwise.
+    helix::toolchanger_addon::Feeder feeder_;
+    /// Absent on every tool changer without dock sensors.
+    helix::toolchanger_addon::ToolSensor tool_sensor_;
+    /// Absent whenever klipper-toolchanger owns the swap.
+    helix::toolchanger_addon::ToolCommands tool_commands_;
+    /// Latest per-dock occupancy from the dock sensors, indexed by slot: true
+    /// seated, false empty, nullopt never reported. Kept across frames, because
+    /// Moonraker republishes only what CHANGED and a frame carrying just the
+    /// tool number says nothing about the docks.
+    std::vector<std::optional<bool>> dock_seated_;
+    /// Frame-side gripper, and whether this machine reports it AT ALL. The
+    /// second flag is what get_operation_step_model() keys on: a controller that
+    /// publishes feeder_open earns the release/grip steps, and a machine that
+    /// never mentions it gets a bar with only the phases it can actually drive
+    /// rather than two steps that would sit grey forever. Latched once true -
+    /// Moonraker republishes only changed fields, so a later frame omitting
+    /// feeder_open is not the machine retracting the capability.
+    bool feeder_open_ = false;
+    bool feeder_state_reported_ = false;
+    /// Dock sensors cannot say what is on the head. Latched rather than inferred
+    /// from current_slot, because the sensor-error path deliberately HOLDS the
+    /// last known tool: current_slot stays >= 0 through the fault and names a
+    /// tool that may not be there.
+    bool sensor_error_ = false;
+    /// The gripper has been open at some point during the operation currently
+    /// running. Cleared when it ends.
+    ///
+    /// Without this, idle-with-the-gripper-closed is ambiguous in a THIRD way:
+    /// it is the resting state, it is the closing grip at the end of a swap, and
+    /// it is also every frame between dispatching SELECT_TOOL and the machine
+    /// actually moving. Treating that last one as the closing grip paints the
+    /// bar complete for the second before the swap starts. The closing grip is
+    /// only recognisable once the gripper has actually opened.
+    bool feeder_opened_this_operation_ = false;
+    /// Whether this machine's phase word names the swap DIRECTION. Latched from
+    /// ToolReading::phase_names_direction, which is answerable from the first
+    /// status frame - the phase WORDS are not, since "picking" only appears once
+    /// a swap is already running and the step bar has to be built before that.
+    bool direction_reported_ = false;
+    /// Whether a real non-idle operation frame ("dropping"/"picking"/"changing")
+    /// has been seen since the idle-with-gripper-open hold in
+    /// apply_tool_sensor_locked() last released. That hold exists because a
+    /// swap's own FIRST frame is idle-with-the-gripper-open, but its condition
+    /// is partly derived from the action the hold itself sets - so without a
+    /// separate signal, a machine that settles into a LATER idle-with-open
+    /// frame (e.g. an unmount that ends with the head empty and nothing to
+    /// re-grip) would keep re-satisfying the same condition forever and never
+    /// reach IDLE again. Bounding the hold with this flag means it can only
+    /// ever catch the leading idle-with-open frame: once a real operation
+    /// frame has confirmed the swap is actually running, a SUBSEQUENT idle
+    /// frame means it has settled, not recurred, and must be believed.
+    /// Reset to false when the hold releases into IDLE, and again at the start
+    /// of every fresh dispatch (begin_dispatch_locked()) in case the prior
+    /// swap reached IDLE through a path that bypassed the idle branch below
+    /// (e.g. parse_toolchanger_state() alone, on a frame with no addon data).
+    bool operation_confirmed_ = false;
+
+    /// Snapshot of feeder_state_reported_ / direction_reported_ taken the last
+    /// time get_operation_step_model() built a sequence. step_index_for_phase_locked()
+    /// resolves its index against this SAME snapshot, not whatever the latches
+    /// read right now: the model is captured once (at operation start, by the
+    /// sidebar) while the index is recomputed on every frame, and Moonraker
+    /// republishes only the fields that CHANGED. A latch that flips mid-
+    /// operation without the model being rebuilt would otherwise put the index
+    /// computation against a longer/different sequence than the one actually
+    /// on screen. get_operation_step_model() is const, so these are mutable.
+    ///
+    /// step_model_captured_ stays false until the first call: nothing has
+    /// pinned a sequence yet, so step_index_for_phase_locked() falls back to
+    /// the LIVE latches rather than the (false, false) power-on default, which
+    /// would otherwise build an always-empty sequence for any caller that asks
+    /// for the phase without ever having asked for the model first.
+    mutable bool step_model_captured_ = false;
+    mutable bool step_model_feeder_reported_ = false;
+    mutable bool step_model_direction_reported_ = false;
+
     /**
      * @brief Parse toolchanger state from Moonraker JSON
      *
@@ -231,6 +379,34 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      * @param tc_data JSON object containing toolchanger data
      */
     void parse_toolchanger_state(const nlohmann::json& tc_data);
+
+    /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
+    /// Caller holds mutex_.
+    void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
+
+    /// Step index for `operation` under the model this machine gets, or -1 when
+    /// the phase does not map to a step. `mid_operation` says whether a swap was
+    /// running when the frame arrived, which is the only thing separating the
+    /// closing grip of one from the resting closed gripper. Caller holds mutex_.
+    int step_index_for_phase_locked(const std::string& operation, bool mid_operation) const;
+
+    /// Layer the user's stored spool metadata over a slot. Caller holds mutex_.
+    ///
+    /// Unlike every other backend that does this, there is nothing underneath:
+    /// parse_tool_state() reads `mounted` and `active` and nothing else, so
+    /// klipper-toolchanger reports no material, colour, brand or weight at all.
+    /// The store is the SOLE source of filament identity here, not a layer over
+    /// a firmware reading, and initialize_tools() resets colour to default grey
+    /// on every rediscovery - which is exactly what used to wipe the user's edit.
+    void apply_overrides(SlotInfo& slot, int slot_index);
+
+    /// Per-slot user metadata, keyed by slot index. Written and read only under
+    /// mutex_.
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
+
+    /// Moonraker-DB-backed store. Null until additional_start_checks() builds it
+    /// (needs api_), and on backends constructed without an API in tests.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
 
     /**
      * @brief Parse individual tool state from Moonraker JSON

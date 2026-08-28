@@ -51,10 +51,34 @@ index aa4c7d5..45f2a64 100644
              if (onclose) onclose();
          }
 diff --git a/http/client/WebSocketClient.h b/http/client/WebSocketClient.h
-index da0a4af..69fe0f9 100644
+index da0a4af..061314b 100644
 --- a/http/client/WebSocketClient.h
 +++ b/http/client/WebSocketClient.h
-@@ -64,6 +64,12 @@ private:
+@@ -13,6 +13,8 @@
+ #include "HttpParser.h"
+ #include "WebSocketParser.h"
+ 
++#include <atomic>
++
+ namespace hv {
+ 
+ class HV_EXPORT WebSocketClient : public TcpClientTmpl<WebSocketChannel> {
+@@ -56,7 +58,13 @@ private:
+         WS_UPGRADING,
+         WS_OPENED,
+         WS_CLOSED,
+-    } state;
++    };
++    // PATCH: atomic because close() writes it from whatever thread calls
++    // disconnect() while the event-loop thread reads it in the onmessage
++    // handler (`if (state == WS_OPENED ...)`). Plain enum access there is a
++    // data race TSAN reports on every nightly run, and on a weakly ordered
++    // target the reader can observe a stale state across the close.
++    std::atomic<State>  state;
+     HttpParserPtr       http_parser_;
+     HttpRequestPtr      http_req_;
+     HttpResponsePtr     http_resp_;
+@@ -64,6 +72,12 @@ private:
      // ping/pong
      int                 ping_interval;
      int                 ping_cnt;

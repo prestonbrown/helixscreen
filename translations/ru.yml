@@ -21,6 +21,7 @@ translations:
   '%zu changes': '%zu изменений'
   '%zu events queued': '%zu событий в очереди'
   '%zu plugins failed to load': Не удалось загрузить %zu плагинов
+  "'{}' already exists. Replace the stored mesh?": "'{}' уже существует. Заменить сохранённую сетку?"
   (different grade): (другая марка)
   (incompatible): (несовместимо)
   (multi-tool): (мультиинструмент)
@@ -338,7 +339,6 @@ translations:
   Bypass Mode: Режим обхода
   Bypass active — this print runs on the external spool.: Байпас активен — эта печать идёт с внешней катушки.
   Bypass cannot be changed while printing: Байпас нельзя переключить во время печати
-  Bypass controlled by hardware sensor: Обход управляется аппаратным датчиком
   Bypass controlled by sensor: Байпас управляется датчиком
   Bypass disabled: Байпас отключён
   Bypass enabled: Байпас включён
@@ -369,12 +369,11 @@ translations:
   Calibrate Gear: 'Калибровать шестерню'
   Calibrate X: Калибровать X
   Calibrate Y: Калибровать Y
+  Calibrate and tune scroll feel: "Калибровка и настройка прокрутки"
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации
     вибраций для уменьшения артефактов звона
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для
     точного ввода
-  Calibrate, tune jitter and scroll feel: Калибровка, настройка дрожания и поведения
-    прокрутки
   Calibrated: Откалиброван
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -465,6 +464,7 @@ translations:
   Change Printer Host: Изменить хост принтера
   Change Tool: Сменить инструмент
   Change Tool While Paused: Смена инструмента при паузе
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: Изменения применяются
     немедленно. Корректируйте во время печати.
   Changes are temporary and reset on printer reboot: Изменения временные и сбрасываются
@@ -526,6 +526,8 @@ translations:
   Clog Detection: Обнаружение засора
   Clog detection: Обнаружение засора
   Close: Закрыть
+  Close feeder: ''
+  Close feeder macro: ''
   Closer: Ближе
   Closer = more squish | Farther = less squish: Ближе = больше сжатие | Дальше = меньше
     сжатие
@@ -711,8 +713,6 @@ translations:
   Date (newest): Дата (новые)
   Date (oldest): Дата (старые)
   Day: День
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Мёртвая зона
-    в пикселях (увеличьте, если касания распознаются как свайпы; 0 отключает)
   Debug: Отладка
   Default border thickness: Толщина границы по умолчанию
   'Default: %d-%d°C nozzle, %d°C bed': 'По умолчанию: сопло %d-%d°C, стол %d°C'
@@ -769,6 +769,8 @@ translations:
   Do not power off your printer.: Не выключайте принтер.
   Do not touch the printer during calibration: Не трогайте принтер во время калибровки
   Dock: Парковать
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: Парковка инструмента
   Documentation: Документация
   Don't Save: Не сохранять
@@ -855,6 +857,7 @@ translations:
   Enter New PIN: Введите новый PIN
   Enter PIN: Введите PIN
   Enter WiFi Password: Введите пароль WiFi
+  Enter a name for this profile: "Введите имя для этого профиля"
   'Enter a name for your custom theme:': 'Введите название для вашей темы:'
   Enter a name to save this profile: Введите имя для сохранения профиля
   Enter network name: Введите имя сети
@@ -879,6 +882,8 @@ translations:
   'Error: Invalid download': 'Ошибка: недопустимая загрузка'
   'Error: No update available': 'Ошибка: обновления недоступны'
   'Error: Not enough disk space': 'Ошибка: недостаточно места на диске'
+  'Error: Previous download still finishing': 'Ошибка: предыдущая загрузка ещё не завершена'
+  "Error: This install can't update itself": 'Ошибка: эта установка не может обновить себя'
   'Error: Verification failed': 'Ошибка: проверка не удалась'
   'Error: Wrong architecture': 'Ошибка: неверная архитектура'
   'Error: `unzip` not installed': 'Ошибка: `unzip` не установлен'
@@ -1044,11 +1049,13 @@ translations:
   Farther: Дальше
   'Features: ': 'Функции: '
   Feed Assist: 'Помощь подачи'
+  Feed assist and debug tools: ''
   Feed filament: Подать филамент
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
   Feeding filament forward: Подача филамента вперёд
   Filament: Филамент
+  Filament Control: ''
   Filament Detected: Филамент обнаружен
   Filament Environment: Среда хранения филамента
   Filament Grade Mismatch: Несоответствие марки филамента
@@ -1064,13 +1071,13 @@ translations:
   Filament deleted: Филамент удалён
   Filament diameter sensors for flow compensation: Датчики диаметра филамента для
     компенсации потока
+  Filament feeder: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: Филамент вышел из печатающей головки. Вытяните его до конца.
   Filament is loose: Филамент ослаблен
   Filament is pulling tight: Филамент натянут
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
   'Filament load failed: {}': 'Ошибка загрузки филамента: {}'
-  Filament loaded: Филамент загружен
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
   Filament ran out - nothing at the toolhead and the print is paused.: 'Филамент закончился - у печатающей головки ничего нет, печать приостановлена.'
@@ -1149,6 +1156,8 @@ translations:
   Good Accuracy: Хорошая точность
   Got it: Понятно
   Gray: Серый
+  Grip filament: ''
+  Grip the filament: ''
   Guides and reference: Руководства и справка
   H: Х
   HOST: Хост
@@ -1534,6 +1543,7 @@ translations:
   Manual Bed Leveling: Ручное выравнивание стола
   Manual Feed: 'Ручная подача'
   Manual Retract: 'Ручная ретракция'
+  Manual feed and retract operations: ''
   Map to closest colors with matching material: Подобрать ближайшие цвета с подходящим
     материалом
   Marginal: Допустимо
@@ -1593,6 +1603,7 @@ translations:
   Motors Off: Отключить моторы
   'Motors disable failed: {}': 'Ошибка отключения моторов: {}'
   Motors disabled: Моторы отключены
+  Mount: ''
   Move: Двигать
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Перемещайте
     бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется,
@@ -1623,8 +1634,7 @@ translations:
   Name: Название
   Name (optional): Название (необязательно)
   'Name:': 'Имя:'
-  Named actions in the LED control panel (long-press).: Именованные действия в панели
-    управления LED (долгое нажатие).
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Needs adjustment: Требуется регулировка
   Needs the {} package to switch spools: 'Для смены катушки нужен плагин {}'
   Net Weight (g): Вес нетто (г)
@@ -1653,10 +1663,10 @@ translations:
   No Camera: Нет камеры
   No Filament Detected: Филамент не обнаружен
   No History: Нет истории
-  No LED macros detected on your printer.: На вашем принтере не обнаружены LED-макросы.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: На
     вашем принтере не обнаружены LED-макросы. Сначала добавьте макросы Klipper для
     управления LED.
+  No LED macros detected. Type a macro name below.: ''
   No LED strips detected: 'LED-ленты не обнаружены'
   No Macros Found: Макросы не найдены
   No Multi-Filament System connected: Мультифиламентная система не подключена
@@ -1792,11 +1802,14 @@ translations:
   On/Off: Вкл/Выкл
   On/Off (state-aware): Вкл/Выкл (с отслеживанием)
   'On:': 'Вкл:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: 'Снижение подтекания'
   Open: Открыть
   Open G-code command console: 'Открыть консоль команд G-code'
   Open LED color and brightness controls: 'Открыть управление цветом и яркостью LED'
   Open Source Licenses: Лицензии с открытым кодом
+  Open feeder: ''
+  Open feeder macro: ''
   Operation already in progress: Операция уже выполняется
   Operations: Операции
   Optimize Your Printing: Оптимизируйте вашу печать
@@ -1806,6 +1819,7 @@ translations:
     — выберите основной источник освещения или пропустите, если его нет
   Options: Параметры
   Or Enter Manually: Или введите вручную
+  Or instead of turning the others: ''
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
   Out of range: Вне диапазона
   Outcome: Результат
@@ -1879,6 +1893,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Выбрать
   Pick Color: Выбрать цвет
+  Pick up tool: ''
   Picking up tool: Захват инструмента
   Pill: Овал
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Пикселей
@@ -2065,12 +2080,12 @@ translations:
   Profile name (e.g., default): Имя профиля (например, default)
   Profile renamed: Профиль переименован
   Profiles: Профили
+  Prompt before running this macro: ''
   Pulling filament back: Откат филамента
   Purge: Продуть
   Purge & Wipe: 'Продувка и очистка'
   Purge Length: 'Длина продувки'
   'Purge failed: {}': 'Ошибка прочистки: {}'
-  Purge macro not configured: Макрос прочистки не настроен
   Purge may still be running — response timed out: Прочистка может ещё выполняться
     — время ожидания истекло
   Purge to bucket: 'Продувка в контейнер'
@@ -2154,6 +2169,9 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Отпустить все шаговые моторы.
     Позиция будет потеряна.
+  Release filament: ''
+  Release or grip the filament by hand: ''
+  Release the filament: ''
   Remaining (g): Осталось (г)
   Remaining Weight (g): Оставшийся вес (г)
   Remap Tool: Переназначить инструмент
@@ -2164,6 +2182,7 @@ translations:
   Remove PIN: Удалить PIN
   Remove Spoolman?: Удалить Spoolman?
   Remove plugin from printer: Удалить плагин с принтера
+  Remove the bypass spool from the toolhead first: 'Сначала извлеките катушку байпаса из печатающей головки'
   Rename: Переименовать
   Rename Fan: Переименовать вентилятор
   Rename Mesh Profile: Переименовать профиль сетки
@@ -2172,12 +2191,15 @@ translations:
   Rename failed at save step: Ошибка переименования при сохранении
   Render Now: Отрендерить сейчас
   Rendering timelapse...: Рендеринг таймлапса...
+  Replace: "Заменить"
+  Replace Profile?: "Заменить профиль?"
   Replay Welcome Tour: Повторить приветственный тур
   'Replenishing filament...': ''
   Report saved to crash_report.txt: Отчёт сохранён в crash_report.txt
   Reprint: Повторить печать
   Reprint Last: Перепечатать последнюю
   Request Failed: Запрос не выполнен
+  Require Confirmation?: ''
   Require confirmation before emergency stop: Требовать подтверждение перед аварийной
     остановкой
   Requires Moonraker power device: 'Требуется устройство питания Moonraker'
@@ -2273,7 +2295,6 @@ translations:
     нагревают сопло)
   Run test sequence on all lanes: 'Запустить тестовую последовательность на всех слотах'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы.
-  Run without parameter prompt: Запускать без запроса параметров
   Run {}?: Запустить {}?
   Running {}...: Выполнение {}...
   Runout: 'Окончание'
@@ -2483,6 +2504,8 @@ translations:
   Slot: Слот
   Slot %d: Слот %d
   Slot %d Filament: Филамент слота %d
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?'
+  'Slot %d: %.0fg of %.0fg needed': 'Слот %d: %.0fг из %.0fг'
   Slot 1: Слот 1
   Slot {}: Слот {}
   Slot {} matches.: 'Слот {} подходит.'
@@ -2496,6 +2519,7 @@ translations:
   Software Updates: Обновления ПО
   Some filaments don't match the slicer's intent.: Некоторые филаменты не соответствуют
     замыслу слайсера.
+  'Some mapped slots are short on filament:': 'В некоторых назначенных слотах мало филамента:'
   Some settings will take effect after restart.: Некоторые настройки вступят в силу
     после перезапуска.
   Sound Theme: Звуковая тема
@@ -2548,6 +2572,7 @@ translations:
   Start Drying: Начать сушку
   Start Print: Начать печать
   Start Probing: Начать зондирование
+  Start anyway?: 'Всё равно начать?'
   Start at: Начать с
   Start failed: Ошибка запуска
   Start print anyway?: Всё равно начать печать?
@@ -2707,6 +2732,8 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: Датчик окончания
     филамента показывает, что филамент не загружен. Всё равно начать печать?
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : 'В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Датчик
     печатающей головки показывает, что филамент уже загружен. Всё равно продолжить
     загрузку?
@@ -2836,7 +2863,6 @@ translations:
   Touch & Input: Касание и ввод
   Touch Cal: Кал. касания
   Touch Calibration: Калибровка касания
-  Touch Jitter Filter: Фильтр дрожания касания
   Touch anywhere to test calibration: Коснитесь в любом месте для проверки калибровки
   Touch anywhere to verify accuracy: Коснитесь в любом месте для проверки точности
   Touch input did not track the new calibration. Your previous settings were kept.: Сенсорный ввод не соответствовал новой калибровке. Прежние настройки сохранены.
@@ -2902,6 +2928,7 @@ translations:
   Unloads After Print: Выгрузка после печати
   Unlock: Разблокировать
   Unmapped: Не назначен
+  Unmount: ''
   Unretract Extra: Дополнительная подача
   Unretract Speed: Скорость возврата
   Unsupported tape width: Неподдерживаемая ширина ленты
@@ -2998,6 +3025,8 @@ translations:
   : При запуске печати вы сможете выбрать, запускать ли %s. Это экономит время, если
     вы уже делали это недавно или хотите больше контроля над подготовкой печати.
   Where UI sounds play: Где воспроизводятся звуки интерфейса
+  Which macro the Close feeder button sends: ''
+  Which macro the Open feeder button sends: ''
   White: Белый
   Wi-Fi and ethernet connection status: 'Состояние подключения Wi-Fi и Ethernet'
   WiFi: WiFi
@@ -3114,6 +3143,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Параметр remember_spool в AFC сохраняет данные катушки в прошивке и имеет приоритет над этим переключателем
   AI detection: AI-детекция
+  or type a macro name: ''
   prints: печатей
   remaining: осталось
   remaining before clog detection triggers: осталось до срабатывания обнаружения засора

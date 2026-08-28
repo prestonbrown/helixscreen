@@ -1,6 +1,6 @@
 # 15 — Known debt
 
-Every chapter before this one teaches the rules. This one maps the gap between those rules and the code you will actually read: ~380 imperative-UI sites the declarative rules would forbid, duplicated logic that AI-assisted development at this scale produced, and — so you do not mistake it for debt — the list of places where imperative C++ is the *correct* answer, permanently. Read this before copying any pattern you found in a panel, and before assuming a suspicious site is a bug: some of it is tracked, bounded, and waiting for a port.
+Every chapter before this one teaches the rules. This one maps the gap between those rules and the code you will actually read: ~379 imperative-UI sites the declarative rules would forbid, duplicated logic that AI-assisted development at this scale produced, and — so you do not mistake it for debt — the list of places where imperative C++ is the *correct* answer, permanently. Read this before copying any pattern you found in a panel, and before assuming a suspicious site is a bug: some of it is tracked, bounded, and waiting for a port.
 
 The debt is deliberately bounded. The imperative-UI count is frozen by a ratchet gate in CI, so it can only shrink; the rest is catalogued here so refactors aim at known targets instead of rediscovering them.
 
@@ -8,14 +8,14 @@ The debt is deliberately bounded. The imperative-UI count is frozen by a ratchet
 flowchart TD
     NEW["New code"] -->|"fully declarative or annotated"| GATE
 
-    subgraph LEDGER["The ledger — 380 sites (issue #1140)"]
+    subgraph LEDGER["The ledger — 379 sites (issue #1140)"]
         V["visibility 145"]
         T["text 95"]
         S["style 72"]
         E["event 68"]
     end
 
-    GATE["scripts/check_imperative_ui.py<br/>baseline 380, enforced in<br/>scripts/quality-checks.sh:1289"]
+    GATE["scripts/check_imperative_ui.py<br/>baseline 379, enforced in<br/>scripts/quality-checks.sh:1583"]
     LEDGER -->|"port a site, lower the baseline"| GATE
     GATE -->|"count rises → build fails"| NEW
 
@@ -36,7 +36,7 @@ flowchart TD
 | File | Role |
 |------|------|
 | [`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) | The ratchet gate: counts imperative mutations of XML-owned widgets; `--list` prints every site |
-| [`scripts/quality-checks.sh`](../../../scripts/quality-checks.sh) | CI entry that runs the gate with `--max-allowed 380` (`:1289`) — the number to ratchet down |
+| [`scripts/quality-checks.sh`](../../../scripts/quality-checks.sh) | CI entry that runs the gate with `--max-allowed 379` (`:1583`) — the number to ratchet down |
 | [`docs/devel/SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) | Unbuilt XML-deduplication proposals and the measured limits of the expression evaluator |
 | [`src/ui/panel_widgets/fan_stack_widget.cpp`](../../../src/ui/panel_widgets/fan_stack_widget.cpp) | Duplication example: `bind_fan_observer()` (`:653`), one of a pair of twin helpers |
 | [`src/ui/panel_widgets/led_widget.cpp`](../../../src/ui/panel_widgets/led_widget.cpp) | The other twin: `bind_led()` (`:109`) with the same workaround solved independently |
@@ -53,25 +53,25 @@ flowchart TD
 
 Four catalogues: the ledger and its ratchet, the duplication debt, the deliberate tolerations, and the first projects that pay the debt down.
 
-### The imperative-UI ledger: 380 sites and the ratchet
+### The imperative-UI ledger: 379 sites and the ratchet
 
-[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree with `lv_obj_find_by_name()` and then mutated in C++ — `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this audit the count is **380**:
+[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree with `lv_obj_find_by_name()` and then mutated in C++ — `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this audit the count is **379**:
 
 ```
   event          68   → <event_cb trigger="clicked" callback="name"/> + lv_xml_register_event_cb()
-  style          72   → XML style attribute (style_bg_color="#card_bg") or bind_style
+  style          71   → XML style attribute (style_bg_color="#card_bg") or bind_style
   text           95   → bind_text="subject" on the XML element
   visibility    145   → <bind_flag_if_eq subject=... flag="hidden"> or <if cond=...>
-  TOTAL         380
+  TOTAL         379
 ```
 
-(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1289`](../../../scripts/quality-checks.sh#L1289) runs the gate with `--max-allowed 380`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
+(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1583`](../../../scripts/quality-checks.sh#L1583) runs the gate with `--max-allowed 379`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
 
-Where the 380 lives, by directory:
+Where the 379 lives, by directory:
 
 | Area | Sites | Notes |
 |------|-------|-------|
-| `src/ui/` flat files | 336 | panels, overlays, wizards, services |
+| `src/ui/` flat files | 335 | panels, overlays, wizards, services |
 | `src/ui/panel_widgets/` | 24 | home-screen widgets |
 | `src/ui/modals/` | 11 | modal dialogs |
 | `src/ui/tour/` | 5 | first-run tour |
@@ -96,14 +96,14 @@ The declarative target is the shape every [`ui_xml/bed_temp_panel.xml:73`](../..
 </ui_button>
 ```
 
-and publish the handler by name from C++ — either a `{"name", fn}` table like [`src/ui/temperature_service.cpp:205`](../../../src/ui/temperature_service.cpp#L205) or a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp:328`](../../../src/xml_registration.cpp#L328) does. The static wrapper, the null-check, and the ledger entry all disappear.
+and publish the handler by name from C++ — either a `{"name", fn}` table like [`src/ui/temperature_service.cpp:205`](../../../src/ui/temperature_service.cpp#L205) or a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp:331`](../../../src/xml_registration.cpp#L331) does. The static wrapper, the null-check, and the ledger entry all disappear.
 
 ### Duplication debt: the honest part
 
 AI-assisted design and build at this project's scale produced duplicated logic in places: parallel implementations of similar behavior, forked helpers where extending a near-fit would have served. Not always actively harmful, but confusing, inelegant, and a standing target for refactoring. The review rule exists because of this — *extend the near-fit helper, never fork a twin; copy-paste-modify is a red flag* — and the examples below are the concrete worst offenders the chapter audits for this series actually tripped over. No pretense of exhaustiveness; they frame the pattern.
 
 - **Twin bind helpers in the home widgets.** `FanStackWidget::bind_fan_observer()` ([`src/ui/panel_widgets/fan_stack_widget.cpp:653`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L653)) and `LedWidget::bind_led()` ([`src/ui/panel_widgets/led_widget.cpp:109`](../../../src/ui/panel_widgets/led_widget.cpp#L109), self-bind at `:86`) each independently solve the same problem: `observe_int_sync` defers its initial fire through `ui_queue_update()`, which populate freezes — so each helper manually reads the current subject value at attach time. Same insight, two implementations, two places to fix if the freeze semantics change (chapter 09 documents the mechanism).
-- **One aspirational abstraction, three parallel wirings.** `SensorRegistry` ([`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60)) was built as a central registry for the seven sensor managers. Production never constructs it — its only constructions are its own unit tests (15 in [`tests/unit/test_sensor_registry.cpp`](../../../tests/unit/test_sensor_registry.cpp)). Instead the managers are wired directly at three call sites: `PrinterDiscovery::parse_objects()` ([`src/printer/printer_discovery.cpp:105`](../../../src/printer/printer_discovery.cpp#L105)–131), the configfile discovery step ([`src/api/moonraker_discovery_sequence.cpp:741`](../../../src/api/moonraker_discovery_sequence.cpp#L741)–748), and `PrinterState::update_from_status()` ([`src/printer/printer_state.cpp:622`](../../../src/printer/printer_state.cpp#L622)–630). Chapter 06 documents the live wiring; the dead abstraction remains to be wired or deleted.
+- **One aspirational abstraction, three parallel wirings.** `SensorRegistry` ([`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60)) was built as a central registry for the seven sensor managers. Production never constructs it — its only constructions are its own unit tests (15 in [`tests/unit/test_sensor_registry.cpp`](../../../tests/unit/test_sensor_registry.cpp)). Instead the managers are wired directly at three call sites: `init_subsystems_from_hardware()` ([`src/printer/printer_discovery.cpp:96`](../../../src/printer/printer_discovery.cpp#L96)–131), the configfile discovery step ([`src/api/moonraker_discovery_sequence.cpp:856`](../../../src/api/moonraker_discovery_sequence.cpp#L856)–861), and `PrinterState::update_from_status()` ([`src/printer/printer_state.cpp:622`](../../../src/printer/printer_state.cpp#L622)–630). Chapter 06 documents the live wiring; the dead abstraction remains to be wired or deleted.
 - **Six state-mapped icons in XML.** [`ui_xml/components/panel_widget_network.xml:11`](../../../ui_xml/components/panel_widget_network.xml#L11)–31: six `<icon>` elements, each with its own `bind_flag_if_not_eq` against `home_network_icon_state`, differing only in `src`, `variant`, and ref value. All six are built; five are hidden at any moment:
 
   ```xml
@@ -133,7 +133,7 @@ The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_ut
 
 ### Deliberate tolerations: C++ that is correct, not debt
 
-The gate does not merely tolerate these cases — it excludes them structurally, so they never appear in the 380: files that call `lv_xml_register_widget` are skipped whole, widgets created with `lv_*_create` in C++ never had an XML layer, events with no declarative equivalent (`DELETE`, draw hooks, size/scroll) are not flagged, and neither are annotated lines. The table (verified against the root [`AGENTS.md`](../../../AGENTS.md) and the code — the bolded entries were spot-checked for this chapter):
+The gate does not merely tolerate these cases — it excludes them structurally, so they never appear in the 379: files that call `lv_xml_register_widget` are skipped whole, widgets created with `lv_*_create` in C++ never had an XML layer, events with no declarative equivalent (`DELETE`, draw hooks, size/scroll) are not flagged, and neither are annotated lines. The table (verified against the root [`AGENTS.md`](../../../AGENTS.md) and the code — the bolded entries were spot-checked for this chapter):
 
 | Case | Why C++ is correct |
 |------|--------------------|
@@ -166,9 +166,9 @@ Every port verifies the same three ways:
 
 ## Patterns & gotchas
 
-- **Existing imperative code is not precedent.** The 380 sites are bounded debt, not an alternative style. A nearby `lv_label_set_text()` never justifies yours.
+- **Existing imperative code is not precedent.** The 379 sites are bounded debt, not an alternative style. A nearby `lv_label_set_text()` never justifies yours.
 - **No opportunistic refactors.** Do not port an imperative site as a side effect of an unrelated change — the port and the feature get reviewed separately, and the baseline drop lands in the port commit.
-- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1289`](../../../scripts/quality-checks.sh#L1289) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
+- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1583`](../../../scripts/quality-checks.sh#L1583) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
 - **A port touches both sides.** XML edits need no rebuild, but a port *removes* C++ and *adds* XML plus registrations — the binary must be rebuilt, or the new bindings silently stay dead (chapter 01's drift trap).
 - **Annotate with a reason or not at all.** `DECLARATIVE_OK` without a real justification is a lint suppressant, and reviewers should treat it that way. If you cannot name the structural reason, it does not qualify.
 - **Duplication review is cheap at commit time.** Each forked helper above cost one question at review — "does a near-fit already exist?" — and costs a refactoring project once merged. [`REVIEW_RUBRIC.md`](../REVIEW_RUBRIC.md) carries this.
@@ -188,7 +188,7 @@ Every port verifies the same three ways:
 Read in this order; about 25 minutes total.
 
 1. [`scripts/check_imperative_ui.py:10`](../../../scripts/check_imperative_ui.py#L10) — the header comment: what is flagged, what is structurally exempt, and the ratchet philosophy. The whole chapter in 40 lines.
-2. [`scripts/quality-checks.sh:1283`](../../../scripts/quality-checks.sh#L1283) — where the baseline 380 is enforced and how a port ratchets it down.
+2. [`scripts/quality-checks.sh:1583`](../../../scripts/quality-checks.sh#L1583) — where the baseline 379 is enforced and how a port ratchets it down.
 3. [`src/ui/ui_panel_gcode_test.cpp:391`](../../../src/ui/ui_panel_gcode_test.cpp#L391) — the archetype of the 68 event sites: find by name, add callback, null-check each. First project #1 is this block.
 4. [`ui_xml/gcode_test_panel.xml:61`](../../../ui_xml/gcode_test_panel.xml#L61) — the same buttons from the XML side, callback-less today; picture the `<event_cb>` the port adds.
 5. [`src/ui/ui_overlay_network_settings.cpp:651`](../../../src/ui/ui_overlay_network_settings.cpp#L651) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.

@@ -14,6 +14,8 @@
     <px name="nav_padding" value="16"/>
     <!-- Modal backdrop opacity (0-255) -->
     <px name="modal_backdrop_opacity" value="120"/>
+    <!-- Ghosted lane cell opacity (0-255): LV_OPA_20 -->
+    <px name="ghost_opacity" value="51"/>
     <!-- border_radius is now resolved from BorderRadiusSizes table per breakpoint in C++ -->
     <!-- Fixed small radius for swatches/badges that always want 4px regardless of theme -->
     <px name="border_radius_small" value="4"/>

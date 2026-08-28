@@ -2,9 +2,9 @@ name: Code Quality
 
 on:
   push:
-    branches: [ main, "claude/**" ]
+    branches: [ main, "claude/**", "devel/**" ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, "devel/**" ]
 
 jobs:
   quality-checks:
@@ -25,6 +25,17 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    # Gates that read submodule SOURCE must see the tree the app actually
+    # ships, not upstream's. lvgl_display_sync_cb.patch inserts four values
+    # into lv_event_code_t (LV_EVENT_SYNC_{,WAIT_}{START,FINISH}), renumbering
+    # everything after them by four. qc_lvgl_event_codes derives the crash
+    # worker's table from that enum, and crash reports come from patched
+    # builds, so checking against a pristine checkout made the gate disagree
+    # with a correct table on every run. qc_patch_drift also does a real
+    # comparison here rather than reporting "patches not applied yet".
+    - name: Apply submodule patches
+      run: make apply-patches
+
     - name: Install pinned tooling (clang-format) into .venv
       uses: nick-fields/retry@v4
       with:
@@ -41,9 +52,35 @@ jobs:
           .venv/bin/pip install -r requirements.txt
           .venv/bin/clang-format --version
 
+    # devel/** is reported, never blocked. An integration branch that goes red
+    # should be something to walk over and fix, not a wall in front of the next
+    # merge, so the run stays green and says so loudly instead. main and
+    # claude/** keep failing hard. The trigger matters more than the tolerance:
+    # with no devel/** entry at all, devel/1.1 had no quality CI whatsoever, and
+    # a branch whose own CI was red merged into it unnoticed - every sync merge
+    # then inherits those gates, because they are tree-wide.
     - name: Run quality checks
+      id: quality
       timeout-minutes: 5
+      continue-on-error: ${{ startsWith(github.ref, 'refs/heads/devel/') || startsWith(github.base_ref, 'devel/') }}
       run: |
         # Use shared script - single source of truth for pre-commit and CI
         chmod +x scripts/quality-checks.sh
         ./scripts/quality-checks.sh
+
+    # outcome vs conclusion is the whole trick: both are 'failure' on a hard
+    # gate, but a tolerated one reports outcome=failure, conclusion=success. So
+    # this fires only where the failure was actually swallowed, and stays quiet
+    # on main where the job is already red on its own.
+    - name: Announce a tolerated failure
+      if: always() && steps.quality.outcome == 'failure' && steps.quality.conclusion == 'success'
+      run: |
+        echo "::warning title=Quality gates FAILED on ${{ github.ref_name }}::Tolerated because this is an integration branch. Fix it here - a sync merge inherits every red gate."
+        {
+          echo "## Quality checks FAILED (tolerated on this branch)"
+          echo
+          echo "This run is green so it blocks nothing, but the gates below are red on"
+          echo "\`${{ github.ref_name }}\` and every merge out of it carries them forward."
+          echo
+          echo "Reproduce locally: \`./scripts/quality-checks.sh\`"
+        } >> "$GITHUB_STEP_SUMMARY"

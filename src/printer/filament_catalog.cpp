@@ -481,6 +481,13 @@ std::vector<std::string> FilamentCatalog::types_for_brand(const std::string& bra
     return out;
 }
 
+std::vector<std::string> FilamentCatalog::all_types() const {
+    std::set<std::string> seen;
+    for (const auto& p : products_)
+        seen.insert(p.type);
+    return {seen.begin(), seen.end()}; // sorted + deduped
+}
+
 std::vector<std::string> FilamentCatalog::brands_for_type(const std::string& type) const {
     std::vector<std::string> out;
     std::set<std::string> seen;

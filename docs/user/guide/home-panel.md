@@ -166,7 +166,7 @@ Some widgets have settings you can change directly from Edit Mode. When you sele
 | **Temperature Sensors** | Toggles between single-sensor and Carousel display mode |
 | **Fan** | Opens the fan picker — choose which fan to monitor |
 | **Temperature Graph** | Opens a configuration modal — toggle sensors on/off and customize series colors |
-| **Macro Button** | Opens the macro picker — choose which macro to assign |
+| **Macro Button** | Opens the config modal — pick the macro, its icon and color, and whether running it asks for confirmation |
 | **Print Status** | Opens the section picker — choose which sections to show |
 | **Power** | Opens the device picker — choose which power device to bind |
 | **Camera** | Opens the camera configuration modal — set rotation and flip |
@@ -178,7 +178,7 @@ Some widgets have settings you can change directly from Edit Mode. When you sele
 2. **Tap** the widget you want to configure — corner brackets and action buttons appear
 3. **Tap the gear icon** in the upper-left corner
 4. For Temperatures/Fan Speeds: the widget immediately switches between Stack and Carousel mode. Tap the gear again to switch back.
-5. For Macro Buttons: a picker overlay opens listing all available Klipper macros. Tap a macro to assign it — the button updates immediately.
+5. For Macro Buttons: a config modal opens with three tabs. **Macro** lists all available Klipper macros — tap one to assign it, and the button updates immediately. **Appearance** sets the icon and color. **Options** holds **Require Confirmation?**, described below.
 
 ![Configurable widget selected — gear icon (upper-left) and trash icon (upper-right)](../../images/user/home-edit-mode.png)
 ![Macro picker — select from available Klipper macros](../../images/user/home-macro-picker.png)
@@ -265,7 +265,7 @@ On a portrait screen the defaults differ: Printer Image and Print Status stack f
 
 | Widget | Description | Default | Min | Max | Resizable | Hardware Required |
 |--------|-------------|---------|-----|-----|-----------|-------------------|
-| **Macro Button** | One-tap buttons to run configured macros. Add as many Macro Button widgets as you like, each independently configurable — assign a macro to each via the gear icon in Edit Mode. | 1x1 | 1x1 | 2x1 | Horizontal only | — |
+| **Macro Button** | One-tap buttons to run configured macros. Add as many Macro Button widgets as you like, each independently configurable — assign a macro to each via the gear icon in Edit Mode. See [Macro Button confirmation](#macro-button-confirmation). | 1x1 | 1x1 | 2x1 | Horizontal only | — |
 | **Macros** | One-tap shortcut to open the [Macros](advanced.md#macro-execution) panel for browsing and executing Klipper macros. | 1x1 | 1x1 | 1x1 | No | — |
 | **G-code Console** | One-tap shortcut to open the [G-code Console](advanced.md#g-code-console) overlay for sending commands and viewing Klipper responses. See [G-code Console Widget](#g-code-console-widget) below. | 1x1 | 1x1 | 1x1 | No | — |
 | **Tool Switcher** | Quick tool switching for multi-tool printers (IDEX, toolchangers, multi-head). Shows the available tools and lets you switch the active tool with one tap. See [Tool Switcher Widget](#tool-switcher-widget) below. | 1x1 | 1x1 | 2x2 | Yes | Multi-tool printer |
@@ -366,7 +366,7 @@ While **not** in Edit Mode, widgets respond to taps and other gestures:
 | Clog Detection | Opens the Buffer Status detail modal |
 | LED Light | Opens LED Control Overlay |
 | LED Controls | Opens LED Control Overlay |
-| Macro Button | Runs the configured macro immediately |
+| Macro Button | Runs the configured macro — asking for parameters or confirmation first, unless you turned that off ([details](#macro-button-confirmation)) |
 | Macros | Opens the Macros panel overlay |
 | G-code Console | Opens the G-code Console overlay |
 | Tool Switcher | Switches the active tool (compact size opens a tool picker; larger sizes show tappable tool pills) |
@@ -374,6 +374,37 @@ While **not** in Edit Mode, widgets respond to taps and other gestures:
 | Shutdown/Reboot | Shows confirmation, then shuts down/reboots |
 | Firmware Restart | Restarts Klipper firmware |
 | Lock Screen | Locks the screen immediately; requires PIN to unlock |
+
+---
+
+## Macro Button Confirmation
+
+By default, tapping a Macro Button asks you something before it runs anything. If
+the macro takes parameters, you get a form to fill in. If it takes none, you get a
+"Run MACRO?" dialog — the one controlled by **Settings > Safety > Confirm before
+running macros**.
+
+That is the right default for a button sitting on the home screen, but it gets in
+the way of the macros you added a button for precisely because you run them
+constantly and always the same way.
+
+**Require Confirmation?** turns it off, per button:
+
+1. Enter Edit Mode (long-press the widget grid) and tap the Macro Button
+2. Tap the gear icon, then the **Options** tab
+3. Turn **Require Confirmation?** off
+
+That button now runs its macro on a single tap, with no parameters and no dialog.
+Every other Macro Button keeps its own setting — this is per widget, not global.
+
+Two things it does not change:
+
+- **Dangerous macros always confirm.** `EMERGENCY_STOP`, `FIRMWARE_RESTART`,
+  `RESTART`, `SHUTDOWN`, `SAVE_CONFIG` and `M112` show their warning dialog no
+  matter what this is set to.
+- **Macros that need parameters get none.** Turning confirmation off means the
+  macro runs with its defaults. If a macro genuinely needs a value from you each
+  time, leave confirmation on.
 
 ---
 
@@ -736,6 +767,19 @@ The name defaults to "My Printer" if left empty. It's saved to your config file 
 > **Sync:** When you rename your printer in HelixScreen, the new name is automatically pushed to Mainsail and Fluidd so all your interfaces stay in sync.
 
 > **Tip:** You can also set the name directly in the config file under the `printer_name` key — see [Configuration Reference](../CONFIGURATION.md#name).
+
+### Correcting the Printer Model
+
+Directly below the printer name, the **model row** shows the model HelixScreen has recorded for this printer — or nothing at all, when detection could not identify it with confidence. Tap the row to change it:
+
+1. Tap the **printer image** on the Home Panel to open the Printer Manager
+2. Tap the **model row** (marked with a pencil icon)
+3. Pick the model that matches your printer from the list
+4. The overlay closes and the choice is saved immediately
+
+The list is filtered to your printer's motion type, the same way the setup wizard filters it. Picking a model loads that printer's known behaviour — the print macros HelixScreen calls, which fans it treats as part cooling versus hotend, and how its calibration flows behave.
+
+**When you need this:** automatic detection declines to guess when the evidence is inconclusive, and on printers that look identical over the network it can settle on the wrong sibling. Correcting the model here fixes both cases — no need to delete the printer and run setup again. Detection will not overwrite a model you chose yourself.
 
 ### Changing the Printer Image
 

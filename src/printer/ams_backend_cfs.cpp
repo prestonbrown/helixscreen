@@ -148,9 +148,8 @@ bool is_vender_sentinel(const std::string& v) {
 /// `material_type` IS user-writable now too (same command, PART=material_type,
 /// #968) — but only ever with a code the firmware itself previously reported,
 /// so a non-sentinel value still means "either a tag was read or the user
-/// labeled this bay". That second case is handled at the presence rule: a
-/// user-labeled untagged bay reads EMPTY from firmware fields and is promoted
-/// back to AVAILABLE by its override in apply_overrides.
+/// labeled this bay". That second case is carried by `vender`, which reports
+/// occupancy for any seated spool independently of what the RFID fields say.
 bool is_material_code_sentinel(const std::string& v) {
     return v.empty() || v == "none" || v == "None" || v == "-1" || v == "unknown";
 }
@@ -614,9 +613,12 @@ CfsSchema AmsBackendCfs::detect_schema(const nlohmann::json& box_json) {
     return CfsSchema::Stock;
 }
 
-AmsSystemInfo AmsBackendCfs::parse_box_status(const nlohmann::json& box_json) {
-    return detect_schema(box_json) == CfsSchema::Flat ? parse_flat_box_status(box_json)
-                                                      : parse_stock_box_status(box_json);
+AmsSystemInfo
+AmsBackendCfs::parse_box_status(const nlohmann::json& box_json,
+                                const std::unordered_map<int, std::string>* own_labels) {
+    return detect_schema(box_json) == CfsSchema::Flat
+               ? parse_flat_box_status(box_json)
+               : parse_stock_box_status(box_json, own_labels);
 }
 
 // Index of the `external: true` entry in a Flat payload's slots[], -1 when
@@ -639,7 +641,9 @@ static int find_external_slot_index(const nlohmann::json& box_json) {
     return -1;
 }
 
-AmsSystemInfo AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json) {
+AmsSystemInfo
+AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json,
+                                      const std::unordered_map<int, std::string>* own_labels) {
     AmsSystemInfo info;
     info.type = AmsType::CFS;
     info.type_name = "CFS";
@@ -929,18 +933,34 @@ AmsSystemInfo AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_js
             //     and re-breaking #1077.
             //
             //     `material_type` IS written by the identity push too (#968),
-            //     so a non-sentinel code is no longer PROOF of a tag — it may
-            //     be the user's own label. The consequence is bounded: a
-            //     user-labeled untagged bay suppresses this fallback (reads
-            //     EMPTY from firmware fields), and apply_overrides immediately
-            //     promotes it back to AVAILABLE from the override the same
-            //     edit staged. Untagged bays the user never labeled keep the
-            //     fallback, which is the #1077 population it protects.
+            //     so a non-sentinel code is not PROOF of a tag on its own — it
+            //     may be the user's own label echoed back. `own_labels` names
+            //     the codes we wrote, and only those; a matching code is
+            //     discounted here, because otherwise labeling a bay SUPPRESSES
+            //     the very fallback that was keeping it visible. On firmware
+            //     whose `vender` stays sentinel for untagged spools — the #1077
+            //     population this fallback exists for — that flipped a seated
+            //     spool to EMPTY the moment the user named it.
             //
-            // A user override can still promote a firmware-EMPTY bay back to
-            // AVAILABLE (see apply_overrides).
+            //     The discount is safe precisely because push_slot_identity_to_
+            //     firmware records a code ONLY when the bay's pre-push code was
+            //     a sentinel. A genuinely tagged bay is never in the map, so
+            //     relabeling one still suppresses the fallback and its latched
+            //     remain_len cannot ghost the pulled spool as AVAILABLE. What
+            //     is left is the invariant that was broken: labeling a bay does
+            //     not change how its presence is read.
+            //
+            // An override never promotes presence. It supplies IDENTITY only —
+            // a bay that reads EMPTY here stays EMPTY, and the retained
+            // identity is what ui_ams_slot.cpp ghosts (see apply_overrides).
             const bool remain_present = slot.remaining_length_m > 0.0f;
-            const bool has_tag_payload = !is_material_code_sentinel(mat_code_raw);
+            bool code_is_own_label = false;
+            if (own_labels != nullptr) {
+                auto own_it = own_labels->find(slot.global_index);
+                code_is_own_label = own_it != own_labels->end() && own_it->second == mat_code_raw;
+            }
+            const bool has_tag_payload =
+                !is_material_code_sentinel(mat_code_raw) && !code_is_own_label;
             const bool untagged_present = !has_tag_payload && remain_present;
             if (vender_occupied || untagged_present) {
                 slot.status = SlotStatus::AVAILABLE;
@@ -1303,6 +1323,8 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
     }
 
     bool changed = false;
+    // unit number -> bay bitmask, filled under mutex_ and dispatched after it.
+    std::map<int, int> insert_probes;
 
     // Drop the previous frame's derived LOADED stamp before anything below
     // reads or rebuilds the slot vector, so the override/clear/mirror pass sees
@@ -1369,7 +1391,17 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
         }
 
         if (is_full_update) {
-            auto new_info = parse_box_status(box);
+            // Snapshot under the lock: pushed_material_codes_ is written by
+            // push_slot_identity_to_firmware on the UI thread, and the parse
+            // itself deliberately runs before the lock taken below. At most one
+            // entry per bay (16), so the copy is not worth a second lock scope
+            // further down.
+            std::unordered_map<int, std::string> own_labels;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                own_labels = pushed_material_codes_;
+            }
+            auto new_info = parse_box_status(box, &own_labels);
 
             // Payload reads happen before the lock; the values converge under
             // it with everything else below.
@@ -1432,6 +1464,11 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                 system_info_.endless_spool_enabled = new_info.endless_spool_enabled;
                 system_info_.tool_to_slot_map = std::move(new_info.tool_to_slot_map);
             }
+
+            // Bays that just went from empty to occupied and still carry no
+            // resolved tag. Dispatched after the lock — execute_gcode must not
+            // run under mutex_.
+            insert_probes = collect_insert_probes_locked(box);
 
             // Bypass capability convergence. Two rules, one per dialect axis:
             //  - Flat: only the identified Fork dialect has a verified command
@@ -1572,6 +1609,33 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
         }
         // Partial updates (measuring_wheel, etc.): skip — don't touch state
         changed = true;
+    }
+
+    // Probe-on-insert. Firmware reports occupancy the moment a spool goes in but
+    // does NOT read its RFID, so a tagged spool sits at vender "unknown" /
+    // material_type "unknown" indefinitely and a stale override keeps painting
+    // the lane. Diagnosed by cubewhy on prestonbrown/helixscreen#1077 and
+    // reproduced on a K2 Plus with a genuine Creality tag.
+    //
+    // BOX_INFO_REFRESH is the whole sequence and all three steps are load
+    // bearing — measured on a K2 Plus, bay C, red Creality PLA:
+    //
+    //   BOX_GET_RFID alone ................. no effect, tag stays unread
+    //   BOX_SET_PRE_LOADING, then GET_RFID .. vender resolves to the tag payload
+    //   BOX_GET_REMAIN_LEN before pre-load .. 100 (the "never measured" default)
+    //   BOX_GET_REMAIN_LEN after pre-load ... 50  (the real measurement)
+    //
+    // So the pre-load is not an optional convenience to be skipped: it is what
+    // makes the tag readable AND what produces the remaining-length figure.
+    // Sending only the two read commands yields a probe that probes nothing.
+    //
+    // Once the tag lands, the changed RFID fingerprint makes
+    // check_hardware_event_clear drop the stale override by itself.
+    for (const auto& [unit, mask] : insert_probes) {
+        spdlog::info("{} Bay insert on unit {} (NUM={}) — refreshing RFID", backend_log_tag(), unit,
+                     mask);
+        execute_gcode("BOX_INFO_REFRESH ADDR=" + std::to_string(unit) +
+                      " NUM=" + std::to_string(mask));
     }
 
     if (params.contains("filament_switch_sensor filament_sensor")) {
@@ -1810,6 +1874,35 @@ AmsError AmsBackendCfs::do_load_filament(int slot_index) {
     if (gcode.empty()) {
         return AmsErrorHelper::invalid_slot(slot_index, 15);
     }
+
+    // Declaring bypass stood the box down with BOX_ENABLE_CFS_PRINT ENABLE=0,
+    // and a bay cannot feed until it is re-armed. plan_load() now routes a
+    // NAMED lane here even while bypass is declared — it refuses only when the
+    // bypass spool still crosses the toolhead — so the stand-up has to happen
+    // on the way in. Prepended to the same script rather than sent as its own
+    // RPC, so it cannot land after the feed it is supposed to enable.
+    //
+    // Flat schema is excluded for the same reason disable_bypass() excludes it:
+    // that dialect has no BOX_ENABLE_CFS_PRINT and drives bypass through
+    // BOX_UNLOAD instead.
+    if (!bypass) {
+        bool rearm = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            rearm = bypass_declared_ && schema_ != CfsSchema::Flat;
+            if (rearm) {
+                bypass_declared_ = false;
+            }
+        }
+        if (rearm) {
+            gcode = "BOX_ENABLE_CFS_PRINT ENABLE=1\n" + gcode;
+            SettingsManager::instance().set_bypass_declared(false);
+            spdlog::info("[AMS CFS] Lane {} load under a declared bypass — "
+                         "re-arming CFS print feed and clearing the declaration",
+                         slot_index);
+        }
+    }
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
         system_info_.action = AmsAction::LOADING;
@@ -2182,6 +2275,25 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
                 mat_code = hit->second;
         }
         if (!mat_code.empty()) {
+            // Presence needs to know this code is OURS, not a tag read — the
+            // firmware echoes it back forever and the parse cannot tell the two
+            // apart (see pushed_material_codes_).
+            //
+            // Gated on the PRE-push reading being a sentinel. A bay already
+            // reporting a real code is genuinely tagged, and discounting a
+            // relabel there would unsuppress the untagged remain_len fallback
+            // on a field that latches after removal — the pulled spool would
+            // ghost as AVAILABLE forever.
+            //
+            // No baseline at all reads as a sentinel here (empty string), and
+            // that is deliberate: a tagged bay always reports a code, so never
+            // having seen one is the STRONGER form of "this bay carries no
+            // tag". build_cfs_slot_uid also yields no fingerprint when both
+            // material_type and color_value are hard sentinels, which is
+            // exactly an untagged bay on the firmware this fallback serves.
+            if (is_material_code_sentinel(expected_material_half)) {
+                pushed_material_codes_[global_index] = mat_code;
+            }
             expected_material_half = mat_code;
         }
 
@@ -2248,6 +2360,9 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
         {
             std::lock_guard<std::mutex> lock(mutex_);
             rfid_tracker_.forget_expected(global_index);
+            // Same reason: no write landed, so firmware will keep reporting
+            // whatever it reported before and nothing of ours is echoing back.
+            pushed_material_codes_.erase(global_index);
         }
         spdlog::warn("{} push_slot_identity_to_firmware: gcode dispatch failed for slot {}: {}",
                      backend_log_tag(), global_index, err.technical_msg);
@@ -3581,7 +3696,7 @@ void AmsBackendCfs::apply_overrides(SlotInfo& slot, int slot_index) {
     helix::ams::MergeOptions opts;
     opts.printer_reports_spool_ids = printer_reports_spool_ids();
     opts.keep_spool_info_on_eject = SettingsManager::instance().get_ams_keep_spool_info_on_eject();
-    // Read the override BEFORE any erase — the CFS presence tail below needs it.
+    // Read the override BEFORE any erase — merge_override below needs it.
     const auto& o = it->second;
     // Own-write echo suppression (SlotFingerprintTracker::expect()
     // semantics): the flat-schema fork re-writes SPOOLMAN_ID via
@@ -3593,16 +3708,21 @@ void AmsBackendCfs::apply_overrides(SlotInfo& slot, int slot_index) {
     opts.suppress_rebind_firmware_new_id = own_new_id;
     const auto result = helix::ams::merge_override(slot, o, opts);
 
-    // Trust the user's assignment for presence. Untagged 3rd-party spools
-    // always read RFID -1, so firmware reports the bay EMPTY even though a
-    // spool is physically present. If the override carries a real assignment,
-    // the user has told us a spool is in this bay — promote it to AVAILABLE.
-    // (CFS-specific presence policy, not §5 merge policy — stays here.)
-    const bool real_assignment = o.spoolman_id > 0 || !o.material.empty() || !o.brand.empty() ||
-                                 !o.spool_name.empty() || o.color_set;
-    if (real_assignment && slot.status == SlotStatus::EMPTY) {
-        slot.status = SlotStatus::AVAILABLE;
-    }
+    // Presence is deliberately NOT touched here. An override says what the user
+    // assigned to this bay, which is a permanent fact; presence is a live one.
+    // Deriving the second from the first made presence a one-way function — it
+    // could rise to AVAILABLE and never fall back — so an assigned bay whose
+    // spool had been pulled rendered as a seated spool forever, and the
+    // "assigned, not present" ghost in ui_ams_slot.cpp (EMPTY + retained
+    // identity, LV_OPA_20) became unreachable on CFS.
+    //
+    // The untagged-spool case that motivated the promotion is covered upstream
+    // by the parse: `vender` reads non-sentinel for ANY occupied bay on CFS
+    // 1.1.3, tagged or not (verified on a K2 Plus holding only third-party
+    // spools — both seated bays reported vender "unknown" with no Creality RFID
+    // anywhere), and `untagged_present` still backstops firmware that does not.
+    // Identity survives an empty bay via clear_stale_override_on_removal_locked;
+    // that is what the ghost renders from.
 
     if (result.cleared_rebind || result.cleared_eject) {
         overrides_.erase(it);
@@ -3615,6 +3735,54 @@ void AmsBackendCfs::apply_overrides(SlotInfo& slot, int slot_index) {
             });
         }
     }
+}
+
+std::map<int, int> AmsBackendCfs::collect_insert_probes_locked(const nlohmann::json& box) {
+    std::map<int, int> probes;
+    // Stock dialect only. The flat/Fork modules define their own command set
+    // and were never observed to expose BOX_GET_RFID.
+    if (schema_ == CfsSchema::Flat)
+        return probes;
+
+    for (int n = 1; n <= 4; ++n) {
+        auto unit_it = box.find("T" + std::to_string(n));
+        if (unit_it == box.end() || !unit_it->is_object())
+            continue;
+        auto vender_it = unit_it->find("vender");
+        if (vender_it == unit_it->end() || !vender_it->is_array())
+            continue;
+        const int bays = std::min(4, static_cast<int>(vender_it->size()));
+        for (int bay = 0; bay < bays; ++bay) {
+            const auto& v = (*vender_it)[bay];
+            if (!v.is_string())
+                continue;
+            const int global_idx = (n - 1) * 4 + bay;
+            const bool occupied = !is_vender_sentinel(v.get<std::string>());
+
+            // First sighting of this bay seeds the map WITHOUT probing. Every
+            // occupied bay would otherwise look like an insert on the first
+            // poll after startup and trigger a burst of reads for spools that
+            // have not moved.
+            auto prev = bay_occupied_.find(global_idx);
+            const bool first_sighting = prev == bay_occupied_.end();
+            const bool was_occupied = !first_sighting && prev->second;
+            bay_occupied_[global_idx] = occupied;
+
+            if (first_sighting || !occupied || was_occupied)
+                continue;
+
+            // Occupied now, empty last poll: a spool went in, so probe it.
+            //
+            // Deliberately NOT skipped when material_type already holds a real
+            // code. material_type LATCHES: bay C on the test rig read a stale
+            // 101001 from a spool removed days earlier, so "already resolved"
+            // is indistinguishable from "stale" here and skipping on it means
+            // never probing the bays that most need it. One redundant refresh
+            // on a genuinely unchanged tag is the cheaper mistake.
+            probes[n] |= (1 << bay);
+        }
+    }
+    return probes;
 }
 
 bool AmsBackendCfs::check_hardware_event_clear(SlotInfo& slot, int slot_index,

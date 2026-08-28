@@ -2364,3 +2364,239 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     CHECK(lv_subject_get_int(ctrl.get_led_command_in_flight_subject()) == 0);
 }
+
+// ============================================================================
+// Draft macro devices (the "+ Add does nothing" regression)
+//
+// handle_add_macro_device() appends a blank LedMacroInfo so the settings editor
+// has a row to render; the user then types a name and picks macros. That draft
+// has to survive the round-trip through the controller, but everything
+// downstream of the list -- the gcode backend, the strip chips, the persisted
+// config -- must never see an unnamed entry.
+// ============================================================================
+
+TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro survives set_configured_macros",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    // Exactly what the + Add button builds.
+    helix::led::LedMacroInfo draft;
+    draft.display_name = "";
+    draft.type = helix::led::MacroLedType::ON_OFF;
+    ctrl.set_configured_macros({draft});
+
+    // Dropping it here is what made + Add a no-op: the editor indexes into this
+    // list, finds nothing at the draft's index, and renders the empty state.
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    REQUIRE(ctrl.configured_macros()[0].display_name.empty());
+    REQUIRE(ctrl.configured_macros()[0].type == helix::led::MacroLedType::ON_OFF);
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture,
+                 "LedController: draft macro keeps its index beside named ones",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo named;
+    named.display_name = "Cabinet Light";
+    named.type = helix::led::MacroLedType::ON_OFF;
+    named.on_macro = "LED_ON";
+    named.off_macro = "LED_OFF";
+
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+
+    ctrl.set_configured_macros({named, draft});
+
+    // editing_macro_index_ is set from the caller's vector size, so a compacted
+    // list would leave the editor pointing one past the end.
+    REQUIRE(ctrl.configured_macros().size() == 2);
+    REQUIRE(ctrl.configured_macros()[0].display_name == "Cabinet Light");
+    REQUIRE(ctrl.configured_macros()[1].display_name.empty());
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not a selectable strip",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+    ctrl.set_configured_macros({draft});
+
+    // A bare "macro:" chip would render as an unnamed button that dispatches
+    // nothing when tapped.
+    for (const auto& strip : ctrl.all_selectable_strips()) {
+        CHECK(strip.id != helix::led::MACRO_STRIP_PREFIX);
+        CHECK(!strip.name.empty());
+    }
+    REQUIRE(ctrl.all_selectable_strips().empty());
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is never first_available_strip",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+    ctrl.set_configured_macros({draft});
+
+    REQUIRE(ctrl.first_available_strip().empty());
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not pushed to the backend",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+    ctrl.set_configured_macros({draft});
+
+    // MacroBackend keys on display_name; an empty key can never be executed.
+    REQUIRE(ctrl.macro().macros().empty());
+    REQUIRE(!ctrl.macro().is_available());
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture, "LedController: naming a draft promotes it to a real device",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    // + Add
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+    ctrl.set_configured_macros({draft});
+    REQUIRE(ctrl.configured_macros().size() == 1);
+
+    // The user fills in the editor and hits Save -- handle_save_macro_device
+    // mutates a copy of the list in place and writes it back.
+    auto updated = ctrl.configured_macros();
+    updated[0].display_name = "Cabinet Light";
+    updated[0].on_macro = "LED_ON";
+    updated[0].off_macro = "LED_OFF";
+    ctrl.set_configured_macros(updated);
+
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    REQUIRE(ctrl.macro().macros().size() == 1);
+    REQUIRE(ctrl.macro().is_available());
+
+    const auto strips = ctrl.all_selectable_strips();
+    REQUIRE(strips.size() == 1);
+    REQUIRE(strips[0].id == "macro:Cabinet Light");
+    REQUIRE(strips[0].backend == helix::led::LedBackendType::MACRO);
+    REQUIRE(ctrl.first_available_strip() == "macro:Cabinet Light");
+
+    ctrl.deinit();
+}
+
+// ============================================================================
+// status_tracked_strip: which selected strip Klipper actually reports
+// ============================================================================
+
+TEST_CASE_METHOD(LedControllerFixture,
+                 "LedController: status_tracked_strip skips macro and WLED strips",
+                 "[led][controller]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedStripInfo native_strip;
+    native_strip.name = "Chamber Light";
+    native_strip.id = "neopixel chamber_light";
+    native_strip.backend = helix::led::LedBackendType::NATIVE;
+    ctrl.native().add_strip(native_strip);
+
+    helix::led::LedStripInfo wled_strip;
+    wled_strip.name = "Printer LED";
+    wled_strip.id = "wled_printer_led";
+    wled_strip.backend = helix::led::LedBackendType::WLED;
+    ctrl.wled().add_strip(wled_strip);
+
+    helix::led::LedStripInfo pin;
+    pin.name = "Enclosure LEDs";
+    pin.id = "output_pin Enclosure_LEDs";
+    pin.backend = helix::led::LedBackendType::OUTPUT_PIN;
+    ctrl.output_pin().add_pin(pin);
+
+    helix::led::LedMacroInfo toggle;
+    toggle.display_name = "Nozzle LED";
+    toggle.type = helix::led::MacroLedType::TOGGLE;
+    toggle.toggle_macro = "TOGGLE_NOZZLE_LED";
+    helix::led::LedMacroInfo on_off;
+    on_off.display_name = "Cabinet";
+    on_off.type = helix::led::MacroLedType::ON_OFF;
+    on_off.on_macro = "CABINET_ON";
+    on_off.off_macro = "CABINET_OFF";
+    ctrl.set_configured_macros({toggle, on_off});
+
+    // The settings screen persists the selection from a std::set, so a "macro:"
+    // ID sorts ahead of "neopixel ..." — the front strip is the one that is NOT
+    // in any status payload. The tracked strip must be the native one anyway.
+    ctrl.set_selected_strips({"macro:Nozzle LED", "neopixel chamber_light"});
+    REQUIRE(ctrl.status_tracked_strip() == "neopixel chamber_light");
+
+    // An output_pin is equally reportable.
+    ctrl.set_selected_strips({"macro:Cabinet", "output_pin Enclosure_LEDs"});
+    REQUIRE(ctrl.status_tracked_strip() == "output_pin Enclosure_LEDs");
+
+    // WLED lives behind Moonraker's HTTP proxy, not printer.objects.
+    ctrl.set_selected_strips({"wled_printer_led"});
+    REQUIRE(ctrl.status_tracked_strip().empty());
+
+    // Macro-only selections have nothing to track: the light button must fall
+    // back to the controller's own intent instead of a frozen subject.
+    ctrl.set_selected_strips({"macro:Cabinet"});
+    REQUIRE(ctrl.status_tracked_strip().empty());
+
+    ctrl.set_selected_strips({});
+    REQUIRE(ctrl.status_tracked_strip().empty());
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture,
+                 "LedController: an ON_OFF macro device alternates on and off",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo on_off;
+    on_off.display_name = "Cabinet";
+    on_off.type = helix::led::MacroLedType::ON_OFF;
+    on_off.on_macro = "CABINET_ON";
+    on_off.off_macro = "CABINET_OFF";
+    ctrl.set_configured_macros({on_off});
+    ctrl.set_selected_strips({"macro:Cabinet"});
+
+    // Nothing reports this device's state, so light_is_on() is the only source
+    // of truth a light button can consult. It must move on every press.
+    REQUIRE(ctrl.status_tracked_strip().empty());
+    REQUIRE(!ctrl.light_is_on());
+    ctrl.light_set(!ctrl.light_is_on());
+    REQUIRE(ctrl.light_is_on());
+    ctrl.light_set(!ctrl.light_is_on());
+    REQUIRE(!ctrl.light_is_on());
+
+    ctrl.deinit();
+}

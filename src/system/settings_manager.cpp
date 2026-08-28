@@ -3,6 +3,8 @@
 
 #include "settings_manager.h"
 
+#include "ui_subject_registry.h"
+
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -228,6 +230,11 @@ void SettingsManager::init_subjects() {
         config->get<std::string>(config->df() + wizard::CHAMBER_HEATER, "auto");
     chamber_sensor_assignment_ =
         config->get<std::string>(config->df() + wizard::CHAMBER_SENSOR, "auto");
+
+    // Tool-changer feeder macro overrides (default: "auto" = detected default).
+    feeder_open_macro_ = config->get<std::string>(config->df() + wizard::FEEDER_OPEN_MACRO, "auto");
+    feeder_close_macro_ =
+        config->get<std::string>(config->df() + wizard::FEEDER_CLOSE_MACRO, "auto");
 
     // Load scanner device selection. Global: the scanner is plugged into the
     // host running HelixScreen, not into any one printer.
@@ -559,15 +566,11 @@ void SettingsManager::set_ams_always_show_bypass_spool(bool enabled) {
 }
 
 bool SettingsManager::get_ams_keep_spool_info_on_eject() const {
-    lv_subject_t* subject = const_cast<lv_subject_t*>(&ams_keep_spool_info_on_eject_subject_);
     // Before init_subjects() (app startup; plain unit tests without a fixture)
     // the subject carries no value yet — the documented default (retain)
     // applies. Otherwise an uninitialized read would report "off" and the
     // backends' eject rule would clear overrides nobody asked to clear.
-    if (subject->type != LV_SUBJECT_TYPE_INT) {
-        return true;
-    }
-    return lv_subject_get_int(subject) != 0;
+    return subject_get_bool_or(ams_keep_spool_info_on_eject_subject_, true);
 }
 
 void SettingsManager::set_ams_keep_spool_info_on_eject(bool enabled) {
@@ -602,7 +605,7 @@ void SettingsManager::set_bypass_declared(bool declared) {
 }
 
 bool SettingsManager::get_filament_auto_cooldown() const {
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&filament_auto_cooldown_subject_)) != 0;
+    return subject_get_bool_or(filament_auto_cooldown_subject_, true);
 }
 
 void SettingsManager::set_filament_auto_cooldown(bool enabled) {
@@ -618,7 +621,7 @@ void SettingsManager::set_filament_auto_cooldown(bool enabled) {
 // ============================================================================
 
 bool SettingsManager::get_console_filter_temps() const {
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&console_filter_temps_subject_)) != 0;
+    return subject_get_bool_or(console_filter_temps_subject_, true);
 }
 
 void SettingsManager::set_console_filter_temps(bool enabled) {
@@ -630,8 +633,7 @@ void SettingsManager::set_console_filter_temps(bool enabled) {
 }
 
 bool SettingsManager::get_console_filter_firmware_noise() const {
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&console_filter_firmware_noise_subject_)) !=
-           0;
+    return subject_get_bool_or(console_filter_firmware_noise_subject_, true);
 }
 
 void SettingsManager::set_console_filter_firmware_noise(bool enabled) {
@@ -753,7 +755,7 @@ bool SettingsManager::hidden_macros_key_exists() const {
 // ============================================================================
 
 bool SettingsManager::get_detection_enabled() const {
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&detection_enabled_subject_)) != 0;
+    return subject_get_bool_or(detection_enabled_subject_, true);
 }
 
 void SettingsManager::set_detection_enabled(bool enabled) {
@@ -860,6 +862,30 @@ void SettingsManager::set_external_spool_info(const SlotInfo& info) {
 // ============================================================================
 // Chamber Assignment
 // ============================================================================
+
+std::string SettingsManager::get_feeder_open_macro() const {
+    return feeder_open_macro_;
+}
+
+void SettingsManager::set_feeder_open_macro(const std::string& value) {
+    feeder_open_macro_ = value;
+    spdlog::info("[SettingsManager] set_feeder_open_macro({})", value);
+    Config* config = Config::get_instance();
+    config->set<std::string>(config->df() + wizard::FEEDER_OPEN_MACRO, value);
+    config->save();
+}
+
+std::string SettingsManager::get_feeder_close_macro() const {
+    return feeder_close_macro_;
+}
+
+void SettingsManager::set_feeder_close_macro(const std::string& value) {
+    feeder_close_macro_ = value;
+    spdlog::info("[SettingsManager] set_feeder_close_macro({})", value);
+    Config* config = Config::get_instance();
+    config->set<std::string>(config->df() + wizard::FEEDER_CLOSE_MACRO, value);
+    config->save();
+}
 
 std::string SettingsManager::get_chamber_heater_assignment() const {
     return chamber_heater_assignment_;

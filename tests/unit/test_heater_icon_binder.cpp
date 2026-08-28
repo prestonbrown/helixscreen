@@ -90,6 +90,9 @@ TEST_CASE("HeaterIconBinder: bind_subjects still binds when only one subject is 
 
 namespace {
 
+// TEST_MIRROR_OK: a widget-tree FIXTURE, not a reimplementation — the section
+// header above states the point: these cases call the real bind() against a real
+// icon widget and a real PrinterState. Only the widget shape is staged here.
 // Mirrors the shape bind() looks for: a container with a single child named
 // after the heater's conventional icon glyph.
 lv_obj_t* create_icon_root(lv_obj_t* parent, const char* icon_name) {

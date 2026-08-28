@@ -14,10 +14,10 @@ HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to y
 - 30+ panels, 20+ overlays, and a customizable multi-page widget dashboard
 - 3D G-code preview, bed mesh visualization, frequency response charts
 - 7 multi-material backends (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers) with Spoolman integration
-- First-run wizard with auto-detection of 80+ printer models
-- Theme editor with 17 presets (dark and light), 9 languages
+- First-run wizard with auto-detection of 90+ printer models
+- Theme editor with 18 presets (dark and light), 9 languages
 - Sound system, timelapse integration, label printing, exclude objects
-- Auto-detecting layout system for displays from 480x320 to 1024x600 (ultrawide and portrait orientations are alpha)
+- Auto-detecting layout system for displays from 480x320 to 1024x600, including ultrawide and portrait
 - ~15MB RAM on embedded targets — designed for the modest hardware most people already own, no desktop required
 
 ### Which printers are supported?
@@ -63,21 +63,21 @@ Point it at Moonraker (port `7125`), not the Mainsail/Fluidd web interface — y
 
 **Should work but not yet tested:**
 - Official Raspberry Pi 7" DSI touchscreen
-- Creality K2 built-in 4.3" display (480x800 — the panel is software-rotated to landscape; running it as portrait is alpha)
+- Creality K2 built-in 4.3" display (480x800 — the panel is software-rotated to landscape; running it in portrait works too, though landscape is more polished)
 - Other HDMI displays
 - SPI displays (with proper configuration)
 
 **Display sizes:** HelixScreen auto-detects the best layout for your display. 800x480 and 1024x600 are fully supported. 480x320 displays will run but may have layout overlap issues — improved small-screen support is ongoing.
 
-**Ultrawide and portrait screens are alpha at best.** The layout engine detects an ultrawide screen (wider than about 2.5:1, e.g. 1920x480) or a portrait screen (narrower than about 0.8:1, e.g. 480x800) and adjusts the navigation bar and grid sizing accordingly. What does *not* exist yet is the per-panel artwork: there are no ultrawide panel layouts at all, and portrait has only the app shell and navigation bar. Everything else falls back to the standard landscape layout, so expect stretched, cramped, or clipped panels.
+**Ultrawide and portrait screens both work.** The layout engine detects an ultrawide screen (wider than about 2.5:1, e.g. 1920x480) or a portrait screen (narrower than about 0.8:1, e.g. 480x800) and adapts the navigation bar and grid sizing to it. Portrait additionally has dedicated layouts for the app shell, navigation bar, print status and print tune. Panels without a dedicated layout use the adaptive fallback, so landscape remains the most polished of the three.
 
-The one part that does adapt is the **home dashboard**. Its widget grid is sized from the actual screen rather than a fixed table, so a 480x800 portrait panel gets a 3x6 grid and a 320x1480 one gets 2x12 — more usable cells than before. Portrait also has its own set of default widgets (Tips is left out, since it is too wide to be worth a row on a narrow grid), and buttons, inputs, and headers are sized from the screen's height, so a tall panel gets taller controls instead of cramped ones. Nothing outside the home dashboard changes.
+The part that adapts furthest is the **home dashboard**. Its widget grid is sized from the actual screen rather than a fixed table, so a 480x800 portrait panel gets a 3x6 grid and a 320x1480 one gets 2x12 — more usable cells than before. Portrait also has its own set of default widgets (Tips is left out, since it is too wide to be worth a row on a narrow grid), and buttons, inputs, and headers are sized from the screen's height, so a tall panel gets taller controls instead of cramped ones. Nothing outside the home dashboard changes.
 
-Treat both as "it boots and you can drive it", not "it looks right". Neither is tested on real hardware in those orientations. If you want to help, both are wide open for contributions and only need XML, not C++ — see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
+Both keep gaining per-panel work. If you want to help, they need only XML, not C++ — see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
 
 You can force either mode to try it: `helix-screen --layout ultrawide` or `--layout portrait`, or set `"layout": "ultrawide"` in the `display` section of `settings.json`.
 
-**Display rotation:** All three binaries (main, splash, watchdog) support 0°, 90°, 180°, and 270° rotation via config or command line. Rotating a portrait panel to landscape (what the Creality K2 does) is well-trodden; leaving it in portrait and using the portrait layout is the alpha path described above.
+**Display rotation:** All three binaries (main, splash, watchdog) support 0°, 90°, 180°, and 270° rotation via config or command line. Rotating a portrait panel to landscape (what the Creality K2 does) is well-trodden; leaving it in portrait and using the portrait layout also works, with the caveats above.
 
 If you test on hardware not listed above, please let us know your results!
 
@@ -116,7 +116,7 @@ For an exact layer count and a reliable time-remaining estimate, HelixScreen nee
 - Declarative XML layouts (change UI without recompiling)
 - Modern reactive architecture with 7 multi-material backends
 - 3D visualizations (G-code preview, bed mesh)
-- 80+ printer auto-detection database
+- 90+ printer auto-detection database
 - 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, Chinese)
 
 ---
@@ -249,7 +249,7 @@ This enables SIMD-accelerated (hardware-optimized) JPEG decoding, which is 3-5x 
 
 **Yes.** Spoolman integration is supported:
 - **Advanced panel** → **Spoolman** to browse your spool inventory
-- **Settings** → **Spoolman** for weight sync settings
+- **Settings** → **Hardware & Devices** → **Spoolman** for weight sync settings
 - Assign spools to AMS slots and track filament usage
 
 ### Can I print spool labels?
@@ -277,11 +277,11 @@ Features include visual slot configuration with tool badges, endless spool arrow
 **Yes!** The Home Panel displays configurable widgets — quick-access buttons for features like temperature, LED control, network status, AMS, and more.
 
 To customize:
-1. Go to **Settings** → **Home Widgets** (in the Appearance section)
-2. Toggle widgets on or off
-3. Long-press the drag handle to reorder
+1. Long-press the Home panel to enter Edit Mode
+2. Tap the **+** button on the navigation bar to open the Widget Catalog and add widgets
+3. Drag widgets to rearrange or resize them, then tap **Done**
 
-Up to 10 widgets can be shown. Some widgets (like AMS, humidity sensor, or probe) only appear if the relevant hardware is detected. See the [Home Panel guide](guide/home-panel.md#available-widgets) for the full widget list.
+Some widgets (like AMS, humidity sensor, or probe) only appear if the relevant hardware is detected. See the [Home Panel guide](guide/home-panel.md#available-widgets) for the full widget list.
 
 ### Is there a quicker way to shut down the printer?
 
@@ -295,19 +295,19 @@ See the [Shutdown/Reboot Widget](guide/home-panel.md#shutdownreboot-widget) sect
 
 ### Can I customize the colors or layout?
 
-**Yes!** HelixScreen includes a built-in theme editor with 17 preset themes:
+**Yes!** HelixScreen includes a built-in theme editor with 18 preset themes:
 
-1. Go to **Settings** → **Display Settings**
-2. Tap **Theme** to open the theme editor
-3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
+1. Go to **Settings** → **Display & Sound**
+2. Tap **Theme Colors** to open the theme editor
+3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen (default), Kanagawa, Material Design, Midnight, Nord, One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
 4. Toggle dark/light mode
 5. Customize individual colors if desired - changes are saved to `config/themes/`
 
-For layout customization, you can edit XML files in `ui_xml/` (no recompilation needed).
+For layout customization, use Edit Mode on the Home panel — long-press the dashboard to rearrange and resize widgets.
 
 ### Does it support multiple printers?
 
-**Yes!** You can configure multiple Klipper printers and switch between them from the navigation bar or Settings. You view one printer at a time, but switching is instant. Enable this under **Settings** → **Beta Features**, then add printers via **Settings** → **Printers**.
+**Yes!** You can configure multiple Klipper printers and switch between them from the navigation bar or Settings. You view one printer at a time, but switching is instant. Enable beta features first (**Settings** → **Help & About** → **About**, then tap the version button 7 times), then add printers via **Settings** → **Hardware & Devices** → **Printers**.
 
 ### Can I view print history?
 
@@ -335,11 +335,11 @@ For layout customization, you can edit XML files in `ui_xml/` (no recompilation 
 
 ### Can I run macros?
 
-**Yes.** The Macro panel shows your Klipper macros. Access via **Advanced** → **Macros**. You can also configure quick macro buttons in **Settings** → **Macro Buttons**.
+**Yes.** The Macro panel shows your Klipper macros. Access via **Advanced** → **Macros**. You can also configure quick macro buttons in **Settings** → **Printing** → **Macro Buttons**.
 
 ### Can I change which macro the Load / Unload / Purge buttons run?
 
-**Yes.** Go to **Settings > Printer > Macro Buttons** and scroll to the **Standard Macros** section. Each button has a dropdown where you can select any macro from your Klipper config, or choose **(Auto)** to let HelixScreen detect it automatically. This works with or without an AMS system — see the [Filament guide](guide/filament.md#customizing-which-macro-runs) for details.
+**Yes.** Go to **Settings > Printing > Macro Buttons** and scroll to the **Standard Macros** section. Each button has a dropdown where you can select any macro from your Klipper config, or choose **(Auto)** to let HelixScreen detect it automatically. This works with or without an AMS system — see the [Filament guide](guide/filament.md#customizing-which-macro-runs) for details.
 
 ### Why does my nozzle cool down after a filament change?
 
@@ -363,11 +363,11 @@ Your selection is saved to the `display.printer_image` config key and persists a
 
 ### What languages are supported?
 
-HelixScreen ships with 9 languages: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Change the language in **Settings** → **Language**.
+HelixScreen ships with 9 languages: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Change the language in **Settings** → **Display & Sound** → **Language**.
 
 ### Does HelixScreen collect any data?
 
-**Only if you opt in.** Telemetry is off by default. When enabled, it collects anonymous usage data (display resolution, platform, print outcomes) to help improve the software. No filenames, G-code, IP addresses, or personal information is ever collected. You can view, disable, and delete your data at any time in **Settings** → **Telemetry**. See the [Telemetry page](TELEMETRY.md) for full details.
+**Only if you opt in.** Telemetry is off by default. When enabled, it collects anonymous usage data (display resolution, platform, print outcomes) to help improve the software. No filenames, G-code, IP addresses, or personal information is ever collected. You can view, disable, and delete your data at any time in **Settings** → **System** → **Share Usage Data**. See the [Telemetry page](TELEMETRY.md) for full details.
 
 ---
 
@@ -383,7 +383,7 @@ Devices must be plugged in before HelixScreen starts. If auto-detection doesn't 
 
 If taps register in the wrong location:
 1. Go to **Settings** (gear icon)
-2. Scroll to **System** section
+2. Tap **System**, then **Touch & Input**
 3. Tap **Touch Calibration**
 4. Tap the crosshairs that appear on screen
 5. Calibration saves automatically when complete
@@ -392,8 +392,8 @@ Note: This option only appears on touchscreen displays, not in the desktop simul
 
 ### How do I change the theme or colors?
 
-1. Go to **Settings** → **Display Settings**
-2. Tap **Theme** to open the theme editor
+1. Go to **Settings** → **Display & Sound**
+2. Tap **Theme Colors** to open the theme editor
 3. Browse available presets and see live preview
 4. Toggle dark/light mode
 5. Tap **Apply** to save (some changes require restart)
@@ -409,7 +409,7 @@ Fan control is available from the home screen fan widget or controls panel.
 
 ### Does HelixScreen support firmware retraction?
 
-**Yes**, if your printer has `[firmware_retraction]` configured in Klipper. Go to **Settings** → **Retraction Settings** (under Printer section) to adjust:
+**Yes**, if your printer has `[firmware_retraction]` configured in Klipper. Go to **Settings** → **Printing** → **Retraction Settings** to adjust:
 - Retract length and speed
 - Unretract extra length and speed
 - Enable/disable firmware retraction
@@ -419,7 +419,7 @@ This option only appears if Klipper reports firmware retraction capability.
 ### How do I check why the UI is slow?
 
 1. **Check your display connection:** SPI displays are significantly slower than HDMI or DSI. If possible, use an HDMI or DSI-connected display for best performance.
-2. **Disable animations:** Go to **Settings** → toggle **Animations** off
+2. **Disable animations:** Go to **Settings** → **Display & Sound** → toggle **Animations** off
 3. **Check CPU/memory via SSH:** Run `top` or `htop` to see if something else is using resources
 4. **Reduce logging:** If you added `-vv` or `-vvv` to the service, remove it
 5. **Heavy 3D interactions feel slow?** Bed mesh rotation and gcode preview lean on the CPU/GPU; a Pi 4 or Pi 5 is smoother than a Pi 3 or Zero, but everything else in HelixScreen works fine on the older Pi tier.

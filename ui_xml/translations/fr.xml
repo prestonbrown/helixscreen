@@ -20,6 +20,7 @@
   <translation tag="%zu changes" fr="%zu modifications"/>
   <translation tag="%zu events queued" fr="%zu événements en file"/>
   <translation tag="%zu plugins failed to load" fr="%zu plugins nont pas pu se charger"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" fr="&apos;{}&apos; existe déjà. Remplacer le maillage enregistré ?"/>
   <translation tag="(different grade)" fr="(grade différent)"/>
   <translation tag="(incompatible)" fr="(incompatible)"/>
   <translation tag="(multi-tool)" fr="(multi-outils)"/>
@@ -311,7 +312,6 @@
   <translation tag="Bypass Mode" fr="Mode bypass"/>
   <translation tag="Bypass active — this print runs on the external spool." fr="Bypass actif : cette impression utilise la bobine externe."/>
   <translation tag="Bypass cannot be changed while printing" fr="Le bypass ne peut pas être modifié pendant l&apos;impression"/>
-  <translation tag="Bypass controlled by hardware sensor" fr="Bypass contrôlé par capteur matériel"/>
   <translation tag="Bypass controlled by sensor" fr="Bypass contrôlé par le capteur"/>
   <translation tag="Bypass disabled" fr="Bypass désactivé"/>
   <translation tag="Bypass enabled" fr="Bypass activé"/>
@@ -341,9 +341,9 @@
   <translation tag="Calibrate Gear" fr="Calibrer l&apos;engrenage"/>
   <translation tag="Calibrate X" fr="Calibrer X"/>
   <translation tag="Calibrate Y" fr="Calibrer Y"/>
+  <translation tag="Calibrate and tune scroll feel" fr="Calibrer et ajuster le défilement"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" fr="Calibrer l&apos;input shaping pour réduire les artefacts d&apos;ondulation"/>
   <translation tag="Calibrate your touchscreen for accurate input" fr="Calibrer votre écran tactile pour une saisie précise"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" fr="Calibrer, ajuster les tremblements et le défilement"/>
   <translation tag="Calibrated" fr="Calibré"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -415,6 +415,7 @@
   <translation tag="Change Printer Host" fr="Changer l&apos;hôte de l&apos;imprimante"/>
   <translation tag="Change Tool" fr="Changer d&apos;outil"/>
   <translation tag="Change Tool While Paused" fr="Changer d&apos;outil en pause"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." fr="Les modifications s&apos;appliquent immédiatement. Ajustez pendant l&apos;impression pour le réglage."/>
   <translation tag="Changes are temporary and reset on printer reboot" fr="Les modifications sont temporaires et réinitialisées au redémarrage de l&apos;imprimante"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." fr="Les modifications peuvent être annulées à tout moment via le Macro Viewer."/>
@@ -466,6 +467,8 @@
   <translation tag="Clog Detection" fr="Détection de bouchon"/>
   <translation tag="Clog detection" fr="Détection de bouchon"/>
   <translation tag="Close" fr="Fermer"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" fr="Plus près"/>
   <translation tag="Closer = more squish | Farther = less squish" fr="Plus proche = plus écrasé | Plus loin = moins écrasé"/>
   <translation tag="Coarse" fr="Gros"/>
@@ -637,7 +640,6 @@
   <translation tag="Date (newest)" fr="Date (plus récent)"/>
   <translation tag="Date (oldest)" fr="Date (plus ancien)"/>
   <translation tag="Day" fr="Jour"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" fr="Zone morte en pixels (augmenter si les appuis sont détectés comme balayages ; 0 désactive)"/>
   <translation tag="Debug" fr="Débogage"/>
   <translation tag="Default border thickness" fr="Épaisseur de bordure par défaut"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" fr="Par défaut : buse %d-%d°C, plateau %d°C"/>
@@ -691,6 +693,8 @@
   <translation tag="Do not power off your printer." fr="N&apos;éteignez pas votre imprimante."/>
   <translation tag="Do not touch the printer during calibration" fr="Ne touchez pas l&apos;imprimante pendant la calibration"/>
   <translation tag="Dock" fr="Ranger"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" fr="Rangement de l&apos;outil"/>
   <translation tag="Documentation" fr="Documentation"/>
   <translation tag="Don&apos;t Save" fr="Ne pas enregistrer"/>
@@ -772,6 +776,7 @@
   <translation tag="Enter New PIN" fr="Entrez le nouveau PIN"/>
   <translation tag="Enter PIN" fr="Entrez le PIN"/>
   <translation tag="Enter WiFi Password" fr="Entrez le mot de passe WiFi"/>
+  <translation tag="Enter a name for this profile" fr="Entrez un nom pour ce profil"/>
   <translation tag="Enter a name for your custom theme:" fr="Entrez un nom pour votre thème personnalisé :"/>
   <translation tag="Enter a name to save this profile" fr="Entrez un nom pour enregistrer ce profil"/>
   <translation tag="Enter network name" fr="Saisir le nom du réseau"/>
@@ -795,6 +800,8 @@
   <translation tag="Error: Invalid download" fr="Erreur : téléchargement invalide"/>
   <translation tag="Error: No update available" fr="Erreur : aucune mise à jour disponible"/>
   <translation tag="Error: Not enough disk space" fr="Erreur : espace disque insuffisant"/>
+  <translation tag="Error: Previous download still finishing" fr="Erreur : le téléchargement précédent n&apos;est pas terminé"/>
+  <translation tag="Error: This install can&apos;t update itself" fr="Erreur : cette installation ne peut pas se mettre à jour"/>
   <translation tag="Error: Verification failed" fr="Erreur : échec de la vérification"/>
   <translation tag="Error: Wrong architecture" fr="Erreur : mauvaise architecture"/>
   <translation tag="Error: `unzip` not installed" fr="Erreur : `unzip` non installé"/>
@@ -945,11 +952,13 @@
   <translation tag="Farther" fr="Plus loin"/>
   <translation tag="Features: " fr="Fonctionnalités : "/>
   <translation tag="Feed Assist" fr="Assistance d&apos;alimentation"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" fr="Alimenter le filament"/>
   <translation tag="Feed filament directly to extruder" fr="Alimenter le filament directement vers l&apos;extrudeur"/>
   <translation tag="Feed filament from current slot" fr="Alimenter le filament depuis le slot actuel"/>
   <translation tag="Feeding filament forward" fr="Avancement du filament"/>
   <translation tag="Filament" fr="Filament"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" fr="Filament détecté"/>
   <translation tag="Filament Environment" fr="Environnement du filament"/>
   <translation tag="Filament Grade Mismatch" fr="Grade de filament incompatible"/>
@@ -964,12 +973,12 @@
   <translation tag="Filament clog/flow detection meter" fr="Indicateur de détection de bourrage/débit de filament"/>
   <translation tag="Filament deleted" fr="Filament supprimé"/>
   <translation tag="Filament diameter sensors for flow compensation" fr="Capteurs de diamètre de filament pour compensation du débit"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." fr="Le filament est dégagé de la tête d&apos;outil. Tirez-le jusqu&apos;au bout."/>
   <translation tag="Filament is loose" fr="Le filament est détendu"/>
   <translation tag="Filament is pulling tight" fr="Le filament est sous tension"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." fr="Le filament est encore à la buse après le déchargement. La coupe ou la rétractation n&apos;a peut-être pas abouti. Dégagez la tête d&apos;outil avant de charger une autre bobine."/>
   <translation tag="Filament load failed: {}" fr="Échec du chargement du filament : {}"/>
-  <translation tag="Filament loaded" fr="Filament chargé"/>
   <translation tag="Filament operation failed" fr="Échec de l&apos;opération filament"/>
   <translation tag="Filament operation timed out" fr="Opération filament — délai dépassé"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." fr="Filament épuisé - plus rien à la tête d&apos;outil et l&apos;impression est en pause."/>
@@ -1044,6 +1053,8 @@
   <translation tag="Good Accuracy" fr="Bonne précision"/>
   <translation tag="Got it" fr="Compris"/>
   <translation tag="Gray" fr="Gris"/>
+  <translation tag="Grip filament"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" fr="Guides et référence"/>
   <translation tag="H" fr="H"/>
   <translation tag="HOST" fr="Hôte"/>
@@ -1379,6 +1390,7 @@
   <translation tag="Manual Bed Leveling" fr="Mise à niveau manuelle du plateau"/>
   <translation tag="Manual Feed" fr="Alimentation manuelle"/>
   <translation tag="Manual Retract" fr="Rétraction manuelle"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" fr="Associer aux couleurs les plus proches avec matériau compatible"/>
   <translation tag="Marginal" fr="Marginal"/>
   <translation tag="Master volume level" fr="Niveau de volume principal"/>
@@ -1437,6 +1449,7 @@
   <translation tag="Motors Off" fr="Moteurs éteints"/>
   <translation tag="Motors disable failed: {}" fr="Échec de la désactivation des moteurs : {}"/>
   <translation tag="Motors disabled" fr="Moteurs désactivés"/>
+  <translation tag="Mount"/>
   <translation tag="Move" fr="Déplacer"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." fr="Déplacez le papier d&apos;avant en arrière pendant l&apos;ajustement. Arrêtez quand le papier accroche légèrement mais glisse encore."/>
   <translation tag="Move selector" fr="Déplacer le sélecteur"/>
@@ -1462,7 +1475,7 @@
   <translation tag="Name" fr="Nom"/>
   <translation tag="Name (optional)" fr="Nom (facultatif)"/>
   <translation tag="Name:" fr="Nom :"/>
-  <translation tag="Named actions in the LED control panel (long-press)." fr="Actions nommées dans le panneau de commande LED (appui long)."/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" fr="Ajustement nécessaire"/>
   <translation tag="Needs the {} package to switch spools" fr="Nécessite le plugin {} pour changer de bobine"/>
   <translation tag="Net Weight (g)" fr="Poids net (g)"/>
@@ -1491,8 +1504,8 @@
   <translation tag="No Camera" fr="Aucune caméra"/>
   <translation tag="No Filament Detected" fr="Aucun filament détecté"/>
   <translation tag="No History" fr="Pas d&apos;historique"/>
-  <translation tag="No LED macros detected on your printer." fr="Aucune macro LED détectée sur votre imprimante."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." fr="Aucune macro LED détectée sur votre imprimante. Ajoutez d&apos;abord des macros Klipper pour le contrôle des LEDs."/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" fr="Aucun ruban LED détecté"/>
   <translation tag="No Macros Found" fr="Aucune macro trouvée"/>
   <translation tag="No Multi-Filament System connected" fr="Aucun système multi-filament connecté"/>
@@ -1622,11 +1635,14 @@
   <translation tag="On/Off" fr="Marche/Arrêt"/>
   <translation tag="On/Off (state-aware)" fr="On/Off (avec suivi d&apos;état)"/>
   <translation tag="On:" fr="Marche :"/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" fr="Réduction du suintement"/>
   <translation tag="Open" fr="Ouvrir"/>
   <translation tag="Open G-code command console" fr="Ouvrir la console de commandes G-code"/>
   <translation tag="Open LED color and brightness controls" fr="Ouvrir les commandes de couleur et de luminosité LED"/>
   <translation tag="Open Source Licenses" fr="Licences open source"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Operation already in progress" fr="Opération déjà en cours"/>
   <translation tag="Operations" fr="Opérations"/>
   <translation tag="Optimize Your Printing" fr="Optimisez votre impression"/>
@@ -1634,6 +1650,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" fr="Optionnel - sélectionnez votre source d&apos;éclairage principale, ou ignorez si votre imprimante n&apos;en a pas"/>
   <translation tag="Options" fr="Options"/>
   <translation tag="Or Enter Manually" fr="Ou entrer manuellement"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" fr="Oscillation... cycle %d/%d"/>
   <translation tag="Out of range" fr="Hors plage"/>
   <translation tag="Outcome" fr="Résultat"/>
@@ -1704,6 +1721,7 @@
   <translation tag="Phomemo M110" fr="Phomemo M110"/>
   <translation tag="Pick" fr="Choisir"/>
   <translation tag="Pick Color" fr="Choisir la couleur"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" fr="Prise de l&apos;outil"/>
   <translation tag="Pill" fr="Pilule"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" fr="Pixels avant qu&apos;un appui ne devienne un défilement (plus bas = défilement plus rapide)"/>
@@ -1868,12 +1886,12 @@
   <translation tag="Profile name (e.g., default)" fr="Nom du profil (ex : default)"/>
   <translation tag="Profile renamed" fr="Profil renommé"/>
   <translation tag="Profiles" fr="Profils"/>
+  <translation tag="Prompt before running this macro"/>
   <translation tag="Pulling filament back" fr="Rétraction du filament"/>
   <translation tag="Purge" fr="Purger"/>
   <translation tag="Purge &amp; Wipe" fr="Purge et essuyage"/>
   <translation tag="Purge Length" fr="Longueur de purge"/>
   <translation tag="Purge failed: {}" fr="Échec de la purge : {}"/>
-  <translation tag="Purge macro not configured" fr="Macro de purge non configurée"/>
   <translation tag="Purge may still be running — response timed out" fr="Purge peut-être encore en cours — délai dépassé"/>
   <translation tag="Purge to bucket" fr="Purger dans le bac"/>
   <translation tag="Purge tower and brush settings" fr="Paramètres de tour de purge et de brosse"/>
@@ -1949,6 +1967,9 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" fr="Vibration relative"/>
   <translation tag="Release all stepper motors. Position will be lost." fr="Relâcher tous les moteurs pas à pas. La position sera perdue."/>
+  <translation tag="Release filament"/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" fr="Restant (g)"/>
   <translation tag="Remaining Weight (g)" fr="Poids restant (g)"/>
   <translation tag="Remap Tool" fr="Réassigner l&apos;outil"/>
@@ -1959,6 +1980,7 @@
   <translation tag="Remove PIN" fr="Supprimer le PIN"/>
   <translation tag="Remove Spoolman?" fr="Supprimer Spoolman ?"/>
   <translation tag="Remove plugin from printer" fr="Supprimer le plugin de l&apos;imprimante"/>
+  <translation tag="Remove the bypass spool from the toolhead first" fr="Retirez d&apos;abord la bobine de bypass de la tête d&apos;outil"/>
   <translation tag="Rename" fr="Renommer"/>
   <translation tag="Rename Fan" fr="Renommer le ventilateur"/>
   <translation tag="Rename Mesh Profile" fr="Renommer le profil de maillage du plateau"/>
@@ -1967,12 +1989,15 @@
   <translation tag="Rename failed at save step" fr="Échec du renommage à l&apos;étape d&apos;enregistrement"/>
   <translation tag="Render Now" fr="Rendre maintenant"/>
   <translation tag="Rendering timelapse..." fr="Rendu du timelapse..."/>
+  <translation tag="Replace" fr="Remplacer"/>
+  <translation tag="Replace Profile?" fr="Remplacer le profil ?"/>
   <translation tag="Replay Welcome Tour" fr="Rejouer la visite de bienvenue"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" fr="Rapport enregistré dans crash_report.txt"/>
   <translation tag="Reprint" fr="Réimprimer"/>
   <translation tag="Reprint Last" fr="Réimprimer la dernière"/>
   <translation tag="Request Failed" fr="Requête échouée"/>
+  <translation tag="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" fr="Demander confirmation avant l&apos;arrêt d&apos;urgence"/>
   <translation tag="Requires Moonraker power device" fr="Nécessite un périphérique d&apos;alimentation Moonraker"/>
   <translation tag="Requires Moonraker-Timelapse plugin" fr="Nécessite le plugin Moonraker-Timelapse"/>
@@ -2060,7 +2085,6 @@
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" fr="Charger/décharger le filament même lorsque la buse est froide (pour les macros qui chauffent la buse elles-mêmes)"/>
   <translation tag="Run test sequence on all lanes" fr="Exécuter la séquence de test sur toutes les voies"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." fr="Lancez l&apos;installateur HelixScreen avec --update depuis un terminal sur cette imprimante. Scannez pour obtenir la commande adaptée à votre plateforme."/>
-  <translation tag="Run without parameter prompt" fr="Exécuter sans demande de paramètre"/>
   <translation tag="Run {}?" fr="Exécuter {} ?"/>
   <translation tag="Running {}..." fr="Exécution de {}..."/>
   <translation tag="Runout" fr="Fin de filament"/>
@@ -2239,6 +2263,8 @@
   <translation tag="Slot" fr="Slot"/>
   <translation tag="Slot %d" fr="Emplacement %d"/>
   <translation tag="Slot %d Filament" fr="Filament de lemplacement %d"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" fr="Le slot %d contient environ %.0fg mais l&apos;outil %d nécessite environ %.0fg. Démarrer quand même ?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" fr="Slot %d : %.0fg sur %.0fg requis"/>
   <translation tag="Slot 1" fr="Slot 1"/>
   <translation tag="Slot {}" fr="Emplacement {}"/>
   <translation tag="Slot {} matches." fr="Le slot {} correspond."/>
@@ -2250,6 +2276,7 @@
   <translation tag="Soft" fr="Doux"/>
   <translation tag="Software Updates" fr="Mises à jour logicielles"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." fr="Certains filaments ne correspondent pas à l&apos;intention du trancheur."/>
+  <translation tag="Some mapped slots are short on filament:" fr="Certains slots affectés manquent de filament :"/>
   <translation tag="Some settings will take effect after restart." fr="Certains paramètres prendront effet après redémarrage."/>
   <translation tag="Sound Theme" fr="Thème sonore"/>
   <translation tag="Sounds" fr="Sons"/>
@@ -2298,6 +2325,7 @@
   <translation tag="Start Drying" fr="Démarrer le séchage"/>
   <translation tag="Start Print" fr="Lancer l&apos;impression"/>
   <translation tag="Start Probing" fr="Démarrer le palpage"/>
+  <translation tag="Start anyway?" fr="Démarrer quand même ?"/>
   <translation tag="Start at" fr="Commencer à"/>
   <translation tag="Start failed" fr="Échec du démarrage"/>
   <translation tag="Start print anyway?" fr="Démarrer l&apos;impression quand même ?"/>
@@ -2427,6 +2455,7 @@
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" fr="Le firmware de l&apos;imprimante choisit lui-même la bobine de secours"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" fr="Le capteur de fin de filament indique qu&apos;aucun filament n&apos;est chargé. Démarrer l&apos;impression quand même ?"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" fr="La tête d&apos;outil contient du filament mais aucune voie de l&apos;AMS ne le signale comme chargé. Retirez-le manuellement avant d&apos;imprimer. Démarrer quand même ?"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" fr="La tête d&apos;outil contient du filament mais aucune voie de l&apos;AMS ne le signale comme chargé. L&apos;imprimante peut refuser de charger une voie tant qu&apos;elle n&apos;est pas vidée. Démarrer quand même ?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" fr="Le capteur de la tête d&apos;outil indique que du filament est déjà chargé. Procéder au chargement quand même ?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" fr="Le capteur de la tête d&apos;outil indique qu&apos;aucun filament n&apos;est présent. Procéder au déchargement quand même ?"/>
   <translation tag="Theme" fr="Thème"/>
@@ -2522,7 +2551,6 @@
   <translation tag="Touch &amp; Input" fr="Tactile et saisie"/>
   <translation tag="Touch Cal" fr="Cal tactile"/>
   <translation tag="Touch Calibration" fr="Calibration tactile"/>
-  <translation tag="Touch Jitter Filter" fr="Filtre de tremblement tactile"/>
   <translation tag="Touch anywhere to test calibration" fr="Touchez n&apos;importe où pour tester la calibration"/>
   <translation tag="Touch anywhere to verify accuracy" fr="Touchez n&apos;importe où pour vérifier la précision"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." fr="La saisie tactile n&apos;a pas suivi la nouvelle calibration. Vos paramètres précédents ont été conservés."/>
@@ -2581,6 +2609,7 @@
   <translation tag="Unloads After Print" fr="Décharge après l&apos;impression"/>
   <translation tag="Unlock" fr="Déverrouiller"/>
   <translation tag="Unmapped" fr="Non mappé"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" fr="Extra de dérétraction"/>
   <translation tag="Unretract Speed" fr="Vitesse de dérétraction"/>
   <translation tag="Unsupported tape width" fr="Largeur de ruban non prise en charge"/>
@@ -2665,6 +2694,8 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." fr="Quand activé, seule la macro s&apos;exécute. Quand désactivé, les températures sont définies d&apos;abord, puis la macro s&apos;exécute."/>
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." fr="Au démarrage d&apos;une impression, vous pourrez choisir d&apos;exécuter %s ou non. Cela fait gagner du temps quand vous l&apos;avez déjà fait récemment ou quand vous voulez plus de contrôle sur la préparation de votre impression."/>
   <translation tag="Where UI sounds play" fr="Où les sons de l&apos;interface sont diffusés"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" fr="Blanc"/>
   <translation tag="Wi-Fi and ethernet connection status" fr="État de la connexion Wi-Fi et Ethernet"/>
   <translation tag="WiFi" fr="WiFi"/>
@@ -2769,6 +2800,7 @@
   <translation tag="nozzle" fr="buse"/>
   <translation tag="of" fr="de"/>
   <translation tag="off" fr="éteint"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" fr="impressions"/>
   <translation tag="remaining" fr="restant"/>
   <translation tag="remaining before clog detection triggers" fr="restant avant le déclenchement de la détection de bouchon"/>

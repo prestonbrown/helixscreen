@@ -42,6 +42,12 @@ class PrintPreparationManagerTestAccess {
                                        std::chrono::seconds ago) {
         m.pre_start_sent_at_ = std::chrono::steady_clock::now() - ago;
     }
+    /// The preparing-job epoch the pre-start block was sent under. Production
+    /// snapshots it when the RPC leaves; a test sets it to model a send that
+    /// happened while a specific job was armed.
+    static void set_pre_start_epoch(helix::ui::PrintPreparationManager& m, int epoch) {
+        m.pre_start_epoch_ = epoch;
+    }
     /// Drive the shared continuation every pre-start path funnels through.
     static void continue_print_start(helix::ui::PrintPreparationManager& m, const std::string& file,
                                      helix::ui::PrintCompletionCallback on_completion) {
@@ -3304,4 +3310,131 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     REQUIRE(completed);
     REQUIRE_FALSE(success);
     REQUIRE(starts.load() == 0);
+}
+
+// ============================================================================
+// A SLOW pre-start that was never cancelled must still start the print
+// ============================================================================
+//
+// The staleness bound this replaces read elapsed time as a proxy for "the user
+// no longer wants this". On a K2 Plus (2026-08-25) that proxy was wrong in the
+// expensive direction: a pre-start block containing a bed mesh legitimately ran
+// 494s, the RPC returned SUCCESS, and the 180s bound threw the print away with
+// no error shown. The user had told it to print a 32-hour job and it silently
+// did nothing.
+//
+// A backed-up ack (the K1C case the bound was written for) and a slow-but-wanted
+// macro arrive through the same callback with the same signature, so no clock
+// can separate them. The preparing-job epoch can: PrinterPrintState bumps it on
+// begin_preparing and zeroes it on retire_preparing, so cancel, failure and
+// supersede all change it while a job that is simply taking its time does not.
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: a slow pre-start still starts when nothing retired it",
+                 "[preparation][stale][preprint]") {
+    std::atomic<int> starts{0};
+    server_->clear_handlers();
+    server_->on_method("printer.print.start", [&](const json&) -> json {
+        starts++;
+        return json{{"result", "ok"}};
+    });
+
+    // A job is armed and STAYS armed — nobody cancelled.
+    printer_state_.begin_preparing(helix::PrintJobRef{"mesh_print.gcode", "gcodes", ""});
+    const int epoch = lv_subject_get_int(printer_state_.get_preparing_epoch_subject());
+    REQUIRE(epoch != 0);
+    PrintPreparationManagerTestAccess::set_pre_start_epoch(manager_, epoch);
+
+    // Eight minutes of bed mesh — well past the old 180s bound.
+    PrintPreparationManagerTestAccess::set_pre_start_sent_ago(manager_, std::chrono::minutes(8));
+
+    // The SUCCESS path is asynchronous — it reaches the printer over the mock
+    // websocket — so the callback lands after this frame would otherwise have
+    // returned. Atomics plus wait_for() keep the referands alive and the queue
+    // pumped; capturing plain locals by reference here smashes the stack when
+    // the late callback writes into a dead frame.
+    std::atomic<bool> completed{false};
+    std::atomic<bool> success{false};
+    helix::ui::PrintCompletionCallback cb = [&](bool ok, const std::string&) {
+        success.store(ok);
+        completed.store(true);
+    };
+    PrintPreparationManagerTestAccess::continue_print_start(manager_, "mesh_print.gcode", cb);
+
+    // THE REGRESSION: this was dropped, silently, after eight minutes of work.
+    REQUIRE(wait_for([&]() { return completed.load(); }, 5000));
+    CHECK(success.load());
+    CHECK(starts.load() == 1);
+}
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: a retired job drops its pre-start ack however fresh",
+                 "[preparation][stale][preprint]") {
+    // The other half of the same rule, and the one the old bound was protecting:
+    // intent is gone, so the ack must not start anything — and crucially this
+    // holds with NO time having passed, which a staleness bound could never see.
+    std::atomic<int> starts{0};
+    server_->clear_handlers();
+    server_->on_method("printer.print.start", [&](const json&) -> json {
+        starts++;
+        return json{{"result", "ok"}};
+    });
+
+    printer_state_.begin_preparing(helix::PrintJobRef{"cancelled.gcode", "gcodes", ""});
+    const int epoch = lv_subject_get_int(printer_state_.get_preparing_epoch_subject());
+    PrintPreparationManagerTestAccess::set_pre_start_epoch(manager_, epoch);
+
+    // The user cancels while the macro is still running.
+    printer_state_.retire_preparing(helix::PreparingExit::Cancelled);
+
+    // Ack lands one second later — fresh by any clock, dead by intent.
+    PrintPreparationManagerTestAccess::set_pre_start_sent_ago(manager_, std::chrono::seconds(1));
+
+    bool completed = false;
+    bool success = true;
+    helix::ui::PrintCompletionCallback cb = [&](bool ok, const std::string&) {
+        completed = true;
+        success = ok;
+    };
+    PrintPreparationManagerTestAccess::continue_print_start(manager_, "cancelled.gcode", cb);
+
+    CHECK(starts.load() == 0);
+    CHECK(completed);
+    CHECK_FALSE(success);
+}
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: a superseding job drops the previous pre-start ack",
+                 "[preparation][stale][preprint]") {
+    // Retire-then-rearm is the case has_preparing_job() alone cannot see: a job
+    // IS armed at ack time, just not the one this block was sent for.
+    std::atomic<int> starts{0};
+    server_->clear_handlers();
+    server_->on_method("printer.print.start", [&](const json&) -> json {
+        starts++;
+        return json{{"result", "ok"}};
+    });
+
+    printer_state_.begin_preparing(helix::PrintJobRef{"first.gcode", "gcodes", ""});
+    const int first_epoch = lv_subject_get_int(printer_state_.get_preparing_epoch_subject());
+    PrintPreparationManagerTestAccess::set_pre_start_epoch(manager_, first_epoch);
+
+    printer_state_.retire_preparing(helix::PreparingExit::Superseded);
+    printer_state_.begin_preparing(helix::PrintJobRef{"second.gcode", "gcodes", ""});
+    REQUIRE(printer_state_.has_preparing_job()); // armed — but a DIFFERENT job
+    REQUIRE(lv_subject_get_int(printer_state_.get_preparing_epoch_subject()) != first_epoch);
+
+    PrintPreparationManagerTestAccess::set_pre_start_sent_ago(manager_, std::chrono::seconds(1));
+
+    bool completed = false;
+    bool success = true;
+    helix::ui::PrintCompletionCallback cb = [&](bool ok, const std::string&) {
+        completed = true;
+        success = ok;
+    };
+    PrintPreparationManagerTestAccess::continue_print_start(manager_, "first.gcode", cb);
+
+    CHECK(starts.load() == 0);
+    CHECK(completed);
+    CHECK_FALSE(success);
 }

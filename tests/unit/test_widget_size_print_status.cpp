@@ -232,6 +232,56 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     PrintStatusWidget::destroy_formatter_for_test();
 }
 
+// --- Idle detailed hero: the filename spans the card, not the data column ---
+//
+// The active card got this in e779c972d; the idle twin kept its filename inside
+// idle_data_col, beside a 45%-wide thumbnail, so a long name scrolled through
+// roughly half the width it had available. Both cards now hoist it to a
+// full-width header above the thumb/data row.
+
+TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans the whole card",
+                 "[widget_size][print_status]") {
+    PrintStatusWidget::destroy_formatter_for_test();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+    ToolState::instance().init_subjects(false);
+    heal_global_print_status_panel_subjects();
+    {
+        PanelWidgetHarness<PrintStatusWidget> h(test_screen(),
+                                                HarnessConfig{{{"layout_style", "detailed"}}});
+
+        lv_obj_t* filename = h.child("detailed_idle_filename");
+        lv_obj_t* main_row = h.child("idle_main_row");
+        lv_obj_t* data_col = h.child("idle_data_col");
+        REQUIRE(filename != nullptr);
+        REQUIRE(main_row != nullptr);
+        REQUIRE(data_col != nullptr);
+
+        h.resize(1, 5, W_WIDE, 300);
+        process_lvgl(30);
+        REQUIRE(lv_subject_get_int(PrintStatusWidget::view_subject_for_test()) ==
+                2); // idle_detailed
+
+        // It is a sibling of the thumb/data row, not a child of the data column:
+        // that is what makes the full width available to it.
+        CHECK(lv_obj_get_parent(filename) == lv_obj_get_parent(main_row));
+        CHECK(lv_obj_get_parent(filename) != data_col);
+
+        // And it actually occupies that width. The data column is the ~55% that
+        // was left over beside the 45% thumbnail, so spanning must beat it.
+        const int32_t name_w = lv_obj_get_width(filename);
+        const int32_t row_w = lv_obj_get_width(main_row);
+        const int32_t col_w = lv_obj_get_width(data_col);
+        INFO("filename=" << name_w << " row=" << row_w << " data_col=" << col_w);
+        CHECK(name_w == row_w);
+        CHECK(name_w > col_w);
+
+        // Long names must still scroll rather than ellipsize or clip.
+        CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_SCROLL_CIRCULAR);
+    }
+    PrintStatusWidget::destroy_formatter_for_test();
+}
+
 // --- :477 use_column -> print_card_layout_ flex flow + thumb wrap sizing ---
 //
 // Mutation-checked predicate (per the task brief): forcing use_column to
@@ -281,6 +331,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status column/row card layout follows
     PrintStatusWidget::destroy_formatter_for_test();
 }
 
+// TEST_MIRROR_OK: "mirror" here names a duplication that lives in PRODUCTION —
+// print_status_widget.cpp re-derives the same gate in two places (:461 and
+// :1712). The test reimplements neither: it drives the real widget through
+// PanelWidgetHarness and asserts on the real show_filament_active subject, so
+// it goes red if either production copy drifts.
 // --- :461 show_filament_active (wide band AND filament extruded) + the :1712
 // mirror (DetailedFormatter::update_filament_text() re-deriving the same gate
 // from width_band_subject_ on a used_mm change alone, with no intervening
@@ -308,11 +363,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
         lv_obj_t* data_col = h.child("detailed_data_col");
         REQUIRE(data_col != nullptr);
-        REQUIRE(lv_obj_get_child_count(data_col) == 4);
-        // Filament label is the last of detailed_data_col's four children
-        // (filename, layer, time, filament) — it carries no name= in
-        // print_status_detailed_active.xml, so position is the only handle.
-        lv_obj_t* filament_label = lv_obj_get_child(data_col, 3);
+        REQUIRE(lv_obj_get_child_count(data_col) == 3); // layer, time, filament
+        lv_obj_t* filament_label = h.child("detailed_filament_text");
         REQUIRE(filament_label != nullptr);
 
         h.widget().on_print_state_changed_for_test(PrintState::Printing);

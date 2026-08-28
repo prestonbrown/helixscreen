@@ -158,6 +158,13 @@ PromptButton ActionPromptManager::parse_button_spec(const std::string& spec) {
     // Field 3 = hex_color (raw hex override, e.g., "7c4b00")
     if (parts.size() > 3 && !parts[3].empty()) {
         button.hex_color = parts[3];
+        // A hex-carrying button is a color tile; ZMOD labels its color-grid
+        // tiles with a "_" placeholder (sometimes padded). Rendering the
+        // placeholder paints a dash across every swatch, so a label that
+        // carries no information is dropped.
+        if (!button.label.empty() && button.label.find_first_not_of(" _-") == std::string::npos) {
+            button.label.clear();
+        }
     }
 
     return button;

@@ -67,39 +67,80 @@ struct TimezoneEntry {
     const char* iana_id;
 };
 
+// Ordered by UTC offset so the list scans west-to-east. Names are the countries
+// people search for, not regional or historical groupings — #1340 was filed
+// because UTC+7 was labelled "Indochina" and a user in Vietnam never found it.
+//
+// Same-offset zones are listed separately when their DST rules differ: picking
+// America/Denver from Arizona, or Europe/Berlin from Lagos, yields the right
+// time for part of the year and an hour's error for the rest.
+//
+// scripts/regen_zoneinfo.sh reads this table to build assets/zoneinfo/, and
+// tests/shell/test_zoneinfo_bundle_gate.bats fails if the two drift. A zone
+// offered here but not bundled resolves to UTC on devices without system
+// tzdata — silently, with the wrong time and no error.
 static const TimezoneEntry TIMEZONE_ENTRIES[] = {
     {"UTC (+0:00)", "UTC"},
+    {"Samoa (-11:00)", "Pacific/Pago_Pago"},
     {"Hawaii (-10:00)", "Pacific/Honolulu"},
     {"Alaska (-9:00)", "America/Anchorage"},
     {"Pacific (-8:00)", "America/Los_Angeles"},
     {"Mountain (-7:00)", "America/Denver"},
+    {"Arizona (-7:00)", "America/Phoenix"},
     {"Central (-6:00)", "America/Chicago"},
+    {"Mexico City (-6:00)", "America/Mexico_City"},
+    {"Saskatchewan (-6:00)", "America/Regina"},
     {"Eastern (-5:00)", "America/New_York"},
+    {"Colombia/Peru (-5:00)", "America/Bogota"},
     {"Atlantic (-4:00)", "America/Halifax"},
+    {"Venezuela (-4:00)", "America/Caracas"},
+    {"Chile (-4:00)", "America/Santiago"},
     {"Newfoundland (-3:30)", "America/St_Johns"},
-    {"Sao Paulo (-3:00)", "America/Sao_Paulo"},
+    {"Brazil - Sao Paulo (-3:00)", "America/Sao_Paulo"},
+    {"Argentina (-3:00)", "America/Argentina/Buenos_Aires"},
+    {"Fernando de Noronha (-2:00)", "America/Noronha"},
+    {"Azores (-1:00)", "Atlantic/Azores"},
     {"Cape Verde (-1:00)", "Atlantic/Cape_Verde"},
+    {"Iceland (+0:00)", "Atlantic/Reykjavik"},
     {"London (+0:00)", "Europe/London"},
     {"Central Europe (+1:00)", "Europe/Berlin"},
+    {"West Africa - Lagos (+1:00)", "Africa/Lagos"},
     {"Eastern Europe (+2:00)", "Europe/Bucharest"},
+    {"Egypt (+2:00)", "Africa/Cairo"},
+    {"South Africa (+2:00)", "Africa/Johannesburg"},
+    {"Israel (+2:00)", "Asia/Jerusalem"},
     {"Moscow (+3:00)", "Europe/Moscow"},
+    {"Turkey (+3:00)", "Europe/Istanbul"},
+    {"Saudi Arabia (+3:00)", "Asia/Riyadh"},
+    {"East Africa - Nairobi (+3:00)", "Africa/Nairobi"},
     {"Iran (+3:30)", "Asia/Tehran"},
     {"Gulf (+4:00)", "Asia/Dubai"},
     {"Afghanistan (+4:30)", "Asia/Kabul"},
     {"Pakistan (+5:00)", "Asia/Karachi"},
     {"India (+5:30)", "Asia/Kolkata"},
+    {"Sri Lanka (+5:30)", "Asia/Colombo"},
     {"Nepal (+5:45)", "Asia/Kathmandu"},
     {"Bangladesh (+6:00)", "Asia/Dhaka"},
     {"Myanmar (+6:30)", "Asia/Yangon"},
-    {"Indochina (+7:00)", "Asia/Bangkok"},
-    {"China/Singapore (+8:00)", "Asia/Shanghai"},
+    {"Thailand (+7:00)", "Asia/Bangkok"},
+    {"Vietnam (+7:00)", "Asia/Ho_Chi_Minh"},
+    {"Indonesia - Jakarta (+7:00)", "Asia/Jakarta"},
+    {"China (+8:00)", "Asia/Shanghai"},
     {"Hong Kong (+8:00)", "Asia/Hong_Kong"},
-    {"Japan/Korea (+9:00)", "Asia/Tokyo"},
+    {"Taiwan (+8:00)", "Asia/Taipei"},
+    {"Singapore/Malaysia (+8:00)", "Asia/Singapore"},
+    {"Philippines (+8:00)", "Asia/Manila"},
     {"Australia Western (+8:00)", "Australia/Perth"},
+    {"Japan (+9:00)", "Asia/Tokyo"},
+    {"Korea (+9:00)", "Asia/Seoul"},
     {"Australia Central (+9:30)", "Australia/Adelaide"},
+    {"Australia Northern (+9:30)", "Australia/Darwin"},
     {"Australia Eastern (+10:00)", "Australia/Sydney"},
+    {"Australia Queensland (+10:00)", "Australia/Brisbane"},
     {"New Caledonia (+11:00)", "Pacific/Noumea"},
     {"New Zealand (+12:00)", "Pacific/Auckland"},
+    {"Fiji (+12:00)", "Pacific/Fiji"},
+    {"Tonga (+13:00)", "Pacific/Tongatapu"},
 };
 static const int TIMEZONE_COUNT = sizeof(TIMEZONE_ENTRIES) / sizeof(TIMEZONE_ENTRIES[0]);
 
@@ -312,7 +353,6 @@ void DisplaySettingsManager::init_subjects() {
     // default to Flying Toasters (1). BASIC (Pi 3B-class) and EMBEDDED (AD5M,
     // AD5X) default to OFF (0) because animated screensavers starve Klipper's
     // CPU budget and cause print failures.
-    // See: docs/superpowers/specs/2026-04-23-screensaver-low-tier-defaults-design.md
     const int screensaver_default = PlatformCapabilities::detect().supports_animations ? 1 : 0;
 
     int screensaver_type = screensaver_default;

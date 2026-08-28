@@ -34,6 +34,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "save_config_restart.h"
 #include "z_offset_utils.h"
 
 #include <algorithm>
@@ -68,6 +69,12 @@ class ExpectedRestartFixture : public LVGLTestFixture {
         auto note = [this](const std::string& m) { notifications.push_back(m); };
         helix::ui::set_test_notification_info_hook(note);
         helix::ui::set_test_notification_warning_hook(note);
+        // The ERROR hook matters as much as the other two here: BedMeshPanel
+        // reports through NOTIFY_ERROR while InputShaperPanel calls ToastManager
+        // directly. Leaving it uninstalled made a bed-mesh failure invisible to
+        // this fixture, which is why the #1359 toast survived a test suite that
+        // drove the exact flow that produced it.
+        helix::ui::set_test_notification_error_hook(note);
         client.clear_gcode_script_history();
         EmergencyStopOverlayTestAccess::reset_suppression(EmergencyStopOverlay::instance());
     }
@@ -77,8 +84,22 @@ class ExpectedRestartFixture : public LVGLTestFixture {
         helix::ui::set_test_toast_hook(nullptr);
         helix::ui::set_test_notification_info_hook(nullptr);
         helix::ui::set_test_notification_warning_hook(nullptr);
+        helix::ui::set_test_notification_error_hook(nullptr);
         EmergencyStopOverlayTestAccess::reset_suppression(EmergencyStopOverlay::instance());
         settle();
+    }
+
+    /// No panel may surface the rpc failure that SAVE_CONFIG's own restart
+    /// causes. Klipper never acks the command, so that error arrives on EVERY
+    /// save including the ones that worked; a panel that renders it is telling
+    /// the user a successful save failed (prestonbrown/helixscreen#1359).
+    bool no_failure_reported() const {
+        const auto is_failure = [](const std::string& m) {
+            return m == "Failed to save configuration";
+        };
+        return std::none_of(toasts.begin(), toasts.end(),
+                            [&](const Shown& t) { return is_failure(t.message); }) &&
+               std::none_of(notifications.begin(), notifications.end(), is_failure);
     }
 
     // Drains until the queue stops producing work: the helper queues its
@@ -109,9 +130,11 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "z-offset apply-and-save initiates the restart contract",
-                 "[expectedrestart][zoffset]") {
+                 "[expectedrestart][zoffset][1359]") {
+    helix::ui::SaveConfigWatch save_watch;
     helix::zoffset::apply_and_save(
-        &api, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [] {}, [](const std::string&) {});
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [] {},
+        [](const std::string&) {});
     settle();
 
     const auto& hist = client.gcode_script_history();
@@ -121,14 +144,53 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "z-offset apply-and-save initiates the 
 
     CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
     CHECK(api.suppress_disconnect_modal_calls() == 1);
+    CHECK(no_failure_reported()); // the dropped rpc must never reach the user (#1359)
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].severity == ToastSeverity::INFO);
     CHECK(toasts[0].message == "Saving config... Klipper will restart.");
     CHECK(notifications.empty());
 }
 
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "z-offset apply-and-save survives the rpc its own restart drops",
+                 "[expectedrestart][zoffset][1359]") {
+    // The mock fails SAVE_CONFIG's rpc by design: Klipper drops the reply when
+    // it restarts. Reporting that as a failure is #1359. Treating it as success
+    // before Klipper is back is the opposite bug - nothing is known yet - and
+    // here it also skipped whatever the caller does on a real save.
+    //
+    // SaveConfigWatch observes the process-wide PrinterState, not this fixture's
+    // local one, so that one has to exist. init_subjects() is idempotent.
+    get_printer_state().init_subjects(false);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&] { saved = true; },
+        [&](const std::string& m) { error = m; });
+    settle();
+
+    const auto& hist = client.gcode_script_history();
+    REQUIRE(hist.size() == 2);
+    CHECK(hist[0] == "Z_OFFSET_APPLY_PROBE");
+    CHECK(hist[1] == "SAVE_CONFIG");
+    CHECK(no_failure_reported());
+    CHECK(error.empty());
+    CHECK_FALSE(saved); // nothing is known until Klipper is back
+
+    // Klipper comes back. THAT is what says the save worked.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    settle();
+
+    CHECK(error.empty());
+    CHECK(saved);
+}
+
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",
-                 "[expectedrestart][bedmesh]") {
+                 "[expectedrestart][bedmesh][1359]") {
     BedMeshPanel panel;
     helix::ui::BedMeshPanelTestAccess::save_config(panel);
     settle();
@@ -139,6 +201,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the res
 
     CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
     CHECK(api.suppress_disconnect_modal_calls() == 1);
+    CHECK(no_failure_reported()); // the dropped rpc must never reach the user (#1359)
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].severity == ToastSeverity::INFO);
     CHECK(toasts[0].message == "Configuration saved - restarting");
@@ -149,7 +212,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the res
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the restart contract",
-                 "[expectedrestart]") {
+                 "[expectedrestart][1359]") {
     InputShaperPanel panel;
     panel.set_api(&client, &api);
     helix::ui::InputShaperPanelTestAccess::save_configuration(panel);
@@ -161,25 +224,26 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the
 
     CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
     CHECK(api.suppress_disconnect_modal_calls() == 1);
-    // The mock's SAVE_CONFIG handler returns error-by-design (klippy
-    // "restarts" before the reply arrives), so the panel's direct failure
-    // toast also appears on this stack and can precede the queued initiation
-    // toast - order is not the contract. The initiation toast itself must be
-    // INFO - not the WARNING this flow used before the helper; an expected
-    // restart is not a fault, and it pairs with the SUCCESS completion toast.
-    auto initiation = std::find_if(toasts.begin(), toasts.end(), [](const Shown& t) {
-        return t.message == "Saving config... Klipper will restart.";
-    });
-    REQUIRE(initiation != toasts.end());
-    CHECK(initiation->severity == ToastSeverity::INFO);
-    CHECK(std::count_if(toasts.begin(), toasts.end(), [](const Shown& t) {
-              return t.message == "Saving config... Klipper will restart.";
-          }) == 1);
+
+    // SAVE_CONFIG's rpc is ALWAYS dropped by the restart it triggers, so the
+    // mock fails it by design. That must not reach the user: reporting it cost
+    // every successful save a red "Failed to save configuration"
+    // (prestonbrown/helixscreen#1359). This assertion is the regression -- it
+    // was previously a find_if that hunted for the initiation toast AMONG the
+    // failure toast, which tolerated exactly the bug.
+    CHECK(no_failure_reported());
+
+    // The initiation toast must be INFO - not the WARNING this flow used before
+    // the helper; an expected restart is not a fault, and it pairs with the
+    // SUCCESS completion toast.
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].severity == ToastSeverity::INFO);
+    CHECK(toasts[0].message == "Saving config... Klipper will restart.");
     CHECK(notifications.empty());
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart contract",
-                 "[expectedrestart]") {
+                 "[expectedrestart][1359]") {
     PIDCalibrationPanel panel;
     panel.set_api(&api);
     helix::ui::PIDCalibrationPanelTestAccess::send_save_config(panel);
@@ -191,6 +255,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart 
 
     CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
     CHECK(api.suppress_disconnect_modal_calls() == 1);
+    CHECK(no_failure_reported()); // the dropped rpc must never reach the user (#1359)
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].severity == ToastSeverity::INFO);
     CHECK(toasts[0].message == "Saving config... Klipper will restart.");

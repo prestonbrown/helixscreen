@@ -1,5 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: tests the test fixture itself (ApplicationTestFixture and
+//                 MockPrinterState), which this gate exempts by design. No production
+//                 logic is reimplemented here.
 
 /**
  * @file test_infrastructure.cpp

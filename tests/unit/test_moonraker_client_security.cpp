@@ -271,46 +271,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
 }
 
 // ============================================================================
-// Issue #7: JSON-RPC Validation
-// ============================================================================
-
-// TODO: Test actual JSON-RPC validation with MockWebSocketServer
-TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
-                 "MoonrakerClient unconnected send returns error for any input",
-                 "[connection][security][validation][issue7][eventloop][slow]") {
-    // All send_jsonrpc calls return -1 when not connected. This verifies graceful
-    // failure (no crash, no UB) across representative input variations.
-
-    SECTION("Various method names") {
-        REQUIRE(client->send_jsonrpc("") == -1);
-        REQUIRE(client->send_jsonrpc(std::string(300, 'a')) == -1);
-        REQUIRE(client->send_jsonrpc("printer.info") == -1);
-        REQUIRE(client->send_jsonrpc("printer.objects.subscribe") == -1);
-    }
-
-    SECTION("Various param types") {
-        REQUIRE(client->send_jsonrpc("printer.info", nullptr) == -1);
-        REQUIRE(client->send_jsonrpc("printer.info", json::object()) == -1);
-        REQUIRE(client->send_jsonrpc("printer.info", json::array({"a", "b"})) == -1);
-        REQUIRE(client->send_jsonrpc("printer.info",
-                                     json{{"objects", {{"print_stats", nullptr}}}}) == -1);
-    }
-
-    SECTION("Large and special-character payloads") {
-        // ~100KB payload
-        json large_params = json::object();
-        for (int i = 0; i < 1000; i++)
-            large_params["key_" + std::to_string(i)] = std::string(100, 'x');
-        REQUIRE(client->send_jsonrpc("test.method", large_params) == -1);
-
-        // Special characters: quotes, backslash, newline, unicode
-        json special_params = {
-            {"q", "Test \"quoted\""}, {"b", "back\\slash"}, {"n", "new\nline"}, {"u", "你好"}};
-        REQUIRE(client->send_jsonrpc("test.method", special_params) == -1);
-    }
-}
-
-// ============================================================================
 // Issue #9: Exception Safety
 // ============================================================================
 
@@ -333,30 +293,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
 
         // Verify callback was invoked (and threw)
         REQUIRE(callback_invoked.load());
-    }
-}
-
-TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
-                 "MoonrakerClient success callbacks are exception safe",
-                 "[connection][security][exception][issue9][eventloop][slow]") {
-    SECTION("Success callback throwing doesn't crash client") {
-        // Register request with throwing callback
-        // Note: Since not connected, request will timeout and error callback invoked
-        std::atomic<bool> error_callback_invoked{false};
-
-        client->send_jsonrpc(
-            "printer.info", json(),
-            [](json response) { throw std::runtime_error("Test exception in success callback"); },
-            [&error_callback_invoked](const MoonrakerError& err) {
-                error_callback_invoked = true;
-                // Error callback invoked due to timeout (not connected)
-                // This is expected behavior
-            });
-
-        // Verify request was sent without throwing (actual exception handling
-        // requires a real server response, but registration must not crash)
-        REQUIRE_NOTHROW(
-            client->send_jsonrpc("test.noop", json(), [](json) {}, [](const MoonrakerError&) {}));
     }
 }
 

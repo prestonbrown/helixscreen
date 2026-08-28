@@ -84,8 +84,13 @@ static bool s_ams_widgets_registered = false;
  * - filament_path_canvas: Filament routing visualization
  * - ams_panel.xml: Main panel component
  * - ams_context_menu.xml: Slot context menu component
+ *
+ * Non-static so integration tests can bring the same registration set up rather
+ * than keeping their own copy of this list — two of them had already drifted,
+ * missing the environment-indicator click callback, the device-operations and
+ * environment overlay callbacks, and three XML components.
  */
-static void ensure_ams_widgets_registered() {
+void ensure_ams_widgets_registered() {
     if (s_ams_widgets_registered) {
         return;
     }
@@ -242,7 +247,7 @@ void AmsPanel::init_subjects() {
     // dialog up for the rest of the job (#1185).
     //
     // Edge INTO PRINTING, never a level: an error raised while the print is
-    // already running must stay on screen. helix::is_active_print_state() and
+    // already running must stay on screen. helix::printer_has_job() and
     // print_start_nav_should_navigate() are deliberately not used here — they
     // count PAUSED as active, so a PAUSED -> PRINTING resume is not an edge
     // under them, and an AFC fault normally pauses the print, which makes that
@@ -395,6 +400,13 @@ void AmsPanel::init_subjects() {
     supports_bypass_observer_ = observe_int_sync<AmsPanel>(
         AmsState::instance().get_supports_bypass_subject(), this,
         [](AmsPanel* self, int /*supported*/) { self->update_bypass_spool_from_state(); });
+
+    // The ring marks the node the printer is actually feeding from. Engaging
+    // bypass touches no slot, so nothing else on this panel refreshes for it.
+    bypass_active_observer_ = observe_int_sync<AmsPanel>(
+        AmsState::instance().get_bypass_active_subject(), this,
+        [](AmsPanel* self, int /*active*/) { self->update_bypass_spool_from_state(); },
+        AmsState::instance().get_subjects_lifetime());
 
     // UI module subjects are now encapsulated in their respective classes:
     // - helix::ui::AmsEditOverlay
@@ -891,6 +903,11 @@ void AmsPanel::update_bypass_spool_from_state() {
         helix::ui::bypass_spool_set_has_spool(bypass_widgets_, false);
         helix::ui::bypass_spool_set_material(bypass_widgets_, "");
     }
+    // Same ring a lane slot wears when it is the active node - bypass IS a node
+    // on the path, and while it is engaged it is the one feeding the toolhead.
+    helix::ui::bypass_spool_set_active(
+        bypass_widgets_, lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0);
+
     // Reposition because the material label visibility may have changed,
     // which affects the layout above the spool box.
     update_bypass_spool_position();

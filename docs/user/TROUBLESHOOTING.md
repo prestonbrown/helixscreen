@@ -991,17 +991,17 @@ Three separate settings control the feel of taps vs. scrolls. Match the symptom 
 
 | Symptom | What's happening | Setting to change | Direction |
 |---|---|---|---|
-| Stationary taps register as swipes/scrolls | Touch controller drifts a few pixels while finger is still, crossing the scroll threshold | `jitter_threshold` | **Raise** (e.g., 15–25) |
+| Stationary taps register as swipes/scrolls | Touch controller drifts a few pixels while finger is still, crossing the scroll threshold | `scroll_limit` | **Raise** (e.g., 15–20) |
 | You scroll a list and a button in it fires mid-gesture | Finger released before moving far enough to commit to scroll, so the press becomes a click | `scroll_limit` | **Lower** (e.g., 5) |
 | You scroll, lift your finger, and a button fires right as you lift | Touch controller reports release→re-press on lift-off | `scroll_guard` | **Set to `true`** |
 | Lists feel sluggish — long coast after a flick | Scroll momentum decays too slowly | `scroll_throw` | **Raise** (e.g., 35) |
 | Short flicks never travel far enough — list barely moves | Momentum decays too fast | `scroll_throw` | **Lower** (e.g., 15) |
 
-All four live under `input` in `settings.json` (path varies by platform — see [Config File Locations](guide/touch-calibration.md#config-file-locations)). See [CONFIGURATION.md § Input Configuration](CONFIGURATION.md#input-settings) for the full reference.
+All three live under `input` in `settings.json` (path varies by platform — see [Config File Locations](guide/touch-calibration.md#config-file-locations)). See [CONFIGURATION.md § Input Configuration](CONFIGURATION.md#input-settings) for the full reference.
 
 > **Stop the service before editing `settings.json`** — the daemon rewrites the file periodically and your edits can be clobbered. Stop, edit, start.
 >
-> **Want to test a value before committing it?** Each setting has a matching `HELIX_*` env var (see each subsection below). For a one-shot test from SSH, prepend it to a manual launch (e.g. `HELIX_TOUCH_JITTER=25 helix-screen`). To make it persistent across reboots without editing `settings.json`, add it to `helixscreen.env` and restart the service — env vars override `settings.json`.
+> **Want to try a value before committing it?** All three are sliders under **Settings → System → Touch & Input** on the printer itself, so you can feel the change immediately and keep it only if it helps. `scroll_guard` and `scroll_limit` apply straight away; the panel prompts for a restart where one is needed.
 
 FlashForge AD5M and AD5X presets ship with `scroll_guard: true` out of the box. Other platforms default to `false`.
 
@@ -1016,22 +1016,19 @@ FlashForge AD5M and AD5X presets ship with `scroll_guard: true` out of the box. 
 
 **Cause:** Noisy touch controller (common with Goodix GT9xx and similar capacitive controllers) reports jittery coordinates even when the finger is stationary. The small coordinate changes exceed LVGL's scroll detection threshold.
 
-**Solution:** HelixScreen includes a jitter filter (enabled by default, 5 px dead zone) that suppresses this noise. If taps still register as swipes on your panel, raise the threshold:
+**Solution:** Raise `scroll_limit`, the distance a finger has to travel before a press is treated as a scroll. Putting it above the controller's drift means a stationary tap stays a tap:
 
 ```json
 {
   "input": {
-    "jitter_threshold": 25
+    "scroll_limit": 18
   }
 }
 ```
 
-Or test temporarily with an environment variable:
-```bash
-HELIX_TOUCH_JITTER=25 helix-screen
-```
+Or set it from the printer itself: **Settings → System → Touch & Input → Scroll Engage Distance**.
 
-Set to `0` to disable the filter if it interferes with intentional short-travel gestures.
+Raising it too far makes real scrolls feel unresponsive, so move in steps of a few pixels.
 
 ### Unintended Clicks While Scrolling
 
@@ -1189,7 +1186,7 @@ This is common on devices where the touch controller is mounted at a different o
 
 HelixScreen automatically detects swapped touch axes during calibration and corrects them. Just recalibrate:
 ```bash
-# Settings > System > Recalibrate Touch
+# Settings > System > Touch & Input > Touch Calibration
 ```
 
 **2. Manual axis swap (fallback):**
@@ -1593,7 +1590,7 @@ ps aux | grep helix-screen
 | Cause | Fix |
 |-------|-----|
 | Debug mode in production | Remove `-vv`/`-vvv` from service, don't use `--test` |
-| Animations on slow hardware | Settings → Display → disable Animations |
+| Animations on slow hardware | Settings → Display & Sound → disable Animations |
 | Too many G-code files | Large directories with thumbnails use more RAM |
 | Other processes hogging CPU | Check `top` for culprits |
 | Swapping to SD card | Reduce memory usage or add swap to USB |
@@ -1654,7 +1651,7 @@ max_job_count: 100
 
 **Solutions:**
 
-**First, figure out which situation you're in.** What did you install, and what is HelixScreen running on? If a device-specific preset package doesn't match the machine (or its screen), that's the cause — detection never ran. Install the HelixScreen package built for your hardware, or use the [remote screen setup](../INSTALL.md#remote-screen-setup-run-on-a-separate-device) on a Pi/PC/tablet pointed at your printer's Moonraker — generic installs run full auto-detection.
+**First, figure out which situation you're in.** What did you install, and what is HelixScreen running on? If a device-specific preset package doesn't match the machine (or its screen), that's the cause — detection never ran. Install the HelixScreen package built for your hardware, or use the [remote screen setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device) on a Pi/PC/tablet pointed at your printer's Moonraker — generic installs run full auto-detection.
 
 **If the saved model is wrong (generic install), correct it in Printer Manager — nothing gets wiped:**
 

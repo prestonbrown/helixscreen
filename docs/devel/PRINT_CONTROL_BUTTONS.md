@@ -299,7 +299,14 @@ still PAUSED), so the tap feels instantly acknowledged.
 |-----------|------|--------|
 | `tests/unit/test_print_control_view.cpp` | `[print_control_view]` | The pure view function — printing→Pause, paused→Resume(play), idle→both disabled, pending→hourglass+disabled, missing-macro→disabled. No LVGL fixture. |
 | `tests/unit/test_print_control_buttons.cpp` | `[print_control][slow]` | Controller integration — subject registration, label tracks state, macro-gated enable, pending publishes hourglass, pending cleared on state arrival. |
-| `tests/unit/test_print_controls_char.cpp` | `[characterization][controls][...]` | Characterization of the other print controls (light, timelapse, tune/Z-offset). |
+| `tests/unit/test_z_offset_utils.cpp` | `[zoffset]` | Tune/Z-offset: `build_z_adjust_gcode` (incl. the `MOVE=1` suffix and the `Z=` vs `Z_ADJUST=` branch), `format_delta`, displayed-offset resolution. |
+| `tests/unit/test_timelapse_state.cpp` | `[timelapse_state]` | Timelapse control state. |
+
+> The print-status **light** button's `on_led_state_changed` handler
+> (`src/ui/ui_panel_print_status.cpp`) has no direct test. It was previously
+> listed as covered by a characterization file that reimplemented the handler
+> in the test and asserted against that copy, so the coverage was nominal. LED
+> backends themselves are covered — see `docs/devel/LED_CONTROL.md`.
 
 ```bash
 ./build/bin/helix-tests "[print_control_view]"   # fast, no LVGL

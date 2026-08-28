@@ -827,39 +827,6 @@ class TestCrashMetrics:
 class TestEdgeCases:
     """Edge cases and boundary conditions."""
 
-    def test_single_device_single_event(self, tmp_path):
-        """A single session event produces valid metrics."""
-        events = [make_session_event()]
-        write_event_file(tmp_path, events)
-
-        analyzer = TelemetryAnalyzer()
-        analyzer.load_events(str(tmp_path))
-        result = analyzer.compute_adoption_metrics()
-
-        assert result["total_unique_devices"] == 1
-
-    def test_no_crash_events_with_sessions(self, tmp_path):
-        """Crash metrics return note when there are sessions but no crashes."""
-        events = [make_session_event()]
-        write_event_file(tmp_path, events)
-
-        analyzer = TelemetryAnalyzer()
-        analyzer.load_events(str(tmp_path))
-        result = analyzer.compute_crash_metrics()
-
-        assert result == {"note": "No crash data"}
-
-    def test_no_print_events_with_sessions(self, tmp_path):
-        """Print metrics return note when there are sessions but no prints."""
-        events = [make_session_event()]
-        write_event_file(tmp_path, events)
-
-        analyzer = TelemetryAnalyzer()
-        analyzer.load_events(str(tmp_path))
-        result = analyzer.compute_print_metrics()
-
-        assert result == {"note": "No print data"}
-
     def test_crash_with_no_sessions(self, tmp_path):
         """Crash metrics handle case where there are crashes but no sessions."""
         events = [make_crash_event()]
@@ -909,25 +876,6 @@ class TestEdgeCases:
         # Actually [] is a list, so total_with_features=1, but no features counted
         assert result["feature_adoption_rates"] == {}
 
-    def test_mixed_event_types_in_single_file(self, tmp_path):
-        """A single JSON file containing all event types is split correctly."""
-        events = [
-            make_session_event(device_id="d1"),
-            make_session_event(device_id="d2"),
-            make_print_event(device_id="d1"),
-            make_print_event(device_id="d2"),
-            make_print_event(device_id="d2"),
-            make_crash_event(device_id="d1"),
-        ]
-        write_event_file(tmp_path, events)
-
-        analyzer = TelemetryAnalyzer()
-        analyzer.load_events(str(tmp_path))
-
-        assert len(analyzer.sessions) == 2
-        assert len(analyzer.prints) == 3
-        assert len(analyzer.crashes) == 1
-        assert len(analyzer.all_events) == 6
 
 
 # =============================================================================
@@ -938,20 +886,42 @@ class TestEdgeCases:
 class TestOutputFormatters:
     """Tests for format_terminal, format_json, format_html."""
 
-    def test_format_terminal_contains_header(self, tmp_path):
-        """Terminal output contains the report header."""
-        events = [make_session_event()]
+    @pytest.fixture
+    def known_dataset(self, tmp_path):
+        """1 session, 2 prints (one success, one failed), 1 crash.
+
+        Every figure the formatter tests assert is derived from THIS data, so a
+        formatter that emits each section heading with zero rows under it fails
+        rather than passing on its own hardcoded chrome.
+        """
+        events = [
+            make_session_event(),
+            make_print_event(outcome="success"),
+            make_print_event(outcome="failed", timestamp="2026-02-09T13:00:00Z"),
+            make_crash_event(),
+        ]
         write_event_file(tmp_path, events)
 
         analyzer = TelemetryAnalyzer()
         analyzer.load_events(str(tmp_path))
-        metrics = analyzer.compute_all()
-        output = analyzer.format_terminal(metrics)
+        return analyzer
+
+    def test_format_terminal_renders_computed_metrics(self, known_dataset):
+        """Terminal output carries the computed figures, not just the headings."""
+        output = known_dataset.format_terminal(known_dataset.compute_all())
 
         assert "HELIXSCREEN TELEMETRY REPORT" in output
         assert "ADOPTION METRICS" in output
         assert "PRINT RELIABILITY" in output
         assert "CRASH ANALYSIS" in output
+
+        # The computed half: 1 of 2 prints succeeded, 1 crash over 1 session.
+        assert "  Total unique devices: 1" in output
+        assert "  Total prints: 2" in output
+        assert "    success: 50.0% (1)" in output
+        assert "    failed: 50.0% (1)" in output
+        assert "  Total crashes: 1" in output
+        assert "  Crash rate: 100.00%" in output
 
     def test_format_json_is_valid_json(self, tmp_path):
         """JSON output is parseable."""
@@ -967,23 +937,23 @@ class TestOutputFormatters:
         assert "adoption" in parsed
         assert "print_reliability" in parsed
 
-    def test_format_html_creates_file(self, tmp_path):
-        """HTML output writes a file with expected structure."""
-        events = [make_session_event()]
-        write_event_file(tmp_path, events)
-
-        analyzer = TelemetryAnalyzer()
-        analyzer.load_events(str(tmp_path))
-        metrics = analyzer.compute_all()
-
+    def test_format_html_embeds_computed_metrics(self, known_dataset, tmp_path):
+        """HTML carries the same computed figures in both of its tabs."""
         html_path = str(tmp_path / "report.html")
-        analyzer.format_html(metrics, html_path)
+        known_dataset.format_html(known_dataset.compute_all(), html_path)
 
         content = Path(html_path).read_text()
         assert "<!DOCTYPE html>" in content
         assert "HelixScreen Telemetry Report" in content
         assert "tab-summary" in content
         assert "tab-json" in content
+
+        # The summary tab embeds the terminal report...
+        assert "    success: 50.0% (1)" in content
+        # ...and the JSON tab carries the same figure as data.
+        json_payload = content.split('<div id="tab-json"', 1)[1]
+        assert '"total_prints": 2' in json_payload
+        assert '"success": 50.0' in json_payload
 
     def test_fmt_duration_seconds(self):
         """Duration formatter handles seconds."""

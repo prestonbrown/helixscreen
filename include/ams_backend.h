@@ -17,6 +17,8 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "error_event.h"
+#include "firmware_routing.h"
+#include "toolchanger_addon.h"
 
 class IMoonrakerAPI;
 #ifdef HELIX_ENABLE_MOCKS
@@ -243,6 +245,26 @@ class AmsBackend {
     }
 
     /**
+     * @brief The firmware's DEFAULT tool -> physical head map.
+     *
+     * What the printer would do with a file if nobody remapped anything. NOT the
+     * live map (AmsSystemInfo::tool_to_slot_map carries that, and it is not even
+     * uniformly available - an AFC tracks it, a U1 freezes it at 1:1 while its
+     * real map lives in print_task_config.extruder_map_table).
+     *
+     * The default is lane-per-tool, which is every backend except two: tool N
+     * owns lane N, with no upper bound. Override only when the hardware genuinely
+     * disagrees - a bounded-head machine (Snapmaker U1) or one that publishes an
+     * arbitrary table (FlashForge AD5X IFS).
+     *
+     * Adding a third shape must touch only the new backend. A constant in shared
+     * code instead of this question is what sent every AFC tool above 3 to lane 0.
+     */
+    [[nodiscard]] virtual helix::FirmwareRouting firmware_default_routing() const {
+        return helix::FirmwareRouting::identity();
+    }
+
+    /**
      * @brief Channel A: backend-specific classification of one gcode-response
      *        line.
      *
@@ -383,6 +405,14 @@ class AmsBackend {
     /// step model and the sidebar falls back to the legacy coarse AmsAction model.
     struct OperationStepModel {
         std::vector<OperationStep> steps;
+        /// No steps AND nothing worth falling back to. Empty `steps` on its own
+        /// means "I have no model, use the legacy coarse bar"; `suppressed`
+        /// means "I have no phases, and that legacy bar would describe a
+        /// different kind of machine than this one." The sidebar renders no step
+        /// bar at all for a suppressed model - a tool changer with no phase
+        /// source has nothing to say, and Heat/Feed/Purge is not a truer answer
+        /// than silence.
+        bool suppressed = false;
     };
 
     /**
@@ -422,6 +452,56 @@ class AmsBackend {
      * @return subject pointer, or nullptr for the legacy fallback
      */
     [[nodiscard]] virtual lv_subject_t* get_operation_step_index_subject(StepOperationType op);
+
+    /**
+     * @brief Does `action` mean an operation the STEP BAR should be following?
+     *
+     * Drives both halves of the step bar from one definition: whether the bar is
+     * visible, and whether an IDLE -> operation transition counts as an
+     * operation STARTING. Those two were separate hardcoded lists that had
+     * drifted apart, which is how a tool changer ended up with a bar that
+     * appeared for half of each swap.
+     *
+     * Default is ams_action_is_filament_operation() - heat, feed, purge, cut,
+     * form tip, retract. A backend whose operations are reported with a
+     * different action set overrides this, rather than the sidebar growing a
+     * branch per backend family.
+     *
+     * Broader than "is anything happening": that is ams_action_is_busy(), which
+     * the slot pulse uses and which no backend needs to override.
+     */
+    [[nodiscard]] virtual bool action_tracks_step_operation(AmsAction action) const {
+        return ams_action_is_filament_operation(action);
+    }
+
+    /**
+     * @brief True when load/unload MOUNT and UNMOUNT a tool instead of moving filament.
+     *
+     * A hotend or toolhead changer's "load" is `SELECT_TOOL`: no filament is fed,
+     * nothing is heated by us, nothing purges. Surfaces are expected to say so -
+     * calling that button "Load" invites the reasonable reading that the tool
+     * gets picked up, heated and then actually loaded with filament, which is
+     * not what happens.
+     *
+     * NOT the same question as `is_tool_changer()`. The Snapmaker U1 is a tool
+     * changer whose load really does feed filament through the selected
+     * toolhead, so it stays false here and keeps the filament wording.
+     */
+    [[nodiscard]] virtual bool load_mounts_tool() const {
+        return false;
+    }
+
+    /**
+     * @brief Why this slot's unload is unavailable, in one line, or empty.
+     *
+     * A disabled button with no explanation reads as a bug. This is for the case
+     * where the refusal is a real machine state the user can act on, not merely
+     * "nothing is loaded" - which the UI already conveys by having nothing to
+     * unload. Empty means "no explanation worth showing"; surfaces omit the hint.
+     */
+    [[nodiscard]] virtual std::string unload_blocked_reason(int /*slot_index*/) const {
+        return {};
+    }
 
     /**
      * @brief True when this backend already populates remaining_weight_g from a live
@@ -1142,6 +1222,26 @@ class AmsBackend {
      * @param slot_index Slot to query (0-based)
      * @return true if Unload should be offered (and Load suppressed) for this slot
      */
+    /**
+     * @brief Whether this backend can clear the toolhead with NO lane involved.
+     *
+     * Asked only in the unaccounted-filament case: the toolhead sensor reads
+     * filament while the backend reports no seated lane, so every per-slot
+     * unload path is unavailable by definition. What matters then is whether
+     * the hardware has a lane-free way to heat, cut and retract.
+     *
+     * Drives the advice the pre-print warning gives, not an action. Telling a
+     * user to pull filament out of a hot toolhead by hand is the right answer
+     * on hardware with no cutter and the wrong one on hardware that can do it
+     * itself, so the message asks this rather than assuming the worst.
+     *
+     * Default false: a backend that has not been shown to manage this must not
+     * imply the printer will handle it.
+     */
+    [[nodiscard]] virtual bool can_clear_unaccounted_toolhead() const {
+        return false;
+    }
+
     [[nodiscard]] virtual bool can_unload_from_toolhead(int slot_index) const {
         const SlotInfo slot = get_slot_info(slot_index);
         if (get_topology() == PathTopology::PARALLEL) {
@@ -1714,6 +1814,26 @@ class AmsBackend {
     }
 
     /**
+     * @brief Can this backend carry out an explicit user tool->lane choice?
+     *
+     * The capability question generic code should ask instead of reading
+     * get_tool_mapping_capabilities().editable, which answers only the
+     * set_tool_mapping() half. A backend whose remap goes out through its
+     * firmware-native pre-print send (requires_preprint_send) reports
+     * editable=false and honors every pick the user makes — so editability alone
+     * says the opposite of the truth about it.
+     *
+     * Non-virtual on purpose: it is derived from two virtuals a backend already
+     * answers, so there is nothing for a subclass to get wrong or forget.
+     *
+     * @note Reaches through both virtuals; do not hold a backend lock.
+     */
+    [[nodiscard]] bool honors_user_tool_mapping() const {
+        return helix::printer::honors_user_tool_mapping(get_tool_mapping_capabilities(),
+                                                        requires_preprint_send());
+    }
+
+    /**
      * @brief Get current tool-to-slot mapping
      *
      * Returns the mapping from tool number to slot index.
@@ -1724,6 +1844,30 @@ class AmsBackend {
      */
     [[nodiscard]] virtual std::vector<int> get_tool_mapping() const {
         return {}; // Default: empty
+    }
+
+    /**
+     * @brief Routing the printer last ran a CONFIGURED print task with.
+     *
+     * get_tool_mapping() answers "what routing is live right now" and goes empty
+     * the moment the task ends — which is exactly when a reprint needs the
+     * answer. This is the snapshot taken while the task was still configured:
+     * logical tool -> physical head for the most recent print, retained after the
+     * firmware clears its used-heads flags and (on some firmware) resets the
+     * table itself.
+     *
+     * EMPTY means NOT KNOWN — no configured task has been observed. A caller must
+     * not read that as identity; run it through FilamentMapper::reprint_remap(),
+     * which turns "not known" into "do not send" rather than into a default map.
+     *
+     * Not keyed to a file: it describes the most recent print, which is the only
+     * job a reprint can target.
+     *
+     * Default empty: only backends that need a pre-print send
+     * (requires_preprint_send()) have anything to answer.
+     */
+    [[nodiscard]] virtual std::vector<int> last_print_tool_mapping() const {
+        return {}; // Default: not known
     }
 
     /**
@@ -1930,8 +2074,21 @@ class AmsBackend {
     /**
      * @brief Whether the per-slot tool badge ("T0", "T1", ...) should be hidden.
      *
-     * On tool changers the badge is redundant with the toolhead label shown below
-     * each slot, so it is suppressed. Other backends show it.
+     * AmsBackendToolChanger suppresses it; every other backend shows it.
+     *
+     * The badge carries the T-number. ams_slot_view.xml renders exactly three
+     * things per slot: material_label (material name, or "Empty"),
+     * status_badge/slot_badge_label (the SLOT number) and tool_badge (the
+     * T-number). Slot number and T-number are the same thing only while the
+     * mapping is identity - ASSIGN_TOOL can point a G-code T-number at any
+     * physical tool - so on a remapped tool changer the badge is the only
+     * per-slot indication of which T-number a toolhead answers to, and hiding it
+     * loses that.
+     *
+     * Weigh that against the clutter it costs before changing the override:
+     * suppression predates ASSIGN_TOOL remapping support, and an earlier
+     * revision of this comment justified it as redundant with a toolhead label
+     * below each slot, which the XML does not have.
      *
      * @return true to hide the per-slot tool badge
      */
@@ -2277,6 +2434,45 @@ class AmsBackend {
      */
     virtual void set_discovered_tools(std::vector<std::string> tool_names) {
         (void)tool_names;
+    }
+
+    /**
+     * @brief Set the filament feeder this machine exposes, if any
+     *
+     * Called before start() with the capability toolchanger_addon::resolve_feeder()
+     * derived from discovery. Only the tool changer backend uses this - other
+     * backends ignore it.
+     *
+     * @param feeder Resolved feeder capability; absent when the printer has none
+     */
+    virtual void set_feeder(helix::toolchanger_addon::Feeder feeder) {
+        (void)feeder;
+    }
+
+    /**
+     * @brief Set the add-on tool sensor this machine exposes, if any
+     *
+     * Called before start(). Only the tool changer backend uses this. When
+     * present its reading is AUTHORITATIVE over toolchanger.tool_number, which
+     * is only ever "what SELECT_TOOL last set".
+     *
+     * @param sensor Resolved sensor capability; absent when the printer has none
+     */
+    virtual void set_tool_sensor(helix::toolchanger_addon::ToolSensor sensor) {
+        (void)sensor;
+    }
+
+    /**
+     * @brief Declare the commands that drive a swap on this machine
+     *
+     * Called before start(). Absent - the default - means klipper-toolchanger is
+     * present and its own SELECT_TOOL/UNSELECT_TOOL are the answer. A changer
+     * whose extra does the swapping itself names its commands here instead.
+     *
+     * @param commands Resolved swap commands; absent when the printer needs none
+     */
+    virtual void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
+        (void)commands;
     }
 
     /**

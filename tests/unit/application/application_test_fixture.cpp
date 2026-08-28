@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: implementation of ApplicationTestFixture, not a test case. It reaches
+//                 production through application_test_fixture.h, which includes
+//                 include/runtime_config.h -- RuntimeConfig is the shipped type that
+//                 configure_test_mode() / configure_real_moonraker() populate.
 
 #include "application_test_fixture.h"
 

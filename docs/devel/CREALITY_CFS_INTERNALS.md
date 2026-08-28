@@ -5,7 +5,7 @@ module (`box_wrapper.cpython-38-mipsel-linux-gnu.so`) that Creality's official C
 firmware loads on K1, K1C, K1 Max, K1 SE, K2 SE, GS-01 and GS-02.
 
 This is the *firmware side*. For how HelixScreen talks to it, see
-[FILAMENT_MANAGEMENT.md § CFS](FILAMENT_MANAGEMENT.md#cfs-creality-filament-system); for the
+[FILAMENT_BACKEND_CFS.md](FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system); for the
 platform, see [printers/CREALITY_K1_SUPPORT.md](printers/CREALITY_K1_SUPPORT.md).
 
 > **Scope: K1 family only.** The K2 series ships a *different generation* of the module
@@ -389,7 +389,7 @@ or report sensors. Corrupting it confuses restore and remap; it does not move mo
 The blocker on #968 comment 5 item 2 was not knowing the field name or format, and the risk
 that a malformed value takes Klipper down. The `PART=` argument to `BOX_MODIFY_TN_DATA` uses
 the **same spellings as the JSON fields**, which our existing color sync already demonstrates
-(`PART=color_value`, `src/printer/ams_backend_cfs.cpp:1856`). So:
+(`PART=color_value`, `src/printer/ams_backend_cfs.cpp:1920`). So:
 
 ```gcode
 BOX_MODIFY_TN_DATA ADDR=<1..4> NUM=<A|B|C|D> PART=material_type DATA=<value>
@@ -640,7 +640,7 @@ tn_data.json field names present verbatim: `base_data` `color_value` `last_cmd`
 
 ## Related
 
-- [FILAMENT_MANAGEMENT.md § CFS](FILAMENT_MANAGEMENT.md#cfs-creality-filament-system) — HelixScreen's backend, dialect table, schema detection
+- [FILAMENT_BACKEND_CFS.md](FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system) — HelixScreen's backend, dialect table, schema detection
 - [printers/CREALITY_K1_SUPPORT.md](printers/CREALITY_K1_SUPPORT.md) — K1 platform, firmware prerequisites
 - [printers/CREALITY_K2_SUPPORT.md](printers/CREALITY_K2_SUPPORT.md) — K2 series and the community Kalico port
 - [#968](https://github.com/prestonbrown/helixscreen/issues/968) — K1/K1C CFS compatibility

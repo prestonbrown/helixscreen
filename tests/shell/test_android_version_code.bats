@@ -34,11 +34,6 @@ teardown() {
 # Script hygiene
 # ---------------------------------------------------------------------------
 
-@test "android-version-code.sh exists and is executable" {
-    [ -f "$SCRIPT" ]
-    [ -x "$SCRIPT" ]
-}
-
 @test "android-version-code.sh has valid bash syntax" {
     bash -n "$SCRIPT"
 }

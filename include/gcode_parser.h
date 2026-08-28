@@ -887,6 +887,29 @@ std::set<int> scan_tools_used_from_content(const std::string& content,
                                            std::set<int> early_exit_full_set = {});
 
 /**
+ * @brief Tool index of a standalone `Tn` line, or -1 when the line is not one.
+ *
+ * The single T-parse shared by every scan in the tree. Semantics mirror
+ * GCodeParser::parse_tool_change_command(): strip a trailing `;` comment, trim
+ * surrounding whitespace, then require exactly `T` followed by one or more
+ * digits. `  T2 ; change` is a tool change; `T0 X1`, `TURN_OFF_HEATERS` and a
+ * `Tn` inside a comment are not.
+ *
+ * Exposed because GCodeLayerIndex's scan needs the same answer and had grown a
+ * looser copy of its own (`line[0] == 'T'` plus a digit run), which missed an
+ * indented tool change and accepted `T0 X1`. The index and the full-file parser
+ * disagreeing about what a tool change is puts the streamed and full-load
+ * previews on different tool sets for the same file.
+ *
+ * Callers on a hot per-line path should pre-filter (first non-blank character
+ * is `T`) before calling: this scans for `;` across the whole line.
+ *
+ * @param raw One raw G-code line, with or without a trailing `\r`.
+ * @return Tool index >= 0, or -1 if @p raw is not a standalone tool change.
+ */
+int tool_index_for_line(const std::string& raw);
+
+/**
  * @brief Streaming, memory-safe variant of scan_tools_used_from_content() that
  *        reads a file line-by-line from disk.
  *

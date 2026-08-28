@@ -3,8 +3,10 @@
 
 #include "ui_settings_machine_limits.h"
 
+#include "ui_component_keypad.h"
 #include "ui_event_safety.h"
 #include "ui_nav_manager.h"
+#include "ui_slider_scale.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
@@ -16,9 +18,57 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cstdlib>
 #include <memory>
 
 namespace helix::settings {
+
+// ============================================================================
+// KEYPAD-EDITABLE ROWS
+// ============================================================================
+
+namespace {
+
+using helix::ui::SliderScale;
+
+/// Per-row facts the slider itself cannot answer. The bounds deliberately do
+/// NOT live here: they are read from the row's lv_slider at tap time so the
+/// XML stays the single source of truth for each range.
+struct FieldSpec {
+    const char* slider_name;
+    const char* title; ///< Keypad header, so the user knows what they are typing
+    const char* unit;  ///< Suffix beside the keypad's display
+    int divisor;       ///< Slider positions per real unit (see SliderScale)
+    bool allow_decimal;
+};
+
+/// Indexed by MachineLimitsOverlay::Field.
+constexpr FieldSpec FIELD_SPECS[] = {
+    {"max_velocity_slider", "Max Velocity", "mm/s", 1, false},
+    {"max_accel_slider", "Max Acceleration", "mm/s²", 1, false},
+    {"accel_to_decel_slider", "Accel to Decel", "mm/s²", 1, false},
+    // Tenths: square corner velocity is tuned in 0.5 steps, which an integer
+    // slider cannot express. See SCV_DIVISOR uses below.
+    {"square_corner_velocity_slider", "Square Corner Velocity", "mm/s", 10, true},
+    {"extrude_speed_slider", "Extrude Speed", "mm/s", 1, false},
+};
+
+static_assert(sizeof(FIELD_SPECS) / sizeof(FIELD_SPECS[0]) ==
+                  static_cast<size_t>(MachineLimitsOverlay::Field::Count),
+              "FIELD_SPECS must have one entry per Field");
+
+/// Square corner velocity is the only scaled row; the sliders elsewhere in this
+/// file hold whole units.
+constexpr int SCV_DIVISOR = 10;
+
+/// Decimals shown for a scaled row. One is enough for 0.5 steps.
+constexpr int SCV_DECIMALS = 1;
+
+bool field_in_range(int raw) {
+    return raw >= 0 && raw < static_cast<int>(MachineLimitsOverlay::Field::Count);
+}
+
+} // namespace
 
 // ============================================================================
 // GLOBAL INSTANCE
@@ -105,6 +155,9 @@ void MachineLimitsOverlay::register_callbacks() {
     // Extrude speed slider (persisted setting, not a Klipper override)
     lv_xml_register_event_cb(nullptr, "on_extrude_speed_changed", on_extrude_speed_changed);
 
+    // Tappable value fields (numeric keypad entry)
+    lv_xml_register_event_cb(nullptr, "on_limit_field_clicked", on_field_clicked);
+
     spdlog::debug("[{}] Callbacks registered", get_name());
 }
 
@@ -173,6 +226,15 @@ void MachineLimitsOverlay::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[{}] on_activate()", get_name());
+
+    // Returning from our own keypad is not a fresh entry. The query reply beats
+    // the 250ms debounced apply, so re-querying here would put the printer's
+    // pre-edit value back on screen and then send that instead of the new one.
+    if (returning_from_keypad_) {
+        returning_from_keypad_ = false;
+        spdlog::debug("[{}] Keeping typed value: returned from keypad", get_name());
+        return;
+    }
 
     // Refresh data from printer
     query_and_show(nullptr);
@@ -274,9 +336,9 @@ void MachineLimitsOverlay::update_display() {
                                       sizeof(a2d_buf_));
     lv_subject_copy_string(&accel_to_decel_display_subject_, a2d_buf_);
 
-    // Update square corner velocity display
-    helix::format::format_speed_mm_s(current_limits_.square_corner_velocity, scv_buf_,
-                                     sizeof(scv_buf_));
+    // Update square corner velocity display (one decimal: it is tuned in halves)
+    helix::format::format_speed_mm_s_float(current_limits_.square_corner_velocity, SCV_DECIMALS,
+                                           scv_buf_, sizeof(scv_buf_));
     lv_subject_copy_string(&square_corner_velocity_display_subject_, scv_buf_);
 }
 
@@ -305,11 +367,15 @@ void MachineLimitsOverlay::update_sliders() {
                             LV_ANIM_OFF);
     }
 
-    // Update square corner velocity slider
+    // Update square corner velocity slider (stored in tenths)
     lv_obj_t* scv_slider = lv_obj_find_by_name(overlay_root_, "square_corner_velocity_slider");
     if (scv_slider) {
-        lv_slider_set_value(scv_slider, static_cast<int>(current_limits_.square_corner_velocity),
-                            LV_ANIM_OFF);
+        lv_slider_set_value(
+            scv_slider,
+            SliderScale{SCV_DIVISOR}.to_slider_clamped(current_limits_.square_corner_velocity,
+                                                       lv_slider_get_min_value(scv_slider),
+                                                       lv_slider_get_max_value(scv_slider)),
+            LV_ANIM_OFF);
     }
 
     // Update extrude speed slider (persisted setting, not from Klipper)
@@ -348,11 +414,94 @@ void MachineLimitsOverlay::handle_a2d_changed(int value) {
     schedule_apply_limits();
 }
 
-void MachineLimitsOverlay::handle_scv_changed(int value) {
-    current_limits_.square_corner_velocity = static_cast<double>(value);
-    helix::format::format_speed_mm_s(static_cast<double>(value), scv_buf_, sizeof(scv_buf_));
+void MachineLimitsOverlay::handle_scv_changed(int slider_pos) {
+    // The slider holds tenths so it can express the 0.5 steps this value is
+    // tuned in; everything downstream works in real mm/s.
+    const double value = SliderScale{SCV_DIVISOR}.to_value(slider_pos);
+    current_limits_.square_corner_velocity = value;
+    helix::format::format_speed_mm_s_float(value, SCV_DECIMALS, scv_buf_, sizeof(scv_buf_));
     lv_subject_copy_string(&square_corner_velocity_display_subject_, scv_buf_);
     schedule_apply_limits();
+}
+
+lv_obj_t* MachineLimitsOverlay::field_slider(Field field) {
+    if (!overlay_root_) {
+        return nullptr;
+    }
+    return lv_obj_find_by_name(overlay_root_, FIELD_SPECS[static_cast<size_t>(field)].slider_name);
+}
+
+void MachineLimitsOverlay::handle_field_clicked(Field field) {
+    lv_obj_t* slider = field_slider(field);
+    if (!slider) {
+        spdlog::warn("[{}] No slider for field {}", get_name(), static_cast<int>(field));
+        return;
+    }
+
+    const FieldSpec& spec = FIELD_SPECS[static_cast<size_t>(field)];
+    const SliderScale scale{spec.divisor};
+
+    // Bounds come from the slider, not from a second copy in this file. A range
+    // edited in machine_limits_overlay.xml stays correct here for free.
+    pending_keypad_field_ = field;
+
+    ui_keypad_config_t config = {
+        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
+        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
+        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
+        // Titles are the same strings the rows already declare as
+        // translation_tag in XML, so this resolves with no new keys.
+        .title_label = lv_tr(spec.title),
+        .unit_label = spec.unit,
+        .allow_decimal = spec.allow_decimal,
+        .allow_negative = false,
+        .callback = on_keypad_value,
+        .user_data = this};
+
+    spdlog::debug("[{}] Keypad for {} ({}-{})", get_name(), spec.title, config.min_value,
+                  config.max_value);
+    ui_keypad_show(&config);
+}
+
+void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {
+    // Set on confirm, not when the keypad opens: the keypad invokes this
+    // callback before it hides, so the flag is always consumed by the
+    // on_activate() that follows. Setting it at tap time leaked the flag
+    // when the keypad was abandoned via the navbar, costing the next
+    // visit its refresh from the printer.
+    returning_from_keypad_ = true;
+
+    lv_obj_t* slider = field_slider(field);
+    if (!slider) {
+        return;
+    }
+
+    const FieldSpec& spec = FIELD_SPECS[static_cast<size_t>(field)];
+    const int pos = SliderScale{spec.divisor}.to_slider_clamped(
+        value, lv_slider_get_min_value(slider), lv_slider_get_max_value(slider));
+    lv_slider_set_value(slider, pos, LV_ANIM_OFF);
+
+    // Route through the drag handler rather than duplicating its work, so a
+    // typed value and a dragged one apply, format and debounce identically.
+    switch (field) {
+    case Field::MaxVelocity:
+        handle_velocity_changed(pos);
+        break;
+    case Field::MaxAccel:
+        handle_accel_changed(pos);
+        break;
+    case Field::AccelToDecel:
+        handle_a2d_changed(pos);
+        break;
+    case Field::SquareCornerVelocity:
+        handle_scv_changed(pos);
+        break;
+    case Field::ExtrudeSpeed:
+        handle_extrude_speed_changed(pos);
+        break;
+    case Field::Count:
+        break;
+    }
 }
 
 void MachineLimitsOverlay::handle_reset() {
@@ -414,6 +563,28 @@ void MachineLimitsOverlay::apply_limits() {
 // ============================================================================
 // STATIC CALLBACKS
 // ============================================================================
+
+void MachineLimitsOverlay::on_field_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[MachineLimitsOverlay] on_field_clicked");
+    const char* index_str = static_cast<const char*>(lv_event_get_user_data(e));
+    if (index_str) {
+        const int raw = static_cast<int>(std::strtol(index_str, nullptr, 10));
+        if (field_in_range(raw)) {
+            get_machine_limits_overlay().handle_field_clicked(static_cast<Field>(raw));
+        } else {
+            spdlog::warn("[MachineLimitsOverlay] Ignoring out-of-range field index {}", raw);
+        }
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void MachineLimitsOverlay::on_keypad_value(float value, void* user_data) {
+    auto* self = static_cast<MachineLimitsOverlay*>(user_data);
+    if (!self) {
+        return;
+    }
+    self->handle_keypad_value(self->pending_keypad_field_, static_cast<double>(value));
+}
 
 void MachineLimitsOverlay::on_velocity_changed(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MachineLimitsOverlay] on_velocity_changed");

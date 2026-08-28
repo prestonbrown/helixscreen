@@ -70,7 +70,7 @@ typedef struct {
 static bed_mesh_render_colors_t fetch_theme_colors() {
     bed_mesh_render_colors_t colors{};
 
-    lv_color_t bg = theme_manager_get_color("graph_bg");
+    lv_color_t bg = theme_manager_get_color("screen_bg");
     colors.bg_r = bg.red;
     colors.bg_g = bg.green;
     colors.bg_b = bg.blue;
@@ -92,7 +92,7 @@ static void draw_async_placeholder(lv_layer_t* layer, const lv_area_t* coords, i
     // Dark background rectangle (same color as normal mesh background)
     lv_draw_rect_dsc_t rect_dsc;
     lv_draw_rect_dsc_init(&rect_dsc);
-    rect_dsc.bg_color = theme_manager_get_color("graph_bg");
+    rect_dsc.bg_color = theme_manager_get_color("screen_bg");
     rect_dsc.bg_opa = LV_OPA_COVER;
     lv_draw_rect(layer, &rect_dsc, coords);
 

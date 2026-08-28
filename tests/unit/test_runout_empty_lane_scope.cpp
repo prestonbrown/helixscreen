@@ -580,17 +580,23 @@ TEST_CASE("scoped runout (issue 2): badge VALUE reacts to AMS lane-presence chan
     CHECK(fsm.compute_scoped_runout_value(tools_used, {}) == 0);
 }
 
-// Mirror of PrintStatusPanel::recompute_scoped_runout()'s print-active guard
-// (issue 9): when the print is not active (terminal/idle), the badge is forced
-// hidden (-1) regardless of lane truth, so a finished print never leaves a red
-// badge even if tools_used hasn't cleared yet.
+// PrintStatusPanel::recompute_scoped_runout()'s two halves, both shipped:
+// helix::print_scopes_runout_badge() decides whether the print has an opinion at
+// all (issue 9 — a terminal state forces the badge hidden regardless of lane
+// truth, so a finished print never leaves a red badge behind when tools_used has
+// not cleared), and FilamentSensorManager::compute_scoped_runout_value()
+// produces the value when it does.
+//
+// The panel itself is not driven here because its remaining input,
+// get_tools_used(), reads the parsed file off a laid-out gcode viewer widget;
+// with no viewer it returns {} and every state would answer -1, so the guard
+// under test would never be reached.
 namespace {
-int mirror_recompute_scoped_runout(FilamentSensorManager& fsm, PrintJobState state,
-                                   const std::set<int>& tools_used,
-                                   const std::map<int, int>& applied_remap) {
-    bool print_active = (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED);
-    if (!print_active) {
-        return -1; // forced hidden on terminal/idle
+int scoped_runout_for_state(FilamentSensorManager& fsm, PrintJobState state,
+                            const std::set<int>& tools_used,
+                            const std::map<int, int>& applied_remap) {
+    if (!helix::print_scopes_runout_badge(state)) {
+        return -1;
     }
     return fsm.compute_scoped_runout_value(tools_used, applied_remap);
 }
@@ -608,15 +614,15 @@ TEST_CASE("scoped runout (issue 9): print-end forces badge hidden even with empt
     drain();
 
     // While PRINTING, the empty required lane shows red (0).
-    CHECK(mirror_recompute_scoped_runout(fsm, PrintJobState::PRINTING, tools_used, {}) == 0);
+    CHECK(scoped_runout_for_state(fsm, PrintJobState::PRINTING, tools_used, {}) == 0);
 
     // On terminal states the badge is forced hidden (-1), even though tools_used
     // is non-empty and lane 0 is still reported empty.
-    CHECK(mirror_recompute_scoped_runout(fsm, PrintJobState::COMPLETE, tools_used, {}) == -1);
-    CHECK(mirror_recompute_scoped_runout(fsm, PrintJobState::CANCELLED, tools_used, {}) == -1);
-    CHECK(mirror_recompute_scoped_runout(fsm, PrintJobState::ERROR, tools_used, {}) == -1);
-    CHECK(mirror_recompute_scoped_runout(fsm, PrintJobState::STANDBY, tools_used, {}) == -1);
+    CHECK(scoped_runout_for_state(fsm, PrintJobState::COMPLETE, tools_used, {}) == -1);
+    CHECK(scoped_runout_for_state(fsm, PrintJobState::CANCELLED, tools_used, {}) == -1);
+    CHECK(scoped_runout_for_state(fsm, PrintJobState::ERROR, tools_used, {}) == -1);
+    CHECK(scoped_runout_for_state(fsm, PrintJobState::STANDBY, tools_used, {}) == -1);
 
     // PAUSED is an active print -> still reflects lane truth (red).
-    CHECK(mirror_recompute_scoped_runout(fsm, PrintJobState::PAUSED, tools_used, {}) == 0);
+    CHECK(scoped_runout_for_state(fsm, PrintJobState::PAUSED, tools_used, {}) == 0);
 }

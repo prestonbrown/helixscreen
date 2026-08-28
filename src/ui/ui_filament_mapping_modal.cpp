@@ -6,6 +6,7 @@
 #include "ui_swatch.h"
 #include "ui_utils.h"
 
+#include "ams_state.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -53,8 +54,12 @@ void FilamentMappingModal::on_show() {
 
     auto_color_map_ = SettingsManager::instance().get_auto_color_map();
 
-    // Snapshot so Cancel can revert
+    // Snapshot so Cancel can revert. BOTH halves: the toggle writes the
+    // preference straight through to SettingsManager (it has to — the rows
+    // rebuild in the new mode immediately), which makes changing it a side
+    // effect of merely LOOKING at what the other mode would do.
     original_mappings_ = mappings_;
+    original_auto_color_map_ = auto_color_map_;
 
     tool_list_ = find_widget("mapping_tool_list");
     if (!tool_list_) {
@@ -77,6 +82,17 @@ void FilamentMappingModal::on_ok() {
 
 void FilamentMappingModal::on_cancel() {
     mappings_ = original_mappings_;
+
+    // The persisted preference is part of what Cancel undoes. Without this the
+    // toggle was a one-way door: flip it to see the other mode, press Cancel,
+    // and the printer kept the new preference for every future print — on every
+    // backend that can reach this picker. Written only when it actually changed
+    // so a plain Cancel does not churn the settings file.
+    if (auto_color_map_ != original_auto_color_map_) {
+        SettingsManager::instance().set_auto_color_map(original_auto_color_map_);
+        auto_color_map_ = original_auto_color_map_;
+    }
+
     hide();
 }
 
@@ -359,7 +375,8 @@ void FilamentMappingModal::recalculate_mappings() {
         mappings_ = helix::FilamentMapper::compute_defaults(tool_info_, slots_for_matching);
     } else {
         // Positional assignment (T0→slot 0, T1→slot 1, etc.)
-        mappings_ = helix::FilamentMapper::use_current_assignments(tool_info_, available_slots_);
+        mappings_ = helix::FilamentMapper::use_current_assignments(
+            tool_info_, available_slots_, AmsState::instance().collect_firmware_routing());
     }
 }
 

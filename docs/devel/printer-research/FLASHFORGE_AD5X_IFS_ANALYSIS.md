@@ -324,7 +324,7 @@ Zmod has an option to rename slots from 0-indexed (0,1,2,3) to 1-indexed (1,2,3,
 ## 10. Open Questions
 
 1. ~~What does the Moonraker object state actually look like for `zmod_ifs_*` objects?~~ (User's Moonraker API was behind broken reverse proxy — couldn't get state dump)
-2. Does `zmod_ifs` expose any Klipper object status attributes (like `get_status()` in the Python module)? Need to check if it implements that method.
+2. ~~Does `zmod_ifs` expose any Klipper object status attributes (like `get_status()` in the Python module)?~~ **Answered (2026-08-24)**: No — neither `zmod_ifs` nor `zmod_color` implemented `get_status()` on 1.7.2, which is why every alt-UI polls macros. We wrote one and filed it upstream as **ghzserg/zmod#699** (validated on our rig): same keys as `IFS_STATUS` / `GET_ZCOLOR SILENT=1`, mtime-cached FFMInfo, exception-free by construction. The same patch fixes `IFS_STATUS` raising `AttributeError` in the boot window (init typo `LastResponseRaw` vs `lastResponseRaw`). Once a release carries it, this backend can subscribe to status instead of polling — see `FLASHFORGE_AD5X_PLATFORM_NOTES.md` § "Restart mechanics + get_status patch validation".
 3. ~~What does `zmod_color` expose?~~ **Answered**: Source at `github.com/ghzserg/zmod_ff5x` branch `1.6`, file `.shell/zmod_color.py`. Re-reads `Adventurer5M.json` on every G-code command (no cache). When display is OFF (HelixScreen case), reads/writes file directly. Colors use `#` prefix in the file.
 4. How does the `file.json` tool mapping interact with multi-color prints? (Slicer outputs T0/T1/etc., mapping resolves to physical ports)
 

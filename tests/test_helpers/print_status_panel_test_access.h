@@ -24,6 +24,8 @@
 //    on screen rather than the panel's belief about it. The two diverge — the
 //    panel clears its markers on a filename change without touching the widget,
 //    so only the widget says what a user would see.
+//    per-tool colors come from — shared with PrintSelectDetailView, so it needs
+//    a test on THIS side too or the two can drift apart unnoticed.
 //
 // Follows the tests/test_helpers/ TestAccess pattern ([L088]) rather than
 // adding _for_testing() accessors to the production API.
@@ -43,6 +45,23 @@ class PrintStatusPanelTestAccess {
 
     static const std::string& cached_thumbnail_path(const PrintStatusPanel& panel) {
         return panel.cached_thumbnail_path_;
+    }
+
+    /// The panel's own copy of the thumbnail source override. Distinct from the
+    /// media manager's: both go stale independently (#1339).
+    /// The identity override for the current print, now owned by PrinterState
+    /// rather than by the panel. Still reached through the panel so the cases
+    /// that assert it keep reading it from the object under test.
+    static const std::string& identity_override(const PrintStatusPanel& panel) {
+        return panel.printer_state_.get_print_identity_override();
+    }
+
+    static const std::string& current_print_filename(const PrintStatusPanel& panel) {
+        return panel.current_print_filename_;
+    }
+
+    static void set_filename(PrintStatusPanel& panel, const char* filename) {
+        panel.set_filename(filename);
     }
 
     static lv_obj_t* thumbnail_widget(const PrintStatusPanel& panel) {

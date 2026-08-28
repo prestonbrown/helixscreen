@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "firmware_routing.h"
+
 #include <cstdint>
+#include <map>
+#include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,6 +21,21 @@ struct GcodeToolInfo {
     int tool_index;       ///< G-code tool number (0-based)
     uint32_t color_rgb;   ///< Expected color (0xRRGGBB)
     std::string material; ///< Expected material type ("PLA", "PETG", etc.)
+
+    /// False when no source could say what color this tool prints in, and
+    /// color_rgb is only a neutral stand-in. Not the same as "the slicer chose
+    /// grey": Moonraker omits filament_colors entirely for some slicers (every
+    /// OrcaSlicer file on a K2 Plus), and the palette is then backfilled from
+    /// the G-code footer or the parsed file. Until one of those lands, a tool
+    /// has no known color at all.
+    ///
+    /// Consumers must not treat an unknown color as a claim about the file:
+    /// compute_defaults() skips its color-match priority (matching a stand-in
+    /// against real lane colors picks a lane for no reason), and the mapping
+    /// pill draws the dot as unknown rather than painting a solid grey the user
+    /// would read as the file's color. Defaulted true and kept last so existing
+    /// aggregate initialisers stay valid.
+    bool color_known = true;
 };
 
 /// Information about an available AMS slot.
@@ -35,6 +55,14 @@ struct AvailableSlot {
     /// empty = single-color). Mirrors SlotInfo::multi_color_hexes. Kept last so
     /// existing positional aggregate initializers stay valid.
     std::string multi_color_hexes;
+
+    /// Remaining filament on this lane in grams, or -1 when unknown.
+    /// Mirrors SlotInfo's sentinel: -1 means NO OPINION, never zero. Only a
+    /// Spoolman-linked or hand-weighed lane has a figure at all, so an unlinked
+    /// bay legitimately has none and must never be warned about.
+    /// Kept last for the same reason multi_color_hexes is - positional
+    /// aggregate initializers in the tests stay valid.
+    float remaining_weight_g = -1.0f;
 
     /// Unique key for this slot across all backends
     SlotKey key() const {
@@ -79,12 +107,18 @@ class FilamentMapper {
                                            const std::string& target_material,
                                            const std::vector<AvailableSlot>& slots);
 
-    /// Map tools using only current firmware assignments.
-    /// Tools with no firmware assignment become AUTO (unmapped).
-    /// Used when "keep current assignments" setting is enabled.
-    static std::vector<ToolMapping>
-    use_current_assignments(const std::vector<GcodeToolInfo>& tools,
-                            const std::vector<AvailableSlot>& slots);
+    /// Seed each tool to the head the firmware would route it to anyway, i.e.
+    /// @p routing.head(tool). A tool whose head is not among @p slots, or which
+    /// the routing leaves unmapped, becomes AUTO. Used when auto-color-map is OFF.
+    ///
+    /// Pairs on the tool's own head, NOT its position in @p tools. The two agree
+    /// only for a dense tool set; a sparse one (T0 and T2, no T1) walks the slot
+    /// list densely under index pairing and lands T2 on lane 1, which
+    /// identity_filtered_remap() then emits as a real remap because it is not
+    /// the firmware identity.
+    static std::vector<ToolMapping> use_current_assignments(const std::vector<GcodeToolInfo>& tools,
+                                                            const std::vector<AvailableSlot>& slots,
+                                                            const FirmwareRouting& routing = {});
 
     /// Find tool indices that have no resolved mapping (auto with no match).
     /// These are the tools that would trigger a color mismatch warning.
@@ -107,7 +141,8 @@ class FilamentMapper {
     /// passes the resolved bool).
     static std::vector<ToolMapping> effective_mappings(const std::vector<GcodeToolInfo>& tools,
                                                        const std::vector<AvailableSlot>& slots,
-                                                       bool auto_color_map);
+                                                       bool auto_color_map,
+                                                       const FirmwareRouting& routing = {});
 
     /// Render convenience: effective_mappings + resolve_display_colors, scattered
     /// into a DENSE vector indexed by logical tool number (size = max
@@ -130,6 +165,78 @@ class FilamentMapper {
                                                        const std::vector<ToolMapping>& mappings,
                                                        const std::vector<AvailableSlot>& slots);
 
+    /// Per-tool display colors from the APPLIED ROUTING: color(tool N) is the
+    /// color of whatever lane actually prints N.
+    ///
+    /// The one rule, valid for any tool count. There is deliberately no tool
+    /// count in the signature and no palette: a single-tool file and an N-tool
+    /// file take the identical path, which is what stops a "just for N=1"
+    /// special case growing back. The slicer palette answers a different
+    /// question ("what SHOULD this print use") that belongs pre-print, in the
+    /// detail view's color/type match, not to a print already underway.
+    ///
+    /// @param tool_to_head Applied routing, index = logical tool, value =
+    ///        physical slot/head, -1 = unknown. Comes from the backend
+    ///        (AmsBackend::get_tool_mapping()), which owns where that answer
+    ///        lives; an EMPTY vector means the backend has no opinion and this
+    ///        returns empty rather than assuming identity.
+    /// @param slots Current lane state.
+    /// @return Dense tool-indexed colors, or EMPTY when nothing is knowable —
+    ///         including when every resolved color is the neutral default, since
+    ///         pushing an all-grey vector would only overwrite the slicer palette
+    ///         the renderer already has. Pure; no LVGL/AMS.
+    static std::vector<uint32_t> routed_tool_colors(const std::vector<int>& tool_to_head,
+                                                    const std::vector<AvailableSlot>& slots);
+
+    /// Which routing to colour by, given what a backend published and what its
+    /// physical map says. Named and pure because getting it wrong is silent: an
+    /// empty @p published means "no opinion", and substituting the attachment
+    /// map there turns that into a confident identity answer that paints every
+    /// tool in head-index order.
+    ///
+    /// @param published Routing the backend published (may be empty).
+    /// @param attachment_map AmsSystemInfo::tool_to_slot_map — which slot each
+    ///        head physically owns.
+    /// @param attachment_is_routing True only for backends whose physical map IS
+    ///        the print routing (AFC, Happy Hare, ACE — one path, many lanes).
+    ///        False for a tool changer, where each head owns its own filament,
+    ///        so attachment says nothing about which head prints a given tool.
+    /// @return @p published when non-empty; @p attachment_map when that is the
+    ///         routing; otherwise EMPTY, so callers leave the slicer's colours
+    ///         alone instead of overwriting them with a guess. Pure; no AMS.
+    static std::vector<int> effective_routing(const std::vector<int>& published,
+                                              const std::vector<int>& attachment_map,
+                                              bool attachment_is_routing);
+
+    /// The remap a REPRINT must send, from the routing the printer last ran a
+    /// configured task with.
+    ///
+    /// A reprint has no detail view, no swatch card and no picker, so nothing on
+    /// that path can recompute a colour match — the only thing that knows how the
+    /// job was routed is the printer, and only while the task was still
+    /// configured (AmsBackend::last_print_tool_mapping() is that snapshot).
+    ///
+    /// Named and pure for the same reason effective_routing() is: getting it
+    /// wrong is silent. An empty remap flows into build_preprint_gcode(), which
+    /// resolves a tool it is not told about to that tool's firmware-default head,
+    /// so "we do not know how this job was routed" was emitted as
+    /// SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n — actively erasing
+    /// the crossover the original print installed.
+    ///
+    /// @param last_routing Index = logical tool, value = physical head, -1 = the
+    ///        parser could not read that entry. EMPTY means the backend never
+    ///        observed a configured task, i.e. not known.
+    /// @param tools_used   Logical tools the file uses.
+    /// @return An explicit head for EVERY used tool — including the ones landing
+    ///         on their default head, so the firmware table says exactly what
+    ///         this print means. std::nullopt when the routing cannot answer for
+    ///         all of them (no table, a -1 entry, a tool past the end): that means
+    ///         DO NOT SEND, never identity. An empty @p tools_used answers with an
+    ///         empty map, which build_preprint_gcode() turns into no gcode anyway.
+    ///         Pure; no AMS.
+    static std::optional<std::map<int, int>> reprint_remap(const std::vector<int>& last_routing,
+                                                           const std::set<int>& tools_used);
+
     /// Weighted RGB distance between two colors (luminance-weighted).
     /// Uses standard luminance coefficients: R=0.30, G=0.59, B=0.11.
     static int color_distance(uint32_t a, uint32_t b);
@@ -137,8 +244,37 @@ class FilamentMapper {
     /// Case-insensitive material comparison
     static bool materials_match(const std::string& a, const std::string& b);
 
+    /// The genuine remaps in @p mappings, keyed tool -> physical head.
+    ///
+    /// Identity mappings are omitted: the firmware already routes a tool to
+    /// @p routing.head(tool), so emitting them would be noise. Entries with no
+    /// real slot assignment (mapped_slot < 0) are skipped.
+    ///
+    /// @p routing MUST be the same map the seed used, or a lane-per-tool
+    /// identity reads as a genuine remap and gets emitted.
+    ///
+    /// Single source of truth for PrintSelectDetailView::get_effective_remap()
+    /// and the preprint-gcode builders, which used to each carry their own copy.
+    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings,
+                                                      const FirmwareRouting& routing = {});
+
     /// Format a slot label: "Turtle 1 · Slot 2: PLA" or "Slot 2: PLA"
     static std::string format_slot_label(const AvailableSlot& slot);
+
+    /// The lane number to print on a mapped chip, 1-based, or -1 when the tool
+    /// is unmapped or points at a lane that is no longer present.
+    ///
+    /// Colour alone does not identify a lane: two bays loaded with the same
+    /// filament render the same swatch, and the chip then says which colour
+    /// will be used without saying which spool it comes from. The number is
+    /// what disambiguates them.
+    ///
+    /// Reports `local_slot_index + 1` - the lane's position within its own
+    /// unit - to agree with format_slot_label() and the AMS slot badges. On a
+    /// multi-unit setup the global index would name a lane the hardware does
+    /// not, calling the second unit's first bay "Slot 5".
+    static int mapped_lane_display_number(const ToolMapping& mapping,
+                                          const std::vector<AvailableSlot>& slots);
 
     static constexpr int COLOR_MATCH_TOLERANCE = 50;
 };

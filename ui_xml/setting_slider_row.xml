@@ -73,7 +73,7 @@
       <text_muted name="value_label" text="$value"/>
     </lv_obj>
     <!-- Description: hidden on micro/tiny by default -->
-    <text_small name="description" text="$description" translation_tag="$description_tag">
+    <text_small name="description" width="100%" text="$description" translation_tag="$description_tag" long_mode="wrap">
       <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
     </text_small>
     <!-- Slider with optional min/max icons -->

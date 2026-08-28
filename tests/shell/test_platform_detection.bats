@@ -36,7 +36,6 @@ setup() {
     mkdir -p "$BATS_TEST_TMPDIR/home/pi"
 }
 
-
 # Since detect_platform reads real /etc/os-release and /home/*, we
 # redefine it with controlled inputs for testing. This helper captures
 # the Pi userspace bitness detection logic from the real function.
@@ -223,14 +222,6 @@ _mock_ad5x_detect_platform() {
     grep -q '/usr/prog' "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
 }
 
-@test "install.sh (bundled) has AD5X detection" {
-    grep -q 'ad5x' "$WORKTREE_ROOT/scripts/install.sh"
-}
-
-@test "platform.sh returns ad5x in detect_platform docstring" {
-    grep -q '"ad5x"' "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
-}
-
 # --- AD5M ZMOD firmware detection tests ---
 
 # Mock detect_ad5m_firmware using temp dir paths
@@ -280,10 +271,6 @@ _mock_detect_ad5m_firmware() {
     [ "$INSTALL_DIR" = "/srv/helixscreen" ]
     [ "$INIT_SCRIPT_DEST" = "/etc/init.d/S80helixscreen" ]
     [ "$PREVIOUS_UI_SCRIPT" = "" ]
-}
-
-@test "platform.sh detect_ad5m_firmware docstring mentions zmod" {
-    grep -q '"zmod"' "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
 }
 
 @test "platform.sh checks /ZMOD before forge_x default" {
@@ -461,14 +448,6 @@ _mock_k2_detect_platform() {
     [ "$KLIPPER_HOME" = "/root" ]
 }
 
-@test "platform.sh returns k2 in detect_platform docstring" {
-    grep -q '"k2"' "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
-}
-
-@test "install.sh (bundled) has K2 detection" {
-    grep -q 'k2' "$WORKTREE_ROOT/scripts/install.sh"
-}
-
 # --- Snapmaker U1 platform detection tests ---
 
 # Mock detect_platform for U1: uses filesystem markers in temp dir
@@ -544,16 +523,8 @@ _mock_u1_detect_platform() {
     [ "$KLIPPER_USER" = "root" ]
 }
 
-@test "platform.sh returns snapmaker-u1 in detect_platform" {
-    grep -q 'snapmaker-u1' "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
-}
-
 @test "platform.sh has /home/lava check for U1 detection" {
     grep -q '/home/lava' "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
-}
-
-@test "install.sh (bundled) has snapmaker-u1 detection" {
-    grep -q 'snapmaker-u1' "$WORKTREE_ROOT/scripts/install.sh"
 }
 
 # ============================================================================

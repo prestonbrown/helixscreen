@@ -182,8 +182,13 @@ TEST_CASE("EthernetManager: async get_info returns without blocking", "[network]
             std::lock_guard<std::mutex> lock(m);
             received = info;
             fired.store(true);
+            // Notify while still holding the lock. Released first, the waiter can
+            // observe the flag, return, and destroy the condition variable while
+            // this thread is still inside notify_all() - destroying a condition
+            // variable another thread is signalling is undefined behaviour, and
+            // TSan reports it as a race on pthread_cond_destroy.
+            cv.notify_all();
         }
-        cv.notify_all();
     });
 
     auto elapsed_ms =

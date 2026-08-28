@@ -1873,6 +1873,14 @@
     "setting_group": {
       "attributes": {},
       "inherits": "lv_obj"
+    },
+    "ams_lane_bar": {
+      "attributes": {
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
     }
   },
   "enums": {
@@ -2815,7 +2823,8 @@
     "ui_split_button",
     "z_offset_indicator",
     "helix_sparkline",
-    "setting_group"
+    "setting_group",
+    "ams_lane_bar"
   ],
   "runtime_constants": [
     "accent_bar_gap",
@@ -2988,8 +2997,6 @@
     "color_preview_size",
     "color_preview_size_small",
     "color_text_height",
-    "cooling_color_dark",
-    "cooling_color_light",
     "danger",
     "demo_count",
     "demo_error",
@@ -3164,11 +3171,7 @@
     "font_xs_tiny",
     "font_xs_xlarge",
     "font_xs_xxlarge",
-    "graph_bg_dark",
-    "graph_bg_light",
-    "graph_line_primary",
-    "graph_line_secondary",
-    "graph_line_target",
+    "ghost_opacity",
     "grid_gap",
     "grid_swatch_size",
     "grid_width",
@@ -3190,8 +3193,6 @@
     "header_height_tiny",
     "header_height_xlarge",
     "header_height_xxlarge",
-    "heating_color_dark",
-    "heating_color_light",
     "hex_placeholder",
     "hidden_connecting_height",
     "hidden_connecting_height_large",

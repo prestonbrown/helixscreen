@@ -3,14 +3,52 @@
 
 #include "ui_overlay_retraction_settings.h"
 
+#include "ui_component_keypad.h"
 #include "ui_nav_manager.h"
+#include "ui_slider_scale.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
+
+#include <cstdlib>
+
+namespace {
+
+using helix::ui::SliderScale;
+
+/// Per-row facts the slider cannot answer. Bounds are read from each row's own
+/// lv_slider at tap time, so retraction_settings_overlay.xml stays the single
+/// source of truth for the ranges.
+struct FieldSpec {
+    const char* title; ///< Keypad header
+    const char* unit;  ///< Suffix beside the keypad display
+    int divisor;       ///< Slider positions per real unit (see SliderScale)
+    bool allow_decimal;
+};
+
+/// Indexed by RetractionSettingsOverlay::Field. The distance sliders hold
+/// hundredths of a millimetre, matching the centimm arithmetic below.
+constexpr FieldSpec FIELD_SPECS[] = {
+    {"Retract Length", "mm", 100, true},
+    {"Retract Speed", "mm/s", 1, false},
+    {"Unretract Extra", "mm", 100, true},
+    {"Unretract Speed", "mm/s", 1, false},
+};
+
+static_assert(sizeof(FIELD_SPECS) / sizeof(FIELD_SPECS[0]) ==
+                  static_cast<size_t>(RetractionSettingsOverlay::Field::Count),
+              "FIELD_SPECS must have one entry per Field");
+
+bool field_in_range(int raw) {
+    return raw >= 0 && raw < static_cast<int>(RetractionSettingsOverlay::Field::Count);
+}
+
+} // namespace
 
 // Global instance and panel
 static std::unique_ptr<RetractionSettingsOverlay> g_retraction_settings;
@@ -57,11 +95,11 @@ RetractionSettingsOverlay::~RetractionSettingsOverlay() {
 
 void RetractionSettingsOverlay::init_subjects() {
     // Initialize display label subjects using managed macros for automatic cleanup
-    UI_MANAGED_SUBJECT_STRING(retract_length_display_, retract_length_buf_, "0.0mm",
+    UI_MANAGED_SUBJECT_STRING(retract_length_display_, retract_length_buf_, "0.00mm",
                               "retract_length_display", subjects_);
     UI_MANAGED_SUBJECT_STRING(retract_speed_display_, retract_speed_buf_, "35mm/s",
                               "retract_speed_display", subjects_);
-    UI_MANAGED_SUBJECT_STRING(unretract_extra_display_, unretract_extra_buf_, "0.0mm",
+    UI_MANAGED_SUBJECT_STRING(unretract_extra_display_, unretract_extra_buf_, "0.00mm",
                               "unretract_extra_display", subjects_);
     UI_MANAGED_SUBJECT_STRING(unretract_speed_display_, unretract_speed_buf_, "35mm/s",
                               "unretract_speed_display", subjects_);
@@ -73,6 +111,9 @@ void RetractionSettingsOverlay::init_subjects() {
     // Register slider/toggle callbacks
     lv_xml_register_event_cb(nullptr, "on_retraction_enabled_changed", on_enabled_changed);
     lv_xml_register_event_cb(nullptr, "on_retraction_setting_changed", on_setting_changed);
+
+    // Tappable value fields (numeric keypad entry)
+    lv_xml_register_event_cb(nullptr, "on_retraction_field_clicked", on_field_clicked);
 
     spdlog::debug("[{}] init_subjects() - registered callbacks", get_name());
 }
@@ -105,6 +146,14 @@ lv_obj_t* RetractionSettingsOverlay::create(lv_obj_t* parent) {
 
 void RetractionSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
+    // Returning from our own keypad would re-sync the sliders from PrinterState
+    // and discard the value the user just typed.
+    if (returning_from_keypad_) {
+        returning_from_keypad_ = false;
+        spdlog::debug("[{}] Keeping typed value: returned from keypad", get_name());
+        return;
+    }
+
     spdlog::debug("[{}] on_activate() - syncing from printer state", get_name());
     sync_from_printer_state();
 }
@@ -173,7 +222,9 @@ void RetractionSettingsOverlay::sync_from_printer_state() {
 void RetractionSettingsOverlay::update_display_labels() {
     if (retract_length_slider_) {
         int centimm = lv_slider_get_value(retract_length_slider_);
-        snprintf(retract_length_buf_, sizeof(retract_length_buf_), "%.1fmm", centimm / 100.0);
+        // Two decimals to match the slider's 0.01mm resolution and the %.2f
+        // the G-code sends. One decimal displayed a typed 0.85 as "0.8mm".
+        snprintf(retract_length_buf_, sizeof(retract_length_buf_), "%.2fmm", centimm / 100.0);
         lv_subject_copy_string(&retract_length_display_, retract_length_buf_);
     }
 
@@ -185,7 +236,7 @@ void RetractionSettingsOverlay::update_display_labels() {
 
     if (unretract_extra_slider_) {
         int centimm = lv_slider_get_value(unretract_extra_slider_);
-        snprintf(unretract_extra_buf_, sizeof(unretract_extra_buf_), "%.1fmm", centimm / 100.0);
+        snprintf(unretract_extra_buf_, sizeof(unretract_extra_buf_), "%.2fmm", centimm / 100.0);
         lv_subject_copy_string(&unretract_extra_display_, unretract_extra_buf_);
     }
 
@@ -226,6 +277,99 @@ void RetractionSettingsOverlay::send_retraction_settings() {
 // =============================================================================
 // EVENT HANDLERS
 // =============================================================================
+
+lv_obj_t* RetractionSettingsOverlay::field_slider(Field field) const {
+    switch (field) {
+    case Field::RetractLength:
+        return retract_length_slider_;
+    case Field::RetractSpeed:
+        return retract_speed_slider_;
+    case Field::UnretractExtra:
+        return unretract_extra_slider_;
+    case Field::UnretractSpeed:
+        return unretract_speed_slider_;
+    case Field::Count:
+        break;
+    }
+    return nullptr;
+}
+
+void RetractionSettingsOverlay::handle_field_clicked(Field field) {
+    lv_obj_t* slider = field_slider(field);
+    if (!slider) {
+        spdlog::warn("[{}] No slider for field {}", get_name(), static_cast<int>(field));
+        return;
+    }
+
+    const FieldSpec& spec = FIELD_SPECS[static_cast<size_t>(field)];
+    const SliderScale scale{spec.divisor};
+    pending_keypad_field_ = field;
+
+    ui_keypad_config_t config = {
+        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
+        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
+        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
+        // Titles are the same strings the rows already declare as
+        // translation_tag in XML, so this resolves with no new keys.
+        .title_label = lv_tr(spec.title),
+        .unit_label = spec.unit,
+        .allow_decimal = spec.allow_decimal,
+        .allow_negative = false,
+        .callback = on_keypad_value,
+        .user_data = this};
+
+    spdlog::debug("[{}] Keypad for {} ({}-{})", get_name(), spec.title, config.min_value,
+                  config.max_value);
+    ui_keypad_show(&config);
+}
+
+void RetractionSettingsOverlay::handle_keypad_value(Field field, double value) {
+    // Set on confirm, not when the keypad opens: the keypad invokes this
+    // callback before it hides, so the flag is always consumed by the
+    // on_activate() that follows. Setting it at tap time leaked the flag
+    // when the keypad was abandoned via the navbar, costing the next
+    // visit its refresh from the printer.
+    returning_from_keypad_ = true;
+
+    lv_obj_t* slider = field_slider(field);
+    if (!slider) {
+        return;
+    }
+
+    const FieldSpec& spec = FIELD_SPECS[static_cast<size_t>(field)];
+    lv_slider_set_value(
+        slider,
+        SliderScale{spec.divisor}.to_slider_clamped(value, lv_slider_get_min_value(slider),
+                                                    lv_slider_get_max_value(slider)),
+        LV_ANIM_OFF);
+
+    // Same path a drag takes: relabel, then send. Keeps one code path for both.
+    update_display_labels();
+    if (!syncing_from_state_) {
+        send_retraction_settings();
+    }
+}
+
+void RetractionSettingsOverlay::on_field_clicked(lv_event_t* e) {
+    const char* index_str = static_cast<const char*>(lv_event_get_user_data(e));
+    if (!index_str || !g_retraction_settings) {
+        return;
+    }
+    const int raw = static_cast<int>(std::strtol(index_str, nullptr, 10));
+    if (!field_in_range(raw)) {
+        spdlog::warn("[Retraction Settings] Ignoring out-of-range field index {}", raw);
+        return;
+    }
+    g_retraction_settings->handle_field_clicked(static_cast<Field>(raw));
+}
+
+void RetractionSettingsOverlay::on_keypad_value(float value, void* user_data) {
+    auto* self = static_cast<RetractionSettingsOverlay*>(user_data);
+    if (!self) {
+        return;
+    }
+    self->handle_keypad_value(self->pending_keypad_field_, static_cast<double>(value));
+}
 
 void RetractionSettingsOverlay::on_enabled_changed(lv_event_t* e) {
     auto* sw = static_cast<lv_obj_t*>(lv_event_get_current_target(e));

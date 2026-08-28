@@ -204,17 +204,6 @@ class PrintStatusPanel : public OverlayBase {
     void set_filename(const char* filename);
 
     /**
-     * @brief Set the original filename for thumbnail loading
-     *
-     * Use this when starting a print with a modified temp file. The panel will
-     * use this filename (instead of the temp file path) for thumbnail lookup.
-     * Cleared automatically when print ends or is cancelled.
-     *
-     * @param filename Original filename (e.g., "3DBenchy.gcode")
-     */
-    void set_thumbnail_source(const std::string& filename);
-
-    /**
      * @brief Set print state
      * @param state New print state
      */
@@ -420,11 +409,6 @@ class PrintStatusPanel : public OverlayBase {
     lv_obj_t* print_thumbnail_ = nullptr;
     lv_obj_t* gradient_background_ = nullptr;
 
-    // Thumbnail source override - used when printing modified temp files.
-    // When set, it replaces the actual filename as the "effective" file the
-    // preview must show, for both the thumbnail and the gcode viewer.
-    std::string thumbnail_source_filename_;
-
     // Per-asset "what is on screen" markers. The thumbnail (fallback image) and
     // the gcode viewer (3D/2D geometry) load on independent paths with very
     // different latencies — the thumbnail subject observer can advance its marker
@@ -587,37 +571,13 @@ class PrintStatusPanel : public OverlayBase {
     void
     update_view_toggle_position(bool objects_visible); ///< Shift view toggle when objects btn shown
     void animate_badge_pop_in(lv_obj_t* badge, const char* label); ///< Pop-in animation for badges
-    void animate_print_complete();  ///< Celebratory animation when print finishes
-    void animate_print_cancelled(); ///< Warning animation when print is cancelled
-    void animate_print_error();     ///< Error animation when print fails
-    void cleanup_temp_gcode();      ///< Remove temp G-code file downloaded for viewing
-    void show_exclude_map_view();   ///< Show overhead map view of print objects
-    void hide_exclude_map_view();   ///< Destroy map view and restore thumbnail/gradient
-    void apply_filament_color_override(
-        uint32_t color_rgb);            ///< Apply AMS/Spoolman filament color to gcode viewer
+    void animate_print_complete();      ///< Celebratory animation when print finishes
+    void animate_print_cancelled();     ///< Warning animation when print is cancelled
+    void animate_print_error();         ///< Error animation when print fails
+    void cleanup_temp_gcode();          ///< Remove temp G-code file downloaded for viewing
+    void show_exclude_map_view();       ///< Show overhead map view of print objects
+    void hide_exclude_map_view();       ///< Destroy map view and restore thumbnail/gradient
     bool build_and_apply_tool_colors(); ///< Build per-tool AMS color map and apply to viewer
-
-    /// Per-tool slicer palette from the active file's Moonraker metadata, stored
-    /// so the live render can resolve the SAME toggle-aware tool→lane match the
-    /// print-select swatches and pre-flight use (instead of coloring every tool
-    /// by the identity tool_to_slot_map, which paints the whole model in T0's
-    /// filament on true toolchangers like the Snapmaker U1). Populated in the
-    /// get_file_metadata callbacks; empty until metadata arrives.
-    std::vector<std::string> filament_colors_;    ///< per-tool hex ("#RRGGBB")
-    std::vector<std::string> filament_materials_; ///< per-tool material, split from ';' list
-
-    /// Store per-tool colors/materials from file metadata (main-thread only).
-    void store_filament_metadata(const FileMetadata& metadata);
-
-    /// Build per-tool GcodeToolInfo for the tools the parsed file actually uses,
-    /// from the stored slicer palette. Empty when metadata or the parsed used-set
-    /// is unavailable (caller then falls back to apply_ams_tool_colors).
-    [[nodiscard]] std::vector<helix::GcodeToolInfo> build_print_tool_info() const;
-
-    /// Whether auto (color+type) matching applies for the active backend. Mirrors
-    /// PrintSelectDetailView::effective_auto_match(): non-editable-card backends
-    /// (U1 / ACE) always auto-match; editable backends honor the user setting.
-    [[nodiscard]] bool effective_auto_match() const;
 
     static void format_time(int seconds, char* buf, size_t buf_size);
 
@@ -707,8 +667,9 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard excluded_objects_version_observer_;
     ObserverGuard ams_color_observer_; ///< Tracks AMS/Spoolman filament color for gcode viewer
     ObserverGuard tool_map_version_observer_; ///< Refreshes gcode viewer colors on tool remap
-    ObserverGuard active_tool_observer_;  ///< Refreshes nozzle temp display with tool name prefix
-    ObserverGuard chamber_temp_observer_; ///< Updates chamber status text
+    ObserverGuard active_tool_observer_;    ///< Refreshes nozzle temp display with tool name prefix
+    ObserverGuard chamber_temp_observer_;   ///< Updates chamber status text
+    ObserverGuard print_identity_observer_; ///< Reconciles when the print's identity changes
     ObserverGuard print_thumbnail_path_observer_; ///< Updates print_thumbnail_ from shared subject
 #if defined(HELIX_PLATFORM_ESP32)
     ObserverGuard print_psram_thumb_observer_; ///< Ditto, via the PSRAM generation counter
@@ -745,8 +706,11 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard ams_slot_count_observer_;
     ObserverGuard toolchange_visible_observer_;
     ObserverGuard scoped_runout_observer_; ///< Recomputes scoped runout badge on sensor edge
-    ObserverGuard
-        scoped_runout_slots_observer_; ///< ...and on AMS lane-presence change (slots_version)
+    /// ...and on AMS lane change (slots_version), which also re-pushes the
+    /// viewer's per-tool colors: ams_color_observer_ only sees the ACTIVE lane
+    /// and tool_map_version_observer_ only an explicit remap, so a color edit on
+    /// any other lane reaches the live preview through here alone.
+    ObserverGuard scoped_runout_slots_observer_;
 
     // Lazy fan control overlay (created on first click; Task 9 wires the push).
     lv_obj_t* fan_control_panel_ = nullptr;

@@ -241,14 +241,6 @@ static void on_debug_touches_changed(lv_event_t* e) {
     InputSettingsManager::instance().set_debug_touches(lv_obj_has_state(toggle, LV_STATE_CHECKED));
 }
 
-static void on_jitter_threshold_changed(lv_event_t* e) {
-    lv_obj_t* slider = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    int value = static_cast<int>(lv_slider_get_value(slider));
-    sync_slider_value_label(slider, value);
-    InputSettingsManager::instance().set_jitter_threshold(value);
-    get_global_settings_panel().show_restart_prompt();
-}
-
 static void on_scroll_limit_changed(lv_event_t* e) {
     lv_obj_t* slider = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     int value = static_cast<int>(lv_slider_get_value(slider));
@@ -380,10 +372,6 @@ void SettingsPanel::init_subjects() {
     subjects_.register_subject(&updates_unavailable_subject_);
     lv_xml_register_subject(nullptr, "updates_unavailable", &updates_unavailable_subject_);
 
-    lv_subject_init_int(&show_backlight_settings_subject_, on_android ? 0 : 1);
-    subjects_.register_subject(&show_backlight_settings_subject_);
-    lv_xml_register_subject(nullptr, "show_backlight_settings", &show_backlight_settings_subject_);
-
     // Touch calibration status - show "Calibrated" or "Not calibrated" in row description
     Config* config = Config::get_instance();
     bool is_calibrated =
@@ -405,7 +393,6 @@ void SettingsPanel::init_subjects() {
         {"on_language_changed", on_language_changed},
         {"on_log_level_changed", on_log_level_changed},
         {"on_debug_touches_changed", on_debug_touches_changed},
-        {"on_jitter_threshold_changed", on_jitter_threshold_changed},
         {"on_scroll_limit_changed", on_scroll_limit_changed},
         {"on_long_press_time_changed", on_long_press_time_changed},
         {"on_home_edit_mode_changed", on_home_edit_mode_changed},
@@ -1586,7 +1573,6 @@ void register_settings_panel_callbacks() {
         {"on_telemetry_view_data", SettingsPanel::on_telemetry_view_data},
         {"on_log_level_changed", on_log_level_changed},
         {"on_debug_touches_changed", on_debug_touches_changed},
-        {"on_jitter_threshold_changed", on_jitter_threshold_changed},
         {"on_scroll_limit_changed", on_scroll_limit_changed},
         {"on_long_press_time_changed", on_long_press_time_changed},
         {"on_home_edit_mode_changed", on_home_edit_mode_changed},

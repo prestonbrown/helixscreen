@@ -27,4 +27,17 @@ class ZOffsetCalibrationTestAccess {
     static void turn_off_bed(ZOffsetCalibrationPanel& panel) {
         panel.turn_off_bed_if_needed();
     }
+
+    /// Seeds the accumulated jog distance so send_accept() has a value to
+    /// persist, without driving the deferred G1-success bookkeeping.
+    static void set_cumulative_delta(ZOffsetCalibrationPanel& panel, float delta) {
+        panel.cumulative_z_delta_ = delta;
+    }
+
+    /// Fires the accept button's send path. Transitions the panel to SAVING and
+    /// back via the mock's synchronous script handler; safe on a bare panel
+    /// (widget pointers are null-guarded).
+    static void send_accept(ZOffsetCalibrationPanel& panel) {
+        panel.send_accept();
+    }
 };

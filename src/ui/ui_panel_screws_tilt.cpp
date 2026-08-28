@@ -175,6 +175,10 @@ void ScrewsTiltPanel::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(error_message_subject_, error_message_buf_, "", "error_message_text",
                               subjects_);
+    UI_MANAGED_SUBJECT_STRING(recenter_hint_subject_, recenter_hint_buf_, "",
+                              "screws_tilt_recenter_hint", subjects_);
+    UI_MANAGED_SUBJECT_INT(recenter_hint_available_, 0, "screws_tilt_recenter_available",
+                           subjects_);
     UI_MANAGED_SUBJECT_INT(results_is_leveled_subject_, 0, "results_is_leveled", subjects_);
 
     subjects_initialized_ = true;
@@ -483,6 +487,13 @@ void ScrewsTiltPanel::on_screws_tilt_error(const std::string& message) {
     spdlog::error("[ScrewsTilt] Error: {}", message);
 
     std::string clean = sanitize_error_message(message);
+    // The XML label binds to this subject and carries no static text, so an
+    // empty string would render a blank body under "Probing Failed". Klipper can
+    // hand us a message that sanitizes away to nothing, and a stale message from
+    // the previous run must not survive either.
+    if (clean.empty()) {
+        clean = lv_tr("An error occurred during probing.");
+    }
     lv_subject_copy_string(&error_message_subject_, clean.c_str());
     set_state(State::ERROR);
 }
@@ -496,6 +507,23 @@ void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& resul
 
     // Store results first so the level report lines up with them
     screw_results_ = results;
+
+    // Klipper reports every screw against screw1 and treats that as fixed, but the
+    // adjustment vector is only defined up to a uniform translation. When the other
+    // screws already agree with each other, moving the datum alone does the same job
+    // with one turn instead of three. Shown ALONGSIDE Klipper's numbers, never
+    // instead of them, so the panel stays cross-checkable against Fluidd/console.
+    const ScrewRecenterHint hint = suggest_screw_recentering(results, level_report_);
+    if (hint.available && hint.screw_index < results.size()) {
+        snprintf(recenter_hint_buf_, RECENTER_HINT_BUF_SIZE, "%s: %s %s",
+                 lv_tr("Or instead of turning the others"),
+                 results[hint.screw_index].display_name().c_str(),
+                 describe_screw_turn(hint.signed_minutes).c_str());
+        lv_subject_copy_string(&recenter_hint_subject_, recenter_hint_buf_);
+        spdlog::info("[ScrewsTilt] Re-centring hint: {} instead of {} screws", recenter_hint_buf_,
+                     hint.replaces);
+    }
+    lv_subject_set_int(&recenter_hint_available_, hint.available ? 1 : 0);
 
     // Update subjects for reactive list rows (XML handles the UI)
     for (size_t i = 0; i < MAX_SCREWS; i++) {
@@ -588,9 +616,12 @@ void ScrewsTiltPanel::create_screw_indicator(size_t index, const ScrewTiltResult
     lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
     lv_obj_center(label);
 
-    if (in_spec) {
-        // Inside the level window (reference screws always are): show a static
-        // checkmark, no rotation animation
+    if (screw_is_settled(screw, in_spec)) {
+        // Nothing for the user to turn here: the reference screw, or one already
+        // inside the level window. Static checkmark, no rotation animation.
+        // NOT `in_spec` alone - the reference is measured against the spread's
+        // midpoint and lands out of spec on a one-sided tilt, which drew it as a
+        // spinning "loosen" arrow inside its own green circle.
         lv_obj_set_style_text_font(label, &mdi_icons_32, 0);
         // check icon (F012C)
         lv_label_set_text(label, "\xF3\xB0\x84\xAC");
@@ -701,7 +732,7 @@ lv_color_t ScrewsTiltPanel::get_adjustment_color(const ScrewTiltResult& screw, b
         return theme_manager_get_color(const_name); // Fallback to direct token lookup
     };
 
-    if (screw.is_reference || in_spec) {
+    if (screw_is_settled(screw, in_spec)) {
         return get_theme_color("success");
     }
 

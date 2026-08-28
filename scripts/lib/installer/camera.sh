@@ -47,6 +47,178 @@ _k2cam_marker_file() { echo "${INSTALL_DIR}/config/.k2cam_webcam_disabled"; }
 # block. Uninstall strips this exact prefix back off.
 K2CAM_DISABLE_PREFIX="#helix-k2cam-disabled# "
 
+# --- nginx /webcam/ proxy-block tuning --------------------------------------
+# We register the camera through the K2's stock nginx /webcam/ proxy (see the
+# URL-form choice in install_camera_k2 -- the relative form survives DHCP lease
+# changes). On Tina Linux /var/log is a symlink onto the /tmp tmpfs, the K2
+# ships no logrotate, and Creality's Moonraker fork puts the gcode upload temp
+# file on that SAME tmpfs via tempfile.gettempdir(). So anything of ours that
+# grows in /tmp eventually breaks uploads: the write fails with ENOSPC, the
+# exception escapes tornado's body reader, no HTTP response is ever sent, and
+# the uploading client just sees "connection reset by peer".
+#
+# Two directives are needed, and BOTH matter -- either one alone still fills the
+# tmpfs:
+#
+#   access_log off       Without it nginx logs every camera request. Under the
+#                        old mjpegstreamer-adaptive registration that was ~5
+#                        requests/sec, ~147 MB/day.
+#
+#   proxy_buffering off  Without it nginx buffers the upstream response to a
+#                        temp file under /tmp/lib/nginx/proxy. For a normal
+#                        finite response that is harmless, but an MJPEG stream
+#                        NEVER ENDS -- measured at ~950 KB/s, which fills a
+#                        244 MB tmpfs in about two minutes. This is the one that
+#                        bites once the webcam is registered as plain
+#                        'mjpegstreamer' (a single persistent
+#                        multipart/x-mixed-replace connection) rather than the
+#                        per-frame-polling adaptive type.
+#
+# We scope both to the /webcam/ block -- the traffic we caused -- and leave the
+# server-level access_log and everything else alone. Reversible on uninstall.
+
+# nginx config path. Env-overridable so the BATS suite can redirect it off the
+# host, same as _initd_dir/_rcd_dir. Resolved per-call, not at source time.
+_nginx_conf_path() { echo "${HELIX_NGINX_CONF:-/etc/nginx/nginx.conf}"; }
+
+# The stock K2 access log fed by that proxy.
+_nginx_access_log_path() { echo "${HELIX_NGINX_ACCESS_LOG:-/var/log/nginx/fluidd-access.log}"; }
+
+# Marker recording that we edited the block. Name kept as-is for compatibility
+# with installs made before proxy_buffering was added to the same edit.
+_nginx_accesslog_marker_file() { echo "${INSTALL_DIR}/config/.nginx_webcam_accesslog"; }
+
+# Tag embedded in every line we insert, making both the idempotency check and
+# the removal exact rather than pattern-guessed. Deliberately a PREFIX of the
+# older 'helix-managed-webcam-accesslog' tag, so a substring delete also cleans
+# up lines written by the previous version of this installer.
+NGINX_WEBCAM_TAG="helix-managed-webcam"
+
+# True when $2 (a directive name) already appears inside the /webcam/ block,
+# whether we put it there or the user did. Scoped to that block only.
+_webcam_block_has_directive() {
+    awk -v d="$2" '
+        /^[[:space:]]*location[[:space:]]+\/webcam\/[[:space:]]*\{/ { inblk = 1; next }
+        inblk && /^[[:space:]]*\}/ { inblk = 0 }
+        inblk && $1 == d { found = 1 }
+        END { exit(found ? 0 : 1) }
+    ' "$1"
+}
+
+# Validate the edited config and reload nginx. Returns non-zero if `nginx -t`
+# rejects it, so the caller can roll back -- we must never be the reason
+# someone's web UI stops serving.
+_nginx_validate_and_reload() {
+    if command -v nginx >/dev/null 2>&1; then
+        if ! $SUDO nginx -t >/dev/null 2>&1; then
+            return 1
+        fi
+    fi
+    local initd
+    initd="$(_initd_dir)"
+    if [ -x "${initd}/nginx" ]; then
+        $SUDO "${initd}/nginx" reload >/dev/null 2>&1 || true
+    fi
+    return 0
+}
+
+# Add the directives above to the stock /webcam/ proxy block. Idempotent, and
+# per-directive: a block that already has one keeps it and gains only the other.
+# Every unexpected shape is a clean skip, never an error: no nginx.conf, no
+# /webcam/ block (a replaced nginx is not ours to edit), or both already set.
+_tune_webcam_proxy_block() {
+    local conf need_log need_buf
+    conf="$(_nginx_conf_path)"
+    [ -f "$conf" ] || return 0
+
+    grep -q '^[[:space:]]*location[[:space:]]\+/webcam/[[:space:]]*{' "$conf" 2>/dev/null || return 0
+
+    need_log=1; need_buf=1
+    _webcam_block_has_directive "$conf" access_log && need_log=0
+    _webcam_block_has_directive "$conf" proxy_buffering && need_buf=0
+    [ "$need_log" -eq 0 ] && [ "$need_buf" -eq 0 ] && return 0
+
+    local backup tmp
+    backup="${conf}.helix-bak"
+    tmp="${conf}.helix-new"
+    $SUDO cp "$conf" "$backup" 2>/dev/null || return 0
+
+    if ! awk -v tag="$NGINX_WEBCAM_TAG" -v nlog="$need_log" -v nbuf="$need_buf" '
+        {
+            print
+            if (!ins && $0 ~ /^[[:space:]]*location[[:space:]]+\/webcam\/[[:space:]]*\{/) {
+                match($0, /^[[:space:]]*/)
+                indent = substr($0, 1, RLENGTH) "    "
+                if (nlog == 1)
+                    print indent "access_log off; # " tag ": camera frames would fill the tmpfs log"
+                if (nbuf == 1)
+                    print indent "proxy_buffering off; # " tag ": endless MJPEG stream would buffer into the tmpfs"
+                ins = 1
+            }
+        }
+    ' "$conf" > "$tmp" 2>/dev/null; then
+        $SUDO rm -f "$tmp"
+        return 0
+    fi
+
+    $SUDO cp "$tmp" "$conf"
+    $SUDO rm -f "$tmp"
+
+    if ! _nginx_validate_and_reload; then
+        log_warn "nginx rejected the config after tuning the /webcam/ block — reverting"
+        $SUDO cp "$backup" "$conf"
+        $SUDO rm -f "$backup"
+        return 1
+    fi
+
+    $SUDO rm -f "$backup"
+    $SUDO touch "$(_nginx_accesslog_marker_file)"
+    log_info "Tuned nginx /webcam/ block (no access log, no proxy buffering) so the camera cannot fill the K2's tmpfs"
+    return 0
+}
+
+# Reverse _tune_webcam_proxy_block. Strips only our tagged lines, and only when
+# the marker says we were the ones who added them.
+_restore_webcam_proxy_block() {
+    local marker conf
+    marker="$(_nginx_accesslog_marker_file)"
+    [ -f "$marker" ] || return 0
+
+    conf="$(_nginx_conf_path)"
+    if [ -f "$conf" ]; then
+        $SUDO sed -i "/${NGINX_WEBCAM_TAG}/d" "$conf" 2>/dev/null || true
+        _nginx_validate_and_reload || \
+            log_warn "nginx rejected the config after untuning the /webcam/ block"
+        log_info "Restored the stock nginx /webcam/ block"
+    fi
+    $SUDO rm -f "$marker"
+    return 0
+}
+
+# Empty an already-oversized fluidd-access.log. An affected K2 arrives here with
+# its tmpfs already full, so preventing further growth is not enough to unwedge
+# uploads. The file is on tmpfs and is cleared on every reboot anyway, and the
+# traffic in it is ours, so truncating is safe.
+_truncate_oversized_webcam_log() {
+    local log max size
+    log="$(_nginx_access_log_path)"
+    [ -f "$log" ] || return 0
+
+    max="${HELIX_WEBCAM_LOG_MAX_BYTES:-20971520}"
+    size="$(wc -c < "$log" 2>/dev/null | tr -d ' ')"
+    [ -n "$size" ] || return 0
+    [ "$size" -gt "$max" ] 2>/dev/null || return 0
+
+    log_warn "nginx access log is $((size / 1024 / 1024)) MB and filling the tmpfs — truncating"
+    log_warn "  (${log} is volatile; it is cleared on every reboot)"
+    if [ -n "$SUDO" ]; then
+        $SUDO sh -c ': > "$1"' _ "$log" 2>/dev/null || true
+    else
+        : > "$log" 2>/dev/null || true
+    fi
+    return 0
+}
+
 # Detect the community "K2-Camera-main" mod. It REPLACES Moonraker (backs up
 # /usr/share/moonraker -> /usr/share/moonraker_backup, drops in its own copy)
 # and ships an iframe camera viewer whose [webcam Default] entry conflicts with
@@ -383,15 +555,29 @@ except Exception:
     pass  # non-fatal; the POST below is what matters
 
 try:
-    # 'mjpegstreamer-adaptive' (not 'ustreamer'): fluidd/mainsail render MJPEG by
-    # service type and have no 'ustreamer' renderer — it shows "service not
-    # supported!" and never displays frames. ustreamer's /stream + /snapshot are
-    # the standard mjpegstreamer endpoints, so 'mjpegstreamer-adaptive' renders
-    # correctly in both web UIs and still matches HelixScreen's own is_mjpeg
-    # consumer check (which keys on the 'mjpeg' substring).
+    # Service type, and why it is neither of the two obvious alternatives:
+    #
+    #   NOT 'ustreamer': fluidd/mainsail render MJPEG by service type and ship no
+    #   'ustreamer' renderer -- it shows "service not supported!" and never
+    #   displays frames.
+    #
+    #   NOT 'mjpegstreamer-adaptive': that mode fetches ONE HTTP REQUEST PER
+    #   FRAME (each with a &cacheBust= param to defeat caching), up to target_fps.
+    #   On the K2 that meant ~5 request/response cycles a second through nginx
+    #   and ustreamer on a 488 MB SoC, and its access-log volume filled the /tmp
+    #   tmpfs -- which is also where Creality's Moonraker fork puts the upload
+    #   temp file, so gcode uploads then died mid-stream with ENOSPC and the
+    #   client saw "connection reset by peer".
+    #
+    # Plain 'mjpegstreamer' consumes ustreamer's /stream as a single persistent
+    # multipart/x-mixed-replace connection: one request instead of thousands per
+    # minute. It renders in fluidd (both renderers ship in 1.30.0) and mainsail,
+    # and still matches HelixScreen's own is_mjpeg consumer check (which keys on
+    # the 'mjpeg' substring). Frame rate stays governed server-side by
+    # ustreamer's own --desired-fps in helixscreen-ustreamer-k2.sh.
     req('POST', '/server/webcams/item', {
         'name': name,
-        'service': 'mjpegstreamer-adaptive',
+        'service': 'mjpegstreamer',
         'stream_url': stream,
         'snapshot_url': snap,
         'enabled': True,
@@ -513,6 +699,11 @@ install_camera_k2() {
         log_warn "ustreamer does not appear to be listening on :$port (check /dev/video0)"
     fi
 
+    # (d2) Keep our own camera traffic from filling the K2's tmpfs. Must run
+    # before the Moonraker section, which returns early when Moonraker is down.
+    _tune_webcam_proxy_block || true
+    _truncate_oversized_webcam_log
+
     # (e) Moonraker webcam migration (preserve/fix fluidd). Back up the current
     # list, then delete the stock iframe and add our ustreamer webcam. If
     # moonraker is unreachable, warn but leave ustreamer running (the camera
@@ -597,6 +788,9 @@ uninstall_camera_k2() {
     fi
     killall ustreamer 2>/dev/null || true
     $SUDO rm -f "${INSTALL_DIR}/bin/ustreamer" 2>/dev/null || true
+
+    # (a2) Put the nginx /webcam/ block back the way we found it.
+    _restore_webcam_proxy_block
 
     # (b) Restore moonraker webcams from the backup, if we migrated them.
     local marker backup

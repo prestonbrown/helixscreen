@@ -89,11 +89,16 @@ One row in the `providers()` table in `src/printer/z_offset_persistence.cpp`. No
 call site changes:
 
 ```cpp
-{"ZMOD", "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1", &read_zmod},
-//  name   detect macro     status objects      enable gcode (or nullptr)       reader
+{"ZMOD",     "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1", &read_zmod},
+{"Forge-X",  "SET_MOD",        {"mod_params"},     "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
+ &read_forge_x},
+//  name       detect macro      status objects     enable gcode (or nullptr)         reader
 ```
 
-- **detect macro** — matched via `PrinterDiscovery::has_macro()`, case-insensitive.
+- **detect macro** — matched via `PrinterDiscovery::has_macro()`, case-insensitive,
+  exact (the mod's own `SET_MOD_PARAM` does not trip the `SET_MOD` row).
+- **row order** — match priority. A box exposing two firmwares' macros resolves to
+  the first row; ZMOD stays first.
 - **reader** — pulls microns out of a status frame; must return `nullopt` for any
   frame that does not carry the value, and must tolerate the firmware's
   not-yet-set placeholder. Round rather than truncate: stored values accumulate
@@ -111,6 +116,37 @@ See `docs/devel/printers/FLASHFORGE_AD5X_SUPPORT.md` § "ZMOD z-offset storage" 
 the macro-level detail: `SET_GCODE_OFFSET` override, `LOAD_GCODE_OFFSET` at
 `START_PRINT`, the `load_zoffset` gate, and the separate native-screen offset that
 `LOAD_ZOFFSET_NATIVE` copies (which HelixScreen does not call).
+
+---
+
+## Forge-X specifics
+
+Forge-X — the FlashForge Adventurer 5M / Pro firmware mod (DrA1ex/ff5m), never the
+AD5X — is the second row. Its klippy plugin (`mod_params`) keeps parameters in its
+own INI store (`/opt/config/mod_data/variables.cfg`), **not** klipper's
+`save_variables`, and mirrors them into the `mod_params` status object.
+
+- **Detection:** the `SET_MOD` macro (the plugin also registers `GET_MOD`,
+  `LIST_MOD_PARAMS`, `SET_MOD_PARAM`; only `SET_MOD` is the signature). The mod's
+  migration path actively removes `SAVE_ZMOD_DATA`, so it cannot trip the ZMOD row —
+  ZMOD nonetheless stays first in the table.
+
+  **Never switch this predicate to object presence.** Rig-observed on ZMOD 1.7.2:
+  this Moonraker build answers `objects/query` with success and an empty status for an
+  object it does not have — `mod_params`, `zmod_ifs` and `zmod_color` all "answer"
+  despite being absent from `objects/list` — and `SET_MOD` is likewise absent from its
+  `gcode/help`. A query response is never proof an object is registered; `objects/list`
+  is the presence check. Even a stray empty frame stays harmless: `mod_params` is only
+  subscribed when this row is the match, and the reader returns `nullopt` for an object
+  without `variables`. The mods share lineage — ZMOD keeps its own flat param dict
+  (`load_zoffset`, `fix_e0011`, …) inside klipper `save_variables` — so a key name is
+  never proof of which mod a printer runs.
+- **Read:** `mod_params.variables.z_offset`, a float in mm — the same accumulate-
+  and-round-to-microns treatment as ZMOD, for the same reason.
+- **Write:** its `SET_GCODE_OFFSET` override auto-persists every `Z=` write, so
+  saving needs no gcode from us.
+- **Enable:** `SET_MOD PARAM="load_zoffset" VALUE=1` — the semantic equivalent of
+  ZMOD's `SAVE_ZMOD_DATA LOAD_ZOFFSET=1`: make print start apply the stored offset.
 
 ---
 

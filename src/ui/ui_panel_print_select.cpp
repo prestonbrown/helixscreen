@@ -995,8 +995,7 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
 
         const std::string filename = file_list_[i].filename;
         // Build full path for metadata request (e.g., "usb/flowrate_0.gcode")
-        const std::string file_path =
-            current_path_.empty() ? filename : current_path_ + "/" + filename;
+        const std::string file_path = helix::gcode::join_gcode_path(current_path_, filename);
 
         api_->files().get_file_metadata(
             file_path,
@@ -2382,21 +2381,20 @@ void PrintSelectPanel::merge_history_into_file_list() {
         return;
     }
 
-    // Trigger fetch if history not loaded yet
-    if (!history_manager->is_loaded()) {
-        spdlog::trace("[{}] History not loaded, triggering fetch", get_name());
-        history_manager->fetch();
-    }
+    // Populate the cache if nobody has yet. ensure_loaded(), not fetch():
+    // fetch() means "the cached list is wrong", so calling it while a request
+    // is already out queues a second identical one.
+    history_manager->ensure_loaded();
 
     // Get currently printing filename (if any)
     std::string current_print_filename;
-    // RAW_PRINT_STATE_OK: reads print_filename, which reset_for_new_print()
-    // deliberately does NOT clear - so during a preparing window it still holds
-    // the PREVIOUS job. Widening this would badge the wrong file rather than
-    // none. Badging the committed file would mean reading preparing_job()
-    // instead, which is a feature, not this migration.
+    // RAW_PRINT_STATE_OK: gates on print_filename's VALIDITY, not on ownership:
+    // reset_for_new_print() deliberately does NOT clear that field, so during a
+    // preparing window it still holds the PREVIOUS job. Widening this would
+    // badge the wrong file rather than none. Badging the committed file would
+    // mean reading preparing_job() instead, which is a feature, not this fold.
     auto print_state = printer_state_.get_print_job_state();
-    if (print_state == PrintJobState::PRINTING || print_state == PrintJobState::PAUSED) {
+    if (printer_has_job(print_state)) {
         if (auto* filename_subject = printer_state_.get_print_filename_subject()) {
             if (const char* filename = lv_subject_get_string(filename_subject);
                 filename && filename[0] != '\0') {
@@ -2914,7 +2912,7 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
         }
 
         std::string filename(selected_filename_buffer_);
-        std::string file_path = current_path_.empty() ? filename : current_path_ + "/" + filename;
+        std::string file_path = helix::gcode::join_gcode_path(current_path_, filename);
 
         spdlog::info("[{}] Applying gcode remap: {} tool(s) for {}", get_name(), remap.size(),
                      file_path);

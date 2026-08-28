@@ -224,6 +224,19 @@ class UpdateChecker {
     // Download and install
     void start_download();
     void cancel_download();
+
+    /**
+     * @brief True while a download worker thread is still running.
+     *
+     * NOT the same question as get_download_status(). Cancelling a download
+     * only sets a flag that the worker reads AFTER libhv's synchronous
+     * requests::downloadFile() returns, and the modal resets the status to
+     * Idle the moment the user taps Cancel — so the status enum can say "idle"
+     * for up to an hour while the worker is still inside the blocking call.
+     * Re-entry into start_download() is gated on THIS, never on the enum.
+     */
+    bool download_in_flight() const;
+
     DownloadStatus get_download_status() const;
     int get_download_progress() const;
     std::string get_download_error() const;
@@ -599,6 +612,22 @@ class UpdateChecker {
     std::string download_error_;
     std::thread download_thread_;
     std::atomic<bool> download_cancelled_{false};
+    /// True from just before the worker is spawned until its body returns.
+    /// The re-entry guard and the shutdown reap both key off this rather than
+    /// download_status_, which a cancel resets to Idle under a live worker.
+    std::atomic<bool> download_worker_active_{false};
+    /// Latched by perform_update_restart() so the marshalled LVGL-thread call
+    /// and the worker's backstop cannot both fork+exec.
+    std::atomic<bool> restart_initiated_{false};
+    /// How long each terminal frame is held so the LVGL thread can paint it.
+    /// update_download_modal.xml documents 2s on Complete, then 1s on
+    /// Restarting. Members rather than constants so tests need not wait 3s.
+    uint32_t complete_hold_ms_{2000};
+    uint32_t restart_hold_ms_{1000};
+    /// Test-only stand-in for the fork/exec + ::_exit(0) in
+    /// perform_update_restart(). Never set in production; the only writer is
+    /// UpdateCheckerTestAccess.
+    std::function<void()> restart_action_;
 
     // Download LVGL subjects
     lv_subject_t download_status_subject_{};
@@ -609,6 +638,33 @@ class UpdateChecker {
     // Download internals
     void do_download();
     void do_install(const std::string& tarball_path);
+
+    /**
+     * @brief Publish the terminal frames, then hand the restart to the LVGL thread.
+     *
+     * Runs on the download worker, at the tail of a successful do_install().
+     * report_download_status() only QUEUES its subject writes, so calling
+     * ::_exit(0) from here leaves the last painted frame at "Installing... Do
+     * not power off your printer." Holding between the writes lets the LVGL
+     * thread render them, and the exit itself is marshalled the way
+     * Application defers handle_external_update_complete().
+     *
+     * Split out of do_install() so the ordering is unit-testable — do_install()
+     * itself runs install.sh and cannot be.
+     */
+    void finish_install_and_restart(const std::string& install_root, const std::string& version);
+
+    /**
+     * @brief Restart into the newly installed binary. Does not return.
+     *
+     * Once-only: the marshalled LVGL-thread call and the worker's backstop both
+     * reach it, and only the first may fork/exec.
+     */
+    void perform_update_restart(const std::string& install_root);
+
+    /// Bounded wait for the download worker, then join or detach.
+    /// @see the implementation for why detaching is the only option available.
+    void reap_download_thread(std::chrono::milliseconds wait);
 
     /** @brief Validate downloaded tarball contains binary for correct architecture */
     bool validate_elf_architecture(const std::string& tarball_path);

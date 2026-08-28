@@ -93,4 +93,35 @@ bool should_use_gcode_streaming(size_t file_size_bytes, const MemoryInfo& mem);
  */
 std::string get_streaming_config_description();
 
+/**
+ * @brief Final say on whether a viewer streams, given what the screen asked for.
+ *
+ * A screen may ask to opt out of streaming when it would rather have the
+ * full-load path feeding a 3D render (PrintSelectDetailView does). That request
+ * is only honourable when the build actually HAS a 3D renderer: without one the
+ * viewer can only draw 2D, and the full-load path it would fall back to parses
+ * the whole file into RAM with no budget of its own.
+ *
+ * On a K2 Plus (488 MB, built with ENABLE_GLES_3D=no) that combination opened a
+ * 130 MB gcode with "streaming mode: OFF", grew helix-screen to 387 MB RSS and
+ * got it OOM-killed by the kernel; the same file on the same device renders
+ * fine streaming. The size gate in front of it cannot catch this either - it
+ * prices the STREAMING renderer, which is not the path that ends up running.
+ *
+ * Kept as a pure function of its three inputs so both answers are testable in a
+ * binary that is itself compiled with 3D enabled.
+ *
+ * @param screen_opted_out    The screen called ui_gcode_viewer_disable_streaming().
+ * @param build_has_3d        This build can render 3D (ENABLE_3D_RENDERER).
+ * @param streaming_for_size  should_use_gcode_streaming() for this file.
+ * @return true if the viewer should stream.
+ */
+[[nodiscard]] inline bool gcode_viewer_should_stream(bool screen_opted_out, bool build_has_3d,
+                                                     bool streaming_for_size) {
+    if (screen_opted_out && build_has_3d) {
+        return false;
+    }
+    return streaming_for_size;
+}
+
 } // namespace helix

@@ -251,9 +251,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 config_section.merge_patch(get_mock_probe_config());
 
                 // Build extruder settings based on HELIX_MOCK_KALICO env var
-                json extruder_settings = {{"min_temp", 0.0},
-                                          {"max_temp", self->get_extruder_max_temp()},
-                                          {"min_extrude_temp", 170.0}};
+                json extruder_settings = {
+                    {"min_temp", self->get_extruder_min_temp()},
+                    {"max_temp", self->get_extruder_max_temp()},
+                    {"min_extrude_temp", self->get_extruder_min_extrude_temp()}};
                 if (is_mock_kalico()) {
                     extruder_settings["control"] = "mpc";
                     extruder_settings["heater_power"] = 50.0;
@@ -360,6 +361,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // mmu (Happy Hare MMU status — --real-ams)
             if (objects.contains("mmu")) {
                 status_obj["mmu"] = get_mock_mmu_status();
+            }
+
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-fork]). Emitted only for
+            // the objects this variant actually ships, so a consumer that reads
+            // the wrong schema finds nothing rather than a convenient default.
+            if (objects.contains("medusahc")) {
+                if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
+                    status_obj["medusahc"] = medusa;
+                }
+            }
+            for (auto it = objects.begin(); it != objects.end(); ++it) {
+                if (it.key() != "pin_watch" && it.key().rfind("pin_watch ", 0) != 0) {
+                    continue;
+                }
+                if (auto pw = self->pin_watch_status_json(); !pw.empty()) {
+                    status_obj[it.key()] = pw;
+                }
             }
 
             // MCU objects (for discovery - chip type and firmware version)
@@ -554,6 +572,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // mmu (Happy Hare MMU status — --real-ams)
             if (objects.contains("mmu")) {
                 status_obj["mmu"] = get_mock_mmu_status();
+            }
+
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-fork]). Emitted only for
+            // the objects this variant actually ships, so a consumer that reads
+            // the wrong schema finds nothing rather than a convenient default.
+            if (objects.contains("medusahc")) {
+                if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
+                    status_obj["medusahc"] = medusa;
+                }
+            }
+            for (auto it = objects.begin(); it != objects.end(); ++it) {
+                if (it.key() != "pin_watch" && it.key().rfind("pin_watch ", 0) != 0) {
+                    continue;
+                }
+                if (auto pw = self->pin_watch_status_json(); !pw.empty()) {
+                    status_obj[it.key()] = pw;
+                }
             }
 
             // Width sensors (hall_filament_width_sensor, tsl1401cl_filament_width_sensor)

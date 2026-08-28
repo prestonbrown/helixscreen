@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu 项更改'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）
   (incompatible): (不兼容)
   (multi-tool): (多工具)
@@ -312,7 +313,6 @@ translations:
   Bypass Mode: 旁路模式
   Bypass active — this print runs on the external spool.: 旁路已启用 — 本次打印使用外部料盘。
   Bypass cannot be changed while printing: 打印时无法切换旁路
-  Bypass controlled by hardware sensor: 旁路由硬件传感器控制
   Bypass controlled by sensor: 旁通由传感器控制
   Bypass disabled: 旁通已禁用
   Bypass enabled: 旁通已启用
@@ -343,9 +343,9 @@ translations:
   Calibrate Gear: '校准齿轮'
   Calibrate X: 校准 X 轴
   Calibrate Y: 校准 Y 轴
+  Calibrate and tune scroll feel: "校准并调整滚动手感"
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
-  Calibrate, tune jitter and scroll feel: 校准、调整抖动和滚动手感
   Calibrated: 已校准
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -418,6 +418,7 @@ translations:
   Change Printer Host: 更改打印机主机
   Change Tool: 切换工具
   Change Tool While Paused: 暂停时切换工具
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
   Changes can be reversed anytime using the Macro Viewer.: 可随时使用 Macro Viewer 恢复更改。
@@ -469,6 +470,8 @@ translations:
   Clog Detection: 堵料检测
   Clog detection: 堵料检测
   Close: 关闭
+  Close feeder: ''
+  Close feeder macro: ''
   Closer: 更近
   Closer = more squish | Farther = less squish: 更近 = 更多挤压 | 更远 = 更少挤压
   Coarse: 粗调
@@ -643,8 +646,6 @@ translations:
   Date (newest): 日期（最新）
   Date (oldest): 日期（最早）
   Day: 日
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): 死区像素值（如果点击被识别为滑动则调高；0
-    表示禁用）
   Debug: 调试
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
@@ -700,6 +701,8 @@ translations:
   Do not power off your printer.: 请勿关闭打印机电源。
   Do not touch the printer during calibration: 校准期间请勿触碰打印机
   Dock: 归位
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: 正在归位工具
   Documentation: 文档
   Don't Save: 不保存
@@ -781,6 +784,7 @@ translations:
   Enter New PIN: 输入新 PIN
   Enter PIN: 输入 PIN
   Enter WiFi Password: 输入 WiFi 密码
+  Enter a name for this profile: "输入此配置的名称"
   'Enter a name for your custom theme:': 输入自定义主题名称：
   Enter a name to save this profile: 输入名称以保存此配置
   Enter network name: 输入网络名称
@@ -804,6 +808,8 @@ translations:
   'Error: Invalid download': '错误: 下载无效'
   'Error: No update available': '错误: 无可用更新'
   'Error: Not enough disk space': '错误: 磁盘空间不足'
+  'Error: Previous download still finishing': '错误: 上一次下载尚未结束'
+  "Error: This install can't update itself": '错误: 此安装无法自我更新'
   'Error: Verification failed': '错误: 验证失败'
   'Error: Wrong architecture': '错误: 架构错误'
   'Error: `unzip` not installed': '错误: 未安装 `unzip`'
@@ -958,11 +964,13 @@ translations:
   Farther: 更远
   'Features: ': '特性: '
   Feed Assist: '送料辅助'
+  Feed assist and debug tools: ''
   Feed filament: 进料
   Feed filament directly to extruder: 将耗材直接送入挤出机
   Feed filament from current slot: '从当前料仓送入耗材'
   Feeding filament forward: 正在向前送料
   Filament: 耗材
+  Filament Control: ''
   Filament Detected: 检测到耗材
   Filament Environment: 耗材环境
   Filament Grade Mismatch: 耗材等级不匹配
@@ -977,13 +985,13 @@ translations:
   Filament clog/flow detection meter: '耗材堵塞／流量检测仪表'
   Filament deleted: 耗材已删除
   Filament diameter sensors for flow compensation: 耗材直径传感器用于流量补偿
+  Filament feeder: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: 耗材已脱离工具头。请将剩余部分拉出。
   Filament is loose: 耗材松弛
   Filament is pulling tight: 耗材拉紧
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : 卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。
   'Filament load failed: {}': '耗材加载失败: {}'
-  Filament loaded: 耗材已加载
   Filament operation failed: 耗材操作失败
   Filament operation timed out: 耗材操作超时
   Filament ran out - nothing at the toolhead and the print is paused.: '耗材已用尽 - 工具头处没有耗材，打印已暂停。'
@@ -1061,6 +1069,8 @@ translations:
   Good Accuracy: 精度良好
   Got it: 知道了
   Gray: 灰色
+  Grip filament: ''
+  Grip the filament: ''
   Guides and reference: 指南与参考
   H: 头
   HOST: 主机
@@ -1407,6 +1417,7 @@ translations:
   Manual Bed Leveling: 手动热床调平
   Manual Feed: '手动送料'
   Manual Retract: '手动回抽'
+  Manual feed and retract operations: ''
   Map to closest colors with matching material: 按匹配材料映射最接近的颜色
   Marginal: 偏高
   Master volume level: 主音量
@@ -1465,6 +1476,7 @@ translations:
   Motors Off: 关闭电机
   'Motors disable failed: {}': '禁用电机失败: {}'
   Motors disabled: 电机已禁用
+  Mount: ''
   Move: 移动
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。
   Move selector: 移动选择器
@@ -1492,7 +1504,7 @@ translations:
   Name: 名称
   Name (optional): 名称（可选）
   'Name:': '名称:'
-  Named actions in the LED control panel (long-press).: LED 控制面板中的命名操作（长按）。
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Needs adjustment: 需要调整
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'
   Net Weight (g): 净重（克）
@@ -1520,9 +1532,9 @@ translations:
   No Camera: 无摄像头
   No Filament Detected: 未检测到耗材
   No History: 无历史记录
-  No LED macros detected on your printer.: 未在打印机上检测到 LED 宏。
   No LED macros detected on your printer. Add Klipper macros for LED control first.: 未在打印机上检测到
     LED 宏。请先添加用于 LED 控制的 Klipper 宏。
+  No LED macros detected. Type a macro name below.: ''
   No LED strips detected: '未检测到 LED 灯带'
   No Macros Found: 未找到宏
   No Multi-Filament System connected: 未连接多耗材系统
@@ -1654,11 +1666,14 @@ translations:
   On/Off: 开/关
   On/Off (state-aware): 开/关（状态跟踪）
   'On:': '开:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: '减少渗漏'
   Open: 打开
   Open G-code command console: '打开 G-code 命令控制台'
   Open LED color and brightness controls: '打开 LED 颜色与亮度控制'
   Open Source Licenses: 开源许可证
+  Open feeder: ''
+  Open feeder macro: ''
   Operation already in progress: 操作正在进行中
   Operations: 操作
   Optimize Your Printing: 优化您的打印
@@ -1667,6 +1682,7 @@ translations:
     - 选择主照明源，如打印机没有可跳过
   Options: 选项
   Or Enter Manually: 或手动输入
+  Or instead of turning the others: ''
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
   Out of range: 超出范围
   Outcome: 结果
@@ -1739,6 +1755,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: 选取
   Pick Color: 选择颜色
+  Pick up tool: ''
   Picking up tool: 正在取用工具
   Pill: 胶囊
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 按下转为滚动前的像素数(越低
@@ -1910,12 +1927,12 @@ translations:
   Profile name (e.g., default): 配置名称（例如：default）
   Profile renamed: 配置文件已重命名
   Profiles: 配置
+  Prompt before running this macro: ''
   Pulling filament back: 正在回抽耗材
   Purge: 排料
   Purge & Wipe: '排料与擦拭'
   Purge Length: '排料长度'
   'Purge failed: {}': '清洗失败: {}'
-  Purge macro not configured: 清洗宏未配置
   Purge may still be running — response timed out: 清洗可能仍在运行 — 响应超时
   Purge to bucket: '排料到废料桶'
   Purge tower and brush settings: '排料塔与刷子设置'
@@ -1992,6 +2009,9 @@ translations:
   Relative vibration: 相对振动
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: 释放所有步进电机。位置信息将丢失。
+  Release filament: ''
+  Release or grip the filament by hand: ''
+  Release the filament: ''
   Remaining (g): 剩余 (g)
   Remaining Weight (g): 剩余重量（克）
   Remap Tool: 重映射工具
@@ -2002,6 +2022,7 @@ translations:
   Remove PIN: 移除 PIN
   Remove Spoolman?: 移除 Spoolman？
   Remove plugin from printer: 从打印机移除插件
+  Remove the bypass spool from the toolhead first: '请先将旁路料盘从工具头中取出'
   Rename: 重命名
   Rename Fan: 重命名风扇
   Rename Mesh Profile: 重命名网格配置
@@ -2010,12 +2031,15 @@ translations:
   Rename failed at save step: 重命名在保存步骤失败
   Render Now: 立即渲染
   Rendering timelapse...: 正在渲染延时摄影...
+  Replace: "替换"
+  Replace Profile?: "替换配置？"
   Replay Welcome Tour: 重播欢迎漫游
   'Replenishing filament...': ''
   Report saved to crash_report.txt: 报告已保存到 crash_report.txt
   Reprint: 重新打印
   Reprint Last: 重印上次
   Request Failed: 请求失败
+  Require Confirmation?: ''
   Require confirmation before emergency stop: 紧急停止前需要确认
   Requires Moonraker power device: '需要 Moonraker 电源设备'
   Requires Moonraker-Timelapse plugin: 需要 Moonraker-Timelapse 插件
@@ -2104,7 +2128,6 @@ translations:
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): 即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）
   Run test sequence on all lanes: '在所有料仓运行测试流程'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: 在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。
-  Run without parameter prompt: 运行时不提示参数
   Run {}?: 运行 {}？
   Running {}...: 正在运行 {}...
   Runout: '用尽'
@@ -2291,6 +2314,8 @@ translations:
   Slot: 料仓
   Slot %d: 料仓 %d
   Slot %d Filament: 料仓 %d 耗材
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: '料仓 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？'
+  'Slot %d: %.0fg of %.0fg needed': '料仓 %d：%.0fg / 需要 %.0fg'
   Slot 1: 料仓 1
   Slot {}: 料仓 {}
   Slot {} matches.: '料仓 {} 匹配。'
@@ -2302,6 +2327,7 @@ translations:
   Soft: 柔和
   Software Updates: 软件更新
   Some filaments don't match the slicer's intent.: 部分耗材与切片软件的意图不符。
+  'Some mapped slots are short on filament:': '部分已映射料仓耗材不足：'
   Some settings will take effect after restart.: 某些设置将在重启后生效。
   Sound Theme: 声音主题
   Sounds: 声音
@@ -2351,6 +2377,7 @@ translations:
   Start Drying: 开始烘干
   Start Print: 开始打印
   Start Probing: 开始探测
+  Start anyway?: '仍要开始吗？'
   Start at: 从第
   Start failed: 启动失败
   Start print anyway?: 仍要开始打印吗？
@@ -2494,6 +2521,8 @@ translations:
   The printer's firmware chooses the backup spool itself: 备用料盘由打印机固件自行选择
   The runout sensor indicates no filament is loaded. Start print anyway?: 断料传感器显示未装载耗材。仍要开始打印吗？
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 料仓报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : '工具头内有耗材，但没有 AMS 料仓报告已装载。在清空之前，打印机可能拒绝装载料仓。仍要开始打印吗？'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: 工具头传感器显示耗材已装载。仍要继续装载吗？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: 工具头传感器显示无耗材。仍要继续卸载吗？
   Theme: 主题
@@ -2603,7 +2632,6 @@ translations:
   Touch & Input: 触摸和输入
   Touch Cal: 触摸校准
   Touch Calibration: 触摸校准
-  Touch Jitter Filter: 触摸抖动过滤
   Touch anywhere to test calibration: 触摸任意位置测试校准
   Touch anywhere to verify accuracy: 触摸任意位置验证精度
   Touch input did not track the new calibration. Your previous settings were kept.: 触摸输入未能跟随新的校准，已保留您之前的设置。
@@ -2664,6 +2692,7 @@ translations:
   Unloads After Print: 打印后卸载
   Unlock: 解锁
   Unmapped: 未映射
+  Unmount: ''
   Unretract Extra: 回抽恢复额外量
   Unretract Speed: 回抽恢复速度
   Unsupported tape width: 不支持的标签带宽度
@@ -2753,6 +2782,8 @@ translations:
     preparation.
   : 开始打印时，您可以选择是否运行 %s。如果您最近已经执行过或希望对打印准备过程有更多控制，这样可以节省时间。
   Where UI sounds play: 界面声音的播放位置
+  Which macro the Close feeder button sends: ''
+  Which macro the Open feeder button sends: ''
   White: 白色
   Wi-Fi and ethernet connection status: 'Wi-Fi 与以太网连接状态'
   WiFi: WiFi
@@ -2863,6 +2894,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): 监测打印异常（基于 K2 Plus 摄像头）
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC 的 remember_spool 会在固件中保留料盘信息；其优先级高于此开关
   AI detection: AI 检测
+  or type a macro name: ''
   prints: 打印次数
   remaining: 剩余
   remaining before clog detection triggers: 剩余即触发堵料检测

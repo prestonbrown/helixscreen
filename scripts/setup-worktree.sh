@@ -213,6 +213,28 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAIN_TREE="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# SCRIPT_DIR/.. is only the main tree when this copy of the script is the main
+# tree's copy. Every worktree has its own scripts/, so running a worktree's copy
+# leaves MAIN_TREE pointing at that worktree — and the lib/ step below then
+# rm -rf's each real submodule and symlinks it to the path it just deleted.
+# git-common-dir names the real main tree from anywhere in the repo. It can come
+# back relative (plain ".git" from a main-tree root), so resolve it against
+# MAIN_TREE before use.
+GIT_COMMON_DIR="$(git -C "$MAIN_TREE" rev-parse --git-common-dir 2>/dev/null || true)"
+if [[ -n "$GIT_COMMON_DIR" ]]; then
+    [[ "$GIT_COMMON_DIR" != /* ]] && GIT_COMMON_DIR="$MAIN_TREE/$GIT_COMMON_DIR"
+    RESOLVED_MAIN=""
+    if cd "$GIT_COMMON_DIR/.." 2>/dev/null; then
+        RESOLVED_MAIN="$(pwd -P)"
+        cd "$SCRIPT_DIR" || exit 1
+    fi
+    if [[ -n "$RESOLVED_MAIN" && "$RESOLVED_MAIN" != "$MAIN_TREE" ]]; then
+        echo -e "${YELLOW}Running a worktree's copy of this script.${RESET}"
+        echo -e "${YELLOW}Main tree is $RESOLVED_MAIN, not $MAIN_TREE.${RESET}"
+        MAIN_TREE="$RESOLVED_MAIN"
+    fi
+fi
+
 # Auto-detect: if run from inside an existing worktree with no args, set up in-place
 if [[ -z "$BRANCH" ]]; then
     # Check if we're inside a git worktree (not the main tree)
@@ -268,6 +290,21 @@ if [[ "$WORKTREE_PATH" == "$MAIN_TREE"/* && "$WORKTREE_PATH" != "$MAIN_TREE"/.wo
     echo -e "${RED}Error: refusing to create a worktree inside the main tree at${RESET}"
     echo -e "  $WORKTREE_PATH"
     echo -e "Use ${CYAN}.worktrees/<name>${RESET} (the default), or a path outside $MAIN_TREE."
+    exit 1
+fi
+
+# Guard: the worktree must never be the main tree. The lib/ step rm -rf's each
+# real submodule and replaces it with a symlink into MAIN_TREE, so if the two
+# resolve to one path it deletes the content and links each entry to itself.
+# Both are resolved with -P so a symlinked path cannot slip past the compare.
+if [[ -e "$WORKTREE_PATH" ]] \
+   && [[ "$(cd "$MAIN_TREE" && pwd -P)" == "$(cd "$WORKTREE_PATH" && pwd -P)" ]]; then
+    echo -e "${RED}Error: the worktree path and the main tree are the same directory:${RESET}"
+    echo -e "  $(cd "$MAIN_TREE" && pwd -P)"
+    echo -e "Setting up a worktree on top of itself would delete lib/ and replace"
+    echo -e "each entry with a symlink to the path it just removed."
+    echo -e "Run this from the main tree naming a branch, or from inside a real"
+    echo -e "worktree with ${CYAN}--setup-only${RESET} and no branch argument."
     exit 1
 fi
 
@@ -334,8 +371,7 @@ link_lib_from_main() {
 
     # Get list of submodules in lib/
     SUBMODULES=$(git -C "$MAIN_TREE" config --file .gitmodules --get-regexp path | grep "^submodule\." | awk '{print $2}' | grep "^lib/")
-    # Also include non-submodule files in lib/
-    LIB_ITEMS=("tuibox.h" "mdns")
+    # Also include non-submodule files in lib/ (LIB_NON_SUBMODULE_ITEMS, above)
 
     # Ensure lib/ directory exists
     mkdir -p "$WORKTREE_PATH/lib"
@@ -362,7 +398,7 @@ link_lib_from_main() {
     done
 
     # Symlink non-submodule items
-    for item in "${LIB_ITEMS[@]}"; do
+    for item in "${LIB_NON_SUBMODULE_ITEMS[@]}"; do
         MAIN_ITEM="$MAIN_TREE/lib/$item"
         WORKTREE_ITEM="$WORKTREE_PATH/lib/$item"
 
@@ -737,9 +773,29 @@ mkdir -p "$(dirname "$EXCLUDE_FILE")"
 
 # Items to exclude (symlinks we created + build artifacts)
 # Note: We exclude lib/* specifically because lib/ itself is a real directory
+#
+# lib/* hides the symlinks, but it would also hide the entries under lib/ that
+# carry tracked content, so each of those is negated back in. Git cannot
+# re-include a path whose parent directory is excluded, so the negation has to
+# name the directory itself, not the files inside it.
+#
+# lib/mdns is negated with a TRAILING SLASH, which matches directories only.
+# In the main tree it is a real directory and the negation applies, so tracked
+# content there stays visible. In a worktree the path is a symlink, the
+# negation does not apply, and lib/* keeps it hidden — otherwise every worktree
+# reports a permanent `?? lib/mdns` for a symlink this script created. That
+# stray entry is what `git add -A` once swept onto main as a blob replacing the
+# tracked directory (restored in 3b0a8491b). lib/tuibox.h needs no such care:
+# its symlink sits at the tracked path itself, and a path in the index is never
+# reported as untracked.
 EXCLUDES=(
     "# HelixScreen worktree setup - auto-generated excludes"
     "lib/*"
+    "!lib/helix-xml"
+    "!lib/mdns/"
+    "!lib/minilzo"
+    "!lib/quirc"
+    "!lib/tuibox.h"
     "node_modules"
     ".venv"
     "build/"
@@ -747,9 +803,18 @@ EXCLUDES=(
     ".fonts.stamp"
 )
 
-# Add excludes if not already present
+# Drop a legacy slashless "!lib/mdns", which would re-expose the worktree
+# symlink and defeat the "!lib/mdns/" line below.
+if [[ -f "$EXCLUDE_FILE" ]] && grep -qxF '!lib/mdns' "$EXCLUDE_FILE"; then
+    EXCLUDE_TMP=$(mktemp)
+    grep -vxF '!lib/mdns' "$EXCLUDE_FILE" > "$EXCLUDE_TMP" && mv "$EXCLUDE_TMP" "$EXCLUDE_FILE"
+    echo -e "  ${YELLOW}replaced legacy !lib/mdns with !lib/mdns/${RESET}"
+fi
+
+# Add excludes if not already present. Match whole lines: a substring test
+# reports "!lib/mdns/" as already present when only "lib/mdns" is there.
 for exclude in "${EXCLUDES[@]}"; do
-    if ! grep -qF "$exclude" "$EXCLUDE_FILE" 2>/dev/null; then
+    if ! grep -qxF "$exclude" "$EXCLUDE_FILE" 2>/dev/null; then
         echo "$exclude" >> "$EXCLUDE_FILE"
     fi
 done

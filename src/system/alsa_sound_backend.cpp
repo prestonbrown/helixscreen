@@ -4,6 +4,8 @@
 
 #include "alsa_sound_backend.h"
 
+#include "alsa_clock_keepalive.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -156,6 +158,33 @@ bool ALSASoundBackend::initialize(const std::string& device) {
                  sample_rate_, channels_, period_size_, buffer_size,
                  use_s16_ ? "S16_LE" : "FLOAT_LE");
 
+    // Decide once whether this sink can tolerate the idle park. An HDMI/SPDIF
+    // receiver mutes itself while it re-locks a restarted clock (0.5-1.0 s
+    // measured, #1337), which is longer than every UI sound we play, so the
+    // park has to be suppressed there. Ask the driver for its own PCM name as
+    // well as matching the caller's device string: `hw:1,0` hides an HDMI sink
+    // that the driver still calls "hdmi ...".
+    std::string pcm_name;
+    {
+        snd_pcm_info_t* info = nullptr;
+        snd_pcm_info_alloca(&info);
+        if (snd_pcm_info(pcm_, info) >= 0) {
+            if (const char* n = snd_pcm_info_get_name(info))
+                pcm_name = n;
+        }
+    }
+    keep_clock_alive_ = helix::audio::device_needs_clock_keepalive(device, pcm_name);
+    if (const char* env = std::getenv("HELIX_ALSA_KEEPALIVE"); env && env[0] != '\0') {
+        const bool forced = (env[0] != '0');
+        if (forced != keep_clock_alive_)
+            spdlog::info("[ALSASound] HELIX_ALSA_KEEPALIVE={} overrides detection ({})", env,
+                         keep_clock_alive_ ? "keep-alive" : "park");
+        keep_clock_alive_ = forced;
+    }
+    spdlog::info("[ALSASound] Idle behaviour: {} (device '{}', pcm '{}')",
+                 keep_clock_alive_ ? "keep clock running (sink re-locks)" : "park when idle",
+                 device, pcm_name);
+
     // Allocate scratch buffer for mixing
     mix_buf_.resize(period_size_);
 
@@ -270,6 +299,14 @@ void ALSASoundBackend::set_filter(const std::string& type, float cutoff) {
 }
 
 void ALSASoundBackend::suspend() {
+    if (keep_clock_alive_) {
+        // Never stop the clock on a sink that re-locks. The render thread keeps
+        // writing silence, which is exactly what this backend did before
+        // v0.99.114 and what kept the receiver locked; parking here is what
+        // made every short UI sound inaudible (#1337). resume() is then a no-op
+        // too, since suspended_ never becomes true.
+        return;
+    }
     if (suspended_.exchange(true))
         return;
     // Deliberately no snd_pcm_* here — see the header. The render thread drops
@@ -334,6 +371,15 @@ void ALSASoundBackend::render_loop() {
             // before parking. On a stream that never started (PREPARED)
             // drain returns immediately.
             if (pcm_) {
+                // A sound shorter than the start threshold never started the
+                // stream, and drain on a PREPARED stream is a no-op, so its
+                // audio would be discarded by the prepare() below. Start it so
+                // drain actually plays it.
+                if (needs_start_before_drain(snd_pcm_state(pcm_), wrote_since_prepare_)) {
+                    int serr = snd_pcm_start(pcm_);
+                    if (serr < 0)
+                        spdlog::debug("[ALSASound] start before drain: {}", snd_strerror(serr));
+                }
                 int err = snd_pcm_drain(pcm_);
                 if (err < 0)
                     spdlog::debug("[ALSASound] drain on park: {}", snd_strerror(err));
@@ -347,8 +393,10 @@ void ALSASoundBackend::render_loop() {
             }
             if (!running_.load(std::memory_order_relaxed))
                 break;
-            if (pcm_)
+            if (pcm_) {
                 snd_pcm_prepare(pcm_);
+                wrote_since_prepare_ = false;
+            }
         }
 
         std::memset(mix_buf_.data(), 0, frames * sizeof(float));
@@ -434,6 +482,9 @@ void ALSASoundBackend::render_loop() {
 
         snd_pcm_sframes_t written =
             snd_pcm_writei(pcm_, write_buf, static_cast<snd_pcm_uframes_t>(frames));
+        if (written > 0) {
+            wrote_since_prepare_ = true;
+        }
         if (written < 0) {
             written = recover_xrun(written);
             if (written < 0) {
@@ -469,6 +520,7 @@ snd_pcm_sframes_t ALSASoundBackend::recover_xrun(snd_pcm_sframes_t err) {
             last_xrun_log_ = now;
         }
         int ret = snd_pcm_prepare(pcm_);
+        wrote_since_prepare_ = false;
         if (ret < 0) {
             spdlog::error("[ALSASound] Cannot recover from underrun: {}", snd_strerror(ret));
             return static_cast<snd_pcm_sframes_t>(ret);
@@ -508,6 +560,10 @@ void ALSASoundBackend::float_to_s16(const float* src, int16_t* dst, size_t sampl
     for (size_t i = 0; i < sample_count; ++i) {
         dst[i] = static_cast<int16_t>(std::clamp(src[i], -1.0f, 1.0f) * 32767.0f);
     }
+}
+
+bool ALSASoundBackend::needs_start_before_drain(snd_pcm_state_t state, bool wrote_since_prepare) {
+    return state == SND_PCM_STATE_PREPARED && wrote_since_prepare;
 }
 
 #endif // HELIX_HAS_ALSA

@@ -167,6 +167,23 @@ bool AmsBackendAd5xIfs::owns_filament_sensor(const std::string& bare_name,
            bare_name.rfind("_ifs_motion_sensor_", 0) == 0;
 }
 
+std::vector<std::string>
+AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
+    // Colors, types and the tool mapping. Present on every AD5X.
+    std::vector<std::string> objects{"save_variables"};
+
+    // ZMOD publishes the IFS state as real Klipper objects from
+    // ghzserg/z_ad5x#12 onward. Klipper's objects/list only carries objects
+    // that implement get_status(), so listing them IS the capability check.
+    const auto& available = hw.printer_objects();
+    for (const char* name : {"zmod_ifs", "zmod_color"}) {
+        if (std::find(available.begin(), available.end(), name) != available.end()) {
+            objects.emplace_back(name);
+        }
+    }
+    return objects;
+}
+
 // --- Lifecycle ---
 
 void AmsBackendAd5xIfs::on_started() {
@@ -249,6 +266,12 @@ void AmsBackendAd5xIfs::on_started() {
                    // phase tracker (HEATING completion). Without this the IFS
                    // unload silently heats for ~2.5 min with no feedback.
                    {"extruder", json::array({"target", "temperature"})},
+                   // Native ZMOD's own IFS objects, on firmware that publishes
+                   // them (ghzserg/z_ad5x#12). Moonraker drops objects this
+                   // printer does not have, which is how every other
+                   // mutually-exclusive pair in this list already works.
+                   {"zmod_ifs", nullptr},
+                   {"zmod_color", nullptr},
                    // Klippy state — GET_ZCOLOR SILENT=1 only works once zmod is
                    // initialised, so we gate the initial query on webhooks.state == "ready".
                    {"webhooks", nullptr}}}},
@@ -603,6 +626,16 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     if (repair_staged) {
         dispatch_ifs_vars_repair();
     }
+
+    // Native ZMOD's pushed IFS state, on firmware that has it. Same keys the
+    // IFS_STATUS / GET_ZCOLOR responses carry, so it lands through the same
+    // apply path with no second parser. Additive on purpose: the macro and
+    // Adventurer5M.json paths still run, because FFMInfo.channel adoption
+    // (the seated-lane authority, #1065 Bug 3) is head-gated inside
+    // parse_adventurer_json and has no equivalent here yet. Retiring those
+    // polls is prestonbrown/helixscreen#1344's second half, and wants a rig
+    // running the released firmware to prove equivalence first.
+    apply_zmod_status_objects(*status);
 
     // No AD5X-specific plugin subjects to publish: the auto-switchover state is
     // now carried by the backend-neutral `ams_endless_state` / `ams_endless_text`
@@ -1408,6 +1441,25 @@ void AmsBackendAd5xIfs::publish_external_spool_lane(const SlotInfo* spool) {
         return;
     }
     helix::ams::publish_external_lane(override_store_.get(), NUM_PORTS, spool, backend_log_tag());
+}
+
+helix::FirmwareRouting AmsBackendAd5xIfs::firmware_default_routing() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Native zMod publishes no table at all. Reporting one full of -1 would
+    // strand every tool unresolved, so answer the majority shape instead.
+    if (!has_ifs_vars_) {
+        return helix::FirmwareRouting::identity();
+    }
+
+    helix::FirmwareRouting routing;
+    routing.head_for_tool.reserve(static_cast<size_t>(TOOL_MAP_SIZE));
+    for (int t = 0; t < TOOL_MAP_SIZE; ++t) {
+        const int port = tool_map_[static_cast<size_t>(t)]; // 1-based; 5 = unmapped
+        routing.head_for_tool.push_back(port >= 1 && port <= NUM_PORTS ? port - 1 : -1);
+    }
+    routing.fallback_head = -1; // tools past the table have no port
+    return routing;
 }
 
 AmsSystemInfo AmsBackendAd5xIfs::get_system_info() const {
@@ -4220,6 +4272,151 @@ void AmsBackendAd5xIfs::finalize_zcolor_response() {
     }
 }
 
+void AmsBackendAd5xIfs::read_ifs_status_object(const json& obj, ZColorSilentResult& result) {
+    // Chan and Ports are read independently. The gcode path only ever calls
+    // this on a line that already contains "Chan", but a subscription delivers
+    // Moonraker's diff: a frame where only the silk sensors moved carries Ports
+    // and no Chan, and requiring Chan would drop the presence update on the
+    // floor.
+    if (auto chan_it = obj.find("Chan"); chan_it != obj.end() && chan_it->is_number_integer()) {
+        result.ifs_chan = chan_it->get<int>();
+        result.saw_valid_response = true;
+    }
+
+    // Per-port presence: the RS-485 silk switch for port i+1, and the presence
+    // authority in apply_zcolor_result — which is what makes empty-channel
+    // resurrection from a stale ffmColor impossible (#981). All or nothing: one
+    // non-boolean entry discards the array rather than inventing a value for
+    // that port.
+    auto ports_it = obj.find("Ports");
+    if (ports_it == obj.end() || !ports_it->is_array() || ports_it->size() != NUM_PORTS) {
+        return;
+    }
+    std::array<bool, NUM_PORTS> ports{};
+    for (int p = 0; p < NUM_PORTS; ++p) {
+        const auto& v = (*ports_it)[static_cast<size_t>(p)];
+        if (!v.is_boolean()) {
+            return;
+        }
+        ports[static_cast<size_t>(p)] = v.get<bool>();
+    }
+    result.ifs_ports = ports;
+    result.saw_valid_response = true;
+}
+
+bool AmsBackendAd5xIfs::read_zmod_color_object(const json& obj, ZColorSilentResult& result,
+                                               std::optional<int>& channel) {
+    // The bool behind the "IFS: True" field of the GET_ZCOLOR summary line.
+    if (auto ifs_it = obj.find("ifs"); ifs_it != obj.end() && ifs_it->is_boolean()) {
+        result.ifs_active = ifs_it->get<bool>();
+        result.saw_valid_response = true;
+    }
+    // FFMInfo.channel, the same value parse_adventurer_json() reads. Handed
+    // back rather than applied: adopting it as the seated lane is head-gated
+    // (#1065 Bug 3) and that gate lives in the file path for now.
+    if (auto chan_it = obj.find("channel"); chan_it != obj.end() && chan_it->is_number_integer()) {
+        channel = chan_it->get<int>();
+    }
+
+    auto slots_it = obj.find("slots");
+    if (slots_it == obj.end() || !slots_it->is_array()) {
+        return false;
+    }
+    bool saw_slot = false;
+    for (const auto& entry : *slots_it) {
+        if (!entry.is_object()) {
+            continue;
+        }
+        // ID is the 1-based slot number, emitted as a string (str(i) in the
+        // module) but accepted either way — this is somebody else's schema.
+        auto id_it = entry.find("ID");
+        if (id_it == entry.end()) {
+            continue;
+        }
+        int id = 0;
+        if (id_it->is_number_integer()) {
+            id = id_it->get<int>();
+        } else if (id_it->is_string()) {
+            try {
+                id = std::stoi(id_it->get<std::string>());
+            } catch (...) {
+                continue;
+            }
+        } else {
+            continue;
+        }
+        if (id < 1 || id > NUM_PORTS) {
+            continue;
+        }
+        ZColorSlot slot;
+        if (auto mat = entry.find("Material"); mat != entry.end() && mat->is_string()) {
+            slot.material = mat->get<std::string>();
+            // Firmware-native unset sentinel, same one ffmType carries in
+            // Adventurer5M.json (parse_adventurer_json normalizes it there).
+            // A live 1.7.2-37 frame returns Material "?" with HEX "" for every
+            // lane that has no assigned material; passed through it renders as
+            // a literal "?" where the UI should show "--".
+            if (slot.material == "?") {
+                slot.material.clear();
+            }
+        }
+        if (auto hex = entry.find("HEX"); hex != entry.end() && hex->is_string()) {
+            slot.hex = hex->get<std::string>();
+        }
+        result.slots[static_cast<size_t>(id - 1)] = std::move(slot);
+        saw_slot = true;
+    }
+    if (saw_slot) {
+        result.saw_valid_response = true;
+        // Counts as silent content: a firmware that publishes these objects at
+        // all is far past the prompt-only zmod the demotion in #981 exists for,
+        // so a status frame must not leave GET_ZCOLOR marked unsupported.
+        result.saw_silent_content = true;
+    }
+    return saw_slot;
+}
+
+bool AmsBackendAd5xIfs::apply_zmod_status_objects(const json& status) {
+    ZColorSilentResult result;
+    std::optional<int> ffm_channel;
+    bool saw_object = false;
+
+    if (auto it = status.find("zmod_ifs"); it != status.end() && it->is_object()) {
+        read_ifs_status_object(*it, result);
+        saw_object = true;
+
+        // Re-supply an omitted Chan from the last frame that carried one: a
+        // diff frame leaves out what did not change, and dropping the field
+        // would drop the presence update riding with it.
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (result.ifs_chan.has_value()) {
+            zmod_last_chan_ = *result.ifs_chan;
+        } else if (result.ifs_ports.has_value() && zmod_last_chan_.has_value()) {
+            result.ifs_chan = *zmod_last_chan_;
+        }
+    }
+    if (auto it = status.find("zmod_color"); it != status.end() && it->is_object()) {
+        read_zmod_color_object(*it, result, ffm_channel);
+        saw_object = true;
+    }
+    if (!saw_object) {
+        return false;
+    }
+
+    if (!zmod_status_live_.exchange(true)) {
+        spdlog::info("{} Native ZMOD IFS status objects are live — IFS state now arrives by "
+                     "subscription instead of IFS_STATUS/GET_ZCOLOR polling",
+                     backend_log_tag());
+    }
+
+    // A frame that changed nothing we read (State ticking, say) is not a reason
+    // to re-run the whole apply path.
+    if (result.saw_valid_response) {
+        apply_zcolor_result(result);
+    }
+    return true;
+}
+
 void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
     // IFS_STATUS "Chan" is the seated-channel authority and rides the same
     // response buffer as clean JSON (respond_info, not a prompt dialog). Apply
@@ -4780,42 +4977,24 @@ AmsBackendAd5xIfs::parse_zcolor_silent(const std::vector<std::string>& lines, co
         try {
             json obj = json::parse(body);
             if (obj.is_object()) {
-                auto chan_it = obj.find("Chan");
-                if (chan_it != obj.end() && chan_it->is_number_integer()) {
-                    result.ifs_chan = chan_it->get<int>();
-                    result.saw_valid_response = true;
+                const bool had_chan = result.ifs_chan.has_value();
+                read_ifs_status_object(obj, result);
+                if (!had_chan && result.ifs_chan.has_value()) {
                     // Diagnostic: log the seated channel + presence view so the
                     // next field bundle proves Chan's loaded-idle behavior.
                     // safe_int, not .value(): the catch below is parse_error
                     // only, so a line like {"Chan":1,"State":null} would throw
                     // type_error.302 straight past it — breaking the promise
-                    // that comment makes. Every other read in this block is
-                    // already find + is_*() guarded; this was the lone gap.
-                    int state = helix::json_util::safe_int(obj, "State", -1);
+                    // that comment makes. Every other read here is already
+                    // find + is_*() guarded; this was the lone gap.
                     std::string ports_str;
-                    if (auto ports_it = obj.find("Ports"); ports_it != obj.end() &&
-                                                           ports_it->is_array() &&
-                                                           ports_it->size() == NUM_PORTS) {
+                    if (auto ports_it = obj.find("Ports");
+                        ports_it != obj.end() && ports_it->is_array()) {
                         ports_str = ports_it->dump();
-                        // Capture the per-port presence as the sensor-backed
-                        // authority (not just a diagnostic). Each entry is the
-                        // RS-485 silk switch for port i+1.
-                        std::array<bool, NUM_PORTS> ports{};
-                        bool ok = true;
-                        for (int p = 0; p < NUM_PORTS; ++p) {
-                            const auto& v = (*ports_it)[static_cast<size_t>(p)];
-                            if (!v.is_boolean()) {
-                                ok = false;
-                                break;
-                            }
-                            ports[static_cast<size_t>(p)] = v.get<bool>();
-                        }
-                        if (ok) {
-                            result.ifs_ports = ports;
-                        }
                     }
                     spdlog::info("[AMS AD5X-IFS] IFS_STATUS trigger={} Chan={} State={} Ports={}",
-                                 reason, *result.ifs_chan, state, ports_str);
+                                 reason, *result.ifs_chan,
+                                 helix::json_util::safe_int(obj, "State", -1), ports_str);
                 }
             }
         } catch (const json::parse_error&) {

@@ -250,8 +250,7 @@ The `core file size = 0` means **no automatic core dumps** for crash analysis
 - Vendor toolchain naming: `mips-linux-gnu-gcc`
 - Build flag: `-DHELIX_PLATFORM_AD5X`
 - Release asset: `helixscreen-ad5x.zip` (per `release_info.json`)
-- Manifest currently omits the `.zip` for K1/AD5X — see ROADMAP
-  "K1/AD5X zip workaround", revert by 1.0
+- Manifest currently omits the `.zip` for K1/AD5X — revert by 1.0
 
 ## Installer Caveats
 
@@ -303,3 +302,359 @@ dmesg | grep -iE 'sigbus|h264|v4l|bus error|alignment'
 | no core dumps | `ulimit -c = 0` by default; rely on `crash.txt` only |
 | no ASAN | Insufficient memory for ASAN-instrumented build; can't reproduce here |
 | webcam discovery probes | Wasted RPC even though widget is gated (fix pending) |
+
+## Helix Rig Observations (2026-08-24, our own AD5X)
+
+First-party rig commissioned 2026-08-23: ZMOD 1.7.2 (full variant) on a
+factory-restored **stock base 1.1.7** (the unit shipped on 3.1.4 — above ZMOD's
+discrete supported list, which tops out at 3.1.0; the required path is restore
+DOWN, never update up). MCU is the **stock Klipper 12 blob**
+(`stm32f103xe`, `20241125_172251`); `klipper13=0` in the ZMOD variables. Commissioning
+traps (USB-stick re-trigger, empty `/opt`, port signature) are recorded in
+`docs/devel/printers/FLASHFORGE_AD5X_SUPPORT.md`.
+
+### Network / SSH
+
+- Address **192.168.1.66** (main LAN). The earlier "SSH stalls at banner exchange"
+  puzzle was **IOT-segment-specific** — from the main LAN the dropbear handshake
+  completes in ~22 ms with key auth. Whatever mangles it lives on the 192.168.30.x
+  VLAN, not the printer.
+- Port sweep from the main LAN shows **all four ports open** (22, 80, 7125, 8899) —
+  8899 open deviates from the "ZMOD closes 8899" signature claimed at commissioning
+  time; do not treat 8899 as a stock-vs-ZMOD discriminator without re-checking.
+- `scp` needs `-O` or `cat`-over-ssh (no `sftp-server`, confirmed).
+
+### Moonraker surface (live-verified)
+
+- The WebSocket endpoint is **`ws://<host>:7125/websocket` only**. Port 80 is
+  `Zmod httpd/1.1.0` and serves the Fluidd SPA for **every** path — a WS handshake
+  sent to port 80 gets `200 OK` + the SPA HTML, not a protocol error.
+- **`objects/query` returns success-with-empty-status for objects that do not
+  exist** (`mod_params`, `zmod_ifs`, `zmod_color` all "answer" while absent from
+  `objects/list`). A query response is therefore never proof of object presence;
+  `objects/list` is the presence check. Matters for any capability-detection code.
+- 269 objects registered. Present and confirmed: `SAVE_ZMOD_DATA` (macro),
+  `SET_EXTRUDER_SLOT` (macro), `zmod_ifs_switch_sensor head_switch_sensor`,
+  `zmod_ifs_motion_sensor ifs_motion_sensor`, `fan_generic fanM106`,
+  `filament_switch_sensor head_switch_sensor`. Absent: `SET_MOD` (Forge-X-only —
+  our Forge-X provider row cannot misfire here).
+- `save_variables.variables` is ZMOD's **flat mod-param dict** (41 keys observed:
+  `klipper13`, `load_zoffset`, `helix`, `guppy`, `fix_e0011`, `fix_e0017`,
+  `china_cloud`, `display_off_timeout`, …). The `gcode_offsets.z` key our
+  z-offset provider reads appears **only after a z-offset has actually been
+  saved** — a freshly commissioned rig legitimately has none.
+- Klippy `Stats` lines are **single-line with inline `mcu:` / `eboard:`
+  sections** — per-MCU lines do not start at column 0 (`grep '^mcu @'` finds
+  nothing; parse inline). Spool-weight data shows up as Stats fields
+  (`filamentValue: temp=`, `cutValue: temp=`, `weightValue: temp=840.0` — grams
+  masquerading as a temperature) but there is **no `weightValue` object** in
+  `objects/list`, so the printer-DB heuristic keyed on it will not match;
+  the higher-confidence signals (`zmod_ifs`, hostname, `SET_EXTRUDER_SLOT`)
+  carry detection.
+
+### Klipper-12 retransmit baseline (control arm for the TTC investigation)
+
+163 Stats lines over a ~70-minute idle session:
+
+| MCU | bytes_retransmit | Notes |
+|-----|------------------|-------|
+| `mcu` | flat **9** | boot-time only, never moved |
+| `eboard` | **≤ 9** | 103 samples at 0, 60 at 9 after one blip |
+
+Compare the incident rigs (both on **forced Klipper 13**, one of them cold-start
+idle at 581 s uptime): `eboard bytes_retransmit=50, retransmit_seq=542` against
+`mcu=9` — the eboard 5x noisier than the main MCU. On Klipper 12 the eboard
+matches or beats the mcu. The noisy-eboard signature appears **only on
+Klipper 13**; this is the strongest evidence short of deliberately forcing 13
+on the rig (deliberately not done).
+
+### Gcode transport test (wedge check)
+
+The commissioning-session report "any gcode macro POSTed to
+`/printer/gcode/script` wedges Moonraker ~40 s" **did not reproduce** on the
+rig's current state (post config-reload, main LAN, 2026-08-24):
+
+| Phase | Command RTT | Worst `server.info` RTT after |
+|-------|-------------|-------------------------------|
+| WS macro `GET_ZCOLOR SILENT=1` | 20 ms | **7.4 ms** over 60 s |
+| WS plain `M105` | 14.5 ms | 1374 ms — one blip ~16 s after, recovered in ~6 s, unattributed |
+| HTTP POST macro | 0.0 s (immediate) | 14 ms over 75 s |
+
+Baseline RTT was 4-7 ms throughout. Nothing approaches a 40 s wedge on either
+transport. The `IFS_STATUS` follow-up (the large-`respond_info` macro our IFS
+backend polls) was also clean: worst 10 ms over WS, 8 ms during the HTTP phase.
+Treat the 40 s wedge as **unconfirmed on current firmware state**, not as an
+operating assumption. Probable root cause of the original report: the commissioning
+observations were made over the **wifi path (192.168.30.254), which drops ~21.7%
+of packets** (ethernet: 0%) — tens of seconds of TCP retransmit stall on a lossy
+link presents exactly like a "wedged" Moonraker. Same failure family as the
+IOT-segment SSH banner stall: segment, not printer.
+
+### Restart mechanics + get_status patch validation (2026-08-24)
+
+**Moonraker's `POST /printer/restart` returns `{"result":"ok"}` but does NOT
+restart klippy on this rig** — klippy is PPID 1 (orphaned by the FlashForge boot
+chain, not Moonraker-supervised) and continues running with old bytecode.
+The only verified restart is a full `reboot` over SSH (a few seconds of grace,
+then ~40 s down, klippy ready ~40 s later; verify by PID change — 1664 → 1669 —
+never by the endpoint response). Also: `python3 -m py_compile` **writes
+`__pycache__` itself**, so pyc mtimes after your own compile prove nothing about
+what klippy imported. Post-reboot, SSH key auth was dropped (password `root`
+via sshpass works).
+
+**get_status() patch validated on-rig** (upstream handoff candidate; the mod
+source has no public git — these files ship only in zmod release tarballs, so
+the patch is handed to ghzserg directly; **filed 2026-08-24 as
+ghzserg/zmod#699** with the patch inline, from Preston's account). Patch adds `get_status()` to
+`zmod_ifs` + `zmod_color` (extras install as symlinks from
+`klippy/extras/` to `/usr/data/config/mod/.shell/`; deploy = replace the .shell
+targets; backups `/usr/data/*.pre-getstatus.bak`). After a real reboot:
+`objects/list` includes both; `objects/query` returns full live status
+(`zmod_ifs`: available/color_limit/RawData/State/Ports/Silk/Chan/Insert/
+NeedInsert/Stall/stall_state; `zmod_color`: ifs/display/color_limit/
+valid_types/extruder_sensor/channel/slots[]); `objects/subscribe` delivers
+correct initial snapshots and Moonraker's diff-based updates behave (no frames
+on an idle rig — expected). 40 s soak at 4 Hz subscription: zero errors. The
+patch also fixes an upstream boot-window bug: `IfsData.__init__` wrote
+`LastResponseRaw` while `get_values()` reads `lastResponseRaw`, so `IFS_STATUS`
+raised `AttributeError` before the first F13 poll on stock 1.7.2. Note: a ZMOD
+update overwrites these files; the rig carries the patch until then.
+
+**Because of this patch, the rig answers capability questions that NO user's
+printer answers** (`zmod_ifs`/`zmod_color` in `objects/list`, queryable status
+where stock returns nothing). Any capability claim verified on this rig MUST be
+checked in BOTH states - patched, and restored from the `.pre-getstatus.bak`
+backups - before it becomes a claim about AD5X behavior. A finding that passes
+only on this box is a patched-rig artifact and will fail for every real owner.
+This matters doubly for the IFS tool-mapping echo question, where our shipped
+finding is that AD5X does NOT echo the mapping - the patch could silently
+invert that. **Executed 2026-08-24 for the three core claims** - with stock
+extras restored (md5-verified pristine, fresh boot), auto-detection still
+matched and persisted `FlashForge Adventurer 5X`, the ZMOD z-offset provider
+still activated (`[ZOffset] Enabling firmware z-offset persistence (ZMOD)`),
+and the AD5X IFS backend still created and started. All three hold on stock;
+the patched state was then restored (md5-verified, fresh boot, objects live).
+The tool-mapping echo question has NOT yet been dual-state checked - it needs
+loaded spools to test meaningfully.
+
+### HelixScreen end-to-end on the rig (2026-08-24)
+
+Desktop build (SDL dummy, isolated `HELIX_CONFIG_DIR`, pinned `--remote-socket`)
+against the live printer — the first time AD5X support has run on real hardware:
+
+- **Auto-detection works**: with the printer type unset, the heuristic chain
+  matched and persisted `FlashForge Adventurer 5X` (zmod_ifs sensors, hostname
+  `flashforge`, `SET_EXTRUDER_SLOT`, `temperature_sensor weightValue`, mips).
+- **ZMOD z-offset provider activates on hardware**: `[ZOffset] Enabling firmware
+  z-offset persistence (ZMOD)` at discovery.
+- **AD5X IFS backend runs live**: backend created + subscribed, slots 0-3
+  initialized, head-sensor events flowing, the `Adventurer5M.json` +
+  `GET_ZCOLOR SILENT=1` color-truth path executing, remote-Moonraker upload-path
+  distinction applied.
+- **Resilience exercised for free**: the rig rebooted mid-session (cause
+  unresolved — see below); the app's retry loop reconnected, auto-closed the
+  Connection Failed modal, re-ran discovery, and re-initialized the IFS backend.
+- Six minutes of logs, four warn/error lines, all benign (isolated-config
+  backup path, stale seeded sensor config, expected `Method not found` for
+  plugins this Moonraker lacks). The rig's gcodes dir contains a bare `.3mf`
+  (`FlashForge-TestModel-01.3mf`) that Moonraker cannot metascan — our
+  thumbnail fallback chain degrades gracefully.
+- Desktop runs log to **syslog** (not stdout): read via
+  `journalctl --user | grep <pid>`.
+- The rig rebooted several times this session; only two were this validation's
+  (fresh-import restarts). The rest were **other agents working the shared rig
+  concurrently** — initially misread here as unexplained reboots. The AD5X rig is
+  a shared test device: coordinate reboots/state changes across sessions, and
+  treat any unexpected rig state change as a peer's action before suspecting
+  the hardware. Note also: the on-rig helix-screen is a peer session's
+  `feat/ad5x-oobe` build of 0.99.115 (original at
+  `bin/helix-screen.0.99.107.bak`), not stock — verify which build produced any
+  on-rig UI evidence. The full 2026-08-24 reboot/outage timeline reconciles as
+  peer actions: 12:21 + 12:47 = this validation's reboots, 12:33 = Preston's
+  bench power-cycle, ~12:36 = a peer's helix-screen service restart.
+- **The "unreachable while the screen kept rendering" event is SOLVED, and it
+  was not a driver or hardware fault**: wlan0 (rtl8821cu) was administratively
+  down the entire time (and does not come back with `ip link set wlan0 up` as
+  root), so eth0 (stmmaceth) was the only live interface — and it was holding
+  an address from a manual one-shot `udhcpc -n -q` with no renewal daemon.
+  When that lease expired, eth0 kept carrier and silently lost its address:
+  the box stayed up and rendering, unreachable from the network. The
+  post-reboot state runs the firmware's own persistent
+  `/sbin/udhcpc -i eth0 -p /var/run/udhcpc.pid`, which is why it has been
+  stable since. **Durable fix worth doing: a DHCP reservation or static IP for
+  this rig** — multiple agents drive it remotely and any manual network
+  bring-up is a silent time bomb. Never use one-shot DHCP flags on it.
+- **ZMOD config bug that surfaces in our error UI**: `base_display_off.cfg:68`
+  hardcodes `BED_MESH_PROFILE LOAD=auto`, but this printer's saved profile is
+  `MESH_DATA` — every `DISPLAY_OFF` (i.e. every boot, via the display-handoff
+  chain) throws two gcode errors that land in the on-device error UI. This is
+  the source of the "bed_mesh: Unknown profile [auto]" lines in klippy startup
+  logs; it is not a missing-profile condition on our side.
+
+### Bed mesh on a freshly-modded AD5X: why `auto`, and what we do about it
+
+Expanding the `LOAD=auto` entry above with the mechanism, because the remedy and
+the open risk both follow from it.
+
+**Where the name comes from.** `auto` is not arbitrary — it is the default
+`PROFILE` of ZMOD's own `AUTO_FULL_BED_LEVEL` macro (documented in ZMOD's
+Calibrations page). So `_PREPARE_DISPLAY_OFF` is not asking for a magic profile,
+it is reloading the mesh it assumes ZMOD's leveling created. The assumption holds
+for a printer that has been levelled with ZMOD's macro and fails for one that has
+not — ours carries `MESH_DATA` from stock leveling performed before ZMOD existed
+on the box. Any freshly-modded printer is in that state until its first
+`AUTO_FULL_BED_LEVEL`.
+
+**User-side remedy: run `AUTO_FULL_BED_LEVEL` once after installing ZMOD.** It
+saves to `auto` by default and creates exactly what the handoff path reloads.
+Copying the stock profile across with `BED_MESH_PROFILE SAVE=auto` also silences
+the errors and costs no probe cycle, but hands ZMOD a mesh produced by a
+different routine without its nozzle clean — and ZMOD's `MESH_TEST` validates the
+saved mesh against a fresh centre probe and re-levels on a >=0.3 mm discrepancy.
+Prefer letting ZMOD generate the mesh it expects to own.
+
+There is no setting to point the handoff path at a different profile name;
+`AUTO_FULL_BED_LEVEL` takes `PROFILE` as a parameter but `_PREPARE_DISPLAY_OFF`
+hardcodes `auto`. Creating the profile is the only user-side fix, which is why
+this is worth an upstream report rather than a local workaround.
+
+**UNVERIFIED, and it decides how much this matters.** The macro runs
+`BED_MESH_CLEAR` *before* `BED_MESH_PROFILE LOAD=auto`. If the clear succeeds and
+the load fails, the printer may be left with no active mesh after every screen
+handover — which happens on every boot in alt-screen mode. Mitigating: `_START_PRINT`
+issues its own `BED_MESH_PROFILE LOAD={mesh}` from a configured variable, so the
+print path probably reloads something, and `PRINT_LEVELING` defaults to 0 (no
+re-mesh per print) meaning it leans on that saved profile. Nobody has checked
+`printer.bed_mesh.profile_name` after a handoff. Two red lines in the error UI and
+a silently unmeshed bed are very different bugs; this one query separates them.
+
+**VERIFIED 2026-08-24 (rig, read-only + one handover): the handover itself is
+harmless-to-idle — but the print-start path is worse than assumed.**
+- Baseline (idle, before any handover): `printer.bed_mesh.profile_name` is already
+  `''` with `MESH_DATA` saved — no mesh is ACTIVE at idle on this firmware,
+  handover or not. So `BED_MESH_CLEAR` + failing `LOAD=auto` clears nothing that
+  was in use; the "silently unmeshed bed after handover" worst case does not
+  materialize at idle. klippy survives the handover (same PID); Moonraker's
+  brief unresponsiveness right after `DISPLAY_OFF` is transient.
+- The alt-screen config (`ad5x_config_off.cfg`) contains **no
+  `BED_MESH_PROFILE LOAD` site at all** — its only BED_MESH mentions are
+  settings-menu text. The mitigation assumed above ("`_START_PRINT` reloads from
+  a configured variable") holds only for the NATIVE-screen config path
+  (`ad5x.cfg:540`, `LOAD={printer.bed_mesh.profile_name}` — which at runtime is
+  the empty name). With the default `print_leveling=0` ("don't build bed mesh on
+  each print"), an alt-screen AD5X neither builds nor loads a mesh at print
+  start unless the SLICER emits `BED_MESH_PROFILE LOAD` in the file.
+  **Verified 2026-08-24: it does not.** The rig's factory-sliced
+  `3DBenchy_PLA.3mf` (`Metadata/plate_1.gcode`, generated by
+  Orca-Flashforge 1.3.2, 2025-03-19) contains zero `BED_MESH*` commands of any
+  kind. So a fresh ZMOD AD5X in alt-screen mode genuinely prints with no mesh
+  compensation until its owner runs `AUTO_FULL_BED_LEVEL` **plus
+  `SAVE_CONFIG`** — after which the screen handover loads the `auto` profile
+  at every boot and everything works as designed (see the SAVE_CONFIG staging
+  entry above). The bootstrap gap, not the loader, is the upstream report.
+
+**Discriminating test 2026-08-24 (staged profile × klippy continuity across a
+handover): the handover does NOT restart klippy, and the staged profile
+vanishes anyway.** With klippy's eventtime clock continuous from boot through
+the `DISPLAY_OFF` (same PID, no new config banner in the log), a
+`BED_MESH_PROFILE SAVE=probe_me` staged before the handover was gone from
+`bed_mesh.profiles` after it. So both proposed mechanisms are wrong — not an
+exec-style restart (clock rules it out), and `BED_MESH_CLEAR` alone does not
+drop the saved-profile dict. Whatever discards staged state lives in the
+ZMOD-patched bed_mesh interaction during the handover chain; mechanism remains
+unestablished, but the restart theory is affirmatively ruled out. Practical
+consequence unchanged: **only `SAVE_CONFIG` persists a mesh on this box**, and
+note that a same-PID reading never proves klippy continuity by itself if a
+restart were suspected — the eventtime clock is the reliable witness.
+
+- Klippy intermittently drops console lines with
+  `gcode.py:459 _respond_raw os.write BlockingIOError (EAGAIN)` when its
+  output pipe is not drained fast enough — observed on this rig while firing
+  macros back-to-back. A dropped `// action:prompt_*` line means a dialog that
+  never renders (and, from the ws side, "empty capture" that looks like the
+  macro failed). When a dialog seems missing, check the klippy log tail for
+  the traceback before concluding the macro did not emit it.
+
+**Our side: capability question identified, deliberately NOT built yet.** If we
+ever act on this, it belongs behind the `z_offset_persistence.h` shape — a
+provider table keyed on a detection predicate, vendor names confined to one .cpp,
+answering one question:
+
+```cpp
+/// The mesh profile this firmware expects to exist, or "" when it has no such
+/// convention.
+std::string firmware_expected_mesh_profile(const PrinterDiscovery& hw);
+```
+
+The bed-mesh UI could then offer to create a missing expected profile instead of
+surfacing a raw gcode error. It is currently vendor-free (no zmod/forge/creality
+mentions anywhere in `ui_panel_bed_mesh.cpp` or `ui_bed_mesh.cpp`) and this would
+keep it that way.
+
+Not built, for three reasons: the consequence above is unverified and only one
+version of it justifies the machinery; an upstream fix would make it dead code
+encoding a convention that no longer exists; and it is one printer's observation.
+Trigger for revisiting: upstream declines, or a second reporter hits it.
+
+### RESOLVED (2026-08-24): the missing step is `SAVE_CONFIG`, and `LOAD=auto` is not a bug
+
+Ran `AUTO_FULL_BED_LEVEL` on the rig and measured each stage. This supersedes the
+open questions in the two sections above.
+
+| stage | active profile | live mesh | new errors per handover |
+|---|---|---|---|
+| before any leveling | `''` | none | 2 |
+| after `AUTO_FULL_BED_LEVEL` alone | `''` | none | 2 |
+| after `AUTO_FULL_BED_LEVEL` + `SAVE_CONFIG` | `auto` | 25 pts | 0 |
+
+**`AUTO_FULL_BED_LEVEL` alone does not persist the profile.** Klipper's
+`BED_MESH_PROFILE SAVE` stages into the pending config; only `SAVE_CONFIG` writes
+it to `printer.cfg`. Measured directly: `auto` was present in `bed_mesh.profiles`
+after the macro and absent after the next handover, so a staged-but-unsaved
+profile does not survive the transition. Note ZMOD's AD5X page:
+`NEW_SAVE_CONFIG` does NOT work on this model, plain `SAVE_CONFIG` only.
+
+*Mechanism not established.* An earlier draft of this section said the handover
+restarts klippy and that is what discards it. That was an inference, not a
+measurement — the klippy restart actually observed here was `SAVE_CONFIG`'s own
+(HTTP 503, ~50s to ready), a different event. A separate measurement on this rig
+found klippy surviving a `DISPLAY_OFF` handover **same-PID**, which argues against
+the restart explanation; the handover's own `BED_MESH_CLEAR` combined with
+staged-profile limbo is the likelier route. The table below holds either way — it
+records what was measured at each stage, not why.
+
+**This is the nastiest part of the whole thing.** `AUTO_FULL_BED_LEVEL` alone
+*looks* like it worked — the profile appears in `bed_mesh.profiles`,
+`profile_name` reads `auto`, every observable is correct. It exists in live state
+only and disappears at the next restart, with no error naming the cause. Our first
+handover test failed with `auto` apparently present; it had already been lost.
+
+**With the profile persisted, `LOAD=auto` is ghzserg's mesh-loading mechanism for
+alt-screen mode and it works.** After a handover: `profile_name == 'auto'`, a live
+25-point mesh, error count flat across the transition. So the earlier framing —
+"alt-screen prints run unmeshed" — is wrong once bootstrapped. The handover IS the
+alt-screen mesh loader.
+
+**The real defect is narrow: the fresh-install bootstrap.** A newly-modded AD5X has
+no `auto` profile, so it is both noisy and unmeshed until its owner runs
+`AUTO_FULL_BED_LEVEL` **and** `SAVE_CONFIG` — and nothing tells them the second
+step exists. Upstream ask: gate the `LOAD` on profile existence, or surface a
+bootstrap hint. Much smaller and more defensible than "your mesh loading is broken".
+
+**Probe sanity check.** The fresh mesh is consistent with the stock one, which
+rules out a probe fault and calibrates expectations for anyone reading these
+numbers later:
+
+```
+MESH_DATA  min=-5.044 max=-3.825 spread=1.219mm  5x5   (stock leveling)
+auto       min=-4.938 max=-3.778 spread=1.159mm  5x5   (ours)
+```
+
+The ~-4mm absolute offset looks alarming against a typical +/-0.2mm mesh but is
+this machine's probe-offset convention, not a fault — stock sits in the same place.
+Bed flatness spread is what matters and the two agree to within 0.06mm.
+
+**Our side: still not building `firmware_expected_mesh_profile()`.** The reasoning
+above stands and is stronger now — the upstream behaviour is correct once
+bootstrapped, so there is no capability for us to detect. If anything is ever worth
+doing here it is a first-run hint, not a provider table.

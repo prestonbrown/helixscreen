@@ -213,9 +213,35 @@ EOF
     awk '/^platform_post_stop\(\)/,/^}/' "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh" | grep -q 'helixscreen_active'
 }
 
-@test "all screen.sh patches check helixscreen_active flag" {
-    local patch_count
-    patch_count=$(grep -c 'helixscreen_active' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
-    # backlight patch, screen drawing patch, logged wrapper, unpatches, comments
-    [ "$patch_count" -ge 8 ]
+# Each patch site must consult the flag itself. A whole-file occurrence count
+# cannot say that: forgex.sh carries 16 mentions (3 of them comments), so the
+# old `-ge 8` threshold survived the removal of an entire patch site.
+#
+# awk pulls the function body rather than grep -A<N>, for the reason spelled out
+# at the pre_start test above: a fixed context window goes stale as bodies grow.
+assert_consults_flag() {
+    local fn=$1
+    local body
+    body=$(awk "/^${fn}\\(\\)/,/^\\}/" "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    [ -n "$body" ] || fail "${fn}() not found in forgex.sh — this guard is watching nothing"
+    printf '%s\n' "$body" | grep -q 'helixscreen_active' \
+        || fail "${fn}() does not consult /tmp/helixscreen_active — stock firmware will draw over HelixScreen"
+}
+
+@test "patch_forgex_screen_sh checks the helixscreen_active flag" {
+    assert_consults_flag patch_forgex_screen_sh
+}
+
+@test "patch_forgex_screen_drawing checks the helixscreen_active flag" {
+    assert_consults_flag patch_forgex_screen_drawing
+}
+
+@test "install_forgex_logged_wrapper checks the helixscreen_active flag" {
+    assert_consults_flag install_forgex_logged_wrapper
+}
+
+@test "both unpatch functions still recognise the helixscreen_active marker" {
+    # An unpatch that stops matching the marker leaves the patch applied forever.
+    assert_consults_flag unpatch_forgex_screen_sh
+    assert_consults_flag unpatch_forgex_screen_drawing
 }

@@ -387,6 +387,41 @@ void FilamentCatalogSelector::populate_type_dropdown() {
         }
     }
 
+    if (families.empty()) {
+        // The vendor dropdown offers every live Spoolman vendor (6f3e5639f),
+        // but the bundled catalog carries only 21 brands. Picking one it has
+        // never heard of — "Ambrosia", "Likesilk", most of a real Spoolman
+        // library — matches no product, and this dropdown then rendered with
+        // ZERO rows, so the material could not be set at all (K2 Plus,
+        // 2026-08-24). A firmware whitelist already backfills the same hole for
+        // backends that publish one (8ff1c582d); CFS publishes none, so nothing
+        // caught it. Offer every family the catalog knows from any brand — the
+        // type is a property of the filament, not of who sold it.
+        for (const auto& type : catalog_.all_types()) {
+            if (!type_allowed(type))
+                continue;
+            std::string family = family_of(type);
+            if (seen_family.insert(family).second)
+                families.push_back(family);
+        }
+        std::sort(families.begin(), families.end());
+    }
+
+    if (!allowed_types_ && seed_type_ && !seed_type_->empty()) {
+        // The slot's OWN material must stay selectable even when nothing above
+        // covers it, or reopening the editor silently reassigns it. Spoolman
+        // free-text materials land here: "ASA-GF" is not an Orca library type
+        // and no catalog product carries it. Skipped when a firmware whitelist
+        // is present — there the whitelist is authoritative and must not be
+        // widened by whatever a slot happens to claim.
+        const std::string seed_family_now = family_of(*seed_type_);
+        const bool dup = std::any_of(families.begin(), families.end(), [&](const std::string& f) {
+            return to_lower_copy(f) == to_lower_copy(seed_family_now);
+        });
+        if (!dup)
+            families.push_back(seed_family_now);
+    }
+
     // Seed by the FAMILY of the requested type: a host seeding "PLA-CF" wants
     // the PLA heading open, then preselect lands on the PLA-CF product.
     const std::string seed_family = seed_type_ ? family_of(*seed_type_) : std::string{};

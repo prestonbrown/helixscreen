@@ -1,18 +1,131 @@
+diff --git a/src/draw/lv_draw_private.h b/src/draw/lv_draw_private.h
+--- a/src/draw/lv_draw_private.h
++++ b/src/draw/lv_draw_private.h
+@@ -26,6 +26,23 @@
+  *      DEFINES
+  *********************/
+ 
++/**
++ * Accessors for `lv_draw_task_t.state`. Every access to that field must go
++ * through these.
++ *
++ * `state` is written by the render threads and read by the thread that
++ * dispatches and frees draw tasks, so it is the handshake that decides when a
++ * task and its layer buffer may be released. `volatile` supplies neither
++ * atomicity nor ordering in the C memory model, and a standalone
++ * `__atomic_thread_fence` pair establishes no happens-before edge unless the
++ * flag itself is accessed atomically. Carrying the release/acquire on the flag
++ * is what actually orders the render thread's pixel writes ahead of the free,
++ * and it is the only form ThreadSanitizer can model - with bare fences the
++ * free is still reported as a race against the render thread's memcpy.
++ */
++#define LV_DRAW_TASK_STATE_GET(t)    ((lv_draw_task_state_t)__atomic_load_n(&(t)->state, __ATOMIC_ACQUIRE))
++#define LV_DRAW_TASK_STATE_SET(t, s) __atomic_store_n(&(t)->state, (int)(s), __ATOMIC_RELEASE)
++
+ /**********************
+  *      TYPEDEFS
+  **********************/
+@@ -64,7 +81,11 @@
+     /* Reference to the draw unit for debug or draw context purposes */
+     lv_draw_unit_t * draw_unit;
+ 
+-    volatile int state;              /** int instead of lv_draw_task_state_t to be sure its atomic */
++    /** Cross-thread handshake flag. `int` rather than `lv_draw_task_state_t` so
++     *  the atomic builtins have a plain integer to work on. Read and written
++     *  ONLY through LV_DRAW_TASK_STATE_GET/SET - `volatile` is not what makes
++     *  this safe. */
++    volatile int state;
+ 
+     void * draw_dsc;
+ 
 diff --git a/src/draw/lv_draw.c b/src/draw/lv_draw.c
-index dc4ce2219..0cc57c4f4 100644
 --- a/src/draw/lv_draw.c
 +++ b/src/draw/lv_draw.c
-@@ -242,6 +242,9 @@ bool lv_draw_dispatch_layer(lv_display_t * disp, lv_layer_t * layer)
+@@ -114,7 +114,7 @@
+     new_task->opa = layer->opa;
+     new_task->type = type;
+     new_task->draw_dsc = (uint8_t *)new_task + LV_ALIGN_UP(sizeof(lv_draw_task_t), 8);
+-    new_task->state = LV_DRAW_TASK_STATE_WAITING;
++    LV_DRAW_TASK_STATE_SET(new_task, LV_DRAW_TASK_STATE_WAITING);
+ 
+     /*Find the tail*/
+     if(layer->draw_task_head == NULL) {
+@@ -167,7 +167,7 @@
+         }
+         if(t->preferred_draw_unit_id == LV_DRAW_UNIT_NONE) {
+             LV_LOG_WARN("the draw task was not taken by any units");
+-            t->state = LV_DRAW_TASK_STATE_FINISHED;
++            LV_DRAW_TASK_STATE_SET(t, LV_DRAW_TASK_STATE_FINISHED);
+         }
+         else {
+             lv_draw_dispatch();
+@@ -241,7 +241,10 @@
+     bool remove_task = false;
      while(t) {
          t_next = t->next;
-         if(t->state == LV_DRAW_TASK_STATE_FINISHED) {
-+            /* Acquire barrier: pairs with the render thread's release fence so all
-+             * of its pixel writes are visible before we free the task/layer. */
-+            __atomic_thread_fence(__ATOMIC_ACQUIRE);
+-        if(t->state == LV_DRAW_TASK_STATE_FINISHED) {
++        /* Acquire load: pairs with the render thread's release store of FINISHED,
++         * so every pixel write it made is visible here before we free the task
++         * and its layer buffer. */
++        if(LV_DRAW_TASK_STATE_GET(t) == LV_DRAW_TASK_STATE_FINISHED) {
              cleanup_task(t, disp);
              remove_task = true;
              if(t_prev != NULL)
-@@ -687,6 +691,9 @@ static void cleanup_task(lv_draw_task_t * t, lv_display_t * disp)
+@@ -262,10 +265,11 @@
+         /*Find a draw task with TYPE_LAYER in the layer where the src is this layer*/
+         lv_draw_task_t * t_src = layer->parent->draw_task_head;
+         while(t_src) {
+-            if(t_src->type == LV_DRAW_TASK_TYPE_LAYER && t_src->state == LV_DRAW_TASK_STATE_BLOCKED) {
++            if(t_src->type == LV_DRAW_TASK_TYPE_LAYER &&
++               LV_DRAW_TASK_STATE_GET(t_src) == LV_DRAW_TASK_STATE_BLOCKED) {
+                 lv_draw_image_dsc_t * draw_dsc = t_src->draw_dsc;
+                 if(draw_dsc->src == layer) {
+-                    t_src->state = LV_DRAW_TASK_STATE_WAITING;
++                    LV_DRAW_TASK_STATE_SET(t_src, LV_DRAW_TASK_STATE_WAITING);
+                     lv_draw_dispatch_request();
+                     break;
+                 }
+@@ -340,7 +344,7 @@
+         int32_t hor_res = lv_display_get_horizontal_resolution(lv_refr_get_disp_refreshing());
+         int32_t ver_res = lv_display_get_vertical_resolution(lv_refr_get_disp_refreshing());
+         lv_draw_task_t * t = layer->draw_task_head;
+-        if(t->state != LV_DRAW_TASK_STATE_WAITING &&
++        if(LV_DRAW_TASK_STATE_GET(t) != LV_DRAW_TASK_STATE_WAITING &&
+            t->area.x1 <= 0 && t->area.x2 >= hor_res - 1 &&
+            t->area.y1 <= 0 && t->area.y2 >= ver_res - 1) {
+             LV_PROFILER_DRAW_END;
+@@ -352,7 +356,7 @@
+     while(t) {
+         /*Find a draw task for this draw unit which is waiting and independent?*/
+         if((t->preferred_draw_unit_id == draw_unit_id || t->preferred_draw_unit_id == LV_DRAW_UNIT_NONE) &&
+-           t->state == LV_DRAW_TASK_STATE_WAITING &&
++           LV_DRAW_TASK_STATE_GET(t) == LV_DRAW_TASK_STATE_WAITING &&
+            is_independent(layer, t, draw_unit_id)) {
+             LV_PROFILER_DRAW_END;
+             return t;
+@@ -375,7 +379,8 @@
+ 
+     lv_draw_task_t * t = t_check->next;
+     while(t) {
+-        if((t->state == LV_DRAW_TASK_STATE_WAITING || t->state == LV_DRAW_TASK_STATE_BLOCKED) &&
++        lv_draw_task_state_t state = LV_DRAW_TASK_STATE_GET(t);
++        if((state == LV_DRAW_TASK_STATE_WAITING || state == LV_DRAW_TASK_STATE_BLOCKED) &&
+            lv_area_is_on(&t_check->area, &t->area)) {
+             cnt++;
+         }
+@@ -594,8 +599,9 @@
+     while(t && t != t_check) {
+         /*It's independent of finished draw tasks, and queued draw tasks of the same draw unit,
+          *so no need to check it*/
+-        if(t->state == LV_DRAW_TASK_STATE_FINISHED ||
+-           (t->state == LV_DRAW_TASK_STATE_QUEUED && t->preferred_draw_unit_id == draw_unit_id)) {
++        lv_draw_task_state_t state = LV_DRAW_TASK_STATE_GET(t);
++        if(state == LV_DRAW_TASK_STATE_FINISHED ||
++           (state == LV_DRAW_TASK_STATE_QUEUED && t->preferred_draw_unit_id == draw_unit_id)) {
+             t = t->next;
+             continue;
+         }
+@@ -687,6 +693,9 @@
          lv_layer_t * layer_drawn = (lv_layer_t *)draw_image_dsc->src;
  
          if(layer_drawn->draw_buf) {
@@ -22,3 +135,12 @@ index dc4ce2219..0cc57c4f4 100644
              int32_t h = lv_area_get_height(&layer_drawn->buf_area);
              uint32_t layer_size_byte = h * layer_drawn->draw_buf->header.stride;
  
+@@ -746,7 +755,7 @@
+     lv_draw_task_t * t = layer->draw_task_head;
+     while(t) {
+         /*Not waiting to be rendered, leave this layer while the first task is ready (i.e. not blocked)*/
+-        if(t->state != LV_DRAW_TASK_STATE_WAITING) {
++        if(LV_DRAW_TASK_STATE_GET(t) != LV_DRAW_TASK_STATE_WAITING) {
+             t = NULL;
+             break;
+         }

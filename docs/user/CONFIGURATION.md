@@ -28,6 +28,7 @@ Complete reference for HelixScreen configuration options.
 - [Cache Settings](#cache-settings)
 - [Streaming Settings](#streaming-settings)
 - [Safety Settings](#safety-settings)
+- [Notification Settings](#notification-settings)
 - [Filament Settings](#filament-settings)
 - [Filament Sensor Settings](#filament-sensor-settings)
 - [Security Settings](#security-settings)
@@ -146,7 +147,7 @@ When multiple printers are configured, the config file uses a versioned schema (
 
 Each printer entry contains all printer-specific settings (connection details, hardware selections, LED config, filament sensors, etc.). Device-level settings like WiFi and display preferences remain at the root level and are shared across all printers.
 
-> **Note:** You don't need to edit the config file manually — use the Settings > Printers UI to add and manage printers. The config file is shown here for reference.
+> **Note:** You don't need to edit the config file manually — use the Settings > Hardware & Devices > Printers UI to add and manage printers. The config file is shown here for reference.
 
 ---
 
@@ -191,7 +192,7 @@ Each printer entry contains all printer-specific settings (connection details, h
 - `1` — **Notification**: Brief toast message at the top of the screen
 - `2` — **Alert**: Full-screen modal with print stats (duration, layers, filament used) and confetti for successful prints
 
-Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Print Complete Alert** and select from the dropdown.
+Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Safety & Notifications > Print Completion Alert** and select from the dropdown.
 
 ### `disable_sound`
 **Type:** boolean
@@ -260,7 +261,7 @@ Located in the `theme` section:
 **Default:** `0`
 **Description:** Theme accent color preset. **Requires restart to take effect.**
 
-> **Note:** `preset` is a legacy dropdown-index field, and index `0` maps to Ayu — it does **not** reflect the effective default theme. The out-of-the-box default theme is **Nord**. The active theme is set by the `/display/theme` string (a theme name), not by this numeric index.
+> **Note:** `preset` is a legacy dropdown-index field, and index `0` maps to Ayu — it does **not** reflect the effective default theme. The out-of-the-box default theme is **HelixScreen**. The active theme is set by the `/display/theme` string (a theme name), not by this numeric index.
 
 | Value | Theme |
 |-------|-------|
@@ -271,18 +272,19 @@ Located in the `theme` section:
 | 4 | Dracula |
 | 5 | Everforest |
 | 6 | Gruvbox |
-| 7 | HelixScreen |
-| 8 | Kanagawa |
-| 9 | Material Design |
-| 10 | Midnight |
-| 11 | Nord (default) |
-| 12 | One Dark |
-| 13 | Rose Pine |
-| 14 | Solarized |
-| 15 | Tokyo Night |
-| 16 | Yami |
+| 7 | Hazard |
+| 8 | HelixScreen (default) |
+| 9 | Kanagawa |
+| 10 | Material Design |
+| 11 | Midnight |
+| 12 | Nord |
+| 13 | One Dark |
+| 14 | Rose Pine |
+| 15 | Solarized |
+| 16 | Tokyo Night |
+| 17 | Yami |
 
-> **Tip:** You can also browse and apply themes visually in **Settings > Appearance > Display Settings > Theme Colors**.
+> **Tip:** You can also browse and apply themes visually in **Settings > Display & Sound > Theme Colors**.
 
 ---
 
@@ -330,7 +332,7 @@ Located in the `display` section:
     "animations_enabled": true,
     "time_format": 0,
     "timezone": "UTC",
-    "theme": "nord",
+    "theme": "helixscreen",
     "rotate": 0,
     "sleep_sec": 1200,
     "sleep_while_printing": true,
@@ -368,8 +370,8 @@ Located in the `display` section:
 
 ### `theme`
 **Type:** string
-**Default:** `"nord"`
-**Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index is a legacy field. **Requires restart to take effect.** Easiest to change via **Settings > Appearance > Display Settings > Theme Colors**, which writes this value for you.
+**Default:** `"helixscreen"`
+**Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index is a legacy field. **Requires restart to take effect.** Easiest to change via **Settings > Display & Sound > Theme Colors**, which writes this value for you.
 
 ### `layout`
 **Type:** string
@@ -383,7 +385,7 @@ Located in the `display` section:
 **Type:** integer
 **Default:** `0`
 **Values:** `0`, `90`, `180`, `270`
-**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match.
+**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match. Change via **Settings > Display & Sound > Screen Rotation** (applies after restart).
 
 **Automatic detection:** On first boot, HelixScreen checks the kernel for panel orientation (e.g., `panel_orientation=upside_down` in the kernel command line). If detected, the rotation is applied immediately and saved here — no manual configuration needed. On framebuffer displays only (e.g., AD5M — **not** Raspberry Pi), an interactive rotation wizard runs instead if no kernel hint is found.
 
@@ -520,7 +522,6 @@ Located in the `input` section:
     "scroll_throw": 25,
     "scroll_limit": 10,
     "long_press_time": 500,
-    "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
     "home_edit_mode_enabled": true,
@@ -584,18 +585,7 @@ Matches LVGL's native default of 10.
 **Example:** `["002c:261a"]`
 **Description:** USB input devices that HelixScreen ignores entirely for keyboard and barcode-scanner input. Each entry is a `"vid:pid"` pair of lowercase 4-digit hex IDs. Use this when a USB barcode scanner enumerates as a plain HID keyboard and HelixScreen keeps claiming it — for example when an external tool like `afc-spool-scan` needs exclusive access to the scanner. A blacklisted device is skipped by both the persistent keyboard binding and the in-app scan overlay, but still appears in the Barcode Scanner settings device list so you can identify it.
 
-**Finding a device's VID:PID:** Open **Settings > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
-
-### `jitter_threshold`
-**Type:** integer
-**Default:** `5`
-**Range:** `0` - `30`
-**Description:** Touch jitter filter dead zone in pixels. Capacitive touch controllers (notably Goodix GT9xx on FlashForge displays) report 2–5 px of coordinate drift even with a stationary finger. Without filtering, that drift accumulates past `scroll_limit` and a stationary tap gets cancelled as if it were a scroll. The filter freezes reported coordinates to the initial press point while movement stays within this radius.
-
-- **Raise** if stationary taps are still being misread as swipes or scrolls on a noisy panel (typical fix: 15–25).
-- **Lower / 0** if the filter is suppressing intentional short-travel gestures.
-
-Can also be overridden with the `HELIX_TOUCH_JITTER` environment variable.
+**Finding a device's VID:PID:** Open **Settings > Hardware & Devices > Spoolman > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
 
 ### `scroll_guard`
 **Type:** boolean
@@ -914,7 +904,7 @@ If your printer has a chamber heater, bed fans, or recirculation fans that shoul
 
 Multi-line G-code is separated by `\n`. You can also reference a Klipper macro by name (e.g., `"cooldown": "MY_COOLDOWN_MACRO"`).
 
-Configured via **Settings > Printer > Macro Buttons**, or by editing `settings.json` directly.
+Configured via **Settings > Printing > Macro Buttons**, or by editing `settings.json` directly.
 
 ---
 
@@ -1004,14 +994,14 @@ Located in the `standard_macros` section. These pick which built-in actions appe
 **Type:** string
 **Default:** `"clean_nozzle"` (button 1), `"bed_level"` (button 2), `""` (buttons 3 and 4)
 **Values:** `"clean_nozzle"`, `"bed_level"`, `"heat_soak"`, `"purge"`, `"bed_mesh"`, or `""` (empty = hide the button)
-**Description:** Assigns a built-in action to each of the four Controls-panel quick buttons. An empty string hides that button. The action runs the matching macro on your printer (auto-detected from your Klipper config). Configured most easily via **Settings > Printer > Macro Buttons** rather than by editing JSON.
+**Description:** Assigns a built-in action to each of the four Controls-panel quick buttons. An empty string hides that button. The action runs the matching macro on your printer (auto-detected from your Klipper config). Configured most easily via **Settings > Printing > Macro Buttons** rather than by editing JSON.
 
 ### `load_filament`, `unload_filament`, `purge`, `pause`, `resume`, `cancel`, `bed_mesh`, `bed_level`, `clean_nozzle`, `heat_soak`
 **Type:** string
 **Default:** `""` (empty = use auto-detection)
 **Description:** Overrides which macro HelixScreen runs for each standard action. An empty
 string means "auto-detect from your Klipper config"; a macro name pins that slot to your
-choice. Written by **Settings > Printer > Macro Buttons**, which is the easier way to set them
+choice. Written by **Settings > Printing > Macro Buttons**, which is the easier way to set them
 because it lists the macros your printer actually defines.
 
 ```json
@@ -1213,8 +1203,16 @@ Each widget object has:
 - `rowspan` — Number of rows the widget spans
 
 > **What `col: -1` / `row: -1` means.** The widget is switched on but has nowhere to sit right now, usually because the grid was full when HelixScreen last laid out the page. It is *not* disabled: as soon as a cell frees up - you remove another widget, unplug the hardware another widget needed, or view the same layout on a screen with a bigger grid - it places itself again automatically. You do not need to re-add it from the catalog.
-- `config` — (optional) Per-widget settings object. Currently used by `temp_stack` and `fan_stack` for display mode:
-  - `display_mode` — `"stack"` (default) or `"carousel"`. Stack shows compact rows; carousel shows swipeable full-size pages. Toggle via long-press on the widget.
+- `config` — (optional) Per-widget settings object. Used by:
+  - `temp_stack` / `fan_stack`:
+    - `display_mode` — `"stack"` (default) or `"carousel"`. Stack shows compact rows; carousel shows swipeable full-size pages. Toggle via long-press on the widget.
+  - `favorite_macro:<n>` (Macro Button):
+    - `macro` — Name of the Klipper macro this button runs. Empty means unconfigured.
+    - `icon` — Icon name. Omitted means the default (`play`).
+    - `color` — Icon color as a decimal RGB integer. Omitted means the theme color.
+    - `require_confirmation` — Omitted (the default) means tapping the button prompts first: a parameter form when the macro takes parameters, otherwise the Settings > Safety confirmation dialog. `false` runs the macro on a single tap with no parameters and no dialog. Dangerous macros confirm regardless. Set it from the widget's **Options** tab; see [Macro Button confirmation](guide/home-panel.md#macro-button-confirmation).
+
+    > Configs written before `config_version` 23 stored the inverse of this as `skip_param_prompt`, which suppressed only the parameter form. HelixScreen rewrites it to `require_confirmation` on first launch.
 
 **Available widget IDs:**
 
@@ -1333,6 +1331,26 @@ Located in the `safety` section:
 **Default:** `30`
 **Options:** `15`, `30`, `60`, `120`
 **Description:** How long to wait (in seconds) after sending a cancel before escalating to emergency stop. Only applies when `cancel_escalation_enabled` is `true`.
+
+---
+
+## Notification Settings
+
+Located in the `notifications` section:
+
+```json
+{
+  "notifications": {
+    "min_toast_severity": 0
+  }
+}
+```
+
+### `min_toast_severity`
+**Type:** integer
+**Default:** `0`
+**Values:** `0` (all toasts), `1` (warnings & errors), `2` (errors only)
+**Description:** The lowest notification level allowed to interrupt with a toast. Below-the-line notifications still land in the notification history; full-screen error dialogs always show. Change via **Settings > Safety & Notifications > On-screen Alerts**.
 
 ---
 
@@ -1525,7 +1543,7 @@ Located in the `printers` section:
 ### `telemetry_enabled`
 **Type:** boolean
 **Default:** `false`
-**Description:** Enables anonymous usage telemetry. This is a top-level key (not nested in a section). **OFF by default — you must opt in**, either during the setup wizard or via **Settings > Telemetry**. While `false`, nothing is collected, queued, or transmitted. For a full breakdown of exactly what is and isn't collected, and how the data is anonymized, see the [Telemetry](TELEMETRY.md) documentation.
+**Description:** Enables anonymous usage telemetry. This is a top-level key (not nested in a section). **OFF by default — you must opt in**, either during the setup wizard or via **Settings > System > Share Usage Data**. While `false`, nothing is collected, queued, or transmitted. For a full breakdown of exactly what is and isn't collected, and how the data is anonymized, see the [Telemetry](TELEMETRY.md) documentation.
 
 ---
 
@@ -1818,7 +1836,6 @@ These can be set in the systemd service file or before running the binary:
 | `HELIX_TOUCH_CALIBRATE` | Force touch calibration on next launch (`1` to enable) |
 | `HELIX_MOUSE_DEVICE` | Override USB mouse device (e.g., `/dev/input/event4`) |
 | `HELIX_KEYBOARD_DEVICE` | Override USB keyboard device (e.g., `/dev/input/event5`) |
-| `HELIX_TOUCH_JITTER` | Override `jitter_threshold` dead zone in pixels (`0`–`30`) |
 | `HELIX_SCROLL_GUARD` | Override `scroll_guard` post-scroll tap suppression (`1` to enable) |
 | `HELIX_SCROLL_GUARD_COOLDOWN_MS` | Override `scroll_guard_cooldown_ms` window in milliseconds |
 
@@ -1830,7 +1847,6 @@ These can be set in the systemd service file or before running the binary:
 | `HELIX_GCODE_MODE` | Override G-code render mode (`3D` or `2D`, exact case-sensitive; unset = Auto, any other value = 2D) |
 | `HELIX_GCODE_STREAMING` | Override G-code streaming mode |
 | `HELIX_FORCE_STREAMING` | Force streaming for all file operations (`1` to enable) |
-| `HELIX_HOT_RELOAD` | Override XML hot reload default (`0` force off, `1` force on). Defaults ON for native builds, OFF for device release builds. |
 
 **Example in service file:**
 ```ini
@@ -1883,7 +1899,6 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
   "input": {
     "scroll_throw": 25,
     "scroll_limit": 10,
-    "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
     "touch_device": "",

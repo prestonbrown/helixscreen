@@ -480,6 +480,24 @@ GCodeStreamingController::get_layer_segments(size_t layer_index) {
 }
 
 std::shared_ptr<const std::vector<ToolpathSegment>>
+GCodeStreamingController::load_layer_segments_no_prefetch(size_t layer_index) {
+    if (!is_open() || layer_index >= index_.get_layer_count()) {
+        return nullptr;
+    }
+
+    // Identical to get_layer_segments() but without the trailing
+    // schedule_prefetch(): a strided caller never reads the neighbours.
+    auto result = cache_.get_or_load(layer_index, make_loader());
+
+    if (result.load_failed) {
+        spdlog::warn("[StreamingController] Failed to load layer {}", layer_index);
+        return nullptr;
+    }
+
+    return result.segments;
+}
+
+std::shared_ptr<const std::vector<ToolpathSegment>>
 GCodeStreamingController::try_get_layer_segments(size_t layer_index) {
     if (!is_open() || layer_index >= index_.get_layer_count()) {
         return nullptr;
@@ -738,11 +756,18 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
 
     // Parse the bytes line by line
     GCodeParser parser;
-    // Seed with the initial tool from the index. Layer chunks don't include
-    // the file prologue, so a fresh parser would default to T0 and tag every
-    // segment with the wrong tool index — rendering a T3-only print in T0's
-    // color.
-    parser.set_active_tool_index(index_.get_stats().initial_tool_index);
+    // Seed with the tool active at THIS layer's byte offset. Layer chunks don't
+    // include the file prologue — nor the `Tn` that ends the previous chunk — so
+    // a fresh parser would default to T0 and tag every segment with the wrong
+    // tool index. Seeding every layer with the file's FIRST tool fixed the
+    // single-tool case (a T3-only print rendering in T0's color) but still
+    // flattened a real tool changer to one color for the whole model.
+    // start_tool is -1 for layers that precede the file's first tool change, and
+    // on any entry built before the field existed; initial_tool_index is the
+    // fallback there, which reproduces the old behaviour exactly.
+    const int seed_tool = entry.start_tool >= 0 ? static_cast<int>(entry.start_tool)
+                                                : index_.get_stats().initial_tool_index;
+    parser.set_active_tool_index(seed_tool);
     // Seed with the head position at this layer's boundary. Without this,
     // the first move of each layer would be drawn from (0,0) — visible as
     // stray travel/extrusion lines from origin in the 2D viewer.
@@ -834,7 +859,13 @@ bool GCodeStreamingController::build_index() {
     std::string file_path = data_source_->indexable_file_path();
 
     if (!file_path.empty()) {
-        return index_.build_from_file(file_path);
+        // Publish real indexing progress. Before this the atomic went 0.0 to
+        // 1.0 with nothing in between, so get_index_progress() could only ever
+        // drive an indeterminate spinner — on a 133MB print that is 69 seconds
+        // of a UI that looks hung. Storing an atomic from the scan thread is
+        // the whole cost; the UI polls it on its own clock.
+        return index_.build_from_file(file_path,
+                                      [this](float fraction) { index_progress_.store(fraction); });
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed

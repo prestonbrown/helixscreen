@@ -51,6 +51,71 @@ class PrinterDiscovery;
  * All public methods are thread-safe. Subject updates are posted
  * to LVGL's thread via lv_async_call when called from background threads.
  */
+/**
+ * @brief Does a pre-print-send backend's SEED follow the persisted auto-color
+ *        preference? NO - settled at false by hardware, not merely held.
+ *        Verified on a real U1; see VERDICT below before reopening this.
+ *
+ * The Snapmaker U1 carries a user's tool->lane pick only through its
+ * firmware-native pre-print send, so AmsBackend::honors_user_tool_mapping()
+ * correctly reports that it CAN honor one. Letting that decide the seed as well
+ * changes what the U1 does with a file the user never remapped: today it always
+ * color-matches, and following the setting seeds positionally instead, because
+ * the persisted default is false. Positional means every tool keeps the head the
+ * firmware would route it to anyway, which on a tool changer is the slicer's own
+ * intent.
+ *
+ * Positional does NOT mean an empty wire. FilamentMapper::identity_filtered_remap()
+ * drops identity entries, but the U1 pre-print builder still emits the full used-
+ * extruder map, so a positional seed goes out as an explicit identity
+ * (SET_PRINT_EXTRUDER_MAP 0->0, 2->2). Measured, not inferred - an earlier
+ * revision of this block claimed nothing is sent.
+ *
+ * Positional is also only correct because use_current_assignments() pairs each
+ * tool with its own default head. It used to pair by position in the used-tool
+ * list, which silently remapped any file using a SPARSE tool set - T0+T2 sent T2
+ * to lane 1, a lane the user never chose. Fixed, with a test; that bug is why
+ * this flip could not have shipped as it stood.
+ *
+ * HARDWARE VERIFICATION - Snapmaker U1, 2026-08-27, calicat_PLA_37m55s.gcode
+ * (T0 red 7.94g body / T2 black 2.63g tail; lanes loaded slot 0 BLACK, slot 1
+ * off-white, slot 2 RED, i.e. inverted relative to the file). Same file and
+ * printer, both settings, no user pick:
+ *
+ *   false (shipped)  picker T0->slot 3, T2->slot 1;  wire MAP 0->2, 2->0
+ *                    color match; prints body RED / tail BLACK.
+ *   true  (flipped)  picker T0->slot 1, T2->slot 3;  wire MAP 0->0, 2->2
+ *                    positional; observed toolhead.extruder alternating
+ *                    extruder <-> extruder2 across layers 2-6, i.e. T0 from head
+ *                    0 and T2 from head 2; prints body BLACK / tail RED.
+ *
+ * VERDICT: do NOT flip. The flip works mechanically, but positional honors the
+ * file's TOOL NUMBERS, so on any printer whose lanes are not loaded in tool
+ * order the print no longer matches the slice - here the desired red body /
+ * black tail became a black body with a red tail. Color matching is what makes
+ * a print come out as sliced regardless of which lane holds what, and that is
+ * what a user wants from a default. Positional was assumed to be "the slicer's
+ * own intent"; on a tool changer with freely-loaded lanes it is not.
+ *
+ * This is a structural result, not a tuning problem, so it will not change with
+ * a better test file: the only way to get sliced colors AND have the setting
+ * drive the seed is to flip this AND default auto_color_map to true, which is a
+ * larger change that buys nothing over leaving this false.
+ *
+ * IF YOU EVER DO FLIP IT: set this to true. Nothing else changes - the positional path, the
+ * shared predicate and the picker are in place and hardware-exercised; this
+ * constant only decides whether the seed consults the setting or pins to
+ * auto-match. tests/unit/test_effective_auto_match.cpp has a static_assert that
+ * fires when it flips, naming the case to invert.
+ *
+ * Does NOT gate PrintStartController::should_warn_remap_unsupported(), which has
+ * always counted the pre-print route and must keep doing so - gating it there
+ * would resurrect a false "remap not supported" toast on the U1.
+ */
+namespace helix {
+inline constexpr bool kPreprintSeedFollowsUserSetting = false;
+} // namespace helix
+
 class AmsState {
   public:
     /**
@@ -249,6 +314,11 @@ class AmsState {
      */
     [[nodiscard]] std::vector<helix::AvailableSlot> collect_available_slots() const;
 
+    /// The primary backend's firmware DEFAULT tool -> head map, for the mapper.
+    /// Identity when no backend is present, which is also the majority shape.
+    /// NOT the live map - see AmsBackend::firmware_default_routing().
+    [[nodiscard]] helix::FirmwareRouting collect_firmware_routing() const;
+
     /**
      * @brief Whether ANY backend is currently feeding from its bypass / external
      *        spool instead of a slot.
@@ -265,6 +335,72 @@ class AmsState {
      * returns the firmware's own bypass report. Only the latter is stable.
      */
     [[nodiscard]] bool any_bypass_active() const;
+
+    /**
+     * @brief Does Moonraker's global active Spoolman spool describe the bypass?
+     *
+     * Spoolman models "active spool" as a single global value, but HelixScreen
+     * has one bypass record plus N lanes, and an AMS slot edit sets the active
+     * spool too (commit_slot_edit's link/unlink arms). So the active spool
+     * identifies the bypass only when the bypass is the path actually in use —
+     * or when there is no AMS at all and nothing else could own it.
+     *
+     * Both arms of Application's notify_active_spool_set handler must ask this
+     * before writing the bypass record. Without it, assigning a spool to lane 3
+     * overwrote the bypass with that lane's spool, and clearing lane 3 erased
+     * the bypass record entirely (the unlink arm posts spool_id=0, and the
+     * handler's clear arm took that at face value).
+     */
+    [[nodiscard]] bool active_spool_describes_bypass() const;
+
+    /**
+     * @brief Does auto (color+type) lane matching apply for the active backend?
+     *
+     * The other companion to collect_available_slots(): the toggle-aware flag
+     * every surface that resolves tools to lanes must pass FilamentMapper. The
+     * print detail view feeds it to effective_mappings() (swatches + the
+     * pre-flight gate) and the print-status panel to effective_tool_colors()
+     * (the gcode viewer's per-tool colors) — two views of one print, so they
+     * have to answer it the same way or the swatches promise a lane the viewer
+     * then colors from a different one.
+     *
+     * A backend that can carry out an explicit user tool->lane choice — by
+     * EITHER route, an editable mapping card or a firmware-native pre-print send
+     * (AmsBackend::honors_user_tool_mapping) — has a picker the user reaches,
+     * and that picker carries the auto-color toggle. Its setting wins both ways.
+     * A backend that can honor the choice by NEITHER route (ACE) has no picker,
+     * so nothing can have flipped the persisted preference and the default
+     * (FALSE) would force positional matching and pick the wrong lane; those
+     * always auto-match.
+     *
+     * The predicate was once caps.editable alone, which put the Snapmaker U1 in
+     * the second group. It reaches the same shared picker as everyone else, so
+     * the toggle there was a control the user could move and AmsState ignored —
+     * and pinning auto-match on meant color proximity rewrote the print's tool
+     * routing with no way to decline.
+     *
+     * Asks the PRIMARY backend: the picker the user reaches reflects backend 0.
+     */
+    [[nodiscard]] bool effective_auto_match() const;
+
+    /**
+     * @brief Per-tool render colors for the print that is actually running:
+     *        color(tool N) = the color of the lane that prints N.
+     *
+     * The single rule the live render uses, for any tool count. Resolves the
+     * applied routing — the backend's get_tool_mapping(), falling back to
+     * tool_to_slot_map for backends that publish no separate routing — and hands
+     * it to FilamentMapper::routed_tool_colors(). AmsState owns the wiring
+     * because it owns the backend and the lane snapshot; the routing source and
+     * the color math each live in exactly one other place.
+     *
+     * @return Dense tool-indexed colors, or EMPTY when the backend has no
+     *         routing opinion (notably: no print task configured, where a
+     *         firmware default identity map would otherwise read as authoritative)
+     *         or no lane knows a color. Callers must treat empty as "say
+     *         nothing", never as "use grey".
+     */
+    [[nodiscard]] std::vector<uint32_t> routed_tool_colors() const;
 
     /**
      * @brief Check if AMS is available
@@ -353,6 +489,30 @@ class AmsState {
      */
     lv_subject_t* get_ams_type_subject() {
         return &ams_type_;
+    }
+
+    /**
+     * @brief Get the "this AMS is a tool changer" subject
+     * @return Subject holding 1 when is_tool_changer(type), else 0
+     *
+     * XML binds this instead of comparing ams_type to a literal. There are
+     * three tool-changer AmsTypes and counting; a ref_value="4" binding sees
+     * only one of them and shows filament controls on the rest.
+     */
+    lv_subject_t* get_is_tool_changer_subject() {
+        return &ams_is_tool_changer_;
+    }
+
+    /**
+     * @brief Get the "this AMS handles filament" subject
+     * @return Subject holding 1 when is_filament_system(type), else 0
+     *
+     * NOT the negation of ams_is_tool_changer: a Snapmaker U1 is both. It swaps
+     * toolheads AND runs a full load/unload state machine, so a control gated on
+     * "is a tool changer" disappears on a machine that needs it.
+     */
+    lv_subject_t* get_is_filament_system_subject() {
+        return &ams_is_filament_system_;
     }
 
     /**
@@ -968,6 +1128,18 @@ class AmsState {
     [[nodiscard]] lv_subject_t* get_slot_status_subject(int slot_index);
 
     /**
+     * @brief Get per-lane LaneState subject for a specific slot
+     *
+     * Holds helix::ui::LaneState (classify_lane) as int. THE presentation
+     * input for every surface that draws a lane. XML name:
+     * ams_slot_<n>_lane_state.
+     *
+     * @param slot_index Slot index (0 to MAX_SLOTS-1)
+     * @return Subject pointer or nullptr if out of range
+     */
+    [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int slot_index);
+
+    /**
      * @brief Get slot color subject for a specific backend and slot
      *
      * For backend_index 0, delegates to existing flat slot subjects.
@@ -1534,6 +1706,8 @@ class AmsState {
 
     // System-level subjects
     lv_subject_t ams_type_;
+    lv_subject_t ams_is_tool_changer_;
+    lv_subject_t ams_is_filament_system_;
     lv_subject_t ams_action_;
     /// Granular load/unload sub-phase (-1=none, 0=Home, 1=Select, 2=Heat,
     /// 3=Move). Snapmaker U1 only; static-lifetime singleton subject.
@@ -1617,7 +1791,11 @@ class AmsState {
     /// singleton subject (no SubjectLifetime token needed). Defaults to 1 so
     /// non-auto-feed / unknown backends never gate Resume.
     lv_subject_t active_tool_port_present_;
-    std::vector<int> last_tool_map_; ///< Cached for change detection in sync_from_backend
+    std::vector<int> last_tool_map_;
+    /// Companion to last_tool_map_ for the APPLIED routing (get_tool_mapping()),
+    /// which moves independently of the physical map on a backend that publishes
+    /// both. Change-detection only; never read as routing itself.
+    std::vector<int> last_applied_routing_; ///< Cached for change detection in sync_from_backend
 
     /// Most recent backend-supplied operation detail (cached so the print-state
     /// observer can rerun the action-detail derivation without re-querying the
@@ -1760,6 +1938,7 @@ class AmsState {
     lv_subject_t slot_segments_[MAX_SLOTS];         // int: PathSegment enum value
     lv_subject_t slot_toolhead_present_[MAX_SLOTS]; // int: 0/1 per-slot toolhead sensor
     lv_subject_t slot_active_loaded_[MAX_SLOTS];    // int: 0/1 firmware seated & loaded
+    lv_subject_t slot_lane_states_[MAX_SLOTS];      // int: helix::ui::LaneState (classify_lane)
 
     // Per-unit environment subjects (CFS temp/humidity)
     lv_subject_t unit_temp_[MAX_UNITS];     // int: tenths of C (270 = 27.0C), 0 = no data

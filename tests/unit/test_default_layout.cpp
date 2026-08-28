@@ -772,6 +772,51 @@ TEST_CASE("default_layout: bed_temperature enabled at medium breakpoint without 
     CHECK(entries.back().id == "bed_temperature");
 }
 
+TEST_CASE("default_layout: anchored bed_temperature survives AMS at medium breakpoint",
+          "[default_layout][regression]") {
+    TempCwdGuard guard;
+    BreakpointGuard bp(UiBreakpoint::Medium);
+    AmsSubjectGuard ams(4);
+    // The shipped medium table anchors bed_temperature. An anchor states where
+    // this tier puts the widget, so it answers the "is there room" question the
+    // AMS heuristic is guessing at. Before the fix the heuristic won: the K2 and
+    // every other AMS printer at or below 800x480 shipped with no bed readout and
+    // an empty cell where the anchor had reserved one.
+    guard.write_layout(R"({
+      "anchors": [
+        { "id": "bed_temperature",
+          "placements": { "medium": { "col": 3, "row": 3, "colspan": 1, "rowspan": 1 } } }
+      ]
+    })");
+
+    auto entries = PanelWidgetConfig::build_default_grid();
+    auto* bed = find_entry(entries, "bed_temperature");
+    REQUIRE(bed);
+    CHECK(bed->enabled);
+    CHECK(bed->col == 3);
+    CHECK(bed->row == 3);
+}
+
+TEST_CASE("default_layout: unanchored bed_temperature still yields to AMS at medium breakpoint",
+          "[default_layout]") {
+    TempCwdGuard guard;
+    BreakpointGuard bp(UiBreakpoint::Medium);
+    AmsSubjectGuard ams(4);
+    // A tier that does NOT anchor bed_temperature keeps the old heuristic: the
+    // layout has expressed no opinion, so "an AMS widget crowds it out" stands.
+    guard.write_layout(R"({
+      "anchors": [
+        { "id": "printer_image",
+          "placements": { "medium": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 } } }
+      ]
+    })");
+
+    auto entries = PanelWidgetConfig::build_default_grid();
+    auto* bed = find_entry(entries, "bed_temperature");
+    REQUIRE(bed);
+    CHECK_FALSE(bed->enabled);
+}
+
 // Regression for a cross-test isolation leak: `ams_slot_count` is a member
 // subject of the AmsState *process singleton*, registered into the global XML
 // scope. AMS tests (LVGLUITestFixture + AmsState::init_subjects(true)) drive

@@ -257,6 +257,56 @@ enum class AmsAction {
 };
 
 /**
+ * @brief Is the system doing anything at all right now?
+ *
+ * The "something is happening to this slot" question - the slot pulse asks it,
+ * and it is deliberately backend-independent: every backend reports these the
+ * same way, and a pulse on a slot that turns out not to move is harmless.
+ *
+ * NOT the same question as AmsBackend::action_tracks_step_operation(), which
+ * asks what the STEP BAR should follow and genuinely differs per backend. This
+ * one is the superset.
+ */
+inline bool ams_action_is_busy(AmsAction action) {
+    switch (action) {
+    case AmsAction::HEATING:
+    case AmsAction::LOADING:
+    case AmsAction::UNLOADING:
+    case AmsAction::CUTTING:
+    case AmsAction::FORMING_TIP:
+    case AmsAction::PURGING:
+    case AmsAction::SELECTING:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
+ * @brief The filament-system step vocabulary: heat, feed, purge, cut, tip, retract.
+ *
+ * The default answer to AmsBackend::action_tracks_step_operation(). Lives here
+ * so the one caller that has no backend to ask still gets the same rule rather
+ * than a fourth copy of the list.
+ *
+ * SELECTING is deliberately absent: a filament system passes through it on the
+ * way to a slot, and the step bar is already tracking the load that follows.
+ */
+inline bool ams_action_is_filament_operation(AmsAction action) {
+    switch (action) {
+    case AmsAction::HEATING:
+    case AmsAction::LOADING:
+    case AmsAction::UNLOADING:
+    case AmsAction::CUTTING:
+    case AmsAction::FORMING_TIP:
+    case AmsAction::PURGING:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
  * @brief Get string name for AMS action
  * @param action The action enum value
  * @return Human-readable string for the action
@@ -1846,6 +1896,34 @@ struct ToolMappingCapabilities {
     bool editable = false;   ///< Can the UI modify the mapping?
     std::string description; ///< UI hint text (e.g., "Per-lane tool assignment via SET_MAP")
 };
+
+/**
+ * @brief Can a backend with these capabilities carry out an explicit user
+ *        tool->lane choice, by EITHER route?
+ *
+ * Named and shared because @c editable answers only half of it, and the missing
+ * half is silent. A backend can honor the choice two ways: the generic
+ * set_tool_mapping() path (@c editable), or a firmware-native pre-print send
+ * that writes the routing itself (@p applies_via_preprint — the Snapmaker U1,
+ * whose SET_PRINT_EXTRUDER_MAP is emitted from build_preprint_gcode()). The U1
+ * reports editable=false and still honors every pick the user makes, so any
+ * caller that reads editability alone concludes the opposite of the truth about
+ * it.
+ *
+ * Two callers ask this, for reasons that must not drift apart:
+ * PrintStartController, deciding whether "remap not supported" is an honest
+ * toast or a stale false alarm; and AmsState::effective_auto_match(), deciding
+ * whether the user's auto-color preference is a live control on this printer or
+ * a setting nothing can act on.
+ *
+ * @param caps                 backend->get_tool_mapping_capabilities()
+ * @param applies_via_preprint backend->requires_preprint_send()
+ * @return true when the backend can carry out the user's choice. Pure.
+ */
+[[nodiscard]] inline bool honors_user_tool_mapping(const ToolMappingCapabilities& caps,
+                                                   bool applies_via_preprint) {
+    return applies_via_preprint || (caps.supported && caps.editable);
+}
 
 /**
  * @brief Action type for dynamic device controls

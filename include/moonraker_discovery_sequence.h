@@ -239,6 +239,28 @@ class MoonrakerDiscoverySequence {
     void discover_sensors();
 
     /**
+     * @brief Record the hardware fields carried by a machine.system_info reply
+     *
+     * OS distribution name and CPU architecture. The same reply also carries
+     * the camera `service_state` detect_webcam() cross-checks, which is why one
+     * query feeds both.
+     */
+    void parse_system_info(const json& sys_response);
+
+    /**
+     * @brief Detect a usable webcam and publish the answer (fire-and-forget)
+     *
+     * Queries server.webcams.list, cross-checks that the service serving the
+     * chosen entry is actually running, probes an absolute snapshot URL for
+     * reachability, and falls back to probing local camera endpoints.
+     *
+     * @param service_state `service_state` out of machine.system_info, or an
+     *        empty object when that query failed — which reads as "assume
+     *        available" (prestonbrown/helixscreen#1351).
+     */
+    void detect_webcam(json service_state);
+
+    /**
      * @brief Continue discovery after Klippy readiness gate passes
      *
      * Chains: objects.list → server.info → printer.info → MCU queries → subscribe

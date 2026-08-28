@@ -104,8 +104,24 @@ std::vector<std::string> candidate_log_paths(const std::vector<ProcMatch>& procs
 /// nothing is listening or /proc is unavailable.
 std::vector<std::string> listeners_on_port(uint16_t port);
 
+/**
+ * @brief The Moonraker/Klipper daemons among @p candidates, minus our own processes
+ *
+ * The whole rule, as a pure function over a process table that is passed in
+ * rather than read. find_moonraker_processes() is the only production caller and
+ * does nothing but hand it /proc.
+ *
+ * Split out because the rule cannot be checked against the live table: whether
+ * "a cmdline naming both a daemon and helix-screen is ours, not a daemon" gets
+ * exercised at all depends on what else happens to be running. A HelixScreen
+ * checkout makes that cmdline shape ordinary — a grep, a compile of this very
+ * file, or the app started with --moonraker all name both at once.
+ */
+std::vector<ProcMatch> select_moonraker_processes(const std::vector<ProcMatch>& candidates);
+
 /// Processes whose cmdline mentions Moonraker or Klipper. Empty on a system
 /// without /proc, or when neither is running — which is itself the finding.
+/// Reads /proc and applies select_moonraker_processes() to what it finds.
 std::vector<ProcMatch> find_moonraker_processes();
 
 /**

@@ -14,6 +14,7 @@
  */
 
 #include "ams_types.h"
+#include "macro_patterns.h"   // Shared macro-name tables (nozzle clean, ...)
 #include "printer_detector.h" // For BuildVolume struct
 
 #include <spdlog/spdlog.h>
@@ -418,6 +419,26 @@ class PrinterDiscovery {
             else if (name == "toolchanger") {
                 has_tool_changer_ = true;
             }
+            // pin_watch: a dock-sensor extra (not stock Klipper). Recorded as a
+            // plain object fact, like toolchanger above. What it MEANS is
+            // helix::toolchanger_addon's business, not this catalog's.
+            // Deliberately does NOT touch has_mmu_/mmu_type_: those pick which
+            // AMS backend gets built, and writing one here would swap out a
+            // working backend on every printer that happens to run pin_watch.
+            else if (name == "pin_watch" || name.rfind("pin_watch ", 0) == 0) {
+                has_pin_watch_ = true;
+                pin_watch_object_name_ = name;
+            }
+            // [medusahc]: a hotend changer's own extra, recorded as the same
+            // kind of plain object fact as pin_watch above. Upstream ships it
+            // ALONGSIDE pin_watch and klipper-toolchanger; one fork folds the
+            // dock sensing into it and ships neither, and there this object is
+            // the only thing left to see. Matched exactly - [medusahc_calibrate]
+            // is a sibling object, not this one.
+            else if (name == "medusahc" || name.rfind("medusahc ", 0) == 0) {
+                has_medusahc_ = true;
+                medusahc_object_name_ = name;
+            }
             // Tool object discovery
             else if (name.rfind("tool ", 0) == 0) {
                 std::string tool_name = name.substr(5); // Remove "tool " prefix
@@ -460,10 +481,9 @@ class PrinterDiscovery {
 
                 // Check for common macro patterns and cache them
                 if (nozzle_clean_macro_.empty()) {
-                    static const std::vector<std::string> nozzle_patterns = {
-                        "CLEAN_NOZZLE", "NOZZLE_WIPE", "WIPE_NOZZLE", "PURGE_NOZZLE",
-                        "NOZZLE_CLEAN"};
-                    if (matches_any(upper_macro, nozzle_patterns)) {
+                    // Shared with StandardMacros' CleanNozzle slot — see
+                    // include/macro_patterns.h.
+                    if (matches_any(upper_macro, macro_patterns::clean_nozzle())) {
                         nozzle_clean_macro_ = macro_name;
                     }
                 }
@@ -501,9 +521,14 @@ class PrinterDiscovery {
                     }
                 }
                 if (is_led_candidate) {
+                    // Exclusions match on whole underscore-delimited words. The
+                    // keyword test above stays a substring match on purpose (it
+                    // has to catch LIGHTS, LIGHTING, ILLUMINATE), but an
+                    // exclusion that fires on a fragment throws away real LED
+                    // macros -- LED_RAPID_FLASH is not a PID macro.
                     bool excluded = false;
                     for (const auto& ex : led_exclusions) {
-                        if (upper_macro.find(ex) != std::string::npos) {
+                        if (contains_word(upper_macro, ex)) {
                             excluded = true;
                             break;
                         }
@@ -546,6 +571,24 @@ class PrinterDiscovery {
             std::sort(tool_names_.begin(), tool_names_.end());
         }
 
+        // A hotend changer that runs without klipper-toolchanger has no [tool N]
+        // objects to name its tools: the swap is driven by the extra's own T<n>
+        // macros. One hot end per extruder heater is what a hotend changer IS,
+        // so enumerate those and keep the G-code tool numbers as the names.
+        // Never overwrites real tool objects - a klipper-toolchanger name is
+        // arbitrary, and ASSIGN_TOOL can remap it.
+        if (tool_names_.empty() && has_medusahc_) {
+            int extruders = 0;
+            for (const auto& heater : heaters_) {
+                if (heater.rfind("extruder", 0) == 0 && heater.rfind("extruder_stepper", 0) != 0) {
+                    ++extruders;
+                }
+            }
+            for (int i = 0; i < extruders; ++i) {
+                tool_names_.push_back("T" + std::to_string(i));
+            }
+        }
+
         // Collect all detected AMS systems
         detected_ams_systems_.clear();
 
@@ -573,8 +616,11 @@ class PrinterDiscovery {
             // Native Snapmaker filament system (no aftermarket MMU)
             detected_ams_systems_.push_back({AmsType::SNAPMAKER, "Snapmaker"});
             mmu_type_ = AmsType::SNAPMAKER;
-        } else if (has_tool_changer_ && !tool_names_.empty()) {
-            // Standalone tool changer with no MMU — show parallel topology
+        } else if ((has_tool_changer_ || has_medusahc_) && !tool_names_.empty()) {
+            // Standalone tool changer with no MMU — show parallel topology.
+            // Either klipper-toolchanger, or a hotend changer whose own extra
+            // does the swapping; the tools above came from whichever it is.
+            // Still last in the chain, so a real MMU always keeps its backend.
             detected_ams_systems_.push_back({AmsType::TOOL_CHANGER, "Tool Changer"});
             mmu_type_ = AmsType::TOOL_CHANGER;
         }
@@ -731,6 +777,8 @@ class PrinterDiscovery {
 
         // Macros
         macros_.clear();
+        host_restarting_macros_.clear();
+        host_halting_macros_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
         purge_line_macro_.clear();
@@ -745,6 +793,10 @@ class PrinterDiscovery {
         has_mmu_ = false;
         has_snapmaker_ = false;
         has_tool_changer_ = false;
+        has_pin_watch_ = false;
+        pin_watch_object_name_.clear();
+        has_medusahc_ = false;
+        medusahc_object_name_.clear();
         has_chamber_heater_ = false;
         has_chamber_sensor_ = false;
         chamber_sensor_name_.clear();
@@ -842,6 +894,28 @@ class PrinterDiscovery {
 
     [[nodiscard]] bool has_tool_changer() const {
         return has_tool_changer_;
+    }
+
+    /// Whether a pin_watch dock-sensor extra is configured.
+    [[nodiscard]] bool has_pin_watch() const {
+        return has_pin_watch_;
+    }
+
+    /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
+    /// for subscribing to it. Empty when there is none.
+    /// The [medusahc] object exists. A plain fact about the object list; what
+    /// it means is helix::toolchanger_addon's business.
+    [[nodiscard]] bool has_medusahc() const {
+        return has_medusahc_;
+    }
+
+    /// The object's name as reported, for subscribing to it.
+    [[nodiscard]] const std::string& medusahc_object_name() const {
+        return medusahc_object_name_;
+    }
+
+    [[nodiscard]] const std::string& pin_watch_object_name() const {
+        return pin_watch_object_name_;
     }
 
     [[nodiscard]] bool has_chamber_heater() const {
@@ -1090,6 +1164,42 @@ class PrinterDiscovery {
      */
     [[nodiscard]] bool has_macro(const std::string& name) const {
         return macros_.count(to_upper(name)) > 0;
+    }
+
+    /// Record the macros whose bodies reach SAVE_CONFIG / FIRMWARE_RESTART and
+    /// friends, directly or through other macros. Computed from
+    /// configfile.settings during discovery by
+    /// helix::analyze_host_restarting_macros(); stored uppercased like macros_.
+    void set_host_restarting_macros(std::unordered_set<std::string> macros) {
+        host_restarting_macros_ = std::move(macros);
+    }
+
+    /// Whether running this macro takes the host down with it. A name-only
+    /// check misses the wrapped case (ZMOD's AUTO_FULL_BED_LEVEL reaches
+    /// SAVE_CONFIG two levels down), which is why confirmations ask this.
+    [[nodiscard]] bool macro_restarts_host(const std::string& name) const {
+        return host_restarting_macros_.count(to_upper(name)) > 0;
+    }
+
+    [[nodiscard]] const std::unordered_set<std::string>& host_restarting_macros() const {
+        return host_restarting_macros_;
+    }
+
+    /// Macros reaching a command that leaves the host DOWN, from
+    /// helix::analyze_host_halting_macros(); stored uppercased like macros_.
+    void set_host_halting_macros(std::unordered_set<std::string> macros) {
+        host_halting_macros_ = std::move(macros);
+    }
+
+    /// Does this macro reach M112/SHUTDOWN/EMERGENCY_STOP, directly or through
+    /// another macro? Separate from macro_restarts_host() because the two differ
+    /// in what the user is promised once the rpc comes back dropped.
+    [[nodiscard]] bool macro_halts_host(const std::string& name) const {
+        return host_halting_macros_.count(to_upper(name)) > 0;
+    }
+
+    [[nodiscard]] const std::unordered_set<std::string>& host_halting_macros() const {
+        return host_halting_macros_;
     }
 
     [[nodiscard]] std::string nozzle_clean_macro() const {
@@ -1418,6 +1528,26 @@ class PrinterDiscovery {
         });
     }
 
+    // Helper: true when `needle` appears in `name` bounded by underscores or the
+    // ends of the string. Klipper macro names are underscore-separated words, so
+    // a plain substring test matches far too much: "PID" hits LED_RAPID_FLASH and
+    // "HOME" hits STATUS_LED_HOMING, dropping LED macros that are perfectly valid.
+    static bool contains_word(const std::string& name, const std::string& needle) {
+        if (needle.empty() || needle.size() > name.size()) {
+            return false;
+        }
+        for (size_t pos = name.find(needle); pos != std::string::npos;
+             pos = name.find(needle, pos + 1)) {
+            const size_t end = pos + needle.size();
+            const bool left_ok = (pos == 0) || (name[pos - 1] == '_');
+            const bool right_ok = (end == name.size()) || (name[end] == '_');
+            if (left_ok && right_ok) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Helper: check if name matches any pattern
     static bool matches_any(const std::string& name, const std::vector<std::string>& patterns) {
         for (const auto& pattern : patterns) {
@@ -1450,6 +1580,8 @@ class PrinterDiscovery {
 
     // Macros
     std::unordered_set<std::string> macros_;
+    std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
+    std::unordered_set<std::string> host_halting_macros_;    ///< Macros that reach a host halt
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;
@@ -1464,6 +1596,10 @@ class PrinterDiscovery {
     bool has_mmu_ = false;
     bool has_snapmaker_ = false;
     bool has_tool_changer_ = false;
+    bool has_pin_watch_ = false;
+    std::string pin_watch_object_name_;
+    bool has_medusahc_ = false;
+    std::string medusahc_object_name_;
     bool has_chamber_heater_ = false;
     bool has_chamber_sensor_ = false;
     std::string chamber_sensor_name_;

@@ -264,6 +264,23 @@ bool migrate_config_keys(json& data,
     return any_migrated;
 }
 
+/// Config::init()'s display-migration step, as one callable unit.
+///
+/// Both halves always run: an already-/display/-shaped config still needs its
+/// touch keys moved to /input/, so the second migration must NOT be gated on the
+/// first one having found anything.
+///
+/// @param data JSON config data to migrate (modified in place)
+/// @return true if either migration changed @p data
+bool run_display_migrations(json& data) {
+    bool changed = migrate_display_config(data);
+    if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
+                                   {"/display/touch_device", "/input/touch_device"}})) {
+        changed = true;
+    }
+    return changed;
+}
+
 // ============================================================================
 // Versioned config migrations
 // ============================================================================
@@ -279,6 +296,10 @@ static std::optional<helix::PlatformTier> g_forced_tier_for_migration;
 namespace helix::config_testing {
 void set_forced_tier_for_migration(std::optional<helix::PlatformTier> tier) {
     g_forced_tier_for_migration = tier;
+}
+
+bool run_display_migrations_for_test(nlohmann::json& data) {
+    return ::run_display_migrations(data);
 }
 } // namespace helix::config_testing
 
@@ -337,16 +358,12 @@ static void migrate_v1_to_v2(json& config) {
     }
 }
 
-/// Migration v2→v3: Reset jitter_threshold from 15 to 0 (disabled by default).
-/// The jitter filter competed with LVGL's scroll_limit, adding perceptible drag delay.
-/// Users with genuinely noisy panels can re-enable via config or HELIX_TOUCH_JITTER env.
-static void migrate_v2_to_v3(json& config) {
-    json::json_pointer ptr("/input/jitter_threshold");
-    if (config.contains(ptr) && config[ptr].is_number_integer() && config[ptr].get<int>() == 15) {
-        config[ptr] = 5;
-        spdlog::info("[Config] Migration v3: reset jitter_threshold 15 -> 5");
-    }
-}
+/// Migration v2→v3: retired. It retuned /input/jitter_threshold, a setting that
+/// never reached the input pipeline and has since been removed
+/// (prestonbrown/helixscreen#1358). The step stays so the version chain is
+/// unbroken - a v2 config still has to walk through 3 to reach the current
+/// version. Any /input/jitter_threshold left in an existing config is inert.
+static void migrate_v2_to_v3(json& /*config*/) {}
 
 /// Migration v3→v4: Restructure single /printer to multi-printer /printers map.
 /// Moves the old singular "printer" object under "printers/{slug}/" and sets active_printer_id.
@@ -1231,6 +1248,105 @@ static void migrate_v20_to_v21(json& config) {
     collapse_scanner_to_root(config);
 }
 
+/// Migration v21→v22: the two filament settings that were still read
+/// per-printer but stored at the root.
+///
+/// Both are read as `df() + "filament/..."`, i.e. under /printers/<id>/, so a
+/// value at the root was never consulted. On a real K2 Plus the root held
+/// {"color_rgb": 16711680, "material": "PETG"} - a red PETG spool from months
+/// earlier - while the live ASA-GF sat in the printer's own node. Harmless as
+/// long as nothing reads it, and exactly the kind of thing that bites the day
+/// something does.
+///
+/// fan_out_to_printers() is the right shape for both: a printer that already
+/// holds a real value keeps it (so the live spool above survives untouched),
+/// one that holds none inherits the root value rather than losing it, and the
+/// root key is retired only once there was somewhere to put it.
+static void migrate_v21_to_v22(json& config) {
+    const int spool_copies =
+        fan_out_to_printers(config, "filament/external_spool", "filament/external_spool");
+    if (spool_copies > 0) {
+        spdlog::info("[Config] Migration v22: copied /filament/external_spool to {} printer(s)",
+                     spool_copies);
+    }
+
+    const int cooldown_copies = fan_out_to_printers(config, "filament/cooldown_delay_seconds",
+                                                    "filament/cooldown_delay_seconds");
+    if (cooldown_copies > 0) {
+        spdlog::info(
+            "[Config] Migration v22: copied /filament/cooldown_delay_seconds to {} printer(s)",
+            cooldown_copies);
+    }
+
+    // Drop the container only once it is genuinely empty - a key we have not
+    // accounted for here is a key we must not delete.
+    if (config.contains("filament") && config["filament"].is_object() &&
+        config["filament"].empty()) {
+        config.erase("filament");
+    }
+}
+
+/// Migration v22→v23: the Macro Button widget's per-instance run gate changed
+/// polarity and name.
+///
+/// It used to be "skip_param_prompt" (default false), which suppressed only the
+/// parameter-entry modal — the Settings → Safety confirmation still fired, so a
+/// user who asked for a one-tap macro button got a dialog anyway. It is now
+/// "require_confirmation" (default true), governing both prompts, and its
+/// off-state is what actually delivers the one-tap run.
+///
+/// The two keys are exact inverses, so the rewrite is lossless: a widget that
+/// had skip_param_prompt:true becomes require_confirmation:false and keeps
+/// running without a parameter prompt, now without the confirmation too.
+/// Widgets that never carried the key keep the default and are left untouched,
+/// which is why nothing is written when the key is absent.
+///
+/// The same fallback lives in favorite_macro_config_from_json() for configs this
+/// migration cannot reach (preset assets under panel_widgets/<preset>/, an
+/// imported widget config). This pass exists so the legacy key does not linger
+/// on disk for users who never reopen the widget's config modal.
+static void migrate_v22_to_v23(json& config) {
+    if (!config.contains("printers") || !config["printers"].is_object())
+        return;
+
+    int rewritten = 0;
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        if (!printer.is_object() || !printer.contains("panel_widgets") ||
+            !printer["panel_widgets"].is_object())
+            continue;
+        for (auto& [panel_id, panel] : printer["panel_widgets"].items()) {
+            if (!panel.is_object() || !panel.contains("pages") || !panel["pages"].is_array())
+                continue;
+            for (auto& page : panel["pages"]) {
+                if (!page.is_object() || !page.contains("widgets") || !page["widgets"].is_array())
+                    continue;
+                for (auto& widget : page["widgets"]) {
+                    if (!widget.is_object() || !widget.contains("config") ||
+                        !widget["config"].is_object())
+                        continue;
+                    json& wc = widget["config"];
+                    if (!wc.contains("skip_param_prompt"))
+                        continue;
+                    // A non-boolean legacy value was never honoured by the
+                    // reader either; drop it rather than inventing a meaning.
+                    if (wc["skip_param_prompt"].is_boolean() &&
+                        !wc.contains("require_confirmation")) {
+                        wc["require_confirmation"] = !wc["skip_param_prompt"].get<bool>();
+                    }
+                    wc.erase("skip_param_prompt");
+                    ++rewritten;
+                }
+            }
+        }
+    }
+
+    if (rewritten > 0) {
+        spdlog::info("[Config] Migration v23: rewrote skip_param_prompt -> require_confirmation "
+                     "on {} macro widget(s)",
+                     rewritten);
+    }
+}
+
 /// Lift a legacy root-level "preset" marker into the active printer's node.
 ///
 /// The marker predates multi-printer support and stayed at the config root while
@@ -1354,6 +1470,10 @@ static void run_versioned_migrations(json& config, const std::string& config_pat
         migrate_v19_to_v20(config);
     if (version < 21)
         migrate_v20_to_v21(config);
+    if (version < 22)
+        migrate_v21_to_v22(config);
+    if (version < 23)
+        migrate_v22_to_v23(config);
 
     config["config_version"] = CURRENT_CONFIG_VERSION;
 }
@@ -1377,7 +1497,6 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                     {{"scroll_throw", 25},
                      {"scroll_limit", 10},
                      {"long_press_time", 500},
-                     {"jitter_threshold", 5},
                      {"touch_device", ""},
                      {"calibration",
                       {{"valid", false},
@@ -1386,7 +1505,19 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                        {"c", 0.0},
                        {"d", 0.0},
                        {"e", 1.0},
-                       {"f", 0.0}}}}},
+                       {"f", 0.0}}},
+                     // The evdev ABS range and axis swap a three-point calibration
+                     // solved for (#1259, #1276). valid=false means "use whatever
+                     // range the kernel declared", which is what every install did
+                     // before this key existed - so no migration is needed and an
+                     // uncalibrated device behaves exactly as it always has.
+                     {"touch_range",
+                      {{"valid", false},
+                       {"swap_axes", false},
+                       {"min_x", 0},
+                       {"max_x", 0},
+                       {"min_y", 0},
+                       {"max_y", 0}}}}},
                    {"printers", {{"show_printer_switcher", false}, {printer_id, printer_data}}}};
 
     if (include_user_prefs) {
@@ -1733,14 +1864,10 @@ void Config::init(const std::string& config_path) {
         // logged, not discarded. config_version is left unstamped, so the
         // migration is retried on the next boot.
         try {
-            // Run display config migration (moves root-level display_* to /display/)
-            if (migrate_display_config(data)) {
-                config_modified = true;
-            }
-
-            // Migrate touch settings from /display/ to /input/
-            if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
-                                           {"/display/touch_device", "/input/touch_device"}})) {
+            // Moves root-level display_* to /display/, then the touch keys from
+            // /display/ to /input/. Shared with the config_testing seam so tests
+            // drive this exact sequence instead of restating it.
+            if (run_display_migrations(data)) {
                 config_modified = true;
             }
 
@@ -1889,7 +2016,6 @@ void Config::init(const std::string& config_path) {
         data["input"] = {{"scroll_throw", 25},
                          {"scroll_limit", 10},
                          {"long_press_time", 500},
-                         {"jitter_threshold", 5},
                          {"touch_device", ""},
                          {"calibration",
                           {{"valid", false},
@@ -1915,10 +2041,6 @@ void Config::init(const std::string& config_path) {
         }
         if (!input.contains("touch_device")) {
             input["touch_device"] = "";
-            config_modified = true;
-        }
-        if (!input.contains("jitter_threshold")) {
-            input["jitter_threshold"] = 5;
             config_modified = true;
         }
 
@@ -2541,7 +2663,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
 
     // The device-level "display" and "input" blocks below describe the PRINTER'S
     // OWN PANEL — rotation and white balance in one, the touch calibration matrix
-    // and jitter threshold in the other. Seeding them is correct only when
+    // in the other. Seeding them is correct only when
     // HelixScreen is the thing driving that panel. A separate host that merely
     // talks to the printer over the network (a Pi with its own touchscreen that
     // detected a Centauri Carbon during the wizard, say) would otherwise come up
@@ -2574,7 +2696,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
 
     // Deep-merge device-level input settings (preserves keys not in preset).
     // This seeds top-level /input/* — e.g. touch calibration (read from
-    // /input/calibration/*) and jitter_threshold — which is distinct from the
+    // /input/calibration/*) — which is distinct from the
     // per-printer "printer.input" block above. Pre-wizard only (guarded by
     // wizard_completed), so it's safe to seed scaffolded defaults.
     if (on_this_device && preset_json.contains("input") && preset_json["input"].is_object()) {

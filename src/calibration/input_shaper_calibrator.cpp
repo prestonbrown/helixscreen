@@ -326,32 +326,5 @@ void InputShaperCalibrator::apply_settings(const ApplyConfig& config, SuccessCal
                                       error_adapter);
 }
 
-// ============================================================================
-// save_to_config()
-// ============================================================================
-
-void InputShaperCalibrator::save_to_config(SuccessCallback on_success, ErrorCallback on_error) {
-    // Check if API is available
-    if (!api_) {
-        spdlog::warn("[InputShaperCalibrator] save_to_config called without API");
-        if (on_error) {
-            on_error("No API available");
-        }
-        return;
-    }
-
-    spdlog::info("[InputShaperCalibrator] Saving configuration to printer.cfg");
-
-    // Adapt error callback from MoonrakerError to string
-    auto error_adapter = [on_error](const MoonrakerError& err) {
-        if (on_error) {
-            on_error(err.message);
-        }
-    };
-
-    // Call API to save config
-    api_->advanced().save_config(on_success, error_adapter);
-}
-
 } // namespace calibration
 } // namespace helix

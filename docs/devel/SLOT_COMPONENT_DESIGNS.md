@@ -14,7 +14,7 @@ nobody re-proposes moving string formatting into XML.
 ## Ground truth about helix-xml
 
 `lib/helix-xml/` is our MIT fork of the XML engine LVGL removed in 9.5. See
-`LVGL_XML_SITUATION.md` for the fork's origin and licensing position.
+`HELIX_XML_FORK.md` for the fork's origin and licensing position.
 
 ### There is no slot system
 

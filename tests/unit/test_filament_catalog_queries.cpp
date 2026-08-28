@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "filament_catalog.h"
 #include "helix_test_fixture.h"
-#include "../catch_amalgamated.hpp"
+
 #include <algorithm>
 
-using helix::printer::FilamentCatalog;
+#include "../catch_amalgamated.hpp"
+
 using helix::printer::EffectiveFilament;
+using helix::printer::FilamentCatalog;
 
 namespace {
 bool contains(const std::vector<std::string>& v, const std::string& s) {
     return std::find(v.begin(), v.end(), s) != v.end();
 }
-}  // namespace
+} // namespace
 
 TEST_CASE_METHOD(HelixTestFixture, "all_brands is deduped and sorted", "[filament_catalog]") {
     auto cat = FilamentCatalog::load_full();
@@ -25,7 +27,8 @@ TEST_CASE_METHOD(HelixTestFixture, "all_brands is deduped and sorted", "[filamen
     REQUIRE(contains(brands, "Generic"));
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "types_for_brand returns that brand's types only", "[filament_catalog]") {
+TEST_CASE_METHOD(HelixTestFixture, "types_for_brand returns that brand's types only",
+                 "[filament_catalog]") {
     auto cat = FilamentCatalog::load_full();
     auto types = cat.types_for_brand("Generic");
     REQUIRE(!types.empty());
@@ -56,7 +59,7 @@ TEST_CASE_METHOD(HelixTestFixture, "brands_for_type only lists carriers", "[fila
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "SILK has a selectable Generic product (AD5X whitelist seed)",
-                  "[filament_catalog]") {
+                 "[filament_catalog]") {
     // AD5X stock firmware's material whitelist includes "SILK" as a type distinct from
     // "PLA" (see get_supported_materials() in ams_backend_ad5x_ifs.cpp), but Orca has no
     // profile for it — silk PLA is just a display name over Orca's plain "PLA" type. A
@@ -78,4 +81,37 @@ TEST_CASE_METHOD(HelixTestFixture, "SILK has a selectable Generic product (AD5X 
         REQUIRE(p->nozzle_recommended <= p->nozzle_max);
         REQUIRE(p->bed_temp > 0);
     }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "all_types spans every brand, deduped and sorted",
+                 "[filament_catalog]") {
+    // The fallback source for a vendor the catalog does not carry: a Spoolman
+    // library holds far more vendors than the bundled 21 brands, and a material
+    // type is a property of the filament rather than of who sold it.
+    auto cat = FilamentCatalog::load_full();
+    auto types = cat.all_types();
+
+    REQUIRE(!types.empty());
+    REQUIRE(contains(types, "PLA"));
+
+    auto sorted = types;
+    std::sort(sorted.begin(), sorted.end());
+    CHECK(sorted == types);                                           // sorted
+    CHECK(std::unique(sorted.begin(), sorted.end()) == sorted.end()); // deduped
+
+    // It is a superset of any single brand's types.
+    for (const auto& t : cat.types_for_brand("Generic")) {
+        CHECK(contains(types, t));
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a vendor the catalog does not carry has no types of its own",
+                 "[filament_catalog]") {
+    // Pins the precondition the selector fallback exists for. "Ambrosia" is a
+    // real Spoolman vendor on the reporter's K2; the bundled catalog has never
+    // heard of it, so the per-vendor query is empty and the Type dropdown had
+    // nothing to show.
+    auto cat = FilamentCatalog::load_full();
+    REQUIRE(!contains(cat.all_brands(), "Ambrosia"));
+    CHECK(cat.types_for_brand("Ambrosia").empty());
 }

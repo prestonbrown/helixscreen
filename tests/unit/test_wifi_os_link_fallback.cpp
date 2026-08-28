@@ -16,6 +16,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"
@@ -76,8 +77,13 @@ class WiFiManagerTestAccess {
 
 namespace {
 
+// TEST_MIRROR_OK: this fixture builds test INPUT — a throwaway /sys and /proc
+// tree — and the tests then call the real probe_os_wifi_link(sys(), proc())
+// (see probe() below). The parsing is production's; only the filesystem the
+// kernel would have provided is faked.
+//
 // Builds a throwaway sysfs/proc fixture tree under a unique temp dir and cleans
-// it up on destruction. Mirrors the layout probe_os_wifi_link() reads.
+// it up on destruction. Lays out the paths probe_os_wifi_link() reads.
 struct SysfsFixture {
     fs::path root;
 
@@ -223,17 +229,14 @@ namespace {
 // Test-mode mock WiFi backend + headless display, mirroring the auth-debounce
 // fixture so start_scan() exercises the real WiFiManager code path.
 struct OsLinkBehaviorFixture {
-    RuntimeConfig* rc;
-    bool prev_test_mode;
-    bool prev_use_real_wifi;
+    ScopedRuntimeConfig scoped_config;
 
-    OsLinkBehaviorFixture()
-        : rc(get_runtime_config()), prev_test_mode(rc->test_mode),
-          prev_use_real_wifi(rc->use_real_wifi) {
+    OsLinkBehaviorFixture() {
+        auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
         lv_init_safe();
-        ensure_display();
+        ensure_headless_display();
         helix::ui::UpdateQueue::instance().init();
     }
 
@@ -243,24 +246,12 @@ struct OsLinkBehaviorFixture {
         // WiFiManager::reassert_stored_radio_state closure via
         // async_lifetime_.defer(). Drain here — before UpdateQueue's state
         // outlives this fixture — so it can't leak into the next test.
-        // See scripts/check_update_queue_leaks.py.
+        // See scripts/check_update_queue_leaks.py. The drain must stay ahead of
+        // scoped_config's restore, which runs after this body as the member is
+        // destroyed - the closure was queued in the mocked world and has to run
+        // in it.
         helix::ui::UpdateQueue::instance().drain();
-        rc->test_mode = prev_test_mode;
-        rc->use_real_wifi = prev_use_real_wifi;
         helix::WiFiManagerTestAccess::reset_os_link_probe();
-    }
-
-    static void ensure_display() {
-        static bool created = false;
-        if (created) {
-            return;
-        }
-        auto* disp = lv_display_create(480, 320);
-        alignas(64) static lv_color_t buf[480 * 10];
-        lv_display_set_buffers(disp, buf, nullptr, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-        lv_display_set_flush_cb(
-            disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); });
-        created = true;
     }
 
     std::shared_ptr<WiFiManager> make_manager() {

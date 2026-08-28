@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: the queue_update / queue_widget_update / async_call cases call the
+//                 shipped helix::ui:: entry points from include/ui_update_queue.h, pulled
+//                 in transitively by ../lvgl_test_fixture.h and
+//                 ../test_helpers/update_queue_test_access.h.
 /**
  * @file test_async_callback_safety.cpp
  * @brief Unit tests for thread-safety and async callback patterns

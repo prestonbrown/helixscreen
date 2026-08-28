@@ -29,8 +29,14 @@ helix::ErrorEvent make_afc_jam() {
     e.severity = helix::ErrorSeverity::CRITICAL;
     e.title = "Toolhead jam";
     e.detail = "tool_end jam detected";
-    // Mirrors AmsBackendAfc::build_recovery_actions(): the two filament-moving
-    // actions are flagged, the reset is not.
+    // Mirrors AmsBackendAfc::build_recovery_actions()'s toolhead-loaded branch:
+    // Resume + Unload need a hot nozzle, AFC_RESET does not. Re-verified against
+    // src/printer/ams_backend_afc.cpp:659 — verbatim match on all three actions.
+    // TEST_MIRROR_OK: this is the presenter's INPUT, not its logic. The unit
+    //                 under test is RecoveryModalPresenter; build_recovery_actions()
+    //                 is private, needs mutex_ held plus tool_start_sensor_ /
+    //                 current_lane_name_ state, and calling it would pull the
+    //                 whole AFC backend into a modal test.
     e.recovery_actions = {
         {"Resume", "RESUME", "afc::resume", "primary", /*needs_hot_nozzle=*/true},
         {"Unload", "TOOL_UNLOAD", "afc::tool_unload", "", /*needs_hot_nozzle=*/true},

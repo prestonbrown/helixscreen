@@ -675,6 +675,42 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     }
 
     /**
+     * @brief Override the extruder min_temp reported in configfile.settings
+     *
+     * Klipper accepts a negative min_temp - it is a sensor sanity floor, and a
+     * toolchanger with no tool fitted needs one so the open thermistor read is
+     * tolerated. Tests set it negative to exercise the adoption clamp (#1353).
+     *
+     * @param min_temp Extruder min_temp in celsius (default: 0.0)
+     */
+    void set_extruder_min_temp(double min_temp) {
+        extruder_min_temp_ = min_temp;
+    }
+
+    /**
+     * @brief Get the extruder min_temp reported in configfile.settings
+     */
+    [[nodiscard]] double get_extruder_min_temp() const {
+        return extruder_min_temp_;
+    }
+
+    /**
+     * @brief Override the extruder min_extrude_temp reported in configfile.settings
+     *
+     * @param min_extrude_temp Extruder min_extrude_temp in celsius (default: 170.0)
+     */
+    void set_extruder_min_extrude_temp(double min_extrude_temp) {
+        extruder_min_extrude_temp_ = min_extrude_temp;
+    }
+
+    /**
+     * @brief Get the extruder min_extrude_temp reported in configfile.settings
+     */
+    [[nodiscard]] double get_extruder_min_extrude_temp() const {
+        return extruder_min_extrude_temp_;
+    }
+
+    /**
      * @brief Check if mock accelerometer is enabled
      * @return true if accelerometer should be reported as available
      */
@@ -698,6 +734,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if Spoolman should be reported as available during discovery
      */
+    /// Test seam: drive the Spoolman component in and out of server.info so the
+    /// REAL discovery sequence's spoolman branch can be exercised both ways.
+    void set_mock_spoolman_enabled(bool enabled) {
+        mock_spoolman_enabled_ = enabled;
+    }
+
     [[nodiscard]] bool is_mock_spoolman_enabled() const {
         return mock_spoolman_enabled_;
     }
@@ -830,6 +872,40 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     void dispatch_gcode_response(const std::string& line);
 
+    /**
+     * @brief Simulate a Klipper restart - the ONE model of what a restart does
+     *
+     * Sets klippy_state to STARTUP, clears the active print, zeroes heater
+     * targets, drops excluded objects, dispatches the webhooks status update a
+     * real restart arrives as, then returns to READY after a delay on a tracked
+     * thread (not an lv_timer - this must work in tests that never pump LVGL).
+     * Temps continue cooling naturally during the restart period.
+     *
+     * Public because the printer.restart / printer.firmware_restart handlers are
+     * free-function lambdas taking a MoonrakerClientMock*, not members. They
+     * delegate here rather than each faking a restart differently.
+     *
+     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s),
+     *                    both divided by the speedup factor
+     */
+    void trigger_restart(bool is_firmware);
+
+    /**
+     * @brief `[medusahc]` status in the schema of the selected variant.
+     *
+     * Empty object when this is not a MedusaHC mock. Built
+     * from the swap-simulation atomics, so a caller polling this while a swap
+     * runs sees the phases advance. Safe to call from either thread.
+     */
+    nlohmann::json medusa_status_json() const;
+
+    /**
+     * @brief `[pin_watch io]` status: `{"current_tool": int}`.
+     *
+     * Empty object for the FORK variant (no pin_watch) and for NONE.
+     */
+    nlohmann::json pin_watch_status_json() const;
+
   private:
     /**
      * @brief Populate hardware lists based on configured printer type
@@ -858,6 +934,35 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * unaffected.
      */
     bool is_mock_toolchanger() const;
+
+    /**
+     * @brief Which MedusaHC shipping configuration the mock emulates.
+     *
+     * MedusaHC is a hotend changer bolted onto klipper-toolchanger. The Python
+     * extra that publishes [medusahc] lives outside the hardware repo and has
+     * two independent implementations whose objects and status schemas differ
+     * (see docs/devel/FILAMENT_BACKEND_MEDUSAHC.md). Emulating only one would
+     * leave toolchanger_addon's schema discrimination unexercised outside the
+     * unit tests, so the mock can produce either.
+     */
+    enum class MedusaVariant {
+        NONE,       ///< Not a MedusaHC mock
+        CONTROLLER, ///< Irbis3D MedusaHC-Python-Controller: MHC_* + legacy aliases
+        FORK,       ///< topi314/MedusaHC: [medusahc] alone, forked status schema
+    };
+
+    /**
+     * @brief MedusaHC variant selected by HELIX_MOCK_AMS, or NONE.
+     *
+     * "medusahc"/"medusa"/"mhc" select CONTROLLER (the Irbis3D implementation);
+     * "medusahc-fork" selects topi314's. Unlike is_mock_toolchanger(), these values do NOT
+     * build an AmsBackendMock: try_create_mock() declines them so real discovery
+     * runs and the production AmsBackendToolChanger drives the mock objects.
+     */
+    MedusaVariant mock_medusa_variant() const;
+
+    /// Convenience: mock_medusa_variant() != MedusaVariant::NONE.
+    bool is_mock_medusahc() const;
 
     /**
      * @brief Rebuild hardware from current discovery lists (heaters, fans, sensors, etc.)
@@ -987,17 +1092,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param state New state string ("printing", "paused", "complete", etc.)
      */
     void dispatch_print_state_notification(const std::string& state);
-
-    /**
-     * @brief Trigger Klipper restart simulation
-     *
-     * Sets klippy_state to STARTUP, clears active print, sets heater targets to 0,
-     * then spawns a thread to restore READY state after delay. Temps continue
-     * cooling naturally during the restart period.
-     *
-     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s)
-     */
-    void trigger_restart(bool is_firmware);
 
     /**
      * @brief Set fan speed internally and dispatch status update
@@ -1259,8 +1353,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<bool> relative_mode_{false}; // G90=absolute (false), G91=relative (true)
     std::atomic<bool> motors_enabled_{true}; // Track motor enable state for idle_timeout
 
-    // Idle timeout simulation
-    std::chrono::steady_clock::time_point last_activity_time_;
+    // Idle timeout simulation.
+    // Atomic because reset_idle_timeout() writes it from whichever thread drove
+    // the activity while temperature_simulation_loop() reads it on the sim
+    // thread; the siblings below were already atomic and this one was missed.
+    std::atomic<std::chrono::steady_clock::time_point> last_activity_time_;
     std::atomic<bool> idle_timeout_triggered_{false};
     std::atomic<uint32_t> idle_timeout_seconds_{600}; // Default 10 minutes
 
@@ -1465,9 +1562,31 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
     bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
     double extruder_max_temp_{300.0};    ///< Extruder max_temp reported in configfile.settings
-    double resonance_min_freq_{5.0};     ///< [resonance_tester] min_freq the mock reports/sweeps
-    double resonance_max_freq_{135.0};   ///< [resonance_tester] max_freq the mock reports/sweeps
-    bool mmu_enabled_{true};             ///< MMU available (default true for existing tests)
+    double extruder_min_temp_{0.0};      ///< Extruder min_temp reported in configfile.settings
+    double extruder_min_extrude_temp_{170.0}; ///< Extruder min_extrude_temp in configfile.settings
+    double resonance_min_freq_{5.0};   ///< [resonance_tester] min_freq the mock reports/sweeps
+    double resonance_max_freq_{135.0}; ///< [resonance_tester] max_freq the mock reports/sweeps
+    bool mmu_enabled_{true};           ///< MMU available (default true for existing tests)
+
+    // --- MedusaHC swap simulation -------------------------------------------
+    // Driven from gcode_script() (SELECT_TOOL / UNSELECT_TOOL / the feeder
+    // macros) and advanced by temperature_simulation_loop(), so a swap moves
+    // through its phases on the wire the way the real controller reports them
+    // instead of snapping to the final state. Atomics: written on the main
+    // thread from gcode_script(), read and advanced on the simulation thread.
+    std::atomic<int> medusa_current_tool_{0};      ///< Tool physically on the head, -1 none
+    std::atomic<int> medusa_target_tool_{-1};      ///< Tool the running swap is fetching, -1 none
+    std::atomic<int> medusa_phase_{0};             ///< 0 idle, 1 dropping, 2 picking
+    std::atomic<int> medusa_phase_ticks_{0};       ///< Sim ticks left in the current phase
+    std::atomic<bool> medusa_feeder_open_{false};  ///< Servo gripper released
+    std::atomic<bool> medusa_sensor_error_{false}; ///< Docks cannot say what is mounted
+
+    /// Arm a swap to `tool` (-1 unmounts whatever is on the head). Opens the
+    /// feeder and enters the drop phase; advance_medusa_swap() does the rest.
+    void start_medusa_swap(int tool);
+
+    /// Advance the armed swap by one notification interval. No-op when idle.
+    void advance_medusa_swap();
 
     // Additional objects for testing (e.g., "mmu", "AFC", "toolchanger")
     std::vector<std::string> additional_objects_;

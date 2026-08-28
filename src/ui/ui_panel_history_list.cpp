@@ -324,8 +324,8 @@ void HistoryListPanel::on_activate() {
 
         // Trigger manager fetch if available, otherwise direct API call
         if (history_manager_) {
-            spdlog::debug("[{}] Manager not loaded, triggering fetch", get_name());
-            history_manager_->fetch();
+            spdlog::debug("[{}] Manager not loaded, triggering load", get_name());
+            history_manager_->ensure_loaded();
         } else {
             // Fallback: Jobs weren't set by dashboard, fetch from API
             refresh_from_api();

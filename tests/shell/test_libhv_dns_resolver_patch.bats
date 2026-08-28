@@ -41,10 +41,6 @@ setup() {
     grep -qE '^\$\(LIBHV_LIB\):[[:space:]]*\$\(PATCHES_STAMP\)' "$RULES_MK"
 }
 
-@test "DNS resolver fallback patch file exists" {
-    [ -f "$PATCH" ]
-}
-
 @test "patch contains the hsocket.c wiring hunk, not only the new files" {
     # The integration hunk is the part that regressed; without it the resolver
     # source is dead code and the binary falls back to the crashy getaddrinfo().

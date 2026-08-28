@@ -544,10 +544,11 @@ static void evaluate_pulse_state(AmsSlotData* data) {
     int current_slot = lv_subject_get_int(slot_subject);
     int target_slot = target_subject ? lv_subject_get_int(target_subject) : -1;
 
-    bool is_active_operation = (action == AmsAction::HEATING || action == AmsAction::LOADING ||
-                                action == AmsAction::UNLOADING || action == AmsAction::CUTTING ||
-                                action == AmsAction::FORMING_TIP || action == AmsAction::PURGING ||
-                                action == AmsAction::SELECTING);
+    // The "is anything happening" question, defined once in ams_types.h. Broader
+    // than what the step bar follows (AmsBackend::action_tracks_step_operation)
+    // and deliberately backend-independent: a pulse on a slot that turns out not
+    // to move is harmless.
+    const bool is_active_operation = ams_action_is_busy(action);
 
     // Pulse the current slot during operations, AND the target slot during swaps
     // (so the user can see which slot filament is being loaded into)
@@ -787,8 +788,25 @@ static void setup_slot_observers(AmsSlotData* data) {
         data->material_observer = helix::ui::observe_string<lv_obj_t>(
             material_subject, obj, [](lv_obj_t* o, const char* mat) {
                 auto* d = get_slot_data(o);
-                if (d)
-                    apply_slot_material(d, mat);
+                if (!d)
+                    return;
+                apply_slot_material(d, mat);
+                // An identity-only change (assigning a spool to an already-EMPTY
+                // lane) moves the material subject but NOT the status subject, so
+                // apply_slot_status() never re-runs and the spool stays hidden
+                // behind the unassigned-empty placeholder while the label reads
+                // the new material. The two disagree because they are applied by
+                // separate observers off the same predicate. Re-derive the spool
+                // presentation here so a lane that just gained an assignment
+                // ghosts instead of staying blank.
+                //
+                // Cannot recurse: apply_slot_status() reaches the label through
+                // refresh_slot_material_label(), which READS the subject and
+                // calls apply_slot_material() directly — it never writes the
+                // subject, so this observer is not re-entered.
+                if (d->last_status == SlotStatus::EMPTY) {
+                    apply_slot_status(d, static_cast<int>(SlotStatus::EMPTY));
+                }
             });
     }
 

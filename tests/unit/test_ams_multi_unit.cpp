@@ -814,18 +814,24 @@ TEST_CASE("Happy Hare multi-unit: three units", "[ams][multi-unit][happy-hare]")
 // Global-to-Local Slot Index Mapping
 // ============================================================================
 
-// Mirrors the logic in AmsOverviewPanel::handle_detail_slot_tap() which
-// converts a global slot index (from the widget user_data) to a local index
-// within the displayed unit. Extracted here as a pure data test.
-
+// The conversion AmsOverviewPanel's detail view performs on a slot tap: the
+// widget carries a GLOBAL slot index, the detail view is indexed locally. Both
+// halves of the answer are asked of shipped code — get_unit_position_for_slot()
+// for "does this unit own the slot" and AmsUnit::first_slot_global_index for the
+// origin — so a change to either layout rule is felt here rather than in a copy.
+//
+// One deliberate difference from the panel: handle_detail_slot_tap() bounds the
+// local index on detail_slot_count_, the number of slot WIDGETS the detail view
+// actually built, not on unit.slot_count. The two agree in the only state that
+// function is reachable in (the detail view is built for detail_unit_index_),
+// and the widget count is not a property of AmsSystemInfo, so it is not
+// modelled here.
 static int global_to_local_slot(const AmsSystemInfo& info, int unit_index, int global_slot_index) {
-    if (unit_index < 0 || unit_index >= static_cast<int>(info.units.size()))
+    if (info.get_unit_position_for_slot(global_slot_index) != unit_index) {
         return -1;
-    const auto& unit = info.units[unit_index];
-    int local = global_slot_index - unit.first_slot_global_index;
-    if (local < 0 || local >= unit.slot_count)
-        return -1;
-    return local;
+    }
+    const AmsUnit* unit = info.get_unit_for_slot(global_slot_index);
+    return unit ? global_slot_index - unit->first_slot_global_index : -1;
 }
 
 TEST_CASE("Global-to-local slot mapping for first unit", "[ams][multi-unit]") {

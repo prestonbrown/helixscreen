@@ -47,6 +47,11 @@ LVGL thread (main)                    Worker thread (background)
 Key safety rules:
 - **Config** is read on the main thread and cached before spawning the worker (Config is NOT thread-safe).
 - **LVGL subjects** are only updated via `ui_queue_update()` from background threads.
+- **The LVGL thread never joins the download worker.** `start_download()` runs inside a button's
+  event callback, and the worker sits in libhv's synchronous `requests::downloadFile()`, whose
+  `req->timeout` is **3600 seconds** with no abort hook (its progress callback returns `void`).
+  Joining there froze the touchscreen until the transfer ended. `shutdown()` and the destructor
+  wait a bounded time and then **detach** for the same reason — see `reap_download_thread()`.
 - **Downloads are blocked** while a print is in progress (`PrintJobState::PRINTING` or `PAUSED`).
 - **Rate limited** to one check per `MIN_CHECK_INTERVAL` (10 minutes). A manual tap inside that
   window returns the cached result and logs only at `debug`, so it looks like nothing happened.
@@ -75,8 +80,30 @@ The two underlying reasons, and the notice each raises:
 
 | Reason | Predicate | UI notice |
 |--------|-----------|-----------|
-| Firmware owns updates | `updates_externally_managed()` — the `HELIX_DISABLE_AUTO_UPDATES` env flag, nothing else | "Managed by your firmware" |
+| Firmware owns updates | `updates_externally_managed()` — the `HELIX_DISABLE_AUTO_UPDATES` env flag, else the platform default | "Managed by your firmware" |
 | Self-update can't physically apply | `!self_update_supported()` | "Updates aren't available on this installation" |
+
+### Who decides `updates_externally_managed()`
+
+`HELIX_DISABLE_AUTO_UPDATES` decides it **in either direction** when set to a value that
+parses — truthy suppresses, falsy force-enables. Unset (or empty) defers to
+`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which is the
+single place any platform is named.
+
+Today that default is true only for the **Snapmaker U1**. PAXX Extended Firmware ships
+HelixScreen as a selectable component, downloading a pinned, sha256-verified tarball into
+`/oem/apps/helixscreen` via `extended-pkg`; self-updating there rewrites a package the
+firmware believes it owns. Suppression previously depended entirely on the firmware hook
+exporting the flag, which it does not — their lmd hook (<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh) exports `HELIX_DATA_DIR`,
+`HELIX_SUPERVISED`, `HELIX_DRM_DEVICE`, `HELIX_CACHE_DIR`, `HELIX_CONFIG_DIR` and
+`HELIX_REMOTE_SCREEN_FB0`, and nothing else. Every U1 install therefore checked for updates
+and raised the update modal.
+
+The falsy arm is the dev-box escape hatch: `HELIX_DISABLE_AUTO_UPDATES=0` turns self-update
+back on where the platform defaults it off, from the CLI or a deploy script, without a
+rebuild. An **empty** value reads as unset rather than falsy, because `helixscreen.env` can
+export one and treating that as an explicit "no" would silently re-enable self-update on a
+firmware-managed box.
 
 ESP32 stubs both predicates constant-true (`helixapp_platform_stubs.cpp`): OTA is the only
 update route there, so the settings UI hides its update affordances entirely.
@@ -348,14 +375,31 @@ Asset name format: `helixscreen-{platform}.zip` (preferred, e.g., `helixscreen-p
 The download lifecycle is tracked by `DownloadStatus`:
 
 ```
-Idle (0) ──> Confirming (1) ──> Downloading (2) ──> Verifying (3) ──> Installing (4) ──> Complete (5)
-                 |                    |                  |                  |
-                 v                    v                  v                  v
-              (cancel)            (cancel)           Error (6)          Error (6)
-                 |                    |                  |                  |
-                 v                    v                  v                  v
-              Idle (0)            Idle (0)         (Retry or Close)   (Retry or Close)
+Idle (0) ─> Confirming (1) ─> Downloading (2) ─> Verifying (3) ─> Installing (4) ─> Complete (5)
+                |                   |                 |                |               |
+                v                   v                 v                v               v
+             (cancel)           (cancel)          Error (6)        Error (6)     Restarting (7)
+                |                   |                 |                |               |
+                v                   v                 v                v               v
+             Idle (0)           Idle (0)       (Retry or Close)  (Retry or Close)   _exit(0)
 ```
+
+**Cancel is deferred, and the status enum lies about it.** `cancel_download()` only sets a flag
+the worker reads *after* `downloadFile()` returns, while `hide_update_download_modal()` resets
+`download_status` to `Idle` immediately. So "Idle" can mean "a worker is still inside an hour-long
+blocking call". `download_in_flight()` is the real answer, and `start_download()` gates re-entry on
+it — a second Install while the old worker is alive is **refused with an Error**, never queued and
+never joined.
+
+**Every early return from `start_download()` must report a status.** `update_download_modal.xml`
+binds every container *and* every button row to a NON-ZERO `download_status`, so a silent return
+leaves an empty dialog with no buttons — dismissable only by an undiscoverable backdrop tap.
+
+**Complete (5) → Restarting (7) → exit.** `report_download_status()` only *queues* its subject
+write, so `::_exit(0)` straight after it meant the completion frame never painted and the last
+thing on screen was "Installing... Do not power off your printer." The worker now holds each
+terminal frame long enough for the LVGL thread to render it (2s, then 1s) and hands the exit
+itself to that thread via `queue_update()`, with a 5s backstop in case no main loop is draining.
 
 ### Download Steps
 
@@ -477,8 +521,9 @@ Multi-state modal driven by `download_status` subject:
 | Downloading (2) | Progress bar + percentage + Cancel button |
 | Verifying (3) | Spinner + "Verifying..." text |
 | Installing (4) | Spinner + "Installing..." + "Do not power off" warning |
-| Complete (5) | Success icon + "Later" / "Restart Now" buttons |
+| Complete (5) | Success icon + "Update installed!" (no buttons — the restart is automatic) |
 | Error (6) | Error icon + error text + "Close" / "Retry" buttons |
+| Restarting (7) | "Hang on, we'll be right back!" — the last frame before `_exit(0)` |
 
 ### LVGL Subjects
 

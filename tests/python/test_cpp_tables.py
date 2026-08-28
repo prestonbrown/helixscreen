@@ -118,6 +118,40 @@ def test_device_section_rows_yield_label_and_description():
     assert "hub" not in found
 
 
+def test_device_section_rows_survive_a_namespace_qualified_return_type():
+    # How every backend actually declares it. An unqualified `DeviceSection` in
+    # the function-signature pattern matched none of them, so section labels and
+    # descriptions were never offered for translation even though this module
+    # exists to catch exactly that.
+    found = extract_table_strings(dedent("""\
+        std::vector<helix::printer::DeviceSection> AmsBackendAce::get_device_sections() const {
+            using DS = helix::printer::DeviceSection;
+            return {
+                DS{"maintenance", "Maintenance", 1, "Feed assist and debug tools"},
+            };
+        }
+    """))
+    assert "Maintenance" in found
+    assert "Feed assist and debug tools" in found
+    assert "maintenance" not in found
+
+
+def test_device_section_declaration_in_a_header_is_not_scanned():
+    # A header DECLARATION has no body. Matching it made the extractor walk to
+    # the next unrelated brace block and read it as if it held section rows.
+    found = extract_table_strings(dedent("""\
+        class AmsBackendToolChanger {
+            std::vector<helix::printer::DeviceSection> get_device_sections() const override;
+        };
+
+        static const char* kNotASection[] = {
+            {"aa", "Should Not Be Extracted", 1, "Nor this description"},
+        };
+    """))
+    assert "Should Not Be Extracted" not in found
+    assert "Nor this description" not in found
+
+
 def test_designated_device_action_yields_label_and_description():
     found = extract_table_strings(dedent("""\
         actions.push_back({

@@ -56,12 +56,12 @@ Four mechanics carry the load: the file-to-widget pipeline (including live editi
 
 At boot, `Application` runs the phases in a fixed order (phase numbers and lines from [`src/application/application.cpp`](../../../src/application/application.cpp)):
 
-1. Phase 7 — `register_widgets()` (`:1744`): registers the first 13 C++ widget types so the engine knows tags like `ui_card` and `ui_button`.
+1. Phase 7 — `register_widgets()` (`:1757`): registers the first 13 C++ widget types so the engine knows tags like `ui_card` and `ui_button`.
 2. Phase 8a — translations, before any UI exists.
 3. Phase 8b — rotation probe and layout-manager init, so per-display XML variant directories are known.
-4. Phase 8c — `register_xml_components()` (`:1777`): registers every XML component file.
+4. Phase 8c — `register_xml_components()` (`:1790`): registers every XML component file.
 5. Phase 9a — subject initialization, so every binding can resolve.
-6. Finally `lv_xml_create(m_screen, "app_layout", nullptr)` (`:1960`) instantiates the root layout.
+6. Finally `lv_xml_create(m_screen, "app_layout", nullptr)` (`:1973`) instantiates the root layout.
 
 `register_xml_components()` in [`src/xml_registration.cpp:300`](../../../src/xml_registration.cpp#L300) walks roughly 300 `register_xml("file.xml")` calls. Each resolves the path through `LayoutManager::resolve_xml_path()` ([`src/layout_manager.cpp:101`](../../../src/layout_manager.cpp#L101)) — which prefers a per-display variant subdirectory when one is active — prefixes an LVGL filesystem drive letter, and hands it to `lv_xml_register_component_from_file()`. The result is a table of component templates: named XML fragments like
 
@@ -80,7 +80,7 @@ At boot, `Application` runs the phases in a fixed order (phase numbers and lines
 
 Creation happens later, on demand. When navigation needs a panel, `PanelFactory` calls `lv_xml_create(parent, "bed_temp_panel", attrs)`. The engine (`lib/helix-xml/src/xml/lv_xml.c:438`) first looks the name up in the widget-processor table — the built-in `lv_label`/`lv_slider` types plus our custom `ui_*` widgets. If that misses, it looks up a registered component scope and instantiates the template: recursively creating child widgets, applying attributes, and resolving bindings as it goes.
 
-Components compose. A panel's `<view extends="overlay_panel">` inherits a registered wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), registered at [`src/xml_registration.cpp:414`](../../../src/xml_registration.cpp#L414)) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c:200`). A component file may also declare `<consts>` — named values visible to that component's bindings and styles — which is where per-panel colors and sizes live when they are not global theme tokens.
+Components compose. A panel's `<view extends="overlay_panel">` inherits a registered wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), registered at [`src/xml_registration.cpp:428`](../../../src/xml_registration.cpp#L428)) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c:200`). A component file may also declare `<consts>` — named values visible to that component's bindings and styles — which is where per-panel colors and sizes live when they are not global theme tokens.
 
 Widget naming follows a three-level precedence, set in the engine at `lib/helix-xml/src/xml/lv_xml.c:514`: an explicit `name="..."` at the instantiation site wins; otherwise a `name` the component set on its own `<view>` root is kept; otherwise the object gets a default `<component>_#`. (Older docs claimed `<view name>` never propagated and unnamed instances were unfindable — our fork fixed that; an instance-site name that displaces a `<view>` name now logs a one-time warning, `lib/helix-xml/src/xml/lv_xml.c:473`.)
 
@@ -146,7 +146,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
   {"on_heater_preset_clicked", on_heater_preset_clicked},
   ```
 
-  The handler at [`src/ui/temperature_service.cpp:830`](../../../src/ui/temperature_service.cpp#L830) receives the click with the button's user data.
+  The handler at [`src/ui/temperature_service.cpp:831`](../../../src/ui/temperature_service.cpp#L831) receives the click with the button's user data.
 
 Three files, no direct references between them. The XML names a subject and a callback; C++ publishes both by name; the engine ties them at instantiation. This is the shape essentially every interactive element in the app takes.
 
@@ -166,7 +166,7 @@ The ownership split matters at teardown: XML-declared subjects are owned by the 
 
 The widget-processor table is not only built-ins. Twenty-nine files under `src/` call `lv_xml_register_widget()` to teach the engine new tags — the visual vocabulary of the app: `ui_card`, `ui_button`, `ui_dialog`, `ui_icon`, `ui_markdown`, `ui_spinner`, `ui_switch`, `ui_text_input`, `ui_temp_display`, `ui_carousel`, `helix_sparkline`, canvas widgets like `ui_bed_mesh` and `ui_gcode_viewer`, and more (full list: `rg -l 'lv_xml_register_widget' src/`). Each file pairs a *create* handler (runs once per instance, sets defaults) with an *apply* handler (runs on attribute application, may run again). [`src/ui/ui_card.cpp`](../../../src/ui/ui_card.cpp) is the cleanest example and a tour stop below.
 
-The engine those 29 files register into stopped being LVGL's code in v9.5. `lib/helix-xml/` is a permanent hard fork, extracted from LVGL at commit `a15dcbeb5` — the last tree (v9.4.0-358) that still contained the XML engine before v9.5 removed it from core. It is MIT-licensed, lives in its own repository (prestonbrown/helix-xml), and upstream is us: there is no LVGL-side upstream to track. Engine changes are committed directly in the submodule, then the bumped pointer is committed here; the `patches/*.patch` workflow applies only to third-party submodules, never to this one. Because LVGL now sells an XML-based product (LVGL Pro / SquareLine), there is a clean-room rule for anything their commercial offering also has — read [`LVGL_XML_SITUATION.md`](../LVGL_XML_SITUATION.md) (listed below) before touching the engine.
+The engine those 29 files register into stopped being LVGL's code in v9.5. `lib/helix-xml/` is a permanent hard fork, extracted from LVGL at commit `a15dcbeb5` — the last tree (v9.4.0-358) that still contained the XML engine before v9.5 removed it from core. It is MIT-licensed, lives in its own repository (prestonbrown/helix-xml), and upstream is us: there is no LVGL-side upstream to track. Engine changes are committed directly in the submodule, then the bumped pointer is committed here; the `patches/*.patch` workflow applies only to third-party submodules, never to this one. Because LVGL now sells an XML-based product (LVGL Pro / SquareLine), there is a clean-room rule for anything their commercial offering also has — read [`HELIX_XML_FORK.md`](../HELIX_XML_FORK.md) (listed below) before touching the engine.
 
 ## Patterns & gotchas
 
@@ -184,7 +184,7 @@ The engine those 29 files register into stopped being LVGL's code in v9.5. `lib/
 
 - [`../LVGL9_XML_GUIDE.md`](../LVGL9_XML_GUIDE.md) — the full XML syntax: every widget, flex layout, styles, observer cleanup in DELETE handlers, structural conditionals, `<repeat>`.
 - [`../LVGL9_XML_ATTRIBUTES_REFERENCE.md`](../LVGL9_XML_ATTRIBUTES_REFERENCE.md) — complete attribute reference, binding and style properties per widget.
-- [`../LVGL_XML_SITUATION.md`](../LVGL_XML_SITUATION.md) — fork origin and licensing, why there is no upstream, the clean-room rule, feature-gap analysis vs LVGL's commercial engine.
+- [`../HELIX_XML_FORK.md`](../HELIX_XML_FORK.md) — fork origin and licensing, why there is no upstream, the clean-room rule, feature-gap analysis vs LVGL's commercial engine.
 - [`../UI_CONTRIBUTOR_GUIDE.md`](../UI_CONTRIBUTOR_GUIDE.md) — breakpoints, design tokens, colors: the layout-level conventions this chapter does not cover.
 - [`../CONTRIBUTOR_GOTCHAS.md`](../CONTRIBUTOR_GOTCHAS.md) — symptom-indexed silent-failure traps ("if you see X, you forgot Y") for XML, translations, and subjects.
 - [`../THREADING.md`](../THREADING.md) — the threading rules that bind every subject write (chapter 3 summarizes; this is the source of truth).
@@ -196,7 +196,7 @@ Read in this order; about 25 minutes total.
 1. [`ui_xml/bed_temp_panel.xml:14`](../../../ui_xml/bed_temp_panel.xml#L14) — a whole panel in 124 lines. Notice `<consts>` for local tokens, the `<view extends="overlay_panel">` inheritance, `bind_text` on `text_small` (line 56), and the preset buttons at line 73 that the worked example above dissects.
 2. [`ui_xml/overlay_panel.xml:7`](../../../ui_xml/overlay_panel.xml#L7) — the wrapper component those panels extend: positioning, header, and the content slot convention.
 3. [`src/xml_registration.cpp:284`](../../../src/xml_registration.cpp#L284) — the `register_xml()` helper: path resolution, the LVGL drive-letter prefix, and the ESP boot-yield. Then skim `register_xml_components()` at [`src/xml_registration.cpp:300`](../../../src/xml_registration.cpp#L300) to feel the size of the sweep.
-4. [`src/application/application.cpp:1744`](../../../src/application/application.cpp#L1744) — `register_widgets()` (the first wave of C++ widget registrations), then `:1777` `register_xml_components()` and its hot-reloader wiring, and finally `:1960` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
+4. [`src/application/application.cpp:1757`](../../../src/application/application.cpp#L1757) — `register_widgets()` (the first wave of C++ widget registrations), then `:1790` `register_xml_components()` and its hot-reloader wiring, and finally `:1973` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
 5. `lib/helix-xml/src/xml/lv_xml.c:438` — `lv_xml_create`: widget-processor table first, component scope second. Then `:514` — the name-precedence rules and the default `<component>_#` fallback.
 6. `lib/helix-xml/src/xml/lv_xml.c:759` — `lv_xml_get_subject`: the component-scope-then-globals walk, and the WARN on miss you will grep for.
 7. `lib/helix-xml/src/xml/lv_xml.c:281` — the `bind_*` pseudo-widget registrations; the entire binding-element vocabulary in ~25 lines.

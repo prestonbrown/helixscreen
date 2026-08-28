@@ -26,6 +26,9 @@
 namespace {
 
 /// Process pending lv_async_call / lv_obj_delete_async one-shot timers.
+/// TEST_MIRROR_OK: lv_timer_handler() is LVGL's own API, not our code, and this
+/// helper mirrors another TEST helper (test_cleanup_helpers.cpp) rather than any
+/// production symbol. The gate matched the LVGL name in the vendored headers.
 /// Mirrors the helper in test_cleanup_helpers.cpp — lv_timer_handler() loops
 /// indefinitely on display refresh timers in the fixture.
 void process_async_timers() {

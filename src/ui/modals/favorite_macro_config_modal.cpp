@@ -26,7 +26,7 @@ namespace helix {
 
 namespace {
 lv_subject_t s_tab_subject;
-lv_subject_t s_skip_subject;
+lv_subject_t s_require_confirm_subject;
 bool s_subjects_registered = false;
 
 // Curated icon list for the picker grid (matches FavoriteMacroWidget).
@@ -90,12 +90,14 @@ void register_favorite_macro_config_subjects() {
     if (s_subjects_registered)
         return;
     lv_subject_init_int(&s_tab_subject, 0);
-    lv_subject_init_int(&s_skip_subject, 0);
+    // Default 1 mirrors FavoriteMacroConfig::require_confirmation, so the toggle
+    // reads correctly even before on_show() loads a widget's config.
+    lv_subject_init_int(&s_require_confirm_subject, 1);
     lv_xml_register_subject(nullptr, "fav_macro_config_tab", &s_tab_subject);
-    lv_xml_register_subject(nullptr, "fav_macro_skip_params", &s_skip_subject);
+    lv_xml_register_subject(nullptr, "fav_macro_require_confirm", &s_require_confirm_subject);
     StaticSubjectRegistry::instance().register_deinit("FavoriteMacroConfigSubjects", []() {
         lv_subject_deinit(&s_tab_subject);
-        lv_subject_deinit(&s_skip_subject);
+        lv_subject_deinit(&s_require_confirm_subject);
         s_subjects_registered = false;
     });
     s_subjects_registered = true;
@@ -119,12 +121,12 @@ void FavoriteMacroConfigModal::load_config() {
     macro_name_ = c.macro;
     icon_name_ = c.icon;
     icon_color_ = c.color;
-    skip_param_prompt_ = c.skip_param_prompt;
+    require_confirmation_ = c.require_confirmation;
 }
 
 void FavoriteMacroConfigModal::persist() {
     auto& wc = PanelWidgetManager::instance().get_widget_config(panel_id_);
-    FavoriteMacroConfig c{macro_name_, icon_name_, icon_color_, skip_param_prompt_};
+    FavoriteMacroConfig c{macro_name_, icon_name_, icon_color_, require_confirmation_};
     wc.set_widget_config(widget_id_, favorite_macro_config_to_json(c));
     if (on_change_)
         on_change_();
@@ -136,7 +138,7 @@ void FavoriteMacroConfigModal::on_show() {
     icon_grid_ = lv_obj_find_by_name(dialog(), "icon_grid");
     color_grid_ = lv_obj_find_by_name(dialog(), "color_grid");
     lv_subject_set_int(&s_tab_subject, 0);
-    lv_subject_set_int(&s_skip_subject, skip_param_prompt_ ? 1 : 0);
+    lv_subject_set_int(&s_require_confirm_subject, require_confirmation_ ? 1 : 0);
     populate_macro_list();
     populate_icon_grid();
     populate_color_grid();
@@ -172,11 +174,15 @@ void FavoriteMacroConfigModal::close_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void FavoriteMacroConfigModal::skip_params_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] skip_params_cb");
+void FavoriteMacroConfigModal::require_confirm_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] require_confirm_cb");
     auto* sw = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    bool enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    // The switch owns its own checked state; push it back to the subject so the
+    // bound consequence hint in the Options tab follows the toggle.
+    lv_subject_set_int(&s_require_confirm_subject, enabled ? 1 : 0);
     if (s_active_)
-        s_active_->select_skip_param(lv_obj_has_state(sw, LV_STATE_CHECKED));
+        s_active_->select_require_confirmation(enabled);
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -369,9 +375,10 @@ void FavoriteMacroConfigModal::select_color(uint32_t color) {
     spdlog::info("[FavoriteMacroConfigModal] Selected color: 0x{:06X}", color);
 }
 
-void FavoriteMacroConfigModal::select_skip_param(bool enabled) {
-    skip_param_prompt_ = enabled;
+void FavoriteMacroConfigModal::select_require_confirmation(bool enabled) {
+    require_confirmation_ = enabled;
     persist();
+    spdlog::info("[FavoriteMacroConfigModal] Require confirmation: {}", enabled ? "on" : "off");
 }
 
 void FavoriteMacroConfigModal::macro_row_cb(lv_event_t* e) {

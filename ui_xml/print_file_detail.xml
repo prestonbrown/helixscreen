@@ -41,12 +41,33 @@
                          thumbnail_offset_y="#preview_offset_y" gradient_hidden="detail_gcode_viewer_mode eq 1"
                          viewer_hidden="detail_gcode_viewer_mode eq 0" thumbnail_hidden="detail_viewer_first_frame eq 1"
                          hint_hidden="detail_gcode_viewer_mode ne 1"/>
-          <!-- Loading spinner overlay - shown while G-code is downloading/parsing -->
+          <!-- Loading overlay - shown while G-code is downloading/indexing.
+               Determinate whenever the streaming indexer can report: a large
+               file spends the whole wait in the index scan (a 133MB print took
+               69s on a K2 Plus), and a bare spinner for that long reads as a
+               hung app. detail_gcode_progress is 0 when there is no honest
+               figure - the full-load path has no checkpoint to report - and the
+               spinner covers that case, mirroring wizard_input_shaper's
+               determinate/indeterminate pair. -->
           <lv_obj name="detail_loading_overlay"
                   width="100%" height="100%" align="center" style_bg_opa="120" style_bg_color="0x000000"
                   scrollable="false">
             <bind_flag_if_eq subject="detail_gcode_loading" flag="hidden" ref_value="0"/>
-            <spinner size="lg" align="center"/>
+            <lv_obj width="80%"
+                    height="content" align="center" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm"
+                    style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
+              <!-- One compound rule per flag, not two: two flag observers on the
+                   same flag each assert both polarities on every fire and clobber
+                   each other (see wizard_input_shaper.xml). -->
+              <spinner size="lg">
+                <bind_flag_if cond="detail_gcode_progress gt 0" flag="hidden"/>
+              </spinner>
+              <progress_bar name="detail_loading_progress" width="100%" bind_value="detail_gcode_progress">
+                <bind_flag_if cond="detail_gcode_progress eq 0" flag="hidden"/>
+              </progress_bar>
+              <text_small name="detail_loading_label"
+                          bind_text="detail_gcode_progress_text" style_text_align="center" style_text_color="#text"/>
+            </lv_obj>
           </lv_obj>
           <!-- No-thumbnail placeholder - responsive hero-size glyph shown when file has no real thumbnail.
              Uses icon_font_hero so the cube scales with the breakpoint (96px micro → 128px large+). -->
@@ -163,6 +184,11 @@
              whenever any used tool's AMS slot is empty). -->
         <ui_card name="color_requirements_card" width="100%" style_pad_all="0" style_border_width="0" flex_flow="column">
           <bind_flag_if_eq subject="color_swatches_visible" flag="hidden" ref_value="0"/>
+          <!-- Tapping this card is the ONLY way into the remap picker on a
+               backend whose inline filament_mapping_card is hidden (Snapmaker
+               U1). Clickable only when that tap actually opens something, so the
+               card never swallows a tap it would silently drop. -->
+          <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
@@ -170,6 +196,18 @@
             <icon name="empty_tools_warning_icon"
                   src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="empty_tools_warning" flag="hidden" ref_value="0"/>
+            </icon>
+            <!-- Spacer: pushes the tap cue to the trailing edge without giving
+                 the label a width that would fight the warning icon. -->
+            <lv_obj name="color_card_header_spacer"
+                    width="content" height="1" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false" clickable="false" event_bubble="true"/>
+            <!-- The tap cue. Same chevron every tappable row in the app uses
+                 (setting_action_row.xml, ams_edit_overlay.xml), so it reads as
+                 "this opens something" without a label to translate. -->
+            <icon name="color_card_remap_chevron"
+                  src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
             </icon>
           </lv_obj>
           <lv_obj name="color_swatches_row"

@@ -77,6 +77,7 @@ size_t compute_hardware_fingerprint(const PrinterDiscovery& hw) {
     combine(hw.has_mmu());
     combine(hw.has_snapmaker());
     combine(hw.has_tool_changer());
+    combine(hw.has_medusahc());
     combine(hw.has_chamber_heater());
     combine(hw.has_chamber_sensor());
     combine(hw.chamber_heater_name());

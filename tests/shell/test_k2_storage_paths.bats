@@ -9,7 +9,10 @@
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 PLATFORM_SH="$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
 RELEASE_SH="$WORKTREE_ROOT/scripts/lib/installer/release.sh"
-APP_GLOBALS="$WORKTREE_ROOT/src/app_globals.cpp"
+# The cache cascade moved out of app_globals.cpp into its own translation
+# unit so the test binary could link it instead of a stub — see the header
+# of helix_cache_dir.cpp. These greps follow the code, not the old filename.
+CACHE_DIR_CPP="$WORKTREE_ROOT/src/system/helix_cache_dir.cpp"
 
 setup() {
     load helpers
@@ -37,7 +40,7 @@ setup() {
 
 @test "K2 cache branch prefers /mnt/UDISK over the root overlay" {
     local branch
-    branch=$(awk '/#elif defined\(HELIX_PLATFORM_K2\)/,/#elif defined\(HELIX_PLATFORM_MIPS\)/' "$APP_GLOBALS")
+    branch=$(awk '/#elif defined\(HELIX_PLATFORM_K2\)/,/#elif defined\(HELIX_PLATFORM_MIPS\)/' "$CACHE_DIR_CPP")
     [ -n "$branch" ]
     echo "$branch" | grep -q '/mnt/UDISK'
     # /usr/data may remain only as a fallback, never as the first choice.
@@ -46,7 +49,7 @@ setup() {
 
 @test "K1 (MIPS) keeps /usr/data — it is the large partition there" {
     local branch
-    branch=$(awk '/#elif defined\(HELIX_PLATFORM_MIPS\)/,/#elif defined\(HELIX_PLATFORM_ANDROID\)/' "$APP_GLOBALS")
+    branch=$(awk '/#elif defined\(HELIX_PLATFORM_MIPS\)/,/#elif defined\(HELIX_PLATFORM_ANDROID\)/' "$CACHE_DIR_CPP")
     [ -n "$branch" ]
     echo "$branch" | grep -q '/usr/data/helixscreen/cache'
     echo "$branch" | refute_grep '/mnt/UDISK'
@@ -55,7 +58,7 @@ setup() {
 @test "K2 and MIPS are no longer a shared cache branch" {
     # They disagree about what /usr/data is; sharing the arm is what put the
     # K2's cache on its 240MB overlay.
-    refute_grep 'HELIX_PLATFORM_MIPS) || defined(HELIX_PLATFORM_K2)' "$APP_GLOBALS"
+    refute_grep 'HELIX_PLATFORM_MIPS) || defined(HELIX_PLATFORM_K2)' "$CACHE_DIR_CPP"
 }
 
 # ---------------------------------------------------------------------------

@@ -112,10 +112,9 @@ subsystem" table. It lives in one place, the router:
   `lv_obj_add_event_cb`, no imperative visibility, design tokens instead of hardcoded
   colors/spacing, etc.) are strict and easy to violate if you're coming from
   imperative LVGL.
-- **Use worktrees when work might collide.** If your task touches a lot of files or
-  you want to keep compiling in parallel with another branch, spin up a worktree:
-  `scripts/setup-worktree.sh feature/my-branch`. Not every task needs one, but for
-  anything sprawling it's the smart default.
+- **Use worktrees for multi-file or risky work.** When a worktree is warranted —
+  and when it isn't — is decided in [DEVELOPMENT.md](DEVELOPMENT.md) § "Worktrees"
+  (`scripts/setup-worktree.sh feature/my-branch`).
 - **Start fresh per task.** Keep unrelated bugs/features in separate sessions rather
   than letting one session sprawl across a whole day of work.
 

@@ -420,7 +420,7 @@ class PixelBuffer;
  * and passed to render_to_buffer which runs on a background thread.
  */
 struct bed_mesh_render_colors_t {
-    uint8_t bg_r, bg_g, bg_b;       ///< Background clear color (graph_bg)
+    uint8_t bg_r, bg_g, bg_b;       ///< Background clear color (theme screen_bg)
     uint8_t grid_r, grid_g, grid_b; ///< Grid/wireframe line color (elevated_bg)
 };
 

@@ -18,6 +18,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "printer_detector.h"
@@ -412,4 +413,77 @@ TEST_CASE("PrinterState: get_pre_print_option_set returns const reference",
 
     // Should return the same reference (not a copy)
     REQUIRE(&caps1 == &caps2);
+}
+
+// ============================================================================
+// Capability answers that arrive before the subjects exist
+// ============================================================================
+
+/**
+ * Discovery runs on the WebSocket thread and its answers reach PrinterState
+ * through AsyncLifetimeGuard::defer(), so on a fast printer they can land before
+ * init_subjects() has run. INIT_SUBJECT_INT then resets the subject to its
+ * hardcoded default and the answer is simply lost - and nothing re-runs
+ * discovery in a stable session.
+ *
+ * That is how a connected Spoolman stayed dark for five days on a K2 Plus
+ * (2026-08-24, verified on the device): the discovery log said
+ * "Spoolman status: connected=true" at +7.8s, subject init ran at +9.5s, and
+ * SpoolmanManager - whose observer drops the identity cache behind every slot's
+ * vendor and material on the falling edge - never saw availability again.
+ */
+TEST_CASE("PrinterState: a capability answered before subject init survives it",
+          "[printer_state][capabilities]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+
+    // Answer BEFORE the subjects exist, the way discovery can.
+    state.set_spoolman_available(true);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    state.init_subjects(false);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK(state.is_spoolman_available());
+}
+
+TEST_CASE("PrinterState: a pre-init 'absent' answer is honoured too",
+          "[printer_state][capabilities]") {
+    // The latch must carry a false as faithfully as a true - seeding only the
+    // positive case would make an absent component look present.
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+
+    state.set_spoolman_available(false);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    state.init_subjects(false);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK_FALSE(state.is_spoolman_available());
+}
+
+TEST_CASE("PrinterState: a post-init answer still wins over the latched one",
+          "[printer_state][capabilities]") {
+    // The latch bridges the gap before the first init; it must not shadow a
+    // later, fresher answer.
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+
+    state.set_spoolman_available(true);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    state.init_subjects(false);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(state.is_spoolman_available());
+
+    state.set_spoolman_available(false);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK_FALSE(state.is_spoolman_available());
 }

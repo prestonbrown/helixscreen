@@ -47,16 +47,16 @@ struct StepOperationResult {
  * @param current_op      Current operation type being displayed
  * @param is_external     True if this is an externally-initiated operation (not from our UI)
  * @param filament_loaded True if filament is currently loaded in the toolhead
+ * @param is_active_action AmsBackend::action_tracks_step_operation(action) for the
+ *        active backend. Passed in rather than recomputed here: this used to
+ *        carry its own copy of the action list, the sidebar's visibility check
+ *        carried another, and the two disagreed about SELECTING.
  * @return StepOperationResult with detection result
  */
 inline StepOperationResult detect_step_operation(AmsAction action, AmsAction prev_action,
                                                  StepOperationType current_op, bool is_external,
-                                                 bool filament_loaded) {
+                                                 bool filament_loaded, bool is_active_action) {
     StepOperationResult result;
-
-    bool is_active_action = (action == AmsAction::HEATING || action == AmsAction::CUTTING ||
-                             action == AmsAction::FORMING_TIP || action == AmsAction::UNLOADING ||
-                             action == AmsAction::LOADING);
 
     // External operation just started (transitioned from IDLE to any active action)
     if (is_external && is_active_action && prev_action == AmsAction::IDLE) {

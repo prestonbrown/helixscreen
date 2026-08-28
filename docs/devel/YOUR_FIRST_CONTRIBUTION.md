@@ -359,7 +359,7 @@ The retraction overlay is the pattern the codebase *has*. Here's the pattern it'
 2. **Multi-instance becomes possible.** Nothing in the design forces one-instance-per-app. If two contexts ever want the same overlay shape with different data, dynamic allocation supports it; the global pattern doesn't.
 3. **Teardown is simpler.** No `StaticPanelRegistry::register_destroy` dance at shutdown. The overlay destroys when popped, full stop.
 
-This pattern isn't yet established in code — if you're writing a new overlay, you get to set the precedent. Flag it in your PR and Preston will help shape the exact API. Migrating the existing singleton overlays is tracked as post-1.0 work (see `ROADMAP.md` § "Planned post-1.0 refactoring").
+This pattern isn't yet established in code — if you're writing a new overlay, you get to set the precedent. Flag it in your PR and Preston will help shape the exact API. Migrating the existing singleton overlays is tracked as post-1.0 work (prestonbrown/helixscreen#1329).
 
 ---
 
@@ -441,7 +441,8 @@ Follow GitHub naming: `feature/<short-name>` for new features, `fix/<short-name>
 git switch -c feature/my-contribution
 ```
 
-For anything that spans more than a handful of files, use a worktree:
+For multi-file or risky changes, use a worktree — the threshold is in
+[DEVELOPMENT.md](DEVELOPMENT.md) § "Worktrees":
 
 ```bash
 scripts/setup-worktree.sh feature/my-contribution
@@ -467,7 +468,7 @@ Test at multiple breakpoints before submitting. At minimum: `-s 480x320`, `-s 80
 ### Commit style
 
 - Subject line: `type(scope): summary` — e.g., `feat(retraction): add settings overlay`.
-- For bug fixes, include the GitHub issue reference: `fix(scope): thing (prestonbrown/helixscreen#123)`.
+- For bug fixes, cite the GitHub issue when one already exists: `fix(scope): thing (prestonbrown/helixscreen#123)`. Don't file an issue just to have one to cite — a commit without an issue reference is complete on its own.
 - Keep commits focused. One logical change per commit.
 
 ### Before you submit

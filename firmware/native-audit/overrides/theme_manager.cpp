@@ -1544,7 +1544,7 @@ static helix::ThemeData theme_manager_load_active_theme() {
 
     if (!theme.is_valid()) {
         spdlog::warn("[Theme] Theme '{}' not found or invalid, using Nord", theme_name);
-        theme = helix::get_default_nord_theme();
+        theme = helix::get_builtin_fallback_theme();
     }
 
     spdlog::info("[Theme] Loaded theme: {} ({})", theme.name, theme.filename);

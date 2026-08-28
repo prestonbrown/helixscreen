@@ -94,7 +94,7 @@ TEST_CASE("Theme JSON: new border_radius_size field is used directly", "[theme]"
 }
 
 TEST_CASE("Theme JSON save: writes border_radius_size, not raw border_radius", "[theme]") {
-    auto theme = helix::get_default_nord_theme();
+    auto theme = helix::get_builtin_fallback_theme();
     theme.properties.border_radius_size = 4;
 
     std::string tmp = "/tmp/test_theme_save.json";

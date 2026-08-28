@@ -101,6 +101,41 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // invalidate_all(), whose subject was freed by deinit_all() during teardown,
 // must SKIP lv_observer_remove() (the observer pointer is already dangling) —
 // reset() must not crash.
+// ---------------------------------------------------------------------------
+// A guard whose attach FAILED still owns its context.
+//
+// The observer factories allocate the LambdaObserverContext before constructing
+// the guard, then hand the guard a `[ctx]{ delete ctx; }` cleanup. reset() used
+// to run that cleanup only inside `if (observer_)`, so a null observer stranded
+// the context for the process lifetime.
+//
+// lv_subject_add_observer_obj() returns null for a subject still typed
+// LV_SUBJECT_TYPE_INVALID -- which is every subject observed before its owner's
+// init_subjects() ran. That is not hypothetical: FilamentPanel's constructor
+// installs seven observers, and a fixture that built the panel in its
+// member-initializer list produced fourteen such leaks in the ASan ratchet
+// (#1279).
+// ---------------------------------------------------------------------------
+TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard frees its context when the attach failed",
+                 "[observer][lifetime][1279]") {
+    // Zero-initialized: type == LV_SUBJECT_TYPE_INVALID, exactly the shape of a
+    // subject whose init_subjects() has not run yet.
+    lv_subject_t never_initialized{};
+    int ctx = 0;
+    bool context_freed = false;
+
+    {
+        ObserverGuard guard(
+            &never_initialized, [](lv_observer_t*, lv_subject_t*) {}, &ctx,
+            [&context_freed]() { context_freed = true; });
+        // The attach really did fail — otherwise this test proves nothing.
+        REQUIRE_FALSE(static_cast<bool>(guard));
+        CHECK_FALSE(context_freed);
+    }
+
+    CHECK(context_freed);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard skips removal for observers freed by deinit_all()",
                  "[observer][raii][crash_hardening]") {
     lv_subject_t subject;

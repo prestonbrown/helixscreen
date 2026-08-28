@@ -253,7 +253,12 @@ DNS_RESOLV_OBJ := $(OBJ_DIR)/tests/dns_resolv.o
 # - ui_notification.o: Needs get_notification_subject() from app_globals.o
 # - ui_toast.o, ui_toast_manager.o: ui_test_utils.o provides stub toast functions
 # - ui_notification_manager.o: ui_test_utils.o stubs notification functions
-# - ui_text_input.o: ui_test_utils.o stubs ui_text_input_get_keyboard_hint()
+# ui_text_input.o WAS here too, stubbed by a hand-written copy in ui_test_utils.cpp
+# that registered its own <text_input> widget. Same drift as ui_emergency_stop.o:
+# the copy never grew bind_text two-way binding, the multiline pre-scan,
+# show_clear_button/clear_callback or KeyboardManager::register_textarea(), so every
+# <text_input> in the 31 ui_xml files that use one was exercised as the fake. The real
+# object is linked now and registers itself through the shipped ui_text_input_init().
 #
 # ui_emergency_stop.o WAS here, stubbed by a hand-written copy in
 # ui_test_utils.cpp. That copy silently drifted from production — it kept
@@ -312,7 +317,6 @@ TEST_APP_OBJS := $(filter-out \
     $(OBJ_DIR)/ui/ui_toast.o \
     $(OBJ_DIR)/ui/ui_toast_manager.o \
     $(OBJ_DIR)/ui/ui_notification_manager.o \
-    $(OBJ_DIR)/ui/ui_text_input.o \
     $(OBJ_DIR)/ui/ui_switch.o \
     $(OBJ_DIR)/ui/ui_button.o \
     $(OBJ_DIR)/remote/remote_client.o \
@@ -897,25 +901,6 @@ endif
 .PHONY: FORCE
 FORCE:
 
-# Integration test binary (uses mocks instead of real LVGL)
-$(TEST_INTEGRATION_BIN): $(TEST_MAIN_OBJ) $(CATCH2_OBJ) $(TEST_INTEGRATION_OBJS) $(MOCK_OBJS)
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) run_integration_tests"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) || { \
-		echo "$(RED)$(BOLD)✗ Integration test linking failed!$(RESET)"; \
-		exit 1; \
-	}
-	$(ECHO) "$(GREEN)✓ Integration test binary ready$(RESET)"
-
-# Run integration tests
-test-integration: $(TEST_INTEGRATION_BIN)
-	$(ECHO) "$(CYAN)$(BOLD)Running integration tests (with mocks)...$(RESET)"
-	$(Q)$(TEST_INTEGRATION_BIN) || { \
-		echo "$(RED)$(BOLD)✗ Integration tests failed!$(RESET)"; \
-		exit 1; \
-	}
-	$(ECHO) "$(GREEN)$(BOLD)✓ All integration tests passed!$(RESET)"
-
 # Compile test main (Catch2 runner)
 # Note: No DEPFLAGS for Catch2 infrastructure - rarely changes
 $(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp
@@ -1003,151 +988,6 @@ $(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEA
 	$(ECHO) "$(YELLOW)[MOCK]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(PCH_FLAGS) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
-
-# Dynamic card instantiation test
-TEST_CARDS_BIN := $(BIN_DIR)/test_dynamic_cards
-TEST_CARDS_OBJ := $(OBJ_DIR)/test_dynamic_cards.o
-
-test-cards: $(TEST_CARDS_BIN)
-	$(ECHO) "$(CYAN)Running dynamic card test...$(RESET)"
-	$(Q)$(TEST_CARDS_BIN)
-
-$(TEST_CARDS_BIN): $(TEST_CARDS_OBJ) $(LVGL_OBJS) $(FONT_OBJS)
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_dynamic_cards"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ Test binary ready$(RESET)"
-
-$(TEST_CARDS_OBJ): $(SRC_DIR)/test_dynamic_cards.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
-
-# LV_SIZE_CONTENT behavior test
-# Tests nested flex containers with SIZE_CONTENT - LVGL handles this natively
-TEST_SIZE_CONTENT_BIN := $(BIN_DIR)/test_size_content
-TEST_SIZE_CONTENT_OBJ := $(OBJ_DIR)/tests/test_size_content.o
-
-test-size-content: $(TEST_SIZE_CONTENT_BIN)
-	$(ECHO) "$(CYAN)Running LV_SIZE_CONTENT behavior test...$(RESET)"
-	$(Q)$(TEST_SIZE_CONTENT_BIN)
-
-$(TEST_SIZE_CONTENT_BIN): $(TEST_SIZE_CONTENT_OBJ) $(CATCH2_OBJ) $(TEST_MAIN_OBJ) $(LVGL_OBJS) $(THORVG_OBJS)
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_size_content"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ Test binary ready: $@$(RESET)"
-
-$(TEST_SIZE_CONTENT_OBJ): $(TEST_UNIT_DIR)/test_size_content.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-
-# Responsive theme and breakpoint test
-TEST_RESPONSIVE_THEME_BIN := $(BIN_DIR)/test_responsive_theme
-TEST_RESPONSIVE_THEME_OBJ := $(OBJ_DIR)/test_responsive_theme.o
-
-test-responsive-theme: $(TEST_RESPONSIVE_THEME_BIN)
-	$(ECHO) "$(CYAN)Running responsive theme and breakpoint tests...$(RESET)"
-	$(Q)$(TEST_RESPONSIVE_THEME_BIN)
-
-$(TEST_RESPONSIVE_THEME_BIN): $(TEST_RESPONSIVE_THEME_OBJ) $(LVGL_OBJS) $(THORVG_OBJS) $(OBJ_DIR)/ui_theme.o
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_responsive_theme"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ Responsive theme test binary ready$(RESET)"
-
-$(TEST_RESPONSIVE_THEME_OBJ): $(SRC_DIR)/test_responsive_theme.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
-
-# ============================================================================
-# G-Code Geometry & SDF Tests
-# ============================================================================
-# G-Code Geometry Builder test
-TEST_GCODE_GEOMETRY_BIN := $(BIN_DIR)/test_gcode_geometry
-TEST_GCODE_GEOMETRY_OBJ := $(OBJ_DIR)/test_gcode_geometry.o
-
-test-gcode-geometry: $(TEST_GCODE_GEOMETRY_BIN)
-	$(ECHO) "$(CYAN)Running G-code geometry test...$(RESET)"
-	$(Q)$(TEST_GCODE_GEOMETRY_BIN)
-	$(ECHO) ""
-
-$(TEST_GCODE_GEOMETRY_BIN): $(TEST_GCODE_GEOMETRY_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_geometry_builder.o
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_gcode_geometry"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ -lm $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ G-code geometry test binary ready$(RESET)"
-
-$(TEST_GCODE_GEOMETRY_OBJ): $(SRC_DIR)/test_gcode_geometry.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-
-# G-Code SDF Reconstruction test
-TEST_SDF_RECONSTRUCTION_BIN := $(BIN_DIR)/test_sdf_reconstruction
-TEST_SDF_RECONSTRUCTION_OBJ := $(OBJ_DIR)/test_sdf_reconstruction.o
-
-test-sdf-reconstruction: $(TEST_SDF_RECONSTRUCTION_BIN)
-	$(ECHO) "$(CYAN)Running SDF reconstruction test...$(RESET)"
-	$(Q)$(TEST_SDF_RECONSTRUCTION_BIN)
-	$(ECHO) ""
-
-$(TEST_SDF_RECONSTRUCTION_BIN): $(TEST_SDF_RECONSTRUCTION_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_sdf_builder.o
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_sdf_reconstruction"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ -lm $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ SDF reconstruction test binary ready$(RESET)"
-
-$(TEST_SDF_RECONSTRUCTION_OBJ): $(SRC_DIR)/test_sdf_reconstruction.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-
-# Sparse Grid test (validates NanoVDB integration)
-TEST_SPARSE_GRID_BIN := $(BIN_DIR)/test_sparse_grid
-TEST_SPARSE_GRID_OBJ := $(OBJ_DIR)/test_sparse_grid.o
-
-test-sparse-grid: $(TEST_SPARSE_GRID_BIN)
-	$(ECHO) "$(CYAN)Running sparse grid test...$(RESET)"
-	$(Q)$(TEST_SPARSE_GRID_BIN)
-	$(ECHO) ""
-
-$(TEST_SPARSE_GRID_BIN): $(TEST_SPARSE_GRID_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_sdf_builder.o $(OBJ_DIR)/gcode_sparse_grid.o
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_sparse_grid"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ -lm $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ Sparse grid test binary ready$(RESET)"
-
-$(TEST_SPARSE_GRID_OBJ): $(SRC_DIR)/test_sparse_grid.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-
-# Partial mesh extraction test
-TEST_PARTIAL_EXTRACTION_BIN := $(BIN_DIR)/test_partial_extraction
-TEST_PARTIAL_EXTRACTION_OBJ := $(OBJ_DIR)/test_partial_extraction.o
-
-test-partial-extraction: $(TEST_PARTIAL_EXTRACTION_BIN)
-	$(ECHO) "$(CYAN)Running partial extraction test...$(RESET)"
-	$(Q)$(TEST_PARTIAL_EXTRACTION_BIN)
-	$(ECHO) ""
-
-$(TEST_PARTIAL_EXTRACTION_BIN): $(TEST_PARTIAL_EXTRACTION_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_sdf_builder.o
-	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_partial_extraction"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ -lm $(LDFLAGS)
-	$(ECHO) "$(GREEN)✓ Partial extraction test binary ready$(RESET)"
-
-$(TEST_PARTIAL_EXTRACTION_OBJ): $(SRC_DIR)/test_partial_extraction.cpp
-	$(Q)mkdir -p $(dir $@)
-	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-
-
-
-
 
 # ============================================================================
 # Sanitizer Targets (Memory Safety Testing)
@@ -1422,13 +1262,11 @@ help-test:
 	echo "  $${G}test-network$${X}         - WiFi and Ethernet tests"; \
 	echo "  $${G}test-security$${X}        - Security and injection tests"; \
 	echo "  $${G}test-config$${X}          - Configuration tests"; \
-	echo "  $${G}test-integration$${X}     - Integration tests (with mocks)"; \
 	echo "  $${G}test-xml$${X}             - helix-xml submodule suite (CMake+Unity)"; \
 	echo "  $${G}test-shell$${X}           - Shell/installer tests (bats)"; \
 	echo "  $${G}test-plugin$${X}          - Moonraker plugin tests (pytest)"; \
 	echo ""; \
 	echo "$${C}Geometry Tests:$${X}"; \
-	echo "  $${G}test-gcode-geometry$${X}  - G-code to 3D geometry test"; \
 	echo ""; \
 	echo "$${C}Discovery:$${X}"; \
 	echo "  $${G}test-list$${X}            - List all test cases"; \

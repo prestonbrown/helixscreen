@@ -50,6 +50,8 @@ Applied in order by `mk/patches.mk`. Grouped by subsystem.
 | `lvgl_refr_reshape_null_guard.patch` | `lv_refr.c` | NULL guard on draw_buf reshape failure, skip render gracefully | PR #9831 |
 | `lvgl_img_null_guard.patch` | `lv_draw_sw_img.c` | NULL guard after go_to_xy in image mask path | PR #9831 |
 | `lvgl_blur_null_guard.patch` | `lv_draw_sw_blur.c` | NULL checks after all ~15 lv_draw_buf_goto_xy() calls | PR #9831 |
+| `lvgl_draw_render_thread_acquire.patch` | `lv_draw.c`, `lv_draw_private.h` | Make `lv_draw_task_t.state` a real atomic handshake (`LV_DRAW_TASK_STATE_GET`/`SET`) instead of trusting `volatile`, and wait for the draw units to finish before destroying a layer's `draw_buf` | Project-specific (the `volatile == atomic` assumption is upstream's; candidate to submit) |
+| `lvgl-sw-draw-wait-for-finish.patch` | `lv_draw_sw.c` | Implement `wait_for_finish_cb` for the SW draw unit under `LV_USE_OS`, publish task completion with the release store above, and skip a task whose `draw_dsc` is NULL rather than dereferencing it | Project-specific |
 
 ### Widgets & Input
 
@@ -57,7 +59,7 @@ Applied in order by `mk/patches.mk`. Grouped by subsystem.
 |-------|---------|---------|----------|
 | `lvgl_slider_scroll_chain.patch` | `lv_slider.c` | Block perpendicular scroll chain during drag (touchscreen UX) | PR #9828 closed — still needed at v9.5.0 |
 | `lvgl_arc_draw_guard.patch` | `lv_draw_arc.c`, `lv_arc.c` | Guard negative inner radius and zero-radius arc invalidation | PR #9830 |
-| `lvgl-evdev-protocol-a.patch` | `lv_evdev.c` | Protocol-A touch release synthesis for Goodix GT9xx | PR #9829 |
+| `lvgl-evdev-protocol-a.patch` | `lv_evdev.c`, `lv_evdev.h` | Protocol-A touch release synthesis for Goodix GT9xx, plus `lv_evdev_get_last_raw()` - reads back the pre-swap, pre-scale digitizer coordinate so three-point calibration can solve for the true ABS range and axis transposition (#1259, #1276) | PR #9829 (release synthesis only; the raw getter is project-specific and is not part of the PR) |
 
 ### Core & Stdlib
 

@@ -34,7 +34,7 @@ Run it right on your printer, or on a separate device — a spare Pi, a mini PC,
 - **Every feature at your fingertips** — 30+ panels, 20+ overlays, 20+ modals, 300+ XML layouts
 - **~15MB RAM on embedded targets, ~75MB disk** — sips memory on a Creality K1 or Flashforge AD5M; a few times more on 64-bit Pi, still well under what other touchscreen UIs need. Your printer's onboard SoC or an older Pi is plenty — no need to buy new hardware.
 - **80+ printers in the database** — Auto-detects your hardware and configures itself
-- **Multi-material ready** — AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers, Spoolman
+- **Multi-material ready** — AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers (incl. MedusaHC hotend changers), Spoolman
 - **Exclude objects** — Tap-to-exclude overhead map view with object outlines during prints
 - **Looks great** — Light/dark themes with 17 presets, responsive layouts, GPU-accelerated blur
 - **First-run wizard** — Guided setup discovers your printer's capabilities
@@ -51,7 +51,7 @@ Run it right on your printer, or on a separate device — a spare Pi, a mini PC,
 | Disk Size | ~75-115MB | ~60-80MB | ~50MB |
 | Multi-Material | 7 backends | Limited | Basic |
 | Printer Database | 80+ models | — | Manual config |
-| Display Layouts | Auto-detecting (480x320 to 1024x600; ultrawide/portrait alpha) | Fixed | Configurable |
+| Display Layouts | Auto-detecting (480x320 to 1024x600, plus ultrawide and portrait) | Fixed | Configurable |
 | Internationalization | 9 languages | — | 40+ languages |
 | Status | 1.0 (active) | Inactive | Mature (maintenance) |
 | Language | C++17 | C | Python 3 |
@@ -103,7 +103,7 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 
 **Printer Control** — Print management with G-code preview, motion controls, temperature presets with per-material overrides, multi-fan control, Z-offset, speed/flow tuning, live filament consumption tracking, power device management.
 
-**Multi-Material** — 7 filament system backends: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers. Multi-unit and multi-backend support. Full Spoolman integration with spool creation wizard.
+**Multi-Material** — 7 filament system backends: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers — including MedusaHC hotend changers, whose dock sensors and filament feeder are driven on top of klipper-toolchanger. Multi-unit and multi-backend support. Full Spoolman integration with spool creation wizard.
 
 **Visualization** — 3D G-code layer preview with memory-aware geometry budgets, 3D bed mesh with async rendering, print thumbnails, frequency response charts, unified temperature graph.
 
@@ -111,7 +111,7 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 
 **Integrations** — HelixPrint plugin, power devices with quick-toggle, print history, timelapse (Moonraker plugin), exclude objects with tap-to-exclude map view, LED control (5 backends), sound alerts (SDL/PWM/M300), Bluetooth label printing (Brother QL/PT, Niimbot, MakeID).
 
-**Display** — Auto-detecting layout system (480x320 through 1024x600; ultrawide and portrait orientations are **alpha** — see below), display rotation (0/90/180/270) with auto-detection, light/dark themes with 17 presets and live theme editor, GPU-accelerated backdrop blur, screensavers.
+**Display** — Auto-detecting layout system (480x320 through 1024x600, plus ultrawide and portrait — see below), display rotation (0/90/180/270) with auto-detection, light/dark themes with 17 presets and live theme editor, GPU-accelerated backdrop blur, screensavers.
 
 **System** — First-run wizard with guided hardware discovery, 80+ printer models with auto-detection, 9 languages, opt-in crash reporting with debug bundles, KIAUH installer, versioned config migration.
 
@@ -215,10 +215,10 @@ Any Klipper + Moonraker printer. 80+ models in the auto-detection database spann
 **What screen sizes are supported?**
 800x480 and 1024x600 are the well-tested landscape sizes; 480x320 runs but is tight in places. Display rotation (0/90/180/270) with auto-detection.
 
-**Ultrawide (e.g. 1920x480) and portrait (e.g. 480x800) are alpha at best.** The layout engine detects both and picks sensible grid sizing, but almost no panel has an ultrawide- or portrait-specific layout yet, so most screens fall back to the standard landscape layout and will look stretched or cramped. It will run — don't expect it to look right. Both are wide open for contributions; see the [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md).
+**Ultrawide (e.g. 1920x480) and portrait (e.g. 480x800) both work.** The layout engine detects either orientation and adapts the navigation bar and grid sizing to it. Portrait also has dedicated layouts for the app shell, navigation bar, print status and print tune; panels without a dedicated layout use the adaptive fallback, which is why landscape is still the most polished of the three. Both keep gaining per-panel work, and both are open for contributions that need only XML, not C++ — see the [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md).
 
 **What multi-material systems work?**
-AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers (viesturz/klipper-toolchanger). Full Spoolman integration for spool management.
+AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers (viesturz/klipper-toolchanger, including MedusaHC hotend changers). Full Spoolman integration for spool management.
 
 See [docs/user/FAQ.md](docs/user/FAQ.md) for the full FAQ.
 
@@ -255,7 +255,7 @@ See [docs/user/TROUBLESHOOTING.md](docs/user/TROUBLESHOOTING.md) for more soluti
 | [LVGL9 XML Guide](docs/devel/LVGL9_XML_GUIDE.md) | XML syntax reference |
 | [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md) | Breakpoints, tokens, colors, widgets |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Roadmap](docs/devel/ROADMAP.md) | Feature timeline |
+| [Roadmap](https://github.com/prestonbrown/helixscreen/issues) | Feature timeline (labeled issues) |
 
 ## Community
 

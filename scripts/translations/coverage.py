@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Set, Any
 
-from .yaml_manager import load_yaml_file
+from .yaml_manager import load_yaml_file_readonly
 
 
 @dataclass
@@ -45,13 +45,13 @@ def calculate_coverage(
             return result
         base_path = yaml_files[0]
 
-    base_data = load_yaml_file(base_path)
+    base_data = load_yaml_file_readonly(base_path)
     base_translations = base_data.get("translations", {})
     total_keys = len(base_translations) if base_translations else 0
 
     # Calculate stats for each language
     for yaml_path in yaml_dir.glob("*.yml"):
-        data = load_yaml_file(yaml_path)
+        data = load_yaml_file_readonly(yaml_path)
         locale = data.get("locale", yaml_path.stem)
         translations = data.get("translations", {})
 
@@ -105,7 +105,7 @@ def get_missing_translations(
     if not base_path.exists():
         return result
 
-    base_data = load_yaml_file(base_path)
+    base_data = load_yaml_file_readonly(base_path)
     base_translations = base_data.get("translations", {})
 
     if not base_translations:
@@ -113,7 +113,7 @@ def get_missing_translations(
 
     # Check each language
     for yaml_path in yaml_dir.glob("*.yml"):
-        data = load_yaml_file(yaml_path)
+        data = load_yaml_file_readonly(yaml_path)
         locale = data.get("locale", yaml_path.stem)
 
         if locale == base_locale:

@@ -31,6 +31,7 @@ LVGL_PATCHED_FILES := \
 	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c \
 	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c \
 	src/draw/lv_draw.c \
+	src/draw/lv_draw_private.h \
 	src/draw/lv_draw_buf.c \
 	src/draw/sw/lv_draw_sw_mask_rect.c \
 	src/draw/sw/lv_draw_sw_letter.c \
@@ -40,6 +41,7 @@ LVGL_PATCHED_FILES := \
 	src/drivers/display/drm/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
 	src/drivers/evdev/lv_evdev.c \
+	src/drivers/evdev/lv_evdev.h \
 	src/draw/lv_draw_arc.c \
 	src/widgets/arc/lv_arc.c \
 	src/draw/opengles/lv_draw_opengles.c \
@@ -169,10 +171,24 @@ reset-patches:
 	$(Q)rm -f $(LVGL_DIR)/src/misc/lv_check_arg.h
 	$(ECHO) "$(YELLOW)Resetting libhv patches to upstream state...$(RESET)"
 	$(call reset_submodule_patches,$(LIBHV_DIR),$(LIBHV_PATCHED_FILES))
+	@# The drift stamp describes a PATCHED checkout. Everything above just put
+	@# the checkout back to pristine, so the stamp now describes nothing; left
+	@# in place it would report every restored file as "changed since apply" and
+	@# block the force-apply-patches half of reapply-patches.
+	$(Q)if command -v python3 >/dev/null 2>&1; then \
+		python3 scripts/check_patch_drift.py --clear-stamp || true; \
+	fi
 	$(ECHO) "$(GREEN)✓ All patches reset$(RESET)"
 
 # Force reapply all patches (reset first, then apply)
-reapply-patches: reset-patches force-apply-patches
+#
+# Sub-makes rather than prerequisites: `make -jN reapply-patches` is free to run
+# two prerequisites of the same target concurrently, and here the second one
+# rewrites the very files the first one is restoring. Recipe lines are ordered
+# unconditionally.
+reapply-patches:
+	$(Q)$(MAKE) reset-patches
+	$(Q)$(MAKE) force-apply-patches
 	$(ECHO) "$(GREEN)✓ All patches reapplied$(RESET)"
 
 # apply-patches: File-based target that skips if stamp is current
@@ -209,6 +225,24 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 	done; \
 	[ $$fail -eq 0 ] || { echo "$(RED)Refusing to build against unpatched submodules.$(RESET)"; exit 1; }
 	$(ECHO) "$(GREEN)✓ Patch wiring consistent$(RESET)"
+	@# Every guard below asks "is this file already dirty?", never "is it dirty
+	@# with the CURRENT revision of this patch". So editing an applied patch is
+	@# a no-op for anyone whose submodule carries the old one, and the guard
+	@# reports it as "already applied" (86560d156: lv_evdev_get_last_raw landed
+	@# in the patch, never in lib/lvgl, and every device cross-build broke while
+	@# the desktop suite stayed green). check_patch_drift.py compares a stamp
+	@# written after the last apply against the patches on the shelf.
+	@#
+	@# This must run BEFORE the apply blocks and BEFORE the stamp is rewritten
+	@# below: reaching the rewrite with an edited-but-unapplied patch would
+	@# record the new hash over an old application and switch the gate off.
+	@# --pre-apply lets a brand new patch through, since its guard tests a
+	@# marker that is not in the tree and the blocks below really will apply it.
+	$(Q)if command -v python3 >/dev/null 2>&1; then \
+		python3 scripts/check_patch_drift.py --pre-apply; \
+	else \
+		echo "$(YELLOW)⚠ python3 not found - patch drift check skipped$(RESET)"; \
+	fi
 	$(ECHO) "$(CYAN)Checking LVGL patches...$(RESET)"
 	$(Q)if git -C $(LVGL_DIR) diff --quiet src/drivers/sdl/lv_sdl_window.c 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL SDL window patch...$(RESET)"; \
@@ -869,5 +903,14 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 				echo "$(GREEN)✓ Patched $$base synced$(RESET)"; \
 			fi; \
 		done; \
+	fi
+	@# Record what is now applied: the sha256 of every patch file, and of every
+	@# submodule file those patches touch. The first catches an edited patch on
+	@# the next build, the second catches the submodule being reset or updated
+	@# out from under it. Written into the submodule's own git dir, so it tracks
+	@# the checkout it describes (shared with every worktree symlinked at lib/)
+	@# and never shows up as untracked noise in `git status`.
+	$(Q)if command -v python3 >/dev/null 2>&1; then \
+		python3 scripts/check_patch_drift.py --write-stamp; \
 	fi
 	@touch $@

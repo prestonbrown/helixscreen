@@ -5,11 +5,13 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_filament_catalog_picker.h"
+#include "ui_heater_config.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
 #include "active_material_provider.h"
 #include "config.h"
+#include "filament_op_dispatch.h"
 #include "macro_param_modal.h"
 #include "operation_timeout_guard.h"
 #include "subject_managed_panel.h"
@@ -24,10 +26,84 @@ class TemperatureService;
 namespace helix::filament_presets {
 // Pure validation for a preset reassignment: slot in [0,4), non-empty name, known material.
 bool validate_reassignment(int slot, const std::string& material);
+
+/**
+ * @brief Persist a preset reassignment, but only if validate_reassignment() accepts it.
+ *
+ * The guard-then-persist chain, named. FilamentPanel::reassign_preset() is this
+ * plus the UI refresh that follows a successful write; keeping the ORDER here
+ * rather than at the call site is what stops a caller from persisting first and
+ * validating after — the failure the guard exists for is a bad material reaching
+ * MaterialSettingsManager, not a bad return value.
+ *
+ * @return true when the preset was written, false when validation rejected it
+ *         and MaterialSettingsManager was left untouched.
+ */
+bool reassign_preset_if_valid(int slot, const std::string& material);
+
+/**
+ * @brief Restore all four preset slots to the default PLA/PETG/ABS/TPU materials.
+ *
+ * The persistence half of FilamentPanel::reset_presets_to_defaults(); the panel
+ * adds the subject/temperature/highlight refresh on top of it.
+ */
+void reset_to_defaults();
 } // namespace helix::filament_presets
 
 namespace helix::ui {
 struct FilamentPanelTestAccess; // test-only friend (tests/test_helpers/)
+
+/**
+ * @brief What FilamentPanel does with a FilamentOpPlan, minus the dispatch itself.
+ *
+ * plan_load() / plan_unload() answer WHICH tier an op takes. This answers what
+ * the panel does with that answer: which backend entry point and argument, which
+ * toast the user sees, whether they are sent to the AMS slot picker, whether the
+ * manual-pull watch is armed. Every field is a pure function of the plan, so the
+ * whole post-plan branching is answerable in a binary with no panel, no display
+ * and no printer -- and execute_load() / execute_unload() read the same struct,
+ * so the copy the user reads cannot fork from the copy anything else believes.
+ */
+struct FilamentPanelOutcome {
+    FilamentTier tier = FilamentTier::Refused;
+    AmsCall call = AmsCall::None;
+    int arg = -1;
+
+    /// The BACKEND-op arm ran: begin_operation_guard() + backend_op_active_ +
+    /// op_started(). Tier 1 only. The macro tier arms its guard inside
+    /// run_filament_macro(), after any param modal is answered, and the
+    /// raw-gcode tier arms operation_guard_ but never backend_op_active_ (which
+    /// is what gates ams_action_observer_ to backend ops) -- so neither is the
+    /// arm this describes. False on every refusal: a refused op must leave the
+    /// buttons live, which is the whole fix for bundle 9KRXZ62P.
+    bool guard_armed = false;
+
+    /// Send the user to the AMS panel to pick a slot. FilamentRefusal::SelectSlot
+    /// only -- AlreadyMounted has nothing left to pick, and BypassLoaded needs a
+    /// hand at the toolhead rather than a different lane.
+    bool navigate_to_ams = false;
+
+    /// arm_manual_pull_prompt() runs before dispatch -- nothing reels this spool
+    /// back down a lane. Unload only, and never on a refusal (nothing would ever
+    /// complete to disarm it).
+    bool arm_manual_pull = false;
+
+    /// The already-translated copy handed to NOTIFY_*; empty when this arm raises
+    /// no toast. Severity stays at the call site: the load refusals are INFO, the
+    /// unload refusal is a WARNING.
+    std::string toast;
+};
+
+/// FilamentPanel::execute_load() from the plan onward, minus the dispatch.
+[[nodiscard]] FilamentPanelOutcome panel_load_outcome(const FilamentOpPlan& plan);
+
+/// FilamentPanel::execute_unload() from the plan onward, minus the dispatch.
+///
+/// @param backend_present An AmsBackend exists -- the manual-pull question, not
+///                        a tier question (plan_unload already asked that one).
+/// @param target_slot     The slot the unload acts on: selected_op_slot().
+[[nodiscard]] FilamentPanelOutcome panel_unload_outcome(const FilamentOpPlan& plan,
+                                                        bool backend_present, int target_slot);
 } // namespace helix::ui
 
 /**
@@ -189,6 +265,10 @@ class FilamentPanel : public PanelBase {
      * @param min_extrude_temp Minimum extrusion temperature (default: 170°C)
      */
     void set_limits(int min_temp, int max_temp, int min_extrude_temp = 170);
+
+    /// Keypad ceiling for one heater, preferring the printer's configured
+    /// max_temp over the compiled-in fallback (prestonbrown/helixscreen#1355).
+    float keypad_max_for(helix::HeaterType type, int fallback_deg);
 
     /**
      * @brief Set TemperatureService for combined temperature graph
@@ -441,6 +521,26 @@ class FilamentPanel : public PanelBase {
     //
 
     void update_temp_display();
+
+    /// Which arm of update_status() last produced the status line.
+    ///
+    /// Two of the arms render a constant string. Re-running them costs a
+    /// lv_translation_get(), which is a linear scan of the whole translation
+    /// table, plus two imperative icon writes — and update_status() is driven by
+    /// the chamber temperature observer, so it fires several times a second for
+    /// as long as the app is running, panel on screen or not. Remembering the
+    /// arm lets those two return immediately. The interpolating arms still run
+    /// every time: their text carries live temperatures.
+    enum class StatusBranch : uint8_t {
+        None, ///< Nothing rendered yet, or the widget tree was rebuilt.
+        Ready,
+        NozzleHeating,
+        ChamberHeating,
+        ChamberAtTarget,
+        Cold,
+    };
+    StatusBranch last_status_branch_ = StatusBranch::None;
+
     void update_status();
     void update_status_icon(const char* icon_name, const char* color_token);
     void update_warning_text();

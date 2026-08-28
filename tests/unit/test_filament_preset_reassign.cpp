@@ -9,20 +9,24 @@
 // MaterialSettingsManager. That mechanism has no logic equivalent once the
 // widget is gone.
 //
-// The real logic lives in helix::filament_presets::validate_reassignment
-// (declared in ui_panel_filament.h, defined in ui_panel_filament.cpp) and
-// MaterialSettingsManager::set_preset_material / reset_preset_materials
-// (material_settings_manager.cpp) -- both exercised directly below, with no
-// LVGL widget involved. FilamentPanel::reassign_preset()/
-// reset_presets_to_defaults() themselves are thin wrappers around this same
-// validate-then-persist chain, but FilamentPanel is tightly coupled to LVGL
-// and MoonrakerAPI (no existing unit test constructs one -- see
-// tests/unit/test_filament_bypass_routing_char.cpp), so the chain is
-// mirrored here at the same level test_material_settings_manager.cpp and
-// test_preset_filament_persistence.cpp already exercise it.
+// The chain itself is production code, not a local reconstruction of one:
+// helix::filament_presets::reassign_preset_if_valid() is the guard-then-persist
+// step FilamentPanel::reassign_preset() runs before it refreshes the UI, and
+// reset_to_defaults() is the persistence half of
+// FilamentPanel::reset_presets_to_defaults(). Both are declared in
+// ui_panel_filament.h and defined in ui_panel_filament.cpp, so a panel that
+// stopped consulting validate_reassignment() before persisting would fail here.
+// What is deliberately NOT covered is the panel's UI refresh that follows a
+// successful write (presets::refresh_subjects(), the TemperatureController
+// refresh, check_and_auto_select_preset(), update_spool_preset()) -- that half
+// needs a constructed panel whose init_subjects() re-registers the panel's
+// named subjects. tests/unit/test_filament_panel_op_timeout.cpp builds a real
+// FilamentPanel from filament_panel.xml over a recording backend and is where
+// that coverage belongs.
+
+#include "ui_panel_filament.h"
 
 #include "material_settings_manager.h"
-#include "ui_panel_filament.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -63,63 +67,51 @@ TEST_CASE("validate_reassignment rejects bad slot, empty, or unknown material",
     CHECK_FALSE(validate_reassignment(0, "DEFINITELY_NOT_A_MATERIAL"));
 }
 
-// Mirrors FilamentPanel::reassign_preset()'s guard-then-persist chain: a
-// picked material is only forwarded to MaterialSettingsManager when
-// validate_reassignment() accepts it. This is the state transition
-// MaterialPickerMenu::dispatch_select() used to kick off (once wired up by
-// the panel) -- exercised directly now that the widget is gone.
-TEST_CASE_METHOD(PresetResetFixture, "reassign_preset chain persists a valid material selection",
+// The guard-then-persist chain FilamentPanel::reassign_preset() runs: a picked
+// material only reaches MaterialSettingsManager when validate_reassignment()
+// accepts it. This is the state transition MaterialPickerMenu::dispatch_select()
+// used to kick off (once wired up by the panel) -- exercised directly now that
+// the widget is gone.
+TEST_CASE_METHOD(PresetResetFixture, "reassign_preset_if_valid persists a valid material selection",
                  "[material_settings][presets]") {
-    using helix::filament_presets::validate_reassignment;
+    using helix::filament_presets::reassign_preset_if_valid;
     auto& mgr = MaterialSettingsManager::instance();
 
-    const int slot = 1;
-    const std::string material = "PC";
-    REQUIRE(validate_reassignment(slot, material));
-    mgr.set_preset_material(slot, material);
-
-    CHECK(mgr.get_preset_materials()[slot] == "PC");
+    CHECK(reassign_preset_if_valid(1, "PC"));
+    CHECK(mgr.get_preset_materials()[1] == "PC");
 }
 
 TEST_CASE_METHOD(PresetResetFixture,
-                 "reassign_preset chain leaves preset unchanged when validation rejects",
+                 "reassign_preset_if_valid leaves the preset unchanged when validation rejects",
                  "[material_settings][presets]") {
-    using helix::filament_presets::validate_reassignment;
+    using helix::filament_presets::reassign_preset_if_valid;
     auto& mgr = MaterialSettingsManager::instance();
 
     auto before = mgr.get_preset_materials();
 
-    // Mirrors FilamentPanel::reassign_preset()'s guard verbatim: only
-    // persist when validate_reassignment() accepts. If this guard were
-    // missing (or if set_preset_material() were called unconditionally),
-    // the CHECK below would fail -- unlike the old version of this test,
-    // set_preset_material() is actually reachable here.
-    if (validate_reassignment(0, "NOT_A_REAL_MATERIAL")) {
-        mgr.set_preset_material(0, "NOT_A_REAL_MATERIAL");
-    }
+    // The guard is the assertion. Drop it from the production chain -- persist
+    // first, validate after, or not at all -- and an unknown material reaches
+    // MaterialSettingsManager and this CHECK fails.
+    CHECK_FALSE(reassign_preset_if_valid(0, "NOT_A_REAL_MATERIAL"));
     CHECK(mgr.get_preset_materials() == before);
 
-    // Positive half, same guarded pattern: proves the guard -- not simply
-    // "nothing ever gets written" -- is what gated the rejection above.
-    REQUIRE(validate_reassignment(1, "PETG"));
-    if (validate_reassignment(1, "PETG")) {
-        mgr.set_preset_material(1, "PETG");
-    }
+    // Positive half, same call: proves the guard -- not simply "nothing ever
+    // gets written" -- is what gated the rejection above.
+    CHECK(reassign_preset_if_valid(1, "PETG"));
     CHECK(mgr.get_preset_materials()[1] == "PETG");
 }
 
-// Mirrors FilamentPanel::reset_presets_to_defaults(), a thin wrapper around
-// reset_preset_materials(). MaterialPickerMenu::dispatch_reset() used to
-// trigger this transition; in-depth persistence coverage already lives in
-// test_material_settings_manager.cpp, so this is a smoke check tying the
-// reset transition back to a prior reassignment.
-TEST_CASE_METHOD(PresetResetFixture, "reset_preset_materials restores defaults after reassignment",
+// FilamentPanel::reset_presets_to_defaults()'s persistence half. In-depth
+// coverage of the write itself already lives in test_material_settings_manager.cpp,
+// so this ties the reset transition -- the one MaterialPickerMenu::dispatch_reset()
+// used to trigger -- back to a prior reassignment.
+TEST_CASE_METHOD(PresetResetFixture, "reset_to_defaults restores defaults after a reassignment",
                  "[material_settings][presets]") {
     auto& mgr = MaterialSettingsManager::instance();
-    mgr.set_preset_material(2, "PA");
+    REQUIRE(helix::filament_presets::reassign_preset_if_valid(2, "PA"));
     REQUIRE(mgr.get_preset_materials()[2] == "PA");
 
-    mgr.reset_preset_materials();
+    helix::filament_presets::reset_to_defaults();
 
     auto p = mgr.get_preset_materials();
     CHECK(p[0] == "PLA");

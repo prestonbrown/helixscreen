@@ -130,8 +130,15 @@ def test_stable_times_out_with_an_actionable_message_on_a_genuinely_moving_scree
             os.environ["HELIX_MOCK_AUTO_PRINT"] = env_before
 
 
-def test_png_path_still_writes_a_readable_file(helix_app, tmp_path):
+def test_png_path_matches_the_active_screens_dimensions(helix_app, tmp_path):
+    # `img.width > 0 and img.height > 0` holds for any PNG the encoder emits,
+    # a 1x1 included, so it cannot see a crop or scale regression in the
+    # untargeted full-screen path. Measure against the active screen's own
+    # geometry instead: "@s" resolves to lv_screen_active() (resolve_path in
+    # src/remote/widget_resolution.cpp) and its w/h come from
+    # lv_obj_get_coords(), not from the capture, so the two are independent.
+    screen = helix_app.geom("@s")["widgets"][0]
     out = tmp_path / "shot.png"
     helix_app.screenshot(str(out))
     with Image.open(out) as img:
-        assert img.width > 0 and img.height > 0
+        assert (img.width, img.height) == (screen["w"], screen["h"])

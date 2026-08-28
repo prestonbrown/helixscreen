@@ -509,6 +509,29 @@ class DisplayBackend {
      */
     virtual void clear_calibration() {}
 
+    /**
+     * @brief Re-program the evdev linear stage's ABS range and axis swap
+     *
+     * The stage that runs BEFORE the affine matrix: lv_evdev swaps the axes, then
+     * scales the driver-declared ABS range onto the display, then clamps. That
+     * clamp is lossy, so a range the panel does not actually emit cannot be
+     * repaired by any affine on top - the three-point calibration solves for this
+     * range instead (prestonbrown/helixscreen#1259, #1276).
+     *
+     * min > max on an axis inverts it, which is deliberate and supported.
+     *
+     * @return true if the backend re-programmed the device; false on backends
+     *         with no evdev stage, where the caller must keep the affine-only path
+     */
+    virtual bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y) {
+        (void)swap_axes;
+        (void)min_x;
+        (void)min_y;
+        (void)max_x;
+        (void)max_y;
+        return false;
+    }
+
     // ========================================================================
     // Factory Methods
     // ========================================================================
@@ -541,6 +564,28 @@ class DisplayBackend {
      */
     static std::unique_ptr<DisplayBackend> create() {
         return create_auto();
+    }
+
+    /**
+     * @brief Whether a failed create_display() should be retried on fbdev
+     *
+     * The in-process fallback decision DisplayManager::init() makes after
+     * create_display() returns: retry only when there is no display AND the
+     * backend that just failed was not already fbdev (fbdev is the last resort —
+     * falling back to itself would loop).
+     *
+     * A static predicate rather than an inline condition so it is reachable from
+     * a unit test. init() itself initializes LVGL and opens real devices, so the
+     * only alternative is a test that re-types the condition and can never go red.
+     *
+     * @param backend The backend whose create_display() just returned
+     * @param display What create_display() returned (nullptr on failure)
+     * @return true if the fbdev fallback should be attempted
+     */
+    static bool should_try_fbdev_fallback(const DisplayBackend* backend,
+                                          const lv_display_t* display) {
+        return display == nullptr && backend != nullptr &&
+               backend->type() != DisplayBackendType::FBDEV;
     }
 };
 

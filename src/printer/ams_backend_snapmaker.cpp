@@ -21,6 +21,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <lvgl.h>
 #include <string_view>
 #include <utility>
@@ -269,11 +270,19 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     system_info_.units.push_back(std::move(unit));
     system_info_.total_slots = NUM_TOOLS;
 
-    // Snapmaker U1 has a fixed 1:1 tool↔slot mapping (4 extruders, 4 slots).
-    // Without this, ui_gcode_viewer_apply_ams_tool_colors() short-circuits on
-    // an empty map and the 2D toolpath renders in whatever single color the
-    // slicer wrote into filament_palette[initial_tool_index] — black on prints
-    // where the initial tool's filament is dark.
+    // Snapmaker U1 has a fixed 1:1 tool↔slot mapping (4 extruders, 4 slots):
+    // every head permanently holds its own spool, so the PHYSICAL routing really
+    // is identity. Consumers that need that read it here — the Load/Unload
+    // buttons, and the persisted tool-map ledger in ams_tool_map_sync.h.
+    //
+    // It is NOT the print routing, and nothing may read it as such. Which head
+    // prints logical tool N lives in print_task_config.extruder_map_table, which
+    // get_tool_mapping() below publishes. This map was originally populated to
+    // stop ui_gcode_viewer_apply_ams_tool_colors() short-circuiting on an empty
+    // map (which left the model black when the first tool's filament was dark) —
+    // i.e. a safety valve was fed data to keep it from tripping, and the "fix"
+    // made every tool render in head-index order. That consumer now resolves
+    // through the routing table instead, so this map has no display job.
     system_info_.tool_to_slot_map.reserve(NUM_TOOLS);
     for (int i = 0; i < NUM_TOOLS; i++) {
         system_info_.tool_to_slot_map.push_back(i);
@@ -1458,6 +1467,67 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
         if (status.contains("print_task_config") && status["print_task_config"].is_object()) {
             const auto& ptc = status["print_task_config"];
 
+            // extruder_map_table: [int x32] — logical tool -> physical head. The
+            // firmware's own routing authority for the running print (see the
+            // member's doc comment). Mirrored verbatim; interpretation belongs to
+            // get_tool_mapping()'s callers, not here.
+            if (ptc.contains("extruder_map_table") && ptc["extruder_map_table"].is_array()) {
+                std::vector<int> table;
+                table.reserve(ptc["extruder_map_table"].size());
+                for (const auto& entry : ptc["extruder_map_table"]) {
+                    // A non-integer or out-of-range head is recorded as -1 ("no
+                    // opinion") rather than clamped: silently substituting head 0
+                    // is the identity-as-truth mistake this whole path exists to
+                    // stop making.
+                    if (!entry.is_number_integer()) {
+                        table.push_back(-1);
+                        continue;
+                    }
+                    const int head = entry.get<int>();
+                    table.push_back((head >= 0 && head < NUM_TOOLS) ? head : -1);
+                }
+                if (table != extruder_map_table_) {
+                    spdlog::debug("[AMS Snapmaker] extruder_map_table changed ({} entries)",
+                                  table.size());
+                    extruder_map_table_ = std::move(table);
+                    changed = true;
+                }
+            }
+
+            // extruders_used: [bool x4] — heads this task uses. Gates whether the
+            // map above may be read at all (see the member's doc comment).
+            if (ptc.contains("extruders_used") && ptc["extruders_used"].is_array()) {
+                std::vector<bool> used;
+                used.reserve(ptc["extruders_used"].size());
+                for (const auto& entry : ptc["extruders_used"]) {
+                    used.push_back(entry.is_boolean() && entry.get<bool>());
+                }
+                if (used != extruders_used_) {
+                    extruders_used_ = std::move(used);
+                    changed = true;
+                }
+            }
+
+            // Snapshot the routing while the task is still configured. Both
+            // fields are members, so this is evaluated against the accumulated
+            // state rather than only what THIS frame carried — an incremental
+            // update that names one of them still lands on the right answer.
+            //
+            // This is the only moment the routing is knowable. Once the print
+            // ends the firmware clears extruders_used and resets the table, and a
+            // reprint has nothing left to read: no detail view, no picker, no
+            // colour match to recompute. An empty table is never snapshotted —
+            // "known: nothing" is indistinguishable from a real answer to the
+            // caller, and the honest value is "not known".
+            const bool task_configured_now = std::any_of(
+                extruders_used_.begin(), extruders_used_.end(), [](bool b) { return b; });
+            if (task_configured_now && !extruder_map_table_.empty() &&
+                last_task_extruder_map_ != extruder_map_table_) {
+                last_task_extruder_map_ = extruder_map_table_;
+                spdlog::debug("[AMS Snapmaker] recorded task routing ({} entries) for reprint",
+                              last_task_extruder_map_.size());
+            }
+
             // filament_exist: [bool, bool, bool, bool] — whether filament is loaded per slot
             if (ptc.contains("filament_exist") && ptc["filament_exist"].is_array()) {
                 const auto& exist_arr = ptc["filament_exist"];
@@ -1866,8 +1936,39 @@ AmsError AmsBackendSnapmaker::validate_slot_index(int slot_index) const {
     return AmsErrorHelper::success();
 }
 
+std::vector<int> AmsBackendSnapmaker::get_tool_mapping() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Gate on a task actually being configured. With no task the firmware holds
+    // a default identity map, and answering [0,1,2,3] there would hand callers a
+    // confident wrong routing for any file whose tools do not line up with the
+    // lanes — the identity-as-truth mistake this accessor exists to end, just
+    // moved one layer down. All-false extruders_used is the firmware's own "no
+    // task" signal: it sets the flags when a task is set up and clears them when
+    // the print ends (observed idle [F,F,F,F], mid-print [F,F,T,F]).
+    const bool task_configured =
+        std::any_of(extruders_used_.begin(), extruders_used_.end(), [](bool b) { return b; });
+    if (!task_configured) {
+        return {};
+    }
+    return extruder_map_table_;
+}
+
+std::vector<int> AmsBackendSnapmaker::last_print_tool_mapping() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Deliberately NOT gated on a task being configured: the whole point is to
+    // answer after the task has ended, which is when a reprint asks. Empty means
+    // no configured task has ever been observed.
+    return last_task_extruder_map_;
+}
+
 std::string AmsBackendSnapmaker::build_preprint_gcode(const std::set<int>& tools_used,
                                                       const std::map<int, int>& remap) const {
+    return preprint_gcode(tools_used, remap);
+}
+
+std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
+                                                const std::map<int, int>& remap) {
     if (tools_used.empty()) {
         return "";
     }
@@ -1880,21 +1981,40 @@ std::string AmsBackendSnapmaker::build_preprint_gcode(const std::set<int>& tools
     // behavior; a future pass may add a richer extended-tool mapping policy.
     const auto default_head = [](int t) { return (t >= 0 && t <= 3) ? t : 0; };
 
+    // Resolve every used logical tool to the head it must print from: the user's
+    // remap when there is one, the firmware default otherwise.
+    std::map<int, int> resolved;
+    for (int t : tools_used) {
+        auto it = remap.find(t);
+        resolved[t] = (it != remap.end()) ? it->second : default_head(t);
+    }
+
     std::vector<std::string> lines;
 
-    // std::map iterates in ascending key order — emit one SET_PRINT_EXTRUDER_MAP
-    // per user remap entry (logical CONFIG_EXTRUDER -> physical MAP_EXTRUDER).
-    for (const auto& [logical, physical] : remap) {
+    // Emit SET_PRINT_EXTRUDER_MAP for EVERY used tool, including the ones landing
+    // on their firmware-default head.
+    //
+    // Emitting only the genuine remaps left the rest at whatever the PREVIOUS
+    // print wrote: the command sets one entry and resets nothing, and the
+    // firmware's reset_print_info() does not run between our send and the print.
+    // So a job that remapped T0->head2 left extruder_map_table[0]=2 behind, and
+    // the next job — needing plain T0->head0 and therefore emitting nothing for
+    // it — printed from head 2. That also corrupted the SET_PRINT_USED_EXTRUDERS
+    // line below, which assumed the default applied. Writing each used entry
+    // explicitly makes the table say exactly what this print means, which is
+    // also what lets get_tool_mapping() be read back as truth.
+    //
+    // std::map iterates in ascending key order, so the sequence is deterministic.
+    for (const auto& [logical, physical] : resolved) {
         lines.push_back(fmt::format("SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER={} MAP_EXTRUDER={}",
                                     logical, physical));
     }
 
-    // Resolve each used logical tool to its physical head, deduped and ascending
-    // via std::set, then format as a comma-separated list.
+    // Derived from the SAME resolution, so the two commands cannot disagree.
     std::set<int> used_heads;
-    for (int t : tools_used) {
-        auto it = remap.find(t);
-        used_heads.insert(it != remap.end() ? it->second : default_head(t));
+    for (const auto& [logical, physical] : resolved) {
+        (void)logical;
+        used_heads.insert(physical);
     }
 
     std::string csv;

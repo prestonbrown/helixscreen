@@ -24,6 +24,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "printer_state.h"
 
 #include <memory>
@@ -69,6 +70,16 @@ struct PrintStatusThumbFixture : public LVGLTestFixture {
         return *panel_;
     }
 
+    /// Drive the filename the way Moonraker does. PrinterPrintState decides the
+    /// print's identity here, before print_filename_ is published - calling
+    /// PrintStatusPanel::set_filename() directly bypasses that, so the panel
+    /// would be reconciling against an identity nothing ever set.
+    void report_filename(const std::string& filename) {
+        nlohmann::json status = {{"print_stats", {{"filename", filename}}}};
+        state_.update_from_status(status);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+
     PrinterState state_;
     std::unique_ptr<PrintStatusPanel> panel_;
 };
@@ -78,7 +89,7 @@ struct PrintStatusThumbFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(PrintStatusThumbFixture,
                  "PrintStatusPanel: a thumbnail published for another file is ignored",
                  "[print_status][thumbnail]") {
-    panel().set_filename("current.gcode");
+    report_filename("current.gcode");
     helix::ui::UpdateQueue::instance().drain();
 
     // A late publish belonging to the PREVIOUS print.
@@ -94,7 +105,7 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
 TEST_CASE_METHOD(PrintStatusThumbFixture,
                  "PrintStatusPanel: a thumbnail published for the current file is adopted",
                  "[print_status][thumbnail]") {
-    panel().set_filename("current.gcode");
+    report_filename("current.gcode");
     helix::ui::UpdateQueue::instance().drain();
 
     state().set_print_thumbnail("current.gcode", THUMB_PATH);
@@ -118,4 +129,209 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
 
     CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH);
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "usb_model.gcode");
+}
+
+// --- Externally-started prints ------------------------------------------------
+//
+// A print started from the app routes through PrintStartController, which calls
+// PrintStatusPanel::set_thumbnail_source() (ui_print_start_controller.cpp:241)
+// before the printer ever reports the new name. A print started from Mainsail,
+// Fluidd, or the printer's own screen does NOT: the panel learns the change only
+// from the print_filename subject. That path carries the stale-preview fix
+// (clear_gcode), so it needs its own coverage — the app-started path is not a
+// proxy for it.
+
+// A second real asset, so both publishes resolve and the two are distinguishable.
+constexpr const char* THUMB_PATH_B = "A:assets/images/filament_spool.png";
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: an externally started print invalidates the preview marker",
+                 "[print_status][thumbnail]") {
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_file(panel()) == "printA.gcode");
+
+    // No set_thumbnail_source(): the printer simply starts reporting a new file.
+    report_filename("printB.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The marker must no longer claim printA is on screen, or ensure_preview_current()
+    // sees no mismatch and the previous print's content is never reconciled.
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) != "printA.gcode");
+
+    // And the new print's thumbnail must be adopted once it lands.
+    state().set_print_thumbnail("printB.gcode", THUMB_PATH_B);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH_B);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
+}
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a thumbnail source that stops describing the print is retired",
+                 "[print_status][thumbnail]") {
+    // set_thumbnail_source() overrides the effective filename for BOTH the display
+    // name and the thumbnail lookup, so an override left set across a print
+    // boundary makes every later filename change compare against the OLD name.
+    // The panel then never registers that a new print began - which stales the
+    // thumbnail AND suppresses the stale-geometry clear in ensure_preview_current(),
+    // because gcode_mismatch is computed off that same comparison. One override,
+    // two symptoms.
+    //
+    // The panel's own print-ended retirement cannot be relied on to prevent it:
+    // that path is gated on print_ended, which is going_idle only
+    // (print_lifecycle_state.cpp:80), and any non-zero start phase forces
+    // Preparing (:34), so the Complete->Idle edge is swallowed for any print
+    // started from the app. The override must therefore be retired when it stops
+    // describing the incoming filename.
+    state().set_print_identity_override("printA.gcode");
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH);
+
+    // Next print starts externally, so nothing re-points the override at it.
+    report_filename("printB.gcode");
+    state().set_print_thumbnail("printB.gcode", THUMB_PATH_B);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The override no longer describes the incoming file, so it must be dropped
+    // rather than pinning the panel to the previous print.
+    CHECK(PrintStatusPanelTestAccess::identity_override(panel()).empty());
+    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH_B);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
+}
+
+// --- Rewritten temp paths -----------------------------------------------------
+//
+// A print HelixScreen prepared runs from a rewritten copy, and print_stats
+// reports THAT path. ActivePrintMediaManager auto-resolves it back to the
+// original (active_print_media_manager.cpp, `resolved != filename` branch) and
+// publishes the thumbnail under the original name. The panel has no such
+// auto-resolve: with no override set it takes print_stats' path verbatim.
+//
+// Normally the override hides that gap, because a print started from the app
+// routes through PrintStartController -> set_thumbnail_source(). The gap is
+// exposed when this process never started the job: an app restart or a
+// reconnect while the rewritten copy is already printing. Both sides then name
+// the same print differently, so every publish fails the observer's identity
+// check AND ensure_preview_current()'s adopt branch - which do not retry - and
+// the widget keeps whatever it was showing for the whole job, while the display
+// name (written by the manager) is correct. (prestonbrown/helixscreen#1339)
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a rewritten temp path resolves to the manager's identity",
+                 "[print_status][thumbnail][1339]") {
+    // Restart mid-print: print_stats names the rewritten copy and nothing has
+    // called set_thumbnail_source(), because this process never committed the job.
+    report_filename(".helix_temp/modified_1748_Widget.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The manager publishes under the resolved original, as it always does.
+    state().set_print_thumbnail("Widget.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "Widget.gcode");
+}
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a rewritten temp path adopts a thumbnail published first",
+                 "[print_status][thumbnail][1339]") {
+    // Production ordering: the manager observes print_filename immediately and
+    // the panel's own observer is deferred, so the publish lands while the panel
+    // still names the PREVIOUS print and the path observer correctly drops it.
+    // What recovers it is ensure_preview_current()'s adopt branch, once the
+    // filename catches up. Drive it that way - reaching the panel through the
+    // observer alone would leave the previous print's image on screen and let
+    // the src assertion pass for the wrong reason.
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH_B);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH_B);
+
+    state().set_print_thumbnail("Widget.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+
+    report_filename(".helix_temp/modified_1748_Widget.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "Widget.gcode");
+}
+
+// --- The no-thumbnail placeholder -------------------------------------------
+//
+// The shared path subject never publishes the empty string. A file whose
+// thumbnail has not been fetched (or does not exist) is published as
+// PrinterPrintState::no_thumbnail_placeholder(), and ActivePrintMediaManager
+// publishes it FOR the incoming file as its clear when a new print starts
+// (active_print_media_manager.cpp, process_filename). So identity matches while
+// the image on screen is a generic stand-in.
+//
+// That makes the placeholder the one value the panel must show without claiming
+// the preview is current: displayed_file_ is the marker decide_preview_action()
+// reads, and stamping it retires the reload. The manager already draws this
+// distinction in has_thumbnail_for(), whose comment spells out the consequence
+// of getting it wrong — "every print would stop at the placeholder".
+// (prestonbrown/helixscreen#1339)
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a published placeholder is shown but not marked current",
+                 "[print_status][thumbnail][1339]") {
+    const std::string placeholder = helix::PrinterPrintState::no_thumbnail_placeholder();
+
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_file(panel()) == "printA.gcode");
+
+    // printB starts and the manager clears: the placeholder, published for the
+    // file that is now printing, before any fetch has run.
+    report_filename("printB.gcode");
+    state().set_print_thumbnail("printB.gcode", placeholder);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // It goes on screen — that IS what "no thumbnail yet" looks like, and the
+    // alternative is leaving printA's image up.
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == placeholder);
+
+    // But the marker must not say printB's thumbnail is up, or nothing ever
+    // asks for it again and the print runs to completion on the stand-in.
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) != "printB.gcode");
+
+    // The real image still lands when the fetch completes.
+    state().set_print_thumbnail("printB.gcode", THUMB_PATH_B);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH_B);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
+}
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: adopting a placeholder leaves the preview reloadable",
+                 "[print_status][thumbnail][1339]") {
+    // Same rule, reached through ensure_preview_current()'s adopt branch instead
+    // of the path observer. Production ordering puts it there: the manager
+    // observes print_filename immediately while the panel's observer is
+    // deferred, so the publish lands under the PREVIOUS name, the path observer
+    // correctly drops it, and the adopt branch is what applies it once the
+    // filename catches up. Both branches stamp displayed_file_, so both need the
+    // exclusion — fixing one and not the other just moves the pin.
+    const std::string placeholder = helix::PrinterPrintState::no_thumbnail_placeholder();
+
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_file(panel()) == "printA.gcode");
+
+    // Published while the panel still names printA: dropped by the observer.
+    state().set_print_thumbnail("printB.gcode", placeholder);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Filename catches up; the adopt branch applies the published value.
+    report_filename("printB.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == placeholder);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) != "printB.gcode");
 }

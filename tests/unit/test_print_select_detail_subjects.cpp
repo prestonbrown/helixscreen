@@ -5,13 +5,16 @@
  * @file test_print_select_detail_subjects.cpp
  * @brief Unit tests for print select detail view subject initialization
  *
- * Tests that pre-print option subjects are initialized with correct defaults:
- * - Skip switches (bed_mesh, qgl, z_tilt, nozzle_clean) default to ON (1)
- * - Add-on switches (timelapse) default to OFF (0)
+ * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option heap
+ * subjects — the six fixed preprint_* subjects this file used to name were
+ * retired in Phase 3.5 (ui_print_select_detail_view.h:618). What is pinned here
+ * is the re-show reset: populate() re-initializes every option from
+ * default_enabled, so opening a second file cannot inherit the first file's
+ * toggles.
  *
- * Bug context: Previously switches defaulted to OFF in XML, which caused
- * is_option_disabled() to return true even when user hadn't touched them.
- * This triggered false modification warnings when printing without plugin.
+ * Bug context for the defaults themselves: switches once defaulted to OFF in
+ * XML, so is_option_disabled() returned true even when the user hadn't touched
+ * them, triggering false modification warnings when printing without the plugin.
  *
  * Also covers the detail_mapping_ready skeleton-latch subject: 0 = chips not
  * authoritative (XML skeletons visible), 1 = authoritative chip state rendered.
@@ -20,12 +23,14 @@
  */
 
 #include "ui_callback_helpers.h"
+#include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_subject_registry.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "pre_print_option.h"
 #include "tools_used_cache.h"
 
 #include <cstdlib>
@@ -40,95 +45,81 @@
 // Pre-print Option Subject Default Tests
 // ============================================================================
 
-TEST_CASE("Pre-print skip switches should default to ON (1)",
-          "[print_select][detail_view][subjects]") {
-    // Test the pattern used in PrintSelectDetailView::init_subjects()
-    // Skip switches default to 1 (ON) = "don't skip, do what file says"
+namespace {
 
-    SECTION("Bed mesh switch defaults to ON") {
-        static lv_subject_t preprint_bed_mesh;
-        lv_subject_init_int(&preprint_bed_mesh, 1); // Default: ON
-        REQUIRE(lv_subject_get_int(&preprint_bed_mesh) == 1);
-    }
+/// A two-option set in the shape the print-detail panel renders: one "skip"
+/// option that ships enabled, one "add-on" that ships disabled. Built directly
+/// rather than pulled from printer_database.json so the reset contract under
+/// test does not move when the shipped DB does.
+PrePrintOptionSet make_skip_and_addon_set() {
+    PrePrintOptionSet set;
+    set.macro_name = "START_PRINT";
 
-    SECTION("QGL switch defaults to ON") {
-        static lv_subject_t preprint_qgl;
-        lv_subject_init_int(&preprint_qgl, 1); // Default: ON
-        REQUIRE(lv_subject_get_int(&preprint_qgl) == 1);
-    }
+    PrePrintOption skip;
+    skip.id = "bed_mesh";
+    skip.category = PrePrintCategory::Mechanical;
+    skip.order = 10;
+    skip.default_enabled = true; // "don't skip, do what the file says"
+    skip.strategy_kind = PrePrintStrategyKind::MacroParam;
+    // 4-arg form, as test_pre_print_options_renderer.cpp uses: adaptive_value keeps
+    // its "1" default member initializer.
+    skip.strategy = PrePrintStrategyMacroParam{"SKIP_BED_MESH", "0", "1", "0"};
 
-    SECTION("Z-tilt switch defaults to ON") {
-        static lv_subject_t preprint_z_tilt;
-        lv_subject_init_int(&preprint_z_tilt, 1); // Default: ON
-        REQUIRE(lv_subject_get_int(&preprint_z_tilt) == 1);
-    }
+    PrePrintOption addon;
+    addon.id = "timelapse";
+    addon.category = PrePrintCategory::Monitoring;
+    addon.order = 10;
+    addon.default_enabled = false; // "don't add extras by default"
+    addon.strategy_kind = PrePrintStrategyKind::PreStartGcode;
+    addon.strategy = PrePrintStrategyPreStartGcode{"TIMELAPSE_RENDER"};
 
-    SECTION("Nozzle clean switch defaults to ON") {
-        static lv_subject_t preprint_nozzle_clean;
-        lv_subject_init_int(&preprint_nozzle_clean, 1); // Default: ON
-        REQUIRE(lv_subject_get_int(&preprint_nozzle_clean) == 1);
-    }
+    set.options = {skip, addon};
+    return set;
 }
 
-TEST_CASE("Pre-print add-on switches should default to OFF (0)",
-          "[print_select][detail_view][subjects]") {
-    // Add-on switches default to 0 (OFF) = "don't add extras by default"
+} // namespace
 
-    SECTION("Timelapse switch defaults to OFF") {
-        static lv_subject_t preprint_timelapse;
-        lv_subject_init_int(&preprint_timelapse, 0); // Default: OFF
-        REQUIRE(lv_subject_get_int(&preprint_timelapse) == 0);
-    }
-}
+// This used to be three TEST_CASEs that each declared their own local
+// lv_subject_t, initialized it, and read the value back — asserting LVGL's own
+// getter and nothing of ours. They named `preprint_bed_mesh` / `preprint_qgl` /
+// `preprint_timelapse`, the six fixed subjects retired in Phase 3.5
+// (ui_print_select_detail_view.h:618); toggle state has lived in
+// PrePrintOptionsRenderer's per-option heap subjects ever since, so the cases
+// could not have gone red no matter what the panel did.
+//
+// The default_enabled -> initial state rule is covered against the real renderer
+// in test_pre_print_options_renderer.cpp:142. What was NOT covered anywhere, and
+// is what these cases claimed to be about, is the reset-on-re-show contract:
+// populate() re-initializes every state subject from default_enabled, so opening
+// a second file cannot inherit the first file's toggles
+// (ui_pre_print_options_renderer.h:105).
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "re-showing the detail view resets pre-print toggles to their defaults",
+                 "[print_select][detail_view][subjects][pre_print_options]") {
+    helix::ui::PrePrintOptionsRenderer renderer;
+    lv_obj_t* container = lv_obj_create(test_screen());
 
-TEST_CASE("Pre-print subjects can be reset to defaults", "[print_select][detail_view][subjects]") {
-    // Simulates what happens in show() - subjects reset to defaults for new file
+    const auto set = make_skip_and_addon_set();
+    renderer.populate(container, set, nullptr, nullptr);
 
-    SECTION("Skip switch can be toggled OFF then reset to ON") {
-        static lv_subject_t preprint_bed_mesh;
-        lv_subject_init_int(&preprint_bed_mesh, 1); // Initial: ON
+    // Defaults as shipped: skip option ON, add-on OFF.
+    REQUIRE(renderer.get_state("bed_mesh") == 1);
+    REQUIRE(renderer.get_state("timelapse") == 0);
 
-        // User toggles OFF
-        lv_subject_set_int(&preprint_bed_mesh, 0);
-        REQUIRE(lv_subject_get_int(&preprint_bed_mesh) == 0);
+    // User flips both for this file.
+    renderer.set_state("bed_mesh", 0);
+    renderer.set_state("timelapse", 1);
+    REQUIRE(renderer.get_state("bed_mesh") == 0);
+    REQUIRE(renderer.get_state("timelapse") == 1);
 
-        // Reset to default when showing new file
-        lv_subject_set_int(&preprint_bed_mesh, 1);
-        REQUIRE(lv_subject_get_int(&preprint_bed_mesh) == 1);
-    }
+    // show() for the next file re-populates. Both must be back at their
+    // defaults — a carried-over toggle silently changes what the next print
+    // does, in opposite directions for the two kinds of option.
+    renderer.populate(container, set, nullptr, nullptr);
+    CHECK(renderer.get_state("bed_mesh") == 1);
+    CHECK(renderer.get_state("timelapse") == 0);
 
-    SECTION("Add-on switch can be toggled ON then reset to OFF") {
-        static lv_subject_t preprint_timelapse;
-        lv_subject_init_int(&preprint_timelapse, 0); // Initial: OFF
-
-        // User toggles ON
-        lv_subject_set_int(&preprint_timelapse, 1);
-        REQUIRE(lv_subject_get_int(&preprint_timelapse) == 1);
-
-        // Reset to default when showing new file
-        lv_subject_set_int(&preprint_timelapse, 0);
-        REQUIRE(lv_subject_get_int(&preprint_timelapse) == 0);
-    }
-}
-
-TEST_CASE("Subject value 1 means switch is checked (ON)", "[print_select][detail_view][subjects]") {
-    // Documents the semantic meaning of subject values
-    // Used by bind_state_if_eq in XML: ref_value="1" binds checked state
-
-    SECTION("Value 1 = checked/enabled") {
-        static lv_subject_t subject;
-        lv_subject_init_int(&subject, 1);
-        // In XML: <bind_state_if_eq subject="..." state="checked" ref_value="1"/>
-        // When subject == 1, switch shows as checked (ON)
-        REQUIRE(lv_subject_get_int(&subject) == 1);
-    }
-
-    SECTION("Value 0 = unchecked/disabled") {
-        static lv_subject_t subject;
-        lv_subject_init_int(&subject, 0);
-        // When subject == 0, switch shows as unchecked (OFF)
-        REQUIRE(lv_subject_get_int(&subject) == 0);
-    }
+    renderer.clear();
 }
 
 // ============================================================================
@@ -248,6 +239,49 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
 
         pop_and_drain();
         REQUIRE(lv_subject_get_int(ready) == 0);
+    }
+
+    SECTION("cache hit with NO palette keeps the skeleton until colors settle") {
+        // The K2 Plus regression. Moonraker reports filament_type for an
+        // OrcaSlicer file and no filament_colors at all, so show() gets an
+        // empty palette. The tools-used cache answers the OTHER question
+        // instantly, and readiness used to key off that alone — so the chips
+        // were published built from neutral stand-ins, rendering a grey dot
+        // pointing at the real lane color.
+        //
+        // Readiness must now wait for the palette question too. "Settled", not
+        // "non-empty": with no API nothing can ever read the file, so the
+        // degrade path settles it and the latch still opens rather than
+        // hanging on the skeleton forever.
+        helix::ToolsUsedCache warmer;
+        warmer.store("sub/flash.gcode", kSize, kMtime, {0, 2});
+
+        view.show("flash.gcode", "sub", "PLA", /*filament_colors=*/{}, {}, kSize, kMtime);
+
+        // Tools are known — but nothing has said what color they print in.
+        REQUIRE(view.get_tools_used() == std::set<int>{0, 2});
+        REQUIRE(lv_subject_get_int(ready) == 0);
+
+        // Drain runs the deferred push → on_activate → scan kick-off. With no
+        // API, the degrade path settles the palette question ("nothing knows")
+        // so the latch opens rather than stranding the user on a skeleton.
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(lv_subject_get_int(ready) == 1);
+
+        pop_and_drain();
+    }
+
+    SECTION("cache hit WITH a metadata palette is ready immediately, as before") {
+        // Guards the common path against the change above: metadata that
+        // carried colors settles the palette question during show(), so a
+        // re-print still renders final chips on the first frame.
+        helix::ToolsUsedCache warmer;
+        warmer.store("sub/flash.gcode", kSize, kMtime, {0, 2});
+
+        view.show("flash.gcode", "sub", "PLA", colors, {}, kSize, kMtime);
+        REQUIRE(lv_subject_get_int(ready) == 1);
+
+        pop_and_drain();
     }
 
     SECTION("stale cache entry (mtime changed) is a miss") {

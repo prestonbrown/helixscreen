@@ -90,4 +90,18 @@ Sound always plays for terminal print states (complete, cancelled, error) regard
 
 ---
 
+## On-screen Alerts
+
+Toasts are the brief banners that slide in at the top of the screen — "Filament loaded", "Saved", "Update available". If the informational ones feel chatty, **Settings > Safety & Notifications > On-screen Alerts** sets the lowest level that is allowed to interrupt you:
+
+| Level | What still toasts |
+|-------|-------------------|
+| **All** (default) | Everything — info, success, warnings and errors |
+| **Warnings & errors** | Info and success messages are held back |
+| **Errors only** | Only error toasts appear |
+
+Held-back notifications are not lost — they still land in the notification history (open it from the Notifications widget on the Home panel). The filter never silences a full-screen error dialog, and it never silences the [Print Completion Alert](#print-completion-alert) above; both bypass it on purpose.
+
+---
+
 [Back to Settings](../settings.md) | [Prev: Hardware & Devices](hardware.md) | [Next: System](system.md)

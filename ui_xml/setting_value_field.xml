@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Tappable value field for a slider row -->
+<!--
+  Replaces the display-only value label on a settings row with something that
+  reads as editable and opens the numeric keypad on tap. A slider alone cannot
+  land on an exact value once its range is wide: max accel spans 500-50000 over
+  a few hundred pixels, which is ~165mm/s^2 per pixel.
+
+  The field styles itself like a text input (elevated background, border,
+  radius) rather than being one: an lv_textarea would take focus and raise
+  the alphanumeric on-screen keyboard, which is not the input we want here.
+
+  Usage:
+    <setting_value_field name="max_accel_field" value_subject="max_accel_display"
+                         callback="on_limit_field_clicked" user_data="1"/>
+-->
+<component>
+  <api>
+    <!-- Subject holding the formatted value text, e.g. "3000 mm/s²" -->
+    <prop name="value_subject" type="string" default=""/>
+    <!-- Registered event callback fired on tap -->
+    <prop name="callback" type="string" default=""/>
+    <!-- Identifies which row was tapped, read via lv_event_get_user_data() -->
+    <prop name="user_data" type="string" default=""/>
+  </api>
+  <view name="value_field"
+        extends="lv_obj" width="content" height="content" style_min_height="#button_height_sm"
+        style_bg_color="#elevated_bg" style_bg_opa="255" style_border_color="#border" style_border_width="1"
+        style_radius="#border_radius" style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_xs"
+        style_pad_bottom="#space_xs" style_pad_gap="#space_xs" flex_flow="row" style_flex_cross_place="center"
+        style_flex_main_place="end" clickable="true" scrollable="false">
+    <text_body name="value" text="" bind_text="$value_subject" clickable="false" event_bubble="true"/>
+    <!-- Affordance: without it the field reads as a boxed label rather than
+         something to press. Muted so it does not compete with the value. -->
+    <icon src="pencil" size="xs" variant="muted" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$user_data"/>
+  </view>
+</component>

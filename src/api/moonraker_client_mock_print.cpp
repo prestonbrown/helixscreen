@@ -223,33 +223,29 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
     };
 
     // printer.firmware_restart - Restart firmware (MCU reset)
+    //
+    // Restarting is trigger_restart()'s job, not a second private imitation of
+    // it: a restart drops the print, zeroes the heater targets and clears
+    // excluded objects. This handler used to fake only the klippy state, so a
+    // restart reached through the RPC left the mock reporting a print still
+    // running and heaters still targeted on a machine that had just rebooted.
+    //
+    // It also poked get_printer_state() directly - the process-global one, not
+    // whoever subscribed to THIS client - instead of dispatching the webhooks
+    // status update a real restart arrives as. And it scheduled the return to
+    // READY on an lv_timer, which never fires in a test that does not pump
+    // LVGL, so klippy stayed SHUTDOWN there forever.
+    //
+    // The ack is right, though, and stays: Moonraker's do_restart() catches
+    // "Klippy Disconnected" and returns "ok" (klippy_apis.py). That is exactly
+    // why this path needs no wait-for-READY handling and SAVE_CONFIG does -
+    // SAVE_CONFIG goes through the generic printer.gcode.script endpoint, which
+    // has no such catch.
     registry["printer.firmware_restart"] =
-        []([[maybe_unused]] MoonrakerClientMock* self, [[maybe_unused]] const json& params,
+        [](MoonrakerClientMock* self, [[maybe_unused]] const json& params,
            std::function<void(const json&)> success_cb,
            [[maybe_unused]] std::function<void(const MoonrakerError&)> error_cb) -> bool {
-        spdlog::info("[MoonrakerClientMock] Firmware restart initiated");
-
-        // Simulate restart: briefly go SHUTDOWN, then READY after 1 second
-        helix::ui::async_call(
-            [](void*) {
-                get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
-
-                // Schedule recovery to READY after 1 second
-                static lv_timer_t* timer = nullptr;
-                if (timer) {
-                    lv_timer_delete(timer);
-                }
-                timer = lv_timer_create(
-                    [](lv_timer_t* t) {
-                        spdlog::info("[MoonrakerClientMock] Firmware restart complete - READY");
-                        get_printer_state().set_klippy_state_sync(KlippyState::READY);
-                        lv_timer_delete(t);
-                        timer = nullptr;
-                    },
-                    1000, nullptr);
-                lv_timer_set_repeat_count(timer, 1);
-            },
-            nullptr);
+        self->trigger_restart(/*is_firmware=*/true);
 
         if (success_cb) {
             success_cb(json::object());
@@ -257,34 +253,13 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
         return true;
     };
 
-    // printer.restart - Restart Klipper (soft restart)
+    // printer.restart - Restart Klipper (soft restart). See the firmware_restart
+    // handler above for why this delegates rather than simulating its own.
     registry["printer.restart"] =
-        []([[maybe_unused]] MoonrakerClientMock* self, [[maybe_unused]] const json& params,
+        [](MoonrakerClientMock* self, [[maybe_unused]] const json& params,
            std::function<void(const json&)> success_cb,
            [[maybe_unused]] std::function<void(const MoonrakerError&)> error_cb) -> bool {
-        spdlog::info("[MoonrakerClientMock] Klipper restart initiated");
-
-        // Simulate restart: briefly go SHUTDOWN, then READY after 500ms
-        helix::ui::async_call(
-            [](void*) {
-                get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
-
-                // Schedule recovery to READY after 500ms (faster than firmware restart)
-                static lv_timer_t* timer = nullptr;
-                if (timer) {
-                    lv_timer_delete(timer);
-                }
-                timer = lv_timer_create(
-                    [](lv_timer_t* t) {
-                        spdlog::info("[MoonrakerClientMock] Klipper restart complete - READY");
-                        get_printer_state().set_klippy_state_sync(KlippyState::READY);
-                        lv_timer_delete(t);
-                        timer = nullptr;
-                    },
-                    500, nullptr);
-                lv_timer_set_repeat_count(timer, 1);
-            },
-            nullptr);
+        self->trigger_restart(/*is_firmware=*/false);
 
         if (success_cb) {
             success_cb(json::object());

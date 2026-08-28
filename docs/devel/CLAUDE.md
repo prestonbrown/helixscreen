@@ -15,10 +15,12 @@ All developer documentation lives here. When working on features, look up the re
 | `REVIEW_RUBRIC.md` | The quality bar for reviews: crash families, silent-failure traps, what not to flag, what the gates already cover |
 | `../../scripts/CLAUDE.md` | Index of `scripts/` — installer, release, asset regeneration, and the "Quality & Auditing" gate table covering every `check_*.py` lint and what it enforces |
 | `TESTING.md` | Catch2 test infrastructure, test patterns |
+| `MOCK_ENVIRONMENT_VARIABLES.md` | The `HELIX_MOCK_*` matrix, replay scripts, forced-modal and demo-injection knobs - every var that shapes a `--test` run. Runtime/display/logging vars stay in `ENVIRONMENT_VARIABLES.md` |
 | `HIDDEN_TESTS_TRACKER.md` | Tests hidden from the default run (`[.]`), why each is hidden, and how to run them |
 | `LOGGING.md` | spdlog levels, when to use info vs debug vs trace |
 | `COPYRIGHT_HEADERS.md` | SPDX license headers |
 | `RELEASE_PROCESS.md` | Release workflow, versioning |
+| `CHANGELOG_STYLE.md` | How `CHANGELOG.md` entries are written: user-facing voice, hyphen separator, bare `(#N)` links, daily vs milestone shapes. Read before drafting a release's changelog section |
 | `RELEASE_1_0_CHECKLIST.md` | Everything blocking `v1.0.0` and the 1.1 devel track — the atomic `release/1.0` branch cut + `RELEASE_CHANNEL` flip, open milestone issues, what is and is not verified. Delete once 1.0 ships |
 | `CI_CD_GUIDE.md` | CI pipeline, GitHub Actions |
 | `ANDROID_PLAY_STORE.md` | Play Store publishing pipeline, one-time setup, promotion flow |
@@ -55,7 +57,9 @@ All developer documentation lives here. When working on features, look up the re
 | Doc | When to read |
 |-----|-------------|
 | `LABEL_PRINTER_SYSTEM.md` | Label printing: Brother QL, Phomemo, Niimbot, MakeID protocols; USB/TCP/Bluetooth transports |
-| `FILAMENT_MANAGEMENT.md` | AMS, AFC (Box Turtle), Happy Hare, ACE (Anycubic ACE Pro), AD5X IFS, CFS, Tool Changer, multi-backend, dryer architecture |
+| `FILAMENT_MANAGEMENT.md` | Filament system hub: multi-backend architecture, slot metadata, filament-op dispatch, endless spool, UI panels, dryer, device ops, mock mode, add-a-backend guide |
+| `FILAMENT_BACKEND_AFC.md`, `FILAMENT_BACKEND_HAPPY_HARE.md`, `FILAMENT_BACKEND_ACE.md`, `FILAMENT_BACKEND_TOOLCHANGER.md`, `FILAMENT_BACKEND_AD5X_IFS.md`, `FILAMENT_BACKEND_CFS.md`, `FILAMENT_BACKEND_QIDI_BOX.md`, `FILAMENT_BACKEND_SNAPMAKER_U1.md` | One leaf per filament backend: protocol, data sources, G-code commands, topology, capability table |
+| `FILAMENT_BACKEND_MEDUSAHC.md` | MedusaHC hotend changer. NOT its own backend: it is a klipper-toolchanger printer plus two add-ons (dock sensors that outrank `toolchanger.tool_number`, and a servo feeder). Read with `FILAMENT_BACKEND_TOOLCHANGER.md` |
 | `QIDI_BOX_HEATER.md` | QIDI Box PTC heater RE reference: Klipper objects, G-code commands, firmware variants, HelixScreen integration |
 | `CREALITY_CFS_INTERNALS.md` | Creality K1-family CFS box-wrapper RE reference: `BOX_*` command semantics, <tn_data.json>, deferred-failure and resume traps, staged loading, serial timeouts. Read before changing anything the CFS backend emits on K1 |
 | `FILAMENT_SLOT_METADATA.md` | Internal notes on `FilamentSlotOverrideStore`: per-backend integration, hardware-event clearing, lifetime discipline, local cache, legacy migration. Pair with `../specs/filament_slots.md` for the public wire format. |
@@ -72,7 +76,7 @@ All developer documentation lives here. When working on features, look up the re
 | `Z_OFFSET_PERSISTENCE.md` | Firmware that stores the z-offset outside `gcode_move` and zeroes the live one between prints (ZMOD on AD5M/AD5X): why the idle reading lies, the `persisted_z_offset` subjects, the relative-vs-absolute `SET_GCODE_OFFSET` rule, and the one-row recipe for adding a firmware |
 | `POWER_LOSS_RECOVERY.md` | Resume-after-power-loss: the passive Snapmaker backend vs the **active, side-effectful** Creality probe, capability detection via `print_stats.power_loss` presence, and the mandatory probe-before-resume safety invariant |
 | `UPDATE_SYSTEM.md` | Update channels (stable/beta/dev), R2 CDN, Moonraker updater |
-| `SOUND_SYSTEM.md` | Audio architecture, JSON themes, backends (SDL, ALSA, PWM, M300). User guide: `../user/guide/settings.md#sound-settings` |
+| `SOUND_SYSTEM.md` | Audio architecture, JSON themes, backends (SDL, ALSA, PWM, M300). User guide: `../user/guide/settings/display-sound.md#sound` |
 | `LED_CONTROL.md` | LED control system: 5 backends, auto-state lighting, control/settings overlays, home panel widget |
 | `PRINTER_MANAGER.md` | Printer overlay, custom images, inline name editing |
 | `MULTI_PRINTER.md` | Multi-printer management: config v4, soft restart, printer switching |
@@ -93,7 +97,6 @@ All developer documentation lives here. When working on features, look up the re
 | `printers/CREALITY_K2_SUPPORT.md` | Creality K2 series platform |
 | `printers/FLASHFORGE_AD5X_SUPPORT.md` | FlashForge Adventurer 5X (MIPS, ZMOD) |
 | `YOCTO_BUILD.md` | Building HelixScreen as a Yocto recipe |
-| `SNAPMAKER_U1_PRINT_TASK_CONFIG.md` | Snapmaker U1 native `print_task_config` filament/tool-mapping command API |
 | `AD5M_KMOD_VARIANT.md` | Building HelixScreen as a native variant inside the AD5M Klipper Mod firmware |
 | `plans/ESP32_NATIVE_AUDIT.md` | ESP32-S3 (BTT K-Touch) native-port feasibility audit — memory/flash/render budgets behind the `firmware/` port |
 | `ENVIRONMENT_VARIABLES.md` | All runtime and build env vars |
@@ -111,8 +114,7 @@ All developer documentation lives here. When working on features, look up the re
 
 | Doc | When to read |
 |-----|-------------|
-| `ROADMAP.md` | Feature timeline, what's complete, what's next |
-| `plans/` | The single tracked home for in-flight plans and specs — **point-in-time, not current truth.** Scaffolding, deleted in the same change that ships the work (lifecycle convention: `../CLAUDE.md`). A plan records what was intended when it was written; several prescribe approaches the shipped code has since diverged from, and they read as instructions. Verify every predicate against the code before following one. Live example: `plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md:63-65` tells you to gate on `head_filament_`, which `include/ams_backend_ad5x_ifs.h:808-825` now documents as untrustworthy on its own — the shipped gate is `head_switch_seen_ && !head_switch_present_`. |
+| `plans/` | The single tracked home for in-flight plans and specs — **point-in-time, not current truth.** Scaffolding, deleted in the same change that ships the work (lifecycle convention: `../CLAUDE.md`). A plan records what was intended when it was written; several prescribe approaches the shipped code has since diverged from, and they read as instructions. Verify every predicate against the code before following one. Live example: `plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md:118-120` tells you to gate on `head_filament_`, which `include/ams_backend_ad5x_ifs.h:80-83` now documents as untrustworthy on its own — the shipped gate is `head_switch_seen_ && !head_switch_present_`. |
 | `printer-research/` | Printer-specific research notes |
 | `printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md` | AD5X IFS protocol reverse engineering |
 | `printer-research/ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md` | Kobra S1 + ACE Pro real-log analysis: mainline-Python Klipper fork path (`[ace_status]`), command surface, inventory model |
@@ -123,6 +125,6 @@ All developer documentation lives here. When working on features, look up the re
 |-----|-------------|
 | `LVGL9_XML_ATTRIBUTES_REFERENCE.md` | Complete XML attribute reference |
 | `LVGL9_XML_CHEATSHEET.html` | Quick XML cheatsheet (HTML) |
-| `LVGL_XML_SITUATION.md` | **Read before touching `lib/helix-xml/`** — fork origin (`a15dcbeb5`), MIT licensing position, why there is no upstream, the clean-room rule for anything LVGL Pro also has, and the upstream feature gap analysis |
+| `HELIX_XML_FORK.md` | **Read before touching `lib/helix-xml/`** — fork origin (`a15dcbeb5`), MIT licensing position, why there is no upstream, the clean-room rule for anything LVGL Pro also has, and the upstream feature gap analysis |
 | `SLOT_COMPONENT_DESIGNS.md` | Two unbuilt XML-deduplication proposals (network state icons, capability-gated setting rows), what the other two designs turned into, and the **measured** limits of the `lv_xml_expr.c` evaluator: integer-only, so string formatting cannot move to XML formulas. Nothing here has shipped |
 | `FLAG_ICONS_SOURCE.md` | Flag icon asset sources |

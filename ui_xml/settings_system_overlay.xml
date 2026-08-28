@@ -39,8 +39,8 @@
         <!-- ================================================================== -->
         <setting_action_row name="row_touch_input"
                             label="Touch &amp; Input" label_tag="Touch &amp; Input" icon="cursor_move"
-                            description="Calibrate, tune jitter and scroll feel"
-                            description_tag="Calibrate, tune jitter and scroll feel" callback="on_touch_input_clicked"/>
+                            description="Calibrate and tune scroll feel"
+                            description_tag="Calibrate and tune scroll feel" callback="on_touch_input_clicked"/>
         <!-- ================================================================== -->
         <!-- PLUGINS (gated by beta_features config flag) -->
         <!-- ================================================================== -->

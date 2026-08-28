@@ -196,7 +196,17 @@ _WIDGET_DEFS_RE = re.compile(r"s_widget_defs\s*=\s*")
 _WIDGET_FIELDS = (1, 3, 5)
 
 # DeviceSection: id, label, display_order, description
-_DEVICE_SECTION_FN_RE = re.compile(r"std::vector\s*<\s*DeviceSection\s*>\s*\w+\s*\([^)]*\)\s*")
+# The element type is namespace-qualified at every definition site
+# (`std::vector<helix::printer::DeviceSection>`), so an unqualified match here
+# found none of them and every section label and description stayed untranslated
+# -- the exact failure this module was written to end, one struct over.
+# Anchored on the DEFINITION's opening brace. Without the trailing `{` this also
+# matched DECLARATIONS in headers, and _extract_device_sections() would then
+# find("{") past the semicolon and scan an unrelated later block for rows.
+_DEVICE_SECTION_FN_RE = re.compile(
+    r"std::vector\s*<\s*(?:\w+\s*::\s*)*DeviceSection\s*>\s*[\w:]+\s*\([^)]*\)"
+    r"\s*(?:const\s*)?(?:override\s*)?(?=\{)"
+)
 _SECTION_FIELDS = (1, 3)
 
 # DeviceAction: id, label, icon, section, description, type, ...

@@ -5,6 +5,13 @@
   <view name="print_status_detailed_active"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
         scrollable="false" clickable="false" event_bubble="true">
+    <!-- Filename header: spans the whole card so a long name has the full width
+         to scroll through instead of just the ~3/7 the data column gives it.
+         Content-sized, so the main row below simply flex_grows into what is
+         left and the thumbnail/arc shrink to make room. -->
+    <text_body name="detailed_filename"
+               width="100%" bind_text="print_display_filename" long_mode="scroll_circular" style_text_align="center"
+               clickable="false" event_bubble="true"/>
     <!-- Main row: thumb | arc | data -->
     <lv_obj name="detailed_main_row"
             width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_column="#space_md"
@@ -34,13 +41,10 @@
               height="100%" flex_grow="3" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="start" style_pad_row="#space_xs" scrollable="false" clickable="false"
               event_bubble="true">
-        <text_body name="detailed_filename"
-                   width="100%" bind_text="print_display_filename" long_mode="scroll_circular" clickable="false"
-                   event_bubble="true"/>
         <text_small bind_text="print_status_layer_text" clickable="false" event_bubble="true"/>
         <text_small bind_text="print_status_time_text" clickable="false" event_bubble="true"/>
-        <text_small width="100%"
-                    bind_text="print_status_filament_text" long_mode="scroll_circular" clickable="false"
+        <text_small name="detailed_filament_text"
+                    width="100%" bind_text="print_status_filament_text" long_mode="scroll_circular" clickable="false"
                     event_bubble="true">
           <bind_flag_if_eq subject="print_status_show_filament_active" flag="hidden" ref_value="0"/>
         </text_small>

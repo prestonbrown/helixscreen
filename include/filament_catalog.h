@@ -131,6 +131,10 @@ class FilamentCatalog {
     std::vector<std::string> all_brands() const;
     std::vector<const EffectiveFilament*> all_products() const;
     std::vector<std::string> types_for_brand(const std::string& brand) const;
+    /// Every material type in the catalog, from any brand. The fallback for a
+    /// vendor the catalog does not carry: a type is a property of the filament,
+    /// not of who sold it.
+    std::vector<std::string> all_types() const;
     std::vector<std::string> brands_for_type(const std::string& type) const;
     std::vector<const EffectiveFilament*> products_for(const std::string& brand,
                                                        const std::string& type) const;

@@ -324,8 +324,8 @@ We believe in earning trust through transparency. That is why the telemetry syst
 
 For developers and the technically curious:
 
-- **Source code**: `src/system/telemetry_manager.cpp`, `include/system/telemetry_manager.h`
-- **Crash handler**: `src/system/crash_handler.cpp` (async-signal-safe, no heap allocation in signal handler)
+- **Implementation**: handled by the telemetry and crash-handling modules built into HelixScreen itself — no external agents, scripts, or third-party trackers are involved
+- **Crash handling**: written to keep working even while the app is crashing, so a crash is still captured and queued for sending
 - **Schema version**: `2` (all events include `schema_version` for forward compatibility)
 - **Identity files**: `telemetry_device.json` (UUID + salt), `telemetry_config.json` (enabled state), `telemetry_queue.json` (event queue)
 - **Privacy policy**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

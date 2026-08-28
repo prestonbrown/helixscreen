@@ -35,8 +35,24 @@ namespace helix {
 
 static constexpr int TEMP_GRAPH_PALETTE_SIZE = 8;
 
-/// Nord-inspired palette: nozzle red, bed cyan, chamber green, then 5 more
+/// Nord-inspired palette: nozzle red, bed cyan, chamber green, then 5 more.
+///
+/// Deliberately theme-invariant, like the object_color_* palette. These encode
+/// *which sensor a line belongs to*, so they have to stay mutually
+/// distinguishable; semantic theme slots cannot promise that, and on Nord's
+/// light palette primary, info and focus are all #5E81AC, which would draw
+/// three series in one color. Theme-following belongs to the surfaces behind
+/// the data (the graph background reads screen_bg), not to the series.
+///
+/// This array is the only definition. Anything needing a series color indexes
+/// it rather than repeating a literal.
 extern const lv_color_t TEMP_GRAPH_SERIES_COLORS[TEMP_GRAPH_PALETTE_SIZE];
+
+/// Series color at @p index as 0xRRGGBB, wrapping the palette.
+///
+/// Sensor config is persisted as JSON ints, so the lv_color_t -> hex
+/// conversion lives here instead of being re-inlined at each call site.
+uint32_t temp_graph_series_hex(int index);
 
 // ============================================================================
 // Configuration types

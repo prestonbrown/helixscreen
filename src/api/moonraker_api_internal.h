@@ -283,6 +283,23 @@ inline bool is_safe_temperature(double temp, const SafetyLimits& limits) {
 }
 
 /**
+ * @brief Validate a target against the ceiling that heater actually declares.
+ *
+ * Prefer this over the two-argument form wherever the heater is known: the
+ * global bound is a 400°C sanity net that no real hotend reaches, so validating
+ * against it accepted targets the printer was always going to reject
+ * (prestonbrown/helixscreen#1355).
+ *
+ * @param temp   Target in Celsius
+ * @param limits Safety limits configuration
+ * @param heater Klipper object name ("extruder", "heater_bed", "chamber")
+ */
+inline bool is_safe_temperature(double temp, const SafetyLimits& limits,
+                                const std::string& heater) {
+    return temp >= limits.min_temperature_celsius && temp <= limits.max_temp_for(heater);
+}
+
+/**
  * @brief Validate fan speed is in valid percentage range
  *
  * @param speed Speed percentage

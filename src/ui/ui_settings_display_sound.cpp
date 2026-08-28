@@ -66,7 +66,6 @@ DisplaySoundSettingsOverlay::~DisplaySoundSettingsOverlay() {
     if (subjects_initialized_ && lv_is_initialized()) {
         lv_subject_deinit(&brightness_value_subject_);
         lv_subject_deinit(&theme_apply_disabled_subject_);
-        lv_subject_deinit(&volume_value_subject_);
     }
     spdlog::trace("[{}] Destroyed", get_name());
 }
@@ -89,12 +88,6 @@ void DisplaySoundSettingsOverlay::init_subjects() {
     // Theme Apply button disabled subject (1=disabled initially)
     lv_subject_init_int(&theme_apply_disabled_subject_, 1);
     lv_xml_register_subject(nullptr, "theme_apply_disabled", &theme_apply_disabled_subject_);
-
-    // Volume value subject for label binding
-    snprintf(volume_value_buf_, sizeof(volume_value_buf_), "80%%");
-    lv_subject_init_string(&volume_value_subject_, volume_value_buf_, nullptr,
-                           sizeof(volume_value_buf_), volume_value_buf_);
-    lv_xml_register_subject(nullptr, "volume_value", &volume_value_subject_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -498,7 +491,6 @@ void DisplaySoundSettingsOverlay::init_volume_slider() {
         lv_slider_set_value(slider, volume, LV_ANIM_OFF);
 
         helix::format::format_percent(volume, volume_value_buf_, sizeof(volume_value_buf_));
-        lv_subject_copy_string(&volume_value_subject_, volume_value_buf_);
 
         lv_obj_add_event_cb(slider, on_volume_released, LV_EVENT_RELEASED, nullptr);
 
@@ -1027,7 +1019,6 @@ void DisplaySoundSettingsOverlay::handle_volume_changed(int value) {
     AudioSettingsManager::instance().preview_volume(value);
 
     helix::format::format_percent(value, volume_value_buf_, sizeof(volume_value_buf_));
-    lv_subject_copy_string(&volume_value_subject_, volume_value_buf_);
 
     if (overlay_root_) {
         lv_obj_t* volume_row = lv_obj_find_by_name(overlay_root_, "row_volume");

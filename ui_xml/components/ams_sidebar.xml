@@ -74,13 +74,13 @@
            op already running, and a print owning the toolhead. -->
       <ui_button name="btn_unload"
                  width="100%" variant="secondary" icon="tray_arrow_up" text="Unload" translation_tag="Unload">
-        <bind_flag_if_eq subject="ams_type" flag="hidden" ref_value="4"/>
+        <bind_flag_if_eq subject="ams_is_filament_system" flag="hidden" ref_value="0"/>
         <bind_state_if_eq subject="ams_sidebar_unload_disabled" state="disabled" ref_value="1"/>
         <event_cb trigger="clicked" callback="ams_sidebar_unload_clicked"/>
       </ui_button>
       <!-- Reset Button (full width) - hidden for tool changers -->
       <ui_button name="btn_reset" width="100%" variant="secondary" icon="refresh" text="Reset" translation_tag="Reset">
-        <bind_flag_if_eq subject="ams_type" flag="hidden" ref_value="4"/>
+        <bind_flag_if_eq subject="ams_is_tool_changer" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="ams_sidebar_reset_clicked"/>
       </ui_button>
       <!-- Check Slots (Happy Hare): probe all slot sensors (MMU_CHECK_GATE). Shown only when supported. -->

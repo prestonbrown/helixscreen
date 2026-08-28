@@ -11,21 +11,35 @@
   dropped into any panel or menu that has room for one line.
 
   State 0 (Hidden) is the "this printer has no such mechanism" case, and is the
-  only state with nothing truthful to say — hence bind_flag_if_eq rather than a
+  only state with nothing truthful to say — hence a flag binding rather than a
   structural <if>: the subtree is one icon and one label, so building it and
   hiding it is cheaper than rebuilding it on every backend swap.
+
+  hide_when_healthy (0/1): the AMS panel passes 1 so the healthy sentence is
+  not permanently on screen — there the line surfaces only for attention kinds
+  (Off, Unknown, NeedsPlugin). The context menu leaves it off: its job is
+  explaining the greyed backup dropdown, including when it is greyed because
+  everything already works. The value is spliced into the cond expression as
+  an int literal, so it must stay numeric.
 
   The text may carry an embedded newline (the restriction reason on its own
   line), which is why the label is long_mode="wrap" and the row is height="content".
   That is also what keeps the long German/French/Portuguese/Russian restriction
   strings from clipping at 480x272 — they gain a second line instead of a
   truncated first one.
+
+  One binding owns the hidden flag for both conditions: flag bindings set AND
+  clear on every subject change, so a second bind_flag_if_eq for the On case
+  would fight this one and the last-registered would win in every state.
 -->
 <component>
+  <api>
+    <prop name="hide_when_healthy" type="int" default="0"/>
+  </api>
   <view extends="lv_obj"
         width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false" clickable="false"
         flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start">
-    <bind_flag_if_eq subject="ams_endless_state" flag="hidden" ref_value="0"/>
+    <bind_flag_if flag="hidden" cond="ams_endless_state eq 0 or (${hide_when_healthy} and ams_endless_state eq 1)"/>
     <icon src="infinity" size="xs" variant="secondary"/>
     <text_small name="endless_status_text"
                 bind_text="ams_endless_text" flex_grow="1" long_mode="wrap" style_text_color="#text_muted"/>

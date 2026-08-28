@@ -220,7 +220,7 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 | Attr | Notes |
 |------|-------|
 | `text` | Content |
-| `long_mode` | `wrap`, `scroll`, `dots`, `clip` |
+| `long_mode` | `wrap`, `scroll`, `dots`, `clip`. ⚠️ Inert without an explicit `width` — a content-width label is always one line. See `LVGL9_XML_GUIDE.md`, "Text never wraps inside a `flex_grow` column". |
 | `bind_text` | `"subject 'format'"` |
 
 ### lv_image

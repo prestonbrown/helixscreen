@@ -9,6 +9,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -283,11 +284,24 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     [[nodiscard]] static CfsSchema detect_schema(const nlohmann::json& box_json);
 
     /// Parse a `box` object, dispatching on detect_schema().
-    static AmsSystemInfo parse_box_status(const nlohmann::json& box_json);
+    ///
+    /// `own_labels` is the caller's snapshot of pushed_material_codes_ (nullptr
+    /// when unavailable, e.g. from tests). It only ever REMOVES a false tag
+    /// signal — see parse_stock_box_status.
+    static AmsSystemInfo
+    parse_box_status(const nlohmann::json& box_json,
+                     const std::unordered_map<int, std::string>* own_labels = nullptr);
 
     /// Stock (`T1`..`T4`) parse. Split out of parse_box_status when the flat
     /// schema arrived; behavior unchanged.
-    static AmsSystemInfo parse_stock_box_status(const nlohmann::json& box_json);
+    ///
+    /// `own_labels` maps global slot index -> the material_type code THIS app
+    /// wrote to that bay. Firmware echoes it back forever, so without it a
+    /// user's own label reads as RFID tag payload and suppresses the untagged
+    /// presence fallback. Passing nullptr restores the pre-#1077-fix reading.
+    static AmsSystemInfo
+    parse_stock_box_status(const nlohmann::json& box_json,
+                           const std::unordered_map<int, std::string>* own_labels = nullptr);
 
     /// Flat (`slots[]`) parse — community Kalico box.py reimplementations.
     static AmsSystemInfo parse_flat_box_status(const nlohmann::json& box_json);
@@ -441,6 +455,16 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// any_bypass_active early-out (gate_unaccounted_toolhead_filament,
     /// print_start_checks.cpp) — do not narrow to == -1.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+
+    /// True: the CFS clears the toolhead without a lane. bypass_unload_gcode()
+    /// is exactly that script - QUIT_MATERIAL (heat, cut, retract) plus the
+    /// retract Creality's macro leaves out, or a CR_BOX_CUT/BOX_CUT_MATERIAL
+    /// fallback - and it is built deliberately WITHOUT the bay envelopes,
+    /// because a stood-down box has no answer for a bay operation. An
+    /// unaccounted toolhead is that same lane-free situation.
+    [[nodiscard]] bool can_clear_unaccounted_toolhead() const override {
+        return true;
+    }
 
   protected:
     /// Recovery buttons for a CFS runout. **Caller must hold mutex_** (base
@@ -680,6 +704,43 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // expected fingerprints for an identity push we issued. Shared with the
     // other RFID-fingerprint backend (Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
+
+    /// material_type codes THIS app wrote to a bay via
+    /// push_slot_identity_to_firmware, keyed by global slot index.
+    ///
+    /// `material_type` is user-writable (BOX_MODIFY_TN_DATA PART=material_type,
+    /// #968) and the firmware echoes our write back on every later frame,
+    /// byte-identical to a real RFID read. The presence derivation treats a
+    /// non-sentinel code as proof of a tag and suppresses the untagged
+    /// remain_len fallback on that basis, so without this map labeling a bay
+    /// flipped a seated untagged spool to EMPTY on any firmware whose `vender`
+    /// stays sentinel for untagged spools — the exact population the fallback
+    /// exists for (#1077).
+    ///
+    /// Recorded ONLY when the bay's pre-push code was a sentinel. A bay that
+    /// already reported a real code is genuinely tagged, and relabeling it must
+    /// not unsuppress the fallback: remain_len latches after removal, so the
+    /// pulled spool would ghost as AVAILABLE forever.
+    ///
+    /// Session-scoped by design — it records something we observed happening,
+    /// not something we can re-derive. After a restart a labeled untagged bay
+    /// reads EMPTY-with-retained-identity again until the label is rewritten.
+    /// All access under mutex_.
+    std::unordered_map<int, std::string> pushed_material_codes_;
+
+    /// Per-bay occupancy from the previous poll, keyed by global slot index.
+    /// `vender` is the CFS's live occupancy signal (see parse_box_status), so a
+    /// false -> true edge here IS a physical spool insert. Firmware does not
+    /// probe RFID on insert (verified on a K2 Plus: a genuine Creality tag sat
+    /// at vender "unknown" / material_type "unknown" indefinitely), so the edge
+    /// is the only moment we get to ask for one.
+    std::unordered_map<int, bool> bay_occupied_;
+
+    /// Collect the bays whose insert edge needs an RFID read. Called under
+    /// mutex_ with the raw box payload; returns unit number -> bay bitmask so
+    /// the caller can dispatch one command pair per unit AFTER releasing the
+    /// lock (execute_gcode must not run under mutex_).
+    std::map<int, int> collect_insert_probes_locked(const nlohmann::json& box);
 
     // Firmware-observed material_type code vocabulary, harvested from box
     // status by handle_status_update and consulted by

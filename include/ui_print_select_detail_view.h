@@ -8,6 +8,7 @@
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 
+#include "gcode_footer_summary.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 #include "preflight_validator.h"
@@ -170,6 +171,20 @@ class PrintSelectDetailView : public OverlayBase {
      * trampoline in create() can dispatch to it. No-op on non-Snapmaker backends.
      */
     void on_color_card_clicked();
+
+    /**
+     * @brief Does a tap on the color-requirements card open the remap picker?
+     *
+     * The single predicate behind both the chevron and the card's clickable
+     * flag, and the same one on_color_card_clicked() guards on. Split out
+     * because the card is the ONLY way into the picker on a backend whose
+     * inline mapping card is hidden (Snapmaker U1): before this it was a bare
+     * "FILAMENTS" strip of swatches with nothing saying it could be tapped, so
+     * the picker existed and worked and no user could find it. On a backend
+     * that cannot remap, the same predicate stops the card claiming a tap it
+     * would silently drop.
+     */
+    [[nodiscard]] static bool color_card_opens_remap();
 
     /**
      * @brief Set the visible subject for XML binding
@@ -349,9 +364,11 @@ class PrintSelectDetailView : public OverlayBase {
     /**
      * @brief Whether auto (color+type) matching applies for this backend.
      *
-     * Non-editable-card backends (U1 / ACE) have no UI to flip the persisted
-     * auto-color preference, so they always auto-match. Editable backends honor
-     * SettingsManager::get_auto_color_map().
+     * Delegates to AmsState::effective_auto_match(), which owns the rule and
+     * documents it: non-editable-card backends (U1 / ACE) always auto-match,
+     * editable ones honor SettingsManager::get_auto_color_map(). Shared with
+     * PrintStatusPanel so the swatches here and the viewer's per-tool colors
+     * there resolve to the same lane.
      */
     [[nodiscard]] bool effective_auto_match() const;
 
@@ -364,6 +381,13 @@ class PrintSelectDetailView : public OverlayBase {
      * the Snapmaker U1 native print_task_config command sequence.
      */
     [[nodiscard]] std::set<int> get_tools_used() const;
+
+    /// Per-tool grams the slicer itself recorded, or empty when unknown.
+    /// The only per-tool quantity in the pipeline with an unambiguous unit -
+    /// the slicer labels the line `[g]`.
+    [[nodiscard]] std::vector<double> get_tool_grams() const {
+        return headless_tool_grams_;
+    }
 
     /**
      * @brief Effective tool→slot remap the print will actually use.
@@ -546,6 +570,24 @@ class PrintSelectDetailView : public OverlayBase {
     lv_subject_t detail_gcode_viewer_mode_{};
     // G-code loading indicator (0=hidden, 1=visible)
     lv_subject_t detail_gcode_loading_{};
+
+    /// Indexing progress 0-100; 0 = nothing to show (spinner). Driven by
+    /// progress_timer_ polling the viewer while detail_gcode_loading_ is 1.
+    lv_subject_t detail_gcode_progress_{};
+    lv_subject_t detail_gcode_progress_text_{};
+    char detail_gcode_progress_text_buf_[64]{};
+
+    /// Polls the viewer's load progress onto the subjects above. Raw lv_timer_t,
+    /// so it MUST be cancelled from both cleanup paths and the destructor —
+    /// StaticPanelRegistry::destroy_all() runs before lv_deinit(), and a timer
+    /// left armed on a freed `this` is #1173. cancel_progress_timer() is the one
+    /// shared stop; it uses lv_timer_cancel_safe().
+    lv_timer_t* progress_timer_ = nullptr;
+    void start_progress_timer();
+    void cancel_progress_timer();
+    /// Timer body: reads the viewer's load progress onto the subjects and
+    /// stops itself once loading is over.
+    void poll_load_progress();
     // 1 = the gcode viewer has rendered its first real frame. The thumbnail
     // (which sits on top of the viewer in z-order) stays visible until this
     // flips, covering the gray viewer during the load-to-render gap.
@@ -593,7 +635,26 @@ class PrintSelectDetailView : public OverlayBase {
     // recompute_preflight() so the gate has a fresh result even when the viewer
     // never parsed. See kick_off_headless_tools_scan().
     std::optional<std::set<int>> headless_tools_used_; // result of the streaming scan
-    bool headless_scan_done_ = false;                  // scan finished (success/empty/fail/timeout)
+
+    /// Per-tool grams from the G-code footer's `filament used [g]` line, when a
+    /// footer read answered. Slot-aligned with tool index; empty when the scan
+    /// fell back to the Tn parse (which counts tools but not grams) or never
+    /// ran. Deliberately NOT cached alongside tools_used: an absent vector must
+    /// read as "no opinion", and a stale one would price the wrong file.
+    std::vector<double> headless_tool_grams_;
+
+    /// True once the "what colors does this file print in" question has an
+    /// ANSWER — including the answer "nothing knows". Metadata carrying a
+    /// palette settles it at show(); otherwise the footer read settles it when
+    /// it lands or definitively cannot, and a viewer load settles it too.
+    ///
+    /// Distinct from "a palette exists" on purpose: a file whose colors nothing
+    /// can supply must still resolve, or detail_mapping_ready never flips and
+    /// the chips sit on the skeleton forever. Gating the latch on this is what
+    /// stops a tools-used cache hit from publishing chips built out of neutral
+    /// stand-ins as though they were the file's own colors.
+    bool palette_settled_ = false;
+    bool headless_scan_done_ = false; // scan finished (success/empty/fail/timeout)
     // True ONLY where the scan actually SETTLED: finish_scan's deferred body,
     // the show() cache-hit seed, or the no-API early-out. Deliberately NOT
     // set by the preflight safety timeout, which flips headless_scan_done_
@@ -619,7 +680,11 @@ class PrintSelectDetailView : public OverlayBase {
     lv_subject_t filament_mismatch_{};        // 1 = material mismatch warning visible
     lv_subject_t filament_mapping_visible_{}; // 1 = filament mapping card visible (AMS+tools)
     lv_subject_t color_swatches_visible_{};   // 1 = legacy color swatches card visible
-    lv_subject_t empty_tools_warning_{};      // 1 = at least one used tool's slot is empty
+    // 1 = tapping the color-requirements card opens the remap picker. Drives BOTH
+    // the chevron that advertises the tap and the card's own clickable flag, so a
+    // card that cues a tap and a card that answers one can never disagree.
+    lv_subject_t color_card_remappable_{};
+    lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
     // source of truth driving filament_mismatch_ + empty_tools_warning_ (works
@@ -802,7 +867,15 @@ class PrintSelectDetailView : public OverlayBase {
      * falls through to start_full_tools_scan(), so the footer read can only
      * ever be faster than today, never worse.
      */
-    void start_tail_summary_scan(LifetimeToken tok, std::set<int> stop_set);
+    void start_tail_summary_scan(LifetimeToken tok, std::set<int> stop_set,
+                                 helix::gcode::FooterReadNeed need);
+
+    /// Apply whatever a footer read managed to answer. `need` says what the
+    /// read was issued for: when it did NOT include the tools question, the
+    /// used-tool set is already settled (cache hit) and must not be re-derived
+    /// from this summary — only the palette and grams are taken.
+    void apply_footer_summary(const helix::gcode::GcodeFooterSummary& summary,
+                              helix::gcode::FooterReadNeed need);
 
     /**
      * @brief Fallback: download the whole file and scan it for Tn commands.
@@ -886,6 +959,10 @@ class PrintSelectDetailView : public OverlayBase {
      * always equal is_preflight_ready() ? 1 : 0.
      */
     void publish_mapping_ready();
+
+    /// Record that the palette question has an answer (including "nothing
+    /// knows"). Idempotent; see palette_settled_.
+    void mark_palette_settled();
 
     /**
      * @brief Tools the print will use, sourced from whichever scan is available.

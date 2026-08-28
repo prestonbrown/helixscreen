@@ -59,6 +59,19 @@ class ALSASoundBackend : public SoundBackend {
     /// Convert float [-1,1] samples to int16 with clamping. Public for testability.
     static void float_to_s16(const float* src, int16_t* dst, size_t sample_count);
 
+    /// Whether a parking stream must be explicitly started before draining.
+    ///
+    /// snd_pcm_drain() on a PREPARED stream returns immediately without playing
+    /// anything. A sound too short to reach the start threshold
+    /// (buffer_size - period_size) therefore leaves its audio queued but never
+    /// played, and the snd_pcm_prepare() on the next resume discards it - so the
+    /// sound is silently swallowed. That threshold is derived from the
+    /// NEGOTIATED buffer, which on real hardware can be far larger than the
+    /// 2048 frames we ask for (1024/8192 observed, i.e. 162.5 ms at 44.1 kHz),
+    /// putting most short UI sounds below it. Starting the stream first lets
+    /// drain play the tail out.
+    static bool needs_start_before_drain(snd_pcm_state_t state, bool wrote_since_prepare);
+
     // Voice interface (legacy — used by non-note-event callers)
     void set_voice(int slot, float freq_hz, float amplitude, float duty_cycle) override;
     void set_voice_waveform(int slot, Waveform w) override;
@@ -150,6 +163,13 @@ class ALSASoundBackend : public SoundBackend {
     snd_pcm_uframes_t period_size_ = 256;
     unsigned int channels_ = 1;
     bool use_s16_ = false;
+    /// Render-thread only: has anything been written since the last prepare()?
+    /// Paired with needs_start_before_drain() to tell "queued but never started"
+    /// apart from "nothing to play".
+    bool wrote_since_prepare_ = false;
+    /// Output re-locks when the clock stops, so the idle park must not run here
+    /// (#1337). Decided once at initialize(); see alsa_clock_keepalive.h.
+    bool keep_clock_alive_ = false;
 
     // Underrun log rate limiter (touched only by render thread)
     uint64_t xrun_count_ = 0;

@@ -11,6 +11,10 @@
 
 class IMoonrakerAPI;
 
+namespace helix::ui {
+class SaveConfigWatch;
+}
+
 namespace helix::zoffset {
 
 /// Returns true and shows toast if strategy auto-persists (FIRMWARE_MANAGED).
@@ -69,12 +73,19 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
 ///   ENDSTOP -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
 ///   FIRMWARE_MANAGED -> no-op (firmware/macros auto-persist)
 ///
+/// SAVE_CONFIG's rpc is dropped by the restart it triggers, so @p save_watch -
+/// not the rpc - decides the outcome: it absorbs the dropped reply and reports
+/// success once Klipper is back READY. Reporting the drop told the user every
+/// successful save had failed (prestonbrown/helixscreen#1359).
+///
 /// @param api           Moonraker API for gcode execution (must not be null)
+/// @param save_watch    Owned by the caller (a panel member), because it has to
+///                      outlive the restart it is watching for
 /// @param strategy      Calibration strategy determining command sequence
-/// @param on_success    Called after SAVE_CONFIG succeeds (Klipper will restart)
-/// @param on_error      Called with user-facing message on any failure
-void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
-                    std::function<void()> on_success,
+/// @param on_success    Called once the save is known to have succeeded
+/// @param on_error      Called with user-facing message on a REAL failure
+void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error);
 
 /// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.
@@ -87,79 +98,4 @@ void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
 /// actually needs answered.
 ///
 /// It also detects the restart *completing*. SAVE_CONFIG restarts Klipper, and
-/// MoonrakerClient::notify_klippy_disconnected() drops the in-flight RPC, so the
-/// save's success callback frequently never fires. Klipper coming back READY
-/// after a restart that this save triggered is strong evidence the save
-/// succeeded — without it the panel would sit in SAVING burning its whole
-/// extension budget before failing a save that actually worked.
-///
-/// Not thread-safe; drive it from the main thread only.
-class SaveRestartLatch {
-  public:
-    /// Clear all state. Call on entering AND leaving the saving state so a
-    /// second save in the same session does not inherit the first one's latch.
-    void reset() {
-        restart_latched_ = false;
-        restart_completed_ = false;
-    }
-
-    /// Feed an observed klippy readiness transition while a save is in flight.
-    void on_klippy_ready(bool ready) {
-        if (!ready) {
-            restart_latched_ = true;
-        } else if (restart_latched_) {
-            restart_completed_ = true;
-        }
-    }
-
-    /// Fold in an external "a restart is expected right now" signal
-    /// (EmergencyStopOverlay::is_expected_restart()). Monotonic: once set within
-    /// a save it stays set until reset().
-    void note_restart_expected(bool expected) {
-        if (expected) {
-            restart_latched_ = true;
-        }
-    }
-
-    /// True if a restart was observed or expected at any point since reset().
-    bool restart_latched() const {
-        return restart_latched_;
-    }
-
-    /// True once Klipper returned to READY after a latched restart — treat the
-    /// save as having succeeded even though its RPC was dropped.
-    bool restart_completed() const {
-        return restart_completed_;
-    }
-
-  private:
-    bool restart_latched_ = false;
-    bool restart_completed_ = false;
-};
-
-/// Decide whether a save-in-progress timeout should be extended instead of failing.
-///
-/// SAVE_CONFIG restarts Klipper, so the save timeout is armed across a window in
-/// which no RPC can complete. On some printers stock code chains a *second*
-/// config write + restart tens of seconds later (Creality K2 + CFS writes the
-/// CFS Tn_data via CXSAVE_CONFIG ~50s after the first SAVE_CONFIG), which pushed
-/// the whole sequence past a fixed 30s guard and reported a bogus "timed out"
-/// error for a save that actually succeeded.
-///
-/// Extending is bounded so a genuinely hung save still surfaces an error rather
-/// than leaving the panel spinning forever.
-///
-/// @param restart_latched   SaveRestartLatch::restart_latched() — whether a
-///                          restart was seen at ANY point since the save began.
-///                          Must NOT be an instantaneous
-///                          EmergencyStopOverlay::is_expected_restart() sample:
-///                          the 15s suppression window has always closed by the
-///                          time the 30s save guard first fires, so that reads
-///                          false and no extension is ever granted.
-/// @param extensions_used   How many extensions have already been granted
-/// @param max_extensions    Cap on extensions
-/// @return true to re-arm the timeout, false to fail the operation
-bool should_extend_save_timeout(bool restart_latched, unsigned extensions_used,
-                                unsigned max_extensions);
-
 } // namespace helix::zoffset

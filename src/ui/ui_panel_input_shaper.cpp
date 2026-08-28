@@ -1076,20 +1076,14 @@ void InputShaperPanel::save_configuration() {
 
     spdlog::info("[InputShaper] Saving configuration (SAVE_CONFIG)");
 
-    // SAVE_CONFIG triggers an expected Klipper restart
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
-
-    auto tok = lifetime_.token();
-
-    calibrator_->save_to_config(
-        [tok]() {
-            if (tok.expired())
-                return;
-            spdlog::info("[InputShaper] SAVE_CONFIG sent - Klipper restarting");
-        },
-        [tok](const std::string& err) {
-            if (tok.expired())
-                return;
+    // SAVE_CONFIG's reply is dropped by the restart it triggers, so the watch
+    // decides the outcome from Klipper coming back rather than from the rpc.
+    // Reporting the dropped rpc as a failure told the user every successful save
+    // had failed (prestonbrown/helixscreen#1359).
+    save_watch_.begin(
+        api_, "Saving config... Klipper will restart.",
+        [this]() { spdlog::info("[InputShaper] SAVE_CONFIG completed"); },
+        [this](const std::string& err) {
             spdlog::error("[InputShaper] SAVE_CONFIG failed: {}", err);
             ToastManager::instance().show(ToastSeverity::ERROR,
                                           lv_tr("Failed to save configuration"), 3000);

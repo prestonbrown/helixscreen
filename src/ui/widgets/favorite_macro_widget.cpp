@@ -22,6 +22,7 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
+#include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "theme_manager.h"
 
@@ -38,8 +39,8 @@ void register_favorite_macro_widgets() {
     helix::register_favorite_macro_config_subjects();
     lv_xml_register_event_cb(nullptr, "fav_macro_config_close_cb",
                              FavoriteMacroConfigModal::close_cb);
-    lv_xml_register_event_cb(nullptr, "fav_macro_config_skip_cb",
-                             FavoriteMacroConfigModal::skip_params_cb);
+    lv_xml_register_event_cb(nullptr, "fav_macro_config_confirm_cb",
+                             FavoriteMacroConfigModal::require_confirm_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_macro_cb",
                              FavoriteMacroConfigModal::tab_macro_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_appearance_cb",
@@ -75,7 +76,8 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
     auto cached = helix::MacroParamCache::instance().get(ctx.macro_name);
     switch (cached.knowledge) {
     case helix::MacroParamKnowledge::KNOWN_NO_PARAMS:
-        helix::execute_macro_gcode(ctx.api, ctx.macro_name, {}, "[FavoriteMacroWidget]");
+        helix::execute_macro_gcode(ctx.api, ctx.macro_name, {}, "[FavoriteMacroWidget]",
+                                   get_printer_state().get_discovery());
         break;
     case helix::MacroParamKnowledge::KNOWN_PARAMS:
         if (ctx.parent_screen) {
@@ -84,7 +86,8 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
             get_shared_param_modal().show_for_macro(
                 ctx.parent_screen, ctx.macro_name, cached.params,
                 [api, name](const helix::MacroParamResult& result) {
-                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]");
+                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]",
+                                               get_printer_state().get_discovery());
                 });
         }
         break;
@@ -95,7 +98,8 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
             get_shared_param_modal().show_for_unknown_params(
                 ctx.parent_screen, ctx.macro_name,
                 [api, name](const helix::MacroParamResult& result) {
-                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]");
+                    helix::execute_macro_gcode(api, name, result, "[FavoriteMacroWidget]",
+                                               get_printer_state().get_discovery());
                 });
         }
         break;
@@ -131,7 +135,8 @@ void run_confirm_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroWidget] run_confirm_cb");
     auto* ctx = static_cast<MacroExecCtx*>(lv_event_get_user_data(e));
     Modal::hide(Modal::get_top());
-    helix::execute_macro_gcode(ctx->api, ctx->macro_name, {}, "[FavoriteMacroWidget]");
+    helix::execute_macro_gcode(ctx->api, ctx->macro_name, {}, "[FavoriteMacroWidget]",
+                               get_printer_state().get_discovery());
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -162,10 +167,10 @@ void FavoriteMacroWidget::set_config(const nlohmann::json& config) {
         spdlog::warn("[FavoriteMacroWidget] Unknown icon '{}' in config, using default", c.icon);
     }
     icon_color_ = c.color;
-    skip_param_prompt_ = c.skip_param_prompt;
-    spdlog::debug("[FavoriteMacroWidget] Config: {}={} icon={} color=0x{:06X} skip_params={}",
+    require_confirmation_ = c.require_confirmation;
+    spdlog::debug("[FavoriteMacroWidget] Config: {}={} icon={} color=0x{:06X} require_confirm={}",
                   widget_id_, macro_name_, icon_name_.empty() ? "default" : icon_name_, icon_color_,
-                  skip_param_prompt_);
+                  require_confirmation_);
 }
 
 void FavoriteMacroWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -313,11 +318,12 @@ void FavoriteMacroWidget::update_display() {
 }
 
 void FavoriteMacroWidget::save_config() {
-    helix::FavoriteMacroConfig c{macro_name_, icon_name_, icon_color_, skip_param_prompt_};
+    helix::FavoriteMacroConfig c{macro_name_, icon_name_, icon_color_, require_confirmation_};
     save_widget_config(helix::favorite_macro_config_to_json(c));
-    spdlog::debug("[FavoriteMacroWidget] Saved config: {}={} icon={} color=0x{:06X} skip_params={}",
-                  widget_id_, macro_name_, icon_name_.empty() ? "default" : icon_name_, icon_color_,
-                  skip_param_prompt_);
+    spdlog::debug(
+        "[FavoriteMacroWidget] Saved config: {}={} icon={} color=0x{:06X} require_confirm={}",
+        widget_id_, macro_name_, icon_name_.empty() ? "default" : icon_name_, icon_color_,
+        require_confirmation_);
 }
 
 void FavoriteMacroWidget::fetch_and_execute() {
@@ -331,7 +337,7 @@ void FavoriteMacroWidget::fetch_and_execute() {
     // is one accidental tap away from EMERGENCY_STOP / FIRMWARE_RESTART, and the
     // MacrosPanel already enforces this; the home-screen widget previously
     // bypassed it entirely (#925).
-    if (helix::is_dangerous_macro(macro_name_)) {
+    if (helix::is_dangerous_macro(macro_name_, get_printer_state().get_discovery())) {
         if (!parent_screen_) {
             spdlog::warn("[FavoriteMacroWidget] No parent screen for dangerous-macro confirm");
             return;
@@ -352,21 +358,28 @@ void FavoriteMacroWidget::fetch_and_execute() {
         return;
     }
 
+    // Per-widget "Require Confirmation?" off: one tap runs the macro with no
+    // parameters and no dialog. This is the whole point of the opt-out, so it
+    // suppresses the Settings → Safety confirmation as well as the
+    // parameter-entry modal. Dangerous macros are handled above and never reach
+    // here, so the opt-out cannot disarm them.
+    if (!require_confirmation_) {
+        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]",
+                                   get_printer_state().get_discovery());
+        return;
+    }
+
     auto cached = MacroParamCache::instance().get(macro_name_);
 
-    // "Run without parameter prompt" favorites — and macros with genuinely no
-    // params — execute with empty params and never show the parameter-entry
-    // modal. Macros registered via Klipper's register_command report UNKNOWN
-    // params (no gcode_macro template to parse), which would otherwise force the
-    // popup on every tap regardless of the confirm setting; the per-widget
-    // toggle lets the user opt out of it.
-    bool run_without_params =
-        skip_param_prompt_ || cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS;
+    // Macros with genuinely no params have nothing to prompt for, so the
+    // confirmation dialog is the only gate left for them. Macros registered via
+    // Klipper's register_command report UNKNOWN params (no gcode_macro template
+    // to parse) and still get the param modal, which is itself the implicit
+    // confirmation step — same as KNOWN_PARAMS.
+    bool run_without_params = cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS;
 
     // Optional run-confirmation gate (Settings → Safety toggle, default on).
-    // Only applies when running without a param modal — for KNOWN_PARAMS /
-    // UNKNOWN the param modal is itself the implicit confirmation step. Mirrors
-    // MacrosPanel logic.
+    // Only applies when running without a param modal. Mirrors MacrosPanel logic.
     if (run_without_params && parent_screen_ &&
         helix::SafetySettingsManager::instance().get_macro_require_confirmation()) {
         auto* ctx = new MacroExecCtx{macro_name_, api, parent_screen_};
@@ -384,11 +397,12 @@ void FavoriteMacroWidget::fetch_and_execute() {
     }
 
     if (run_without_params) {
-        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]");
+        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]",
+                                   get_printer_state().get_discovery());
         return;
     }
 
-    // Has params (and not skipped) — show the parameter-entry modal.
+    // Has params, or params unknown — show the parameter-entry modal.
     run_macro_after_confirm({macro_name_, api, parent_screen_});
 }
 

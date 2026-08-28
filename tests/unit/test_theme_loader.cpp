@@ -134,24 +134,25 @@ TEST_CASE("parse_theme_json parses valid dual-palette theme", "[theme]") {
     REQUIRE(theme.is_valid());
 }
 
-TEST_CASE("get_default_nord_theme returns valid theme", "[theme]") {
-    auto theme = helix::get_default_nord_theme();
+TEST_CASE("get_builtin_fallback_theme returns valid theme", "[theme]") {
+    auto theme = helix::get_builtin_fallback_theme();
 
-    REQUIRE(theme.name == "Nord");
+    REQUIRE(theme.name == "HelixScreen");
+    REQUIRE(theme.filename == helix::DEFAULT_THEME);
     REQUIRE(theme.is_valid());
-    REQUIRE(theme.dark.screen_bg == "#2e3440");
-    REQUIRE(theme.light.screen_bg == "#eceff4");
+    REQUIRE(theme.dark.screen_bg == "#19191C");
+    REQUIRE(theme.light.screen_bg == "#F0F0F4");
 }
 
-TEST_CASE("parse_theme_json returns Nord on invalid JSON", "[theme]") {
+TEST_CASE("parse_theme_json returns the built-in theme on invalid JSON", "[theme]") {
     auto theme = helix::parse_theme_json("{ invalid json", "bad.json");
 
-    REQUIRE(theme.name == "Nord");
+    REQUIRE(theme.name == "HelixScreen");
     REQUIRE(theme.is_valid());
 }
 
-TEST_CASE("parse_theme_json returns Nord when missing palettes", "[theme]") {
-    // JSON with no dark or light palette should fall back to Nord
+TEST_CASE("parse_theme_json returns the built-in theme when missing palettes", "[theme]") {
+    // JSON with no dark or light palette falls back to the compiled-in theme
     const char* json = R"({
         "name": "Invalid Theme",
         "border_radius": 8
@@ -159,7 +160,7 @@ TEST_CASE("parse_theme_json returns Nord when missing palettes", "[theme]") {
 
     auto theme = helix::parse_theme_json(json, "missing_palettes.json");
 
-    REQUIRE(theme.name == "Nord");
+    REQUIRE(theme.name == "HelixScreen");
     REQUIRE(theme.is_valid());
 }
 
@@ -179,7 +180,7 @@ TEST_CASE("parse_theme_json fills missing/empty color keys with defaults", "[the
     })";
 
     auto theme = helix::parse_theme_json(json, "partial.json");
-    auto defaults = helix::get_default_nord_theme();
+    auto defaults = helix::get_builtin_fallback_theme();
 
     // Explicit, non-empty value is preserved
     REQUIRE(theme.name == "Partial Theme");
@@ -199,7 +200,7 @@ TEST_CASE("parse_theme_json fills missing/empty color keys with defaults", "[the
 }
 
 TEST_CASE("save_theme_to_file and load_theme_from_file roundtrip", "[theme]") {
-    auto original = helix::get_default_nord_theme();
+    auto original = helix::get_builtin_fallback_theme();
     original.name = "Roundtrip Test";
     original.properties.border_radius_size = 5; // Bold
 
@@ -249,7 +250,7 @@ TEST_CASE_METHOD(ThemeDirFixture, "user theme overrides default theme with same 
     std::string themes_dir = helix::get_themes_directory();
 
     // Create a user theme with the same name as a default theme
-    helix::ThemeData user_theme = helix::get_default_nord_theme();
+    helix::ThemeData user_theme = helix::get_builtin_fallback_theme();
     user_theme.name = "User Nord Override";
     user_theme.dark.screen_bg = "#111111"; // Different color to identify it
 
@@ -270,7 +271,7 @@ TEST_CASE_METHOD(ThemeDirFixture, "discover_themes merges user and default theme
     std::string themes_dir = helix::get_themes_directory();
 
     // Create a user-only theme
-    helix::ThemeData user_only = helix::get_default_nord_theme();
+    helix::ThemeData user_only = helix::get_builtin_fallback_theme();
     user_only.name = "User Only Theme";
     user_only.filename = "user_only_test";
 
@@ -325,12 +326,10 @@ TEST_CASE_METHOD(ThemeDirFixture, "reset_theme_to_default deletes user file and 
                  "[theme]") {
     std::string themes_dir = helix::get_themes_directory();
 
-    // Use "gruvbox" instead of "nord" to avoid interference from
-    // ensure_themes_directory() which auto-creates config/themes/nord.json.
-    // When another test in the shard uses a fixture that calls
-    // theme_manager_init(), ensure_themes_directory() recreates nord.json,
-    // causing the stat() check below to fail.
-    helix::ThemeData user_override = helix::get_default_nord_theme();
+    // Uses "gruvbox" rather than the default theme so the file under test is
+    // never the one theme_manager_init() loads, which would leave a user
+    // override behind and break the stat() check below.
+    helix::ThemeData user_override = helix::get_builtin_fallback_theme();
     user_override.name = "Modified Gruvbox";
     user_override.dark.screen_bg = "#222222";
 
@@ -357,7 +356,7 @@ TEST_CASE_METHOD(ThemeDirFixture, "reset_theme_to_default returns nullopt for us
     std::string themes_dir = helix::get_themes_directory();
 
     // Create a user-only theme (no default exists)
-    helix::ThemeData user_theme = helix::get_default_nord_theme();
+    helix::ThemeData user_theme = helix::get_builtin_fallback_theme();
     user_theme.name = "My Custom Theme";
     user_theme.filename = "my_custom_test";
 

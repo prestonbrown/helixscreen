@@ -68,3 +68,46 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ams.clear_backends();
     ams.deinit_subjects();
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "an assigned but empty lane still flattens to is_empty",
+                 "[ams][ams_state][available_slots]") {
+    // A lane the user assigned filament to, whose spool has since been pulled,
+    // keeps its identity so ui_ams_slot.cpp can ghost it. It holds no filament
+    // though, so no print may be mapped onto it: filament_mapper.cpp skips on
+    // is_empty alone (the v0.91 "wrong filament" report), which means identity
+    // must never leak into that flag.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    auto mock = std::make_unique<AmsBackendMock>();
+    auto* mock_ptr = mock.get();
+    mock_ptr->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+    mock_ptr->start();
+
+    {
+        auto slot = mock_ptr->get_slot_info(0);
+        slot.material = "ASA-GF";
+        slot.brand = "Ambrosia";
+        slot.spool_name = "Black ASA-GF";
+        mock_ptr->set_slot_info(0, slot);
+    }
+    mock_ptr->force_slot_status(0, SlotStatus::EMPTY);
+
+    const auto slots = ams.collect_available_slots();
+    const AvailableSlot* found = nullptr;
+    for (const auto& s : slots) {
+        if (s.backend_index == 0 && s.slot_index == 0) {
+            found = &s;
+            break;
+        }
+    }
+    REQUIRE(found != nullptr);
+
+    CHECK(found->is_empty);             // nothing may be mapped onto it
+    CHECK(found->material == "ASA-GF"); // ...but the assignment is still there
+
+    mock_ptr->stop();
+    ams.clear_backends();
+    ams.deinit_subjects();
+}

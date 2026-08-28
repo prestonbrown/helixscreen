@@ -364,7 +364,10 @@ class GCodeViewerState {
     /// Widget covering the bottom of this viewer (the translucent metadata
     /// strip), or null. Measured live rather than stored as a fraction so the
     /// offset tracks breakpoints, orientation, and the strip growing at runtime.
-    /// Cleared by the occluder's own LV_EVENT_DELETE, so it can never dangle.
+    /// Cleared by the occluder's own LV_EVENT_DELETE if the occluder dies
+    /// first; the viewer's delete handler detaches that callback if the viewer
+    /// dies first. Both directions are needed -- the two are siblings in one
+    /// subtree, so either order happens during teardown.
     lv_obj_t* bottom_occluder_{nullptr};
 
     /// SSAO enabled at init (from HELIX_SSAO env var, applied when 2D renderer is created)
@@ -464,6 +467,10 @@ static gcode_viewer_state_t* get_state(lv_obj_t* obj) {
 
 static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj,
                                                 int canvas_height);
+
+/// Registered on the occluder, keyed to the viewer. Declared here so the
+/// viewer's own delete handler can detach it before this object is freed.
+static void gcode_viewer_occluder_delete_cb(lv_event_t* e);
 
 // Helper: Check if viewer has any G-code data (full file or streaming)
 static bool has_gcode_data(const gcode_viewer_state_t* st) {
@@ -1346,6 +1353,22 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
     reg.erase(std::remove(reg.begin(), reg.end(), obj), reg.end());
 
     if (state) {
+        // The occluder carries an LV_EVENT_DELETE handler that reaches back
+        // into this viewer through its user_data. obj_delete_core clears only
+        // the deleted object's OWN event list, so that handler survives us and
+        // fires later in the same recursion if the occluder is a younger
+        // sibling -- which it is in both layouts that set one. Detach it while
+        // this object is still allocated.
+        //
+        // A non-null bottom_occluder_ here proves the occluder has not been
+        // freed: its own delete handler is what clears this field, and
+        // LV_EVENT_DELETE is sent before lv_free.
+        if (state->bottom_occluder_) {
+            lv_obj_remove_event_cb_with_user_data(state->bottom_occluder_,
+                                                  gcode_viewer_occluder_delete_cb, obj);
+            state->bottom_occluder_ = nullptr;
+        }
+
         // Delete timers now while LVGL is guaranteed alive (the destructor's
         // lv_is_initialized() guard might skip this during shutdown)
         if (state->long_press_timer_) {
@@ -1477,7 +1500,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Clear any existing data sources (mutually exclusive: streaming XOR full-file)
     // Destroy renderer FIRST — its background ghost thread holds a raw pointer to
     // the streaming controller; joining that thread before destroying the controller
-    // prevents use-after-free crashes (prestonbrown/helixscreen#XXX).
+    // prevents use-after-free crashes.
     crash_handler::breadcrumb::note("layer_renderer", "load_reset_pre");
     st->layer_renderer_2d_.reset();
     crash_handler::breadcrumb::note("layer_renderer", "load_reset_post");
@@ -1500,7 +1523,15 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         file_size = 0; // Fall through to full-load mode
     }
 
-    bool use_streaming = !st->streaming_disabled_ && helix::should_use_gcode_streaming(file_size);
+#ifdef ENABLE_3D_RENDERER
+    constexpr bool kBuildHas3D = true;
+#else
+    constexpr bool kBuildHas3D = false;
+#endif
+    // A screen's opt-out only counts when 3D is actually available to fall back
+    // on; see gcode_viewer_should_stream() for the K2 OOM this guards.
+    const bool use_streaming = helix::gcode_viewer_should_stream(
+        st->streaming_disabled_, kBuildHas3D, helix::should_use_gcode_streaming(file_size));
     spdlog::info("[GCode Viewer] File size: {}KB, streaming mode: {}", file_size / 1024,
                  use_streaming ? "ON" : "OFF");
 
@@ -2393,6 +2424,19 @@ void ui_gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>&
     if (!st || colors.empty())
         return;
 
+    // Same vector as last time is already applied — drop it instead of redoing
+    // the work. Not a micro-optimisation: each apply joins the 2D renderer's
+    // background ghost-render worker and invalidates its layer cache, and the
+    // observers that drive recoloring (active-lane color, tool map, slot data)
+    // all fire together during a toolchange, which is exactly when the preview
+    // is on screen. The comparison lives here rather than in a caller because
+    // tool_color_overrides is already the viewer's record of what is applied,
+    // and it is cleared by ui_gcode_viewer_clear() — so a reload correctly
+    // re-applies even when the colors are unchanged.
+    if (!st->tool_color_overrides.empty() && st->tool_color_overrides == colors) {
+        return;
+    }
+
     // Store for lazy-init paths
     st->tool_color_overrides = colors;
 
@@ -2417,45 +2461,18 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
     if (!obj) {
         return false;
     }
-
-    auto* backend = AmsState::instance().get_backend();
-    if (!backend) {
-        spdlog::debug("[GCode Viewer] apply_ams_tool_colors: no AMS backend");
+    // Pure adapter over the ONE color rule: color(tool N) = the color of the lane
+    // that actually prints N. It used to walk AmsSystemInfo::tool_to_slot_map
+    // itself, which made it a second, dumber implementation of the same question
+    // — and a wrong one on a tool changer, where that map is physical attachment
+    // rather than print routing. Empty means "nothing knowable": leave the
+    // renderer's slicer palette alone rather than painting over it.
+    const auto colors = AmsState::instance().routed_tool_colors();
+    if (colors.empty()) {
         return false;
     }
-
-    const auto& info = backend->get_system_info();
-    const auto& tool_map = info.tool_to_slot_map;
-    if (tool_map.empty()) {
-        spdlog::debug("[GCode Viewer] apply_ams_tool_colors: tool_to_slot_map empty");
-        return false;
-    }
-
-    std::vector<uint32_t> tool_colors;
-    tool_colors.reserve(tool_map.size());
-    bool all_default = true;
-
-    for (size_t tool = 0; tool < tool_map.size(); ++tool) {
-        int slot_index = tool_map[tool];
-        const auto* slot = info.get_slot_global(slot_index);
-        if (slot && slot->color_rgb != AMS_DEFAULT_SLOT_COLOR) {
-            tool_colors.push_back(slot->color_rgb);
-            all_default = false;
-            spdlog::debug("[GCode Viewer] Tool {} -> slot {} -> color 0x{:06X}", tool, slot_index,
-                          slot->color_rgb);
-        } else {
-            tool_colors.push_back(AMS_DEFAULT_SLOT_COLOR);
-            spdlog::debug("[GCode Viewer] Tool {} -> slot {} -> default", tool, slot_index);
-        }
-    }
-
-    if (all_default) {
-        spdlog::debug("[GCode Viewer] apply_ams_tool_colors: all colors are default, skipping");
-        return false;
-    }
-
-    ui_gcode_viewer_set_tool_colors(obj, tool_colors);
-    spdlog::debug("[GCode Viewer] Applied {} AMS tool colors", tool_colors.size());
+    ui_gcode_viewer_set_tool_colors(obj, colors);
+    spdlog::debug("[GCode Viewer] Applied {} lane-derived tool colors", colors.size());
     return true;
 }
 
@@ -2652,6 +2669,72 @@ const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t* o
         return nullptr;
 
     return st->gcode_file.get();
+}
+
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    // gcode_file and streaming_controller_ are mutually exclusive by
+    // construction (see the state struct), so this is a choice of which ONE
+    // holds data, not a precedence question.
+    if (st->gcode_file && !st->gcode_file->tool_color_palette.empty()) {
+        return st->gcode_file->tool_color_palette;
+    }
+    if (st->streaming_controller_ && st->streaming_controller_->is_open()) {
+        return st->streaming_controller_->get_index_stats().filament_palette;
+    }
+    return {};
+}
+
+std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    // Same "which ONE holds data" choice as get_tool_palette above.
+    if (st->gcode_file) {
+        return st->gcode_file->tools_used_indices;
+    }
+    if (st->streaming_controller_ && st->streaming_controller_->is_open()) {
+        const auto& stats = st->streaming_controller_->get_index_stats();
+        std::set<int> tools = stats.tools_used;
+        // Apply ParsedGCodeFile's single-extruder convention (see
+        // GCodeParser::finalize: tools_used_indices gets {0} when the file names
+        // no tool but does carry a colour palette). The index scan deliberately
+        // does not inject it — it has no opinion about palettes — so it is
+        // applied here, where both halves must agree for the same file.
+        if (tools.empty() && !stats.filament_palette.empty()) {
+            tools.insert(0);
+        }
+        return tools;
+    }
+    return {};
+}
+
+bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj, std::vector<std::string>& colors) {
+    if (!colors.empty()) {
+        return false;
+    }
+    auto palette = ui_gcode_viewer_get_tool_palette(obj);
+    if (palette.empty()) {
+        return false;
+    }
+    spdlog::info("[GCode Viewer] Metadata lacked filament colors — recovered {} from the file",
+                 palette.size());
+    colors = std::move(palette);
+    return true;
+}
+
+float ui_gcode_viewer_get_load_progress(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st || !st->streaming_controller_) {
+        // Full-load mode, or nothing loading. Neither has a checkpoint to
+        // report; 0.0 is the caller's cue to stay indeterminate.
+        return 0.0f;
+    }
+    return st->streaming_controller_->get_index_progress();
 }
 
 // ==============================================
@@ -3023,6 +3106,22 @@ void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t*,
 
 const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t*) {
     return nullptr;
+}
+
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t*) {
+    return {};
+}
+
+std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t*) {
+    return {};
+}
+
+bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t*, std::vector<std::string>&) {
+    return false;
+}
+
+float ui_gcode_viewer_get_load_progress(lv_obj_t*) {
+    return 0.0f;
 }
 
 #endif // HELIX_HAS_GCODE_VIEWER

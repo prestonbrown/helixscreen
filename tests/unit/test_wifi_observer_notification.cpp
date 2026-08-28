@@ -16,6 +16,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
@@ -35,6 +36,13 @@ namespace helix {
 class WiFiManagerTestAccess {
   public:
     static void fire_connected(WiFiManager& wm, const std::string& data = "") {
+        // TEST_MIRROR_OK: the handlers under test are production's own —
+        // wm.handle_connected() / wm.handle_disconnected() below. All this shim
+        // reimplements is the BACKEND-side state write that a real nmcli or
+        // wpa_supplicant poll would have made before the event fired; the mock
+        // backend is the legitimate OS test double, and getting the ordering wrong
+        // is what #1059 was about.
+        //
         // Match production: backend updates its state before firing CONNECTED.
         // The mock's connect_thread_func() sets connected_=true before
         // fire_event("CONNECTED"); the NM backend's status_thread_func()
@@ -67,36 +75,15 @@ namespace {
 // Enables test mode (idle mock WiFi backend, no wpa_supplicant probing)
 // and a headless LVGL display for the duration of the test.
 struct ObserverNotificationFixture {
-    RuntimeConfig* rc;
-    bool prev_test_mode;
-    bool prev_use_real_wifi;
+    ScopedRuntimeConfig scoped_config;
 
-    ObserverNotificationFixture()
-        : rc(get_runtime_config()), prev_test_mode(rc->test_mode),
-          prev_use_real_wifi(rc->use_real_wifi) {
+    ObserverNotificationFixture() {
+        auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
         lv_init_safe();
-        ensure_display();
+        ensure_headless_display();
         helix::ui::UpdateQueue::instance().init();
-    }
-
-    ~ObserverNotificationFixture() {
-        rc->test_mode = prev_test_mode;
-        rc->use_real_wifi = prev_use_real_wifi;
-    }
-
-    static void ensure_display() {
-        static bool created = false;
-        if (created)
-            return;
-        auto* disp = lv_display_create(480, 320);
-        alignas(64) static lv_color_t buf[480 * 10];
-        lv_display_set_buffers(disp, buf, nullptr, sizeof(buf),
-                               LV_DISPLAY_RENDER_MODE_PARTIAL);
-        lv_display_set_flush_cb(
-            disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); });
-        created = true;
     }
 
     std::shared_ptr<WiFiManager> make_manager() {
@@ -108,8 +95,7 @@ struct ObserverNotificationFixture {
 
 } // namespace
 
-TEST_CASE("WiFiManager: state observer fires on CONNECTED event",
-          "[wifi][unit][1059][observers]") {
+TEST_CASE("WiFiManager: state observer fires on CONNECTED event", "[wifi][unit][1059][observers]") {
     ObserverNotificationFixture fx;
     auto wm = fx.make_manager();
 

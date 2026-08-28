@@ -17,11 +17,24 @@ jobs:
   validate-shell:
     name: Validate Shell Scripts
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
+
+    # test_lvgl_event_code_gate.bats reads lib/lvgl/src/misc/lv_event.h, and it
+    # needs the PATCHED enum: lvgl_display_sync_cb.patch inserts four values
+    # (LV_EVENT_SYNC_{,WAIT_}{START,FINISH}) and renumbers everything after
+    # them, so the committed worker table only matches a patched checkout.
+    # Without these steps setup() dies on a missing header and takes the whole
+    # file down -- which is what blocked the v0.99.117 tag. build.yml got this
+    # in 83b0b9d51; this job is the same gate on the release path.
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    - name: Apply submodule patches
+      run: make apply-patches
 
     - name: Install bats
       run: sudo npm install -g bats
@@ -159,6 +172,12 @@ jobs:
         restore-keys: |
           ccache-release-${{ matrix.docker_image || matrix.platform }}-
 
+    # CCACHE_DIR is passed on the docker runs below, and it is load-bearing:
+    # ccache only reads <cache_dir>/ccache.conf when CCACHE_DIR is set
+    # explicitly. With just the bind mount it looks for ~/.config/ccache/
+    # ccache.conf, finds nothing, and silently keeps its 5 GB default - which is
+    # what these caches actually grew to ("max cache size 5.0 GB" in this job's
+    # own ccache -s output, against a 10 GB per-repo budget shared with CI).
     - name: Configure ccache
       run: |
         mkdir -p /tmp/.ccache-${{ matrix.docker_image || matrix.platform }}
@@ -181,14 +200,16 @@ jobs:
         docker run --rm \
           -v "${{ github.workspace }}":/src \
           -v /tmp/.ccache-${{ matrix.docker_image || matrix.platform }}:/root/.cache/ccache \
+          -e CCACHE_DIR=/root/.cache/ccache \
           -w /src \
           helixscreen/toolchain-${{ matrix.docker_image || matrix.platform }} \
-          make PLATFORM_TARGET=${{ matrix.build_target || matrix.platform }} SKIP_OPTIONAL_DEPS=1 -j$(nproc)
+          make PLATFORM_TARGET=${{ matrix.build_target || matrix.platform }} HELIX_PACKAGING=1 SKIP_OPTIONAL_DEPS=1 -j$(nproc)
 
     - name: Show ccache stats
       run: |
         docker run --rm \
           -v /tmp/.ccache-${{ matrix.docker_image || matrix.platform }}:/root/.cache/ccache \
+          -e CCACHE_DIR=/root/.cache/ccache \
           helixscreen/toolchain-${{ matrix.docker_image || matrix.platform }} \
           ccache -s
 

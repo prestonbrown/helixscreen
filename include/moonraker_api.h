@@ -404,6 +404,9 @@ class MoonrakerAPI : public IMoonrakerAPI {
      */
     void set_safety_limits(const SafetyLimits& limits) override {
         safety_limits_ = limits;
+        // Same floor invariant the config-parse path enforces, so every writer of
+        // safety_limits_ leaves it in the same shape (#1353).
+        safety_limits_.clamp_temperature_floors();
         limits_explicitly_set_ = true;
     }
 

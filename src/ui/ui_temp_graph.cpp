@@ -1397,7 +1397,7 @@ static void theme_change_cb(lv_observer_t* observer, lv_subject_t* subject) {
 
     // Refresh cached theme colors for draw callbacks
     graph->cached_grid_color = theme_manager_get_color("elevated_bg");
-    graph->cached_graph_bg = theme_manager_get_color("graph_bg");
+    graph->cached_graph_bg = theme_manager_get_color("screen_bg");
 
     // Series gradient colors derive from the theme — recompute the cached fill.
     mark_gradient_cache_dirty(graph);
@@ -1482,7 +1482,7 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
 
     // Cache theme colors for draw callbacks (avoid per-frame theme lookups)
     graph->cached_grid_color = theme_manager_get_color("elevated_bg");
-    graph->cached_graph_bg = theme_manager_get_color("graph_bg");
+    graph->cached_graph_bg = theme_manager_get_color("screen_bg");
 
     // Style chart background (theme handles colors)
     lv_obj_set_style_bg_opa(graph->chart, LV_OPA_COVER, LV_PART_MAIN);

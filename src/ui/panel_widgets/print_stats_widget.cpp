@@ -166,15 +166,17 @@ void PrintStatsWidget::on_activate() {
     if (hm->is_loaded()) {
         update_stats();
     } else {
-        // Defer fetch to next tick so it runs outside any ScopedFreeze
+        // Defer the load to next tick so it runs outside any ScopedFreeze.
+        // ensure_loaded(), not fetch(): fetch() means "the cached list is
+        // wrong", so asking it for a populate while a request is already out
+        // queues a second identical one.
         auto token = lifetime_.token();
         lv_async_call(
             [](void* ctx) {
                 auto token_ptr = static_cast<helix::LifetimeToken*>(ctx);
                 if (!token_ptr->expired()) {
-                    auto* history = get_print_history_manager();
-                    if (history && !history->is_loaded()) {
-                        history->fetch();
+                    if (auto* history = get_print_history_manager()) {
+                        history->ensure_loaded();
                     }
                 }
                 delete token_ptr;

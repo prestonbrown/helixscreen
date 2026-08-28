@@ -42,18 +42,22 @@ class TestableNMBackend : public WifiBackendNetworkManager {
 
     // Friend access allows TestableNMBackend to reach private members.
 
-    /// Reset the connection-transition latch, mirroring what start() does on a
-    /// reused backend (wifi_backend_networkmanager.cpp) so the next poll re-fires
-    /// CONNECTED even if the system was already connected (#1059). Exposed as a
-    /// public hook because free TEST_CASE bodies aren't covered by friendship.
+    /// Reset the connection-transition latch, standing in for what start() does
+    /// on a reused backend (wifi_backend_networkmanager.cpp) so the next poll
+    /// re-fires CONNECTED even if the system was already connected (#1059).
+    /// TEST_MIRROR_OK: start() shells out to nmcli and refuses without a live
+    /// NetworkManager, so the latch is seeded directly; the transition rule the
+    /// reset feeds is production's own apply_polled_status(), not a copy.
+    /// Exposed as a public hook because free TEST_CASE bodies aren't covered by
+    /// friendship.
     void reset_prev_connected() {
         prev_connected_.store(false);
     }
 
-    /// Simulate one status-poll cycle: update the cached status, then detect
-    /// and fire the CONNECTED / DISCONNECTED event if the connection state
-    /// transitioned — exactly what status_thread_func() does on each tick.
-    /// Returns the raw event string that was fired, or empty if no event.
+    /// Feed one poll result through production's own poll handler — the same
+    /// apply_polled_status() call status_thread_func() makes on each tick, minus
+    /// the nmcli subprocess that produced the ConnectionStatus. Returns the raw
+    /// event string production fired, or empty if no transition.
     std::string simulate_status_poll(bool connected) {
         ConnectionStatus st;
         st.connected = connected;
@@ -62,25 +66,7 @@ class TestableNMBackend : public WifiBackendNetworkManager {
         st.ip_address = connected ? "192.168.1.100" : "";
         st.mac_address = "de:ad:be:ef:ca:fe";
 
-        {
-            std::lock_guard<std::mutex> lock(status_mutex_);
-            cached_status_ = st;
-        }
-
-        // prev_connected_ is maintained inside fire_event() (single source of
-        // truth), so compare against a plain load and let fire_event() do the
-        // store — mirroring production status_thread_func().
-        bool now = st.connected;
-        bool was = prev_connected_.load();
-        std::string event;
-        if (now && !was) {
-            event = "CONNECTED";
-            fire_event(event);
-        } else if (!now && was) {
-            event = "DISCONNECTED";
-            fire_event(event);
-        }
-        return event;
+        return apply_polled_status(st);
     }
 };
 

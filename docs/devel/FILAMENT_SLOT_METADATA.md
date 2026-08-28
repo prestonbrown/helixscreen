@@ -140,14 +140,39 @@ own hardware-event signal:
 | `AmsBackendSnapmaker` | `snapmaker` | tail loop at end of `handle_status_update` | `filament_detect.info[ch].CARD_UID` byte-array → canonicalized string | spool_name, spoolman_id, spoolman_vendor_id, remaining_weight_g |
 | `AmsBackendAce` | `ace` | `parse_ace_object` per-slot loop | Status transition: EMPTY/UNKNOWN → present | brand, spool_name, spoolman_id, spoolman_vendor_id, weights, color_name |
 | `AmsBackendCfs` | `cfs` | `handle_status_update` tail loop | Composite `material_type\|color_value` fingerprint | spool_name, spoolman_id, spoolman_vendor_id, remaining_weight_g |
+| `AmsBackendToolChanger` | `toolchanger` | `handle_status_update` tail loop, `initialize_tools()` tail, and after the start-time load | **None** - see below | *every* field |
 
 "Override-exclusive fields" are the fields the user can edit on that backend
 but the firmware never supplies — they always come from the override, never
 fall through.
 
-AFC, Happy Hare, Tool Changer, and Mock inherit the no-op
-`clear_slot_override` default from `AmsBackend`. They manage their own
-override semantics independently — AFC and Happy Hare write `lane_data`
+### Tool Changer is the odd one out
+
+Every other backend layers overrides over something the machine reports, and
+clears them when the hardware says the spool physically changed. klipper-toolchanger
+does neither, and both halves of that are load-bearing:
+
+- **The store is the sole source of filament identity, not a layer over one.**
+  `parse_tool_state()` reads `mounted` and `active` and nothing else - no
+  material, colour, brand or weight exists to fall through to. So "override-exclusive
+  fields" is every field, and the merge is trivially "the override wins".
+- **There is deliberately no hardware-event clearing.** Nothing on a tool changer
+  can tell that a user swapped a spool - no RFID, no presence transition, no
+  colour reading. So `clear_slot_override()` stays the inherited no-op. That is a
+  decision, not an omission: inventing a clear signal here would throw away user
+  data on an event that does not mean what it would have to mean.
+- **The wipe it fixes is `initialize_tools()`**, which resets every slot to
+  `AMS_DEFAULT_SLOT_COLOR` with the tool name as a placeholder `spool_name`, and
+  runs on every `set_discovered_tools()`. Overrides are therefore re-layered at
+  three points, not just the parse tail: that function's own tail, the parse
+  tail, and immediately after the start-time load (because `set_discovered_tools()`
+  runs before `start()`, so the slots predate the loaded overrides).
+- **`T<n>` outer keys** (`lane_key_style_for`) are shared with Mainsail #2510's
+  records rather than duplicating them.
+
+AFC, Happy Hare, and Mock inherit the no-op
+`clear_slot_override` default from `AmsBackend`. AFC and Happy Hare manage their own
+override semantics independently — they write `lane_data`
 directly from their Klipper plugins, and HelixScreen does not touch those
 records. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
 wipes the whole namespace at the start of every PREP and refills it one lane at

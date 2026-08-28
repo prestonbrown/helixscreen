@@ -457,14 +457,25 @@ ifneq ($(ENABLE_MOCKS),yes)
 endif
 
 # Remote-control subsystem (helixctl server + socket/HTTP transport + the folded
-# `ctl`/`repl` client). Dev/test-only: default ON for the native dev build, OFF
-# for release/cross builds so shipped devices don't build it or pay the overhead.
-# Force it into a device dev/test image by overriding on the command line:
-#   make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=yes
-ifeq ($(PLATFORM_TARGET),native)
-    ENABLE_REMOTE_CONTROL ?= yes
-else
+# `ctl`/`repl` client).
+#
+# ON for every DEVELOPER build, native or cross. A device binary you cannot
+# drive from your desk means walking to the printer for every check, and the
+# cross targets are how test rigs get built. OFF only for the PRODUCTION
+# packaging/release builds, so shipped devices neither build it nor pay the
+# overhead — that is what HELIX_PACKAGING marks. mk/cross.mk sets it on the
+# package-* targets; CI's release workflow passes it on the command line.
+#
+# Compiled in but left off is not a state worth having: the server only listens
+# under --remote / HELIX_REMOTE_CONTROL=1, so `make deploy-*` reads the stamp
+# mk/rules.mk writes beside the binary and flips the device switch to match.
+#
+# Override either way on the command line:
+#   make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=no
+ifeq ($(HELIX_PACKAGING),1)
     ENABLE_REMOTE_CONTROL ?= no
+else
+    ENABLE_REMOTE_CONTROL ?= yes
 endif
 
 ifeq ($(ENABLE_REMOTE_CONTROL),yes)
@@ -1011,18 +1022,13 @@ TEST_DIR := tests
 TEST_UNIT_DIR := $(TEST_DIR)/unit
 TEST_MOCK_DIR := $(TEST_DIR)/mocks
 TEST_BIN := $(BIN_DIR)/helix-tests
-TEST_INTEGRATION_BIN := $(BIN_DIR)/run_integration_tests
 
-# Unit tests (use real LVGL) - exclude mock example
+# Unit tests (use real LVGL)
 # Include tests from unit/ directory and unit/application/ subdirectory
-TEST_SRCS := $(filter-out $(TEST_UNIT_DIR)/test_mock_example.cpp,$(wildcard $(TEST_UNIT_DIR)/*.cpp))
+TEST_SRCS := $(wildcard $(TEST_UNIT_DIR)/*.cpp)
 TEST_APP_SRCS := $(wildcard $(TEST_UNIT_DIR)/application/*.cpp)
 TEST_OBJS := $(patsubst $(TEST_UNIT_DIR)/%.cpp,$(OBJ_DIR)/tests/%.o,$(TEST_SRCS))
 TEST_APP_OBJS_EXTRA := $(patsubst $(TEST_UNIT_DIR)/application/%.cpp,$(OBJ_DIR)/tests/application/%.o,$(TEST_APP_SRCS))
-
-# Integration tests (use mocks instead of real LVGL)
-TEST_INTEGRATION_SRCS := $(TEST_UNIT_DIR)/test_mock_example.cpp
-TEST_INTEGRATION_OBJS := $(patsubst $(TEST_UNIT_DIR)/%.cpp,$(OBJ_DIR)/tests/%.o,$(TEST_INTEGRATION_SRCS))
 
 TEST_MAIN_OBJ := $(OBJ_DIR)/tests/test_main.o
 CATCH2_OBJ := $(OBJ_DIR)/tests/catch_amalgamated.o
@@ -1039,7 +1045,7 @@ MOCK_OBJS := $(patsubst $(TEST_MOCK_DIR)/%.cpp,$(OBJ_DIR)/tests/mocks/%.o,$(MOCK
 # Default target
 .DEFAULT_GOAL := all
 
-.PHONY: all build clean run test tests test-integration test-cards test-print-select test-size-content demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts regen-doc-links check-doc-links update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
+.PHONY: all build clean run test tests demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts regen-doc-links check-doc-links regen-doc-anchors check-doc-anchors regen-lvgl-event-codes check-lvgl-event-codes update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
 
 # Fast development build: -O0 skips optimization passes (~2x faster compilation)
 # Library code still builds at -O2 (via SUBMODULE_CFLAGS) since it rarely changes
@@ -1050,9 +1056,12 @@ dev:
 setup:
 	@git config core.hooksPath .githooks
 	@git config commit.template .githooks/commit-template
+	@git config merge.recall-stats.name "recall lesson-stats union merge"
+	@git config merge.recall-stats.driver "python3 scripts/recall_stats_merge.py %O %A %B"
 	@echo "✓ Git configured:"
 	@echo "  - Pre-commit hook enabled (.githooks/)"
 	@echo "  - Commit template enabled (.githooks/commit-template)"
+	@echo "  - Lesson-stats merge driver enabled (.claude-recall/*.json)"
 
 # Help target - shows common commands, references topic-specific help
 help:
@@ -1083,7 +1092,8 @@ help:
 	echo "  $${G}moonraker-inspector$${X} - Query Moonraker printer metadata"; \
 	echo "  $${G}validate-fonts$${X}    - Check all icons are in compiled fonts"; \
 	echo "  $${G}regen-fonts$${X}       - Regenerate MDI icon fonts"; \
-	echo "  $${G}regen-doc-links$${X}   - Relink the architecture guide's file citations"; \
+	echo "  $${G}regen-doc-links$${X}   - Re-pin doc citation line numbers, then relink the guide"; \
+	echo "  $${G}regen-lvgl-event-codes$${X} - Mirror lv_event_code_t into the crash worker"; \
 	echo "  $${G}quality$${X}           - Run all quality checks"; \
 	echo "  $${G}icon$${X}              - Generate app icon from logo"; \
 	echo ""; \

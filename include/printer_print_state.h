@@ -338,6 +338,65 @@ class PrinterPrintState {
     }
 
     /**
+     * @brief The canonical name of the print currently being shown
+     *
+     * ONE answer to "which print is this", for every consumer. Both the media
+     * manager and the print-status panel used to derive this themselves, from
+     * their own override members, and compare their answers against each
+     * other's - so any divergence dropped the thumbnail silently, with no retry
+     * (prestonbrown/helixscreen#1339). Four near-identical copies of the rule
+     * accumulated in six days before it was moved here.
+     *
+     * Differs from the raw `print_filename` subject when the printer is running
+     * a copy this app rewrote before printing: print_stats reports the rewrite,
+     * but Moonraker holds metadata and thumbnails only for the original, and
+     * the original is what the user recognises.
+     *
+     * Written before `print_filename_` is published, so an observer of that
+     * subject already sees the matching identity - the same ordering contract
+     * set_print_thumbnail() documents.
+     */
+    [[nodiscard]] const std::string& get_effective_print_filename() const {
+        return effective_print_filename_;
+    }
+
+    /**
+     * @brief Name this print by something other than what print_stats reports
+     *
+     * The one case the printer cannot tell us about: a print WE prepared runs
+     * from a rewritten copy. Set at commit from the preparing job, so the
+     * identity is right before the printer reports anything at all.
+     *
+     * Resolved on store, because a caller may hand over the rewritten name
+     * directly - Reprint replays whatever print_stats last said.
+     */
+    void set_print_identity_override(const std::string& name);
+
+    /// Drop the override and re-derive from what the printer last reported.
+    void clear_print_identity_override();
+
+    /// What is overriding this print's reported name, or "" when nothing is.
+    /// Distinct from get_effective_print_filename(), which is never empty once
+    /// the printer has named a print.
+    [[nodiscard]] const std::string& get_print_identity_override() const {
+        return print_identity_override_;
+    }
+
+    /**
+     * @brief Bumped whenever get_effective_print_filename() actually changes
+     *
+     * The identity can change WITHOUT the raw filename changing - an override
+     * installed at commit, or released when a job is abandoned - so consumers
+     * cannot rely on the print_filename subject to tell them to reconcile. They
+     * used to be told by the setter reaching into them directly; this is the
+     * same signal, without the coupling. An int, so it needs no buffer and no
+     * XML binding.
+     */
+    lv_subject_t* get_print_identity_epoch_subject() {
+        return &print_identity_epoch_;
+    }
+
+    /**
      * @brief The authoritative UI-level print state (PrintState enum)
      *
      * Derived from print_stats.state and the pre-print phase by
@@ -983,6 +1042,19 @@ class PrinterPrintState {
     // Identity for print_thumbnail_path_: the gcode filename that path was
     // produced for. Plain member (no XML binding), written before the subject.
     std::string print_thumbnail_file_;
+
+    /// Canonical name of the current print. See get_effective_print_filename().
+    std::string effective_print_filename_;
+    /// Override installed at commit for a print we rewrote; empty when none.
+    std::string print_identity_override_;
+    lv_subject_t print_identity_epoch_{}; // Integer: bumped when the identity changes
+    int print_identity_epoch_counter_ = 0;
+
+    /// Recompute effective_print_filename_ from @p raw and the current override.
+    /// Call BEFORE publishing print_filename_.
+    void recompute_effective_print_filename(const std::string& raw);
+    /// Bump print_identity_epoch_ when the effective name differs from @p before.
+    void publish_identity_if_changed(const std::string& before);
     char print_progress_text_buf_[16]{};
     char print_state_buf_[32]{};
     char print_start_message_buf_[64]{};

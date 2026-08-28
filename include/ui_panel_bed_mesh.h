@@ -10,11 +10,13 @@
 #include "moonraker_types.h" // For BedMeshProfile
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 
 #include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class IMoonrakerAPI;
@@ -108,6 +110,22 @@ class BedMeshPanel : public OverlayBase {
     void save_profile_with_name(const std::string& name);
     void start_calibration_probing();
 
+    // Name-field entry points. Each validates what was typed before acting, so
+    // an untouched field cannot silently resolve to "default" and overwrite a
+    // stored mesh (prestonbrown/helixscreen#1360). The modal callbacks read the
+    // textarea and call these; the policy lives here, the decision in
+    // helix::ui::bed_mesh::check_profile_name().
+    void save_profile_checked(std::string_view typed);
+    void start_calibration_checked(std::string_view typed);
+    void rename_profile_checked(std::string_view typed);
+
+    /// Profiles the printer currently stores, minus the internal "_hs_temp".
+    std::vector<std::string> stored_profile_names() const;
+
+    /// Confirmation answers (called from the overwrite dialog's callbacks).
+    void confirm_overwrite();
+    void cancel_overwrite();
+
   private:
     void launch_calibration(IMoonrakerAPI* api, int expected_probes, int probe_samples = 1);
     // ========== Subject Manager (RAII cleanup) ==========
@@ -186,11 +204,23 @@ class BedMeshPanel : public OverlayBase {
     std::string pending_delete_profile_;
     std::string pending_rename_old_;
     std::string pending_rename_new_;
+
+    /// Which action the overwrite confirmation is holding, and under what name.
+    enum class OverwriteTarget { None, Save, Rename };
+    OverwriteTarget pending_overwrite_ = OverwriteTarget::None;
+    std::string pending_overwrite_name_;
+
+    /// Ask before replacing a stored profile, then run the held action.
+    void ask_before_overwrite(OverwriteTarget target, const std::string& name);
     enum class PendingOperation { None, Delete, Rename, Calibrate };
     PendingOperation pending_operation_ = PendingOperation::None;
 
     // Operation timeout guard (no subject needed — modals prevent interaction)
     OperationTimeoutGuard operation_guard_;
+
+    /// Owns the SAVE_CONFIG contract: absorbs the rpc the restart drops
+    /// and reports success only once Klipper is back.
+    helix::ui::SaveConfigWatch save_watch_;
     static constexpr uint32_t OPERATION_TIMEOUT_MS = 15000; // quick ops (delete, rename)
     static constexpr uint32_t SLOW_OPERATION_TIMEOUT_MS =
         120000; // load, save_config (Klipper restart)

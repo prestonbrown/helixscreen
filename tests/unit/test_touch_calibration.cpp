@@ -1526,3 +1526,108 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     lv_indev_delete(indev);
 }
+
+// ============================================================================
+// Shipped platform defaults
+// ============================================================================
+//
+// A printer-embedded package ships for exactly one panel. Where we have measured
+// that panel, the coefficients ride along so touch works before the user has
+// calibrated anything.
+//
+// The fits are checked here as DATA, not through platform_default_calibration(),
+// because that function compiles down to whichever platform this test binary was
+// built for — on a desktop build it returns {valid=false} and a test written
+// against it would assert nothing at all.
+
+namespace {
+
+struct ShippedFit {
+    const char* name;
+    helix::TouchCalibration cal;
+};
+
+// Keep in sync with platform_default_calibration() in src/ui/touch_calibration.cpp.
+const ShippedFit kShippedFits[] = {
+    {"ad5x",
+     {true, 1.171731f, -0.043628f, -66.965828f, -0.006188f, 1.478954f, -118.906227f, false}},
+    {"ad5m", {true, 1.174004f, 0.009220f, -79.064400f, -0.000000f, -1.455497f, 570.492126f, false}},
+};
+
+} // namespace
+
+TEST_CASE("shipped panel fits pass our own validator", "[touch][calibration]") {
+    for (const auto& fit : kShippedFits) {
+        CAPTURE(fit.name);
+        CHECK(helix::is_calibration_valid(fit.cal));
+    }
+}
+
+TEST_CASE("shipped panel fits map an 800x480 screen to a sane raw span", "[touch][calibration]") {
+    for (const auto& fit : kShippedFits) {
+        CAPTURE(fit.name);
+        const float x_span = 800.0f / std::fabs(fit.cal.a);
+        const float y_span = 480.0f / std::fabs(fit.cal.e);
+        CHECK(x_span > 200.0f);
+        CHECK(x_span < 4096.0f);
+        CHECK(y_span > 100.0f);
+        CHECK(y_span < 4096.0f);
+    }
+}
+
+TEST_CASE("shipped panel fits keep both screen edges on the digitizer", "[touch][calibration]") {
+    for (const auto& fit : kShippedFits) {
+        CAPTURE(fit.name);
+        // Inverting the fit for screen y=0 and y=480 must give non-negative raw
+        // values. This is what catches a sign error in e or a wrong f.
+        const float raw_top = (0.0f - fit.cal.f) / fit.cal.e;
+        const float raw_bottom = (480.0f - fit.cal.f) / fit.cal.e;
+        CHECK(raw_top >= 0.0f);
+        CHECK(raw_bottom >= 0.0f);
+    }
+}
+
+// The AD5X and AD5M ship the same physical panel; the AD5M reports Y inverted.
+// If a future re-measurement breaks that relationship, one of the two fits is
+// probably wrong, because they cross-validate each other.
+TEST_CASE("shipped AD5X and AD5M fits describe the same panel", "[touch][calibration]") {
+    const helix::TouchCalibration& x = kShippedFits[0].cal;
+    const helix::TouchCalibration& m = kShippedFits[1].cal;
+
+    CHECK((x.e > 0.0f) != (m.e > 0.0f)); // opposite Y polarity
+
+    const float x_span_a = 800.0f / std::fabs(x.a);
+    const float x_span_b = 800.0f / std::fabs(m.a);
+    CHECK(std::fabs(x_span_a - x_span_b) / x_span_b < 0.05f);
+
+    const float y_span_a = 480.0f / std::fabs(x.e);
+    const float y_span_b = 480.0f / std::fabs(m.e);
+    CHECK(std::fabs(y_span_a - y_span_b) / y_span_b < 0.05f);
+}
+
+// On a build that HAS a measured default, the shipped function must return one of
+// the fits above rather than something invalid.
+TEST_CASE("platform_default_calibration agrees with the shipped table", "[touch][calibration]") {
+    helix::TouchCalibration cal = helix::platform_default_calibration();
+#if defined(HELIX_PLATFORM_AD5X) || defined(HELIX_PLATFORM_AD5M)
+    REQUIRE(cal.valid);
+    CHECK(helix::is_calibration_valid(cal));
+
+    // Close the loop between the table above and the shipped function, so the two
+    // cannot drift apart on the platforms that actually carry a default.
+#if defined(HELIX_PLATFORM_AD5X)
+    const helix::TouchCalibration& expected = kShippedFits[0].cal;
+#else
+    const helix::TouchCalibration& expected = kShippedFits[1].cal;
+#endif
+    CHECK(cal.a == Catch::Approx(expected.a));
+    CHECK(cal.b == Catch::Approx(expected.b));
+    CHECK(cal.c == Catch::Approx(expected.c));
+    CHECK(cal.d == Catch::Approx(expected.d).margin(1e-6));
+    CHECK(cal.e == Catch::Approx(expected.e));
+    CHECK(cal.f == Catch::Approx(expected.f));
+#else
+    // Desktop and uncharacterised printers must decline to guess.
+    CHECK_FALSE(cal.valid);
+#endif
+}

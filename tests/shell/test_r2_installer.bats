@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Tests for R2 CDN integration in scripts/lib/installer/release.sh
-# Verifies manifest parsing, config defaults, and helper availability.
+# Verifies manifest parsing and config defaults. The helpers themselves are
+# exercised in test_download_validation, test_arch_validation and
+# test_extract_release; this file no longer restates that they exist, which
+# `setup()` guarantees by construction the moment it sources release.sh.
 
 RELEASE_SH="scripts/lib/installer/release.sh"
 
@@ -45,28 +48,6 @@ setup() {
     unset _HELIX_RELEASE_SOURCED
     source "$RELEASE_SH"
     [ "$R2_CHANNEL" = "dev" ]
-}
-
-# --- Helper availability ---
-
-@test "fetch_url available after sourcing release.sh" {
-    run type fetch_url
-    [ "$status" -eq 0 ]
-}
-
-@test "download_file available after sourcing release.sh" {
-    run type download_file
-    [ "$status" -eq 0 ]
-}
-
-@test "parse_manifest_version available after sourcing release.sh" {
-    run type parse_manifest_version
-    [ "$status" -eq 0 ]
-}
-
-@test "parse_manifest_platform_url available after sourcing release.sh" {
-    run type parse_manifest_platform_url
-    [ "$status" -eq 0 ]
 }
 
 # --- Manifest parsing ---
@@ -156,14 +137,116 @@ SAMPLE_MANIFEST='{
     [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-pi-v0.9.5.tar.gz" ]
 }
 
-# --- Architecture validation helper availability ---
 
-@test "validate_binary_architecture available after sourcing release.sh" {
-    run type validate_binary_architecture
-    [ "$status" -eq 0 ]
+# --- Single-line JSON ---
+#
+# The GitHub API omits pretty-printing for requests that send no Accept header,
+# which is every python urllib caller: our own _py_fetch, and the python wget
+# shim Creality ships as /usr/bin/wget on the K2. A greedy regex resolves to the
+# LAST quoted run on the line, so on a one-line payload it returned the tail of
+# the release notes after their last escaped quote, and the installer then built
+# a download URL and a staged filename out of 2KB of changelog.
+
+COMPACT_RELEASE='{"tag_name":"v0.99.116","name":"v0.99.116","body":"### Fixed\n- **Time zones** (#1340) - UTC+7 was reachable only as \"Indochina\", which a reporter in Vietnam\n  never found.\n- **Graph colours come from the active theme** rather than a fixed palette.\n"}'
+
+COMPACT_MANIFEST='{"version":"0.9.5","tag":"v0.9.5","notes":"Only as \"Indochina\", which a reporter never found.","assets":{"pi":{"url":"https://releases.helixscreen.org/stable/helixscreen-pi-v0.9.5.tar.gz","sha256":"abc123","zip_sha256":"zzz111"},"pi32":{"url":"https://releases.helixscreen.org/stable/helixscreen-pi32-v0.9.5.tar.gz","sha256":"def456","zip_sha256":"zzz222"},"k2":{"url":"https://releases.helixscreen.org/stable/helixscreen-k2-v0.9.5.tar.gz","sha256":"ghi789","zip_sha256":"zzz333"},"x86":{"url":"https://releases.helixscreen.org/stable/helixscreen-x86-v0.9.5.tar.gz","sha256":"jkl012","zip_sha256":"zzz444"}}}'
+
+@test "parse_json_string_field extracts tag_name from single-line release JSON" {
+    result=$(echo "$COMPACT_RELEASE" | parse_json_string_field tag_name)
+    [ "$result" = "v0.99.116" ]
 }
 
-@test "cleanup_old_install available after sourcing release.sh" {
-    run type cleanup_old_install
-    [ "$status" -eq 0 ]
+@test "parse_json_string_field does not leak release notes into the tag" {
+    result=$(echo "$COMPACT_RELEASE" | parse_json_string_field tag_name)
+    [[ "$result" != *"Vietnam"* ]]
+    [[ "$result" != *"palette"* ]]
+}
+
+@test "parse_json_string_field ignores an escaped quote run in a string value" {
+    # \"Indochina\" splits to the field `Indochina\`, which must not be
+    # mistaken for a key, and the prose after it must not become a value.
+    result=$(echo "$COMPACT_RELEASE" | parse_json_string_field Indochina)
+    [ -z "$result" ]
+}
+
+@test "parse_manifest_version reads a single-line manifest" {
+    result=$(echo "$COMPACT_MANIFEST" | parse_manifest_version)
+    [ "$result" = "0.9.5" ]
+}
+
+@test "parse_manifest_platform_url picks the right platform in a single-line manifest" {
+    result=$(echo "$COMPACT_MANIFEST" | parse_manifest_platform_url "k2")
+    [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-k2-v0.9.5.tar.gz" ]
+}
+
+@test "parse_manifest_platform_url does not confuse pi with pi32 in a single-line manifest" {
+    result=$(echo "$COMPACT_MANIFEST" | parse_manifest_platform_url "pi")
+    [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-pi-v0.9.5.tar.gz" ]
+    result=$(echo "$COMPACT_MANIFEST" | parse_manifest_platform_url "pi32")
+    [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-pi32-v0.9.5.tar.gz" ]
+}
+
+@test "parse_manifest_platform_sha256 reads a single-line manifest" {
+    result=$(echo "$COMPACT_MANIFEST" | parse_manifest_platform_sha256 "k2")
+    [ "$result" = "ghi789" ]
+    result=$(echo "$COMPACT_MANIFEST" | parse_manifest_platform_sha256 "k2" zip)
+    [ "$result" = "zzz333" ]
+}
+
+# --- Transport fallback ---
+#
+# fetch_url has no caller-side retry: an empty result reads as "the CDN is down"
+# and costs the manifest, and with it SHA256 verification. Newer K2 firmware
+# ships a python urllib shim as /usr/bin/wget, whose default Python-urllib/x.y
+# User-Agent our CDN front answers with HTTP 403, so committing to wget because
+# it exists left those printers unable to reach the CDN at all.
+
+_stub_wget() {
+    STUB_BIN="$BATS_TEST_TMPDIR/bin"
+    mkdir -p "$STUB_BIN"
+    printf '%s\n' '#!/bin/sh' "$@" > "$STUB_BIN/wget"
+    chmod +x "$STUB_BIN/wget"
+    PATH="$STUB_BIN:$PATH"
+}
+
+@test "fetch_url passes the installer User-Agent to wget" {
+    _stub_wget 'echo "$@"'
+    _has_real_curl() { return 1; }
+    result=$(fetch_url "https://example.invalid/manifest.json")
+    [[ "$result" == *"-U helixscreen-installer/1.0"* ]]
+}
+
+@test "fetch_url retries wget bare when -U is rejected" {
+    _stub_wget 'case "$*" in *-U*) exit 1;; esac' 'echo BARE_OK'
+    _has_real_curl() { return 1; }
+    result=$(fetch_url "https://example.invalid/manifest.json")
+    [ "$result" = "BARE_OK" ]
+}
+
+@test "fetch_url falls through to python when wget yields nothing" {
+    # The K2 shape: wget exists, but every attempt through it comes back empty.
+    _stub_wget 'exit 1'
+    _has_real_curl() { return 1; }
+    _has_python() { return 0; }
+    _py_fetch() { echo "PYTHON_PAYLOAD"; }
+    result=$(fetch_url "https://example.invalid/manifest.json")
+    [ "$result" = "PYTHON_PAYLOAD" ]
+}
+
+@test "fetch_url_http falls through to python when wget yields nothing" {
+    _stub_wget 'exit 1'
+    _has_real_curl() { return 1; }
+    _has_python() { return 0; }
+    _py_fetch() { echo "PYTHON_PAYLOAD"; }
+    result=$(fetch_url_http "http://example.invalid/manifest.json")
+    [ "$result" = "PYTHON_PAYLOAD" ]
+}
+
+@test "fetch_url reports failure when every transport comes back empty" {
+    _stub_wget 'exit 1'
+    _has_real_curl() { return 1; }
+    _has_python() { return 1; }
+    run fetch_url "https://example.invalid/manifest.json"
+    [ "$status" -ne 0 ]
+    [ -z "$output" ]
 }

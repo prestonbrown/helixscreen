@@ -69,8 +69,21 @@ struct BypassSpoolWidgets {
 
     // Cached state for change-detection (avoids spurious invalidates on every
     // panel refresh). Not part of the public API surface — read via setters.
+    /// Paired with cached_color_rgb because black IS 0: without a separate
+    /// "has it ever been painted" bit, a black spool reads as unchanged from
+    /// the default and the canvas keeps its own creation-time 0xE0E0E0, so the
+    /// bypass swatch renders white forever (K2 Plus, spool 86 "Black ASA").
+    /// The same black-is-not-unset trap is already handled in
+    /// AmsState::notify_external_spool_changed() and
+    /// filament_slot_override_store's identity check; this widget was missed.
+    bool color_painted = false;
     uint32_t cached_color_rgb = 0;
     bool cached_has_spool = false;
+    /// Paired like color_painted: the ring's natural default is "off", so a
+    /// plain cached_active could not tell "never applied" from "already off"
+    /// and the first engage-at-startup would be skipped.
+    bool active_applied = false;
+    bool cached_active = false;
     char cached_material[32] = {};
     int32_t cached_bypass_label_w = 0; ///< "Bypass" is constant — measure once
 
@@ -98,6 +111,11 @@ void bypass_spool_set_has_spool(BypassSpoolWidgets& w, bool has_spool);
 /// Set the material label text above the spool. Empty string hides the label.
 /// No-op when text is unchanged.
 void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material);
+
+/// Draw (or clear) the active ring around the bypass card - the same
+/// border-plus-glow a lane slot wears when it is the active node, via
+/// ams_draw::set_active_ring(). No-op when unchanged.
+void bypass_spool_set_active(BypassSpoolWidgets& w, bool active);
 
 /// Position the spool box so its center sits at (`cx`, `cy`) in parent-relative
 /// coordinates. The material label is placed above, the "Bypass" label below.

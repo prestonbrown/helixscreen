@@ -488,15 +488,18 @@ TEST_CASE("Network characterization: subjects survive reset_for_testing cycle",
     state.init_subjects(false);
 
     // After reset, subject values should be back to defaults
-    // NOTE: was_ever_connected_ is NOT reset by reset_for_testing() - it persists
     REQUIRE(lv_subject_get_int(state.get_printer_connection_state_subject()) == 0);
     REQUIRE(std::string(lv_subject_get_string(state.get_printer_connection_message_subject())) ==
             "Disconnected");
     REQUIRE(lv_subject_get_int(state.get_network_status_subject()) == 2); // Mock mode default
     REQUIRE(lv_subject_get_int(state.get_klippy_state_subject()) == 2);   // SHUTDOWN default
     REQUIRE(lv_subject_get_int(state.get_nav_buttons_enabled_subject()) == 0);
-    // was_ever_connected_ stays true - it tracks session lifetime, not subject state
-    REQUIRE(state.was_ever_connected() == true);
+    // was_ever_connected_ IS cleared. It is session-scoped in PRODUCTION — it
+    // survives a reconnect on purpose — but PrinterStateTestAccess::reset()
+    // simulates a fresh session on the shared PrinterState singleton, so the flag
+    // resets with it. Left latched, the first test in the binary to connect makes
+    // every later test believe it had already been connected once.
+    REQUIRE_FALSE(state.was_ever_connected());
 
     // Subjects should still be functional after reset
     state.set_printer_connection_state_internal(static_cast<int>(ConnectionState::CONNECTING),

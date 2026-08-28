@@ -78,7 +78,8 @@ LedControlOverlay (UI)             LedSettingsOverlay (UI)             LedWidget
 | `tests/unit/test_led_wled_backend.cpp` | WLED preset, brightness, toggle, state polling |
 | `tests/unit/test_led_macro_backend.cpp` | Macro execution: on/off, toggle, custom actions |
 | `tests/unit/test_printer_led_char.cpp` | PrinterLedState subject updates |
-| `tests/unit/test_settings_led_char.cpp` | Settings overlay characterization |
+| `tests/unit/test_led_config.cpp` | LED config parsing and persistence |
+| `tests/unit/test_led_control_overlay.cpp` | LED control overlay behaviour |
 
 ## Five Backends
 
@@ -323,7 +324,7 @@ Opened from Settings panel. Configures which strips HelixScreen controls and how
 
 A new backend branch that emits gcode MUST pass `on_queued` (or route through something that does) — otherwise a command queued behind a blocking op wedges the counter and greys out both light buttons for the rest of the session (#1129, see `ARCHITECTURE.md` § "Klippy-Volatile Subjects" for the root cause and `MOONRAKER_ARCHITECTURE.md` § "MoonrakerAPI (Domain Logic Layer)" for the `execute_gcode()` contract).
 
-That branch must also **declare `caller_surfaces_errors` honestly**, and capture it before its own wrapper. `make_settle()` produces a `fail` callback for every branch, so by the time the send is issued `on_error` is non-null whether or not anything reaches the user — `send_led_command()` and the strobe send therefore compute `caller_surfaces_errors && (on_error != nullptr)` from the *caller's* argument (`src/led/led_controller.cpp:1023`, `:1050`), not from the settle wrapper. A branch whose failure handling only decrements the counter and logs must pass `false`: claiming the report records the rejection for cross-channel dedup and silences `GcodeErrorRouter`'s `!!` copy, which for a `SET_LED` rejection is the only thing that would have told the user. See `RPC_ERROR_OWNERSHIP.md`.
+That branch must also **declare `caller_surfaces_errors` honestly**, and capture it before its own wrapper. `make_settle()` produces a `fail` callback for every branch, so by the time the send is issued `on_error` is non-null whether or not anything reaches the user — `send_led_command()` and the strobe send therefore compute `caller_surfaces_errors && (on_error != nullptr)` from the *caller's* argument (`src/led/led_controller.cpp:1027`, `:1054`), not from the settle wrapper. A branch whose failure handling only decrements the counter and logs must pass `false`: claiming the report records the rejection for cross-channel dedup and silences `GcodeErrorRouter`'s `!!` copy, which for a `SET_LED` rejection is the only thing that would have told the user. See `RPC_ERROR_OWNERSHIP.md`.
 
 As a last-resort safety net, `LedController` also force-clears the counter (`force_clear_in_flight()`) on a Moonraker disconnect and on any Klippy state leaving `READY`, so a leaked dispatch cannot stay pinned across a reconnect or firmware restart.
 

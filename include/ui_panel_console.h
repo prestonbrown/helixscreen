@@ -97,6 +97,21 @@ class ConsolePanel : public OverlayBase {
     [[nodiscard]] static const GcodeEntry* find_entry_by_id(const std::deque<GcodeEntry>& entries,
                                                             uint64_t id);
 
+    /// The filtering decision, shared by the history and the live paths.
+    ///
+    /// These two used to decide independently and drifted: the live path applied
+    /// both filters while populate_entries() rendered the fetched history verbatim,
+    /// so opening the console showed a screenful of exactly the noise the filters
+    /// existed to remove. Both paths now route through here.
+    ///
+    /// `is_temp` is passed in rather than recomputed because the live path already
+    /// derives it on the WebSocket thread, off the main loop.
+    ///
+    /// Public and static so tests exercise the real predicate instead of a copy.
+    [[nodiscard]] static bool should_display(const std::string& message, bool is_temp,
+                                             bool filter_temps, bool filter_firmware_noise,
+                                             const helix::ui::ConsoleFilterEngine& firmware_filter);
+
   private:
     /// Fetch initial history from Moonraker's server.gcode_store
     void fetch_history();

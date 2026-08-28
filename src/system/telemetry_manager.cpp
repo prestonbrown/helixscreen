@@ -1939,9 +1939,9 @@ nlohmann::json TelemetryManager::build_hw_macros_section(const helix::PrinterDis
     macros["total_count"] = static_cast<int>(hw.macros().size());
     macros["has_helix_macros"] = !hw.helix_macros().empty();
     macros["has_print_start"] = hw.has_macro("PRINT_START");
-    macros["has_nozzle_clean"] = hw.has_macro("CLEAN_NOZZLE") || hw.has_macro("NOZZLE_CLEAN") ||
-                                 hw.has_macro("NOZZLE_WIPE") || hw.has_macro("WIPE_NOZZLE") ||
-                                 hw.has_macro("PURGE_NOZZLE");
+    // Third hand-rolled copy of the nozzle-clean name list, now folded into the
+    // one discovery already scanned for (include/macro_patterns.h).
+    macros["has_nozzle_clean"] = hw.has_nozzle_clean_macro();
     macros["has_heat_soak"] = hw.has_macro("HEAT_SOAK") || hw.has_macro("CHAMBER_SOAK") ||
                               hw.has_macro("SOAK") || hw.has_macro("BED_SOAK");
     macros["has_purge_line"] = hw.has_macro("PURGE_LINE") || hw.has_macro("PRIME_LINE") ||
@@ -3114,12 +3114,10 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         }
     }
 
-    // RAW_PRINT_STATE_OK: terminal-outcome classification is about what the
-    // printer reported, and a preparing job that never confirms is retired by
-    // PrinterPrintState rather than ending here.
-    // Detect transitions from active (PRINTING/PAUSED) to terminal states
-    bool was_active = (s_telemetry_prev_state == PrintJobState::PRINTING ||
-                       s_telemetry_prev_state == PrintJobState::PAUSED);
+    // Terminal-outcome classification is about what the PRINTER reported, so the
+    // wire question is the right one: a preparing job that never confirms is
+    // retired by PrinterPrintState and must not emit an outcome event here.
+    bool was_active = printer_has_job(s_telemetry_prev_state);
     bool is_terminal = (current == PrintJobState::COMPLETE || current == PrintJobState::CANCELLED ||
                         current == PrintJobState::ERROR);
 

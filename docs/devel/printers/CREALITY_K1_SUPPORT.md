@@ -313,7 +313,7 @@ Moonraker port: 7125 (direct). No multi-extruder or toolchanger support — K1 s
 ### CFS (optional upgrade)
 
 K1, K1C, and K1 Max can run Creality's **official CFS upgrade**. When installed, the upgrade firmware (≥ v2.3.5.33) publishes a `box` Klipper object and a non-prefixed `BOX_*` macro set — different from the K2 stock firmware's `CR_BOX_*` primitives. HelixScreen detects the K1 dialect via `PrinterDetector::is_creality_k1()` at backend construction and emits the K1 macros (`BOX_EXTRUDE_MATERIAL TNN=…`, `BOX_EXTRUDER_EXTRUDE TNN=…`, `BOX_MATERIAL_FLUSH`
-(bare — it takes `LEN`/`VELOCITY`/`TEMP`, never `TNN`), `BOX_CUT_MATERIAL`, `BOX_RETRUDE_MATERIAL`, `BOX_NOZZLE_CLEAN`, `BOX_GO_TO_EXTRUDE_POS`, `BOX_MOVE_TO_SAFE_POS`). See [FILAMENT_MANAGEMENT.md § CFS](../FILAMENT_MANAGEMENT.md#cfs-creality-filament-system) for the full dialect table.
+(bare — it takes `LEN`/`VELOCITY`/`TEMP`, never `TNN`), `BOX_CUT_MATERIAL`, `BOX_RETRUDE_MATERIAL`, `BOX_NOZZLE_CLEAN`, `BOX_GO_TO_EXTRUDE_POS`, `BOX_MOVE_TO_SAFE_POS`). See [FILAMENT_BACKEND_CFS.md § CFS](../FILAMENT_BACKEND_CFS.md#cfs-creality-filament-system) for the full dialect table.
 
 Community open-source K1 firmwares (Guilouz, Simple AF, Guppy Mod) do not bundle the CFS macros — the upgrade firmware ships separately from Creality. Without the upgrade installed, no `box` object is published and the CFS backend stays disabled.
 

@@ -17,6 +17,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
+#include "ui_event_safety.h"
 #include "ui_global_panel_helper.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
@@ -28,6 +29,7 @@
 
 #include "app_globals.h"
 #include "bed_mesh_portrait_layout.h"
+#include "bed_mesh_profile_name.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
@@ -1730,28 +1732,27 @@ void BedMeshPanel::execute_save_config() {
 
     spdlog::info("[{}] Saving config (will restart Klipper)", get_name());
 
-    // SAVE_CONFIG triggers an expected Klipper restart
-    helix::ui::begin_expected_klippy_restart("Configuration saved - restarting");
-
     operation_guard_.begin(SLOW_OPERATION_TIMEOUT_MS, [this] {
         hide_all_modals();
         pending_operation_ = PendingOperation::None;
         NOTIFY_WARNING(lv_tr("Bed mesh operation timed out"));
     });
 
-    api->execute_gcode(
-        "SAVE_CONFIG",
-        lifetime_.bg_cb("BedMeshPanel::save_config_done",
-                        [this]() {
-                            operation_guard_.end();
-                            spdlog::info("[{}] SAVE_CONFIG sent - Klipper will restart",
-                                         get_name());
-                        }),
-        lifetime_.bg_cb("BedMeshPanel::save_config_error", [this](const MoonrakerError& err) {
+    // SAVE_CONFIG's reply is dropped by the restart it triggers, so the watch
+    // decides the outcome from Klipper coming back rather than from the rpc.
+    // Reporting the dropped rpc as a failure told the user every successful save
+    // had failed (prestonbrown/helixscreen#1359).
+    save_watch_.begin(
+        api, "Configuration saved - restarting",
+        [this]() {
             operation_guard_.end();
-            spdlog::error("[{}] Failed to save config: {}", get_name(), err.message);
+            spdlog::info("[{}] SAVE_CONFIG completed", get_name());
+        },
+        [this](const std::string& message) {
+            operation_guard_.end();
+            spdlog::error("[{}] Failed to save config: {}", get_name(), message);
             NOTIFY_ERROR(lv_tr("Failed to save configuration"));
-        }));
+        });
 }
 
 // ============================================================================
@@ -1858,6 +1859,121 @@ void BedMeshPanel::handle_emergency_stop() {
     lv_subject_set_int(&bed_mesh_calibrate_state_, static_cast<int>(BedMeshCalibrationState::IDLE));
 }
 
+std::vector<std::string> BedMeshPanel::stored_profile_names() const {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        return {};
+    }
+    std::vector<std::string> names;
+    for (const auto& p : api->advanced().get_bed_mesh_profiles()) {
+        // "_hs_temp" is where calibration probes before the user names the
+        // mesh; it is not a profile anyone can overwrite on purpose.
+        if (p != "_hs_temp") {
+            names.push_back(p);
+        }
+    }
+    return names;
+}
+
+void BedMeshPanel::save_profile_checked(std::string_view typed) {
+    const auto check = helix::ui::bed_mesh::check_profile_name(typed, stored_profile_names());
+    switch (check.verdict) {
+    case helix::ui::bed_mesh::ProfileNameVerdict::Empty:
+        // Leave the naming modal up. Substituting "default" here is exactly the
+        // silent overwrite reported in prestonbrown/helixscreen#1360.
+        NOTIFY_WARNING(lv_tr("Enter a name to save this profile"));
+        return;
+    case helix::ui::bed_mesh::ProfileNameVerdict::Overwrite:
+        ask_before_overwrite(OverwriteTarget::Save, check.name);
+        return;
+    case helix::ui::bed_mesh::ProfileNameVerdict::New:
+        save_profile_with_name(check.name);
+        return;
+    }
+}
+
+void BedMeshPanel::start_calibration_checked(std::string_view typed) {
+    const auto check = helix::ui::bed_mesh::check_profile_name(typed, stored_profile_names());
+    if (check.verdict == helix::ui::bed_mesh::ProfileNameVerdict::Empty) {
+        NOTIFY_WARNING(lv_tr("Enter a name for this profile"));
+        return;
+    }
+    // An existing name is not confirmed here: calibration probes into the
+    // temporary profile and nothing is written under this name until the user
+    // taps Save, which asks then.
+    start_calibration_with_name(check.name);
+}
+
+void BedMeshPanel::rename_profile_checked(std::string_view typed) {
+    const auto check = helix::ui::bed_mesh::check_profile_name(typed, stored_profile_names());
+    switch (check.verdict) {
+    case helix::ui::bed_mesh::ProfileNameVerdict::Empty:
+        // The old callback returned silently here, so the button looked broken.
+        NOTIFY_WARNING(lv_tr("Enter a name for this profile"));
+        return;
+    case helix::ui::bed_mesh::ProfileNameVerdict::Overwrite:
+        if (check.name == pending_rename_old_) {
+            // Renaming a profile to what it is already called.
+            hide_all_modals();
+            return;
+        }
+        ask_before_overwrite(OverwriteTarget::Rename, check.name);
+        return;
+    case helix::ui::bed_mesh::ProfileNameVerdict::New:
+        confirm_rename(check.name);
+        return;
+    }
+}
+
+void BedMeshPanel::ask_before_overwrite(OverwriteTarget target, const std::string& name) {
+    pending_overwrite_ = target;
+    pending_overwrite_name_ = name;
+
+    std::string msg = fmt::format(lv_tr("'{}' already exists. Replace the stored mesh?"), name);
+    helix::ui::modal_show_confirmation(
+        lv_tr("Replace Profile?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Replace"),
+        [](lv_event_t* e) {
+            LVGL_SAFE_EVENT_CB_BEGIN("[BedMeshPanel] overwrite_confirm_cb");
+            auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
+            Modal::hide(Modal::get_top());
+            self->confirm_overwrite();
+            LVGL_SAFE_EVENT_CB_END();
+        },
+        [](lv_event_t* e) {
+            LVGL_SAFE_EVENT_CB_BEGIN("[BedMeshPanel] overwrite_cancel_cb");
+            auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
+            Modal::hide(Modal::get_top());
+            self->cancel_overwrite();
+            LVGL_SAFE_EVENT_CB_END();
+        },
+        this);
+}
+
+void BedMeshPanel::confirm_overwrite() {
+    const OverwriteTarget target = pending_overwrite_;
+    const std::string name = pending_overwrite_name_;
+    pending_overwrite_ = OverwriteTarget::None;
+    pending_overwrite_name_.clear();
+
+    switch (target) {
+    case OverwriteTarget::Save:
+        save_profile_with_name(name);
+        return;
+    case OverwriteTarget::Rename:
+        confirm_rename(name);
+        return;
+    case OverwriteTarget::None:
+        return;
+    }
+}
+
+void BedMeshPanel::cancel_overwrite() {
+    // Back to the name field with what they typed still there, rather than
+    // dropping them out of the flow entirely.
+    pending_overwrite_ = OverwriteTarget::None;
+    pending_overwrite_name_.clear();
+}
+
 void BedMeshPanel::save_profile_with_name(const std::string& name) {
     spdlog::info("[BedMeshPanel] Saving mesh profile: {}", name);
 
@@ -1959,15 +2075,8 @@ static void on_calibrate_start_cb(lv_event_t* /*e*/) {
         input = lv_obj_find_by_name(lv_screen_active(), "calibrate_profile_name_input");
     }
 
-    std::string profile_name = "default";
-    if (input) {
-        const char* text = lv_textarea_get_text(input);
-        if (text && std::strlen(text) > 0) {
-            profile_name = text;
-        }
-    }
-
-    get_global_bed_mesh_panel().start_calibration_with_name(profile_name);
+    const char* text = input ? lv_textarea_get_text(input) : nullptr;
+    get_global_bed_mesh_panel().start_calibration_checked(text ? text : "");
 }
 
 static void on_rename_cancel_cb(lv_event_t* /*e*/) {
@@ -1981,12 +2090,8 @@ static void on_rename_confirm_cb(lv_event_t* /*e*/) {
         input = lv_obj_find_by_name(lv_screen_active(), "rename_new_name_input");
     }
 
-    if (input) {
-        const char* text = lv_textarea_get_text(input);
-        if (text && std::strlen(text) > 0) {
-            get_global_bed_mesh_panel().confirm_rename(std::string(text));
-        }
-    }
+    const char* text = input ? lv_textarea_get_text(input) : nullptr;
+    get_global_bed_mesh_panel().rename_profile_checked(text ? text : "");
 }
 
 static void on_delete_cancel_cb(lv_event_t* /*e*/) {
@@ -2016,15 +2121,8 @@ static void on_save_profile_cb(lv_event_t* /*e*/) {
         input = lv_obj_find_by_name(lv_screen_active(), "calibrate_profile_name_input");
     }
 
-    std::string profile_name = "default";
-    if (input) {
-        const char* text = lv_textarea_get_text(input);
-        if (text && std::strlen(text) > 0) {
-            profile_name = text;
-        }
-    }
-
-    get_global_bed_mesh_panel().save_profile_with_name(profile_name);
+    const char* text = input ? lv_textarea_get_text(input) : nullptr;
+    get_global_bed_mesh_panel().save_profile_checked(text ? text : "");
 }
 
 // ============================================================================

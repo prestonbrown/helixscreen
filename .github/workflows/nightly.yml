@@ -536,7 +536,9 @@ jobs:
     name: macOS Build
     needs: gate
     runs-on: macos-14
-    timeout-minutes: 75
+    # Has to cover a fully cold build of BOTH the app and the test suite. The
+    # per-step budgets below sum to 105; the rest is brew, submodules and npm.
+    timeout-minutes: 140
 
     steps:
     - name: Checkout repository
@@ -579,20 +581,38 @@ jobs:
 
     - name: Configure ccache
       run: |
-        ccache --set-config=max_size=500M
+        # 2G, matching build.yml's macOS job. At 500M a cold build evicts its own
+        # early objects before the run ends, so the cache that gets saved is a
+        # fraction of the tree and the next night recompiles most of it anyway.
+        ccache --set-config=max_size=2G
         ccache --set-config=compression=true
         ccache -z
 
     - name: Setup Python venv
       run: make venv-setup
 
+    # Both budgets below must cover a COLD build, because this job regularly gets
+    # one: 2026-08-27 logged "Cache not found" for all three restore keys. The
+    # per-run key never hits, `ccache-nightly-macos-` has no entry because a
+    # timed-out step cancels the job before actions/cache's post step can save,
+    # and the `ccache-macos-14-` fallback (build.yml's key) is only there until
+    # it ages out. So a cold run must be able to FINISH -- otherwise it times
+    # out, saves nothing, and the next night is cold again for the same reason.
+    # `ccache -s` prints the hit rate so the next look at this has real numbers.
     - name: Build HelixScreen
-      timeout-minutes: 30
-      run: make -j$(sysctl -n hw.ncpu)
+      # 45 min covers a fully cold build, per build.yml's macOS job.
+      timeout-minutes: 45
+      run: |
+        make -j$(sysctl -n hw.ncpu)
+        ccache -s
 
     - name: Build tests (compile only, do not run)
-      timeout-minutes: 30
-      run: make test-build
+      # The test suite is the larger half; a cold run reached test_tracker_player
+      # in 30 minutes, so 60 leaves real headroom rather than shaving the edge.
+      timeout-minutes: 60
+      run: |
+        make test-build
+        ccache -s
 
   # ===========================================================================
   # Final status gate

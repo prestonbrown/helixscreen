@@ -2,3 +2,9 @@
 assets/gcode/** linguist-vendored
 assets/test_gcodes/** linguist-vendored
 *.gcode linguist-vendored
+
+# Lesson usage counters are per-id maps that a text merge cannot combine:
+# each side's delta from the ancestor is real work, so they merge additively.
+# Needs the driver from `make setup`; unregistered, git falls back to a text
+# merge and these files conflict whenever two branches both cited a lesson.
+.claude-recall/*.json merge=recall-stats

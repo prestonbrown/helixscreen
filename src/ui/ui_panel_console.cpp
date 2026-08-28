@@ -535,10 +535,22 @@ void ConsolePanel::fetch_history() {
 void ConsolePanel::populate_entries(const std::vector<GcodeEntry>& entries) {
     clear_entries();
 
+    // Filter BEFORE trimming: trimming first would spend the MAX_ENTRIES budget on
+    // noise and then drop the real lines behind it, so a chatty printer's console
+    // would come up emptier the noisier it was.
+    std::vector<const GcodeEntry*> kept;
+    kept.reserve(entries.size());
+    for (const auto& entry : entries) {
+        if (should_display(entry.message, is_temp_message(entry.message), filter_temps_,
+                           filter_firmware_noise_, firmware_filter_)) {
+            kept.push_back(&entry);
+        }
+    }
+
     // Keep only the most recent MAX_ENTRIES entries (input is oldest-first)
-    size_t start = (entries.size() > MAX_ENTRIES) ? entries.size() - MAX_ENTRIES : 0;
-    for (size_t i = start; i < entries.size(); i++) {
-        entries_.push_back(entries[i]);
+    size_t start = (kept.size() > MAX_ENTRIES) ? kept.size() - MAX_ENTRIES : 0;
+    for (size_t i = start; i < kept.size(); i++) {
+        entries_.push_back(*kept[i]);
         // Stamp identity here rather than at the call site: this is the only other
         // door into entries_ besides add_entry(), and an unstamped entry is silently
         // untappable rather than loudly broken.
@@ -762,6 +774,18 @@ bool ConsolePanel::is_error_message(const std::string& message) {
     return false;
 }
 
+bool ConsolePanel::should_display(const std::string& message, bool is_temp, bool filter_temps,
+                                  bool filter_firmware_noise,
+                                  const helix::ui::ConsoleFilterEngine& firmware_filter) {
+    if (filter_temps && is_temp) {
+        return false;
+    }
+    if (filter_firmware_noise && firmware_filter.should_filter(message)) {
+        return false;
+    }
+    return true;
+}
+
 bool ConsolePanel::is_temp_message(const std::string& message) {
     if (message.empty()) {
         return false;
@@ -882,10 +906,8 @@ void ConsolePanel::on_gcode_response(const nlohmann::json& msg) {
     // vector is mutated and read on the same thread (no lock required).
     auto tok = lifetime_.token();
     tok.defer("ConsolePanel::gcode_entry", [this, entry = std::move(entry), is_temp]() {
-        if (filter_temps_ && is_temp) {
-            return;
-        }
-        if (filter_firmware_noise_ && firmware_filter_.should_filter(entry.message)) {
+        if (!should_display(entry.message, is_temp, filter_temps_, filter_firmware_noise_,
+                            firmware_filter_)) {
             return;
         }
         add_entry(entry);

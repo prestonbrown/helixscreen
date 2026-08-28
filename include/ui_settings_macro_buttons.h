@@ -31,6 +31,12 @@
 #include <string>
 #include <vector>
 
+/// Test seam for quick_button_index_to_slot_name(); defined in
+/// tests/test_helpers/macro_buttons_test_access.h. Forward-declared at global
+/// scope so the friend below names ::MacroButtonsOverlayTestAccess and not
+/// helix::settings::MacroButtonsOverlayTestAccess (cf. xml_hot_reloader.h:14).
+class MacroButtonsOverlayTestAccess;
+
 namespace helix::settings {
 
 /**
@@ -190,6 +196,8 @@ class MacroButtonsOverlay : public OverlayBase {
      * @return Slot name or empty string
      */
     static std::string quick_button_index_to_slot_name(int index);
+
+    friend class ::MacroButtonsOverlayTestAccess;
 
     /**
      * @brief Get selected macro name from standard macro dropdown

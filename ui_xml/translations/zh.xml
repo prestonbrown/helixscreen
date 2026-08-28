@@ -20,6 +20,7 @@
   <translation tag="%zu changes" zh="%zu 项更改"/>
   <translation tag="%zu events queued" zh="%zu 个事件已排队"/>
   <translation tag="%zu plugins failed to load" zh="%zu 个插件加载失败"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" zh="&apos;{}&apos; 已存在。替换已保存的网格？"/>
   <translation tag="(different grade)" zh="（等级不同）"/>
   <translation tag="(incompatible)" zh="(不兼容)"/>
   <translation tag="(multi-tool)" zh="(多工具)"/>
@@ -311,7 +312,6 @@
   <translation tag="Bypass Mode" zh="旁路模式"/>
   <translation tag="Bypass active — this print runs on the external spool." zh="旁路已启用 — 本次打印使用外部料盘。"/>
   <translation tag="Bypass cannot be changed while printing" zh="打印时无法切换旁路"/>
-  <translation tag="Bypass controlled by hardware sensor" zh="旁路由硬件传感器控制"/>
   <translation tag="Bypass controlled by sensor" zh="旁通由传感器控制"/>
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
@@ -341,9 +341,9 @@
   <translation tag="Calibrate Gear" zh="校准齿轮"/>
   <translation tag="Calibrate X" zh="校准 X 轴"/>
   <translation tag="Calibrate Y" zh="校准 Y 轴"/>
+  <translation tag="Calibrate and tune scroll feel" zh="校准并调整滚动手感"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" zh="校准、调整抖动和滚动手感"/>
   <translation tag="Calibrated" zh="已校准"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -415,6 +415,7 @@
   <translation tag="Change Printer Host" zh="更改打印机主机"/>
   <translation tag="Change Tool" zh="切换工具"/>
   <translation tag="Change Tool While Paused" zh="暂停时切换工具"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." zh="更改立即生效。可在打印时调整进行调优。"/>
   <translation tag="Changes are temporary and reset on printer reboot" zh="更改是临时的，打印机重启后会重置"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." zh="可随时使用 Macro Viewer 恢复更改。"/>
@@ -466,6 +467,8 @@
   <translation tag="Clog Detection" zh="堵料检测"/>
   <translation tag="Clog detection" zh="堵料检测"/>
   <translation tag="Close" zh="关闭"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" zh="更近"/>
   <translation tag="Closer = more squish | Farther = less squish" zh="更近 = 更多挤压 | 更远 = 更少挤压"/>
   <translation tag="Coarse" zh="粗调"/>
@@ -637,7 +640,6 @@
   <translation tag="Date (newest)" zh="日期（最新）"/>
   <translation tag="Date (oldest)" zh="日期（最早）"/>
   <translation tag="Day" zh="日"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" zh="死区像素值（如果点击被识别为滑动则调高；0 表示禁用）"/>
   <translation tag="Debug" zh="调试"/>
   <translation tag="Default border thickness" zh="默认边框厚度"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" zh="默认: 喷嘴 %d-%d°C,热床 %d°C"/>
@@ -691,6 +693,8 @@
   <translation tag="Do not power off your printer." zh="请勿关闭打印机电源。"/>
   <translation tag="Do not touch the printer during calibration" zh="校准期间请勿触碰打印机"/>
   <translation tag="Dock" zh="归位"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" zh="正在归位工具"/>
   <translation tag="Documentation" zh="文档"/>
   <translation tag="Don&apos;t Save" zh="不保存"/>
@@ -772,6 +776,7 @@
   <translation tag="Enter New PIN" zh="输入新 PIN"/>
   <translation tag="Enter PIN" zh="输入 PIN"/>
   <translation tag="Enter WiFi Password" zh="输入 WiFi 密码"/>
+  <translation tag="Enter a name for this profile" zh="输入此配置的名称"/>
   <translation tag="Enter a name for your custom theme:" zh="输入自定义主题名称："/>
   <translation tag="Enter a name to save this profile" zh="输入名称以保存此配置"/>
   <translation tag="Enter network name" zh="输入网络名称"/>
@@ -795,6 +800,8 @@
   <translation tag="Error: Invalid download" zh="错误: 下载无效"/>
   <translation tag="Error: No update available" zh="错误: 无可用更新"/>
   <translation tag="Error: Not enough disk space" zh="错误: 磁盘空间不足"/>
+  <translation tag="Error: Previous download still finishing" zh="错误: 上一次下载尚未结束"/>
+  <translation tag="Error: This install can&apos;t update itself" zh="错误: 此安装无法自我更新"/>
   <translation tag="Error: Verification failed" zh="错误: 验证失败"/>
   <translation tag="Error: Wrong architecture" zh="错误: 架构错误"/>
   <translation tag="Error: `unzip` not installed" zh="错误: 未安装 `unzip`"/>
@@ -945,11 +952,13 @@
   <translation tag="Farther" zh="更远"/>
   <translation tag="Features: " zh="特性: "/>
   <translation tag="Feed Assist" zh="送料辅助"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" zh="进料"/>
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
   <translation tag="Feed filament from current slot" zh="从当前料仓送入耗材"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Filament" zh="耗材"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" zh="检测到耗材"/>
   <translation tag="Filament Environment" zh="耗材环境"/>
   <translation tag="Filament Grade Mismatch" zh="耗材等级不匹配"/>
@@ -964,12 +973,12 @@
   <translation tag="Filament clog/flow detection meter" zh="耗材堵塞／流量检测仪表"/>
   <translation tag="Filament deleted" zh="耗材已删除"/>
   <translation tag="Filament diameter sensors for flow compensation" zh="耗材直径传感器用于流量补偿"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." zh="耗材已脱离工具头。请将剩余部分拉出。"/>
   <translation tag="Filament is loose" zh="耗材松弛"/>
   <translation tag="Filament is pulling tight" zh="耗材拉紧"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
   <translation tag="Filament load failed: {}" zh="耗材加载失败: {}"/>
-  <translation tag="Filament loaded" zh="耗材已加载"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." zh="耗材已用尽 - 工具头处没有耗材，打印已暂停。"/>
@@ -1044,6 +1053,8 @@
   <translation tag="Good Accuracy" zh="精度良好"/>
   <translation tag="Got it" zh="知道了"/>
   <translation tag="Gray" zh="灰色"/>
+  <translation tag="Grip filament"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" zh="指南与参考"/>
   <translation tag="H" zh="头"/>
   <translation tag="HOST" zh="主机"/>
@@ -1379,6 +1390,7 @@
   <translation tag="Manual Bed Leveling" zh="手动热床调平"/>
   <translation tag="Manual Feed" zh="手动送料"/>
   <translation tag="Manual Retract" zh="手动回抽"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" zh="按匹配材料映射最接近的颜色"/>
   <translation tag="Marginal" zh="偏高"/>
   <translation tag="Master volume level" zh="主音量"/>
@@ -1437,6 +1449,7 @@
   <translation tag="Motors Off" zh="关闭电机"/>
   <translation tag="Motors disable failed: {}" zh="禁用电机失败: {}"/>
   <translation tag="Motors disabled" zh="电机已禁用"/>
+  <translation tag="Mount"/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." zh="调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。"/>
   <translation tag="Move selector" zh="移动选择器"/>
@@ -1462,7 +1475,7 @@
   <translation tag="Name" zh="名称"/>
   <translation tag="Name (optional)" zh="名称（可选）"/>
   <translation tag="Name:" zh="名称:"/>
-  <translation tag="Named actions in the LED control panel (long-press)." zh="LED 控制面板中的命名操作（长按）。"/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" zh="需要调整"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
@@ -1491,8 +1504,8 @@
   <translation tag="No Camera" zh="无摄像头"/>
   <translation tag="No Filament Detected" zh="未检测到耗材"/>
   <translation tag="No History" zh="无历史记录"/>
-  <translation tag="No LED macros detected on your printer." zh="未在打印机上检测到 LED 宏。"/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." zh="未在打印机上检测到 LED 宏。请先添加用于 LED 控制的 Klipper 宏。"/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" zh="未检测到 LED 灯带"/>
   <translation tag="No Macros Found" zh="未找到宏"/>
   <translation tag="No Multi-Filament System connected" zh="未连接多耗材系统"/>
@@ -1622,11 +1635,14 @@
   <translation tag="On/Off" zh="开/关"/>
   <translation tag="On/Off (state-aware)" zh="开/关（状态跟踪）"/>
   <translation tag="On:" zh="开:"/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" zh="减少渗漏"/>
   <translation tag="Open" zh="打开"/>
   <translation tag="Open G-code command console" zh="打开 G-code 命令控制台"/>
   <translation tag="Open LED color and brightness controls" zh="打开 LED 颜色与亮度控制"/>
   <translation tag="Open Source Licenses" zh="开源许可证"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Operation already in progress" zh="操作正在进行中"/>
   <translation tag="Operations" zh="操作"/>
   <translation tag="Optimize Your Printing" zh="优化您的打印"/>
@@ -1634,6 +1650,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" zh="可选 - 选择主照明源，如打印机没有可跳过"/>
   <translation tag="Options" zh="选项"/>
   <translation tag="Or Enter Manually" zh="或手动输入"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" zh="振荡中... 循环 %d/%d"/>
   <translation tag="Out of range" zh="超出范围"/>
   <translation tag="Outcome" zh="结果"/>
@@ -1704,6 +1721,7 @@
   <translation tag="Phomemo M110" zh="Phomemo M110"/>
   <translation tag="Pick" zh="选取"/>
   <translation tag="Pick Color" zh="选择颜色"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" zh="按下转为滚动前的像素数(越低 = 滚动越快触发)"/>
@@ -1868,12 +1886,12 @@
   <translation tag="Profile name (e.g., default)" zh="配置名称（例如：default）"/>
   <translation tag="Profile renamed" zh="配置文件已重命名"/>
   <translation tag="Profiles" zh="配置"/>
+  <translation tag="Prompt before running this macro"/>
   <translation tag="Pulling filament back" zh="正在回抽耗材"/>
   <translation tag="Purge" zh="排料"/>
   <translation tag="Purge &amp; Wipe" zh="排料与擦拭"/>
   <translation tag="Purge Length" zh="排料长度"/>
   <translation tag="Purge failed: {}" zh="清洗失败: {}"/>
-  <translation tag="Purge macro not configured" zh="清洗宏未配置"/>
   <translation tag="Purge may still be running — response timed out" zh="清洗可能仍在运行 — 响应超时"/>
   <translation tag="Purge to bucket" zh="排料到废料桶"/>
   <translation tag="Purge tower and brush settings" zh="排料塔与刷子设置"/>
@@ -1949,6 +1967,9 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" zh="相对振动"/>
   <translation tag="Release all stepper motors. Position will be lost." zh="释放所有步进电机。位置信息将丢失。"/>
+  <translation tag="Release filament"/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" zh="剩余 (g)"/>
   <translation tag="Remaining Weight (g)" zh="剩余重量（克）"/>
   <translation tag="Remap Tool" zh="重映射工具"/>
@@ -1959,6 +1980,7 @@
   <translation tag="Remove PIN" zh="移除 PIN"/>
   <translation tag="Remove Spoolman?" zh="移除 Spoolman？"/>
   <translation tag="Remove plugin from printer" zh="从打印机移除插件"/>
+  <translation tag="Remove the bypass spool from the toolhead first" zh="请先将旁路料盘从工具头中取出"/>
   <translation tag="Rename" zh="重命名"/>
   <translation tag="Rename Fan" zh="重命名风扇"/>
   <translation tag="Rename Mesh Profile" zh="重命名网格配置"/>
@@ -1967,12 +1989,15 @@
   <translation tag="Rename failed at save step" zh="重命名在保存步骤失败"/>
   <translation tag="Render Now" zh="立即渲染"/>
   <translation tag="Rendering timelapse..." zh="正在渲染延时摄影..."/>
+  <translation tag="Replace" zh="替换"/>
+  <translation tag="Replace Profile?" zh="替换配置？"/>
   <translation tag="Replay Welcome Tour" zh="重播欢迎漫游"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" zh="报告已保存到 crash_report.txt"/>
   <translation tag="Reprint" zh="重新打印"/>
   <translation tag="Reprint Last" zh="重印上次"/>
   <translation tag="Request Failed" zh="请求失败"/>
+  <translation tag="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" zh="紧急停止前需要确认"/>
   <translation tag="Requires Moonraker power device" zh="需要 Moonraker 电源设备"/>
   <translation tag="Requires Moonraker-Timelapse plugin" zh="需要 Moonraker-Timelapse 插件"/>
@@ -2060,7 +2085,6 @@
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" zh="即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）"/>
   <translation tag="Run test sequence on all lanes" zh="在所有料仓运行测试流程"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." zh="在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。"/>
-  <translation tag="Run without parameter prompt" zh="运行时不提示参数"/>
   <translation tag="Run {}?" zh="运行 {}？"/>
   <translation tag="Running {}..." zh="正在运行 {}..."/>
   <translation tag="Runout" zh="用尽"/>
@@ -2239,6 +2263,8 @@
   <translation tag="Slot" zh="料仓"/>
   <translation tag="Slot %d" zh="料仓 %d"/>
   <translation tag="Slot %d Filament" zh="料仓 %d 耗材"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" zh="料仓 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" zh="料仓 %d：%.0fg / 需要 %.0fg"/>
   <translation tag="Slot 1" zh="料仓 1"/>
   <translation tag="Slot {}" zh="料仓 {}"/>
   <translation tag="Slot {} matches." zh="料仓 {} 匹配。"/>
@@ -2250,6 +2276,7 @@
   <translation tag="Soft" zh="柔和"/>
   <translation tag="Software Updates" zh="软件更新"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." zh="部分耗材与切片软件的意图不符。"/>
+  <translation tag="Some mapped slots are short on filament:" zh="部分已映射料仓耗材不足："/>
   <translation tag="Some settings will take effect after restart." zh="某些设置将在重启后生效。"/>
   <translation tag="Sound Theme" zh="声音主题"/>
   <translation tag="Sounds" zh="声音"/>
@@ -2298,6 +2325,7 @@
   <translation tag="Start Drying" zh="开始烘干"/>
   <translation tag="Start Print" zh="开始打印"/>
   <translation tag="Start Probing" zh="开始探测"/>
+  <translation tag="Start anyway?" zh="仍要开始吗？"/>
   <translation tag="Start at" zh="从第"/>
   <translation tag="Start failed" zh="启动失败"/>
   <translation tag="Start print anyway?" zh="仍要开始打印吗？"/>
@@ -2427,6 +2455,7 @@
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" zh="备用料盘由打印机固件自行选择"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 料仓报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 料仓报告已装载。在清空之前，打印机可能拒绝装载料仓。仍要开始打印吗？"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
   <translation tag="Theme" zh="主题"/>
@@ -2522,7 +2551,6 @@
   <translation tag="Touch &amp; Input" zh="触摸和输入"/>
   <translation tag="Touch Cal" zh="触摸校准"/>
   <translation tag="Touch Calibration" zh="触摸校准"/>
-  <translation tag="Touch Jitter Filter" zh="触摸抖动过滤"/>
   <translation tag="Touch anywhere to test calibration" zh="触摸任意位置测试校准"/>
   <translation tag="Touch anywhere to verify accuracy" zh="触摸任意位置验证精度"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." zh="触摸输入未能跟随新的校准，已保留您之前的设置。"/>
@@ -2581,6 +2609,7 @@
   <translation tag="Unloads After Print" zh="打印后卸载"/>
   <translation tag="Unlock" zh="解锁"/>
   <translation tag="Unmapped" zh="未映射"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" zh="回抽恢复额外量"/>
   <translation tag="Unretract Speed" zh="回抽恢复速度"/>
   <translation tag="Unsupported tape width" zh="不支持的标签带宽度"/>
@@ -2665,6 +2694,8 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." zh="启用时仅运行宏。禁用时先设置温度，然后运行宏。"/>
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." zh="开始打印时，您可以选择是否运行 %s。如果您最近已经执行过或希望对打印准备过程有更多控制，这样可以节省时间。"/>
   <translation tag="Where UI sounds play" zh="界面声音的播放位置"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" zh="白色"/>
   <translation tag="Wi-Fi and ethernet connection status" zh="Wi-Fi 与以太网连接状态"/>
   <translation tag="WiFi" zh="WiFi"/>
@@ -2769,6 +2800,7 @@
   <translation tag="nozzle" zh="喷嘴"/>
   <translation tag="of" zh="的"/>
   <translation tag="off" zh="关闭"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" zh="打印次数"/>
   <translation tag="remaining" zh="剩余"/>
   <translation tag="remaining before clog detection triggers" zh="剩余即触发堵料检测"/>

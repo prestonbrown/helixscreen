@@ -5,6 +5,23 @@
 
 #include <spdlog/spdlog.h>
 
+namespace {
+
+/// Moonraker lists `spoolman` in server.info only when the component is
+/// configured. Reporting it on the WIRE — rather than short-circuiting the
+/// capability flag after discovery — is what lets the real discovery sequence's
+/// spoolman branch be exercised at all.
+nlohmann::json mock_server_components(bool with_spoolman) {
+    nlohmann::json comps = nlohmann::json::array({"file_manager", "database", "machine", "history",
+                                                  "announcements", "job_queue", "update_manager"});
+    if (with_spoolman) {
+        comps.push_back("spoolman");
+    }
+    return comps;
+}
+
+} // namespace
+
 namespace mock_internal {
 
 void register_server_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
@@ -28,6 +45,23 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         json response = {{"jsonrpc", "2.0"},
                          {"result", {{"connection_id", connection_counter.fetch_add(1)}}}};
 
+        if (success_cb) {
+            success_cb(response);
+        }
+        return true;
+    };
+
+    // server.spoolman.status - Spoolman connectivity, queried by the real
+    // discovery sequence whenever the component appears in server.info.
+    registry["server.spoolman.status"] =
+        [](MoonrakerClientMock* self, const json& /*params*/,
+           std::function<void(const json&)> success_cb,
+           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+        json response = {{"jsonrpc", "2.0"},
+                         {"result",
+                          {{"spoolman_connected", self->is_mock_spoolman_enabled()},
+                           {"pending_reports", json::array()},
+                           {"spool_id", nullptr}}}};
         if (success_cb) {
             success_cb(response);
         }
@@ -64,20 +98,22 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         spdlog::debug("[MoonrakerClientMock] server.info: klippy_state={}, connected={}",
                       klippy_state_str, klippy_connected);
 
-        json response = {
-            {"jsonrpc", "2.0"},
-            {"result",
-             {{"klippy_connected", klippy_connected},
-              {"klippy_state", klippy_state_str},
-              {"moonraker_version", "v0.8.0-mock"},
-              {"api_version", json::array({1, 5, 0})},
-              {"api_version_string", "1.5.0"},
-              {"components", json::array({"file_manager", "database", "machine", "history",
-                                          "announcements", "job_queue", "update_manager"})},
-              {"failed_components", json::array()},
-              {"registered_directories", json::array({"gcodes", "config", "logs"})},
-              {"warnings", json::array()},
-              {"websocket_count", 1}}}};
+        json response = {{"jsonrpc", "2.0"},
+                         {"result",
+                          {{"klippy_connected", klippy_connected},
+                           {"klippy_state", klippy_state_str},
+                           {"moonraker_version", "v0.8.0-mock"},
+                           {"api_version", json::array({1, 5, 0})},
+                           {"api_version_string", "1.5.0"},
+                           // Spoolman is reported on the WIRE, the way Moonraker reports it,
+                           // rather than by short-circuiting the capability flag after
+                           // discovery. The short-circuit is why the real sequence's
+                           // spoolman branch went untested and shipped a flag flap.
+                           {"components", mock_server_components(self->is_mock_spoolman_enabled())},
+                           {"failed_components", json::array()},
+                           {"registered_directories", json::array({"gcodes", "config", "logs"})},
+                           {"warnings", json::array()},
+                           {"websocket_count", 1}}}};
 
         if (success_cb) {
             success_cb(response);

@@ -38,11 +38,21 @@ Added after the series was numbered (no renumbering): 16 — G-code pipeline
 
 Cite files the way the chapters already do — a backticked path, optionally with a
 line: `` `src/printer/printer_state.cpp:622` ``. Do not write the markdown link
-yourself. `make regen-doc-links` wraps every citation in a link to the file (and
-line) it names, re-deriving the URL from the citation text on each run, so a
-renamed file is fixed in one place and every link follows. [`quality-checks.sh`](../../../scripts/quality-checks.sh)
-fails the commit if a chapter is out of date with the generator.
+yourself, and do not go back and fix a line number by hand. `make regen-doc-links`
+derives both: it re-pins every citation's line number from a committed content
+anchor, then wraps the citation in a link to the file and line it names. A
+renamed file, a moved function, and a hand-edited URL are all fixed the same
+way — fix nothing, run the generator. [`quality-checks.sh`](../../../scripts/quality-checks.sh)
+fails the commit if a chapter is out of date with either generator, and the
+pre-commit hook repairs it in place so you only have to re-stage.
+
+Only one thing needs you: a citation whose **cited line's own text changed**.
+The anchor for it is the hash of that line, so a rewrite means the thing the
+sentence points at is not there any more, and no generator can decide whether
+the sentence around it is still true. That is a hard failure by design, and it
+is the only citation error you should ever see.
 
 The citation is also what keeps the chapters honest: [`check_doc_refs.py`](../../../scripts/check_doc_refs.py) proves
-the path resolves, the line is inside the file, and the symbol named beside a
-cite still sits within five lines of it. Write the citation, run the generator.
+the path resolves, the line is inside the file, the symbol named beside a cite
+still sits within five lines of it, and the cited line still holds the content
+its anchor recorded. Write the citation, run the generator.

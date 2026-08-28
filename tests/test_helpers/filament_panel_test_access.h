@@ -14,6 +14,14 @@ namespace helix::ui {
 // the single-source-of-truth fix (execute_load/execute_unload act on the
 // dropdown-selected slot, not a divergent current_slot) is regression-guarded.
 struct FilamentPanelTestAccess {
+    /// Runs the real status-line state machine. update_status() caches which
+    /// arm it last rendered so the two constant-text arms can skip a
+    /// lv_translation_get() on every temperature tick; calling it directly is
+    /// what lets a test drive the arm transitions deterministically.
+    static void update_status(FilamentPanel& p) {
+        p.update_status();
+    }
+
     static int selected_op_slot(const FilamentPanel& p) {
         return p.selected_op_slot();
     }
@@ -88,6 +96,15 @@ struct FilamentPanelTestAccess {
 
     static void op_succeeded_extrude(FilamentPanel& p) {
         p.op_succeeded(FilamentPanel::FilamentOp::Extrude);
+    }
+
+    // --- Per-heater keypad ceiling (#1355) -------------------------------
+    // The value the three temperature keypads are handed as max_value. Reaching
+    // the real method is what proves the panel asks TemperatureController
+    // rather than reading its compiled-in member.
+
+    static float keypad_max_for(::FilamentPanel& p, helix::HeaterType type, int fallback_deg) {
+        return p.keypad_max_for(type, fallback_deg);
     }
 };
 

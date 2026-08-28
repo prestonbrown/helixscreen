@@ -69,11 +69,25 @@ using helix::gcode::resolve_gcode_filename;
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <set>
 #include <sstream>
 #include <vector>
+
+// The shared thumbnail path subject never carries the empty string: a file with
+// no thumbnail (yet) is published as no_thumbnail_placeholder(). That value is a
+// perfectly good image to PUT ON SCREEN, but it is not this print's thumbnail,
+// so it must never stamp displayed_file_. ActivePrintMediaManager draws the same
+// distinction in has_thumbnail_for() and says why: take the placeholder for a
+// thumbnail and "every print would stop at the placeholder", because the marker
+// it leaves behind is what tells decide_preview_action() there is nothing left
+// to load.
+static bool is_no_thumbnail_placeholder(const char* path) {
+    return path != nullptr &&
+           std::strcmp(path, helix::PrinterPrintState::no_thumbnail_placeholder()) == 0;
+}
 
 // Global instance for legacy API and resize callback
 static std::unique_ptr<PrintStatusPanel> g_print_status_panel;
@@ -180,6 +194,25 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         printer_state_.get_print_state_enum_subject(), this,
         [](PrintStatusPanel* self, PrintJobState state) { self->on_print_state_changed(state); },
         ps_subjects);
+    // The print's identity can change without the reported filename changing -
+    // an override installed at commit, or released when a job is abandoned - so
+    // the filename observer below is not enough on its own. This is the same
+    // reconcile the old set_thumbnail_source() forced by calling set_filename()
+    // on itself, minus the coupling that let the panel and the media manager
+    // drift apart (prestonbrown/helixscreen#1339).
+    print_identity_observer_ = observe_int_sync<PrintStatusPanel>(
+        printer_state_.get_print_identity_epoch_subject(), this,
+        [](PrintStatusPanel* self, int /*epoch*/) {
+            // No marker clearing here on purpose. decide_preview_action() already
+            // compares BOTH markers against the new identity and reloads whichever
+            // is stale; clearing by hand duplicates that, and clearing only the
+            // thumbnail marker - as the first draft of this did - leaves the
+            // viewer holding the previous print's geometry, which is the exact
+            // bug 921200ab1 fixed.
+            self->ensure_preview_current();
+        },
+        ps_subjects);
+
     print_filename_observer_ = observe_string<PrintStatusPanel>(
         printer_state_.get_print_filename_subject(), this,
         [](PrintStatusPanel* self, const char* filename) {
@@ -275,6 +308,20 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         [](PrintStatusPanel* self, int /*version*/) { self->build_and_apply_tool_colors(); },
         AmsState::instance().get_subjects_lifetime());
 
+    // Adopt the preparing job's identity the moment a job starts preparing, the
+    // way ActivePrintMediaManager already does (adac6f7eb gave it this observer
+    // and gave the panel none). Without it the panel's `desired` stays on the
+    // PREVIOUS print for the whole commit-to-confirmation window, so
+    // ensure_preview_current() compares the viewer against the finished print,
+    // finds no mismatch, and the clear_gcode that 921200ab1 added never fires -
+    // leaving the previous print's model on screen exactly when it was meant to
+    // be dropped.
+    //
+    // observe_int_immediate for the manager's reason: _sync routes through
+    // queue_update, so the identity would land AFTER a synchronously dispatched
+    // filename update had already reconciled against the stale name. The
+    // handler only assigns identity fields and reconciles the preview - no
+    // observer lifecycle changes, no widget destruction.
     // Subscribe to the shared print thumbnail path. ActivePrintMediaManager is
     // its sole writer; this panel only reads it.
     // Use observe_string_immediate: the handler only calls lv_image_set_src
@@ -294,9 +341,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
             // convinced ensure_preview_current() the current file was already
             // on screen, turning activation and print start into no-ops.
             const std::string& for_file = self->printer_state_.get_print_thumbnail_file();
-            std::string effective = self->thumbnail_source_filename_.empty()
-                                        ? self->current_print_filename_
-                                        : self->thumbnail_source_filename_;
+            const std::string& effective = self->printer_state_.get_effective_print_filename();
             if (!effective.empty() && for_file != effective) {
                 spdlog::debug("[{}] Ignoring thumbnail published for '{}' (showing '{}')",
                               self->get_name(), for_file, effective);
@@ -308,8 +353,16 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                 spdlog::debug("[{}] Thumbnail updated from shared subject: {}", self->get_name(),
                               path);
                 // Record what is ACTUALLY on screen, not what the panel wishes
-                // were on screen.
-                self->displayed_file_ = for_file;
+                // were on screen. The manager publishes the placeholder FOR the
+                // incoming file as its clear, so identity matches here even
+                // though no thumbnail has been fetched yet; stamping that would
+                // retire the reconcile before the real image ever arrives.
+                // Clearing is the honest marker: no file's thumbnail is up.
+                if (is_no_thumbnail_placeholder(path)) {
+                    self->displayed_file_.clear();
+                } else {
+                    self->displayed_file_ = for_file;
+                }
             }
         },
         ps_subjects);
@@ -615,12 +668,22 @@ void PrintStatusPanel::init_subjects() {
         lv_subject_t* s = AmsState::instance().get_slots_version_subject();
         if (s) {
             auto token = lifetime_.token();
-            scoped_runout_slots_observer_ =
-                observe_int_sync<PrintStatusPanel>(s, this, [token](PrintStatusPanel* self, int) {
+            scoped_runout_slots_observer_ = observe_int_sync<PrintStatusPanel>(
+                s, this,
+                [token](PrintStatusPanel* self, int) {
                     if (token.expired())
                         return;
                     self->recompute_scoped_runout();
-                });
+                    // Slot data changed — a lane's color may have. The two
+                    // observers above only cover the ACTIVE lane's color and an
+                    // explicit tool→slot remap, so editing a NON-active lane's
+                    // color never re-pushed anything to the live preview.
+                    // PrintSelectDetailView already refreshes its preview from
+                    // this subject, which is why the file browser updated and
+                    // print-status did not.
+                    self->build_and_apply_tool_colors();
+                },
+                AmsState::instance().get_subjects_lifetime());
         }
     }
 
@@ -1554,9 +1617,7 @@ void PrintStatusPanel::load_gcode_file(const char* file_path) {
             // effective filename as the GCODE marker so ensure_preview_current()
             // treats the viewer as current on re-entry. (The thumbnail marker is
             // recorded independently by the thumbnail path.)
-            self->gcode_displayed_file_ = self->thumbnail_source_filename_.empty()
-                                              ? self->current_print_filename_
-                                              : self->thumbnail_source_filename_;
+            self->gcode_displayed_file_ = self->printer_state_.get_effective_print_filename();
 
             // Override extrusion colors with AMS filament colors.
             // For multi-tool prints, applies per-tool AMS slot colors.
@@ -1798,11 +1859,11 @@ std::set<int> PrintStatusPanel::get_tools_used() const {
     if (!gcode_viewer_) {
         return {};
     }
-    const auto* parsed = ui_gcode_viewer_get_parsed_file(gcode_viewer_);
-    if (!parsed) {
-        return {};
-    }
-    return parsed->tools_used_indices;
+    // Mode-independent: reading ParsedGCodeFile directly answered empty for every
+    // STREAMED file, which is every file on a memory-constrained printer. That
+    // silently disabled both consumers here — the print-scoped runout badge and
+    // the Snapmaker reprint's used-extruders preamble.
+    return ui_gcode_viewer_get_tools_used(gcode_viewer_);
 }
 
 void PrintStatusPanel::recompute_scoped_runout() {
@@ -1818,11 +1879,11 @@ void PrintStatusPanel::recompute_scoped_runout() {
     // RAW_PRINT_STATE_OK: the badge is scoped to the tools the RUNNING file
     // uses. During a preparing window get_tools_used() still describes the
     // previous job, so widening this would scope the badge to the wrong file
-    // instead of hiding it.
+    // instead of hiding it — which is why print_scopes_runout_badge() is
+    // narrower than PrintLifecycleState::is_active().
     auto state = static_cast<PrintJobState>(
         lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
-    bool print_active = (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED);
-    if (!print_active) {
+    if (!helix::print_scopes_runout_badge(state)) {
         fsm.set_scoped_runout(-1);
         return;
     }
@@ -2738,16 +2799,15 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
 
     // Clear thumbnail and G-code tracking when print ends
     if (result.print_ended) {
-        if (!thumbnail_source_filename_.empty() || !displayed_file_.empty() ||
-            !gcode_displayed_file_.empty() || lifecycle_.gcode_loaded() ||
-            !temp_gcode_path_.empty() || !pending_gcode_filename_.empty()) {
+        if (!displayed_file_.empty() || !gcode_displayed_file_.empty() ||
+            lifecycle_.gcode_loaded() || !temp_gcode_path_.empty() ||
+            !pending_gcode_filename_.empty()) {
             spdlog::debug("[{}] Clearing thumbnail/gcode tracking (print ended)", get_name());
             // Cancel pending deferred G-code load (print is over)
             if (gcode_load_timer_) {
                 lv_timer_delete(gcode_load_timer_);
                 gcode_load_timer_ = nullptr;
             }
-            thumbnail_source_filename_.clear();
             cached_thumbnail_path_.clear();
 #if defined(HELIX_PLATFORM_ESP32)
             // Release our reference to the PSRAM buffer. Main thread (job-state
@@ -2897,17 +2957,6 @@ void PrintStatusPanel::on_print_filename_changed(const char* filename) {
 
     if (has_filename) {
         std::string raw_filename = filename;
-
-        // Auto-resolve temp file patterns to original filename.
-        // This handles the race condition where Moonraker reports the temp path
-        // (e.g., .helix_temp/modified_*) before set_thumbnail_source() is called.
-        // Common when Helix plugin is not installed or during direct Moonraker prints.
-        std::string resolved = resolve_gcode_filename(raw_filename);
-        if (resolved != raw_filename && thumbnail_source_filename_.empty()) {
-            spdlog::debug("[{}] Auto-resolved temp filename: {} -> {}", get_name(), raw_filename,
-                          resolved);
-            set_thumbnail_source(resolved);
-        }
 
         // Call set_filename() which is idempotent (won't reload if effective filename unchanged)
         // Only log when filename actually changes to avoid log spam
@@ -3377,8 +3426,7 @@ void PrintStatusPanel::apply_esp_psram_thumbnail() {
     // Fallback content for the current print is now on screen; record it so
     // ensure_preview_current() treats the thumbnail as current (mirrors the
     // print_thumbnail_path observer on other platforms).
-    std::string effective =
-        thumbnail_source_filename_.empty() ? current_print_filename_ : thumbnail_source_filename_;
+    const std::string& effective = printer_state_.get_effective_print_filename();
     if (!effective.empty()) {
         displayed_file_ = effective;
     }
@@ -3513,9 +3561,6 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
             [this, token, root, download_target, stream_if_safe](const FileMetadata& metadata) {
                 token.defer("PrintStatusPanel::gcode_metadata_ok",
                             [this, root, download_target, metadata, stream_if_safe]() {
-                                // Cache per-tool palette before the render loads so
-                                // build_and_apply_tool_colors resolves matched lanes.
-                                store_filament_metadata(metadata);
                                 stream_if_safe(root, download_target, metadata.size);
                             });
             },
@@ -3631,98 +3676,29 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
 // FILAMENT COLOR OVERRIDE
 // ============================================================================
 
-void PrintStatusPanel::apply_filament_color_override(uint32_t color_rgb) {
-    if (!gcode_viewer_ || !ui_gcode_viewer_has_content(gcode_viewer_)) {
-        return;
-    }
-
-    // Try per-tool AMS color mapping first (handles multi-color prints)
-    if (build_and_apply_tool_colors()) {
-        return; // Per-tool colors applied — don't clobber with single-color
-    }
-
-    // Fallback: no per-tool mapping available — use single-color override
-    if (color_rgb != 0 && color_rgb != AMS_DEFAULT_SLOT_COLOR) {
-        ui_gcode_viewer_set_extrusion_color(gcode_viewer_, lv_color_hex(color_rgb));
-    }
-}
-
-void PrintStatusPanel::store_filament_metadata(const FileMetadata& metadata) {
-    // Per-tool hex colors, as sliced ("#RRGGBB" per tool).
-    filament_colors_ = metadata.filament_colors;
-
-    // filament_type is a ';'-joined list ("PLA;PLA;PETG"); split to per-tool.
-    filament_materials_.clear();
-    if (!metadata.filament_type.empty()) {
-        std::istringstream stream(metadata.filament_type);
-        std::string token;
-        while (std::getline(stream, token, ';')) {
-            filament_materials_.push_back(token);
-        }
-    }
-}
-
-std::vector<helix::GcodeToolInfo> PrintStatusPanel::build_print_tool_info() const {
-    if (!gcode_viewer_ || filament_colors_.empty()) {
-        return {};
-    }
-    const auto* parsed = ui_gcode_viewer_get_parsed_file(gcode_viewer_);
-    if (!parsed || parsed->tools_used_indices.empty()) {
-        return {};
-    }
-
-    // Full slicer palette from the stored metadata, then filter to the tools this
-    // file actually uses (real tool_index preserved) — mirrors
-    // PrintSelectDetailView::get_used_tool_info().
-    const auto all_tool_info =
-        helix::ui::FilamentMappingCard::build_tool_info(filament_colors_, filament_materials_);
-
-    std::vector<helix::GcodeToolInfo> tools;
-    tools.reserve(parsed->tools_used_indices.size());
-    for (int tool : parsed->tools_used_indices) {
-        if (tool >= 0 && static_cast<size_t>(tool) < all_tool_info.size()) {
-            auto info = all_tool_info[static_cast<size_t>(tool)];
-            info.tool_index = tool;
-            tools.push_back(info);
-        }
-    }
-    return tools;
-}
-
-bool PrintStatusPanel::effective_auto_match() const {
-    // Non-editable-card backends (U1 / ACE) have no card UI to flip the persisted
-    // auto-color preference, so they always auto-match; editable backends honor
-    // the user setting. Mirrors PrintSelectDetailView::effective_auto_match().
-    bool card_editable = false;
-    if (auto* backend = AmsState::instance().get_backend()) {
-        card_editable = backend->get_tool_mapping_capabilities().editable;
-    }
-    return !card_editable || SettingsManager::instance().get_auto_color_map();
-}
-
 bool PrintStatusPanel::build_and_apply_tool_colors() {
     if (!gcode_viewer_ || !ui_gcode_viewer_has_content(gcode_viewer_)) {
         return false;
     }
 
-    // Preferred path: resolve each used tool to the EFFECTIVE (toggle-aware)
-    // matched lane's color — the same match the print-select swatches and
-    // pre-flight use — and push a logical-tool-indexed color vector directly to
-    // the viewer. This bypasses apply_ams_tool_colors' identity tool_to_slot_map,
-    // which on a true toolchanger (Snapmaker U1) colors the whole model by T0.
-    const auto tools = build_print_tool_info();
-    if (!tools.empty()) {
-        const auto colors = helix::FilamentMapper::effective_tool_colors(
-            tools, AmsState::instance().collect_available_slots(), effective_auto_match());
-        if (!colors.empty()) {
-            ui_gcode_viewer_set_tool_colors(gcode_viewer_, colors);
-            return true;
-        }
+    // ONE rule, any tool count: color(tool N) = the color of the lane that
+    // actually prints N. No palette, no tool-count branch, no active-lane
+    // special case — a 1-tool file and an N-tool file take this exact path.
+    //
+    // What used to be here asked "what mapping SHOULD this print use" (the
+    // slicer palette matched against lane colors) and then patched the gaps with
+    // fallbacks. That is the right question BEFORE a print, and it still lives
+    // in PrintSelectDetailView where it decides what to send. Once the print is
+    // underway the question is "what mapping IS in effect", and the firmware
+    // answers it exactly — so inferring it here was guessing at something already
+    // known, and the guess is what forced the special cases.
+    if (ui_gcode_viewer_apply_ams_tool_colors(gcode_viewer_)) {
+        return true;
     }
 
-    // Fallback: no stored metadata yet (or no lanes) — use the backend's own
-    // per-tool color mapping (correct for single-nozzle multi-material backends).
-    return ui_gcode_viewer_apply_ams_tool_colors(gcode_viewer_);
+    // Nothing knowable (no routing published, or no lane knows a color). Leave
+    // the renderer's slicer colors alone rather than painting a plausible lie.
+    return false;
 }
 
 // ============================================================================
@@ -3773,10 +3749,13 @@ void PrintStatusPanel::set_filename(const char* filename) {
     // Store the actual filename (may be a temp file path)
     current_print_filename_ = filename ? filename : "";
 
-    // Use thumbnail_source_filename_ if set (for modified temp files)
-    // This affects BOTH the display name AND the thumbnail lookup
-    std::string effective_filename =
-        thumbnail_source_filename_.empty() ? current_print_filename_ : thumbnail_source_filename_;
+    // The identity of the running print - including retiring an override that
+    // stopped describing it, and resolving a rewritten temp path - is decided by
+    // PrinterPrintState before print_filename_ is ever published. The panel used
+    // to redo all of it from its own copy and compare its answer against the one
+    // the media manager published; any divergence dropped the thumbnail with no
+    // retry (prestonbrown/helixscreen#1339).
+    const std::string& effective_filename = printer_state_.get_effective_print_filename();
 
     // Note: Display filename is now handled by ActivePrintMediaManager
     // PrintStatusPanel only needs to load local resources (gcode viewer, local thumbnail)
@@ -3803,8 +3782,7 @@ void PrintStatusPanel::set_filename(const char* filename) {
 
 void PrintStatusPanel::ensure_preview_current() {
     // Desired state = the effective filename of the current print.
-    std::string desired =
-        thumbnail_source_filename_.empty() ? current_print_filename_ : thumbnail_source_filename_;
+    const std::string& desired = printer_state_.get_effective_print_filename();
 
     // Read ACTUAL widget state — not intent bools, which can lie after a
     // destroy-on-close / memory-reclaim cycle. This is what makes re-entry
@@ -3819,12 +3797,28 @@ void PrintStatusPanel::ensure_preview_current() {
                                          thumbnail_has_src, gcode_has_content, want_viewer);
 
     spdlog::debug("[{}] ensure_preview_current: thumb_file='{}' gcode_file='{}' desired='{}' "
-                  "thumb_src={} gcode_content={} want_viewer={} -> load_thumb={} load_gcode={}",
+                  "thumb_src={} gcode_content={} want_viewer={} -> load_thumb={} load_gcode={} "
+                  "clear_gcode={}",
                   get_name(), displayed_file_, gcode_displayed_file_, desired, thumbnail_has_src,
-                  gcode_has_content, want_viewer, action.load_thumbnail, action.load_gcode);
+                  gcode_has_content, want_viewer, action.load_thumbnail, action.load_gcode,
+                  action.clear_gcode);
 
     if (desired.empty()) {
         return; // Nothing to show.
+    }
+
+    // Drop the previous print's geometry FIRST. The reload below is deferred by
+    // seconds while the printer is still preparing, and the viewer keeps
+    // rendering what it holds until then, so without this the user watches the
+    // last print's model for the whole deferral (#1337-adjacent report: "the
+    // image from the previous print is displayed first"). ui_gcode_viewer_clear()
+    // fires the clear callback, which flips the view mode back to the thumbnail,
+    // so the fallback the user lands on is this print's slicer preview.
+    if (action.clear_gcode && gcode_viewer_) {
+        spdlog::debug("[{}] Clearing stale G-code geometry (viewer holds another print, "
+                      "desired '{}')",
+                      get_name(), desired);
+        ui_gcode_viewer_clear(gcode_viewer_);
     }
 
     if (action.load_thumbnail && print_thumbnail_ &&
@@ -3860,9 +3854,28 @@ void PrintStatusPanel::ensure_preview_current() {
             crash_handler::breadcrumb::note("pstat_thm", "set_src_pre");
             lv_image_set_src(print_thumbnail_, published);
             crash_handler::breadcrumb::note("pstat_thm", "set_src_post");
-            displayed_file_ = desired;
-            spdlog::debug("[{}] Adopted already-published thumbnail for '{}': {}", get_name(),
-                          desired, published);
+            if (is_no_thumbnail_placeholder(published)) {
+                // Identity matches but there is nothing to adopt: this is the
+                // manager's "no thumbnail for this file yet" clear. Show it,
+                // leave the marker empty so the next reconcile tries again.
+                displayed_file_.clear();
+                spdlog::debug("[{}] Published path for '{}' is the no-thumbnail placeholder; "
+                              "showing it without marking the preview current",
+                              get_name(), desired);
+            } else {
+                displayed_file_ = desired;
+                spdlog::debug("[{}] Adopted already-published thumbnail for '{}': {}", get_name(),
+                              desired, published);
+            }
+        } else {
+            // Neither source could supply an image, and nothing here retries:
+            // the next reconcile is whatever the manager publishes or the next
+            // filename change. Name both identities, because in a log the
+            // resulting symptom - the previous print's image sitting under the
+            // correct filename - is otherwise indistinguishable from a fetch
+            // that simply has not landed yet (#1339).
+            spdlog::debug("[{}] No thumbnail source for '{}': subject holds one for '{}'",
+                          get_name(), desired, printer_state_.get_print_thumbnail_file());
         }
     }
 
@@ -3874,31 +3887,5 @@ void PrintStatusPanel::ensure_preview_current() {
         if (is_active_) {
             schedule_deferred_gcode_load();
         }
-    }
-}
-
-void PrintStatusPanel::set_thumbnail_source(const std::string& filename) {
-    thumbnail_source_filename_ = filename;
-    spdlog::debug("[{}] Thumbnail source set to: {}", get_name(),
-                  filename.empty() ? "(cleared)" : filename);
-
-    // If we already have a print filename, refresh everything now.
-    // This handles the race condition where Moonraker sends the filename
-    // before PrintPreparationManager calls set_thumbnail_source().
-    // set_filename() will re-compute the effective filename (now using the
-    // thumbnail source) and reload: display name, thumbnail, and G-code viewer.
-    if (!current_print_filename_.empty() && !filename.empty()) {
-        spdlog::info("[{}] Refreshing display/thumbnail/gcode with source override: {} -> {}",
-                     get_name(), current_print_filename_, filename);
-        set_filename(current_print_filename_.c_str());
-    } else if (!filename.empty()) {
-        // WebSocket hasn't updated current_print_filename_ yet (race condition).
-        // Clear the displayed marker so when on_print_filename_changed()
-        // eventually fires and calls set_filename(), ensure_preview_current()
-        // sees the mismatch and triggers the actual thumbnail/gcode load.
-        displayed_file_.clear();
-        spdlog::debug(
-            "[{}] Source set before WebSocket, cleared displayed file for deferred reload",
-            get_name());
     }
 }

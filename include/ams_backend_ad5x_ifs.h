@@ -159,6 +159,20 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     static bool owns_filament_sensor(const std::string& bare_name,
                                      const helix::PrinterDiscovery& discovery);
 
+    /**
+     * @brief Klipper objects this backend needs pushed for this printer.
+     *
+     * Always save_variables (colors, types, tool mapping). Plus `zmod_ifs` and
+     * `zmod_color` on firmware that publishes them: ZMOD gained get_status()
+     * for both in ghzserg/z_ad5x#12, so the IFS state that every alt-UI used to
+     * scrape out of IFS_STATUS / GET_ZCOLOR output is a subscribable object.
+     * Klipper's objects/list only carries objects that implement get_status(),
+     * which makes their presence in @p discovery the whole capability probe -
+     * no version parsing. Below that firmware they are simply absent and the
+     * macro/HTTP paths carry on unchanged.
+     */
+    static std::vector<std::string> required_status_objects(const helix::PrinterDiscovery& hw);
+
     // --- AmsBackend interface ---
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::AD5X_IFS;
@@ -169,6 +183,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     [[nodiscard]] PathSegment get_filament_segment() const override;
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;
+
+    /// The lessWaste tool -> port table, converted to 0-based heads. Ports are
+    /// 1-based and 5 is the unmapped sentinel. Falls back to lane-per-tool when
+    /// no _IFS_VARS have been seen (native zMod never populates the table).
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
@@ -747,6 +766,20 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // to the gcode console, so polling here costs nothing user-visible while
     // still catching native-dialog edits zmod makes outside our gcode path.
     void poll_adventurer_json();
+    /// Read one IFS_STATUS-shaped JSON object (the dict cmd_IFS_STATUS dumps,
+    /// and the dict zmod_ifs.get_status() returns - same keys by construction)
+    /// into @p result. Pure: no logging, no locking, no member access.
+    static void read_ifs_status_object(const nlohmann::json& obj, ZColorSilentResult& result);
+    /// Fold a `zmod_color` status object into @p result. Its slots[] carry the
+    /// same ID/Material/HEX the GET_ZCOLOR SILENT=1 slot lines do, read from
+    /// the same Adventurer5M.json the module caches by mtime.
+    /// @return true if the object carried usable slot content.
+    static bool read_zmod_color_object(const nlohmann::json& obj, ZColorSilentResult& result,
+                                       std::optional<int>& channel);
+    /// Apply a status frame's zmod_ifs / zmod_color objects through the normal
+    /// apply path. Call with mutex_ RELEASED - apply_zcolor_result() locks.
+    /// @return true if the frame carried either object.
+    bool apply_zmod_status_objects(const nlohmann::json& status);
 
     // GET_ZCOLOR SILENT=1 primary-truth query. zmod's Adventurer5M.json
     // is a stale last-known-colors cache; SILENT=1 emits one line per
@@ -1279,6 +1312,17 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // so the slower in-print interval never delays seeing the firmware's
     // post-print FFMInfo revert (#965).
     bool json_poll_was_printing_ = false;
+    /// Set once a status frame carries zmod_ifs or zmod_color. From then on the
+    /// firmware pushes what poll_adventurer_json() and the periodic GET_ZCOLOR
+    /// went looking for, so both stand down: no loopback HTTP GET every 5s on a
+    /// 2-core board, no gcode round trip that queues behind a stalled IFS op.
+    std::atomic<bool> zmod_status_live_{false};
+    /// Last `Chan` a zmod_ifs frame actually carried. Moonraker publishes
+    /// diffs, so a frame that moved only a silk sensor omits Chan entirely -
+    /// and every presence update in apply_zcolor_result() lives inside its
+    /// Chan block. Omitted means unchanged, so the reader re-supplies this
+    /// rather than the block growing a second entry condition. Guarded by mutex_.
+    std::optional<int> zmod_last_chan_;
 
     // User-provided per-slot metadata (brand, spool name, spoolman IDs, remaining
     // weight, etc.) layered over firmware-reported state.

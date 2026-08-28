@@ -11,6 +11,7 @@
 #include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
+#include "log_redact.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
@@ -21,6 +22,7 @@
 #include "system/moonraker_local_probe.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
+#include "touch_calibration_wrapper.h"
 #ifdef __ANDROID__
 #include "system/http_android.h"
 #endif
@@ -154,6 +156,13 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     }
 
     try {
+        bundle["touch"] = collect_touch_info();
+    } catch (const std::exception& e) {
+        spdlog::warn("[DebugBundle] Failed to collect touch info: {}", e.what());
+        bundle["touch"] = json{{"error", e.what()}};
+    }
+
+    try {
         bundle["settings"] = collect_sanitized_settings();
     } catch (const std::exception& e) {
         spdlog::warn("[DebugBundle] Failed to collect settings: {}", e.what());
@@ -245,6 +254,80 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
 // to compare against, so platform_model is omitted for them.
 static bool platform_has_printer_hardware(const std::string& key) {
     return key != "pi" && key != "pi32" && key != "x86";
+}
+
+json DebugBundleCollector::collect_touch_info() {
+    TouchRangeDiagnostics diag;
+    get_touch_range_diagnostics(diag);
+    return build_touch_info(diag);
+}
+
+json DebugBundleCollector::build_touch_info(const TouchRangeDiagnostics& diag) {
+    json touch;
+    touch["available"] = diag.available;
+    if (!diag.available) {
+        // Nothing else, deliberately. A wall of zeroes here reads as "the panel
+        // emits (0,0) and is declared 0..0", which is a different (and wrong)
+        // finding from "this build has no evdev digitizer to look at".
+        touch["reason"] = diag.unavailable_reason.empty() ? "unknown" : diag.unavailable_reason;
+        return touch;
+    }
+
+    const TouchPipelineInfo& pipe = diag.pipeline;
+    touch["device"] = json{{"name", sanitize_value(pipe.device_name)},
+                           {"path", sanitize_value(pipe.device_path)},
+                           {"driver", pipe.driver}};
+
+    touch["declared_abs"] =
+        json{{"valid", pipe.declared_valid}, {"mt_fallback", pipe.declared_mt_fallback},
+             {"min_x", pipe.declared_min_x}, {"max_x", pipe.declared_max_x},
+             {"min_y", pipe.declared_min_y}, {"max_y", pipe.declared_max_y}};
+
+    touch["configured"] = json{{"valid", pipe.configured_valid},
+                               {"source", touch_range_source_name(pipe.source)},
+                               {"swap_axes", pipe.swap_axes},
+                               {"min_x", pipe.min_x},
+                               {"max_x", pipe.max_x},
+                               {"min_y", pipe.min_y},
+                               {"max_y", pipe.max_y}};
+
+    // The sample count is not decoration. "observed 13..470 against a declared
+    // 0..272" is proof after three readings and still proof after three hundred,
+    // but a NARROW observed span means nothing at all after three, and the reader
+    // cannot tell those apart without it.
+    touch["observed"] = json{{"distinct_samples", diag.observed.distinct_samples},
+                             {"min_x", diag.observed.min_x},
+                             {"max_x", diag.observed.max_x},
+                             {"min_y", diag.observed.min_y},
+                             {"max_y", diag.observed.max_y}};
+
+    const TouchRangeViolation violation = touch_range_violation(diag.observed, pipe);
+    touch["out_of_range"] = json{{"x", violation.x}, {"y", violation.y}};
+
+    // Reported, never judged - see touch_axis_span_ratio().
+    const TouchObservedExtremes seen =
+        touch_observed_in_configured_axes(diag.observed, pipe.swap_axes);
+    touch["span_ratio"] =
+        json{{"x", touch_axis_span_ratio(seen.min_x, seen.max_x, pipe.min_x, pipe.max_x)},
+             {"y", touch_axis_span_ratio(seen.min_y, seen.max_y, pipe.min_y, pipe.max_y)}};
+
+    json stored = json{{"valid", pipe.stored.valid}};
+    if (pipe.stored.valid) {
+        stored["swap_axes"] = pipe.stored.swap_axes;
+        stored["min_x"] = pipe.stored.min_x;
+        stored["max_x"] = pipe.stored.max_x;
+        stored["min_y"] = pipe.stored.min_y;
+        stored["max_y"] = pipe.stored.max_y;
+    }
+    touch["stored_range"] = stored;
+    touch["affine_valid"] = diag.affine_valid;
+
+    // Absent rather than zero when no calibration completed this session: a 0.0
+    // ratio reads as a total collapse of the touch span.
+    if (diag.span_check_seen) {
+        touch["span_check"] = json{{"x", diag.span_check_x}, {"y", diag.span_check_y}};
+    }
+    return touch;
 }
 
 json DebugBundleCollector::collect_system_info() {
@@ -565,8 +648,16 @@ bool DebugBundleCollector::is_sensitive_key(const std::string& key) {
     std::transform(lower_key.begin(), lower_key.end(), lower_key.begin(),
                    [](unsigned char c) { return std::tolower(c); });
 
+    // "serial_number" covers cpu_info.serial_number (the Pi board serial) and
+    // sd_info.serial_number, both of which arrive under /machine/system_info.
+    // They are permanent hardware identifiers, and the only question they
+    // answer -- "is this the same box as last time" -- is already answered by
+    // the bundle's device_id. Matched as the full compound word rather than a
+    // bare "serial" so Klipper's `serial: /dev/serial/by-id/...` MCU path,
+    // which names the chip and is genuinely diagnostic, survives.
     static const std::vector<std::string> sensitive_patterns = {
-        "token", "password", "secret", "key", "webhook", "credential", "auth", "bearer"};
+        "token",      "password", "secret",        "key",          "webhook",
+        "credential", "auth",     "serial_number", "serialnumber", "bearer"};
 
     for (const auto& pattern : sensitive_patterns) {
         if (lower_key.find(pattern) != std::string::npos) {
@@ -616,6 +707,15 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         // Redact MAC addresses (aa:bb:cc:dd:ee:ff or AA-BB-CC-DD-EE-FF)
         static const std::regex mac_re(R"(\b([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b)");
         result = std::regex_replace(result, mac_re, "[REDACTED_MAC]");
+
+        // Redact globally routable IP addresses, IPv4 and IPv6 alike. Private
+        // ones are deliberately kept: 192.168.1.50 is the same address in
+        // millions of houses and is exactly what "can the screen reach
+        // Moonraker" needs, whereas a routable IPv6 is an ISP-allocated prefix
+        // plus a stable interface ID and identifies a household. Runs last so
+        // the MAC pass has already claimed six-group colon-hex strings. Shares
+        // its implementation with the log call sites (include/log_redact.h).
+        result = helix::redact::ips_in_text(result);
 
         return result;
     } catch (const std::exception& e) {

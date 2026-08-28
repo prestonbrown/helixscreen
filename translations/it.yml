@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu modifiche'
   '%zu events queued': '%zu eventi in coda'
   '%zu plugins failed to load': Caricamento di %zu plugin non riuscito
+  "'{}' already exists. Replace the stored mesh?": "'{}' esiste già. Sostituire la mesh salvata?"
   (different grade): (grado diverso)
   (incompatible): (incompatibile)
   (multi-tool): (multi-utensile)
@@ -344,7 +345,6 @@ translations:
   Bypass Mode: Modalità bypass
   Bypass active — this print runs on the external spool.: Bypass attivo — questa stampa usa la bobina esterna.
   Bypass cannot be changed while printing: Il bypass non può essere cambiato durante la stampa
-  Bypass controlled by hardware sensor: Bypass controllato da sensore hardware
   Bypass controlled by sensor: Bypass controllato dal sensore
   Bypass disabled: Bypass disabilitato
   Bypass enabled: Bypass abilitato
@@ -375,12 +375,11 @@ translations:
   Calibrate Gear: 'Calibra l''ingranaggio'
   Calibrate X: Calibra X
   Calibrate Y: Calibra Y
+  Calibrate and tune scroll feel: "Calibra e regola la sensibilità di scorrimento"
   Calibrate input shaping to reduce ringing artifacts in prints: Calibra input shaping
     per ridurre artefatti di ringing nelle stampe
   Calibrate your touchscreen for accurate input: Calibra il touchscreen per un input
     preciso
-  Calibrate, tune jitter and scroll feel: Calibra, regola jitter e sensibilità di
-    scorrimento
   Calibrated: Calibrato
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -469,6 +468,7 @@ translations:
   Change Printer Host: Cambia Host Stampante
   Change Tool: Cambia utensile
   Change Tool While Paused: Cambia utensile in pausa
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: Le modifiche si applicano
     immediatamente. Regolare durante la stampa per la messa a punto.
   Changes are temporary and reset on printer reboot: Le modifiche sono temporanee
@@ -531,6 +531,8 @@ translations:
   Clog Detection: Rilevamento intasamento
   Clog detection: Rilevamento intasamento
   Close: Chiudi
+  Close feeder: ''
+  Close feeder macro: ''
   Closer: Più vicino
   Closer = more squish | Farther = less squish: Più vicino = più schiacciamento |
     Più lontano = meno schiacciamento
@@ -718,8 +720,6 @@ translations:
   Date (newest): Data (più recente)
   Date (oldest): Data (più vecchio)
   Day: Giorno
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Zona morta in
-    pixel (aumenta se i tocchi vengono rilevati come scorrimenti; 0 disattiva)
   Debug: Debug
   Default border thickness: Spessore bordo predefinito
   'Default: %d-%d°C nozzle, %d°C bed': 'Predefinito: %d-%d°C ugello, %d°C piano'
@@ -778,6 +778,8 @@ translations:
   Do not touch the printer during calibration: Non toccare la stampante durante la
     calibrazione
   Dock: Aggancia
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: Rilascio utensile
   Documentation: Documentazione
   Don't Save: Non salvare
@@ -864,6 +866,7 @@ translations:
   Enter New PIN: Inserisci nuovo PIN
   Enter PIN: Inserisci PIN
   Enter WiFi Password: Inserisci password WiFi
+  Enter a name for this profile: "Inserisci un nome per questo profilo"
   'Enter a name for your custom theme:': 'Inserisci un nome per il tuo tema personalizzato:'
   Enter a name to save this profile: Inserisci un nome per salvare questo profilo
   Enter network name: Inserisci il nome della rete
@@ -890,6 +893,8 @@ translations:
   'Error: Invalid download': 'Errore: Download non valido'
   'Error: No update available': 'Errore: Nessun aggiornamento disponibile'
   'Error: Not enough disk space': 'Errore: Spazio su disco insufficiente'
+  'Error: Previous download still finishing': 'Errore: Il download precedente non è ancora terminato'
+  "Error: This install can't update itself": 'Errore: Questa installazione non può aggiornarsi da sola'
   'Error: Verification failed': 'Errore: Verifica fallita'
   'Error: Wrong architecture': 'Errore: Architettura errata'
   'Error: `unzip` not installed': 'Errore: `unzip` non installato'
@@ -1056,11 +1061,13 @@ translations:
   Farther: Più lontano
   'Features: ': 'Caratteristiche: '
   Feed Assist: 'Assistenza all''alimentazione'
+  Feed assist and debug tools: ''
   Feed filament: Alimenta filamento
   Feed filament directly to extruder: Alimenta filamento direttamente all'estrusore
   Feed filament from current slot: 'Alimenta il filamento dallo slot corrente'
   Feeding filament forward: Avanzamento filamento
   Filament: Filamento
+  Filament Control: ''
   Filament Detected: Filamento rilevato
   Filament Environment: Ambiente filamento
   Filament Grade Mismatch: Grado filamento non corrispondente
@@ -1076,13 +1083,13 @@ translations:
   Filament deleted: Filamento eliminato
   Filament diameter sensors for flow compensation: Sensori diametro filamento per
     compensazione flusso
+  Filament feeder: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: Il filamento non è più nella testina. Estrailo del tutto.
   Filament is loose: Il filamento è allentato
   Filament is pulling tight: Il filamento è in tensione
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Dopo lo scaricamento il filamento è ancora all'ugello. Il taglio o la retrazione potrebbe non essere completato. Libera la testina prima di caricare un'altra bobina.
   'Filament load failed: {}': 'Caricamento filamento fallito: {}'
-  Filament loaded: Filamento caricato
   Filament operation failed: Operazione filamento fallita
   Filament operation timed out: Operazione filamento — tempo scaduto
   Filament ran out - nothing at the toolhead and the print is paused.: 'Filamento esaurito - non c''è più nulla alla testina e la stampa è in pausa.'
@@ -1162,6 +1169,8 @@ translations:
   Good Accuracy: Buona precisione
   Got it: Capito
   Gray: Grigio
+  Grip filament: ''
+  Grip the filament: ''
   Guides and reference: Guide e riferimenti
   H: H
   HOST: Host
@@ -1551,6 +1560,7 @@ translations:
   Manual Bed Leveling: Livellamento piano manuale
   Manual Feed: 'Alimentazione manuale'
   Manual Retract: 'Retrazione manuale'
+  Manual feed and retract operations: ''
   Map to closest colors with matching material: Abbina ai colori più vicini con materiale
     compatibile
   Marginal: Marginale
@@ -1612,6 +1622,7 @@ translations:
   Motors Off: Motori spenti
   'Motors disable failed: {}': 'Disabilitazione motori fallita: {}'
   Motors disabled: Motori disabilitati
+  Mount: ''
   Move: Sposta
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Muovere
     la carta avanti e indietro durante la regolazione. Fermarsi quando la carta si
@@ -1642,8 +1653,7 @@ translations:
   Name: Nome
   Name (optional): Nome (facoltativo)
   'Name:': 'Nome:'
-  Named actions in the LED control panel (long-press).: Azioni denominate nel pannello
-    controllo LED (pressione lunga).
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Needs adjustment: Necessita regolazione
   Needs the {} package to switch spools: 'Richiede il plugin {} per cambiare bobina'
   Net Weight (g): Peso netto (g)
@@ -1672,10 +1682,10 @@ translations:
   No Camera: Nessuna telecamera
   No Filament Detected: Nessun filamento rilevato
   No History: Nessuna cronologia
-  No LED macros detected on your printer.: Nessuna macro LED rilevata sulla stampante.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: Nessuna
     macro LED rilevata sulla stampante. Aggiungi prima le macro Klipper per il controllo
     dei LED.
+  No LED macros detected. Type a macro name below.: ''
   No LED strips detected: 'Nessuna striscia LED rilevata'
   No Macros Found: Nessuna macro trovata
   No Multi-Filament System connected: Nessun sistema multi-filamento connesso
@@ -1812,11 +1822,14 @@ translations:
   On/Off: On/Off
   On/Off (state-aware): On/Off (con stato)
   'On:': 'On:'
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
   Ooze Reduction: 'Riduzione della fuoriuscita'
   Open: Apri
   Open G-code command console: 'Apri la console dei comandi G-code'
   Open LED color and brightness controls: 'Apri i controlli di colore e luminosità LED'
   Open Source Licenses: Licenze open source
+  Open feeder: ''
+  Open feeder macro: ''
   Operation already in progress: Operazione già in corso
   Operations: Operazioni
   Optimize Your Printing: Ottimizza la tua stampa
@@ -1827,6 +1840,7 @@ translations:
     ne ha una
   Options: Opzioni
   Or Enter Manually: Oppure inserisci manualmente
+  Or instead of turning the others: ''
   Oscillating... cycle %d/%d: Oscillazione... ciclo %d/%d
   Out of range: Fuori intervallo
   Outcome: Esito
@@ -1901,6 +1915,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Scegli
   Pick Color: Scegli colore
+  Pick up tool: ''
   Picking up tool: Prelievo utensile
   Pill: Pillola
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixel prima
@@ -2087,12 +2102,12 @@ translations:
   Profile name (e.g., default): Nome profilo (es. default)
   Profile renamed: Profilo rinominato
   Profiles: Profili
+  Prompt before running this macro: ''
   Pulling filament back: Retrazione filamento
   Purge: Spurga
   Purge & Wipe: 'Spurgo e pulizia'
   Purge Length: 'Lunghezza di spurgo'
   'Purge failed: {}': 'Spurgo fallito: {}'
-  Purge macro not configured: Macro spurgo non configurata
   Purge may still be running — response timed out: Spurgo potrebbe essere ancora in
     corso — tempo scaduto
   Purge to bucket: 'Spurga nel contenitore'
@@ -2176,6 +2191,9 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Rilascia tutti i motori stepper.
     La posizione verrà persa.
+  Release filament: ''
+  Release or grip the filament by hand: ''
+  Release the filament: ''
   Remaining (g): Rimanente (g)
   Remaining Weight (g): Peso rimanente (g)
   Remap Tool: Rimappa strumento
@@ -2186,6 +2204,7 @@ translations:
   Remove PIN: Rimuovi PIN
   Remove Spoolman?: Rimuovere Spoolman?
   Remove plugin from printer: Rimuovi plugin dalla stampante
+  Remove the bypass spool from the toolhead first: 'Rimuovi prima la bobina di bypass dalla testina'
   Rename: Rinomina
   Rename Fan: Rinomina ventola
   Rename Mesh Profile: Rinomina profilo mesh
@@ -2194,12 +2213,15 @@ translations:
   Rename failed at save step: Rinomina fallita al salvataggio
   Render Now: Renderizza ora
   Rendering timelapse...: Rendering del timelapse...
+  Replace: "Sostituisci"
+  Replace Profile?: "Sostituire profilo?"
   Replay Welcome Tour: Rivedi il tour di benvenuto
   'Replenishing filament...': ''
   Report saved to crash_report.txt: Report salvato in crash_report.txt
   Reprint: Ristampa
   Reprint Last: Ristampa ultima
   Request Failed: Richiesta fallita
+  Require Confirmation?: ''
   Require confirmation before emergency stop: Richiedi conferma prima dell'arresto
     di emergenza
   Requires Moonraker power device: 'Richiede un dispositivo di alimentazione Moonraker'
@@ -2296,7 +2318,6 @@ translations:
     riscaldano l'ugello autonomamente)
   Run test sequence on all lanes: 'Esegui la sequenza di test su tutte le corsie'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Esegui l'installer di HelixScreen con --update da un terminale su questa stampante. Scansiona per il comando della tua piattaforma.
-  Run without parameter prompt: Esegui senza richiesta parametri
   Run {}?: Eseguire {}?
   Running {}...: Esecuzione {}...
   Runout: 'Esaurimento'
@@ -2509,6 +2530,8 @@ translations:
   Slot: Slot
   Slot %d: Slot %d
   Slot %d Filament: Filamento slot %d
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'Lo slot %d ha circa %.0fg ma lo strumento %d ne richiede circa %.0fg. Avviare comunque?'
+  'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg di %.0fg necessari'
   Slot 1: Slot 1
   Slot {}: Slot {}
   Slot {} matches.: 'Lo slot {} corrisponde.'
@@ -2522,6 +2545,7 @@ translations:
   Software Updates: Aggiornamenti software
   Some filaments don't match the slicer's intent.: Alcuni filamenti non corrispondono
     alle intenzioni dello slicer.
+  'Some mapped slots are short on filament:': 'Alcuni slot assegnati hanno poco filamento:'
   Some settings will take effect after restart.: Alcune impostazioni avranno effetto
     dopo il riavvio.
   Sound Theme: Tema sonoro
@@ -2575,6 +2599,7 @@ translations:
   Start Drying: Avvia essiccazione
   Start Print: Avvia stampa
   Start Probing: Avvia sondaggio
+  Start anyway?: 'Avviare comunque?'
   Start at: Inizia da
   Start failed: Avvio fallito
   Start print anyway?: Avviare comunque la stampa?
@@ -2738,6 +2763,8 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: Il sensore
     di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : 'La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. La stampante potrebbe rifiutare il caricamento di uno slot finché non viene svuotata. Avviare comunque?'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Il
     sensore della testina indica che il filamento è già caricato. Procedere comunque
     con il caricamento?
@@ -2873,7 +2900,6 @@ translations:
   Touch & Input: Tocco e input
   Touch Cal: Cal. touch
   Touch Calibration: Calibrazione touch
-  Touch Jitter Filter: Filtro jitter tocco
   Touch anywhere to test calibration: Tocca ovunque per testare la calibrazione
   Touch anywhere to verify accuracy: Tocca ovunque per verificare la precisione
   Touch input did not track the new calibration. Your previous settings were kept.: L'input touch non ha seguito la nuova calibrazione. Sono state mantenute le impostazioni precedenti.
@@ -2939,6 +2965,7 @@ translations:
   Unloads After Print: Scarica dopo la stampa
   Unlock: Sblocca
   Unmapped: Non mappato
+  Unmount: ''
   Unretract Extra: Extra dopo retrazione
   Unretract Speed: Velocità dopo retrazione
   Unsupported tape width: Larghezza nastro non supportata
@@ -3039,6 +3066,8 @@ translations:
     tempo quando l'hai già fatto di recente o quando vuoi avere più controllo sulla
     preparazione della stampa.
   Where UI sounds play: Dove vengono riprodotti i suoni dell'interfaccia
+  Which macro the Close feeder button sends: ''
+  Which macro the Open feeder button sends: ''
   White: Bianco
   Wi-Fi and ethernet connection status: 'Stato della connessione Wi-Fi ed ethernet'
   WiFi: WiFi
@@ -3156,6 +3185,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Monitora le anomalie di stampa (basato sulla camera del K2 Plus)
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: remember_spool di AFC conserva le informazioni sulla bobina nel firmware; ha la precedenza su questa opzione
   AI detection: Rilevamento AI
+  or type a macro name: ''
   prints: stampe
   remaining: rimanente
   remaining before clog detection triggers: rimanente prima che si attivi il rilevamento

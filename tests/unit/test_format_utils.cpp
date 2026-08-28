@@ -123,6 +123,30 @@ TEST_CASE("format_speed_mm_s", "[format_utils][speed]") {
     CHECK(std::string(format_speed_mm_s(300.5, buf, sizeof(buf))) == "300 mm/s");
 }
 
+TEST_CASE("format_speed_mm_s_float", "[format_utils][speed]") {
+    char buf[32];
+
+    SECTION("Keeps the half steps square corner velocity is tuned in") {
+        // format_speed_mm_s rounds 5.5 to "6 mm/s" (see the case above, where
+        // 300.5 renders as "300"), which is why this variant exists.
+        CHECK(std::string(format_speed_mm_s_float(5.5, 1, buf, sizeof(buf))) == "5.5 mm/s");
+        CHECK(std::string(format_speed_mm_s_float(5.0, 1, buf, sizeof(buf))) == "5.0 mm/s");
+        CHECK(std::string(format_speed_mm_s_float(20.0, 1, buf, sizeof(buf))) == "20.0 mm/s");
+    }
+
+    SECTION("Zero decimals matches the plain formatter") {
+        CHECK(std::string(format_speed_mm_s_float(150.0, 0, buf, sizeof(buf))) == "150 mm/s");
+    }
+
+    SECTION("Two decimals") {
+        CHECK(std::string(format_speed_mm_s_float(0.85, 2, buf, sizeof(buf))) == "0.85 mm/s");
+    }
+
+    SECTION("Negative decimal count is treated as zero rather than passed to printf") {
+        CHECK(std::string(format_speed_mm_s_float(7.0, -1, buf, sizeof(buf))) == "7 mm/s");
+    }
+}
+
 TEST_CASE("format_speed_mm_min", "[format_utils][speed]") {
     char buf[32];
 

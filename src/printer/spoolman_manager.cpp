@@ -31,6 +31,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <utility>
+#include <vector>
+
 using namespace helix;
 
 // Shutdown flag to prevent async callbacks from accessing destroyed singleton
@@ -121,7 +124,18 @@ void SpoolmanManager::init_subjects() {
         [](SpoolmanManager* self, int value) {
             if (value == 0) {
                 std::lock_guard<std::recursive_mutex> lock(self->mutex_);
-                spdlog::info("[SpoolmanManager] Spoolman became unavailable, stopping polling");
+                // LVGL fires an observer immediately on attach, and observe_int_sync
+                // defers the handler, so the first callback routinely arrives
+                // reading 0 for a Spoolman that was never available. The teardown
+                // below is idempotent and stays unconditional - it is the LOG that
+                // must not claim a loss that did not happen. Reporting one sent a
+                // live K2 investigation after the wrong writer entirely.
+                const bool had_something_to_stop = self->poll_timer_ != nullptr ||
+                                                   !self->identity_cache_.empty() ||
+                                                   !self->identity_unresolvable_.empty();
+                if (had_something_to_stop) {
+                    spdlog::info("[SpoolmanManager] Spoolman became unavailable, stopping polling");
+                }
                 // poll_refcount_ is deliberately kept: it counts panels that
                 // still want polling, and they get no second chance to ask.
                 // Zeroing it is what made a Spoolman that came back never
@@ -201,7 +215,20 @@ void SpoolmanManager::refresh_spoolman_weights() {
     // accessors are const reads that take and release AmsState::mutex_ themselves, so
     // hoisting costs a vector index and a settings read on the early-return paths and
     // buys a one-way lock order.
-    auto* backend = AmsState::instance().get_backend(0);
+    // Every backend, not just the primary. A second AMS's lanes carry their own
+    // spoolman_id links and were simply never polled, so their weights sat at
+    // whatever the last manual edit left and the low-filament checks read them
+    // as fact. Resolved here, above the lock, for the same lock-order reason.
+    std::vector<std::pair<int, AmsBackend*>> backends;
+    {
+        const int count = AmsState::instance().backend_count();
+        backends.reserve(static_cast<size_t>(count > 0 ? count : 0));
+        for (int bi = 0; bi < count; ++bi) {
+            if (auto* b = AmsState::instance().get_backend(bi)) {
+                backends.emplace_back(bi, b);
+            }
+        }
+    }
     auto ext_spool = AmsState::instance().get_external_spool_info();
 
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -252,7 +279,9 @@ void SpoolmanManager::refresh_spoolman_weights() {
 
     // Refresh AMS backend slots (if a backend is active); `backend` was resolved
     // above the lock.
-    if (backend) {
+    for (const auto& entry : backends) {
+        const int backend_index = entry.first;
+        AmsBackend* backend = entry.second;
         // When the backend tracks weight locally (e.g., AFC decrements weight
         // via extruder position), we still need total_weight_g (initial weight)
         // from Spoolman — the backend only provides remaining weight.
@@ -277,7 +306,7 @@ void SpoolmanManager::refresh_spoolman_weights() {
 
                 api_->spoolman().get_spoolman_spool(
                     spoolman_id,
-                    [slot_index, spoolman_id,
+                    [slot_index, spoolman_id, backend_index,
                      local_weight](const std::optional<SpoolInfo>& spool_opt) {
                         if (!spool_opt.has_value()) {
                             spdlog::warn("[SpoolmanManager] Spoolman spool {} not found",
@@ -295,6 +324,7 @@ void SpoolmanManager::refresh_spoolman_weights() {
                         // Data to pass to UI thread
                         struct WeightUpdate {
                             int slot_index;
+                            int backend_index;        // Which AMS owns that slot index
                             int expected_spoolman_id; // To verify slot wasn't reassigned
                             float remaining_weight_g;
                             float total_weight_g;
@@ -307,7 +337,8 @@ void SpoolmanManager::refresh_spoolman_weights() {
                         };
 
                         auto update_data = std::make_unique<WeightUpdate>(WeightUpdate{
-                            slot_index, spoolman_id, static_cast<float>(spool.remaining_weight_g),
+                            slot_index, backend_index, spoolman_id,
+                            static_cast<float>(spool.remaining_weight_g),
                             static_cast<float>(spool.initial_weight_g), local_weight, spool});
 
                         helix::ui::queue_update<
@@ -353,13 +384,17 @@ void SpoolmanManager::refresh_spoolman_weights() {
                                 // is every poll once a spool settles (#1264).
                                 ams.bump_slots_version();
                             }
-                            auto* primary = ams.get_backend(0);
-                            if (!primary) {
+                            // The backend this slot belongs to - NOT get_backend(0).
+                            // A slot index is meaningful only within its own
+                            // backend, so writing a second AMS's weight onto the
+                            // primary's same-numbered bay corrupts both.
+                            auto* owner = ams.get_backend(d->backend_index);
+                            if (!owner) {
                                 return;
                             }
 
                             // Get current slot info and verify it wasn't reassigned
-                            SlotInfo slot = primary->get_slot_info(d->slot_index);
+                            SlotInfo slot = owner->get_slot_info(d->slot_index);
                             if (slot.spoolman_id != d->expected_spoolman_id) {
                                 spdlog::debug(
                                     "[SpoolmanManager] Slot {} spoolman_id changed ({} -> {}), "
@@ -395,7 +430,7 @@ void SpoolmanManager::refresh_spoolman_weights() {
                             // there's no need to write them back to firmware.
                             slot.remaining_weight_g = new_remaining;
                             slot.total_weight_g = d->total_weight_g;
-                            primary->set_slot_info(d->slot_index, slot, /*persist=*/false);
+                            owner->set_slot_info(d->slot_index, slot, /*persist=*/false);
                             ams.bump_slots_version();
 
                             spdlog::debug(

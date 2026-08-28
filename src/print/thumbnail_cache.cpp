@@ -52,7 +52,11 @@ static size_t calculate_dynamic_max_size(const std::string& cache_dir, size_t co
 
 // Helper to try creating a cache directory and return success
 static bool try_create_cache_dir(const std::string& path) {
-    return helix::paths::ensure_dir(path) && helix::paths::probe_writable(path);
+    // Viability first, so a candidate we cannot use is rejected without a
+    // directory tree left behind as the cost of finding out. ensure_dir() is
+    // still the authority — can_create_dir() cannot see a race or a quota.
+    return helix::paths::can_create_dir(path) && helix::paths::ensure_dir(path) &&
+           helix::paths::probe_writable(path);
 }
 
 std::string ThumbnailCache::determine_cache_dir() {

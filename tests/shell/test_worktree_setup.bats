@@ -58,3 +58,47 @@ setup() {
     run bash -c "ls patches/ | grep -i 'helix.*xml'"
     [ "$status" -ne 0 ]
 }
+
+# --- main-tree resolution (prestonbrown/helixscreen#1350 fallout) -------------
+#
+# Every worktree carries its own scripts/, so running a worktree's copy made
+# SCRIPT_DIR/.. resolve to that worktree and MAIN_TREE point at it. The lib/
+# loop then rm -rf'd each real submodule and symlinked it to the path it had
+# just deleted. Two agent worktrees lost their lib/ that way.
+
+@test "MAIN_TREE is re-resolved from git-common-dir, not just SCRIPT_DIR/.." {
+    run grep -c 'git-common-dir' "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [ "$output" -ge 1 ]
+}
+
+@test "a relative git-common-dir is resolved against MAIN_TREE before use" {
+    # `git rev-parse --git-common-dir` answers a bare ".git" from a main-tree
+    # root. Using that unresolved would cd to the CWD's parent, not the repo's.
+    run bash -c "grep -c 'GIT_COMMON_DIR\" != /\*' '$SCRIPT'"
+    [ "$output" -ge 1 ]
+}
+
+@test "refuses to set up a worktree on top of the main tree, and destroys nothing" {
+    tmp="$(mktemp -d)"
+    git -C "$tmp" init -q
+    git -C "$tmp" config user.email "t@example.invalid"
+    git -C "$tmp" config user.name "t"
+    mkdir -p "$tmp/lib/keepme" "$tmp/scripts"
+    echo "precious" > "$tmp/lib/keepme/file.txt"
+    cp "$SCRIPT" "$tmp/scripts/setup-worktree.sh"
+    git -C "$tmp" add lib scripts
+    git -C "$tmp" commit -qm init
+
+    # "." makes WORKTREE_PATH resolve to the main tree itself -- the shape that
+    # deleted lib/. The guard must stop it before the symlink loop runs.
+    cd "$tmp" || return 1
+    run bash "$tmp/scripts/setup-worktree.sh" somebranch .
+
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"same directory"* ]]
+    # The real assertion: the destructive path never executed.
+    [ -f "$tmp/lib/keepme/file.txt" ]
+    [ "$(cat "$tmp/lib/keepme/file.txt")" = "precious" ]
+    rm -rf "$tmp"
+}
