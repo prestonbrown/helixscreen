@@ -954,20 +954,19 @@ DOCKER_GIT_HASH_ENV = $(if $(HELIX_GIT_HASH_HOST),-e HELIX_GIT_HASH=$(HELIX_GIT_
 # `docker run` below must pass this — tests/shell/test_build_provenance.bats
 # fails the build if one does not, so a new platform target cannot regress
 # provenance or worktree support by omission.
-# Forward ENABLE_REMOTE_CONTROL into the container ONLY when the caller set it.
+# Forward the remote-control choice into the container. The inner make cannot
+# work it out for itself: HELIX_PACKAGING is a target-specific variable, so it
+# exists only in the outer make's recipe expansion and never crosses the
+# `docker run` boundary.
 #
-# `$(if $(ENABLE_REMOTE_CONTROL),...)` looks right and is not: the *outer* make
-# runs with PLATFORM_TARGET unset, i.e. native, where Makefile defaults it to
-# `?= yes`. The variable is therefore never empty and every containerised build
-# was handed ENABLE_REMOTE_CONTROL=yes regardless of the platform's own default.
-# On cc1 that is a hard build failure (ENABLE_MOCKS := no, but the remote sources
-# call AmsBackend::as_mock(), which only exists with mocks on); everywhere else it
-# quietly linked the helixctl server into shipped device images.
-#
-# $(origin) is what distinguishes "user asked" from "a makefile defaulted it":
-# command line / environment / override mean the caller chose, file / default /
-# undefined mean they did not, so the inner make should compute its own default.
-DOCKER_REMOTE_CONTROL = $(if $(filter-out default file undefined,$(origin ENABLE_REMOTE_CONTROL)),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL))
+# The caller's own value wins when there is one. `$(if $(ENABLE_REMOTE_CONTROL),
+# ...)` cannot detect that and looks like it can: the outer make runs with
+# PLATFORM_TARGET unset, i.e. native, where the Makefile defaults the variable,
+# so it is never empty. $(origin) is what distinguishes "the user chose this"
+# (command line / environment / override) from "a makefile defaulted it" (file /
+# default / undefined).
+CROSS_REMOTE_CONTROL_DEFAULT = $(if $(filter 1,$(HELIX_PACKAGING)),no,yes)
+DOCKER_REMOTE_CONTROL = ENABLE_REMOTE_CONTROL=$(if $(filter-out default file undefined,$(origin ENABLE_REMOTE_CONTROL)),$(ENABLE_REMOTE_CONTROL),$(CROSS_REMOTE_CONTROL_DEFAULT))
 
 DOCKER_HOST_CONTEXT = $(DOCKER_WORKTREE_MOUNT) $(DOCKER_GIT_HASH_ENV)
 
@@ -2691,11 +2690,36 @@ define write-release-info
 	echo "{\"project_name\":\"helixscreen\",\"project_owner\":\"prestonbrown\",\"version\":\"$(RELEASE_VERSION)\",\"asset_name\":\"$$asset\"}" > $(RELEASE_DIR)/helixscreen/release_info.json
 endef
 
+# Refuse to package a binary that carries the helixctl server.
+#
+# Cross builds default it ON now, so the developer path and the release path
+# produce different binaries from the same command — and `release-*` copies
+# whatever is already sitting in build/<plat>/bin. Asking HELIX_PACKAGING here
+# would only re-read the caller's intent; the stamp mk/rules.mk writes at link
+# time records what the binary ACTUALLY contains, which is the thing that has
+# to be true. Missing stamp means a binary from before the stamp existed, so
+# say so rather than passing it silently.
+#
+#   $(1) build/<plat>/bin
+define assert-no-remote-control
+	@feat=$$(sed -n 's/^remote_control=//p' $(1)/.build-features 2>/dev/null); \
+	if [ -z "$$feat" ]; then \
+		echo "$(YELLOW)  WARNING: $(1)/.build-features missing or unstamped — cannot confirm this binary has no remote-control server$(RESET)"; \
+	elif [ "$$feat" = "yes" ]; then \
+		echo "$(RED)$(BOLD)✗ $(1)/helix-screen was built WITH the remote-control server.$(RESET)"; \
+		echo "$(YELLOW)  A release must not ship it. Rebuild with HELIX_PACKAGING=1 (what$(RESET)"; \
+		echo "$(YELLOW)  package-* sets) or ENABLE_REMOTE_CONTROL=no, then re-run this target.$(RESET)"; \
+		exit 1; \
+	fi
+endef
+
 .PHONY: release-pi release-pi32 release-ad5m release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
 
 # Package Pi release
 release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev/bin/helix-screen
 	@echo "$(CYAN)$(BOLD)Packaging Pi release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/pi/bin)
+	$(call assert-no-remote-control,build/pi-fbdev/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/pi/bin/helix-screen build/pi/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/pi/bin/helix-watchdog ]; then cp build/pi/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -2740,6 +2764,8 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev
 # Package Pi 32-bit release (same structure as 64-bit Pi)
 release-pi32: | build/pi32/bin/helix-screen build/pi32/bin/helix-splash build/pi32-fbdev/bin/helix-screen
 	@echo "$(CYAN)$(BOLD)Packaging Pi 32-bit release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/pi32/bin)
+	$(call assert-no-remote-control,build/pi32-fbdev/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/pi32/bin/helix-screen build/pi32/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/pi32/bin/helix-watchdog ]; then cp build/pi32/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -2786,6 +2812,7 @@ release-pi32: | build/pi32/bin/helix-screen build/pi32/bin/helix-splash build/pi
 # Includes pre-configured settings.json for Adventurer 5M Pro (skips setup wizard)
 release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging AD5M release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/ad5m/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/ad5m/bin/helix-watchdog ]; then cp build/ad5m/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -2835,6 +2862,7 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 # Package AD5X release
 release-ad5x: | build/ad5x/bin/helix-screen build/ad5x/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging AD5X release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/ad5x/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/ad5x/bin/helix-screen build/ad5x/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/ad5x/bin/helix-watchdog ]; then cp build/ad5x/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -2885,6 +2913,7 @@ release-ad5x: | build/ad5x/bin/helix-screen build/ad5x/bin/helix-splash
 # Package CC1 release
 release-cc1: | build/cc1/bin/helix-screen build/cc1/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging CC1 release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/cc1/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/cc1/bin/helix-screen build/cc1/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/cc1/bin/helix-watchdog ]; then cp build/cc1/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -2935,6 +2964,7 @@ release-cc1: | build/cc1/bin/helix-screen build/cc1/bin/helix-splash
 # Package K1 release
 release-k1: | build/mips/bin/helix-screen build/mips/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging K1 release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/mips/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/mips/bin/helix-screen build/mips/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/mips/bin/helix-watchdog ]; then cp build/mips/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -2985,6 +3015,7 @@ release-k1: | build/mips/bin/helix-screen build/mips/bin/helix-splash
 # Package K1 Dynamic release
 release-k1-dynamic: | build/k1-dynamic/bin/helix-screen build/k1-dynamic/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging K1 Dynamic release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/k1-dynamic/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/k1-dynamic/bin/helix-screen build/k1-dynamic/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/k1-dynamic/bin/helix-watchdog ]; then cp build/k1-dynamic/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -3026,6 +3057,7 @@ release-k1-dynamic: | build/k1-dynamic/bin/helix-screen build/k1-dynamic/bin/hel
 # Package K2 release
 release-k2: | build/k2/bin/helix-screen build/k2/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging K2 release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/k2/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/k2/bin/helix-screen build/k2/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/k2/bin/helix-watchdog ]; then cp build/k2/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -3078,6 +3110,7 @@ release-k2: | build/k2/bin/helix-screen build/k2/bin/helix-splash
 # Package Snapmaker U1 release
 release-snapmaker-u1: | build/snapmaker-u1/bin/helix-screen
 	@echo "$(CYAN)$(BOLD)Packaging Snapmaker U1 release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/snapmaker-u1/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/snapmaker-u1/bin/helix-screen $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/snapmaker-u1/bin/helix-splash ]; then cp build/snapmaker-u1/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -3127,6 +3160,8 @@ release-snapmaker-u1: | build/snapmaker-u1/bin/helix-screen
 # Package x86_64 Debian release (same structure as Pi)
 release-x86: | build/x86/bin/helix-screen build/x86/bin/helix-splash build/x86-fbdev/bin/helix-screen
 	@echo "$(CYAN)$(BOLD)Packaging x86 release v$(VERSION)...$(RESET)"
+	$(call assert-no-remote-control,build/x86/bin)
+	$(call assert-no-remote-control,build/x86-fbdev/bin)
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/x86/bin/helix-screen build/x86/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/x86/bin/helix-watchdog ]; then cp build/x86/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
@@ -3182,6 +3217,19 @@ release-clean:
 # The legacy scripts/package.sh wrapper was deleted; these targets are now
 # the single entry point for building release artifacts.
 .PHONY: package-ad5m package-cc1 package-pi package-pi32 package-k1 package-ad5x package-k1-dynamic package-k2 package-snapmaker-u1 package-x86 package-all package-clean
+
+# THE marker that separates a production build from a developer one. Everything
+# a developer builds gets the helixctl server (see the ENABLE_REMOTE_CONTROL
+# block in Makefile); what ships does not. Pattern-specific variables are
+# inherited by prerequisites, so setting it here reaches the *-docker target
+# each package-* depends on, and DOCKER_REMOTE_CONTROL carries it into the
+# container.
+#
+# Not a substitute for the check in release-*: CI builds through a bare
+# `make PLATFORM_TARGET=...` inside its own container and never runs package-*,
+# so the marker alone would not have caught a release assembled from a
+# developer build. The stamped binary is the thing that gets verified.
+package-%: HELIX_PACKAGING := 1
 package-ad5m: ad5m-docker gen-images-ad5m gen-splash-3d-ad5m gen-printer-images release-ad5m
 package-cc1: cc1-docker gen-images gen-printer-images release-cc1
 package-pi: pi-all-docker gen-images gen-splash-3d gen-printer-images release-pi
