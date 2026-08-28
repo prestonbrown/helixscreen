@@ -3434,6 +3434,21 @@ void Application::setup_discovery_callbacks() {
                                                                          std::string log_context) {
                 helix::ui::queue_update([spool, try_assign_active_spool_to_tool,
                                          log_context = std::move(log_context)]() {
+                    // Tool-changer auto-assign runs BEFORE the bypass gate, not
+                    // after it. The gate passes only when
+                    // active_spool_describes_bypass() is true, which is
+                    // `no backend || any_bypass_active()` — and every backend that
+                    // answers supports_per_tool_spool_assignment() (TOOL_CHANGER,
+                    // SNAPMAKER) hardcodes is_bypass_active() to false. Downstream
+                    // of the gate the assign therefore required "a backend exists"
+                    // and "no backend exists" at once, so it never ran on a real
+                    // changer. The two concerns are independent: the gate is about
+                    // which slot owns the EXTERNAL spool record, this is about
+                    // which spool is mounted on the active TOOL. Its own guards
+                    // (per-tool support, assignments loaded, valid index, not
+                    // already assigned) are what decide whether it acts.
+                    try_assign_active_spool_to_tool(spool);
+
                     // An AMS slot assignment sets Moonraker's global active spool
                     // too, so mirroring it onto the bypass unconditionally used to
                     // overwrite the bypass with whichever lane was assigned last.
@@ -3465,7 +3480,6 @@ void Application::setup_discovery_callbacks() {
                     // Hare all read as the bare filament name.
                     apply_spool_to_slot(slot, spool);
                     AmsState::instance().set_external_spool_info(slot);
-                    try_assign_active_spool_to_tool(spool);
                     spdlog::info("[Application] External spool {}: {} (id={})", log_context,
                                  slot.spool_name, slot.spoolman_id);
                 });
