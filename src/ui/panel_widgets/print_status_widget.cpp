@@ -355,10 +355,12 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     };
     if (auto* hm = get_print_history_manager()) {
         hm->add_observer(&history_changed_cb_);
-        // Trigger history fetch so idle thumbnail shows last print (not benchy)
-        if (!hm->is_loaded()) {
-            hm->fetch();
-        }
+        // Populate history so the idle thumbnail shows the last print (not
+        // benchy). ensure_loaded(), not fetch(): the observer just registered
+        // is served by whatever response is already in flight, while fetch()
+        // would read this ask as an invalidation and queue a second identical
+        // request.
+        hm->ensure_loaded();
     }
 
     // Observe connection state to fetch history once connected (widget may
@@ -367,8 +369,8 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         printer_state_.get_printer_connection_state_subject(), this,
         [](PrintStatusWidget* /*self*/, int state) {
             if (state == static_cast<int>(ConnectionState::CONNECTED)) {
-                if (auto* hm = get_print_history_manager(); hm && !hm->is_loaded()) {
-                    hm->fetch();
+                if (auto* hm = get_print_history_manager()) {
+                    hm->ensure_loaded();
                 }
             }
         },
@@ -2146,9 +2148,10 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     history_cb_ = [this]() { update_idle_fields(); };
     if (auto* hm = get_print_history_manager()) {
         hm->add_observer(&history_cb_);
-        if (!hm->is_loaded()) {
-            hm->fetch();
-        }
+        // ensure_loaded(), not fetch(): the response already in flight serves
+        // this caller through the observer above, and fetch() would read the
+        // ask as an invalidation and queue a second identical request.
+        hm->ensure_loaded();
     }
     update_idle_fields();
 
