@@ -189,7 +189,12 @@ struct SlotBarData {
     ams_draw::SlotColumn col; // Shared slot column (container, bar_bg, bar_fill, status_line)
     uint32_t color_rgb = 0x808080;
     int fill_pct = 100;
-    bool present = false;                           // Filament present in slot
+    // Outputs of resolve_slot_presentation() for this lane. A bar is the same
+    // lane the spool view draws, so it takes the same rule; it just has only
+    // these two of the four outputs to express it with. Was a `present` bool
+    // fed from SlotInfo::is_present(), which collapsed UNKNOWN into EMPTY.
+    bool show_fill = false;
+    uint8_t fill_opa = helix::ui::SPOOL_OPA_FULL;
     bool loaded = false;                            // Filament loaded to toolhead
     bool has_error = false;                         // Slot is in error/blocked state
     SlotError::Severity severity = SlotError::INFO; // Error severity level
@@ -282,7 +287,8 @@ static void apply_slot_style(SlotBarData* slot) {
     ams_draw::BarStyleParams params;
     params.color_rgb = slot->color_rgb;
     params.fill_pct = slot->fill_pct;
-    params.is_present = slot->present;
+    params.show_fill = slot->show_fill;
+    params.fill_opa = slot->fill_opa;
     params.is_loaded = slot->loaded;
     params.has_error = slot->has_error;
     params.severity = slot->severity;
@@ -1143,7 +1149,14 @@ void ui_ams_mini_status_set_slot_full(lv_obj_t* obj, int slot_index, uint32_t co
         SlotBarData* slot = &data->slots[slot_index];
         slot->color_rgb = color_rgb;
         slot->fill_pct = std::clamp(fill_pct, 0, 100);
-        slot->present = present;
+        // The caller answers present/absent directly, so absent here really is
+        // EMPTY, and a retained material is the only assignment evidence this
+        // path carries (matching the spool cell below).
+        const auto bar_pres = helix::ui::resolve_slot_presentation(
+            present ? SlotStatus::AVAILABLE : SlotStatus::EMPTY,
+            material != nullptr && material[0] != '\0');
+        slot->show_fill = bar_pres.show_spool;
+        slot->fill_opa = bar_pres.spool_opa;
         apply_slot_style(slot);
     }
 
@@ -1300,13 +1313,19 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         // brand/spool_name cover IFS-style backends with a user override but no
         // Spoolman id.
         const bool assigned = helix::ui::slot_has_retained_identity(slot);
+        // ONE rule for both render modes: the bar cache below and the spool cell
+        // cache further down are the same lane drawn at two widths, so they must
+        // not reach different answers about whether it has filament.
+        const helix::ui::SlotPresentation pres =
+            helix::ui::resolve_slot_presentation(slot.status, assigned);
 
         // Bar-mode cache (capped at MAX_VISIBLE).
         if (i < AMS_MINI_STATUS_MAX_VISIBLE) {
             SlotBarData* slot_bar = &data->slots[i];
             slot_bar->color_rgb = slot.color_rgb;
             slot_bar->fill_pct = fill_pct;
-            slot_bar->present = slot.is_present();
+            slot_bar->show_fill = pres.show_spool;
+            slot_bar->fill_opa = pres.spool_opa;
             slot_bar->loaded = active;
             slot_bar->has_error = (slot.status == SlotStatus::BLOCKED || slot.error.has_value());
             slot_bar->severity = slot.error.has_value() ? slot.error->severity : SlotError::INFO;
