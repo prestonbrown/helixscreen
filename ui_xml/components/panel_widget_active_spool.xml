@@ -17,13 +17,24 @@
               clickable="false" event_bubble="true" hidden="true">
         <spool_canvas name="spool_wide" size="64" clickable="false" event_bubble="true"/>
         <lv_obj name="spoolman_text_stack"
-                width="0" height="content" flex_flow="column" flex_grow="1" style_pad_row="#space_xxs" style_bg_opa="0"
+                width="0" height="content" flex_flow="column" flex_grow="1" style_pad_row="0" style_bg_opa="0"
                 scrollable="false" clickable="false" event_bubble="true">
           <!-- scroll_circular, like ams_loaded_card's material line: the composed
                vendor+filament label (Spoolman identity, #1264) can exceed the
                text column on small tiers. One line per label also keeps the
                three-row stack's height deterministic, which is what fits the
-               single-row card at Micro (#1286). -->
+               single-row card at Micro (#1286).
+
+               pad_row is 0, not #space_xxs, because deterministic is not the
+               same as exact. The grid derives a row from a float track edge, so
+               a single-row card at Micro measures 64px or 65px depending on
+               which row it lands on, and the wide layout inside it 48 or 49.
+               At 17+15+15 the three lines are 47 either way; the 2px the gap
+               token adds made the stack exactly 49, which fits the taller card
+               and clips the weight row mid-glyph in the shorter one. The font
+               leading already separates the lines, which is why the sibling
+               widget stacks (panel_widget_nozzle_temps, nozzle_temp_row) carry
+               no row gap either. -->
           <text_body name="spoolman_material"
                      width="100%" text="" style_text_align="left" long_mode="scroll_circular" clickable="false"
                      event_bubble="true"/>
