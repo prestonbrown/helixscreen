@@ -104,16 +104,27 @@ def escape_spec(name):
     return SPEC_META.sub(r'\\\1', name)
 
 
-def run_isolated(binary, names, workdir):
-    """Run exactly these cases in one fresh process; {name: passed}."""
+def run_isolated(binary, names, workdir, timeout):
+    """Run exactly these cases in one fresh process; {name: passed}.
+
+    A timeout is not optional. Some files deadlock when run as an isolated set
+    while passing in the full suite -- test_gcode_vase_streaming.cpp sat in
+    futex_do_wait for 30 minutes and blocked the entire scan, because one stuck
+    worker starves the pool and nothing else ever reports. A file that times out
+    is un-judgeable, which is a finding to surface, not a reason to hang.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         spec = Path(tmp) / 'names.txt'
         spec.write_text('\n'.join(escape_spec(n) for n in names) + '\n')
         report = Path(tmp) / 'r.xml'
-        subprocess.run(
-            [str(binary), '-f', str(spec), '--reporter', 'xml',
-             '--success', '--out', str(report)],
-            cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            subprocess.run(
+                [str(binary), '-f', str(spec), '--reporter', 'xml',
+                 '--success', '--out', str(report)],
+                cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return {}
         if not report.is_file():
             return {}
         return {n: ok for n, (_, ok)
@@ -130,6 +141,8 @@ def main():
     ap.add_argument('report', help='full-suite Catch2 XML report (--success --out)')
     ap.add_argument('--binary', default='build/bin/helix-tests')
     ap.add_argument('--jobs', type=int, default=8)
+    ap.add_argument('--timeout', type=int, default=300,
+                    help='seconds before an isolated run is abandoned as hung')
     ap.add_argument('--only', default=None,
                     help='restrict to source files whose name contains this')
     # One process per test file over ~950 files is too long for a single CI
@@ -174,7 +187,7 @@ def main():
     findings = []
     def check(item):
         f, names = item
-        return f, names, run_isolated(binary, names, root)
+        return f, names, run_isolated(binary, names, root, args.timeout)
 
     skipped = []
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
@@ -201,8 +214,9 @@ def main():
         print(f'{f}: [{kind}] {n}\n    {why}')
 
     for f in skipped:
-        print(f'{f}: [not-run] isolated run produced no results - the gate '
-              f'could not judge this file', file=sys.stderr)
+        print(f'{f}: [not-run] isolated run produced no results (hung past '
+              f'--timeout {args.timeout}s, crashed, or wrote an unreadable '
+              f'report) - the gate could not judge this file', file=sys.stderr)
 
     kinds = {}
     for k, _, _ in findings:

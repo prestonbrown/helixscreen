@@ -170,3 +170,16 @@ EOF
     [ "$status" -ne 0 ]
     [[ "$output" == *"shard-index"* ]]
 }
+
+@test "a hung isolated run is abandoned at the timeout, not waited on forever" {
+    # One stuck file starved the whole pool for 30 minutes before this existed.
+    full_report true true
+    printf '#!/usr/bin/env bash\nsleep 60\n' > "$WORK/build/bin/helix-tests"
+    chmod +x "$WORK/build/bin/helix-tests"
+    start=$(date +%s)
+    run gate --timeout 2 --list
+    elapsed=$(( $(date +%s) - start ))
+    [ "$elapsed" -lt 30 ]
+    [[ "$output" == *"not-run"* ]]
+    [[ "$output" == *"hung past"* ]]
+}
