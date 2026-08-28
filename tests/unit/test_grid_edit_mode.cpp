@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_fixtures.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
 #include "panel_widget_config.h"
 #include "panel_widget_registry.h"
+#include "theme_manager.h"
 
 #include <unordered_set>
 
@@ -230,7 +232,20 @@ TEST_CASE("GridEditMode: clamp_span tips widget respects range", "[grid_edit][re
 // build_default_grid — anchor positions and auto-place defaults
 // =============================================================================
 
-TEST_CASE("build_default_grid only sets positions for anchor widgets", "[grid]") {
+TEST_CASE_METHOD(XMLTestFixture, "build_default_grid only sets positions for anchor widgets",
+                 "[grid]") {
+    // build_default_grid() picks its anchor table from this subject, not from
+    // anything passed in, so the expectations below are only meaningful at a
+    // known breakpoint. Pin it rather than read it: an earlier test in the same
+    // binary may have left it elsewhere, and which tests those are depends on
+    // how the suite happens to be sharded. Same reasoning as GridFullFixture in
+    // test_panel_widget_grid_full.cpp.
+    lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
+    REQUIRE(bp_subj != nullptr);
+    REQUIRE(bp_subj->type == LV_SUBJECT_TYPE_INT);
+    const int prev_bp = lv_subject_get_int(bp_subj);
+    lv_subject_set_int(bp_subj, to_int(UiBreakpoint::Medium));
+
     auto entries = PanelWidgetConfig::build_default_grid();
     REQUIRE(entries.size() > 3); // At least the 3 anchors + some auto-place widgets
 
@@ -292,6 +307,10 @@ TEST_CASE("build_default_grid only sets positions for anchor widgets", "[grid]")
         CHECK(e.row == -1);
         CHECK_FALSE(e.has_grid_position());
     }
+
+    // Hand the subject back as it was found: pinning it and walking away would
+    // just move the ordering hazard onto whoever runs next.
+    lv_subject_set_int(bp_subj, prev_bp);
 }
 
 // =============================================================================
