@@ -174,7 +174,7 @@ jobs:
           -e CCACHE_DIR=/root/.cache/ccache \
           -w /src \
           helixscreen/toolchain-${{ matrix.platform }} \
-          make PLATFORM_TARGET=${{ matrix.build_target }} SKIP_OPTIONAL_DEPS=1 -j$(nproc)
+          make PLATFORM_TARGET=${{ matrix.build_target }} HELIX_PACKAGING=1 SKIP_OPTIONAL_DEPS=1 -j$(nproc)
 
     - name: Show ccache stats
       run: |
