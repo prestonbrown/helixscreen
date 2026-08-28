@@ -17,6 +17,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_bypass_policy.h"
+#include "ams_lane_state.h"
 #include "app_globals.h"
 #include "data_root_resolver.h"
 #include "filament_database.h"
@@ -475,6 +476,13 @@ void AmsState::init_subjects(bool register_xml) {
         if (register_xml) {
             snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_active_loaded", i);
             lv_xml_register_subject(nullptr, name_buf, &slot_active_loaded_[i]);
+        }
+
+        lv_subject_init_int(&slot_lane_states_[i], static_cast<int>(helix::ui::LaneState::Empty));
+        subjects_.register_subject(&slot_lane_states_[i]);
+        if (register_xml) {
+            snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_lane_state", i);
+            lv_xml_register_subject(nullptr, name_buf, &slot_lane_states_[i]);
         }
     }
 
@@ -1051,6 +1059,13 @@ lv_subject_t* AmsState::get_slot_status_subject(int slot_index) {
         return nullptr;
     }
     return &slot_statuses_[slot_index];
+}
+
+lv_subject_t* AmsState::get_slot_lane_state_subject(int slot_index) {
+    if (slot_index < 0 || slot_index >= MAX_SLOTS) {
+        return nullptr;
+    }
+    return &slot_lane_states_[slot_index];
 }
 
 lv_subject_t* AmsState::get_slot_remaining_subject(int slot_index) {
@@ -1714,6 +1729,15 @@ void AmsState::sync_from_backend() {
                 any_slot_changed = true;
             }
 
+            // Lane presentation classification (Present/Ghosted/Empty) — THE
+            // input every lane rendering surface binds to.
+            int new_lane_state = static_cast<int>(
+                helix::ui::classify_lane(slot->status, helix::ui::lane_has_identity(*slot)));
+            if (lv_subject_get_int(&slot_lane_states_[i]) != new_lane_state) {
+                lv_subject_set_int(&slot_lane_states_[i], new_lane_state);
+                any_slot_changed = true;
+            }
+
             // Fill percent (canonical display_fill_pct encoding). The ams_slot
             // widget observes this — so spool fill renders from state on every
             // panel, not just the ones that remember to push it imperatively.
@@ -2028,6 +2052,11 @@ void AmsState::sync_from_backend() {
         int default_status = static_cast<int>(SlotStatus::UNKNOWN);
         if (lv_subject_get_int(&slot_statuses_[i]) != default_status) {
             lv_subject_set_int(&slot_statuses_[i], default_status);
+            any_slot_changed = true;
+        }
+        int default_lane_state = static_cast<int>(helix::ui::LaneState::Empty);
+        if (lv_subject_get_int(&slot_lane_states_[i]) != default_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[i], default_lane_state);
             any_slot_changed = true;
         }
         // Clear remaining filament for unused slots
