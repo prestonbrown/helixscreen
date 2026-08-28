@@ -617,9 +617,9 @@ TEST_CASE("FilamentMapper use_current_assignments", "[filament_mapper][current_a
     SECTION("a lane-per-tool AMS keeps tools above 3 on their own lanes") {
         // An 8-lane AFC (two Box Turtles) numbers global slots 0..7 and maps
         // them T0..T7, so tool 5 genuinely belongs on lane 5. Seeding through
-        // default_head_for_tool() alone would collapse every tool above 3 onto
-        // head 0, because that helper models a FOUR-HEAD toolchanger firmware
-        // default ([0,1,2,3,0,0,...]) and not a lane-per-tool AMS.
+        // A four-head routing would collapse every tool above 3 onto head 0.
+        // This case is stated for a lane-per-tool AMS, which is the default and
+        // the majority shape; the four-head cases say so explicitly.
         std::vector<GcodeToolInfo> tools = {
             {0, 0xFF0000, "PLA"},
             {5, 0x00FF00, "PLA"},
@@ -679,30 +679,36 @@ TEST_CASE("FilamentMapper use_current_assignments: seed matrix over tool numberi
     //     pair by list position | pair by tool index | pair by default head
     // so no assertion there can tell them apart. The axes that DO separate them
     // are tool SPARSITY (a file using T0+T2 with no T1) and tool NUMBER ABOVE 3
-    // (an 8-lane AFC maps lanes 0..7 to T0..T7, while default_head_for_tool()
-    // models a four-head toolchanger and sends everything above 3 to head 0).
+    // (an 8-lane AFC maps lanes 0..7 to T0..T7, while a four-head routing sends
+    // everything above 3 to head 0). Each case names the shape it is stated for.
     // Any new rule must be stated across this whole grid, not one corner of it.
     struct Case {
         const char* name;
-        std::vector<int> tools;  // tool indices the file actually uses
-        int lane_count;          // lanes the AMS/toolchanger reports
-        std::vector<int> expect; // expected mapped_slot per tool, -1 = AUTO
-        bool expect_identity;    // seed is the firmware default => nothing emitted
+        std::vector<int> tools;         // tool indices the file actually uses
+        int lane_count;                 // lanes the AMS/toolchanger reports
+        std::vector<int> expect;        // expected mapped_slot per tool, -1 = AUTO
+        bool expect_identity;           // seed is the firmware default => nothing emitted
+        helix::FirmwareRouting routing; // which AMS SHAPE the case is stated for
     };
 
+    const auto lane_per_tool = helix::FirmwareRouting::identity();
+    const auto four_head = helix::FirmwareRouting::fixed_heads(4, 0);
+
     const std::vector<Case> cases = {
-        {"dense tools, 4 lanes", {0, 1, 2}, 4, {0, 1, 2}, true},
-        {"sparse skipping T1, 4 lanes", {0, 2}, 4, {0, 2}, true},
-        {"sparse skipping T1 and T2, 4 lanes", {0, 3}, 4, {0, 3}, true},
-        {"lane-per-tool AMS, sparse high tool", {0, 5}, 8, {0, 5}, false},
+        {"dense tools, 4 lanes", {0, 1, 2}, 4, {0, 1, 2}, true, lane_per_tool},
+        {"sparse skipping T1, 4 lanes", {0, 2}, 4, {0, 2}, true, lane_per_tool},
+        {"sparse skipping T1 and T2, 4 lanes", {0, 3}, 4, {0, 3}, true, lane_per_tool},
+        {"lane-per-tool AMS, sparse high tool", {0, 5}, 8, {0, 5}, true, lane_per_tool},
         {"lane-per-tool AMS, all eight lanes",
          {0, 1, 2, 3, 4, 5, 6, 7},
          8,
          {0, 1, 2, 3, 4, 5, 6, 7},
-         false}, // see the seam test below: the filter caps at head 3
-        {"extended tool with no lane falls back to firmware head 0", {5}, 4, {0}, true},
-        {"tool beyond the lane count is unresolved", {0, 1, 2}, 2, {0, 1, -1}, true},
-        {"single tool", {0}, 4, {0}, true},
+         true,
+         lane_per_tool},
+        {"four-head: extended tool falls back to head 0", {5}, 4, {0}, true, four_head},
+        {"four-head: tools 0-3 are still their own heads", {0, 2}, 4, {0, 2}, true, four_head},
+        {"tool beyond the lane count is unresolved", {0, 1, 2}, 2, {0, 1, -1}, true, lane_per_tool},
+        {"single tool", {0}, 4, {0}, true, lane_per_tool},
     };
 
     for (const auto& c : cases) {
@@ -717,7 +723,7 @@ TEST_CASE("FilamentMapper use_current_assignments: seed matrix over tool numberi
             slots.push_back({i, 0, 0x111111u * static_cast<uint32_t>(i + 1), "PLA", false, -1});
         }
 
-        auto mappings = FilamentMapper::use_current_assignments(tools, slots);
+        auto mappings = FilamentMapper::use_current_assignments(tools, slots, c.routing);
         REQUIRE(mappings.size() == c.tools.size());
 
         for (size_t i = 0; i < c.tools.size(); ++i) {
@@ -730,48 +736,72 @@ TEST_CASE("FilamentMapper use_current_assignments: seed matrix over tool numberi
         // A positional seed is what the firmware would do unaided, so it must
         // filter to an empty remap. If this fails where it is expected to hold,
         // the seed is quietly emitting a route the user never asked for - the
-        // original bug. It does NOT hold above tool 3; that seam is pinned by
-        // the dedicated test below rather than waved through here.
+        // original bug. Because the seed and the filter now share ONE routing,
+        // this holds for every shape - it used to fail above tool 3.
         if (c.expect_identity) {
-            CHECK(FilamentMapper::identity_filtered_remap(mappings).empty());
+            CHECK(FilamentMapper::identity_filtered_remap(mappings, c.routing).empty());
         }
     }
 }
 
-TEST_CASE("use_current_assignments and identity_filtered_remap disagree above tool 3",
-          "[filament_mapper][current_assignments][seam]") {
-    // A KNOWN, PRE-EXISTING seam, pinned so nobody "fixes" one half in isolation.
-    //
-    // default_head_for_tool() models a FOUR-HEAD toolchanger: its firmware default
-    // map is [0,1,2,3,0,0,...], so every tool above 3 routes to head 0. A
-    // lane-per-tool AMS is the other shape entirely - an 8-lane AFC numbers global
-    // slots 0..7 and maps them T0..T7, so T5 belongs on lane 5.
-    //
-    // The SEED now honours the lane-per-tool shape (a lane with the tool's index
-    // wins). The identity FILTER still asks default_head_for_tool(), so it reads
-    // that same seed as a genuine remap and emits it. Emitting an explicit
-    // identity is harmless on a backend that applies mappings through
-    // set_tool_mapping(), which is why this has never bitten - but the two
-    // functions are answering different questions and only one of them knows the
-    // backend shape.
-    //
-    // Whoever reconciles this needs a backend-aware notion of "the firmware
-    // default map"; changing default_head_for_tool() alone would alter the
-    // Snapmaker U1 pre-print route, which is hardware-verified.
+TEST_CASE("use_current_assignments honours the backend's firmware routing",
+          "[filament_mapper][current_assignments][routing]") {
+    // The same file and the same lanes, seeded for two different AMS shapes.
+    // Before backends declared their own routing, a four-head constant decided
+    // this for every backend, so the lane-per-tool case below was simply wrong.
     std::vector<GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {5, 0x00FF00, "PLA"}};
     std::vector<AvailableSlot> slots;
     for (int i = 0; i < 8; ++i) {
         slots.push_back({i, 0, 0x111111u * static_cast<uint32_t>(i + 1), "PLA", false, -1});
     }
 
-    auto mappings = FilamentMapper::use_current_assignments(tools, slots);
-    REQUIRE(mappings.size() == 2);
-    CHECK(mappings[1].mapped_slot == 5); // seed: lane-per-tool
+    SECTION("lane-per-tool (AFC, Happy Hare): T5 owns lane 5") {
+        auto m = FilamentMapper::use_current_assignments(tools, slots,
+                                                         helix::FirmwareRouting::identity());
+        REQUIRE(m.size() == 2);
+        CHECK(m[0].mapped_slot == 0);
+        CHECK(m[1].mapped_slot == 5);
+    }
 
-    // filter: four-head semantics, so T5 -> lane 5 is NOT the identity it believes in
-    auto remap = FilamentMapper::identity_filtered_remap(mappings);
-    std::map<int, int> expected = {{5, 5}};
-    CHECK(remap == expected);
+    SECTION("fixed-head (Snapmaker U1): T5 falls to head 0") {
+        // The U1 has four heads and 32 logical tools; its live table reads
+        // [0,1,2,3,0,0,...], so T5 genuinely prints from head 0.
+        auto m = FilamentMapper::use_current_assignments(tools, slots,
+                                                         helix::FirmwareRouting::fixed_heads(4, 0));
+        REQUIRE(m.size() == 2);
+        CHECK(m[0].mapped_slot == 0);
+        CHECK(m[1].mapped_slot == 0);
+    }
+}
+
+TEST_CASE("identity_filtered_remap agrees with the seed under the same routing",
+          "[filament_mapper][remap][routing]") {
+    // These two functions used to disagree above tool 3: the seed said T5 owns
+    // lane 5, the filter said the firmware default for T5 was head 0 and so
+    // emitted the seed as a real remap. Sharing one routing makes agreement
+    // structural instead of something a test has to pin.
+    std::vector<GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {5, 0x00FF00, "PLA"}};
+    std::vector<AvailableSlot> slots;
+    for (int i = 0; i < 8; ++i) {
+        slots.push_back({i, 0, 0x111111u * static_cast<uint32_t>(i + 1), "PLA", false, -1});
+    }
+
+    SECTION("lane-per-tool: the seed IS the default, so nothing is emitted") {
+        auto routing = helix::FirmwareRouting::identity();
+        auto m = FilamentMapper::use_current_assignments(tools, slots, routing);
+        CHECK(FilamentMapper::identity_filtered_remap(m, routing).empty());
+    }
+
+    SECTION("fixed-head: a hand-placed T5 on lane 5 IS a real remap") {
+        auto routing = helix::FirmwareRouting::fixed_heads(4, 0);
+        std::vector<ToolMapping> m(2);
+        m[0].tool_index = 0;
+        m[0].mapped_slot = 0; // identity for this routing -> dropped
+        m[1].tool_index = 5;
+        m[1].mapped_slot = 5; // default head is 0, so this is a genuine remap
+        std::map<int, int> expected = {{5, 5}};
+        CHECK(FilamentMapper::identity_filtered_remap(m, routing) == expected);
+    }
 }
 
 // =============================================================================

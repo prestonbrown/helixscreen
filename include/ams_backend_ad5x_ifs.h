@@ -184,6 +184,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;
 
+    /// The lessWaste tool -> port table, converted to 0-based heads. Ports are
+    /// 1-based and 5 is the unmapped sentinel. Falls back to lane-per-tool when
+    /// no _IFS_VARS have been seen (native zMod never populates the table).
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
+
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
     [[nodiscard]] bool is_bypass_active() const override;

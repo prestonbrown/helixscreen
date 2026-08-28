@@ -1443,6 +1443,25 @@ void AmsBackendAd5xIfs::publish_external_spool_lane(const SlotInfo* spool) {
     helix::ams::publish_external_lane(override_store_.get(), NUM_PORTS, spool, backend_log_tag());
 }
 
+helix::FirmwareRouting AmsBackendAd5xIfs::firmware_default_routing() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Native zMod publishes no table at all. Reporting one full of -1 would
+    // strand every tool unresolved, so answer the majority shape instead.
+    if (!has_ifs_vars_) {
+        return helix::FirmwareRouting::identity();
+    }
+
+    helix::FirmwareRouting routing;
+    routing.head_for_tool.reserve(static_cast<size_t>(TOOL_MAP_SIZE));
+    for (int t = 0; t < TOOL_MAP_SIZE; ++t) {
+        const int port = tool_map_[static_cast<size_t>(t)]; // 1-based; 5 = unmapped
+        routing.head_for_tool.push_back(port >= 1 && port <= NUM_PORTS ? port - 1 : -1);
+    }
+    routing.fallback_head = -1; // tools past the table have no port
+    return routing;
+}
+
 AmsSystemInfo AmsBackendAd5xIfs::get_system_info() const {
     std::lock_guard<std::mutex> lock(mutex_);
 

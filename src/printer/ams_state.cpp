@@ -980,6 +980,14 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     return slots;
 }
 
+helix::FirmwareRouting AmsState::collect_firmware_routing() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (auto* backend = get_backend(0)) {
+        return backend->firmware_default_routing();
+    }
+    return helix::FirmwareRouting::identity();
+}
+
 bool AmsState::any_bypass_active() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     for (const auto& backend : backends_) {

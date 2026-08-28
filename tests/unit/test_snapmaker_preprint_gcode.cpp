@@ -137,7 +137,13 @@ TEST_CASE("get_effective_remap identity-filter drops identity + auto entries",
     // The production identity filter itself. get_effective_remap() is nothing but
     // effective_mappings() piped through this, so a change to the filter shows up
     // in these expectations instead of leaving a stale copy green.
-    auto effective_remap = &helix::FilamentMapper::identity_filtered_remap;
+    // The U1 is a FOUR-HEAD machine, so these expectations are stated under its
+    // own routing rather than whatever the parameter defaults to. Wrapped in a
+    // lambda because a default argument does not survive a function pointer.
+    const auto u1_routing = helix::FirmwareRouting::fixed_heads(4, 0);
+    auto effective_remap = [&u1_routing](const std::vector<helix::ToolMapping>& m) {
+        return helix::FilamentMapper::identity_filtered_remap(m, u1_routing);
+    };
 
     auto mk = [](int tool, int slot) {
         helix::ToolMapping m;
@@ -194,7 +200,13 @@ TEST_CASE("Snapmaker routing: real U1 4-color-ring auto match drives the extrude
     // get_effective_remap()'s identity filter, called rather than restated: it is
     // FilamentMapper::identity_filtered_remap(), the one the detail view applies
     // to effective_mappings() before handing the map to build_preprint_gcode().
-    auto effective_remap = &helix::FilamentMapper::identity_filtered_remap;
+    // The U1 is a FOUR-HEAD machine, so these expectations are stated under its
+    // own routing rather than whatever the parameter defaults to. Wrapped in a
+    // lambda because a default argument does not survive a function pointer.
+    const auto u1_routing = helix::FirmwareRouting::fixed_heads(4, 0);
+    auto effective_remap = [&u1_routing](const std::vector<helix::ToolMapping>& m) {
+        return helix::FilamentMapper::identity_filtered_remap(m, u1_routing);
+    };
 
     // Sliced per-tool colors (T0=white, T1=black, T2=yellow, T3=red), all PLA.
     std::vector<helix::GcodeToolInfo> tools = {

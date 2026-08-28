@@ -6,6 +6,7 @@
 #include "ui_swatch.h"
 #include "ui_utils.h"
 
+#include "ams_state.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -374,7 +375,8 @@ void FilamentMappingModal::recalculate_mappings() {
         mappings_ = helix::FilamentMapper::compute_defaults(tool_info_, slots_for_matching);
     } else {
         // Positional assignment (T0→slot 0, T1→slot 1, etc.)
-        mappings_ = helix::FilamentMapper::use_current_assignments(tool_info_, available_slots_);
+        mappings_ = helix::FilamentMapper::use_current_assignments(
+            tool_info_, available_slots_, AmsState::instance().collect_firmware_routing());
     }
 }
 

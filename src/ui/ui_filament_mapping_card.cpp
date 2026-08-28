@@ -137,7 +137,8 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
         mappings_ = helix::FilamentMapper::compute_defaults(tool_info_, slots_for_matching);
     } else {
         // Positional assignment (T0→slot 0, T1→slot 1, etc.)
-        mappings_ = helix::FilamentMapper::use_current_assignments(tool_info_, available_slots_);
+        mappings_ = helix::FilamentMapper::use_current_assignments(
+            tool_info_, available_slots_, AmsState::instance().collect_firmware_routing());
     }
 
     // Restrict to the tools the gcode actually uses. update() rebuilds from the

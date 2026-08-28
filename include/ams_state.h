@@ -314,6 +314,11 @@ class AmsState {
      */
     [[nodiscard]] std::vector<helix::AvailableSlot> collect_available_slots() const;
 
+    /// The primary backend's firmware DEFAULT tool -> head map, for the mapper.
+    /// Identity when no backend is present, which is also the majority shape.
+    /// NOT the live map - see AmsBackend::firmware_default_routing().
+    [[nodiscard]] helix::FirmwareRouting collect_firmware_routing() const;
+
     /**
      * @brief Whether ANY backend is currently feeding from its bypass / external
      *        spool instead of a slot.

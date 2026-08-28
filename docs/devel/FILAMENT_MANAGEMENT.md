@@ -2163,6 +2163,39 @@ enum class AmsType {
 
 Update `ams_type_to_string()`, `ams_type_from_string()`, and the `is_filament_system()` / `is_tool_changer()` helpers as appropriate.
 
+### 1b. Declare the firmware default routing (only if it is not lane-per-tool)
+
+`AmsBackend::firmware_default_routing()` answers which physical head a logical
+tool routes to with **no remap applied** - the firmware's own default map. The
+base implementation is lane-per-tool (tool N owns lane N), which is correct for
+AFC, Happy Hare, klipper-toolchanger, CFS, QIDI and ACE, so most backends
+override nothing.
+
+Override only when the hardware genuinely disagrees:
+
+```cpp
+// Snapmaker U1: four physical heads, up to 32 logical tools -> [0,1,2,3,0,0,...]
+[[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override {
+    return helix::FirmwareRouting::fixed_heads(NUM_TOOLS, 0);
+}
+```
+
+`AmsBackendAd5xIfs` is the third shape: it publishes an arbitrary 16-entry
+tool -> port table, so it builds `FirmwareRouting::head_for_tool` directly (ports
+are 1-based there and `5` is the unmapped sentinel).
+
+**This is not the live map.** `AmsSystemInfo::tool_to_slot_map` carries what the
+firmware is doing right now, and it is not uniformly available - an AFC tracks it,
+a U1 freezes `mapped_tool` at 1:1 while its real map lives in
+`print_task_config.extruder_map_table`. Seeding from the live map therefore means
+different things per backend; seed from the default map instead.
+
+Three consumers read this and they must all agree: the mapping-card seed
+(`FilamentMapper::use_current_assignments`), the wire filter
+(`FilamentMapper::identity_filtered_remap`), and the runout lane scan
+(`FilamentSensorManager`). Answering them differently is a silent bug - a
+lane-per-tool identity read as a genuine remap, or a runout watch on lane 0.
+
 ### 2. Add Detection in PrinterDiscovery
 
 In `printer_discovery.h`, add detection logic in `parse_objects()`:

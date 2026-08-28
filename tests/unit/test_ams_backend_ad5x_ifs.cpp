@@ -10544,3 +10544,45 @@ TEST_CASE("AD5X IFS overrides the eligibility rule with type+colour+presence",
                 helix::printer::BackupEligibility::Incompatible);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Firmware default routing
+//
+// The AD5X is the one backend whose default map is neither identity nor a
+// bounded-head table: lessWaste publishes an arbitrary 16-entry tool -> port
+// map that the user can rearrange. Ports are 1-BASED and 5 is the unmapped
+// sentinel, so the conversion to 0-based heads is the obvious place to get an
+// off-by-one, which is why it is pinned with a deliberately non-identity map.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("AD5X publishes its tool->port map as the firmware default routing",
+          "[ams][ad5x][routing]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
+    auto vars = standard_variables();
+    // T0->port3, T1->port1, T2->port4, T3->port2, everything else unmapped (5).
+    vars["less_waste_tools"] = json::array({3, 1, 4, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
+    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(vars));
+
+    auto routing = backend.firmware_default_routing();
+
+    CHECK(routing.head(0) == 2);   // port 3 -> head 2
+    CHECK(routing.head(1) == 0);   // port 1 -> head 0
+    CHECK(routing.head(2) == 3);   // port 4 -> head 3
+    CHECK(routing.head(3) == 1);   // port 2 -> head 1
+    CHECK(routing.head(4) == -1);  // sentinel 5 = unmapped, NOT port 4
+    CHECK(routing.head(15) == -1); // last table entry, still unmapped
+    CHECK(routing.head(16) == -1); // past the table
+}
+
+TEST_CASE("AD5X without IFS vars falls back to lane-per-tool", "[ams][ad5x][routing]") {
+    // Native zMod never populates tool_map_ (has_ifs_vars_ stays false). Answering
+    // an all-unmapped table there would strand every tool as AUTO, so the backend
+    // must fall back rather than publish a table it does not have.
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    auto routing = backend.firmware_default_routing();
+
+    CHECK(routing.head(0) == 0);
+    CHECK(routing.head(3) == 3);
+}

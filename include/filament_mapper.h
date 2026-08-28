@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "firmware_routing.h"
+
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -106,17 +108,17 @@ class FilamentMapper {
                                            const std::vector<AvailableSlot>& slots);
 
     /// Seed each tool to the head the firmware would route it to anyway, i.e.
-    /// default_head_for_tool(). A tool whose head is not among @p slots becomes
-    /// AUTO (unmapped). Used when the auto-color-map preference is OFF.
+    /// @p routing.head(tool). A tool whose head is not among @p slots, or which
+    /// the routing leaves unmapped, becomes AUTO. Used when auto-color-map is OFF.
     ///
     /// Pairs on the tool's own head, NOT its position in @p tools. The two agree
     /// only for a dense tool set; a sparse one (T0 and T2, no T1) walks the slot
     /// list densely under index pairing and lands T2 on lane 1, which
     /// identity_filtered_remap() then emits as a real remap because it is not
     /// the firmware identity.
-    static std::vector<ToolMapping>
-    use_current_assignments(const std::vector<GcodeToolInfo>& tools,
-                            const std::vector<AvailableSlot>& slots);
+    static std::vector<ToolMapping> use_current_assignments(const std::vector<GcodeToolInfo>& tools,
+                                                            const std::vector<AvailableSlot>& slots,
+                                                            const FirmwareRouting& routing = {});
 
     /// Find tool indices that have no resolved mapping (auto with no match).
     /// These are the tools that would trigger a color mismatch warning.
@@ -139,7 +141,8 @@ class FilamentMapper {
     /// passes the resolved bool).
     static std::vector<ToolMapping> effective_mappings(const std::vector<GcodeToolInfo>& tools,
                                                        const std::vector<AvailableSlot>& slots,
-                                                       bool auto_color_map);
+                                                       bool auto_color_map,
+                                                       const FirmwareRouting& routing = {});
 
     /// Render convenience: effective_mappings + resolve_display_colors, scattered
     /// into a DENSE vector indexed by logical tool number (size = max
@@ -241,22 +244,19 @@ class FilamentMapper {
     /// Case-insensitive material comparison
     static bool materials_match(const std::string& a, const std::string& b);
 
-    /// Firmware-default physical head a logical tool routes to with no remap.
-    ///
-    /// Tools 0..3 map to their identity head; anything else (extended tools on a
-    /// toolchanger, 4..31 on the Snapmaker U1) falls back to head 0, matching the
-    /// firmware default map [0,1,2,3,0,0,...].
-    static int default_head_for_tool(int tool);
-
     /// The genuine remaps in @p mappings, keyed tool -> physical head.
     ///
     /// Identity mappings are omitted: the firmware already routes a tool to
-    /// default_head_for_tool(tool), so emitting them would be noise. Entries with
-    /// no real slot assignment (mapped_slot < 0) are skipped.
+    /// @p routing.head(tool), so emitting them would be noise. Entries with no
+    /// real slot assignment (mapped_slot < 0) are skipped.
+    ///
+    /// @p routing MUST be the same map the seed used, or a lane-per-tool
+    /// identity reads as a genuine remap and gets emitted.
     ///
     /// Single source of truth for PrintSelectDetailView::get_effective_remap()
     /// and the preprint-gcode builders, which used to each carry their own copy.
-    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings);
+    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings,
+                                                      const FirmwareRouting& routing = {});
 
     /// Format a slot label: "Turtle 1 · Slot 2: PLA" or "Slot 2: PLA"
     static std::string format_slot_label(const AvailableSlot& slot);
