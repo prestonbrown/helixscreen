@@ -7,14 +7,13 @@ namespace helix::ui {
 ControlButtonView compute_control_button_view(const ControlButtonInputs& in) {
     ControlButtonView v;
 
-    // RAW_PRINT_STATE_OK: this must EXCLUDE Preparing. Widening it to
-    // job_holds_machine() re-enables Pause during a pre-print block and makes
-    // Stop send CANCEL_PRINT to a printer holding no job.
+    // This must EXCLUDE Preparing. Widening it to job_holds_machine() re-enables
+    // Pause during a pre-print block and makes Stop send CANCEL_PRINT to a
+    // printer holding no job.
     //
     // The printer owns the job only once it reports running or paused. During a
     // host-side pre-start block it still describes the PREVIOUS job.
-    const bool printer_has_the_job = (in.job_state == helix::PrintJobState::PRINTING ||
-                                      in.job_state == helix::PrintJobState::PAUSED);
+    const bool printer_has_the_job = helix::printer_has_job(in.job_state);
     const bool preparing = (in.lifecycle == PrintState::Preparing);
 
     // Stop routes host-side exactly when we hold a job the printer has not

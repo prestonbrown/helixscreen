@@ -827,12 +827,17 @@ FilamentSensorManager::find_empty_required_lanes(const std::set<int>& tools_used
     return scan.empty_lanes;
 }
 
-// RAW_PRINT_STATE_OK: the badge is scoped to the tools the RUNNING file uses.
-// During a preparing window get_tools_used() still describes the previous job, so
-// widening this to job_holds_machine() would scope the badge to the wrong file
-// instead of hiding it. Deliberately narrower than the lifecycle's is_active().
+// The badge is scoped to the tools the RUNNING file uses. During a preparing
+// window get_tools_used() still describes the previous job, so widening this to
+// job_holds_machine() would scope the badge to the wrong file instead of hiding
+// it. Deliberately narrower than the lifecycle's is_active().
+//
+// Kept as its own name because the QUESTION is about get_tools_used()'s
+// freshness, not about who owns the toolhead; the two are coextensional today
+// and could legitimately diverge. Sharing the boolean means they cannot drift by
+// accident, only on purpose.
 bool print_scopes_runout_badge(PrintJobState state) {
-    return state == PrintJobState::PRINTING || state == PrintJobState::PAUSED;
+    return printer_has_job(state);
 }
 
 int FilamentSensorManager::compute_scoped_runout_value(const std::set<int>& tools_used,
