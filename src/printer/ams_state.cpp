@@ -993,6 +993,18 @@ bool AmsState::effective_auto_match() const {
     bool user_choice_honored = false;
     if (auto* backend = get_backend(0)) {
         user_choice_honored = backend->honors_user_tool_mapping();
+
+        // HOLD — kPreprintSeedFollowsUserSetting (ams_state.h) carries the full
+        // reasoning and the hardware evidence that would lift it. A backend that
+        // reports editable=false can only have answered true through its
+        // pre-print send, so this is exactly the case being held, and putting it
+        // back leaves the U1 seeding as it does today. The predicate itself is
+        // untouched: it is still the one rule the print-start warning shares, and
+        // gating it there would resurrect a false toast on the U1.
+        if (!kPreprintSeedFollowsUserSetting &&
+            !backend->get_tool_mapping_capabilities().editable) {
+            user_choice_honored = false;
+        }
     }
     return !user_choice_honored || helix::SettingsManager::instance().get_auto_color_map();
 }

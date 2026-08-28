@@ -27,6 +27,12 @@
  * ignored it. Pinning auto-match on there also means the U1 is the one backend
  * whose print routing gets rewritten by color proximity with no way to say no.
  *
+ * The SEED half of that is deliberately still held — see
+ * helix::kPreprintSeedFollowsUserSetting — so merging does not change what a U1
+ * does before hardware confirms it. The cases below therefore split: the
+ * predicate is asserted on AmsBackend directly, and effective_auto_match() is
+ * asserted in its held state.
+ *
  * Neither call site had a test. The two implementations were byte-identical
  * bodies in different files, so a change to the rule in one silently left the
  * other on the old behaviour — the detail view's swatches would promise a lane
@@ -169,45 +175,71 @@ TEST_CASE_METHOD(AutoMatchFixture,
 }
 
 TEST_CASE_METHOD(AutoMatchFixture,
-                 "PrintSelectDetailView::effective_auto_match: a pre-print-send backend honors the "
-                 "setting even though its card is not editable",
+                 "AmsBackend::honors_user_tool_mapping: the pre-print route counts",
+                 "[auto_match][ams][snapmaker]") {
+    // The machinery, asserted where it is NOT held (see the seed case below).
+    // The Snapmaker U1's mapping card really is non-editable — its remap goes out
+    // through build_preprint_gcode(), not set_tool_mapping() — and it honors
+    // every pick the user makes anyway. A predicate that reads caps.editable and
+    // stops says the opposite of the truth about it, which is what produced a
+    // stale "remap not supported" toast on a printer that was honoring the remap.
+    //
+    // Stated as the discrimination the rule has to make: two backends that BOTH
+    // report editable=false must answer DIFFERENTLY.
+    auto* preprint = install_backend(Shape::PreprintOnly);
+    REQUIRE(preprint->honors_user_tool_mapping());
+
+    auto* neither = install_backend(Shape::NeitherRoute);
+    REQUIRE_FALSE(neither->honors_user_tool_mapping());
+
+    auto* editable = install_backend(Shape::Editable);
+    REQUIRE(editable->honors_user_tool_mapping());
+}
+
+TEST_CASE_METHOD(AutoMatchFixture,
+                 "PrintSelectDetailView::effective_auto_match: the pre-print SEED is held at "
+                 "auto-match pending hardware",
                  "[auto_match][print_select][detail_view][ams][snapmaker]") {
-    // The Snapmaker U1. Its mapping card really is non-editable — the remap goes
-    // out through build_preprint_gcode(), not set_tool_mapping() — but the user
-    // still reaches the shared picker (swatch-card tap) and the toggle in it is
-    // the same persisted setting. Keying the rule on editability alone made that
-    // toggle a dead control here, and forced color-proximity rerouting of the
-    // print with no way to decline it.
+    // The deliberate hold, pinned so it cannot lapse silently in either
+    // direction. helix::kPreprintSeedFollowsUserSetting is false, so a
+    // pre-print-send backend still seeds by color match regardless of the
+    // persisted preference — byte-for-byte what the U1 did before this branch,
+    // which is the point: merging must not change what the printer does until a
+    // two-color print on real hardware says it should.
+    //
+    // The case above proves the machinery is present and correct; this one
+    // proves it is not yet wired to the seed. When the constant flips, THIS is
+    // the test that must be inverted, and its failure is the reminder.
+    static_assert(!helix::kPreprintSeedFollowsUserSetting,
+                  "kPreprintSeedFollowsUserSetting flipped: invert this case — a pre-print "
+                  "backend should now follow the persisted setting like any editable one.");
+
     helix::ui::PrintSelectDetailView view;
     install_backend(Shape::PreprintOnly);
 
     set_auto_color_map(false);
-    CHECK_FALSE(view.effective_auto_match());
+    CHECK(view.effective_auto_match()); // held: still auto-matches
 
     set_auto_color_map(true);
     CHECK(view.effective_auto_match());
 }
 
 TEST_CASE_METHOD(AutoMatchFixture,
-                 "PrintSelectDetailView::effective_auto_match: editability alone does not decide",
+                 "PrintSelectDetailView::effective_auto_match: the hold is scoped to the "
+                 "pre-print route only",
                  "[auto_match][print_select][detail_view][ams]") {
-    // The regression guard for the rule itself, stated as the discrimination it
-    // has to make: two backends that BOTH report editable=false must answer
-    // DIFFERENTLY, because only one of them can honor the user's choice. A
-    // predicate that reads caps.editable and stops cannot pass this.
-    set_auto_color_map(false);
-
+    // The hold must not spill onto editable backends — they have followed the
+    // setting all along and nothing about this branch may change that. A hold
+    // written one level up (inside honors_user_tool_mapping, or as a blanket
+    // pin) would fail here.
     helix::ui::PrintSelectDetailView view;
+    install_backend(Shape::Editable);
 
-    install_backend(Shape::PreprintOnly);
-    const bool preprint_answer = view.effective_auto_match();
+    set_auto_color_map(false);
+    CHECK_FALSE(view.effective_auto_match());
 
-    install_backend(Shape::NeitherRoute);
-    const bool neither_answer = view.effective_auto_match();
-
-    CHECK(preprint_answer != neither_answer);
-    CHECK_FALSE(preprint_answer); // the pre-print backend defers to the user
-    CHECK(neither_answer);        // the other has no user choice to defer to
+    set_auto_color_map(true);
+    CHECK(view.effective_auto_match());
 }
 
 TEST_CASE_METHOD(AutoMatchFixture,

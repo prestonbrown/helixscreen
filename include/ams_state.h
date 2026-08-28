@@ -51,6 +51,43 @@ class PrinterDiscovery;
  * All public methods are thread-safe. Subject updates are posted
  * to LVGL's thread via lv_async_call when called from background threads.
  */
+/**
+ * @brief Does a pre-print-send backend's SEED follow the persisted auto-color
+ *        preference? HELD AT false pending hardware verification.
+ *
+ * The Snapmaker U1 carries a user's tool->lane pick only through its
+ * firmware-native pre-print send, so AmsBackend::honors_user_tool_mapping()
+ * correctly reports that it CAN honor one. Letting that decide the seed as well
+ * changes what the U1 does with a file the user never remapped: today it always
+ * color-matches, and following the setting would seed positionally instead,
+ * because the persisted default is false. On a tool changer positional is the
+ * slicer's own intent and FilamentMapper::identity_filtered_remap() drops it to
+ * an empty map, so nothing is sent — which is why it is the intended end state.
+ *
+ * It is held because no hardware has confirmed it. Flipping a default that
+ * silently re-routes a multi-tool print is not something to ship on a mock.
+ *
+ * TO SHIP IT: set this to true. Nothing else changes — the positional path, the
+ * shared predicate and the picker are already in place and exercised; this
+ * constant only decides whether the seed consults the setting or pins to
+ * auto-match.
+ *
+ * EVIDENCE THAT WOULD JUSTIFY THE FLIP: a two-color print on a real U1 whose
+ * lanes are inverted relative to the file (e.g. calicat_PLA_37m55s.gcode, T0 red
+ * / T2 black, slot 0 black / slot 2 red). With the flip in place and the user
+ * making no pick, the print must come out matching the SLICED colors — body red,
+ * tail black — and the log must show SET_PRINT_EXTRUDER_MAP lines consistent
+ * with what the picker displayed. A single-color result means the routing never
+ * reached the wire and the flip must stay down.
+ *
+ * Does NOT gate PrintStartController::should_warn_remap_unsupported(), which has
+ * always counted the pre-print route and must keep doing so — gating it there
+ * would resurrect a false "remap not supported" toast on the U1.
+ */
+namespace helix {
+inline constexpr bool kPreprintSeedFollowsUserSetting = false;
+} // namespace helix
+
 class AmsState {
   public:
     /**
