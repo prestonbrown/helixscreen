@@ -1537,6 +1537,50 @@ echo ""
 }
 
 # ====================================================================
+# Namespace: HelixScreen declarations live under helix::
+# ====================================================================
+qc_namespace() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "📛 Checking namespace compliance (declarations outside helix::)..."
+
+if [ -f "scripts/check_namespace_compliance.py" ]; then
+  # Ratcheting baseline. docs/devel/DEVELOPMENT.md § Namespace organization says all
+  # HelixScreen code lives under helix::. The rule was written, never gated, and a
+  # third of the tree drifted out from under it (#1370). The drift runs along
+  # subsystem lines rather than by age — every ams_backend_*, every ui_panel_*,
+  # every display/wifi/usb/sound backend is global — so those areas keep taking new
+  # global-scope declarations by local precedent unless something says no.
+  # The number may go DOWN (move a declaration under helix::, then lower this
+  # baseline) but must never go up. extern "C", file-local statics in .cpp, and
+  # forward declarations of third-party types are structural and never counted.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2296 --summary >/tmp/namespace_check.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/namespace_check.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/namespace_check.out
+    echo "   Declare new types under helix:: (or a helix:: sub-namespace)."
+    echo "   Genuinely-global sites take \`// NAMESPACE_OK: <reason>\`."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_namespace_compliance.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: see the note on qc_decl_ui — bats extracts a section body by
+#  awk-ing to the next '# ====' banner, so the body needs one after it.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Declarative UI: no XML-owned widget driven imperatively from C++
 # ====================================================================
 qc_decl_ui() {
@@ -2619,7 +2663,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2644,7 +2688,7 @@ qc_trigger_re() {
     qc_icon_font|qc_mdi_codepoints)
                         echo '\.xml$|icon|font' ;;
     qc_hidden_tests)    echo '^tests/|\.(cpp|h)$' ;;
-    qc_mem_safety|qc_null_safety|qc_l081|qc_net_pii|qc_decl_ui|qc_spdlog_only)
+    qc_mem_safety|qc_null_safety|qc_l081|qc_net_pii|qc_decl_ui|qc_namespace|qc_spdlog_only)
                         echo '\.(cpp|c|h|mm)$' ;;
     qc_design_tokens)   echo '\.(cpp|h|xml)$' ;;
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;

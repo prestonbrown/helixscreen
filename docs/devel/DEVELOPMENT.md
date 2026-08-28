@@ -409,6 +409,11 @@ void ui_panel_motion_init(lv_obj_t* parent);
 helpers in `helix::ui::`, sensor managers in `helix::sensors`):
 - No `using` declarations in headers — always fully-qualified names in `.h`
   files; `using namespace helix;` is acceptable in `.cpp` files only
+- Gated by `scripts/check_namespace_compliance.py` (ratcheting baseline, run from
+  `quality-checks.sh`). It counts declarations outside `helix::`, not files, and
+  never counts `extern "C"`, file-local statics in `.cpp`, or forward declarations
+  of third-party types. A genuinely-global site takes `// NAMESPACE_OK: <reason>`.
+  The baseline may fall, never rise — see prestonbrown/helixscreen#1370
 - Enums are `enum class` within `helix::` (e.g., `helix::PanelId`, `helix::PrintState`)
 - JSON forward declarations come from `#include "json_fwd.h"`
 
