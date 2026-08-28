@@ -686,10 +686,82 @@ jobs:
         retention-days: 14
 
   # ===========================================================================
+  test-quality-gates:
+    name: Test Quality Gates
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        # Sharded by source file. One process per test file over ~950 files is
+        # hours on a single 2-core runner, and the work is independent per file.
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install runtime deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libfmt-dev libcairo2 libpango-1.0-0 libpng16-16 libjpeg8 libnl-3-200 libnl-genl-3-200
+
+    - name: Download build
+      uses: actions/download-artifact@v8
+      with:
+        name: nightly-build
+        path: build/bin/
+
+    - name: Fix permissions
+      run: chmod +x build/bin/helix-screen build/bin/helix-tests
+
+    # --out is not optional. Tests that shell out print ANSI status to stdout,
+    # and with the report on stdout too the XML comes back complete but
+    # unparseable. The `|| true` is deliberate: a red suite is test-all's job to
+    # report, and these gates still have something to say about the report.
+    - name: Produce the shared suite report
+      timeout-minutes: 25
+      run: |
+        # ~[subprocess] and ~[socket_discovery] fork; the child shares the
+        # report file description and its writes interleave with the XML,
+        # producing a structurally corrupt report. See mk/tests.mk.
+        ./build/bin/helix-tests "~[.]~[slow]~[subprocess]~[socket_discovery]" \
+          --reporter xml --success \
+          --out build/suite-report.xml > /dev/null 2>&1 || true
+        test -s build/suite-report.xml
+
+    # Cheap, and identical on every shard - only worth running once.
+    - name: Assertions that cannot fail
+      if: matrix.shard == 0
+      run: |
+        python3 scripts/check_vacuous_tests.py build/suite-report.xml \
+          --max-allowed 52
+
+    - name: Tests that pass only because of what ran before them
+      timeout-minutes: 45
+      run: |
+        python3 scripts/check_test_order_dependence.py build/suite-report.xml \
+          --jobs "$(nproc)" --shard-count 8 --shard-index ${{ matrix.shard }} \
+          --list --max-allowed 0
+
+    - name: Upload suite report on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: suite-report-shard-${{ matrix.shard }}
+        path: build/suite-report.xml
+        retention-days: 7
+
   nightly-status:
     name: Nightly Status
     runs-on: ubuntu-latest
-    needs: [test-all, test-eventloop, test-shell, test-asan, test-tsan, test-python, test-macos, test-unsharded-leaks]
+    needs: [test-all, test-eventloop, test-shell, test-asan, test-tsan, test-python, test-macos, test-unsharded-leaks, test-quality-gates]
     if: always()
 
     steps:
@@ -704,10 +776,11 @@ jobs:
         echo "Python:           ${{ needs.test-python.result }}"
         echo "macOS (build):    ${{ needs.test-macos.result }}"
         echo "Unsharded+leaks:  ${{ needs.test-unsharded-leaks.result }}"
+        echo "Test quality:     ${{ needs.test-quality-gates.result }}"
         echo "==========================="
 
         FAILED=0
-        for job in test-all test-eventloop test-shell test-asan test-tsan test-python test-macos test-unsharded-leaks; do
+        for job in test-all test-eventloop test-shell test-asan test-tsan test-python test-macos test-unsharded-leaks test-quality-gates; do
           result="${{ needs[job].result }}" 2>/dev/null || result="unknown"
         done
 
@@ -718,7 +791,8 @@ jobs:
            [ "${{ needs.test-tsan.result }}" != "success" ] || \
            [ "${{ needs.test-python.result }}" != "success" ] || \
            [ "${{ needs.test-macos.result }}" != "success" ] || \
-           [ "${{ needs.test-unsharded-leaks.result }}" != "success" ]; then
+           [ "${{ needs.test-unsharded-leaks.result }}" != "success" ] || \
+           [ "${{ needs.test-quality-gates.result }}" != "success" ]; then
           echo "::error::Nightly test suite had failures!"
           exit 1
         fi

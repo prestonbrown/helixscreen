@@ -1,0 +1,15 @@
+# Source files the test suite CANNOT execute, with the reason.
+#
+# Read by scripts/cov_diff.py and scripts/mutate_diff.py. A file listed here is
+# reported as excluded-with-a-reason rather than as uncovered or as a surviving
+# mutant, because neither tool can say anything true about it.
+#
+# This list is not a place to park inconvenient results. The bar is that the
+# suite is PHYSICALLY unable to run the code -- no headless path, no device --
+# not that covering it would be hard or that nobody has got to it. Anything that
+# could be tested belongs in the ratchets (prestonbrown/helixscreen#1375), where
+# it stays visible.
+#
+# Format: <path prefix>  # reason
+
+src/rendering/gcode_gles_renderer.cpp  # GLES needs a real GL context; cannot run headless, so the suite can neither cover nor mutate it

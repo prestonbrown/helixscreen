@@ -994,9 +994,14 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     mock.stop_temperature_simulation();
 
     int final_count = total_notifications.load();
-    // Should have received notifications, but from only 3 active subscriptions
-    // The exact count depends on simulation timing, but should be > 0
-    REQUIRE(final_count >= 0);
+    // Should have received notifications, but from only 3 active subscriptions.
+    // The exact count depends on simulation timing; that it is non-zero does
+    // not. The assertion was `>= 0`, which an int can never fail.
+    //
+    // This is now a real ordering assertion where it used to be decoration. If
+    // it ever flakes, that is a finding about subscription-cancel timing - do
+    // not weaken it back to `>= 0`.
+    REQUIRE(final_count > 0);
 
     // Force reconnect - note: mock doesn't store callbacks, so reconnect won't
     // re-invoke on_connected or re-dispatch initial state. This is a mock limitation.

@@ -150,10 +150,11 @@ TEST_CASE("ThumbnailCache size management", "[assets][cache]") {
         cache.set_max_size(original);
     }
 
-    SECTION("get_cache_size returns zero or positive") {
-        // May be zero if cache is empty, or positive if files exist
-        size_t size = cache.get_cache_size();
-        REQUIRE(size >= 0); // Always true for size_t, but documents intent
+    SECTION("get_cache_size stays within the configured maximum") {
+        // Was `size >= 0`, which is always true for size_t - it documented an
+        // intent the compiler could not check and the test could not fail on.
+        // The bound is the invariant actually worth pinning.
+        REQUIRE(cache.get_cache_size() <= cache.get_max_size());
     }
 }
 
