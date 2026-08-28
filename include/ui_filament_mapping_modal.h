@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+class FilamentMappingModalTestAccess;
+
 namespace helix::ui {
 
 /**
@@ -48,6 +50,8 @@ class FilamentMappingModal : public Modal {
     void on_cancel() override;
 
   private:
+    friend class ::FilamentMappingModalTestAccess;
+
     void rebuild_rows();
     lv_obj_t* create_tool_row(int tool_index);
     void on_row_tapped(int tool_index);
@@ -69,6 +73,14 @@ class FilamentMappingModal : public Modal {
     std::vector<helix::ToolMapping> original_mappings_;
     MappingsUpdatedCallback on_updated_cb_;
     bool auto_color_map_ = false;
+    /// The persisted preference as it stood when the modal opened.
+    ///
+    /// on_toggle_changed() writes SettingsManager straight through, because the
+    /// rows have to rebuild in the new mode immediately. That makes the write a
+    /// side effect of LOOKING, so Cancel has to undo it — the snapshot is taken
+    /// in on_show() alongside original_mappings_, and the two are restored
+    /// together.
+    bool original_auto_color_map_ = false;
 
     // UI
     lv_obj_t* tool_list_ = nullptr;
