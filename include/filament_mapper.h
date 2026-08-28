@@ -105,9 +105,15 @@ class FilamentMapper {
                                            const std::string& target_material,
                                            const std::vector<AvailableSlot>& slots);
 
-    /// Map tools using only current firmware assignments.
-    /// Tools with no firmware assignment become AUTO (unmapped).
-    /// Used when "keep current assignments" setting is enabled.
+    /// Seed each tool to the head the firmware would route it to anyway, i.e.
+    /// default_head_for_tool(). A tool whose head is not among @p slots becomes
+    /// AUTO (unmapped). Used when the auto-color-map preference is OFF.
+    ///
+    /// Pairs on the tool's own head, NOT its position in @p tools. The two agree
+    /// only for a dense tool set; a sparse one (T0 and T2, no T1) walks the slot
+    /// list densely under index pairing and lands T2 on lane 1, which
+    /// identity_filtered_remap() then emits as a real remap because it is not
+    /// the firmware identity.
     static std::vector<ToolMapping>
     use_current_assignments(const std::vector<GcodeToolInfo>& tools,
                             const std::vector<AvailableSlot>& slots);

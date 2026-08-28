@@ -577,6 +577,43 @@ TEST_CASE("FilamentMapper use_current_assignments", "[filament_mapper][current_a
         CHECK(mappings[2].reason == ToolMapping::MatchReason::AUTO);
     }
 
+    SECTION("a sparse tool set pairs each tool with its own head, not the list index") {
+        // The U1 case (calicat_PLA_37m55s.gcode): the file uses T0 and T2 only.
+        // Pairing the i-th used tool with slots[i] walks the slot list densely,
+        // so T2 — the second USED tool — lands on lane 1 instead of lane 2. That
+        // is a remap the user never asked for, and because it is not the
+        // firmware default identity_filtered_remap() emits it, sending the
+        // print to a lane holding the wrong filament.
+        //
+        // Positional means "each tool keeps its own head". Only a dense tool
+        // set makes index-pairing and head-pairing agree, and every other case
+        // here is dense, which is why this went unnoticed.
+        std::vector<GcodeToolInfo> tools = {
+            {0, 0xFF0000, "PLA"}, // red   — the file's body
+            {2, 0x000000, "PLA"}, // black — the file's tail
+        };
+        std::vector<AvailableSlot> slots = {
+            {0, 0, 0x080A0D, "PLA", false, -1}, // lane 0 — black
+            {1, 0, 0xE2DEDB, "PLA", false, -1}, // lane 1 — off-white
+            {2, 0, 0xE72F1D, "PLA", false, -1}, // lane 2 — red
+            {3, 0, 0xF4C032, "PLA", false, -1}, // lane 3 — yellow
+        };
+
+        auto mappings = FilamentMapper::use_current_assignments(tools, slots);
+
+        REQUIRE(mappings.size() == 2);
+
+        CHECK(mappings[0].tool_index == 0);
+        CHECK(mappings[0].mapped_slot == 0);
+
+        CHECK(mappings[1].tool_index == 2);
+        CHECK(mappings[1].mapped_slot == 2); // NOT 1
+
+        // And the whole point: a positional map is the firmware default, so
+        // nothing goes out on the wire.
+        CHECK(FilamentMapper::identity_filtered_remap(mappings).empty());
+    }
+
     SECTION("detects material mismatches") {
         std::vector<GcodeToolInfo> tools = {
             {0, 0xFF0000, "PLA"},

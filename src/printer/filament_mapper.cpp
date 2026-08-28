@@ -495,20 +495,35 @@ FilamentMapper::use_current_assignments(const std::vector<GcodeToolInfo>& tools,
     std::vector<ToolMapping> mappings;
     mappings.reserve(tools.size());
 
-    // Positional assignment: T0→first slot, T1→second slot, etc.
-    // No color matching, no rearranging — just use slots in order.
-    for (size_t i = 0; i < tools.size(); ++i) {
+    // Positional assignment: every tool keeps the head the firmware would route
+    // it to on its own. No color matching, no rearranging.
+    //
+    // Pair on the tool's default head, NOT its position in the used-tool list.
+    // The two agree only for a dense tool set; a file using a sparse one (T0 and
+    // T2, no T1) walks the slot list densely under index pairing and lands T2 on
+    // lane 1. That is a remap the user never asked for, and since it is not the
+    // firmware identity, identity_filtered_remap() emits it and sends the print
+    // to a lane holding the wrong filament.
+    for (const auto& tool : tools) {
         ToolMapping mapping;
-        mapping.tool_index = tools[i].tool_index;
+        mapping.tool_index = tool.tool_index;
 
-        if (i < slots.size()) {
-            const auto& slot = slots[i];
-            mapping.mapped_slot = slot.slot_index;
-            mapping.mapped_backend = slot.backend_index;
+        const int head = default_head_for_tool(tool.tool_index);
+        const AvailableSlot* slot = nullptr;
+        for (const auto& candidate : slots) {
+            if (candidate.slot_index == head) {
+                slot = &candidate;
+                break;
+            }
+        }
+
+        if (slot) {
+            mapping.mapped_slot = slot->slot_index;
+            mapping.mapped_backend = slot->backend_index;
             mapping.reason = ToolMapping::MatchReason::FIRMWARE_MAPPING;
 
-            if (!tools[i].material.empty() && !slot.material.empty() &&
-                !materials_match(tools[i].material, slot.material)) {
+            if (!tool.material.empty() && !slot->material.empty() &&
+                !materials_match(tool.material, slot->material)) {
                 mapping.material_mismatch = true;
             }
         } else {
