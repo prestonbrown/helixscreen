@@ -129,21 +129,42 @@ EOF
 
 # --- Patch content verification ---
 
-@test "patch_forgex_screen_drawing patches draw_splash case" {
-    grep -A30 'patch_forgex_screen_drawing' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'draw_splash'
+# The draw-command list lives in FORGEX_DRAW_COMMANDS rather than inline in the
+# patch function, because which commands exist is per-firmware: 1.4.0/1.4.1 have
+# draw_loading + draw_splash + boot_message, and 1.4.2 drops the first and third
+# and adds splash_start. Assert the declaration, not a fixed window after the
+# function - see the note above assert_consults_flag.
+forgex_draw_commands_decl() {
+    grep '^FORGEX_DRAW_COMMANDS=' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh"
 }
 
-@test "patch_forgex_screen_drawing patches draw_loading case" {
-    grep -A20 'patch_forgex_screen_drawing' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'draw_loading'
+@test "FORGEX_DRAW_COMMANDS covers the 1.4.0/1.4.1 draw commands" {
+    local decl
+    decl=$(forgex_draw_commands_decl)
+    [ -n "$decl" ] || fail "FORGEX_DRAW_COMMANDS is not declared"
+    printf '%s\n' "$decl" | grep -q 'draw_splash'  || fail "draw_splash missing"
+    printf '%s\n' "$decl" | grep -q 'draw_loading' || fail "draw_loading missing"
+    printf '%s\n' "$decl" | grep -q 'boot_message' || fail "boot_message missing"
 }
 
-@test "patch_forgex_screen_drawing patches boot_message case" {
-    grep -A20 'patch_forgex_screen_drawing' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'boot_message'
+@test "FORGEX_DRAW_COMMANDS covers the 1.4.2 splash entry point" {
+    # S00init runs `screen.sh splash_start`, which owns /dev/fb0 for the boot.
+    forgex_draw_commands_decl | grep -q 'splash_start' || fail "splash_start missing"
 }
 
-@test "patch_forgex_screen_drawing verifies output" {
-    # Must check that the patch was actually applied, not just that the file is non-empty
-    grep -A40 '^patch_forgex_screen_drawing()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q "grep.*helixscreen_active"
+@test "FORGEX_DRAW_COMMANDS does not block splash_stop" {
+    # Guarding splash_stop would strand the splash process on screen forever.
+    refute_sh "grep '^FORGEX_DRAW_COMMANDS=' '$WORKTREE_ROOT/scripts/lib/installer/forgex.sh' | grep -q splash_stop"
+}
+
+@test "patch_forgex_screen_drawing verifies every command it set out to guard" {
+    # A whole-file grep for helixscreen_active cannot do this: one successful
+    # insertion would vouch for every label that silently failed to match.
+    local body
+    body=$(awk '/^patch_forgex_screen_drawing\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    [ -n "$body" ] || fail "patch_forgex_screen_drawing() not found in forgex.sh"
+    printf '%s\n' "$body" | grep -q 'forgex_case_is_guarded' \
+        || fail "patch does not verify per-command; a partial application would report success"
 }
 
 @test "logged wrapper strips --send-to-screen when flag exists" {
@@ -163,7 +184,8 @@ EOF
 # --- Uninstall parity ---
 
 @test "uninstall_forgex calls unpatch_forgex_screen_drawing" {
-    grep -A25 'uninstall_forgex()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'unpatch_forgex_screen_drawing'
+    awk '/^uninstall_forgex\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" \
+        | grep -q 'unpatch_forgex_screen_drawing'
 }
 
 @test "unpatch_forgex_screen_drawing function exists" {
@@ -173,8 +195,8 @@ EOF
 @test "unpatch_forgex_screen_drawing matches patch comment string" {
     # The unpatch awk must match the EXACT comment string the patch inserts
     local patch_comment unpatch_comment
-    patch_comment=$(grep -A25 '^patch_forgex_screen_drawing()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
-    unpatch_comment=$(grep -A20 '^unpatch_forgex_screen_drawing()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
+    patch_comment=$(awk '/^patch_forgex_screen_drawing\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
+    unpatch_comment=$(awk '/^unpatch_forgex_screen_drawing\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
     # Both must contain the same identifying string
     echo "$patch_comment" | grep -q 'Skip when HelixScreen'
     echo "$unpatch_comment" | grep -q 'Skip when HelixScreen'
@@ -187,7 +209,8 @@ EOF
 }
 
 @test "bundled install.sh uninstall_forgex calls unpatch_forgex_screen_drawing" {
-    grep -A25 'uninstall_forgex()' "$WORKTREE_ROOT/scripts/install.sh" | grep -q 'unpatch_forgex_screen_drawing'
+    awk '/^uninstall_forgex\(\)/,/^}/' "$WORKTREE_ROOT/scripts/install.sh" \
+        | grep -q 'unpatch_forgex_screen_drawing'
 }
 
 @test "bundled install.sh logged wrapper uses string accumulation for args" {

@@ -10,54 +10,77 @@
 [ -n "${_HELIX_FORGEX_SOURCED:-}" ] && return 0
 _HELIX_FORGEX_SOURCED=1
 
-# Configure ForgeX display settings for HelixScreen
-# We use GUPPY mode because ForgeX handles backlight properly in this mode.
-# STOCK mode expects ffstartup-arm to manage display/backlight which doesn't work for us.
-# We disable GuppyScreen's init scripts so HelixScreen takes over the display.
+# Display modes we take over from, in the order they are probed.
+FORGEX_DISPLAY_MODES="STOCK FEATHER GUPPY"
+
+# Where the pre-install display mode is recorded so uninstall can restore it.
+FORGEX_PREV_DISPLAY_F="/opt/config/mod_data/helixscreen_prev_display"
+
+# Configure ForgeX display settings for HelixScreen.
+#
+# HEADLESS is the slot DrA1ex asked custom screens to occupy (DrA1ex/ff5m#74).
+# Any other mode risks failed OTA updates and repeated Moonraker recovery
+# prompts. It is also the quietest: under HEADLESS, start.sh starts neither
+# tslib nor GuppyScreen on 1.4.0, 1.4.1 or 1.4.2.
+#
+# All three other modes have to be handled. 1.4.2 moved the stock default from
+# STOCK to FEATHER, and Feather cannot be stopped as a process - it is Klipper
+# macros in config/feather.cfg driving screen.sh - so leaving it selected means
+# it keeps drawing over HelixScreen.
 configure_forgex_display() {
     var_file="/opt/config/mod_data/variables.cfg"
     guppy_init="/opt/config/mod/.root/S80guppyscreen"
     tslib_init="/opt/config/mod/.root/S35tslib"
     changed=false
 
-    # Set display mode to GUPPY (required for backlight to work)
     if [ -f "$var_file" ]; then
-        if grep -q "display[[:space:]]*=[[:space:]]*'STOCK'" "$var_file"; then
-            log_info "Setting ForgeX display mode to GUPPY..."
-            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'STOCK'/display = 'GUPPY'/" "$var_file"
+        for mode in $FORGEX_DISPLAY_MODES; do
+            grep -q "display[[:space:]]*=[[:space:]]*'$mode'" "$var_file" || continue
+
+            log_info "Setting ForgeX display mode to HEADLESS (was $mode)..."
+
+            # Remember where we found it so uninstall can put it back. 1.4.0
+            # and 1.4.1 default to STOCK, 1.4.2 to FEATHER, so a fixed restore
+            # target would strand one of them on a mode it never had.
+            if printf '%s\n' "$mode" > "${FORGEX_PREV_DISPLAY_F}.tmp" 2>/dev/null; then
+                $SUDO mv "${FORGEX_PREV_DISPLAY_F}.tmp" "$FORGEX_PREV_DISPLAY_F" 2>/dev/null || \
+                    rm -f "${FORGEX_PREV_DISPLAY_F}.tmp"
+            fi
+
+            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'$mode'/display = 'HEADLESS'/" "$var_file"
             changed=true
-        elif grep -q "display[[:space:]]*=[[:space:]]*'HEADLESS'" "$var_file"; then
-            log_info "Setting ForgeX display mode to GUPPY..."
-            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'HEADLESS'/display = 'GUPPY'/" "$var_file"
+            break
+        done
+    fi
+
+    # Older HelixScreen installs de-execed these so GuppyScreen could not take
+    # the display. Under HEADLESS start.sh never invokes either, on any
+    # supported version, so the chmod is unnecessary - put it back rather than
+    # leave our own footprint on the firmware.
+    for init_script in "$guppy_init" "$tslib_init"; do
+        if [ -f "$init_script" ] && [ ! -x "$init_script" ]; then
+            log_info "Restoring execute bit on $init_script..."
+            $SUDO chmod +x "$init_script"
             changed=true
         fi
-    fi
-
-    # Disable GuppyScreen init script (remove execute permission)
-    if [ -x "$guppy_init" ]; then
-        log_info "Disabling GuppyScreen init script..."
-        $SUDO chmod a-x "$guppy_init"
-        changed=true
-    fi
-
-    # Disable tslib init script (GuppyScreen's touch input layer)
-    # HelixScreen uses its own input handling
-    if [ -x "$tslib_init" ]; then
-        log_info "Disabling tslib init script..."
-        $SUDO chmod a-x "$tslib_init"
-        changed=true
-    fi
+    done
 
     if [ "$changed" = true ]; then
-        log_success "ForgeX configured for HelixScreen (GUPPY mode, GuppyScreen disabled)"
+        log_success "ForgeX configured for HelixScreen (HEADLESS mode)"
         return 0
     fi
     return 1
 }
 
 # Patch ForgeX screen.sh to skip non-100 backlight control when HelixScreen is active
-# ForgeX's headless.cfg runs a delayed_gcode that dims the backlight 3 seconds after
-# Klipper starts. This patch blocks dimming calls but allows the S99root 0→100 cycle.
+#
+# A `reset_screen` delayed_gcode dims the backlight 3 seconds after Klipper
+# starts. Which config carries it moved: in 1.4.0/1.4.1 it is guppy.cfg only,
+# and 1.4.2 added it to headless.cfg as well. Since the backlight case in
+# screen.sh is identical across all three, patch it unconditionally rather than
+# reasoning about which mode is selected.
+#
+# This blocks dimming calls but allows the S99root 0->100 cycle.
 #
 # The smart patch:
 # - Allows "backlight 100" (needed for S99root initialization cycle)
@@ -201,9 +224,37 @@ restore_stock_firmware_ui() {
     return 1
 }
 
-# Patch ForgeX screen.sh to skip screen drawing when HelixScreen is active
-# ForgeX's S99root calls draw_splash, draw_loading, and boot_message which write
-# directly to the framebuffer, overwriting our splash screen during boot.
+# screen.sh commands that draw to the framebuffer and must stand down while
+# HelixScreen owns it. Unguarded, these overwrite our splash during boot:
+# S99root and S00init both drive them.
+#
+# Forge-X 1.4.0 and 1.4.1 ship draw_loading, draw_splash and boot_message.
+# 1.4.2 drops the first and third, and adds splash_start, which launches a
+# long-running splash process over a control FIFO. Which ones exist is decided
+# per firmware at install time rather than by version number.
+#
+# splash_stop is deliberately absent: blocking it would strand that splash
+# process on screen for the rest of the boot.
+FORGEX_DRAW_COMMANDS="draw_loading draw_splash boot_message splash_start"
+
+# Is the case label for $2 in screen.sh $1 already followed by our guard?
+# Looks only at the lines immediately under the label, so an unrelated guard
+# elsewhere in the file cannot vouch for this one.
+forgex_case_is_guarded() {
+    awk -v lbl="$2" '
+        $0 ~ "^[[:space:]]*" lbl "\\)" { found = 1; next }
+        found {
+            if ($0 ~ /helixscreen_active/) { hit = 1; exit }
+            if (++n >= 5) exit
+        }
+        END { exit !hit }
+    ' "$1"
+}
+
+# Guard every draw command this firmware has, and prove each one took.
+# Reports failure rather than success when a command it found could not be
+# guarded, so a future Forge-X that reshapes screen.sh is loud instead of
+# quietly leaving the framebuffer contended.
 patch_forgex_screen_drawing() {
     screen_sh="/opt/config/mod/.shell/screen.sh"
 
@@ -212,40 +263,71 @@ patch_forgex_screen_drawing() {
         return 1
     fi
 
-    # Check if already patched (look for our signature in draw_splash)
-    if grep -q 'draw_splash)' "$screen_sh" && \
-       grep -A2 'draw_splash)' "$screen_sh" | grep -q 'helixscreen_active'; then
+    # Which draw commands this firmware actually has, and which of those still
+    # need a guard. Re-running only patches what is missing, so the function is
+    # idempotent and also repairs a partially patched screen.sh.
+    present=""
+    unguarded=""
+    for cmd in $FORGEX_DRAW_COMMANDS; do
+        grep -q "^[[:space:]]*${cmd})" "$screen_sh" || continue
+        present="$present $cmd"
+        forgex_case_is_guarded "$screen_sh" "$cmd" || unguarded="$unguarded $cmd"
+    done
+
+    if [ -z "$present" ]; then
+        log_warn "ForgeX screen.sh has no known draw commands - not patching"
+        return 1
+    fi
+
+    if [ -z "$unguarded" ]; then
         log_info "ForgeX screen.sh already has screen drawing patches"
         return 0
     fi
 
     log_info "Patching ForgeX screen.sh to skip drawing when HelixScreen active..."
 
-    # Patch draw_loading, draw_splash, and boot_message cases
-    # Add helixscreen_active check after each case label
     tmp_file="${screen_sh}.tmp"
-    awk '
-    /^[[:space:]]*(draw_loading|draw_splash|boot_message)\)/ {
+    awk -v cmds="$unguarded" '
+    BEGIN { n = split(cmds, want, " ") }
+    {
         print
-        print "        # Skip when HelixScreen is controlling display"
-        print "        if [ -f /tmp/helixscreen_active ]; then"
-        print "            exit 0"
-        print "        fi"
-        next
+        for (i = 1; i <= n; i++) {
+            if ($0 ~ "^[[:space:]]*" want[i] "\\)") {
+                print "        # Skip when HelixScreen is controlling display"
+                print "        if [ -f /tmp/helixscreen_active ]; then"
+                print "            exit 0"
+                print "        fi"
+                break
+            }
+        }
     }
-    { print }
     ' "$screen_sh" > "$tmp_file"
 
-    if [ -s "$tmp_file" ] && grep -q 'helixscreen_active' "$tmp_file" 2>/dev/null; then
-        $SUDO mv "$tmp_file" "$screen_sh"
-        $SUDO chmod +x "$screen_sh"
-        log_success "ForgeX screen.sh patched for screen drawing"
-        return 0
-    else
+    if [ ! -s "$tmp_file" ]; then
         rm -f "$tmp_file"
         log_warn "Failed to patch ForgeX screen.sh for screen drawing"
         return 1
     fi
+
+    # Verify every command we set out to guard actually got one, on the
+    # candidate file, before it replaces the original. A whole-file grep for
+    # helixscreen_active cannot do this: one successful insertion would vouch
+    # for every label that silently failed to match.
+    still_unguarded=""
+    for cmd in $unguarded; do
+        forgex_case_is_guarded "$tmp_file" "$cmd" || still_unguarded="$still_unguarded $cmd"
+    done
+
+    if [ -n "$still_unguarded" ]; then
+        rm -f "$tmp_file"
+        log_warn "Failed to guard ForgeX draw commands:${still_unguarded}"
+        return 1
+    fi
+
+    $SUDO mv "$tmp_file" "$screen_sh"
+    $SUDO chmod +x "$screen_sh"
+    log_success "ForgeX screen.sh patched for screen drawing (${unguarded# })"
+    return 0
 }
 
 # Remove screen drawing patches from ForgeX screen.sh (for uninstall)
@@ -391,15 +473,25 @@ uninstall_forgex_logged_wrapper() {
 # and cleans up backup files from manual patches.
 # Note: Sets caller's `restored_ui` variable via dynamic scoping.
 uninstall_forgex() {
-    # Restore ForgeX display mode to GUPPY (from HEADLESS or STOCK)
+    # Put the display mode back where install found it. 1.4.0/1.4.1 default to
+    # STOCK and 1.4.2 to FEATHER, so a hardcoded restore target would leave one
+    # of them on a mode the printer never had. GUPPY is the fallback for
+    # installs predating the recorded value; it exists in every supported
+    # Forge-X.
     if [ -f "/opt/config/mod_data/variables.cfg" ]; then
-        if grep -q "display[[:space:]]*=[[:space:]]*'HEADLESS'" "/opt/config/mod_data/variables.cfg"; then
-            log_info "Restoring ForgeX display mode to GUPPY..."
-            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'HEADLESS'/display = 'GUPPY'/" "/opt/config/mod_data/variables.cfg"
-        elif grep -q "display[[:space:]]*=[[:space:]]*'STOCK'" "/opt/config/mod_data/variables.cfg"; then
-            log_info "Restoring ForgeX display mode to GUPPY..."
-            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'STOCK'/display = 'GUPPY'/" "/opt/config/mod_data/variables.cfg"
+        restore_mode="GUPPY"
+        if [ -r "$FORGEX_PREV_DISPLAY_F" ]; then
+            saved_mode=$(cat "$FORGEX_PREV_DISPLAY_F" 2>/dev/null)
+            case "$saved_mode" in
+                STOCK|FEATHER|GUPPY|HEADLESS) restore_mode="$saved_mode" ;;
+            esac
         fi
+
+        if grep -q "display[[:space:]]*=[[:space:]]*'HEADLESS'" "/opt/config/mod_data/variables.cfg"; then
+            log_info "Restoring ForgeX display mode to ${restore_mode}..."
+            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'HEADLESS'/display = '${restore_mode}'/" "/opt/config/mod_data/variables.cfg"
+        fi
+        $SUDO rm -f "$FORGEX_PREV_DISPLAY_F"
     fi
 
     # Restore stock FlashForge UI in auto_run.sh
