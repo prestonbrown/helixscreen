@@ -3,6 +3,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_constants.h"
@@ -383,4 +384,58 @@ TEST_CASE("commit_external_spool_edit keeps manual entry without spoolman id",
     CHECK(persisted->material == "PLA");
     // No API call — a manual entry is not a server-side spool assignment
     CHECK(fixture.api.spoolman_mock().get_mock_active_spool_id() == 7);
+}
+
+// ============================================================================
+// active_spool_describes_bypass() — the guard both arms of Application's
+// notify_active_spool_set handler consult before writing the bypass record.
+// ============================================================================
+
+TEST_CASE("active_spool_describes_bypass: true with no AMS at all",
+          "[external-spool][bypass-guard]") {
+    ExternalSpoolCommitFixture fixture;
+    AmsState::instance().clear_backends();
+
+    // Nothing else can own Moonraker's global active spool, so it describes the
+    // bypass by elimination. This is the original startup-sync behaviour and it
+    // must survive the guard.
+    CHECK(AmsState::instance().active_spool_describes_bypass());
+}
+
+TEST_CASE("active_spool_describes_bypass: false when an AMS is feeding from a lane",
+          "[external-spool][bypass-guard]") {
+    ExternalSpoolCommitFixture fixture;
+
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_operation_delay(0);
+    AmsState::instance().set_backend(std::move(mock));
+    REQUIRE_FALSE(AmsState::instance().any_bypass_active());
+
+    // THE regression. An AMS slot edit sets Moonraker's global active spool, so
+    // the notification that comes back describes a LANE. Answering "yes" here
+    // is what let assigning to lane 3 overwrite the bypass, and what let
+    // clearing lane 3 (which posts set_active_spool(0)) erase it entirely.
+    CHECK_FALSE(AmsState::instance().active_spool_describes_bypass());
+
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE("active_spool_describes_bypass: true when the AMS is feeding from its bypass",
+          "[external-spool][bypass-guard]") {
+    ExternalSpoolCommitFixture fixture;
+
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_operation_delay(0);
+    AmsBackendMock* raw = mock.get();
+    AmsState::instance().set_backend(std::move(mock));
+    REQUIRE(raw->start());
+    REQUIRE(raw->enable_bypass().success());
+    REQUIRE(AmsState::instance().any_bypass_active());
+
+    // The bypass IS the path in use, so the global active spool really is its
+    // spool — a user swapping the bypass spool in Spoolman's web UI must still
+    // reach the bypass record.
+    CHECK(AmsState::instance().active_spool_describes_bypass());
+
+    AmsState::instance().clear_backends();
 }
