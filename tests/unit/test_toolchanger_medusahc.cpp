@@ -692,6 +692,36 @@ TEST_CASE("A fresh dispatch gets its own hold even after a stale confirmation",
     CHECK(tc.get_current_action() != AmsAction::IDLE);
 }
 
+TEST_CASE("A fresh dispatch does not inherit the previous swap's gripper latch",
+          "[ams][toolchanger][steps]") {
+    // feeder_opened_this_operation_ is what tells the grip that ENDS a swap
+    // from the closed gripper that merely precedes one. apply_tool_sensor_locked()
+    // clears it when an operation ends through the idle branch - but a swap can
+    // settle via toolchanger.status alone and never reach that branch, leaving
+    // the latch set. The next dispatch's first closed-gripper frame would then
+    // resolve to the FINAL step, painting the bar complete before the carriage
+    // has moved: the very failure the latch exists to prevent.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
+
+    // A swap that actually opens the gripper, so the latch is genuinely set.
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(tc.get_current_action() != AmsAction::IDLE);
+
+    // Settled through the OTHER status source, which never clears the latch.
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    // New dispatch, then the gap before the machine moves: idle, gripper still
+    // closed. There is no step to report here - not the last one.
+    REQUIRE(tc.change_tool(1).success());
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    CHECK(tc.get_system_info().operation_phase == -1);
+}
+
 // ============================================================================
 // Wording and refusals
 // ============================================================================
