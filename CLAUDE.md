@@ -339,6 +339,11 @@ Two shapes, and they are not the same thing:
 | Shape | What it is | How |
 |-------|-----------|-----|
 | desktop UI → real Moonraker | your local build, real printer data, no device walk | `--moonraker ws://HOST:7125` |
+
+Both shapes are verified. Pointing a local `SDL_VIDEODRIVER=dummy` build at the CB1/Voron
+discovered its real hardware (`AFC_BoxTurtle Turtle_1`, 4 lanes, 10 AFC objects,
+quad_gantry_level) and `ctl` drove the resulting UI, so an AFC question does not need a
+device deploy - only the printer's Moonraker port on the LAN.
 | `ctl` → app on the device | the app actually running on the printer | ssh, then `<install>/bin/helix-screen ctl <cmd>` |
 
 **The device build gate — check the binary, never the help text.** `ENABLE_REMOTE_CONTROL`
