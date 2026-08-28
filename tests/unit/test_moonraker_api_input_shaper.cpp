@@ -30,6 +30,7 @@
 #include <memory>
 #include <regex>
 #include <thread>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -114,6 +115,11 @@ class InputShaperTestFixture {
 
     ~InputShaperTestFixture() {
         api_.reset();
+
+        // This fixture drives real SHAPER_CALIBRATE runs, so the mock writes
+        // both axes' CSVs. The path carries our PID, so nothing else will ever
+        // overwrite them - clean up or every shard strands files in /tmp.
+        MoonrakerClientMock::remove_shaper_csvs();
     }
 
     void reset_callbacks() {
@@ -224,6 +230,29 @@ TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test sends correct G-c
     }
 
     REQUIRE(complete_called);
+}
+
+TEST_CASE("The mock's shaper CSV path is scoped to this process", "[calibration][input_shaper]") {
+    // make test-run shards the suite across one helix-tests PROCESS per job, and
+    // three test files touch this file: two fixtures std::remove() it between
+    // cases and this one asserts on it. On a fixed path those processes deleted
+    // each other's fixture mid-parse - the reader then got an empty
+    // freq_response and populate_axis_delta() bailed before setting the verdict,
+    // which surfaced as an unreproducible red shard in test_input_shaper_panel_
+    // integration. Keep the PID in the name and concurrent shards stay disjoint.
+    const std::string x = MoonrakerClientMock::shaper_csv_path('x');
+    const std::string y = MoonrakerClientMock::shaper_csv_path('y');
+
+    const std::string pid = std::to_string(static_cast<long>(::getpid()));
+    CHECK(x.find(pid) != std::string::npos);
+    CHECK(y.find(pid) != std::string::npos);
+
+    // Axes must not collide with each other either.
+    CHECK(x != y);
+
+    // Stable within the process: the fixtures' remove-then-write cycle depends
+    // on asking twice and getting the same answer.
+    CHECK(MoonrakerClientMock::shaper_csv_path('x') == x);
 }
 
 TEST_CASE_METHOD(InputShaperTestFixture,
@@ -947,7 +976,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "collector captures CSV path",
     }
 
     REQUIRE(complete_called);
-    CHECK(captured_result.csv_path == "/tmp/calibration_data_x_mock.csv");
+    CHECK(captured_result.csv_path == MoonrakerClientMock::shaper_csv_path('x'));
 }
 
 TEST_CASE_METHOD(InputShaperTestFixture, "collector emits progress callbacks during sweep",
@@ -1024,7 +1053,7 @@ TEST_CASE_METHOD(InputShaperTestFixture,
     }
 
     // Y axis CSV path should use 'y'
-    CHECK(captured_result.csv_path == "/tmp/calibration_data_y_mock.csv");
+    CHECK(captured_result.csv_path == MoonrakerClientMock::shaper_csv_path('y'));
 }
 
 // ============================================================================
