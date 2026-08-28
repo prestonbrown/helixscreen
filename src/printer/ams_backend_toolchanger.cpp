@@ -934,6 +934,16 @@ uint64_t AmsBackendToolChanger::begin_dispatch_locked(AmsAction action) {
     // just as surely as a genuinely settled swap does.
     operation_confirmed_ = false;
 
+    // Same escape path, and the gripper latch is the more damaging half of it.
+    // step_index_for_phase_locked() reads it to tell the grip that ENDS a swap
+    // from the closed gripper that precedes one, so a value carried over from
+    // the previous operation resolves this dispatch's first closed-gripper
+    // frame to the final step - the bar paints itself complete before the
+    // carriage has moved, which is the exact failure the latch was added to
+    // prevent. apply_tool_sensor_locked() clears it when an operation ends
+    // through the idle branch; this covers the ends that never reach it.
+    feeder_opened_this_operation_ = false;
+
     system_info_.action = action;
     // Otherwise the sidebar keeps showing the previous operation's detail (the
     // raw toolchanger status string) until the next frame, which for a no-op
