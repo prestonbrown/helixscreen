@@ -1570,9 +1570,10 @@ DEPLOY_ASSET_DIRS := ui_xml assets config moonraker-plugin
 # Turn on the runtime switches that match what the binary being deployed
 # actually contains.
 #
-# ENABLE_REMOTE_CONTROL is a BUILD flag and defaults to no for every cross
-# target, so a device binary only has the ctl server compiled in when a
-# developer asked for it explicitly. Having it compiled in and left off is not a
+# ENABLE_REMOTE_CONTROL is a BUILD flag: yes for every developer cross build,
+# no only under HELIX_PACKAGING=1 (CROSS_REMOTE_CONTROL_DEFAULT above), so a
+# packaged release install has no ctl server while a dev deploy has one.
+# Having it compiled in and left off is not a
 # state anyone wants: the server still only listens under --remote, and the
 # SysV/systemd units exec helix-launcher.sh with no arguments, so without
 # HELIX_REMOTE_CONTROL=1 in the device's helixscreen.env the flag silently buys

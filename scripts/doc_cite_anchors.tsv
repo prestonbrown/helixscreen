@@ -12,7 +12,7 @@ docs/devel/BUILD_SYSTEM.md	mk/cross.mk	728	mk/cross.mk	da1cc2e857c5	6c300046c8f9
 docs/devel/BUILD_SYSTEM.md	mk/fonts.mk	107	mk/fonts.mk	4b9fe8a0823e	d3a88479c470
 docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	80	include/ams_backend_ad5x_ifs.h	42b73c99c671	10abcf0d5a77
 docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	118	docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	08e4b44931cb	cd6be061ab1b
-docs/devel/CONTRIBUTOR_GOTCHAS.md	HELIXCTL.md	570	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
+docs/devel/CONTRIBUTOR_GOTCHAS.md	HELIXCTL.md	580	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/page_scroll_auto_inject.cpp	67	src/ui/page_scroll_auto_inject.cpp	79ddc99d9874	18d2db06eb9c
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/panel_widget_manager.cpp	825	src/ui/panel_widget_manager.cpp	72f8492f0ba4	f76a9843d3ba
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/ui_panel_macros.cpp	102	src/ui/ui_panel_macros.cpp	d294a98a89ed	41c7fb62016a
@@ -101,7 +101,7 @@ docs/devel/HELIXCTL.md	ui_xml/navigation_bar.xml	22	ui_xml/navigation_bar.xml	4c
 docs/devel/HELIXCTL.md	ui_xml/navigation_bar.xml	25	ui_xml/navigation_bar.xml	b8462dac300f	6fa0d0450bae
 docs/devel/LAYOUT_SYSTEM.md	src/ui/page_scroll_auto_inject.cpp	67	src/ui/page_scroll_auto_inject.cpp	79ddc99d9874	18d2db06eb9c
 docs/devel/LED_CONTROL.md	src/led/led_controller.cpp	1027	src/led/led_controller.cpp	c51a29c18f0f	0d97c336d95d
-docs/devel/LVGL9_XML_GUIDE.md	HELIXCTL.md	570	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
+docs/devel/LVGL9_XML_GUIDE.md	HELIXCTL.md	580	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
 docs/devel/PAGE_SCROLL_BUTTONS.md	page_scroll_auto_inject.cpp	47	src/ui/page_scroll_auto_inject.cpp	c1e52e07f95a	b4ecd2f33892
 docs/devel/PAGE_SCROLL_BUTTONS.md	src/application/application.cpp	4736	src/application/application.cpp	df17b7a40fb2	e1d6b6d9807b
 docs/devel/PAGE_SCROLL_BUTTONS.md	src/system/display_settings_manager.cpp	234	src/system/display_settings_manager.cpp	6fe83201e704	fd80af7a8d0a
@@ -124,7 +124,7 @@ docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1157	src/printer/
 docs/devel/RELEASE_1_0_CHECKLIST.md	config.cpp	463	src/system/config.cpp	cabfaf4f0103	d4775e93e3b4
 docs/devel/RELEASE_1_0_CHECKLIST.md	scripts/generate-manifest.sh	36	scripts/generate-manifest.sh	b672608bdf3d	588242abc9c0
 docs/devel/RELEASE_1_0_CHECKLIST.md	src/system/config.cpp	366	src/system/config.cpp	df2a08e2a04e	41a74879bccd
-docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2451	mk/cross.mk	e4f16f861f61	4c3084a9242a
+docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2452	mk/cross.mk	e4f16f861f61	4c3084a9242a
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/ams_subscription_backend.h	111	include/ams_subscription_backend.h	3f9b832313a2	57284619e5b5
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_api.h	176	include/i_moonraker_api.h	c454282fb554	63661987b10e
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_api.h	190	include/i_moonraker_api.h	6003065bf5c4	8db77f9c2826

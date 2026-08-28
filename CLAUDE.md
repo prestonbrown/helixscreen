@@ -4,7 +4,7 @@
 
 **HelixScreen**: LVGL 9.5 touchscreen UI for Klipper 3D printers. XML engine in `lib/helix-xml/` — our own MIT fork of the engine LVGL removed in 9.5, and its own repo ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)), so a fresh clone needs `git submodule update --init --recursive`. Pattern: XML → Subjects → C++.
 
-**Before compiling:** Check for existing build processes (`pgrep -x -d' ' 'make|cc1plus'`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits. And `pgrep` takes ONE pattern: `pgrep -x make cc1plus` errors with "only one pattern can be provided", so with stderr suppressed it prints nothing and reads as an all-clear. Use the alternation form above, or one `pgrep -x` per name. **Check `free -h`'s Mem AND Swap rows together:** the `helix-tests` link is gated by memory headroom, not cores, and neither row decides on its own. An exhausted swap row is NOT a throttle signal while `Mem:` `available` is still tens of GB: a full `make -j6` built clean at 80Gi available with 14Mi free swap. The failure case is both tight at once, low `available` *and* swap near 0, where `-j8` dies mid-link with *no* `oom-kill` line while load average still looks healthy. `-j6` clears it. Dying at the *same* step twice is a resource ceiling, not another session interfering.
+**Before compiling:** Check for existing build processes (`pgrep -x -d' ' 'make|cc1plus'`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits. And `pgrep` takes ONE pattern: `pgrep -x make cc1plus` errors with "only one pattern can be provided", so with stderr suppressed it prints nothing and reads as an all-clear. Use the alternation form above, or one `pgrep -x` per name. **Check `free -h`'s Mem AND Swap rows together:** the `helix-tests` link is gated by memory headroom, not cores, and neither row decides on its own. An exhausted swap row is NOT a throttle signal while `Mem:` `available` is still tens of GB: a full `make -j6` built clean at 80Gi available with 14Mi free swap. The failure case is both tight at once, low `available` *and* swap near 0, where `-j8` dies mid-link with *no* `oom-kill` line while load average still looks healthy. `-j6` clears it. Dying at the *same* step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary, because `prune-orphan-test-objs` (`mk/tests.mk`) runs `rm -f $(TEST_BIN)` whenever it finds one orphan object, and it is a *sibling* prerequisite of the link, so `-j` gives them no order. The tell is in the log: `[LD] helix-tests` followed by `✓ Unit test binary ready` and NO `✗ Test linking failed!` means the linker exited 0 and something else removed the output. Every shard then reports `No such file or directory` and the suite reads RED with nothing wrong in your code. Memory is not the cause there - a starved link fails loudly and stops make.
 
 ```bash
 make -j                              # Build ONLY the program binary (NOT tests)
@@ -52,10 +52,11 @@ scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
 > address.** Finding no `settings.json` there, `Config` bootstraps one from
 > `~/.helixscreen/settings.json.backup` — look for `[Config] Config missing — restoring
 > from backup:` in the log. That inherits the real `moonraker_host`, so a run **without**
-> `--test` opens a WebSocket to the actual printer. `--moonraker-url` does *not* override
-> the saved host. Keep `--test` (the mock client ignores the host entirely), or rewrite
-> `printers/<id>/moonraker_host` in the seeded `settings.json` before relying on the
-> instance being offline.
+> `--test` opens a WebSocket to the actual printer. Keep `--test` (the mock client ignores
+> the host entirely), or name the target explicitly with `--moonraker ws://HOST:7125`, which
+> **does** take precedence over the saved `moonraker_host` (the flag is `--moonraker`, not
+> `--moonraker-url`; verified 2026-08-27 — a seeded config defaulting to port 7125 connected
+> to `ws://127.0.0.1:7199/websocket` when the flag named it).
 >
 > Prefer `ctl text <name>` / `ctl geom <name>` over reading a screenshot — they are exact,
 > and a screenshot only proves what a scroll position happened to expose.
@@ -303,7 +304,58 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 **NEVER debug without flags!** Use `-vv` minimum.
 Trust debug output. Impossible values = bug is UPSTREAM. Ask "what ELSE?" not "did first fix work?"
 
+**A plain `> file` redirect drops the console log — but `--test` is exempt.** The console
+sink attaches for a TTY always, for a PIPE only with an explicit `-v`/`--log-level`, and for a
+regular file or socket never (a plain redirect is indistinguishable from the daemon redirect).
+`--test` overrides all of it and logs to any stdout kind, which is why most runs never hit
+this. A **non-`--test`** background run needs `2>&1 | tee /tmp/x.log` or
+`HELIX_LOG_DEST=console` — measured on one binary, identical flags: 645 lines through `tee`,
+3 through `>`. Full decision table: `docs/devel/LOGGING.md` § "Console sink".
+
 **Debug bundles**: `--save` writes `debug-bundle-<code>.json` to the **current working directory** — run it from `/tmp` so the bundle never lands in the repo: `cd /tmp && <repo>/scripts/debug-bundle.sh <SHARE_CODE> --save`. Investigate there, never commit a bundle. (If one ends up in the repo, move it to `/tmp`.)
+
+### Drive the UI yourself — `ctl` is not a question for Preston
+
+Anything observable or drivable is yours to do: reaching a panel, clicking a widget, reading a
+value, capturing a screenshot. Ask him only for the judgment a human eye has to make ("does
+this look right"), and even then drive to the state first and tell him exactly what to look
+at. `ctl text` / `state` / `geom` are exact; a screenshot only proves what a scroll position
+happened to expose.
+
+**Local mock — always allowed, no permission needed.** Use the pinned-socket recipe in Quick
+Start with `--test`, `SDL_VIDEODRIVER=dummy`, and `--sim-speed 4-10` when you need an active
+print. This is the default answer to "does my change work".
+
+**Real printer — ask once per session, then keep going.** Get Preston's OK before the first
+command that touches a real machine. After that, read-only commands (`ping`, `status`,
+`current`, `ls`, `text`, `state`, `geom`, `screenshot`) need no further asking. Anything that
+moves the machine or changes a print — gcode, home, heat, move, print/cancel,
+`FIRMWARE_RESTART`, emergency stop — is confirmed **every** time; one unconfirmed call cost a
+26-minute print. `ctl current` before you navigate and navigate back when you are done: that
+is his printer's screen, and he is standing in front of it.
+
+Two shapes, and they are not the same thing:
+
+| Shape | What it is | How |
+|-------|-----------|-----|
+| desktop UI → real Moonraker | your local build, real printer data, no device walk | `--moonraker ws://HOST:7125` |
+| `ctl` → app on the device | the app actually running on the printer | ssh, then `<install>/bin/helix-screen ctl <cmd>` |
+
+**The device build gate — check the binary, never the help text.** `ENABLE_REMOTE_CONTROL`
+defaults to `yes`, but `HELIX_PACKAGING=1` forces it to `no`, so **an installed release has no
+ctl server**. The `--remote*` flags still appear in `--help` on those builds, so they look
+supported and buy nothing:
+
+```bash
+strings -a <install>/bin/helix-screen | grep -c list_callbacks   # 0 = no server compiled in
+```
+
+Verified 2026-08-27: CB1/Voron running packaged 0.99.116 → `0`, and `ctl` was rejected as an
+unknown argument. K2 Plus running dev cross-build 0.99.117 → `2`, with `ctl ping` answering
+`pong` over `/tmp/helixscreen-control.sock`, plus `navigate`/`ls`/`state`/`geom`/`screenshot`
+all working against the live machine. A device also needs `HELIX_REMOTE_CONTROL=1` in its
+`helixscreen.env` for the server to listen; `make deploy-*` sets that from the
+`.build-features` stamp `mk/rules.mk` writes beside the binary.
 
 ---
 

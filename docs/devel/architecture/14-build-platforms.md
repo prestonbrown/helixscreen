@@ -99,7 +99,7 @@ font tiers, and `-DHELIX_HAS_*` / `-DHELIX_PLATFORM_*` gates that code checks at
 
 | `PLATFORM_TARGET` | Device / arch | Backend | Notes |
 |-------------------|---------------|---------|-------|
-| `native` (default) | Desktop, macOS/Linux | SDL | Dev panels default ON (`Makefile:486`); `ENABLE_REMOTE_CONTROL` defaults ON everywhere except a packaging build (`Makefile:463`) |
+| `native` (default) | Desktop, macOS/Linux | SDL | Dev panels default ON (`Makefile:498`); `ENABLE_REMOTE_CONTROL` defaults ON everywhere except a packaging build (`Makefile:463`) |
 | `pi`, `pi-fbdev`, `pi-both` | Raspberry Pi aarch64 | DRM+GLES / fbdev | `-both` compiles once, links DRM + fbdev ([`mk/pi-dual-link.mk`](../../../mk/pi-dual-link.mk)) |
 | `pi32` (+`-fbdev`/`-both`) | Pi armhf, **Sonic Pad** | DRM / fbdev | Same binary serves any armhf Debian-ish box |
 | `x86`, `x86-fbdev`, `x86-both` | x86_64 Debian SBCs | DRM+GLES / fbdev | Built in a Bullseye container for glibc 2.31 compat |
@@ -193,7 +193,7 @@ Read in this order; about 25 minutes total.
 4. [`mk/tests.mk:397`](../../../mk/tests.mk#L397) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
 5. [`mk/cross.mk:8`](../../../mk/cross.mk#L8) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
 6. [`mk/cross.mk:644`](../../../mk/cross.mk#L644) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
-7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:486` shows the simpler native-only shape for dev panels.
+7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:498` shows the simpler native-only shape for dev panels.
 8. [`mk/display-lib.mk:23`](../../../mk/display-lib.mk#L23) — compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
 9. [`src/api/display_backend.cpp:199`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk:187`](../../../mk/patches.mk#L187) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.

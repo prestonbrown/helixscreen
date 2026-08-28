@@ -61,6 +61,16 @@ helix-screen ctl                      # no command → also drops into the REPL
 > binary whose `.build-features` stamp says the server is in it. Opt out of a
 > dev build with `make PLATFORM_TARGET=<t> ENABLE_REMOTE_CONTROL=no`.
 >
+> **`--help` lists the `--remote*` flags either way, so it cannot tell you which
+> build you have.** The CLI parser is compiled in unconditionally: a packaged
+> binary advertises `--remote`, `--remote-socket`, `--remote-transport` and the
+> HTTP pair, accepts them without complaint, and starts no server — while `ctl`
+> and `repl` are rejected as unknown arguments and the app tries to boot a second
+> instance instead. Interrogate the binary, not the help text:
+> `strings -a <bin> | grep -c list_callbacks` is `0` when the subsystem was
+> filtered out. Confirmed 2026-08-27 on a CB1 running packaged 0.99.116 (`0`,
+> `ctl` refused) against a K2 Plus running dev 0.99.117 (`2`, `ctl ping` → `pong`).
+>
 > **The matching deploy turns it on for you.** The build flag alone is only half
 > the story: the server still listens only under `--remote`, and the init scripts
 > exec the launcher with no arguments. The link rule records the choice in
