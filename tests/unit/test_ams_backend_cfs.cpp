@@ -2831,6 +2831,113 @@ TEST_CASE("CFS: a labeled untagged spool stays AVAILABLE while it is seated",
     }
 }
 
+TEST_CASE("CFS: labeling an untagged bay does not blank it on vender-sentinel firmware",
+          "[ams][cfs][presence][filament_slot_override]") {
+    // The sibling of "a labeled untagged spool stays AVAILABLE while it is
+    // seated", for the firmware that case does NOT cover.
+    //
+    // There, `vender` reports occupancy for any seated spool, so presence never
+    // consults the untagged remain_len fallback. On firmware where `vender`
+    // stays sentinel for an untagged spool — the #1077 population the fallback
+    // was written for — that fallback is the ONLY thing keeping the bay
+    // visible, and labeling used to switch it off: the label is written to
+    // `material_type` (#968), firmware echoes it back, and a non-sentinel
+    // material_type reads as tag payload. Naming your spool made it vanish.
+    CfsOverrideRig rig("cfs_label_untagged_vender_sentinel");
+
+    // Untagged 3rd-party spool in bay A: no vendor, no RFID payload, real
+    // length off the measuring wheel. `same_material` supplies a code the
+    // firmware itself reported, which is the only vocabulary the identity push
+    // is allowed to write back.
+    auto box_with_group = [](const std::vector<std::string>& materials) {
+        json box =
+            make_unit_box_explicit(materials, {"-1", "-1", "-1", "-1"},
+                                   {"none", "none", "none", "none"}, {"46", "-1", "-1", "-1"});
+        box["same_material"] =
+            json::array({json::array({"101001", "0FF0000", json::array({"T1A"}), "ASA-GF"})});
+        return box;
+    };
+
+    const json box_before = box_with_group({"-1", "-1", "-1", "-1"});
+    rig.poll(box_before);
+
+    // Precondition: the fallback is what makes this bay visible at all.
+    REQUIRE(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+
+    SlotInfo edit;
+    edit.material = "ASA-GF";
+    edit.spool_name = "Black ASA-GF";
+    edit.color_rgb = 0x000000;
+    REQUIRE(rig.backend->set_slot_info(0, edit, /*persist=*/true).success());
+
+    // Firmware now echoes our own code back on every frame, byte-identical to
+    // a tag read. Nothing about the physical bay changed.
+    const json box_after = box_with_group({"101001", "-1", "-1", "-1"});
+    rig.poll(box_after);
+
+    SECTION("the seated spool is still present after being named") {
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+    }
+
+    SECTION("it stays present across repeated polls of the echo") {
+        for (int i = 0; i < 3; ++i) {
+            rig.poll(box_after);
+            CHECK(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+        }
+    }
+
+    SECTION("the bay still empties when the spool is actually pulled") {
+        // remain_len is the only live signal on this firmware, so it is what
+        // has to fall. The discount must not pin the bay AVAILABLE.
+        json box_pulled = box_with_group({"101001", "-1", "-1", "-1"});
+        box_pulled["T1"]["remain_len"] = std::vector<std::string>{"-1", "-1", "-1", "-1"};
+        rig.poll(box_pulled);
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::EMPTY);
+    }
+
+    SECTION("neighbouring untouched bays are unaffected") {
+        CHECK(rig.backend->get_slot_info(1).status == SlotStatus::EMPTY);
+        CHECK(rig.backend->get_slot_info(2).status == SlotStatus::EMPTY);
+    }
+}
+
+TEST_CASE("CFS: relabeling a TAGGED bay still suppresses the untagged fallback",
+          "[ams][cfs][presence][filament_slot_override]") {
+    // The guard that keeps the discount above from re-opening the ghost bug.
+    //
+    // A bay already reporting a real material code is genuinely tagged. Its
+    // remain_len LATCHES after the spool is pulled, so the untagged fallback
+    // must stay suppressed there — otherwise a removed spool reads AVAILABLE
+    // forever. The push therefore records a code as "ours" only when the bay's
+    // PRE-push reading was a sentinel, which a tagged bay's never is.
+    CfsOverrideRig rig("cfs_relabel_tagged_bay");
+
+    const json box_seated =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    rig.poll(box_seated);
+    REQUIRE(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+
+    SlotInfo edit;
+    edit.material = "ASA-CF";
+    edit.color_name = "Dark Gray";
+    edit.color_rgb = 0x1A1A1A;
+    REQUIRE(rig.backend->set_slot_info(0, edit, /*persist=*/true).success());
+    rig.poll(box_seated);
+
+    SECTION("still AVAILABLE while seated") {
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+    }
+
+    SECTION("pulling it reads EMPTY, not a latched-length ghost") {
+        json box_pulled =
+            make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                                   {"none", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+        rig.poll(box_pulled);
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::EMPTY);
+    }
+}
+
 TEST_CASE("CFS probes RFID on a bay insert, without feeding filament",
           "[ams][cfs][presence][probe_on_insert]") {
     // Firmware reports occupancy the instant a spool goes in but does not read
