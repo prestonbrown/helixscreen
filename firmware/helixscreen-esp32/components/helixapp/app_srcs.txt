@@ -309,6 +309,7 @@ src/ui/ui_ams_device_operations_overlay.cpp
 src/ui/ui_ams_device_section_detail_overlay.cpp
 src/ui/ui_ams_edit_overlay.cpp
 src/ui/ui_ams_environment_overlay.cpp
+src/ui/ui_ams_lane_bar.cpp
 src/ui/ui_ams_loading_error_modal.cpp
 src/ui/ui_ams_mini_status.cpp
 src/ui/ui_ams_selector_menu.cpp
