@@ -1365,7 +1365,7 @@ check-tautology:
 	$(Q)python3 scripts/check_test_mirrors.py --max-allowed $(MIRROR_MAX)
 
 TAUTOLOGY_MAX ?= 3
-MIRROR_MAX ?= 18
+MIRROR_MAX ?= 17
 
 # ---- diff coverage ---------------------------------------------------------
 # Its own object tree, so this never disturbs the normal build.

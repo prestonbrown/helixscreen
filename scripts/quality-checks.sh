@@ -2038,10 +2038,11 @@ SECTION_START=$(date +%s)
 echo -n "🎯 Checking for assertions that cannot fail..."
 
 if [ -f "scripts/check_test_tautology.py" ]; then
-  # Ratchet at the 3 findings present when the gate landed, all of them a
+  # Ratchet, read from mk/tests.mk for the reason above. All findings are a
   # set_X(literal) round-trip through an accessor pair that only stores and
   # loads. May fall, never rise.
-  if python3 scripts/check_test_tautology.py --summary --max-allowed 3 >/tmp/test_tautology.out 2>&1; then
+  TAUTOLOGY_MAX=$(sed -n 's/^TAUTOLOGY_MAX ?= *\([0-9][0-9]*\).*/\1/p' mk/tests.mk | head -1)
+  if python3 scripts/check_test_tautology.py --summary --max-allowed "${TAUTOLOGY_MAX:-0}" >/tmp/test_tautology.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/test_tautology.out
@@ -2074,11 +2075,14 @@ echo -n "🪞 Checking for mirror tests..."
 if [ -f "scripts/check_test_mirrors.py" ]; then
   # Ratchet, not a clean-tree assertion. Signals 1 and 2 (shadow-include,
   # mirror-comment) are at 0 and must stay there. Signal 3 (redefined-symbol)
-  # arrived with 18 pre-existing findings, including the flagship case:
-  # test_update_checker.cpp:80 defines its own is_update_available() and
-  # asserts against it ~30 times, while production's has zero call sites.
-  # The number may fall, never rise.
-  if python3 scripts/check_test_mirrors.py --summary --max-allowed 18 >/tmp/test_mirrors.out 2>&1; then
+  # arrived with pre-existing findings; the number may fall, never rise.
+  #
+  # Read from mk/tests.mk rather than repeated here. A second hand-written copy
+  # of the same threshold is how it goes stale: main rewrote
+  # test_update_checker.cpp, the real count fell 18 -> 17, and a duplicated
+  # constant would have kept passing at 18 with a regression's worth of slack.
+  MIRROR_MAX=$(sed -n 's/^MIRROR_MAX ?= *\([0-9][0-9]*\).*/\1/p' mk/tests.mk | head -1)
+  if python3 scripts/check_test_mirrors.py --summary --max-allowed "${MIRROR_MAX:-0}" >/tmp/test_mirrors.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/test_mirrors.out
