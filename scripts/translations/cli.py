@@ -13,7 +13,11 @@ from .extractor import (
     extract_strings_with_all_locations,
     extract_strings_from_cpp_directory,
 )
-from .yaml_manager import merge_new_keys, merge_new_keys_with_sources, load_yaml_file
+from .yaml_manager import (
+    merge_new_keys,
+    merge_new_keys_with_sources,
+    load_yaml_file_readonly,
+)
 from .coverage import calculate_coverage, generate_coverage_report
 from .obsolete import find_obsolete_keys, report_obsolete_keys, mark_obsolete_keys, delete_obsolete_keys
 
@@ -93,7 +97,7 @@ def run_sync(
     # Get existing keys from YAML
     base_path = yaml_dir / f"{base_locale}.yml"
     if base_path.exists():
-        base_data = load_yaml_file(base_path)
+        base_data = load_yaml_file_readonly(base_path)
         existing_keys = set((base_data.get("translations") or {}).keys())
     else:
         existing_keys = set()
@@ -121,7 +125,7 @@ def run_sync(
     for yaml_path in yaml_dir.glob("*.yml"):
         if yaml_path.stem == base_locale:
             continue
-        lang_data = load_yaml_file(yaml_path)
+        lang_data = load_yaml_file_readonly(yaml_path)
         lang_translations = lang_data.get("translations") or {}
         lang_keys = set(lang_translations.keys())
         missing_in_lang = all_base_keys - lang_keys
@@ -131,8 +135,18 @@ def run_sync(
             if backfill_result.files_modified > 0:
                 result.files_modified += backfill_result.files_modified
 
-    # Check for obsolete keys (include C++ sources for accurate count)
-    obsolete = find_obsolete_keys(xml_dir, yaml_dir, base_locale, cpp_dir=cpp_dir)
+    # Check for obsolete keys (include C++ sources for accurate count).
+    # new_keys is already the extractor's verdict on these same two trees and is
+    # not mutated above, so hand it over rather than paying for the scan twice.
+    # The with_sources branch built it from a different extractor entry point,
+    # so that path keeps re-scanning.
+    obsolete = find_obsolete_keys(
+        xml_dir,
+        yaml_dir,
+        base_locale,
+        cpp_dir=cpp_dir,
+        extracted=None if with_sources else set(new_keys),
+    )
     result.obsolete_keys_found = len(obsolete)
 
     return result

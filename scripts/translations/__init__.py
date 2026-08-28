@@ -14,6 +14,7 @@ from .yaml_manager import (
     merge_new_keys,
     merge_new_keys_with_sources,
     load_yaml_file,
+    load_yaml_file_readonly,
 )
 from .coverage import (
     calculate_coverage,
@@ -37,6 +38,7 @@ __all__ = [
     "merge_new_keys",
     "merge_new_keys_with_sources",
     "load_yaml_file",
+    "load_yaml_file_readonly",
     "calculate_coverage",
     "get_missing_translations",
     "generate_coverage_report",
