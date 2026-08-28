@@ -185,6 +185,11 @@ void PrintSelectDetailView::init_subjects() {
     // and the metadata-derived-colors path.
     UI_MANAGED_SUBJECT_INT(color_swatches_visible_, 0, "color_swatches_visible", subjects_);
 
+    // Whether a tap on the color-requirements card opens the remap picker
+    // (0=no, 1=yes). Binds the card's chevron AND its clickable flag in
+    // print_file_detail.xml, so the affordance and the behaviour move together.
+    UI_MANAGED_SUBJECT_INT(color_card_remappable_, 0, "color_card_remappable", subjects_);
+
     // Empty-tools warning visibility (0=hidden, 1=visible). Set by
     // update_color_swatches() when any T-command-referenced slot is empty.
     UI_MANAGED_SUBJECT_INT(empty_tools_warning_, 0, "empty_tools_warning", subjects_);
@@ -295,13 +300,15 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     // FilamentMappingCard. The card's children already declare
     // clickable=false + event_bubble=true in print_file_detail.xml (L071), so
     // the parent receives the click. lv_obj_add_event_cb on the card mirrors the
-    // sibling FilamentMappingCard pattern (allowed exception). The handler gates
-    // on the active backend's remap strategy at click time: it only opens the
-    // modal for SnapmakerNative — on other backends this card is informational
-    // and a different remap path applies, so the tap is a no-op.
+    // sibling FilamentMappingCard pattern (allowed exception). Whether the card
+    // is clickable at all, and whether it shows the chevron that says so, both
+    // come from color_card_remappable — see color_card_opens_remap().
     color_requirements_card_ = lv_obj_find_by_name(overlay_root_, "color_requirements_card");
     if (color_requirements_card_) {
-        lv_obj_add_flag(color_requirements_card_, LV_OBJ_FLAG_CLICKABLE);
+        // No add_flag(CLICKABLE) here: print_file_detail.xml binds the flag to
+        // color_card_remappable, the same subject the chevron reads. Adding it
+        // unconditionally made the card swallow taps on every backend that
+        // cannot remap and answer none of them.
         lv_obj_add_event_cb(
             color_requirements_card_,
             [](lv_event_t* e) {
@@ -438,6 +445,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // precise tools_used set. The pre-flight validator in
     // try_extract_gcode_colors() is the sole authoritative post-parse writer.
     lv_subject_set_int(&color_swatches_visible_, 0);
+    lv_subject_set_int(&color_card_remappable_, 0);
     lv_subject_set_int(&empty_tools_warning_, 0);
     lv_subject_set_int(&filament_mismatch_, 0);
     lv_subject_set_int(&detail_prefer_sliced_colors_, 0); // every open starts on actual colors
@@ -1449,6 +1457,11 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
     const bool mapping_visible = filament_mapping_card_.should_show();
     const bool swatches_visible = !mapping_visible && swatches_card_visible_for(tools_used.size());
     lv_subject_set_int(&color_swatches_visible_, swatches_visible ? 1 : 0);
+    // Published from the same place, against the same backend snapshot: a card
+    // shown without this would advertise nothing, and a chevron shown without
+    // the card would point at a control that is not there.
+    lv_subject_set_int(&color_card_remappable_,
+                       swatches_visible && color_card_opens_remap() ? 1 : 0);
     if (swatches_visible) {
         update_color_swatches(tools_used, current_filament_colors_);
     }
@@ -1595,14 +1608,20 @@ void PrintSelectDetailView::open_filament_mapping_modal() {
     filament_mapping_card_.open_mapping_modal();
 }
 
+bool PrintSelectDetailView::color_card_opens_remap() {
+    // ANY backend that supports remap (strategy != None); the panel opener
+    // itself guards plugin presence etc.
+    auto* backend = AmsState::instance().get_backend();
+    return backend && backend->get_remap_strategy() != AmsBackend::RemapStrategy::None;
+}
+
 void PrintSelectDetailView::on_color_card_clicked() {
     // The color-requirements swatch card is the visible remap entry point on
     // backends whose editable FilamentMappingCard is hidden (e.g. Snapmaker U1).
-    // Fire the panel's unified remap opener for ANY backend that supports remap
-    // (strategy != None); the panel opener itself guards plugin presence etc.
-    // On a non-remappable backend (None) the tap is a deliberate no-op.
-    auto* backend = AmsState::instance().get_backend();
-    if (!backend || backend->get_remap_strategy() == AmsBackend::RemapStrategy::None) {
+    // Kept as a guard even though the XML now clears the card's clickable flag
+    // on a non-remappable backend: the flag can only be as fresh as the last
+    // publish, and this is the cheap way to make a stale one harmless.
+    if (!color_card_opens_remap()) {
         return;
     }
     spdlog::debug("[PrintSelect] swatch tap -> remap modal");

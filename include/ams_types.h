@@ -1898,6 +1898,34 @@ struct ToolMappingCapabilities {
 };
 
 /**
+ * @brief Can a backend with these capabilities carry out an explicit user
+ *        tool->lane choice, by EITHER route?
+ *
+ * Named and shared because @c editable answers only half of it, and the missing
+ * half is silent. A backend can honor the choice two ways: the generic
+ * set_tool_mapping() path (@c editable), or a firmware-native pre-print send
+ * that writes the routing itself (@p applies_via_preprint — the Snapmaker U1,
+ * whose SET_PRINT_EXTRUDER_MAP is emitted from build_preprint_gcode()). The U1
+ * reports editable=false and still honors every pick the user makes, so any
+ * caller that reads editability alone concludes the opposite of the truth about
+ * it.
+ *
+ * Two callers ask this, for reasons that must not drift apart:
+ * PrintStartController, deciding whether "remap not supported" is an honest
+ * toast or a stale false alarm; and AmsState::effective_auto_match(), deciding
+ * whether the user's auto-color preference is a live control on this printer or
+ * a setting nothing can act on.
+ *
+ * @param caps                 backend->get_tool_mapping_capabilities()
+ * @param applies_via_preprint backend->requires_preprint_send()
+ * @return true when the backend can carry out the user's choice. Pure.
+ */
+[[nodiscard]] inline bool honors_user_tool_mapping(const ToolMappingCapabilities& caps,
+                                                   bool applies_via_preprint) {
+    return applies_via_preprint || (caps.supported && caps.editable);
+}
+
+/**
  * @brief Action type for dynamic device controls
  */
 enum class ActionType {

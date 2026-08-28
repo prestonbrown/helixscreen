@@ -1793,6 +1793,26 @@ class AmsBackend {
     }
 
     /**
+     * @brief Can this backend carry out an explicit user tool->lane choice?
+     *
+     * The capability question generic code should ask instead of reading
+     * get_tool_mapping_capabilities().editable, which answers only the
+     * set_tool_mapping() half. A backend whose remap goes out through its
+     * firmware-native pre-print send (requires_preprint_send) reports
+     * editable=false and honors every pick the user makes — so editability alone
+     * says the opposite of the truth about it.
+     *
+     * Non-virtual on purpose: it is derived from two virtuals a backend already
+     * answers, so there is nothing for a subclass to get wrong or forget.
+     *
+     * @note Reaches through both virtuals; do not hold a backend lock.
+     */
+    [[nodiscard]] bool honors_user_tool_mapping() const {
+        return helix::printer::honors_user_tool_mapping(get_tool_mapping_capabilities(),
+                                                        requires_preprint_send());
+    }
+
+    /**
      * @brief Get current tool-to-slot mapping
      *
      * Returns the mapping from tool number to slot index.
