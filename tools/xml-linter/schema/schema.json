@@ -1873,6 +1873,14 @@
     "setting_group": {
       "attributes": {},
       "inherits": "lv_obj"
+    },
+    "ams_lane_bar": {
+      "attributes": {
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
     }
   },
   "enums": {
@@ -2815,7 +2823,8 @@
     "ui_split_button",
     "z_offset_indicator",
     "helix_sparkline",
-    "setting_group"
+    "setting_group",
+    "ams_lane_bar"
   ],
   "runtime_constants": [
     "accent_bar_gap",
@@ -3162,6 +3171,7 @@
     "font_xs_tiny",
     "font_xs_xlarge",
     "font_xs_xxlarge",
+    "ghost_opacity",
     "grid_gap",
     "grid_swatch_size",
     "grid_width",

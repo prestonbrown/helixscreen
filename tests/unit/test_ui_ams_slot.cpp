@@ -717,24 +717,15 @@ struct SpoolVisualState {
 ///   [2] empty_placeholder (unnamed, transparent)
 ///   [3] tool_badge (XML, named, moved to end via move_to_index)
 ///   [4] error_indicator (unnamed, moved to end)
-/// The XML-named badges are always named; the dynamically-created visuals are
-/// unnamed. We key off the first unnamed child for the spool visual.
+/// The spool visual (spool_canvas in the 3d branch, or the filament_ring in
+/// the flat branch) is named "spool_graphic" by create_spool_visual(), so we
+/// look it up by name rather than by position.
 SpoolVisualState inspect_spool_state(lv_obj_t* spool_container) {
     SpoolVisualState st;
     uint32_t n = lv_obj_get_child_count(spool_container);
     st.child_count = static_cast<int>(n);
 
-    lv_obj_t* spool_visual = nullptr;
-    for (uint32_t i = 0; i < n; ++i) {
-        lv_obj_t* child = lv_obj_get_child(spool_container, i);
-        if (!child)
-            continue;
-        const char* name = lv_obj_get_name(child);
-        if (name)
-            continue; // skip named XML children (status_badge, tool_badge)
-        spool_visual = child;
-        break;
-    }
+    lv_obj_t* spool_visual = lv_obj_find_by_name(spool_container, "spool_graphic");
     if (!spool_visual)
         return st;
 

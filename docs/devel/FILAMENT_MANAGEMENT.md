@@ -921,6 +921,49 @@ field naming OrcaSlicer, its repo URL, the pinned tag, and its license, e.g.:
 
 ---
 
+## How a lane presents itself
+
+Every surface that draws an AMS lane answers the same question first: does this
+lane have filament, did it keep an identity after being ejected, or is it simply
+unused. That question has one implementation — `classify_lane()` in
+`include/ams_lane_state.h` — and three answers:
+
+| `LaneState` | Meaning | Spool rendering | Bar rendering |
+|-------------|---------|-----------------|---------------|
+| `Present` | has filament | spool at fill level | bar at fill level |
+| `Ghosted` | ejected, identity retained (#1071) | whole cell dimmed, last known fill | same |
+| `Empty` | no filament, no identity | placeholder + "Empty" | nothing — the gap is the signal |
+
+Two things about this are deliberate and easy to undo by accident:
+
+**Ghosting dims the whole cell, never one element.** The spool, the material
+label and the percent fade together, applied with `lv_obj_set_style_opa()` on the
+widget root using the `ghost_opacity` token. A per-element opacity produces a
+ghost too faint to read — a bar's fill is only a pixel or two tall at the sizes
+bar mode actually runs at, so the dimming has to be what carries the signal.
+
+**A ghosted lane shows its last known fill.** That reverses `a106413f6`, where an
+emptied lane rendered a full-strength 75% bar and read as loaded. It is safe only
+because the whole cell is dimmed: the dimming is the disclaimer. Do not reuse
+`lane_fill_level()`'s ghosted value on a surface that does not dim.
+
+`UNKNOWN` is classified exactly as `EMPTY`, so it inherits the identity split. It
+is not a steady state on any backend — every `SlotStatus::UNKNOWN` assignment is
+skeleton construction before firmware data lands — so treating it as `Present`
+would briefly show filament in a lane that has none.
+
+Loaded-ness and error are **decorations** layered over a base state, from their
+own subjects. A blocked lane still has filament; an active lane is still
+`Present`.
+
+The classification is published per lane as `ams_slot_<n>_lane_state`;
+`ams_lane_bar` consumes it. Converting the remaining surfaces
+(`ui_ams_mini_status` bar and spool modes, `ui_panel_ams_overview` mini-bars,
+`ams_slot`) is tracked in prestonbrown/helixscreen#1368, which also carries the
+open question of how much of the per-lane loop can be expressed in XML.
+
+---
+
 ## UI Panels
 
 ### AMS Panel (`ui_panel_ams`)

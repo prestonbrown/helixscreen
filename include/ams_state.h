@@ -1123,6 +1123,18 @@ class AmsState {
     [[nodiscard]] lv_subject_t* get_slot_status_subject(int slot_index);
 
     /**
+     * @brief Get per-lane LaneState subject for a specific slot
+     *
+     * Holds helix::ui::LaneState (classify_lane) as int. THE presentation
+     * input for every surface that draws a lane. XML name:
+     * ams_slot_<n>_lane_state.
+     *
+     * @param slot_index Slot index (0 to MAX_SLOTS-1)
+     * @return Subject pointer or nullptr if out of range
+     */
+    [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int slot_index);
+
+    /**
      * @brief Get slot color subject for a specific backend and slot
      *
      * For backend_index 0, delegates to existing flat slot subjects.
@@ -1921,6 +1933,7 @@ class AmsState {
     lv_subject_t slot_segments_[MAX_SLOTS];         // int: PathSegment enum value
     lv_subject_t slot_toolhead_present_[MAX_SLOTS]; // int: 0/1 per-slot toolhead sensor
     lv_subject_t slot_active_loaded_[MAX_SLOTS];    // int: 0/1 firmware seated & loaded
+    lv_subject_t slot_lane_states_[MAX_SLOTS];      // int: helix::ui::LaneState (classify_lane)
 
     // Per-unit environment subjects (CFS temp/humidity)
     lv_subject_t unit_temp_[MAX_UNITS];     // int: tenths of C (270 = 27.0C), 0 = no data
