@@ -131,6 +131,20 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
 
     // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
     if (lv_is_initialized()) {
+        // StaticPanelRegistry::destroy_all() runs before lv_deinit(), and
+        // modal_hide() below only starts an exit ANIMATION - the modal tree is
+        // deleted after this destructor has returned and freed `this`. Uninstall
+        // the DELETE hooks while the object is still valid; on_modal_deleted()
+        // writes through the pointer it is handed. A cached pointer the hook has
+        // already nulled means that tree died first, so nothing is left to
+        // uninstall.
+        for (lv_obj_t* watched :
+             {password_modal_, hidden_network_modal_, test_modal_, step_widget_}) {
+            if (watched) {
+                lv_obj_remove_event_cb_with_user_data(watched, on_modal_deleted, this);
+            }
+        }
+
         if (hidden_network_modal_) {
             helix::ui::modal_hide(hidden_network_modal_);
             hidden_network_modal_ = nullptr;
