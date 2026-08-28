@@ -1453,9 +1453,8 @@ std::vector<helix::ToolMapping> PrintSelectDetailView::effective_mappings() cons
     // Non-editable backends (U1 / ACE): the card is hidden and get_mappings() is
     // empty — resolve the effective (toggle-aware) mapping the same way the live
     // render does, so swatches + preflight + render all agree.
-    return helix::FilamentMapper::effective_mappings(
-        get_used_tool_info(), AmsState::instance().collect_available_slots(),
-        effective_auto_match(), AmsState::instance().collect_firmware_routing());
+    return AmsState::instance().seed_tool_mappings(get_used_tool_info(),
+                                                   AmsState::instance().collect_available_slots());
 }
 
 void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tools_used,

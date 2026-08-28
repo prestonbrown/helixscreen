@@ -384,6 +384,31 @@ class AmsState {
     [[nodiscard]] bool effective_auto_match() const;
 
     /**
+     * @brief Seed the tool -> slot mapping. THE one place this rule lives.
+     *
+     * Composes the three things this class already owns - the effective
+     * auto-match predicate, the backend's firmware default routing, and the
+     * caller's slot list - into FilamentMapper::effective_mappings(). Every
+     * surface that shows or commits a mapping must come through here, or they
+     * drift: before this existed the card, the modal and the print-select detail
+     * view each re-assembled it, and two of them cleared firmware mappings
+     * before colour matching while a third did not.
+     *
+     * @param slots pass the SAME list you display, so the seed and the picker
+     *              cannot disagree about what is loaded.
+     */
+    [[nodiscard]] std::vector<helix::ToolMapping>
+    seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                       const std::vector<helix::AvailableSlot>& slots) const;
+
+    /// As above, but with the auto-colour answer supplied by the caller. Only
+    /// for the mapping modal, which lets the user flip it live before
+    /// committing; everything else must use the effective predicate.
+    [[nodiscard]] std::vector<helix::ToolMapping>
+    seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                       const std::vector<helix::AvailableSlot>& slots, bool auto_color_map) const;
+
+    /**
      * @brief Per-tool render colors for the print that is actually running:
      *        color(tool N) = the color of the lane that prints N.
      *

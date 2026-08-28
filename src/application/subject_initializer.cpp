@@ -319,15 +319,20 @@ void SubjectInitializer::init_printer_state_subjects() {
 void SubjectInitializer::init_ams_subjects() {
     spdlog::trace("[SubjectInitializer] Initializing AMS/FilamentSensor subjects");
 
+    // ToolState subjects (tool changer state tracking) come FIRST: in mock mode
+    // AmsState::init_subjects() below creates its backend and syncs it straight
+    // through build_ams_topology() into ToolState::set_ams_topology(), so
+    // ToolState's subjects have to exist by then. Registering first also means
+    // that in reverse deinit order AmsState - the side that pushes - tears down
+    // before the state it pushes into.
+    helix::ToolState::instance().init_subjects();
+
     // Initialize AmsState subjects BEFORE panels so XML bindings can find ams_gate_count
     // Note: In mock mode, init_subjects() also creates the mock backend internally
     AmsState::instance().init_subjects(true);
 
     // Initialize SpoolmanManager AFTER AmsState (it reads slot data from AmsState)
     SpoolmanManager::instance().init_subjects();
-
-    // Initialize ToolState subjects (tool changer state tracking)
-    helix::ToolState::instance().init_subjects();
 
     // Macro-slot resolution version. Published before any panel is built so
     // surfaces that gate buttons on macro availability can observe it.

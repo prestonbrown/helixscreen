@@ -266,3 +266,66 @@ TEST_CASE_METHOD(AutoMatchFixture,
 // (AmsState::routed_tool_colors -> AmsBackend::get_tool_mapping). The match
 // survives only where it answers the right question — pre-print, in the detail
 // view above, deciding what mapping to SEND. Its coverage there is what remains.
+
+// ---------------------------------------------------------------------------
+// AmsState::seed_tool_mappings — the ONE place the seeding rule lives.
+//
+// Three surfaces resolve the tool->slot seed: the mapping card, the mapping
+// modal, and the print-select detail view. Each used to re-assemble the rule by
+// hand from three AmsState inputs (slots, routing, "is auto-match on?"), and
+// they had already drifted - two cleared firmware mappings before colour
+// matching and one did not, and two read the RAW auto-colour setting where the
+// third read the effective, backend-aware predicate.
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(AutoMatchFixture,
+                 "AmsState::seed_tool_mappings uses the EFFECTIVE predicate, not the raw setting",
+                 "[ams][auto_match][seed]") {
+    // A pre-print-send backend pins auto-match on regardless of the stored
+    // preference (see kPreprintSeedFollowsUserSetting). A caller reading
+    // SettingsManager directly would seed positionally here and disagree with
+    // every other surface for the same print.
+    install_backend(Shape::PreprintOnly);
+    set_auto_color_map(false);
+    REQUIRE(AmsState::instance().effective_auto_match()); // pinned on despite the setting
+
+    // Colours chosen so positional and colour-matched answers differ.
+    std::vector<helix::GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {1, 0x0000FF, "PLA"}};
+    std::vector<helix::AvailableSlot> slots = {
+        {0, 0, 0x0000FF, "PLA", false, -1}, // blue
+        {1, 0, 0xFF0000, "PLA", false, -1}, // red
+    };
+
+    auto seeded = AmsState::instance().seed_tool_mappings(tools, slots);
+    REQUIRE(seeded.size() == 2);
+
+    // Colour match: T0 (red) -> slot 1 (red), T1 (blue) -> slot 0 (blue).
+    // Positional would have given 0 and 1, which is what reading the raw
+    // setting produces and is the bug this pins.
+    CHECK(seeded[0].mapped_slot == 1);
+    CHECK(seeded[1].mapped_slot == 0);
+}
+
+TEST_CASE_METHOD(AutoMatchFixture,
+                 "AmsState::seed_tool_mappings honours an explicit toggle for the modal",
+                 "[ams][auto_match][seed]") {
+    // The mapping modal lets the user flip auto-colour live before committing,
+    // so it supplies its own value rather than the persisted one.
+    install_backend(Shape::Editable);
+    set_auto_color_map(true);
+
+    std::vector<helix::GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {1, 0x0000FF, "PLA"}};
+    std::vector<helix::AvailableSlot> slots = {
+        {0, 0, 0x0000FF, "PLA", false, -1},
+        {1, 0, 0xFF0000, "PLA", false, -1},
+    };
+
+    auto matched = AmsState::instance().seed_tool_mappings(tools, slots, true);
+    REQUIRE(matched.size() == 2);
+    CHECK(matched[0].mapped_slot == 1); // colour matched
+
+    auto positional = AmsState::instance().seed_tool_mappings(tools, slots, false);
+    REQUIRE(positional.size() == 2);
+    CHECK(positional[0].mapped_slot == 0); // tool 0 keeps its own head
+    CHECK(positional[1].mapped_slot == 1);
+}

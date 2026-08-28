@@ -980,6 +980,20 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     return slots;
 }
 
+std::vector<helix::ToolMapping>
+AmsState::seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                             const std::vector<helix::AvailableSlot>& slots) const {
+    return seed_tool_mappings(tools, slots, effective_auto_match());
+}
+
+std::vector<helix::ToolMapping>
+AmsState::seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                             const std::vector<helix::AvailableSlot>& slots,
+                             bool auto_color_map) const {
+    return helix::FilamentMapper::effective_mappings(tools, slots, auto_color_map,
+                                                     collect_firmware_routing());
+}
+
 helix::FirmwareRouting AmsState::collect_firmware_routing() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (auto* backend = get_backend(0)) {
