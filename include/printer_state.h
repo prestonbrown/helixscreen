@@ -92,6 +92,34 @@ enum class PrintJobState {
 };
 
 /**
+ * @brief Has the printer taken a job?
+ *
+ * True for PRINTING and PAUSED: the two wire states reachable only from a job
+ * Klipper has accepted. A pause is not a lesser form of idle - the job exists,
+ * its clock runs, and `CANCEL_PRINT`/`PAUSE` land on something real.
+ *
+ * This is the wire-level half of the pair. Ask it when the decision turns on
+ * what the PRINTER reports: whether a macro would reach a live job, whether a
+ * sibling field like `print_filename` describes a running print, whether a
+ * transition to a terminal state ended a real one.
+ *
+ * @warning NOT the same question as `job_holds_machine(PrintState)`, which also
+ *          counts `Preparing`. Preparing is a job the app has committed to and
+ *          the printer has not reported, so during a host-side pre-start block
+ *          this predicate is false while the toolhead is genuinely moving. Ask
+ *          `job_holds_machine()` for "would acting now fight the printer", and
+ *          this one for "does the printer hold a job". Several callers depend on
+ *          the narrower answer and say so at their call site.
+ *
+ * The 0/1 subject mirror of this predicate is `print_active`, set from
+ * `PrinterPrintState::status_indicates_active_print()`, which asks the same
+ * question of a raw status payload and is defined in terms of this function.
+ */
+constexpr bool printer_has_job(PrintJobState state) {
+    return state == PrintJobState::PRINTING || state == PrintJobState::PAUSED;
+}
+
+/**
  * @brief Terminal outcome of a print job (for UI persistence)
  *
  * Captures how the last print ended. Unlike PrintJobState (which always reflects

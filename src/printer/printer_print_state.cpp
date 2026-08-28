@@ -287,8 +287,11 @@ bool PrinterPrintState::status_indicates_active_print(const nlohmann::json& stat
     if (!ps.contains("state") || !ps["state"].is_string()) {
         return false;
     }
+    // Defined in terms of the enum predicate so the subject's notion of "active"
+    // and every enum-side caller can never drift apart. parse_print_job_state()
+    // maps an unknown string to STANDBY, which lands on false as before.
     const std::string st = ps["state"].get<std::string>();
-    return st == "printing" || st == "paused";
+    return printer_has_job(parse_print_job_state(st.c_str()));
 }
 
 void PrinterPrintState::update_from_status(const nlohmann::json& status) {
@@ -423,12 +426,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                 // PRINTING/PAUSED, so it's excluded here and the END_PRINT
                 // macro's farewell message (set after the COMPLETE clear above)
                 // survives.
-                // RAW_PRINT_STATE_OK: same handler, same reason as above.
+                // RAW_PRINT_STATE_OK: same handler, same reason as above. The
+                // previous-state arm asks the wire question - printer_has_job() -
+                // because a preparing job the printer never took set no M117.
                 if (new_state == PrintJobState::COMPLETE || new_state == PrintJobState::CANCELLED ||
                     new_state == PrintJobState::ERROR ||
-                    (new_state == PrintJobState::STANDBY &&
-                     (current_state == PrintJobState::PRINTING ||
-                      current_state == PrintJobState::PAUSED))) {
+                    (new_state == PrintJobState::STANDBY && printer_has_job(current_state))) {
                     lv_subject_copy_string(&display_message_, "");
                     update_display_message_visible();
                 }
@@ -1354,15 +1357,25 @@ void PrinterPrintState::reconcile_preparing() {
     if (preparing_job_.empty()) {
         return;
     }
-    // RAW_PRINT_STATE_OK: reconciliation requires an actually-running print -
-    // that is the whole point of reconciling a preparing claim against it.
+    // Reconciliation asks the wire question deliberately: the claim is settled by
+    // the PRINTER taking a job, which is exactly what printer_has_job() answers.
+    // Widening to job_holds_machine() would count our own Preparing state and
+    // settle the claim against itself.
+    //
+    // PAUSED settles it as surely as PRINTING. Klipper reaches paused only from
+    // an accepted job, and a PRINT_START that pauses its own file - M25 while an
+    // asynchronous soak runs from [delayed_gcode], firmware power-loss recovery
+    // restoring a job, a runout during the purge line - is a job the printer is
+    // holding. Requiring PRINTING left those claims armed until the half-hour
+    // watchdog retired them as TimedOut, and that path cools both heaters: a
+    // 65 minute ABS soak lost its bed 30 minutes in (#1365).
     const auto job_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
-    if (job_state != PrintJobState::PRINTING) {
-        return; // Only an actually-running print settles this.
+    if (!printer_has_job(job_state)) {
+        return; // Only a job the printer has taken settles this.
     }
     const char* reported = lv_subject_get_string(&print_filename_);
     if (!reported || reported[0] == '\0') {
-        return; // Printing, but not yet named - wait for the name.
+        return; // Held, but not yet named - wait for the name.
     }
 
     // Compare on the bare name: the report may be path-qualified, and a

@@ -263,7 +263,7 @@ TEST_CASE_METHOD(AmsErrorModalFixture,
     // The field case: an AFC fault pauses the print, the user recovers from the
     // console, the print resumes — but ams_action never left ERROR, so only the
     // print-state edge can take the dialog down. PAUSED -> PRINTING is not an
-    // edge under is_active_print_state() (which counts PAUSED as active), which
+    // edge under printer_has_job() (which counts PAUSED as active), which
     // is why the panel tests PRINTING explicitly.
     auto* backend = install_backend();
     set_print_state(helix::PrintJobState::PAUSED);

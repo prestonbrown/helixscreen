@@ -1083,11 +1083,10 @@ void PrintStartController::recover_pending_remap() {
             // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
             // while a job runs; a preparing job has no mapping to restore.
             lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
-        // RAW_PRINT_STATE_OK: the mapping is restored on a TERMINAL state; this
-        // only suppresses the observer's immediate registration-fire while a job
-        // is running. A preparing job has no mapping to restore yet.
-        bool print_active =
-            (current_state == PrintJobState::PRINTING || current_state == PrintJobState::PAUSED);
+        // The mapping is restored on a TERMINAL state; this only suppresses the
+        // observer's immediate registration-fire while a job is running. The wire
+        // question is the right one: a preparing job has no mapping to restore.
+        bool print_active = printer_has_job(current_state);
 
         if (print_active) {
             spdlog::info("[PrintStartController] Crash recovery: found pending remap "
