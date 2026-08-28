@@ -54,15 +54,34 @@ setup() {
 # --- every source-mounting container gets the host context ------------------
 
 @test "every docker run that mounts the source passes DOCKER_HOST_CONTEXT" {
-    # -v "$(PWD)":/src is the marker for "this container builds our tree".
+    # -v "$(CURDIR)":/src is the marker for "this container builds our tree".
     # The cert-extraction runs (docker run --rm <img> cat /etc/ssl/...) mount
     # nothing and are correctly exempt.
-    run bash -c "grep -n 'docker run' mk/cross.mk | grep -F '\"\$(PWD)\":/src' | grep -v 'DOCKER_HOST_CONTEXT'"
+    run bash -c "grep -n 'docker run' mk/cross.mk | grep -F '\"\$(CURDIR)\":/src' | grep -v 'DOCKER_HOST_CONTEXT'"
     [ "$status" -eq 1 ] || {
         echo "docker run sites that build the tree without the host context:" >&2
         echo "$output" >&2
         echo "-> add \$(DOCKER_HOST_CONTEXT); without it a worktree build has no" >&2
         echo "   submodules and stamps HELIX_GIT_HASH \"unknown\"." >&2
+        return 1
+    }
+}
+
+@test "every docker run mounts \$(CURDIR), not \$(PWD)" {
+    # $(PWD) is inherited from the invoking SHELL; $(CURDIR) is make's own
+    # working directory and is the one that tracks -C. They agree for a plain
+    # `make`, so this is invisible until someone runs
+    #   make -C .worktrees/<branch> <platform>-docker
+    # from a shell sitting somewhere else. Then the container bind-mounts the
+    # shell's tree, compiles THAT source into THAT build dir, and leaves the
+    # worktree's artifact untouched — while exiting 0 and printing
+    # "Build complete!". The binary you then deploy is built from the wrong
+    # commit, and nothing in the log says so.
+    run bash -c "grep -n 'docker run' mk/cross.mk | grep -F '\$(PWD)'"
+    [ "$status" -eq 1 ] || {
+        echo "docker run sites mounting \$(PWD) instead of \$(CURDIR):" >&2
+        echo "$output" >&2
+        echo "-> use \$(CURDIR) so 'make -C <worktree>' builds that worktree." >&2
         return 1
     }
 }
