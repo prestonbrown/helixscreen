@@ -315,6 +315,13 @@ endif
 ifeq ($(SANITIZE),thread)
     OBJ_DIR ?= $(BUILD_DIR)/obj-tsan
 endif
+# Coverage builds need their own object tree for exactly the reason above: an
+# uninstrumented object that is already up to date would be relinked, not
+# recompiled, and it emits no .gcda at all. The resulting report reads as "these
+# lines were never executed" for every file make decided to skip.
+ifeq ($(COVERAGE),1)
+    OBJ_DIR ?= $(BUILD_DIR)/obj-cov
+endif
 
 BIN_DIR ?= $(BUILD_DIR)/bin
 OBJ_DIR ?= $(BUILD_DIR)/obj
@@ -732,6 +739,8 @@ ifeq ($(SANITIZE),address)
 PCH := $(BUILD_DIR)/asan-lvgl_pch.h.gch
 else ifeq ($(SANITIZE),thread)
 PCH := $(BUILD_DIR)/tsan-lvgl_pch.h.gch
+else ifeq ($(COVERAGE),1)
+PCH := $(BUILD_DIR)/cov-lvgl_pch.h.gch
 else
 PCH := $(BUILD_DIR)/lvgl_pch.h.gch
 endif
@@ -943,6 +952,22 @@ ifeq ($(SANITIZE),thread)
     ifneq ($(CROSS_COMPILE),)
         LDFLAGS += -static-libtsan
     endif
+endif
+
+# Line coverage, for `make cov-diff` -- which changed lines does the suite
+# actually execute? Deliberately applied to CFLAGS/CXXFLAGS only and NOT to
+# SUBMODULE_CFLAGS/SUBMODULE_CXXFLAGS: instrumenting LVGL, libhv and helix-xml
+# would multiply build time and disk for lines no diff of ours ever touches.
+# -fprofile-abs-path puts absolute source paths in the .gcno, so gcov resolves
+# them no matter which directory the report is generated from.
+#
+# Appended here, after the per-platform `LDFLAGS :=` composition above, for the
+# same reason the sanitizer flags are.
+ifeq ($(COVERAGE),1)
+    COVERAGE_FLAGS := --coverage -fprofile-abs-path
+    CFLAGS += $(COVERAGE_FLAGS)
+    CXXFLAGS += $(COVERAGE_FLAGS)
+    LDFLAGS += --coverage
 endif
 
 # Sound system — synth, sequencer, backends (PWM/M300/SDL/ALSA), themes

@@ -2030,6 +2030,40 @@ echo ""
 }
 
 # ====================================================================
+# Assertions must be able to fail
+# ====================================================================
+qc_test_tautology() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🎯 Checking for assertions that cannot fail..."
+
+if [ -f "scripts/check_test_tautology.py" ]; then
+  # Ratchet at the 3 findings present when the gate landed, all of them a
+  # set_X(literal) round-trip through an accessor pair that only stores and
+  # loads. May fall, never rise.
+  if python3 scripts/check_test_tautology.py --summary --max-allowed 3 >/tmp/test_tautology.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_tautology.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_tautology.out
+    echo "   Run: python3 scripts/check_test_tautology.py --list"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_test_tautology.py not found — skipping"
+fi
+
+echo ""
+
+return $EXIT_CODE
+}
+
+# ====================================================================
 # Tests must exercise shipped code, not a copy of it
 # ====================================================================
 qc_test_mirrors() {
@@ -2038,7 +2072,13 @@ SECTION_START=$(date +%s)
 echo -n "🪞 Checking for mirror tests..."
 
 if [ -f "scripts/check_test_mirrors.py" ]; then
-  if python3 scripts/check_test_mirrors.py --max-allowed 0 >/tmp/test_mirrors.out 2>&1; then
+  # Ratchet, not a clean-tree assertion. Signals 1 and 2 (shadow-include,
+  # mirror-comment) are at 0 and must stay there. Signal 3 (redefined-symbol)
+  # arrived with 18 pre-existing findings, including the flagship case:
+  # test_update_checker.cpp:80 defines its own is_update_available() and
+  # asserts against it ~30 times, while production's has zero call sites.
+  # The number may fall, never rise.
+  if python3 scripts/check_test_mirrors.py --summary --max-allowed 18 >/tmp/test_mirrors.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/test_mirrors.out
@@ -2693,7 +2733,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2722,6 +2762,7 @@ qc_trigger_re() {
                         echo '\.(cpp|c|h|mm)$' ;;
     qc_design_tokens)   echo '\.(cpp|h|xml)$' ;;
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
+    qc_test_tautology)  echo '^tests/|^include/|^src/|^scripts/check_test_tautology\.py$' ;;
     qc_test_widget_registry)
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
     qc_doc_refs)        echo '\.md$|^scripts/(check_doc_refs|doc_cite_anchors)\.py$|^scripts/doc_cite_anchors\.tsv$|^scripts/doc_cite_anchor_baseline\.txt$' ;;

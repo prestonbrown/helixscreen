@@ -130,7 +130,8 @@ or `(widget, nullptr)` for an intentional lifecycle-less overlay. Tests run with
 ## What counts as a real test
 
 A test must FAIL if the feature is removed. After writing one, **mutate the implementation and
-watch it go red** — a test that passes against broken code is worse than no test.
+watch it go red** — a test that passes against broken code is worse than no test. `make
+mutate-diff` does this across the whole diff; see "Proving a test can fail" below.
 
 | ❌ | ✅ |
 |----|----|
@@ -142,6 +143,99 @@ Prefer extracting the rule as a **pure function** and testing that without LVGL 
 `include/overlay_class.h` + `tests/unit/test_overlay_width_class.cpp`. Then test the wiring
 separately (`test_overlay_width_push.cpp`). Pure-logic tests are fast, total, and survive
 refactors of the widget layer.
+
+### Proving a test can fail
+
+"A test must FAIL if the feature is removed" is the rule. It was stated as a
+principle with no mechanism, and the result was 11 production changes in one
+release range that can be reverted with the suite staying green. Every one
+shipped with a test commit. The tests pin an *adjacent invariant* instead of the
+changed line -- they have real assertions, execute the changed function, and
+still cannot fail when it breaks.
+
+Syntax cannot find these. Measured on this tree, 18% of cases look "all-weak" by
+assertion shape and the worst-looking files are all good tests. Four tools, in
+increasing cost, and only the last is an oracle:
+
+| Command | Cost | Answers |
+|---------|------|---------|
+| `make check-tautology` | instant | assertions that cannot fail, from the source |
+| `make test-vacuous` | seconds | assertions that cannot fail, from a real run |
+| `make cov-diff` | minutes | changed lines the suite never executes |
+| `make test-order-dependence` | minutes | tests that pass only because of what ran before them |
+| `make mutate-diff` | ~2-4 min per hunk | **changed lines no test detects** |
+
+`make mutate-diff` reverts each changed hunk in turn, rebuilds, and runs the
+suite. A hunk that survives reversion is a change no test detects, whatever the
+diff's test files claim. It is the only tool here that sees the adjacent-invariant
+failure, so scope it (`MUTATE_ARGS="--limit 5"`, or `--tests "[ams]"`) rather
+than skipping it. Verdicts are `killed`, `SURVIVED`, and `uncompilable` -- the
+last is never counted as a kill, because a compiler error proves the code is
+load-bearing for the build, not that anything tests its behaviour.
+
+`make cov-diff` is the cheap screen: a changed line the suite never runs cannot
+be tested, and finding that costs one run instead of one build per hunk. The
+converse does not hold, so a clean coverage report is not a substitute.
+
+### A test must pass on its own
+
+`make test-order-dependence` re-runs each source file's cases alone and
+compares against the full-suite result. A case that passes in the suite and
+fails alone is reading state some other file's test established.
+
+This is the one class none of the other tools can see. Such a test asserts real
+computed values, its lines are covered, and reverting the production hunk would
+report it killed -- it simply is not testing what it claims. It stays invisible
+until an unrelated change perturbs ordering, which is the worst moment to find
+it: adding nine test cases elsewhere changed the case count, which changed shard
+composition, which moved one test's accidental prerequisite into another shard,
+and a 96/96 green suite went red with nothing wrong in the changed code.
+
+The specimen it was built against is `test_grid_edit_mode.cpp` "build_default_grid
+only sets positions for anchor widgets", which passes in the suite and fails 5/5
+alone. The gate also reports the opposite sign as `pollution` (fails in the
+suite, passes alone) -- same root cause, different fix: the polluter needs
+cleanup, the dependent needs its own setup.
+
+### Assert that the setup reached the branch, first
+
+An assertion about a result is worthless if the code never took the path that
+produces it. Assert the precondition **before** asserting the outcome:
+
+```cpp
+const size_t emergency_budget = dense.get_cache_budget() / 2;
+const size_t before = dense.get_cache_memory_usage();
+REQUIRE(before > emergency_budget);      // <-- the setup actually overshoots
+dense.respond_to_memory_pressure();
+CHECK(dense.get_cache_memory_usage() < before);
+```
+
+Without the middle line this test passes with `respond_to_memory_pressure()`
+emptied out. The fixture cached a few hundred bytes against a 1MB floor, so the
+evict loop's exit condition was already true on entry and nothing could ever
+change. Worse, the obvious repair is *also* vacuous: `CHECK(after <= before)`
+cannot fail either, for exactly the same reason.
+
+That case is the one to keep in mind, because it defeats three of the four
+tools above. `make test-vacuous` sees a real assertion (Catch2 expands it to
+`1024 <= 1024`, which differs from the source text). `make cov-diff` is green,
+because the changed line does execute. `-Werror=type-limits` only ever caught
+the version written as `>= 0` on a `size_t` -- fixing the compiler-visible
+tautology moved it to a semantic one, which hides better. Only reverting the
+hunk and watching for red finds it.
+
+### Name the mutation in the commit body
+
+Red-green is invisible after the fact. A test that was mutated and verified is
+indistinguishable from one nobody checked, which is why the discipline decays.
+One line in the commit body fixes that:
+
+```
+mutation: flipped >= to > in resolve_slot(); test_ams_topology went red
+```
+
+Or, for a whole hunk: `mutation: reverted the guard; test_print_start went red`.
+It costs a sentence and it is the only record that the cycle happened.
 
 ### Tag conventions
 
