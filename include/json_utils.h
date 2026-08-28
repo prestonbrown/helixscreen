@@ -274,12 +274,16 @@ inline std::size_t safe_size_t(const nlohmann::json& j, const char* key, std::si
     if (!detail::to_u64(j[key], out)) {
         return def;
     }
-    if constexpr (sizeof(std::size_t) < sizeof(std::uint64_t)) {
-        if (out > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
-            return def;
-        }
+    // Round-trip rather than compare against size_t's max. Where the two types
+    // are the same width that comparison is tautologically false, and clang
+    // diagnoses it under -Werror even though the if-constexpr discards the
+    // branch — the body of a discarded branch is still analysed outside a
+    // template. Narrow-then-widen is correct at every width and needs no guard.
+    const std::size_t narrowed = static_cast<std::size_t>(out);
+    if (static_cast<std::uint64_t>(narrowed) != out) {
+        return def;
     }
-    return static_cast<std::size_t>(out);
+    return narrowed;
 }
 
 } // namespace helix::json_util
