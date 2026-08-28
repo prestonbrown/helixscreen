@@ -164,6 +164,7 @@ translations:
   All extruder temperatures with progress bars: All extruder temperatures with progress bars
   All fields are required: All fields are required
   All plugins loaded successfully: All plugins loaded successfully
+  Allow: Allow
   Allow Home Screen Editing: Allow Home Screen Editing
   Allow cold load/unload: Allow cold load/unload
   Allow display to sleep during active prints: Allow display to sleep during active
@@ -178,6 +179,7 @@ translations:
   AmsIdentify: AmsIdentify
   An accelerometer was detected on your printer.: An accelerometer was detected on
     your printer.
+  An app on your network is asking to connect to this printer.: An app on your network is asking to connect to this printer.
   An error occurred during calibration.: An error occurred during calibration.
   An error occurred during filament loading.: An error occurred during filament loading.
   An error occurred during measurement.: An error occurred during measurement.
@@ -593,6 +595,7 @@ translations:
   Connecting...: Connecting...
   Connection: Connection
   Connection Failed: Connection Failed
+  Connection Request: Connection Request
   Connection Stability: Connection Stability
   Connection failed: Connection failed
   Connection failed to {}:{}: Connection failed to {}:{}
@@ -627,6 +630,7 @@ translations:
   Correction (Ki): Correction (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Could
     not analyze PRINT_START macro. Some print options may be unavailable.
+  Could not answer the connection request: Could not answer the connection request
   ? "Could not check webcam status.\nCheck printer connection."
   : "Could not check webcam status.\nCheck printer connection."
   Could not forget device: Could not forget device
@@ -710,6 +714,7 @@ translations:
   Delete {}?: Delete {}?
   'Delta:': 'Delta:'
   Density: Density
+  Deny: Deny
   Deploy: Deploy
   Describe the issue (optional): Describe the issue (optional)
   Detailed: Detailed
@@ -721,6 +726,7 @@ translations:
   Dev: Dev
   Dev channel requires dev_url in config: Dev channel requires dev_url in config
   Device: Device
+  Device connected: Device connected
   Device name: Device name
   Device name is required: Device name is required
   'Device: ': 'Device: '
@@ -3151,6 +3157,7 @@ translations:
   '{} filament sensors available': '{} filament sensors available'
   '{} filament • {}': '{} filament • {}'
   '{} heater turned off': '{} heater turned off'
+  '{} is asking to connect to this printer.': '{} is asking to connect to this printer.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.'
   '{} is not set up on this printer': '{} is not set up on this printer'

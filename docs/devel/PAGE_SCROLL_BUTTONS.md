@@ -28,7 +28,7 @@ on top of somebody's content.
 
 Registration is at `src/xml_registration.cpp:319` (the component) and `:782`
 (`PageScrollAutoInject::init()`). Teardown is
-`src/application/application.cpp:4750`.
+`src/application/application.cpp:4758`.
 
 ---
 

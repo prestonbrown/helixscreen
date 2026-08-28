@@ -30,6 +30,7 @@ class ActionPromptManager;
 class AmsErrorBridge;
 class GcodeErrorRouter;
 class GcodeNarrationRouter;
+class LanClientAuthRouter;
 class PrinterDiscovery;
 } // namespace helix
 namespace helix::ui {
@@ -202,6 +203,12 @@ class Application {
     // model, updating the toolchange_step subject. Sibling of the error router;
     // owns a SEPARATE notify_gcode_response handler key. Does NOT surface errors.
     std::unique_ptr<helix::GcodeNarrationRouter> m_gcode_narration_router;
+
+    // Answers the firmware's LAN pairing prompt with the touchscreen, on
+    // printers whose firmware brokers pairing that way (Snapmaker U1 and
+    // siblings). Owns the authorization-notification registrations, so like
+    // its sibling routers it must be reset before the MoonrakerClient.
+    std::unique_ptr<helix::LanClientAuthRouter> m_lan_client_auth_router;
 
     // Observes AmsState's action subject and routes AmsAction::ERROR edges to
     // m_recovery_presenter. Holds a reference INTO the presenter, so the
