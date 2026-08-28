@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ams_slot_presentation.h"
 #include "ams_types.h"
 #include "lvgl/lvgl.h"
 
@@ -189,14 +188,7 @@ struct SlotColumn {
 struct BarStyleParams {
     uint32_t color_rgb = 0x808080;
     int fill_pct = 100;
-    /// From resolve_slot_presentation() (ams_slot_presentation.h): whether this
-    /// lane draws its filament at all, and at what strength. A bar is the same
-    /// lane a spool cell draws, just compact — it has no placeholder and no
-    /// label, so these are the two of the rule's four outputs it can express.
-    /// Do NOT set these from SlotInfo::is_present(): that collapses UNKNOWN into
-    /// EMPTY and renders an unanswered lane as a blank one.
-    bool show_fill = false;
-    uint8_t fill_opa = helix::ui::SPOOL_OPA_FULL;
+    bool is_present = false;
     bool is_loaded = false;
     bool has_error = false;
     SlotError::Severity severity = SlotError::INFO;

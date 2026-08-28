@@ -3,7 +3,6 @@
 #include "ui_spool_canvas.h"
 
 #include "../lvgl_test_fixture.h"
-#include "ams_slot_presentation.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
@@ -362,7 +361,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar loaded state", "[ams
     ams_draw::BarStyleParams params;
     params.color_rgb = 0xFF0000;
     params.fill_pct = 75;
-    params.show_fill = true;
+    params.is_present = true;
     params.is_loaded = true;
     params.has_error = false;
     ams_draw::style_slot_bar(col, params, 4);
@@ -385,7 +384,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar error state shows st
     ams_draw::BarStyleParams params;
     params.color_rgb = 0x00FF00;
     params.fill_pct = 50;
-    params.show_fill = true;
+    params.is_present = true;
     params.is_loaded = false;
     params.has_error = true;
     params.severity = SlotError::ERROR;
@@ -400,53 +399,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar empty state ghosted"
     auto col = ams_draw::create_slot_column(test_screen(), 10, 40, 4);
 
     ams_draw::BarStyleParams params;
-    params.show_fill = false;
+    params.is_present = false;
     ams_draw::style_slot_bar(col, params, 4);
 
     // Empty: 20% border opacity, fill hidden, status line hidden
     REQUIRE(lv_obj_get_style_border_opa(col.bar_bg, LV_PART_MAIN) == LV_OPA_20);
     REQUIRE(lv_obj_has_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN));
     REQUIRE(lv_obj_has_flag(col.status_line, LV_OBJ_FLAG_HIDDEN));
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar ghosts an ejected assigned lane",
-                 "[ams_draw][slot_bar]") {
-    // A bar is the same lane a spool cell draws, just compact. An ejected lane
-    // that kept its identity (#1071) ghosts on the spool surface, so it ghosts
-    // here too: the fill still renders — at the ghost strength, and clamped to
-    // the 5% sliver fill_percent_from_slot() gives an empty lane — rather than
-    // vanishing and reading identical to a lane that was never assigned.
-    auto col = ams_draw::create_slot_column(test_screen(), 10, 40, 4);
-
-    ams_draw::BarStyleParams params;
-    params.color_rgb = 0x00FF00;
-    params.fill_pct = 5;
-    params.show_fill = true;
-    params.fill_opa = helix::ui::SPOOL_OPA_GHOST;
-    ams_draw::style_slot_bar(col, params, 4);
-
-    REQUIRE_FALSE(lv_obj_has_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_get_style_bg_opa(col.bar_fill, LV_PART_MAIN) == helix::ui::SPOOL_OPA_GHOST);
-    // Normal outline, NOT the faded one an unassigned empty lane gets — that is
-    // what separates "assigned, not present" from "never used" on a bar.
-    REQUIRE(lv_obj_get_style_border_opa(col.bar_bg, LV_PART_MAIN) == LV_OPA_50);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar draws a present lane full strength",
-                 "[ams_draw][slot_bar]") {
-    // Control for the ghost case above: same widget, same fill, full opacity.
-    auto col = ams_draw::create_slot_column(test_screen(), 10, 40, 4);
-
-    ams_draw::BarStyleParams params;
-    params.color_rgb = 0x00FF00;
-    params.fill_pct = 60;
-    params.show_fill = true;
-    params.fill_opa = helix::ui::SPOOL_OPA_FULL;
-    ams_draw::style_slot_bar(col, params, 4);
-
-    REQUIRE_FALSE(lv_obj_has_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_get_style_bg_opa(col.bar_fill, LV_PART_MAIN) == LV_OPA_COVER);
-    REQUIRE(lv_obj_get_style_border_opa(col.bar_bg, LV_PART_MAIN) == LV_OPA_50);
 }
 
 // ============================================================================

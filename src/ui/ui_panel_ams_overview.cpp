@@ -23,7 +23,6 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
-#include "ams_slot_presentation.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
@@ -543,17 +542,11 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
         // per-slot fill subject observer — an observer would race the rebuild
         // (#705/#776). Semantics stay unified: fill_percent_from_slot uses
         // SlotInfo::display_fill_pct. -1 = "no data" → render an empty bar (0)
-        // rather than a phantom fill; style_slot_bar hides the fill outright for
-        // an unassigned empty lane and ghosts it for one that kept an identity.
+        // rather than a phantom fill; style_slot_bar hides the fill anyway for a
+        // non-present lane.
         int fp = ams_draw::fill_percent_from_slot(slot);
         params.fill_pct = fp < 0 ? 0 : fp;
-        // Same rule the AMS panel and the mini-status strip apply, so a lane
-        // reads consistently across all three surfaces. NOT is_present(), which
-        // collapses UNKNOWN into EMPTY and blanks an unanswered lane.
-        const helix::ui::SlotPresentation pres = helix::ui::resolve_slot_presentation(
-            slot.status, helix::ui::slot_has_retained_identity(slot));
-        params.show_fill = pres.show_spool;
-        params.fill_opa = pres.spool_opa;
+        params.is_present = slot.is_present();
         params.is_loaded = is_loaded;
         params.has_error = (slot.status == SlotStatus::BLOCKED || slot.error.has_value());
         params.severity = slot.error.has_value() ? slot.error->severity : SlotError::INFO;
