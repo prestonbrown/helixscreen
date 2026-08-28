@@ -768,6 +768,11 @@ class GCodeLayerRenderer {
     /// Clear the solid layer cache (and its SSAO derivative) only. Leaves the
     /// ghost cache and the background ghost worker alone — the ghost pass does
     /// not render highlight, so a highlight change must not restart it.
+    ///
+    /// This is also the reset render() uses in both scrub directions. Everything
+    /// stamped INTO the cache pixels — the SSAO shading and the selection rim —
+    /// has a flag saying it is already there, so a hand-rolled clear that forgets
+    /// one of them leaves a blank buffer marked as decorated.
     void invalidate_solid_cache();
     /// Act on the scope a SelectionState setter returned.
     void apply_selection_scope(InvalidationScope scope);

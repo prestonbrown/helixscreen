@@ -30,6 +30,19 @@ struct RasterTarget {
 /// Whether a line is drawn with Bresenham (Off) or Xiaolin Wu antialiasing (On).
 enum class Aa { Off, On };
 
+/// Byte order of the three colour channels in a RasterTarget.
+///
+/// Bgra is ARGB8888 as it sits in memory on little-endian, which is what every
+/// LVGL draw buffer and the ghost buffer are. Rgba is what a `glReadPixels(...,
+/// GL_RGBA, ...)` readback hands back, so the 3D path's surface has red and blue
+/// the other way round.
+///
+/// Only stroke_selection_rim() takes this. blend() and blend_coverage() are
+/// ARGB8888-only: they are fed packed 0xAARRGGBB words by the line rasterizers
+/// and there is no GL-side caller. Alpha is byte 3 in both layouts, which is why
+/// the selection tag itself needs no such distinction.
+enum class ChannelOrder { Bgra, Rgba };
+
 /// Upper bound on the offsets a single thick line can produce. Extrusion pixel
 /// width is clamped to MAX_EXTRUSION_PIXEL_WIDTH (8) upstream, so this is
 /// generous headroom rather than a real limit.
@@ -73,6 +86,23 @@ inline int round_offset(float v) {
 /// later pass covers the parts that should not show.
 inline constexpr uint8_t kSelectedAlpha = 254;
 
+/// Alpha for a stroke that is NOT the selected object, with the reserved tag
+/// rounded off.
+///
+/// Two things can land on kSelectedAlpha by accident: a Wu edge pixel whose raw
+/// coverage happens to be 254, and an accumulated src-over alpha that adds up to
+/// it. Either way stroke_selection_rim() would find an isolated tagged pixel,
+/// see no tagged neighbour in any of its four directions, and paint it white in
+/// the middle of an unselected object. 254 and 255 are indistinguishable on
+/// screen, so the collision is resolved upward.
+///
+/// The tag itself is written by blend(), which takes the alpha byte from the
+/// caller's `argb` verbatim — a tagged stroke is always drawn aliased for
+/// exactly that reason, so nothing that reaches here ever means to be tagged.
+inline uint8_t untagged_alpha(uint8_t a) {
+    return (a == kSelectedAlpha) ? 255 : a;
+}
+
 /// Overwrite one pixel. Not a composite despite the name, which is historical:
 /// all four channels are written unconditionally from `argb`.
 inline void blend(const RasterTarget& t, int x, int y, uint32_t argb) {
@@ -109,7 +139,7 @@ inline void blend_coverage(const RasterTarget& t, int x, int y, uint32_t rgb, ui
         pixel[0] = src_b;
         pixel[1] = src_g;
         pixel[2] = src_r;
-        pixel[3] = coverage;
+        pixel[3] = untagged_alpha(coverage);
     } else {
         // Alpha blend: src over dst
         const uint8_t dst_a = pixel[3];
@@ -117,11 +147,7 @@ inline void blend_coverage(const RasterTarget& t, int x, int y, uint32_t rgb, ui
         pixel[0] = static_cast<uint8_t>((src_b * coverage + pixel[0] * inv) / 255);
         pixel[1] = static_cast<uint8_t>((src_g * coverage + pixel[1] * inv) / 255);
         pixel[2] = static_cast<uint8_t>((src_r * coverage + pixel[2] * inv) / 255);
-        const uint8_t out_a = static_cast<uint8_t>(coverage + (dst_a * inv) / 255);
-        // Accumulating coverage can land on the reserved tag value by chance,
-        // which would put a stray white pixel on an unselected object. 254 and
-        // 255 are indistinguishable on screen, so round it off the tag.
-        pixel[3] = (out_a == kSelectedAlpha) ? 255 : out_a;
+        pixel[3] = untagged_alpha(static_cast<uint8_t>(coverage + (dst_a * inv) / 255));
     }
 }
 
@@ -150,9 +176,15 @@ void thick_line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t 
  * Requiring the gap to be as deep as the rim is thick means a genuine hole is
  * still outlined while a one-pixel seam between two strokes is not.
  *
+ * `order` says how `rgb` is unpacked into the surface. It has no default on
+ * purpose: the 2D cache and ghost buffers are ARGB8888 and the 3D path's is a
+ * GL_RGBA readback, and a silently-assumed order is what let a non-white outline
+ * token render with red and blue swapped in 3D.
+ *
  * O(w*h) with one comparison per pixel, then up to 4*(rim_px+gap_px) reads per
  * tagged pixel. Nothing is allocated.
  */
-void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb);
+void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb,
+                          ChannelOrder order);
 
 } // namespace helix::gcode

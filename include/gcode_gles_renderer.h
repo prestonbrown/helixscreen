@@ -198,6 +198,16 @@ class GCodeGLESRenderer {
     void clear_cached_frame();
     RenderingOptions get_options() const;
 
+    /// The selection palette this renderer resolved from the XML tokens.
+    ///
+    /// Read-only view of sel_palette_, so the token wiring is observable without
+    /// a GL context: the outline colour reaches stroke_selection_rim() and the
+    /// bracket colour reaches the wireframe uniforms from here, and both are
+    /// wrong in the same silent way if the palette is never resolved.
+    const selection::Palette& selection_palette() const {
+        return sel_palette_;
+    }
+
     // ====== Object Picking ======
 
     std::optional<std::string> pick_object(const glm::vec2& screen_pos,

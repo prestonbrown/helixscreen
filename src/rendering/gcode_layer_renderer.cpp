@@ -1182,11 +1182,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                 // becomes interior. Start over instead. Only reachable while an
                 // object is selected, which is a transient interaction.
                 if (selection_rim_stamped_) {
-                    lv_draw_buf_clear(cache_buf_, nullptr);
-                    ssao_undo_.clear();
-                    cached_up_to_layer_ = -1;
-                    selection_rim_stamped_ = false;
-                    ssao_cache_valid_ = false;
+                    invalidate_solid_cache();
                 }
 
                 // Progressive rendering: only render up to layers_per_frame_ at a time
@@ -1207,10 +1203,12 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                         cached_up_to_layer_, target_layer);
                 }
             } else if (target_layer < cached_up_to_layer_) {
-                // Going backwards - need to re-render from scratch (progressively)
-                lv_draw_buf_clear(cache_buf_, nullptr);
-                ssao_undo_.clear();
-                cached_up_to_layer_ = -1;
+                // Going backwards - need to re-render from scratch (progressively).
+                // Same reset as the forward branch above, and it has to be the
+                // same one: the rim and the SSAO shading are baked into these
+                // pixels, so clearing them without dropping both flags leaves the
+                // next pass treating a blank buffer as already decorated.
+                invalidate_solid_cache();
 
                 int to_layer = std::min(layers_per_frame_ - 1, target_layer);
                 cached_up_to_layer_ = render_layers_to_cache(0, to_layer);
@@ -1239,7 +1237,8 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             if (selection_.any_highlighted() && !selection_rim_stamped_ &&
                 cached_up_to_layer_ >= target_layer) {
                 const int rim = selection::outline_width_px(cached_width_);
-                helix::gcode::stroke_selection_rim(cache_target(), rim, rim, sel_palette_.outline);
+                helix::gcode::stroke_selection_rim(cache_target(), rim, rim, sel_palette_.outline,
+                                                   helix::gcode::ChannelOrder::Bgra);
                 selection_rim_stamped_ = true;
                 ssao_cache_valid_ = false;
             }
@@ -2151,9 +2150,10 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     // straight into it with no staleness to manage — unlike the solid cache,
     // which grows a layer at a time.
     if (local_selection.any_highlighted()) {
-        helix::gcode::stroke_selection_rim(
-            ghost_target(), selection::outline_width_px(ghost_raw_width_),
-            selection::outline_width_px(ghost_raw_width_), local_palette.outline);
+        helix::gcode::stroke_selection_rim(ghost_target(),
+                                           selection::outline_width_px(ghost_raw_width_),
+                                           selection::outline_width_px(ghost_raw_width_),
+                                           local_palette.outline, helix::gcode::ChannelOrder::Bgra);
     }
 
     // Mark as ready for main thread to copy
