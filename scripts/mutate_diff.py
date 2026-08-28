@@ -67,6 +67,28 @@ from pathlib import Path
 MUTABLE_PREFIXES = ('src/', 'include/')
 HUNK_RE = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 
+# Files the suite physically cannot execute (no headless GL, no device). Shared
+# with scripts/mutate_diff.py so both tools agree on what is un-judgeable rather
+# than each reporting it as a different kind of debt.
+UNTESTABLE_LIST = 'scripts/untestable_paths.txt'
+
+
+def load_untestable(root):
+    """[(path prefix, reason)] the tools must not judge."""
+    out = []
+    f = root / UNTESTABLE_LIST
+    if not f.is_file():
+        return out
+    for line in f.read_text(errors='replace').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        path, _, reason = line.partition('#')
+        if path.strip():
+            out.append((path.strip(), reason.strip()))
+    return out
+
+
 
 def run(cmd, cwd, capture=True, timeout=None):
     return subprocess.run(cmd, cwd=cwd, timeout=timeout,
@@ -181,13 +203,25 @@ def main():
     root = repo_root()
     base = args.base or default_base(root)
     hunks = collect_hunks(root, base)
+    untestable = load_untestable(root)
+    skipped_untestable = []
+    for h in list(hunks):
+        hit = next(((p_, r) for p_, r in untestable if h['file'].startswith(p_)), None)
+        if hit:
+            skipped_untestable.append((f"{h['file']}:{h['line']}", hit[1]))
+            hunks.remove(h)
     if args.only:
         hunks = [h for h in hunks if args.only in h['file']]
     if args.limit:
         hunks = hunks[:args.limit]
 
+    for label, reason in skipped_untestable:
+        print(f'  EXCLUDED  {label} - {reason}')
+
     if not hunks:
-        print(f'No changed hunks under {"/".join(MUTABLE_PREFIXES)} vs {base[:12]}.')
+        print(f'0 hunk(s) to mutate, vs base {base[:12]} '
+              f'(nothing changed under {"/".join(MUTABLE_PREFIXES)}, or all of it '
+              f'is excluded).')
         return 0
 
     print(f'{len(hunks)} hunk(s) to mutate, vs base {base[:12]}')

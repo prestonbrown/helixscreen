@@ -126,3 +126,42 @@ EOF
     [ "$status" -ne 0 ]
     [[ "$output" == *"cov-build"* ]]
 }
+
+@test "a file listed as untestable is excluded with its reason, not counted as uncovered" {
+    # The exclusion exists so a file the suite physically cannot run does not
+    # generate permanent false debt. It must state why, and must not fail the run.
+    mkdir -p "$WORK/scripts"
+    printf 'src/calc.cpp  # no headless path for this\n' > "$WORK/scripts/untestable_paths.txt"
+    cat > "$WORK/src/calc.cpp" <<'EOF'
+int classify(int n) {
+    if (n < -999) {
+        return 42;
+    }
+    return 0;
+}
+int main() { return classify(5) == 0 ? 0 : 1; }
+EOF
+    build_and_run
+    cd "$WORK" && run python3 scripts/cov_diff.py --base "$BASE" --list
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"EXCLUDED"* ]]
+    [[ "$output" == *"no headless path for this"* ]]
+    [[ "$output" != *"never executed"* ]]
+}
+
+@test "an unlisted file is still judged normally when an exclusion file exists" {
+    printf 'src/somethingelse.cpp  # unrelated\n' > "$WORK/scripts/untestable_paths.txt"
+    cat > "$WORK/src/calc.cpp" <<'EOF'
+int classify(int n) {
+    if (n < -999) {
+        return 42;
+    }
+    return 0;
+}
+int main() { return classify(5) == 0 ? 0 : 1; }
+EOF
+    build_and_run
+    cd "$WORK" && run python3 scripts/cov_diff.py --base "$BASE" --list
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"never executed"* ]]
+}

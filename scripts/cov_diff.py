@@ -32,6 +32,28 @@ from pathlib import Path
 
 HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 
+# Files the suite physically cannot execute (no headless GL, no device). Shared
+# with scripts/mutate_diff.py so both tools agree on what is un-judgeable rather
+# than each reporting it as a different kind of debt.
+UNTESTABLE_LIST = 'scripts/untestable_paths.txt'
+
+
+def load_untestable(root):
+    """[(path prefix, reason)] the tools must not judge."""
+    out = []
+    f = root / UNTESTABLE_LIST
+    if not f.is_file():
+        return out
+    for line in f.read_text(errors='replace').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        path, _, reason = line.partition('#')
+        if path.strip():
+            out.append((path.strip(), reason.strip()))
+    return out
+
+
 
 def sh(cmd, cwd=None):
     return subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE,
@@ -124,9 +146,15 @@ def main():
         print(f'No changed src/ lines vs {base[:12]}.')
         return 0
 
+    untestable = load_untestable(root)
+    excluded = []
     uncovered, unbuilt, total_changed, total_exec = {}, [], 0, 0
     with tempfile.TemporaryDirectory() as tmp:
         for src_rel, lines in sorted(changed.items()):
+            hit = next(((p_, r) for p_, r in untestable if src_rel.startswith(p_)), None)
+            if hit:
+                excluded.append((src_rel, len(lines), hit[1]))
+                continue
             total_changed += len(lines)
             counts = gcov_lines(root, objdir, src_rel, tmp)
             if counts is None:
@@ -142,6 +170,8 @@ def main():
 
     print(f'Diff coverage vs {base[:12]}: {len(changed)} file(s), '
           f'{total_changed} changed line(s)\n')
+    for src_rel, n, reason in excluded:
+        print(f'  {src_rel}: {n} changed line(s) EXCLUDED - {reason}')
     for src_rel in unbuilt:
         print(f'  {src_rel}: NOT LINKED into the test binary - no test can '
               f'reach any of it')

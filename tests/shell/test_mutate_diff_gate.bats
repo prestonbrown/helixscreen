@@ -144,3 +144,23 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     [[ "$output" == *"src/feature.cpp"* ]]
     [[ "$output" != *"other/thing.cpp"* ]]
 }
+
+@test "a hunk in an untestable file is excluded with its reason, not mutated" {
+    stub_tests_that_detect
+    printf 'src/feature.cpp  # cannot run headless\n' > "$WORK/scripts/untestable_paths.txt"
+    run mutate --list-only
+    [[ "$output" == *"EXCLUDED"* ]]
+    [[ "$output" == *"cannot run headless"* ]]
+    [[ "$output" == *"0 hunk(s) to mutate"* ]]
+}
+
+@test "the exclusion is a path prefix, not a loose substring" {
+    stub_tests_that_detect
+    printf 'src/feat  # deliberately a partial path\n' > "$WORK/scripts/untestable_paths.txt"
+    run mutate --list-only
+    [[ "$output" == *"EXCLUDED"* ]]
+    printf 'feature.cpp  # not anchored at the start\n' > "$WORK/scripts/untestable_paths.txt"
+    run mutate --list-only
+    [[ "$output" != *"EXCLUDED"* ]]
+    [[ "$output" == *"1 hunk(s) to mutate"* ]]
+}
