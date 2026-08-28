@@ -16,14 +16,25 @@ namespace helix::json_util {
 
 /// Safely extract a string from a JSON field that may be null.
 /// nlohmann .value("key", "") throws type_error.302 when the field is JSON null.
+///
+/// @param accept_number  Also accept a JSON integer, returned as its decimal
+///        text. Off by default because a number arriving where a string was
+///        declared is usually a bug worth defaulting away. Some firmwares do
+///        send one anyway - a field they format back unquoted makes the round
+///        trip as a number even though their own schema calls it a string -
+///        and a reader that has confirmed that is the case opts in here rather
+///        than hand-rolling the widened copy.
 inline std::string safe_string(const nlohmann::json& j, const char* key,
-                               const std::string& def = "") {
+                               const std::string& def = "", bool accept_number = false) {
     if (!j.contains(key) || j[key].is_null()) {
         return def;
     }
     const auto& v = j[key];
     if (v.is_string()) {
         return v.get<std::string>();
+    }
+    if (accept_number && v.is_number_integer()) {
+        return std::to_string(v.get<long long>());
     }
     return def;
 }

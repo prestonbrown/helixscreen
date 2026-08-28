@@ -2,6 +2,8 @@
 
 #include "lan_client_authorization.h"
 
+#include "json_utils.h"
+
 #include <spdlog/spdlog.h>
 
 #include <iterator>
@@ -46,17 +48,7 @@ const nlohmann::json* notification_payload(const nlohmann::json& msg) {
 /// is `str(val)` and accepts either, so both shapes are legal on the wire and
 /// this has to read both.
 std::string string_member(const nlohmann::json& obj, const char* key) {
-    auto it = obj.find(key);
-    if (it == obj.end()) {
-        return {};
-    }
-    if (it->is_string()) {
-        return it->get<std::string>();
-    }
-    if (it->is_number_integer()) {
-        return std::to_string(it->get<long long>());
-    }
-    return {};
+    return helix::json_util::safe_string(obj, key, "", /*accept_number=*/true);
 }
 
 // --- Snapmaker (U1 and siblings running Moonraker's client_manager) ---------
@@ -153,8 +145,7 @@ const std::vector<std::string>& notification_methods() {
     return methods;
 }
 
-std::optional<PendingRequest> parse_request(const std::string& method,
-                                            const nlohmann::json& msg) {
+std::optional<PendingRequest> parse_request(const std::string& method, const nlohmann::json& msg) {
     const Provider* provider = provider_for_notification(method);
     if (!provider) {
         return std::nullopt;
@@ -166,8 +157,7 @@ std::optional<PendingRequest> parse_request(const std::string& method,
     }
     std::optional<PendingRequest> req = provider->parse(*payload);
     if (!req) {
-        spdlog::warn("[LanAuth] {} authorization request was malformed, ignoring",
-                     provider->name);
+        spdlog::warn("[LanAuth] {} authorization request was malformed, ignoring", provider->name);
         return std::nullopt;
     }
     req->provider = provider->name;
