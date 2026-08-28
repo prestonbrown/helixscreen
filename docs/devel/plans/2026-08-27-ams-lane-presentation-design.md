@@ -127,17 +127,23 @@ internally) and `ams_lane_bar`.
 
 Custom widget attributes are **one-shot strings** — `spool_canvas_xml_apply()`
 does `strtof(value)` at apply time and there is no generic `bind_<attr>`
-facility. So the params are **subject names**, and each widget resolves and
-observes its own:
+facility. So a widget cannot take a live value as an attribute; it takes the
+lane's **index** and resolves its own subjects:
 
 ```xml
-<ams_spool bind_color="slot_color_${i}"
-           bind_fill="slot_fill_${i}"
-           bind_state="lane_state_${i}"/>
+<ams_spool slot_index="${i}"/>
 ```
 
-This is the pattern `ams_slot` already uses and CLAUDE.md's sanctioned shape for
-custom widgets.
+This is exactly what `ams_slot` does today (`ams_slot_xml_apply()` reads
+`slot_index`, then `setup_slot_observers()` resolves
+`AmsState::get_slot_*_subject(index)`), and it is CLAUDE.md's sanctioned shape
+for custom widgets. One attribute, not three, and the subject wiring stays in
+one place.
+
+The chrome binds by XML subject **name**, which `AmsState::init_subjects()`
+already registers per lane as `ams_slot_<n>_color`, `ams_slot_<n>_status`,
+`ams_slot_<n>_material` and so on (`ams_state.cpp:421`). With `${i}`
+substitution that is `bind_text="ams_slot_${i}_material"`.
 
 ### 4. Chrome — XML
 
