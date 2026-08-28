@@ -44,6 +44,9 @@ json snapmaker_payload(const std::string& client_id) {
     return json{{"id", "0"}, {"clientid", client_id}, {"app_id", "orca-1787643423061664"}};
 }
 
+// TEST_MIRROR_OK: a two-line std::find wrapper, not a copy of the shipped
+//                 contains(). It shadows that name by coincidence; every
+//                 assertion using it reads a real production call.
 bool contains(const std::vector<std::string>& v, const std::string& s) {
     return std::find(v.begin(), v.end(), s) != v.end();
 }

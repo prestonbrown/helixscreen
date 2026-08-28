@@ -146,7 +146,9 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"EXCLUDED"* ]]
     [[ "$output" == *"no headless path for this"* ]]
-    [[ "$output" != *"never executed"* ]]
+    # The summary line always carries the words "never executed" ("0 never
+    # executed"), so assert the count, not the substring.
+    [[ "$output" == *"0 never executed"* ]]
 }
 
 @test "an unlisted file is still judged normally when an exclusion file exists" {
