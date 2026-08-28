@@ -37,6 +37,27 @@
 
 namespace helix {
 
+namespace {
+
+/// Refuse a mutation that would publish into subjects that do not exist yet.
+///
+/// Every ToolState mutator ends in lv_subject_set_int(). Before
+/// init_subjects() those subjects are still zeroed (LV_SUBJECT_TYPE_INVALID),
+/// so LVGL drops each write and only warns, while the plain members the same
+/// call rebuilt keep the new value. That divergence is invisible: tools_ says
+/// four tools and tool_count says zero, and nothing republishes until some
+/// unrelated path happens to rebuild the list. Applying nothing is the only
+/// outcome that cannot diverge.
+bool subjects_ready(bool initialized, const char* what) {
+    if (initialized) {
+        return true;
+    }
+    spdlog::error("[ToolState] {} before init_subjects() - ignored", what);
+    return false;
+}
+
+} // namespace
+
 ToolState& ToolState::instance() {
     static ToolState instance;
     return instance;
@@ -220,6 +241,10 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
 }
 
 void ToolState::set_ams_topology(const ToolTopology& topo) {
+    if (!subjects_ready(subjects_initialized_, "set_ams_topology()")) {
+        return;
+    }
+
     bool needs_rebuild = !ams_topology_active_ || ams_topology_tool_count_ != topo.tool_count ||
                          ams_topology_tool_to_slot_ != topo.tool_to_slot ||
                          ams_topology_tool_name_prefix_ != topo.tool_name_prefix;
@@ -275,6 +300,9 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
 }
 
 void ToolState::clear_ams_topology() {
+    if (!subjects_ready(subjects_initialized_, "clear_ams_topology()")) {
+        return;
+    }
     if (!ams_topology_active_)
         return;
     ams_topology_active_ = false;
