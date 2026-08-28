@@ -270,6 +270,6 @@ Read in this order; about 30 minutes total.
 11. [`src/ui/ui_overlay_qr_scanner.cpp:383`](../../../src/ui/ui_overlay_qr_scanner.cpp#L383) — the overlay racing both scanner paths (`:312` for the snapshot viewfinder, `:383` for the evdev wedge).
 12. [`include/mdns_discovery.h:54`](../../../include/mdns_discovery.h#L54) — the class doc: PIMPL, threading, and callback contract.
 13. [`include/remote_control_server.h:15`](../../../include/remote_control_server.h#L15) — the file doc: thread model, transports, and the `RemoteConfig` options.
-14. [`src/remote/remote_control_server.cpp:249`](../../../src/remote/remote_control_server.cpp#L249) — the promise/`ui_queue_update` dispatch every UI command rides; then `:101` for socket-path resolution and the pid-suffix rule.
+14. [`src/remote/remote_control_server.cpp:249`](../../../src/remote/remote_control_server.cpp#L249) — the promise/`ui_queue_update` dispatch every UI command rides; then `:102` for socket-path resolution and the pid-suffix rule.
 15. [`src/remote/remote_client.cpp:198`](../../../src/remote/remote_client.cpp#L198) — the client's mirror-image resolution and its refusal to guess among live instances.
 16. [`docs/devel/HELIXCTL.md`](../HELIXCTL.md) — skim the command tables; this is the doc you'll actually use daily.
