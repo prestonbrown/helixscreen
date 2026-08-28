@@ -692,6 +692,32 @@ TEST_CASE("A fresh dispatch gets its own hold even after a stale confirmation",
     CHECK(tc.get_current_action() != AmsAction::IDLE);
 }
 
+TEST_CASE("A tool changer tracks the sidebar's optimistic heat marker",
+          "[ams][toolchanger][steps]") {
+    // HEATING is a lie about the MACHINE and the truth about the SIDEBAR, which
+    // is why it belongs here and why it keeps looking like a mistake to remove.
+    // AmsOperationSidebar::start_operation() stamps HEATING the instant a user
+    // starts an operation, before any frame has arrived. If the changer answers
+    // "not an operation I follow" to it, update_step_progress() takes its
+    // not-active branch on our OWN dispatch: it hides the bar and clears
+    // target_load_slot_, after which the rest of a user-initiated swap reads as
+    // externally started and the bar restarts from step 0.
+    //
+    // A changer genuinely never heats, so the honest-looking edit is to drop
+    // HEATING from this list. That is the regression this test exists to catch.
+    ToolChangerHelper tc(4);
+
+    CHECK(tc.action_tracks_step_operation(AmsAction::HEATING));
+    CHECK(tc.action_tracks_step_operation(AmsAction::SELECTING));
+    CHECK(tc.action_tracks_step_operation(AmsAction::UNLOADING));
+
+    // Everything else stays untracked: a changer moves hot ends, so the
+    // filament vocabulary describes nothing it does.
+    CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::IDLE));
+    CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::LOADING));
+    CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::PURGING));
+}
+
 TEST_CASE("A fresh dispatch does not inherit the previous swap's gripper latch",
           "[ams][toolchanger][steps]") {
     // feeder_opened_this_operation_ is what tells the grip that ENDS a swap
