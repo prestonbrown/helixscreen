@@ -797,3 +797,34 @@ TEST_CASE("Sensors losing track of a MOUNTED tool withdraws Unmount",
     CHECK(tc.unload_blocked_reason(1).empty());
     CHECK(tc.can_unload_from_toolhead(1));
 }
+
+TEST_CASE("A dock-sensor fault reaches the LIVE half of the loaded signal too",
+          "[ams][toolchanger][labels]") {
+    // can_unload_from_toolhead() is only the snapshot half. AmsContextMenu ORs
+    // it with the live pair — slot_is_actively_loaded() ||
+    // slot_has_filament_at_toolhead() — so a withdrawal that lives in the
+    // snapshot alone is handed straight back by the live one and the button
+    // never greys. The base slot_is_actively_loaded() rule cannot see the fault:
+    // it reads current_slot + filament_loaded, and the sensor-error path holds
+    // both on purpose.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    REQUIRE(tc.slot_is_actively_loaded(1));
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
+
+    // The held state the base rule would answer from, asserted so this case
+    // fails for the right reason if the hold is ever dropped instead.
+    REQUIRE(tc.get_current_slot() == 1);
+    REQUIRE(tc.is_filament_loaded());
+
+    CHECK_FALSE(tc.slot_is_actively_loaded(1));
+    CHECK_FALSE(tc.slot_has_filament_at_toolhead(1));
+    CHECK_FALSE(tc.can_unload_from_toolhead(1));
+
+    // Withdrawn, not blanked: the tool comes back when the sensors do.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    CHECK(tc.slot_is_actively_loaded(1));
+}
