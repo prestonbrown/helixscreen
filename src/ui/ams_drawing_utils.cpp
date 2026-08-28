@@ -963,15 +963,6 @@ void spool_visual_set_empty(const SpoolVisual& sv, bool empty) {
     show(sv.spool_hub, !empty);
 }
 
-void spool_visual_set_error(const SpoolVisual& sv, bool has_error) {
-    if (sv.error_indicator) {
-        if (has_error)
-            lv_obj_remove_flag(sv.error_indicator, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(sv.error_indicator, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
     if (!parent)
         return nullptr;

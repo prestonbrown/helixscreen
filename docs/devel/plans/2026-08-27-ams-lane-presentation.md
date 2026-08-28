@@ -822,6 +822,16 @@ git commit -m "feat(ams): add the ams_lane_bar widget"
 - Consumes: `ams_lane_bar` widget, `ams_slot_<n>_lane_state` subjects
 - Produces: bar mode rendered from XML; `SlotBarData` no longer exists
 
+
+> **The ghost's fill is not visible end-to-end yet — do not "fix" it here.**
+> A ghosted lane's fill comes from the `slot_fill` subject, fed by
+> `fill_percent_from_slot` → `display_fill_pct` → `SlotInfo::display_fill_level`,
+> which still returns 0 for a non-present lane until Task 10 reroutes it. So a
+> ghosted lane shows the 5% `min_pct` sliver until then. Rerouting early would
+> make #1071 live for several commits: the spool surfaces do not ghost until
+> Task 8, so an ejected lane would render a full-strength fill — exactly the bug
+> `a106413f6` fixed. Leave it to Task 10.
+
 - [ ] **Step 1: Write the XML**
 
 Create `ui_xml/components/ams_lane_bar_row.xml`:
@@ -1048,16 +1058,32 @@ Note rule 6: an inline `style_*` attribute overrides `bind_style`. If the ghost
 does not take, check for an inline opacity on the same element and use two
 `bind_style`s rather than mixing.
 
-- [ ] **Step 2: Keep the existing behavioural tests green**
+- [ ] **Step 2: Move the ghost assertions to the cell root**
+
+The ghost moves from the spool graphic to the cell **root** so children dim
+together. Two existing helpers read it off the old location and become wrong,
+not merely relocated:
+
+- `inspect_spool_state()` (`tests/unit/test_ui_ams_slot.cpp`) reads
+  `lv_obj_get_style_opa()` on `spool_graphic`
+- `material_opa()` (`tests/unit/test_ams_slot_empty_lane_label.cpp:69`) reads
+  `text_opa` on the material label
+
+Update both to assert the **root** opacity, and keep at least one case that
+asserts BOTH the root is dimmed AND a child renders dimmed with it. That pair
+is the whole-cell invariant; the #1071 reversal is safe only because of it, so
+a test that checks the root alone does not cover it.
+
+- [ ] **Step 3: Keep the existing behavioural tests green**
 
 `test_ams_slot_empty_lane_label.cpp` already pins first paint for both empty
 shapes and that a later material notify does not undo "Empty". Those assertions
 stay valid and are the regression net for this conversion — do not rewrite them
 to match new behaviour. If they fail, the conversion is wrong.
 
-- [ ] **Step 3: Delete the imperative appliers**
+- [ ] **Step 4: Delete the imperative appliers**
 
-- [ ] **Step 4: Run**
+- [ ] **Step 5: Run**
 
 ```bash
 make -j4 test 2>&1 | tail -2
@@ -1065,7 +1091,7 @@ make -j4 test 2>&1 | tail -2
 python3 scripts/check_imperative_ui.py 2>&1 | tail -1
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ---
 
@@ -1078,6 +1104,16 @@ python3 scripts/check_imperative_ui.py 2>&1 | tail -1
 **Interfaces:**
 - Consumes: `ams_spool`
 - Produces: spool mode rendered from XML; the render-signature cache is gone
+
+
+> **The ghost's fill is not visible end-to-end yet — do not "fix" it here.**
+> A ghosted lane's fill comes from the `slot_fill` subject, fed by
+> `fill_percent_from_slot` → `display_fill_pct` → `SlotInfo::display_fill_level`,
+> which still returns 0 for a non-present lane until Task 10 reroutes it. So a
+> ghosted lane shows the 5% `min_pct` sliver until then. Rerouting early would
+> make #1071 live for several commits: the spool surfaces do not ghost until
+> Task 8, so an ejected lane would render a full-strength fill — exactly the bug
+> `a106413f6` fixed. Leave it to Task 10.
 
 - [ ] **Step 1: Write the XML** — `<repeat>` over `ams_spool` plus the material and percent labels, mirroring Task 5's row.
 
