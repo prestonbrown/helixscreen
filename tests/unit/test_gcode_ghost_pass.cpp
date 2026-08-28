@@ -326,9 +326,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "an excluded object is recoloured in the ghost
     drive_with_ghost(excluded, canvas, buf);
     const auto after = snapshot(buf);
 
-    const uint8_t ex_r = (selection::kExcludedColor >> 16) & 0xFF;
-    const uint8_t ex_g = (selection::kExcludedColor >> 8) & 0xFF;
-    const uint8_t ex_b = selection::kExcludedColor & 0xFF;
+    const selection::Palette pal;
+    const uint8_t ex_r = pal.excluded_r();
+    const uint8_t ex_g = pal.excluded_g();
+    const uint8_t ex_b = pal.excluded_b();
 
     const size_t hue_before = near_hue(before, ex_r, ex_g, ex_b, 60);
     const size_t hue_after = near_hue(after, ex_r, ex_g, ex_b, 60);

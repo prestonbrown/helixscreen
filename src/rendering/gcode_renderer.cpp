@@ -5,6 +5,7 @@
 
 #include "gcode_renderer.h"
 
+#include "gcode_projection.h"
 #include "gcode_selection_style.h"
 #include "theme_manager.h"
 
@@ -33,7 +34,7 @@ void GCodeRenderer::ensure_colors_initialized() {
     color_highlighted_ = theme_manager_get_color("success");
     // Shared with the isometric view rather than theme "danger", so an excluded
     // object is the same orange-red whichever renderer is drawing it.
-    color_excluded_ = lv_color_hex(selection::kExcludedColor);
+    color_excluded_ = lv_color_hex(selection::palette_from_theme().excluded);
 
     // Save theme defaults for reset
     theme_color_extrusion_ = color_extrusion_;
@@ -490,7 +491,10 @@ std::optional<std::string> GCodeRenderer::pick_object(const glm::vec2& screen_po
     float closest_distance = std::numeric_limits<float>::max();
     std::optional<std::string> picked_object;
 
-    const float PICK_THRESHOLD = 15.0f; // pixels - how close to segment to register click
+    // The GLES picker reads this from selection::kPickThresholdPx; this copy was
+    // a hand-written 15.0f that happened to agree. A printer where one view
+    // selects and the other does not is the bug that duplication produces.
+    const float PICK_THRESHOLD = selection::kPickThresholdPx;
 
     // Iterate through visible layers
     int layer_start = options_.layer_start;
@@ -526,21 +530,7 @@ std::optional<std::string> GCodeRenderer::pick_object(const glm::vec2& screen_po
                 continue;
             }
 
-            // Calculate distance from click point to line segment
-            glm::vec2 v = *end_screen - *start_screen;
-            glm::vec2 w = screen_pos - *start_screen;
-
-            // Project click onto line segment (clamped to [0,1])
-            float segment_length_sq = glm::dot(v, v);
-            float t = (segment_length_sq > 0.0001f)
-                          ? std::clamp(glm::dot(w, v) / segment_length_sq, 0.0f, 1.0f)
-                          : 0.0f;
-
-            // Closest point on segment to click
-            glm::vec2 closest_point = *start_screen + t * v;
-
-            // Distance from click to closest point on segment
-            float dist = glm::length(screen_pos - closest_point);
+            const float dist = point_segment_distance(screen_pos, *start_screen, *end_screen);
 
             // Update if this is the closest segment within threshold
             if (dist < PICK_THRESHOLD && dist < closest_distance) {

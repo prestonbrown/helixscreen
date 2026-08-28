@@ -9,6 +9,7 @@
 #include "gcode_ghost_sampling.h"
 #include "gcode_parser.h"
 #include "gcode_selection_style.h"
+#include "lv_draw_buf_guard.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
 #include "system/crash_handler.h"
@@ -33,12 +34,6 @@ namespace gcode {
 // ============================================================================
 
 namespace {
-
-/// Excluded-object channel bytes, split out of the shared color so the software
-/// rasterizer can assemble ARGB words without restating the hue.
-constexpr uint8_t EXCLUDED_R = (selection::kExcludedColor >> 16) & 0xFF;
-constexpr uint8_t EXCLUDED_G = (selection::kExcludedColor >> 8) & 0xFF;
-constexpr uint8_t EXCLUDED_B = selection::kExcludedColor & 0xFF;
 
 /// Core stroke width the lv_draw_line path uses for an extrusion move. Named so
 /// the fallback halo pre-pass widens the same number render_segment() draws.
@@ -285,6 +280,11 @@ void GCodeLayerRenderer::reset_colors() {
     // Support: orange/warning color to distinguish from model
     color_support_ = theme_manager_get_color("warning");
 
+    // Selection cues from ui_xml/gcode_tokens.xml. Resolved here, on the main
+    // thread, because every consumer is either a rasterizer inner loop or the
+    // ghost worker, and neither may walk LVGL's const registry itself.
+    sel_palette_ = selection::palette_from_theme();
+
     use_custom_extrusion_color_ = false;
     use_custom_travel_color_ = false;
     use_custom_support_color_ = false;
@@ -419,8 +419,7 @@ void GCodeLayerRenderer::auto_fit() {
             // ±inf box yields NaN offsets in compute_auto_fit and every
             // projected point becomes garbage.
             spdlog::debug("[GCodeLayerRenderer] Empty global bbox, using default 200x200");
-            bb.min = {0.0f, 0.0f, 0.0f};
-            bb.max = {200.0f, 200.0f, 0.0f};
+            bb = AABB::default_plate_bbox();
         }
     } else {
         return;
@@ -470,8 +469,7 @@ void GCodeLayerRenderer::fit_layer() {
     AABB bb = gcode_->layers[current_layer_].bounding_box;
     if (bb.is_empty()) {
         // Layer holds only travel moves — same ±inf NaN trap as auto_fit().
-        bb.min = {0.0f, 0.0f, 0.0f};
-        bb.max = {200.0f, 200.0f, 0.0f};
+        bb = AABB::default_plate_bbox();
     }
 
     bounds_min_x_ = bb.min.x;
@@ -577,23 +575,12 @@ bool GCodeLayerRenderer::has_support_detection() const {
 
 void GCodeLayerRenderer::destroy_cache() {
     if (cache_buf_) {
-        if (lv_is_initialized()) {
-            // Mechanism B (#929): cache_buf_ is referenced by parallel-render-thread
-            // draw tasks via dsc.src in blit_cache(); freeing it while a task is
-            // in flight UAFs in argb8888_image_blend (cluster:pstat-async-delete,
-            // v0.99.54 production telemetry pinned the source pointer to a freed
-            // mmap'd cache_buf_).
-            //
-            // lv_draw_wait_for_finish() blocks until every draw unit's pending
-            // tasks complete (no-op when LV_USE_OS == 0, so single-threaded
-            // builds are unaffected). After it returns, no in-flight task
-            // references cache_buf_ and lv_draw_buf_destroy is safe.
-            crash_handler::breadcrumb::note("cache_buf", "destroy_pre");
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(cache_buf_);
-            crash_handler::breadcrumb::note("cache_buf", "destroy_post");
-        }
-        cache_buf_ = nullptr;
+        // Mechanism B (#929): cache_buf_ is referenced by parallel-render-thread
+        // draw tasks via dsc.src in blit_cache(); freeing it while a task is in
+        // flight UAFs in argb8888_image_blend (cluster:pstat-async-delete,
+        // v0.99.54 production telemetry pinned the source pointer to a freed
+        // mmap'd cache_buf_). safe_draw_buf_destroy() owns the drain.
+        helix::safe_draw_buf_destroy(cache_buf_, "cache_buf");
         // Offsets into a buffer that no longer exists.
         ssao_undo_.clear();
     }
@@ -945,11 +932,12 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             // rim scan after the cache completes turns that tag into the white
             // silhouette; nothing here paints white.
             const SelectionFlags sel = selection_.classify(seg.object_name_index);
-            const auto style = selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
+            const auto style =
+                selection::resolve(sel_palette_, sel.excluded, sel.highlighted, seg.is_extrusion);
             if (style.override_color) {
-                r = EXCLUDED_R;
-                g = EXCLUDED_G;
-                b = EXCLUDED_B;
+                r = sel_palette_.excluded_r();
+                g = sel_palette_.excluded_g();
+                b = sel_palette_.excluded_b();
             }
 
             const uint32_t color =
@@ -1001,16 +989,9 @@ void GCodeLayerRenderer::blit_cache(lv_layer_t* target) {
 // ============================================================================
 
 void GCodeLayerRenderer::destroy_ghost_cache() {
-    if (ghost_buf_) {
-        if (lv_is_initialized()) {
-            // ghost_buf_ feeds dsc.src in render_ghost_layers's blit (line ~894) —
-            // same parallel-render UAF pattern as cache_buf_ (#929). Wait for
-            // in-flight draw tasks before freeing.
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(ghost_buf_);
-        }
-        ghost_buf_ = nullptr;
-    }
+    // ghost_buf_ feeds dsc.src in render_ghost_layers's blit — same
+    // parallel-render UAF pattern as cache_buf_ (#929).
+    helix::safe_draw_buf_destroy(ghost_buf_, "ghost_buf");
     ghost_cached_width_ = 0;
     ghost_cached_height_ = 0;
     ghost_cache_valid_ = false;
@@ -1258,8 +1239,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             if (selection_.any_highlighted() && !selection_rim_stamped_ &&
                 cached_up_to_layer_ >= target_layer) {
                 const int rim = selection::outline_width_px(cached_width_);
-                helix::gcode::stroke_selection_rim(cache_target(), rim, rim,
-                                                   selection::kOutlineColor);
+                helix::gcode::stroke_selection_rim(cache_target(), rim, rim, sel_palette_.outline);
                 selection_rim_stamped_ = true;
                 ssao_cache_valid_ = false;
             }
@@ -1318,7 +1298,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             if (selection_.any_highlighted()) {
                 lv_draw_line_dsc_t halo_dsc;
                 lv_draw_line_dsc_init(&halo_dsc);
-                halo_dsc.color = lv_color_hex(selection::kOutlineColor);
+                halo_dsc.color = lv_color_hex(sel_palette_.outline);
                 halo_dsc.opa = LV_OPA_COVER;
                 halo_dsc.width = static_cast<int32_t>(
                     selection::halo_width(DRAW_LINE_EXTRUSION_WIDTH, is_small_panel()));
@@ -1327,8 +1307,8 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                         continue;
 
                     const SelectionFlags sel = selection_.classify(seg.object_name_index);
-                    const auto style =
-                        selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
+                    const auto style = selection::resolve(sel_palette_, sel.excluded,
+                                                          sel.highlighted, seg.is_extrusion);
                     if (!style.fallback_halo)
                         continue;
                     if (!selection::halo_feature(seg.feature_type))
@@ -1749,19 +1729,9 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
             glm::ivec2 p1 = world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
             glm::ivec2 p2 = world_to_screen_raw(transform, seg.end.x, seg.end.y, seg.end.z);
 
-            // Calculate distance from click to line segment
-            glm::vec2 v(static_cast<float>(p2.x - p1.x), static_cast<float>(p2.y - p1.y));
-            glm::vec2 w(click_pos.x - static_cast<float>(p1.x),
-                        click_pos.y - static_cast<float>(p1.y));
-
-            float segment_length_sq = glm::dot(v, v);
-            float t = (segment_length_sq > 0.0001f)
-                          ? std::clamp(glm::dot(w, v) / segment_length_sq, 0.0f, 1.0f)
-                          : 0.0f;
-
-            glm::vec2 closest_point(static_cast<float>(p1.x) + t * v.x,
-                                    static_cast<float>(p1.y) + t * v.y);
-            float dist = glm::length(click_pos - closest_point);
+            const float dist = point_segment_distance(
+                click_pos, glm::vec2(static_cast<float>(p1.x), static_cast<float>(p1.y)),
+                glm::vec2(static_cast<float>(p2.x), static_cast<float>(p2.y)));
 
             if (dist < selection::kPickThresholdPx && dist < closest_distance) {
                 closest_distance = dist;
@@ -1786,7 +1756,7 @@ lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) con
     // object keeps its filament color and is marked by the white rim instead.
     const SelectionFlags sel = selection_.classify(seg.object_name_index);
     if (sel.excluded) {
-        return lv_color_hex(selection::kExcludedColor);
+        return lv_color_hex(sel_palette_.excluded);
     }
 
     // Existing logic below
@@ -1827,7 +1797,7 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
         // Set up line drawing style
         lv_draw_line_dsc_t dsc;
         lv_draw_line_dsc_init(&dsc);
-        dsc.color = lv_color_hex(selection::kBracketColor);
+        dsc.color = lv_color_hex(sel_palette_.bracket);
         dsc.width = 2;
         dsc.opa = LV_OPA_COVER;
 
@@ -1866,6 +1836,7 @@ GCodeLayerRenderer::GhostSnapshot GCodeLayerRenderer::capture_ghost_snapshot() c
 
     snap.selection = selection_;
     snap.tool_palette = tool_palette_;
+    snap.palette = sel_palette_;
     snap.color_extrusion = color_extrusion_;
     snap.use_custom_extrusion = use_custom_extrusion_color_;
 
@@ -1996,6 +1967,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     const lv_color_t local_color_extrusion = snap.color_extrusion;
     const GCodeColorPalette& local_tool_palette = snap.tool_palette;
     const int local_line_width = snap.line_width;
+    const selection::Palette local_palette = snap.palette;
 
     // Not const: in streaming mode the loop below grows the merged name table as
     // it loads layers, and the index map has to follow or a newly interned
@@ -2144,9 +2116,9 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
             const SelectionFlags ghost_sel = local_selection.classify(seg.object_name_index);
             if (ghost_sel.excluded) {
                 // Excluded: dim orange-red
-                uint8_t ex_r = EXCLUDED_R * GHOST_INFILL_BRIGHT_PERCENT / 100;
-                uint8_t ex_g = EXCLUDED_G * GHOST_INFILL_BRIGHT_PERCENT / 100;
-                uint8_t ex_b = EXCLUDED_B * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_r = local_palette.excluded_r() * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_g = local_palette.excluded_g() * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_b = local_palette.excluded_b() * GHOST_INFILL_BRIGHT_PERCENT / 100;
                 seg_color = (255u << 24) | (ex_r << 16) | (ex_g << 8) | ex_b;
             }
 
@@ -2155,7 +2127,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
             // visible for most of a print, so a cue that skipped it would be a
             // cue you cannot see.
             const auto ghost_style =
-                selection::resolve(false, ghost_sel.highlighted, seg.is_extrusion);
+                selection::resolve(local_palette, false, ghost_sel.highlighted, seg.is_extrusion);
             if (ghost_style.tagged) {
                 seg_color = (static_cast<uint32_t>(ghost_style.opa) << 24) | (seg_color & 0xFFFFFF);
             }
@@ -2181,7 +2153,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     if (local_selection.any_highlighted()) {
         helix::gcode::stroke_selection_rim(
             ghost_target(), selection::outline_width_px(ghost_raw_width_),
-            selection::outline_width_px(ghost_raw_width_), selection::kOutlineColor);
+            selection::outline_width_px(ghost_raw_width_), local_palette.outline);
     }
 
     // Mark as ready for main thread to copy

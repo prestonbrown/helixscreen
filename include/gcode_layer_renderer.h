@@ -9,6 +9,7 @@
 #include "gcode_raster.h"
 #include "gcode_render_memory.h"
 #include "gcode_selection_state.h"
+#include "gcode_selection_style.h"
 #include "gcode_streaming_controller.h"
 
 #include <lvgl/lvgl.h>
@@ -638,6 +639,12 @@ class GCodeLayerRenderer {
     lv_color_t color_extrusion_;
     lv_color_t color_travel_;
     lv_color_t color_support_;
+
+    /// Selection colors, resolved from ui_xml/gcode_tokens.xml in reset_colors().
+    /// Held rather than looked up per use: the values are read in rasterizer
+    /// inner loops and are copied into the ghost worker's snapshot, and reading a
+    /// token walks LVGL's const registry, which is main-thread only.
+    selection::Palette sel_palette_;
     bool use_custom_extrusion_color_ = false;
     bool use_custom_travel_color_ = false;
     bool use_custom_support_color_ = false;
@@ -847,6 +854,10 @@ class GCodeLayerRenderer {
         bool show_supports = true;
         int line_width = 1;
         int layer_count = 0;
+
+        /// Selection colors. Captured like everything else here because reading
+        /// the tokens walks LVGL's const registry, which the worker must not do.
+        selection::Palette palette{};
 
         /// Data sources, captured so the body never reads the members. They are
         /// only ever nulled after cancel_background_ghost_render() has joined.

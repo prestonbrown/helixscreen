@@ -954,7 +954,9 @@ TEST_CASE("pick_object_at honors the support visibility toggle",
 namespace {
 
 bool is_excluded_colour(lv_color_t c) {
-    const lv_color_t want = lv_color_hex(helix::gcode::selection::kExcludedColor);
+    // The renderer resolves its palette from the tokens; with no ui_xml loaded
+    // in this fixture that is the compiled default, which is the same hue.
+    const lv_color_t want = lv_color_hex(helix::gcode::selection::Palette{}.excluded);
     return c.red == want.red && c.green == want.green && c.blue == want.blue;
 }
 

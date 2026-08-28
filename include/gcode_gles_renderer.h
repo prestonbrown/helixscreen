@@ -8,9 +8,11 @@
 #include "gcode_camera.h"
 #include "gcode_color_palette.h"
 #include "gcode_geometry_builder.h"
+#include "gcode_ghost_mode.h"
 #include "gcode_parser.h"
 #include "gcode_render_memory.h"
 #include "gcode_selection_state.h"
+#include "gcode_selection_style.h"
 
 #include <lvgl/lvgl.h>
 
@@ -26,9 +28,6 @@
 
 namespace helix {
 namespace gcode {
-
-enum class GhostRenderMode : uint8_t { Dimmed = 0, Stipple = 1 };
-constexpr GhostRenderMode DEFAULT_GHOST_RENDER_MODE = GhostRenderMode::Stipple;
 
 // ====== Named Constants (rendering parameters) ======
 
@@ -56,9 +55,6 @@ constexpr glm::vec4 DEFAULT_FILAMENT_COLOR{0.15f, 0.65f, 0.60f, 1.0f};
 
 // Ghost layer default opacity (out of 255)
 constexpr uint8_t DEFAULT_GHOST_OPACITY = 5; // ~2% opacity — ghost layers should barely be visible
-
-// Near-zero threshold for clipping space W division
-constexpr float CLIP_SPACE_W_EPSILON = 0.0001f;
 
 // Frame-skip epsilon for float comparisons
 constexpr float ANGLE_EPSILON = 1e-5f;
@@ -449,7 +445,12 @@ class GCodeGLESRenderer {
     // ====== Configuration ======
 
     GCodeColorPalette palette_; ///< Tool color palette for per-vertex coloring
-    std::mutex palette_mutex_;  ///< Guards geometry color palette reads/writes
+
+    /// Selection colors from ui_xml/gcode_tokens.xml, refreshed in reset_colors().
+    /// The defaults cover a frame drawn before that first refresh, and the
+    /// headless tests, which register no tokens.
+    selection::Palette sel_palette_;
+    std::mutex palette_mutex_; ///< Guards geometry color palette reads/writes
     glm::vec4 filament_color_{DEFAULT_FILAMENT_COLOR};
     float specular_intensity_ = DEFAULT_SPECULAR_INTENSITY;
     float specular_shininess_ = DEFAULT_SPECULAR_SHININESS;

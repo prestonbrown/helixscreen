@@ -550,15 +550,18 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
                  "tube_sides={}, tolerance={:.3f}mm",
                  layer_height_mm_, extrusion_width_mm_, tube_sides_, validated_opts.tolerance_mm);
 
-    // Calculate quantization parameters from bounding box
-    // IMPORTANT: Expand bounds to account for tube width (vertices extend beyond segment positions)
-    // Use sqrt(2) safety factor because rectangular tubes on diagonal segments can expand
-    // in multiple dimensions simultaneously (e.g., perp_horizontal + perp_vertical)
-    float max_tube_width = std::max(extrusion_width_mm_, travel_width_mm_);
-    float expansion_margin = max_tube_width * 1.5f; // Safety factor for diagonal expansion
+    // Calculate quantization parameters from bounding box.
+    //
+    // Expand to cover tube width: vertices sit off the segment centre line, so a
+    // box drawn to the centre lines alone would quantize the surface out of
+    // range. tube_half_diagonal() is the exact reach; kQuantBoundsSlack keeps the
+    // historical margin on top of it, because under-expanding here wraps vertices
+    // while over-expanding costs only grid resolution. (The comment here used to
+    // claim a sqrt(2) factor while the code applied 1.5.)
+    const float max_tube_width = std::max(extrusion_width_mm_, travel_width_mm_);
+    const float expansion_margin = tube_half_diagonal(max_tube_width) * kQuantBoundsSlack;
     AABB expanded_bbox = gcode.global_bounding_box;
-    expanded_bbox.min -= glm::vec3(expansion_margin, expansion_margin, expansion_margin);
-    expanded_bbox.max += glm::vec3(expansion_margin, expansion_margin, expansion_margin);
+    expanded_bbox.expand_by(expansion_margin);
     quant_params_.calculate_scale(expanded_bbox);
 
     spdlog::debug(
@@ -741,8 +744,8 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         // so expand by max(extrusion_width, segment.width) * 0.5 * sqrt(2).
         if (layer_idx < geometry.layer_bboxes.size()) {
             AABB& layer_bbox = geometry.layer_bboxes[layer_idx];
-            float tube_width = std::max(extrusion_width_mm_, segment.width);
-            float expansion = tube_width * 0.5f * 1.41421356f; // sqrt(2) for diagonal
+            const float tube_width = std::max(extrusion_width_mm_, segment.width);
+            const float expansion = tube_half_diagonal(tube_width);
             glm::vec3 expand_vec(expansion, expansion, expansion);
             layer_bbox.expand(segment.start - expand_vec);
             layer_bbox.expand(segment.start + expand_vec);
@@ -1112,21 +1115,6 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
     // Compute color
     uint32_t rgb = compute_segment_color(segment, quant.min_bounds.z, quant.max_bounds.z);
-    static const std::string empty_obj_name;
-    const std::string& seg_obj_name =
-        current_gcode_ ? current_gcode_->get_object_name(segment.object_name_index)
-                       : empty_obj_name;
-    if (!highlighted_objects_.empty() && !seg_obj_name.empty() &&
-        highlighted_objects_.count(seg_obj_name) > 0) {
-        constexpr float HIGHLIGHT_BRIGHTNESS = 1.8f;
-        uint8_t r =
-            static_cast<uint8_t>(std::min(255.0f, ((rgb >> 16) & 0xFF) * HIGHLIGHT_BRIGHTNESS));
-        uint8_t g =
-            static_cast<uint8_t>(std::min(255.0f, ((rgb >> 8) & 0xFF) * HIGHLIGHT_BRIGHTNESS));
-        uint8_t b = static_cast<uint8_t>(std::min(255.0f, (rgb & 0xFF) * HIGHLIGHT_BRIGHTNESS));
-        rgb = (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) |
-              static_cast<uint32_t>(b);
-    }
 
     uint8_t color_idx = add_to_color_palette(geometry, rgb);
 

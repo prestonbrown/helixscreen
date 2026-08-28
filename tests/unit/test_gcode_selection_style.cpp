@@ -2,9 +2,23 @@
 
 #include "../../include/gcode_selection_style.h"
 
+#include <fstream>
+#include <iterator>
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::gcode;
+
+// Deliberately NOT the shipped hues. resolve() takes the palette now, so a
+// sentinel proves the value is threaded through from the caller; asserting
+// against the real constant would pass even if resolve() ignored its argument
+// and hardcoded the color again.
+namespace {
+constexpr helix::gcode::selection::Palette kTestPalette{/*excluded=*/0x123456,
+                                                        /*outline=*/0xABCDEF,
+                                                        /*bracket=*/0x0F0F0F};
+} // namespace
 
 // ---------------------------------------------------------------------------
 // resolve(): the single answer to "how does a selected/excluded segment look".
@@ -15,7 +29,8 @@ using namespace helix::gcode;
 // ---------------------------------------------------------------------------
 
 TEST_CASE("plain extrusion keeps the caller's color at full opacity", "[gcode_selection_style]") {
-    auto s = selection::resolve(/*excluded=*/false, /*highlighted=*/false, /*is_extrusion=*/true);
+    auto s = selection::resolve(kTestPalette, /*excluded=*/false, /*highlighted=*/false,
+                                /*is_extrusion=*/true);
     REQUIRE(s.override_color == false);
     REQUIRE(s.opa == 255);
     REQUIRE(s.tagged == false);
@@ -23,9 +38,9 @@ TEST_CASE("plain extrusion keeps the caller's color at full opacity", "[gcode_se
 }
 
 TEST_CASE("excluded segments are recolored and translucent", "[gcode_selection_style]") {
-    auto s = selection::resolve(true, false, true);
+    auto s = selection::resolve(kTestPalette, true, false, true);
     REQUIRE(s.override_color == true);
-    REQUIRE(s.rgb == selection::kExcludedColor);
+    REQUIRE(s.rgb == kTestPalette.excluded);
     REQUIRE(s.opa == selection::kExcludedOpa);
 }
 
@@ -33,7 +48,7 @@ TEST_CASE("excluded segments are recolored and translucent", "[gcode_selection_s
 // is marked by the rim instead of being recolored. A test that asserts
 // override_color == false here fails against the old blue-recolor behavior.
 TEST_CASE("highlighted segments keep filament color and carry the tag", "[gcode_selection_style]") {
-    auto s = selection::resolve(false, true, true);
+    auto s = selection::resolve(kTestPalette, false, true, true);
     REQUIRE(s.override_color == false);
     REQUIRE(s.tagged == true);
     // The tag IS the opacity byte. Anything else and stroke_selection_rim() has
@@ -47,9 +62,9 @@ TEST_CASE("highlighted segments keep filament color and carry the tag", "[gcode_
 // object cannot be tagged and faded at the same time.
 TEST_CASE("an excluded object that is also selected keeps exclusion color and takes the tag",
           "[gcode_selection_style]") {
-    auto s = selection::resolve(true, true, true);
+    auto s = selection::resolve(kTestPalette, true, true, true);
     REQUIRE(s.override_color == true);
-    REQUIRE(s.rgb == selection::kExcludedColor);
+    REQUIRE(s.rgb == kTestPalette.excluded);
     REQUIRE(s.tagged == true);
     REQUIRE(s.opa == kSelectedAlpha);
     REQUIRE(s.opa != selection::kExcludedOpa);
@@ -60,7 +75,7 @@ TEST_CASE("travel moves are never tagged", "[gcode_selection_style]") {
     // silhouette: travels cut across the interior, so tagging them would drag the
     // tagged region out to a bounding box and the rim would trace that instead of
     // the object.
-    auto s = selection::resolve(false, true, /*is_extrusion=*/false);
+    auto s = selection::resolve(kTestPalette, false, true, /*is_extrusion=*/false);
     REQUIRE(s.tagged == false);
     REQUIRE(s.fallback_halo == false);
     REQUIRE(s.opa != kSelectedAlpha);
@@ -156,7 +171,9 @@ TEST_CASE("an empty bbox yields no arm rather than inf or nan", "[gcode_selectio
 // ---------------------------------------------------------------------------
 
 TEST_CASE("to_vec4 round-trips the bracket color exactly", "[gcode_selection_style]") {
-    auto v = selection::to_vec4(selection::kBracketColor);
+    // The SHIPPED bracket color, not the sentinel: this case is about the exact
+    // float conversion of 0xC0C0C0, which is what the 0.75f bug got wrong.
+    auto v = selection::to_vec4(selection::Palette{}.bracket);
     REQUIRE(v.r == Catch::Approx(192.0f / 255.0f));
     REQUIRE(v.g == Catch::Approx(192.0f / 255.0f));
     REQUIRE(v.b == Catch::Approx(192.0f / 255.0f));
@@ -166,7 +183,7 @@ TEST_CASE("to_vec4 round-trips the bracket color exactly", "[gcode_selection_sty
 }
 
 TEST_CASE("to_vec4 carries alpha through", "[gcode_selection_style]") {
-    auto v = selection::to_vec4(selection::kExcludedColor, selection::kExcludedOpa);
+    auto v = selection::to_vec4(selection::Palette{}.excluded, selection::kExcludedOpa);
     REQUIRE(v.a == Catch::Approx(153.0f / 255.0f));
 }
 
@@ -212,8 +229,44 @@ TEST_CASE("only the fallback path is offered a halo", "[gcode_selection_style]")
     // The cached path must NOT be told to paint white: it derives the rim from
     // where the object actually landed, and a white pre-pass would move the
     // boundary outward so the rim stopped tracing the real contour.
-    auto s = selection::resolve(false, true, true);
+    auto s = selection::resolve(kTestPalette, false, true, true);
     REQUIRE(s.fallback_halo == true);
     REQUIRE(s.tagged == true);
-    REQUIRE(selection::resolve(false, false, true).fallback_halo == false);
+    REQUIRE(selection::resolve(kTestPalette, false, false, true).fallback_halo == false);
+}
+
+// ---------------------------------------------------------------------------
+// The compiled defaults and the XML tokens are two statements of one value.
+//
+// selection::Palette carries defaults only so the headless fixtures render the
+// right hues: LVGLTestFixture starts LVGL without theme_manager, so no token is
+// registered for palette_from_theme() to read. Shipped trees always have them.
+//
+// That still makes the defaults a second copy of a number whose real home is
+// ui_xml/gcode_tokens.xml, and two hand-written copies of one value agree by
+// convention until they silently do not. This reads the token file and fails
+// when they drift.
+//
+// Parsed with a plain scan rather than the XML engine on purpose: the point is
+// to check the bytes a human edits, without needing LVGL, a display, or the
+// theme registered.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Palette defaults match ui_xml/gcode_tokens.xml", "[gcode_selection_style][tokens]") {
+    std::ifstream f("ui_xml/gcode_tokens.xml");
+    REQUIRE(f.is_open()); // helix-tests runs from the repo root
+
+    std::string xml((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+
+    auto token_value = [&](const std::string& name) -> uint32_t {
+        const std::string key = "<color name=\"" + name + "\" value=\"#";
+        const size_t at = xml.find(key);
+        REQUIRE(at != std::string::npos);
+        return static_cast<uint32_t>(std::stoul(xml.substr(at + key.size(), 6), nullptr, 16));
+    };
+
+    const selection::Palette defaults;
+    CHECK(token_value("gcode_selection_outline") == defaults.outline);
+    CHECK(token_value("gcode_selection_excluded") == defaults.excluded);
+    CHECK(token_value("gcode_selection_bracket") == defaults.bracket);
 }

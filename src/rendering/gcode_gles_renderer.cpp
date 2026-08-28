@@ -9,6 +9,7 @@
 #include "gcode_gl_fallback.h"
 #include "gcode_projection.h"
 #include "gcode_selection_style.h"
+#include "lv_draw_buf_guard.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -327,15 +328,10 @@ GCodeGLESRenderer::GCodeGLESRenderer() {
 GCodeGLESRenderer::~GCodeGLESRenderer() {
     destroy_gl();
 
-    if (draw_buf_) {
-        // draw_buf_ is handed to the parallel render thread via dsc.src in
-        // draw_cached_to_lvgl (line ~1313/1397) — same UAF pattern as
-        // GCodeLayerRenderer::cache_buf_ (#929). Wait for in-flight draw tasks
-        // before freeing.
-        lv_draw_wait_for_finish();
-        lv_draw_buf_destroy(draw_buf_);
-        draw_buf_ = nullptr;
-    }
+    // draw_buf_ is handed to the parallel render thread via dsc.src in
+    // draw_cached_to_lvgl — same UAF pattern as GCodeLayerRenderer::cache_buf_
+    // (#929).
+    helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
 
     spdlog::trace("[GCode GLES] GCodeGLESRenderer destroyed");
 }
@@ -1481,12 +1477,8 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
 
     // Create or recreate draw buffer at widget size
     if (!draw_buf_ || draw_buf_width_ != widget_w || draw_buf_height_ != widget_h) {
-        if (draw_buf_) {
-            // draw_buf_ may still be in flight to the parallel render thread
-            // (#929 cluster). Drain pending draws before freeing.
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(draw_buf_);
-        }
+        // May still be in flight to the parallel render thread (#929 cluster).
+        helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
         draw_buf_ = lv_draw_buf_create(static_cast<uint32_t>(widget_w),
                                        static_cast<uint32_t>(widget_h), LV_COLOR_FORMAT_RGB888, 0);
         if (!draw_buf_) {
@@ -1526,7 +1518,7 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
                 tagged += (readback_buf_[i] == helix::gcode::kSelectedAlpha);
             }
         }
-        helix::gcode::stroke_selection_rim(rt, rim, rim, selection::kOutlineColor);
+        helix::gcode::stroke_selection_rim(rt, rim, rim, sel_palette_.outline);
         spdlog::trace("[GCode GLES] Selection rim: {} tagged px of {}, rim {}px", tagged,
                       static_cast<size_t>(fbo_width_) * fbo_height_, rim);
     }
@@ -1742,6 +1734,8 @@ void GCodeGLESRenderer::set_global_opacity(lv_opa_t opacity) {
 }
 
 void GCodeGLESRenderer::reset_colors() {
+    // Main thread; the GL passes below consume these as uniforms.
+    sel_palette_ = selection::palette_from_theme();
     palette_.has_override = false;
     filament_color_ = DEFAULT_FILAMENT_COLOR;
     frame_dirty_ = true;
@@ -1749,9 +1743,12 @@ void GCodeGLESRenderer::reset_colors() {
 
 void GCodeGLESRenderer::clear_cached_frame() {
     // Free the cached draw buffer so stale frames aren't blitted during render deferral
+    // Frees the SAME draw_buf_ the destructor guards as a #929 hazard, but this
+    // site had no lv_draw_wait_for_finish() at all: a deferred-render clear could
+    // free the buffer out from under an in-flight draw task. The shared helper
+    // makes that impossible to get wrong again.
     if (draw_buf_) {
-        lv_draw_buf_destroy(draw_buf_);
-        draw_buf_ = nullptr;
+        helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
         draw_buf_width_ = 0;
         draw_buf_height_ = 0;
     }
@@ -2041,7 +2038,7 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
     glUseProgram(line_program_);
     glUniformMatrix4fv(line_u_mvp_, 1, GL_FALSE, glm::value_ptr(mvp));
     // Silver, fully opaque, from the same constant the 2D path draws.
-    const glm::vec4 bracket_rgba = selection::to_vec4(selection::kBracketColor);
+    const glm::vec4 bracket_rgba = selection::to_vec4(sel_palette_.bracket);
     glUniform4f(line_u_color_, bracket_rgba.r, bracket_rgba.g, bracket_rgba.b, bracket_rgba.a);
 
     glBindBuffer(GL_ARRAY_BUFFER, line_vbo_);
@@ -2315,32 +2312,14 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
             continue;
         }
 
-        float min_sx = std::numeric_limits<float>::max();
-        float min_sy = std::numeric_limits<float>::max();
-        float max_sx = std::numeric_limits<float>::lowest();
-        float max_sy = std::numeric_limits<float>::lowest();
-        bool projected = false;
-        for (int c = 0; c < 8; ++c) {
-            const glm::vec3 corner((c & 1) ? box.max.x : box.min.x, (c & 2) ? box.max.y : box.min.y,
-                                   (c & 4) ? box.max.z : box.min.z);
-            const glm::vec4 clip = transform * glm::vec4(corner, 1.0f);
-            if (std::abs(clip.w) < CLIP_SPACE_W_EPSILON) {
-                continue;
-            }
-            const glm::vec3 ndc = glm::vec3(clip) / clip.w;
-            const float sx = (ndc.x + 1.0f) * 0.5f * static_cast<float>(viewport_width_);
-            const float sy = (1.0f - ndc.y) * 0.5f * static_cast<float>(viewport_height_);
-            min_sx = std::min(min_sx, sx);
-            max_sx = std::max(max_sx, sx);
-            min_sy = std::min(min_sy, sy);
-            max_sy = std::max(max_sy, sy);
-            projected = true;
-        }
+        // This used to reject corners with std::abs(clip.w) < EPSILON, which let a
+        // corner BEHIND the camera through and mirrored it onto the screen,
+        // corrupting the candidate box. project_aabb_to_screen() rejects w <= EPSILON.
+        const ScreenBounds sb =
+            project_aabb_to_screen(transform, box, viewport_width_, viewport_height_);
         // A box that projects to nothing usable stays a candidate: better to pay
         // for stage 2 than to drop a pick outright.
-        if (!projected ||
-            (screen_pos.x >= min_sx - PICK_THRESHOLD && screen_pos.x <= max_sx + PICK_THRESHOLD &&
-             screen_pos.y >= min_sy - PICK_THRESHOLD && screen_pos.y <= max_sy + PICK_THRESHOLD)) {
+        if (!sb.valid || sb.contains(screen_pos.x, screen_pos.y, PICK_THRESHOLD)) {
             candidate[static_cast<size_t>(idx)] = true;
             any_candidate = true;
         }
@@ -2372,31 +2351,26 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
                 continue;
             }
 
-            glm::vec4 start_clip = transform * glm::vec4(segment.start, 1.0f);
-            glm::vec4 end_clip = transform * glm::vec4(segment.end, 1.0f);
-
-            if (std::abs(start_clip.w) < CLIP_SPACE_W_EPSILON ||
-                std::abs(end_clip.w) < CLIP_SPACE_W_EPSILON)
+            // Was std::abs(w) < EPSILON here too, with the same behind-camera
+            // defect as the candidate pass above.
+            const auto start_screen =
+                project_clip_to_screen(transform, segment.start, viewport_width_, viewport_height_);
+            const auto end_screen =
+                project_clip_to_screen(transform, segment.end, viewport_width_, viewport_height_);
+            if (!start_screen || !end_screen)
                 continue;
 
-            glm::vec3 start_ndc = glm::vec3(start_clip) / start_clip.w;
-            glm::vec3 end_ndc = glm::vec3(end_clip) / end_clip.w;
-
-            if (start_ndc.x < -1 || start_ndc.x > 1 || start_ndc.y < -1 || start_ndc.y > 1 ||
-                end_ndc.x < -1 || end_ndc.x > 1 || end_ndc.y < -1 || end_ndc.y > 1) {
+            // Both endpoints must be on screen. This was spelled as an NDC range
+            // check on [-1, 1]; in screen pixels that is exactly the viewport rect.
+            const auto on_screen = [&](const glm::vec2& p) {
+                return p.x >= 0.0f && p.x <= static_cast<float>(viewport_width_) && p.y >= 0.0f &&
+                       p.y <= static_cast<float>(viewport_height_);
+            };
+            if (!on_screen(*start_screen) || !on_screen(*end_screen)) {
                 continue;
             }
 
-            glm::vec2 start_screen((start_ndc.x + 1) * 0.5f * viewport_width_,
-                                   (1 - start_ndc.y) * 0.5f * viewport_height_);
-            glm::vec2 end_screen((end_ndc.x + 1) * 0.5f * viewport_width_,
-                                 (1 - end_ndc.y) * 0.5f * viewport_height_);
-
-            glm::vec2 v = end_screen - start_screen;
-            glm::vec2 w = screen_pos - start_screen;
-            float len_sq = glm::dot(v, v);
-            float t = (len_sq > 0.0001f) ? std::clamp(glm::dot(w, v) / len_sq, 0.0f, 1.0f) : 0.0f;
-            float dist = glm::length(screen_pos - (start_screen + t * v));
+            const float dist = point_segment_distance(screen_pos, *start_screen, *end_screen);
 
             if (dist < PICK_THRESHOLD && dist < closest_distance) {
                 closest_distance = dist;
@@ -2416,36 +2390,16 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
             if (bbox.is_empty())
                 continue;
 
-            const auto corners = bbox.corners();
-
-            float min_sx = std::numeric_limits<float>::max();
-            float min_sy = std::numeric_limits<float>::max();
-            float max_sx = std::numeric_limits<float>::lowest();
-            float max_sy = std::numeric_limits<float>::lowest();
-            bool any_in_front = false;
-
-            for (const auto& corner : corners) {
-                glm::vec4 clip = transform * glm::vec4(corner, 1.0f);
-                if (clip.w <= CLIP_SPACE_W_EPSILON)
-                    continue; // behind the camera
-                any_in_front = true;
-                glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                float sx = (ndc.x + 1.0f) * 0.5f * viewport_width_;
-                float sy = (1.0f - ndc.y) * 0.5f * viewport_height_;
-                min_sx = std::min(min_sx, sx);
-                min_sy = std::min(min_sy, sy);
-                max_sx = std::max(max_sx, sx);
-                max_sy = std::max(max_sy, sy);
-            }
-            if (!any_in_front)
+            const ScreenBounds sb =
+                project_aabb_to_screen(transform, bbox, viewport_width_, viewport_height_);
+            if (!sb.valid)
                 continue;
 
-            if (screen_pos.x < min_sx || screen_pos.x > max_sx || screen_pos.y < min_sy ||
-                screen_pos.y > max_sy)
+            if (!sb.contains(screen_pos.x, screen_pos.y))
                 continue;
 
             // Prefer the smallest (innermost) hit when objects overlap on screen.
-            float area = (max_sx - min_sx) * (max_sy - min_sy);
+            float area = sb.area();
             if (area < closest_inside_area) {
                 closest_inside_area = area;
                 picked_object = name;

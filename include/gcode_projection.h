@@ -5,7 +5,10 @@
 
 #include "gcode_parser.h"
 
+#include <algorithm>
 #include <glm/glm.hpp>
+#include <limits>
+#include <optional>
 
 namespace helix::gcode {
 
@@ -286,6 +289,109 @@ inline float compute_depth_brightness(float avg_z, float z_min, float z_max, flo
     }
 
     return brightness;
+}
+
+// ============================================================================
+// CLIP-SPACE PROJECTION (shared by the pickers and the bracket/bbox passes)
+// ============================================================================
+
+/**
+ * @brief Below this |w|, a clip-space point is degenerate and cannot be divided.
+ *
+ * Lived in gcode_gles_renderer.h, which is wrapped in `#ifdef ENABLE_GLES_3D`
+ * and so was unreachable from anything else. Three copies of the guard existed
+ * with three different predicates.
+ */
+inline constexpr float CLIP_SPACE_W_EPSILON = 0.0001f;
+
+/**
+ * @brief Project a world point through an MVP to screen pixels.
+ *
+ * @return nullopt when the point is degenerate OR behind the camera.
+ *
+ * WHY `w <= EPSILON` AND NOT `std::abs(w) < EPSILON`. Both spellings were in the
+ * tree, in two copies of the same eight-corner loop in gcode_gles_renderer.cpp,
+ * and they are not equivalent. Under a perspective transform w is the view-space
+ * depth: it is positive in front of the camera and NEGATIVE behind it. The
+ * abs() form only rejects points near the plane w == 0, so a corner at w = -5
+ * sails through and divides to a mirrored NDC - a point behind your head is
+ * reported at a confident, wrong position on screen, dragging the object's
+ * screen bounds with it. Rejecting `w <= EPSILON` drops the degenerate case and
+ * the behind-camera case together, which is what both call sites wanted.
+ */
+inline std::optional<glm::vec2> project_clip_to_screen(const glm::mat4& mvp, const glm::vec3& world,
+                                                       int viewport_width, int viewport_height) {
+    const glm::vec4 clip = mvp * glm::vec4(world, 1.0f);
+    if (clip.w <= CLIP_SPACE_W_EPSILON) {
+        return std::nullopt;
+    }
+    const glm::vec3 ndc = glm::vec3(clip) / clip.w;
+    return glm::vec2((ndc.x + 1.0f) * 0.5f * static_cast<float>(viewport_width),
+                     (1.0f - ndc.y) * 0.5f * static_cast<float>(viewport_height));
+}
+
+/// Screen-space extent of a projected box. `valid` is false when no corner was
+/// in front of the camera, in which case the bounds are meaningless.
+struct ScreenBounds {
+    float min_x = 0.0f;
+    float min_y = 0.0f;
+    float max_x = 0.0f;
+    float max_y = 0.0f;
+    bool valid = false;
+
+    /// True when (x, y) lies inside the box, grown by `slack` pixels per side.
+    bool contains(float x, float y, float slack = 0.0f) const {
+        return x >= min_x - slack && x <= max_x + slack && y >= min_y - slack && y <= max_y + slack;
+    }
+
+    float area() const {
+        return (max_x - min_x) * (max_y - min_y);
+    }
+};
+
+/**
+ * @brief Screen-space bounding box of a world AABB's eight corners.
+ *
+ * Corners behind the camera are skipped, not clamped: a box that straddles the
+ * camera plane reports the extent of the part that is actually visible.
+ */
+inline ScreenBounds project_aabb_to_screen(const glm::mat4& mvp, const AABB& box,
+                                           int viewport_width, int viewport_height) {
+    ScreenBounds b;
+    b.min_x = std::numeric_limits<float>::max();
+    b.min_y = std::numeric_limits<float>::max();
+    b.max_x = std::numeric_limits<float>::lowest();
+    b.max_y = std::numeric_limits<float>::lowest();
+
+    for (const glm::vec3& corner : box.corners()) {
+        const auto s = project_clip_to_screen(mvp, corner, viewport_width, viewport_height);
+        if (!s) {
+            continue;
+        }
+        b.min_x = std::min(b.min_x, s->x);
+        b.max_x = std::max(b.max_x, s->x);
+        b.min_y = std::min(b.min_y, s->y);
+        b.max_y = std::max(b.max_y, s->y);
+        b.valid = true;
+    }
+    return b;
+}
+
+/**
+ * @brief Distance from point `p` to the segment `a`-`b`, all in screen pixels.
+ *
+ * Existed three times over: in the 2D picker, the CPU wireframe picker and the
+ * GLES picker, each rewriting the same clamped projection. A degenerate segment
+ * (a == b) returns the distance to that point rather than dividing by zero.
+ */
+inline float point_segment_distance(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b) {
+    const glm::vec2 v = b - a;
+    const float len_sq = glm::dot(v, v);
+    if (len_sq <= 0.0f) {
+        return glm::length(p - a);
+    }
+    const float t = glm::clamp(glm::dot(p - a, v) / len_sq, 0.0f, 1.0f);
+    return glm::length(p - (a + t * v));
 }
 
 } // namespace helix::gcode

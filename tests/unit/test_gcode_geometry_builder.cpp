@@ -1530,3 +1530,46 @@ TEST_CASE("Geometry Builder: segments outside any object do not join a run",
     CHECK(static_cast<size_t>(runs.first[1].vertex_offset) + runs.first[1].vertex_count <=
           layer_vertices);
 }
+
+// ===========================================================================
+// AABB helpers + the tube-expansion constants (DRY-6)
+// ===========================================================================
+
+TEST_CASE("default_plate_bbox is the 200x200 fallback for an empty box", "[gcode][aabb]") {
+    // Callers substitute this when a box is empty, because the +/-inf sentinels
+    // of an empty AABB turn into NaN offsets in compute_auto_fit() and every
+    // projected point becomes garbage.
+    const auto bb = helix::gcode::AABB::default_plate_bbox();
+    CHECK_FALSE(bb.is_empty());
+    CHECK(bb.min == glm::vec3(0.0f, 0.0f, 0.0f));
+    CHECK(bb.max == glm::vec3(200.0f, 200.0f, 0.0f));
+}
+
+TEST_CASE("expand_by grows both directions on every axis", "[gcode][aabb]") {
+    helix::gcode::AABB bb;
+    bb.min = glm::vec3(10.0f, 20.0f, 30.0f);
+    bb.max = glm::vec3(11.0f, 21.0f, 31.0f);
+    bb.expand_by(2.0f);
+    CHECK(bb.min == glm::vec3(8.0f, 18.0f, 28.0f));
+    CHECK(bb.max == glm::vec3(13.0f, 23.0f, 33.0f));
+}
+
+TEST_CASE("tube_half_diagonal is the exact worst-case reach off the centre line",
+          "[gcode][geometry_builder]") {
+    // A 0.4mm tube reaches 0.2mm off the centre line, and on a diagonal that
+    // lands in two axes at once: 0.2 * sqrt(2).
+    CHECK(helix::gcode::tube_half_diagonal(0.4f) == Catch::Approx(0.4f * 0.5f * 1.41421356f));
+    CHECK(helix::gcode::tube_half_diagonal(0.0f) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("quantization slack preserves the historical 1.5x margin", "[gcode][geometry_builder]") {
+    // The bounds used to be expanded by max_tube_width * 1.5f under a comment
+    // claiming sqrt(2). Naming the geometry must not quietly re-tune the number
+    // that has been protecting every build: the product still has to be 1.5x.
+    const float width = 0.4f;
+    const float margin = helix::gcode::tube_half_diagonal(width) * helix::gcode::kQuantBoundsSlack;
+    CHECK(margin == Catch::Approx(width * 1.5f).epsilon(1e-5));
+    // And it must stay strictly larger than the exact reach, or the bounds stop
+    // being conservative and vertices can quantize out of range.
+    CHECK(margin > helix::gcode::tube_half_diagonal(width));
+}

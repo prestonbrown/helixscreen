@@ -22,6 +22,39 @@
 namespace helix {
 namespace gcode {
 
+/**
+ * @brief How far tube geometry can reach past a segment's own coordinates, in mm.
+ *
+ * A segment is stored as a centre line, but it renders as a tube of `width`. The
+ * surface therefore sits half a width off the centre line, and on a diagonal that
+ * offset lands in two axes at once, so the worst case along any single axis is
+ * half the width times sqrt(2).
+ *
+ * TWO CALLERS, AND THEY DELIBERATELY DO NOT AGREE. This is the exact geometric
+ * reach, and it is what the per-layer culling box wants: too small and geometry
+ * pops at the frustum edge, too large and you draw offscreen tubes. The
+ * quantization bounds want something bigger - see the call site - because being
+ * short there does not cost fidelity, it corrupts vertices. Both used to be
+ * hand-written floats commented "sqrt(2)", and one of them was 1.5.
+ */
+inline constexpr float tube_half_diagonal(float width) {
+    constexpr float kSqrt2 = 1.41421356f;
+    return width * 0.5f * kSqrt2;
+}
+
+/**
+ * @brief Extra slack on the quantization bounds, as a multiple of the geometric reach.
+ *
+ * Quantization maps world coordinates onto a fixed integer grid sized from these
+ * bounds. A vertex outside them does not merely render slightly wrong, it wraps,
+ * so the cost of over-expanding (a hair of grid resolution) and of
+ * under-expanding (corrupt geometry) are nowhere near symmetric. The historical
+ * value was `max_tube_width * 1.5f`, which is a little over twice the exact
+ * reach; this keeps that margin rather than tightening a number that has been
+ * quietly protecting every build.
+ */
+inline constexpr float kQuantBoundsSlack = 2.12132f; // 1.5 / (0.5 * sqrt(2))
+
 // ============================================================================
 // Quantized Vertex Representation
 // ============================================================================
@@ -533,17 +566,6 @@ class GeometryBuilder {
     }
 
     /**
-     * @brief Set highlighted object names for visual emphasis
-     * @param object_names Names of objects to highlight (empty to clear)
-     *
-     * Highlighted segments will be rendered with brightened color (1.8x multiplier)
-     * to make them stand out from the rest of the model.
-     */
-    void set_highlighted_objects(const std::unordered_set<std::string>& object_names) {
-        highlighted_objects_ = object_names;
-    }
-
-    /**
      * @brief Enable/disable per-face debug coloring
      * @param enable true to assign distinct colors to each face for debugging
      *
@@ -645,11 +667,9 @@ class GeometryBuilder {
     uint8_t filament_g_ = 0xA6;                     ///< Filament color green component
     uint8_t filament_b_ = 0x9A;                     ///< Filament color blue component
     const ParsedGCodeFile* current_gcode_{nullptr}; ///< Set during build() for name resolution
-    std::unordered_set<std::string>
-        highlighted_objects_;                     ///< Object names to highlight (empty = none)
-    bool debug_face_colors_ = false;              ///< Enable per-face debug coloring
-    std::vector<std::string> tool_color_palette_; ///< Hex colors per tool (multi-color prints)
-    int tube_sides_ = 16;                         ///< Tube cross-section sides (valid: 4, 8, 16)
+    bool debug_face_colors_ = false;                ///< Enable per-face debug coloring
+    std::vector<std::string> tool_color_palette_;   ///< Hex colors per tool (multi-color prints)
+    int tube_sides_ = 16;                           ///< Tube cross-section sides (valid: 4, 8, 16)
 
     int budget_tube_sides_ = 0;     ///< Override tube_sides from budget (0 = use config)
     size_t budget_limit_bytes_ = 0; ///< Memory ceiling (0 = unlimited)

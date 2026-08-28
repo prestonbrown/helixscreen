@@ -127,6 +127,7 @@ src/rendering/gcode_projection.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_raster.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_renderer.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_selection_state.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_selection_style.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_streaming_config.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_streaming_controller.cpp  # not in the v1 Core+AMS cut
 src/rendering/geometry_budget_manager.cpp  # not in the v1 Core+AMS cut

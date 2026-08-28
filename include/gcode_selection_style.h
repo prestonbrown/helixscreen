@@ -33,22 +33,58 @@
 
 namespace helix::gcode::selection {
 
-/// Orange-red for excluded objects. Was gcode_layer_renderer.cpp's
-/// EXCLUDED_OBJECT_COLOR; the CPU wireframe used theme "danger" instead, which
-/// is a different hue. This value wins because it is what the isometric view
-/// (the path users actually see) has always drawn.
-inline constexpr uint32_t kExcludedColor = 0xFF6B35;
-
 /// 60% opacity, spelled as the literal the software rasterizer needs. Equals
-/// LV_OPA_60 for the lv_draw_line paths.
+/// LV_OPA_60 for the lv_draw_line paths. An alpha, not a color, so it stays
+/// here rather than becoming an XML token.
 inline constexpr uint8_t kExcludedOpa = 153;
 
-/// White silhouette outline for the selected object, matching OrcaSlicer's
-/// selection treatment.
-inline constexpr uint32_t kOutlineColor = 0xFFFFFF;
+/**
+ * @brief The three selection colors, resolved once from ui_xml/gcode_tokens.xml.
+ *
+ * These used to be constexpr literals in this header. They are XML tokens now
+ * (`gcode_selection_outline`, `_excluded`, `_bracket`), which makes the XML the
+ * single source of truth and this struct the way the value reaches a renderer.
+ *
+ * The member defaults are NOT a production fallback - every shipped tree
+ * carries ui_xml, and no packaging rule omits it. They exist for the headless
+ * unit tests: LVGLTestFixture brings up LVGL without theme_manager, so no token
+ * is registered and palette_from_theme() has nothing to read. Keeping them equal
+ * to the token file is what test_gcode_selection_style's drift case enforces.
+ *
+ * WHY A STRUCT AND NOT A LOOKUP AT THE POINT OF USE. Reading a token means
+ * walking LVGL's const registry, which is main-thread-only, and the values are
+ * consumed in software-rasterizer inner loops and on the ghost worker thread.
+ * So a renderer resolves the palette ONCE on the main thread and carries it:
+ * as a member for the cache path, and copied into the ghost worker's snapshot
+ * alongside its other `local_*` state. Calling palette_from_theme() from the
+ * ghost thread would be a background-thread LVGL access.
+ */
+struct Palette {
+    uint32_t excluded = 0xFF6B35; ///< Orange-red for excluded (cancelled) objects
+    uint32_t outline = 0xFFFFFF;  ///< White silhouette rim on the selected object
+    uint32_t bracket = 0xC0C0C0;  ///< Light grey 24-arm corner wireframe
 
-/// Light grey for the 24-arm corner bracket wireframe.
-inline constexpr uint32_t kBracketColor = 0xC0C0C0;
+    /// Channel split of `excluded`, for rasterizer paths that assemble ARGB
+    /// words byte by byte rather than passing a packed color.
+    constexpr uint8_t excluded_r() const {
+        return (excluded >> 16) & 0xFF;
+    }
+    constexpr uint8_t excluded_g() const {
+        return (excluded >> 8) & 0xFF;
+    }
+    constexpr uint8_t excluded_b() const {
+        return excluded & 0xFF;
+    }
+};
+
+/**
+ * @brief Read the selection palette from the registered XML tokens.
+ *
+ * MAIN THREAD ONLY - see the note on Palette. A missing token keeps the struct's
+ * default rather than reading back black; in practice that path is the headless
+ * test fixture, not a shipped tree.
+ */
+Palette palette_from_theme();
 
 /// Bracket arm length as a fraction of the shortest bbox edge, and its cap.
 inline constexpr float kBracketArmFraction = 0.2f;
@@ -138,11 +174,12 @@ struct SegmentStyle {
  * Travels never halo. A travel move belonging to the selected object cuts across
  * the interior and would spray white through the middle of the silhouette.
  */
-inline SegmentStyle resolve(bool excluded, bool highlighted, bool is_extrusion) {
+inline SegmentStyle resolve(const Palette& palette, bool excluded, bool highlighted,
+                            bool is_extrusion) {
     SegmentStyle s;
     if (excluded) {
         s.override_color = true;
-        s.rgb = kExcludedColor;
+        s.rgb = palette.excluded;
         s.opa = kExcludedOpa;
     }
     if (highlighted && is_extrusion) {

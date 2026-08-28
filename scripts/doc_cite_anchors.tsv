@@ -17,9 +17,9 @@ docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/page_scroll_auto_inject.cpp	67	src/ui/p
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/panel_widget_manager.cpp	825	src/ui/panel_widget_manager.cpp	72f8492f0ba4	f76a9843d3ba
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/ui_panel_macros.cpp	102	src/ui/ui_panel_macros.cpp	d294a98a89ed	41c7fb62016a
 docs/devel/CREALITY_CFS_INTERNALS.md	src/printer/ams_backend_cfs.cpp	1920	src/printer/ams_backend_cfs.cpp	3a519884c2c8	88563465a5ae
-docs/devel/EXCLUDE_OBJECTS.md	gcode_layer_renderer.cpp	1716	src/rendering/gcode_layer_renderer.cpp	a5dd9874dd5d	50d66524ac77
-docs/devel/EXCLUDE_OBJECTS.md	src/rendering/gcode_layer_renderer.cpp	141	src/rendering/gcode_layer_renderer.cpp	31a1c6287ac6	b3af85bd25f8
-docs/devel/EXCLUDE_OBJECTS.md	src/rendering/gcode_layer_renderer.cpp	1559	src/rendering/gcode_layer_renderer.cpp	3ee0d3650cc3	0ab7e2a6a345
+docs/devel/EXCLUDE_OBJECTS.md	gcode_layer_renderer.cpp	1696	src/rendering/gcode_layer_renderer.cpp	a5dd9874dd5d	50d66524ac77
+docs/devel/EXCLUDE_OBJECTS.md	src/rendering/gcode_layer_renderer.cpp	136	src/rendering/gcode_layer_renderer.cpp	31a1c6287ac6	b3af85bd25f8
+docs/devel/EXCLUDE_OBJECTS.md	src/rendering/gcode_layer_renderer.cpp	1539	src/rendering/gcode_layer_renderer.cpp	3ee0d3650cc3	0ab7e2a6a345
 docs/devel/EXCLUDE_OBJECTS.md	src/ui/ui_gcode_viewer.cpp	862	src/ui/ui_gcode_viewer.cpp	92aa7de5ef59	1e32dc6bfd3b
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	ams_backend_snapmaker.cpp	39	src/printer/ams_backend_snapmaker.cpp	0fe61aeac40b	72e6120e9e9b
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	ams_backend_snapmaker.cpp	57	src/printer/ams_backend_snapmaker.cpp	6808caeee5b7	1680a7bf9306
@@ -682,7 +682,7 @@ docs/devel/architecture/15-known-debt.md	ui_xml/bed_temp_panel.xml	73	ui_xml/bed
 docs/devel/architecture/15-known-debt.md	ui_xml/components/panel_widget_network.xml	11	ui_xml/components/panel_widget_network.xml	3a494c2f1cf0	59ebdb1630c3
 docs/devel/architecture/15-known-debt.md	ui_xml/gcode_test_panel.xml	61	ui_xml/gcode_test_panel.xml	55fb244cef82	e81429dacb8b
 docs/devel/architecture/15-known-debt.md	ui_xml/settings_hardware_overlay.xml	62	ui_xml/settings_hardware_overlay.xml	da1bad0bd5b5	568041719e03
-docs/devel/architecture/16-gcode-pipeline.md	gcode_layer_renderer.cpp	122	src/rendering/gcode_layer_renderer.cpp	f4243d136d91	e58eb2a54a89
+docs/devel/architecture/16-gcode-pipeline.md	gcode_layer_renderer.cpp	117	src/rendering/gcode_layer_renderer.cpp	f4243d136d91	e58eb2a54a89
 docs/devel/architecture/16-gcode-pipeline.md	include/display_settings_manager.h	186	include/display_settings_manager.h	386e9646c4f6	1c739e908f74
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_footer_summary.h	23	include/gcode_footer_summary.h	62ec2ba8ef6a	4c44ba3147d8
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_footer_summary.h	96	include/gcode_footer_summary.h	0fbad9847e42	2f035a7b2f88
@@ -691,7 +691,7 @@ docs/devel/architecture/16-gcode-pipeline.md	include/gcode_footer_summary.h	145	
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_footer_summary.h	191	include/gcode_footer_summary.h	91a29e48d77f	1d8f53bde7de
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_layer_index.h	66	include/gcode_layer_index.h	0db12eeb0583	1d7c02f785e8
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_layer_index.h	143	include/gcode_layer_index.h	2cdeeb6094ca	7f94d9f0fd9a
-docs/devel/architecture/16-gcode-pipeline.md	include/gcode_parser.h	195	include/gcode_parser.h	72d5644ca06a	cb7518aeeace
+docs/devel/architecture/16-gcode-pipeline.md	include/gcode_parser.h	217	include/gcode_parser.h	72d5644ca06a	cb7518aeeace
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_render_mode_policy.h	44	include/gcode_render_mode_policy.h	4891f814720c	b489fb0341da
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_streaming_config.h	71	include/gcode_streaming_config.h	b643a734812b	9e5110dde5af
 docs/devel/architecture/16-gcode-pipeline.md	include/gcode_streaming_config.h	119	include/gcode_streaming_config.h	9a03f91db6f3	e70d91d36993
@@ -702,9 +702,9 @@ docs/devel/architecture/16-gcode-pipeline.md	include/ui_gcode_viewer.h	35	includ
 docs/devel/architecture/16-gcode-pipeline.md	include/ui_gcode_viewer.h	608	include/ui_gcode_viewer.h	d9778c4d9e76	75636ccaaa2b
 docs/devel/architecture/16-gcode-pipeline.md	include/ui_gcode_viewer.h	628	include/ui_gcode_viewer.h	4650c2f51b92	d71dd180dd48
 docs/devel/architecture/16-gcode-pipeline.md	include/ui_print_select_detail_view.h	878	include/ui_print_select_detail_view.h	931c262d612f	445cd8631a00
-docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	141	src/rendering/gcode_layer_renderer.cpp	31a1c6287ac6	b3af85bd25f8
-docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	1559	src/rendering/gcode_layer_renderer.cpp	3ee0d3650cc3	0ab7e2a6a345
-docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	1806	src/rendering/gcode_layer_renderer.cpp	946fdfc61d42	bfd0b0fb4aad
+docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	136	src/rendering/gcode_layer_renderer.cpp	31a1c6287ac6	b3af85bd25f8
+docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	1539	src/rendering/gcode_layer_renderer.cpp	3ee0d3650cc3	0ab7e2a6a345
+docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	1776	src/rendering/gcode_layer_renderer.cpp	946fdfc61d42	bfd0b0fb4aad
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	390	src/ui/ui_gcode_viewer.cpp	8c14c01b1f0f	332606823216
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	393	src/ui/ui_gcode_viewer.cpp	827b1d6ec991	1382d7a828c0
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	846	src/ui/ui_gcode_viewer.cpp	bc7ee7ce4797	5a634b985148
