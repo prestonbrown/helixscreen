@@ -362,8 +362,8 @@ docs/devel/architecture/06-discovery-capabilities.md	ui_xml/motion_panel.xml	142
 docs/devel/architecture/07-filament-ams.md	ams_state.cpp	257	src/printer/ams_state.cpp	0bc7e66bb84e	e41fe2694ef6
 docs/devel/architecture/07-filament-ams.md	ams_state.cpp	858	src/printer/ams_state.cpp	d44dc5519cfe	d55ff1d26542
 docs/devel/architecture/07-filament-ams.md	ams_state.cpp	1844	src/printer/ams_state.cpp	3a49c3d1d66f	e8ae2b462e4d
-docs/devel/architecture/07-filament-ams.md	ams_state.cpp	2179	src/printer/ams_state.cpp	f0fc6aea944e	65a50f5e431b
-docs/devel/architecture/07-filament-ams.md	ams_state.cpp	2207	src/printer/ams_state.cpp	d5b107e5b4e8	d9cbc530c3e9
+docs/devel/architecture/07-filament-ams.md	ams_state.cpp	2190	src/printer/ams_state.cpp	f0fc6aea944e	65a50f5e431b
+docs/devel/architecture/07-filament-ams.md	ams_state.cpp	2218	src/printer/ams_state.cpp	d5b107e5b4e8	d9cbc530c3e9
 docs/devel/architecture/07-filament-ams.md	include/ams_backend.h	58	include/ams_backend.h	1492637f9bd3	1b42c7a20245
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_ace.h	46	include/ams_backend_ace.h	857c1ee9d1ff	49c8b4d5dec3
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_ad5x_ifs.h	88	include/ams_backend_ad5x_ifs.h	1cda1a94e943	4e1384cec945
@@ -393,8 +393,8 @@ docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	720	src/pri
 docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	785	src/printer/ams_state.cpp	b4d3caefd544	fa623b1df341
 docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	1436	src/printer/ams_state.cpp	94e50138e7c3	0ed97ba8d6cf
 docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	1835	src/printer/ams_state.cpp	9462323dc917	c88e449b77d6
-docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	2207	src/printer/ams_state.cpp	d5b107e5b4e8	d9cbc530c3e9
-docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	3030	src/printer/ams_state.cpp	4256ad4aab1e	c0499dee7571
+docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	2218	src/printer/ams_state.cpp	d5b107e5b4e8	d9cbc530c3e9
+docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	3041	src/printer/ams_state.cpp	4256ad4aab1e	c0499dee7571
 docs/devel/architecture/07-filament-ams.md	src/printer/printer_discovery.cpp	101	src/printer/printer_discovery.cpp	a8d41aabe95b	164aabe613a4
 docs/devel/architecture/07-filament-ams.md	src/printer/spoolman_manager.cpp	362	src/printer/spoolman_manager.cpp	aed7cc5ff498	4c0371e9020c
 docs/devel/architecture/07-filament-ams.md	src/printer/tool_state.cpp	555	src/printer/tool_state.cpp	e785bafbfac1	b6d14de81146

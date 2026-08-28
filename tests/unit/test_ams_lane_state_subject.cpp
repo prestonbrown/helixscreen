@@ -69,3 +69,50 @@ TEST_CASE_METHOD(XMLTestFixture, "lane_state subject bounds-checks its index",
     CHECK(AmsState::instance().get_slot_lane_state_subject(-1) == nullptr);
     CHECK(AmsState::instance().get_slot_lane_state_subject(AmsState::MAX_SLOTS) == nullptr);
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "lane_state follows the single-slot update path",
+                 "[ams][lane_state][subject]") {
+    // update_slot() is the EVENT_SLOT_UPDATED fast path — update_slot_for_backend(0, n)
+    // delegates straight to it, so a backend that emits per-slot events instead of a
+    // full sync reaches this code and nothing else. It used to write slot_statuses_
+    // without writing slot_lane_states_, leaving every lane rendering surface bound to
+    // a stale classification until the next full sync happened to repair it.
+    auto owned = std::make_unique<AmsBackendMock>(4);
+    owned->set_operation_delay(0);
+    auto* mock = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+
+    {
+        SlotInfo i0 = mock->get_slot_info(0);
+        i0.material = "PLA";
+        REQUIRE(mock->set_slot_info(0, i0).success());
+        mock->force_slot_status(0, SlotStatus::AVAILABLE);
+    }
+
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    // Drain the sync set_slot_info() queued, so the assertion window below belongs to
+    // update_slot() alone and cannot be repaired by a full resync arriving late.
+    process_lvgl(20);
+
+    lv_subject_t* lane = AmsState::instance().get_slot_lane_state_subject(0);
+    REQUIRE(lane != nullptr);
+    REQUIRE(static_cast<helix::ui::LaneState>(lv_subject_get_int(lane)) ==
+            helix::ui::LaneState::Present);
+
+    // Eject the lane but keep its identity. force_slot_status() mutates the mock in
+    // place and emits no event, so no sync is queued to do update_slot()'s job for it.
+    mock->force_slot_status(0, SlotStatus::EMPTY);
+    AmsState::instance().update_slot(0);
+
+    // Assert synchronously — update_slot() writes subjects directly, and running the
+    // LVGL loop here would let any queued sync close the window this test opens.
+    CHECK(static_cast<helix::ui::LaneState>(lv_subject_get_int(lane)) ==
+          helix::ui::LaneState::Ghosted);
+    // The status subject moved too — proving the lane genuinely changed and the check
+    // above is not passing because nothing happened at all.
+    CHECK(lv_subject_get_int(AmsState::instance().get_slot_status_subject(0)) ==
+          static_cast<int>(SlotStatus::EMPTY));
+
+    AmsState::instance().clear_backends();
+}

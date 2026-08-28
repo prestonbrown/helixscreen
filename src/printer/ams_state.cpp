@@ -2150,6 +2150,17 @@ void AmsState::update_slot(int slot_index) {
             changed = true;
         }
 
+        // Lane presentation classification, mirroring sync_from_backend(). This is
+        // the single-slot fast path, so a backend that reports per-slot updates
+        // reaches here and nowhere else; deriving status without re-deriving the
+        // lane state leaves every lane surface bound to a stale classification.
+        int new_lane_state = static_cast<int>(
+            helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
+        if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
+            changed = true;
+        }
+
         // Update remaining filament string
         std::string remaining;
         if (slot.remaining_length_m > 0) {
