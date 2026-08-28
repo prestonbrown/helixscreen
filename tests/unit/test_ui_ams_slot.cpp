@@ -704,28 +704,37 @@ namespace {
 
 /// Result of examining the spool visual after status update.
 struct SpoolVisualState {
-    bool any_ghosted = false;      ///< true if the spool body is at opa/bg_opa LV_OPA_20
+    bool any_ghosted = false;      ///< true if any child has opa/bg_opa == LV_OPA_20
     bool any_spool_hidden = false; ///< true if spool_canvas or spool rings are hidden
     int child_count = 0;           ///< For diagnostic purposes
 };
 
-/// Inspect the spool visual to determine the ghost/placeholder state.
+/// Inspect spool_container children to determine the ghost/placeholder state.
 ///
-/// spool_container holds XML badges (status_badge, tool_badge) alongside the
-/// visuals create_spool_visual() adds, in an order that shifts with the spool
-/// style and with move_to_index() reordering. So look the spool body up by
-/// name rather than by position or by which children happen to lack one.
+/// After ui_ams_slot creates the widget, the spool_container child order is:
+///   [0] status_badge (XML, named)
+///   [1] spool_canvas (3d) or spool_outer (flat) — the "main spool visual"
+///   [2] empty_placeholder (unnamed, transparent)
+///   [3] tool_badge (XML, named, moved to end via move_to_index)
+///   [4] error_indicator (unnamed, moved to end)
+/// The XML-named badges are always named; the dynamically-created visuals are
+/// unnamed. We key off the first unnamed child for the spool visual.
 SpoolVisualState inspect_spool_state(lv_obj_t* spool_container) {
     SpoolVisualState st;
-    st.child_count = static_cast<int>(lv_obj_get_child_count(spool_container));
+    uint32_t n = lv_obj_get_child_count(spool_container);
+    st.child_count = static_cast<int>(n);
 
-    // "spool_graphic" is the style-independent name create_spool_visual() puts
-    // on the spool body — the canvas in 3D, the filament ring when flat. This
-    // used to take the first UNNAMED child instead, which only worked while
-    // nothing in the spool visual had a name: naming any part of it silently
-    // moved the search onto a sibling (the error indicator) whose opacity has
-    // nothing to do with ghosting, and the ghost assertions read false.
-    lv_obj_t* spool_visual = lv_obj_find_by_name(spool_container, "spool_graphic");
+    lv_obj_t* spool_visual = nullptr;
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_obj_t* child = lv_obj_get_child(spool_container, i);
+        if (!child)
+            continue;
+        const char* name = lv_obj_get_name(child);
+        if (name)
+            continue; // skip named XML children (status_badge, tool_badge)
+        spool_visual = child;
+        break;
+    }
     if (!spool_visual)
         return st;
 

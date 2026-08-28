@@ -9,7 +9,6 @@
 #include "ui_spool_canvas.h"
 #include "ui_update_queue.h"
 
-#include "ams_slot_presentation.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "data_root_resolver.h"
@@ -30,13 +29,6 @@
 #include <cstring>
 #include <memory>
 #include <unordered_map>
-
-// The shared rule names its opacities without including LVGL so it stays
-// testable headlessly. These pin those numbers to the LVGL constants they
-// stand for, so a change to either side is a build error rather than a lane
-// that quietly renders at the wrong strength.
-static_assert(helix::ui::SPOOL_OPA_FULL == LV_OPA_COVER);
-static_assert(helix::ui::SPOOL_OPA_GHOST == LV_OPA_20);
 
 using namespace helix;
 
@@ -243,18 +235,23 @@ static void apply_slot_fill_pct(AmsSlotData* data, int pct) {
 }
 
 /**
- * @brief Look up this lane's retained identity from the live backend.
+ * @brief Does this lane still carry an identity after being ejected?
  *
- * The predicate itself is helix::ui::slot_has_retained_identity() in
- * ams_slot_presentation.h; this only supplies it with the lane. A lane with no
- * backend answers false, which resolves to the unassigned-empty presentation —
- * the right answer for a widget built before any backend attached.
+ * Spoolman link, material, brand or spool name — the override is deliberately
+ * NOT cleared on eject (#1071), so a lane that has one is "assigned, not
+ * present" rather than genuinely unused. THE predicate for the empty-lane
+ * presentation, shared by apply_slot_status() (which ghosts the spool) and
+ * apply_slot_material() (which picks the label text) so the two cannot reach
+ * opposite conclusions about the same lane. ui_ams_mini_status.cpp runs the
+ * identical test for the strip the filament panel embeds (4da7a07db).
  */
 static bool slot_has_retained_identity(int slot_index) {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend || slot_index < 0)
         return false;
-    return helix::ui::slot_has_retained_identity(backend->get_slot_info(slot_index));
+    SlotInfo slot_info = backend->get_slot_info(slot_index);
+    return slot_info.spoolman_id > 0 || !slot_info.material.empty() || !slot_info.brand.empty() ||
+           !slot_info.spool_name.empty();
 }
 
 /**
@@ -283,9 +280,7 @@ static bool slot_has_retained_identity(int slot_index) {
 static void apply_slot_material(AmsSlotData* data, const char* material) {
     if (!data || !data->material_label)
         return;
-    const helix::ui::SlotPresentation pres = helix::ui::resolve_slot_presentation(
-        data->last_status, slot_has_retained_identity(data->slot_index));
-    if (pres.label == helix::ui::SlotLabel::Empty) {
+    if (data->last_status == SlotStatus::EMPTY && !slot_has_retained_identity(data->slot_index)) {
         // Name the lane's purpose instead of showing a placeholder for a
         // material that was never there. "Empty" is UI copy, not a material
         // name, so unlike the material itself it is translated.
@@ -384,17 +379,27 @@ static void apply_slot_status(AmsSlotData* data, int status_int) {
     } else {
         lv_obj_add_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
     }
-    // Spool visibility and strength come from THE shared rule
-    // (ams_slot_presentation.h), so this widget and the mini status strip
-    // cannot reach opposite conclusions about the same lane. The label's
-    // "Empty" text is NOT written here — the shared refresh below owns it, so
-    // the material observer firing afterwards reaches the same answer instead
-    // of replacing it with "--".
-    const helix::ui::SlotPresentation pres =
-        helix::ui::resolve_slot_presentation(status, slot_has_retained_identity(data->slot_index));
-    const auto spool_opa = static_cast<lv_opa_t>(pres.spool_opa);
-    const bool show_spool = pres.show_spool;
-    const bool show_empty_placeholder = pres.show_placeholder;
+    // Handle spool visibility based on status and assignment
+    lv_opa_t spool_opa = LV_OPA_COVER;
+    bool show_spool = true;
+    bool show_empty_placeholder = false;
+
+    if (status == SlotStatus::EMPTY) {
+        // Brand/spool_name cover IFS-style backends where a user-configured
+        // override exists without a Spoolman ID, so we still ghost-render the
+        // spool visual — see slot_has_retained_identity().
+        if (slot_has_retained_identity(data->slot_index)) {
+            // Assigned but empty: ghosted spool at 20%
+            spool_opa = LV_OPA_20;
+        } else {
+            // Unassigned and empty: hide spool, show empty placeholder circle.
+            // The label's "Empty" text is NOT written here — the shared
+            // refresh below owns it, so the material observer firing afterwards
+            // reaches the same answer instead of replacing it with "--".
+            show_spool = false;
+            show_empty_placeholder = true;
+        }
+    }
 
     // Apply visibility and opacity to spool elements
     // Always keep spool_container visible for click targeting

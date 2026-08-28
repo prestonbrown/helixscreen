@@ -788,13 +788,6 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
             ui_spool_canvas_set_color(canvas, lv_color_hex(AMS_DEFAULT_SLOT_COLOR));
             ui_spool_canvas_set_fill_level(canvas, 1.0f);
             lv_obj_add_flag(canvas, LV_OBJ_FLAG_EVENT_BUBBLE);
-            // Style-independent handle on "the spool is showing", the counterpart
-            // to empty_placeholder below. The flat branch names its filament ring
-            // the same, so callers and `helix-screen ctl` reach the spool body
-            // without knowing which style built it. Not "spool_body" — that is
-            // already a theme COLOR token, and one string meaning two unrelated
-            // things is a grep away from a wrong conclusion.
-            lv_obj_set_name(canvas, "spool_graphic");
             sv.canvas = canvas;
         }
     } else {
@@ -837,7 +830,6 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
         lv_obj_set_style_border_width(filament_ring, 0, LV_PART_MAIN);
         lv_obj_remove_flag(filament_ring, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(filament_ring, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_set_name(filament_ring, "spool_graphic"); // see the 3D branch above
         sv.color_swatch = filament_ring;
 
         // Layer 3: Center hub

@@ -12,7 +12,6 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
-#include "ams_slot_presentation.h"
 #include "ams_state.h"
 #include "config.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -30,13 +29,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-// The shared rule names its opacities without including LVGL so it stays
-// testable headlessly. These pin those numbers to the LVGL constants they
-// stand for, so a change to either side is a build error rather than a lane
-// that quietly renders at the wrong strength.
-static_assert(helix::ui::SPOOL_OPA_FULL == LV_OPA_COVER);
-static_assert(helix::ui::SPOOL_OPA_GHOST == LV_OPA_20);
 
 // ============================================================================
 // Layout constants
@@ -114,18 +106,14 @@ struct SpoolCellData {
     float fill_level = 1.0f; // 0.0-1.0 for the spool graphic
     int remaining_pct = -1;  // actual % remaining; -1 = unknown (blank label)
     std::string material;    // "" => render "--"
-    // The lane's reported status, NOT a present/absent bool: SlotInfo::is_present()
-    // is false for UNKNOWN as well as EMPTY, and collapsing the two labels an
-    // unanswered lane "Empty". Defaults to EMPTY so a gap cell in a resized
-    // vector draws the placeholder rather than a spool for a lane with no data.
-    SlotStatus status = SlotStatus::EMPTY;
+    bool present = false;
     int lane_number = 1;   // 1-based, for the badge
     bool active = false;   // actively-loaded lane (success-colored badge)
     bool assigned = false; // lane still carries identity while ejected (#1071)
 
     bool operator==(const SpoolCellData& o) const {
         return color_rgb == o.color_rgb && fill_level == o.fill_level &&
-               remaining_pct == o.remaining_pct && material == o.material && status == o.status &&
+               remaining_pct == o.remaining_pct && material == o.material && present == o.present &&
                lane_number == o.lane_number && active == o.active && assigned == o.assigned;
     }
 };
@@ -158,11 +146,11 @@ static bool slot_is_active_loaded(int slot_index) {
 /**
  * @brief Dim a spool visual to the "assigned but ejected" ghost strength.
  *
- * Takes the strength resolve_slot_presentation() picked: an empty lane that
- * still carries identity (Spoolman link, material, brand, or spool name —
- * deliberately NOT cleared on eject, #1071) renders its retained spool ghosted
- * so it reads as "assigned, not present" rather than "still loaded" (#1065).
- * Call AFTER spool_visual_set_color(), which resets bg_opa to COVER.
+ * Mirrors apply_slot_status() in ui_ams_slot.cpp: an empty lane that still
+ * carries identity (Spoolman link, material, brand, or spool name — deliberately
+ * NOT cleared on eject, #1071) renders its retained spool at LV_OPA_20 so it
+ * reads as "assigned, not present" rather than "still loaded" (#1065). Call
+ * AFTER spool_visual_set_color(), which resets bg_opa to COVER.
  */
 static void spool_visual_set_ghost_opa(const ams_draw::SpoolVisual& sv, lv_opa_t opa) {
     if (sv.color_swatch)
@@ -633,8 +621,7 @@ static void rebuild_bars(AmsMiniStatusData* data) {
  * reserves room for cannot drift from what actually gets drawn.
  */
 static const char* spool_material_text(const SpoolCellData& cd) {
-    if (helix::ui::resolve_slot_presentation(cd.status, cd.assigned).label ==
-        helix::ui::SlotLabel::Empty) {
+    if (!cd.present && !cd.assigned) {
         // Unassigned empty lane: name its purpose instead of showing "--",
         // matching the ams_slot material label (translated; "Empty" is UI copy,
         // not a material name).
@@ -844,21 +831,18 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         lv_obj_set_style_border_width(wrap, 0, LV_PART_MAIN);
         lv_obj_remove_flag(wrap, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(wrap, LV_OBJ_FLAG_EVENT_BUBBLE);
-        // Empty-lane presentation from THE shared rule (ams_slot_presentation.h),
-        // the same one ui_ams_slot.cpp applies, so a lane reads identically on
-        // both surfaces instead of agreeing by convention:
+        // Empty-lane presentation, ported from apply_slot_status() in
+        // ui_ams_slot.cpp so a lane reads the same on both surfaces:
         //   present              -> full-strength spool, material text
-        //   ejected + assigned   -> spool KEPT, ghosted, label ghosted with it
-        //                           ("assigned, not present")
+        //   ejected + assigned   -> spool KEPT, ghosted at LV_OPA_20, label
+        //                           ghosted with it ("assigned, not present")
         //   ejected + unassigned -> spool hidden, dashed placeholder, "Empty"
-        const helix::ui::SlotPresentation pres =
-            helix::ui::resolve_slot_presentation(cd.status, cd.assigned);
-        const bool ghosted = pres.spool_opa != helix::ui::SPOOL_OPA_FULL;
+        const bool ghosted = !cd.present && cd.assigned;
         ams_draw::SpoolVisual sv = ams_draw::create_spool_visual(wrap, spool_size);
         ams_draw::spool_visual_set_color(sv, lv_color_hex(cd.color_rgb));
         ams_draw::spool_visual_set_fill(sv, cd.fill_level);
-        ams_draw::spool_visual_set_empty(sv, pres.show_placeholder);
-        spool_visual_set_ghost_opa(sv, static_cast<lv_opa_t>(pres.spool_opa));
+        ams_draw::spool_visual_set_empty(sv, !cd.present && !cd.assigned);
+        spool_visual_set_ghost_opa(sv, ghosted ? LV_OPA_20 : LV_OPA_COVER);
         lv_obj_t* badge =
             ams_draw::create_lane_badge(wrap, cd.lane_number, spool_size * 2 / 5, cd.active);
         if (badge) {
@@ -1155,9 +1139,7 @@ void ui_ams_mini_status_set_slot_full(lv_obj_t* obj, int slot_index, uint32_t co
     c.fill_level = fill_level_from_pct(fill_pct);
     c.remaining_pct = remaining_pct;
     c.material = material ? material : "";
-    // This entry point's caller answers present/absent directly, so absent here
-    // really is EMPTY — unlike a backend that simply never reports status.
-    c.status = present ? SlotStatus::AVAILABLE : SlotStatus::EMPTY;
+    c.present = present;
     // This programmatic path carries no Spoolman/brand handles, so a retained
     // material is the only "assigned" evidence it can offer (the AmsState path
     // in sync_from_ams_state() sees the full predicate).
@@ -1295,11 +1277,11 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
 
         const bool active = slot_is_active_loaded(i);
         // "Assigned" = the lane still carries identity after an eject — the
-        // override is deliberately NOT cleared (#1071). Shared predicate, so
-        // this strip and the ams_slot widget cannot disagree about a lane;
-        // brand/spool_name cover IFS-style backends with a user override but no
-        // Spoolman id.
-        const bool assigned = helix::ui::slot_has_retained_identity(slot);
+        // override is deliberately NOT cleared (#1071). Same predicate as
+        // apply_slot_status() in ui_ams_slot.cpp; brand/spool_name cover
+        // IFS-style backends with a user override but no Spoolman id.
+        const bool assigned = slot.spoolman_id > 0 || !slot.material.empty() ||
+                              !slot.brand.empty() || !slot.spool_name.empty();
 
         // Bar-mode cache (capped at MAX_VISIBLE).
         if (i < AMS_MINI_STATUS_MAX_VISIBLE) {
@@ -1318,7 +1300,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         c.fill_level = fill_level_from_pct(fill_pct);
         c.remaining_pct = rem;
         c.material = slot.material;
-        c.status = slot.status;
+        c.present = slot.is_present();
         c.lane_number = i + 1;
         c.active = active;
         c.assigned = assigned;
