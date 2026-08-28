@@ -4,6 +4,7 @@
 #pragma once
 
 #include "gcode_camera.h"
+#include "gcode_ghost_mode.h"
 #include "gcode_parser.h"
 
 #include <lvgl/lvgl.h>
@@ -39,17 +40,6 @@ enum class LODLevel {
     FULL = 0,   ///< Render all segments (high quality)
     HALF = 1,   ///< Render every 2nd segment (medium quality)
     QUARTER = 2 ///< Render every 4th segment (low quality/zoomed out)
-};
-
-/**
- * @brief Ghost layer rendering mode (for print progress visualization)
- *
- * Note: Ghost rendering is primarily a 3D renderer feature. The 2D renderer
- * provides these stubs for API compatibility but doesn't render ghost layers.
- */
-enum class GhostRenderMode : uint8_t {
-    Dimmed = 0, ///< Reduce opacity of unprinted layers
-    Stipple = 1 ///< Use stipple pattern for unprinted layers
 };
 
 /**

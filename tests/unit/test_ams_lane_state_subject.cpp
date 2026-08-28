@@ -57,7 +57,16 @@ TEST_CASE_METHOD(XMLTestFixture, "lane_state subject tracks the backend",
 
 TEST_CASE_METHOD(XMLTestFixture, "lane_state subject is XML-registered per lane",
                  "[ams][lane_state][subject]") {
+    // deinit FIRST, deliberately. init_subjects() early-returns when initialized_
+    // is already set and does NOT register the XML names on that path, so a bare
+    // init_subjects(true) is a no-op whenever anything earlier in the process
+    // already brought AmsState up. This case therefore used to assert against
+    // names some previous test happened to register: green standalone and in a
+    // full [ams] run, red for any shard subset without such a test. Forcing a
+    // real registration pass makes it independent of execution order.
+    AmsState::instance().deinit_subjects();
     AmsState::instance().init_subjects(true);
+
     // Name shape must match what the chrome binds to: ams_slot_<n>_lane_state.
     CHECK(lv_xml_get_subject(nullptr, "ams_slot_0_lane_state") != nullptr);
     CHECK(lv_xml_get_subject(nullptr, "ams_slot_3_lane_state") != nullptr);

@@ -887,6 +887,16 @@ std::string GCodeStreamingController::get_object_name(int16_t index) const {
     return merged_object_name_table_[index];
 }
 
+size_t GCodeStreamingController::object_name_table_size() const {
+    std::lock_guard<std::mutex> lock(name_table_mutex_);
+    return merged_object_name_table_.size();
+}
+
+std::vector<std::string> GCodeStreamingController::object_name_table_snapshot() const {
+    std::lock_guard<std::mutex> lock(name_table_mutex_);
+    return merged_object_name_table_;
+}
+
 void GCodeStreamingController::remap_object_name_indices(
     std::vector<ToolpathSegment>& segments, const std::vector<std::string>& local_table) {
     // Build mapping from local indices to merged indices

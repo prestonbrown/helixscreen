@@ -129,13 +129,16 @@ class GCodeViewerState {
 
         // Enhanced shading tiering lives in decide_ssao_enabled() (pure, unit
         // tested); this only applies the result and logs why.
-        const auto ssao = helix::gcode_viewer::decide_ssao_enabled(
-            helix::get_system_memory_info().is_constrained_device(), std::getenv("HELIX_SSAO"));
+        const bool constrained = helix::get_system_memory_info().is_constrained_device();
+        const char* ssao_env = std::getenv("HELIX_SSAO");
+        const auto ssao = helix::gcode_viewer::decide_ssao_enabled(constrained, ssao_env);
         ssao_enabled_at_init_ = ssao.enabled;
+        antialias_enabled_at_init_ =
+            helix::gcode_viewer::decide_antialias_enabled(constrained, ssao_env);
         switch (ssao.reason) {
-        case helix::gcode_viewer::SsaoReason::ConstrainedOff:
-            spdlog::info("[GCode Viewer] Constrained device - enhanced shading off by default "
-                         "(HELIX_SSAO=1 to force on)");
+        case helix::gcode_viewer::SsaoReason::ConstrainedReduced:
+            spdlog::info("[GCode Viewer] Constrained device - outline shading on, antialiasing off "
+                         "(HELIX_SSAO=0 to disable both, =1 to force both on)");
             break;
         case helix::gcode_viewer::SsaoReason::EnvForcedOff:
             spdlog::info("[GCode Viewer] HELIX_SSAO=0: enhanced shading disabled");
@@ -369,6 +372,7 @@ class GCodeViewerState {
 
     /// SSAO enabled at init (from HELIX_SSAO env var, applied when 2D renderer is created)
     bool ssao_enabled_at_init_{false};
+    bool antialias_enabled_at_init_{false};
 
     /// Render mode setting - set by constructor based on HELIX_GCODE_MODE env var
     /// Render mode setting - configurable via HELIX_GCODE_MODE env var
@@ -398,8 +402,16 @@ class GCodeViewerState {
         return render_mode_ == GcodeViewerRenderMode::Layer2D || budget_forced_2d_ ||
                gpu_3d_blocked_;
 #else
-        // Without 3D renderer: only explicit Render3D would use 3D (but it's not available)
-        return render_mode_ != GcodeViewerRenderMode::Render3D;
+        // Without a 3D renderer there is no 3D mode, full stop.
+        //
+        // This used to read `render_mode_ != Render3D`, which left a hole: the
+        // settings UI removes the "3D View" option on these builds, but
+        // ui_gcode_viewer_set_render_mode() has no availability guard, so a
+        // stored display/gcode_render_mode of 1 - migrated, hand-edited, or
+        // copied from a device that does have GLES - still selected it. The
+        // fallback it reached was the legacy CPU wireframe, which no user has
+        // deliberately chosen in a long time.
+        return true;
 #endif
     }
 
@@ -623,10 +635,16 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 
             apply_2d_renderer_colors(st);
 
-            // Apply SSAO setting from env var or prior API call
-            if (st->ssao_enabled_at_init_) {
-                st->layer_renderer_2d_->set_ssao_enabled(true);
-            }
+            // Push the decision either way. The renderer's own default is TRUE,
+            // so only ever calling set_ssao_enabled(true) meant "off" was never
+            // applied to it: decide_ssao_enabled() would log "enhanced shading
+            // off", the viewer would skip the call, and the renderer would carry
+            // on with its default. HELIX_SSAO=0 and the constrained-device tier
+            // were both inert, and the constrained devices paid for the SSAO
+            // pass, the full-canvas buffer, and antialiased rasterization (about
+            // 6x the aliased cost) that the tier exists to spare them.
+            st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+            st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
 
             spdlog::debug("[GCode Viewer] Initialized 2D layer renderer ({}x{})", width, height);
         }
@@ -1676,10 +1694,10 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     st->layer_renderer_2d_->set_canvas_size(width, height);
                     st->layer_renderer_2d_->auto_fit();
 
-                    // Apply SSAO setting
-                    if (st->ssao_enabled_at_init_) {
-                        st->layer_renderer_2d_->set_ssao_enabled(true);
-                    }
+                    // Apply the SSAO setting, both ways. See the note at the
+                    // renderer-init site: a one-way call leaves "off" unapplied.
+                    st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+                    st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
 
                     st->viewer_state = GcodeViewerState::Loaded;
                     st->first_render = false;
@@ -1928,8 +1946,17 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                     // Auto-apply filament color from gcode metadata (unless
                     // AMS/Spoolman has already set an external override)
+                    // Both renderers, not just the 3D one. The 2D renderer draws on
+                    // every build without GLES and on any device the user has put in
+                    // 2D mode, and until this it kept the theme default for
+                    // color_extrusion_ - the single-color fallback a file without a
+                    // parsed tool palette lands on.
                     if (st->has_external_color_override) {
                         st->renderer_->set_extrusion_color(st->external_color_override);
+                        if (st->layer_renderer_2d_) {
+                            st->layer_renderer_2d_->set_extrusion_color(
+                                st->external_color_override);
+                        }
                         spdlog::debug(
                             "[GCode Viewer] Applied external color override (AMS/Spoolman)");
                     } else if (st->use_filament_color &&
@@ -1937,6 +1964,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         lv_color_t color = lv_color_hex(static_cast<uint32_t>(std::strtol(
                             st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
                         st->renderer_->set_extrusion_color(color);
+                        if (st->layer_renderer_2d_) {
+                            st->layer_renderer_2d_->set_extrusion_color(color);
+                        }
                         spdlog::debug("[GCode Viewer] Applied filament color: {}",
                                       st->gcode_file->filament_color_hex);
                     }
@@ -2161,9 +2191,8 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
         st->layer_renderer_2d_->set_canvas_size(width, height);
         st->layer_renderer_2d_->auto_fit();
 
-        if (st->ssao_enabled_at_init_) {
-            st->layer_renderer_2d_->set_ssao_enabled(true);
-        }
+        st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+        st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
     }
 
 #ifdef ENABLE_3D_RENDERER

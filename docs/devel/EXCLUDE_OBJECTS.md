@@ -175,7 +175,7 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 ### Step-by-step
 
-1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `LONG_PRESS_THRESHOLD_MS` in `src/ui/ui_gcode_viewer.cpp:844`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
+1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `LONG_PRESS_THRESHOLD_MS` in `src/ui/ui_gcode_viewer.cpp:862`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 
@@ -254,7 +254,7 @@ Default is 40x40 pixels (`kThumbnailSize` in the overlay source). Non-square siz
 
 The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands on for builds without the GLES 3D renderer (and what `HELIX_GCODE_MODE=2D` / `--render-2d` force everywhere). It supports the full exclude objects feature:
 
-- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp:1389`). Stage 1 projects each object's 3D bounding box — accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold — and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins — so a tap over a stack picks what is visually on top.
+- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp:1539`). Stage 1 projects each object's 3D bounding box — accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold — and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins — so a tap over a stack picks what is visually on top.
 - **Excluded object rendering**: Excluded objects are drawn in orange-red (`0xFF6B35`) at reduced opacity (`LV_OPA_60`) with 1px line width.
 - **Selection brackets**: Highlighted objects show corner bracket wireframes around their 3D bounding box (20% of shortest edge, capped at 5mm). 8 corners x 3 axes = 24 bracket lines per object.
 - **Interaction model**: a press-and-hold excludes the object under the finger; a tap (release with minimal movement, no pinch, long-press not already fired) toggles single-selection, which is what draws the corner brackets. The skip-objects icon (`btn_objects` on the print status panel, visible when `exclude_objects_available` is set) opens the map + side-list panel instead.
@@ -262,7 +262,7 @@ The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands 
 
 ### Streaming Mode
 
-In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list — `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp:152`) — so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap — a hit-test must not freeze the UI to load geometry (`gcode_layer_renderer.cpp:1546`; a mid-pick load froze the UI for seconds on a 2-core board).
+In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list — `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp:136`) — so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap — a hit-test must not freeze the UI to load geometry (`gcode_layer_renderer.cpp:1696`; a mid-pick load froze the UI for seconds on a 2-core board).
 
 Note: Per-object thumbnails require `ParsedGCodeFile` segment data. In streaming mode, `ui_gcode_viewer_get_parsed_file()` returns `nullptr`, so thumbnails are not available and the side list displays rows without thumbnail images.
 
@@ -461,9 +461,35 @@ excluded_observer_ = ObserverGuard(
 
 ### Visual States in the GCode Viewer
 
+The colors are XML tokens in `ui_xml/gcode_tokens.xml`
+(`gcode_selection_outline`, `gcode_selection_excluded`, `gcode_selection_bracket`),
+resolved once per renderer through `selection::palette_from_theme()`. They are
+static tokens - a bare name with no `_light`/`_dark` pair - because the cues have
+to stay legible against arbitrary filament colors, which do not follow the UI
+theme.
+
 | State | Visual Treatment |
 |-------|-----------------|
 | Normal | Default filament color, standard line width |
-| Highlighted (selected) | Brightened color, corner bracket wireframe around bounding box |
-| Excluded | Orange-red (`0xFF6B35`), 1px line width, 60% opacity |
+| Highlighted (selected) | **Keeps its own filament color**, plus a white silhouette rim tracing the object's contour and the corner-bracket wireframe around its bounding box |
+| Excluded | Orange-red (`gcode_selection_excluded`, `#FF6B35`) at 60% opacity. Line width is **unchanged** |
+| Excluded *and* selected | Opaque orange-red inside the white rim: the selection tag replaces the 60% fade, because an object cannot be tagged and faded at once and seeing what you picked matters more |
 | Pending exclusion | Same as excluded (visual preview before API call) |
+
+Two corrections to what this table used to say, both worth knowing if you are
+reading older code or notes:
+
+- **Selection does not brighten the object.** It used to claim a "brightened
+  color", which described a 1.8x `HIGHLIGHT_BRIGHTNESS` bake in the geometry
+  builder that no live caller reached. A selected object deliberately keeps its
+  filament color and is marked by the rim instead, as in OrcaSlicer.
+- **Exclusion does not change line width.** The "1px line width" was the
+  `lv_draw_line` fallback path's width, not the isometric view's, and the
+  isometric view is what every shipped printer draws.
+
+The rim is derived from where the object actually landed on screen, not painted
+speculatively: the selected object is drawn once with a tag in its alpha byte,
+and `stroke_selection_rim()` writes white where the tagged region ends. It is
+`selection::kOutlinePx` (2) screen pixels wide, dropping to
+`kOutlineSmallPanelPx` (1) on panels at or below 320px, where 2px per side
+swallows a small object whole.

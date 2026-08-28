@@ -22,6 +22,39 @@
 namespace helix {
 namespace gcode {
 
+/**
+ * @brief How far tube geometry can reach past a segment's own coordinates, in mm.
+ *
+ * A segment is stored as a centre line, but it renders as a tube of `width`. The
+ * surface therefore sits half a width off the centre line, and on a diagonal that
+ * offset lands in two axes at once, so the worst case along any single axis is
+ * half the width times sqrt(2).
+ *
+ * TWO CALLERS, AND THEY DELIBERATELY DO NOT AGREE. This is the exact geometric
+ * reach, and it is what the per-layer culling box wants: too small and geometry
+ * pops at the frustum edge, too large and you draw offscreen tubes. The
+ * quantization bounds want something bigger - see the call site - because being
+ * short there does not cost fidelity, it corrupts vertices. Both used to be
+ * hand-written floats commented "sqrt(2)", and one of them was 1.5.
+ */
+inline constexpr float tube_half_diagonal(float width) {
+    constexpr float kSqrt2 = 1.41421356f;
+    return width * 0.5f * kSqrt2;
+}
+
+/**
+ * @brief Extra slack on the quantization bounds, as a multiple of the geometric reach.
+ *
+ * Quantization maps world coordinates onto a fixed integer grid sized from these
+ * bounds. A vertex outside them does not merely render slightly wrong, it wraps,
+ * so the cost of over-expanding (a hair of grid resolution) and of
+ * under-expanding (corrupt geometry) are nowhere near symmetric. The historical
+ * value was `max_tube_width * 1.5f`, which is a little over twice the exact
+ * reach; this keeps that margin rather than tightening a number that has been
+ * quietly protecting every build.
+ */
+inline constexpr float kQuantBoundsSlack = 2.12132f; // 1.5 / (0.5 * sqrt(2))
+
 // ============================================================================
 // Quantized Vertex Representation
 // ============================================================================
@@ -193,6 +226,55 @@ using TriangleStrip = std::array<uint32_t, 4>;
 using ColorCache = std::unordered_map<uint32_t, uint8_t>;
 
 /**
+ * @brief One contiguous stretch of a layer's GPU vertices belonging to one object.
+ *
+ * The mesh itself carries no object identity: VBOs are grouped per LAYER, and
+ * PackedVertex is 12 bytes with no room for an id. Adding one would grow every
+ * vertex of every layer, on machines with 114MB of RAM, to serve a transient
+ * single selection. Runs are the indirection instead — a side table that says
+ * "vertices [offset, offset+count) of layer L are object N".
+ *
+ * Cheap because slicers emit EXCLUDE_OBJECT_START/END blocks: an object's
+ * segments within one layer are already near-contiguous, so it is typically 1 to
+ * 3 runs per object per layer rather than one per segment.
+ *
+ * @note @ref vertex_offset is relative to THAT LAYER's VBO, because each layer
+ *       has its own. It is not an index into RibbonGeometry::vertices.
+ */
+struct ObjectRun {
+    uint32_t vertex_offset; ///< First vertex within the layer's VBO
+    uint16_t vertex_count;  ///< Always a multiple of 6 (a strip expands to 6 vertices)
+    int16_t object_index;   ///< Interned; matches ToolpathSegment::object_name_index
+};
+static_assert(sizeof(ObjectRun) == 8, "ObjectRun must stay 8 bytes — one per object per layer");
+
+/// Non-owning view of one layer's runs. Valid until the geometry is rebuilt or moved.
+struct ObjectRunSpan {
+    const ObjectRun* first = nullptr;
+    size_t count = 0;
+
+    const ObjectRun* begin() const {
+        return first;
+    }
+    const ObjectRun* end() const {
+        return first + count;
+    }
+    bool empty() const {
+        return count == 0;
+    }
+};
+
+/// Hard ceiling on the run table. Past this the indirection stops being cheap
+/// relative to the geometry it indexes, so run collection is abandoned entirely
+/// and the renderer falls back to what it did before runs existed (brackets
+/// only, no shell). 65536 runs is 512KB.
+inline constexpr size_t MAX_OBJECT_RUNS = 65536;
+
+/// Largest vertex_count that fits uint16 while staying strip-aligned
+/// (6 vertices per strip). A longer stretch is split across several runs.
+inline constexpr uint32_t MAX_RUN_VERTICES = 65532;
+
+/**
  * @brief Complete ribbon geometry for rendering
  */
 struct RibbonGeometry {
@@ -222,6 +304,15 @@ struct RibbonGeometry {
     // Per-layer bounding boxes for frustum culling (indexed by layer)
     std::vector<AABB> layer_bboxes; ///< AABB per layer for frustum culling
 
+    /// Per-object vertex runs, flat and grouped by layer. Empty when the file has
+    /// no exclude-object metadata, or when the MAX_OBJECT_RUNS guard tripped.
+    std::vector<ObjectRun> object_runs;
+
+    /// [layer_idx] -> (first index into object_runs, run count). Empty whenever
+    /// object_runs is empty, so a file without exclude-object metadata allocates
+    /// nothing at all for either table.
+    std::vector<std::pair<uint32_t, uint32_t>> layer_object_run_ranges;
+
     // Palette lookup cache (O(1) lookup instead of O(N) linear search)
     std::unique_ptr<ColorCache> color_cache; ///< Cache for color palette lookups
 
@@ -229,6 +320,24 @@ struct RibbonGeometry {
     size_t travel_triangle_count;    ///< Triangles for travel moves
     QuantizationParams quantization; ///< Quantization params for dequantization
     float layer_height_mm{0.2f};     ///< Layer height for Z-offset calculations during LOD
+
+    /**
+     * @brief The object runs recorded for one layer.
+     *
+     * Returns an empty span for every layer when run collection did not happen,
+     * which is what keeps the GLES shell pass a no-op on files with no
+     * exclude-object metadata.
+     */
+    ObjectRunSpan layer_object_runs(size_t layer_index) const {
+        if (layer_index >= layer_object_run_ranges.size()) {
+            return {};
+        }
+        const auto& [first, count] = layer_object_run_ranges[layer_index];
+        if (count == 0 || static_cast<size_t>(first) + count > object_runs.size()) {
+            return {};
+        }
+        return ObjectRunSpan{object_runs.data() + first, count};
+    }
 
     /**
      * @brief Resolve a strip's RGB color through strip_color_index + color_palette.
@@ -256,7 +365,8 @@ struct RibbonGeometry {
             strips.size() * sizeof(TriangleStrip) + strip_color_index.size() * sizeof(uint8_t) +
             color_palette.size() * sizeof(uint32_t) + strip_layer_index.size() * sizeof(uint16_t) +
             layer_strip_ranges.size() * sizeof(std::pair<size_t, size_t>) +
-            layer_bboxes.size() * sizeof(AABB);
+            layer_bboxes.size() * sizeof(AABB) + object_runs.size() * sizeof(ObjectRun) +
+            layer_object_run_ranges.size() * sizeof(std::pair<uint32_t, uint32_t>);
         // prepared_buffers is empty during build() (it is filled afterwards on a background
         // thread), so this term only affects post-build reporting, not the budget check.
         for (const auto& pb : prepared_buffers) {
@@ -445,15 +555,6 @@ class GeometryBuilder {
     void set_filament_color(const std::string& hex_color);
 
     /**
-     * @brief Enable/disable smooth shading (Gouraud)
-     * @param enable true for smooth shading (averaged normals), false for flat shading (per-face
-     * normals)
-     */
-    void set_smooth_shading(bool enable) {
-        use_smooth_shading_ = enable;
-    }
-
-    /**
      * @brief Set layer height for tube geometry (default: 0.2mm)
      * @param height_mm Layer height in millimeters
      *
@@ -462,17 +563,6 @@ class GeometryBuilder {
      */
     void set_layer_height(float height_mm) {
         layer_height_mm_ = height_mm;
-    }
-
-    /**
-     * @brief Set highlighted object names for visual emphasis
-     * @param object_names Names of objects to highlight (empty to clear)
-     *
-     * Highlighted segments will be rendered with brightened color (1.8x multiplier)
-     * to make them stand out from the rest of the model.
-     */
-    void set_highlighted_objects(const std::unordered_set<std::string>& object_names) {
-        highlighted_objects_ = object_names;
     }
 
     /**
@@ -573,16 +663,13 @@ class GeometryBuilder {
     float travel_width_mm_ = 0.1f;                  ///< Thin for travels
     float layer_height_mm_ = 0.2f;                  ///< Layer height for tube vertical dimension
     bool use_height_gradient_ = true;               ///< Rainbow Z-gradient
-    bool use_smooth_shading_ = false;               ///< Smooth (Gouraud) vs flat shading
     uint8_t filament_r_ = 0x26;                     ///< Filament color red component
     uint8_t filament_g_ = 0xA6;                     ///< Filament color green component
     uint8_t filament_b_ = 0x9A;                     ///< Filament color blue component
     const ParsedGCodeFile* current_gcode_{nullptr}; ///< Set during build() for name resolution
-    std::unordered_set<std::string>
-        highlighted_objects_;                     ///< Object names to highlight (empty = none)
-    bool debug_face_colors_ = false;              ///< Enable per-face debug coloring
-    std::vector<std::string> tool_color_palette_; ///< Hex colors per tool (multi-color prints)
-    int tube_sides_ = 16;                         ///< Tube cross-section sides (valid: 4, 8, 16)
+    bool debug_face_colors_ = false;                ///< Enable per-face debug coloring
+    std::vector<std::string> tool_color_palette_;   ///< Hex colors per tool (multi-color prints)
+    int tube_sides_ = 16;                           ///< Tube cross-section sides (valid: 4, 8, 16)
 
     int budget_tube_sides_ = 0;     ///< Override tube_sides from budget (0 = use config)
     size_t budget_limit_bytes_ = 0; ///< Memory ceiling (0 = unlimited)
