@@ -4,16 +4,20 @@
 
 #include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_mock.h"
+#include "ams_backend_toolchanger.h"
 #include "ams_types.h"
 #include "filament_database.h"
 #include "filament_op_slot_resolver.h"
 #include "filament_variants.h"
+#include "printer_discovery.h"
+#include "toolchanger_addon.h"
 
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::printer;
@@ -749,4 +753,114 @@ TEST_CASE("The option list is built from the live backend virtual, not a local r
     }
 
     backend.stop();
+}
+
+// ============================================================================
+// A backend that withdraws its unmount offer has to be able to make it stick.
+//
+// AmsContextMenu composes the loaded signal as an OR (ui_ams_context_menu.cpp,
+// on_created): the snapshot taken when the menu opens
+// (can_unload_from_toolhead) OR the live pair (slot_is_actively_loaded ||
+// slot_has_filament_at_toolhead). A rule that lives in only one of those three
+// is put back by the other two, so a withdrawal that reads correct in the
+// backend never reaches the button. On a tool changer the button dispatches
+// UNSELECT_TOOL, which moves a physical machine.
+// ============================================================================
+
+namespace {
+
+/// Real tool-changer backend with the MedusaHC dock sensors attached, driven by
+/// raw Moonraker frames. Nothing here is a stand-in: the accessors below are the
+/// ones the menu calls.
+class DockSensorToolChanger : public AmsBackendToolChanger {
+  public:
+    DockSensorToolChanger() : AmsBackendToolChanger(nullptr, nullptr) {
+        set_discovered_tools({"T0", "T1", "T2", "T3"});
+        PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array(
+            {"toolchanger", "tool T0", "tool T1", "tool T2", "tool T3", "pin_watch io"}));
+        set_tool_sensor(helix::toolchanger_addon::resolve_tool_sensor(hw));
+    }
+
+    void feed(const nlohmann::json& status) {
+        handle_status_update(nlohmann::json{{"method", "notify_status_update"},
+                                            {"params", nlohmann::json::array({status, 0.0})}});
+    }
+
+    /// The menu's own composition of the three accessors, spelled as on_created()
+    /// spells it. Kept in one place so both halves of the case below ask the
+    /// same question the UI asks.
+    [[nodiscard]] bool menu_reads_slot_loaded(int slot) {
+        return can_unload_from_toolhead(slot) || slot_is_actively_loaded(slot) ||
+               slot_has_filament_at_toolhead(slot);
+    }
+};
+
+} // namespace
+
+TEST_CASE("A dock-sensor fault disables Unmount and says why", "[ams][context_menu][toolchanger]") {
+    using UnloadMode = AmsContextMenuTestAccess::UnloadMode;
+
+    DockSensorToolChanger backend;
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+
+    // The settled machine: tool 1 on the carriage, Unmount offered for it.
+    REQUIRE(backend.menu_reads_slot_loaded(1));
+
+    // -2 is the sensors saying they cannot tell which tool is mounted. The parse
+    // deliberately HOLDS the last known tool, so everything derived from
+    // current_slot still names a perfectly plausible tool 1.
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
+    REQUIRE(backend.get_current_slot() == 1);
+    REQUIRE(backend.is_filament_loaded());
+
+    // ERROR is excluded from is_busy() (AmsSystemInfo::is_busy), so the busy
+    // term cannot be what greys the button — the loaded signal has to.
+    REQUIRE_FALSE(backend.get_system_info().is_busy());
+    REQUIRE_FALSE(backend.menu_reads_slot_loaded(1));
+
+    // From there the menu's own predicates: nothing is loaded, this backend has
+    // no cold lane op to fall back on, so the Unload button has no operation at
+    // all and is disabled.
+    const SlotInfo slot = backend.get_slot_info(1);
+    const std::optional<bool> presence = helix::ui::slot_presence(slot);
+    const bool is_loaded = backend.menu_reads_slot_loaded(1);
+    const bool toolhead_unload = backend.slot_unloads_to_toolhead(1, is_loaded);
+    const UnloadMode mode = AmsContextMenuTestAccess::decide_unload_mode(
+        toolhead_unload, backend.can_recover_lane_position(1),
+        backend.lane_recovery_is_attributed(), backend.supports_lane_eject(),
+        presence.value_or(false), backend.supports_force_eject(), !presence.value_or(false));
+    CHECK(mode == UnloadMode::Unavailable);
+
+    const bool unload_enabled = AmsContextMenuTestAccess::decide_unload_enabled(
+        backend.get_system_info().is_busy(), mode, /*print_active=*/false,
+        backend.cold_lane_ops_refused_during_print());
+    CHECK_FALSE(unload_enabled);
+
+    // The hint is gated on !unload_enabled, so both halves of the fix live or
+    // die together: a still-enabled button also never explains itself.
+    REQUIRE_FALSE(unload_enabled);
+    CHECK_FALSE(backend.unload_blocked_reason(1).empty());
+}
+
+TEST_CASE("The dock-sensor withdrawal is not a permanent blanking",
+          "[ams][context_menu][toolchanger]") {
+    // The fault must withdraw the offer and then give it back — a latch that
+    // never clears would strand the user with no way to unmount at all.
+    DockSensorToolChanger backend;
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
+    REQUIRE(backend.menu_reads_slot_loaded(2));
+
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
+    REQUIRE_FALSE(backend.menu_reads_slot_loaded(2));
+
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
+    CHECK(backend.menu_reads_slot_loaded(2));
+    CHECK(backend.unload_blocked_reason(2).empty());
+
+    // And the docked tools were never a target, fault or no fault.
+    for (int slot : {0, 1, 3}) {
+        CAPTURE(slot);
+        CHECK_FALSE(backend.menu_reads_slot_loaded(slot));
+    }
 }

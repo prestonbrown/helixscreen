@@ -109,6 +109,117 @@ TEST_CASE_METHOD(LVGLTestFixture, "An expiring window with no shutdown behind it
     EmergencyStopOverlayTestAccess::reset_suppression(estop);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A re-check a guard declines keeps the shutdown latched instead of eating it",
+                 "[recovery][suppress][1345]") {
+    // The other half of the latch's contract. Surfacing the reason when the
+    // window expires is only non-lossy if the reason survives a re-check that
+    // show_recovery_for_main() refuses: the latch is the ONLY copy by then, so
+    // consuming it ahead of the guards drops the shutdown exactly the way an
+    // un-latched suppression window used to.
+    auto& estop = EmergencyStopOverlay::instance();
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+    EmergencyStopOverlayTestAccess::reset_pending_recovery_reason(estop);
+
+    // The recovery dialog's Restart button sets this, and only a klippy READY
+    // clears it. An MCU that comes back up in a hard shutdown never delivers one
+    // - a Klipper RESTART cannot clear an MCU shutdown - so the guard is still
+    // true when the window ends, and stays true.
+    EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, true);
+
+    estop.suppress_recovery_dialog(50);
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(EmergencyStopOverlayTestAccess::pending_recovery_reason(estop) ==
+            RecoveryReason::SHUTDOWN);
+
+    // Window expires, the re-check fires, the restart guard declines it.
+    process_lvgl(100);
+
+    CHECK(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::NONE);
+    REQUIRE(EmergencyStopOverlayTestAccess::pending_recovery_reason(estop) ==
+            RecoveryReason::SHUTDOWN);
+
+    // The restart resolves - or the user stops waiting on it - and the retry
+    // that the decline armed has to surface what was held.
+    EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, false);
+    process_lvgl(3000);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::SHUTDOWN);
+    CHECK(EmergencyStopOverlayTestAccess::pending_recovery_reason(estop) == RecoveryReason::NONE);
+
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+    EmergencyStopOverlayTestAccess::reset_pending_recovery_reason(estop);
+}
+
+// ============================================================================
+// The restart guard has to end by itself
+// ============================================================================
+//
+// restart_klipper() and firmware_restart() arm a restart window and no
+// suppression window, so a SHUTDOWN they produce is declined outright by
+// show_recovery_for_main() - never latched, never re-checked. That is correct
+// while the restart is genuinely in flight and catastrophic once it is not: the
+// window used to be a bare bool whose only exit was the klippy-READY handler,
+// and a printer whose MCU comes back up in a hard shutdown never sends a READY
+// (a Klipper RESTART cannot clear an MCU shutdown - the K2's behaviour). The
+// flag stayed true and every later recovery dialog was dropped at the guard,
+// leaving a halted printer looking idle.
+
+TEST_CASE_METHOD(LVGLTestFixture, "The restart guard suppresses a shutdown inside its window",
+                 "[recovery][suppress]") {
+    // The half that must NOT regress: an expiry that fires early, or a guard
+    // reduced to a no-op, both show a recovery dialog for the SHUTDOWN every
+    // restart passes through on its way down.
+    auto& estop = EmergencyStopOverlay::instance();
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+    EmergencyStopOverlayTestAccess::reset_pending_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, true);
+
+    REQUIRE(estop.is_expected_restart());
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(50);
+
+    CHECK(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::NONE);
+    // Well inside the window it is still in flight, so the dialog stays away.
+    lv_tick_inc(RecoverySuppression::RESTART_FLAG_TIMEOUT / 2);
+    CHECK(estop.is_expected_restart());
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(50);
+    REQUIRE(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::NONE);
+
+    EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, false);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A restart that never reports READY stops suppressing the recovery dialog",
+                 "[recovery][suppress]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+    EmergencyStopOverlayTestAccess::reset_pending_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, true);
+
+    // No klippy READY is ever delivered here, so nothing in production clears
+    // the window - the backstop is the only thing that can end it.
+    lv_tick_inc(RecoverySuppression::RESTART_FLAG_TIMEOUT + 1000);
+    CHECK_FALSE(estop.is_expected_restart());
+
+    // And the printer is still down, which the user now has to be told.
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(50);
+    REQUIRE(EmergencyStopOverlayTestAccess::recovery_reason(estop) == RecoveryReason::SHUTDOWN);
+
+    EmergencyStopOverlayTestAccess::reset_recovery_reason(estop);
+    EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, false);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "Expected restart - tracks SAVE_CONFIG suppression window",
                  "[recovery][suppress]") {
     // is_expected_restart() is the window the status icon, nav manager, and

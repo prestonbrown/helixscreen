@@ -322,6 +322,12 @@ static constexpr glm::vec3 LIGHT_FRONT_DIR{0.6985074f, 0.1397015f, 0.6985074f};
 // ============================================================
 
 GCodeGLESRenderer::GCodeGLESRenderer() {
+    // Selection cues from ui_xml/gcode_tokens.xml, resolved once here on the
+    // main thread — same place and same reason as GCodeLayerRenderer's ctor.
+    // The tokens are registered in the theme phase of startup, long before any
+    // panel builds the viewer widget that owns this renderer, and the GL passes
+    // consume the palette as uniforms rather than re-reading the registry.
+    reset_colors();
     spdlog::debug("[GCode GLES] GCodeGLESRenderer created");
 }
 
@@ -1506,8 +1512,10 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
 
     // The white silhouette, derived from the tag render_selection_tag() left in
     // the alpha byte. Byte 3 is alpha in the readback's RGBA and in the
-    // rasterizer's ARGB8888 alike, and the rim colour is white, so the channel
-    // order of the other three does not matter here.
+    // rasterizer's ARGB8888 alike, so the tag scan reads the same offset either
+    // way — but the rim COLOUR is an XML token and need not be grey, so the
+    // readback's channel order has to be named. glReadPixels above asked for
+    // GL_RGBA, which puts red at byte 0 where an ARGB8888 buffer puts blue.
     if (selection_.any_highlighted()) {
         const int rim = selection::outline_width_px(fbo_width_);
         const RasterTarget rt{readback_buf_.data(), static_cast<size_t>(fbo_width_) * 4, fbo_width_,
@@ -1518,7 +1526,8 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
                 tagged += (readback_buf_[i] == helix::gcode::kSelectedAlpha);
             }
         }
-        helix::gcode::stroke_selection_rim(rt, rim, rim, sel_palette_.outline);
+        helix::gcode::stroke_selection_rim(rt, rim, rim, sel_palette_.outline,
+                                           helix::gcode::ChannelOrder::Rgba);
         spdlog::trace("[GCode GLES] Selection rim: {} tagged px of {}, rim {}px", tagged,
                       static_cast<size_t>(fbo_width_) * fbo_height_, rim);
     }

@@ -152,7 +152,8 @@ void thick_line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t 
     }
 }
 
-void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb) {
+void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb,
+                          ChannelOrder order) {
     if (t.data == nullptr || rim_px < 1 || gap_px < 1) {
         return;
     }
@@ -160,6 +161,11 @@ void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_
     const uint8_t rim_b = static_cast<uint8_t>(rgb & 0xFF);
     const uint8_t rim_g = static_cast<uint8_t>((rgb >> 8) & 0xFF);
     const uint8_t rim_r = static_cast<uint8_t>((rgb >> 16) & 0xFF);
+
+    // Green is byte 1 in both layouts; only red and blue trade places. Alpha is
+    // byte 3 either way, so the tag scan below reads the same offset regardless.
+    const size_t r_byte = (order == ChannelOrder::Bgra) ? 2 : 0;
+    const size_t b_byte = (order == ChannelOrder::Bgra) ? 0 : 2;
 
     // Four axis directions. Diagonals are deliberately left out: they cost 8
     // probes per pixel instead of 4 and the extra rim they find is a single
@@ -212,9 +218,9 @@ void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_
             if (on_rim) {
                 // RGB only. Alpha keeps the tag, which is what makes this pass
                 // safe to run twice on the same buffer.
-                pixel[0] = rim_b;
+                pixel[b_byte] = rim_b;
                 pixel[1] = rim_g;
-                pixel[2] = rim_r;
+                pixel[r_byte] = rim_r;
             }
         }
     }

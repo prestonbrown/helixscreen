@@ -329,7 +329,7 @@ constexpr uint32_t kWhite = 0xFFFFFF;
 TEST_CASE("the rim traces the boundary of the tagged region", "[gcode_raster]") {
     Surface s(20, 20);
     fill_tagged(s, 5, 5, 14, 14);
-    stroke_selection_rim(s.target(), 1, 1, kWhite);
+    stroke_selection_rim(s.target(), 1, 1, kWhite, ChannelOrder::Bgra);
 
     // Boundary is white.
     CHECK(is_white(s, 5, 5));
@@ -350,7 +350,7 @@ TEST_CASE("the rim traces the boundary of the tagged region", "[gcode_raster]") 
 TEST_CASE("rim thickness follows the requested pixel width", "[gcode_raster]") {
     Surface s(20, 20);
     fill_tagged(s, 4, 4, 15, 15);
-    stroke_selection_rim(s.target(), 2, 1, kWhite);
+    stroke_selection_rim(s.target(), 2, 1, kWhite, ChannelOrder::Bgra);
 
     CHECK(is_white(s, 4, 9));       // boundary
     CHECK(is_white(s, 5, 9));       // one in, still rim at width 2
@@ -367,7 +367,7 @@ TEST_CASE("a staircase edge gets a rim, not a flood", "[gcode_raster]") {
     for (int y = 0; y < 30; ++y) {
         fill_tagged(s, 5 + y / 2, 5 + y, 30, 5 + y);
     }
-    stroke_selection_rim(s.target(), 1, 1, kWhite);
+    stroke_selection_rim(s.target(), 1, 1, kWhite, ChannelOrder::Bgra);
 
     int white = 0, tagged_total = 0;
     for (int y = 0; y < 40; ++y) {
@@ -395,7 +395,7 @@ TEST_CASE("a one-pixel seam inside the object is not outlined", "[gcode_raster]"
     // Punch a single untagged pixel in the middle.
     blend(s.target(), 10, 10, 0xFF000000u | 0x112233);
 
-    stroke_selection_rim(s.target(), 2, 2, kWhite);
+    stroke_selection_rim(s.target(), 2, 2, kWhite, ChannelOrder::Bgra);
 
     CHECK_FALSE(is_white(s, 9, 10));
     CHECK_FALSE(is_white(s, 11, 10));
@@ -416,7 +416,7 @@ TEST_CASE("a hole deeper than the gap threshold IS outlined", "[gcode_raster]") 
             blend(s.target(), x, y, 0xFF000000u | 0x112233);
         }
     }
-    stroke_selection_rim(s.target(), 2, 2, kWhite);
+    stroke_selection_rim(s.target(), 2, 2, kWhite, ChannelOrder::Bgra);
     CHECK(is_white(s, 9, 11));
     CHECK(is_white(s, 14, 11));
 }
@@ -430,7 +430,7 @@ TEST_CASE("untagged pixels are never recoloured", "[gcode_raster]") {
         }
     }
     fill_tagged(s, 10, 4, 15, 15);
-    stroke_selection_rim(s.target(), 2, 2, kWhite);
+    stroke_selection_rim(s.target(), 2, 2, kWhite, ChannelOrder::Bgra);
 
     for (int y = 4; y <= 15; ++y) {
         for (int x = 4; x <= 9; ++x) {
@@ -450,17 +450,17 @@ TEST_CASE("untagged pixels are never recoloured", "[gcode_raster]") {
 TEST_CASE("the rim pass is idempotent", "[gcode_raster]") {
     Surface a(20, 20);
     fill_tagged(a, 5, 5, 14, 14);
-    stroke_selection_rim(a.target(), 2, 2, kWhite);
+    stroke_selection_rim(a.target(), 2, 2, kWhite, ChannelOrder::Bgra);
     std::vector<uint8_t> once = a.mem;
 
-    stroke_selection_rim(a.target(), 2, 2, kWhite);
+    stroke_selection_rim(a.target(), 2, 2, kWhite, ChannelOrder::Bgra);
     CHECK(a.mem == once);
 }
 
 TEST_CASE("an object running off the canvas is still outlined along the edge", "[gcode_raster]") {
     Surface s(16, 16);
     fill_tagged(s, 0, 0, 7, 15);
-    stroke_selection_rim(s.target(), 1, 1, kWhite);
+    stroke_selection_rim(s.target(), 1, 1, kWhite, ChannelOrder::Bgra);
     // Off-canvas counts as outside, so the left column is a boundary. Losing this
     // would silently drop the rim on any object the user has scrolled or zoomed
     // partly out of view.
@@ -478,7 +478,7 @@ TEST_CASE("a buffer with no tagged pixels is left completely alone", "[gcode_ras
         }
     }
     std::vector<uint8_t> before = s.mem;
-    stroke_selection_rim(s.target(), 2, 2, kWhite);
+    stroke_selection_rim(s.target(), 2, 2, kWhite, ChannelOrder::Bgra);
     CHECK(s.mem == before);
 }
 
@@ -487,13 +487,13 @@ TEST_CASE("degenerate rim parameters are a no-op, not a crash", "[gcode_raster]"
     fill_tagged(s, 4, 4, 11, 11);
     std::vector<uint8_t> before = s.mem;
 
-    stroke_selection_rim(s.target(), 0, 2, kWhite);
+    stroke_selection_rim(s.target(), 0, 2, kWhite, ChannelOrder::Bgra);
     CHECK(s.mem == before);
-    stroke_selection_rim(s.target(), 2, 0, kWhite);
+    stroke_selection_rim(s.target(), 2, 0, kWhite, ChannelOrder::Bgra);
     CHECK(s.mem == before);
 
     RasterTarget null_target{nullptr, 0, 16, 16};
-    stroke_selection_rim(null_target, 2, 2, kWhite); // must not dereference
+    stroke_selection_rim(null_target, 2, 2, kWhite, ChannelOrder::Bgra); // must not dereference
 }
 
 // blend_coverage() accumulates alpha, so an antialiased edge on an UNSELECTED
@@ -509,4 +509,102 @@ TEST_CASE("accumulated coverage never lands on the reserved tag value", "[gcode_
             REQUIRE(t.channel(1, 1, 3) != kSelectedAlpha);
         }
     }
+}
+
+// The two-call case above cannot see the FIRST write. blend_coverage takes an
+// unaccumulated fast path whenever the destination is still transparent, and
+// there is no accumulator there to launder a bad value; when the first call
+// produces 254 the second re-blends through the guarded branch and the final
+// state reads clean either way.
+TEST_CASE("a single coverage write never lands on the reserved tag value", "[gcode_raster]") {
+    for (int coverage = 1; coverage < 256; ++coverage) {
+        Surface t(4, 4);
+        blend_coverage(t.target(), 1, 1, 0x336699, static_cast<uint8_t>(coverage));
+        CAPTURE(coverage);
+        // Painted at all, and not carrying the tag. Both halves matter: an alpha
+        // of 0 would satisfy "not tagged" while erasing the stroke.
+        REQUIRE(t.channel(1, 1, 3) != 0);
+        REQUIRE(t.channel(1, 1, 3) != kSelectedAlpha);
+    }
+}
+
+TEST_CASE("an antialiased line never tags a pixel as selected", "[gcode_raster]") {
+    // The reachable shape of the same bug, through the rasterizer rather than the
+    // pixel op. line_wu's low coverage is (1 - frac) * 255, which truncates to
+    // exactly 254 for any frac in (0, 1/255]; a 300px span rising one pixel makes
+    // frac = 1/300 on the first interior column, and that column's pixel is still
+    // transparent, so the write takes the fast path.
+    //
+    // Every pixel this leaves tagged is one stroke_selection_rim() then paints
+    // white in the middle of an object nobody selected: an isolated tagged pixel
+    // has no tagged neighbour in any of the four directions, so it reads as being
+    // on the rim from all of them.
+    Surface s(302, 8);
+    line(s.target(), 0, 0, 300, 1, 0x336699, Aa::On);
+
+    int painted = 0;
+    int tagged = 0;
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 302; ++x) {
+            const uint8_t a = s.channel(x, y, 3);
+            painted += (a != 0);
+            tagged += (a == kSelectedAlpha);
+        }
+    }
+    INFO("painted=" << painted << " tagged=" << tagged);
+    REQUIRE(painted > 0); // the line drew: a no-op rasterizer must not pass
+    REQUIRE(tagged == 0);
+}
+
+// ===========================================================================
+// Channel order.
+//
+// The 2D solid cache and the ghost buffer are ARGB8888, which is B, G, R, A in
+// memory on little-endian. The 3D path hands this same routine the buffer from a
+// glReadPixels(..., GL_RGBA, ...), where red and blue are the other way round.
+// The swap is invisible for as long as the outline token stays white, which is
+// exactly how it survived: gcode_selection_outline is #FFFFFF today, so the two
+// orders produce identical bytes and only a non-grey token separates them.
+// ===========================================================================
+
+namespace {
+/// Deliberately not grey, and with three distinct channel values, so a swapped
+/// or dropped channel cannot alias onto a correct answer.
+constexpr uint32_t kOutlineToken = 0xFF6B35;
+} // namespace
+
+TEST_CASE("the rim colour lands in ARGB8888 byte order", "[gcode_raster]") {
+    Surface s(20, 20);
+    fill_tagged(s, 5, 5, 14, 14);
+    stroke_selection_rim(s.target(), 1, 1, kOutlineToken, ChannelOrder::Bgra);
+
+    CHECK(s.channel(5, 5, 0) == 0x35); // B
+    CHECK(s.channel(5, 5, 1) == 0x6B); // G
+    CHECK(s.channel(5, 5, 2) == 0xFF); // R
+    // Alpha is byte 3 in both layouts and the pass never writes it, so the tag
+    // survives and a second pass over the same buffer is still idempotent.
+    CHECK(s.channel(5, 5, 3) == kSelectedAlpha);
+}
+
+TEST_CASE("the rim colour lands in GL readback byte order", "[gcode_raster]") {
+    Surface s(20, 20);
+    fill_tagged(s, 5, 5, 14, 14);
+    stroke_selection_rim(s.target(), 1, 1, kOutlineToken, ChannelOrder::Rgba);
+
+    CHECK(s.channel(5, 5, 0) == 0xFF); // R
+    CHECK(s.channel(5, 5, 1) == 0x6B); // G
+    CHECK(s.channel(5, 5, 2) == 0x35); // B
+    CHECK(s.channel(5, 5, 3) == kSelectedAlpha);
+}
+
+TEST_CASE("the two channel orders disagree on a non-grey rim", "[gcode_raster]") {
+    // Guards the pair above against a future implementation that quietly ignores
+    // `order`: both cases would then still be checkable one at a time against
+    // whichever layout it picked, but the two buffers could not differ.
+    Surface bgra(20, 20), rgba(20, 20);
+    fill_tagged(bgra, 5, 5, 14, 14);
+    fill_tagged(rgba, 5, 5, 14, 14);
+    stroke_selection_rim(bgra.target(), 1, 1, kOutlineToken, ChannelOrder::Bgra);
+    stroke_selection_rim(rgba.target(), 1, 1, kOutlineToken, ChannelOrder::Rgba);
+    REQUIRE(bgra.mem != rgba.mem);
 }

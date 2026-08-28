@@ -206,7 +206,20 @@ class AmsBackendMock : public AmsBackend {
     // Tool mapping
     [[nodiscard]] helix::printer::ToolMappingCapabilities
     get_tool_mapping_capabilities() const override;
+    /// The APPLIED routing, gated the way the emulated firmware gates it.
+    ///
+    /// In Snapmaker mode that gate is AmsBackendSnapmaker::task_routing(): empty
+    /// until a task is configured, because the U1's idle table is a firmware
+    /// default and not a statement about any file. Returning the attachment map
+    /// there published a confident [0,1,2,3] the real machine never publishes,
+    /// and FilamentMapper::effective_routing() takes any non-empty answer as the
+    /// truth - so every --test run resolved each tool to its own head index and
+    /// rehearsed a branch the hardware does not take.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
+    /// Four fixed heads in Snapmaker mode, lane-per-tool otherwise. The
+    /// inherited identity agrees for T0-T3 and diverges from T4 up, which is
+    /// exactly where a U1 file with extended tools lands.
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
     [[nodiscard]] RemapStrategy get_remap_strategy() const override;
     // Mirrors get_remap_strategy(): when emulating Snapmaker U1 the controller
     // must run the pre-print send path.
@@ -520,6 +533,19 @@ class AmsBackendMock : public AmsBackend {
     void set_snapmaker_mode(bool enabled);
 
     /**
+     * @brief Configure (or clear) the simulated Snapmaker print task.
+     *
+     * The U1 publishes a routing only while a task is set up; idle it holds a
+     * default table nobody may act on. Enabling Snapmaker mode starts with no
+     * task, which is the idle machine.
+     *
+     * @param routing Index = logical tool, value = physical head. EMPTY clears
+     *        the task. On a U1 head N owns lane N, so these are also the slot
+     *        indices HELIX_MOCK_REMAP names.
+     */
+    void set_snapmaker_print_task(std::vector<int> routing);
+
+    /**
      * @brief Seed per-tool→slot firmware mappings from a "tool:slot" CSV.
      *
      * e.g. "0:3,2:1" maps tool 0 to slot 3 and tool 2 to slot 1 by setting each
@@ -625,6 +651,15 @@ class AmsBackendMock : public AmsBackend {
      * @brief Initialize mock state with sample data
      */
     void init_mock_data();
+
+    /**
+     * @brief set_snapmaker_print_task() for callers already holding mutex_.
+     *
+     * Derives extruders_used from the routing, because that is what it means on
+     * the printer: a head is "used" when some tool in the task prints from it,
+     * and all-false is the firmware's own "no task configured" signal.
+     */
+    void set_snapmaker_task_locked(std::vector<int> routing);
 
     /**
      * @brief Emit event to registered callback
@@ -789,6 +824,11 @@ class AmsBackendMock : public AmsBackend {
     bool htlf_toolchanger_mode_ = false; ///< Simulate HTLF + Toolchanger mixed topology
     bool torture_mode_ = false;          ///< Simulate 5 units / 16 lanes / 4 shared extruders
     bool snapmaker_mode_ = false; ///< Simulate Snapmaker U1 (4 slots, PARALLEL, non-editable)
+    /// The emulated print_task_config, in the firmware's own two fields so
+    /// AmsBackendSnapmaker::task_routing() can gate on them unchanged. Both
+    /// empty = no task, which is how Snapmaker mode starts.
+    std::vector<bool> snapmaker_extruders_used_;
+    std::vector<int> snapmaker_extruder_map_;
     std::vector<PathTopology> unit_topologies_; ///< Per-unit topology storage
 
     // Endless spool simulation state

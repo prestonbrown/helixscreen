@@ -1227,3 +1227,107 @@ TEST_CASE_METHOD(LVGLTestFixture, "clearing the selection removes the halo",
     renderer.set_highlighted_objects({});
     REQUIRE(draw() == 0);
 }
+
+// ===========================================================================
+// Scrubbing the layer slider backwards.
+//
+// The rim is not re-derived per frame: it is stamped into the solid cache as
+// pixels, and selection_rim_stamped_ says it is already there. Every path that
+// throws those pixels away therefore has to drop the flag with them, which is
+// what makes the cache reset one shared operation rather than a rule each branch
+// spells out for itself.
+// ===========================================================================
+
+namespace {
+
+/// A stack of identical layers, each carrying both named objects, so a scrub in
+/// either direction always has the selected object on screen. make_test_gcode()
+/// is one layer, which cannot go backwards at all.
+ParsedGCodeFile make_stacked_gcode(int layer_count) {
+    ParsedGCodeFile gcode;
+    const auto cube1 = gcode.intern_object_name("cube1");
+    const auto cube2 = gcode.intern_object_name("cube2");
+
+    for (int i = 0; i < layer_count; ++i) {
+        Layer layer;
+        const float z = 0.2f * static_cast<float>(i + 1);
+        layer.z_height = z;
+
+        auto add = [&](float y, auto name_index) {
+            ToolpathSegment seg;
+            seg.start = glm::vec3(10.0f, y, z);
+            seg.end = glm::vec3(50.0f, y, z);
+            seg.is_extrusion = true;
+            seg.object_name_index = name_index;
+            layer.bounding_box.expand(seg.start);
+            layer.bounding_box.expand(seg.end);
+            gcode.global_bounding_box.expand(seg.start);
+            gcode.global_bounding_box.expand(seg.end);
+            layer.segments.push_back(seg);
+        };
+        add(20.0f, cube1);
+        add(80.0f, cube2);
+
+        layer.segment_count_extrusion = 2;
+        layer.segment_count_travel = 0;
+        gcode.layers.push_back(std::move(layer));
+    }
+
+    gcode.total_segments = static_cast<size_t>(layer_count) * 2;
+    return gcode;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "scrubbing back down the stack keeps the selection rim",
+                 "[layer_renderer][halo]") {
+    // Layer 0 is the destination that makes the loss permanent rather than
+    // self-healing. The rebuild finishes inside a single frame there, so no later
+    // frame takes the forward-growth branch — which has its own copy of the reset
+    // and would clear a stale flag on the way past. Scrub to the middle of the
+    // stack instead and the rim comes back a frame or two later, which is why
+    // this went unnoticed.
+    auto gcode = make_stacked_gcode(8);
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_ghost_mode(false);   // no background thread: deterministic
+    renderer.set_ssao_enabled(false); // the shading pass would add white of its own
+    renderer.set_antialias_enabled(false);
+    renderer.set_canvas_size(200, 200);
+    renderer.set_highlighted_objects({"cube1"});
+
+    auto render_at = [&](int layer) {
+        renderer.set_current_layer(layer);
+        std::fill(buf, buf + 200 * 200 * 4, uint8_t{0});
+        drive_until_cached(renderer, canvas);
+        RenderCounts c;
+        for (int i = 0; i < 200 * 200; ++i) {
+            if (buf[i * 4 + 3] == 0) {
+                continue;
+            }
+            ++c.painted;
+            if (buf[i * 4 + 0] >= 240 && buf[i * 4 + 1] >= 240 && buf[i * 4 + 2] >= 240) {
+                ++c.white;
+            }
+        }
+        return c;
+    };
+
+    const auto top = render_at(7);
+    INFO("top: painted=" << top.painted << " white=" << top.white);
+    REQUIRE(top.painted > 0);
+    REQUIRE(top.white > 0);
+
+    const auto bottom = render_at(0);
+    INFO("bottom: painted=" << bottom.painted << " white=" << bottom.white);
+    // The plate still drew, so a white count of 0 below means the rim is missing
+    // rather than the whole render having gone away.
+    REQUIRE(bottom.painted > 0);
+    REQUIRE(bottom.white > 0);
+}

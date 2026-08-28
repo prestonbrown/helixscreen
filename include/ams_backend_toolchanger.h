@@ -160,6 +160,26 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     [[nodiscard]] bool can_unload_from_toolhead(int slot_index) const override;
 
+    /**
+     * @brief "Seated and loaded" is "mounted on the carriage" here — same answer
+     *        as can_unload_from_toolhead().
+     *
+     * The base rule (current_slot + filament_loaded) would agree on this backend
+     * in the settled case, because both fields are written from one tool number,
+     * but it cannot see a dock-sensor fault: apply_tool_sensor_locked() holds the
+     * last known tool through one on purpose, so the pair keeps naming a
+     * perfectly plausible carriage tool while the sensors say they cannot tell.
+     *
+     * That matters because the affordance gate is an OR. AmsContextMenu combines
+     * the snapshot it took at open (can_unload_from_toolhead) with the live
+     * accessors — `pending_is_loaded_ || slot_is_actively_loaded(i) ||
+     * slot_has_filament_at_toolhead(i)` — so a withdrawal by one of them is
+     * restored by any other that still reads true. Both questions therefore
+     * resolve through the same private rule, and the menu needs no knowledge of
+     * dock sensors to get the right answer.
+     */
+    [[nodiscard]] bool slot_is_actively_loaded(int slot_index) const override;
+
     /// Load is SELECT_TOOL and unload is UNSELECT_TOOL: a mount and an unmount,
     /// with no filament motion of any kind. See do_load_filament().
     [[nodiscard]] bool load_mounts_tool() const override {
@@ -218,6 +238,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     // In particular `tool <name>.mounted` is NOT that authority: it arrives on a
     // separate Moonraker object, and an all-tools-mounted payload is a shape we
     // emit ourselves in mock mode.
+    //
+    // slot_is_actively_loaded() IS overridden, which is the other route the base
+    // offers ("backends may still override outright where neither rule fits").
+    // The aggregate rule is right about which tool is seated and blind to the
+    // dock-sensor fault that says the seat cannot be read at all.
 
     // Recovery
     AmsError recover() override;
@@ -383,6 +408,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.
     void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
+
+    /// Is this slot's toolhead on the carriage, as far as anything can tell?
+    /// The one rule behind can_unload_from_toolhead() and
+    /// slot_is_actively_loaded(), which ask it for different reasons and must
+    /// not be able to disagree. Caller holds mutex_.
+    [[nodiscard]] bool slot_is_mounted_locked(int slot_index) const;
 
     /// Step index for `operation` under the model this machine gets, or -1 when
     /// the phase does not map to a step. `mid_operation` says whether a swap was
