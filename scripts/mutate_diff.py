@@ -94,7 +94,10 @@ def run(cmd, cwd, capture=True, timeout=None):
     return subprocess.run(cmd, cwd=cwd, timeout=timeout,
                           stdout=subprocess.PIPE if capture else None,
                           stderr=subprocess.STDOUT if capture else None,
-                          text=True)
+                          # Same reason as run_tests(): a compiler echoing a source
+                          # line, or a tool quoting one, can carry a byte that is not
+                          # UTF-8, and a strict decode loses the whole run to it.
+                          text=True, errors='replace')
 
 
 def repo_root():
@@ -175,7 +178,12 @@ def run_tests(root, test_bin, filt, shards, log):
         procs.append(subprocess.Popen(
             [str(test_bin), filt, '-x', '1',
              '--shard-count', str(shards), '--shard-index', str(i)],
-            cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True))
+            # errors='replace': a mutant can make the code under test dump raw
+            # bytes into a Catch2 failure message (a reverted raster guard wrote
+            # 0xfe pixel data), and a strict decode turns that into a crash that
+            # loses the verdict for the one hunk most likely to be killed.
+            cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            errors='replace'))
     ok = True
     for p in procs:
         out, _ = p.communicate()
