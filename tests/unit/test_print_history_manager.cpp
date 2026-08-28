@@ -767,3 +767,59 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     }
     REQUIRE(found_stats_with_size);
 }
+
+// ============================================================================
+// Staleness across a dropped connection
+// ============================================================================
+//
+// notify_history_changed and notify_filelist_changed only reach a live socket.
+// Anything added or deleted while the WebSocket is down is therefore never
+// announced, and is_loaded_ keeps claiming the cache is good, so the idle tile
+// goes on offering a "Reprint Last" for a job that may no longer exist. The
+// manager owns the cache, so it is the manager's job to notice it went deaf.
+//
+// Marking stale is all that is owed here: invalidate() leaves cached_jobs_
+// in place, so nothing blanks mid-outage, and the consumers that already call
+// ensure_loaded() on the CONNECTED transition pull a fresh list on the way
+// back up.
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager marks the cache stale when the connection drops",
+                 "[history_manager]") {
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+
+    lv_subject_t* conn = printer_state_.get_printer_connection_state_subject();
+    REQUIRE(conn != nullptr);
+    lv_subject_set_int(conn, static_cast<int>(ConnectionState::CONNECTED));
+    pump();
+    REQUIRE(manager_->is_loaded());
+
+    lv_subject_set_int(conn, static_cast<int>(ConnectionState::DISCONNECTED));
+    pump();
+
+    REQUIRE_FALSE(manager_->is_loaded());
+    // invalidate() marks stale without dropping data, so a mid-outage reader
+    // still renders the last known list instead of an empty one.
+    REQUIRE_FALSE(manager_->get_jobs().empty());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager keeps a loaded cache while the connection holds",
+                 "[history_manager]") {
+    // The other half of the gate. The client's connected fan-out also fires on
+    // every Klippy-ready transition, so a FIRMWARE_RESTART re-announces CONNECTED
+    // without the socket ever dropping. Nothing was missed, and a 500-job refetch
+    // there is exactly the cost this cache exists to avoid.
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+
+    lv_subject_t* conn = printer_state_.get_printer_connection_state_subject();
+    REQUIRE(conn != nullptr);
+    for (int i = 0; i < 3; ++i) {
+        lv_subject_set_int(conn, static_cast<int>(ConnectionState::CONNECTED));
+        pump();
+    }
+
+    REQUIRE(manager_->is_loaded());
+}

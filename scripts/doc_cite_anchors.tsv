@@ -588,7 +588,7 @@ docs/devel/architecture/12-system-services.md	src/application/application.cpp	10
 docs/devel/architecture/12-system-services.md	src/application/application.cpp	2140	src/application/application.cpp	625847c870d1	133c2a7b34b1
 docs/devel/architecture/12-system-services.md	src/led/led_auto_state.cpp	112	src/led/led_auto_state.cpp	cd109e98832e	4be4c16fb362
 docs/devel/architecture/12-system-services.md	src/led/led_controller.cpp	78	src/led/led_controller.cpp	90abcbd3b933	0e530e29b3d1
-docs/devel/architecture/12-system-services.md	src/print/print_history_manager.cpp	274	src/print/print_history_manager.cpp	5c87701a5726	3ed8bbb6c9a9
+docs/devel/architecture/12-system-services.md	src/print/print_history_manager.cpp	290	src/print/print_history_manager.cpp	5c87701a5726	3ed8bbb6c9a9
 docs/devel/architecture/12-system-services.md	src/printer/timelapse_state.cpp	70	src/printer/timelapse_state.cpp	f5f5469ff1a5	21a6fb63e1a1
 docs/devel/architecture/12-system-services.md	src/system/crash_reporter.cpp	998	src/system/crash_reporter.cpp	e675dfae62b4	bf0340948993
 docs/devel/architecture/12-system-services.md	src/system/memory_monitor.cpp	58	src/system/memory_monitor.cpp	ea2116e89acf	6817457ca49a
