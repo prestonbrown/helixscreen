@@ -156,11 +156,25 @@ class ObserverGuard {
             observer_ = nullptr;
             alive_token_.reset();
             has_alive_token_ = false;
-            // Free the observer context (expires weak_alive tokens in deferred lambdas)
-            if (cleanup_) {
-                cleanup_();
-                cleanup_ = nullptr;
-            }
+        }
+        // Free the observer context (expires weak_alive tokens in deferred lambdas).
+        //
+        // OUTSIDE the `if (observer_)` on purpose. The factories allocate the
+        // context BEFORE constructing the guard, so an attach that comes back
+        // null still leaves us owning it -- and lv_subject_add_observer_obj()
+        // returns null for a subject whose type is still LV_SUBJECT_TYPE_INVALID,
+        // i.e. any observer installed before its subject's init_subjects() ran.
+        // Skipping the cleanup there stranded the context for the process
+        // lifetime and showed up as observe_int_*<Owner> origins in the ASan
+        // leak ratchet (#1279).
+        //
+        // Safe for every other path: a normal reset() has just removed the
+        // observer above, a second reset() finds cleanup_ already null, and
+        // release() deliberately nulls cleanup_ to keep its documented
+        // leave-the-context-alive contract.
+        if (cleanup_) {
+            cleanup_();
+            cleanup_ = nullptr;
         }
     }
 
