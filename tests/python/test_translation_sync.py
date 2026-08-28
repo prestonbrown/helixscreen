@@ -1346,3 +1346,160 @@ class TestFullWorkflow:
 
         # German should have missing translation for "New String"
         assert coverage_result.stats["de"]["percentage"] < 100.0
+
+
+
+class TestObsoleteExtractedCache:
+    """find_obsolete_keys(extracted=...) is a cache, never a different answer.
+
+    run_sync hands over the key set it already extracted instead of letting
+    find_obsolete_keys rescan ui_xml/ and src/ a second time - that rescan was a
+    full second, half of what a dry run cost once the YAML loader was fixed.
+
+    Getting the handover wrong would report a live string as obsolete and invite
+    its deletion, so both halves are pinned: that the parameter is honoured, and
+    that the caller passes the right thing. They need different setups, because
+    on a normal tree the recall-oriented reference scan re-finds every extracted
+    literal in src/ and ui_xml/ and so masks the parameter completely - a naive
+    equality assertion passes no matter what is handed over.
+    """
+
+    def _repo(self, tmp_path):
+        """A miniature checkout with one live XML key, one live C++ key, one dead."""
+        yaml_dir = tmp_path / "translations"
+        yaml_dir.mkdir()
+        (yaml_dir / "en.yml").write_text(dedent("""\
+            locale: en
+            translations:
+              "Used Key": "Used Key"
+              "From Cpp": "From Cpp"
+              "Obsolete Key": "Obsolete Key"
+        """))
+
+        xml_dir = tmp_path / "ui_xml"
+        xml_dir.mkdir()
+        (xml_dir / "panel.xml").write_text(
+            '<?xml version="1.0"?>\n<component><text_body text="Used Key"/></component>\n'
+        )
+
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "panel.cpp").write_text('lv_tr("From Cpp");\n')
+
+        for sub in ("include", "assets"):
+            (tmp_path / sub).mkdir()
+        return xml_dir, yaml_dir, src_dir
+
+    def _extracted(self, xml_dir, src_dir):
+        from translations.extractor import (
+            extract_strings_from_cpp_directory,
+            extract_strings_from_directory,
+        )
+
+        keys = extract_strings_from_directory(xml_dir, recursive=True)
+        keys.update(extract_strings_from_cpp_directory(src_dir, recursive=True))
+        return keys
+
+    def test_cache_matches_a_full_rescan(self, tmp_path):
+        """With the parameter decisive, it still produces the rescan's verdict.
+
+        repo_root names a path that does not exist, which switches the reference
+        scan OFF - `find_obsolete_keys` guards it on `root.exists()`. That is the
+        only configuration in which `extracted` alone decides the answer, and so
+        the only one where this comparison can fail.
+        """
+        from translations.obsolete import find_obsolete_keys
+
+        xml_dir, yaml_dir, src_dir = self._repo(tmp_path)
+        no_scan = tmp_path / "not-a-checkout"
+
+        rescan = find_obsolete_keys(
+            xml_dir, yaml_dir, cpp_dir=src_dir, repo_root=no_scan
+        )
+        cached = find_obsolete_keys(
+            xml_dir,
+            yaml_dir,
+            cpp_dir=src_dir,
+            repo_root=no_scan,
+            extracted=self._extracted(xml_dir, src_dir),
+        )
+
+        assert cached == rescan
+        # Not vacuous: two of the three keys are live and reached by the two
+        # different extractors, one is genuinely dead.
+        assert rescan == {"Obsolete Key"}
+
+    def test_cache_skips_the_rescan(self, tmp_path, monkeypatch):
+        """The whole point of the parameter: neither extractor runs again.
+
+        The three tests around this one only pin the verdict, and the verdict is
+        identical whether the cache is honoured or quietly ignored - that is what
+        makes it safe. Nothing but this asserts it is honoured at all, so without
+        it the second of the two scans could come back unnoticed.
+        """
+        from translations import obsolete as ob
+
+        xml_dir, yaml_dir, src_dir = self._repo(tmp_path)
+        extracted = self._extracted(xml_dir, src_dir)
+
+        def boom(*args, **kwargs):
+            raise AssertionError("rescanned despite being handed the extractor result")
+
+        monkeypatch.setattr(ob, "extract_strings_from_directory", boom)
+        monkeypatch.setattr(ob, "extract_strings_from_cpp_directory", boom)
+
+        result = ob.find_obsolete_keys(
+            xml_dir,
+            yaml_dir,
+            cpp_dir=src_dir,
+            repo_root=tmp_path / "not-a-checkout",
+            extracted=extracted,
+        )
+        assert result == {"Obsolete Key"}
+
+    def test_run_sync_hands_over_the_extractor_result(self, tmp_path, monkeypatch):
+        """The set run_sync passes is exactly the one a rescan would have built.
+
+        Asserted on the argument rather than on the obsolete count: run_sync
+        always leaves the reference scan on, and that scan would paper over a
+        wrong - even empty - handover.
+        """
+        from translations import cli as cli_mod
+
+        xml_dir, yaml_dir, src_dir = self._repo(tmp_path)
+
+        captured = {}
+        real = cli_mod.find_obsolete_keys
+
+        def spy(*args, **kwargs):
+            captured["extracted"] = kwargs.get("extracted")
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(cli_mod, "find_obsolete_keys", spy)
+        result = cli_mod.run_sync(xml_dir, yaml_dir, dry_run=True, cpp_dir=src_dir)
+
+        expected = self._extracted(xml_dir, src_dir)
+        assert expected == {"Used Key", "From Cpp"}
+        assert captured["extracted"] == expected
+        assert result.obsolete_keys_found == 1
+
+    def test_with_sources_keeps_rescanning(self, tmp_path, monkeypatch):
+        """The with_sources branch builds new_keys from a different extractor
+        entry point, so it must hand over nothing and let the scan run."""
+        from translations import cli as cli_mod
+
+        xml_dir, yaml_dir, src_dir = self._repo(tmp_path)
+
+        captured = {}
+        real = cli_mod.find_obsolete_keys
+
+        def spy(*args, **kwargs):
+            captured["extracted"] = kwargs.get("extracted")
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(cli_mod, "find_obsolete_keys", spy)
+        cli_mod.run_sync(
+            xml_dir, yaml_dir, dry_run=True, cpp_dir=src_dir, with_sources=True
+        )
+
+        assert captured["extracted"] is None

@@ -24,6 +24,7 @@
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -450,6 +451,10 @@ void AmsDeviceOperationsOverlay::create_section_row(lv_obj_t* parent,
         spdlog::warn("[{}] Failed to create section row for '{}'", get_name(), section.id);
         return;
     }
+    // Every row from the XML component is called "action_row", so a section list
+    // reads as N identical names and none of them can be addressed from
+    // `helix-screen ctl`. Rename to the section id, which is already unique.
+    lv_obj_set_name(row, fmt::format("section_row_{}", section.id).c_str());
 
     // Store section index in user_data for click dispatch
     size_t section_index = 0;

@@ -5,6 +5,7 @@
 
 #include "ui_update_queue.h"
 
+#include "connection_staleness.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
@@ -23,9 +24,12 @@ PrintHistoryManager::PrintHistoryManager(IMoonrakerAPI* api, IMoonrakerClient* c
     : api_(api), client_(client) {
     spdlog::debug("[HistoryManager] Created");
     subscribe_to_notifications();
+    watch_connection_state();
 }
 
 PrintHistoryManager::~PrintHistoryManager() {
+    connection_observer_.reset();
+
     // Unregister notification callbacks
     if (client_) {
         client_->unregister_method_callback("notify_history_changed", "PrintHistoryManager");
@@ -126,6 +130,18 @@ const PrintHistoryJob* PrintHistoryManager::get_newest_existing_job() const {
         }
     }
     return nullptr;
+}
+
+void PrintHistoryManager::watch_connection_state() {
+    if (!api_) {
+        return;
+    }
+
+    // api_->printer_state() rather than the global accessor: it is the state
+    // this manager's API already reads and writes, which keeps the wiring
+    // honest under test.
+    connection_observer_ =
+        helix::observe_connection_staleness(api_->printer_state(), this, "HistoryManager");
 }
 
 void PrintHistoryManager::invalidate() {

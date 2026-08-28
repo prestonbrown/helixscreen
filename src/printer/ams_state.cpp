@@ -17,11 +17,13 @@
 #include "ui_update_queue.h"
 
 #include "ams_bypass_policy.h"
+#include "ams_lane_state.h"
 #include "app_globals.h"
 #include "clog_meter_geometry.h"
 #include "data_root_resolver.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
+#include "filament_mapper.h"
 #include "filament_sensor_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
@@ -475,6 +477,13 @@ void AmsState::init_subjects(bool register_xml) {
             snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_active_loaded", i);
             lv_xml_register_subject(nullptr, name_buf, &slot_active_loaded_[i]);
         }
+
+        lv_subject_init_int(&slot_lane_states_[i], static_cast<int>(helix::ui::LaneState::Empty));
+        subjects_.register_subject(&slot_lane_states_[i]);
+        if (register_xml) {
+            snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_lane_state", i);
+            lv_xml_register_subject(nullptr, name_buf, &slot_lane_states_[i]);
+        }
     }
 
     // Per-unit environment subjects (CFS temperature/humidity)
@@ -903,6 +912,33 @@ void AmsState::clear_backends() {
     }
 }
 
+std::vector<uint32_t> AmsState::routed_tool_colors() const {
+    auto* backend = get_backend();
+    if (!backend) {
+        spdlog::debug("[AmsState] routed_tool_colors: no AMS backend");
+        return {};
+    }
+
+    // The applied routing, asked as a capability question. A backend that tracks
+    // a separate firmware routing table (Snapmaker U1's extruder_map_table)
+    // answers from it; one whose physical map IS the routing (AFC, Happy Hare,
+    // a plain tool changer) answers from that. Vendor knowledge stays inside the
+    // backend — nothing here names a firmware.
+    // Whether the attachment map may stand in when the backend publishes no
+    // routing is a real decision, so it is a named one (FilamentMapper::
+    // effective_routing) rather than an `if` here: on a tool changer that map is
+    // which slot each head owns, never which head prints a tool, and letting it
+    // stand in silently converts "no opinion" into a confident identity answer.
+    std::vector<int> routing = helix::FilamentMapper::effective_routing(
+        backend->get_tool_mapping(), backend->get_system_info().tool_to_slot_map,
+        /*attachment_is_routing=*/!is_tool_changer(backend->get_type()));
+
+    auto colors = helix::FilamentMapper::routed_tool_colors(routing, collect_available_slots());
+    spdlog::debug("[AmsState] routed_tool_colors: {} routing entries -> {} color(s)",
+                  routing.size(), colors.size());
+    return colors;
+}
+
 std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     std::vector<helix::AvailableSlot> slots;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -944,6 +980,14 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     return slots;
 }
 
+helix::FirmwareRouting AmsState::collect_firmware_routing() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (auto* backend = get_backend(0)) {
+        return backend->firmware_default_routing();
+    }
+    return helix::FirmwareRouting::identity();
+}
+
 bool AmsState::any_bypass_active() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     for (const auto& backend : backends_) {
@@ -954,13 +998,36 @@ bool AmsState::any_bypass_active() const {
     return false;
 }
 
+bool AmsState::active_spool_describes_bypass() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return get_backend() == nullptr || any_bypass_active();
+}
+
 bool AmsState::effective_auto_match() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
-    bool card_editable = false;
+    // Ask whether the user's choice can be carried out at all, not whether the
+    // mapping card is editable. Editability is only one of the two routes, and
+    // the backend it gets wrong is the one where the toggle does the most
+    // damage: the U1 honors every pick through its pre-print send, so pinning
+    // auto-match there left color proximity rewriting the print's routing with
+    // no way for the user to decline it.
+    bool user_choice_honored = false;
     if (auto* backend = get_backend(0)) {
-        card_editable = backend->get_tool_mapping_capabilities().editable;
+        user_choice_honored = backend->honors_user_tool_mapping();
+
+        // HOLD — kPreprintSeedFollowsUserSetting (ams_state.h) carries the full
+        // reasoning and the hardware evidence that would lift it. A backend that
+        // reports editable=false can only have answered true through its
+        // pre-print send, so this is exactly the case being held, and putting it
+        // back leaves the U1 seeding as it does today. The predicate itself is
+        // untouched: it is still the one rule the print-start warning shares, and
+        // gating it there would resurrect a false toast on the U1.
+        if (!kPreprintSeedFollowsUserSetting &&
+            !backend->get_tool_mapping_capabilities().editable) {
+            user_choice_honored = false;
+        }
     }
-    return !card_editable || helix::SettingsManager::instance().get_auto_color_map();
+    return !user_choice_honored || helix::SettingsManager::instance().get_auto_color_map();
 }
 
 AmsBackend* AmsState::get_backend() const {
@@ -1018,6 +1085,13 @@ lv_subject_t* AmsState::get_slot_status_subject(int slot_index) {
         return nullptr;
     }
     return &slot_statuses_[slot_index];
+}
+
+lv_subject_t* AmsState::get_slot_lane_state_subject(int slot_index) {
+    if (slot_index < 0 || slot_index >= MAX_SLOTS) {
+        return nullptr;
+    }
+    return &slot_lane_states_[slot_index];
 }
 
 lv_subject_t* AmsState::get_slot_remaining_subject(int slot_index) {
@@ -1681,6 +1755,15 @@ void AmsState::sync_from_backend() {
                 any_slot_changed = true;
             }
 
+            // Lane presentation classification (Present/Ghosted/Empty) — THE
+            // input every lane rendering surface binds to.
+            int new_lane_state = static_cast<int>(
+                helix::ui::classify_lane(slot->status, helix::ui::lane_has_identity(*slot)));
+            if (lv_subject_get_int(&slot_lane_states_[i]) != new_lane_state) {
+                lv_subject_set_int(&slot_lane_states_[i], new_lane_state);
+                any_slot_changed = true;
+            }
+
             // Fill percent (canonical display_fill_pct encoding). The ams_slot
             // widget observes this — so spool fill renders from state on every
             // panel, not just the ones that remember to push it imperatively.
@@ -1732,13 +1815,21 @@ void AmsState::sync_from_backend() {
         }
     }
 
-    // Detect tool_to_slot_map changes (e.g. user remapped T0→T2) and bump
-    // tool_map_version_ so the gcode renderer can refresh tool colors.
-    if (info.tool_to_slot_map != last_tool_map_) {
+    // Detect routing changes and bump tool_map_version_ so the gcode renderer
+    // refreshes tool colors.
+    //
+    // Watching tool_to_slot_map alone was not enough once the render started
+    // resolving colors through the APPLIED routing: on a backend that publishes
+    // a separate routing table (a tool changer's firmware map), the physical map
+    // never moves while the routing does, so the preview kept the previous
+    // print's colors. Both are watched now, and either moving repaints.
+    const std::vector<int> applied_routing = backend->get_tool_mapping();
+    if (info.tool_to_slot_map != last_tool_map_ || applied_routing != last_applied_routing_) {
         last_tool_map_ = info.tool_to_slot_map;
+        last_applied_routing_ = applied_routing;
         int v = lv_subject_get_int(&tool_map_version_);
         lv_subject_set_int(&tool_map_version_, v + 1);
-        spdlog::debug("[AmsState] tool_to_slot_map changed, version now {}", v + 1);
+        spdlog::debug("[AmsState] tool routing changed, version now {}", v + 1);
     }
 
     // Sync spool assignments to ToolState for slots with mapped tools.
@@ -1758,21 +1849,35 @@ void AmsState::sync_from_backend() {
             ToolState::instance().assign_spool(slot->mapped_tool, slot->spoolman_id,
                                                slot->spool_name, slot->remaining_weight_g,
                                                slot->total_weight_g);
-        } else if (backend->has_firmware_spool_persistence()) {
-            // Only clear when the SLOT is authoritative. For backends without
-            // firmware spool persistence (toolchanger) the flow runs the other
-            // way — ToolState is the source of truth and slots start empty — so
-            // clearing here would destroy the assignment the reverse sync below
-            // is about to propagate.
+        } else if (!backend->supports_per_tool_spool_assignment()) {
+            // Only clear when the SLOT is authoritative. On a tool changer the
+            // flow runs the other way — ToolState is the source of truth and
+            // slots start empty — so clearing here would destroy the assignment
+            // the reverse sync below is about to propagate.
+            //
+            // The question is "who owns the assignment", NOT "does firmware
+            // persist the spool id", which is what this used to ask. CFS and
+            // AD5X IFS answer no to the latter (they keep identity in OUR
+            // lane_data override store, not in firmware) yet their lanes are
+            // fully authoritative, so they fell into the tool-changer branch:
+            // clearing a lane left the old spool in ToolState, and the reverse
+            // pass below then copied it straight back onto the lane. The lane
+            // blinked empty and refilled itself on the next poll.
             ToolState::instance().clear_spool(slot->mapped_tool);
         }
     }
 
-    // Reverse sync: populate backend slots from ToolState for backends that
-    // don't persist spool info in firmware (e.g., toolchanger). Without this,
-    // spool assignments loaded from Moonraker DB / local JSON on startup
-    // don't propagate back to slot UI subjects.
-    if (!backend->has_firmware_spool_persistence()) {
+    // Reverse sync: populate backend slots from ToolState on a tool changer,
+    // where each tool owns its own spool and the slot is the shadow. Without
+    // this, assignments made through Application's auto-assign-active-spool
+    // path (which writes ToolState directly) never reach the slot subjects.
+    //
+    // Gated on who OWNS the assignment. Gating it on
+    // has_firmware_spool_persistence() also caught every backend that keeps
+    // identity in our own override store rather than in firmware — CFS, AD5X
+    // IFS — and resurrected spools the user had just cleared from a lane. See
+    // the matching note on the clear branch above.
+    if (backend->supports_per_tool_spool_assignment()) {
         auto& tool_state = ToolState::instance();
         const auto& tools = tool_state.tools();
         for (int i = 0; i < std::min(info.total_slots, MAX_SLOTS); ++i) {
@@ -1789,8 +1894,14 @@ void AmsState::sync_from_backend() {
                 }
             }
         }
+    }
 
-        tool_state.save_spool_assignments_if_dirty(get_moonraker_api());
+    // Flushing ToolState is about PERSISTENCE, not about which direction the
+    // sync ran, so it keeps its own question: firmware won't remember the
+    // assignment, therefore we have to. Narrowing the reverse-sync gate above
+    // would otherwise have silently stopped saving on CFS and AD5X IFS.
+    if (!backend->has_firmware_spool_persistence()) {
+        ToolState::instance().save_spool_assignments_if_dirty(get_moonraker_api());
     }
 
     // Update per-unit environment subjects (CFS temperature/humidity)
@@ -1969,6 +2080,11 @@ void AmsState::sync_from_backend() {
             lv_subject_set_int(&slot_statuses_[i], default_status);
             any_slot_changed = true;
         }
+        int default_lane_state = static_cast<int>(helix::ui::LaneState::Empty);
+        if (lv_subject_get_int(&slot_lane_states_[i]) != default_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[i], default_lane_state);
+            any_slot_changed = true;
+        }
         // Clear remaining filament for unused slots
         if (strcmp(lv_subject_get_string(&slot_remaining_[i]), "") != 0) {
             lv_subject_copy_string(&slot_remaining_[i], "");
@@ -2039,6 +2155,17 @@ void AmsState::update_slot(int slot_index) {
         int new_status = static_cast<int>(slot.status);
         if (lv_subject_get_int(&slot_statuses_[slot_index]) != new_status) {
             lv_subject_set_int(&slot_statuses_[slot_index], new_status);
+            changed = true;
+        }
+
+        // Lane presentation classification, mirroring sync_from_backend(). This is
+        // the single-slot fast path, so a backend that reports per-slot updates
+        // reaches here and nowhere else; deriving status without re-deriving the
+        // lane state leaves every lane surface bound to a stale classification.
+        int new_lane_state = static_cast<int>(
+            helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
+        if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
             changed = true;
         }
 

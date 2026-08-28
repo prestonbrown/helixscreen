@@ -4,6 +4,7 @@
 #include "ams_backend_mock.h"
 
 #include "afc_defaults.h"
+#include "ams_backend_snapmaker.h"
 #include "ams_bypass_policy.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
@@ -547,6 +548,28 @@ int AmsBackendMock::get_current_slot() const {
 bool AmsBackendMock::is_filament_loaded() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return system_info_.filament_loaded;
+}
+
+bool AmsBackendMock::can_unload_from_toolhead(int slot_index) const {
+    bool tool_changer = false;
+    int carriage = -1;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        tool_changer = tool_changer_mode_;
+        carriage = system_info_.current_slot;
+        if (tool_changer && (slot_index < 0 || slot_index >= system_info_.total_slots)) {
+            return false;
+        }
+    }
+
+    // Lane-based modes keep the inherited status rule; only a changer narrows to
+    // the carriage. Called outside the lock because the base walks get_slot_info()
+    // and get_topology(), both of which take it.
+    if (!tool_changer) {
+        return AmsBackend::can_unload_from_toolhead(slot_index);
+    }
+
+    return carriage >= 0 && slot_index == carriage;
 }
 
 std::optional<bool> AmsBackendMock::toolhead_filament_unaccounted() const {
@@ -3364,6 +3387,22 @@ AmsBackendMock::RemapStrategy AmsBackendMock::get_remap_strategy() const {
 bool AmsBackendMock::requires_preprint_send() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return snapmaker_mode_;
+}
+
+std::string AmsBackendMock::build_preprint_gcode(const std::set<int>& tools_used,
+                                                 const std::map<int, int>& remap) const {
+    bool snapmaker = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        snapmaker = snapmaker_mode_;
+    }
+    if (!snapmaker) {
+        return "";
+    }
+    // The real builder, not a re-implementation of it: the mock exists to
+    // rehearse what the printer will be sent, so a divergence here would be a
+    // test rig teaching the wrong command format.
+    return AmsBackendSnapmaker::preprint_gcode(tools_used, remap);
 }
 
 std::vector<int> AmsBackendMock::get_tool_mapping() const {

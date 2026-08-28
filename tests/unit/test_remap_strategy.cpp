@@ -22,6 +22,7 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
+#include "ams_backend_mock.h"
 #include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
@@ -271,4 +272,82 @@ TEST_CASE("requires_preprint_send agrees with build_preprint_gcode output",
         REQUIRE_FALSE(afc.requires_preprint_send());
         REQUIRE(afc.build_preprint_gcode({0, 1, 2}, {{0, 1}}).empty());
     }
+}
+
+// ---------------------------------------------------------------------------
+// The MOCK has to satisfy the same invariant, and it is the one backend that
+// did not.
+//
+// AmsBackendMock::requires_preprint_send() returns true in Snapmaker mode, but
+// the mock never overrode build_preprint_gcode(), so the base returned "". That
+// makes the U1's whole remap chain a no-op under --test: the controller logs
+// "U1 pre-print config empty - starting print directly" and the user's pick
+// never reaches the wire. Driven on the mock, picking a head for T0 through the
+// picker looked like it worked (the mapping is stored and logged) while nothing
+// was sent. A regression anywhere in get_tools_used() ->
+// get_effective_remap() -> build_preprint_gcode() would be invisible in every
+// mock run, which is where this feature is developed.
+//
+// The case above pins the invariant for the real backends only; that is exactly
+// why the mock could violate it unnoticed.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Mock in Snapmaker mode satisfies requires_preprint_send/build agreement",
+          "[ams][strategy][preprint][mock]") {
+    AmsBackendMock mock(4);
+    mock.set_snapmaker_mode(true);
+
+    REQUIRE(mock.requires_preprint_send());
+    // The gate promises there is work to do; an empty string breaks that promise
+    // and silently drops the user's remap.
+    REQUIRE_FALSE(mock.build_preprint_gcode({0}, {}).empty());
+}
+
+TEST_CASE("Mock without Snapmaker mode neither requires a pre-send nor emits gcode",
+          "[ams][strategy][preprint][mock]") {
+    // The other half of the invariant: a backend that does not gate on the
+    // pre-send must have nothing to send, or the controller would skip real work.
+    AmsBackendMock mock(4);
+    REQUIRE_FALSE(mock.requires_preprint_send());
+    REQUIRE(mock.build_preprint_gcode({0, 1, 2}, {{0, 1}}).empty());
+
+    // Tool-changer mode is the mock's other non-Snapmaker shape.
+    mock.set_tool_changer_mode(true);
+    REQUIRE_FALSE(mock.requires_preprint_send());
+    REQUIRE(mock.build_preprint_gcode({0, 1, 2}, {{0, 1}}).empty());
+}
+
+TEST_CASE("Mock Snapmaker pre-print gcode is byte-identical to the real backend",
+          "[ams][strategy][preprint][mock]") {
+    // A mock that emits SOMETHING is not enough - it has to emit what the
+    // printer will actually be sent, or the mock teaches the wrong shape and a
+    // format change lands untested on hardware. Compared against the real
+    // builder rather than a literal, so this cannot drift when the format moves.
+    AmsBackendMock mock(4);
+    mock.set_snapmaker_mode(true);
+    SnapmakerProbe real;
+
+    struct Case {
+        std::set<int> tools;
+        std::map<int, int> remap;
+    };
+    const Case cases[] = {
+        {{0}, {}},          // single tool, no remap
+        {{0, 1, 2, 3}, {}}, // every head, identity
+        {{0, 2}, {{0, 3}}}, // the "print T0 from head 4" ask in #962
+        {{0, 1}, {{1, 0}}}, // colliding heads (dedup path)
+        {{5}, {}},          // extended tool -> firmware head 0
+    };
+
+    for (const auto& c : cases) {
+        const std::string from_mock = mock.build_preprint_gcode(c.tools, c.remap);
+        const std::string from_real = real.build_preprint_gcode(c.tools, c.remap);
+        CAPTURE(from_mock, from_real);
+        REQUIRE(from_mock == from_real);
+        REQUIRE_FALSE(from_mock.empty());
+    }
+
+    // Empty tool set is the one input that legitimately yields nothing, on both.
+    REQUIRE(mock.build_preprint_gcode({}, {}).empty());
+    REQUIRE(real.build_preprint_gcode({}, {}).empty());
 }

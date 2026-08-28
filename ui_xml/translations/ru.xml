@@ -315,7 +315,6 @@
   <translation tag="Bypass Mode" ru="Режим обхода"/>
   <translation tag="Bypass active — this print runs on the external spool." ru="Байпас активен — эта печать идёт с внешней катушки."/>
   <translation tag="Bypass cannot be changed while printing" ru="Байпас нельзя переключить во время печати"/>
-  <translation tag="Bypass controlled by hardware sensor" ru="Обход управляется аппаратным датчиком"/>
   <translation tag="Bypass controlled by sensor" ru="Байпас управляется датчиком"/>
   <translation tag="Bypass disabled" ru="Байпас отключён"/>
   <translation tag="Bypass enabled" ru="Байпас включён"/>
@@ -349,7 +348,6 @@
   <translation tag="Calibrate and tune scroll feel" ru="Калибровка и настройка прокрутки"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" ru="Калибровка, настройка дрожания и поведения прокрутки"/>
   <translation tag="Calibrated" ru="Откалиброван"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -422,6 +420,7 @@
   <translation tag="Change Printer Host" ru="Изменить хост принтера"/>
   <translation tag="Change Tool" ru="Сменить инструмент"/>
   <translation tag="Change Tool While Paused" ru="Смена инструмента при паузе"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." ru="Изменения можно отменить в любое время через Macro Viewer."/>
@@ -650,7 +649,6 @@
   <translation tag="Date (newest)" ru="Дата (новые)"/>
   <translation tag="Date (oldest)" ru="Дата (старые)"/>
   <translation tag="Day" ru="День"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" ru="Мёртвая зона в пикселях (увеличьте, если касания распознаются как свайпы; 0 отключает)"/>
   <translation tag="Debug" ru="Отладка"/>
   <translation tag="Default border thickness" ru="Толщина границы по умолчанию"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" ru="По умолчанию: сопло %d-%d°C, стол %d°C"/>
@@ -704,6 +702,8 @@
   <translation tag="Do not power off your printer." ru="Не выключайте принтер."/>
   <translation tag="Do not touch the printer during calibration" ru="Не трогайте принтер во время калибровки"/>
   <translation tag="Dock" ru="Парковать"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" ru="Парковка инструмента"/>
   <translation tag="Documentation" ru="Документация"/>
   <translation tag="Don&apos;t Save" ru="Не сохранять"/>
@@ -810,6 +810,8 @@
   <translation tag="Error: Invalid download" ru="Ошибка: недопустимая загрузка"/>
   <translation tag="Error: No update available" ru="Ошибка: обновления недоступны"/>
   <translation tag="Error: Not enough disk space" ru="Ошибка: недостаточно места на диске"/>
+  <translation tag="Error: Previous download still finishing" ru="Ошибка: предыдущая загрузка ещё не завершена"/>
+  <translation tag="Error: This install can&apos;t update itself" ru="Ошибка: эта установка не может обновить себя"/>
   <translation tag="Error: Verification failed" ru="Ошибка: проверка не удалась"/>
   <translation tag="Error: Wrong architecture" ru="Ошибка: неверная архитектура"/>
   <translation tag="Error: `unzip` not installed" ru="Ошибка: `unzip` не установлен"/>
@@ -986,7 +988,6 @@
   <translation tag="Filament is pulling tight" ru="Филамент натянут"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." ru="После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки."/>
   <translation tag="Filament load failed: {}" ru="Ошибка загрузки филамента: {}"/>
-  <translation tag="Filament loaded" ru="Филамент загружен"/>
   <translation tag="Filament operation failed" ru="Операция с филаментом не удалась"/>
   <translation tag="Filament operation timed out" ru="Операция с филаментом — время ожидания истекло"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." ru="Филамент закончился - у печатающей головки ничего нет, печать приостановлена."/>
@@ -1062,6 +1063,7 @@
   <translation tag="Good Accuracy" ru="Хорошая точность"/>
   <translation tag="Got it" ru="Понятно"/>
   <translation tag="Gray" ru="Серый"/>
+  <translation tag="Grip filament"/>
   <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" ru="Руководства и справка"/>
   <translation tag="H" ru="Х"/>
@@ -1464,6 +1466,7 @@
   <translation tag="Motors Off" ru="Отключить моторы"/>
   <translation tag="Motors disable failed: {}" ru="Ошибка отключения моторов: {}"/>
   <translation tag="Motors disabled" ru="Моторы отключены"/>
+  <translation tag="Mount"/>
   <translation tag="Move" ru="Двигать"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." ru="Перемещайте бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется, но ещё скользит."/>
   <translation tag="Move selector" ru="Двигать селектор"/>
@@ -1489,7 +1492,7 @@
   <translation tag="Name" ru="Название"/>
   <translation tag="Name (optional)" ru="Название (необязательно)"/>
   <translation tag="Name:" ru="Имя:"/>
-  <translation tag="Named actions in the LED control panel (long-press)." ru="Именованные действия в панели управления LED (долгое нажатие)."/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" ru="Требуется регулировка"/>
   <translation tag="Needs the {} package to switch spools" ru="Для смены катушки нужен плагин {}"/>
   <translation tag="Net Weight (g)" ru="Вес нетто (г)"/>
@@ -1519,7 +1522,6 @@
   <translation tag="No Camera" ru="Нет камеры"/>
   <translation tag="No Filament Detected" ru="Филамент не обнаружен"/>
   <translation tag="No History" ru="Нет истории"/>
-  <translation tag="No LED macros detected on your printer." ru="На вашем принтере не обнаружены LED-макросы."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." ru="На вашем принтере не обнаружены LED-макросы. Сначала добавьте макросы Klipper для управления LED."/>
   <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" ru="LED-ленты не обнаружены"/>
@@ -1734,6 +1736,7 @@
   <translation tag="Phomemo M110" ru="Phomemo M110"/>
   <translation tag="Pick" ru="Выбрать"/>
   <translation tag="Pick Color" ru="Выбрать цвет"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ru="Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)"/>
@@ -1907,7 +1910,6 @@
   <translation tag="Purge &amp; Wipe" ru="Продувка и очистка"/>
   <translation tag="Purge Length" ru="Длина продувки"/>
   <translation tag="Purge failed: {}" ru="Ошибка прочистки: {}"/>
-  <translation tag="Purge macro not configured" ru="Макрос прочистки не настроен"/>
   <translation tag="Purge may still be running — response timed out" ru="Прочистка может ещё выполняться — время ожидания истекло"/>
   <translation tag="Purge to bucket" ru="Продувка в контейнер"/>
   <translation tag="Purge tower and brush settings" ru="Настройки башни продувки и щётки"/>
@@ -1981,6 +1983,7 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" ru="Относительная вибрация"/>
   <translation tag="Release all stepper motors. Position will be lost." ru="Отпустить все шаговые моторы. Позиция будет потеряна."/>
+  <translation tag="Release filament"/>
   <translation tag="Release or grip the filament by hand"/>
   <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
@@ -2581,7 +2584,6 @@
   <translation tag="Touch &amp; Input" ru="Касание и ввод"/>
   <translation tag="Touch Cal" ru="Кал. касания"/>
   <translation tag="Touch Calibration" ru="Калибровка касания"/>
-  <translation tag="Touch Jitter Filter" ru="Фильтр дрожания касания"/>
   <translation tag="Touch anywhere to test calibration" ru="Коснитесь в любом месте для проверки калибровки"/>
   <translation tag="Touch anywhere to verify accuracy" ru="Коснитесь в любом месте для проверки точности"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." ru="Сенсорный ввод не соответствовал новой калибровке. Прежние настройки сохранены."/>
@@ -2644,6 +2646,7 @@
   <translation tag="Unloads After Print" ru="Выгрузка после печати"/>
   <translation tag="Unlock" ru="Разблокировать"/>
   <translation tag="Unmapped" ru="Не назначен"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" ru="Дополнительная подача"/>
   <translation tag="Unretract Speed" ru="Скорость возврата"/>
   <translation tag="Unsupported tape width" ru="Неподдерживаемая ширина ленты"/>

@@ -2395,6 +2395,19 @@ void ui_gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>&
     if (!st || colors.empty())
         return;
 
+    // Same vector as last time is already applied — drop it instead of redoing
+    // the work. Not a micro-optimisation: each apply joins the 2D renderer's
+    // background ghost-render worker and invalidates its layer cache, and the
+    // observers that drive recoloring (active-lane color, tool map, slot data)
+    // all fire together during a toolchange, which is exactly when the preview
+    // is on screen. The comparison lives here rather than in a caller because
+    // tool_color_overrides is already the viewer's record of what is applied,
+    // and it is cleared by ui_gcode_viewer_clear() — so a reload correctly
+    // re-applies even when the colors are unchanged.
+    if (!st->tool_color_overrides.empty() && st->tool_color_overrides == colors) {
+        return;
+    }
+
     // Store for lazy-init paths
     st->tool_color_overrides = colors;
 
@@ -2419,45 +2432,18 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
     if (!obj) {
         return false;
     }
-
-    auto* backend = AmsState::instance().get_backend();
-    if (!backend) {
-        spdlog::debug("[GCode Viewer] apply_ams_tool_colors: no AMS backend");
+    // Pure adapter over the ONE color rule: color(tool N) = the color of the lane
+    // that actually prints N. It used to walk AmsSystemInfo::tool_to_slot_map
+    // itself, which made it a second, dumber implementation of the same question
+    // — and a wrong one on a tool changer, where that map is physical attachment
+    // rather than print routing. Empty means "nothing knowable": leave the
+    // renderer's slicer palette alone rather than painting over it.
+    const auto colors = AmsState::instance().routed_tool_colors();
+    if (colors.empty()) {
         return false;
     }
-
-    const auto& info = backend->get_system_info();
-    const auto& tool_map = info.tool_to_slot_map;
-    if (tool_map.empty()) {
-        spdlog::debug("[GCode Viewer] apply_ams_tool_colors: tool_to_slot_map empty");
-        return false;
-    }
-
-    std::vector<uint32_t> tool_colors;
-    tool_colors.reserve(tool_map.size());
-    bool all_default = true;
-
-    for (size_t tool = 0; tool < tool_map.size(); ++tool) {
-        int slot_index = tool_map[tool];
-        const auto* slot = info.get_slot_global(slot_index);
-        if (slot && slot->color_rgb != AMS_DEFAULT_SLOT_COLOR) {
-            tool_colors.push_back(slot->color_rgb);
-            all_default = false;
-            spdlog::debug("[GCode Viewer] Tool {} -> slot {} -> color 0x{:06X}", tool, slot_index,
-                          slot->color_rgb);
-        } else {
-            tool_colors.push_back(AMS_DEFAULT_SLOT_COLOR);
-            spdlog::debug("[GCode Viewer] Tool {} -> slot {} -> default", tool, slot_index);
-        }
-    }
-
-    if (all_default) {
-        spdlog::debug("[GCode Viewer] apply_ams_tool_colors: all colors are default, skipping");
-        return false;
-    }
-
-    ui_gcode_viewer_set_tool_colors(obj, tool_colors);
-    spdlog::debug("[GCode Viewer] Applied {} AMS tool colors", tool_colors.size());
+    ui_gcode_viewer_set_tool_colors(obj, colors);
+    spdlog::debug("[GCode Viewer] Applied {} lane-derived tool colors", colors.size());
     return true;
 }
 
@@ -2671,6 +2657,45 @@ std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj) {
         return st->streaming_controller_->get_index_stats().filament_palette;
     }
     return {};
+}
+
+std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    // Same "which ONE holds data" choice as get_tool_palette above.
+    if (st->gcode_file) {
+        return st->gcode_file->tools_used_indices;
+    }
+    if (st->streaming_controller_ && st->streaming_controller_->is_open()) {
+        const auto& stats = st->streaming_controller_->get_index_stats();
+        std::set<int> tools = stats.tools_used;
+        // Apply ParsedGCodeFile's single-extruder convention (see
+        // GCodeParser::finalize: tools_used_indices gets {0} when the file names
+        // no tool but does carry a colour palette). The index scan deliberately
+        // does not inject it — it has no opinion about palettes — so it is
+        // applied here, where both halves must agree for the same file.
+        if (tools.empty() && !stats.filament_palette.empty()) {
+            tools.insert(0);
+        }
+        return tools;
+    }
+    return {};
+}
+
+bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj, std::vector<std::string>& colors) {
+    if (!colors.empty()) {
+        return false;
+    }
+    auto palette = ui_gcode_viewer_get_tool_palette(obj);
+    if (palette.empty()) {
+        return false;
+    }
+    spdlog::info("[GCode Viewer] Metadata lacked filament colors — recovered {} from the file",
+                 palette.size());
+    colors = std::move(palette);
+    return true;
 }
 
 float ui_gcode_viewer_get_load_progress(lv_obj_t* obj) {
@@ -3056,6 +3081,14 @@ const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t*) 
 
 std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t*) {
     return {};
+}
+
+std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t*) {
+    return {};
+}
+
+bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t*, std::vector<std::string>&) {
+    return false;
 }
 
 float ui_gcode_viewer_get_load_progress(lv_obj_t*) {

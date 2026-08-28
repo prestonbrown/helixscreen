@@ -201,6 +201,26 @@ class FilamentMappingCard {
     build_tool_info(const std::vector<std::string>& colors,
                     const std::vector<std::string>& materials);
 
+    /// build_tool_info(), narrowed to the tools a file actually prints with.
+    ///
+    /// Pure/stateless. Keeps each kept entry's REAL gcode tool number in
+    /// `.tool_index` (not its position in the result), because the colour and
+    /// pre-flight paths downstream index by tool number: a print that uses only
+    /// T0 and T2 must not have T2's colour land at index 1. A tool with no
+    /// palette entry is dropped — the slicer palette bounds what can be known.
+    ///
+    /// Shared by PrintSelectDetailView::get_used_tool_info() and
+    /// PrintStatusPanel::build_print_tool_info(), which are the file-browser and
+    /// live-print halves of the same question and were literal copies of this
+    /// loop. They must agree: the two previews colour the same print.
+    ///
+    /// @param colors    Per-tool slicer palette ("#RRGGBB"), palette-ordinal indexed.
+    /// @param materials Per-tool material names, same indexing.
+    /// @param used      Tool numbers the file prints with (empty ⇒ empty result).
+    static std::vector<helix::GcodeToolInfo>
+    build_used_tool_info(const std::vector<std::string>& colors,
+                         const std::vector<std::string>& materials, const std::set<int>& used);
+
     /// Compact parallel tool_info / mappings vectors to only the used tools.
     ///
     /// Pure/stateless: filters BOTH vectors in lockstep, keeping only entries

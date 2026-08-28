@@ -112,6 +112,13 @@ class PrintStartController {
      * computation (empty → no native send, just starts). @p on_started /
      * @p on_error are invoked on the MAIN thread.
      *
+     * There is no detail view here and no reprint picker, so the routing comes
+     * from AmsBackend::last_print_tool_mapping() — the routing the printer ran
+     * the job with — via FilamentMapper::reprint_remap(). When that is not known
+     * the pre-print send is SKIPPED rather than defaulted: an empty remap makes
+     * build_preprint_gcode write every used tool to its firmware-default head,
+     * which erases the crossover the print actually used.
+     *
      * @param filename   Raw filename to reprint (already on the printer).
      * @param path       Directory path relative to gcodes root (unused by the
      *                   lightweight start; kept for symmetry with set_file()).

@@ -452,10 +452,38 @@ void PrintStartController::initiate_reprint(const std::string& filename, const s
 
     // Backends that need a pre-print send (Snapmaker U1) emit the firmware-native
     // print_task_config gcode BEFORE the reprint starts, same as the normal start
-    // path. remap is empty (no reprint remap UI) → identity, which reproduces the
-    // spurious-feed fix. On native-send error the modal is shown and on_error runs.
+    // path. On native-send error the modal is shown and on_error runs.
     AmsBackend* backend = AmsState::instance().get_backend();
     if (backend && backend->requires_preprint_send()) {
+        // Where the reprint's routing comes from. The normal start path reads
+        // the detail view's colour/type match; a reprint has no detail view, no
+        // swatch card and no picker, so the only thing that knows how this job
+        // was routed is the printer — and only while its task was configured,
+        // which is what last_print_tool_mapping() snapshots.
+        //
+        // This used to pass an empty remap. build_preprint_gcode resolves a tool
+        // it is not told about to that tool's firmware-default head, so the
+        // reprint wrote SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n
+        // for every used tool and erased the crossover the original print ran
+        // with — a remapped file could not be reprinted correctly at all.
+        const auto remap =
+            helix::FilamentMapper::reprint_remap(backend->last_print_tool_mapping(), tools_used);
+        if (!remap) {
+            // Not known (no configured task observed — e.g. the app started after
+            // the print ended). Sending anything here means inventing a routing:
+            // the identity map this used to emit is a confident wrong answer for
+            // exactly the files that need one. Start with the firmware holding
+            // whatever the last job left, and say so.
+            //
+            // The cost is the SET_PRINT_USED_EXTRUDERS spurious-feed suppression,
+            // which cannot be computed either — the used-head set is derived from
+            // the same routing.
+            spdlog::warn("[PrintStartController] Reprint: no recorded print routing — skipping the "
+                         "pre-print config rather than writing a default map over it");
+            start();
+            return;
+        }
+
         // The abort path has to retire the job this function armed above.
         // execute_print_start() avoids the problem by arming INSIDE its
         // success-only lambda; reprint arms before the pre-send because the
@@ -469,7 +497,7 @@ void PrintStartController::initiate_reprint(const std::string& filename, const s
                 on_error();
             }
         };
-        send_snapmaker_preprint_then(tools_used, /*remap=*/{}, start, abort);
+        send_snapmaker_preprint_then(tools_used, *remap, start, abort);
         return; // start fires from the send continuation — do NOT also start here
     }
 
@@ -621,10 +649,13 @@ bool PrintStartController::should_warn_remap_unsupported(
     // even though caps.editable is false — so the toast would be a stale false
     // alarm. Only warn when the backend can neither edit its mapping nor apply
     // it via a pre-print send.
-    if (applies_via_preprint) {
-        return false;
-    }
-    return !caps.supported || !caps.editable;
+    //
+    // Which is exactly the shared rule, called rather than restated:
+    // AmsState::effective_auto_match() asks the same question to decide whether
+    // the auto-color toggle is a live control, and a second copy of the two-route
+    // test would drift into a printer that warns the remap is unsupported while
+    // still honoring it (or the reverse).
+    return !helix::printer::honors_user_tool_mapping(caps, applies_via_preprint);
 }
 
 bool PrintStartController::apply_filament_remaps() {
@@ -1052,11 +1083,10 @@ void PrintStartController::recover_pending_remap() {
             // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
             // while a job runs; a preparing job has no mapping to restore.
             lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
-        // RAW_PRINT_STATE_OK: the mapping is restored on a TERMINAL state; this
-        // only suppresses the observer's immediate registration-fire while a job
-        // is running. A preparing job has no mapping to restore yet.
-        bool print_active =
-            (current_state == PrintJobState::PRINTING || current_state == PrintJobState::PAUSED);
+        // The mapping is restored on a TERMINAL state; this only suppresses the
+        // observer's immediate registration-fire while a job is running. The wire
+        // question is the right one: a preparing job has no mapping to restore.
+        bool print_active = printer_has_job(current_state);
 
         if (print_active) {
             spdlog::info("[PrintStartController] Crash recovery: found pending remap "

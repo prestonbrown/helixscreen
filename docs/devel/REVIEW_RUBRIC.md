@@ -126,7 +126,7 @@ to skip verification. Use `--sim-speed 4..10` to reach an active print in second
 | `check_l081_anti_pattern.py` | No bare `tok.expired()`/`expired_no_lvgl()` then `this` access on a bg thread |
 | `check_subscription_null_safety.py` | Subscription-handler JSON reads are guarded (baseline 0) |
 | `check_imperative_ui.py` | XML-owned widgets driven from C++ (ratcheting baseline) |
-| `check_doc_refs.py` | Docs cite files that exist (CLAUDE.md files, skills, all of `docs/devel/`); `docs/devel/` index is complete |
+| `check_doc_refs.py` | Docs cite files that exist (CLAUDE.md files, skills, all of `docs/devel/`); `docs/devel/` index is complete; every `file:N` line cite still resolves to the line its committed content anchor recorded (`scripts/doc_cite_anchors.tsv` — moved code self-heals via `make regen-doc-links`, a cited line whose text changed is a hard stop) |
 | `check_gcode_error_ownership.py` | Log-only error callbacks declare `caller_surfaces_errors=false` (baseline 0) |
 | `check_translation_format_specifiers.py` | Translated strings keep their placeholders |
 | `check_modal_chrome_budget.py` | A modal's chrome matches the content cap it budgets against: everything but a divider and the button row lives inside the scroll container; a second button row switches to the tall-chrome token; no card raised above the shared 85% cap (`MODAL_CHROME_OK` opt-out) |

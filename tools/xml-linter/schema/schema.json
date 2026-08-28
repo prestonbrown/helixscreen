@@ -1878,6 +1878,14 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
+    "ams_lane_bar": {
+      "attributes": {
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "belt_trace": {
       "attributes": {
         "mode": {
@@ -2832,6 +2840,7 @@
     "z_offset_indicator",
     "helix_sparkline",
     "setting_group",
+    "ams_lane_bar",
     "belt_trace",
     "pluck_animation"
   ],
@@ -3180,6 +3189,7 @@
     "font_xs_tiny",
     "font_xs_xlarge",
     "font_xs_xxlarge",
+    "ghost_opacity",
     "grid_gap",
     "grid_swatch_size",
     "grid_width",

@@ -353,7 +353,7 @@ These are resolution-specific issues, not Snapmaker-specific. Any 480x320 device
 
 **Forward-looking — DRM capture:** `_remote_screen_backend_args` probes `fb-http` for a `--backend drm` flag and, if present, would drive a DRM capture path that reads `/dev/dri/card0` directly (no mirror needed). **No such `fb-http` exists in any public/shipping source as of 2026-07-09** (verified against the on-device build, `paxx12/screen-apps` `main`, and the pinned Extended-Firmware submodule commit — all fbdev-only), so this path is dormant; the fbdev+mirror path above is what runs today. If a DRM-capable `fb-http` ever ships, the probe lights it up and the mirror stays idle.
 
-**Remote control — working (verified 2026-07-12, #1091).** `fb-http` also injects touch to `/dev/input/event0` via its `/touch` endpoint (nginx `/screen/touch`), and remote *control* works end-to-end for free. HelixScreen opens `event0` through LVGL's evdev driver (`display_backend_drm.cpp:489-492`) and does **not** `EVIOCGRAB` it, so it sees `fb-http`'s injected events. `fb-http` defaults its touch device to `/dev/input/event0` (no `--touch` flag needed) and scales browser clicks 1:1 (the TLSC6x reports `ABS_MT` in the same 480×320 space as the framebuffer). Verified on-device (v0.99.88, printer idle): synthetic taps at the Settings gear, Help & About row, and home-nav icon each landed on the intended element in the rendered snapshot — no offset, no inversion. The browser client (/usr/local/share/fb-http/html/index.html) maps clicks to native image coordinates via `getImageCoords` and POSTs `down`/`move`/`up`. PNG snapshot is poll-based, not a continuous MJPEG stream.
+**Remote control — working (verified 2026-07-12, #1091).** `fb-http` also injects touch to `/dev/input/event0` via its `/touch` endpoint (nginx `/screen/touch`), and remote *control* works end-to-end for free. HelixScreen opens `event0` through LVGL's evdev driver (`display_backend_drm.cpp:497-500`) and does **not** `EVIOCGRAB` it, so it sees `fb-http`'s injected events. `fb-http` defaults its touch device to `/dev/input/event0` (no `--touch` flag needed) and scales browser clicks 1:1 (the TLSC6x reports `ABS_MT` in the same 480×320 space as the framebuffer). Verified on-device (v0.99.88, printer idle): synthetic taps at the Settings gear, Help & About row, and home-nav icon each landed on the intended element in the rendered snapshot — no offset, no inversion. The browser client (/usr/local/share/fb-http/html/index.html) maps clicks to native image coordinates via `getImageCoords` and POSTs `down`/`move`/`up`. PNG snapshot is poll-based, not a continuous MJPEG stream.
 
 > **Rotation caveat.** This works because the U1 auto-probes `"rotate": 0` (no display rotation). fb-http serves the *rendered* (display-space) frame, and LVGL re-rotates every incoming `event0` point via `lv_display_rotate_point` (`lvgl/src/display/lv_display.c`) whenever a rotation is active. At `rotate == 0` that transform is identity, so injected coordinates pass straight through. **At a non-zero rotation, injected taps would be double-transformed (point-symmetric-inverted)** — fb-http can't know HelixScreen's rotation, and we don't own it. The rotation-robust path is the in-process touch injection tracked by **#1032** (inject past the evdev round-trip, after rotation), not the fb-http path. The U1's panel is fixed-mount and probes to 0 in practice, so this is a latent limitation, not an active bug.
 
@@ -367,7 +367,22 @@ The `AmsBackendSnapmaker` backend parses RFID data from `filament_detect.info` w
 
 ### Virtual Slot Mapping
 
-The U1 supports an `extruder_map_table` with 32 virtual slots mapped to 4 physical extruders. This could enable more advanced filament management workflows.
+The U1 maps 32 logical tools onto 4 physical heads through `extruder_map_table`, and that table
+— not the physical slot layout — is what decides which head prints a given `Tn`. HelixScreen
+both writes it (the pre-print `SET_PRINT_EXTRUDER_MAP` sequence, one line per used tool) and
+reads it back (`AmsBackendSnapmaker::get_tool_mapping()`), so the live preview colours each
+tool by the lane that will actually print it instead of inferring a mapping from the slicer
+palette. Two properties make the read safe:
+
+- **Write every used entry, not just the remaps.** `SET_PRINT_EXTRUDER_MAP` sets one entry and
+  resets nothing, so emitting only genuine remaps left the rest holding the *previous* print's
+  values — a job that remapped `T0`→head 2 made the next job print `T0` from head 2 as well.
+- **Only read it while a task is configured.** Idle, the table holds a default identity
+  `[0,1,2,3,…]` that is indistinguishable from "this print needs no remap" and is wrong for any
+  file whose tools do not line up with the lanes. `extruders_used` being all-false is the
+  firmware's own "no task" signal and gates the read.
+
+Full command and data-model reference: [FILAMENT_BACKEND_SNAPMAKER_U1.md](../FILAMENT_BACKEND_SNAPMAKER_U1.md) § "Firmware API: `print_task_config`".
 
 ## Moonraker Object Reference
 
@@ -389,8 +404,8 @@ The primary source for filament info. Populated by the stock firmware's task man
 | `filament_sku` | `[900001,...]` | ❌ | Snapmaker product SKU |
 | `filament_soft` | `[false,...]` | ❌ | Soft filament flag (TPU etc.) |
 | `filament_edit` | `[false,...]` | ❌ | Whether user has edited filament info |
-| `extruder_map_table` | `[0,1,2,3,0,...(x32)]` | ❌ | Virtual→physical slot mapping for multi-material |
-| `extruders_used` | `[false,...]` | ❌ | Which extruders are used in current print |
+| `extruder_map_table` | `[0,1,2,3,0,...(x32)]` | ✅ | **Logical tool → physical head routing for the running print.** Published by `AmsBackendSnapmaker::get_tool_mapping()`; the live preview colours each tool by the lane that actually prints it. Only read while `extruders_used` says a task is configured — idle it holds a default identity that would read as "no remap". |
+| `extruders_used` | `[false,...]` | ✅ | Which heads the current task uses. Gates whether `extruder_map_table` may be read at all (all-false = no task configured). |
 | `extruders_replenished` | `[0,1,2,3]` | ❌ | Auto-replenish mapping |
 | `auto_replenish_filament` | `true` | ❌ | Auto-replenish enabled |
 | `filament_entangle_detect` | `false` | ❌ | Entangle detection enabled |

@@ -355,7 +355,6 @@ translations:
   Bypass Mode: Mode bypass
   Bypass active — this print runs on the external spool.: 'Bypass actif : cette impression utilise la bobine externe.'
   Bypass cannot be changed while printing: Le bypass ne peut pas être modifié pendant l'impression
-  Bypass controlled by hardware sensor: Bypass contrôlé par capteur matériel
   Bypass controlled by sensor: Bypass contrôlé par le capteur
   Bypass disabled: Bypass désactivé
   Bypass enabled: Bypass activé
@@ -392,8 +391,6 @@ translations:
     shaping pour réduire les artefacts d'ondulation
   Calibrate your touchscreen for accurate input: Calibrer votre écran tactile pour
     une saisie précise
-  Calibrate, tune jitter and scroll feel: Calibrer, ajuster les tremblements et le
-    défilement
   Calibrated: Calibré
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -489,6 +486,7 @@ translations:
   Change Printer Host: Changer l'hôte de l'imprimante
   Change Tool: Changer d'outil
   Change Tool While Paused: Changer d'outil en pause
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: Les modifications s'appliquent
     immédiatement. Ajustez pendant l'impression pour le réglage.
   Changes are temporary and reset on printer reboot: Les modifications sont temporaires
@@ -747,8 +745,6 @@ translations:
   Date (newest): Date (plus récent)
   Date (oldest): Date (plus ancien)
   Day: Jour
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): Zone morte en
-    pixels (augmenter si les appuis sont détectés comme balayages ; 0 désactive)
   Debug: Débogage
   Default border thickness: Épaisseur de bordure par défaut
   'Default: %d-%d°C nozzle, %d°C bed': 'Par défaut : buse %d-%d°C, plateau %d°C'
@@ -808,6 +804,8 @@ translations:
   Do not touch the printer during calibration: Ne touchez pas l'imprimante pendant
     la calibration
   Dock: Ranger
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: Rangement de l'outil
   Documentation: Documentation
   Don't Save: Ne pas enregistrer
@@ -923,6 +921,8 @@ translations:
   'Error: Invalid download': 'Erreur : téléchargement invalide'
   'Error: No update available': 'Erreur : aucune mise à jour disponible'
   'Error: Not enough disk space': 'Erreur : espace disque insuffisant'
+  'Error: Previous download still finishing': "Erreur : le téléchargement précédent n'est pas terminé"
+  "Error: This install can't update itself": 'Erreur : cette installation ne peut pas se mettre à jour'
   'Error: Verification failed': 'Erreur : échec de la vérification'
   'Error: Wrong architecture': 'Erreur : mauvaise architecture'
   'Error: `unzip` not installed': 'Erreur : `unzip` non installé'
@@ -1122,7 +1122,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Le filament est encore à la buse après le déchargement. La coupe ou la rétractation n'a peut-être pas abouti. Dégagez la tête d'outil avant de charger une autre bobine.
   'Filament load failed: {}': 'Échec du chargement du filament : {}'
-  Filament loaded: Filament chargé
   Filament operation failed: Échec de l'opération filament
   Filament operation timed out: Opération filament — délai dépassé
   Filament ran out - nothing at the toolhead and the print is paused.: 'Filament épuisé - plus rien à la tête d''outil et l''impression est en pause.'
@@ -1204,6 +1203,7 @@ translations:
   Good Accuracy: Bonne précision
   Got it: Compris
   Gray: Gris
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: Guides et référence
   H: H
@@ -1668,6 +1668,7 @@ translations:
   Motors Off: Moteurs éteints
   'Motors disable failed: {}': 'Échec de la désactivation des moteurs : {}'
   Motors disabled: Moteurs désactivés
+  Mount: ''
   Move: Déplacer
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Déplacez
     le papier d'avant en arrière pendant l'ajustement. Arrêtez quand le papier accroche
@@ -1699,8 +1700,7 @@ translations:
   Name: Nom
   Name (optional): Nom (facultatif)
   'Name:': 'Nom :'
-  Named actions in the LED control panel (long-press).: Actions nommées dans le panneau
-    de commande LED (appui long).
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Needs adjustment: Ajustement nécessaire
   Needs the {} package to switch spools: 'Nécessite le plugin {} pour changer de bobine'
   Net Weight (g): Poids net (g)
@@ -1731,7 +1731,6 @@ translations:
   No Camera: Aucune caméra
   No Filament Detected: Aucun filament détecté
   No History: Pas d'historique
-  No LED macros detected on your printer.: Aucune macro LED détectée sur votre imprimante.
   No LED macros detected on your printer. Add Klipper macros for LED control first.: Aucune
     macro LED détectée sur votre imprimante. Ajoutez d'abord des macros Klipper pour
     le contrôle des LEDs.
@@ -1963,6 +1962,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Choisir
   Pick Color: Choisir la couleur
+  Pick up tool: ''
   Picking up tool: Prise de l'outil
   Pill: Pilule
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels avant
@@ -2163,7 +2163,6 @@ translations:
   Purge & Wipe: 'Purge et essuyage'
   Purge Length: 'Longueur de purge'
   'Purge failed: {}': 'Échec de la purge : {}'
-  Purge macro not configured: Macro de purge non configurée
   Purge may still be running — response timed out: Purge peut-être encore en cours
     — délai dépassé
   Purge to bucket: 'Purger dans le bac'
@@ -2247,6 +2246,7 @@ translations:
   Relative vibration: Vibration relative
   Release all stepper motors. Position will be lost.: Relâcher tous les moteurs pas
     à pas. La position sera perdue.
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): Restant (g)
@@ -2981,7 +2981,6 @@ translations:
   Touch & Input: Tactile et saisie
   Touch Cal: Cal tactile
   Touch Calibration: Calibration tactile
-  Touch Jitter Filter: Filtre de tremblement tactile
   Touch anywhere to test calibration: Touchez n'importe où pour tester la calibration
   Touch anywhere to verify accuracy: Touchez n'importe où pour vérifier la précision
   Touch input did not track the new calibration. Your previous settings were kept.: La saisie tactile n'a pas suivi la nouvelle calibration. Vos paramètres précédents ont été conservés.
@@ -3051,6 +3050,7 @@ translations:
   Unloads After Print: Décharge après l'impression
   Unlock: Déverrouiller
   Unmapped: Non mappé
+  Unmount: ''
   Unretract Extra: Extra de dérétraction
   Unretract Speed: Vitesse de dérétraction
   Unsupported tape width: Largeur de ruban non prise en charge

@@ -789,6 +789,7 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
             ui_spool_canvas_set_fill_level(canvas, 1.0f);
             lv_obj_add_flag(canvas, LV_OBJ_FLAG_EVENT_BUBBLE);
             sv.canvas = canvas;
+            lv_obj_set_name(canvas, "spool_graphic");
         }
     } else {
         // ====================================================================
@@ -831,6 +832,7 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
         lv_obj_remove_flag(filament_ring, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(filament_ring, LV_OBJ_FLAG_EVENT_BUBBLE);
         sv.color_swatch = filament_ring;
+        lv_obj_set_name(filament_ring, "spool_graphic");
 
         // Layer 3: Center hub
         lv_obj_t* hub = lv_obj_create(container);
@@ -870,6 +872,11 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
             lv_obj_align(plus, LV_ALIGN_CENTER, 0, 0);
             lv_obj_add_flag(plus, LV_OBJ_FLAG_EVENT_BUBBLE);
         }
+        // Named so lv_obj_find_by_name() reaches it — it is the one element that
+        // exists in both the flat and 3D branches, which makes it the stable
+        // handle for "is this lane rendering as unassigned-empty?" from tests
+        // and from `helix-screen ctl`.
+        lv_obj_set_name(ph, "empty_placeholder");
         sv.empty_placeholder = ph;
     }
 
@@ -942,15 +949,6 @@ void spool_visual_set_empty(const SpoolVisual& sv, bool empty) {
     show(sv.spool_outer, !empty);
     show(sv.color_swatch, !empty);
     show(sv.spool_hub, !empty);
-}
-
-void spool_visual_set_error(const SpoolVisual& sv, bool has_error) {
-    if (sv.error_indicator) {
-        if (has_error)
-            lv_obj_remove_flag(sv.error_indicator, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(sv.error_indicator, LV_OBJ_FLAG_HIDDEN);
-    }
 }
 
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {

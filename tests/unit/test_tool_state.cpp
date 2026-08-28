@@ -1111,6 +1111,74 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: clear_spool resets ToolInfo field
     ts.deinit_subjects();
 }
 
+TEST_CASE_METHOD(ToolStateFixture,
+                 "AmsState: clearing a lane's spool is not resurrected from ToolState",
+                 "[tool][tool-state][spool][ams]") {
+    // AmsState::sync_from_backend() runs the lane<->tool spool sync in BOTH
+    // directions, and picks which one by has_firmware_spool_persistence():
+    //
+    //   true  (AFC, Happy Hare) -> the lane is authoritative; a lane that lost
+    //                              its spool clears the tool.
+    //   false (everything else) -> ToolState is authoritative; the reverse pass
+    //                              copies tools[t].spoolman_id back onto any
+    //                              mapped lane reading 0.
+    //
+    // That predicate answers "does the FIRMWARE persist the spoolman id", which
+    // CFS and AD5X IFS honestly answer no to — they persist identity in our own
+    // lane_data override store instead. So they land in the ToolState-wins
+    // branch even though their lanes ARE authoritative, and a deliberate clear
+    // is undone by the very next poll: the lane briefly goes blank, then the
+    // old spool reappears. Reported on a K2 Plus (CFS) after "Clear Spool".
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array({"extruder", "heater_bed"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    // The mock inherits the base has_firmware_spool_persistence() == false and
+    // maps slot i -> tool i, so it stands in for CFS / AD5X IFS here.
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_operation_delay(0);
+    REQUIRE(mock->start());
+    auto* raw = mock.get();
+    AmsState::instance().deinit_subjects();
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().set_backend(std::move(mock));
+
+    // Lane 0 gains a Spoolman link; the forward pass mirrors it to tool 0.
+    {
+        SlotInfo s = raw->get_slot_info(0);
+        s.spoolman_id = 137;
+        s.spool_name = "Elegoo Black ASA";
+        REQUIRE(raw->set_slot_info(0, s).success());
+    }
+    AmsState::instance().sync_from_backend();
+    REQUIRE(raw->get_slot_info(0).mapped_tool == 0);
+    REQUIRE(ts.tools()[0].spoolman_id == 137);
+
+    // The user clears the lane — what commit_slot_edit() writes for the
+    // context menu's "Clear Spool".
+    {
+        SlotInfo s = raw->get_slot_info(0);
+        s.clear_spoolman_link();
+        s.spool_name.clear();
+        REQUIRE(raw->set_slot_info(0, s).success());
+    }
+    REQUIRE(raw->get_slot_info(0).spoolman_id == 0);
+
+    // ...and the next poll must leave it cleared, on both sides.
+    AmsState::instance().sync_from_backend();
+    CHECK(raw->get_slot_info(0).spoolman_id == 0);
+    CHECK(ts.tools()[0].spoolman_id == 0);
+
+    AmsState::instance().clear_backends();
+    ts.deinit_subjects();
+}
+
 TEST_CASE_METHOD(ToolStateFixture, "ToolState: assign_spool ignores invalid index",
                  "[tool][tool-state][spool]") {
     lv_init_safe();

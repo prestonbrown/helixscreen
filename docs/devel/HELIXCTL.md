@@ -52,10 +52,24 @@ helix-screen ctl                      # no command → also drops into the REPL
 
 > **Dev/test only.** The entire remote-control subsystem (server, transports,
 > and this client) is compiled in **only when `HELIX_ENABLE_REMOTE_CONTROL` is
-> defined** — the default for native dev builds. Release/cross builds for
-> shipped devices exclude it entirely (no code, no overhead). A plain `make -j`
-> builds it; to put it in a device dev image, build with
-> `make PLATFORM_TARGET=<t> ENABLE_REMOTE_CONTROL=yes`.
+> defined** — the default for every DEVELOPER build, native or cross. A plain
+> `make -j` builds it and so does `make PLATFORM_TARGET=<t>` or `make <t>-docker`,
+> so a test rig is drivable from your desk without remembering a flag. The
+> PRODUCTION packaging/release builds exclude it entirely (no code, no
+> overhead): `make package-*` sets `HELIX_PACKAGING=1`, CI's release workflow
+> passes it explicitly, and `make release-*` refuses outright to package a
+> binary whose `.build-features` stamp says the server is in it. Opt out of a
+> dev build with `make PLATFORM_TARGET=<t> ENABLE_REMOTE_CONTROL=no`.
+>
+> **`--help` lists the `--remote*` flags either way, so it cannot tell you which
+> build you have.** The CLI parser is compiled in unconditionally: a packaged
+> binary advertises `--remote`, `--remote-socket`, `--remote-transport` and the
+> HTTP pair, accepts them without complaint, and starts no server — while `ctl`
+> and `repl` are rejected as unknown arguments and the app tries to boot a second
+> instance instead. Interrogate the binary, not the help text:
+> `strings -a <bin> | grep -c list_callbacks` is `0` when the subsystem was
+> filtered out. Confirmed 2026-08-27 on a CB1 running packaged 0.99.116 (`0`,
+> `ctl` refused) against a K2 Plus running dev 0.99.117 (`2`, `ctl ping` → `pong`).
 >
 > **The matching deploy turns it on for you.** The build flag alone is only half
 > the story: the server still listens only under `--remote`, and the init scripts
@@ -371,7 +385,7 @@ connection, so the hold elapses with no client attached, and the command that fo
 re-samples the device in a way that restarts the press. `long_press` exists because the
 hold has to happen server-side. It latches the press, holds without touching the pointer
 while LVGL keeps sampling it on its own timer - exactly as under a resting finger - and
-then releases (`src/remote/remote_control_server.cpp:1998-2035`).
+then releases (`src/remote/remote_control_server.cpp:2004-2041`).
 
 `hold_ms` is optional. Omitted, the server derives the hold from the **configured**
 long-press time (`InputSettingsManager::get_long_press_time()`, the Touch & Input
@@ -401,7 +415,7 @@ helix-screen ctl release
 
 Separate commands are right for those last two: what matters is where the pointer goes,
 not how long it rests, and the press stays latched between connections. `long_press`
-always ends in its own release (`src/remote/remote_control_server.cpp:2031`), so a
+always ends in its own release (`src/remote/remote_control_server.cpp:2037`), so a
 hold-then-slide gesture - long-press to raise a popover, then slide onto it - has no
 single-command form.
 
@@ -433,10 +447,10 @@ not necessary to hit the gutter between tiles.
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** Entering Edit
 Mode already selects whatever widget was under the press and starts dragging it
 (`src/ui/ui_panel_home.cpp:954-958`), and `GridEditMode::handle_long_press` opens the
-catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp:1012-1046`) - so a
+catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp:1061-1095`) - so a
 second long press on a tile starts a drag instead. The nav bar's `+`
-(`ui_xml/navigation_bar.xml:22-28`) goes straight to `HomePanel::open_widget_catalog()`
-(`src/xml_registration.cpp:331-332`) with no such condition. A press that lands on empty
+(`ui_xml/navigation_bar.xml:24-30`) goes straight to `HomePanel::open_widget_catalog()`
+(`src/xml_registration.cpp:350-351`) with no such condition. A press that lands on empty
 grid selects nothing, and *then* a second long press does open the catalog - but the
 button is the case that always works.
 
@@ -455,9 +469,9 @@ hold (`src/ui/ui_panel_home.cpp:927`), and the synthetic pointer never moves dur
 
 **`home_edit_mode` is a read-only reflection - do not `set` it.** `ctl set home_edit_mode 1`
 returns success and does not enter Edit Mode. The subject is written by
-`GridEditMode::enter()` / `exit()` (`src/ui/grid_edit_mode.cpp:66`, `:120`); setting it by
+`GridEditMode::enter()` / `exit()` (`src/ui/grid_edit_mode.cpp:65`, `:120`); setting it by
 hand only unhides the nav bar's edit buttons, which bind to it
-(`ui_xml/navigation_bar.xml:25`). Clicking the `+` then still does nothing, because
+(`ui_xml/navigation_bar.xml:27`). Clicking the `+` then still does nothing, because
 `HomePanel::open_widget_catalog()` no-ops unless `grid_edit_mode_.is_active()`
 (`src/ui/ui_panel_home.cpp:1020-1024`). `long_press` is the only way in.
 
@@ -947,6 +961,7 @@ See `scripts/screenshot-recipes.sh` for every recognized token.
 - **Sample-data screens** — `helix::show_demo_overlay()` in
   `src/application/application.cpp`.
 - **Compile gate** — the whole subsystem is filtered out of the build unless
-  `ENABLE_REMOTE_CONTROL=yes` (`Makefile`); the `HELIX_ENABLE_REMOTE_CONTROL`
-  define guards the server start/stop, the demo bringup, and the `ctl`/`repl`
-  dispatch in `main.cpp`.
+  `ENABLE_REMOTE_CONTROL=yes` (`Makefile`), which is the default everywhere
+  except a production packaging build (`HELIX_PACKAGING=1`); the
+  `HELIX_ENABLE_REMOTE_CONTROL` define guards the server start/stop, the demo
+  bringup, and the `ctl`/`repl` dispatch in `main.cpp`.

@@ -114,9 +114,6 @@ void spool_visual_set_fill(const SpoolVisual& sv, float fill_level);
 /** Toggle the empty-slot placeholder vs. the spool graphic */
 void spool_visual_set_empty(const SpoolVisual& sv, bool empty);
 
-/** Toggle the error indicator dot */
-void spool_visual_set_error(const SpoolVisual& sv, bool has_error);
-
 /** Create a circular lane-number badge (1-based) using AMS badge tokens.
  *  @param parent typically the spool container; caller may re-align.
  *  @param active when true, uses the "success" accent color for the active (loaded) lane. */
@@ -124,7 +121,6 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
 
 // Shared dashed-circle draw callback for the empty-slot placeholder (moved here from
 // ui_ams_slot.cpp so both the overlay and the home widget share it).
-void draw_dashed_circle_cb(lv_event_t* e);
 
 // ============================================================================
 // Pulse Animation

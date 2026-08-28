@@ -1452,10 +1452,11 @@ The launcher translates these to `--remote` and `--remote-socket <path>`.
 **`make deploy-*` sets this for you** when the binary being deployed was built with
 `ENABLE_REMOTE_CONTROL=yes` — the link rule stamps `bin/.build-features` and the deploy's
 `sync-device-features` (`mk/cross.mk`) writes the key via `scripts/device-env-set.sh` before
-starting the app. Since `ENABLE_REMOTE_CONTROL` defaults to `no` for every cross target, a
-device binary only contains the server when someone asked for it explicitly, and having it
-compiled in but switched off is not a state anyone wants. An explicit `HELIX_REMOTE_CONTROL=0`
-in the file is preserved — the key is only rewritten when the value differs.
+starting the app. Every developer cross build carries the server (`ENABLE_REMOTE_CONTROL`
+defaults to `yes` unless `HELIX_PACKAGING=1` marks a production packaging build), so a rig you
+deploy to is drivable as soon as the deploy finishes — having it compiled in but switched off
+is not a state anyone wants. An explicit `HELIX_REMOTE_CONTROL=0` in the file is preserved —
+the key is only rewritten when the value differs.
 
 Off by default deliberately: the control socket can drive the entire UI — navigate, click,
 set values, capture screenshots — so it is a debugging aid to switch on for a session, not

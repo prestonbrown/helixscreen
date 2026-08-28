@@ -1809,7 +1809,7 @@ from `helix_version.h`; the macro is not visible anywhere else.
 #### FONT_TIERS
 
 Font faces are the largest single chunk of `.rodata`, so each target links only the
-tiers it can actually display. Legal values are `all` (the default, `mk/fonts.mk:107`)
+tiers it can actually display. Legal values are `all` (the default, `mk/fonts.mk:122`)
 or any subset of `micro tiny small medium large xlarge xxlarge`. Assignments live per
 target in `mk/cross.mk`:
 

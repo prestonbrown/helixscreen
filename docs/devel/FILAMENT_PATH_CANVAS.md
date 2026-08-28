@@ -299,7 +299,7 @@ devices without the caller branching.
 ## RenderCtx & Phase Decomposition
 
 The render pass threads a small context through every phase
-(`ui_filament_path_internal.h:362`):
+(`ui_filament_path_internal.h:391`):
 
 ```cpp
 struct RenderCtx {
@@ -355,7 +355,7 @@ three-function pass.
 
 ## Topology Renderers
 
-The supported topologies are `PathTopology` (`include/ams_types.h:493`):
+The supported topologies are `PathTopology` (`include/ams_types.h:544`):
 
 ```cpp
 enum class PathTopology {
@@ -367,7 +367,7 @@ enum class PathTopology {
 ```
 
 Filament position along a path is tracked by `PathSegment`
-(`include/ams_types.h:571`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
+(`include/ams_types.h:622`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
 NOZZLE`.
 
 | Topology | Renderer | Shape |
@@ -411,7 +411,7 @@ single source of truth, no geometry re-derivation.
 ### What invalidates what
 
 State setters call `layered_mark_dirty(obj, static_dirty, overlay_dirty)`
-(`ui_filament_path_layers.cpp:183`):
+(`ui_filament_path_layers.cpp:184`):
 
 ```cpp
 void layered_mark_dirty(lv_obj_t* obj, bool static_dirty, bool overlay_dirty) {

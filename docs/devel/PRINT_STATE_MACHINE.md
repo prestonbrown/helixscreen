@@ -140,10 +140,18 @@ guards now yield to a live preparing job.
 
 ### Reconciliation
 
-Only a **PRINTING** report settles a preparing job; a terminal report is the very
-scenario this exists for and leaves the claim intact. Matching is on the bare name
-after `resolve_gcode_filename()`, since the report may be path-qualified and a
-modification rewrite substitutes a temp file.
+A report the printer can only make about a job it has **taken** settles a preparing
+job -- `printer_has_job()`, so `PRINTING` or `PAUSED`. A terminal or idle report is
+the very scenario this exists for and leaves the claim intact. Matching is on the
+bare name after `resolve_gcode_filename()`, since the report may be path-qualified
+and a modification rewrite substitutes a temp file.
+
+`PAUSED` counts because Klipper reaches it only from an accepted job. A
+`PRINT_START` that pauses its own file -- `M25` while an asynchronous soak runs
+from `[delayed_gcode]`, power-loss recovery restoring a job, a runout during the
+purge line -- is a job the printer is holding. Requiring `PRINTING` left those
+claims armed until the half-hour watchdog retired them as `TimedOut`, and that path
+cools both heaters: a 65 minute ABS soak lost its bed 30 minutes in (#1365).
 
 | Exit | Meaning |
 |---|---|
@@ -159,9 +167,24 @@ observe it rather than relying on each start path remembering to tell them.
 
 ## Asking whether a job owns the machine
 
-`job_holds_machine(PrintState)` (`include/print_lifecycle_state.h`) is the answer
-to *"would acting now fight the printer for the toolhead?"*. True for
-`Preparing`, `Printing` and `Paused`.
+Two predicates, one per axis. Ask one of them rather than open-coding a comparison;
+the lint gate `scripts/check_raw_print_job_state.py` fails any raw read that does
+not say why it needs the wire.
+
+| Ask | When | True for |
+|---|---|---|
+| `job_holds_machine(PrintState)` (`include/print_lifecycle_state.h`) | "would acting now fight the printer for the toolhead?" | `Preparing`, `Printing`, `Paused` |
+| `printer_has_job(PrintJobState)` (`include/printer_state.h`) | "does the PRINTER report holding a job?" | `PRINTING`, `PAUSED` |
+
+`printer_has_job()` is the narrower, wire-level question, and several callers need
+exactly that: the Stop/Pause button routing, the preparing-claim reconciliation, the
+print-start collector's arm/teardown pair, telemetry's terminal-outcome edge, and
+anything gating on a sibling field like `print_filename` being fresh. Its 0/1
+subject mirror is `print_active`; its JSON form is
+`PrinterPrintState::status_indicates_active_print()`, defined in terms of it.
+
+`job_holds_machine(PrintState)` is the answer to *"would acting now fight the
+printer for the toolhead?"*. True for `Preparing`, `Printing` and `Paused`.
 
 Ask it before anything that emits G-code of its own -- motion, calibration,
 filament operations, tool changes, cooldowns, macro buttons. The subject-shaped
@@ -169,9 +192,9 @@ form for XML bindings is `job_holds_machine`, published from
 `PrinterPrintState::publish_lifecycle_state()` alongside `print_lifecycle` so the
 two can never be seen disagreeing.
 
-**Do not use `print_active` for this.** `print_active` is `PRINTING || PAUSED`
-read off `print_stats.state`, so it is 0 for the entire duration of a *host-side*
-pre-print block -- the K2's forced bed mesh being the motivating case -- while the
+**Do not use `print_active` for this.** `print_active` is the subject mirror of
+`printer_has_job()` (`PRINTING || PAUSED`) read off `print_stats.state`, so it is 0
+for the entire duration of a *host-side* pre-print block -- the K2's forced bed mesh being the motivating case -- while the
 toolhead is homing and probing. It remains correct for its own question ("is
 Moonraker running a job right now"), and card visibility and the discovery-time
 idle gate still want exactly that.
@@ -189,7 +212,7 @@ a private previous-state variable. `PrinterPrintState` publishes
 `print_lifecycle_prev` (`include/printer_print_state.h:321`-333) from the same
 place that computes the transition, with three deliberate properties:
 
-- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp:1432`-1437). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
+- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp:1526`-1531). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
 - **Written *before* `print_lifecycle`**, so an observer firing on the new value already sees a consistent pair.
 - **Initialized to `Idle`**, so booting straight into a terminal state reads as `Idle -> Complete` and correctly does not notify.
 

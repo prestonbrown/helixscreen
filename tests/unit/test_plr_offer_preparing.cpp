@@ -8,7 +8,7 @@
  * Run with: ./build/bin/helix-tests "[plr][print_state]"
  *
  * PlrOfferController computed its `printer_idle` signal from
- * is_active_print_state(print_stats.state), which counts only PRINTING and
+ * printer_has_job(print_stats.state), which counts only PRINTING and
  * PAUSED. During a host-side pre-print block the wire still reads standby, so
  * the controller considered the printer idle and offered "Resume interrupted
  * print?" on top of a start already under way - a modal ambush whose Resume

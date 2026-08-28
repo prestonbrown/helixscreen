@@ -63,6 +63,9 @@ PRIMARY_ROOTS = ('src/', 'include/', 'ui_xml/', 'scripts/', 'assets/', 'mk/',
 # README. Linking inside one would print the link markup at the reader.
 DISPLAY_SPAN_RE = re.compile(r'``.+?``')
 
+# A `:63-65` block suffix, so link_for can emit GitHub's `#L63-L65` span.
+RANGE_SUFFIX_RE = re.compile(r'^(\d+)[-\u2013](\d+)$')
+
 # One citation, either already wrapped in a link or bare. The linked form is
 # matched first so a rewrite re-derives its URL rather than nesting a new link
 # inside the old one; the bare form's lookbehind keeps it from matching the
@@ -138,6 +141,16 @@ def link_for(ref, doc, files, by_basename):
     url = os.path.relpath(target, doc_dir) if doc_dir else target
     if suffix.isdigit():               # a `:sym()` suffix gets no line anchor
         url += '#L' + suffix
+    else:
+        # A range names a block, and GitHub spells that `#L63-L65`. The end is
+        # anchored too so the reader lands on the whole block rather than its
+        # first line. (The guide's OTHER range spelling puts the end outside the
+        # backticks — `file.cpp:63`-65 — and that one is not ours to touch: the
+        # citation stops at the closing backtick, so it links as a point and the
+        # trailing `-65` stays plain text beside it.)
+        span = RANGE_SUFFIX_RE.match(suffix)
+        if span:
+            url += '#L%s-L%s' % (span.group(1), span.group(2))
     return '[`%s`](%s)' % (ref, url)
 
 

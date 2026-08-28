@@ -387,7 +387,11 @@ Turning bypass on also switches the toolhead runout sensor on at the printer (st
 
 ## Snapmaker U1 (SnapSwap)
 
-The Snapmaker U1 is a **4-toolhead changer**, not a shared-path AMS. Each of its four slots has its own independent toolhead, so the topology is **parallel** — slot 1 always feeds tool 0, slot 2 feeds tool 1, and so on (a direct 1-to-1 mapping). There is no hub or selector to share between slots.
+The Snapmaker U1 is a **4-toolhead changer**, not a shared-path AMS. Each of its four slots has its own independent toolhead, so the topology is **parallel** — every slot keeps its own spool permanently attached to its own tool. There is no hub or selector to share between slots.
+
+That fixed slot-to-toolhead pairing is not the same thing as which toolhead prints which part of your file. When you start a print, the printer is told which head to use for each colour in the file, matching on the filament that is actually loaded. So a file sliced with its first colour red will print red even if your red spool sits in the third slot — you do not have to rearrange spools to match the slicing order.
+
+The model preview on the print screen follows the same routing: each part of the model is drawn in the colour of the filament that will really print it, not in the slicer's slot order. If the preview colours look swapped compared to your slicing software, that is the preview showing you what the printer is actually going to do.
 
 ### RFID Detection
 

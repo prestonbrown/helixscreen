@@ -15,6 +15,7 @@ from .extractor import (
 )
 from .yaml_manager import (
     load_yaml_file,
+    load_yaml_file_readonly,
     require_ruamel,
     _entry_spans,
     _absorb_leading_comments,
@@ -126,6 +127,7 @@ def find_obsolete_keys(
     base_locale: str = "en",
     cpp_dir: Path = None,
     repo_root: Path = None,
+    extracted: Set[str] = None,
 ) -> Set[str]:
     """
     Find translation keys that are not referenced anywhere in the source tree.
@@ -137,17 +139,28 @@ def find_obsolete_keys(
         cpp_dir: Optional directory containing C++ source files
         repo_root: Repository root for the reference scan (defaults to the
             parent of xml_dir, i.e. the checkout containing ui_xml/)
+        extracted: The extractor's result for the same xml_dir/cpp_dir, when the
+            caller already has it. `sync` does - it extracts the very same two
+            trees to decide which keys are new - and re-running the C++ scan
+            here cost a second full second, half of what the whole dry run took
+            after the YAML loader was fixed. Purely a cache: passing it must not
+            change the result, which is what
+            tests/python/test_translation_sync.py::TestObsoleteExtractedCache
+            asserts. Leave it None and the scan runs as before.
 
     Returns:
         Set of obsolete key names
     """
-    # Extract all strings used in XML
-    used_strings = extract_strings_from_directory(xml_dir, recursive=True)
+    if extracted is not None:
+        used_strings = set(extracted)
+    else:
+        # Extract all strings used in XML
+        used_strings = extract_strings_from_directory(xml_dir, recursive=True)
 
-    # Also extract from C++ if directory provided
-    if cpp_dir and cpp_dir.exists():
-        cpp_strings = extract_strings_from_cpp_directory(cpp_dir, recursive=True)
-        used_strings.update(cpp_strings)
+        # Also extract from C++ if directory provided
+        if cpp_dir and cpp_dir.exists():
+            cpp_strings = extract_strings_from_cpp_directory(cpp_dir, recursive=True)
+            used_strings.update(cpp_strings)
 
     # Union in the recall-oriented reference scan. Without this, keys that are
     # only reached indirectly look unused and get deleted.
@@ -164,7 +177,7 @@ def find_obsolete_keys(
     if not base_path.exists():
         return set()
 
-    base_data = load_yaml_file(base_path)
+    base_data = load_yaml_file_readonly(base_path)
     base_translations = base_data.get("translations", {})
 
     if not base_translations:

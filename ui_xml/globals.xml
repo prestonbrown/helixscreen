@@ -14,6 +14,8 @@
     <px name="nav_padding" value="16"/>
     <!-- Modal backdrop opacity (0-255) -->
     <px name="modal_backdrop_opacity" value="120"/>
+    <!-- Ghosted lane cell opacity (0-255): LV_OPA_20 -->
+    <px name="ghost_opacity" value="51"/>
     <!-- border_radius is now resolved from BorderRadiusSizes table per breakpoint in C++ -->
     <!-- Fixed small radius for swatches/badges that always want 4px regardless of theme -->
     <px name="border_radius_small" value="4"/>
@@ -780,6 +782,7 @@
     <str name="icon_folder_open" value="󰝰"/>
     <str name="icon_folder_upload" value="󰉙"/>
     <str name="icon_fridge_industrial" value="󱗮"/>
+    <str name="icon_gauge" value="󰊚"/>
     <str name="icon_grid_large" value="󰝘"/>
     <str name="icon_grid_off" value="󰋂"/>
     <str name="icon_grid_view" value="󰕰"/>
@@ -927,6 +930,7 @@
     <str name="icon_volume_off" value="󰖁"/>
     <str name="icon_water" value="󰖌"/>
     <str name="icon_waveform" value="󱑽"/>
+    <str name="icon_webcam" value="󰖠"/>
     <str name="icon_weight" value="󰖡"/>
     <str name="icon_wifi" value="󰖩"/>
     <str name="icon_wifi_alert" value="󱚵"/>

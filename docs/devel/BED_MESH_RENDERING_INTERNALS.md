@@ -71,7 +71,7 @@ The bed mesh rendering system is a **complete 3D graphics pipeline** implemented
 
 ### Coordinate Space Transformations
 
-The renderer uses **4 distinct coordinate spaces** (see `bed_mesh_renderer.h:42-87`):
+The renderer uses **4 distinct coordinate spaces** (see `bed_mesh_renderer.h:36-60`):
 
 ```
 MESH SPACE (input)

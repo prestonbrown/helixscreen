@@ -3123,12 +3123,10 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         }
     }
 
-    // RAW_PRINT_STATE_OK: terminal-outcome classification is about what the
-    // printer reported, and a preparing job that never confirms is retired by
-    // PrinterPrintState rather than ending here.
-    // Detect transitions from active (PRINTING/PAUSED) to terminal states
-    bool was_active = (s_telemetry_prev_state == PrintJobState::PRINTING ||
-                       s_telemetry_prev_state == PrintJobState::PAUSED);
+    // Terminal-outcome classification is about what the PRINTER reported, so the
+    // wire question is the right one: a preparing job that never confirms is
+    // retired by PrinterPrintState and must not emit an outcome event here.
+    bool was_active = printer_has_job(s_telemetry_prev_state);
     bool is_terminal = (current == PrintJobState::COMPLETE || current == PrintJobState::CANCELLED ||
                         current == PrintJobState::ERROR);
 

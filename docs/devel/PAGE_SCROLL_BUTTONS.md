@@ -24,11 +24,11 @@ on top of somebody's content.
 | `include/page_scroll_controller.h` + `src/ui/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
 | `include/page_scroll_auto_inject.h` + `src/ui/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
 | `ui_xml/components/page_scroll_gutter.xml` | The chevron column itself. Created by the controller, never placed in screen XML |
-| `src/system/display_settings_manager.cpp:234-248` | The setting and its per-platform default |
+| `src/system/display_settings_manager.cpp:235-249` | The setting and its per-platform default |
 
-Registration is at `src/xml_registration.cpp:319` (the component) and `:782`
+Registration is at `src/xml_registration.cpp:322` (the component) and `:782`
 (`PageScrollAutoInject::init()`). Teardown is
-`src/application/application.cpp:4713`.
+`src/application/application.cpp:4799`.
 
 ---
 
@@ -64,8 +64,8 @@ re-init clears the observer list. An observer registered there would never fire.
 This is the part to read before you change anything.
 
 `on_root_shown(root)` is called from four places in `NavigationManager`, all of
-them "a root just became visible": `src/ui/ui_nav_manager.cpp:1402` (panel
-activate), `:1744` (initial panel), `:1979` and `:2085` (overlay push). It reads
+them "a root just became visible": `src/ui/ui_nav_manager.cpp:1431` (panel
+activate), `:1870` (initial panel), `:2105` and `:2211` (overlay push). It reads
 the setting live, prunes dead controllers, forces a layout pass so overflow is
 measurable, then walks.
 

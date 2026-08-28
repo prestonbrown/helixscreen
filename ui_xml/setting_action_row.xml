@@ -40,16 +40,17 @@
       <!-- Left side: Icon -->
       <icon name="row_icon" src="$icon" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
       <!-- Middle: Label and optional description -->
-      <lv_obj height="content"
-              style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" flex_grow="1" scrollable="false"
-              clickable="false" event_bubble="true">
-        <text_body name="label" text="$label" translation_tag="$label_tag">
+      <lv_obj width="0"
+              height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" flex_grow="1"
+              scrollable="false" clickable="false" event_bubble="true">
+        <text_body name="label" width="100%" text="$label" translation_tag="$label_tag" long_mode="wrap">
           <bind_style name="label_enabled" subject="$disabled" ref_value="0"/>
           <bind_style name="label_disabled" subject="$disabled" ref_value="1"/>
         </text_body>
         <!-- Description: hidden when breakpoint below description_min_bp (default 2) -->
         <text_small name="description"
-                    text="$description" translation_tag="$description_tag" bind_text="$bind_description">
+                    width="100%" text="$description" translation_tag="$description_tag" bind_text="$bind_description"
+                    long_mode="wrap">
           <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="$description_min_bp"/>
         </text_small>
       </lv_obj>

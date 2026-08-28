@@ -247,7 +247,7 @@ void AmsPanel::init_subjects() {
     // dialog up for the rest of the job (#1185).
     //
     // Edge INTO PRINTING, never a level: an error raised while the print is
-    // already running must stay on screen. helix::is_active_print_state() and
+    // already running must stay on screen. helix::printer_has_job() and
     // print_start_nav_should_navigate() are deliberately not used here — they
     // count PAUSED as active, so a PAUSED -> PRINTING resume is not an edge
     // under them, and an AFC fault normally pauses the print, which makes that

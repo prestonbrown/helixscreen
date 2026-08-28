@@ -165,6 +165,7 @@ const TokenEntry k_token_table[] = {
     {"px", "filament_ams_row_h_large", "88"},
     {"px", "nav_padding", "16"},
     {"px", "modal_backdrop_opacity", "120"},
+    {"px", "ghost_opacity", "51"},
     {"px", "border_radius_small", "4"},
     {"px", "border_radius_sm", "4"},
     {"px", "space_xxs_tiny", "1"},

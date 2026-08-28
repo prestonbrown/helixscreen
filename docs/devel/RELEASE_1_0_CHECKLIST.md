@@ -202,12 +202,16 @@ while running 0.99.111):
       document**, and a sweep of 43 untargeted settings survives every rollback
       depth. Mutation-verified.
 
-      **Five migrations are NOT idempotent**, and are pinned as current behavior
-      rather than fixed: `config.cpp:343` (jitter 15→5, fires below v3), `:446` and
-      `:488` (brightness 50→80, below v7/v9), `:457` (toolhead_style 2→5/3→2, a
-      rotation — below v8), `:812` (writes `recheck_pending` unconditionally, below
-      v18; the flag can invalidate a captured touch calibration at boot via
-      `should_invalidate_legacy_calibration`).
+      **Four migrations are NOT idempotent**, and are pinned as current behavior
+      rather than fixed: `config.cpp:464` and `:505` (brightness 50→80, below
+      v7/v9), `:474` (toolhead_style 2→5/3→2, a rotation — below v8), `:841`
+      (writes `recheck_pending` unconditionally, below v18; the flag can
+      invalidate a captured touch calibration at boot via
+      `should_invalidate_legacy_calibration`). The jitter 15→5 retune that used to
+      make a fifth is gone: `migrate_v2_to_v3` is an empty step now
+      (`src/system/config.cpp:367`), kept only so a v2 config still walks the
+      version chain, because `/input/jitter_threshold` never reached the input
+      pipeline and was removed (#1358).
 
       **Why this is accepted, not a blocker:** every one of them requires rolling
       the stamp below config_version 18, i.e. below v0.99.80 (2026-06-18). The

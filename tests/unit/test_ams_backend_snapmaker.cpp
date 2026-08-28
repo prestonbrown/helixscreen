@@ -2149,3 +2149,105 @@ TEST_CASE_METHOD(SnapmakerFixture,
     REQUIRE_FALSE(captured.success());
     REQUIRE(captured.result == AmsResult::COMMAND_FAILED);
 }
+
+// ============================================================================
+// last_print_tool_mapping — the routing a reprint has to replay
+// ============================================================================
+//
+// get_tool_mapping() answers "what routing is live right now" and deliberately
+// goes empty the moment extruders_used clears, which is exactly when a reprint
+// needs the answer. Nothing else on the reprint path can reconstruct it: there
+// is no detail view, no swatch card and no picker, so a remapped file could not
+// be reprinted at all — the empty remap resolved every used tool to its
+// firmware-default head and wrote that over the crossover.
+//
+// The snapshot is taken while the task is still configured, so it survives both
+// the gate closing and the firmware resetting its own table.
+
+namespace {
+/// print_task_config frame carrying a routing table and the used-heads flags.
+json make_task_config(const std::vector<int>& extruder_map, const std::vector<bool>& used) {
+    json map_arr = json::array();
+    for (int head : extruder_map) {
+        map_arr.push_back(head);
+    }
+    json used_arr = json::array();
+    for (bool b : used) {
+        used_arr.push_back(b);
+    }
+    return json{
+        {"print_task_config", json{{"extruder_map_table", map_arr}, {"extruders_used", used_arr}}}};
+}
+
+/// Firmware default: logical tools 0-3 on their own head, 4-31 on head 0.
+std::vector<int> identity_map() {
+    std::vector<int> m(32, 0);
+    for (int i = 0; i < 4; ++i) {
+        m[static_cast<size_t>(i)] = i;
+    }
+    return m;
+}
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker records the routing a configured task ran with",
+                 "[ams][snapmaker][reprint]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    // T0 crosses over to head 2, T2 to head 0 — the file that cannot be
+    // reprinted correctly today.
+    std::vector<int> crossover = identity_map();
+    crossover[0] = 2;
+    crossover[2] = 0;
+
+    SECTION("nothing is recorded before a task is configured") {
+        // Idle: the firmware reports its default table with no task. This is the
+        // reading that must NOT be mistaken for a print's routing — it is
+        // indistinguishable from a job that genuinely needs no remap.
+        SnapmakerTestAccess::handle_status(
+            backend, make_task_config(identity_map(), {false, false, false, false}));
+        REQUIRE(backend.get_tool_mapping().empty());
+        REQUIRE(backend.last_print_tool_mapping().empty());
+    }
+
+    SECTION("a configured task is recorded, and survives the task ending") {
+        SnapmakerTestAccess::handle_status(backend,
+                                           make_task_config(crossover, {true, false, true, false}));
+        REQUIRE(backend.get_tool_mapping() == crossover);
+        REQUIRE(backend.last_print_tool_mapping() == crossover);
+
+        // Print ends: the firmware clears extruders_used AND resets its table to
+        // the default. The live accessor correctly refuses to answer; the
+        // snapshot is what the reprint replays.
+        SnapmakerTestAccess::handle_status(
+            backend, make_task_config(identity_map(), {false, false, false, false}));
+        REQUIRE(backend.get_tool_mapping().empty());
+        REQUIRE(backend.last_print_tool_mapping() == crossover);
+    }
+
+    SECTION("a later task replaces the record") {
+        SnapmakerTestAccess::handle_status(backend,
+                                           make_task_config(crossover, {true, false, true, false}));
+        REQUIRE(backend.last_print_tool_mapping() == crossover);
+
+        std::vector<int> other = identity_map();
+        other[1] = 3;
+        SnapmakerTestAccess::handle_status(backend,
+                                           make_task_config(other, {false, false, false, true}));
+        REQUIRE(backend.last_print_tool_mapping() == other);
+    }
+
+    SECTION("a task-configured frame with no table yet records nothing") {
+        // extruders_used can land before the table on an incremental update.
+        // Snapshotting an empty table would publish "known: nothing", which
+        // reprint_remap cannot tell from a real answer.
+        json used_only = json{{"print_task_config",
+                               json{{"extruders_used", json::array({true, false, false, false})}}}};
+        SnapmakerTestAccess::handle_status(backend, used_only);
+        REQUIRE(backend.last_print_tool_mapping().empty());
+
+        // The table arriving in a later frame, task still configured, records it.
+        SnapmakerTestAccess::handle_status(
+            backend, make_task_config(crossover, {true, false, false, false}));
+        REQUIRE(backend.last_print_tool_mapping() == crossover);
+    }
+}

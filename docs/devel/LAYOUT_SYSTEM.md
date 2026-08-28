@@ -45,7 +45,7 @@ single file and branches in place on the `ui_is_portrait` subject:
 |-----------|----------|----------------------|
 | `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_status_panel.xml`, `portrait/print_tune_panel.xml` |
 | `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `motion_panel.xml:45`, `bed_mesh_panel.xml:99`, `temp_graph_overlay.xml` (3 sites) |
-| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `advanced_panel.xml:263-283` (the E-stop bar goes column instead of row) |
+| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `advanced_panel.xml:264-290` (the E-stop bar goes column instead of row) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `components/bed_mesh_current_mesh_card.xml:106-131` |
 
 Orientation is also composable with the breakpoint rather than separate from it:

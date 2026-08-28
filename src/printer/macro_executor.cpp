@@ -24,9 +24,28 @@ namespace helix {
 
 namespace {
 
-const std::unordered_set<std::string> DANGEROUS_MACROS = {
-    "SAVE_CONFIG", "FIRMWARE_RESTART", "RESTART", "SHUTDOWN", "M112", "EMERGENCY_STOP",
+// Split by what the host does afterwards, because that is what the user is told.
+// A restart comes back on its own; a halt sits there until someone intervenes.
+const std::unordered_set<std::string> RESTARTING_MACROS = {
+    "SAVE_CONFIG",
+    "FIRMWARE_RESTART",
+    "RESTART",
 };
+
+const std::unordered_set<std::string> HALTING_MACROS = {
+    "SHUTDOWN",
+    "M112",
+    "EMERGENCY_STOP",
+};
+
+// The union, and still the set that decides whether to confirm before running:
+// both families are equally worth a confirmation, they differ only in what is
+// said once the rpc comes back dropped.
+const std::unordered_set<std::string> DANGEROUS_MACROS = [] {
+    std::unordered_set<std::string> all = RESTARTING_MACROS;
+    all.insert(HALTING_MACROS.begin(), HALTING_MACROS.end());
+    return all;
+}();
 
 std::string upper_copy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
@@ -125,7 +144,7 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
 
     // Resolved before the send, not inside the callback: the callback runs on
     // the WebSocket thread, and PrinterDiscovery is not ours to read from there.
-    const bool restarts_host = is_dangerous_macro(macro_name, hw);
+    const MacroHostEffect host_effect = macro_host_effect(macro_name, hw);
 
     std::string macro_copy = macro_name;
     std::string tag_copy = caller_tag;
@@ -139,9 +158,21 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
                 ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
             });
         },
-        [tag_copy, macro_copy, display_name, restarts_host](const MoonrakerError& err) {
-            if (classify_macro_rpc_failure(restarts_host, err) ==
-                MacroFailureReport::ExpectedRestart) {
+        [tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
+            const MacroFailureReport report = classify_macro_rpc_failure(host_effect, err);
+            if (report == MacroFailureReport::ExpectedHalt) {
+                // The macro did what it said: the printer is stopped. Absorbed
+                // like a restart, but WITHOUT begin_expected_klippy_restart() -
+                // that suppresses the recovery dialog, and a halted printer needs
+                // it promptly. No toast either; the dialog is a full-screen modal
+                // that says more than a 3s INFO line could, and says it about a
+                // machine that is not coming back on its own.
+                spdlog::info("{} {} halted the host, so its rpc was dropped ({}) - "
+                             "leaving the recovery dialog to report it",
+                             tag_copy, macro_copy, err.message);
+                return;
+            }
+            if (report == MacroFailureReport::ExpectedRestart) {
                 spdlog::info("{} {} restarted the host, so its rpc was dropped ({}) - "
                              "reporting the restart rather than a failure",
                              tag_copy, macro_copy, err.message);
@@ -171,8 +202,14 @@ const std::unordered_set<std::string>& dangerous_command_names() {
     return DANGEROUS_MACROS;
 }
 
+namespace {
+
+/// The call-graph walk both public analyzers share, seeded with whichever
+/// command family is being looked for. One body, so the restart and halt answers
+/// cannot drift in how they propagate.
 std::unordered_set<std::string>
-analyze_host_restarting_macros(const nlohmann::json& config_settings) {
+analyze_macros_reaching(const nlohmann::json& config_settings,
+                        const std::unordered_set<std::string>& seed) {
     std::unordered_set<std::string> flagged;
     if (!config_settings.is_object()) {
         return flagged;
@@ -193,7 +230,7 @@ analyze_host_restarting_macros(const nlohmann::json& config_settings) {
         std::string name = upper_copy(section.substr(PREFIX_LEN));
         std::vector<std::string> tokens = command_tokens(gcode->get<std::string>());
         for (const auto& token : tokens) {
-            if (DANGEROUS_MACROS.count(token) > 0) {
+            if (seed.count(token) > 0) {
                 flagged.insert(name);
                 break;
             }
@@ -227,6 +264,25 @@ analyze_host_restarting_macros(const nlohmann::json& config_settings) {
     return flagged;
 }
 
+} // namespace
+
+std::unordered_set<std::string>
+analyze_host_restarting_macros(const nlohmann::json& config_settings) {
+    return analyze_macros_reaching(config_settings, RESTARTING_MACROS);
+}
+
+std::unordered_set<std::string> analyze_host_halting_macros(const nlohmann::json& config_settings) {
+    return analyze_macros_reaching(config_settings, HALTING_MACROS);
+}
+
+const std::unordered_set<std::string>& host_restarting_command_names() {
+    return RESTARTING_MACROS;
+}
+
+const std::unordered_set<std::string>& host_halting_command_names() {
+    return HALTING_MACROS;
+}
+
 bool is_dangerous_macro(const std::string& name) {
     return DANGEROUS_MACROS.count(upper_copy(name)) > 0;
 }
@@ -235,10 +291,27 @@ bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw) {
     return is_dangerous_macro(name) || hw.macro_restarts_host(name);
 }
 
-MacroFailureReport classify_macro_rpc_failure(bool macro_restarts_host, const MoonrakerError& err) {
-    if (!macro_restarts_host) {
+MacroHostEffect macro_host_effect(const std::string& name, const PrinterDiscovery& hw) {
+    const std::string upper = upper_copy(name);
+    // Halts first: a macro reaching both leaves the host down, and that is the
+    // answer the user has to be given.
+    if (HALTING_MACROS.count(upper) > 0 || hw.macro_halts_host(name)) {
+        return MacroHostEffect::Halts;
+    }
+    if (RESTARTING_MACROS.count(upper) > 0 || hw.macro_restarts_host(name)) {
+        return MacroHostEffect::Restarts;
+    }
+    return MacroHostEffect::None;
+}
+
+MacroFailureReport classify_macro_rpc_failure(MacroHostEffect effect, const MoonrakerError& err) {
+    if (effect == MacroHostEffect::None) {
         return MacroFailureReport::Error;
     }
+
+    const MacroFailureReport expected = effect == MacroHostEffect::Halts
+                                            ? MacroFailureReport::ExpectedHalt
+                                            : MacroFailureReport::ExpectedRestart;
 
     switch (err.type) {
     case MoonrakerErrorType::CONNECTION_LOST:
@@ -246,7 +319,7 @@ MacroFailureReport classify_macro_rpc_failure(bool macro_restarts_host, const Mo
     case MoonrakerErrorType::NOT_READY:
         // The socket, the reply, or Klipper itself went away. Nothing here can
         // be Klipper's opinion of the macro.
-        return MacroFailureReport::ExpectedRestart;
+        return expected;
     default:
         break;
     }
@@ -257,7 +330,7 @@ MacroFailureReport classify_macro_rpc_failure(bool macro_restarts_host, const Mo
     // carrying its complaint ("Unknown command", "Must home axis first"), so the
     // text is what separates them.
     if (err.code == 503 || contains_klippy_disconnect(err.message)) {
-        return MacroFailureReport::ExpectedRestart;
+        return expected;
     }
     return MacroFailureReport::Error;
 }

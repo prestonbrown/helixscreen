@@ -76,6 +76,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     // State queries
+    /// Four physical heads, up to 32 logical tools: [0,1,2,3,0,0,...]. Verified
+    /// live against print_task_config.extruder_map_table on a U1.
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override {
+        return helix::FirmwareRouting::fixed_heads(NUM_TOOLS, 0);
+    }
+
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
 
@@ -245,6 +251,39 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] std::string build_preprint_gcode(const std::set<int>& tools_used,
                                                    const std::map<int, int>& remap) const override;
 
+    /// The builder above, as a free-standing function.
+    ///
+    /// It reads no member state — the routing is entirely a function of its two
+    /// arguments — so the virtual is a one-line forward to this. Exposed because
+    /// the mock backend has to emit the SAME bytes when emulating a U1: it
+    /// advertises requires_preprint_send() and so promises the controller there
+    /// is work to do, and returning nothing there made the whole remap chain a
+    /// silent no-op under --test. Calling this keeps the command format in ONE
+    /// place; a copy in the mock would teach the wrong shape the moment the
+    /// format moved.
+    [[nodiscard]] static std::string preprint_gcode(const std::set<int>& tools_used,
+                                                    const std::map<int, int>& remap);
+
+    /// Applied logical-tool -> physical-head routing for the CURRENT print.
+    ///
+    /// The capability question generic code asks; the vendor knowledge (that the
+    /// answer is print_task_config.extruder_map_table) stops here. Callers must
+    /// not reach for the firmware field themselves.
+    ///
+    /// Empty until the first status frame carrying the table arrives, which the
+    /// caller must read as "no opinion" and fall back on, NOT as "identity".
+    ///
+    /// Capabilities are deliberately left unsupported/non-editable: this backend
+    /// applies remaps through its pre-print send, not the generic
+    /// set_tool_mapping() path, and reporting support would pull it into
+    /// build_ams_topology() and the mapping save/restore flow it does not use.
+    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
+
+    /// The routing observed while a print task was configured — what a reprint
+    /// replays. See the base declaration; the member it reads is
+    /// last_task_extruder_map_.
+    [[nodiscard]] std::vector<int> last_print_tool_mapping() const override;
+
     // Static parsers (public for testing)
     static ExtruderToolState parse_extruder_state(const nlohmann::json& json);
     static SnapmakerRfidInfo parse_rfid_info(const nlohmann::json& json);
@@ -262,6 +301,49 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     friend class ::RunoutScopeTestAccess;
 
     static constexpr int NUM_TOOLS = 4;
+
+    /// Firmware routing: logical tool index -> physical head index, mirrored from
+    /// print_task_config.extruder_map_table (32 logical entries, 4 heads).
+    ///
+    /// This is the U1's authoritative answer to "which head prints Tn", not a
+    /// guess: klippy routes BOTH tool ranges through it (T0-T3 via the default
+    /// A=1 on SWITCH_EXTRUDER_ADVANCED, T4-T31 unconditionally), and its own
+    /// runout auto-replenish rewrites this table to redirect a logical tool at a
+    /// replacement head. See docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md §
+    /// "How `Tn` resolves to a physical head".
+    ///
+    /// Deliberately NOT folded into system_info_.tool_to_slot_map: that field
+    /// means physical attachment (which head holds which spool, trivially
+    /// identity here) and is read as such by the Load/Unload resolver and the
+    /// persisted tool-map ledger. Routing and attachment are different questions
+    /// that only coincide when nothing is remapped.
+    std::vector<int> extruder_map_table_;
+
+    /// print_task_config.extruders_used — which physical heads the CURRENT task
+    /// uses. All-false means no task is configured, which is the gate that makes
+    /// extruder_map_table_ readable at all: idle, the table reads a default
+    /// identity [0,1,2,3] that is indistinguishable from "this print needs no
+    /// remap" and is flatly wrong for a file whose tools do not line up with the
+    /// lanes. The firmware sets this only when a task is set up (our pre-print
+    /// SET_PRINT_USED_EXTRUDERS, or the Snapmaker screen/cloud doing the same)
+    /// and clears it when the print ends. Observed live: idle
+    /// [F,F,F,F] + map [0,1,2,3]; mid-print [F,F,T,F] + map [2,1,2,3].
+    std::vector<bool> extruders_used_;
+
+    /// extruder_map_table_ as it read while a task WAS configured — the routing
+    /// the most recent print actually ran with.
+    ///
+    /// extruder_map_table_ alone cannot answer that after the fact: the gate that
+    /// makes it readable closes when the print ends, and the firmware resets the
+    /// table to its default identity, so both a finished crossover and a job that
+    /// needed no remap read the same. Captured on every print_task_config frame
+    /// that arrives with the gate open, which also means the U1's own runout
+    /// auto-replenish rewrite is captured — a reprint should follow the heads the
+    /// print finished on, not the ones it was planned with.
+    ///
+    /// Empty until a configured task has been seen. Written only from
+    /// handle_status_update under mutex_; read by last_print_tool_mapping().
+    std::vector<int> last_task_extruder_map_;
 
     /// Per-extruder cached state
     std::array<ExtruderToolState, NUM_TOOLS> extruder_states_;

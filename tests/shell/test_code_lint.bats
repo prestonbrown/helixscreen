@@ -716,3 +716,77 @@ EOF
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
+
+# --- History lazy loads must use ensure_loaded(), never fetch() ---
+# PrintHistoryManager::fetch() is the INVALIDATION entry point: when a request
+# is already out it arms one re-issue, because a response issued before a delete
+# cannot describe that delete. ensure_loaded() is the LAZY-LOAD entry point and
+# returns instead, since the in-flight response already serves the caller.
+#
+# Every invalidation lives inside the manager itself, driven by Moonraker's
+# notify_history_changed / notify_filelist_changed. So fetch() has no legitimate
+# caller in src/ outside print_history_manager.cpp, and any that reappears is a
+# lazy load that pulls the whole 500-job list twice.
+#
+# 19bfc451e split the two intents and converted the three panels, leaving the
+# two home-panel widgets on fetch(). Bundles G3FE69L7 / P6HCTHQH (AD5X,
+# v0.99.116) then caught four lazy loads arming the re-issue during startup,
+# queued behind a first list that took 9.0s. tests/ is out of scope: a fixture
+# priming a fresh manager with nothing in flight is an honest fetch().
+
+history_lazy_fetch_offenders() {
+    local dir="$1"
+    grep -rnE '(history[A-Za-z_]*|hm)->fetch\(' "$dir" --include='*.cpp' --include='*.h' \
+        | grep -v '/print_history_manager\.cpp:' || true
+}
+
+@test "history lazy loads use ensure_loaded(), not fetch()" {
+    run history_lazy_fetch_offenders src
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the history lazy-load gate fires on a reintroduced fetch()" {
+    # Meta-test: a gate that cannot fail is not a gate. This is the exact shape
+    # the four converted call sites had.
+    local d="${BATS_TEST_TMPDIR}/history_bad"
+    mkdir -p "$d"
+    cat > "$d/offender.cpp" <<'EOF'
+    if (auto* hm = get_print_history_manager()) {
+        hm->add_observer(&history_cb_);
+        if (!hm->is_loaded()) {
+            hm->fetch();
+        }
+    }
+EOF
+    cat > "$d/deferred.cpp" <<'EOF'
+    auto* history = get_print_history_manager();
+    if (history && !history->is_loaded()) {
+        history->fetch();
+    }
+EOF
+    run history_lazy_fetch_offenders "$d"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"hm->fetch("* ]]
+    [[ "$output" == *"history->fetch("* ]]
+}
+
+@test "the history lazy-load gate stays quiet on ensure_loaded and other fetchers" {
+    local d="${BATS_TEST_TMPDIR}/history_ok"
+    mkdir -p "$d"
+    cat > "$d/converted.cpp" <<'EOF'
+    if (auto* hm = get_print_history_manager()) {
+        hm->add_observer(&history_cb_);
+        hm->ensure_loaded();
+    }
+EOF
+    cat > "$d/job_queue.cpp" <<'EOF'
+    if (auto* jqs = get_job_queue_state()) {
+        jqs->fetch();
+    }
+    get_thumbnail_cache().fetch(path, cb);
+EOF
+    run history_lazy_fetch_offenders "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}

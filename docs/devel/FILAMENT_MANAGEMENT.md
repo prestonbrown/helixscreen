@@ -613,7 +613,7 @@ the precise string verbatim is what caused the original bug: OrcaSlicer resolves
 unmatched `material` to **the first library preset whose name contains "PLA"**
 (Preset.cpp:3300), and because that bogus id then resolves cleanly it
 **short-circuits the similarity search** that would otherwise have found a closer
-type (`PresetBundle.cpp:3320-3346`). So `ASA-GF` synced as *Generic PLA* — PLA
+type (PresetBundle.cpp:3320-3346). So `ASA-GF` synced as *Generic PLA* — PLA
 temperatures on a glass-filled ASA — while the color came through untouched.
 (Verified against the pinned OrcaSlicer source, not secondhand docs.)
 
@@ -918,6 +918,49 @@ field naming OrcaSlicer, its repo URL, the pinned tag, and its license, e.g.:
 ```json
 "_attribution": "Factual filament data derived from OrcaSlicer (github.com/SoftFever/OrcaSlicer, tag v2.4.1, AGPL-3.0). No OrcaSlicer profile files are shipped."
 ```
+
+---
+
+## How a lane presents itself
+
+Every surface that draws an AMS lane answers the same question first: does this
+lane have filament, did it keep an identity after being ejected, or is it simply
+unused. That question has one implementation — `classify_lane()` in
+`include/ams_lane_state.h` — and three answers:
+
+| `LaneState` | Meaning | Spool rendering | Bar rendering |
+|-------------|---------|-----------------|---------------|
+| `Present` | has filament | spool at fill level | bar at fill level |
+| `Ghosted` | ejected, identity retained (#1071) | whole cell dimmed, last known fill | same |
+| `Empty` | no filament, no identity | placeholder + "Empty" | nothing — the gap is the signal |
+
+Two things about this are deliberate and easy to undo by accident:
+
+**Ghosting dims the whole cell, never one element.** The spool, the material
+label and the percent fade together, applied with `lv_obj_set_style_opa()` on the
+widget root using the `ghost_opacity` token. A per-element opacity produces a
+ghost too faint to read — a bar's fill is only a pixel or two tall at the sizes
+bar mode actually runs at, so the dimming has to be what carries the signal.
+
+**A ghosted lane shows its last known fill.** That reverses `a106413f6`, where an
+emptied lane rendered a full-strength 75% bar and read as loaded. It is safe only
+because the whole cell is dimmed: the dimming is the disclaimer. Do not reuse
+`lane_fill_level()`'s ghosted value on a surface that does not dim.
+
+`UNKNOWN` is classified exactly as `EMPTY`, so it inherits the identity split. It
+is not a steady state on any backend — every `SlotStatus::UNKNOWN` assignment is
+skeleton construction before firmware data lands — so treating it as `Present`
+would briefly show filament in a lane that has none.
+
+Loaded-ness and error are **decorations** layered over a base state, from their
+own subjects. A blocked lane still has filament; an active lane is still
+`Present`.
+
+The classification is published per lane as `ams_slot_<n>_lane_state`;
+`ams_lane_bar` consumes it. Converting the remaining surfaces
+(`ui_ams_mini_status` bar and spool modes, `ui_panel_ams_overview` mini-bars,
+`ams_slot`) is tracked in prestonbrown/helixscreen#1368, which also carries the
+open question of how much of the per-lane loop can be expressed in XML.
 
 ---
 
@@ -1885,7 +1928,7 @@ Where the override lands, by backend:
 | Happy Hare | Runtime from `[mmu_machine] has_bypass`; `false` until first status | Only when `has_bypass: 0` | Consults `bypass_available_for()`; `MMU_SELECT_BYPASS` runs |
 | CFS | Converges on first full box frame: true (Fork: + payload `external` entry) | no | Consults `bypass_available_for()` — real `T<external>` on Fork, sensor-derived declaration on stock |
 | ACE | Hardcoded `false` (`ams_backend_ace.cpp:44`) | yes | `not_supported` |
-| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:240`) | yes | `not_supported` |
+| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:241`) | yes | `not_supported` |
 | Tool Changer | Hardcoded `false` (`:31`) | yes | `not_supported` |
 | QIDI Box | Hardcoded `false` (`:193`) | yes | `not_supported` |
 
@@ -1916,7 +1959,7 @@ The input is `AmsState::any_bypass_active()`, which polls every backend's `is_by
 Two things it is deliberately **not**:
 
 - **Not `AmsSystemInfo::current_slot == -2`.** The AFC backend sets that at
-  `ams_backend_afc.cpp:2241` while parsing `bypass_state`, but nine later writes in the same
+  `ams_backend_afc.cpp:2253` while parsing `bypass_state`, but nine later writes in the same
   file can overwrite it — including the mount-state derivation from #1229, which is
   intentionally unguarded so it cannot re-latch. `is_bypass_active()` returns the firmware's own
   report and is stable.
@@ -2199,6 +2242,39 @@ enum class AmsType {
 ```
 
 Update `ams_type_to_string()`, `ams_type_from_string()`, and the `is_filament_system()` / `is_tool_changer()` helpers as appropriate.
+
+### 1b. Declare the firmware default routing (only if it is not lane-per-tool)
+
+`AmsBackend::firmware_default_routing()` answers which physical head a logical
+tool routes to with **no remap applied** - the firmware's own default map. The
+base implementation is lane-per-tool (tool N owns lane N), which is correct for
+AFC, Happy Hare, klipper-toolchanger, CFS, QIDI and ACE, so most backends
+override nothing.
+
+Override only when the hardware genuinely disagrees:
+
+```cpp
+// Snapmaker U1: four physical heads, up to 32 logical tools -> [0,1,2,3,0,0,...]
+[[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override {
+    return helix::FirmwareRouting::fixed_heads(NUM_TOOLS, 0);
+}
+```
+
+`AmsBackendAd5xIfs` is the third shape: it publishes an arbitrary 16-entry
+tool -> port table, so it builds `FirmwareRouting::head_for_tool` directly (ports
+are 1-based there and `5` is the unmapped sentinel).
+
+**This is not the live map.** `AmsSystemInfo::tool_to_slot_map` carries what the
+firmware is doing right now, and it is not uniformly available - an AFC tracks it,
+a U1 freezes `mapped_tool` at 1:1 while its real map lives in
+`print_task_config.extruder_map_table`. Seeding from the live map therefore means
+different things per backend; seed from the default map instead.
+
+Three consumers read this and they must all agree: the mapping-card seed
+(`FilamentMapper::use_current_assignments`), the wire filter
+(`FilamentMapper::identity_filtered_remap`), and the runout lane scan
+(`FilamentSensorManager`). Answering them differently is a silent bug - a
+lane-per-tool identity read as a genuine remap, or a runout watch on lane 0.
 
 ### 2. Add Detection in PrinterDiscovery
 

@@ -72,6 +72,15 @@ lv_opa_t material_opa(lv_obj_t* slot) {
     return lv_obj_get_style_text_opa(label, LV_PART_MAIN);
 }
 
+/// The dashed "add filament here" circle that replaces the spool on a lane with
+/// no identity. Created in both the flat and 3D spool branches, so unlike
+/// spool_outer/canvas it is a style-independent handle on the spool visual.
+bool placeholder_visible(lv_obj_t* slot) {
+    lv_obj_t* ph = lv_obj_find_by_name(slot, "empty_placeholder");
+    REQUIRE(ph != nullptr);
+    return !lv_obj_has_flag(ph, LV_OBJ_FLAG_HIDDEN);
+}
+
 /// Strip every identity handle off a lane so it reads as "never assigned".
 ///
 /// Status goes through force_slot_status(), not set_slot_info(): status is
@@ -150,6 +159,9 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_slot: unassigned empty lane reads Empty on
     CHECK(material_text(slot.obj) == std::string(lv_tr("Empty")));
     // Full strength — an unassigned lane is not a ghost, it is a named blank.
     CHECK(material_opa(slot.obj) == LV_OPA_COVER);
+    // ...and the spool visual is replaced by the dashed "add filament" circle,
+    // the other half of the same rule.
+    CHECK(placeholder_visible(slot.obj));
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "ams_slot: assigned ejected lane keeps its material, ghosted",
@@ -166,6 +178,9 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_slot: assigned ejected lane keeps its mate
 
     CHECK(material_text(slot.obj) == "PETG");
     CHECK(material_opa(slot.obj) == LV_OPA_20);
+    // A retained identity ghosts the real spool rather than swapping in the
+    // placeholder — the inverse of the unassigned case above.
+    CHECK_FALSE(placeholder_visible(slot.obj));
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "ams_slot: present lane shows its material at full strength",

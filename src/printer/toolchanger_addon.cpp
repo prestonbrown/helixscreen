@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <string_view>
 
 namespace helix::toolchanger_addon {
 namespace {
@@ -211,11 +212,15 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
         saw_anything = true;
     }
 
-    // Irbis3D: "operation" (idle/picking/dropping). Fork: "state".
+    // Irbis3D: "operation" (idle/picking/dropping). topi314: "state"
+    // (uninitialized/ready/changing/error). Read in that order, upstream first.
+    // These are NOT interchangeable spellings - only `operation` names the swap
+    // direction - so which key answered is recorded alongside the value.
     for (const char* key : {"operation", "state"}) {
         auto it = obj.find(key);
         if (it != obj.end() && it->is_string()) {
             r.operation = it->get<std::string>();
+            r.phase_names_direction = (std::string_view(key) == "operation");
             saw_anything = true;
             break;
         }
@@ -264,6 +269,13 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     }
     if (auto loaded = bool_field(obj, "head_loaded")) {
         r.head_loaded = *loaded;
+        saw_anything = true;
+    }
+    // Published by both controllers, under the same name. Left nullopt when
+    // absent on purpose: a machine that never reports the gripper is not a
+    // machine whose gripper is closed.
+    if (auto feeder = bool_field(obj, "feeder_open")) {
+        r.feeder_open = *feeder;
         saw_anything = true;
     }
 

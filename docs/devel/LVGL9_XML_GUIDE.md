@@ -699,7 +699,7 @@ This means `lv_obj` acts as a pure layout container *visually* by default - no b
 ```
 
 `helix-screen ctl geom <name>` reports the `scrollable` flag and the scroll extents, so it
-tells you directly whether a container is scrollable (see `HELIXCTL.md:566-567`).
+tells you directly whether a container is scrollable (see `HELIXCTL.md:580-581`).
 
 ### Flex Layout (Flexbox)
 
@@ -761,6 +761,53 @@ box where they get clipped away and look like they were never created.
 
 Symptom to recognise: `ctl geom` reports the row at a few px (its padding alone)
 and the children at `h=0`. Real example: prestonbrown/helixscreen#1208.
+
+#### Text never wraps inside a `flex_grow` column
+
+The width counterpart of the trap above, and it fails *silently* rather than
+visibly. A label left at its default width is `LV_SIZE_CONTENT`, so it lays out
+on **one line** however long the string is, and the parent clips the overflow.
+Nothing logs. It looks correct in English on a wide panel and truncates on a
+narrow one or in a longer language.
+
+Adding `long_mode="wrap"` alone does nothing — `wrap` is already the LVGL
+default, and a content-width label has no width to wrap against. Adding
+`width="100%"` alone is worse: a percentage-sized child is **dropped from its
+parent's content-width calculation** (`w_ignore_size`, `lv_obj_pos.c`), so a
+`width="content"` parent collapses to its widest *non*-percentage child.
+
+All three attributes are one unit:
+
+```xml
+<!-- ❌ description renders 416px wide inside a 380px row, clipped -->
+<lv_obj height="content" flex_flow="column" flex_grow="1">
+  <text_body name="label" text="$label"/>
+  <text_small name="description" text="$description"/>
+</lv_obj>
+
+<!-- ✅ width="0" makes the grow column's width come from the flex leftover,
+     which the percentage children then have something to resolve against -->
+<lv_obj height="content" width="0" flex_flow="column" flex_grow="1">
+  <text_body name="label" width="100%" text="$label" long_mode="wrap"/>
+  <text_small name="description" width="100%" text="$description" long_mode="wrap"/>
+</lv_obj>
+```
+
+`width="0"` is not a literal zero — for a `flex_grow` item it just means "take
+no base width into the track calculation", which is what grow items do anyway.
+It exists to stop the column content-sizing itself off the unwrapped label.
+
+A label that is a direct child of a container with a real width (a `width="100%"`
+column view, say) needs only its own `width="100%" long_mode="wrap"` — there is
+no grow column in between to neutralise. `ui_xml/setting_slider_row.xml` is that
+shape; the other `setting_*_row.xml` components are the three-attribute shape.
+
+Reach for `long_mode="dots"` instead when the row must stay exactly one line
+(filenames, spool names) — then a determinate width is still required, and the
+string ellipsizes rather than wrapping.
+
+Regression cover: `tests/unit/test_setting_row_description_wrap.cpp` asserts the
+wrapped label is taller than one line and never wider than the row.
 
 #### Flex Alignment (Three Properties — You Need ALL THREE to Center!)
 

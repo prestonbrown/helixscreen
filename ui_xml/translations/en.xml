@@ -315,7 +315,6 @@
   <translation tag="Bypass Mode" en="Bypass Mode"/>
   <translation tag="Bypass active — this print runs on the external spool." en="Bypass active — this print runs on the external spool."/>
   <translation tag="Bypass cannot be changed while printing" en="Bypass cannot be changed while printing"/>
-  <translation tag="Bypass controlled by hardware sensor" en="Bypass controlled by hardware sensor"/>
   <translation tag="Bypass controlled by sensor" en="Bypass controlled by sensor"/>
   <translation tag="Bypass disabled" en="Bypass disabled"/>
   <translation tag="Bypass enabled" en="Bypass enabled"/>
@@ -349,7 +348,6 @@
   <translation tag="Calibrate and tune scroll feel" en="Calibrate and tune scroll feel"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" en="Calibrate input shaping to reduce ringing artifacts in prints"/>
   <translation tag="Calibrate your touchscreen for accurate input" en="Calibrate your touchscreen for accurate input"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" en="Calibrate, tune jitter and scroll feel"/>
   <translation tag="Calibrated" en="Calibrated"/>
   <translation tag="Calibrating Probe..." en="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..." en="Calibrating bed mesh..."/>
@@ -422,6 +420,7 @@
   <translation tag="Change Printer Host" en="Change Printer Host"/>
   <translation tag="Change Tool" en="Change Tool"/>
   <translation tag="Change Tool While Paused" en="Change Tool While Paused"/>
+  <translation tag="Change tool" en="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." en="Changes apply immediately. Adjust during print for tuning."/>
   <translation tag="Changes are temporary and reset on printer reboot" en="Changes are temporary and reset on printer reboot"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." en="Changes can be reversed anytime using the Macro Viewer."/>
@@ -650,7 +649,6 @@
   <translation tag="Date (newest)" en="Date (newest)"/>
   <translation tag="Date (oldest)" en="Date (oldest)"/>
   <translation tag="Day" en="Day"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" en="Dead zone in pixels (raise if taps register as swipes; 0 disables)"/>
   <translation tag="Debug" en="Debug"/>
   <translation tag="Default border thickness" en="Default border thickness"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" en="Default: %d-%d°C nozzle, %d°C bed"/>
@@ -704,6 +702,8 @@
   <translation tag="Do not power off your printer." en="Do not power off your printer."/>
   <translation tag="Do not touch the printer during calibration" en="Do not touch the printer during calibration"/>
   <translation tag="Dock" en="Dock"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted" en="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool" en="Dock tool"/>
   <translation tag="Docking tool" en="Docking tool"/>
   <translation tag="Documentation" en="Documentation"/>
   <translation tag="Don&apos;t Save" en="Don&apos;t Save"/>
@@ -810,6 +810,8 @@
   <translation tag="Error: Invalid download" en="Error: Invalid download"/>
   <translation tag="Error: No update available" en="Error: No update available"/>
   <translation tag="Error: Not enough disk space" en="Error: Not enough disk space"/>
+  <translation tag="Error: Previous download still finishing" en="Error: Previous download still finishing"/>
+  <translation tag="Error: This install can&apos;t update itself" en="Error: This install can&apos;t update itself"/>
   <translation tag="Error: Verification failed" en="Error: Verification failed"/>
   <translation tag="Error: Wrong architecture" en="Error: Wrong architecture"/>
   <translation tag="Error: `unzip` not installed" en="Error: `unzip` not installed"/>
@@ -986,7 +988,6 @@
   <translation tag="Filament is pulling tight" en="Filament is pulling tight"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." en="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool."/>
   <translation tag="Filament load failed: {}" en="Filament load failed: {}"/>
-  <translation tag="Filament loaded" en="Filament loaded"/>
   <translation tag="Filament operation failed" en="Filament operation failed"/>
   <translation tag="Filament operation timed out" en="Filament operation timed out"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." en="Filament ran out - nothing at the toolhead and the print is paused."/>
@@ -1062,6 +1063,7 @@
   <translation tag="Good Accuracy" en="Good Accuracy"/>
   <translation tag="Got it" en="Got it"/>
   <translation tag="Gray" en="Gray"/>
+  <translation tag="Grip filament" en="Grip filament"/>
   <translation tag="Grip the filament" en="Grip the filament"/>
   <translation tag="Guides and reference" en="Guides and reference"/>
   <translation tag="H" en="H"/>
@@ -1464,6 +1466,7 @@
   <translation tag="Motors Off" en="Motors Off"/>
   <translation tag="Motors disable failed: {}" en="Motors disable failed: {}"/>
   <translation tag="Motors disabled" en="Motors disabled"/>
+  <translation tag="Mount" en="Mount"/>
   <translation tag="Move" en="Move"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." en="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides."/>
   <translation tag="Move selector" en="Move selector"/>
@@ -1489,7 +1492,7 @@
   <translation tag="Name" en="Name"/>
   <translation tag="Name (optional)" en="Name (optional)"/>
   <translation tag="Name:" en="Name:"/>
-  <translation tag="Named actions in the LED control panel (long-press)." en="Named actions in the LED control panel (long-press)."/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." en="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" en="Needs adjustment"/>
   <translation tag="Needs the {} package to switch spools" en="Needs the {} package to switch spools"/>
   <translation tag="Net Weight (g)" en="Net Weight (g)"/>
@@ -1519,7 +1522,6 @@
   <translation tag="No Camera" en="No Camera"/>
   <translation tag="No Filament Detected" en="No Filament Detected"/>
   <translation tag="No History" en="No History"/>
-  <translation tag="No LED macros detected on your printer." en="No LED macros detected on your printer."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." en="No LED macros detected on your printer. Add Klipper macros for LED control first."/>
   <translation tag="No LED macros detected. Type a macro name below." en="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" en="No LED strips detected"/>
@@ -1734,6 +1736,7 @@
   <translation tag="Phomemo M110" en="Phomemo M110"/>
   <translation tag="Pick" en="Pick"/>
   <translation tag="Pick Color" en="Pick Color"/>
+  <translation tag="Pick up tool" en="Pick up tool"/>
   <translation tag="Picking up tool" en="Picking up tool"/>
   <translation tag="Pill" en="Pill"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" en="Pixels before a press becomes a scroll (lower = scrolls engage sooner)"/>
@@ -1907,7 +1910,6 @@
   <translation tag="Purge &amp; Wipe" en="Purge &amp; Wipe"/>
   <translation tag="Purge Length" en="Purge Length"/>
   <translation tag="Purge failed: {}" en="Purge failed: {}"/>
-  <translation tag="Purge macro not configured" en="Purge macro not configured"/>
   <translation tag="Purge may still be running — response timed out" en="Purge may still be running — response timed out"/>
   <translation tag="Purge to bucket" en="Purge to bucket"/>
   <translation tag="Purge tower and brush settings" en="Purge tower and brush settings"/>
@@ -1981,6 +1983,7 @@
   <translation tag="Reheating..." en="Reheating..."/>
   <translation tag="Relative vibration" en="Relative vibration"/>
   <translation tag="Release all stepper motors. Position will be lost." en="Release all stepper motors. Position will be lost."/>
+  <translation tag="Release filament" en="Release filament"/>
   <translation tag="Release or grip the filament by hand" en="Release or grip the filament by hand"/>
   <translation tag="Release the filament" en="Release the filament"/>
   <translation tag="Remaining (g)" en="Remaining (g)"/>
@@ -2581,7 +2584,6 @@
   <translation tag="Touch &amp; Input" en="Touch &amp; Input"/>
   <translation tag="Touch Cal" en="Touch Cal"/>
   <translation tag="Touch Calibration" en="Touch Calibration"/>
-  <translation tag="Touch Jitter Filter" en="Touch Jitter Filter"/>
   <translation tag="Touch anywhere to test calibration" en="Touch anywhere to test calibration"/>
   <translation tag="Touch anywhere to verify accuracy" en="Touch anywhere to verify accuracy"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." en="Touch input did not track the new calibration. Your previous settings were kept."/>
@@ -2644,6 +2646,7 @@
   <translation tag="Unloads After Print" en="Unloads After Print"/>
   <translation tag="Unlock" en="Unlock"/>
   <translation tag="Unmapped" en="Unmapped"/>
+  <translation tag="Unmount" en="Unmount"/>
   <translation tag="Unretract Extra" en="Unretract Extra"/>
   <translation tag="Unretract Speed" en="Unretract Speed"/>
   <translation tag="Unsupported tape width" en="Unsupported tape width"/>

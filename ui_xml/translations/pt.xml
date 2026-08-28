@@ -315,7 +315,6 @@
   <translation tag="Bypass Mode" pt="Modo Bypass"/>
   <translation tag="Bypass active — this print runs on the external spool." pt="Bypass ativo: esta impressão usa o carretel externo."/>
   <translation tag="Bypass cannot be changed while printing" pt="O bypass não pode ser alterado durante a impressão"/>
-  <translation tag="Bypass controlled by hardware sensor" pt="Bypass controlado por sensor de hardware"/>
   <translation tag="Bypass controlled by sensor" pt="Bypass controlado por sensor"/>
   <translation tag="Bypass disabled" pt="Bypass desativado"/>
   <translation tag="Bypass enabled" pt="Bypass ativado"/>
@@ -349,7 +348,6 @@
   <translation tag="Calibrate and tune scroll feel" pt="Calibrar e ajustar a sensação de rolagem"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" pt="Calibrar input shaping para reduzir artefatos de ringing nas impressões"/>
   <translation tag="Calibrate your touchscreen for accurate input" pt="Calibrar a tela touch para entrada precisa"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" pt="Calibrar, ajustar tremulação e sensação de rolagem"/>
   <translation tag="Calibrated" pt="Calibrado"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -422,6 +420,7 @@
   <translation tag="Change Printer Host" pt="Alterar Host da Impressora"/>
   <translation tag="Change Tool" pt="Trocar Ferramenta"/>
   <translation tag="Change Tool While Paused" pt="Trocar Ferramenta com Impressão Pausada"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." pt="Alterações aplicadas imediatamente. Ajuste durante a impressão para calibrar."/>
   <translation tag="Changes are temporary and reset on printer reboot" pt="Alterações são temporárias e resetam ao reiniciar a impressora"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." pt="As alterações podem ser revertidas a qualquer momento usando o Macro Viewer."/>
@@ -650,7 +649,6 @@
   <translation tag="Date (newest)" pt="Data (mais recente)"/>
   <translation tag="Date (oldest)" pt="Data (mais antigo)"/>
   <translation tag="Day" pt="Dia"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" pt="Zona morta em pixels (aumente se toques forem registados como deslizes; 0 desativa)"/>
   <translation tag="Debug" pt="Depuração"/>
   <translation tag="Default border thickness" pt="Espessura padrão da borda"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" pt="Padrão: %d-%d°C bico, %d°C mesa"/>
@@ -704,6 +702,8 @@
   <translation tag="Do not power off your printer." pt="Não desligue sua impressora."/>
   <translation tag="Do not touch the printer during calibration" pt="Não toque na impressora durante a calibração"/>
   <translation tag="Dock" pt="Encaixar"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" pt="Encaixando ferramenta"/>
   <translation tag="Documentation" pt="Documentação"/>
   <translation tag="Don&apos;t Save" pt="Não Salvar"/>
@@ -810,6 +810,8 @@
   <translation tag="Error: Invalid download" pt="Erro: Download inválido"/>
   <translation tag="Error: No update available" pt="Erro: Nenhuma atualização disponível"/>
   <translation tag="Error: Not enough disk space" pt="Erro: Espaço em disco insuficiente"/>
+  <translation tag="Error: Previous download still finishing" pt="Erro: O download anterior ainda não terminou"/>
+  <translation tag="Error: This install can&apos;t update itself" pt="Erro: Esta instalação não pode atualizar-se"/>
   <translation tag="Error: Verification failed" pt="Erro: Verificação falhou"/>
   <translation tag="Error: Wrong architecture" pt="Erro: Arquitetura incorreta"/>
   <translation tag="Error: `unzip` not installed" pt="Erro: `unzip` não instalado"/>
@@ -986,7 +988,6 @@
   <translation tag="Filament is pulling tight" pt="O filamento está puxando com tensão"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." pt="O filamento ainda está no bico após o descarregamento. O corte ou a retração pode não ter sido concluído. Limpe o cabeçote antes de carregar outro carretel."/>
   <translation tag="Filament load failed: {}" pt="Falha ao carregar filamento: {}"/>
-  <translation tag="Filament loaded" pt="Filamento carregado"/>
   <translation tag="Filament operation failed" pt="Falha na operação de filamento"/>
   <translation tag="Filament operation timed out" pt="Operação de filamento — tempo esgotado"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." pt="O filamento acabou - não há nada no cabeçote e a impressão está pausada."/>
@@ -1062,6 +1063,7 @@
   <translation tag="Good Accuracy" pt="Boa Precisão"/>
   <translation tag="Got it" pt="Entendi"/>
   <translation tag="Gray" pt="Cinza"/>
+  <translation tag="Grip filament"/>
   <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" pt="Guias e referência"/>
   <translation tag="H" pt="H"/>
@@ -1464,6 +1466,7 @@
   <translation tag="Motors Off" pt="Desligar Motores"/>
   <translation tag="Motors disable failed: {}" pt="Falha ao desativar motores: {}"/>
   <translation tag="Motors disabled" pt="Motores desativados"/>
+  <translation tag="Mount"/>
   <translation tag="Move" pt="Mover"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." pt="Mova o papel para frente e para trás enquanto ajusta. Pare quando o papel prender levemente, mas ainda deslizar."/>
   <translation tag="Move selector" pt="Mover seletor"/>
@@ -1489,7 +1492,7 @@
   <translation tag="Name" pt="Nome"/>
   <translation tag="Name (optional)" pt="Nome (opcional)"/>
   <translation tag="Name:" pt="Nome:"/>
-  <translation tag="Named actions in the LED control panel (long-press)." pt="Ações nomeadas no painel de controle LED (pressionar e segurar)."/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" pt="Precisa de ajuste"/>
   <translation tag="Needs the {} package to switch spools" pt="Precisa do plugin {} para trocar de carretel"/>
   <translation tag="Net Weight (g)" pt="Peso Líquido (g)"/>
@@ -1519,7 +1522,6 @@
   <translation tag="No Camera" pt="Sem câmera"/>
   <translation tag="No Filament Detected" pt="Filamento Não Detectado"/>
   <translation tag="No History" pt="Sem Histórico"/>
-  <translation tag="No LED macros detected on your printer." pt="Nenhuma macro de LED detectada na sua impressora."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." pt="Nenhuma macro de LED detectada na sua impressora. Adicione macros Klipper para controle de LED primeiro."/>
   <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" pt="Nenhuma fita LED detectada"/>
@@ -1734,6 +1736,7 @@
   <translation tag="Phomemo M110" pt="Phomemo M110"/>
   <translation tag="Pick" pt="Escolher"/>
   <translation tag="Pick Color" pt="Escolher Cor"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" pt="Pegando ferramenta"/>
   <translation tag="Pill" pt="Pílula"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" pt="Pixels antes de uma pressão se tornar rolagem (menor = ativa mais cedo)"/>
@@ -1907,7 +1910,6 @@
   <translation tag="Purge &amp; Wipe" pt="Purgar e limpar"/>
   <translation tag="Purge Length" pt="Comprimento de purga"/>
   <translation tag="Purge failed: {}" pt="Falha ao purgar: {}"/>
-  <translation tag="Purge macro not configured" pt="Macro de purga não configurado"/>
   <translation tag="Purge may still be running — response timed out" pt="A purga pode ainda estar em execução — tempo esgotado"/>
   <translation tag="Purge to bucket" pt="Purgar no recipiente"/>
   <translation tag="Purge tower and brush settings" pt="Configurações da torre de purga e da escova"/>
@@ -1981,6 +1983,7 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" pt="Vibração relativa"/>
   <translation tag="Release all stepper motors. Position will be lost." pt="Liberar todos os motores de passo. A posição será perdida."/>
+  <translation tag="Release filament"/>
   <translation tag="Release or grip the filament by hand"/>
   <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" pt="Restante (g)"/>
@@ -2581,7 +2584,6 @@
   <translation tag="Touch &amp; Input" pt="Toque e entrada"/>
   <translation tag="Touch Cal" pt="Cal de Toque"/>
   <translation tag="Touch Calibration" pt="Calibração de Toque"/>
-  <translation tag="Touch Jitter Filter" pt="Filtro de tremulação do toque"/>
   <translation tag="Touch anywhere to test calibration" pt="Toque em qualquer lugar para testar a calibração"/>
   <translation tag="Touch anywhere to verify accuracy" pt="Toque em qualquer lugar para verificar a precisão"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." pt="A entrada de toque não acompanhou a nova calibração. Suas configurações anteriores foram mantidas."/>
@@ -2644,6 +2646,7 @@
   <translation tag="Unloads After Print" pt="Descarrega após a impressão"/>
   <translation tag="Unlock" pt="Desbloquear"/>
   <translation tag="Unmapped" pt="Não mapeado"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" pt="Extra de Desretração"/>
   <translation tag="Unretract Speed" pt="Velocidade de Desretração"/>
   <translation tag="Unsupported tape width" pt="Largura de fita não suportada"/>

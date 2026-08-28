@@ -100,7 +100,6 @@ All developer documentation lives here. When working on features, look up the re
 | `printers/CREALITY_K2_SUPPORT.md` | Creality K2 series platform |
 | `printers/FLASHFORGE_AD5X_SUPPORT.md` | FlashForge Adventurer 5X (MIPS, ZMOD) |
 | `YOCTO_BUILD.md` | Building HelixScreen as a Yocto recipe |
-| `SNAPMAKER_U1_PRINT_TASK_CONFIG.md` | Snapmaker U1 native `print_task_config` filament/tool-mapping command API |
 | `AD5M_KMOD_VARIANT.md` | Building HelixScreen as a native variant inside the AD5M Klipper Mod firmware |
 | `plans/ESP32_NATIVE_AUDIT.md` | ESP32-S3 (BTT K-Touch) native-port feasibility audit — memory/flash/render budgets behind the `firmware/` port |
 | `ENVIRONMENT_VARIABLES.md` | All runtime and build env vars |
@@ -118,7 +117,7 @@ All developer documentation lives here. When working on features, look up the re
 
 | Doc | When to read |
 |-----|-------------|
-| `plans/` | The single tracked home for in-flight plans and specs — **point-in-time, not current truth.** Scaffolding, deleted in the same change that ships the work (lifecycle convention: `../CLAUDE.md`). A plan records what was intended when it was written; several prescribe approaches the shipped code has since diverged from, and they read as instructions. Verify every predicate against the code before following one. Live example: `plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md:63-65` tells you to gate on `head_filament_`, which `include/ams_backend_ad5x_ifs.h:808-825` now documents as untrustworthy on its own — the shipped gate is `head_switch_seen_ && !head_switch_present_`. |
+| `plans/` | The single tracked home for in-flight plans and specs — **point-in-time, not current truth.** Scaffolding, deleted in the same change that ships the work (lifecycle convention: `../CLAUDE.md`). A plan records what was intended when it was written; several prescribe approaches the shipped code has since diverged from, and they read as instructions. Verify every predicate against the code before following one. Live example: `plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md:118-120` tells you to gate on `head_filament_`, which `include/ams_backend_ad5x_ifs.h:80-83` now documents as untrustworthy on its own — the shipped gate is `head_switch_seen_ && !head_switch_present_`. |
 | `printer-research/` | Printer-specific research notes |
 | `printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md` | AD5X IFS protocol reverse engineering |
 | `printer-research/ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md` | Kobra S1 + ACE Pro real-log analysis: mainline-Python Klipper fork path (`[ace_status]`), command surface, inventory model |

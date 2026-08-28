@@ -310,15 +310,34 @@ std::vector<std::string> listeners_on_port(uint16_t port) {
     return out;
 }
 
-std::vector<ProcMatch> find_moonraker_processes() {
+std::vector<ProcMatch> select_moonraker_processes(const std::vector<ProcMatch>& candidates) {
     // "klippy" rather than "klipper": the process is klippy.py, and matching
     // "klipper" alone would also hit every path containing the klipper dir.
-    static const std::vector<std::string> NEEDLES = {"moonraker", "klippy"};
+    static const std::vector<std::string> DAEMON_NEEDLES = {"moonraker", "klippy"};
+
+    // Anything naming our own binary is us, however many daemon needles it also
+    // carries — helix-screen's argv can name a moonraker URL. Checked after the
+    // daemon needles and never instead of them: counting ourselves would turn
+    // "Moonraker is not running" into "one moonraker process found", the exact
+    // opposite of the finding the bundle is being read for.
+    static const std::vector<std::string> SELF_NEEDLES = {"helix-screen"};
 
     std::vector<ProcMatch> out;
+    for (const auto& proc : candidates) {
+        if (!cmdline_matches_any(proc.cmdline, DAEMON_NEEDLES))
+            continue;
+        if (cmdline_matches_any(proc.cmdline, SELF_NEEDLES))
+            continue;
+        out.push_back(proc);
+    }
+    return out;
+}
+
+std::vector<ProcMatch> find_moonraker_processes() {
+    std::vector<ProcMatch> candidates;
     std::error_code ec;
     if (!fs::is_directory("/proc", ec))
-        return out;
+        return candidates;
 
     for (const auto& entry : fs::directory_iterator("/proc", ec)) {
         if (ec)
@@ -330,23 +349,18 @@ std::vector<ProcMatch> find_moonraker_processes() {
 
         std::ifstream cmd(entry.path() / "cmdline", std::ios::binary);
         if (!cmd.is_open())
-            continue;
+            continue; // the process exited between the readdir and the open
         std::string raw((std::istreambuf_iterator<char>(cmd)), std::istreambuf_iterator<char>());
-        const std::string cmdline = decode_proc_cmdline(raw);
-        if (cmdline.empty() || !cmdline_matches_any(cmdline, NEEDLES))
-            continue;
-
-        // Skip ourselves: helix-screen's own argv can name a moonraker URL.
-        if (cmdline.find("helix-screen") != std::string::npos)
-            continue;
 
         ProcMatch m;
+        m.cmdline = decode_proc_cmdline(raw);
+        if (m.cmdline.empty())
+            continue; // kernel thread: no argv to match on, and no daemon either
         m.pid = std::strtol(name.c_str(), nullptr, 10);
-        m.cmdline = cmdline;
-        out.push_back(std::move(m));
+        candidates.push_back(std::move(m));
     }
 
-    return out;
+    return select_moonraker_processes(candidates);
 }
 
 LocalIncludePlan plan_local_include(const std::vector<ProcMatch>& procs,

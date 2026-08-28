@@ -2509,3 +2509,95 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: naming a draft promotes i
 
     ctrl.deinit();
 }
+
+// ============================================================================
+// status_tracked_strip: which selected strip Klipper actually reports
+// ============================================================================
+
+TEST_CASE_METHOD(LedControllerFixture,
+                 "LedController: status_tracked_strip skips macro and WLED strips",
+                 "[led][controller]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedStripInfo native_strip;
+    native_strip.name = "Chamber Light";
+    native_strip.id = "neopixel chamber_light";
+    native_strip.backend = helix::led::LedBackendType::NATIVE;
+    ctrl.native().add_strip(native_strip);
+
+    helix::led::LedStripInfo wled_strip;
+    wled_strip.name = "Printer LED";
+    wled_strip.id = "wled_printer_led";
+    wled_strip.backend = helix::led::LedBackendType::WLED;
+    ctrl.wled().add_strip(wled_strip);
+
+    helix::led::LedStripInfo pin;
+    pin.name = "Enclosure LEDs";
+    pin.id = "output_pin Enclosure_LEDs";
+    pin.backend = helix::led::LedBackendType::OUTPUT_PIN;
+    ctrl.output_pin().add_pin(pin);
+
+    helix::led::LedMacroInfo toggle;
+    toggle.display_name = "Nozzle LED";
+    toggle.type = helix::led::MacroLedType::TOGGLE;
+    toggle.toggle_macro = "TOGGLE_NOZZLE_LED";
+    helix::led::LedMacroInfo on_off;
+    on_off.display_name = "Cabinet";
+    on_off.type = helix::led::MacroLedType::ON_OFF;
+    on_off.on_macro = "CABINET_ON";
+    on_off.off_macro = "CABINET_OFF";
+    ctrl.set_configured_macros({toggle, on_off});
+
+    // The settings screen persists the selection from a std::set, so a "macro:"
+    // ID sorts ahead of "neopixel ..." — the front strip is the one that is NOT
+    // in any status payload. The tracked strip must be the native one anyway.
+    ctrl.set_selected_strips({"macro:Nozzle LED", "neopixel chamber_light"});
+    REQUIRE(ctrl.status_tracked_strip() == "neopixel chamber_light");
+
+    // An output_pin is equally reportable.
+    ctrl.set_selected_strips({"macro:Cabinet", "output_pin Enclosure_LEDs"});
+    REQUIRE(ctrl.status_tracked_strip() == "output_pin Enclosure_LEDs");
+
+    // WLED lives behind Moonraker's HTTP proxy, not printer.objects.
+    ctrl.set_selected_strips({"wled_printer_led"});
+    REQUIRE(ctrl.status_tracked_strip().empty());
+
+    // Macro-only selections have nothing to track: the light button must fall
+    // back to the controller's own intent instead of a frozen subject.
+    ctrl.set_selected_strips({"macro:Cabinet"});
+    REQUIRE(ctrl.status_tracked_strip().empty());
+
+    ctrl.set_selected_strips({});
+    REQUIRE(ctrl.status_tracked_strip().empty());
+
+    ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedControllerFixture,
+                 "LedController: an ON_OFF macro device alternates on and off",
+                 "[led][controller][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo on_off;
+    on_off.display_name = "Cabinet";
+    on_off.type = helix::led::MacroLedType::ON_OFF;
+    on_off.on_macro = "CABINET_ON";
+    on_off.off_macro = "CABINET_OFF";
+    ctrl.set_configured_macros({on_off});
+    ctrl.set_selected_strips({"macro:Cabinet"});
+
+    // Nothing reports this device's state, so light_is_on() is the only source
+    // of truth a light button can consult. It must move on every press.
+    REQUIRE(ctrl.status_tracked_strip().empty());
+    REQUIRE(!ctrl.light_is_on());
+    ctrl.light_set(!ctrl.light_is_on());
+    REQUIRE(ctrl.light_is_on());
+    ctrl.light_set(!ctrl.light_is_on());
+    REQUIRE(!ctrl.light_is_on());
+
+    ctrl.deinit();
+}

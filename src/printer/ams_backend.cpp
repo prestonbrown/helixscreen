@@ -458,6 +458,21 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
         spdlog::info("[AMS Backend] Mock AMS disabled via HELIX_MOCK_AMS=none");
         return nullptr;
     }
+    // The MedusaHC modes are mock HARDWARE, not a mock backend: MoonrakerClientMock
+    // seeds the discovery objects and status a real hotend changer publishes, and
+    // the point is to exercise the production AmsBackendToolChanger +
+    // toolchanger_addon path against them. Declining here is what lets real
+    // discovery run, the same escape hatch HELIX_MOCK_AMS=none uses.
+    if (mock_ams_env) {
+        const std::string mode = to_lower(mock_ams_env);
+        if (mode == "medusahc" || mode == "medusa" || mode == "mhc" || mode == "medusahc-fork" ||
+            mode == "medusa-fork") {
+            spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
+                         "backend - deferring to real discovery",
+                         mode);
+            return nullptr;
+        }
+    }
 
     spdlog::debug("[AMS Backend] Creating mock backend with {} gates (mock mode enabled)",
                   config->mock_ams_gate_count);

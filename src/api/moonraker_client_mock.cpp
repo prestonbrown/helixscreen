@@ -848,8 +848,11 @@ void MoonrakerClientMock::populate_capabilities() {
     // Moonraker plugins
     mock_objects.push_back("timelapse"); // Moonraker-Timelapse plugin
 
-    // MMU/AMS system - Happy Hare uses "mmu" object name
-    if (mmu_enabled_) {
+    // MMU/AMS system - Happy Hare uses "mmu" object name.
+    // Suppressed in the MedusaHC modes: the default mock ships "mmu", which
+    // detects Happy Hare and would stand a second AMS backend up alongside the
+    // tool changer. A real MedusaHC has no MMU.
+    if (mmu_enabled_ && !is_mock_medusahc()) {
         mock_objects.push_back("mmu");
     }
 
@@ -920,6 +923,51 @@ void MoonrakerClientMock::populate_capabilities() {
         for (int i = 0; i < 4; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
+    }
+
+    // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-fork]): a hotend changer
+    // bolted onto klipper-toolchanger. Unlike the toolchanger mode above this
+    // does NOT build an AmsBackendMock - try_create_mock() declines these values
+    // - so the objects pushed here are what real discovery sees, and the
+    // production AmsBackendToolChanger + toolchanger_addon path runs against
+    // them. Each variant emits the object set its controller actually has, so
+    // toolchanger_addon's detection and schema discrimination are exercised at
+    // runtime and not only in the unit tests.
+    // See docs/devel/FILAMENT_BACKEND_MEDUSAHC.md § "Two shipping configurations".
+    if (const MedusaVariant variant = mock_medusa_variant(); variant != MedusaVariant::NONE) {
+        // The fork drops both halves of the Irbis3D signature; [medusahc] alone
+        // is the only thing left to detect on.
+        if (variant != MedusaVariant::FORK) {
+            mock_objects.push_back("pin_watch io");
+            mock_objects.push_back("toolchanger");
+            for (int i = 0; i < 4; ++i) {
+                mock_objects.push_back("tool T" + std::to_string(i));
+            }
+        } else {
+            // No [tool N] objects: the tools are named from the extruder heaters
+            // (one hot end per extruder), and T<n> drives the swap.
+            for (int i = 0; i < 4; ++i) {
+                mock_objects.push_back("gcode_macro T" + std::to_string(i));
+            }
+        }
+        // Every MedusaHC runs one of the two Python extras, so [medusahc] is
+        // always present.
+        mock_objects.push_back("medusahc");
+        // Sibling object on a real controller. Present so the exact-match rule
+        // in PrinterDiscovery (which must NOT claim it) has something to not
+        // claim.
+        mock_objects.push_back("medusahc_calibrate");
+        // Feeder macros. The Irbis3D controller registers the native MHC_*
+        // commands and ships legacy OPEN/CLOSE aliases forwarding to them, so
+        // both are present there and detection should prefer MHC_OPEN.
+        if (variant == MedusaVariant::CONTROLLER) {
+            mock_objects.push_back("gcode_macro MHC_OPEN");
+            mock_objects.push_back("gcode_macro MHC_CLOSE");
+        }
+        mock_objects.push_back("gcode_macro OPEN");
+        mock_objects.push_back("gcode_macro CLOSE");
+        spdlog::info("[MoonrakerClientMock] MedusaHC mock: variant={}",
+                     variant == MedusaVariant::CONTROLLER ? "controller" : "fork");
     }
 
     // Parse objects into hardware discovery (unified hardware access)
@@ -1277,6 +1325,163 @@ bool MoonrakerClientMock::is_mock_toolchanger() const {
     return ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc";
 }
 
+MoonrakerClientMock::MedusaVariant MoonrakerClientMock::mock_medusa_variant() const {
+    const char* ams_env = std::getenv("HELIX_MOCK_AMS");
+    if (!ams_env || !ams_env[0]) {
+        return MedusaVariant::NONE;
+    }
+    std::string ams_type(ams_env);
+    std::transform(ams_type.begin(), ams_type.end(), ams_type.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (ams_type == "medusahc-fork" || ams_type == "medusa-fork") {
+        return MedusaVariant::FORK;
+    }
+    if (ams_type == "medusahc" || ams_type == "medusa" || ams_type == "mhc") {
+        return MedusaVariant::CONTROLLER;
+    }
+    return MedusaVariant::NONE;
+}
+
+bool MoonrakerClientMock::is_mock_medusahc() const {
+    return mock_medusa_variant() != MedusaVariant::NONE;
+}
+
+nlohmann::json MoonrakerClientMock::medusa_status_json() const {
+    const MedusaVariant variant = mock_medusa_variant();
+    if (variant == MedusaVariant::NONE) {
+        return nlohmann::json::object();
+    }
+
+    constexpr int kToolCount = 4;
+    const int current = medusa_current_tool_.load();
+    const int target = medusa_target_tool_.load();
+    const bool sensor_error = medusa_sensor_error_.load();
+    const int phase = medusa_phase_.load();
+    const char* operation = (phase == 1) ? "dropping" : (phase == 2) ? "picking" : "idle";
+
+    // -2 is how both schemas encode "the docks cannot tell", and it is a
+    // distinct answer from -1 "nothing on the head".
+    const int reported_tool = sensor_error ? -2 : current;
+
+    nlohmann::json obj;
+    obj["current_tool"] = reported_tool;
+    obj["tool_count"] = kToolCount;
+
+    if (variant == MedusaVariant::CONTROLLER) {
+        obj["operation"] = operation;
+        obj["target_tool"] = target;
+        obj["last_error"] = "";
+        obj["feeder_open"] = medusa_feeder_open_.load();
+        obj["layer"] = 0;
+        obj["sensor_error"] = sensor_error;
+        // "e" is the toolhead, "t<n>" each dock: a tool is seated in its dock
+        // exactly when it is not the one on the head.
+        nlohmann::json sensors;
+        sensors["e"] = (current >= 0) ? 1 : 0;
+        for (int i = 0; i < kToolCount; ++i) {
+            sensors["t" + std::to_string(i)] = (i == current) ? 0 : 1;
+        }
+        obj["sensors"] = sensors;
+    } else {
+        // topi314/MedusaHC (scripts/medusahc.py). Verified against that source,
+        // NOT inferred from the upstream schema: `state` is a COARSER vocabulary
+        // than `operation`, not a rename of it. _set_state() is only ever called
+        // with uninitialized / ready / changing / error - there is no picking or
+        // dropping - so a swap here is one undifferentiated "changing", the same
+        // resolution klipper-toolchanger's own status gives.
+        obj["state"] = (phase == 0) ? "ready" : "changing";
+        // A bool here, where upstream sends a `last_error` message string.
+        obj["error"] = false;
+        // Published by BOTH controllers (medusahc.py:370), so the gripper phases
+        // are drivable on this machine too.
+        obj["feeder_open"] = medusa_feeder_open_.load();
+        obj["target_tool"] = target;
+        obj["layer"] = 0;
+        obj["head_loaded"] = (current >= 0);
+        for (int i = 0; i < kToolCount; ++i) {
+            obj["tool" + std::to_string(i) + "_docked"] = (i != current);
+        }
+    }
+    return obj;
+}
+
+// Notifications a single swap phase lasts. One notification is
+// NOTIFICATION_INTERVAL_TICKS * SIMULATION_INTERVAL_MS = ~1s, so a full
+// drop-then-pick swap runs ~6s: slow enough to watch the step bar move,
+// fast enough not to be a wait.
+static constexpr int kMedusaPhaseNotifications = 3;
+
+void MoonrakerClientMock::start_medusa_swap(int tool) {
+    const int current = medusa_current_tool_.load();
+    medusa_target_tool_.store(tool);
+    // Releasing the filament is the first thing a swap does: on a hotend changer
+    // the frame-side gripper is the only thing holding it, and the hot end
+    // cannot leave with the strand still clamped.
+    medusa_feeder_open_.store(true);
+    // Nothing on the head means there is nothing to drop; go straight to picking.
+    const bool needs_drop = (current >= 0);
+    const int next_phase = needs_drop ? 1 : (tool >= 0 ? 2 : 0);
+    // Ticks BEFORE the phase: the simulation thread polls medusa_phase_ to decide
+    // whether to advance, so publishing the phase first lets it observe the new
+    // phase with the previous count of 0, complete the phase on its very first
+    // tick and leave the counter at -1.
+    medusa_phase_ticks_.store(next_phase == 0 ? 0 : kMedusaPhaseNotifications);
+    medusa_phase_.store(next_phase);
+    if (next_phase == 0) {
+        // Unmount requested with an empty head: a no-op on real firmware too.
+        medusa_feeder_open_.store(false);
+        medusa_target_tool_.store(-1);
+    }
+    spdlog::info("[MoonrakerClientMock] MedusaHC swap armed: {} -> {} (phase={})", current, tool,
+                 next_phase);
+}
+
+void MoonrakerClientMock::advance_medusa_swap() {
+    const int phase = medusa_phase_.load();
+    if (phase == 0) {
+        return;
+    }
+    if (medusa_phase_ticks_.fetch_sub(1) > 1) {
+        return; // still inside this phase
+    }
+
+    if (phase == 1) {
+        // Drop complete: the head is empty and the old tool is back in its dock.
+        medusa_current_tool_.store(-1);
+        const int target = medusa_target_tool_.load();
+        if (target < 0) {
+            // UNSELECT_TOOL / DROP_TOOL: unmount only, re-grip the filament.
+            medusa_phase_.store(0);
+            medusa_phase_ticks_.store(0);
+            medusa_feeder_open_.store(false);
+            spdlog::info("[MoonrakerClientMock] MedusaHC unmount complete");
+            return;
+        }
+        medusa_phase_.store(2);
+        medusa_phase_ticks_.store(kMedusaPhaseNotifications);
+        spdlog::debug("[MoonrakerClientMock] MedusaHC drop complete, picking T{}", target);
+        return;
+    }
+
+    // Pick complete: the new hot end is on the head, so the gripper closes again.
+    const int target = medusa_target_tool_.load();
+    medusa_current_tool_.store(target);
+    medusa_target_tool_.store(-1);
+    medusa_phase_.store(0);
+    medusa_phase_ticks_.store(0);
+    medusa_feeder_open_.store(false);
+    spdlog::info("[MoonrakerClientMock] MedusaHC swap complete: T{} on head", target);
+}
+
+nlohmann::json MoonrakerClientMock::pin_watch_status_json() const {
+    const MedusaVariant variant = mock_medusa_variant();
+    if (variant == MedusaVariant::NONE || variant == MedusaVariant::FORK) {
+        return nlohmann::json::object();
+    }
+    const int current = medusa_current_tool_.load();
+    return nlohmann::json{{"current_tool", medusa_sensor_error_.load() ? -2 : current}};
+}
+
 void MoonrakerClientMock::populate_hardware() {
     // See populate_capabilities(). The clear()/assign below are exactly the writes
     // that freed string buffers out from under the simulation thread.
@@ -1384,7 +1589,10 @@ void MoonrakerClientMock::populate_hardware() {
     // renders the full 4-row multi-extruder layout. The bare "extruder" is
     // already present from the printer-type switch above; add extruder1/2/3.
     // Gated entirely on is_mock_toolchanger() so other AMS modes are unaffected.
-    if (is_mock_toolchanger()) {
+    // MedusaHC joins this: a hotend changer is one hot end (and so one extruder
+    // heater) per tool, which is also how PrinterDiscovery names its tools when
+    // the fork variant ships no [tool N] objects.
+    if (is_mock_toolchanger() || is_mock_medusahc()) {
         for (const char* ext : {"extruder1", "extruder2", "extruder3"}) {
             // Klipper exposes secondary extruders as both a heater and a sensor
             // under the bare name (matching the MULTI_EXTRUDER case convention).
@@ -1397,8 +1605,9 @@ void MoonrakerClientMock::populate_hardware() {
                 discovery_.sensors().push_back(ext);
             }
         }
-        spdlog::debug("[MoonrakerClientMock] Toolchanger mock: registered 4 extruders "
-                      "(extruder, extruder1, extruder2, extruder3)");
+        spdlog::debug("[MoonrakerClientMock] {} mock: registered 4 extruders "
+                      "(extruder, extruder1, extruder2, extruder3)",
+                      is_mock_medusahc() ? "MedusaHC" : "Toolchanger");
     }
 
     // Initialize LED states (all off by default)
@@ -1789,6 +1998,52 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     {
         std::lock_guard<std::mutex> lock(gcode_error_mutex_);
         last_gcode_error_.clear();
+    }
+
+    // MedusaHC commands, handled before the generic chain below so the bare
+    // OPEN/CLOSE feeder macros cannot be confused with a substring of anything
+    // else: these match the COMMAND TOKEN exactly, not find() anywhere in the
+    // line. Only armed in the MedusaHC mock modes.
+    if (is_mock_medusahc()) {
+        const size_t token_end = gcode.find_first_of(" \t");
+        const std::string cmd = gcode.substr(0, token_end);
+        auto tool_param = [&]() -> int {
+            const size_t t = gcode.find("T=");
+            if (t == std::string::npos) {
+                return -1;
+            }
+            try {
+                return std::stoi(gcode.substr(t + 2));
+            } catch (...) {
+                return -1;
+            }
+        };
+
+        if (cmd == "OPEN" || cmd == "MHC_OPEN") {
+            medusa_feeder_open_.store(true);
+            spdlog::info("[MoonrakerClientMock] MedusaHC feeder opened ({})", cmd);
+            return 0;
+        }
+        if (cmd == "CLOSE" || cmd == "MHC_CLOSE") {
+            medusa_feeder_open_.store(false);
+            spdlog::info("[MoonrakerClientMock] MedusaHC feeder closed ({})", cmd);
+            return 0;
+        }
+        if (cmd == "SELECT_TOOL") {
+            start_medusa_swap(tool_param());
+            return 0;
+        }
+        if (cmd == "UNSELECT_TOOL" || cmd == "DROP_TOOL") {
+            start_medusa_swap(-1);
+            return 0;
+        }
+        // Bare T<n>: what the fork registers when it runs the swap itself.
+        if (cmd.size() >= 2 && cmd[0] == 'T' &&
+            std::all_of(cmd.begin() + 1, cmd.end(),
+                        [](unsigned char c) { return std::isdigit(c) != 0; })) {
+            start_medusa_swap(std::stoi(cmd.substr(1)));
+            return 0;
+        }
     }
 
     // Parse temperature commands to update simulation targets
@@ -4717,10 +4972,24 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         // initial query response) chosen for easy heating-state color eyeballing:
         // extruder1 HEATING (150/250), extruder2 AT-TEMP (248/250),
         // extruder3 COOLING (200/0). Not wired into the ramping atomics by design.
-        if (is_mock_toolchanger()) {
+        if (is_mock_toolchanger() || is_mock_medusahc()) {
             status_obj["extruder1"] = {{"temperature", 150.0}, {"target", 250.0}};
             status_obj["extruder2"] = {{"temperature", 248.0}, {"target", 250.0}};
             status_obj["extruder3"] = {{"temperature", 200.0}, {"target", 0.0}};
+        }
+
+        // MedusaHC swap simulation. gcode_script() starts a swap by arming the
+        // phase; this advances it one step per notification (~1s) so the phases
+        // reach the UI as separate frames the way the real controller reports
+        // them, instead of the whole swap collapsing into one update.
+        if (is_mock_medusahc()) {
+            advance_medusa_swap();
+            if (auto medusa = medusa_status_json(); !medusa.empty()) {
+                status_obj["medusahc"] = medusa;
+            }
+            if (auto pw = pin_watch_status_json(); !pw.empty()) {
+                status_obj["pin_watch io"] = pw;
+            }
         }
 
         // Add klippy state if not ready (only send when abnormal)
