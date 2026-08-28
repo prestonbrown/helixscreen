@@ -728,7 +728,11 @@ jobs:
     - name: Produce the shared suite report
       timeout-minutes: 25
       run: |
-        ./build/bin/helix-tests "~[.]~[slow]" --reporter xml --success \
+        # ~[subprocess] and ~[socket_discovery] fork; the child shares the
+        # report file description and its writes interleave with the XML,
+        # producing a structurally corrupt report. See mk/tests.mk.
+        ./build/bin/helix-tests "~[.]~[slow]~[subprocess]~[socket_discovery]" \
+          --reporter xml --success \
           --out build/suite-report.xml > /dev/null 2>&1 || true
         test -s build/suite-report.xml
 
