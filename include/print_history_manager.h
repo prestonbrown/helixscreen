@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
+
 #include "async_lifetime_guard.h"
 #include "print_history_data.h"
 
@@ -272,6 +274,17 @@ class PrintHistoryManager {
      */
     [[nodiscard]] static bool filelist_action_affects_history(const std::string& action);
 
+    /**
+     * @brief Mark the cache stale whenever the Moonraker socket is not up
+     *
+     * Called in constructor. The two notifications above only reach a live
+     * socket, so a drop is a window in which jobs can be added or deleted with
+     * nothing left to announce it. See observe_connection_staleness() in
+     * connection_staleness.h for the rule and why it is not hung off the
+     * client's connected fan-out.
+     */
+    void watch_connection_state();
+
     // Dependencies
     IMoonrakerAPI* api_;
     helix::IMoonrakerClient* client_;
@@ -298,6 +311,9 @@ class PrintHistoryManager {
     /// Guard for async callback safety
     /// Prevents use-after-free when callbacks fire after destruction
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// Watches printer connection state so a dropped socket stales the cache.
+    ObserverGuard connection_observer_;
 
     friend class helix::PrintHistoryManagerTestAccess;
 };
