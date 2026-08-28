@@ -127,3 +127,47 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     estop.deinit_subjects();
     helix::ui::UpdateQueue::instance().drain();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "deinit_subjects disarms the recovery re-check timer",
+                 "[recovery][threading][lifetime]") {
+    // deinit_subjects() is the teardown that actually runs for this class:
+    // StaticPanelRegistry::destroy_all() calls it while LVGL is still up, and a
+    // soft restart (Add Printer) calls it with the process carrying straight on
+    // afterwards. The destructor runs at static destruction, after lv_deinit(),
+    // so it cannot be what disarms the re-check timer (CLAUDE.md § Threading
+    // rule 5) - a timer left armed here fires against the NEXT printer's
+    // session, and reaches update_recovery_dialog_content() writing subjects
+    // that subjects_.deinit_all() just freed.
+    auto& estop = EmergencyStopOverlay::instance();
+    Access::reset_recovery_reason(estop);
+    Access::reset_suppression(estop);
+    Access::reset_pending_recovery_reason(estop);
+
+    estop.init(state(), api());
+
+    // A shutdown landing inside an intentional-restart window: latched, with a
+    // one-shot re-check armed for the far end of the window.
+    estop.suppress_recovery_dialog(50);
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(Access::pending_recovery_reason(estop) == RecoveryReason::SHUTDOWN);
+    REQUIRE(Access::recheck_timer_armed(estop));
+
+    estop.deinit_subjects();
+
+    // Asserted before any pump, deliberately. With the timer still armed the
+    // pump below runs recovery_recheck_cb against the freed subjects, so the
+    // crash would arrive in place of the diagnosis.
+    REQUIRE_FALSE(Access::recheck_timer_armed(estop));
+    REQUIRE(Access::pending_recovery_reason(estop) == RecoveryReason::NONE);
+
+    // Past the whole window with nothing left to fire: no reason, no dialog.
+    process_lvgl(200);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(Access::recovery_reason(estop) == RecoveryReason::NONE);
+    CHECK(lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card") == nullptr);
+
+    Access::reset_suppression(estop);
+}

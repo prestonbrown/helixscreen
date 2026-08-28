@@ -63,6 +63,39 @@ const char* recovery_reason_str(RecoveryReason reason) {
     }
 }
 
+/// Is an lv_tick deadline still ahead of now? 0 means unarmed.
+///
+/// One spelling for both windows this class keeps - the suppression deadline and
+/// the restart deadline - because they are the same rule, and two hand-written
+/// copies of it would agree by convention until one of them didn't. Single load,
+/// so a concurrent store cannot change the value between the zero check and the
+/// comparison. lv_tick_elaps(deadline) is (now - deadline) in unsigned
+/// arithmetic, so a deadline still ahead of us reads as a huge number rather
+/// than a negative one - which is what makes this wraparound-safe.
+bool deadline_pending(const std::atomic<uint32_t>& deadline_ms) {
+    const uint32_t deadline = deadline_ms.load(std::memory_order_relaxed);
+    if (deadline == 0) {
+        return false;
+    }
+    return lv_tick_elaps(deadline) > (UINT32_MAX / 2);
+}
+
+/// Cadence for re-checking a latched reason that show_recovery_for_main()
+/// declined. Deliberately not the ~1ms an already-expired window computes in
+/// arm_recovery_recheck(): the three guards it declines on (setup wizard,
+/// restart in flight, AbortManager) clear on human and firmware timescales, so
+/// polling faster only burns timer ticks.
+constexpr uint32_t RECOVERY_RECHECK_RETRY_MS = 2000;
+
+/// How many declined re-checks before the latch stops re-arming (~30s at the
+/// cadence above). One of those guards has no bound of its own - the setup
+/// wizard is up for as long as the user takes over it - and a timer cycling for
+/// the rest of the process is not a useful way to say so. The reason stays
+/// latched past the cap, so a later suppression window still hands it back. The
+/// restart guard is bounded separately by
+/// RecoverySuppression::RESTART_FLAG_TIMEOUT, which expires inside this budget.
+constexpr int RECOVERY_RECHECK_MAX_RETRIES = 15;
+
 } // namespace
 
 using helix::ui::observe_int_sync;
@@ -127,6 +160,30 @@ void EmergencyStopOverlay::init_subjects() {
 }
 
 void EmergencyStopOverlay::deinit_subjects() {
+    // Ahead of the subjects_initialized_ guard on purpose: the re-check timer is
+    // armed from show_recovery_for(), which never consults that flag, so the
+    // cancel must not sit behind it.
+    //
+    // This is the teardown that actually runs for this class. The destructor
+    // below is a static-destruction affair — the singleton outlives lv_deinit()
+    // — while StaticPanelRegistry::destroy_all() calls this one while LVGL is
+    // still up (CLAUDE.md § Threading rule 5), and calls it again on every soft
+    // restart (Add Printer), which does not destroy anything at all. A timer
+    // left armed here therefore fires against the NEXT printer's session and
+    // reaches update_recovery_dialog_content(), which writes the subjects
+    // deinit_all() is about to free. Same reasoning as WiFiManager's
+    // cancel_connect_timeout() and InputShaperPanel's cancel_analysis_display().
+    cancel_recovery_recheck_timer();
+
+    // The latch and its retry budget describe the session being torn down.
+    // suppress_recovery_until_ deliberately survives: a host change arms the
+    // window and THEN triggers the restart this runs inside of
+    // (ui_change_host_modal.cpp), so clearing it here would pop a recovery
+    // dialog for the reconnect blip the caller armed it to cover.
+    pending_recovery_reason_.store(static_cast<int>(RecoveryReason::NONE),
+                                   std::memory_order_relaxed);
+    recovery_recheck_retries_ = 0;
+
     if (!subjects_initialized_) {
         return;
     }
@@ -247,8 +304,11 @@ void EmergencyStopOverlay::create() {
                         // of trueness cannot swallow a real SHUTDOWN.
                         const bool expected_restart = inst.is_expected_restart();
 
-                        // Reset restart flag - operation complete
-                        inst.restart_in_progress_ = false;
+                        // Reset restart flag - operation complete. The deadline
+                        // behind it is only a backstop for the restart that
+                        // never gets here; a READY still ends the window
+                        // immediately.
+                        inst.restart_expires_at_.store(0, std::memory_order_relaxed);
 
                         // Klippy came back, so anything the suppression window
                         // was holding describes a state that no longer exists.
@@ -454,29 +514,40 @@ void EmergencyStopOverlay::show_recovery_for(RecoveryReason reason) {
     // from the libhv event-loop thread (MoonrakerClient's event handler) and from
     // AbortManager, both of which already rely on this deferring for them, so the
     // hop belongs here where every caller gets it.
-    helix::ui::queue_update([reason]() { instance().show_recovery_for_main(reason); });
+    // The bool is deliberately dropped here. This path carries a live edge from
+    // the observer or the Moonraker event, not a reason replayed out of the
+    // latch, so a guard declining it leaves nothing stranded that this caller
+    // could hand back - the latch is empty. The re-check is where the return
+    // value has an owner.
+    helix::ui::queue_update([reason]() { (void)instance().show_recovery_for_main(reason); });
 }
 
-void EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
+bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
+    // The three guards below decline rather than judge: each names a state the
+    // user is expected to leave, not a verdict that this shutdown is unreal.
+    // They return false so a caller holding the only copy of the reason - the
+    // re-check, which took it out of the latch to get here - can put it back
+    // instead of eating it.
+
     // Don't show during wizard
     if (is_wizard_active()) {
         spdlog::debug("[KlipperRecovery] Ignoring {} during setup wizard",
                       recovery_reason_str(reason));
-        return;
+        return false;
     }
 
     // Don't show if restart is in progress (expected shutdown cycle)
-    if (restart_in_progress_) {
+    if (restart_in_progress()) {
         spdlog::debug("[KlipperRecovery] Ignoring {} during restart operation",
                       recovery_reason_str(reason));
-        return;
+        return false;
     }
 
     // Don't show if AbortManager is handling controlled shutdown
     if (helix::AbortManager::instance().is_handling_shutdown()) {
         spdlog::debug("[KlipperRecovery] Ignoring {} - AbortManager handling recovery",
                       recovery_reason_str(reason));
-        return;
+        return false;
     }
 
     // A backdrop tap dismisses the dialog through Modal::hide() without going
@@ -506,7 +577,9 @@ void EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
             spdlog::debug("[KlipperRecovery] Recovery dialog already visible, ignoring {}",
                           recovery_reason_str(reason));
         }
-        return;
+        // Handled, not declined: the user is already looking at a recovery
+        // dialog, so there is nothing left for a caller to hold on to.
+        return true;
     }
 
     recovery_reason_ = reason;
@@ -535,6 +608,8 @@ void EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
             inst.update_recovery_dialog_content();
         },
         nullptr);
+
+    return true;
 }
 
 EmergencyStopOverlay::~EmergencyStopOverlay() {
@@ -555,9 +630,16 @@ void EmergencyStopOverlay::arm_recovery_recheck() {
     // on the next tick.
     const uint32_t delay = is_recovery_suppressed() ? (0u - lv_tick_elaps(deadline)) + 1 : 1;
 
+    // A window-driven re-check starts the retry budget over: whatever declined
+    // the last one has had a whole suppression window to clear.
+    recovery_recheck_retries_ = 0;
+    arm_recovery_recheck_in(delay);
+}
+
+void EmergencyStopOverlay::arm_recovery_recheck_in(uint32_t delay_ms) {
     cancel_recovery_recheck_timer();
     recovery_recheck_timer_ =
-        lv_timer_create(&EmergencyStopOverlay::recovery_recheck_cb, delay, nullptr);
+        lv_timer_create(&EmergencyStopOverlay::recovery_recheck_cb, delay_ms, nullptr);
     // One-shot. Also what makes it runnable under the test harness, which only
     // executes timers with a finite repeat count (tests/ui_test_utils.h).
     lv_timer_set_repeat_count(recovery_recheck_timer_, 1);
@@ -592,11 +674,36 @@ void EmergencyStopOverlay::recovery_recheck_cb(lv_timer_t* /*timer*/) {
         return;
     }
 
-    spdlog::info(
-        "[KlipperRecovery] Suppression window expired with {} still pending - surfacing it",
-        recovery_reason_str(static_cast<RecoveryReason>(pending)));
+    spdlog::info("[KlipperRecovery] Suppression window expired with {} still pending",
+                 recovery_reason_str(static_cast<RecoveryReason>(pending)));
     // Already on the main thread: this is an lv_timer callback.
-    inst.show_recovery_for_main(static_cast<RecoveryReason>(pending));
+    if (inst.show_recovery_for_main(static_cast<RecoveryReason>(pending))) {
+        inst.recovery_recheck_retries_ = 0;
+        return;
+    }
+
+    // Declined by one of show_recovery_for_main()'s three guards. The exchange
+    // above is the only copy of the reason there is, so put it back rather than
+    // let a transient guard finish the job the suppression window was stopped
+    // from doing - a consumed reason here is exactly the silently-eaten shutdown
+    // the latch exists to prevent. compare_exchange from NONE so a fresher
+    // reason latched while this callback ran wins over the stale one.
+    int expected = static_cast<int>(RecoveryReason::NONE);
+    inst.pending_recovery_reason_.compare_exchange_strong(expected, pending,
+                                                          std::memory_order_relaxed);
+
+    if (++inst.recovery_recheck_retries_ > RECOVERY_RECHECK_MAX_RETRIES) {
+        spdlog::warn("[KlipperRecovery] {} still blocked after {} re-checks - staying latched, "
+                     "no further re-arm",
+                     recovery_reason_str(static_cast<RecoveryReason>(pending)),
+                     RECOVERY_RECHECK_MAX_RETRIES);
+        return;
+    }
+
+    spdlog::debug("[KlipperRecovery] Re-check {} declined, retrying in {}ms",
+                  recovery_reason_str(static_cast<RecoveryReason>(pending)),
+                  RECOVERY_RECHECK_RETRY_MS);
+    inst.arm_recovery_recheck_in(RECOVERY_RECHECK_RETRY_MS);
 }
 
 void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
@@ -607,22 +714,27 @@ void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
 }
 
 bool EmergencyStopOverlay::is_recovery_suppressed() const {
-    // Single load — re-reading the member would let a concurrent
-    // suppress_recovery_dialog() change the value between the zero check and the
-    // elapsed comparison.
-    const uint32_t deadline = suppress_recovery_until_.load(std::memory_order_relaxed);
-    if (deadline == 0) {
-        return false;
-    }
-    return lv_tick_elaps(deadline) > (UINT32_MAX / 2);
+    return deadline_pending(suppress_recovery_until_);
+}
+
+void EmergencyStopOverlay::begin_restart_window() {
+    // Callable from any thread for the same reason suppress_recovery_dialog()
+    // is: one atomic store of a deadline.
+    restart_expires_at_.store(lv_tick_get() + RecoverySuppression::RESTART_FLAG_TIMEOUT,
+                              std::memory_order_relaxed);
+    spdlog::debug("[KlipperRecovery] Restart in flight for up to {}ms",
+                  RecoverySuppression::RESTART_FLAG_TIMEOUT);
+}
+
+bool EmergencyStopOverlay::restart_in_progress() const {
+    return deadline_pending(restart_expires_at_);
 }
 
 bool EmergencyStopOverlay::is_expected_restart() const {
-    // Load the restart flag first: a writer that sets restart_in_progress_ and
-    // then the deadline can otherwise slip between the two reads and produce a
+    // Read the restart window first: a flow that arms the restart and then the
+    // suppression window can otherwise slip between the two reads and produce a
     // false negative for a restart that is genuinely in flight.
-    const bool restarting = restart_in_progress_.load(std::memory_order_relaxed);
-    return restarting || is_recovery_suppressed();
+    return restart_in_progress() || is_recovery_suppressed();
 }
 
 void EmergencyStopOverlay::update_recovery_dialog_content() {
@@ -670,7 +782,7 @@ void EmergencyStopOverlay::restart_klipper() {
     }
 
     // Suppress recovery dialog during restart - Klipper briefly enters SHUTDOWN
-    restart_in_progress_ = true;
+    begin_restart_window();
 
     spdlog::info("[KlipperRecovery] Restarting Klipper...");
     ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Restarting Klipper..."), 3000);
@@ -696,7 +808,7 @@ void EmergencyStopOverlay::firmware_restart() {
     }
 
     // Suppress recovery dialog during restart - Klipper briefly enters SHUTDOWN
-    restart_in_progress_ = true;
+    begin_restart_window();
 
     spdlog::info("[KlipperRecovery] Firmware restarting (via recovery service)...");
     ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Firmware restarting..."), 3000);
