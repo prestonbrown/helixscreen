@@ -334,6 +334,42 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// status frame - the phase WORDS are not, since "picking" only appears once
     /// a swap is already running and the step bar has to be built before that.
     bool direction_reported_ = false;
+    /// Whether a real non-idle operation frame ("dropping"/"picking"/"changing")
+    /// has been seen since the idle-with-gripper-open hold in
+    /// apply_tool_sensor_locked() last released. That hold exists because a
+    /// swap's own FIRST frame is idle-with-the-gripper-open, but its condition
+    /// is partly derived from the action the hold itself sets - so without a
+    /// separate signal, a machine that settles into a LATER idle-with-open
+    /// frame (e.g. an unmount that ends with the head empty and nothing to
+    /// re-grip) would keep re-satisfying the same condition forever and never
+    /// reach IDLE again. Bounding the hold with this flag means it can only
+    /// ever catch the leading idle-with-open frame: once a real operation
+    /// frame has confirmed the swap is actually running, a SUBSEQUENT idle
+    /// frame means it has settled, not recurred, and must be believed.
+    /// Reset to false when the hold releases into IDLE, and again at the start
+    /// of every fresh dispatch (begin_dispatch_locked()) in case the prior
+    /// swap reached IDLE through a path that bypassed the idle branch below
+    /// (e.g. parse_toolchanger_state() alone, on a frame with no addon data).
+    bool operation_confirmed_ = false;
+
+    /// Snapshot of feeder_state_reported_ / direction_reported_ taken the last
+    /// time get_operation_step_model() built a sequence. step_index_for_phase_locked()
+    /// resolves its index against this SAME snapshot, not whatever the latches
+    /// read right now: the model is captured once (at operation start, by the
+    /// sidebar) while the index is recomputed on every frame, and Moonraker
+    /// republishes only the fields that CHANGED. A latch that flips mid-
+    /// operation without the model being rebuilt would otherwise put the index
+    /// computation against a longer/different sequence than the one actually
+    /// on screen. get_operation_step_model() is const, so these are mutable.
+    ///
+    /// step_model_captured_ stays false until the first call: nothing has
+    /// pinned a sequence yet, so step_index_for_phase_locked() falls back to
+    /// the LIVE latches rather than the (false, false) power-on default, which
+    /// would otherwise build an always-empty sequence for any caller that asks
+    /// for the phase without ever having asked for the model first.
+    mutable bool step_model_captured_ = false;
+    mutable bool step_model_feeder_reported_ = false;
+    mutable bool step_model_direction_reported_ = false;
 
     /**
      * @brief Parse toolchanger state from Moonraker JSON
