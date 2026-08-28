@@ -139,6 +139,10 @@ def prune_dirs(root, dirs, extra=()):
 # reproducing it. Add to this list rather than rewording a doc: the citations
 # are correct, the files simply do not exist yet at check time.
 EXEMPT_SUBSTRINGS = (
+    # Metasyntactic. scripts/CLAUDE.md documents the citation format itself
+    # and has to show the shape; 'path/to/' cannot collide with a real file
+    # the way a bare 'file.cpp' would (src/system/config_storage_file.cpp).
+    'path/to/',
     'superpowers/',        # docs/superpowers/ is local-only working space; nothing
                            # there is tracked; refs to it are not resolvable on a
                            # fresh clone

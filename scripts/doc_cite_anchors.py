@@ -736,6 +736,7 @@ def new_stats():
     indistinguishable from "under the limit".
     """
     return {'in_place': 0, 'unique': 0, 'context': 0, 'unresolved': 0,
+            'unresolved_refs': [],
             'bootstrapped': 0, 'skipped': 0, 'cites': 0}
 
 
@@ -846,6 +847,10 @@ def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False)
                 stats['skipped'] += 1
                 if path is None:
                     stats['unresolved'] += 1
+                    # The count alone cannot be driven to zero by anyone who
+                    # cannot see the members; --audit prints these.
+                    stats.setdefault('unresolved_refs', []).append(
+                        '%s:%d: `%s:%d`' % (doc, doc_line, ref, n))
                 if stored is not None and key in stored:
                     seen_keys.add(key)
                     fresh[key] = stored[key]
