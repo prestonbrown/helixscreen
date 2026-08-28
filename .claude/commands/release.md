@@ -92,11 +92,18 @@ Do not release on a red `main`. Before starting, also confirm CI is green for th
 being released:
 
 ```bash
-gh run list --workflow="Code Quality" --limit 1 --json conclusion,headSha
+# EVERY workflow, not just Code Quality. Build compiles with clang on Ubuntu while
+# local builds here use g++, so a clang-only diagnostic under -Werror is red on CI
+# and green on the release machine - checking one workflow reads as all-clear.
+gh run list --limit 20 --json conclusion,status,workflowName,headSha \
+  --jq '.[] | select(.conclusion == "failure") | "\(.workflowName)\t\(.headSha[0:9])"'
 ```
 
-If the latest run is a `failure`, treat it as a STOP — fix it first. (v0.99.92 shipped
-with Code Quality red for ~10 hours because this gate did not exist.)
+If ANY workflow's latest run is a `failure`, treat it as a STOP — fix it first.
+(v0.99.92 shipped with Code Quality red for ~10 hours because this gate did not exist.
+v0.99.118 nearly shipped with the Ubuntu `Build` job red for an hour, because the gate
+only looked at Code Quality: `Build Status` even prints "tolerated because this is an
+integration branch", so main stays red without anything stopping a release.)
 
 ### C++ tests
 ```bash
