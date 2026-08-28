@@ -789,6 +789,7 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
             ui_spool_canvas_set_fill_level(canvas, 1.0f);
             lv_obj_add_flag(canvas, LV_OBJ_FLAG_EVENT_BUBBLE);
             sv.canvas = canvas;
+            lv_obj_set_name(canvas, "spool_graphic");
         }
     } else {
         // ====================================================================
@@ -831,6 +832,7 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
         lv_obj_remove_flag(filament_ring, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(filament_ring, LV_OBJ_FLAG_EVENT_BUBBLE);
         sv.color_swatch = filament_ring;
+        lv_obj_set_name(filament_ring, "spool_graphic");
 
         // Layer 3: Center hub
         lv_obj_t* hub = lv_obj_create(container);
