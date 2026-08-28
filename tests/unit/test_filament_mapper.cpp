@@ -614,6 +614,29 @@ TEST_CASE("FilamentMapper use_current_assignments", "[filament_mapper][current_a
         CHECK(FilamentMapper::identity_filtered_remap(mappings).empty());
     }
 
+    SECTION("a lane-per-tool AMS keeps tools above 3 on their own lanes") {
+        // An 8-lane AFC (two Box Turtles) numbers global slots 0..7 and maps
+        // them T0..T7, so tool 5 genuinely belongs on lane 5. Seeding through
+        // default_head_for_tool() alone would collapse every tool above 3 onto
+        // head 0, because that helper models a FOUR-HEAD toolchanger firmware
+        // default ([0,1,2,3,0,0,...]) and not a lane-per-tool AMS.
+        std::vector<GcodeToolInfo> tools = {
+            {0, 0xFF0000, "PLA"},
+            {5, 0x00FF00, "PLA"},
+        };
+        std::vector<AvailableSlot> slots;
+        for (int i = 0; i < 8; ++i) {
+            slots.push_back({i, 0, 0x101010u * static_cast<uint32_t>(i + 1), "PLA", false, -1});
+        }
+
+        auto mappings = FilamentMapper::use_current_assignments(tools, slots);
+
+        REQUIRE(mappings.size() == 2);
+        CHECK(mappings[0].mapped_slot == 0);
+        CHECK(mappings[1].tool_index == 5);
+        CHECK(mappings[1].mapped_slot == 5); // NOT 0
+    }
+
     SECTION("detects material mismatches") {
         std::vector<GcodeToolInfo> tools = {
             {0, 0xFF0000, "PLA"},
@@ -646,6 +669,109 @@ TEST_CASE("FilamentMapper use_current_assignments", "[filament_mapper][current_a
         CHECK(mappings[1].mapped_slot == 1);
         CHECK_FALSE(mappings[1].is_auto);
     }
+}
+
+TEST_CASE("FilamentMapper use_current_assignments: seed matrix over tool numbering and lane count",
+          "[filament_mapper][current_assignments][matrix]") {
+    // WHY THIS MATRIX EXISTS. Two separate bugs shipped through the sections
+    // above, and both survived because every one of those cases used tools 0-3
+    // on a 4-lane system. In that corner three different rules agree:
+    //     pair by list position | pair by tool index | pair by default head
+    // so no assertion there can tell them apart. The axes that DO separate them
+    // are tool SPARSITY (a file using T0+T2 with no T1) and tool NUMBER ABOVE 3
+    // (an 8-lane AFC maps lanes 0..7 to T0..T7, while default_head_for_tool()
+    // models a four-head toolchanger and sends everything above 3 to head 0).
+    // Any new rule must be stated across this whole grid, not one corner of it.
+    struct Case {
+        const char* name;
+        std::vector<int> tools;  // tool indices the file actually uses
+        int lane_count;          // lanes the AMS/toolchanger reports
+        std::vector<int> expect; // expected mapped_slot per tool, -1 = AUTO
+        bool expect_identity;    // seed is the firmware default => nothing emitted
+    };
+
+    const std::vector<Case> cases = {
+        {"dense tools, 4 lanes", {0, 1, 2}, 4, {0, 1, 2}, true},
+        {"sparse skipping T1, 4 lanes", {0, 2}, 4, {0, 2}, true},
+        {"sparse skipping T1 and T2, 4 lanes", {0, 3}, 4, {0, 3}, true},
+        {"lane-per-tool AMS, sparse high tool", {0, 5}, 8, {0, 5}, false},
+        {"lane-per-tool AMS, all eight lanes",
+         {0, 1, 2, 3, 4, 5, 6, 7},
+         8,
+         {0, 1, 2, 3, 4, 5, 6, 7},
+         false}, // see the seam test below: the filter caps at head 3
+        {"extended tool with no lane falls back to firmware head 0", {5}, 4, {0}, true},
+        {"tool beyond the lane count is unresolved", {0, 1, 2}, 2, {0, 1, -1}, true},
+        {"single tool", {0}, 4, {0}, true},
+    };
+
+    for (const auto& c : cases) {
+        CAPTURE(c.name);
+
+        std::vector<GcodeToolInfo> tools;
+        for (int t : c.tools) {
+            tools.push_back({t, 0xFF0000, "PLA"});
+        }
+        std::vector<AvailableSlot> slots;
+        for (int i = 0; i < c.lane_count; ++i) {
+            slots.push_back({i, 0, 0x111111u * static_cast<uint32_t>(i + 1), "PLA", false, -1});
+        }
+
+        auto mappings = FilamentMapper::use_current_assignments(tools, slots);
+        REQUIRE(mappings.size() == c.tools.size());
+
+        for (size_t i = 0; i < c.tools.size(); ++i) {
+            CAPTURE(c.tools[i]);
+            CHECK(mappings[i].tool_index == c.tools[i]);
+            CHECK(mappings[i].mapped_slot == c.expect[i]);
+            CHECK(mappings[i].is_auto == (c.expect[i] < 0));
+        }
+
+        // A positional seed is what the firmware would do unaided, so it must
+        // filter to an empty remap. If this fails where it is expected to hold,
+        // the seed is quietly emitting a route the user never asked for - the
+        // original bug. It does NOT hold above tool 3; that seam is pinned by
+        // the dedicated test below rather than waved through here.
+        if (c.expect_identity) {
+            CHECK(FilamentMapper::identity_filtered_remap(mappings).empty());
+        }
+    }
+}
+
+TEST_CASE("use_current_assignments and identity_filtered_remap disagree above tool 3",
+          "[filament_mapper][current_assignments][seam]") {
+    // A KNOWN, PRE-EXISTING seam, pinned so nobody "fixes" one half in isolation.
+    //
+    // default_head_for_tool() models a FOUR-HEAD toolchanger: its firmware default
+    // map is [0,1,2,3,0,0,...], so every tool above 3 routes to head 0. A
+    // lane-per-tool AMS is the other shape entirely - an 8-lane AFC numbers global
+    // slots 0..7 and maps them T0..T7, so T5 belongs on lane 5.
+    //
+    // The SEED now honours the lane-per-tool shape (a lane with the tool's index
+    // wins). The identity FILTER still asks default_head_for_tool(), so it reads
+    // that same seed as a genuine remap and emits it. Emitting an explicit
+    // identity is harmless on a backend that applies mappings through
+    // set_tool_mapping(), which is why this has never bitten - but the two
+    // functions are answering different questions and only one of them knows the
+    // backend shape.
+    //
+    // Whoever reconciles this needs a backend-aware notion of "the firmware
+    // default map"; changing default_head_for_tool() alone would alter the
+    // Snapmaker U1 pre-print route, which is hardware-verified.
+    std::vector<GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {5, 0x00FF00, "PLA"}};
+    std::vector<AvailableSlot> slots;
+    for (int i = 0; i < 8; ++i) {
+        slots.push_back({i, 0, 0x111111u * static_cast<uint32_t>(i + 1), "PLA", false, -1});
+    }
+
+    auto mappings = FilamentMapper::use_current_assignments(tools, slots);
+    REQUIRE(mappings.size() == 2);
+    CHECK(mappings[1].mapped_slot == 5); // seed: lane-per-tool
+
+    // filter: four-head semantics, so T5 -> lane 5 is NOT the identity it believes in
+    auto remap = FilamentMapper::identity_filtered_remap(mappings);
+    std::map<int, int> expected = {{5, 5}};
+    CHECK(remap == expected);
 }
 
 // =============================================================================

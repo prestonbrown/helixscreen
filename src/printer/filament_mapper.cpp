@@ -504,17 +504,29 @@ FilamentMapper::use_current_assignments(const std::vector<GcodeToolInfo>& tools,
     // lane 1. That is a remap the user never asked for, and since it is not the
     // firmware identity, identity_filtered_remap() emits it and sends the print
     // to a lane holding the wrong filament.
+    auto find_slot = [&slots](int index) -> const AvailableSlot* {
+        for (const auto& candidate : slots) {
+            if (candidate.slot_index == index) {
+                return &candidate;
+            }
+        }
+        return nullptr;
+    };
+
     for (const auto& tool : tools) {
         ToolMapping mapping;
         mapping.tool_index = tool.tool_index;
 
-        const int head = default_head_for_tool(tool.tool_index);
-        const AvailableSlot* slot = nullptr;
-        for (const auto& candidate : slots) {
-            if (candidate.slot_index == head) {
-                slot = &candidate;
-                break;
-            }
+        // Prefer the slot that IS this tool's index. A lane-per-tool AMS owns a
+        // lane for every tool it exposes: an 8-lane AFC numbers global slots 0..7
+        // and maps them T0..T7, so T5 belongs on lane 5. Only when no such lane
+        // exists fall back to default_head_for_tool(), which models a FOUR-HEAD
+        // toolchanger's firmware default ([0,1,2,3,0,0,...]) - a U1 has no lane 5,
+        // so its T5 really does run from head 0. Using that helper alone would
+        // collapse every tool above 3 onto head 0 on the AFC.
+        const AvailableSlot* slot = find_slot(tool.tool_index);
+        if (!slot) {
+            slot = find_slot(default_head_for_tool(tool.tool_index));
         }
 
         if (slot) {
