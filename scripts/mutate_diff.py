@@ -170,6 +170,10 @@ def main():
     ap.add_argument('--jobs', type=int, default=6, help='make -j (link is memory-gated; 6 is safe here)')
     ap.add_argument('--shards', type=int, default=8, help='parallel test shards per mutant')
     ap.add_argument('--limit', type=int, default=None, help='stop after N hunks')
+    # A mutant costs a compile plus a whole-program link, so a 52-hunk range is
+    # hours. Scoping to the files worth confirming is how this stays usable.
+    ap.add_argument('--only', default=None,
+                    help='restrict to changed files whose path contains this')
     ap.add_argument('--list-only', action='store_true', help='list hunks, mutate nothing')
     ap.add_argument('--log', default='/tmp/mutate-diff.log')
     args = ap.parse_args()
@@ -177,6 +181,8 @@ def main():
     root = repo_root()
     base = args.base or default_base(root)
     hunks = collect_hunks(root, base)
+    if args.only:
+        hunks = [h for h in hunks if args.only in h['file']]
     if args.limit:
         hunks = hunks[:args.limit]
 

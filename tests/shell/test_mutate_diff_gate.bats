@@ -131,3 +131,16 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     [ "$n_one" -eq 1 ]
     [ "$n_all" -ge 1 ]
 }
+
+@test "--only restricts to matching files" {
+    stub_tests_that_detect
+    mkdir -p "$WORK/src/other"
+    printf 'int h(int n) {\n    return n + 3;   // OTHER\n}\n' > "$WORK/src/other/thing.cpp"
+    git -C "$WORK" add -N src/other/thing.cpp
+    run mutate --list-only
+    [[ "$output" == *"other/thing.cpp"* ]]
+    [[ "$output" == *"src/feature.cpp"* ]]
+    run mutate --list-only --only feature.cpp
+    [[ "$output" == *"src/feature.cpp"* ]]
+    [[ "$output" != *"other/thing.cpp"* ]]
+}
