@@ -7,7 +7,6 @@
 
 #include "color_utils.h"
 #include "config.h"
-#include "gcode_selection_style.h"
 #include "geometry_budget_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -677,7 +676,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         }
     }
 
-    // Per-object vertex runs, for the GLES selection shell. Collected only when the
+    // Per-object vertex runs, for the GLES selection tag. Collected only when the
     // file carries exclude-object metadata: without it every segment's
     // object_name_index is -1, there is nothing to trace, and both tables stay
     // unallocated.
@@ -787,13 +786,14 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         // the same object in the same layer AND its strips end exactly where these
         // begin — layers are not guaranteed contiguous in file order, so the
         // adjacency test is on the strip indices, not on the layer alone.
-        // Walls only, matching the 2D halo. The shell is a dilated copy of the
-        // surfaces in the run, so including infill puts white on any infill the
-        // depth test does not hide - most visibly the exposed top layer, which
-        // renders as speckle across the top face. Walls run the full height of
-        // the object, so the outline itself is unaffected.
+        // Every extrusion of the object joins a run, whatever its feature type.
+        // The runs are what render_selection_tag() draws, and the rim is derived
+        // from the boundary of the tagged region rather than painted directly, so
+        // leaving the interior untagged makes every infill gap and every hole read
+        // as a boundary of its own. Viewed from above that is the whole failure:
+        // an untagged top face leaves a perimeter ring narrower than 2 * rim_px,
+        // which fuses into solid white and breaks the silhouette into fragments.
         if (collect_runs && !runs_abandoned && segment.object_name_index >= 0 &&
-            helix::gcode::selection::halo_feature(segment.feature_type) &&
             strips_after > strips_before) {
             const size_t added = strips_after - strips_before;
             bool extended = false;
@@ -811,7 +811,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
                     // the geometry it indexes. Drop it entirely and let the renderer
                     // behave exactly as it did before runs existed.
                     spdlog::debug("[GCode::Builder] Object runs exceed {} — abandoning run "
-                                  "collection (3D selection shell disabled for this file)",
+                                  "collection (3D selection silhouette disabled for this file)",
                                   MAX_OBJECT_RUNS);
                     pending_runs.clear();
                     pending_runs.shrink_to_fit();

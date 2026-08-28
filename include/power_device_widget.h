@@ -16,6 +16,8 @@ class IMoonrakerAPI;
 
 namespace helix {
 
+struct PowerDeviceWidgetTestAccess; // test-only friend (tests/test_helpers/)
+
 /// Home panel widget for toggling individual Moonraker power devices.
 /// Uses the multi_instance system: base ID "power_device" with dynamic
 /// instance IDs like "power_device:1", "power_device:2", etc.
@@ -96,6 +98,9 @@ class PowerDeviceWidget : public PanelWidget {
     void update_display(int status);
     void show_device_picker();
     void dismiss_device_picker();
+    /// LV_EVENT_DELETE hook on picker_backdrop_. Named rather than a lambda so
+    /// dismiss_device_picker() can uninstall it by function pointer.
+    static void on_picker_backdrop_deleted(lv_event_t* e);
     void select_device(const std::string& name);
     void select_icon(const std::string& name);
     void save_config();
@@ -105,6 +110,8 @@ class PowerDeviceWidget : public PanelWidget {
     void detach_sensor_observers();
     void update_energy_label(const std::string& key, lv_obj_t* label, int centi_value);
     std::string auto_match_sensor() const;
+
+    friend struct PowerDeviceWidgetTestAccess;
 };
 
 } // namespace helix

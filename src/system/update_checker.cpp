@@ -341,10 +341,6 @@ std::string resolve_tool(const std::string& name) {
     return name; // fallback: rely on PATH
 }
 
-bool tool_available(const std::string& name) {
-    return !find_tool_path(name).empty();
-}
-
 /// Populate ReleaseInfo download URLs from a per-platform manifest asset
 /// object (R2 + dev manifest schema). Prefers `zip_url`/`zip_sha256`, falls
 /// back to legacy `url`/`sha256` (tar.gz) only when no zip is in the manifest.

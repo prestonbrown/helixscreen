@@ -728,7 +728,13 @@ StreamingLayerEntry GCodeLayerIndex::get_entry(size_t layer_index) const {
     if (layer_index < entries_.size()) {
         return entries_[layer_index];
     }
-    // Return invalid entry
+    // Out of range. byte_length == 0 is what makes this distinguishable from a
+    // real entry: every indexed layer is finalized with a non-zero length (the
+    // line that opens a layer is itself counted, so consecutive layer starts
+    // still bracket at least one line), and is_valid() tests exactly that field.
+    // The zeroed start_x/y/z here are NOT a usable seed — a caller that skipped
+    // is_valid() would draw the layer's first move from the origin, which is the
+    // stray-lines bug those fields were added to prevent.
     return StreamingLayerEntry{0, 0, 0.0f, 0, 0};
 }
 

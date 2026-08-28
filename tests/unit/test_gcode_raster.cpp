@@ -296,6 +296,59 @@ TEST_CASE("both blends bounds-check every write", "[gcode_raster]") {
     REQUIRE(s.guard_band_clean());
 }
 
+TEST_CASE("an AA line entering from off-surface lands on the right side of row 0",
+          "[gcode_raster]") {
+    // Screen coordinates reach the rasterizer unclipped (see gcode_layer_renderer.h,
+    // world_to_screen), so a model taller than the canvas feeds line_wu negative
+    // ordinates. Wu splits each column between iy and iy + 1 by the fractional part
+    // of intery, and that split is only meaningful if iy is the FLOOR: truncating
+    // toward zero maps intery in (-1, 0) to iy == 0 with a negative frac, which puts
+    // the (1 - frac) weight on row 0 instead of the off-surface row above it and the
+    // negative frac weight on row 1, which the line never touches.
+    //
+    // The geometry below is chosen so intery is exact in binary: y = x/4 - 2, so
+    // intery is -0.75, -0.50, -0.25 at x = 5, 6, 7 and reaches 0 at x = 8.
+    const uint32_t colour = 0x00CC44;
+
+    SECTION("shallow, entering from above") {
+        Surface s(24, 8);
+        line(s.target(), 0, -2, 20, 3, colour, Aa::On);
+
+        // Row 0's share is frac (the distance past the floor at -1), not 1 - frac.
+        // Truncating computes (1 - frac) * 255 with frac negative, i.e. 446, 382 and
+        // 318 — out of range for uint8_t, so what lands is whatever the conversion
+        // happens to do with it, and never these values.
+        CHECK(static_cast<int>(s.channel(5, 0, 3)) == 63);
+        CHECK(static_cast<int>(s.channel(6, 0, 3)) == 127);
+        CHECK(static_cast<int>(s.channel(7, 0, 3)) == 191);
+
+        // Row 1 is untouched while the line is still above the surface. The truncating
+        // version writes iy + 1 == 1 there, carrying frac * 255 with frac negative.
+        for (int x = 1; x <= 7; ++x) {
+            INFO("column " << x);
+            CHECK_FALSE(s.pixel_set(x, 1));
+        }
+        CHECK(s.guard_band_clean());
+    }
+
+    SECTION("steep, entering from the left") {
+        // The steep branch swaps x and y before rasterizing, so the same defect
+        // shows up on the column axis. Same line, transposed.
+        Surface s(8, 24);
+        line(s.target(), -2, 0, 3, 20, colour, Aa::On);
+
+        CHECK(static_cast<int>(s.channel(0, 5, 3)) == 63);
+        CHECK(static_cast<int>(s.channel(0, 6, 3)) == 127);
+        CHECK(static_cast<int>(s.channel(0, 7, 3)) == 191);
+
+        for (int y = 1; y <= 7; ++y) {
+            INFO("row " << y);
+            CHECK_FALSE(s.pixel_set(1, y));
+        }
+        CHECK(s.guard_band_clean());
+    }
+}
+
 // ===========================================================================
 // stroke_selection_rim(): the white silhouette, derived from the alpha tag.
 //

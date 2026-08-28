@@ -7,11 +7,13 @@
  * @brief Deciding which widget a `helix-screen ctl` click/set_value acts on.
  *
  * Split out of remote_control_server.cpp so the rule can be unit-tested: the
- * server object is excluded from the test link (mk/tests.mk) because it drags
- * in the transports and the toast manager, but the resolution rule is where
- * the interesting mistakes live and it needs nothing but LVGL.
+ * server itself drags in the transports and the toast manager, but the
+ * resolution rule is where the interesting mistakes live and it needs nothing
+ * but LVGL.
  */
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -126,5 +128,36 @@ bool has_own_click_handler(lv_obj_t* o);
  */
 lv_obj_t* resolve_actionable(lv_obj_t* target, lv_obj_t** descended_to,
                              std::vector<lv_obj_t*>* ambiguous);
+
+/**
+ * @brief Rank one candidate of a by-name search; the highest key wins.
+ *
+ * Packs three fields into one comparable value, most significant first: the
+ * layer @p o sits on (the top layer, where modals live, outranks the screen),
+ * the child index of its top-level ancestor (overlays stack as increasing
+ * indices under the screen), and @p discovery_order as the final tie-break.
+ *
+ * The return type is 64-bit for a reason that is invisible on the build host:
+ * the layer rank occupies bit 40, so a 32-bit accumulator cannot hold it. On
+ * every 32-bit device target (armv7 K1/K2/AD5M/CC1, armhf Pi) `long` is 32
+ * bits, the shift is undefined, and the rank and index fields collapse into
+ * each other - `ctl click <name>` then picks a widget under the panel instead
+ * of the modal on top of it.
+ *
+ * @param o               The candidate widget.
+ * @param discovery_order Its position in the caller's match list.
+ */
+[[nodiscard]] int64_t widget_pick_key(lv_obj_t* o, size_t discovery_order);
+
+/**
+ * @brief Pick the match the user is actually looking at.
+ *
+ * The highest widget_pick_key() among @p matches. Without this, a name that
+ * exists in both a background overlay and the visible one resolves to the
+ * background copy and the click becomes a silent no-op.
+ *
+ * @return The winning widget, or nullptr when @p matches is empty.
+ */
+[[nodiscard]] lv_obj_t* topmost_visible(const std::vector<lv_obj_t*>& matches);
 
 } // namespace helix

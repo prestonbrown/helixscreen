@@ -92,7 +92,10 @@ import argparse
 import hashlib
 import os
 import re
+import stat
+import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_doc_refs as gate      # noqa: E402  (LINE_REF_RE, EXEMPT_SUBSTRINGS)
@@ -509,6 +512,106 @@ def anchorable(ref):
     return not any(s in ref for s in ANCHOR_EXEMPT_SUBSTRINGS)
 
 
+def atomic_write(path, text):
+    """Replace `path` with `text` in one step: temp file beside it, then rename.
+
+    Every write this script makes lands on a file that is COMMITTED — a doc, the
+    sidecar, the baseline — and the truncating form (`open(path, 'w')`) empties
+    the target before it writes a byte. Anything that ends the process inside
+    that window leaves a half-file in the working tree: half a doc, or a sidecar
+    holding its header and nothing else, which is worse than either version
+    because it reads as a legitimate edit. The window is not theoretical here —
+    `--auto-fix` runs from .githooks/pre-commit, where Ctrl-C is an ordinary
+    thing for a committer to do, and moving the doc checks into QC_SERIAL only
+    closed the parallel-worker half of the same race.
+
+    os.replace() is atomic within a filesystem, so the temp file is created in
+    the target's own directory rather than in /tmp. A reader sees the old
+    content or the new one, never a prefix of the new one.
+
+    The target's mode is carried across because mkstemp creates 0600 and these
+    files are world-readable in the repo; a new file gets the mode the umask
+    would have given it.
+    """
+    directory = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(dir=directory,
+                               prefix='.' + os.path.basename(path) + '.',
+                               suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w') as f:
+            f.write(text)
+        try:
+            mode = stat.S_IMODE(os.stat(path).st_mode)
+        except OSError:
+            cur = os.umask(0)
+            os.umask(cur)
+            mode = 0o666 & ~cur
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        # BaseException, not Exception: KeyboardInterrupt is the case this
+        # whole function exists for, and leaving the temp file behind would
+        # litter scripts/ with dot-files nobody recognises.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _git_ok(args):
+    """True when `git <args>` exits 0. Anything git cannot answer is False."""
+    try:
+        return subprocess.call(['git'] + args,
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 0
+    except OSError:
+        return False
+
+
+def sidecar_is_committed(path=SIDECAR):
+    """True when THIS tree commits the sidecar, so its absence is a defect.
+
+    `load_sidecar()` returning None has to mean two different things and only
+    git can separate them. A tree that never adopted the anchors — a fresh
+    checkout of some other project, or the miniature repos the sibling gates'
+    meta-tests build in a tmpdir — legitimately has no sidecar, and the check
+    must stay inert there or adopting it becomes a flag day. A tree that
+    COMMITS the sidecar and does not have it on disk is the other case, and it
+    used to turn the entire anchor gate green: one `rm` and 875 citations went
+    unchecked in quality-checks.sh, both git hooks, and CI, with a ⚠️ line
+    nobody reads as a failure.
+
+    Index and HEAD are both consulted. The index alone lets `git rm` walk the
+    gate off; HEAD alone misses a sidecar generated and staged but not yet
+    committed. Both queries are cwd-relative (`--` pathspec, and the `HEAD:./`
+    rev form) so a scratch repo built inside a checkout of this one is judged
+    on its own contents rather than inheriting ours.
+
+    Bootstrap is unaffected: the WRITE path never consults this, so
+    `make regen-doc-anchors` creates the sidecar in a tree that has none, and
+    only once it is committed does deleting it fail.
+    """
+    return (_git_ok(['ls-files', '--error-unmatch', '--', path])
+            or _git_ok(['cat-file', '-e', 'HEAD:./' + path]))
+
+
+def missing_sidecar_report():
+    """(exit_code, message) for a run that found no sidecar.
+
+    Shared with check_doc_refs.py so the two gate paths cannot disagree about
+    whether a missing sidecar is an opt-out or a hole.
+    """
+    if sidecar_is_committed(SIDECAR):
+        return 1, (
+            '❌ Citation anchors: %s is committed but absent from the working '
+            'tree, which switches the ENTIRE anchor check off. Restore it '
+            '(`git checkout -- %s`) or rebuild it with '
+            '`make regen-doc-anchors`.' % (SIDECAR, SIDECAR))
+    return 0, ('⚠️  Citation anchors: %s absent — this tree has not '
+               'adopted them; `make regen-doc-anchors` bootstraps it' % SIDECAR)
+
+
 # ---------------------------------------------------------------------------
 # Sidecar
 #
@@ -587,12 +690,12 @@ def load_sidecar(path=SIDECAR):
 
 
 def write_sidecar(rows, path=SIDECAR):
-    with open(path, 'w') as f:
-        f.write(SIDECAR_HEADER)
-        for (doc, ref, line), (resolved, primary, context) in sorted(
-                rows.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2])):
-            f.write('%s\t%s\t%d\t%s\t%s\t%s\n'
-                    % (doc, ref, line, resolved, primary, context))
+    out = [SIDECAR_HEADER]
+    for (doc, ref, line), (resolved, primary, context) in sorted(
+            rows.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2])):
+        out.append('%s\t%s\t%d\t%s\t%s\t%s\n'
+                   % (doc, ref, line, resolved, primary, context))
+    atomic_write(path, ''.join(out))
 
 
 UNRESOLVED_KEY = 'max-unresolved:'
@@ -623,6 +726,33 @@ def load_ceiling(path=BASELINE):
     return None
 
 
+def new_stats():
+    """The counters `run()` keeps, all zero.
+
+    Shared with check_doc_refs.py's empty-scope early return so every caller can
+    read every key. That return used to hand back `{'in_place': 0}` alone, which
+    is exactly the shape that makes a missing counter read as a passing one:
+    the ceiling check asks for 'unresolved', and absent-means-zero is
+    indistinguishable from "under the limit".
+    """
+    return {'in_place': 0, 'unique': 0, 'context': 0, 'unresolved': 0,
+            'unresolved_refs': [],
+            'bootstrapped': 0, 'skipped': 0, 'cites': 0}
+
+
+def ceiling_breach(stats, path=BASELINE):
+    """(count, ceiling) when the unresolved-path count broke its ratchet, else None.
+
+    Both gate paths call this. It lived only in this file's main(), reachable
+    only under --check, whose only caller was a make target nothing invoked —
+    so the ceiling existed, sat exactly at its limit, and was enforced by
+    nothing that actually ran.
+    """
+    ceiling = load_ceiling(path)
+    count = (stats or {}).get('unresolved', 0)
+    return (count, ceiling) if ceiling is not None and count > ceiling else None
+
+
 def load_baseline(path=BASELINE):
     known = set()
     if not os.path.isfile(path):
@@ -640,12 +770,12 @@ def load_baseline(path=BASELINE):
 
 
 def write_baseline(entries, path=BASELINE, unresolved=None):
-    with open(path, 'w') as f:
-        f.write(BASELINE_HEADER)
-        if unresolved is not None:
-            f.write('%s %d\n\n' % (UNRESOLVED_KEY, unresolved))
-        for doc, ref, line, reason in sorted(entries):
-            f.write('%s\t%s:%d\t%s\n' % (doc, ref, line, reason))
+    out = [BASELINE_HEADER]
+    if unresolved is not None:
+        out.append('%s %d\n\n' % (UNRESOLVED_KEY, unresolved))
+    for doc, ref, line, reason in sorted(entries):
+        out.append('%s\t%s:%d\t%s\n' % (doc, ref, line, reason))
+    atomic_write(path, ''.join(out))
 
 
 # ---------------------------------------------------------------------------
@@ -681,8 +811,7 @@ def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False)
     findings, blanks, rewrites = [], [], []
     fresh = {}
     seen_keys = set()
-    stats = {'in_place': 0, 'unique': 0, 'context': 0, 'unresolved': 0,
-             'bootstrapped': 0, 'skipped': 0, 'cites': 0}
+    stats = new_stats()
 
     target_set = set(targets)
     for doc in targets:
@@ -718,6 +847,10 @@ def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False)
                 stats['skipped'] += 1
                 if path is None:
                     stats['unresolved'] += 1
+                    # The count alone cannot be driven to zero by anyone who
+                    # cannot see the members; --audit prints these.
+                    stats.setdefault('unresolved_refs', []).append(
+                        '%s:%d: `%s:%d`' % (doc, doc_line, ref, n))
                 if stored is not None and key in stored:
                     seen_keys.add(key)
                     fresh[key] = stored[key]
@@ -816,9 +949,7 @@ def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False)
                                            idx.context_hash(new_line))
 
         if write and edits:
-            text = apply_edits(text, edits)
-            with open(doc, 'w') as f:
-                f.write(text)
+            atomic_write(doc, apply_edits(text, edits))
 
     # A row for a citation that is no longer in the doc. On a write run it is
     # simply dropped (`merged` is rebuilt from `fresh`); on a check run it means
@@ -1037,8 +1168,11 @@ def main():
     check_only = args.check or args.diff or args.audit
     stored = load_sidecar()
     if stored is None and check_only:
-        print('⚠️  Citation anchors: %s absent — nothing to verify' % SIDECAR)
-        return 0
+        # Absent sidecar = every citation unverified. Whether that is an opt-out
+        # or a hole is git's answer, not ours — see missing_sidecar_report().
+        code, message = missing_sidecar_report()
+        print(message)
+        return code
     if stored is None:
         stored = {}
 
@@ -1095,8 +1229,7 @@ def main():
     # A citation whose path does not resolve is nobody's finding here — it is
     # deferred to check_refs — so the only way this class can be held is by
     # counting it. Enforced on any run that did not just rewrite the number.
-    ceiling = load_ceiling()
-    over = (ceiling is not None and stats['unresolved'] > ceiling)
+    over = ceiling_breach(stats)
 
     hard = [f for f in findings if f.kind in HARD_KINDS]
     soft = [f for f in findings if f.kind not in HARD_KINDS]
@@ -1131,11 +1264,11 @@ def main():
         elif soft:
             print('   Run: make regen-doc-links')
         if over:
-            _report_over(stats['unresolved'], ceiling)
+            report_over_ceiling(*over)
         return 1
 
     if over:
-        _report_over(stats['unresolved'], ceiling)
+        report_over_ceiling(*over)
         return 1
 
     if check_only:
@@ -1147,7 +1280,7 @@ def main():
     return 0
 
 
-def _report_over(count, ceiling):
+def report_over_ceiling(count, ceiling):
     print('❌ Citation anchors: %d citations name a path that does not resolve, '
           'over the baseline of %d.' % (count, ceiling))
     print('   These are anchored by nothing and reported by nothing — '

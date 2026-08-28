@@ -42,19 +42,25 @@ struct GcodeToolInfo {
 /// This is an intentional abstraction boundary — callers convert from
 /// ams_types.h SlotInfo to keep FilamentMapper free of LVGL dependency.
 struct AvailableSlot {
-    int slot_index;                ///< Global slot index (unique within backend, used for mapping)
-    int backend_index;             ///< Which AMS backend (0 = primary)
-    uint32_t color_rgb;            ///< Loaded filament color (0xRRGGBB)
-    std::string material;          ///< Loaded material type
-    bool is_empty;                 ///< True if slot has no filament
-    int current_tool_mapping;      ///< What tool this slot is currently mapped to (-1 = none)
-    int unit_index = 0;            ///< Unit index within the backend
-    int local_slot_index = 0;      ///< Slot index within its unit (for display labels)
-    std::string unit_display_name; ///< Unit name for display (empty = single-unit backend)
+    int slot_index;           ///< Global slot index (unique within backend, used for mapping)
+    int backend_index;        ///< Which AMS backend (0 = primary)
+    uint32_t color_rgb;       ///< Loaded filament color (0xRRGGBB)
+    std::string material;     ///< Loaded material type
+    bool is_empty;            ///< True if slot has no filament
+    int current_tool_mapping; ///< What tool this slot is currently mapped to (-1 = none)
+    int unit_index = 0;       ///< Unit index within the backend
+    int local_slot_index = 0; ///< Slot index within its unit (for display labels)
+    /// Unit name for display (empty = single-unit backend).
+    /// Default-initialised, like every field added after this struct's original
+    /// positional initializers: an aggregate initializer that stops short of a
+    /// member with no default warns under -Wmissing-field-initializers, and
+    /// there are 200-odd such call sites in the mapper tests alone. The value
+    /// is the same one aggregate initialisation already gave it.
+    std::string unit_display_name = {};
     /// Comma-separated hex codes for multi-color spools (companion to color_rgb;
     /// empty = single-color). Mirrors SlotInfo::multi_color_hexes. Kept last so
     /// existing positional aggregate initializers stay valid.
-    std::string multi_color_hexes;
+    std::string multi_color_hexes = {};
 
     /// Remaining filament on this lane in grams, or -1 when unknown.
     /// Mirrors SlotInfo's sentinel: -1 means NO OPINION, never zero. Only a

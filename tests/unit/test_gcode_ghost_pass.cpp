@@ -96,7 +96,15 @@ void configure(GCodeLayerRenderer& r, ParsedGCodeFile& gcode, bool ghost) {
 /// spinning so the worker gets the CPU.
 template <typename Frame> void settle(GCodeLayerRenderer& r, Frame&& frame) {
     const auto start = std::chrono::steady_clock::now();
-    const auto deadline = start + std::chrono::seconds(10);
+    // Wall clock, so it is a budget for the WORKER GETTING CPU, not for the work.
+    // `make test-run` fans out 96 shards over 32 cores, so this thread is ~3x
+    // oversubscribed and the ghost worker can simply not be scheduled for a long
+    // stretch; at 10s this went red roughly one full run in three, always here,
+    // always with needs_more_frames() already false and only the worker
+    // outstanding. Generous rather than tight on purpose: the failure this guards
+    // is a worker that never finishes, which a longer budget still catches, while
+    // a tight one mostly reports how busy the box was.
+    const auto deadline = start + std::chrono::seconds(60);
     long frames = 0;
     long spawns = 0;
     bool was_running = false;

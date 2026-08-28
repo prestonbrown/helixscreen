@@ -82,7 +82,20 @@ void line_wu(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t arg
 
     // Main loop — draw pixels with fractional coverage for AA
     for (int x = x0 + 1; x < x1; x++) {
+        // Floor, not truncate. static_cast rounds toward zero, so an intery in
+        // (-1, 0) would give iy == 0 and a NEGATIVE frac, making (1 - frac) * 255
+        // exceed 255 while frac * 255 goes below 0 — both undefined converting to
+        // uint8_t. Whatever the conversion yields then lands on the wrong rows:
+        // the pair is written at 0 and 1 instead of -1 and 0, so the row above the
+        // canvas is drawn on row 0 and a row the line never touches is drawn at
+        // all. Screen coordinates reach here unclipped, so any model taller than
+        // the canvas produces them. The correction is a sign test rather than
+        // std::floor: this is the rasterizer's per-pixel inner loop, and the
+        // branch predicts away everywhere the line is on-canvas.
         int iy = static_cast<int>(intery);
+        if (intery < static_cast<float>(iy)) {
+            --iy;
+        }
         float frac = intery - static_cast<float>(iy);
         uint8_t coverage_lo = static_cast<uint8_t>((1.0f - frac) * 255);
         uint8_t coverage_hi = static_cast<uint8_t>(frac * 255);

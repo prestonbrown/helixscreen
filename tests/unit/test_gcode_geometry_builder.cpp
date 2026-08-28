@@ -3,6 +3,7 @@
 
 #include "gcode_geometry_builder.h"
 #include "gcode_parser.h"
+#include "gcode_selection_style.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -1337,7 +1338,8 @@ namespace {
 /// so the builder never shares vertices between them. Sharing changes how many
 /// strips a segment emits (the start cap is skipped), which would make the
 /// per-object strip proportions below untestable.
-ToolpathSegment run_test_segment(int slot, float z, int16_t object_index) {
+ToolpathSegment run_test_segment(int slot, float z, int16_t object_index,
+                                 FeatureType feature = FeatureType::Unknown) {
     ToolpathSegment seg;
     const float x = static_cast<float>(slot % 40) * 4.0f;
     const float y = static_cast<float>(slot / 40) * 4.0f;
@@ -1347,6 +1349,7 @@ ToolpathSegment run_test_segment(int slot, float z, int16_t object_index) {
     seg.extrusion_amount = 1.0f;
     seg.width = 0.4f;
     seg.object_name_index = object_index;
+    seg.feature_type = feature;
     return seg;
 }
 
@@ -1505,6 +1508,61 @@ TEST_CASE("Geometry Builder: a file with no exclude-object metadata allocates no
     CHECK(geometry.layer_object_run_ranges.empty());
     CHECK(geometry.layer_object_run_ranges.capacity() == 0);
     CHECK(geometry.layer_object_runs(0).empty());
+}
+
+TEST_CASE("Geometry Builder: every feature type of a selected object joins a run",
+          "[gcode][geometry][objectruns]") {
+    // The runs are what render_selection_tag() draws, and the rim is derived from
+    // the boundary of the tagged region. Restricting collection to walls (the
+    // selection::halo_feature() set — OuterWall, OverhangWall, Unknown) leaves the
+    // interior untagged on any ;TYPE-annotated file, which is most of them: the
+    // top face reads as a hole, every real hole gets its own ring, and the
+    // silhouette fragments when the object is viewed from above.
+    const std::vector<FeatureType> features{FeatureType::OuterWall,   FeatureType::InnerWall,
+                                            FeatureType::SolidInfill, FeatureType::TopSurface,
+                                            FeatureType::Bridge,      FeatureType::SparseInfill,
+                                            FeatureType::Support,     FeatureType::BottomSurface};
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(200, 200, 20);
+    gcode.object_name_table = {"objA"};
+
+    Layer layer;
+    layer.z_height = 0.2f;
+    int slot = 0;
+    for (FeatureType f : features) {
+        layer.segments.push_back(run_test_segment(slot++, 0.2f, 0, f));
+    }
+    gcode.layers.push_back(layer);
+    gcode.total_segments = features.size();
+
+    GeometryBuilder builder;
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    // One object, one layer, every segment adjacent in the VBO: the runs must
+    // coalesce into a single run spanning the whole layer.
+    auto runs = geometry.layer_object_runs(0);
+    REQUIRE(runs.count == 1);
+    CHECK(runs.first[0].object_index == 0);
+    CHECK(runs.first[0].vertex_offset == 0);
+
+    const size_t layer_vertices = geometry.layer_strip_ranges[0].second * 6;
+    REQUIRE(layer_vertices > 0);
+    CHECK(runs.first[0].vertex_count == layer_vertices);
+
+    // Non-wall features carry almost all of those vertices: seven of the eight
+    // segments above are outside halo_feature(), only OuterWall inside it.
+    // Restoring the filter still yields runs.count == 1, so vertex_count against
+    // the layer total is the assertion that bites — it drops to an eighth of it.
+    size_t wall_only_segments = 0;
+    for (FeatureType f : features) {
+        if (selection::halo_feature(f)) {
+            ++wall_only_segments;
+        }
+    }
+    REQUIRE(wall_only_segments < features.size());
 }
 
 TEST_CASE("Geometry Builder: segments outside any object do not join a run",

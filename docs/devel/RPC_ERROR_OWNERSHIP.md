@@ -152,7 +152,7 @@ The same capture-then-forward appears at every layer that wraps:
 | `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp:401-403` — also the site that sets `silent = (on_error != nullptr)` |
 | `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:546` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
 | `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:446-449` — the G28 leg forwards the *caller's* answer, not the wrapper's |
-| `LedController::send_led_command()` / strobe | `src/led/led_controller.cpp:1027`, `:1054` — `caller_surfaces_errors && (on_error != nullptr)` |
+| `LedEffectBackend::activate_effect()` / `stop_all_effects()` | `src/led/led_controller.cpp:1023-1027`, `:1052-1054` — `caller_surfaces_errors && (on_error != nullptr)` |
 
 ### The parameter
 
@@ -282,7 +282,7 @@ Behaviour is pinned by `tests/unit/test_rpc_error_policy.cpp` (the matrix),
    through rather than re-deriving it (`std::optional<bool>` is the pattern
    `AmsSubscriptionBackend` uses, `include/ams_subscription_backend.h:111-123`).
 6. Never re-implement the matrix. Call `rpc_error_policy::decide()` — the mock's inline gcode
-   path does exactly that (`src/api/moonraker_client_mock_print.cpp:91-121`) so its behaviour
+   path does exactly that (`src/api/moonraker_client_mock_print.cpp:87-121`) so its behaviour
    cannot drift from the real tracker's.
 
 ## What was measured on hardware

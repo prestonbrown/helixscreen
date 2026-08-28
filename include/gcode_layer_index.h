@@ -196,7 +196,12 @@ class GCodeLayerIndex {
      * @brief Get entry for a specific layer
      *
      * @param layer_index Zero-based layer index
-     * @return Layer entry, or invalid entry if out of range
+     * @return Layer entry, or an entry with byte_length == 0 if out of range.
+     *
+     * Callers MUST test is_valid() before reading any field. The out-of-range
+     * entry is zeroed throughout, and its zeroed start_x/y/z would seed a
+     * streaming parse at the origin — the stray-lines-from-(0,0) bug those
+     * fields exist to prevent.
      */
     StreamingLayerEntry get_entry(size_t layer_index) const;
 

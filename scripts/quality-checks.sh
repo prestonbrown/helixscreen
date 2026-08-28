@@ -2124,7 +2124,11 @@ if [ -f "scripts/check_doc_refs.py" ]; then
     # Deliberately not auto-fixed: a "gone" or "blank" anchor, which
     # check_doc_refs.py reports without the regen hint. There the cited line's
     # own text changed, and no generator can decide whether the sentence around
-    # it is still true.
+    # it is still true. Nor are the two integrity failures — a committed
+    # doc_cite_anchors.tsv missing from the working tree, and the
+    # unresolved-path count over its `max-unresolved:` ceiling. Neither emits
+    # the hint, so neither reaches the regen below: one wants the file
+    # restored, the other wants a citation whose path actually resolves.
     if [ "$AUTO_FIX" = true ] && grep -q "Run: make regen-doc-links" /tmp/doc_refs.out; then
       python3 scripts/doc_cite_anchors.py >>/tmp/doc_refs.out 2>&1
       python3 scripts/gen_doc_links.py >>/tmp/doc_refs.out 2>&1
