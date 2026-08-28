@@ -63,8 +63,14 @@ class _Clean:
         self._f.close()
 
 
-def parse_report(path):
-    """{case name: (source file, passed)} from a Catch2 XML report."""
+def parse_report(path, strict=True):
+    """{case name: (source file, passed)} from a Catch2 XML report.
+
+    strict=False returns whatever parsed before the error instead of exiting.
+    An isolated run is one file out of ~950: a report that goes bad part way
+    through must cost that file's verdict, not the entire scan. (It did once --
+    a single malformed report killed a run that had already done 900 files.)
+    """
     out, src = {}, _Clean(path)
     try:
         for _, elem in ET.iterparse(src, events=('end',)):
@@ -77,7 +83,10 @@ def parse_report(path):
                              res.get('success') == 'true')
             elem.clear()
     except ET.ParseError as e:
-        sys.exit(f'{path}: malformed report ({e}). Regenerate with --out FILE.')
+        if strict:
+            sys.exit(f'{path}: malformed report ({e}). Regenerate with --out FILE.')
+        sys.stderr.write(f'note: isolated report truncated or malformed ({e}); '
+                         f'judging only the {len(out)} case(s) that parsed\n')
     finally:
         src.close()
     return out
@@ -107,7 +116,8 @@ def run_isolated(binary, names, workdir):
             cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if not report.is_file():
             return {}
-        return {n: ok for n, (_, ok) in parse_report(report).items()}
+        return {n: ok for n, (_, ok)
+                in parse_report(report, strict=False).items()}
 
 
 def report_ran_nothing(names, alone):
@@ -122,6 +132,11 @@ def main():
     ap.add_argument('--jobs', type=int, default=8)
     ap.add_argument('--only', default=None,
                     help='restrict to source files whose name contains this')
+    # One process per test file over ~950 files is too long for a single CI
+    # runner, and the work is embarrassingly parallel across files. Sharding is
+    # by file so a case is always judged in the same company it keeps locally.
+    ap.add_argument('--shard-count', type=int, default=1)
+    ap.add_argument('--shard-index', type=int, default=0)
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--max-allowed', type=int, default=None)
     args = ap.parse_args()
@@ -141,8 +156,20 @@ def main():
     if not by_file:
         sys.exit('no test cases matched')
 
+    if args.shard_count > 1:
+        if not 0 <= args.shard_index < args.shard_count:
+            sys.exit(f'--shard-index must be in [0, {args.shard_count})')
+        ordered = sorted(by_file)
+        by_file = {f: by_file[f] for i, f in enumerate(ordered)
+                   if i % args.shard_count == args.shard_index}
+        if not by_file:
+            print(f'shard {args.shard_index}/{args.shard_count}: no files')
+            return 0
+
+    shard = (f' [shard {args.shard_index}/{args.shard_count}]'
+             if args.shard_count > 1 else '')
     print(f'{len(full)} case(s) in the report; running {len(by_file)} file(s) '
-          f'in isolation with {args.jobs} job(s)...')
+          f'in isolation with {args.jobs} job(s){shard}...')
 
     findings = []
     def check(item):

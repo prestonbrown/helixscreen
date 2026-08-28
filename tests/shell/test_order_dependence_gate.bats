@@ -142,3 +142,31 @@ EOF
     [ "$status" -ne 0 ]
     [[ "$output" == *"make test"* ]]
 }
+
+@test "sharding partitions files and covers every one exactly once" {
+    # Two files, two shards: each shard must take exactly one.
+    cat > "$WORK/full.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<Catch2TestRun name="t">
+  <TestCase name="case A" filename="tests/unit/test_a.cpp" line="1">
+    <OverallResult success="true" skips="0"/>
+  </TestCase>
+  <TestCase name="case B" filename="tests/unit/test_b.cpp" line="1">
+    <OverallResult success="true" skips="0"/>
+  </TestCase>
+</Catch2TestRun>
+EOF
+    stub_binary true true
+    run gate --shard-count 2 --shard-index 0
+    [[ "$output" == *"running 1 file"* ]]
+    run gate --shard-count 2 --shard-index 1
+    [[ "$output" == *"running 1 file"* ]]
+}
+
+@test "an out-of-range shard index is rejected" {
+    full_report true true
+    stub_binary true true
+    run gate --shard-count 2 --shard-index 2
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"shard-index"* ]]
+}
