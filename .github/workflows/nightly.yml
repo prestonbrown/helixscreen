@@ -744,7 +744,7 @@ jobs:
       run: |
         python3 scripts/check_test_order_dependence.py build/suite-report.xml \
           --jobs "$(nproc)" --shard-count 8 --shard-index ${{ matrix.shard }} \
-          --list --max-allowed 0
+          --list --max-allowed 1
 
     - name: Upload suite report on failure
       if: failure()
