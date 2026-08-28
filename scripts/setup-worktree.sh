@@ -621,6 +621,53 @@ if [[ -f "$MAIN_TREE/compile_commands.json" ]]; then
     echo -e "  compile_commands.json: ${GREEN}copied and paths rewritten${RESET}"
 fi
 
+# Step 3d: Point claude-recall at the MAIN tree's .claude-recall/
+#
+# claude-recall resolves its lessons + stats directory from `git rev-parse
+# --show-toplevel`, which inside a worktree is the WORKTREE. Every worktree
+# therefore accumulated its own LESSONS.md/stats.json, and `git worktree remove`
+# threw them away — so lesson scoring only ever reflected work done in the main
+# tree. PROJECT_DIR overrides that resolution.
+#
+# Written to settings.local.json, which is globally gitignored, rather than
+# symlinking .claude-recall/: those three files are TRACKED, and symlinking a
+# tracked path is how a worktree clobbers it (#1107).
+#
+# Main-tree paths inside permissions are rewritten the same way
+# compile_commands.json is above; PROJECT_DIR is set afterwards so it keeps
+# pointing at the main tree rather than being rewritten with everything else.
+if command -v python3 >/dev/null 2>&1; then
+    mkdir -p "$WORKTREE_PATH/.claude"
+    if MAIN_TREE="$MAIN_TREE" WORKTREE_PATH="$WORKTREE_PATH" python3 - <<'PYEOF'
+import json, os, pathlib
+
+main = os.environ["MAIN_TREE"]
+wt = os.environ["WORKTREE_PATH"]
+src = pathlib.Path(main, ".claude", "settings.local.json")
+dst = pathlib.Path(wt, ".claude", "settings.local.json")
+
+cfg = {}
+if src.is_file():
+    try:
+        cfg = json.loads(src.read_text().replace(main, wt))
+    except (json.JSONDecodeError, OSError):
+        cfg = {}  # a malformed local file must not sink worktree setup
+
+if not isinstance(cfg, dict):
+    cfg = {}
+env = cfg.setdefault("env", {})
+if not isinstance(env, dict):
+    env = cfg["env"] = {}
+env["PROJECT_DIR"] = main
+dst.write_text(json.dumps(cfg, indent=2) + "\n")
+PYEOF
+    then
+        echo -e "  .claude/settings.local.json: ${GREEN}PROJECT_DIR -> main tree${RESET} (claude-recall stats)"
+    else
+        echo -e "  .claude/settings.local.json: ${YELLOW}skipped (could not write)${RESET}"
+    fi
+fi
+
 # Step 4: Clone compiled libraries from the main tree
 #
 # Copies, not symlinks, for the same reason as the PCH below: these are build

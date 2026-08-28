@@ -27,6 +27,10 @@ make pi-test                         # Build on thelio + deploy + run
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
 scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
+#   Also writes .claude/settings.local.json (gitignored) with PROJECT_DIR set to
+#   the MAIN tree, so claude-recall writes lessons and stats there instead of to
+#   a per-worktree .claude-recall/ that `git worktree remove` would discard.
+#   A worktree made by hand (plain `git worktree add`) does NOT get this.
 ```
 
 **XML changes need no rebuild:** `ui_xml/*.xml` is loaded at runtime — edit XML, then **relaunch** the binary to see changes (no `make` needed). Better: hot reload is **on by default for native dev builds** (cross-compiled release builds default it off) — the running app re-registers components within ~500ms of a save and rebuilds the active panel/overlay/modal in place. `HELIX_HOT_RELOAD=1`/`0` overrides the default either way. Invalid XML (mid-write truncation, syntax errors) is silently skipped on the polling thread — the existing UI stays live and the next poll retries.
