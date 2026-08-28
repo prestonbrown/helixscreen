@@ -291,8 +291,16 @@ regen-tokens:
 # Targets:
 #   make regen-doc-links     — re-pin citations, then relink the guide
 #   make regen-doc-anchors   — re-pin citation line numbers only
-#   make check-doc-links     — report-only; what quality-checks.sh runs
-#   make check-doc-anchors   — report-only; also run inside check_doc_refs.py
+#   make check-doc-links     — report-only developer shortcut
+#   make check-doc-anchors   — report-only developer shortcut
+#
+# Neither check-* target is what gates a commit: quality-checks.sh runs the two
+# scripts directly (qc_doc_links calls gen_doc_links.py --diff, qc_doc_refs
+# calls check_doc_refs.py, which runs the anchor check and its unresolved-path
+# ceiling inline). They exist so a human can ask one question without waiting
+# for the whole doc section, and they must stay a strict SUBSET of what that
+# section enforces — a check reachable only from here is a check nothing runs,
+# which is what let the unresolved-path ceiling sit at its limit unenforced.
 
 .PHONY: regen-doc-links check-doc-links regen-doc-anchors check-doc-anchors
 

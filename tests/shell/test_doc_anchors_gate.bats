@@ -595,3 +595,236 @@ EOF
     # reported as anchorable rather than as past-EOF.
     [[ "$output" != *"past-EOF"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# Gate integrity: the three ways the anchor check could be switched off without
+# anyone noticing. Each of these was a live hole — the ceiling was enforced only
+# on a code path nothing ran, a missing sidecar printed a warning and passed,
+# and every write truncated its target before emitting a byte.
+# ---------------------------------------------------------------------------
+
+# Two files sharing one basename, in directories outside gen_doc_links'
+# PRIMARY_ROOTS so the tie cannot be broken. This is the real shape of an
+# "unresolved path": check_doc_refs PASSES it (the basename exists somewhere)
+# while the anchor resolver refuses it (it cannot tell which file is meant), so
+# the citation is anchored by nothing and reported by nothing. Only a count
+# holds the class, which is why the ceiling exists.
+seed_ambiguous() {
+    local name="$1"
+    mkdir -p "$REPO/zz_${name}_a" "$REPO/zz_${name}_b"
+    printf 'int one;\nint two;\nint three;\n' > "$REPO/zz_${name}_a/$name.cpp"
+    cp "$REPO/zz_${name}_a/$name.cpp" "$REPO/zz_${name}_b/$name.cpp"
+}
+
+@test "ceiling: check_doc_refs.py enforces the unresolved-path ratchet too" {
+    # The ceiling used to live ONLY in doc_cite_anchors.py's own --check, whose
+    # sole caller was `make check-doc-anchors` — a target nothing invoked. On
+    # the path quality-checks.sh, both git hooks and CI actually take, a new
+    # dead-path citation produced no finding at all: the walk just bumps a
+    # counter and continues, and check_doc_refs read only ['in_place'].
+    seed_src
+    seed_ambiguous zz_dup
+    echo 'Real `src/zz_anchor.cpp:10`. Ambiguous `zz_dup.cpp:3`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" >/dev/null
+    python3 "$ANCH" --write-baseline >/dev/null
+    grep -q '^max-unresolved: 1$' scripts/doc_cite_anchor_baseline.txt
+
+    # The quiet half: AT the ceiling the whole gate is still green, so the fix
+    # cannot degenerate into "always fail".
+    run python3 "$CHECK" --devel docs/devel
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Citation anchors: 1 cited lines still resolve"* ]]
+
+    # One more unresolvable path and the bucket has grown.
+    seed_ambiguous zz_dup2
+    echo 'Real `src/zz_anchor.cpp:10`. Ambiguous `zz_dup.cpp:3` `zz_dup2.cpp:2`.' > "$DOC"
+    run python3 "$CHECK" --devel docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"does not resolve, over the baseline of 1"* ]]
+    # And it is the ceiling talking, not some other check picking it up: the
+    # path checks all pass, which is exactly why only a count can hold this.
+    [[ "$output" == *"✅ Doc references: all resolve"* ]]
+}
+
+@test "ceiling: with no baseline file the ratchet stays inert on the gate path" {
+    # The sibling gates' meta-tests build miniature repos with no baseline, and
+    # the ceiling must not fail them into red over citations nobody baselined.
+    seed_src
+    seed_ambiguous zz_dup
+    echo 'Real `src/zz_anchor.cpp:10`. Ambiguous `zz_dup.cpp:3`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" >/dev/null
+    [ ! -f scripts/doc_cite_anchor_baseline.txt ]
+    run python3 "$CHECK" --devel docs/devel
+    [ "$status" -eq 0 ]
+}
+
+@test "sidecar: deleting a COMMITTED sidecar fails both gate paths closed" {
+    # `rm scripts/doc_cite_anchors.tsv` turned the anchor check green for the
+    # whole corpus — load_sidecar() returned None, which both entry points read
+    # as "this tree has not opted in" and passed with a ⚠️ nobody reads as a
+    # failure. git is what separates the two meanings.
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" docs/devel
+    git init -q .
+    git add scripts/doc_cite_anchors.tsv
+    rm scripts/doc_cite_anchors.tsv
+
+    run python3 "$CHECK" --devel docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"committed but absent from the working tree"* ]]
+
+    run python3 "$ANCH" --check docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"committed but absent from the working tree"* ]]
+
+    # Restoring it puts the gate straight back to green — the failure is about
+    # the file being gone, not about the tree having git in it.
+    git checkout -- scripts/doc_cite_anchors.tsv
+    run python3 "$CHECK" --devel docs/devel
+    [ "$status" -eq 0 ]
+}
+
+@test "sidecar: a git-rm removal does not walk the gate off either" {
+    # Consulting the index alone would let a commit that removes the sidecar
+    # pass on its way out, so HEAD is consulted too.
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" docs/devel
+    git init -q .
+    git add scripts/doc_cite_anchors.tsv
+    git -c user.name=t -c user.email=t@t commit -qm seed
+    git rm -q scripts/doc_cite_anchors.tsv
+
+    run python3 "$CHECK" --devel docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"committed but absent from the working tree"* ]]
+}
+
+@test "sidecar: bootstrap still works in a tree that has none" {
+    # The escape hatch the fail-closed check must not take away: the WRITE path
+    # never consults git, so a tree can always create its first sidecar.
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    git init -q .
+    [ ! -f scripts/doc_cite_anchors.tsv ]
+    run python3 "$ANCH" docs/devel
+    [ "$status" -eq 0 ]
+    [ -f scripts/doc_cite_anchors.tsv ]
+    run python3 "$ANCH" --check docs/devel
+    [ "$status" -eq 0 ]
+}
+
+# A driver that runs ONE doc_cite_anchors write with the process dying inside
+# it. Both file-opening primitives are wrapped, so the model holds whichever one
+# the implementation reaches for, and the first write() raises — which is what a
+# Ctrl-C in .githooks/pre-commit looks like from the writer's point of view.
+#
+# A truncating write has already emptied its target by then (open(path,'w')
+# truncates at open, before any write call), so the assertion "the target still
+# holds its old bytes" is exactly the mutation signal: put `with open(path,'w')`
+# back in atomic_write() and all three cases fail.
+write_crasher() {
+    cat > "$BATS_TEST_TMPDIR/crashwrite.py" <<'PYEOF'
+import builtins, os, sys
+sys.path.insert(0, sys.argv[1])
+import doc_cite_anchors as anchors
+
+
+class _Dying:
+    def __init__(self, f):
+        self._f = f
+
+    def write(self, s):
+        raise KeyboardInterrupt
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return self._f.__exit__(*a)
+
+    def __getattr__(self, k):
+        return getattr(self._f, k)
+
+
+_open, _fdopen = builtins.open, os.fdopen
+builtins.open = lambda p, mode='r', *a, **kw: (
+    _Dying(_open(p, mode, *a, **kw)) if 'w' in mode else _open(p, mode, *a, **kw))
+os.fdopen = lambda fd, mode='r', *a, **kw: (
+    _Dying(_fdopen(fd, mode, *a, **kw)) if 'w' in mode else _fdopen(fd, mode, *a, **kw))
+
+try:
+    what = sys.argv[2]
+    if what == 'sidecar':
+        anchors.write_sidecar({('d.md', 's.cpp', 1): ('s.cpp', 'a' * 12, 'b' * 12)})
+    elif what == 'baseline':
+        anchors.write_baseline({('d.md', 's.cpp', 1, 'blank')}, unresolved=99)
+    else:
+        anchors.run(anchors.scoped_targets(['docs/devel']),
+                    anchors.load_sidecar(), write=True)
+except KeyboardInterrupt:
+    sys.exit(130)
+sys.exit(0)
+PYEOF
+}
+
+@test "atomic: an interrupted write leaves the sidecar and baseline intact" {
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" >/dev/null
+    python3 "$ANCH" --write-baseline >/dev/null
+    cp scripts/doc_cite_anchors.tsv "$BATS_TEST_TMPDIR/tsv.good"
+    cp scripts/doc_cite_anchor_baseline.txt "$BATS_TEST_TMPDIR/bl.good"
+    write_crasher
+
+    run python3 "$BATS_TEST_TMPDIR/crashwrite.py" "$(dirname "$ANCH")" sidecar
+    [ "$status" -eq 130 ]
+    diff "$BATS_TEST_TMPDIR/tsv.good" scripts/doc_cite_anchors.tsv
+
+    run python3 "$BATS_TEST_TMPDIR/crashwrite.py" "$(dirname "$ANCH")" baseline
+    [ "$status" -eq 130 ]
+    diff "$BATS_TEST_TMPDIR/bl.good" scripts/doc_cite_anchor_baseline.txt
+
+    # No half-written scratch file left behind for the next reader to trip on.
+    run bash -c "ls -a scripts | grep -c '\.tmp\$'"
+    [ "$output" = "0" ]
+
+    # And the gate still reads the file it protected.
+    run python3 "$ANCH" --check
+    [ "$status" -eq 0 ]
+}
+
+@test "atomic: an interrupted write leaves the DOC intact, never truncated" {
+    # The doc write is the one a committer meets: --auto-fix re-pins in place
+    # from inside .githooks/pre-commit, and half a rewritten doc in the working
+    # tree reads as a legitimate edit rather than as damage.
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" >/dev/null
+    cp "$DOC" "$BATS_TEST_TMPDIR/doc.good"
+    # Move the code so a rewrite is genuinely pending — without this the write
+    # path is never reached and the test proves nothing.
+    { for i in $(seq 5); do echo "// prologue $i"; done; cat "$SRC"; } > "$SRC.new"
+    mv "$SRC.new" "$SRC"
+    write_crasher
+
+    run python3 "$BATS_TEST_TMPDIR/crashwrite.py" "$(dirname "$ANCH")" doc
+    [ "$status" -eq 130 ]
+    diff "$BATS_TEST_TMPDIR/doc.good" "$DOC"
+    run bash -c "ls -a docs/devel | grep -c '\.tmp\$'"
+    [ "$output" = "0" ]
+
+    # Uninterrupted, the very same run DOES rewrite it — so the assertion above
+    # is about atomicity and not about the write being skipped.
+    run python3 "$ANCH"
+    [ "$status" -eq 0 ]
+    grep -q '`src/zz_anchor.cpp:15`' "$DOC"
+}
