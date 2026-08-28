@@ -177,7 +177,18 @@ it does not.
 
 `tc_step_sequence()` is the single source for both the model and the phase-to-index
 mapping, so a step added to it appears in the bar and becomes addressable at the same index
-in one edit - the two cannot drift apart.
+in one edit. That alone is not enough to keep the two in sync at runtime, though: the model
+is built once, when the sidebar starts an operation, while the index is recomputed from
+`tc_step_sequence()` again on every frame after that. Moonraker republishes only the fields
+that changed, so the feeder/direction latches the sequence depends on can flip in between -
+deriving both from the same function does not stop them from being derived from *different*
+snapshots of it.
+
+What actually prevents drift: `get_operation_step_model()` snapshots the latches it built the
+model from, and `step_index_for_phase_locked()` resolves every frame's index against that same
+snapshot rather than the live latches. Once a model exists, its index is pinned to the exact
+sequence it was built from until the next model build refreshes the snapshot - the two cannot
+drift apart in between.
 
 **Mapping an idle frame.** Both ends of a swap read `idle`/`ready`, and the gripper is the
 only thing separating them: open is the release that OPENS the operation, closed is the

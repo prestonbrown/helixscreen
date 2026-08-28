@@ -982,6 +982,11 @@ bool AmsState::any_bypass_active() const {
     return false;
 }
 
+bool AmsState::active_spool_describes_bypass() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return get_backend() == nullptr || any_bypass_active();
+}
+
 bool AmsState::effective_auto_match() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     // Ask whether the user's choice can be carried out at all, not whether the
@@ -1812,21 +1817,35 @@ void AmsState::sync_from_backend() {
             ToolState::instance().assign_spool(slot->mapped_tool, slot->spoolman_id,
                                                slot->spool_name, slot->remaining_weight_g,
                                                slot->total_weight_g);
-        } else if (backend->has_firmware_spool_persistence()) {
-            // Only clear when the SLOT is authoritative. For backends without
-            // firmware spool persistence (toolchanger) the flow runs the other
-            // way — ToolState is the source of truth and slots start empty — so
-            // clearing here would destroy the assignment the reverse sync below
-            // is about to propagate.
+        } else if (!backend->supports_per_tool_spool_assignment()) {
+            // Only clear when the SLOT is authoritative. On a tool changer the
+            // flow runs the other way — ToolState is the source of truth and
+            // slots start empty — so clearing here would destroy the assignment
+            // the reverse sync below is about to propagate.
+            //
+            // The question is "who owns the assignment", NOT "does firmware
+            // persist the spool id", which is what this used to ask. CFS and
+            // AD5X IFS answer no to the latter (they keep identity in OUR
+            // lane_data override store, not in firmware) yet their lanes are
+            // fully authoritative, so they fell into the tool-changer branch:
+            // clearing a lane left the old spool in ToolState, and the reverse
+            // pass below then copied it straight back onto the lane. The lane
+            // blinked empty and refilled itself on the next poll.
             ToolState::instance().clear_spool(slot->mapped_tool);
         }
     }
 
-    // Reverse sync: populate backend slots from ToolState for backends that
-    // don't persist spool info in firmware (e.g., toolchanger). Without this,
-    // spool assignments loaded from Moonraker DB / local JSON on startup
-    // don't propagate back to slot UI subjects.
-    if (!backend->has_firmware_spool_persistence()) {
+    // Reverse sync: populate backend slots from ToolState on a tool changer,
+    // where each tool owns its own spool and the slot is the shadow. Without
+    // this, assignments made through Application's auto-assign-active-spool
+    // path (which writes ToolState directly) never reach the slot subjects.
+    //
+    // Gated on who OWNS the assignment. Gating it on
+    // has_firmware_spool_persistence() also caught every backend that keeps
+    // identity in our own override store rather than in firmware — CFS, AD5X
+    // IFS — and resurrected spools the user had just cleared from a lane. See
+    // the matching note on the clear branch above.
+    if (backend->supports_per_tool_spool_assignment()) {
         auto& tool_state = ToolState::instance();
         const auto& tools = tool_state.tools();
         for (int i = 0; i < std::min(info.total_slots, MAX_SLOTS); ++i) {
@@ -1843,8 +1862,14 @@ void AmsState::sync_from_backend() {
                 }
             }
         }
+    }
 
-        tool_state.save_spool_assignments_if_dirty(get_moonraker_api());
+    // Flushing ToolState is about PERSISTENCE, not about which direction the
+    // sync ran, so it keeps its own question: firmware won't remember the
+    // assignment, therefore we have to. Narrowing the reverse-sync gate above
+    // would otherwise have silently stopped saving on CFS and AD5X IFS.
+    if (!backend->has_firmware_spool_persistence()) {
+        ToolState::instance().save_spool_assignments_if_dirty(get_moonraker_api());
     }
 
     // Update per-unit environment subjects (CFS temperature/humidity)

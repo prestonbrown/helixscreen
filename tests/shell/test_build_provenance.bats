@@ -142,3 +142,94 @@ if missing:
 PY
     [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
 }
+
+# --- developer vs production remote control ---------------------------------
+# Every developer build carries the helixctl server; only the production
+# packaging path drops it. Both halves fail SILENTLY if they regress — a dev
+# rig you cannot drive reads as "ctl is broken", and a release that ships the
+# server exposes a socket that can drive the whole UI on a customer's printer.
+
+@test "a developer cross build gets the remote-control server" {
+    run make -n k2-docker
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'ENABLE_REMOTE_CONTROL=yes'* ]]
+}
+
+@test "a production packaging build does not" {
+    # `make -n package-*` stops at release-*'s missing order-only binaries, which
+    # is expected on a tree that has not cross-built. Asserting the docker line
+    # was emitted is what proves make expanded the recipe before it stopped —
+    # without it, a makefile that failed EARLIER would read green.
+    run make -n package-k2
+    [[ "$output" == *'toolchain-k2'* ]]
+    [[ "$output" == *'ENABLE_REMOTE_CONTROL=no'* ]]
+    [[ "$output" != *'ENABLE_REMOTE_CONTROL=yes'* ]]
+}
+
+@test "an explicit ENABLE_REMOTE_CONTROL still wins over the default" {
+    run make -n k2-docker ENABLE_REMOTE_CONTROL=no
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'ENABLE_REMOTE_CONTROL=no'* ]]
+    [[ "$output" != *'ENABLE_REMOTE_CONTROL=yes'* ]]
+}
+
+@test "package-% marks packaging for every platform, shared docker targets included" {
+    # package-k1 and package-ad5x both drive mips-docker. A per-target variable
+    # written on the docker rule instead of the package rule would give one of
+    # them the developer default.
+    for t in package-ad5m package-cc1 package-pi package-pi32 package-k1 \
+             package-ad5x package-k1-dynamic package-k2 package-snapmaker-u1 \
+             package-x86; do
+        run make -n "$t"
+        # See the note above on why status is not asserted here.
+        [[ "$output" == *'ENABLE_REMOTE_CONTROL=no'* ]] || {
+            echo "$t never forwarded the packaging default"
+            return 1
+        }
+        [[ "$output" != *'ENABLE_REMOTE_CONTROL=yes'* ]] || {
+            echo "$t forwarded ENABLE_REMOTE_CONTROL=yes into a production build"
+            return 1
+        }
+    done
+}
+
+@test "CI's release workflow marks its build as packaging" {
+    # release.yml builds through a bare `make PLATFORM_TARGET=...` inside its own
+    # container and never runs package-*, so the marker has to be explicit there.
+    run grep -F 'make PLATFORM_TARGET=' .github/workflows/release.yml
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'HELIX_PACKAGING=1'* ]]
+}
+
+@test "every release target refuses a binary built with the server" {
+    # The stamp is what the binary actually contains; HELIX_PACKAGING is only
+    # what the caller intended. release-* copies whatever is already in
+    # build/<plat>/bin, so it has to check the former.
+    run python3 - <<'PY'
+import re, sys
+text = open("mk/cross.mk").read()
+missing = []
+for m in re.finditer(r'^(release-[a-z0-9-]+):\s*\|\s*(.+)$', text, re.M):
+    target, prereqs = m.group(1), m.group(2)
+    body = text[m.end():]
+    body = body[:body.index("\n\n")] if "\n\n" in body else body
+    dirs = {d.group(1) for d in re.finditer(r'(build/[a-z0-9-]+/bin)/', prereqs)}
+    checked = set(re.findall(r'assert-no-remote-control,(build/[a-z0-9-]+/bin)\)', body))
+    if dirs - checked:
+        missing.append("%s: unchecked %s" % (target, ", ".join(sorted(dirs - checked))))
+if missing:
+    print("\n".join(missing))
+    sys.exit(1)
+PY
+    [ "$status" -eq 0 ]
+}
+
+@test "the fbdev half of a dual-link build gets the same stamp" {
+    # pi-both/pi32-both/x86-both link a second binary into build/<plat>-fbdev/,
+    # a directory mk/rules.mk's link rule never touches. deploy-*-fbdev and
+    # release-* both read the stamp from the dir they are handling, so an
+    # unstamped fbdev binary silently loses its ctl wiring.
+    run grep -F 'build-features' mk/pi-dual-link.mk
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'remote_control'* ]]
+}

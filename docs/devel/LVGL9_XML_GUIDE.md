@@ -722,7 +722,7 @@ This means `lv_obj` acts as a pure layout container *visually* by default - no b
 ```
 
 `helix-screen ctl geom <name>` reports the `scrollable` flag and the scroll extents, so it
-tells you directly whether a container is scrollable (see `HELIXCTL.md:566-567`).
+tells you directly whether a container is scrollable (see `HELIXCTL.md:570-571`).
 
 ### Flex Layout (Flexbox)
 

@@ -8,6 +8,7 @@
 #include "ui_test_utils.h"
 #include "ui_update_queue.h"
 
+#include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -317,6 +318,19 @@ void HelixTestFixture::reset_all() {
     if (lv_subject_t* ams = lv_xml_get_subject(nullptr, "ams_slot_count")) {
         lv_subject_set_int(ams, 0);
     }
+
+    // AmsState::active_step_operation_ is a plain std::atomic<StepOperationType>
+    // (LOAD_SWAP by default) with no subject behind it, so resetting it is safe
+    // even for the many tests that never touch LVGL. A test that leaves it on
+    // something else (test_toolchange_narration_e2e.cpp sets UNLOAD partway
+    // through one case and does not restore it) silently changes the sequence
+    // length any LATER test's tc_step_sequence()-based index resolves against -
+    // a bare TEST_CASE reading operation_phase off a freshly constructed
+    // backend has no fixture of its own to catch this, so without this reset it
+    // inherits whatever the previous test left behind. set_active_step_operation()
+    // only exchanges the atomic and clears a plain int high-water mark - no
+    // subject writes - so it is safe to call unconditionally here.
+    AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
 
     // DisplaySettingsManager's animations_enabled is a process-global subject
     // that defaults to the platform value (true on desktop). A fixture-less

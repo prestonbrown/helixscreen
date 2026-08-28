@@ -34,6 +34,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_backend_toolchanger.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "printer_discovery.h"
 #include "toolchanger_addon.h"
@@ -527,7 +528,7 @@ TEST_CASE("The gripper separates the two idle ends of a swap", "[ams][toolchange
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
     CHECK(tc.get_system_info().operation_phase < 0);
 
-    // Default active step operation is LOAD_SWAP: Release/Dock/Pick/Grip.
+    // LOAD_SWAP's sequence is Release/Dock/Pick/Grip.
     tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
     CHECK(tc.get_system_info().operation_phase == 0); // Release filament
@@ -562,6 +563,40 @@ TEST_CASE("A phase-less frame leaves the step alone", "[ams][toolchanger][steps]
     CHECK(tc.get_system_info().operation_phase == 1);
 }
 
+TEST_CASE("The step index stays pinned to the model actually on screen",
+          "[ams][toolchanger][steps]") {
+    // get_operation_step_model() and step_index_for_phase_locked() both derive
+    // their sequence from tc_step_sequence(), but the model is captured once
+    // (by the sidebar, at operation start) while the index is recomputed on
+    // EVERY frame from whatever feeder_state_reported_/direction_reported_
+    // read right then. A machine whose early frames carry `operation` without
+    // `feeder_open` gets a 2-step model (Dock/Pick); before the fix, the
+    // moment a later frame reported feeder_open for the FIRST time, the index
+    // computation would silently start resolving against the 4-step
+    // Release/Dock/Pick/Grip sequence instead - landing "dropping" on index 1
+    // (Pick, on the model actually rendered) instead of 0 (Dock).
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
+
+    // No feeder_open field at all yet: feeder_state_reported_ stays false.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
+    REQUIRE(tc.change_tool(2).success());
+
+    // The sidebar captures the model at operation start, before feeder_open
+    // has ever been reported on this backend.
+    const auto model = tc.get_operation_step_model(StepOperationType::LOAD_SWAP);
+    REQUIRE(step_labels(model) == std::vector<std::string>{"Dock tool", "Pick up tool"});
+
+    // The FIRST frame to ever report feeder_open arrives mid-operation.
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    // Against the 2-step model actually on screen, "dropping" is step 0
+    // (Dock) - not step 1, which is only where Dock sits in the 4-step
+    // sequence this same frame would build if the model were asked for fresh.
+    CHECK(tc.get_system_info().operation_phase == 0);
+}
+
 TEST_CASE("An idle frame with the gripper open does not end a running swap",
           "[ams][toolchanger][steps]") {
     // A swap RELEASES the filament before it moves, so its first frame is
@@ -587,6 +622,74 @@ TEST_CASE("An idle frame with the gripper open does not end a running swap",
     idle_tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
     CHECK(idle_tc.get_current_action() == AmsAction::IDLE);
+}
+
+TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
+          "[ams][toolchanger][steps]") {
+    // A real firmware unmount can end with the carriage empty and nothing to
+    // re-grip, so the gripper stays open on the swap's LAST idle frame too -
+    // the other helpers in this file always close it before ending, so this
+    // drives the backend through a real dropping frame first. Before the fix,
+    // the hold in apply_tool_sensor_locked() re-armed itself forever:
+    // was_mid_operation is partly derived from the action the hold itself
+    // sets, so every later idle+open frame satisfied the same condition that
+    // created it and the backend never reached IDLE again.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // Settle at idle with tool 0 mounted.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    // The unmount releases the filament and confirms it is actually running.
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(tc.get_current_action() != AmsAction::IDLE);
+
+    // The head ends up empty, and the gripper never re-closes over nothing.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(tc.get_system_info().is_busy());
+
+    // A later swap must still get the ordinary hold on ITS OWN opening frame -
+    // the fix must not have removed the hold outright, and the bound must have
+    // reset rather than staying latched true from the aborted swap above.
+    REQUIRE(tc.change_tool(1).success());
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() != AmsAction::IDLE);
+}
+
+TEST_CASE("A fresh dispatch gets its own hold even after a stale confirmation",
+          "[ams][toolchanger][steps]") {
+    // toolchanger.status can settle back to "ready" in a frame that carries no
+    // medusahc data at all - parse_toolchanger_state() sets IDLE straight from
+    // that, bypassing the idle/ready branch in apply_tool_sensor_locked() that
+    // normally resets operation_confirmed_. Left stale at true from an earlier
+    // confirmed swap, a LATER dispatch's own opening idle-with-open frame
+    // would read "already confirmed" and skip the hold instead of starting
+    // one. begin_dispatch_locked() has to re-arm the bound itself for this
+    // reason.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // Confirm a swap is running (operation_confirmed_ -> true)...
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(tc.get_current_action() != AmsAction::IDLE);
+
+    // ...then let it settle via the OTHER status source, bypassing the reset.
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    // A brand new dispatch must still get the ordinary hold on its own
+    // opening frame, not read the stale confirmation as its own.
+    REQUIRE(tc.change_tool(1).success());
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() != AmsAction::IDLE);
 }
 
 // ============================================================================
