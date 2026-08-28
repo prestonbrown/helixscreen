@@ -158,105 +158,79 @@ HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE
 
 ## Belt Tension *(Beta)*
 
-Uneven belt tension is one of the most common causes of print quality issues on CoreXY and Cartesian printers. Loose or mismatched belts produce visible artifacts like layer shifts, vertical fine artifacts (VFAs), and ringing/ghosting. HelixScreen's Belt Tension tool measures the resonant frequency of each belt path and compares them, giving you a clear picture of your belt tension balance.
+Uneven belt tension is one of the most common causes of print quality issues on CoreXY printers. Loose or mismatched belts produce visible artifacts like layer shifts, vertical fine artifacts (VFAs), and ringing/ghosting. HelixScreen's Belt Tension tool listens to each belt while **you pluck it by hand** and reports the frequency, so you can bring the two sides into agreement.
 
 ### How It Works
 
-Every belt has a natural resonant frequency determined by its length, mass, and tension — just like a guitar string. Tighter belts vibrate at higher frequencies. On a CoreXY printer, the two diagonal belt paths (Path A and Path B) should have very similar frequencies, meaning their tension is balanced.
+Every belt has a natural resonant frequency set by its free span, mass, and tension - just like a guitar string. Tighter belts ring higher. On a CoreXY printer the two front belts should ring at very nearly the same frequency, which means their tension is balanced.
 
-The Belt Tension tool:
+The tool parks the gantry so both belts have the same free span, then streams your accelerometer live and watches for plucks. Each firm pluck is analysed on its own; the number you act on is the **median of five accepted plucks**, not a single reading. A guitar string's loudest overtone is often the octave above its fundamental, and belts are no different, so the tool identifies the fundamental from the whole harmonic series rather than from the tallest peak in the spectrum.
 
-1. Vibrates each belt path using `TEST_RESONANCES`
-2. Records the vibration with your accelerometer
-3. Computes a frequency spectrum (PSD) to find the peak resonant frequency
-4. Compares the two paths and provides a recommendation
+You measure one belt, then the other, then compare.
 
 ### Requirements
 
-- **Accelerometer** (ADXL345, LIS2DW, or MPU) configured in your Klipper `printer.cfg`
-- **CoreXY** or **Cartesian** kinematics (auto-detected)
-- **Optional:** A `[pwm_cycle_time]` LED pin for stroboscopic fine-tuning
+All of these are checked before the **Start Check** button becomes active. If it is greyed out, the reason is shown right above it:
 
-> **No accelerometer?** The strobe fine-tuning mode can still be used to visually identify belt resonance using a phone strobe app — no accelerometer needed for that step.
+| Message | What to do |
+|---|---|
+| *Not connected to the printer* | Wait for the connection to come back |
+| *No accelerometer found in your Klipper config* | Add an `adxl345`, `lis2dw` or `mpu` section to `printer.cfg`. There is no accelerometer-free mode |
+| *Belt tuning is only available on CoreXY printers* | The A/B belt-path model does not apply to bed slingers or other Cartesian machines |
+| *This needs HelixScreen running on the printer itself* | The tool reads the accelerometer stream directly from Klipper's local socket. It cannot do that from a desktop or a separate tablet |
+| *This display is not fast enough to analyse belt frequencies live* | Your display hardware cannot keep up with the real-time analysis. Nothing to fix - the tool is not available on that device |
+| *Wait until the print finishes* | The toolhead has to be stationary. Measuring during a print would read the print, not the belt |
 
 ### Running a Belt Tension Check
 
 1. Navigate to **Advanced > Belt Tension** (requires [beta features](beta-features.md) enabled)
-2. Review the **hardware summary** card showing your detected kinematics, accelerometer status, strobe LED availability, and target frequency
-3. Tap **Start Check**
-4. The printer homes (if needed), then runs a resonance sweep on each belt path
-5. A progress bar shows the measurement status ("Measuring Path A... / Path B...")
+2. Review the **hardware summary** card showing detected kinematics and accelerometer status. If your printer model has a measured belt-span geometry, a **Target Frequency** is shown too; if it does not, no target is shown and the tool compares the two belts against each other instead of against an absolute number
+3. Tap **Start Check**. The printer homes if needed, then parks the gantry so the free span is the one the target is quoted for. If it cannot park (no bounds known, or no geometry for your model) it asks you to position the gantry yourself
+4. Tap **Start Listening**
+5. Hold still for a second while it learns the room's noise floor - the on-screen hint says *Hold still*
+6. **Pluck the front belt on the right** (belt A) with a fingernail, near the middle of the free span, and let it ring. The live readout shows the frequency of each accepted pluck and a running median underneath
+7. Repeat until the counter reads **5 / 5**. The **Next belt** button unlocks then, and not before
+8. Tap **Next belt**, then do the same for **the front belt on the left** (belt B)
+9. Tap **Compare**
+
+If a pluck is not accepted, the hint tells you why:
+
+- *Too soft - pluck harder* - the strike did not stand out enough from the background
+- *That did not sound like a pluck - try again* - something rang, but it did not have the shape or the harmonic structure of a plucked string. A fan spinning up and a knock on the frame both land here
 
 ### Reading the Results
 
-When the measurement completes, the results screen shows:
-
-**Path A and Path B cards:**
-- **Measured frequency** in Hz
-- **Status indicator**: Good, Needs adjustment, or Out of range
+**Belt A and Belt B cards:**
+- **Measured frequency** in Hz - the median of your five plucks, in whole Hz. The tool resolves about 2 Hz, so a decimal would claim precision it does not have
+- **Status indicator** - Good, Needs adjustment, or Out of range. Only shown when there is a target frequency for your model; without one, an absolute verdict would be an invention
 
 **Comparison section:**
-- **Frequency Delta** — the difference between Path A and B in Hz. Ideally under 5 Hz; over 15 Hz means adjustment is needed
-- **Path Similarity** — how closely the vibration profiles match (Pearson correlation). Above 90% is excellent; below 70% suggests uneven tension
+- **Frequency Delta** - the difference between the two belts. Anything under about 2 Hz reads as *Within measurement resolution*, because that is the floor of what the instrument can tell apart
+- **Match** - how closely belt B matches belt A, as a percentage. 100% is identical
 
 **Recommendation card:**
-- A specific, actionable message like "Tighten Path A belt to match Path B" or "Belt tension looks good!"
-
-**Status thresholds:**
-
-| Status | Condition |
-|--------|-----------|
-| Good (green) | Within target frequency range |
-| Needs adjustment (orange) | Moderately off target |
-| Out of range (red) | Far from target, or large A/B imbalance |
+- A specific instruction, e.g. *Belt A (front right) is tighter by 6 Hz. Tighten belt B, on the front left, or loosen belt A.* When a target frequency is known, the recommendation is written against the target rather than against matching alone - two belts can match each other perfectly and both be far too loose
 
 ### Interpreting Frequencies
 
-**Target frequency** defaults to 110 Hz, which is typical for Voron-style CoreXY printers. Different printer designs may have different ideal frequencies — check your printer's documentation.
+The **target frequency** is a property of the *free span*, not of the printer: a 150 mm span at correct tension rings at 110 Hz on a Voron 2.4, and a shorter span rings higher. That is why the tool parks the gantry before measuring, and why it shows no target at all on a model whose span geometry has not been measured.
 
-| Frequency | Meaning |
+| Result | Meaning |
 |-----------|---------|
-| **Both paths match, near target** | Belt tension is balanced and correct |
-| **Both paths match, but low** | Belts are balanced but too loose — tighten both equally |
-| **Both paths match, but high** | Belts are balanced but overtightened — loosen both equally |
-| **Paths differ significantly** | Tension is unbalanced — tighten the lower-frequency belt |
-
-### Strobe Fine-Tuning Mode
-
-After getting initial results, tap **Visual Fine-Tune (Strobe)** for precise belt tension matching. This mode vibrates the belt at a specific frequency while a strobe light flashes in sync — when the belt appears to "freeze" (stand still), you've found the resonant frequency.
-
-**With a PWM strobe LED:**
-
-If your printer has a `[pwm_cycle_time]` LED configured in Klipper, HelixScreen automatically syncs the LED strobe to the motor excitation frequency. Watch the belt under the strobe and adjust frequency with the **+0.5 Hz** / **-0.5 Hz** buttons until the belt appears stationary.
-
-**Klipper configuration for strobe LED:**
-
-```ini
-[pwm_cycle_time strobe_led]
-pin: <your_gpio_pin>    # Any available GPIO connected to an LED
-value: 0                 # Start off
-cycle_time: 0.01         # Default (will be changed dynamically)
-```
-
-**Without a strobe LED (phone app fallback):**
-
-HelixScreen shows the current frequency and recommends phone strobe apps you can use:
-
-- **Android:** Strobily, Strobe Light
-- **iOS:** Strobe Light Tachometer, myStroboscope
-
-Set the app to the displayed frequency, aim your phone at the belt, and adjust until the belt appears frozen.
-
-**Locking frequencies:**
-
-Use the **Lock A** and **Lock B** buttons to record the resonant frequency you found for each path.
+| **Both belts match, near target** | Belt tension is balanced and correct |
+| **Both belts match, but low** | Balanced but too loose - tighten both equally |
+| **Both belts match, but high** | Balanced but overtightened - loosen both equally |
+| **Belts differ significantly** | Unbalanced - tighten the lower-frequency belt |
 
 ### Tips
 
 - **Run the check after any belt adjustment** to verify your changes had the desired effect
-- **Tap "Test Again"** on the results screen to re-run without leaving the panel
-- **Path A corresponds to the 1,1 diagonal** on CoreXY printers (both motors moving the same direction). Path B is the 1,-1 diagonal (motors moving opposite directions). Check your printer's documentation for which tensioner adjusts which path
-- **Temperature matters** — belt tension can change slightly with temperature. Run the check at your typical operating temperature for the most accurate results
+- **Tap "Start over"** during listening to go back and re-measure belt A once the flow has moved on to B
+- **Belt A is the front belt on the right; belt B is the front belt on the left.** Check your printer's documentation for which tensioner adjusts which
+- **Pluck in the same place on both belts.** The frequency depends on the free span, so plucking one belt near an idler and the other mid-span compares two different things
+- **Turn off part-cooling and chamber fans if you can.** A fan is a steady tone in exactly the range the tool listens to; it will usually be rejected as "not a pluck", but it also raises the noise floor and makes gentle plucks harder to detect
+- **Z belts cannot be measured this way.** A toolhead-mounted accelerometer is too far from them to hear anything useful
+- **Temperature matters** - belt tension changes slightly with temperature. Run the check at your typical operating temperature for the most accurate results
 
 ---
 

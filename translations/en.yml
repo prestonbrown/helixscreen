@@ -5,6 +5,7 @@ translations:
   ' frames': ' frames'
   ' left': ' left'
   '"%s" failed to load': '"%s" failed to load'
+  '%.0f Hz difference': '%.0f Hz difference'
   '%.1f Hz difference': '%.1f Hz difference'
   '%d additional fan%s': '%d additional fan%s'
   '%d disabled': '%d disabled'
@@ -30,7 +31,6 @@ translations:
   + Add Preset: + Add Preset
   + Add Printer: + Add Printer
   + New: + New
-  +0.5 Hz: +0.5 Hz
   '- Check [resonance_tester] in printer.cfg': '- Check [resonance_tester] in printer.cfg'
   '- Ensure ADXL345 is connected': '- Ensure ADXL345 is connected'
   '- Try Measure Noise first': '- Try Measure Noise first'
@@ -39,7 +39,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0.5 Hz
   '...': '...'
   0 = computed: 0 = computed
   0 events queued: 0 events queued
@@ -148,11 +147,8 @@ translations:
   Add custom filament: Add custom filament
   Added to Spoolman: Added to Spoolman
   Address: Address
-  Adjust belt tension until the belt appears stationary: Adjust belt tension until
-    the belt appears stationary
   Adjust screen brightness level: Adjust screen brightness level
   Adjust screws, then re-probe.: Adjust screws, then re-probe.
-  Adjust until belt appears frozen: Adjust until belt appears frozen
   Adjustments stay active until restart. Save after print completes.: Adjustments
     stay active until restart. Save after print completes.
   Adjusts individual characteristics of your heaters for optimal control: Adjusts
@@ -239,10 +235,10 @@ translations:
   Automatic LED Control: Automatic LED Control
   Aux: Aux
   Available: Available
-  Available (%s): Available (%s)
   Available Networks: Available Networks
   Available networks: Available networks
   Average: Average
+  B: B
   BEACON: BEACON
   BETA: BETA
   'BLE connect failed: {}': 'BLE connect failed: {}'
@@ -252,7 +248,6 @@ translations:
   BLUETOOTH PRINTERS: BLUETOOTH PRINTERS
   BLUETOOTH SCANNERS: BLUETOOTH SCANNERS
   Back: Back
-  Back to Results: Back to Results
   'Backtrace: {} frames': 'Backtrace: {} frames'
   Backup spool switching state unknown: Backup spool switching state unknown
   Barcode Scanner: Barcode Scanner
@@ -281,8 +276,10 @@ translations:
   Bed target set to {}°C: Bed target set to {}°C
   Bed temp must be 0-200°C: Bed temp must be 0-200°C
   Bed warming timed out: Bed warming timed out
-  Belt A frequency locked: Belt A frequency locked
-  Belt B frequency locked: Belt B frequency locked
+  Belt A: Belt A
+  Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.
+  Belt B: Belt B
+  Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B.: Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B.
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt tension looks good!: Belt tension looks good!
@@ -309,8 +306,12 @@ translations:
   Border transparency (0 = invisible, 255 = solid): Border transparency (0 = invisible,
     255 = solid)
   Both: Both
+  Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both.: Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both.
+  Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more.: Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more.
+  Both belts are on the %.0f Hz target and match each other. Nothing to adjust.: Both belts are on the %.0f Hz target and match each other. Nothing to adjust.
   Both belts are overtightened.: Both belts are overtightened.
   Both belts need tightening.: Both belts need tightening.
+  Both belts read the same to within what this measurement can resolve. Nothing to adjust.: Both belts read the same to within what this measurement can resolve. Nothing to adjust.
   Bowden Length: Bowden Length
   Bowden tube length from hub to toolhead: Bowden tube length from hub to toolhead
   Brand: Brand
@@ -540,6 +541,7 @@ translations:
   Color Mismatch: Color Mismatch
   Communication Test: Communication Test
   Compact: Compact
+  Compare: Compare
   Comparison: Comparison
   Complete: Complete
   Complete!: Complete!
@@ -645,6 +647,7 @@ translations:
   Could not confirm cancel: Could not confirm cancel
   Could not forget device: Could not forget device
   Could not load printer database: Could not load printer database
+  Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.: Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.
   Could not parse tips database: Could not parse tips database
   Could not reach Spoolman at: Could not reach Spoolman at
   Could not read the screw adjustments from the printer: Could not read the screw adjustments from the printer
@@ -672,7 +675,6 @@ translations:
   'Critical hardware missing: {}': 'Critical hardware missing: {}'
   Current / Target: Current / Target
   Current Configuration: Current Configuration
-  Current Frequency: Current Frequency
   Current Mesh: Current Mesh
   Current Temperature: Current Temperature
   Current Version: Current Version
@@ -1096,7 +1098,6 @@ translations:
   'Filter Fan: Off': 'Filter Fan: Off'
   'Filter Fan: On': 'Filter Fan: On'
   Fine: Fine
-  Fine-Tune: Fine-Tune
   Finish: Finish
   'Finishing clean...': 'Finishing clean...'
   Finishing up...: Finishing up...
@@ -1127,6 +1128,8 @@ translations:
   Found 1 printer: Found 1 printer
   Framerate: Framerate
   Frequency Delta: Frequency Delta
+  ? "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
+  : "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
   ? "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
   : "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
   From Buffer: From Buffer
@@ -1224,6 +1227,7 @@ translations:
   Hide Temperature Reports: Hide Temperature Reports
   High Water Mark: High Water Mark
   Hold anywhere to cancel: Hold anywhere to cancel
+  Hold still: Hold still
   Holding nozzle at {}°C to purge previous filament.: Holding nozzle at {}°C to purge previous filament.
   Home: Home
   Home & Continue: Home & Continue
@@ -1439,6 +1443,7 @@ translations:
   Light will switch when the current operation finishes: Light will switch when the
     current operation finishes
   Listen to all theme sounds: Listen to all theme sounds
+  Listening: Listening
   Live view from your webcam: Live view from your webcam
   Load: Load
   Load Filament: Load Filament
@@ -1468,8 +1473,6 @@ translations:
   Locating Spoolman configuration...: Locating Spoolman configuration...
   Location: Location
   Lock: Lock
-  Lock A: Lock A
-  Lock B: Lock B
   Lock Screen: Lock Screen
   Lock screen after idle timeout: Lock screen after idle timeout
   Lock the screen with your PIN: Lock the screen with your PIN
@@ -1546,6 +1549,8 @@ translations:
     material
   Marginal: Marginal
   Master volume level: Master volume level
+  Match: Match
+  Match to belt A: Match to belt A
   Match your typical print fan speed: Match your typical print fan speed
   Material: Material
   'Material Comfort:': 'Material Comfort:'
@@ -1571,6 +1576,7 @@ translations:
   Measuring Path B... %d%%: Measuring Path B... %d%%
   Measuring accelerometer noise...: Measuring accelerometer noise...
   Measuring vibrations... {}%: Measuring vibrations... {}%
+  Median %.0f Hz: Median %.0f Hz
   Memory: Memory
   Memory (MB): Memory (MB)
   Memory Snapshot: Memory Snapshot
@@ -1612,6 +1618,7 @@ translations:
     minutes. The printer will make noise — this is normal.
   : Moves the print head to measure vibration frequencies on each axis. Takes 2-3
     minutes. The printer will make noise — this is normal.
+  Moving gantry: Moving gantry
   Moving lane: Moving lane
   Multi-Filament: Multi-Filament
   Multi-Filament Overview: Multi-Filament Overview
@@ -1653,6 +1660,7 @@ translations:
   New printer successfully added: New printer successfully added
   New profile name: New profile name
   Next: Next
+  Next belt: Next belt
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   'No': 'No'
   No API connection: No API connection
@@ -1671,12 +1679,12 @@ translations:
   No Multi-Filament System connected: No Multi-Filament System connected
   No Multi-Filament System connected.: No Multi-Filament System connected.
   No PRINT_START macro found: No PRINT_START macro found
-  No PWM LED detected for strobe mode: No PWM LED detected for strobe mode
   No Power Devices: No Power Devices
   No Spool: No Spool
   No Spools: No Spools
   No USB printer detected: No USB printer detected
   No USB printers found: No USB printers found
+  No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry.: No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry.
   No automatic backup-spool package is installed: No automatic backup-spool package is installed
   No buffer data available: No buffer data available
   No camera — use USB barcode scanner: No camera — use USB barcode scanner
@@ -1748,9 +1756,8 @@ translations:
   Not connected: Not connected
   Not connected to printer: Not connected to printer
   Not connected to printer.: Not connected to printer.
+  Not connected to the printer: Not connected to the printer
   Not detected: Not detected
-  Not found (strobe only): Not found (strobe only)
-  Not found (use phone app): Not found (use phone app)
   Not in your spools? Set it up: Not in your spools? Set it up
   Not now: Not now
   Not yet available on this display: Not yet available on this display
@@ -1912,6 +1919,8 @@ translations:
     and probes.
   Please wait while the printer probes each screw position.: Please wait while the
     printer probes each screw position.
+  Pluck the front belt on the left: Pluck the front belt on the left
+  Pluck the front belt on the right: Pluck the front belt on the right
   Plugin already installed: Plugin already installed
   Plugin disabled: Plugin disabled
   Plugin installed successfully: Plugin installed successfully
@@ -1929,6 +1938,7 @@ translations:
   Poor Accuracy: Poor Accuracy
   Port: Port
   Position: Position
+  Position the gantry yourself, then continue: Position the gantry yourself, then continue
   Post-Sensor Clear: Post-Sensor Clear
   Power: Power
   Power Devices: Power Devices
@@ -2125,6 +2135,7 @@ translations:
   Ready: Ready
   Ready for filament operations: Ready for filament operations
   Ready to Apply: Ready to Apply
+  Ready to pluck: Ready to pluck
   Reason: Reason
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
   : "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
@@ -2434,8 +2445,6 @@ translations:
   'Set ': 'Set '
   Set Active: Set Active
   Set PIN: Set PIN
-  ? "Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"
-  : "Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"
   Set and watch the bed temperature: Set and watch the bed temperature
   Set and watch the chamber temperature: Set and watch the chamber temperature
   Set and watch the nozzle temperature: Set and watch the nozzle temperature
@@ -2560,11 +2569,13 @@ translations:
   Start Calibration: Start Calibration
   Start Check: Start Check
   Start Drying: Start Drying
+  Start Listening: Start Listening
   Start Print: Start Print
   Start Probing: Start Probing
   Start anyway?: Start anyway?
   Start at: Start at
   Start failed: Start failed
+  Start over: Start over
   Start print anyway?: Start print anyway?
   Started: Started
   Starting Print...: Starting Print...
@@ -2594,7 +2605,6 @@ translations:
   Stops all motion. Requires firmware restart.: Stops all motion. Requires firmware
     restart.
   Stow: Stow
-  Strobe LED: Strobe LED
   Subtle: Subtle
   Success: Success
   Success Rate: Success Rate
@@ -2652,6 +2662,7 @@ translations:
   Target Frequency: Target Frequency
   Target Temperature: Target Temperature
   Target Version: Target Version
+  Target is %.0f Hz. Tighten belt %s and loosen belt %s.: Target is %.0f Hz. Tighten belt %s and loosen belt %s.
   Telemetry: Telemetry
   Telemetry Data: Telemetry Data
   Telemetry Disabled: Telemetry Disabled
@@ -2692,6 +2703,7 @@ translations:
     data helps improve HelixScreen.
   Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Thanks! TOTALLY
     anonymous usage data helps improve HelixScreen.
+  That did not sound like a pluck - try again: That did not sound like a pluck - try again
   That slot cannot stand in for this one: That slot cannot stand in for this one
   That tool is already loaded: That tool is already loaded
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
@@ -2699,6 +2711,7 @@ translations:
   : The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   The Spoolman spool currently loaded: The Spoolman spool currently loaded
+  'The accelerometer stream stopped: %s. Check that Klipper is running, then retry.': 'The accelerometer stream stopped: %s. Check that Klipper is running, then retry.'
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : The animated screensaver has been turned off on this device to prevent it from
@@ -2710,8 +2723,6 @@ translations:
     several times.
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
-  ? "The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading."
-  : "The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading."
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   The printer halted this print and cannot resume it. Restart from the beginning?: The
@@ -2840,6 +2851,7 @@ translations:
   Toggle toolhead LED for an extruder: Toggle toolhead LED for an extruder
   'Toggle:': 'Toggle:'
   Too humid: Too humid
+  Too soft - pluck harder: Too soft - pluck harder
   Tool: Tool
   Tool Changer: Tool Changer
   Tool Switcher: Tool Switcher
@@ -2897,6 +2909,7 @@ translations:
   USB drive removed: USB drive removed
   USB printer access denied — check permissions: USB printer access denied — check
     permissions
+  Unavailable: Unavailable
   Understanding Results: Understanding Results
   ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
   : "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
@@ -2985,7 +2998,6 @@ translations:
   View live camera feed: View live camera feed
   View print statistics and job history: View print statistics and job history
   'Visits: ': 'Visits: '
-  Visual Fine-Tuning: Visual Fine-Tuning
   Volume: Volume
   Volume of filament used during ramming: Volume of filament used during ramming
   WIDTH SENSORS: WIDTH SENSORS
@@ -2995,6 +3007,7 @@ translations:
   WPA3: WPA3
   Wait for the current filament operation to finish: Wait for the current filament
     operation to finish
+  Wait until the print finishes: Wait until the print finishes
   Waiting for Moonraker...: Waiting for Moonraker...
   Waiting for bed to reach temperature for accurate calibration.: Waiting for bed
     to reach temperature for accurate calibration.
@@ -3005,9 +3018,6 @@ translations:
   Warn: Warn
   Warning: Warning
   Warnings & errors: Warnings & errors
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: Watch
-    the belt under the strobe LED. Adjust frequency until the belt appears stationary
-    — that is the resonant frequency.
   Weak battery: Weak battery
   Webcam: Webcam
   Website (optional): Website (optional)
@@ -3052,6 +3062,7 @@ translations:
   Wifi: Wifi
   Will not switch spools on runout: Will not switch spools on runout
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
+  Within measurement resolution: Within measurement resolution
   Wizard Error: Wizard Error
   Working...: Working...
   Write failed at chunk {}: Write failed at chunk {}

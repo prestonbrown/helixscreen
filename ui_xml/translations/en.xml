@@ -5,6 +5,7 @@
   <translation tag=" frames" en=" frames"/>
   <translation tag=" left" en=" left"/>
   <translation tag="&quot;%s&quot; failed to load" en="&quot;%s&quot; failed to load"/>
+  <translation tag="%.0f Hz difference" en="%.0f Hz difference"/>
   <translation tag="%.1f Hz difference" en="%.1f Hz difference"/>
   <translation tag="%d additional fan%s" en="%d additional fan%s"/>
   <translation tag="%d disabled" en="%d disabled"/>
@@ -30,7 +31,6 @@
   <translation tag="+ Add Preset" en="+ Add Preset"/>
   <translation tag="+ Add Printer" en="+ Add Printer"/>
   <translation tag="+ New" en="+ New"/>
-  <translation tag="+0.5 Hz" en="+0.5 Hz"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" en="- Check [resonance_tester] in printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" en="- Ensure ADXL345 is connected"/>
   <translation tag="- Try Measure Noise first" en="- Try Measure Noise first"/>
@@ -39,7 +39,6 @@
   <translation tag="-- W" en="-- W"/>
   <translation tag="-- kWh" en="-- kWh"/>
   <translation tag="--°C" en="--°C"/>
-  <translation tag="-0.5 Hz" en="-0.5 Hz"/>
   <translation tag="..." en="..."/>
   <translation tag="0 = computed" en="0 = computed"/>
   <translation tag="0 events queued" en="0 events queued"/>
@@ -145,10 +144,8 @@
   <translation tag="Add custom filament" en="Add custom filament"/>
   <translation tag="Added to Spoolman" en="Added to Spoolman"/>
   <translation tag="Address" en="Address"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" en="Adjust belt tension until the belt appears stationary"/>
   <translation tag="Adjust screen brightness level" en="Adjust screen brightness level"/>
   <translation tag="Adjust screws, then re-probe." en="Adjust screws, then re-probe."/>
-  <translation tag="Adjust until belt appears frozen" en="Adjust until belt appears frozen"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." en="Adjustments stay active until restart. Save after print completes."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" en="Adjusts individual characteristics of your heaters for optimal control"/>
   <translation tag="Advanced" en="Advanced"/>
@@ -220,10 +217,10 @@
   <translation tag="Automatic LED Control" en="Automatic LED Control"/>
   <translation tag="Aux" en="Aux"/>
   <translation tag="Available" en="Available"/>
-  <translation tag="Available (%s)" en="Available (%s)"/>
   <translation tag="Available Networks" en="Available Networks"/>
   <translation tag="Available networks" en="Available networks"/>
   <translation tag="Average" en="Average"/>
+  <translation tag="B" en="B"/>
   <translation tag="BEACON" en="BEACON"/>
   <translation tag="BETA" en="BETA"/>
   <translation tag="BLE connect failed: {}" en="BLE connect failed: {}"/>
@@ -233,7 +230,6 @@
   <translation tag="BLUETOOTH PRINTERS" en="BLUETOOTH PRINTERS"/>
   <translation tag="BLUETOOTH SCANNERS" en="BLUETOOTH SCANNERS"/>
   <translation tag="Back" en="Back"/>
-  <translation tag="Back to Results" en="Back to Results"/>
   <translation tag="Backtrace: {} frames" en="Backtrace: {} frames"/>
   <translation tag="Backup spool switching state unknown" en="Backup spool switching state unknown"/>
   <translation tag="Barcode Scanner" en="Barcode Scanner"/>
@@ -262,8 +258,10 @@
   <translation tag="Bed target set to {}°C" en="Bed target set to {}°C"/>
   <translation tag="Bed temp must be 0-200°C" en="Bed temp must be 0-200°C"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
-  <translation tag="Belt A frequency locked" en="Belt A frequency locked"/>
-  <translation tag="Belt B frequency locked" en="Belt B frequency locked"/>
+  <translation tag="Belt A" en="Belt A"/>
+  <translation tag="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A." en="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A."/>
+  <translation tag="Belt B" en="Belt B"/>
+  <translation tag="Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B." en="Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B."/>
   <translation tag="Belt Tension" en="Belt Tension"/>
   <translation tag="Belt Tension Check" en="Belt Tension Check"/>
   <translation tag="Belt tension looks good!" en="Belt tension looks good!"/>
@@ -288,8 +286,12 @@
   <translation tag="Border Width" en="Border Width"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" en="Border transparency (0 = invisible, 255 = solid)"/>
   <translation tag="Both" en="Both"/>
+  <translation tag="Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both." en="Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both."/>
+  <translation tag="Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more." en="Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more."/>
+  <translation tag="Both belts are on the %.0f Hz target and match each other. Nothing to adjust." en="Both belts are on the %.0f Hz target and match each other. Nothing to adjust."/>
   <translation tag="Both belts are overtightened." en="Both belts are overtightened."/>
   <translation tag="Both belts need tightening." en="Both belts need tightening."/>
+  <translation tag="Both belts read the same to within what this measurement can resolve. Nothing to adjust." en="Both belts read the same to within what this measurement can resolve. Nothing to adjust."/>
   <translation tag="Bowden Length" en="Bowden Length"/>
   <translation tag="Bowden tube length from hub to toolhead" en="Bowden tube length from hub to toolhead"/>
   <translation tag="Brand" en="Brand"/>
@@ -489,6 +491,7 @@
   <translation tag="Color Mismatch" en="Color Mismatch"/>
   <translation tag="Communication Test" en="Communication Test"/>
   <translation tag="Compact" en="Compact"/>
+  <translation tag="Compare" en="Compare"/>
   <translation tag="Comparison" en="Comparison"/>
   <translation tag="Complete" en="Complete"/>
   <translation tag="Complete!" en="Complete!"/>
@@ -583,6 +586,7 @@
   <translation tag="Could not confirm cancel" en="Could not confirm cancel"/>
   <translation tag="Could not forget device" en="Could not forget device"/>
   <translation tag="Could not load printer database" en="Could not load printer database"/>
+  <translation tag="Could not open Klipper&apos;s accelerometer stream. Check that Klipper is running, then retry." en="Could not open Klipper&apos;s accelerometer stream. Check that Klipper is running, then retry."/>
   <translation tag="Could not parse tips database" en="Could not parse tips database"/>
   <translation tag="Could not reach Spoolman at" en="Could not reach Spoolman at"/>
   <translation tag="Could not read the screw adjustments from the printer" en="Could not read the screw adjustments from the printer"/>
@@ -609,7 +613,6 @@
   <translation tag="Critical hardware missing: {}" en="Critical hardware missing: {}"/>
   <translation tag="Current / Target" en="Current / Target"/>
   <translation tag="Current Configuration" en="Current Configuration"/>
-  <translation tag="Current Frequency" en="Current Frequency"/>
   <translation tag="Current Mesh" en="Current Mesh"/>
   <translation tag="Current Temperature" en="Current Temperature"/>
   <translation tag="Current Version" en="Current Version"/>
@@ -1007,7 +1010,6 @@
   <translation tag="Filter Fan: Off" en="Filter Fan: Off"/>
   <translation tag="Filter Fan: On" en="Filter Fan: On"/>
   <translation tag="Fine" en="Fine"/>
-  <translation tag="Fine-Tune" en="Fine-Tune"/>
   <translation tag="Finish" en="Finish"/>
   <translation tag="Finishing clean..." en="Finishing clean..."/>
   <translation tag="Finishing up..." en="Finishing up..."/>
@@ -1038,6 +1040,7 @@
   <translation tag="Found 1 printer" en="Found 1 printer"/>
   <translation tag="Framerate" en="Framerate"/>
   <translation tag="Frequency Delta" en="Frequency Delta"/>
+  <translation tag="Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.&#10;&#10;Match: How close the two belts are, as a percentage of belt A&apos;s frequency. Above 95% is excellent; below 90% is worth adjusting." en="Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.&#10;&#10;Match: How close the two belts are, as a percentage of belt A&apos;s frequency. Above 95% is excellent; below 90% is worth adjusting."/>
   <translation tag="Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.&#10;&#10;Path Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension." en="Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.&#10;&#10;Path Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."/>
   <translation tag="From Buffer" en="From Buffer"/>
   <translation tag="From Version" en="From Version"/>
@@ -1124,6 +1127,7 @@
   <translation tag="Hide Temperature Reports" en="Hide Temperature Reports"/>
   <translation tag="High Water Mark" en="High Water Mark"/>
   <translation tag="Hold anywhere to cancel" en="Hold anywhere to cancel"/>
+  <translation tag="Hold still" en="Hold still"/>
   <translation tag="Holding nozzle at {}°C to purge previous filament." en="Holding nozzle at {}°C to purge previous filament."/>
   <translation tag="Home" en="Home"/>
   <translation tag="Home &amp; Continue" en="Home &amp; Continue"/>
@@ -1304,6 +1308,7 @@
   <translation tag="Light" en="Light"/>
   <translation tag="Light will switch when the current operation finishes" en="Light will switch when the current operation finishes"/>
   <translation tag="Listen to all theme sounds" en="Listen to all theme sounds"/>
+  <translation tag="Listening" en="Listening"/>
   <translation tag="Live view from your webcam" en="Live view from your webcam"/>
   <translation tag="Load" en="Load"/>
   <translation tag="Load Filament" en="Load Filament"/>
@@ -1331,8 +1336,6 @@
   <translation tag="Locating Spoolman configuration..." en="Locating Spoolman configuration..."/>
   <translation tag="Location" en="Location"/>
   <translation tag="Lock" en="Lock"/>
-  <translation tag="Lock A" en="Lock A"/>
-  <translation tag="Lock B" en="Lock B"/>
   <translation tag="Lock Screen" en="Lock Screen"/>
   <translation tag="Lock screen after idle timeout" en="Lock screen after idle timeout"/>
   <translation tag="Lock the screen with your PIN" en="Lock the screen with your PIN"/>
@@ -1406,6 +1409,8 @@
   <translation tag="Map to closest colors with matching material" en="Map to closest colors with matching material"/>
   <translation tag="Marginal" en="Marginal"/>
   <translation tag="Master volume level" en="Master volume level"/>
+  <translation tag="Match" en="Match"/>
+  <translation tag="Match to belt A" en="Match to belt A"/>
   <translation tag="Match your typical print fan speed" en="Match your typical print fan speed"/>
   <translation tag="Material" en="Material"/>
   <translation tag="Material Comfort:" en="Material Comfort:"/>
@@ -1431,6 +1436,7 @@
   <translation tag="Measuring Path B... %d%%" en="Measuring Path B... %d%%"/>
   <translation tag="Measuring accelerometer noise..." en="Measuring accelerometer noise..."/>
   <translation tag="Measuring vibrations... {}%" en="Measuring vibrations... {}%"/>
+  <translation tag="Median %.0f Hz" en="Median %.0f Hz"/>
   <translation tag="Memory" en="Memory"/>
   <translation tag="Memory (MB)" en="Memory (MB)"/>
   <translation tag="Memory Snapshot" en="Memory Snapshot"/>
@@ -1464,6 +1470,7 @@
   <translation tag="Move speed multipliers" en="Move speed multipliers"/>
   <translation tag="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings." en="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings."/>
   <translation tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." en="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal."/>
+  <translation tag="Moving gantry" en="Moving gantry"/>
   <translation tag="Moving lane" en="Moving lane"/>
   <translation tag="Multi-Filament" en="Multi-Filament"/>
   <translation tag="Multi-Filament Overview" en="Multi-Filament Overview"/>
@@ -1503,6 +1510,7 @@
   <translation tag="New printer successfully added" en="New printer successfully added"/>
   <translation tag="New profile name" en="New profile name"/>
   <translation tag="Next" en="Next"/>
+  <translation tag="Next belt" en="Next belt"/>
   <translation tag="Niimbot (Bluetooth)" en="Niimbot (Bluetooth)"/>
   <translation tag="No" en="No"/>
   <translation tag="No API connection" en="No API connection"/>
@@ -1519,12 +1527,12 @@
   <translation tag="No Multi-Filament System connected" en="No Multi-Filament System connected"/>
   <translation tag="No Multi-Filament System connected." en="No Multi-Filament System connected."/>
   <translation tag="No PRINT_START macro found" en="No PRINT_START macro found"/>
-  <translation tag="No PWM LED detected for strobe mode" en="No PWM LED detected for strobe mode"/>
   <translation tag="No Power Devices" en="No Power Devices"/>
   <translation tag="No Spool" en="No Spool"/>
   <translation tag="No Spools" en="No Spools"/>
   <translation tag="No USB printer detected" en="No USB printer detected"/>
   <translation tag="No USB printers found" en="No USB printers found"/>
+  <translation tag="No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry." en="No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry."/>
   <translation tag="No automatic backup-spool package is installed" en="No automatic backup-spool package is installed"/>
   <translation tag="No buffer data available" en="No buffer data available"/>
   <translation tag="No camera — use USB barcode scanner" en="No camera — use USB barcode scanner"/>
@@ -1591,9 +1599,8 @@
   <translation tag="Not connected" en="Not connected"/>
   <translation tag="Not connected to printer" en="Not connected to printer"/>
   <translation tag="Not connected to printer." en="Not connected to printer."/>
+  <translation tag="Not connected to the printer" en="Not connected to the printer"/>
   <translation tag="Not detected" en="Not detected"/>
-  <translation tag="Not found (strobe only)" en="Not found (strobe only)"/>
-  <translation tag="Not found (use phone app)" en="Not found (use phone app)"/>
   <translation tag="Not in your spools? Set it up" en="Not in your spools? Set it up"/>
   <translation tag="Not now" en="Not now"/>
   <translation tag="Not yet available on this display" en="Not yet available on this display"/>
@@ -1743,6 +1750,8 @@
   <translation tag="Please fill in the highlighted fields" en="Please fill in the highlighted fields"/>
   <translation tag="Please wait while the printer homes and probes." en="Please wait while the printer homes and probes."/>
   <translation tag="Please wait while the printer probes each screw position." en="Please wait while the printer probes each screw position."/>
+  <translation tag="Pluck the front belt on the left" en="Pluck the front belt on the left"/>
+  <translation tag="Pluck the front belt on the right" en="Pluck the front belt on the right"/>
   <translation tag="Plugin already installed" en="Plugin already installed"/>
   <translation tag="Plugin disabled" en="Plugin disabled"/>
   <translation tag="Plugin installed successfully" en="Plugin installed successfully"/>
@@ -1757,6 +1766,7 @@
   <translation tag="Poor Accuracy" en="Poor Accuracy"/>
   <translation tag="Port" en="Port"/>
   <translation tag="Position" en="Position"/>
+  <translation tag="Position the gantry yourself, then continue" en="Position the gantry yourself, then continue"/>
   <translation tag="Post-Sensor Clear" en="Post-Sensor Clear"/>
   <translation tag="Power" en="Power"/>
   <translation tag="Power Devices" en="Power Devices"/>
@@ -1940,6 +1950,7 @@
   <translation tag="Ready" en="Ready"/>
   <translation tag="Ready for filament operations" en="Ready for filament operations"/>
   <translation tag="Ready to Apply" en="Ready to Apply"/>
+  <translation tag="Ready to pluck" en="Ready to pluck"/>
   <translation tag="Reason" en="Reason"/>
   <translation tag="Reason: {}&#10;&#10;The printer cannot resume this print. Restart from the beginning?" en="Reason: {}&#10;&#10;The printer cannot resume this print. Restart from the beginning?"/>
   <translation tag="Reboot" en="Reboot"/>
@@ -2217,7 +2228,6 @@
   <translation tag="Set " en="Set "/>
   <translation tag="Set Active" en="Set Active"/>
   <translation tag="Set PIN" en="Set PIN"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.&#10;&#10;Recommended apps:&#10;  Android: Strobily, Strobe Light&#10;  iOS: Strobe Light Tachometer, myStroboscope" en="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.&#10;&#10;Recommended apps:&#10;  Android: Strobily, Strobe Light&#10;  iOS: Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set and watch the bed temperature" en="Set and watch the bed temperature"/>
   <translation tag="Set and watch the chamber temperature" en="Set and watch the chamber temperature"/>
   <translation tag="Set and watch the nozzle temperature" en="Set and watch the nozzle temperature"/>
@@ -2330,11 +2340,13 @@
   <translation tag="Start Calibration" en="Start Calibration"/>
   <translation tag="Start Check" en="Start Check"/>
   <translation tag="Start Drying" en="Start Drying"/>
+  <translation tag="Start Listening" en="Start Listening"/>
   <translation tag="Start Print" en="Start Print"/>
   <translation tag="Start Probing" en="Start Probing"/>
   <translation tag="Start anyway?" en="Start anyway?"/>
   <translation tag="Start at" en="Start at"/>
   <translation tag="Start failed" en="Start failed"/>
+  <translation tag="Start over" en="Start over"/>
   <translation tag="Start print anyway?" en="Start print anyway?"/>
   <translation tag="Started" en="Started"/>
   <translation tag="Starting Print..." en="Starting Print..."/>
@@ -2362,7 +2374,6 @@
   <translation tag="Stopped between Spool and Lane" en="Stopped between Spool and Lane"/>
   <translation tag="Stops all motion. Requires firmware restart." en="Stops all motion. Requires firmware restart."/>
   <translation tag="Stow" en="Stow"/>
-  <translation tag="Strobe LED" en="Strobe LED"/>
   <translation tag="Subtle" en="Subtle"/>
   <translation tag="Success" en="Success"/>
   <translation tag="Success Rate" en="Success Rate"/>
@@ -2411,6 +2422,7 @@
   <translation tag="Target Frequency" en="Target Frequency"/>
   <translation tag="Target Temperature" en="Target Temperature"/>
   <translation tag="Target Version" en="Target Version"/>
+  <translation tag="Target is %.0f Hz. Tighten belt %s and loosen belt %s." en="Target is %.0f Hz. Tighten belt %s and loosen belt %s."/>
   <translation tag="Telemetry" en="Telemetry"/>
   <translation tag="Telemetry Data" en="Telemetry Data"/>
   <translation tag="Telemetry Disabled" en="Telemetry Disabled"/>
@@ -2446,16 +2458,17 @@
   <translation tag="Testing, servo, and motor operations" en="Testing, servo, and motor operations"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." en="Thanks! Anonymous usage data helps improve HelixScreen."/>
   <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." en="Thanks! TOTALLY anonymous usage data helps improve HelixScreen."/>
+  <translation tag="That did not sound like a pluck - try again" en="That did not sound like a pluck - try again"/>
   <translation tag="That slot cannot stand in for this one" en="That slot cannot stand in for this one"/>
   <translation tag="That tool is already loaded" en="That tool is already loaded"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." en="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints."/>
   <translation tag="The Spoolman spool currently loaded" en="The Spoolman spool currently loaded"/>
+  <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." en="The accelerometer stream stopped: %s. Check that Klipper is running, then retry."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." en="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display."/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." en="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again."/>
   <translation tag="The filament system reported an error" en="The filament system reported an error"/>
   <translation tag="The heater will cycle on and off several times." en="The heater will cycle on and off several times."/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." en="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle."/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.&#10;&#10;Use the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." en="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.&#10;&#10;Use the frequency buttons to sweep through values until the belt looks stationary, then lock the reading."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." en="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." en="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear."/>
@@ -2547,6 +2560,7 @@
   <translation tag="Toggle toolhead LED for an extruder" en="Toggle toolhead LED for an extruder"/>
   <translation tag="Toggle:" en="Toggle:"/>
   <translation tag="Too humid" en="Too humid"/>
+  <translation tag="Too soft - pluck harder" en="Too soft - pluck harder"/>
   <translation tag="Tool" en="Tool"/>
   <translation tag="Tool Changer" en="Tool Changer"/>
   <translation tag="Tool Switcher" en="Tool Switcher"/>
@@ -2601,6 +2615,7 @@
   <translation tag="USB drive connected" en="USB drive connected"/>
   <translation tag="USB drive removed" en="USB drive removed"/>
   <translation tag="USB printer access denied — check permissions" en="USB printer access denied — check permissions"/>
+  <translation tag="Unavailable" en="Unavailable"/>
   <translation tag="Understanding Results" en="Understanding Results"/>
   <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." en="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other."/>
   <translation tag="Uninstall HelixPrint Plugin" en="Uninstall HelixPrint Plugin"/>
@@ -2684,7 +2699,6 @@
   <translation tag="View live camera feed" en="View live camera feed"/>
   <translation tag="View print statistics and job history" en="View print statistics and job history"/>
   <translation tag="Visits: " en="Visits: "/>
-  <translation tag="Visual Fine-Tuning" en="Visual Fine-Tuning"/>
   <translation tag="Volume" en="Volume"/>
   <translation tag="Volume of filament used during ramming" en="Volume of filament used during ramming"/>
   <translation tag="WIDTH SENSORS" en="WIDTH SENSORS"/>
@@ -2693,6 +2707,7 @@
   <translation tag="WPA/WPA2" en="WPA/WPA2"/>
   <translation tag="WPA3" en="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" en="Wait for the current filament operation to finish"/>
+  <translation tag="Wait until the print finishes" en="Wait until the print finishes"/>
   <translation tag="Waiting for Moonraker..." en="Waiting for Moonraker..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." en="Waiting for bed to reach temperature for accurate calibration."/>
   <translation tag="Waiting for the filament system to report its state" en="Waiting for the filament system to report its state"/>
@@ -2702,7 +2717,6 @@
   <translation tag="Warn" en="Warn"/>
   <translation tag="Warning" en="Warning"/>
   <translation tag="Warnings &amp; errors" en="Warnings &amp; errors"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." en="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency."/>
   <translation tag="Weak battery" en="Weak battery"/>
   <translation tag="Webcam" en="Webcam"/>
   <translation tag="Website (optional)" en="Website (optional)"/>
@@ -2736,6 +2750,7 @@
   <translation tag="Wifi" en="Wifi"/>
   <translation tag="Will not switch spools on runout" en="Will not switch spools on runout"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" en="Wipe nozzle on silicone cleaning strip"/>
+  <translation tag="Within measurement resolution" en="Within measurement resolution"/>
   <translation tag="Wizard Error" en="Wizard Error"/>
   <translation tag="Working..." en="Working..."/>
   <translation tag="Write failed at chunk {}" en="Write failed at chunk {}"/>

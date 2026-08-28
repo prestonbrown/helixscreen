@@ -25,14 +25,11 @@
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
-#include "belt_tension_calibrator.h"
 #include "led/led_controller.h"
-#include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "rpc_error_correlation.h"
-#include "test_helpers/belt_tension_calibrator_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/update_queue_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
@@ -58,12 +55,6 @@ class OwnershipMoreFixture : public LVGLTestFixture {
 };
 
 constexpr const char* REJECTION = "Printer is not ready";
-
-bool history_contains(const std::vector<std::string>& history, const std::string& needle) {
-    return std::any_of(history.begin(), history.end(), [&needle](const std::string& s) {
-        return s.find(needle) != std::string::npos;
-    });
-}
 
 /// ZOffsetCalibrationPanel::adjust_z() branches on the PROCESS-WIDE
 /// PrinterState's strategy, not on a local one. Reset pins it to
@@ -121,71 +112,6 @@ TEST_CASE_METHOD(OwnershipMoreFixture, "Z-offset bed-off send leaves the `!!` ro
     CHECK_FALSE(client.current_send_intent().surfaces_errors);
 
     CHECK_FALSE(helix::rpc_error_correlation::was_recently_handled(REJECTION));
-}
-
-// ============================================================================
-// Belt tension strobe. set_strobe_frequency() had no way to express ownership
-// at all — it always inherited execute_gcode's `true` default.
-// ============================================================================
-
-TEST_CASE_METHOD(OwnershipMoreFixture, "set_strobe_frequency forwards the caller's ownership claim",
-                 "[error-center][gcode-ownership][belt_tension]") {
-    helix::PrinterState state;
-    state.init_subjects(false);
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, state);
-    MoonrakerAdvancedAPI advanced(client, api);
-
-    SECTION("caller_surfaces_errors=false keeps the router as the reporter") {
-        client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, REJECTION, "SET_PIN");
-        advanced.set_strobe_frequency("strobe", 50.0f, nullptr, nullptr,
-                                      /*caller_surfaces_errors=*/false);
-
-        REQUIRE(client.last_send_script().find("SET_PIN PIN=strobe VALUE=0.5") == 0);
-        CHECK_FALSE(client.current_send_intent().surfaces_errors);
-        CHECK_FALSE(helix::rpc_error_correlation::was_recently_handled(REJECTION));
-    }
-
-    // The other half of the contract: the parameter must actually be threaded
-    // through rather than hardcoded to false at the send site.
-    SECTION("the default still claims the report for a caller that surfaces errors") {
-        client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, REJECTION, "SET_PIN");
-        advanced.set_strobe_frequency("strobe", 0.0f, nullptr, nullptr);
-
-        REQUIRE(client.last_send_script() == "SET_PIN PIN=strobe VALUE=0");
-        CHECK(client.current_send_intent().surfaces_errors);
-        CHECK(helix::rpc_error_correlation::was_recently_handled(REJECTION));
-    }
-}
-
-TEST_CASE_METHOD(OwnershipMoreFixture, "Belt tension strobe sends leave the `!!` router free",
-                 "[error-center][gcode-ownership][belt_tension]") {
-    helix::PrinterState state;
-    state.init_subjects(false);
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, state);
-
-    helix::calibration::BeltTensionCalibrator cal(&api);
-    BeltTensionCalibratorTestAccess::seed_pwm_led(cal, "strobe");
-    BeltTensionCalibratorTestAccess::force_strobe_mode(cal);
-
-    SECTION("frequency update") {
-        client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, REJECTION, "SET_PIN");
-        cal.set_strobe_frequency(40.0f);
-
-        REQUIRE(history_contains(client.gcode_script_history(), "SET_PIN PIN=strobe VALUE=0.5"));
-        CHECK_FALSE(client.current_send_intent().surfaces_errors);
-        CHECK_FALSE(helix::rpc_error_correlation::was_recently_handled(REJECTION));
-    }
-
-    SECTION("strobe off") {
-        client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, REJECTION, "SET_PIN");
-        cal.stop_strobe();
-
-        REQUIRE(history_contains(client.gcode_script_history(), "SET_PIN PIN=strobe VALUE=0"));
-        CHECK_FALSE(client.current_send_intent().surfaces_errors);
-        CHECK_FALSE(helix::rpc_error_correlation::was_recently_handled(REJECTION));
-    }
 }
 
 // ============================================================================

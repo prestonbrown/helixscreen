@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+
+#include "belt_tension_types.h"
+
+#include <cstddef>
+#include <vector>
+
+/**
+ * @file pluck_detector.h
+ * @brief Onset detection and strength gating for belt plucks
+ *
+ * Thresholds here are measured, not chosen. Across 60 real captures on a
+ * Voron 2.4: below 5x the noise floor nothing was a pluck at all, between
+ * 5-9x pitch estimation was right 64% of the time, and above 9x it was right
+ * 95% of the time. Rejecting weak strikes contributes more accuracy than
+ * averaging does - ungated, a median never exceeded 48% at any sample count.
+ */
+
+namespace helix::calibration {
+
+/// A ring-down segment ready for spectral analysis.
+///
+/// Deliberately has no strength field: extract_ringdown() is static and has
+/// no access to the detection window it was pulled from, so it cannot
+/// compute one. The detection-window ratio (see PluckDetector::rms_ratio())
+/// belongs to whichever caller owns the live buffer.
+struct PluckWindow {
+    std::vector<AccelSample> samples;
+};
+
+class PluckDetector {
+  public:
+    /// Minimum strength, as a multiple of the noise floor, for a strike to count.
+    static constexpr float MIN_RMS_RATIO = 9.0f;
+    /// Skip past the impact transient before analysing.
+    static constexpr float SKIP_MS = 40.0f;
+    /// Length of ring-down to analyse.
+    static constexpr float ANALYZE_MS = 500.0f;
+
+    /// Sub-window the temporal shape checks measure the envelope in.
+    static constexpr float ENVELOPE_SEGMENT_MS = 10.0f;
+    /// How far before the loudest sub-window to sample the pre-strike level.
+    static constexpr float ONSET_LOOKBACK_MS = 20.0f;
+    /// Peak-to-pre-strike RMS ratio a pluck must clear.
+    ///
+    /// Measured by the exhaustive alignment sweep in
+    /// test_belt_listen_session.cpp - every one of the 340 window alignments
+    /// in a batch period, for each of the five captures that clear the energy
+    /// gate: 21.35 - 58.99. A steady tone reads 1.1 and an envelope that grows
+    /// across the window reads 1.2.
+    ///
+    /// The range is quoted across every alignment, not a sample of them,
+    /// because this constant has twice been justified by figures that were
+    /// artifacts of which alignments a harness happened to present: 34-46 from
+    /// a single fixed phase, then 26.1-71.4 from nine sampled ones. The floor
+    /// is what states the margin, and it is the number a sampled sweep gets
+    /// wrong.
+    ///
+    /// @note The sweep now *computes* this, off the detection window each
+    /// verdict was reached on, and asserts the floor - it did not until
+    /// 2026-08-24, so for a while this comment cited a test that measured only
+    /// harmonic_concentration and the margin could have eroded to zero
+    /// unobserved. The same was true of MAX_DECAY_RISE and
+    /// MAX_DECAY_END_RATIO below; all three are read back now.
+    static constexpr float MIN_ONSET_RISE = 3.0f;
+    /// Sub-windows the post-onset envelope is split into.
+    static constexpr int DECAY_SEGMENTS = 4;
+    /// How much louder a decay sub-window may be than the one before it.
+    /// Worst case 1.06x across the alignment sweep (see MIN_ONSET_RISE), which
+    /// asserts it. decay_rise() is the quantity, exposed so the sweep can read
+    /// it rather than infer it from an accept/reject outcome.
+    static constexpr float MAX_DECAY_RISE = 1.5f;
+    /// Last sub-window as a fraction of the first. 0.13-0.20 across the
+    /// alignment sweep, which asserts the ceiling; a steady tone reads 0.98
+    /// and the weak-pluck capture, which never rang, reads 0.79.
+    static constexpr float MAX_DECAY_END_RATIO = 0.5f;
+    /// Shortest post-onset region the decay check can judge. An event whose
+    /// onset lands at the very end of the window has no envelope to read, and
+    /// "cannot tell" must mean rejected here - that is what an event ramping
+    /// up into the future looks like.
+    static constexpr float MIN_DECAY_SPAN_MS = 100.0f;
+    /// Post-onset signal a window needs before it is worth resolving at all.
+    ///
+    /// extract_ringdown() always returns ANALYZE_MS of samples, padding the
+    /// front with whatever preceded the strike when the strike landed late.
+    /// At 70% of ANALYZE_MS that padding cannot outweigh the ring-down.
+    /// Measured on tests/fixtures/belt_plucks/ spliced into a live stream:
+    /// 350-400 ms accepts every capture that clears the energy gate, and by
+    /// 450 ms the window has slid so far that a 500 ms capture has run out
+    /// and the analysis starts reading past its end.
+    static constexpr float MIN_RINGDOWN_MS = 350.0f;
+
+    /// Broadband RMS with per-axis DC removed. Static so callers can measure a
+    /// buffer without owning a detector.
+    static float window_rms(const AccelSample* samples, size_t count);
+
+    void set_noise_floor(float rms) {
+        noise_floor_ = rms;
+    }
+    [[nodiscard]] float noise_floor() const {
+        return noise_floor_;
+    }
+
+    /// Measure the floor from a buffer captured while the machine is still.
+    bool learn_noise_floor(const std::vector<AccelSample>& quiet);
+
+    /// Strength of a window as a multiple of the noise floor. 0 if no floor set.
+    ///
+    /// Operates on the live detection window (the buffer being watched for a
+    /// strike, onset included) - not on an extracted ring-down. A ring-down
+    /// has already decayed for SKIP_MS+ before the caller ever sees it, so its
+    /// RMS reads several times lower than the detection window that triggered
+    /// it. Feeding extract_ringdown() output back into this rejects strikes
+    /// that were genuinely firm.
+    [[nodiscard]] float rms_ratio(const AccelSample* samples, size_t count) const;
+
+    /// True if this window is strong enough to analyse. Same detection-window
+    /// contract as rms_ratio() - see its comment. MIN_RMS_RATIO was calibrated
+    /// against detection windows across 60 captures; it is not meaningful
+    /// against a ring-down.
+    [[nodiscard]] bool passes_gate(const AccelSample* samples, size_t count) const;
+
+    /// Index of the strongest instantaneous deviation from the buffer mean -
+    /// the strike, when there was one. Returns 0 for an empty buffer.
+    ///
+    /// This is the loudest SAMPLE. For a plucked string that is its attack
+    /// transient, which is what makes the rise anchored here large - see
+    /// MIN_ONSET_RISE for the measured range. For broadband energy it is
+    /// instead a random draw somewhere inside the event, so an onset located
+    /// this way can sit tens of samples past a thump's true leading edge
+    /// (measured: 62).
+    static size_t find_onset(const AccelSample* samples, size_t count);
+
+    /// The measured peak-to-pre-strike RMS ratio - the quantity
+    /// MIN_ONSET_RISE is a threshold on. Exposed so a test can measure the
+    /// margin a real capture actually has, rather than only whether it passed.
+    ///
+    /// Returns 0 when the rise cannot be judged (window too short, or the
+    /// strike landed before the window kept any pre-strike samples), and
+    /// infinity when the 10 ms before the strike was exactly silent.
+    [[nodiscard]] static float onset_rise(const AccelSample* samples, size_t count,
+                                          float sample_rate);
+
+    /// True if energy jumps from the pre-strike level to the peak within a few
+    /// milliseconds.
+    ///
+    /// Operates on the live DETECTION WINDOW, like rms_ratio() and
+    /// passes_gate(): the evidence is the quiet that came BEFORE the strike,
+    /// and an extracted ring-down has already thrown that away. A window whose
+    /// STRIKE sits within ONSET_LOOKBACK_MS of its start returns false - there
+    /// is nothing to compare against, and a steady tone looks exactly like
+    /// that.
+    ///
+    /// The reference is taken from the strike, located by find_onset(), and
+    /// not from the loudest segment: on a real capture the loudest 10 ms
+    /// frequently lands after the strike, which puts a peak-anchored reference
+    /// inside the ring-down. See the note on MIN_ONSET_RISE.
+    [[nodiscard]] static bool has_sharp_onset(const AccelSample* samples, size_t count,
+                                              float sample_rate);
+
+    /// True when the window holds enough signal after the onset to be worth
+    /// resolving - at least MIN_RINGDOWN_MS of it.
+    ///
+    /// A firm strike trips the energy gate as soon as its leading edge enters
+    /// the window, before there is any envelope to read. The answer to false
+    /// here is to WAIT: the window slides and the rest of the ring-down is
+    /// already on its way. Rejecting instead throws away exactly the firmest
+    /// plucks, since those are the ones that trip the gate earliest.
+    ///
+    /// An event that never stops growing is therefore never judged at all -
+    /// find_onset() keeps returning a sample near the end, the post-onset span
+    /// stays short, and the caller waits indefinitely. That is safe (nothing
+    /// can be accepted without being judged) but it means a swell is handled
+    /// by being ignored rather than by has_pluck_decay(); the envelope checks
+    /// see it only once it peaks and starts to fall.
+    [[nodiscard]] static bool ringdown_ready(const AccelSample* samples, size_t count,
+                                             float sample_rate);
+
+    /// The measured last-segment-over-first-segment ratio - the quantity
+    /// MAX_DECAY_END_RATIO is a threshold on. Exposed for the same reason as
+    /// onset_rise(): a caller diagnosing a rejection wants the number, not
+    /// only whether it passed.
+    ///
+    /// Locates its own onset, so it reads the same on a detection window and
+    /// on an extracted ring-down. Returns -1.0f when the ratio cannot be
+    /// judged (window too short, or the onset lands within DECAY_SEGMENTS
+    /// samples of the window's end) - a sentinel rather than 0.0f, since 0
+    /// would misreport as "decayed to nothing" on a window has_pluck_decay()
+    /// would have rejected outright for lack of evidence.
+    [[nodiscard]] static float decay_end_ratio(const AccelSample* samples, size_t count,
+                                               float sample_rate);
+
+    /**
+     * @brief Largest step-up between consecutive post-onset envelope sub-windows
+     *
+     * The quantity MAX_DECAY_RISE is a threshold on. Exposed rather than left
+     * inside has_pluck_decay() so the alignment sweep can read back the margin
+     * it actually has, the same way it reads back harmonic_concentration().
+     *
+     * @return the worst ratio, infinity when a sub-window is silent (an
+     *         unbounded rise, which has_pluck_decay() rejects), or -1 when the
+     *         post-onset region is too short to judge.
+     */
+    [[nodiscard]] static float decay_rise(const AccelSample* samples, size_t count,
+                                          float sample_rate);
+
+    /// True if the envelope after the onset falls the way a plucked string's
+    /// does: each sub-window no more than MAX_DECAY_RISE louder than the one
+    /// before, and the last well below the first.
+    ///
+    /// Locates its own onset, so it reads the same on a detection window and
+    /// on an extracted ring-down. A steady tone fails on the end ratio; a
+    /// rattle fails on the rise tolerance.
+    [[nodiscard]] static bool has_pluck_decay(const AccelSample* samples, size_t count,
+                                              float sample_rate);
+
+    /// Locate the strongest transient in `buffer` and extract the ring-down
+    /// beginning SKIP_MS after it.
+    static bool extract_ringdown(const std::vector<AccelSample>& buffer, float sample_rate,
+                                 PluckWindow* out);
+
+  private:
+    float noise_floor_ = 0.0f;
+};
+
+} // namespace helix::calibration

@@ -1020,6 +1020,64 @@ skip ineffective, ~10ms after coalescing equal-height column runs, with ~47% of 
 outright. Most of the original cost was `lv_canvas_finish_layer()` rasterising 456 separate
 single-column fills, not the pixels themselves.
 
+### `HELIX_BELT_CAPTURE_DIR`
+
+Write every resolved pluck event from the live belt tuner (`BeltListenSession`) to disk, in the
+same format `tests/fixtures/belt_plucks/` already uses. Diagnostic only, for the reference-machine
+hardware pass: every threshold in `PluckDetector` and `pitch_estimator` was measured against a
+small, fixed capture set, and the algorithm has since been tuned against that same set. This is
+the instrument that collects the next round — a capture drops straight in as a new fixture with no
+conversion step.
+
+Off unless set: unset costs nothing (no buffering, no allocation, no branch on the sample path) and
+a normal user run never writes these files. When set, each resolved event (accepted **and**
+rejected — a rejection is the case most worth diagnosing) writes the live detection window and,
+once one was extracted, the separate ring-down as two files, since conflating those two buffers is
+exactly the mistake `PluckDetector`'s doc comments exist to prevent. The quiet buffer a session
+learned its noise floor and quiet spectrum from is written once, alongside `learn_noise_floor()`.
+Filenames carry an incrementing sequence number so same-second events cannot collide:
+`event_0000_ACCEPTED_detection.csv` / `event_0000_ACCEPTED_ringdown.csv`, `quiet_0000_quiet.csv`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Any writable directory path (created if missing); unset disables the writer entirely |
+| **Default** | Unset |
+| **File** | `include/belt_capture.h`, `src/calibration/belt_capture.cpp`, `src/calibration/belt_listen_session.cpp` |
+
+```bash
+mkdir -p /tmp/belt-captures
+HELIX_BELT_CAPTURE_DIR=/tmp/belt-captures ./build/bin/helix-screen --test -vv
+# ... drive the belt tuner (ctl navigate belt_tension, or physically pluck on real hardware) ...
+ls /tmp/belt-captures
+```
+
+Each rendered file's header extends the existing `sample_rate_hz=` / `rms_over_noise_floor=` line
+with the verdict fields (`verdict=`, `onset_rise=`, `decay_end_ratio=`, `harmonic_concentration=`,
+`estimate_hz=`, `median_hz=`) rather than inventing a second header line, so an old and a new
+capture still parse identically "by eye". A field never evaluated on that event's path (e.g.
+`harmonic_concentration` on a strike rejected before pitch estimation ran) renders as `n/a`, not a
+misleading `0`.
+
+To see a capture rendered back in the live panel — confirming the spectrum and its peak-frequency
+label actually draw, not just that the file parses — set the `bt_replay_path` subject on a running
+instance:
+
+```bash
+./build/bin/helix-screen ctl set bt_replay_path /tmp/belt-captures/event_0000_ACCEPTED_ringdown.csv
+```
+
+> **Setting the same path twice is a no-op.** The replay runs from a string-subject
+> observer, and LVGL does not notify observers when the value written equals the value
+> already there, so a second `ctl set` with an identical path never reaches
+> `replay_capture()` and the panel simply keeps drawing what it drew before. To replay
+> the same file again, set the subject to `""` first, or alternate between two paths.
+
+The panel's `bt_target_freq` and its estimated-frequency tick are driven by the span the
+panel currently holds, which is `TARGET_SPAN_MM` unless a live session already parked. A
+capture taken at a different span is searched in the wrong harmonic window; that is
+deliberate (this is a diagnostic replay, not a file importer) and shows up immediately as
+an implausible peak label.
+
 ### `HELIX_HOT_RELOAD`
 
 Enable XML hot reload for live UI editing. When enabled, a background thread polls `ui_xml/` (recursively — includes breakpoint variants and `components/`) every 500ms for file changes. Modified XML components are pre-validated, then unregistered and re-registered with LVGL, and the active panel/overlay/modal widget tree is torn down and rebuilt in place — no restart, no navigation needed.

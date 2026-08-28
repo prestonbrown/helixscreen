@@ -2492,58 +2492,23 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
                                                 ErrorCallback on_error) {
     spdlog::info("[MoonrakerAPI] Detecting belt tension hardware capabilities");
 
-    // Step 1: Query printer.objects.list to discover available objects
+    // Step 1: Query printer.objects.list. The response is unused - accelerometer
+    // presence comes from PrinterDiscovery below, not from parsing this list
+    // (Klipper's objects/list omits on-demand calibration tools like adxl345).
     json params = json::object();
     client_.send_jsonrpc(
         "printer.objects.list", params,
-        [this, on_complete, on_error](const json& response) {
+        [this, on_complete, on_error](const json& /*response*/) {
             helix::calibration::BeltTensionHardware hw;
 
-            try {
-                // The array lives under the JSON-RPC envelope's result member —
-                // send_jsonrpc hands the callback the whole envelope, not the
-                // unwrapped result. Reading "objects" off the top level always
-                // yielded the empty default, which left every flag below false on
-                // every printer (prestonbrown/helixscreen#1137).
-                json objects = json::array();
-                const auto result_it = response.find("result");
-                if (result_it != response.end() && result_it->is_object()) {
-                    const auto objects_it = result_it->find("objects");
-                    if (objects_it != result_it->end() && objects_it->is_array())
-                        objects = *objects_it;
-                }
+            // AccelSensorManager is the documented single source of truth for
+            // accelerometer presence, and the discovery sequence seeds it from
+            // configfile.config alongside the probe manager
+            // (moonraker_discovery_sequence.cpp). Accelerometer modules have no
+            // get_status(), so configfile is the only place they appear at all.
+            hw.has_adxl = helix::sensors::AccelSensorManager::instance().has_sensors();
 
-                // Use AccelSensorManager as the single source of truth for
-                // accelerometer detection (discovers from configfile.config,
-                // handles all chip types including beacon)
-                hw.has_adxl = helix::sensors::AccelSensorManager::instance().has_sensors();
-
-                for (const auto& obj : objects) {
-                    if (!obj.is_string())
-                        continue;
-                    std::string name = obj.get<std::string>();
-                    if (name == "quad_gantry_level") {
-                        hw.has_belted_z = true;
-                    }
-                    if (name.find("pwm_cycle_time") != std::string::npos) {
-                        hw.has_pwm_led = true;
-                        size_t space = name.find(' ');
-                        if (space != std::string::npos) {
-                            hw.pwm_led_pin = name.substr(space + 1);
-                        }
-                    }
-                }
-
-                spdlog::info("[MoonrakerAPI] Belt HW scan: adxl={}, belted_z={}, pwm_led={}",
-                             hw.has_adxl, hw.has_belted_z, hw.has_pwm_led);
-
-            } catch (const std::exception& e) {
-                spdlog::error("[MoonrakerAPI] Failed to parse object list: {}", e.what());
-                if (on_error)
-                    on_error(MoonrakerError::json_rpc_error(
-                        "", fmt::format("Failed to parse printer objects: {}", e.what())));
-                return;
-            }
+            spdlog::info("[MoonrakerAPI] Belt HW scan: adxl={}", hw.has_adxl);
 
             // Step 2: Query kinematics type
             json query_params;
@@ -2663,39 +2628,6 @@ void MoonrakerAdvancedAPI::excite_belt_at_frequency(const std::string& axis_para
         },
         30000, // 30 second timeout for fixed-freq excitation
         /*silent=*/false, /*on_queued=*/nullptr, /*caller_surfaces_errors=*/caller_surfaces);
-}
-
-void MoonrakerAdvancedAPI::set_strobe_frequency(const std::string& pin_name, float freq_hz,
-                                                SuccessCallback on_success, ErrorCallback on_error,
-                                                bool caller_surfaces_errors) {
-    if (freq_hz <= 0.0f) {
-        // Turn off strobe
-        spdlog::info("[MoonrakerAPI] Turning off strobe LED on pin {}", pin_name);
-        std::string gcode = fmt::format("SET_PIN PIN={} VALUE=0", pin_name);
-        api_.execute_gcode(
-            gcode, on_success,
-            [on_error](const MoonrakerError& err) {
-                if (on_error)
-                    on_error(err);
-            },
-            /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr, caller_surfaces_errors);
-        return;
-    }
-
-    spdlog::info("[MoonrakerAPI] Setting strobe LED {} to {:.1f} Hz", pin_name, freq_hz);
-
-    // For pwm_cycle_time pins, set CYCLE_TIME to 1/freq and VALUE to 0.5 for 50% duty cycle
-    float cycle_time = 1.0f / freq_hz;
-    std::string gcode =
-        fmt::format("SET_PIN PIN={} VALUE=0.5 CYCLE_TIME={:.6f}", pin_name, cycle_time);
-
-    api_.execute_gcode(
-        gcode, on_success,
-        [on_error](const MoonrakerError& err) {
-            if (on_error)
-                on_error(err);
-        },
-        /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr, caller_surfaces_errors);
 }
 
 void MoonrakerAdvancedAPI::download_accel_csv(const std::string& name,

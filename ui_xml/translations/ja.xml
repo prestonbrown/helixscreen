@@ -5,6 +5,7 @@
   <translation tag=" frames" ja=" フレーム"/>
   <translation tag=" left" ja=" 残り"/>
   <translation tag="&quot;%s&quot; failed to load" ja="&quot;%s&quot; の読み込みに失敗しました"/>
+  <translation tag="%.0f Hz difference"/>
   <translation tag="%.1f Hz difference" ja="%.1f Hz の差"/>
   <translation tag="%d additional fan%s" ja="追加ファン %d 個%s"/>
   <translation tag="%d disabled" ja="%d 個無効"/>
@@ -30,7 +31,6 @@
   <translation tag="+ Add Preset" ja="+ プリセットを追加"/>
   <translation tag="+ Add Printer" ja="+ プリンターを追加"/>
   <translation tag="+ New" ja="+ 新規"/>
-  <translation tag="+0.5 Hz" ja="+0.5 Hz"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ja="- printer.cfg の [resonance_tester] を確認してください"/>
   <translation tag="- Ensure ADXL345 is connected" ja="- ADXL345 が接続されていることを確認してください"/>
   <translation tag="- Try Measure Noise first" ja="- まず「ノイズ測定」をお試しください"/>
@@ -39,7 +39,6 @@
   <translation tag="-- W" ja="-- W"/>
   <translation tag="-- kWh" ja="-- kWh"/>
   <translation tag="--°C" ja="--°C"/>
-  <translation tag="-0.5 Hz" ja="-0.5 Hz"/>
   <translation tag="..." ja="..."/>
   <translation tag="0 = computed" ja="0 = 自動計算"/>
   <translation tag="0 events queued" ja="待機中のイベントなし"/>
@@ -145,10 +144,8 @@
   <translation tag="Add custom filament" ja="カスタムフィラメントを追加"/>
   <translation tag="Added to Spoolman" ja="Spoolman に追加しました"/>
   <translation tag="Address" ja="アドレス"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" ja="ベルトが静止して見えるまでベルト張力を調整してください"/>
   <translation tag="Adjust screen brightness level" ja="画面の明るさを調整します"/>
   <translation tag="Adjust screws, then re-probe." ja="ネジを調整して、再度プローブしてください。"/>
-  <translation tag="Adjust until belt appears frozen" ja="ベルトが静止して見えるまで調整"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." ja="調整は再起動まで有効です。印刷完了後に保存してください。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ja="ヒーターの個別特性を調整して最適な制御を実現します"/>
   <translation tag="Advanced" ja="詳細設定"/>
@@ -220,10 +217,10 @@
   <translation tag="Automatic LED Control" ja="自動LED制御"/>
   <translation tag="Aux" ja="補助"/>
   <translation tag="Available" ja="利用可能"/>
-  <translation tag="Available (%s)" ja="利用可能 (%s)"/>
   <translation tag="Available Networks" ja="利用可能なネットワーク"/>
   <translation tag="Available networks" ja="利用可能なネットワーク"/>
   <translation tag="Average" ja="平均"/>
+  <translation tag="B"/>
   <translation tag="BEACON" ja="BEACON"/>
   <translation tag="BETA" ja="BETA"/>
   <translation tag="BLE connect failed: {}" ja="BLE 接続に失敗しました: {}"/>
@@ -233,7 +230,6 @@
   <translation tag="BLUETOOTH PRINTERS" ja="Bluetooth プリンター"/>
   <translation tag="BLUETOOTH SCANNERS" ja="Bluetooth スキャナー"/>
   <translation tag="Back" ja="戻る"/>
-  <translation tag="Back to Results" ja="結果に戻る"/>
   <translation tag="Backtrace: {} frames" ja="バックトレース: {} フレーム"/>
   <translation tag="Backup spool switching state unknown" ja="バックアップスプール切り替えの状態は不明です"/>
   <translation tag="Barcode Scanner" ja="バーコードスキャナー"/>
@@ -262,8 +258,10 @@
   <translation tag="Bed target set to {}°C" ja="ベッド目標温度を {}°C に設定しました"/>
   <translation tag="Bed temp must be 0-200°C" ja="ベッド温度は 0〜200°C にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
-  <translation tag="Belt A frequency locked" ja="ベルト A の周波数を固定しました"/>
-  <translation tag="Belt B frequency locked" ja="ベルト B の周波数を固定しました"/>
+  <translation tag="Belt A"/>
+  <translation tag="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A."/>
+  <translation tag="Belt B"/>
+  <translation tag="Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B."/>
   <translation tag="Belt Tension" ja="ベルトテンション"/>
   <translation tag="Belt Tension Check" ja="ベルトテンション確認"/>
   <translation tag="Belt tension looks good!" ja="ベルトテンションは良好です！"/>
@@ -288,8 +286,12 @@
   <translation tag="Border Width" ja="境界線の幅"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" ja="境界線の透明度 (0 = 透明、255 = 不透明)"/>
   <translation tag="Both" ja="両方"/>
+  <translation tag="Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both."/>
+  <translation tag="Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more."/>
+  <translation tag="Both belts are on the %.0f Hz target and match each other. Nothing to adjust."/>
   <translation tag="Both belts are overtightened." ja="両方のベルトが張りすぎています。"/>
   <translation tag="Both belts need tightening." ja="両方のベルトを張る必要があります。"/>
+  <translation tag="Both belts read the same to within what this measurement can resolve. Nothing to adjust."/>
   <translation tag="Bowden Length" ja="ボーデン長"/>
   <translation tag="Bowden tube length from hub to toolhead" ja="ハブからツールヘッドまでのボーデンチューブ長"/>
   <translation tag="Brand" ja="ブランド"/>
@@ -489,6 +491,7 @@
   <translation tag="Color Mismatch" ja="色の不一致"/>
   <translation tag="Communication Test" ja="通信テスト"/>
   <translation tag="Compact" ja="コンパクト"/>
+  <translation tag="Compare"/>
   <translation tag="Comparison" ja="比較"/>
   <translation tag="Complete" ja="完了"/>
   <translation tag="Complete!" ja="完了！"/>
@@ -583,6 +586,7 @@
   <translation tag="Could not confirm cancel"/>
   <translation tag="Could not forget device" ja="デバイスの登録を解除できませんでした"/>
   <translation tag="Could not load printer database" ja="プリンターデータベースを読み込めませんでした"/>
+  <translation tag="Could not open Klipper&apos;s accelerometer stream. Check that Klipper is running, then retry."/>
   <translation tag="Could not parse tips database" ja="ヒントデータベースを解析できませんでした"/>
   <translation tag="Could not reach Spoolman at" ja="Spoolman に接続できません:"/>
   <translation tag="Could not read the screw adjustments from the printer" ja="プリンターからネジ調整を読み取れませんでした"/>
@@ -609,7 +613,6 @@
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
   <translation tag="Current Configuration" ja="現在の設定"/>
-  <translation tag="Current Frequency" ja="現在の周波数"/>
   <translation tag="Current Mesh" ja="現在のメッシュ"/>
   <translation tag="Current Temperature" ja="現在の温度"/>
   <translation tag="Current Version" ja="現在のバージョン"/>
@@ -1007,7 +1010,6 @@
   <translation tag="Filter Fan: Off"/>
   <translation tag="Filter Fan: On"/>
   <translation tag="Fine" ja="微動"/>
-  <translation tag="Fine-Tune" ja="微調整"/>
   <translation tag="Finish" ja="完了"/>
   <translation tag="Finishing clean..."/>
   <translation tag="Finishing up..." ja="完了中..."/>
@@ -1038,6 +1040,7 @@
   <translation tag="Found 1 printer" ja="プリンター1台を検出"/>
   <translation tag="Framerate" ja="フレームレート"/>
   <translation tag="Frequency Delta" ja="周波数差"/>
+  <translation tag="Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.&#10;&#10;Match: How close the two belts are, as a percentage of belt A&apos;s frequency. Above 95% is excellent; below 90% is worth adjusting."/>
   <translation tag="Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.&#10;&#10;Path Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension." ja="周波数差: パス A と B の差。理想は 5 Hz 未満で、15 Hz を超える場合は調整が必要です。&#10;&#10;パス類似度: 振動プロファイルの一致度。90% を超えれば優秀で、70% を下回ると張力が不均一なことを示します。"/>
   <translation tag="From Buffer" ja="バッファから"/>
   <translation tag="From Version" ja="更新前バージョン"/>
@@ -1124,6 +1127,7 @@
   <translation tag="Hide Temperature Reports" ja="温度レポートを非表示"/>
   <translation tag="High Water Mark" ja="最大値"/>
   <translation tag="Hold anywhere to cancel" ja="どこかを長押ししてキャンセル"/>
+  <translation tag="Hold still"/>
   <translation tag="Holding nozzle at {}°C to purge previous filament." ja="前のフィラメントをパージするためノズルを {}°C に保持しています。"/>
   <translation tag="Home" ja="ホーム"/>
   <translation tag="Home &amp; Continue" ja="ホーミングして続行"/>
@@ -1304,6 +1308,7 @@
   <translation tag="Light" ja="ライト"/>
   <translation tag="Light will switch when the current operation finishes" ja="現在の操作が完了したらライトを切り替えます"/>
   <translation tag="Listen to all theme sounds" ja="すべてのテーマサウンドを試聴"/>
+  <translation tag="Listening"/>
   <translation tag="Live view from your webcam" ja="ウェブカメラのライブ表示"/>
   <translation tag="Load" ja="装填"/>
   <translation tag="Load Filament" ja="フィラメントを装填"/>
@@ -1331,8 +1336,6 @@
   <translation tag="Locating Spoolman configuration..." ja="Spoolman の設定を検索中..."/>
   <translation tag="Location" ja="場所"/>
   <translation tag="Lock" ja="ロック"/>
-  <translation tag="Lock A" ja="ロック A"/>
-  <translation tag="Lock B" ja="ロック B"/>
   <translation tag="Lock Screen" ja="画面ロック"/>
   <translation tag="Lock screen after idle timeout" ja="アイドルタイムアウト後に画面をロック"/>
   <translation tag="Lock the screen with your PIN" ja="PIN で画面をロック"/>
@@ -1406,6 +1409,8 @@
   <translation tag="Map to closest colors with matching material" ja="一致する素材で最も近い色に割り当て"/>
   <translation tag="Marginal" ja="やや不良"/>
   <translation tag="Master volume level" ja="マスター音量"/>
+  <translation tag="Match"/>
+  <translation tag="Match to belt A"/>
   <translation tag="Match your typical print fan speed" ja="通常の印刷ファン速度に合わせてください"/>
   <translation tag="Material" ja="素材"/>
   <translation tag="Material Comfort:" ja="素材の適合度:"/>
@@ -1431,6 +1436,7 @@
   <translation tag="Measuring Path B... %d%%" ja="パス B を測定中... %d%%"/>
   <translation tag="Measuring accelerometer noise..." ja="加速度センサーのノイズを測定中..."/>
   <translation tag="Measuring vibrations... {}%" ja="振動を測定中... {}%"/>
+  <translation tag="Median %.0f Hz"/>
   <translation tag="Memory" ja="メモリ"/>
   <translation tag="Memory (MB)" ja="メモリ (MB)"/>
   <translation tag="Memory Snapshot" ja="メモリースナップショット"/>
@@ -1464,6 +1470,7 @@
   <translation tag="Move speed multipliers" ja="移動速度の倍率"/>
   <translation tag="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings." ja="ツールヘッドを動かし、軸をホーミングし、ベッドをレベリングし、温度、ファン、その他のモーション設定を微調整します。"/>
   <translation tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." ja="プリントヘッドを移動させて各軸の振動周波数を測定します。2〜3分かかります。プリンターから音がしますが、これは正常です。"/>
+  <translation tag="Moving gantry"/>
   <translation tag="Moving lane" ja="レーンを移動中"/>
   <translation tag="Multi-Filament" ja="マルチフィラメント"/>
   <translation tag="Multi-Filament Overview" ja="マルチフィラメント概要"/>
@@ -1503,6 +1510,7 @@
   <translation tag="New printer successfully added" ja="新しいプリンターを追加しました"/>
   <translation tag="New profile name" ja="新しいプロファイル名"/>
   <translation tag="Next" ja="次へ"/>
+  <translation tag="Next belt"/>
   <translation tag="Niimbot (Bluetooth)" ja="Niimbot (Bluetooth)"/>
   <translation tag="No" ja="いいえ"/>
   <translation tag="No API connection" ja="API 接続なし"/>
@@ -1519,12 +1527,12 @@
   <translation tag="No Multi-Filament System connected" ja="マルチフィラメントシステムが接続されていません"/>
   <translation tag="No Multi-Filament System connected." ja="マルチフィラメントシステムが接続されていません。"/>
   <translation tag="No PRINT_START macro found" ja="PRINT_START マクロが見つかりません"/>
-  <translation tag="No PWM LED detected for strobe mode" ja="ストロボモード用の PWM LED が検出されませんでした"/>
   <translation tag="No Power Devices" ja="電源デバイスなし"/>
   <translation tag="No Spool" ja="スプールなし"/>
   <translation tag="No Spools" ja="スプールなし"/>
   <translation tag="No USB printer detected" ja="USB プリンターが検出されません"/>
   <translation tag="No USB printers found" ja="USBプリンターが見つかりません"/>
+  <translation tag="No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry."/>
   <translation tag="No automatic backup-spool package is installed" ja="自動バックアップスプール用プラグインが未インストールです"/>
   <translation tag="No buffer data available" ja="バッファーデータがありません"/>
   <translation tag="No camera — use USB barcode scanner" ja="カメラなし — USB バーコードスキャナーを使用してください"/>
@@ -1591,9 +1599,8 @@
   <translation tag="Not connected" ja="未接続"/>
   <translation tag="Not connected to printer" ja="プリンターに未接続"/>
   <translation tag="Not connected to printer." ja="プリンターに未接続です。"/>
+  <translation tag="Not connected to the printer"/>
   <translation tag="Not detected" ja="検出されません"/>
-  <translation tag="Not found (strobe only)" ja="見つかりません (ストロボのみ)"/>
-  <translation tag="Not found (use phone app)" ja="見つかりません (スマホアプリを使用)"/>
   <translation tag="Not in your spools? Set it up" ja="スプールにない？登録する"/>
   <translation tag="Not now" ja="後で"/>
   <translation tag="Not yet available on this display" ja="このディスプレイではまだ利用できません"/>
@@ -1743,6 +1750,8 @@
   <translation tag="Please fill in the highlighted fields" ja="ハイライトされた項目を入力してください"/>
   <translation tag="Please wait while the printer homes and probes." ja="プリンターがホーミングとプローブを行う間お待ちください。"/>
   <translation tag="Please wait while the printer probes each screw position." ja="プリンターが各ネジ位置をプローブする間お待ちください。"/>
+  <translation tag="Pluck the front belt on the left"/>
+  <translation tag="Pluck the front belt on the right"/>
   <translation tag="Plugin already installed" ja="プラグインは既にインストール済みです"/>
   <translation tag="Plugin disabled" ja="プラグインが無効になりました"/>
   <translation tag="Plugin installed successfully" ja="プラグインが正常にインストールされました"/>
@@ -1757,6 +1766,7 @@
   <translation tag="Poor Accuracy" ja="精度不良"/>
   <translation tag="Port" ja="ポート"/>
   <translation tag="Position" ja="位置"/>
+  <translation tag="Position the gantry yourself, then continue"/>
   <translation tag="Post-Sensor Clear" ja="センサー通過後の追加移動"/>
   <translation tag="Power" ja="電源"/>
   <translation tag="Power Devices" ja="電源デバイス"/>
@@ -1940,6 +1950,7 @@
   <translation tag="Ready" ja="準備完了"/>
   <translation tag="Ready for filament operations" ja="フィラメント操作の準備ができています"/>
   <translation tag="Ready to Apply" ja="適用の準備完了"/>
+  <translation tag="Ready to pluck"/>
   <translation tag="Reason" ja="理由"/>
   <translation tag="Reason: {}&#10;&#10;The printer cannot resume this print. Restart from the beginning?" ja="理由: {}&#10;&#10;プリンターはこの印刷を再開できません。最初からやり直しますか？"/>
   <translation tag="Reboot" ja="再起動"/>
@@ -2217,7 +2228,6 @@
   <translation tag="Set " ja="設定 "/>
   <translation tag="Set Active" ja="アクティブに設定"/>
   <translation tag="Set PIN" ja="PIN を設定"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.&#10;&#10;Recommended apps:&#10;  Android: Strobily, Strobe Light&#10;  iOS: Strobe Light Tachometer, myStroboscope" ja="スマホのストロボアプリを %.1f Hz に設定してベルトに向けてください。ベルトが静止して見えるまで調整します。&#10;&#10;推奨アプリ:&#10;  Android: Strobily, Strobe Light&#10;  iOS: Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set and watch the bed temperature" ja="ベッド温度の設定と監視"/>
   <translation tag="Set and watch the chamber temperature" ja="チャンバー温度の設定と監視"/>
   <translation tag="Set and watch the nozzle temperature" ja="ノズル温度の設定と監視"/>
@@ -2330,11 +2340,13 @@
   <translation tag="Start Calibration" ja="キャリブレーション開始"/>
   <translation tag="Start Check" ja="チェック開始"/>
   <translation tag="Start Drying" ja="乾燥開始"/>
+  <translation tag="Start Listening"/>
   <translation tag="Start Print" ja="印刷を開始"/>
   <translation tag="Start Probing" ja="プローブ開始"/>
   <translation tag="Start anyway?" ja="それでも開始しますか？"/>
   <translation tag="Start at" ja="開始位置"/>
   <translation tag="Start failed" ja="開始に失敗"/>
+  <translation tag="Start over"/>
   <translation tag="Start print anyway?" ja="それでも印刷を開始しますか？"/>
   <translation tag="Started" ja="開始"/>
   <translation tag="Starting Print..." ja="印刷開始中..."/>
@@ -2362,7 +2374,6 @@
   <translation tag="Stopped between Spool and Lane" ja="スプールとレーンの間で停止"/>
   <translation tag="Stops all motion. Requires firmware restart." ja="すべての動作を停止します。ファームウェアの再起動が必要です。"/>
   <translation tag="Stow" ja="格納"/>
-  <translation tag="Strobe LED" ja="ストロボLED"/>
   <translation tag="Subtle" ja="サトル"/>
   <translation tag="Success" ja="成功"/>
   <translation tag="Success Rate" ja="成功率"/>
@@ -2411,6 +2422,7 @@
   <translation tag="Target Frequency" ja="目標周波数"/>
   <translation tag="Target Temperature" ja="目標温度"/>
   <translation tag="Target Version" ja="目標バージョン"/>
+  <translation tag="Target is %.0f Hz. Tighten belt %s and loosen belt %s."/>
   <translation tag="Telemetry" ja="テレメトリ"/>
   <translation tag="Telemetry Data" ja="テレメトリデータ"/>
   <translation tag="Telemetry Disabled" ja="テレメトリー無効"/>
@@ -2446,16 +2458,17 @@
   <translation tag="Testing, servo, and motor operations" ja="テスト・サーボ・モーター操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。"/>
   <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！完全匿名の使用データが HelixScreen の改善に役立ちます。"/>
+  <translation tag="That did not sound like a pluck - try again"/>
   <translation tag="That slot cannot stand in for this one" ja="そのスロットはこのスロットの代わりになりません"/>
   <translation tag="That tool is already loaded" ja="そのツールはすでに装填されています"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." ja="HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。"/>
   <translation tag="The Spoolman spool currently loaded" ja="現在装填中の Spoolman スプール"/>
+  <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ja="アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 &gt; ディスプレイで再度有効にできます。"/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." ja="フィラメントがノズルに到達しませんでした。CFSはエラーを報告していませんが、ツールヘッドセンサーはまだフィラメントを検出していません。スプールが正しく取り付けられ、フィラメント経路が塞がれていないことを確認して、再試行してください。"/>
   <translation tag="The filament system reported an error" ja="フィラメントシステムがエラーを報告しました"/>
   <translation tag="The heater will cycle on and off several times." ja="ヒーターは数回オン/オフを繰り返します。"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ja="装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。"/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.&#10;&#10;Use the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." ja="モーターがベルトを振動させ、ストロボライトが同じ周波数で点滅します。ベルトが静止して(止まって)見えたとき、共振周波数を見つけたことになります。&#10;&#10;周波数ボタンで値を変化させ、ベルトが静止して見えたらその値を固定してください。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." ja="印刷は一時停止中です。ここでツールを交換すると、ツールヘッドが移動してノズルのフィラメントが入れ替わります。交換が完了したら印刷を再開してください。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ja="プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。"/>
@@ -2547,6 +2560,7 @@
   <translation tag="Toggle toolhead LED for an extruder" ja="エクストルーダーのツールヘッドLEDを切り替え"/>
   <translation tag="Toggle:" ja="切り替え:"/>
   <translation tag="Too humid" ja="湿度が高すぎます"/>
+  <translation tag="Too soft - pluck harder"/>
   <translation tag="Tool" ja="ツール"/>
   <translation tag="Tool Changer" ja="ツールチェンジャー"/>
   <translation tag="Tool Switcher" ja="ツール切り替え"/>
@@ -2601,6 +2615,7 @@
   <translation tag="USB drive connected" ja="USB ドライブが接続されました"/>
   <translation tag="USB drive removed" ja="USB ドライブが取り外されました"/>
   <translation tag="USB printer access denied — check permissions" ja="USB プリンターへのアクセスが拒否されました — 権限を確認してください"/>
+  <translation tag="Unavailable"/>
   <translation tag="Understanding Results" ja="結果の理解"/>
   <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." ja="ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。&#10;&#10;このツールは各ベルトパスを振動させて共振周波数を測定します — 周波数が一致していれば張力が均等であることを意味します。&#10;&#10;CoreXY では、パス A と B は数 Hz 以内に収まっている必要があります。"/>
   <translation tag="Uninstall HelixPrint Plugin" ja="HelixPrint プラグインをアンインストール"/>
@@ -2684,7 +2699,6 @@
   <translation tag="View live camera feed" ja="ライブカメラ映像を表示"/>
   <translation tag="View print statistics and job history" ja="印刷統計とジョブ履歴を表示"/>
   <translation tag="Visits: " ja="表示回数: "/>
-  <translation tag="Visual Fine-Tuning" ja="視覚的微調整"/>
   <translation tag="Volume" ja="音量"/>
   <translation tag="Volume of filament used during ramming" ja="ラミング時に使用するフィラメント量"/>
   <translation tag="WIDTH SENSORS" ja="幅センサー"/>
@@ -2693,6 +2707,7 @@
   <translation tag="WPA/WPA2" ja="WPA/WPA2"/>
   <translation tag="WPA3" ja="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" ja="現在のフィラメント操作が完了するまでお待ちください"/>
+  <translation tag="Wait until the print finishes"/>
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
@@ -2702,7 +2717,6 @@
   <translation tag="Warn" ja="警告"/>
   <translation tag="Warning" ja="警告"/>
   <translation tag="Warnings &amp; errors" ja="警告とエラー"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." ja="ストロボ LED の下でベルトを観察してください。ベルトが静止して見えるまで周波数を調整します — それが共振周波数です。"/>
   <translation tag="Weak battery" ja="バッテリー残量低下"/>
   <translation tag="Webcam" ja="ウェブカメラ"/>
   <translation tag="Website (optional)" ja="ウェブサイト（オプション）"/>
@@ -2736,6 +2750,7 @@
   <translation tag="Wifi" ja="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" ja="フィラメント切れ時にスプールを切り替えません"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" ja="シリコン清掃ストリップでノズルを拭く"/>
+  <translation tag="Within measurement resolution"/>
   <translation tag="Wizard Error" ja="ウィザードエラー"/>
   <translation tag="Working..." ja="処理中..."/>
   <translation tag="Write failed at chunk {}" ja="チャンク {} で書き込みに失敗しました"/>

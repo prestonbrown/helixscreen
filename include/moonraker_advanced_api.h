@@ -467,8 +467,9 @@ class MoonrakerAdvancedAPI : public IAdvancedAPI {
     /**
      * @brief Detect printer hardware for belt tension calibration
      *
-     * Two-phase detection: queries printer.objects.list for ADXL/QGL/PWM presence,
-     * then printer.objects.query for kinematics type.
+     * Two-phase detection: queries printer.objects.list (response unused -
+     * ADXL presence comes from AccelSensorManager), then printer.objects.query
+     * for kinematics type.
      *
      * @param on_complete Called with detected hardware capabilities
      * @param on_error Called on failure
@@ -493,7 +494,7 @@ class MoonrakerAdvancedAPI : public IAdvancedAPI {
                              BeltResonanceCallback on_complete, ErrorCallback on_error) override;
 
     /**
-     * @brief Run TEST_RESONANCES at a fixed frequency (for strobe mode)
+     * @brief Run TEST_RESONANCES at a fixed frequency
      *
      * Holds near freq_hz for ~5 seconds by using a narrow frequency band
      * (FREQ_START=F FREQ_END=F+0.5 HZ_PER_SEC=0.1).
@@ -505,26 +506,6 @@ class MoonrakerAdvancedAPI : public IAdvancedAPI {
      */
     void excite_belt_at_frequency(const std::string& axis_param, float freq_hz,
                                   SuccessCallback on_complete, ErrorCallback on_error) override;
-
-    /**
-     * @brief Set PWM LED strobe frequency
-     *
-     * Controls a Klipper [pwm_cycle_time] pin for visual strobe tuning.
-     * Pass freq_hz <= 0 to turn off the strobe.
-     *
-     * @param pin_name Klipper pin name (from [pwm_cycle_time] section)
-     * @param freq_hz Strobe frequency in Hz, 0 to turn off
-     * @param on_success Called on success
-     * @param on_error Called on failure
-     * @param caller_surfaces_errors Whether @p on_error actually shows the user
-     *        something. Forwarded to execute_gcode() — see its contract and
-     *        include/rpc_error_policy.h. Pass false when the callback only logs.
-     *        Default must stay in sync with IAdvancedAPI's declaration: default
-     *        arguments on virtuals resolve from the static type.
-     */
-    void set_strobe_frequency(const std::string& pin_name, float freq_hz,
-                              SuccessCallback on_success, ErrorCallback on_error,
-                              bool caller_surfaces_errors = true) override;
 
     /**
      * @brief Download raw accelerometer CSV from Klipper data store

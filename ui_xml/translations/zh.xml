@@ -5,6 +5,7 @@
   <translation tag=" frames" zh=" 帧"/>
   <translation tag=" left" zh=" 剩余"/>
   <translation tag="&quot;%s&quot; failed to load" zh="&quot;%s&quot; 加载失败"/>
+  <translation tag="%.0f Hz difference"/>
   <translation tag="%.1f Hz difference" zh="%.1f Hz 差异"/>
   <translation tag="%d additional fan%s" zh="%d 个额外风扇%s"/>
   <translation tag="%d disabled" zh="%d 个已禁用"/>
@@ -30,7 +31,6 @@
   <translation tag="+ Add Preset" zh="+ 添加预设"/>
   <translation tag="+ Add Printer" zh="+ 添加打印机"/>
   <translation tag="+ New" zh="+ 新建"/>
-  <translation tag="+0.5 Hz" zh="+0.5 Hz"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" zh="- 检查 printer.cfg 中的 [resonance_tester]"/>
   <translation tag="- Ensure ADXL345 is connected" zh="- 确保 ADXL345 已连接"/>
   <translation tag="- Try Measure Noise first" zh="- 先尝试测量噪声"/>
@@ -39,7 +39,6 @@
   <translation tag="-- W" zh="-- W"/>
   <translation tag="-- kWh" zh="-- kWh"/>
   <translation tag="--°C" zh="--°C"/>
-  <translation tag="-0.5 Hz" zh="-0.5 Hz"/>
   <translation tag="..." zh="..."/>
   <translation tag="0 = computed" zh="0 = 自动计算"/>
   <translation tag="0 events queued" zh="0 个事件已排队"/>
@@ -145,10 +144,8 @@
   <translation tag="Add custom filament" zh="添加自定义耗材"/>
   <translation tag="Added to Spoolman" zh="已添加到 Spoolman"/>
   <translation tag="Address" zh="地址"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" zh="调整皮带张力,直到皮带看起来静止不动"/>
   <translation tag="Adjust screen brightness level" zh="调整屏幕亮度"/>
   <translation tag="Adjust screws, then re-probe." zh="调整螺丝，然后重新探测。"/>
-  <translation tag="Adjust until belt appears frozen" zh="调整直到皮带看起来静止"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." zh="调整在重启前保持有效。打印完成后保存。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" zh="调整加热器的各项参数以实现最佳控制"/>
   <translation tag="Advanced" zh="高级"/>
@@ -220,10 +217,10 @@
   <translation tag="Automatic LED Control" zh="自动 LED 控制"/>
   <translation tag="Aux" zh="辅助"/>
   <translation tag="Available" zh="可用"/>
-  <translation tag="Available (%s)" zh="可用 (%s)"/>
   <translation tag="Available Networks" zh="可用网络"/>
   <translation tag="Available networks" zh="可用网络"/>
   <translation tag="Average" zh="平均值"/>
+  <translation tag="B"/>
   <translation tag="BEACON" zh="BEACON"/>
   <translation tag="BETA" zh="测试版"/>
   <translation tag="BLE connect failed: {}" zh="BLE 连接失败: {}"/>
@@ -233,7 +230,6 @@
   <translation tag="BLUETOOTH PRINTERS" zh="蓝牙打印机"/>
   <translation tag="BLUETOOTH SCANNERS" zh="蓝牙扫描器"/>
   <translation tag="Back" zh="返回"/>
-  <translation tag="Back to Results" zh="返回结果"/>
   <translation tag="Backtrace: {} frames" zh="回溯: {} 帧"/>
   <translation tag="Backup spool switching state unknown" zh="备用料盘切换状态未知"/>
   <translation tag="Barcode Scanner" zh="条码扫描器"/>
@@ -262,8 +258,10 @@
   <translation tag="Bed target set to {}°C" zh="热床目标已设为 {}°C"/>
   <translation tag="Bed temp must be 0-200°C" zh="热床温度必须为 0-200°C"/>
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
-  <translation tag="Belt A frequency locked" zh="皮带 A 频率已锁定"/>
-  <translation tag="Belt B frequency locked" zh="皮带 B 频率已锁定"/>
+  <translation tag="Belt A"/>
+  <translation tag="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A."/>
+  <translation tag="Belt B"/>
+  <translation tag="Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B."/>
   <translation tag="Belt Tension" zh="皮带张力"/>
   <translation tag="Belt Tension Check" zh="皮带张力检查"/>
   <translation tag="Belt tension looks good!" zh="皮带张力良好！"/>
@@ -288,8 +286,12 @@
   <translation tag="Border Width" zh="边框宽度"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" zh="边框透明度（0 = 不可见，255 = 实心）"/>
   <translation tag="Both" zh="两者"/>
+  <translation tag="Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both."/>
+  <translation tag="Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more."/>
+  <translation tag="Both belts are on the %.0f Hz target and match each other. Nothing to adjust."/>
   <translation tag="Both belts are overtightened." zh="两条皮带都过紧。"/>
   <translation tag="Both belts need tightening." zh="两条皮带都需要拉紧。"/>
+  <translation tag="Both belts read the same to within what this measurement can resolve. Nothing to adjust."/>
   <translation tag="Bowden Length" zh="波顿管长度"/>
   <translation tag="Bowden tube length from hub to toolhead" zh="从集线器到工具头的波顿管长度"/>
   <translation tag="Brand" zh="品牌"/>
@@ -489,6 +491,7 @@
   <translation tag="Color Mismatch" zh="颜色不匹配"/>
   <translation tag="Communication Test" zh="通信测试"/>
   <translation tag="Compact" zh="紧凑"/>
+  <translation tag="Compare"/>
   <translation tag="Comparison" zh="比较"/>
   <translation tag="Complete" zh="完成"/>
   <translation tag="Complete!" zh="完成！"/>
@@ -583,6 +586,7 @@
   <translation tag="Could not confirm cancel"/>
   <translation tag="Could not forget device" zh="无法忘记设备"/>
   <translation tag="Could not load printer database" zh="无法加载打印机数据库"/>
+  <translation tag="Could not open Klipper&apos;s accelerometer stream. Check that Klipper is running, then retry."/>
   <translation tag="Could not parse tips database" zh="无法解析提示数据库"/>
   <translation tag="Could not reach Spoolman at" zh="无法连接 Spoolman："/>
   <translation tag="Could not read the screw adjustments from the printer" zh="无法从打印机读取螺丝调整数据"/>
@@ -609,7 +613,6 @@
   <translation tag="Critical hardware missing: {}" zh="缺少关键硬件: {}"/>
   <translation tag="Current / Target" zh="当前 / 目标"/>
   <translation tag="Current Configuration" zh="当前配置"/>
-  <translation tag="Current Frequency" zh="当前频率"/>
   <translation tag="Current Mesh" zh="当前网格"/>
   <translation tag="Current Temperature" zh="当前温度"/>
   <translation tag="Current Version" zh="当前版本"/>
@@ -1007,7 +1010,6 @@
   <translation tag="Filter Fan: Off"/>
   <translation tag="Filter Fan: On"/>
   <translation tag="Fine" zh="细调"/>
-  <translation tag="Fine-Tune" zh="微调"/>
   <translation tag="Finish" zh="完成"/>
   <translation tag="Finishing clean..."/>
   <translation tag="Finishing up..." zh="即将完成..."/>
@@ -1038,6 +1040,7 @@
   <translation tag="Found 1 printer" zh="找到 1 台打印机"/>
   <translation tag="Framerate" zh="帧率"/>
   <translation tag="Frequency Delta" zh="频率差"/>
+  <translation tag="Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.&#10;&#10;Match: How close the two belts are, as a percentage of belt A&apos;s frequency. Above 95% is excellent; below 90% is worth adjusting."/>
   <translation tag="Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.&#10;&#10;Path Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension." zh="频率差: 路径 A 与 B 之间的差异。理想情况下低于 5 Hz;超过 15 Hz 需要调整。&#10;&#10;路径相似度: 振动曲线的匹配程度。高于 90% 为优秀;低于 70% 说明张力不均。"/>
   <translation tag="From Buffer" zh="来自缓冲区"/>
   <translation tag="From Version" zh="起始版本"/>
@@ -1124,6 +1127,7 @@
   <translation tag="Hide Temperature Reports" zh="隐藏温度报告"/>
   <translation tag="High Water Mark" zh="峰值标记"/>
   <translation tag="Hold anywhere to cancel" zh="长按任意位置取消"/>
+  <translation tag="Hold still"/>
   <translation tag="Holding nozzle at {}°C to purge previous filament." zh="将喷嘴保持在 {}°C 以清洗之前的耗材。"/>
   <translation tag="Home" zh="归位"/>
   <translation tag="Home &amp; Continue" zh="归位并继续"/>
@@ -1304,6 +1308,7 @@
   <translation tag="Light" zh="浅色"/>
   <translation tag="Light will switch when the current operation finishes" zh="灯光将在当前操作完成后切换"/>
   <translation tag="Listen to all theme sounds" zh="试听所有主题声音"/>
+  <translation tag="Listening"/>
   <translation tag="Live view from your webcam" zh="摄像头实时画面"/>
   <translation tag="Load" zh="加载"/>
   <translation tag="Load Filament" zh="加载耗材"/>
@@ -1331,8 +1336,6 @@
   <translation tag="Locating Spoolman configuration..." zh="正在定位 Spoolman 配置..."/>
   <translation tag="Location" zh="位置"/>
   <translation tag="Lock" zh="锁定"/>
-  <translation tag="Lock A" zh="锁定 A"/>
-  <translation tag="Lock B" zh="锁定 B"/>
   <translation tag="Lock Screen" zh="屏幕锁定"/>
   <translation tag="Lock screen after idle timeout" zh="空闲超时后锁定屏幕"/>
   <translation tag="Lock the screen with your PIN" zh="用 PIN 码锁定屏幕"/>
@@ -1406,6 +1409,8 @@
   <translation tag="Map to closest colors with matching material" zh="按匹配材料映射最接近的颜色"/>
   <translation tag="Marginal" zh="偏高"/>
   <translation tag="Master volume level" zh="主音量"/>
+  <translation tag="Match"/>
+  <translation tag="Match to belt A"/>
   <translation tag="Match your typical print fan speed" zh="匹配您常用的打印风扇速度"/>
   <translation tag="Material" zh="材料"/>
   <translation tag="Material Comfort:" zh="材料适配度："/>
@@ -1431,6 +1436,7 @@
   <translation tag="Measuring Path B... %d%%" zh="正在测量路径 B... %d%%"/>
   <translation tag="Measuring accelerometer noise..." zh="正在测量加速度计噪声..."/>
   <translation tag="Measuring vibrations... {}%" zh="正在测量振动... {}%"/>
+  <translation tag="Median %.0f Hz"/>
   <translation tag="Memory" zh="内存"/>
   <translation tag="Memory (MB)" zh="内存 (MB)"/>
   <translation tag="Memory Snapshot" zh="内存快照"/>
@@ -1464,6 +1470,7 @@
   <translation tag="Move speed multipliers" zh="移动速度倍率"/>
   <translation tag="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings." zh="移动打印头、归位轴、调平热床，并微调温度、风扇及其他运动设置。"/>
   <translation tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." zh="移动打印头以测量每个轴上的振动频率。需要 2-3 分钟。打印机会发出噪音——这是正常的。"/>
+  <translation tag="Moving gantry"/>
   <translation tag="Moving lane" zh="正在移动料仓"/>
   <translation tag="Multi-Filament" zh="多耗材"/>
   <translation tag="Multi-Filament Overview" zh="多耗材概览"/>
@@ -1503,6 +1510,7 @@
   <translation tag="New printer successfully added" zh="新打印机已成功添加"/>
   <translation tag="New profile name" zh="新配置名称"/>
   <translation tag="Next" zh="下一步"/>
+  <translation tag="Next belt"/>
   <translation tag="Niimbot (Bluetooth)" zh="Niimbot（蓝牙）"/>
   <translation tag="No" zh="否"/>
   <translation tag="No API connection" zh="无 API 连接"/>
@@ -1519,12 +1527,12 @@
   <translation tag="No Multi-Filament System connected" zh="未连接多耗材系统"/>
   <translation tag="No Multi-Filament System connected." zh="未连接多耗材系统。"/>
   <translation tag="No PRINT_START macro found" zh="未找到 PRINT_START 宏"/>
-  <translation tag="No PWM LED detected for strobe mode" zh="未检测到用于频闪模式的 PWM LED"/>
   <translation tag="No Power Devices" zh="无电源设备"/>
   <translation tag="No Spool" zh="无料盘"/>
   <translation tag="No Spools" zh="无料盘"/>
   <translation tag="No USB printer detected" zh="未检测到 USB 打印机"/>
   <translation tag="No USB printers found" zh="未找到 USB 打印机"/>
+  <translation tag="No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry."/>
   <translation tag="No automatic backup-spool package is installed" zh="未安装自动备用料盘插件"/>
   <translation tag="No buffer data available" zh="无可用缓冲区数据"/>
   <translation tag="No camera — use USB barcode scanner" zh="无摄像头 — 请使用 USB 条码扫描器"/>
@@ -1591,9 +1599,8 @@
   <translation tag="Not connected" zh="未连接"/>
   <translation tag="Not connected to printer" zh="未连接到打印机"/>
   <translation tag="Not connected to printer." zh="未连接到打印机。"/>
+  <translation tag="Not connected to the printer"/>
   <translation tag="Not detected" zh="未检测到"/>
-  <translation tag="Not found (strobe only)" zh="未找到 (仅频闪)"/>
-  <translation tag="Not found (use phone app)" zh="未找到 (使用手机应用)"/>
   <translation tag="Not in your spools? Set it up" zh="不在您的料盘中？立即设置"/>
   <translation tag="Not now" zh="暂不"/>
   <translation tag="Not yet available on this display" zh="此屏幕暂不支持"/>
@@ -1743,6 +1750,8 @@
   <translation tag="Please fill in the highlighted fields" zh="请填写高亮显示的字段"/>
   <translation tag="Please wait while the printer homes and probes." zh="请等待打印机归位和探测。"/>
   <translation tag="Please wait while the printer probes each screw position." zh="请等待打印机探测每个螺丝位置。"/>
+  <translation tag="Pluck the front belt on the left"/>
+  <translation tag="Pluck the front belt on the right"/>
   <translation tag="Plugin already installed" zh="插件已安装"/>
   <translation tag="Plugin disabled" zh="插件已禁用"/>
   <translation tag="Plugin installed successfully" zh="插件安装成功"/>
@@ -1757,6 +1766,7 @@
   <translation tag="Poor Accuracy" zh="精度较差"/>
   <translation tag="Port" zh="端口"/>
   <translation tag="Position" zh="位置"/>
+  <translation tag="Position the gantry yourself, then continue"/>
   <translation tag="Post-Sensor Clear" zh="传感器触发后额外移动"/>
   <translation tag="Power" zh="电源"/>
   <translation tag="Power Devices" zh="电源设备"/>
@@ -1940,6 +1950,7 @@
   <translation tag="Ready" zh="就绪"/>
   <translation tag="Ready for filament operations" zh="可进行耗材操作"/>
   <translation tag="Ready to Apply" zh="准备应用"/>
+  <translation tag="Ready to pluck"/>
   <translation tag="Reason" zh="原因"/>
   <translation tag="Reason: {}&#10;&#10;The printer cannot resume this print. Restart from the beginning?" zh="原因：{}&#10;&#10;打印机无法恢复此次打印。要从头重新开始吗？"/>
   <translation tag="Reboot" zh="重启"/>
@@ -2217,7 +2228,6 @@
   <translation tag="Set " zh="设置 "/>
   <translation tag="Set Active" zh="设为活动"/>
   <translation tag="Set PIN" zh="设置 PIN"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.&#10;&#10;Recommended apps:&#10;  Android: Strobily, Strobe Light&#10;  iOS: Strobe Light Tachometer, myStroboscope" zh="将手机频闪应用设置为 %.1f Hz 并对准皮带。调整直到皮带看起来静止不动。&#10;&#10;推荐应用:&#10;  Android: Strobily, Strobe Light&#10;  iOS: Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set and watch the bed temperature" zh="设置并监控热床温度"/>
   <translation tag="Set and watch the chamber temperature" zh="设置并监控腔体温度"/>
   <translation tag="Set and watch the nozzle temperature" zh="设置并监控喷嘴温度"/>
@@ -2330,11 +2340,13 @@
   <translation tag="Start Calibration" zh="开始校准"/>
   <translation tag="Start Check" zh="开始检查"/>
   <translation tag="Start Drying" zh="开始烘干"/>
+  <translation tag="Start Listening"/>
   <translation tag="Start Print" zh="开始打印"/>
   <translation tag="Start Probing" zh="开始探测"/>
   <translation tag="Start anyway?" zh="仍要开始吗？"/>
   <translation tag="Start at" zh="从第"/>
   <translation tag="Start failed" zh="启动失败"/>
+  <translation tag="Start over"/>
   <translation tag="Start print anyway?" zh="仍要开始打印吗？"/>
   <translation tag="Started" zh="已开始"/>
   <translation tag="Starting Print..." zh="正在启动打印..."/>
@@ -2362,7 +2374,6 @@
   <translation tag="Stopped between Spool and Lane" zh="停在料盘与料仓之间"/>
   <translation tag="Stops all motion. Requires firmware restart." zh="停止所有运动。需要固件重启。"/>
   <translation tag="Stow" zh="收回"/>
-  <translation tag="Strobe LED" zh="频闪LED"/>
   <translation tag="Subtle" zh="微妙"/>
   <translation tag="Success" zh="成功"/>
   <translation tag="Success Rate" zh="成功率"/>
@@ -2411,6 +2422,7 @@
   <translation tag="Target Frequency" zh="目标频率"/>
   <translation tag="Target Temperature" zh="目标温度"/>
   <translation tag="Target Version" zh="目标版本"/>
+  <translation tag="Target is %.0f Hz. Tighten belt %s and loosen belt %s."/>
   <translation tag="Telemetry" zh="遥测"/>
   <translation tag="Telemetry Data" zh="遥测数据"/>
   <translation tag="Telemetry Disabled" zh="遥测已禁用"/>
@@ -2446,16 +2458,17 @@
   <translation tag="Testing, servo, and motor operations" zh="测试、舵机与电机操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." zh="感谢！匿名使用数据有助于改进 HelixScreen。"/>
   <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." zh="感谢！完全匿名的使用数据有助于改进 HelixScreen。"/>
+  <translation tag="That did not sound like a pluck - try again"/>
   <translation tag="That slot cannot stand in for this one" zh="该槽位无法替代当前槽位"/>
   <translation tag="That tool is already loaded" zh="该工具已加载耗材"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." zh="HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。"/>
   <translation tag="The Spoolman spool currently loaded" zh="当前装载的 Spoolman 料盘"/>
+  <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." zh="为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 &gt; 显示中重新启用。"/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." zh="耗材未到达喷嘴。CFS 未报告错误，但工具头传感器仍未检测到耗材。请检查料盘是否放置到位、路径是否畅通，然后重试。"/>
   <translation tag="The filament system reported an error" zh="耗材系统报告错误"/>
   <translation tag="The heater will cycle on and off several times." zh="加热器将多次开关循环。"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." zh="当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。"/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.&#10;&#10;Use the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." zh="电机振动皮带的同时,频闪灯以相同频率闪烁。当皮带看起来静止不动(冻结)时,即找到了共振频率。&#10;&#10;使用频率按钮扫描各数值,直到皮带看起来静止,然后锁定读数。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." zh="打印已暂停。现在切换工具会移动工具头并更换喷嘴处的耗材。切换完成后请恢复打印。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." zh="打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。"/>
@@ -2547,6 +2560,7 @@
   <translation tag="Toggle toolhead LED for an extruder" zh="切换某个挤出机的工具头 LED"/>
   <translation tag="Toggle:" zh="切换:"/>
   <translation tag="Too humid" zh="湿度过高"/>
+  <translation tag="Too soft - pluck harder"/>
   <translation tag="Tool" zh="工具"/>
   <translation tag="Tool Changer" zh="换刀器"/>
   <translation tag="Tool Switcher" zh="工具切换器"/>
@@ -2601,6 +2615,7 @@
   <translation tag="USB drive connected" zh="U 盘已连接"/>
   <translation tag="USB drive removed" zh="U 盘已移除"/>
   <translation tag="USB printer access denied — check permissions" zh="USB 打印机访问被拒绝 — 请检查权限"/>
+  <translation tag="Unavailable"/>
   <translation tag="Understanding Results" zh="了解结果"/>
   <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." zh="皮带张力不均会导致层错位、VFA(垂直细纹)和振纹等打印瑕疵。&#10;&#10;此工具会振动每条皮带路径并测量共振频率 — 频率匹配意味着张力均衡。&#10;&#10;对于 CoreXY,路径 A 与 B 应相差在几 Hz 以内。"/>
   <translation tag="Uninstall HelixPrint Plugin" zh="卸载 HelixPrint 插件"/>
@@ -2684,7 +2699,6 @@
   <translation tag="View live camera feed" zh="查看实时摄像头画面"/>
   <translation tag="View print statistics and job history" zh="查看打印统计和作业历史"/>
   <translation tag="Visits: " zh="访问次数: "/>
-  <translation tag="Visual Fine-Tuning" zh="视觉微调"/>
   <translation tag="Volume" zh="音量"/>
   <translation tag="Volume of filament used during ramming" zh="填充过程中使用的耗材体积"/>
   <translation tag="WIDTH SENSORS" zh="宽度传感器"/>
@@ -2693,6 +2707,7 @@
   <translation tag="WPA/WPA2" zh="WPA/WPA2"/>
   <translation tag="WPA3" zh="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" zh="请等待当前耗材操作完成"/>
+  <translation tag="Wait until the print finishes"/>
   <translation tag="Waiting for Moonraker..." zh="正在等待 Moonraker..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." zh="等待热床达到温度以进行精确校准。"/>
   <translation tag="Waiting for the filament system to report its state" zh="正在等待耗材系统报告状态"/>
@@ -2702,7 +2717,6 @@
   <translation tag="Warn" zh="警告"/>
   <translation tag="Warning" zh="警告"/>
   <translation tag="Warnings &amp; errors" zh="警告与错误"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." zh="在频闪 LED 下观察皮带。调整频率直到皮带看起来静止 — 那就是共振频率。"/>
   <translation tag="Weak battery" zh="电池电量低"/>
   <translation tag="Webcam" zh="摄像头"/>
   <translation tag="Website (optional)" zh="网站（可选）"/>
@@ -2736,6 +2750,7 @@
   <translation tag="Wifi" zh="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" zh="耗材用尽时不会切换料盘"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" zh="在硅胶清洁条上擦拭喷嘴"/>
+  <translation tag="Within measurement resolution"/>
   <translation tag="Wizard Error" zh="向导错误"/>
   <translation tag="Working..." zh="处理中..."/>
   <translation tag="Write failed at chunk {}" zh="区块 {} 写入失败"/>

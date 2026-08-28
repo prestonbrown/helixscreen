@@ -5,6 +5,7 @@ translations:
   ' frames': ' フレーム'
   ' left': ' 残り'
   '"%s" failed to load': '"%s" の読み込みに失敗しました'
+  '%.0f Hz difference': ''
   '%.1f Hz difference': '%.1f Hz の差'
   '%d additional fan%s': 追加ファン %d 個%s
   '%d disabled': '%d 個無効'
@@ -30,7 +31,6 @@ translations:
   + Add Preset: + プリセットを追加
   + Add Printer: + プリンターを追加
   + New: + 新規
-  +0.5 Hz: +0.5 Hz
   '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester]
     を確認してください'
   '- Ensure ADXL345 is connected': '- ADXL345 が接続されていることを確認してください'
@@ -40,7 +40,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0.5 Hz
   '...': '...'
   0 = computed: 0 = 自動計算
   0 events queued: 待機中のイベントなし
@@ -146,10 +145,8 @@ translations:
   Add custom filament: カスタムフィラメントを追加
   Added to Spoolman: Spoolman に追加しました
   Address: アドレス
-  Adjust belt tension until the belt appears stationary: ベルトが静止して見えるまでベルト張力を調整してください
   Adjust screen brightness level: 画面の明るさを調整します
   Adjust screws, then re-probe.: ネジを調整して、再度プローブしてください。
-  Adjust until belt appears frozen: ベルトが静止して見えるまで調整
   Adjustments stay active until restart. Save after print completes.: 調整は再起動まで有効です。印刷完了後に保存してください。
   Adjusts individual characteristics of your heaters for optimal control: ヒーターの個別特性を調整して最適な制御を実現します
   Advanced: 詳細設定
@@ -224,10 +221,10 @@ translations:
   Automatic LED Control: 自動LED制御
   Aux: 補助
   Available: 利用可能
-  Available (%s): 利用可能 (%s)
   Available Networks: 利用可能なネットワーク
   Available networks: 利用可能なネットワーク
   Average: 平均
+  B: ''
   BEACON: BEACON
   BETA: BETA
   'BLE connect failed: {}': 'BLE 接続に失敗しました: {}'
@@ -237,7 +234,6 @@ translations:
   BLUETOOTH PRINTERS: Bluetooth プリンター
   BLUETOOTH SCANNERS: Bluetooth スキャナー
   Back: 戻る
-  Back to Results: 結果に戻る
   'Backtrace: {} frames': 'バックトレース: {} フレーム'
   Backup spool switching state unknown: バックアップスプール切り替えの状態は不明です
   Barcode Scanner: バーコードスキャナー
@@ -266,8 +262,10 @@ translations:
   Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
   Bed temp must be 0-200°C: ベッド温度は 0〜200°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
-  Belt A frequency locked: ベルト A の周波数を固定しました
-  Belt B frequency locked: ベルト B の周波数を固定しました
+  Belt A: ''
+  Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: ''
+  Belt B: ''
+  Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B.: ''
   Belt Tension: ベルトテンション
   Belt Tension Check: ベルトテンション確認
   Belt tension looks good!: ベルトテンションは良好です！
@@ -292,8 +290,12 @@ translations:
   Border Width: 境界線の幅
   Border transparency (0 = invisible, 255 = solid): 境界線の透明度 (0 = 透明、255 = 不透明)
   Both: 両方
+  Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both.: ''
+  Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more.: ''
+  Both belts are on the %.0f Hz target and match each other. Nothing to adjust.: ''
   Both belts are overtightened.: 両方のベルトが張りすぎています。
   Both belts need tightening.: 両方のベルトを張る必要があります。
+  Both belts read the same to within what this measurement can resolve. Nothing to adjust.: ''
   Bowden Length: 'ボーデン長'
   Bowden tube length from hub to toolhead: 'ハブからツールヘッドまでのボーデンチューブ長'
   Brand: ブランド
@@ -500,6 +502,7 @@ translations:
   Color Mismatch: 色の不一致
   Communication Test: '通信テスト'
   Compact: コンパクト
+  Compare: ''
   Comparison: 比較
   Complete: 完了
   Complete!: 完了！
@@ -598,6 +601,7 @@ translations:
   Could not confirm cancel: ''
   Could not forget device: デバイスの登録を解除できませんでした
   Could not load printer database: プリンターデータベースを読み込めませんでした
+  Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.: ''
   Could not parse tips database: ヒントデータベースを解析できませんでした
   Could not reach Spoolman at: 'Spoolman に接続できません:'
   Could not read the screw adjustments from the printer: プリンターからネジ調整を読み取れませんでした
@@ -625,7 +629,6 @@ translations:
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
   Current / Target: 現在 / 目標
   Current Configuration: 現在の設定
-  Current Frequency: 現在の周波数
   Current Mesh: 現在のメッシュ
   Current Temperature: 現在の温度
   Current Version: 現在のバージョン
@@ -1034,7 +1037,6 @@ translations:
   'Filter Fan: Off': ''
   'Filter Fan: On': ''
   Fine: 微動
-  Fine-Tune: 微調整
   Finish: 完了
   'Finishing clean...': ''
   Finishing up...: 完了中...
@@ -1065,6 +1067,8 @@ translations:
   Found 1 printer: プリンター1台を検出
   Framerate: フレームレート
   Frequency Delta: 周波数差
+  ? "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
+  : ''
   ? "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
   : "周波数差: パス A と B の差。理想は 5 Hz 未満で、15 Hz を超える場合は調整が必要です。\n\nパス類似度: 振動プロファイルの一致度。90% を超えれば優秀で、70% を下回ると張力が不均一なことを示します。"
   From Buffer: バッファから
@@ -1157,6 +1161,7 @@ translations:
   Hide Temperature Reports: 温度レポートを非表示
   High Water Mark: 最大値
   Hold anywhere to cancel: どこかを長押ししてキャンセル
+  Hold still: ''
   Holding nozzle at {}°C to purge previous filament.: 前のフィラメントをパージするためノズルを {}°C に保持しています。
   Home: ホーム
   Home & Continue: ホーミングして続行
@@ -1349,6 +1354,7 @@ translations:
   Light: ライト
   Light will switch when the current operation finishes: 現在の操作が完了したらライトを切り替えます
   Listen to all theme sounds: すべてのテーマサウンドを試聴
+  Listening: ''
   Live view from your webcam: ウェブカメラのライブ表示
   Load: 装填
   Load Filament: フィラメントを装填
@@ -1376,8 +1382,6 @@ translations:
   Locating Spoolman configuration...: Spoolman の設定を検索中...
   Location: 場所
   Lock: ロック
-  Lock A: ロック A
-  Lock B: ロック B
   Lock Screen: '画面ロック'
   Lock screen after idle timeout: アイドルタイムアウト後に画面をロック
   Lock the screen with your PIN: PIN で画面をロック
@@ -1451,6 +1455,8 @@ translations:
   Map to closest colors with matching material: 一致する素材で最も近い色に割り当て
   Marginal: やや不良
   Master volume level: マスター音量
+  Match: ''
+  Match to belt A: ''
   Match your typical print fan speed: 通常の印刷ファン速度に合わせてください
   Material: 素材
   'Material Comfort:': '素材の適合度:'
@@ -1476,6 +1482,7 @@ translations:
   Measuring Path B... %d%%: パス B を測定中... %d%%
   Measuring accelerometer noise...: '加速度センサーのノイズを測定中...'
   Measuring vibrations... {}%: '振動を測定中... {}%'
+  Median %.0f Hz: ''
   Memory: メモリ
   Memory (MB): メモリ (MB)
   Memory Snapshot: メモリースナップショット
@@ -1513,6 +1520,7 @@ translations:
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3
     minutes. The printer will make noise — this is normal.
   : プリントヘッドを移動させて各軸の振動周波数を測定します。2〜3分かかります。プリンターから音がしますが、これは正常です。
+  Moving gantry: ''
   Moving lane: レーンを移動中
   Multi-Filament: マルチフィラメント
   Multi-Filament Overview: マルチフィラメント概要
@@ -1553,6 +1561,7 @@ translations:
   New printer successfully added: 新しいプリンターを追加しました
   New profile name: 新しいプロファイル名
   Next: 次へ
+  Next belt: ''
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   'No': いいえ
   No API connection: API 接続なし
@@ -1571,12 +1580,12 @@ translations:
   No Multi-Filament System connected: マルチフィラメントシステムが接続されていません
   No Multi-Filament System connected.: マルチフィラメントシステムが接続されていません。
   No PRINT_START macro found: PRINT_START マクロが見つかりません
-  No PWM LED detected for strobe mode: ストロボモード用の PWM LED が検出されませんでした
   No Power Devices: 電源デバイスなし
   No Spool: スプールなし
   No Spools: スプールなし
   No USB printer detected: USB プリンターが検出されません
   No USB printers found: USBプリンターが見つかりません
+  No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry.: ''
   No automatic backup-spool package is installed: 自動バックアップスプール用プラグインが未インストールです
   No buffer data available: バッファーデータがありません
   No camera — use USB barcode scanner: カメラなし — USB バーコードスキャナーを使用してください
@@ -1645,9 +1654,8 @@ translations:
   Not connected: 未接続
   Not connected to printer: プリンターに未接続
   Not connected to printer.: プリンターに未接続です。
+  Not connected to the printer: ''
   Not detected: 検出されません
-  Not found (strobe only): 見つかりません (ストロボのみ)
-  Not found (use phone app): 見つかりません (スマホアプリを使用)
   Not in your spools? Set it up: スプールにない？登録する
   Not now: 後で
   Not yet available on this display: 'このディスプレイではまだ利用できません'
@@ -1802,6 +1810,8 @@ translations:
   Please fill in the highlighted fields: ハイライトされた項目を入力してください
   Please wait while the printer homes and probes.: プリンターがホーミングとプローブを行う間お待ちください。
   Please wait while the printer probes each screw position.: プリンターが各ネジ位置をプローブする間お待ちください。
+  Pluck the front belt on the left: ''
+  Pluck the front belt on the right: ''
   Plugin already installed: プラグインは既にインストール済みです
   Plugin disabled: プラグインが無効になりました
   Plugin installed successfully: プラグインが正常にインストールされました
@@ -1818,6 +1828,7 @@ translations:
   Poor Accuracy: 精度不良
   Port: ポート
   Position: 位置
+  Position the gantry yourself, then continue: ''
   Post-Sensor Clear: 'センサー通過後の追加移動'
   Power: 電源
   Power Devices: 電源デバイス
@@ -2005,6 +2016,7 @@ translations:
   Ready: 準備完了
   Ready for filament operations: フィラメント操作の準備ができています
   Ready to Apply: 適用の準備完了
+  Ready to pluck: ''
   Reason: 理由
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
   : "理由: {}\n\nプリンターはこの印刷を再開できません。最初からやり直しますか？"
@@ -2290,8 +2302,6 @@ translations:
   'Set ': '設定 '
   Set Active: アクティブに設定
   Set PIN: PIN を設定
-  ? "Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"
-  : "スマホのストロボアプリを %.1f Hz に設定してベルトに向けてください。ベルトが静止して見えるまで調整します。\n\n推奨アプリ:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"
   Set and watch the bed temperature: ベッド温度の設定と監視
   Set and watch the chamber temperature: チャンバー温度の設定と監視
   Set and watch the nozzle temperature: ノズル温度の設定と監視
@@ -2406,11 +2416,13 @@ translations:
   Start Calibration: キャリブレーション開始
   Start Check: チェック開始
   Start Drying: 乾燥開始
+  Start Listening: ''
   Start Print: 印刷を開始
   Start Probing: プローブ開始
   Start anyway?: 'それでも開始しますか？'
   Start at: 開始位置
   Start failed: 開始に失敗
+  Start over: ''
   Start print anyway?: それでも印刷を開始しますか？
   Started: 開始
   Starting Print...: 印刷開始中...
@@ -2439,7 +2451,6 @@ translations:
   Stopped between Spool and Lane: スプールとレーンの間で停止
   Stops all motion. Requires firmware restart.: すべての動作を停止します。ファームウェアの再起動が必要です。
   Stow: 格納
-  Strobe LED: ストロボLED
   Subtle: サトル
   Success: 成功
   Success Rate: 成功率
@@ -2490,6 +2501,7 @@ translations:
   Target Frequency: 目標周波数
   Target Temperature: 目標温度
   Target Version: 目標バージョン
+  Target is %.0f Hz. Tighten belt %s and loosen belt %s.: ''
   Telemetry: テレメトリ
   Telemetry Data: テレメトリデータ
   Telemetry Disabled: テレメトリー無効
@@ -2529,12 +2541,14 @@ translations:
     HelixScreen の改善に役立ちます。
   Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！完全匿名の使用データが
     HelixScreen の改善に役立ちます。
+  That did not sound like a pluck - try again: ''
   That slot cannot stand in for this one: そのスロットはこのスロットの代わりになりません
   That tool is already loaded: そのツールはすでに装填されています
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
   The Spoolman spool currently loaded: 現在装填中の Spoolman スプール
+  'The accelerometer stream stopped: %s. Check that Klipper is running, then retry.': ''
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
@@ -2544,8 +2558,6 @@ translations:
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。
-  ? "The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading."
-  : "モーターがベルトを振動させ、ストロボライトが同じ周波数で点滅します。ベルトが静止して(止まって)見えたとき、共振周波数を見つけたことになります。\n\n周波数ボタンで値を変化させ、ベルトが静止して見えたらその値を固定してください。"
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : 印刷は一時停止中です。ここでツールを交換すると、ツールヘッドが移動してノズルのフィラメントが入れ替わります。交換が完了したら印刷を再開してください。
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
@@ -2654,6 +2666,7 @@ translations:
   Toggle toolhead LED for an extruder: 'エクストルーダーのツールヘッドLEDを切り替え'
   'Toggle:': '切り替え:'
   Too humid: 湿度が高すぎます
+  Too soft - pluck harder: ''
   Tool: ツール
   Tool Changer: ツールチェンジャー
   Tool Switcher: 'ツール切り替え'
@@ -2709,6 +2722,7 @@ translations:
   USB drive connected: USB ドライブが接続されました
   USB drive removed: USB ドライブが取り外されました
   USB printer access denied — check permissions: USB プリンターへのアクセスが拒否されました — 権限を確認してください
+  Unavailable: ''
   Understanding Results: 結果の理解
   ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
   : "ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。\n\nこのツールは各ベルトパスを振動させて共振周波数を測定します — 周波数が一致していれば張力が均等であることを意味します。\n\nCoreXY では、パス A と B は数 Hz 以内に収まっている必要があります。"
@@ -2793,7 +2807,6 @@ translations:
   View live camera feed: ライブカメラ映像を表示
   View print statistics and job history: 印刷統計とジョブ履歴を表示
   'Visits: ': '表示回数: '
-  Visual Fine-Tuning: 視覚的微調整
   Volume: 音量
   Volume of filament used during ramming: 'ラミング時に使用するフィラメント量'
   WIDTH SENSORS: 幅センサー
@@ -2802,6 +2815,7 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
+  Wait until the print finishes: ''
   Waiting for Moonraker...: Moonraker を待機中...
   Waiting for bed to reach temperature for accurate calibration.: 正確なキャリブレーションのためにベッド温度到達を待機中。
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
@@ -2811,8 +2825,6 @@ translations:
   Warn: 警告
   Warning: 警告
   Warnings & errors: '警告とエラー'
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: ストロボ
-    LED の下でベルトを観察してください。ベルトが静止して見えるまで周波数を調整します — それが共振周波数です。
   Weak battery: バッテリー残量低下
   Webcam: ウェブカメラ
   Website (optional): ウェブサイト（オプション）
@@ -2852,6 +2864,7 @@ translations:
   Wifi: Wi-Fi
   Will not switch spools on runout: フィラメント切れ時にスプールを切り替えません
   Wipe nozzle on silicone cleaning strip: 'シリコン清掃ストリップでノズルを拭く'
+  Within measurement resolution: ''
   Wizard Error: ウィザードエラー
   Working...: 処理中...
   Write failed at chunk {}: チャンク {} で書き込みに失敗しました

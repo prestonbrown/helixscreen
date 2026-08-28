@@ -331,6 +331,17 @@ class PrinterDetector {
     static std::string get_bed_mesh_calibrate_gcode(const std::string& printer_name);
 
     /**
+     * @brief Belt-span offset in mm for a printer model, or a negative value
+     *
+     * Free belt span at gantry position Y is about `Y + offset`. Geometry, so
+     * it is per-model, and it is measured rather than derived. A negative
+     * return means this model has no measured value: the caller must fall back
+     * to span-independent A-vs-B matching and suppress the absolute frequency
+     * target rather than guessing.
+     */
+    static double get_belt_span_offset_mm(const std::string& printer_name);
+
+    /**
      * @brief Get print start profile name for a printer
      *
      * Looks up the print_start_profile field from the printer database JSON

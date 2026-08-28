@@ -22,6 +22,7 @@
 #include "../../include/belt_tension_calibrator.h"
 #include "../../include/belt_tension_types.h"
 
+#include <cfloat>
 #include <cmath>
 #include <string>
 #include <type_traits>
@@ -429,8 +430,6 @@ TEST_CASE("BeltTensionCalibrator get_hardware returns default values",
     const auto& hw = cal.get_hardware();
     CHECK(hw.kinematics == KinematicsType::UNKNOWN);
     CHECK_FALSE(hw.has_adxl);
-    CHECK_FALSE(hw.has_belted_z);
-    CHECK_FALSE(hw.has_pwm_led);
 }
 
 TEST_CASE("BeltTensionCalibrator is non-copyable and non-movable", "[belt_tension][calibrator]") {
@@ -450,62 +449,8 @@ TEST_CASE("BeltTensionCalibrator State enum values are distinct", "[belt_tension
     CHECK(State::HOMING != State::TESTING_PATH_A);
     CHECK(State::TESTING_PATH_A != State::TESTING_PATH_B);
     CHECK(State::TESTING_PATH_B != State::RESULTS_READY);
-    CHECK(State::RESULTS_READY != State::STROBE_MODE);
-    CHECK(State::STROBE_MODE != State::Z_BELT_GUIDE);
-    CHECK(State::Z_BELT_GUIDE != State::Z_LISTENING);
-    CHECK(State::Z_LISTENING != State::Z_RESULTS_READY);
-    CHECK(State::Z_RESULTS_READY != State::ERROR);
+    CHECK(State::RESULTS_READY != State::ERROR);
     CHECK(State::ERROR != State::IDLE);
-}
-
-// ============================================================================
-// Strobe Mode Tests
-// ============================================================================
-
-TEST_CASE("BeltTensionCalibrator start_strobe without API calls error",
-          "[belt_tension][calibrator][strobe]") {
-    BeltTensionCalibrator cal;
-    bool error_called = false;
-
-    cal.start_strobe(110.0f, [&](const std::string&) { error_called = true; });
-
-    CHECK(error_called);
-}
-
-TEST_CASE("BeltTensionCalibrator stop_strobe from IDLE is safe",
-          "[belt_tension][calibrator][strobe]") {
-    BeltTensionCalibrator cal;
-    REQUIRE_NOTHROW(cal.stop_strobe());
-    CHECK(cal.get_state() == BeltTensionCalibrator::State::IDLE);
-}
-
-TEST_CASE("BeltTensionCalibrator start_strobe with null callback does not crash",
-          "[belt_tension][calibrator][strobe][edge_case]") {
-    BeltTensionCalibrator cal;
-    REQUIRE_NOTHROW(cal.start_strobe(110.0f, nullptr));
-}
-
-// ============================================================================
-// Z Belt Tests
-// ============================================================================
-
-TEST_CASE("BeltTensionCalibrator start_z_belt_listening without API calls error",
-          "[belt_tension][calibrator][z_belt]") {
-    BeltTensionCalibrator cal;
-    bool error_called = false;
-
-    cal.start_z_belt_listening(
-        ZBeltCorner::FRONT_LEFT,
-        [](const BeltMeasurement&) { FAIL("Should not succeed without API"); },
-        [&](const std::string&) { error_called = true; });
-
-    CHECK(error_called);
-}
-
-TEST_CASE("BeltTensionCalibrator start_z_belt_listening with null callbacks does not crash",
-          "[belt_tension][calibrator][z_belt][edge_case]") {
-    BeltTensionCalibrator cal;
-    REQUIRE_NOTHROW(cal.start_z_belt_listening(ZBeltCorner::REAR_RIGHT, nullptr, nullptr));
 }
 
 // ============================================================================
@@ -519,7 +464,6 @@ TEST_CASE("BeltTensionResult completeness checks", "[belt_tension][result]") {
         CHECK_FALSE(result.is_complete());
         CHECK_FALSE(result.has_path_a());
         CHECK_FALSE(result.has_path_b());
-        CHECK_FALSE(result.has_z_results());
     }
 
     SECTION("only path A is not complete") {
@@ -542,15 +486,6 @@ TEST_CASE("BeltTensionResult completeness checks", "[belt_tension][result]") {
         CHECK(result.has_path_a());
         CHECK(result.has_path_b());
         CHECK(result.is_complete());
-    }
-
-    SECTION("z results tracked separately") {
-        CHECK_FALSE(result.has_z_results());
-        ZBeltMeasurement z;
-        z.peak_frequency = 50.0f;
-        z.corner = ZBeltCorner::FRONT_LEFT;
-        result.z_belts.push_back(z);
-        CHECK(result.has_z_results());
     }
 }
 
@@ -675,14 +610,6 @@ TEST_CASE("BeltMeasurement validity", "[belt_tension][types]") {
     }
 }
 
-TEST_CASE("ZBeltMeasurement validity", "[belt_tension][types]") {
-    ZBeltMeasurement z;
-    CHECK_FALSE(z.is_valid());
-
-    z.peak_frequency = 50.0f;
-    CHECK(z.is_valid());
-}
-
 // ============================================================================
 // BeltTensionHardware Tests
 // ============================================================================
@@ -691,9 +618,6 @@ TEST_CASE("BeltTensionHardware default construction", "[belt_tension][types]") {
     BeltTensionHardware hw;
     CHECK(hw.kinematics == KinematicsType::UNKNOWN);
     CHECK_FALSE(hw.has_adxl);
-    CHECK_FALSE(hw.has_belted_z);
-    CHECK_FALSE(hw.has_pwm_led);
-    CHECK(hw.pwm_led_pin.empty());
     CHECK(hw.kinematics_name.empty());
 }
 
@@ -711,12 +635,6 @@ TEST_CASE("KinematicsType enum values", "[belt_tension][types]") {
     CHECK(KinematicsType::UNKNOWN != KinematicsType::COREXY);
     CHECK(KinematicsType::COREXY != KinematicsType::CARTESIAN);
     CHECK(KinematicsType::UNKNOWN != KinematicsType::CARTESIAN);
-}
-
-TEST_CASE("ZBeltCorner enum values", "[belt_tension][types]") {
-    CHECK(ZBeltCorner::FRONT_LEFT != ZBeltCorner::FRONT_RIGHT);
-    CHECK(ZBeltCorner::REAR_LEFT != ZBeltCorner::REAR_RIGHT);
-    CHECK(ZBeltCorner::FRONT_LEFT != ZBeltCorner::REAR_LEFT);
 }
 
 // ============================================================================
@@ -1066,20 +984,6 @@ TEST_CASE("BeltTensionCalibrator state transitions without API (error paths)",
         CHECK(error_called);
         CHECK(cal.get_state() == BeltTensionCalibrator::State::IDLE);
     }
-
-    SECTION("start_strobe -> error -> IDLE") {
-        bool error_called = false;
-        cal.start_strobe(110.0f, [&](const std::string&) { error_called = true; });
-        CHECK(error_called);
-    }
-
-    SECTION("start_z_belt_listening -> error -> IDLE") {
-        bool error_called = false;
-        cal.start_z_belt_listening(
-            ZBeltCorner::FRONT_LEFT, [](const BeltMeasurement&) { FAIL("Should not succeed"); },
-            [&](const std::string&) { error_called = true; });
-        CHECK(error_called);
-    }
 }
 
 TEST_CASE("BeltTensionCalibrator full workflow simulation (analysis only)",
@@ -1239,4 +1143,121 @@ TEST_CASE("Pipeline with noisy data", "[belt_tension][mock][pipeline]") {
     CHECK(peak.found);
     // Signal is much stronger than noise, should still detect 110 Hz
     CHECK(peak.frequency == Catch::Approx(110.0f).margin(5.0f));
+}
+
+TEST_CASE("compute_psd default bandwidth stays at 250 Hz", "[belt_tension][fft]") {
+    // Existing callers must not shift under them.
+    const float sr = 3200.0f;
+    const int n = 3200;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].time = t;
+        samples[static_cast<size_t>(i)].x = std::sin(2.0f * static_cast<float>(M_PI) * 100.0f * t);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+
+    auto psd = compute_psd(samples, sr);
+    REQUIRE(!psd.empty());
+    CHECK(psd.back().first <= Catch::Approx(250.0f).margin(2.0f));
+}
+
+TEST_CASE("compute_psd honours a wider bandwidth request", "[belt_tension][fft]") {
+    const float sr = 3200.0f;
+    const int n = 3200;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].time = t;
+        samples[static_cast<size_t>(i)].x =
+            std::sin(2.0f * static_cast<float>(M_PI) * 100.0f * t) +
+            0.3f * std::sin(2.0f * static_cast<float>(M_PI) * 600.0f * t);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+
+    auto narrow = compute_psd(samples, sr, 250.0f);
+    auto wide = compute_psd(samples, sr, 700.0f);
+
+    REQUIRE(!narrow.empty());
+    REQUIRE(!wide.empty());
+    CHECK(wide.size() > narrow.size());
+    CHECK(wide.back().first > 650.0f);
+
+    // The 600 Hz component is invisible at the narrow bandwidth and present at
+    // the wide one. This is exactly why harmonic analysis needs the parameter.
+    auto narrow_peak = find_peak_frequency(narrow, 500.0f, 700.0f);
+    auto wide_peak = find_peak_frequency(wide, 500.0f, 700.0f);
+    CHECK_FALSE(narrow_peak.found);
+    REQUIRE(wide_peak.found);
+    CHECK(wide_peak.frequency == Catch::Approx(600.0f).margin(4.0f));
+}
+
+TEST_CASE("compute_psd bandwidth is clamped by Nyquist", "[belt_tension][fft][edge_case]") {
+    const float sr = 1000.0f;
+    const int n = 1000;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        samples[static_cast<size_t>(i)].time = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].x = std::sin(static_cast<float>(i) * 0.1f);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+    // Asking for 5 kHz from a 1 kHz capture must not read past the array.
+    auto psd = compute_psd(samples, sr, 5000.0f);
+    REQUIRE(!psd.empty());
+    CHECK(psd.back().first <= sr / 2.0f + 1.0f);
+}
+
+TEST_CASE("compute_psd clamps a pathologically large bandwidth before the size_t cast",
+          "[belt_tension][fft][edge_case]") {
+    // FLT_MAX (~3.4e38) exceeds SIZE_MAX on both 32-bit and 64-bit targets, so
+    // casting an unclamped bandwidth*n/sample_rate product to size_t at this
+    // magnitude is undefined behaviour - the pre-fix code could have produced
+    // any result, not a specific known-bad one. This exercises the clamp on an
+    // input that was previously UB; it verifies that an absurd bandwidth
+    // request still yields a Nyquist-bounded bin count rather than reading
+    // past the array, not that it reproduces any particular old failure.
+    const float sr = 1000.0f;
+    const int n = 1000;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        samples[static_cast<size_t>(i)].time = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].x = std::sin(static_cast<float>(i) * 0.1f);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+    auto psd = compute_psd(samples, sr, FLT_MAX);
+    REQUIRE(!psd.empty());
+    CHECK(psd.size() <= static_cast<size_t>(n) / 2);
+    CHECK(psd.back().first <= sr / 2.0f + 1.0f);
+}
+
+TEST_CASE("compute_psd phasor recurrence does not drift", "[belt_tension][fft][phasor]") {
+    // Two tones, the lower one stronger: verifies the phasor DFT resolves them
+    // and puts the peak on the stronger (97 Hz) tone, not the weaker harmonic.
+    // This does NOT verify the double-vs-float accumulator choice - a float
+    // phasor passes this test too at n=1024, so the double accumulators are a
+    // deliberate defensive choice, not one this test enforces.
+    const float sr = 3200.0f;
+    const int n = 1024;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].time = t;
+        samples[static_cast<size_t>(i)].x =
+            std::sin(2.0f * static_cast<float>(M_PI) * 97.0f * t) +
+            0.5f * std::sin(2.0f * static_cast<float>(M_PI) * 194.0f * t);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9810.0f;
+    }
+
+    auto psd = compute_psd(samples, sr, 400.0f);
+    REQUIRE(psd.size() > 50);
+
+    auto peak = find_peak_frequency(psd, 20.0f, 300.0f);
+    REQUIRE(peak.found);
+    // The 97 Hz tone has 4x the power of the 194 Hz one, so it must win.
+    CHECK(peak.frequency == Catch::Approx(97.0f).margin(4.0f));
 }

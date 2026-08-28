@@ -345,13 +345,6 @@ class IAdvancedAPI {
     virtual void excite_belt_at_frequency(const std::string& axis_param, float freq_hz,
                                           SuccessCallback on_complete, ErrorCallback on_error) = 0;
 
-    /// @param caller_surfaces_errors Whether @p on_error actually shows the user
-    ///        something. Forwarded to execute_gcode() — see its contract and
-    ///        include/rpc_error_policy.h. Pass false when the callback only logs.
-    virtual void set_strobe_frequency(const std::string& pin_name, float freq_hz,
-                                      SuccessCallback on_success, ErrorCallback on_error,
-                                      bool caller_surfaces_errors = true) = 0;
-
     virtual void download_accel_csv(const std::string& filename,
                                     std::function<void(const std::string& csv_data)> on_complete,
                                     ErrorCallback on_error) = 0;

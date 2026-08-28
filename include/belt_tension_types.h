@@ -9,9 +9,16 @@
  * @file belt_tension_types.h
  * @brief Data structures for belt tension tuning calibration
  *
- * Types for CoreXY/Cartesian belt tension measurement, PSD analysis,
- * and Z belt corner diagnostics. Used by BeltTensionCalibrator and
- * the belt tension UI panel/wizard.
+ * Types for CoreXY/Cartesian belt tension measurement and PSD analysis.
+ * Used by BeltTensionCalibrator and the belt tension UI panel/wizard.
+ *
+ * Z belts are deliberately not supported. Measured on a Voron 2.4: four plucks
+ * of one Z belt returned 228, 164, 92 and 58 Hz, versus five identical readings
+ * on an A/B belt, with the signal 2-5x the noise floor against 12-14x. The
+ * gantry decouples Z belt vibration from a toolhead-mounted accelerometer, and
+ * Klipper's TEST_RESONANCES cannot sweep Z at all (resonance_tester.py
+ * _parse_axis accepts only x, y, or a two-component XY vector). Supporting Z
+ * needs a different sensor location, not different code.
  */
 
 namespace helix::calibration {
@@ -26,14 +33,6 @@ enum class BeltPath {
     PATH_B, ///< CoreXY diagonal B (1,-1)
     X_AXIS, ///< Cartesian X
     Y_AXIS, ///< Cartesian Y
-};
-
-/// Z belt corner positions
-enum class ZBeltCorner {
-    FRONT_LEFT,
-    FRONT_RIGHT,
-    REAR_LEFT,
-    REAR_RIGHT,
 };
 
 /// Kinematics type detected from printer
@@ -65,9 +64,6 @@ const char* belt_status_to_string(BeltStatus status);
 struct BeltTensionHardware {
     KinematicsType kinematics = KinematicsType::UNKNOWN;
     bool has_adxl = false;
-    bool has_belted_z = false; ///< quad_gantry_level present
-    bool has_pwm_led = false;
-    std::string pwm_led_pin;     ///< Pin name for strobe LED
     std::string kinematics_name; ///< Raw string from Klipper
 };
 
@@ -88,17 +84,6 @@ struct BeltMeasurement {
     }
 };
 
-/// Z belt measurement for one corner
-struct ZBeltMeasurement {
-    ZBeltCorner corner = ZBeltCorner::FRONT_LEFT;
-    float peak_frequency = 0.0f;
-    BeltStatus status = BeltStatus::GOOD;
-
-    [[nodiscard]] bool is_valid() const {
-        return peak_frequency > 0.0f;
-    }
-};
-
 /// Complete belt tension results
 struct BeltTensionResult {
     BeltMeasurement path_a;
@@ -108,9 +93,6 @@ struct BeltTensionResult {
     float target_frequency = 110.0f; ///< Target Hz
     float tolerance = 10.0f;         ///< +/-Hz tolerance
 
-    /// Z belt results (if applicable)
-    std::vector<ZBeltMeasurement> z_belts;
-
     [[nodiscard]] bool has_path_a() const {
         return path_a.is_valid();
     }
@@ -119,9 +101,6 @@ struct BeltTensionResult {
     }
     [[nodiscard]] bool is_complete() const {
         return has_path_a() && has_path_b();
-    }
-    [[nodiscard]] bool has_z_results() const {
-        return !z_belts.empty();
     }
 
     /// Evaluate overall status based on thresholds
@@ -156,10 +135,18 @@ struct AccelSample {
 /// Format: #time,accel_x,accel_y,accel_z
 std::vector<AccelSample> parse_accel_csv(const std::string& csv_data);
 
-/// Compute PSD via DFT from accelerometer samples
-/// Returns vector of (frequency_hz, power) pairs
+/// Compute PSD via DFT from accelerometer samples.
+///
+/// Returns vector of (frequency_hz, power) pairs. Bin i sits at
+/// (i+1)*resolution - there is no DC bin.
+///
+/// @param max_freq_hz Highest frequency to compute, clamped to Nyquist. The
+///        default preserves the original 250 Hz behaviour. Harmonic analysis
+///        needs roughly n_harmonics * f0 of bandwidth or the upper harmonics
+///        fall outside the array; see pitch_estimator.h.
 std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>& samples,
-                                                 float sample_rate = 3200.0f);
+                                                 float sample_rate = 3200.0f,
+                                                 float max_freq_hz = 250.0f);
 
 /// Peak frequency search result
 struct PeakResult {

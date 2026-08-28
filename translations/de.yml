@@ -5,6 +5,7 @@ translations:
   ' frames': ' Bilder'
   ' left': ' übrig'
   '"%s" failed to load': '"%s" konnte nicht geladen werden'
+  '%.0f Hz difference': ''
   '%.1f Hz difference': '%.1f Hz Unterschied'
   '%d additional fan%s': '%d zusätzliche%s Lüfter'
   '%d disabled': '%d deaktiviert'
@@ -31,7 +32,6 @@ translations:
   + Add Preset: + Voreinstellung
   + Add Printer: + Drucker hinzufügen
   + New: + Neu
-  +0.5 Hz: +0,5 Hz
   '- Check [resonance_tester] in printer.cfg': '- Prüfen Sie [resonance_tester] in
     printer.cfg'
   '- Ensure ADXL345 is connected': '- Stellen Sie sicher, dass der ADXL345 angeschlossen
@@ -42,7 +42,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0,5 Hz
   '...': '...'
   0 = computed: 0 = berechnet
   0 events queued: 0 Ereignisse in Warteschlange
@@ -157,11 +156,8 @@ translations:
   Add custom filament: Benutzerdefiniertes Filament hinzufügen
   Added to Spoolman: Zu Spoolman hinzugefügt
   Address: Adresse
-  Adjust belt tension until the belt appears stationary: Riemenspannung anpassen,
-    bis der Riemen stillzustehen scheint
   Adjust screen brightness level: Bildschirmhelligkeit anpassen
   Adjust screws, then re-probe.: Schrauben einstellen, dann erneut prüfen.
-  Adjust until belt appears frozen: Anpassen, bis der Riemen stillzustehen scheint
   Adjustments stay active until restart. Save after print completes.: Anpassungen
     bleiben bis zum Neustart aktiv. Nach Druckende speichern.
   Adjusts individual characteristics of your heaters for optimal control: Passt individuelle
@@ -256,10 +252,10 @@ translations:
   Automatic LED Control: Automatische LED-Steuerung
   Aux: Aux
   Available: Verfügbar
-  Available (%s): Verfügbar (%s)
   Available Networks: Verfügbare Netzwerke
   Available networks: Verfügbare Netzwerke
   Average: Durchschnitt
+  B: ''
   BEACON: BEACON
   BETA: BETA
   'BLE connect failed: {}': 'BLE-Verbindung fehlgeschlagen: {}'
@@ -270,7 +266,6 @@ translations:
   BLUETOOTH PRINTERS: BLUETOOTH-DRUCKER
   BLUETOOTH SCANNERS: BLUETOOTH-SCANNER
   Back: Zurück
-  Back to Results: Zurück zu Ergebnissen
   'Backtrace: {} frames': 'Backtrace: {} Frames'
   Backup spool switching state unknown: 'Reserve-Spulen-Wechsel: Status unbekannt'
   Barcode Scanner: Barcode-Scanner
@@ -299,8 +294,10 @@ translations:
   Bed target set to {}°C: Bett-Zieltemperatur auf {}°C gesetzt
   Bed temp must be 0-200°C: Betttemperatur muss 0-200°C betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
-  Belt A frequency locked: Frequenz Riemen A fixiert
-  Belt B frequency locked: Frequenz Riemen B fixiert
+  Belt A: ''
+  Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: ''
+  Belt B: ''
+  Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B.: ''
   Belt Tension: Riemenspannung
   Belt Tension Check: Riemenspannungsprüfung
   Belt tension looks good!: Riemenspannung sieht gut aus!
@@ -328,8 +325,12 @@ translations:
   Border transparency (0 = invisible, 255 = solid): Rahmentransparenz (0 = unsichtbar,
     255 = solid)
   Both: Beide
+  Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both.: ''
+  Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more.: ''
+  Both belts are on the %.0f Hz target and match each other. Nothing to adjust.: ''
   Both belts are overtightened.: Beide Riemen sind zu stark gespannt.
   Both belts need tightening.: Beide Riemen müssen nachgespannt werden.
+  Both belts read the same to within what this measurement can resolve. Nothing to adjust.: ''
   Bowden Length: 'Bowden-Länge'
   Bowden tube length from hub to toolhead: 'Länge des Bowdenschlauchs vom Hub zum Werkzeugkopf'
   Brand: Marke
@@ -570,6 +571,7 @@ translations:
   Color Mismatch: Farbabweichung
   Communication Test: 'Kommunikationstest'
   Compact: Kompakt
+  Compare: ''
   Comparison: Vergleich
   Complete: Abgeschlossen
   Complete!: Abgeschlossen!
@@ -676,6 +678,7 @@ translations:
   Could not confirm cancel: ''
   Could not forget device: Gerät konnte nicht vergessen werden
   Could not load printer database: Druckerdatenbank konnte nicht geladen werden
+  Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.: ''
   Could not parse tips database: Tipps-Datenbank konnte nicht ausgelesen werden
   Could not reach Spoolman at: 'Spoolman nicht erreichbar unter:'
   Could not read the screw adjustments from the printer: Schraubeneinstellungen konnten nicht vom Drucker gelesen werden
@@ -706,7 +709,6 @@ translations:
   'Critical hardware missing: {}': 'Kritische Hardware fehlt: {}'
   Current / Target: Aktuell / Ziel
   Current Configuration: Aktuelle Konfiguration
-  Current Frequency: Aktuelle Frequenz
   Current Mesh: Aktuelles Netz
   Current Temperature: Aktuelle Temperatur
   Current Version: Aktuelle Version
@@ -1143,7 +1145,6 @@ translations:
   'Filter Fan: Off': ''
   'Filter Fan: On': ''
   Fine: Fein
-  Fine-Tune: Feinabstimmung
   Finish: Fertig
   'Finishing clean...': ''
   Finishing up...: Wird abgeschlossen...
@@ -1174,6 +1175,8 @@ translations:
   Found 1 printer: 1 Drucker gefunden
   Framerate: Bildrate
   Frequency Delta: Frequenzdifferenz
+  ? "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
+  : ''
   ? "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
   : "Frequenzdelta: Unterschied zwischen Pfad A und B. Idealerweise unter 5 Hz; über 15 Hz erfordert Anpassung.\n\nPfadähnlichkeit: Wie genau die Vibrationsprofile übereinstimmen. Über 90% ist ausgezeichnet; unter 70% deutet auf ungleichmäßige Spannung hin."
   From Buffer: Aus Puffer
@@ -1272,6 +1275,7 @@ translations:
   Hide Temperature Reports: Temperaturberichte ausblenden
   High Water Mark: Höchststand
   Hold anywhere to cancel: Zum Abbrechen an beliebiger Stelle gedrückt halten
+  Hold still: ''
   Holding nozzle at {}°C to purge previous filament.: Düse wird bei {}°C gehalten, um
     vorheriges Filament auszuspülen.
   Home: Home
@@ -1492,6 +1496,7 @@ translations:
   Light will switch when the current operation finishes: Das Licht schaltet sich,
     sobald der aktuelle Vorgang abgeschlossen ist.
   Listen to all theme sounds: Alle Themensounds anhören
+  Listening: ''
   Live view from your webcam: Livebild Ihrer Webcam
   Load: Laden
   Load Filament: Filament laden
@@ -1521,8 +1526,6 @@ translations:
   Locating Spoolman configuration...: Spoolman-Konfiguration wird gesucht...
   Location: Standort
   Lock: Sperren
-  Lock A: Sperre A
-  Lock B: Sperre B
   Lock Screen: 'Bildschirmsperre'
   Lock screen after idle timeout: Bildschirm nach Inaktivität sperren
   Lock the screen with your PIN: Bildschirm mit PIN sperren
@@ -1601,6 +1604,8 @@ translations:
     zuordnen
   Marginal: Grenzwertig
   Master volume level: Hauptlautstärke
+  Match: ''
+  Match to belt A: ''
   Match your typical print fan speed: Typische Drucklüftergeschwindigkeit einstellen
   Material: Material
   'Material Comfort:': 'Materialkomfort:'
@@ -1626,6 +1631,7 @@ translations:
   Measuring Path B... %d%%: Pfad B wird gemessen... %d%%
   Measuring accelerometer noise...: 'Messe Beschleunigungssensor-Rauschen...'
   Measuring vibrations... {}%: 'Messe Vibrationen... {}%'
+  Median %.0f Hz: ''
   Memory: Speicher
   Memory (MB): Speicher (MB)
   Memory Snapshot: Speicher-Momentaufnahme
@@ -1667,6 +1673,7 @@ translations:
     minutes. The printer will make noise — this is normal.
   : Bewegt den Druckkopf, um Vibrationsfrequenzen auf jeder Achse zu messen. Dauert
     2-3 Minuten. Der Drucker wird Geräusche machen — das ist normal.
+  Moving gantry: ''
   Moving lane: Spur bewegen
   Multi-Filament: Multi-Filament
   Multi-Filament Overview: Multi-Filament-Übersicht
@@ -1708,6 +1715,7 @@ translations:
   New printer successfully added: Neuer Drucker erfolgreich hinzugefügt
   New profile name: Neuer Profilname
   Next: Weiter
+  Next belt: ''
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   'No': Nein
   No API connection: Keine API-Verbindung
@@ -1727,12 +1735,12 @@ translations:
   No Multi-Filament System connected: Kein Multi-Filament-System verbunden
   No Multi-Filament System connected.: Kein Multi-Filament-System verbunden.
   No PRINT_START macro found: Kein PRINT_START-Makro gefunden
-  No PWM LED detected for strobe mode: Keine PWM-LED für Stroboskopmodus erkannt
   No Power Devices: Keine Stromgeräte
   No Spool: Keine Spule
   No Spools: Keine Spulen
   No USB printer detected: Kein USB-Drucker erkannt
   No USB printers found: Keine USB-Drucker gefunden
+  No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry.: ''
   No automatic backup-spool package is installed: Kein Plugin für automatische Reserve-Spule installiert
   No buffer data available: Keine Pufferdaten verfügbar
   No camera — use USB barcode scanner: Keine Kamera — USB-Barcode-Scanner verwenden
@@ -1805,9 +1813,8 @@ translations:
   Not connected: Nicht verbunden
   Not connected to printer: Nicht mit Drucker verbunden
   Not connected to printer.: Nicht mit Drucker verbunden.
+  Not connected to the printer: ''
   Not detected: Nicht erkannt
-  Not found (strobe only): Nicht gefunden (nur Stroboskop)
-  Not found (use phone app): Nicht gefunden (Telefon-App verwenden)
   Not in your spools? Set it up: Nicht in Ihren Spulen? Einrichten
   Not now: Nicht jetzt
   Not yet available on this display: 'Auf diesem Display noch nicht verfügbar'
@@ -1971,6 +1978,8 @@ translations:
     referenziert und abtastet.
   Please wait while the printer probes each screw position.: Bitte warten Sie, während
     der Drucker jede Schraubenposition abtastet.
+  Pluck the front belt on the left: ''
+  Pluck the front belt on the right: ''
   Plugin already installed: Plugin bereits installiert
   Plugin disabled: Plugin deaktiviert
   Plugin installed successfully: Plugin erfolgreich installiert
@@ -1988,6 +1997,7 @@ translations:
   Poor Accuracy: Schlechte Genauigkeit
   Port: Port
   Position: Position
+  Position the gantry yourself, then continue: ''
   Post-Sensor Clear: 'Nachlauf nach Sensor'
   Power: Strom
   Power Devices: Stromgeräte
@@ -2187,6 +2197,7 @@ translations:
   Ready: Bereit
   Ready for filament operations: Bereit für Filament-Vorgänge
   Ready to Apply: Bereit zum Anwenden
+  Ready to pluck: ''
   Reason: Grund
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
   : "Grund: {}\n\nDer Drucker kann diesen Druck nicht fortsetzen. Von Anfang an neu starten?"
@@ -2502,8 +2513,6 @@ translations:
   'Set ': 'Setzen '
   Set Active: Aktiv setzen
   Set PIN: PIN festlegen
-  ? "Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"
-  : "Stellen Sie eine Stroboskop-App auf dem Telefon auf %.1f Hz ein und richten Sie sie auf den Riemen. Passen Sie an, bis der Riemen stillzustehen scheint.\n\nEmpfohlene Apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"
   Set and watch the bed temperature: Betttemperatur setzen und verfolgen
   Set and watch the chamber temperature: Kammertemperatur setzen und verfolgen
   Set and watch the nozzle temperature: Düsentemperatur setzen und verfolgen
@@ -2632,11 +2641,13 @@ translations:
   Start Calibration: Kalibrierung starten
   Start Check: Prüfung starten
   Start Drying: Trocknung starten
+  Start Listening: ''
   Start Print: Druck starten
   Start Probing: Abtasten starten
   Start anyway?: 'Trotzdem starten?'
   Start at: Beginnen bei
   Start failed: Start fehlgeschlagen
+  Start over: ''
   Start print anyway?: Druck trotzdem starten?
   Started: Gestartet
   Starting Print...: Druck starten...
@@ -2665,7 +2676,6 @@ translations:
   Stopped between Spool and Lane: Zwischen Spule und Spur gestoppt
   Stops all motion. Requires firmware restart.: Stoppt alle Bewegung. Erfordert Firmware-Neustart.
   Stow: Einfahren
-  Strobe LED: Strobe-LED
   Subtle: Dezent
   Success: Erfolg
   Success Rate: Erfolgsrate
@@ -2723,6 +2733,7 @@ translations:
   Target Frequency: Zielfrequenz
   Target Temperature: Zieltemperatur
   Target Version: Zielversion
+  Target is %.0f Hz. Tighten belt %s and loosen belt %s.: ''
   Telemetry: Telemetrie
   Telemetry Data: Telemetriedaten
   Telemetry Disabled: Telemetrie deaktiviert
@@ -2763,6 +2774,7 @@ translations:
     helfen, HelixScreen zu verbessern.
   Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Danke! VÖLLIG anonyme
     Nutzungsdaten helfen, HelixScreen zu verbessern.
+  That did not sound like a pluck - try again: ''
   That slot cannot stand in for this one: Dieser Slot kann nicht für diesen einspringen
   That tool is already loaded: Dieses Werkzeug ist bereits geladen
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
@@ -2770,6 +2782,7 @@ translations:
   : Das HelixPrint-Plugin ermöglicht schnelle G-Code-Modifikationen direkt auf Ihrem
     Drucker – wie das Überspringen des Bettnetzes für schnelle Neudrucke.
   The Spoolman spool currently loaded: Aktuell geladene Spoolman-Spule
+  'The accelerometer stream stopped: %s. Check that Klipper is running, then retry.': ''
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : Der animierte Bildschirmschoner wurde auf diesem Gerät ausgeschaltet, um zu verhindern,
@@ -2781,8 +2794,6 @@ translations:
     und ausschalten.
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Die geladene Spule ist {}, aber diese Datei wurde für {} gesliced. Gefülltes Filament läuft mit einer niedrigeren Flussrate und erfordert eine gehärtete Düse.
-  ? "The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading."
-  : "Der Motor lässt den Riemen vibrieren, während ein Stroboskoplicht mit derselben Frequenz blinkt. Wenn der Riemen stillzustehen scheint (eingefroren), haben Sie die Resonanzfrequenz gefunden.\n\nVerwenden Sie die Frequenztasten, um die Werte durchzugehen, bis der Riemen stillzustehen scheint, und fixieren Sie dann den Messwert."
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : Der Druck ist pausiert. Ein Werkzeugwechsel bewegt jetzt den Werkzeugkopf und
     tauscht das Filament an der Düse. Setzen Sie den Druck fort, sobald der Wechsel
@@ -2921,6 +2932,7 @@ translations:
   Toggle toolhead LED for an extruder: 'Werkzeugkopf-LED für einen Extruder umschalten'
   'Toggle:': 'Umschalten:'
   Too humid: Zu feucht
+  Too soft - pluck harder: ''
   Tool: Werkzeug
   Tool Changer: Werkzeugwechsler
   Tool Switcher: 'Werkzeugwechsler'
@@ -2981,6 +2993,7 @@ translations:
   USB drive removed: USB-Laufwerk entfernt
   USB printer access denied — check permissions: USB-Drucker-Zugriff verweigert —
     Berechtigungen prüfen
+  Unavailable: ''
   Understanding Results: Ergebnisse verstehen
   ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
   : "Ungleichmäßige Riemenspannung verursacht Druckartefakte wie Schichtverschiebungen, VFAs (vertikale feine Artefakte) und Ringing.\n\nDieses Werkzeug lässt jeden Riemenpfad vibrieren und misst die Resonanzfrequenz — übereinstimmende Frequenzen bedeuten ausgewogene Spannung.\n\nBei CoreXY sollten Pfad A und B nur wenige Hz voneinander entfernt sein."
@@ -3070,7 +3083,6 @@ translations:
   View live camera feed: Live-Kamerabild anzeigen
   View print statistics and job history: Druckstatistiken und Auftragsverlauf anzeigen
   'Visits: ': 'Aufrufe: '
-  Visual Fine-Tuning: Visuelle Feinabstimmung
   Volume: Lautstärke
   Volume of filament used during ramming: 'Beim Ramming verwendetes Filamentvolumen'
   WIDTH SENSORS: BREITENSENSOREN
@@ -3079,6 +3091,7 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Warten Sie, bis der aktuelle Filamentvorgang abgeschlossen ist
+  Wait until the print finishes: ''
   Waiting for Moonraker...: Warte auf Moonraker...
   Waiting for bed to reach temperature for accurate calibration.: Warte auf Bett-Temperatur
     für genaue Kalibrierung.
@@ -3089,9 +3102,6 @@ translations:
   Warn: Warnung
   Warning: Warnung
   Warnings & errors: 'Warnungen & Fehler'
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: Beobachten
-    Sie den Riemen unter der Stroboskop-LED. Passen Sie die Frequenz an, bis der Riemen
-    stillzustehen scheint — das ist die Resonanzfrequenz.
   Weak battery: Schwache Batterie
   Webcam: Webcam
   Website (optional): Webseite (optional)
@@ -3137,6 +3147,7 @@ translations:
   Wifi: WLAN
   Will not switch spools on runout: Wechselt bei leerer Spule nicht die Spule
   Wipe nozzle on silicone cleaning strip: 'Düse am Silikon-Reinigungsstreifen abwischen'
+  Within measurement resolution: ''
   Wizard Error: Assistentenfehler
   Working...: Wird verarbeitet...
   Write failed at chunk {}: Schreibvorgang bei Block {} fehlgeschlagen
