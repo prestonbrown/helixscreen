@@ -1444,9 +1444,9 @@ std::vector<helix::ToolMapping> PrintSelectDetailView::effective_mappings() cons
     // Non-editable backends (U1 / ACE): the card is hidden and get_mappings() is
     // empty — resolve the effective (toggle-aware) mapping the same way the live
     // render does, so swatches + preflight + render all agree.
-    return helix::FilamentMapper::effective_mappings(get_used_tool_info(),
-                                                     AmsState::instance().collect_available_slots(),
-                                                     effective_auto_match());
+    return helix::FilamentMapper::effective_mappings(
+        get_used_tool_info(), AmsState::instance().collect_available_slots(),
+        effective_auto_match(), AmsState::instance().collect_firmware_routing());
 }
 
 void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tools_used,
@@ -1596,7 +1596,10 @@ std::map<int, int> PrintSelectDetailView::get_effective_remap() const {
     // survive — a real slot assignment differing from the firmware-default head
     // for that tool. Shared so FilamentSensorManager's lane scan and the preprint
     // gcode builders cannot drift from what is actually emitted.
-    return helix::FilamentMapper::identity_filtered_remap(effective_mappings());
+    // The SAME routing the seed used. Asking the two halves different questions
+    // is what made a lane-per-tool identity look like a remap and get emitted.
+    return helix::FilamentMapper::identity_filtered_remap(
+        effective_mappings(), AmsState::instance().collect_firmware_routing());
 }
 
 void PrintSelectDetailView::set_filament_mappings(std::vector<helix::ToolMapping> mappings) {

@@ -34,9 +34,9 @@ One unit ("SnapSwap"), four slots, one per toolhead:
 - `NUM_TOOLS = 4`, slot `i` carries `extruder_name` `"extruder"` / `"extruder{i}"`
   (`ams_backend_snapmaker.cpp:259-267`).
 - `PathTopology::PARALLEL` on both the unit and `get_topology()`
-  (`include/ams_backend_snapmaker.h:100-103`). Because every lane has an independent
+  (`include/ams_backend_snapmaker.h:106-109`). Because every lane has an independent
   path, `needs_unload_before_load()` is answered by the base class — the serial
-  lane rule never applies (`include/ams_backend_snapmaker.h:105-108`).
+  lane rule never applies (`include/ams_backend_snapmaker.h:111-114`).
 - `tip_method = TipMethod::NONE` — the U1 has no cutter and forms no discrete tip;
   unload is heat + retract, so the unload stepper renders "Heat nozzle -> Retract"
   (`ams_backend_snapmaker.cpp:243-247`).
@@ -156,7 +156,7 @@ conservative prefix/suffix fallback for unknown future states
   fail states. This latch — not the motion sensor — is the authority for
   `slot_has_filament_at_toolhead()`, `can_unload_from_toolhead()`, and the NOZZLE path
   segment, because the per-tool encoder fails to drop to false after an unload on
-  current firmware (`include/ams_backend_snapmaker.h:365-381`,
+  current firmware (`include/ams_backend_snapmaker.h:371-387`,
   `ams_backend_snapmaker.cpp:500-526`).
 - **Action lifecycle and errors.** `*_fail` states and `channel_error` tokens surface as
   `AmsAction::ERROR` with a direction-aware message ("No filament in lane N. Load
@@ -200,7 +200,7 @@ runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 Related capability flags: `recovers_filament_on_resume() = true` (Resume re-feeds, so
 the runout dialog presents Resume as primary) and
 `should_suppress_idle_runout_modal() = true` (the U1 drives load/unload itself, so an
-idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h:194-200`).
+idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h:200-206`).
 
 `is_stuck_motion_sensor_runout()` (motion sensor false, port sensor true = stale encoder)
 currently has **no caller in tree** — the auto-recover path that consumed it was pulled
@@ -216,7 +216,7 @@ is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1741-1762`
 so the config must land before `PRINT_START`. `requires_preprint_send() = true` is
 **always-on, even with no remap**: `SET_PRINT_USED_EXTRUDERS` suppresses the spurious
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
-empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:230-237`,
+empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:236-243`,
 `src/ui/ui_print_start_controller.cpp:319-339`).
 
 Send ordering is guaranteed on our side of the wire. Both start paths gate on
@@ -262,7 +262,7 @@ observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
-hardware swap (`include/ams_backend_snapmaker.h:394-410`). Clears preserve
+hardware swap (`include/ams_backend_snapmaker.h:400-416`). Clears preserve
 firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset only
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
 identity) (`ams_backend_snapmaker.cpp:1868-1904`).
@@ -327,7 +327,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
    the baked `PRINT_START` block runs — flagged in
    [Firmware API: `print_task_config`](#firmware-api-print_task_config) § "Still
    UNCERTAIN".
-4. The `prepare_for_resume` doc comment in `include/ams_backend_snapmaker.h:162-169`
+4. The `prepare_for_resume` doc comment in `include/ams_backend_snapmaker.h:168-175`
    still describes the retired sensor-disable chain; the implementation drives
    `AUTO_FEEDING` (see Runout and Resume above). Comment is stale, code is right.
 

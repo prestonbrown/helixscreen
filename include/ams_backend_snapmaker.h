@@ -76,6 +76,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     // State queries
+    /// Four physical heads, up to 32 logical tools: [0,1,2,3,0,0,...]. Verified
+    /// live against print_task_config.extruder_map_table on a U1.
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override {
+        return helix::FirmwareRouting::fixed_heads(NUM_TOOLS, 0);
+    }
+
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
 

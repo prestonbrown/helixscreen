@@ -719,20 +719,22 @@ bool FilamentSensorManager::has_real_runout() const {
 }
 
 namespace {
-// Firmware-default head a logical tool routes to with no remap. Delegates to the
-// shared FilamentMapper rule that PrintSelectDetailView::get_effective_remap()
-// filters against, so the lanes scanned here are the lanes actually routed to.
-int default_head_for_tool(int tool) {
-    return helix::FilamentMapper::default_head_for_tool(tool);
-}
-
-// Resolve the AMS slot a logical tool routes to, honoring an explicit remap.
-int slot_for_tool(int tool, const std::map<int, int>& remap) {
+// Resolve the AMS slot a logical tool routes to, honoring an explicit remap and
+// otherwise the backend's own firmware default map.
+//
+// @p routing must be the SAME map PrintSelectDetailView::get_effective_remap()
+// filtered against, or the lanes scanned here are not the lanes routed to. That
+// used to be a shared four-head constant, which was right for a U1 and wrong for
+// every lane-per-tool AMS - and the error was masked, because the filter's
+// matching mistake kept an entry in @p remap that sent this lookup to the right
+// lane anyway. Correcting one without the other silently scans lane 0.
+int slot_for_tool(int tool, const std::map<int, int>& remap,
+                  const helix::FirmwareRouting& routing) {
     auto it = remap.find(tool);
     if (it != remap.end() && it->second >= 0) {
         return it->second;
     }
-    return default_head_for_tool(tool);
+    return routing.head(tool);
 }
 } // namespace
 
@@ -785,8 +787,11 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
     // suppresses startup notification spam — is not the right gate here.)
     scan.sensor_available = initial_status_received_;
 
+    // One routing for the whole scan, from the same backend whose slots we read.
+    const helix::FirmwareRouting routing = scan.backend->firmware_default_routing();
+
     for (int tool : tools_used) {
-        const int slot = slot_for_tool(tool, remap);
+        const int slot = slot_for_tool(tool, remap, routing);
         const SlotInfo info = scan.backend->get_slot_info(slot);
 
         // FIX issue 6: an unresolvable slot (no such slot -> slot_index<0) or a

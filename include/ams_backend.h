@@ -17,6 +17,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "error_event.h"
+#include "firmware_routing.h"
 #include "toolchanger_addon.h"
 
 class IMoonrakerAPI;
@@ -241,6 +242,26 @@ class AmsBackend {
     [[nodiscard]] virtual std::optional<int> slot_for_extruder(int extruder_idx) const {
         (void)extruder_idx;
         return std::nullopt;
+    }
+
+    /**
+     * @brief The firmware's DEFAULT tool -> physical head map.
+     *
+     * What the printer would do with a file if nobody remapped anything. NOT the
+     * live map (AmsSystemInfo::tool_to_slot_map carries that, and it is not even
+     * uniformly available - an AFC tracks it, a U1 freezes it at 1:1 while its
+     * real map lives in print_task_config.extruder_map_table).
+     *
+     * The default is lane-per-tool, which is every backend except two: tool N
+     * owns lane N, with no upper bound. Override only when the hardware genuinely
+     * disagrees - a bounded-head machine (Snapmaker U1) or one that publishes an
+     * arbitrary table (FlashForge AD5X IFS).
+     *
+     * Adding a third shape must touch only the new backend. A constant in shared
+     * code instead of this question is what sent every AFC tool above 3 to lane 0.
+     */
+    [[nodiscard]] virtual helix::FirmwareRouting firmware_default_routing() const {
+        return helix::FirmwareRouting::identity();
     }
 
     /**
