@@ -288,6 +288,114 @@ A doc-side alternative exists for the last two — write them path-qualified, as
 repaired here now are — but at 458 sites that is a bulk hand-edit, which this repo's own
 convention says to replace with a generator plus a gate. Do it in the resolver.
 
-Rough coverage arithmetic: 854 tracked today, ~1300 after. The existing anchor machinery
-then keeps all of them honest with no further human passes, which is the whole point of
-having built it.
+**Status: the resolver change shipped.** `doc_cite_anchors.py --bare-refs` now pairs each
+bare `` `:N` `` with the nearest preceding full citation on its own line *whose file
+actually contains that line*, and emits the result as a **review list rather than
+anchoring anything**. That last decision is the important one: a census put the class at
+459 with 11 of 12 hand-checked wrong, so bootstrapping them where they sit would have
+frozen ~400 bad citations and made them look maintained — the original bootstrap's mistake
+at four times the scale. `include_bare` defaults off, so the bootstrapper cannot reach a
+derived citation at all, and a test pins the sidecar row count either side of it.
+
+---
+
+# Remaining debt: 257 bare refs whose prose nobody has checked
+
+The unanchorable entries have been worked (49 → 5). What is left is the population the
+gate can now *see* but cannot judge.
+
+## The count, and that it grows on its own
+
+| | |
+|---|---|
+| Bare `` `:N` `` refs in the docs | **437** across 26 docs |
+| **Attribute to exactly one file — the reviewable set** | **257** (252 the only file cited on their line, 5 singled out by which file is long enough) |
+| No antecedent on their line | 168 — not a failure; the file is named in prose or an earlier paragraph |
+| Two or more candidate files | 12 — not a failure; the resolver refuses rather than guesses |
+| Still unanchorable after the repair pass | **5** |
+
+**This population grows without anyone touching a doc.** During the single task that
+promoted nine refs, merging main introduced **four new blank-landing bare refs** in files
+that had been clean an hour earlier. That is the mechanism, not an anecdote — see below.
+
+## The one argument that matters
+
+**Full citations self-heal on every regen. Bare ones re-rot on every merge.**
+
+This audit proved it on itself. Between one pass and the next, `src/application/application.cpp`
+grew 23 lines, and **three of six targets moved within a single working session** —
+`start_auto_send` 3662→3685, `ObserverGuard::invalidate_all` 5206→5229,
+`theme_manager_deinit` 5247→5270. The full citations on those same lines were re-pinned
+automatically and needed no attention. The bare ones needed a human, twice, for the same
+six references.
+
+Every bare ref left in the tree is therefore not static debt but a slow leak: the count of
+*wrong* ones rises monotonically with commit volume until someone converts or checks them.
+
+## Projection for a first slice — a projection, not a measurement
+
+Preston declined the ~45 minutes it would take to turn this into a counted number, which
+is reasonable: it would not change what anyone does today. So the following is
+**extrapolated from two other populations and has never been measured on this one.**
+
+| | |
+|---|---|
+| Expected flags from the triage heuristic | **50–70** of 257 |
+| Expected real defects among them | **30–45** |
+| Effort | one working session, same shape as the 49 |
+
+Basis: the flag rate on full citations was 110/846 ≈ **13%**, and **57%** of those flags
+were real. Bare refs have never been checked by anything, so a higher flag rate was
+assumed — 20–27%. Nothing else supports the range.
+
+The prior that they are *worse* than the 49 rests on two measured results, both in this
+document: `RELEASE_1_0_CHECKLIST.md:206` carried five bare refs of which four were stale
+while only the blank-line one was ever flagged, and `ui_update_queue.h:438` was wrong in
+four separate places across two chapters. Both were invisible to every gate.
+
+## Precision by signal — what makes a future slice cheap
+
+Measured on 102 hand-verified flags (the full-citation audit). Order the work by this
+table rather than by document:
+
+| Signal | Precision |
+|---|---|
+| Cited line is low-information (`}`, blank, `// ====` banner) | **75–82%** |
+| Named symbol absent near the cite, but found elsewhere in the file | 61–80% |
+| Named symbol absent, and not in the file at all | **21%** |
+
+The cheapest signal is the best one and needs no NLP. The symbol-proximity signal that
+looks strongest is the weakest — it fires on markdown table rows (a cell's symbol paired
+with a neighbouring cell's citation) and on sentences whose subject is a type while the
+citation points at a call site.
+
+## Proposed first slice — so nobody re-derives the method
+
+1. Adapt the triage heuristic (`cite_semantic_triage.py`, session scratchpad — see "The
+   heuristic" above) to take the resolver's `--bare-refs` pairings as its input. The tool
+   already takes doc + path + line; feeding it the pairings is the only change.
+2. Score all 257 and print the histogram. **Report the histogram before working anything**
+   — that converts the projection above into a counted number for free, and it is the step
+   that was declined only because it was bundled with the work.
+3. Work score ≥3 top-down. Hand-verify every one; the heuristic's false-positive rate is
+   43% and a "fix" that moves a correct citation is worse than the rot.
+4. Promote anything whose antecedent is genuinely a different file (as the nine were)
+   rather than only renumbering it.
+
+## The 5 residual, and why each is not a repair
+
+- **3 syntax placeholders** — `scripts/CLAUDE.md:96,98` use `` `file.cpp:70` `` and
+  `` `:857` `` as *examples of citation syntax* while describing the gate. `file.cpp` is a
+  made-up name. The resolver should exclude these outright; nobody should "fix" them.
+- **`09-home-widgets.md:196`** — `panel_widget_manager.cpp:149` is `try {`, and the prose
+  says "the per-widget try/catch (`:149`)". Correct target, unanchorable shape. Leave.
+- **`11-startup-shutdown.md:193` — needs an author decision, not a repair.** The prose
+  promises "the splash-handoff **and** 11s-failsafe blocks (`:4154`–4205)", one range for
+  two blocks that have since separated: the 11s failsafe constant is at
+  `src/application/application.cpp:4040`-4046, the handoff repaint at `:4189`-4205.
+  Re-pointing the range to either one silently drops the other. The fix is to split it
+  into two references, which changes what the sentence promises — an author's call.
+
+Rough coverage arithmetic if the 257 are converted: 854 tracked today, ~1300 after. The
+existing anchor machinery then keeps all of them honest with no further human passes,
+which is the whole point of having built it.
