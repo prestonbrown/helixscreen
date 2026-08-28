@@ -2431,22 +2431,40 @@ if [ -n "$SHELL_FILES" ]; then
     SHELL_ERRORS=0
     SHELL_BASELINED=0
     SHELL_FAILED_FILES=""
+    # This was the longest section of a full run at ~8s. The cost is the
+    # analysis itself, not process startup - one large script takes ~0.9s on
+    # its own, and batching every file into a single invocation only saved 8%
+    # because the analyser is single-threaded either way. Fanning the files out
+    # across $QC_JOBS takes the section to ~1.6s. Findings are written per file
+    # and replayed in list order, so the transcript stays deterministic.
+    #
+    # Keep comment lines in here from beginning with the word the linter
+    # reserves for its own directives - one that does is parsed as a malformed
+    # directive and fails the file.
+    SC_DIR="$QC_TMP/shellcheck"
+    mkdir -p "$SC_DIR"
+    printf '%s\n' $SHELL_FILES > "$SC_DIR/files"
+    # scripts/ is linted at warning severity minus the two excluded codes;
+    # config/ keeps the stricter default.
+    xargs -a "$SC_DIR/files" -P "${QC_JOBS:-4}" -I{} sh -c '
+      f="$1"
+      [ -f "$f" ] || exit 0
+      case "$f" in
+        scripts/*) flags="-S warning -e $3" ;;
+        *)         flags="" ;;
+      esac
+      out="$2/$(printf "%s" "$f" | tr "/" "_")"
+      shellcheck $flags "$f" > "$out.out" 2>/dev/null || : > "$out.bad"
+    ' _ {} "$SC_DIR" "$SHELLCHECK_SCRIPTS_EXCLUDE"
     for script in $SHELL_FILES; do
-      if [ -f "$script" ]; then
-        # scripts/ is linted at warning severity minus the two excluded
-        # codes; config/ keeps the stricter default.
-        case "$script" in
-          scripts/*) SC_FLAGS="-S warning -e $SHELLCHECK_SCRIPTS_EXCLUDE" ;;
-          *)         SC_FLAGS="" ;;
-        esac
-        if ! shellcheck $SC_FLAGS "$script" 2>/dev/null; then
-          if printf '%s\n' "$SHELLCHECK_BASELINE" | grep -Fxq "$script"; then
-            SHELL_BASELINED=$((SHELL_BASELINED + 1))
-          else
-            SHELL_ERRORS=$((SHELL_ERRORS + 1))
-            SHELL_FAILED_FILES="$SHELL_FAILED_FILES $script"
-          fi
-        fi
+      sc_stem="$SC_DIR/$(printf '%s' "$script" | tr '/' '_')"
+      [ -f "$sc_stem.bad" ] || continue
+      cat "$sc_stem.out"
+      if printf '%s\n' "$SHELLCHECK_BASELINE" | grep -Fxq "$script"; then
+        SHELL_BASELINED=$((SHELL_BASELINED + 1))
+      else
+        SHELL_ERRORS=$((SHELL_ERRORS + 1))
+        SHELL_FAILED_FILES="$SHELL_FAILED_FILES $script"
       fi
     done
     section_time $SECTION_START
@@ -2582,11 +2600,22 @@ echo ""
 # The checks are independent greps and linters and the script ran strictly
 # serially: 67s wall for 54s user + 15s sys, i.e. one core of 32.
 #
-# Only two sections write to the tree, and only under --auto-fix:
+# Four sections write to the tree; all but one only under --auto-fix:
 #   qc_phase2     clang-format -i + git add   (checks only, without --auto-fix)
 #   qc_xml_linter make regen-xml-schema       (always regenerates schema.json)
+#   qc_doc_refs   doc_cite_anchors.py + gen_doc_links.py
+#   qc_doc_links  gen_doc_links.py
 # Those run alone, first - a formatter rewriting a file while another check
 # greps it is a race. Everything else fans out over $QC_JOBS workers.
+#
+# The two doc sections have a second reason to be serial, and to be serial IN
+# THIS ORDER: they repair the SAME .md files, and mk/tools.mk calls the ordering
+# load-bearing - anchors rewrite the line number INSIDE the link text, so the
+# link generator must run after, or it derives a URL from a number that is about
+# to change. Fanned out they also raced at the byte level: gen_doc_links.py reads
+# a doc, then reopens it with open(doc,'w'), which truncates. A sibling reading
+# or writing the same file across that window loses the other's repair, or in the
+# worst case commits a truncated doc.
 #
 # Output is buffered per section and replayed in declaration order, so the
 # transcript matches the serial one apart from timings.
@@ -2637,7 +2666,7 @@ qc_run_buffered() {
 # qc_xml_linter always regenerates the schema; qc_phase2 only rewrites files
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
-if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
+if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2 qc_doc_refs qc_doc_links"; fi
 qc_workflow_submodules() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)
