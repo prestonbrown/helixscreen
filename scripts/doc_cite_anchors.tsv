@@ -717,8 +717,8 @@ docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1554	src
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1825	src/ui/ui_gcode_viewer.cpp	3beda2c23532	875d26cbb085
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	379	src/ui/ui_panel_print_status.cpp	683c7d398d45	d94959216ef9
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1079	src/ui/ui_panel_print_status.cpp	ed987a71bbbf	8cb6648d0caf
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1998	src/ui/ui_panel_print_status.cpp	ec051ba125be	352e2708ac96
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	3440	src/ui/ui_panel_print_status.cpp	12337ba6e443	da052ae6914a
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1997	src/ui/ui_panel_print_status.cpp	ec051ba125be	352e2708ac96
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	3438	src/ui/ui_panel_print_status.cpp	12337ba6e443	da052ae6914a
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	455	src/ui/ui_print_select_detail_view.cpp	97194cd2ef4d	9cfd78a06905
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	566	src/ui/ui_print_select_detail_view.cpp	b1c018930d0b	8c8d44f4f15e
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	611	src/ui/ui_print_select_detail_view.cpp	945c5afe0719	4c8b1163bcc1
