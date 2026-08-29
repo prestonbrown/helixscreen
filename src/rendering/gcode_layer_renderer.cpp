@@ -307,7 +307,7 @@ void GCodeLayerRenderer::set_excluded_objects(const std::unordered_set<std::stri
 
 void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
     const InvalidationScope scope = selection_.set_highlighted(names);
-    if (scope == InvalidationScope::None) {
+    if (scope == InvalidationScope::Nothing) {
         return;
     }
     if (names.empty()) {
@@ -322,7 +322,7 @@ void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::s
 
 void GCodeLayerRenderer::apply_selection_scope(InvalidationScope scope) {
     switch (scope) {
-    case InvalidationScope::None:
+    case InvalidationScope::Nothing:
         return;
     case InvalidationScope::SolidCache:
         // Highlight only. The ghost pass never draws highlight, so leaving its cache

@@ -33,7 +33,7 @@ size_t hash_name_set(const std::unordered_set<std::string>& names) {
 
 InvalidationScope SelectionState::set_excluded(const std::unordered_set<std::string>& names) {
     if (names == excluded_) {
-        return InvalidationScope::None;
+        return InvalidationScope::Nothing;
     }
     excluded_ = names;
     refresh_flags();
@@ -43,7 +43,7 @@ InvalidationScope SelectionState::set_excluded(const std::unordered_set<std::str
 
 InvalidationScope SelectionState::set_highlighted(const std::unordered_set<std::string>& names) {
     if (names == highlighted_) {
-        return InvalidationScope::None;
+        return InvalidationScope::Nothing;
     }
     highlighted_ = names;
     highlighted_hash_ = hash_name_set(highlighted_);

@@ -1726,13 +1726,13 @@ void GCodeGLESRenderer::set_highlighted_object(const std::string& name) {
 void GCodeGLESRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
     // SelectionState memoizes the set hash, so the per-frame cached-state build
     // does not iterate every name on each LVGL invalidation tick.
-    if (selection_.set_highlighted(names) != InvalidationScope::None) {
+    if (selection_.set_highlighted(names) != InvalidationScope::Nothing) {
         frame_dirty_ = true;
     }
 }
 
 void GCodeGLESRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
-    if (selection_.set_excluded(names) != InvalidationScope::None) {
+    if (selection_.set_excluded(names) != InvalidationScope::Nothing) {
         frame_dirty_ = true;
     }
 }
