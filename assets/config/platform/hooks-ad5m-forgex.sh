@@ -49,6 +49,24 @@ if [ -z "${HELIX_NO_SPLASH}" ]; then
     export HELIX_NO_SPLASH
 fi
 
+# ForgeX 1.4.2 introduced netd, which owns every network decision in non-Stock
+# display modes: it loads the Wi-Fi driver itself, runs its own wpa_supplicant
+# against a private config, and enforces a single transport -- with
+# mode=ETHERNET it stops wpa_supplicant and takes wlan0 down.
+#
+# netd performs that teardown when it starts, in S55boot. Our hooks run later,
+# in S90, so a driver or supplicant we start here survives as a stray process
+# on an interface netd believes it already removed. Leave networking entirely
+# alone on releases that ship netd.
+FORGEX_NETD_BIN="${FORGEX_NETD_BIN:-/opt/config/mod/.bin/exec/netd}"
+FORGEX_NET_SYSFS="${FORGEX_NET_SYSFS:-/sys/class/net}"
+FORGEX_WPA_BIN="${FORGEX_WPA_BIN:-/usr/sbin/wpa_supplicant}"
+FORGEX_WPA_CONF="${FORGEX_WPA_CONF:-/etc/wpa_supplicant.conf}"
+
+forgex_netd_owns_network() {
+    [ -x "$FORGEX_NETD_BIN" ]
+}
+
 # Stop stock FlashForge UI and competing screen UIs.
 # The AD5M stock firmware runs ffstartup-arm which launches firmwareExe
 # (the stock Qt touchscreen UI). Both must be killed for HelixScreen to
@@ -171,6 +189,9 @@ platform_wait_for_services() {
 # idempotent — runs only when needed, mirrors Forge-X's own behaviour, and
 # is a no-op on AD5M boards without a USB WiFi adapter.
 platform_load_wifi_driver() {
+    if forgex_netd_owns_network; then
+        return 0  # netd owns the radio on this release
+    fi
     # ip(8) isn't always installed on AD5M Forge-X — fall back to /sys/class/net.
     # POSIX glob (no `ls | grep`): if no wlan* exists, the loop sees the
     # literal pattern and `[ -e ]` is false. (shellcheck SC2010)
@@ -198,24 +219,27 @@ platform_load_wifi_driver() {
 # starts on its own and the backend reports SERVICE_NOT_RUNNING. Idempotent:
 # checks for existing pid + socket before starting.
 platform_start_wpa_supplicant() {
+    if forgex_netd_owns_network; then
+        return 0  # netd owns the radio on this release
+    fi
     # Skip if already running with a valid control socket
     if [ -S /var/run/wpa_supplicant/wlan0 ] && pidof wpa_supplicant >/dev/null 2>&1; then
         return 0
     fi
     # POSIX glob (no `ls | grep`, shellcheck SC2010): bail if no wlan* exists.
     has_wlan=0
-    for ifc in /sys/class/net/wlan*; do
+    for ifc in "$FORGEX_NET_SYSFS"/wlan*; do
         [ -e "$ifc" ] && { has_wlan=1; break; }
     done
     if [ "$has_wlan" -eq 0 ]; then
         return 0  # no interface to bind to
     fi
-    if [ ! -x /usr/sbin/wpa_supplicant ] || [ ! -f /etc/wpa_supplicant.conf ]; then
+    if [ ! -x "$FORGEX_WPA_BIN" ] || [ ! -f "$FORGEX_WPA_CONF" ]; then
         return 0  # binary or config missing, nothing we can do
     fi
     mkdir -p /var/run/wpa_supplicant
     echo "Starting wpa_supplicant daemon..."
-    /usr/sbin/wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant.conf 2>&1 || true
+    "$FORGEX_WPA_BIN" -B -i wlan0 -c "$FORGEX_WPA_CONF" 2>&1 || true
 }
 
 # Pre-start setup: set the active flag so ForgeX knows HelixScreen owns the display.

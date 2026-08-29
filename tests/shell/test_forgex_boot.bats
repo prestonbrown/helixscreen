@@ -401,3 +401,82 @@ promo_fixture() {
     echo "$body" | grep -q 'guppy_bin="/opt/config/mod/.root/guppyscreen"'
     echo "$body" | grep -q 'chmod a-x "\$guppy_bin"'
 }
+
+# --- netd owns networking on ForgeX 1.4.2+ ---
+#
+# netd loads the Wi-Fi driver, runs its own wpa_supplicant, and enforces a
+# single transport. It does that teardown in S55boot; our hooks run in S90, so
+# anything we start here survives as a stray process on an interface netd
+# believes it removed.
+
+netd_fixture() {
+    export FORGEX_NETD_BIN="$BATS_TEST_TMPDIR/netd"
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
+
+@test "netd probe: true when the daemon ships, false when it does not" {
+    netd_fixture
+    rm -f "$FORGEX_NETD_BIN"
+    run forgex_netd_owns_network
+    [ "$status" -ne 0 ]
+    printf '#!/bin/sh\n' > "$FORGEX_NETD_BIN"
+    chmod +x "$FORGEX_NETD_BIN"
+    run forgex_netd_owns_network
+    [ "$status" -eq 0 ]
+}
+
+# Build an environment in which platform_start_wpa_supplicant WOULD act:
+# a wlan interface, a wpa_supplicant binary, and its config all present.
+wpa_fixture() {
+    export FORGEX_NETD_BIN="$BATS_TEST_TMPDIR/netd"
+    export FORGEX_NET_SYSFS="$BATS_TEST_TMPDIR/net"
+    export FORGEX_WPA_BIN="$BATS_TEST_TMPDIR/wpa_supplicant"
+    export FORGEX_WPA_CONF="$BATS_TEST_TMPDIR/wpa_supplicant.conf"
+    mkdir -p "$FORGEX_NET_SYSFS/wlan0"
+    printf '#!/bin/sh\necho FAKE_WPA_RAN\n' > "$FORGEX_WPA_BIN"
+    chmod +x "$FORGEX_WPA_BIN"
+    touch "$FORGEX_WPA_CONF"
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
+
+@test "wpa_supplicant DOES start when no netd is present (positive control)" {
+    # Without this the suppression test below is vacuous: the function has a
+    # later guard that also returns 0 silently when no wlan* exists.
+    wpa_fixture
+    rm -f "$FORGEX_NETD_BIN"
+    run platform_start_wpa_supplicant
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Starting wpa_supplicant"* ]]
+    [[ "$output" == *"FAKE_WPA_RAN"* ]]
+}
+
+@test "wpa_supplicant is NOT started when netd owns the radio" {
+    wpa_fixture
+    printf '#!/bin/sh\n' > "$FORGEX_NETD_BIN"
+    chmod +x "$FORGEX_NETD_BIN"
+    run platform_start_wpa_supplicant
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Starting wpa_supplicant"* ]]
+    [[ "$output" != *"FAKE_WPA_RAN"* ]]
+}
+
+@test "wifi driver load returns early when netd owns the radio" {
+    # The netd guard must be the first statement, ahead of the interface probe.
+    body=$(sed -n '/^platform_load_wifi_driver()/,/^}/p' \
+        "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh")
+    [ "$(echo "$body" | sed -n '2p')" = "    if forgex_netd_owns_network; then" ]
+    netd_fixture
+    printf '#!/bin/sh\n' > "$FORGEX_NETD_BIN"
+    chmod +x "$FORGEX_NETD_BIN"
+    run platform_load_wifi_driver
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Loading WiFi driver"* ]]
+}
+
+@test "netd probe is defined at file scope so both hook consumers see it" {
+    awk '/^[a-zA-Z_]+\(\)/ { in_fn = 1 }
+         in_fn && /^}/     { in_fn = 0; next }
+         !in_fn && /FORGEX_NETD_BIN=/ { found = 1 }
+         END { exit found ? 0 : 1 }' \
+        "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
