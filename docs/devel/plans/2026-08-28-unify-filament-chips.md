@@ -76,7 +76,7 @@ The toggle drives `detail_prefer_sliced_colors_`, which `apply_preview_colors()`
 Add to `tests/unit/test_print_select_detail_subjects.cpp`:
 
 ```cpp
-TEST_CASE_METHOD(PrintSelectDetailSubjectsFixture,
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "Sliced colors toggle sits outside the filament card",
                  "[print_select][detail][xml]") {
     // The toggle recolors the 3D preview, not the chips. Task 4 merges the two
@@ -862,7 +862,7 @@ EOF
 In `tests/unit/test_print_select_detail_subjects.cpp`:
 
 ```cpp
-TEST_CASE_METHOD(PrintSelectDetailSubjectsFixture,
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "One filament card, titled FILAMENTS, with the tap chevron",
                  "[print_select][detail][xml]") {
     lv_obj_t* const root = make_detail_root(test_screen());
