@@ -261,6 +261,12 @@ class PrintStartController {
     // Observer for print state changes (to restore mapping on print end)
     ObserverGuard print_state_observer_;
 
+    // True once the restore observer has seen THIS print live (Preparing/
+    // Printing/Paused). Registration can land while the wire still reports the
+    // PREVIOUS job's terminal state, so terminal values are ignored until the
+    // latch arms (prestonbrown/helixscreen#1386).
+    bool print_active_since_remap_ = false;
+
     // Observer for klippy state, armed only while a restore is deferred waiting
     // for Klipper to come back (see observe_klippy_state_for_restore).
     ObserverGuard klippy_state_observer_;
@@ -297,7 +303,7 @@ class PrintStartController {
     void restore_filament_mapping();
 
     /// Set up observer for print state to auto-restore mapping
-    void observe_print_state_for_restore();
+    void observe_lifecycle_for_restore();
 
     /**
      * @brief Wait for Klipper to become READY, then retry a deferred restore.
