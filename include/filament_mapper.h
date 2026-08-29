@@ -109,10 +109,23 @@ struct ToolMapping {
     MatchReason reason = MatchReason::AUTO;
 
     /// True when the lane will print in a colour the file did not ask for.
-    /// Advisory only, and deliberately NOT part of the card's warning triangle:
-    /// the stacked chip already shows both colours side by side, so an alarm
-    /// here would fire on most prints and devalue the triangle that flags what
-    /// the user cannot see. Drives the per-chip surround instead.
+    ///
+    /// NOTHING READS THIS TODAY. The chip's surround derives the same answer at
+    /// render time from the lane it just resolved, deliberately: a verdict stored
+    /// here outlives the lane it judged, because refresh_slot_data() replaces the
+    /// slot vector and rebuilds with the mappings untouched. So this field is
+    /// written for symmetry with material_mismatch and nothing else - the pair is
+    /// adopted or not as a unit, which is what makes "take material, forget
+    /// colour" unexpressible at a call site (see set_mismatches()).
+    ///
+    /// Whoever folds preflight_validator.cpp's near-twin onto classify_mismatches()
+    /// will want it. Until then, do not add a consumer that reads it instead of
+    /// classifying: that is the staleness above, reintroduced.
+    ///
+    /// Advisory either way, and deliberately NOT part of the card's warning
+    /// triangle: the stacked chip already shows both colours side by side, so an
+    /// alarm there would fire on most prints and devalue the triangle that flags
+    /// what the user cannot see.
     ///
     /// Kept last rather than beside material_mismatch for the reason every other
     /// late field in this header is: the tests positionally aggregate-initialise
@@ -131,7 +144,8 @@ class FilamentMapper {
                                                      const std::vector<AvailableSlot>& slots);
 
     /// Check if two colors are within matching tolerance.
-    /// Uses weighted RGB distance (luminance-weighted) with tolerance of 40 units.
+    /// Uses weighted RGB distance (luminance-weighted) with tolerance of
+    /// COLOR_MATCH_TOLERANCE (50) units.
     static bool colors_match(uint32_t color_a, uint32_t color_b);
 
     /// The warnings that apply to pairing @p tool with the lane it resolved to.

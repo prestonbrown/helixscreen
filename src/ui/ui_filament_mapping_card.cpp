@@ -245,13 +245,8 @@ void FilamentMappingCard::rebuild_compact_view() {
                        t.material + "|";
     }
     for (const auto& m : mappings_) {
-        // color_mismatch decides whether the chip is surrounded, so it is a render
-        // input like every other field here. It happens to be derivable from the
-        // tool and slot state encoded above, but nothing enforces that: the
-        // mapping modal writes flags into this vector directly.
         fingerprint += std::to_string(m.tool_index) + ">" + std::to_string(m.mapped_slot) + ":" +
-                       std::to_string(m.mapped_backend) + (m.is_auto ? "a" : "m") +
-                       (m.color_mismatch ? "x" : "-") + "|";
+                       std::to_string(m.mapped_backend) + (m.is_auto ? "a" : "m") + "|";
     }
     for (const auto& s : available_slots_) {
         fingerprint += std::to_string(s.backend_index) + "." + std::to_string(s.slot_index) + "=" +
@@ -332,8 +327,16 @@ void FilamentMappingCard::rebuild_compact_view() {
         // the two bands represent, not either band on its own. That scope is also
         // what keeps it apart from the empty-lane border below, which stays on
         // bottom_band because "this lane holds nothing" is a fact about the lane.
+        //
+        // Classified HERE, against the lane just resolved, rather than read from
+        // mapping.color_mismatch. refresh_slot_data() replaces available_slots_
+        // and rebuilds with mappings_ deliberately untouched, so a cached verdict
+        // outlives the lane it judged: swap a spool for one holding the file's
+        // colour and the bottom band repaints while the surround stays on. That
+        // is the same shape as the stale lane number this chip was built to fix.
         // DECLARATIVE_OK: per-item payload on a C++-generated collection.
-        if (mapping.color_mismatch) {
+        if (resolved &&
+            helix::FilamentMapper::classify_mismatches(tool, *resolved).color_mismatch) {
             lv_obj_add_state(chip, LV_STATE_USER_2);
         }
 

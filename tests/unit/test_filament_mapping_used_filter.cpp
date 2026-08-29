@@ -30,6 +30,7 @@
  */
 
 #include "ui_filament_mapping_card.h"
+#include "ui_update_queue.h"
 
 #include "../mapping_card_render_fixture.h"
 #include "theme_manager.h"
@@ -337,30 +338,57 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill o
     process_lvgl(100);
 }
 
+namespace {
+
+/// Load lane @p index with a colour and material. The card reads lanes through
+/// AmsState, so this is the only way to drive the surround: the renderer
+/// classifies (tool, lane) itself rather than trusting a flag on the mapping.
+void load_lane(AmsBackendMock* mock, int index, uint32_t rgb, const char* material) {
+    auto slot = mock->get_slot_info(index);
+    slot.color_rgb = rgb;
+    slot.material = material;
+    mock->set_slot_info(index, slot, /*persist=*/false);
+}
+
+/// Does chip @p idx wear the colour-mismatch surround?
+bool chip_surrounded(lv_obj_t* rows, uint32_t idx) {
+    lv_obj_t* const chip = lv_obj_get_child(rows, static_cast<int32_t>(idx));
+    REQUIRE(chip != nullptr);
+    return lv_obj_has_state(chip, LV_STATE_USER_2);
+}
+
+} // namespace
+
 TEST_CASE_METHOD(MappingCardRenderFixture,
                  "A colour-mismatched chip is surrounded and a matched one is not",
                  "[filament_mapping][swatch][colour_mismatch]") {
     // Scope is what separates this from the empty-lane border: empty is a fact
     // about the LANE and stays on bottom_band, colour is a fact about the
-    // PAIRING and surrounds the whole chip. Both directions in ONE render -
+    // PAIRING and surrounds the whole chip. All three directions in ONE render -
     // a surround that is always on, or never on, passes a one-sided check.
-    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
-    REQUIRE(lv_obj_get_child_count(rows) == 2);
+    //
+    // Driven by real lane data, never by setting the flag: the renderer
+    // classifies the pairing itself, so a hand-set color_mismatch would test
+    // nothing at all.
+    load_lane(mock, 0, 0xFF0000, "PLA");  // exactly what T0 asked for
+    load_lane(mock, 1, 0x0000FF, "PETG"); // nowhere near T1's green
+    card.update({"#FF0000", "#00FF00", "#0000FF"}, {"PLA", "PETG", "PLA"});
+    REQUIRE(lv_obj_get_child_count(rows) == 3);
 
-    auto mappings = mappings_to_slots({0, 1});
-    mappings[0].color_mismatch = true;
-    card.set_mappings(std::move(mappings));
+    // Pin the lanes so the surround is decided by the colours set above rather
+    // than by wherever the seeding heuristic put each tool. T2 is deliberately
+    // unresolved: no lane, so no comparison, so nothing to warn about.
+    card.set_mappings(mappings_to_slots({0, 1, -1}));
 
-    lv_obj_t* const mismatched = lv_obj_get_child(rows, 0);
-    lv_obj_t* const matched = lv_obj_get_child(rows, 1);
-    REQUIRE(mismatched != nullptr);
-    REQUIRE(matched != nullptr);
-    CHECK(lv_obj_has_state(mismatched, LV_STATE_USER_2));
-    CHECK_FALSE(lv_obj_has_state(matched, LV_STATE_USER_2));
+    CHECK_FALSE(chip_surrounded(rows, 0));
+    CHECK(chip_surrounded(rows, 1));
+    CHECK_FALSE(chip_surrounded(rows, 2));
 
     // The state is only half the wiring: filament_swatch.xml has to hang the
     // colour_mismatch style off it, and the chip's own inline border_width="0"
     // is what that style has to beat.
+    lv_obj_t* const mismatched = lv_obj_get_child(rows, 1);
+    lv_obj_t* const matched = lv_obj_get_child(rows, 0);
     CHECK(lv_obj_get_style_border_width(mismatched, LV_PART_MAIN) == 2);
     CHECK(lv_color_eq(lv_obj_get_style_border_color(mismatched, LV_PART_MAIN),
                       theme_manager_get_color("warning")));
@@ -370,6 +398,49 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     lv_obj_t* const band = lv_obj_find_by_name(mismatched, "bottom_band");
     REQUIRE(band != nullptr);
     CHECK_FALSE(lv_obj_has_state(band, LV_STATE_USER_1));
+
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "The surround follows a spool swap rather than being decided once",
+                 "[filament_mapping][swatch][colour_mismatch]") {
+    // refresh_slot_data() replaces available_slots_ and rebuilds with mappings_
+    // deliberately untouched - it runs on every live slot update while the detail
+    // view is open (ui_print_select_detail_view.cpp:1355). A verdict cached on the
+    // mapping therefore outlives the lane it judged: load the file's own colour
+    // into that lane and the bottom band repaints (the fingerprint carries
+    // s.color_rgb, so the rebuild really happens) while the surround stays on.
+    //
+    // The same shape as the stale lane number this chip was built to fix, which is
+    // why it is pinned rather than left to the classifier's unit tests.
+    // Two tools because a single-extruder AMS hides the card below two
+    // (should_show(), ui_filament_mapping_card.cpp:112). T1 is the control: its
+    // lane already matches and must stay unsurrounded throughout, so a rebuild
+    // that simply cleared every chip could not pass.
+    load_lane(mock, 0, 0x0000FF, "PLA"); // blue lane, red file
+    load_lane(mock, 1, 0x00FF00, "PLA"); // green lane, green file
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PLA"});
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+    card.set_mappings(mappings_to_slots({0, 1}));
+    REQUIRE(chip_surrounded(rows, 0));
+    REQUIRE_FALSE(chip_surrounded(rows, 1));
+
+    // Swap the spool for one holding what the file asked for. Nothing else moves:
+    // same tools, same mappings, same lane indices.
+    load_lane(mock, 0, 0xFF0000, "PLA");
+    helix::ui::UpdateQueue::instance().drain();
+    card.refresh_slot_data();
+
+    CHECK_FALSE(chip_surrounded(rows, 0));
+    CHECK_FALSE(chip_surrounded(rows, 1));
+
+    // And back again, so the fix cannot be "the surround only ever clears".
+    load_lane(mock, 0, 0x0000FF, "PLA");
+    helix::ui::UpdateQueue::instance().drain();
+    card.refresh_slot_data();
+    CHECK(chip_surrounded(rows, 0));
+    CHECK_FALSE(chip_surrounded(rows, 1));
 
     process_lvgl(100);
 }

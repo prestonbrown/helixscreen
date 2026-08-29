@@ -1393,13 +1393,19 @@ TEST_CASE("colour mismatch reaches the mapping on every seeding path",
         CHECK(result[0].color_mismatch);
     }
 
-    SECTION("an unresolved tool makes no claim at all") {
-        // No lanes, so no lane was chosen, so there is no comparison to fail.
+    SECTION("a tool with no lane to compare against comes back unresolved") {
+        // The other half of guard 2, and all that can be asserted on this side of
+        // it: with no lanes there is nothing to classify, so the tool is AUTO with
+        // no slot. That the surround stays off for such a tool is not assertable
+        // here - classify_mismatches() takes a resolved AvailableSlot&, so an
+        // unresolved tool cannot reach it and a color_mismatch assertion would be
+        // reading a default-initialised bool. The render side is where that
+        // becomes observable, and it is pinned there against a real chip.
         std::vector<GcodeToolInfo> tools = {{0, 0x0000FF, "PLA"}};
         auto result = FilamentMapper::compute_defaults(tools, {});
         REQUIRE(result.size() == 1);
         CHECK(result[0].is_auto);
-        CHECK_FALSE(result[0].color_mismatch);
+        CHECK(result[0].mapped_slot == -1);
     }
 
     SECTION("a tool mapped onto an empty lane warns once, not twice") {
