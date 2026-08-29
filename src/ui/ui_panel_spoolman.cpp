@@ -458,9 +458,10 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt) {
     context_menu_.set_action_callback([this](helix::ui::SpoolmanContextMenu::MenuAction action,
                                              int id) { handle_context_action(action, id); });
 
-    // Show context menu near the click point
+    // Show context menu near the click point. Archive is withheld for the
+    // active spool — it is feeding the printer.
     context_menu_.set_click_point(click_pt);
-    context_menu_.show_for_spool(lv_screen_active(), *spool, row);
+    context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_);
 }
 
 void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action,
@@ -484,6 +485,10 @@ void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAc
 
     case MenuAction::DUPLICATE:
         duplicate_spool(spool_id);
+        break;
+
+    case MenuAction::ARCHIVE:
+        archive_spool(spool_id);
         break;
 
     case MenuAction::DELETE:
@@ -620,17 +625,60 @@ void SpoolmanPanel::duplicate_spool(int spool_id) {
         });
 }
 
-void SpoolmanPanel::delete_spool(int spool_id) {
-    // Build confirmation message with spool info
+std::string SpoolmanPanel::confirmation_spool_desc(int spool_id) const {
     const SpoolInfo* spool = find_cached_spool(spool_id);
-    std::string spool_desc;
     if (spool) {
-        spool_desc = spool->display_name() + " (#" + std::to_string(spool_id) + ")";
-    } else {
-        spool_desc = std::string(lv_tr("Spool #")) + std::to_string(spool_id);
+        return spool->display_name() + " (#" + std::to_string(spool_id) + ")";
     }
+    return std::string(lv_tr("Spool #")) + std::to_string(spool_id);
+}
 
-    std::string message = spool_desc + "\n" + lv_tr("This cannot be undone.");
+void SpoolmanPanel::archive_spool(int spool_id) {
+    std::string message = confirmation_spool_desc(spool_id) + "\n" +
+                          lv_tr("It can be un-archived in Spoolman's web UI.");
+
+    // Reversible (unlike delete), so Info severity. Dismissal = no action, and
+    // there is no caller state to clean up, so no cancel/dismiss callbacks.
+    helix::ui::modal_confirm(
+        lv_tr("Archive Spool?"), message.c_str(), ModalSeverity::Info, lv_tr("Archive"),
+        [spool_id] {
+            spdlog::info("[Spoolman] Confirmed archive of spool {}", spool_id);
+
+            IMoonrakerAPI* api = get_moonraker_api();
+            if (!api) {
+                ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("API not available"),
+                                              3000);
+                return;
+            }
+
+            nlohmann::json body;
+            body["archived"] = true;
+            api->spoolman().update_spoolman_spool(
+                spool_id, body,
+                [spool_id]() {
+                    spdlog::info("[Spoolman] Spool {} archived successfully", spool_id);
+                    helix::ui::queue_update([spool_id]() {
+                        ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                      lv_tr("Spool archived"), 2000);
+                        auto& panel = get_global_spoolman_panel();
+                        panel.preserve_scroll_ = true;
+                        panel.refresh_spools();
+                    });
+                },
+                [spool_id](const MoonrakerError& err) {
+                    spdlog::error("[Spoolman] Failed to archive spool {}: {}", spool_id,
+                                  err.message);
+                    helix::ui::queue_update([]() {
+                        ToastManager::instance().show(ToastSeverity::ERROR,
+                                                      lv_tr("Failed to archive spool"), 3000);
+                    });
+                });
+        });
+}
+
+void SpoolmanPanel::delete_spool(int spool_id) {
+    std::string message =
+        confirmation_spool_desc(spool_id) + "\n" + lv_tr("This cannot be undone.");
 
     helix::ui::modal_confirm(
         lv_tr("Delete Spool?"), message.c_str(), ModalSeverity::Warning, lv_tr("Delete"),

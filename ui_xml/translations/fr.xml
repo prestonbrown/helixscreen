@@ -195,6 +195,8 @@
   <translation tag="Apply Changes" fr="Appliquer les modifications"/>
   <translation tag="Applying Changes" fr="Application des modifications"/>
   <translation tag="Applying..." fr="Application..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." fr="Êtes-vous sûr de vouloir annuler cette impression ? Toute la progression sera perdue."/>
   <translation tag="Are you sure? This will power off or restart this device." fr="Êtes-vous sûr ? Cela va éteindre ou redémarrer cet appareil."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" fr="Assigner des macros Klipper pour contrôler les LED via on/off, bascule ou préréglages"/>
@@ -857,6 +859,7 @@
   <translation tag="Failed to analyze PRINT_START macro" fr="Échec de l&apos;analyse de la macro PRINT_START"/>
   <translation tag="Failed to apply limits" fr="Échec de l&apos;application des limites"/>
   <translation tag="Failed to apply settings" fr="Échec de l&apos;application des paramètres"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" fr="Échec de la construction des données raster"/>
   <translation tag="Failed to cancel: {}" fr="Échec de l&apos;annulation : {}"/>
   <translation tag="Failed to clear print state: {}" fr="Échec de l&apos;effacement de l&apos;état d&apos;impression : {}"/>
@@ -1223,6 +1226,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" fr="Index de modèle de feuille invalide : {} (sur {})"/>
   <translation tag="Invalid status response from printer" fr="Réponse détat invalide de limprimante"/>
   <translation tag="Issue description" fr="Description du problème"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" fr="C&apos;est une nouvelle bobine"/>
   <translation tag="Jammed at the Toolhead" fr="Bourrage à la tête d&apos;outil"/>
   <translation tag="Job Queue" fr="File d&apos;impression"/>
@@ -2301,6 +2305,7 @@
   <translation tag="Spool #{}" fr="Bobine #{}"/>
   <translation tag="Spool Info" fr="Info bobine"/>
   <translation tag="Spool Weight (g)" fr="Poids de la bobine (g)"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" fr="Bobine créée avec succès"/>
   <translation tag="Spool deleted" fr="Bobine supprimée"/>
   <translation tag="Spool motor" fr="Moteur de bobine"/>

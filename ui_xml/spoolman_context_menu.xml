@@ -46,6 +46,13 @@
                  style_flex_main_place="start">
         <event_cb trigger="clicked" callback="spoolman_context_duplicate_cb"/>
       </ui_button>
+      <!-- Archive Button -->
+      <ui_button name="btn_archive"
+                 width="100%" height="#button_height_sm" icon="archive_arrow_down" text="Archive"
+                 translation_tag="Archive" variant="ghost" clickable="true" focusable="false"
+                 style_flex_main_place="start">
+        <event_cb trigger="clicked" callback="spoolman_context_archive_cb"/>
+      </ui_button>
       <!-- Divider before destructive action -->
       <lv_obj width="100%"
               height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"/>

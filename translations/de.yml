@@ -220,6 +220,8 @@ translations:
   Apply Changes: Änderungen anwenden
   Applying Changes: Änderungen werden angewendet
   Applying...: Wird angewendet...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Sind Sie
     sicher, dass Sie diesen Druck abbrechen möchten? Der gesamte Fortschritt geht
     verloren.
@@ -965,6 +967,7 @@ translations:
   Failed to analyze PRINT_START macro: PRINT_START-Makro konnte nicht analysiert werden
   Failed to apply limits: Limits konnten nicht angewendet werden
   Failed to apply settings: Einstellungen konnten nicht angewendet werden
+  Failed to archive spool: ''
   Failed to build raster data: Rasterdaten konnten nicht erstellt werden
   'Failed to cancel: {}': 'Abbrechen fehlgeschlagen: {}'
   'Failed to clear print state: {}': 'Druckstatus konnte nicht zurückgesetzt werden:
@@ -1385,6 +1388,7 @@ translations:
     (vorhanden {})'
   Invalid status response from printer: Ungültige Statusantwort vom Drucker
   Issue description: Problembeschreibung
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: Es ist eine neue Spule
   Jammed at the Toolhead: Stau am Werkzeugkopf
   Job Queue: Auftragswarteschlange
@@ -2584,6 +2588,7 @@ translations:
   'Spool #{}': 'Spule #{}'
   Spool Info: Spuleninfo
   Spool Weight (g): Spulengewicht (g)
+  Spool archived: ''
   Spool created successfully: Spule erfolgreich erstellt
   Spool deleted: Spule gelöscht
   Spool motor: Spulenmotor

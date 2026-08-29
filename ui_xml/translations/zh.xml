@@ -195,6 +195,8 @@
   <translation tag="Apply Changes" zh="应用更改"/>
   <translation tag="Applying Changes" zh="正在应用更改"/>
   <translation tag="Applying..." zh="正在应用..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." zh="确定要取消此打印吗？所有进度将丢失。"/>
   <translation tag="Are you sure? This will power off or restart this device." zh="确定吗？这将关闭或重启此设备。"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" zh="分配 Klipper 宏通过开/关、切换或预设控制 LED"/>
@@ -857,6 +859,7 @@
   <translation tag="Failed to analyze PRINT_START macro" zh="分析 PRINT_START 宏失败"/>
   <translation tag="Failed to apply limits" zh="应用限制失败"/>
   <translation tag="Failed to apply settings" zh="应用设置失败"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" zh="构建栅格数据失败"/>
   <translation tag="Failed to cancel: {}" zh="取消失败: {}"/>
   <translation tag="Failed to clear print state: {}" zh="无法清除打印状态：{}"/>
@@ -1223,6 +1226,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" zh="标签纸模板索引无效: {} (实际有 {})"/>
   <translation tag="Invalid status response from printer" zh="打印机返回的状态响应无效"/>
   <translation tag="Issue description" zh="问题描述"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" zh="这是新料盘"/>
   <translation tag="Jammed at the Toolhead" zh="工具头处堵塞"/>
   <translation tag="Job Queue" zh="任务队列"/>
@@ -2301,6 +2305,7 @@
   <translation tag="Spool #{}" zh="线轴 #{}"/>
   <translation tag="Spool Info" zh="料盘信息"/>
   <translation tag="Spool Weight (g)" zh="料盘重量（克）"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" zh="料盘创建成功"/>
   <translation tag="Spool deleted" zh="料盘已删除"/>
   <translation tag="Spool motor" zh="料盘电机"/>

@@ -212,6 +212,8 @@ translations:
   Apply Changes: Применить изменения
   Applying Changes: Применение изменений
   Applying...: Применение...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Вы уверены,
     что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит
@@ -944,6 +946,7 @@ translations:
   Failed to analyze PRINT_START macro: Не удалось проанализировать макрос PRINT_START
   Failed to apply limits: Не удалось применить ограничения
   Failed to apply settings: Не удалось применить настройки
+  Failed to archive spool: ''
   Failed to build raster data: Не удалось построить растровые данные
   'Failed to cancel: {}': 'Не удалось отменить: {}'
   'Failed to clear print state: {}': 'Не удалось очистить состояние печати: {}'
@@ -1357,6 +1360,7 @@ translations:
     {} (имеется {})'
   Invalid status response from printer: Недопустимый ответ статуса от принтера
   Issue description: Описание проблемы
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: Это новая катушка
   Jammed at the Toolhead: Замятие в печатающей головке
   Job Queue: Очередь заданий
@@ -2547,6 +2551,7 @@ translations:
   'Spool #{}': 'Катушка #{}'
   Spool Info: Информация о катушке
   Spool Weight (g): Вес катушки (г)
+  Spool archived: ''
   Spool created successfully: Катушка успешно создана
   Spool deleted: Катушка удалена
   Spool motor: Мотор катушки

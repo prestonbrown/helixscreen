@@ -195,6 +195,8 @@
   <translation tag="Apply Changes" en="Apply Changes"/>
   <translation tag="Applying Changes" en="Applying Changes"/>
   <translation tag="Applying..." en="Applying..."/>
+  <translation tag="Archive" en="Archive"/>
+  <translation tag="Archive Spool?" en="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." en="Are you sure you want to cancel this print? All progress will be lost."/>
   <translation tag="Are you sure? This will power off or restart this device." en="Are you sure? This will power off or restart this device."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" en="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
@@ -857,6 +859,7 @@
   <translation tag="Failed to analyze PRINT_START macro" en="Failed to analyze PRINT_START macro"/>
   <translation tag="Failed to apply limits" en="Failed to apply limits"/>
   <translation tag="Failed to apply settings" en="Failed to apply settings"/>
+  <translation tag="Failed to archive spool" en="Failed to archive spool"/>
   <translation tag="Failed to build raster data" en="Failed to build raster data"/>
   <translation tag="Failed to cancel: {}" en="Failed to cancel: {}"/>
   <translation tag="Failed to clear print state: {}" en="Failed to clear print state: {}"/>
@@ -1223,6 +1226,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" en="Invalid sheet template index: {} (have {})"/>
   <translation tag="Invalid status response from printer" en="Invalid status response from printer"/>
   <translation tag="Issue description" en="Issue description"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
   <translation tag="Jammed at the Toolhead" en="Jammed at the Toolhead"/>
   <translation tag="Job Queue" en="Job Queue"/>
@@ -2301,6 +2305,7 @@
   <translation tag="Spool #{}" en="Spool #{}"/>
   <translation tag="Spool Info" en="Spool Info"/>
   <translation tag="Spool Weight (g)" en="Spool Weight (g)"/>
+  <translation tag="Spool archived" en="Spool archived"/>
   <translation tag="Spool created successfully" en="Spool created successfully"/>
   <translation tag="Spool deleted" en="Spool deleted"/>
   <translation tag="Spool motor" en="Spool motor"/>

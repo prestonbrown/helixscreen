@@ -195,6 +195,8 @@
   <translation tag="Apply Changes" ja="変更を適用"/>
   <translation tag="Applying Changes" ja="変更を適用中"/>
   <translation tag="Applying..." ja="適用中..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ja="この印刷をキャンセルしますか？すべての進行状況が失われます。"/>
   <translation tag="Are you sure? This will power off or restart this device." ja="よろしいですか？このデバイスの電源がオフまたは再起動されます。"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ja="Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御"/>
@@ -857,6 +859,7 @@
   <translation tag="Failed to analyze PRINT_START macro" ja="PRINT_START マクロの解析に失敗しました"/>
   <translation tag="Failed to apply limits" ja="制限の適用に失敗しました"/>
   <translation tag="Failed to apply settings" ja="設定の適用に失敗しました"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" ja="ラスターデータの構築に失敗しました"/>
   <translation tag="Failed to cancel: {}" ja="キャンセルに失敗しました: {}"/>
   <translation tag="Failed to clear print state: {}" ja="印刷状態をクリアできませんでした: {}"/>
@@ -1223,6 +1226,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" ja="無効なシートテンプレートインデックス: {} (現在 {})"/>
   <translation tag="Invalid status response from printer" ja="プリンターからの無効なステータス応答"/>
   <translation tag="Issue description" ja="問題の説明"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" ja="新しいスプールです"/>
   <translation tag="Jammed at the Toolhead" ja="ツールヘッドで詰まり"/>
   <translation tag="Job Queue" ja="ジョブキュー"/>
@@ -2301,6 +2305,7 @@
   <translation tag="Spool #{}" ja="スプール #{}"/>
   <translation tag="Spool Info" ja="スプール情報"/>
   <translation tag="Spool Weight (g)" ja="スプール重量（g）"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" ja="スプールを作成しました"/>
   <translation tag="Spool deleted" ja="スプールを削除しました"/>
   <translation tag="Spool motor" ja="スプールモーター"/>
