@@ -934,8 +934,9 @@ Delete the whole `color_requirements_card` block. Replace the `filament_mapping_
             </icon>
           </lv_obj>
           <lv_obj name="filament_mapping_rows"
-                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row_wrap"
-                  style_pad_top="#space_xs" scrollable="false" clickable="false" event_bubble="true">
+                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_main_place="center" style_pad_top="#space_xs" scrollable="false" clickable="false"
+                  event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
             <!-- Chips added dynamically in C++ (clickable=false + event_bubble=true
                  on filament_swatch) so a tap reaches this card. -->
@@ -945,7 +946,8 @@ Delete the whole `color_requirements_card` block. Replace the `filament_mapping_
           <!-- SIZE_OK: skeleton row height mirrors filament_mapping_rows' literal 32 -->
           <lv_obj name="mapping_skeleton"
                   width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_pad_top="#space_xs" scrollable="false" clickable="false" event_bubble="true">
+                  style_flex_main_place="center" style_pad_top="#space_xs" scrollable="false" clickable="false"
+                  event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
             <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
             <lv_obj width="40"
@@ -958,6 +960,11 @@ Delete the whole `color_requirements_card` block. Replace the `filament_mapping_
           </lv_obj>
         </ui_card>
 ```
+
+**Two requirements added after the plan was written — do not drop them when rewriting this block:**
+
+1. **Chips are CENTERED horizontally**, not left-aligned. Both `filament_mapping_rows` and `mapping_skeleton` carry `style_flex_main_place="center"`. The skeleton needs it too, or the placeholders sit left and visibly jump when `detail_mapping_ready` flips. Task 2 already applied both; this task must preserve them.
+2. **`flex_flow` is `row`, never `row_wrap`.** At a fixed `height="32"` a wrapped second row is clipped, and `options_section` is `height="100%" scrollable="false"` so the card cannot grow either. Overflow is handled by the cap plus the `+N` `filament_mapping_more_pill`, which Task 2 restored. **`ui_xml/components/filament_mapping_more_pill.xml` is NOT deleted by this task** — only `filament_mapping_pill.xml` is. Likewise `src/xml_registration.cpp` keeps the more_pill registration (~`:497`) and drops only the pill one (~`:496`).
 
 `filament_mapping_rows` gains a fixed `height="32"` (was `content`) because `filament_swatch` is `height="100%"` and needs a definite parent height, exactly as `color_swatches_row` provided. Keep whatever `filament_mapping_warning` child the old card had, unchanged.
 
