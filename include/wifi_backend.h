@@ -174,6 +174,19 @@ enum WiFiBandFlag : uint8_t {
 uint8_t wifi_band_flag_from_frequency(int frequency_mhz);
 
 /**
+ * @brief Map an RSSI in dBm onto the 0-100 percentage the UI displays
+ *
+ * -30 dBm reads as 100% (excellent), -90 dBm as 0% (unusable), linear in
+ * between, clamped at both ends. Declared here so the backends share one
+ * mapping instead of each hand-rolling a near-twin that silently drifts.
+ *
+ * @param dbm Signal strength in dBm (typically negative; positive or wildly
+ *            out-of-range values clamp rather than error)
+ * @return Signal strength percentage, 0-100
+ */
+int wifi_signal_percent_from_dbm(int dbm);
+
+/**
  * @brief Parse the output of `nmcli radio wifi` into a radio-on/off answer
  *
  * NetworkManager answers with a single word — "enabled" or "disabled" — and

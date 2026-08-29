@@ -3,6 +3,7 @@
 
 #include "../../include/netd_protocol.h"
 #include "hv/base64.h"
+#include "netd_test_server.h"
 
 #include <cstring>
 #include <fstream>
@@ -22,6 +23,7 @@ using helix::netd::Ack;
 using helix::netd::LineAssembler;
 using helix::netd::NetdSnapshot;
 using helix::netd::ScanRow;
+using helix_test::EnvVarGuard;
 
 namespace {
 
@@ -33,38 +35,6 @@ std::string b64(const std::string& raw) {
 std::string unb64(const std::string& encoded) {
     return hv::Base64Decode(encoded.c_str(), static_cast<unsigned int>(encoded.size()));
 }
-
-// Saves one environ entry on construction and restores it (set or unset) on
-// destruction, so a failed REQUIRE cannot leak a repointed HELIX_NETD_* into
-// the rest of the suite. available()/socket_path() read getenv() per call, so
-// these tests repoint the module within one process.
-class EnvVarGuard {
-  public:
-    explicit EnvVarGuard(const char* key) : key_(key) {
-        if (const char* v = ::getenv(key)) {
-            was_set_ = true;
-            saved_ = v;
-        }
-    }
-    ~EnvVarGuard() {
-        if (was_set_) {
-            ::setenv(key_.c_str(), saved_.c_str(), 1);
-        } else {
-            ::unsetenv(key_.c_str());
-        }
-    }
-    void set(const std::string& value) {
-        ::setenv(key_.c_str(), value.c_str(), 1);
-    }
-    void unset() {
-        ::unsetenv(key_.c_str());
-    }
-
-  private:
-    std::string key_;
-    std::string saved_;
-    bool was_set_ = false;
-};
 
 } // namespace
 

@@ -68,6 +68,7 @@ src/api/usb_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/api/usb_manager.cpp  # not in the v1 Core+AMS cut
 src/api/webcam_service_health.cpp  # camera service health; only consumer is the excluded discovery sequence
 src/api/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_saved_config.cpp  # not in the v1 Core+AMS cut

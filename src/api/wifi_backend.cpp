@@ -6,6 +6,7 @@
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
 
+#include <algorithm>
 #include <cctype>
 #include <unistd.h>
 #include <unordered_map>
@@ -38,6 +39,11 @@ uint8_t wifi_band_flag_from_frequency(int frequency_mhz) {
         return WIFI_BAND_6GHZ;
     }
     return WIFI_BAND_NONE;
+}
+
+int wifi_signal_percent_from_dbm(int dbm) {
+    // -30 dBm = 100% (excellent), -90 dBm = 0% (unusable)
+    return std::max(0, std::min(100, (dbm + 90) * 100 / 60));
 }
 
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output) {
