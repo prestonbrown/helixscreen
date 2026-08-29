@@ -32,6 +32,7 @@
 #include "ui_filament_mapping_card.h"
 
 #include "../mapping_card_render_fixture.h"
+#include "theme_manager.h"
 
 #include <optional>
 #include <set>
@@ -366,4 +367,84 @@ TEST_CASE("resolve_mapped_slot: a mapping that outlived its lane resolves to not
     ok.mapped_backend = 0;
     REQUIRE(helix::FilamentMapper::resolve_mapped_slot(ok, slots) == &slots[0]);
     CHECK(helix::FilamentMapper::mapped_lane_display_number(ok, slots) == 1);
+}
+
+// ============================================================================
+// Single-row truncation + "+N" overflow pill
+// ============================================================================
+
+TEST_CASE("chips_that_fit: capacity is what the row can actually hold",
+          "[filament][filament_mapping][mapping][overflow]") {
+    // Pure arithmetic at a 4px gap; space_xs is breakpoint-scaled, so the widths
+    // below are the two rows measured in the running app and the answers are the
+    // ones the app actually reported for them.
+    constexpr int32_t gap = 4;
+    // filament_mapping_rows is 181px at 480x272. Four 40px chips plus three gaps
+    // is 172; a fifth would need 216. The app reports 4 there.
+    CHECK(FilamentMappingCard::chips_that_fit(181, gap) == 4);
+    CHECK(FilamentMappingCard::chips_that_fit(172, gap) == 4);
+    CHECK(FilamentMappingCard::chips_that_fit(171, gap) == 3);
+    // 296px at 800x480: six chips need 260, seven need 304. The app reports 6.
+    CHECK(FilamentMappingCard::chips_that_fit(296, gap) == 6);
+
+    // A row too narrow for one chip still gets a slot — that slot carries the
+    // "+N" pill, which is the whole point of not silently dropping tools.
+    CHECK(FilamentMappingCard::chips_that_fit(10, gap) == 1);
+
+    // Layout has not settled: fall back to the floor, never to "everything".
+    CHECK(FilamentMappingCard::chips_that_fit(0, gap) == FilamentMappingCard::MIN_VISIBLE_CHIPS);
+    CHECK(FilamentMappingCard::chips_that_fit(-1, gap) == FilamentMappingCard::MIN_VISIBLE_CHIPS);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "A palette wider than the row truncates behind a +N pill",
+                 "[filament_mapping][overflow]") {
+    // The row does not wrap and does not scroll, so anything past the right edge
+    // is invisible. Six tools in a row that holds three must not quietly become
+    // three: the print uses all six, and the card has to say so.
+    //
+    // space_xs is breakpoint-dependent (4/5/6px), so read the real gap rather
+    // than assuming one; 140px holds exactly 3 chips at every one of those.
+    const int32_t gap = theme_manager_get_spacing("space_xs");
+    lv_obj_set_width(rows, 140);
+    lv_obj_set_style_pad_all(rows, 0, 0);
+    lv_obj_set_style_border_width(rows, 0, 0);
+    lv_obj_update_layout(rows);
+    REQUIRE(FilamentMappingCard::chips_that_fit(lv_obj_get_content_width(rows), gap) == 3);
+
+    card.update({"#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"},
+                {"PLA", "PETG", "PLA", "PETG", "PLA", "PETG"});
+    REQUIRE(card.should_show());
+
+    // Two chips plus the pill — the pill occupies a slot rather than being drawn
+    // past the edge, so overflowing costs a chip.
+    REQUIRE(lv_obj_get_child_count(rows) == 3);
+    lv_obj_t* const last = lv_obj_get_child(rows, 2);
+    REQUIRE(lv_obj_find_by_name(last, "top_band") == nullptr); // not a chip
+    lv_obj_t* const count = lv_obj_find_by_name(last, "count_label");
+    REQUIRE(count != nullptr);
+    CHECK(std::string(lv_label_get_text(count)) == "+4");
+
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "A palette that fits draws no overflow pill",
+                 "[filament_mapping][overflow]") {
+    // The complement: the pill must not appear when nothing is hidden, or every
+    // multi-tool print grows a "+0" that claims tools are missing.
+    lv_obj_set_width(rows, 300); // holds 6 chips at every space_xs value
+    lv_obj_set_style_pad_all(rows, 0, 0);
+    lv_obj_set_style_border_width(rows, 0, 0);
+    lv_obj_update_layout(rows);
+    REQUIRE(FilamentMappingCard::chips_that_fit(lv_obj_get_content_width(rows),
+                                                theme_manager_get_spacing("space_xs")) == 6);
+
+    card.update({"#FF0000", "#00FF00", "#0000FF"}, {"PLA", "PETG", "PLA"});
+    REQUIRE(lv_obj_get_child_count(rows) == 3);
+    for (uint32_t i = 0; i < 3; ++i) {
+        CHECK(lv_obj_find_by_name(lv_obj_get_child(rows, static_cast<int32_t>(i)), "top_band") !=
+              nullptr);
+    }
+
+    process_lvgl(100);
 }

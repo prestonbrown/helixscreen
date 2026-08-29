@@ -235,6 +235,29 @@ class FilamentMappingCard {
                                         std::vector<helix::ToolMapping>& mappings,
                                         const std::optional<std::set<int>>& used);
 
+    /// Fixed on-screen width of one chip, in pixels. Mirrors the width
+    /// `filament_swatch.xml` documents; set from C++ because a numeric width on a
+    /// component `<view>` root is not honoured by `lv_xml_create`.
+    static constexpr int32_t CHIP_WIDTH = 40;
+
+    /// Chips to assume fit before layout has settled and the row can be measured.
+    /// `filament_mapping_rows` measures 181px on the narrowest supported screen
+    /// (480x272), and holds 4 chips there for every `space_xs` the theme hands
+    /// out (the token is breakpoint-scaled: 2px at 480x272, 5px at 800x480), so 4
+    /// is the floor that is safe everywhere. Measured, not derived.
+    static constexpr size_t MIN_VISIBLE_CHIPS = 4;
+
+    /// How many chips fit in one row `content_width` px wide with `gap` px
+    /// between them; never less than 1.
+    ///
+    /// Pure/stateless. The chips are drawn in a single non-wrapping row of fixed
+    /// height, so everything past the right edge is clipped rather than wrapped —
+    /// the card caps what it draws at this number and summarises the remainder in
+    /// a "+N" pill. A non-positive width (layout not settled) yields
+    /// MIN_VISIBLE_CHIPS. Exposed static so the arithmetic is testable without
+    /// LVGL geometry.
+    [[nodiscard]] static size_t chips_that_fit(int32_t content_width, int32_t gap);
+
     /// Find a tool by its real gcode `.tool_index`, not by vector position.
     ///
     /// `tool_info` may be used-filtered (compacted), so position no longer

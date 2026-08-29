@@ -297,26 +297,34 @@
             </lv_obj>
           </lv_obj>
           <!-- height is FIXED, not "content": the filament_swatch chips inside are
-               height="100%" and collapse to zero in a content-height parent. -->
+               height="100%" and collapse to zero in a content-height parent. And
+               flex_flow is "row", not "row_wrap": at a fixed height a wrapped
+               second row is clipped, so the card caps the chips at what fits and
+               renders a "+N" pill for the rest (see rebuild_compact_view). -->
           <!-- SIZE_OK: row height mirrors color_swatches_row's literal 32 -->
           <lv_obj name="filament_mapping_rows"
-                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row_wrap"
-                  scrollable="false" clickable="false" event_bubble="true">
+                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
             <!-- Rows added dynamically in C++ -->
           </lv_obj>
-          <!-- Skeleton: two pill-shaped placeholders sized like real pills
-               (48% width pairs wrap like the pill row). Shown only until the
-               authoritative tool set exists — a cache hit never shows this. -->
+          <!-- Skeleton: two chip-sized placeholders (filament_swatch chips are
+               40 wide, full height of the 32px row) shown only until the
+               authoritative tool set exists — a cache hit never shows this.
+               Height, flow and alignment all mirror filament_mapping_rows above,
+               so nothing moves when detail_mapping_ready flips. -->
+          <!-- SIZE_OK: skeleton row height mirrors filament_mapping_rows' literal 32 -->
           <lv_obj name="mapping_skeleton"
-                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row_wrap"
-                  scrollable="false" clickable="false" event_bubble="true">
+                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
-            <lv_obj width="48%"
-                    height="44" style_radius="#space_lg" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
+            <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
+            <lv_obj width="40"
+                    height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
                     event_bubble="true"/>
-            <lv_obj width="48%"
-                    height="44" style_radius="#space_lg" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
+            <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
+            <lv_obj width="40"
+                    height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
                     event_bubble="true"/>
           </lv_obj>
         </ui_card>

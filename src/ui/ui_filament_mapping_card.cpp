@@ -253,14 +253,31 @@ void FilamentMappingCard::rebuild_compact_view() {
     // ui_xml/components/filament_swatch.xml — tune visuals without rebuilding.
     // C++ only supplies per-chip dynamic data: the two band colours, the Tx and
     // lane labels, the divider colour, and the empty-slot warning variant.
-    lv_obj_set_flex_flow(rows_container_, LV_FLEX_FLOW_ROW_WRAP);
+    const int32_t gap = theme_manager_get_spacing("space_xs");
+    lv_obj_set_flex_flow(rows_container_, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_flex_cross_place(rows_container_, LV_FLEX_ALIGN_CENTER, 0);
-    lv_obj_set_style_pad_gap(rows_container_, theme_manager_get_spacing("space_xs"), 0);
+    lv_obj_set_style_pad_gap(rows_container_, gap, 0);
 
-    const bool multi_tool = tool_info_.size() > 1;
+    // ONE row, and what runs past its right edge is clipped, not wrapped:
+    // filament_mapping_rows is flex_flow="row" at a fixed height with
+    // scrollable="false". So cap the chips at what actually fits and say so with
+    // a "+N" pill - dropping the rest silently would hide lanes the print uses.
+    // n chips occupy n*CHIP_W + (n-1)*gap, hence the (+ gap) on both sides.
+    const int32_t avail = lv_obj_get_content_width(rows_container_);
+    const size_t capacity = chips_that_fit(avail, gap);
+
+    // The "+N" pill takes one of the slots rather than being drawn past the edge,
+    // so overflowing costs a chip.
+    const size_t tool_count = tool_info_.size();
+    const bool overflow = tool_count > capacity;
+    const size_t visible = overflow ? capacity - 1 : tool_count;
+    spdlog::debug("[FilamentMapping] Row {}px fits {} chip(s); {} tool(s) -> {} shown{}", avail,
+                  capacity, tool_count, visible, overflow ? " + overflow pill" : "");
+
+    const bool multi_tool = tool_count > 1;
     const lv_color_t neutral = theme_manager_get_color("text_muted");
 
-    for (size_t i = 0; i < tool_info_.size(); ++i) {
+    for (size_t i = 0; i < visible; ++i) {
         const auto& tool = tool_info_[i];
         auto* chip =
             static_cast<lv_obj_t*>(lv_xml_create(rows_container_, "filament_swatch", nullptr));
@@ -271,7 +288,7 @@ void FilamentMappingCard::rebuild_compact_view() {
         // is not honoured by lv_xml_create (only "content"/"%"), and the band
         // labels use flex_grow (which contributes 0 to content width), so without
         // this the whole chip collapses to 0.
-        lv_obj_set_width(chip, 40); // DECLARATIVE_OK: lv_xml_create width limitation
+        lv_obj_set_width(chip, CHIP_WIDTH); // DECLARATIVE_OK: lv_xml_create width limitation
 
         // mappings_ is built parallel to tool_info_ and compacted in lockstep by
         // apply_used_tools_filter, so index i is this tool's mapping. Fall back to
@@ -355,6 +372,21 @@ void FilamentMappingCard::rebuild_compact_view() {
                 divider,
                 theme_manager_get_contrast_color(lv_color_mix(top_color, slot_color, LV_OPA_50)),
                 0); // DECLARATIVE_OK: see above
+        }
+    }
+
+    if (overflow) {
+        if (auto* more = static_cast<lv_obj_t*>(
+                lv_xml_create(rows_container_, "filament_mapping_more_pill", nullptr))) {
+            // Same 40px slot as a chip - the capacity arithmetic above counted it
+            // as one - and the row's full height, since the row is fixed-height
+            // and the component is content-sized.
+            lv_obj_set_width(more, CHIP_WIDTH); // DECLARATIVE_OK: see the chip width above
+            lv_obj_set_height(more, lv_pct(100));
+            if (auto* lbl = lv_obj_find_by_name(more, "count_label")) {
+                const size_t hidden = tool_count - visible;
+                lv_label_set_text_fmt(lbl, "+%zu", hidden); // DECLARATIVE_OK: see above
+            }
         }
     }
 
@@ -458,6 +490,20 @@ FilamentMappingCard::build_tool_info(const std::vector<std::string>& colors,
     }
 
     return tools;
+}
+
+size_t FilamentMappingCard::chips_that_fit(int32_t content_width, int32_t gap) {
+    // Layout has not settled on the very first render, so the width reads 0 (or
+    // negative once padding is subtracted). Fall back to the floor rather than
+    // to "everything": drawing past the right edge is what silently loses lanes.
+    if (content_width <= 0) {
+        return MIN_VISIBLE_CHIPS;
+    }
+    // n chips occupy n*CHIP_WIDTH + (n-1)*gap, hence the (+ gap) on both sides.
+    const int32_t n = (content_width + gap) / (CHIP_WIDTH + gap);
+    // Always offer one slot: a row too narrow for a single chip still has to show
+    // the "+N" pill rather than nothing at all.
+    return static_cast<size_t>(std::max<int32_t>(1, n));
 }
 
 void FilamentMappingCard::apply_used_tools_filter(std::vector<helix::GcodeToolInfo>& tool_info,

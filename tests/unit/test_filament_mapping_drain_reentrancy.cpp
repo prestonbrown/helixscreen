@@ -90,5 +90,8 @@ TEST_CASE_METHOD(MappingCardFixture,
 
     REQUIRE(rows != nullptr);
     REQUIRE(lv_obj_is_valid(rows));
-    REQUIRE(lv_obj_get_style_flex_flow(rows, LV_PART_MAIN) == LV_FLEX_FLOW_ROW_WRAP);
+    // ROW, not ROW_WRAP: the chips live in one fixed-height row, so a wrapped
+    // second row would be clipped rather than shown - rebuild_compact_view caps
+    // them at what fits and renders a "+N" pill for the rest instead.
+    REQUIRE(lv_obj_get_style_flex_flow(rows, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
 }
