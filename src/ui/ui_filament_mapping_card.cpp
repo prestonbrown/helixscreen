@@ -114,10 +114,21 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     // multi-tool printer any referenced tool is worth showing (lane identity
     // matters); on a single extruder it takes 2+ tools to be a manual-swap
     // multi-colour file rather than an ordinary single-colour print.
+    //
+    // print_lane_requirement() (shared with the bypass gate above) is reused
+    // rather than a hand-written used_tools_->size() : tool_info_.size()
+    // fallback — every OTHER reader of used_tools_ in this class treats an
+    // empty set as "no answer, show all" (the bypass gate above,
+    // apply_used_tools_filter()'s documented contract), and a second,
+    // divergent copy of "empty means fall back to the palette count" is
+    // exactly the drift this merge exists to remove. An empty set is not a
+    // not-yet-computed sentinel either — PrintSelectDetailView persists a
+    // successful zero-tool scan as a legitimate single-extruder answer.
     const int ams_slots = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
     const bool is_multi_tool_printer =
         helix::ToolState::instance().is_multi_tool() || ams_slots > 1;
-    const size_t tool_count = used_tools_ ? used_tools_->size() : tool_info_.size();
+    const size_t tool_count = helix::print_lane_requirement(
+        used_tools_ ? *used_tools_ : std::set<int>{}, tool_info_.size());
     if (!(is_multi_tool_printer ? tool_count > 0 : tool_count > 1)) {
         should_show_ = false;
         return;
@@ -128,9 +139,9 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     available_slots_ = AmsState::instance().collect_available_slots();
 
     // Seed through the shared rule. Reads the EFFECTIVE auto-match predicate, not
-    // the raw setting this used to read - identical wherever the card is shown
-    // (it is hidden on the non-editable backends where the two differ) and
-    // correct if that ever changes.
+    // the raw setting this used to read - correct on every backend the card now
+    // shows on, because AmsState::effective_auto_match() itself deliberately
+    // overrides the raw setting on backends (Snapmaker U1) where the two differ.
     mappings_ = AmsState::instance().seed_tool_mappings(tool_info_, available_slots_);
 
     // Restrict to the tools the gcode actually uses. update() rebuilds from the

@@ -14,7 +14,11 @@
  *
  * The two gates that MUST survive the merge are pinned here too: the bypass
  * single-lane suppression (a K2 user printed off the bypass spool after reading
- * a chip as a lane claim) and the single-extruder tools>1 rule.
+ * a chip as a lane claim) and BOTH halves of the multi-tool-printer-aware
+ * tool-count rule (any tool on a multi-tool printer, 2+ tools on a single
+ * extruder) - the single-extruder half via SingleExtruderMappingCardFixture,
+ * which forces a genuine 1-tool ToolState topology rather than relying on
+ * whatever the shared 4-slot AmsBackendMock fixture happens to report.
  */
 
 #include "ui_filament_mapping_card.h"
@@ -23,6 +27,8 @@
 #include "../mapping_card_render_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "printer_discovery.h"
+#include "tool_state.h"
 
 #include <memory>
 #include <set>
@@ -31,6 +37,38 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::ui::FilamentMappingCard;
+
+namespace {
+
+/// Forces ToolState into a genuine single-extruder topology (tool_count()==1,
+/// is_multi_tool()==false), independent of whatever a prior test file left the
+/// global ToolState singleton (a Meyers singleton, so its state otherwise
+/// survives across the whole binary) holding. Slot count 1 on the AMS side
+/// makes the `ams_slots > 1` half of is_multi_tool_printer false too, so both
+/// halves of the OR are pinned rather than just one.
+///
+/// init_tools()/deinit_subjects() sequencing mirrors the established pattern
+/// in test_tool_switcher_print_gate.cpp. The object list omits any
+/// "toolchanger"/"tool T*" entry and reports exactly one "extruder" heater, so
+/// PrinterDiscovery takes ToolState::init_tools()'s "no tool changer" branch
+/// and builds exactly one tool.
+struct SingleExtruderMappingCardFixture : MappingCardRenderFixture {
+    SingleExtruderMappingCardFixture() : MappingCardRenderFixture(/*slot_count=*/1) {
+        helix::ToolState::instance().deinit_subjects();
+        helix::ToolState::instance().init_subjects(false);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed", "gcode_move"}));
+        helix::ToolState::instance().init_tools(hw);
+        REQUIRE(helix::ToolState::instance().tool_count() == 1);
+        REQUIRE_FALSE(helix::ToolState::instance().is_multi_tool());
+    }
+
+    ~SingleExtruderMappingCardFixture() override {
+        helix::ToolState::instance().deinit_subjects();
+    }
+};
+
+} // namespace
 
 TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows on a backend whose mapping is not editable",
                  "[filament_mapping][visibility]") {
@@ -57,12 +95,9 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Card hides a single-lane print while
 
 TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows a single-tool file on a multi-tool printer",
                  "[filament_mapping][visibility]") {
-    // The reachable half of the tool-count rule moved from
+    // The multi-tool half of the tool-count rule moved from
     // swatches_card_visible_for(): on a multi-tool printer ANY referenced tool
     // is worth showing, because which lane it routes to is the whole question.
-    // (The single-extruder tools>1 branch needs a 1-slot backend the 4-slot mock
-    // cannot present; it is covered by Task 5's manual verification instead of a
-    // test that cannot fail.)
     card.set_used_tools(std::set<int>{0});
     card.update({"#FF0000"}, {"PLA"});
     CHECK(card.should_show());
@@ -71,17 +106,42 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows a single-tool file on a m
 }
 
 TEST_CASE_METHOD(MappingCardRenderFixture,
-                 "Card hides a used-tools count of zero on a multi-tool printer",
+                 "An explicit empty used-tools set does not hide the card",
                  "[filament_mapping][visibility]") {
-    // The hide side of the same rule, distinct from the pre-existing
-    // tool_info_.empty() gate above it: gcode_colors below is non-empty, so
-    // tool_info_ is non-empty too, and only the moved tool-count rule can be
-    // hiding the card here. An explicit EMPTY set (not nullopt) is what reaches
-    // it — apply_used_tools_filter treats both as "no filter", but the count
-    // rule reads used_tools_->size() directly, so a real zero-tool answer (as
-    // opposed to "not computed yet") still hides a multi-tool-printer card.
+    // Pins the fix for a real regression this task introduced and review
+    // caught: the tool-count rule originally read used_tools_->size()
+    // directly, so an explicit (non-nullopt) EMPTY set forced tool_count to 0
+    // and hid the card even with a non-empty tool_info_ — unlike every other
+    // reader of used_tools_ in this class (the bypass gate above,
+    // apply_used_tools_filter()'s documented contract), which treats an empty
+    // set as "no answer, show all". The fix reuses print_lane_requirement(),
+    // which has that same fallback built in, so this must SHOW.
     card.set_used_tools(std::set<int>{});
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    CHECK(card.should_show());
+    CHECK(lv_obj_get_child_count(rows) == 2);
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(SingleExtruderMappingCardFixture,
+                 "Card hides a single tool on a single-extruder printer",
+                 "[filament_mapping][visibility]") {
+    // The single-extruder half of the same rule: an ordinary one-colour print
+    // uses exactly one tool, which is not worth a lane-mapping card when there
+    // is no lane to route it through.
+    card.update({"#FF0000"}, {"PLA"});
     CHECK_FALSE(card.should_show());
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(SingleExtruderMappingCardFixture,
+                 "Card shows two tools on a single-extruder printer",
+                 "[filament_mapping][visibility]") {
+    // 2+ tools on a single extruder is a manual-swap multi-colour file, not an
+    // ordinary single-colour print — the KEEP half of the rule this task's
+    // brief named as the failure mode of the merge.
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    CHECK(card.should_show());
+    CHECK(lv_obj_get_child_count(rows) == 2);
     process_lvgl(100);
 }

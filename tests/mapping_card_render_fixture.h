@@ -33,14 +33,18 @@ struct MappingCardRenderFixture : LVGLUITestFixture {
     lv_obj_t* warning = nullptr;
     AmsBackendMock* mock = nullptr;
 
-    MappingCardRenderFixture() {
+    /// @param slot_count AMS backend slot count. Defaults to 4, matching every
+    ///        existing caller, so this stays default-constructible; a derived
+    ///        fixture can pass 1 to force the single-slot case the
+    ///        multi-tool-vs-single-extruder visibility rule branches on.
+    explicit MappingCardRenderFixture(int slot_count = 4) {
         // AmsState subjects must exist before backend events fire; the base
         // fixture already initialized PrinterState's (the init order
         // subject_initializer.cpp enforces in production).
         auto& ams = AmsState::instance();
         ams.init_subjects(false);
 
-        auto owned = std::make_unique<AmsBackendMock>(4);
+        auto owned = std::make_unique<AmsBackendMock>(slot_count);
         mock = owned.get();
         mock->set_operation_delay(0);
         ams.set_backend(std::move(owned));
