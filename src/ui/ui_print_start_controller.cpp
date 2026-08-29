@@ -184,7 +184,7 @@ void PrintStartController::execute_print_start() {
     // Apply filament remaps if user changed any mappings
     bool remaps_applied = apply_filament_remaps();
     if (remaps_applied) {
-        observe_print_state_for_restore();
+        observe_lifecycle_for_restore();
     }
 
     // Timelapse application now lives SOLELY in
@@ -773,29 +773,38 @@ bool PrintStartController::apply_filament_remaps() {
     return false;
 }
 
-void PrintStartController::observe_print_state_for_restore() {
-    // RAW_PRINT_STATE_OK: restores the filament mapping on a TERMINAL state,
-    // which the wire reports directly.
-    auto* subject = printer_state_.get_print_state_enum_subject();
+void PrintStartController::observe_lifecycle_for_restore() {
+    auto* subject = printer_state_.get_print_lifecycle_subject();
     if (!subject) {
-        spdlog::warn("[PrintStartController] No print state subject — cannot auto-restore mapping");
+        spdlog::warn("[PrintStartController] No print lifecycle subject, cannot auto-restore "
+                     "mapping");
         return;
     }
 
-    // Note: observe_int_sync fires immediately with the current value.
-    // At registration time, state is typically STANDBY (print hasn't started yet).
-    // We only trigger restore on terminal states (COMPLETE/CANCELLED/ERROR),
-    // NOT STANDBY — otherwise the immediate fire would undo our remaps.
-    print_state_observer_ = observe_print_state<PrintStartController>(
-        subject, this, [](PrintStartController* self, PrintJobState state) {
-            if (state == PrintJobState::COMPLETE || state == PrintJobState::CANCELLED ||
-                state == PrintJobState::ERROR) {
+    // The observer fires on attach, and registration happens BEFORE start_now
+    // calls begin_preparing(), so even the derived lifecycle can still hold
+    // the PREVIOUS job's terminal value (Moonraker leaves print_stats.state
+    // terminal for the whole preparing window). Terminal states are ignored
+    // until THIS print has been observed live: the latch arms on Preparing/
+    // Printing/Paused, and the terminal value that follows can only be this
+    // job's end (#1386).
+    print_active_since_remap_ = false;
+    print_state_observer_ = observe_print_lifecycle<PrintStartController>(
+        subject, this, [](PrintStartController* self, PrintState state) {
+            if (job_holds_machine(state)) {
+                self->print_active_since_remap_ = true;
+                return;
+            }
+            if (self->print_active_since_remap_ &&
+                (state == PrintState::Complete || state == PrintState::Cancelled ||
+                 state == PrintState::Error)) {
+                self->print_active_since_remap_ = false;
                 self->restore_filament_mapping();
                 self->print_state_observer_.reset();
             }
         });
 
-    spdlog::debug("[PrintStartController] Observing print state for mapping restore");
+    spdlog::debug("[PrintStartController] Observing print lifecycle for mapping restore");
 }
 
 void PrintStartController::observe_klippy_state_for_restore() {
@@ -1058,9 +1067,10 @@ void PrintStartController::recover_pending_remap() {
         // If a print is still active, the user's remap is still LOAD-BEARING —
         // reverting now would silently swap filament routing under a running
         // print. Defer the restore until the print reaches a terminal state.
-        // observe_print_state_for_restore registers an observer that fires
-        // restore_filament_mapping on COMPLETE/CANCELLED/ERROR; the immediate-
-        // fire on the current PRINTING/PAUSED value is a no-op there.
+        // observe_lifecycle_for_restore registers an observer that arms on
+        // the first live lifecycle value and fires restore_filament_mapping on
+        // the terminal value that follows, so the attach-fire on the current
+        // PRINTING/PAUSED value arms it rather than firing early.
         auto current_state = static_cast<PrintJobState>(
             // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
             // while a job runs; a preparing job has no mapping to restore.
@@ -1076,7 +1086,7 @@ void PrintStartController::recover_pending_remap() {
                          "deferring restore until print ends",
                          saved_tool_mapping_.size(), saved_backend_index_,
                          static_cast<int>(current_state));
-            observe_print_state_for_restore();
+            observe_lifecycle_for_restore();
         } else {
             spdlog::info("[PrintStartController] Crash recovery: found pending remap "
                          "({} tools, backend {}) — restoring",

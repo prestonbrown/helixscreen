@@ -30,6 +30,7 @@
 #include "ams_state.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "print_job_ref.h"
 #include "printer_state.h"
 #include "slot_registry.h"
 
@@ -137,6 +138,15 @@ struct Harness {
         // deferred-restore observer only runs on a drain. Skipping it makes the
         // retry look like it never fired.
         ps.set_klippy_state_sync(state);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    /// Drive print_stats through the real parse the way Moonraker deltas do.
+    /// Hand-writing the subjects would skip publish_lifecycle_state(), whose
+    /// derivation is exactly what the #1386 tests exercise.
+    void report(const std::string& job_state, const std::string& filename) {
+        nlohmann::json status = {{"print_stats", {{"state", job_state}, {"filename", filename}}}};
+        ps.update_from_status(status);
         helix::ui::UpdateQueue::instance().drain();
     }
 };
@@ -247,6 +257,80 @@ TEST_CASE("remap restore: deferred restore fires when Klipper becomes ready",
     h.set_klippy(KlippyState::READY);
 
     CHECK(be.backend->calls.size() == 2);
+    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+}
+
+// ============================================================================
+// #1386: registration must not read the PREVIOUS job's terminal state.
+//
+// execute_print_start() registers the restore observer BEFORE start_now calls
+// begin_preparing(), and Moonraker leaves print_stats.state on the finished
+// job for the whole preparing window. The observer fires on attach, so the
+// old code saw the stale terminal value and reverted the remaps ~150ms after
+// sending them.
+// ============================================================================
+
+TEST_CASE("remap restore: previous job's terminal state does not revert fresh remaps",
+          "[remap-restore][1386]") {
+    LVGLTestFixture fx;
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    // The previous job finished; print_stats still says so, and this job's
+    // preparing window has not opened, which is exactly what the controller
+    // sees between apply_filament_remaps() and start_now.
+    h.report("complete", "previous.gcode");
+    REQUIRE(lv_subject_get_int(h.ps.get_print_lifecycle_subject()) ==
+            static_cast<int>(PrintState::Complete));
+
+    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
+    PrintStartControllerTestAccess::observe_for_restore(h.controller);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The remaps just sent must survive the observer's attach-fire.
+    CHECK(be.backend->calls.empty());
+    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+}
+
+TEST_CASE("remap restore: latch arms when this job goes live, fires at its end",
+          "[remap-restore][1386]") {
+    LVGLTestFixture fx;
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    // Same stale-terminal registration as above: nothing may fire yet.
+    h.report("complete", "previous.gcode");
+    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
+    PrintStartControllerTestAccess::observe_for_restore(h.controller);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(be.backend->calls.empty());
+
+    // start_now runs: the preparing window opens and the derived lifecycle
+    // becomes Preparing, which must ARM the latch rather than fire on the
+    // stale terminal wire state still sitting underneath it.
+    h.ps.begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(lv_subject_get_int(h.ps.get_print_lifecycle_subject()) ==
+            static_cast<int>(PrintState::Preparing));
+    CHECK(be.backend->calls.empty());
+
+    // The printer takes the job. The name lands while the wire is still
+    // terminal (Moonraker deltas), so the state flip below retires the
+    // preparing claim as Confirmed, exactly as a real start does.
+    h.report("complete", "next.gcode");
+    h.report("printing", "next.gcode");
+    CHECK(be.backend->calls.empty());
+
+    // ...and when THIS job ends, the restore finally goes out.
+    h.report("complete", "next.gcode");
+
+    REQUIRE(be.backend->calls.size() == 2);
+    CHECK(be.backend->calls[0].tool == 0);
+    CHECK(be.backend->calls[0].slot == 2);
+    CHECK(be.backend->calls[1].tool == 1);
+    CHECK(be.backend->calls[1].slot == 1);
     CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
 }
 

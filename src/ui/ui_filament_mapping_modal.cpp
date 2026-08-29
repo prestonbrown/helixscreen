@@ -270,7 +270,7 @@ void FilamentMappingModal::on_row_tapped(int tool_index) {
     const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
     const auto& mapping = mappings_[static_cast<size_t>(tool_index)];
 
-    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool_index);
+    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool.tool_index);
 
     FilamentSlotPicker::Selection current{mapping.mapped_slot, mapping.mapped_backend,
                                           mapping.is_auto};
@@ -307,8 +307,9 @@ void FilamentMappingModal::on_slot_selected(int tool_index,
         }
     }
 
-    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}", tool_index,
-                 selection.is_auto, selection.slot_index, selection.backend_index);
+    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}",
+                 tool_info_[static_cast<size_t>(tool_index)].tool_index, selection.is_auto,
+                 selection.slot_index, selection.backend_index);
 
     // Rebuild UI to reflect changes
     rebuild_rows();
