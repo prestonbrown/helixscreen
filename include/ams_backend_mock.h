@@ -526,9 +526,10 @@ class AmsBackendMock : public AmsBackend {
      * @brief Set Snapmaker U1 SnapSwap mode (4 slots, PARALLEL, NON-editable
      *        tool mapping, SnapmakerNative remap strategy).
      *
-     * Mirrors AmsBackendSnapmaker so the editable FilamentMappingCard hides and
-     * the print-detail color_swatches_row renders the two-tone chips, exactly as
-     * on the device. Test/dev only (gated by HELIX_MOCK_AMS=snapmaker).
+     * Mirrors AmsBackendSnapmaker: the FilamentMappingCard still renders its
+     * two-tone chips, but the mapping is not editable inline and a tap opens
+     * the native remap picker, exactly as on the device. Test/dev only (gated
+     * by HELIX_MOCK_AMS=snapmaker).
      */
     void set_snapmaker_mode(bool enabled);
 

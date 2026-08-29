@@ -25,8 +25,11 @@ namespace helix::ui {
  * (`should_show()`); the print detail view publishes that on a subject the
  * XML binds via `bind_flag_if_eq` — see print_file_detail.xml's
  * `filament_mapping_visible` binding. Card visible iff AMS/toolchanger is
- * detected AND the file uses at least one tool AND at least one backend
- * advertises editable tool-mapping capabilities.
+ * detected AND bypass is not suppressing a single-lane print AND the file
+ * uses enough tools to be worth showing (any tool on a multi-tool printer,
+ * 2+ on a single extruder) — see should_show(). Whether tapping the card
+ * opens anything is a separate question, editable or not: see
+ * PrintSelectDetailView::color_card_opens_remap().
  */
 class FilamentMappingCard {
   public:
@@ -49,12 +52,17 @@ class FilamentMappingCard {
     /**
      * @brief Update with new file data + current AMS state
      *
-     * Caches whether the card should be visible (`should_show()`), based on
-     * AMS availability AND the file having at least one tool. Computes
-     * default mappings via FilamentMapper::compute_defaults().
+     * Caches whether the card should be visible (`should_show()`) by running
+     * `recompute_visibility()` - AMS availability, the bypass single-lane rule,
+     * and the multi-tool-vs-single-extruder tool-count rule, all of which read
+     * the current used-tool set. Computes default mappings via
+     * FilamentMapper::compute_defaults().
      *
-     * The detail view is responsible for publishing the cached state onto
-     * the `filament_mapping_visible` subject after this call returns.
+     * **The caller must publish `should_show()` onto the
+     * `filament_mapping_visible` subject after this returns.** The card never
+     * touches a subject itself. `set_used_tools()` carries the same obligation
+     * - it is the other entry point that re-decides visibility - so a caller
+     * that runs both publishes once, after the later of the two.
      *
      * @param gcode_colors Per-tool hex color strings (e.g., "#FF0000")
      * @param gcode_materials Per-tool material strings (e.g., "PLA")
@@ -67,6 +75,11 @@ class FilamentMappingCard {
      * WITHOUT recomputing tool->slot mappings — preserves the user's manual
      * remap and the auto assignment. Used by the detail view's live AMS-change
      * handler.
+     *
+     * Visibility is NOT re-decided here (nothing it refreshes is an input to
+     * the rule), so unlike update() and set_used_tools() this needs no publish.
+     * It does honour the current answer: a card whose `should_show()` is false
+     * ends up with no chips rather than a hidden set of stale ones.
      */
     void refresh_slot_data();
 
@@ -81,12 +94,24 @@ class FilamentMappingCard {
      * Recompacts the card's `tool_info_` / `mappings_` in lockstep to the
      * entries whose `.tool_index` is in `used` (preserving order and the real
      * `.tool_index` used for the "T%d" label), then rebuilds the compact view.
-     * Mappings-preserving — no recompute (mirrors refresh_slot_data).
+     * The tool→slot MAPPINGS are preserved — no re-seed (mirrors
+     * refresh_slot_data), so a user's manual remap survives.
      *
-     * `nullopt` OR an empty set ⇒ no filter (show all). This is the safety
-     * rule: it avoids blanking the card pre-parse, and avoids the headless
-     * single-extruder case (where the used set is empty forever) hiding
-     * everything.
+     * **VISIBILITY IS RE-DECIDED, and the caller must publish it.** `used` is an
+     * input to both lane-count rules in `recompute_visibility()`, so the precise
+     * set arriving here can flip the answer `update()` could only reach from the
+     * slicer palette: a bypassed print of a 3-colour file that really uses one
+     * tool wants ONE lane, and the bypass rule hides the card for it. A caller
+     * that skips the publish leaves `filament_mapping_visible` describing the
+     * palette's answer while the card describes the file's — silently, because
+     * nothing about the widget tree looks wrong. `PrintSelectDetailView` does
+     * this from `publish_card_visibility()`, called AFTER every
+     * `set_used_tools()`.
+     *
+     * `nullopt` OR an empty set ⇒ no filter (show all), and the same fallback
+     * inside the visibility rules. This is the safety rule: it avoids blanking
+     * the card pre-parse, and avoids the headless single-extruder case (where
+     * the used set is empty forever) hiding everything.
      */
     void set_used_tools(std::optional<std::set<int>> used);
 
@@ -98,16 +123,19 @@ class FilamentMappingCard {
     }
 
     /**
-     * @brief Replace the current tool→slot mappings.
+     * @brief Replace the current tool→slot mappings and repaint.
      *
-     * Stores the provided mappings into the card's internal store and fires
-     * on_mappings_changed_ so downstream consumers (color sync, pre-flight gate)
-     * re-evaluate. Used by the U1 native-remap flow, where the inline card
-     * widget is hidden but its mappings_ store still feeds get_effective_remap()
-     * and recompute_preflight(). Safe to call when widgets are not created.
+     * The single mapping-store writer. Stores, re-renders the chips, then fires
+     * on_mappings_changed_ so downstream consumers (preview colours, pre-flight
+     * gate) re-evaluate. The repaint is not optional: the lane number inside each
+     * chip is written imperatively during rebuild_compact_view(), so a store
+     * without a rebuild leaves the pre-remap lane on screen while the print runs
+     * the new one. Safe to call before create() — rebuild_compact_view() returns
+     * early when rows_container_ is null.
      */
     void set_mappings(std::vector<helix::ToolMapping> mappings) {
         mappings_ = std::move(mappings);
+        rebuild_compact_view();
         if (on_mappings_changed_) {
             on_mappings_changed_();
         }
@@ -167,8 +195,14 @@ class FilamentMappingCard {
     /**
      * @brief Whether the card should be visible after the latest `update()`
      *
-     * True iff AMS is available, at least one backend advertises editable
-     * tool-mapping capabilities, and the file declares at least one tool.
+     * True iff AMS is available, bypass is not suppressing a single-lane
+     * print, the file declares at least one tool, and the tool count clears
+     * the multi-tool-printer-aware floor (any tool on a multi-tool printer,
+     * 2+ tools on a single extruder). No longer gated on any backend's tool
+     * mapping being editable — a second surface used to draw the chips on
+     * non-editable backends (Snapmaker U1, ACE); it is gone, so hiding here
+     * would show the user nothing. Whether a tap does anything is a separate
+     * question, answered by PrintSelectDetailView::color_card_opens_remap().
      */
     [[nodiscard]] bool should_show() const {
         return should_show_;
@@ -232,6 +266,29 @@ class FilamentMappingCard {
                                         std::vector<helix::ToolMapping>& mappings,
                                         const std::optional<std::set<int>>& used);
 
+    /// Fixed on-screen width of one chip, in pixels. Mirrors the width
+    /// `filament_swatch.xml` documents; set from C++ because a numeric width on a
+    /// component `<view>` root is not honoured by `lv_xml_create`.
+    static constexpr int32_t CHIP_WIDTH = 40;
+
+    /// Chips to assume fit before layout has settled and the row can be measured.
+    /// `filament_mapping_rows` measures 181px on the narrowest supported screen
+    /// (480x272), and holds 4 chips there for every `space_xs` the theme hands
+    /// out (the token is breakpoint-scaled: 2px at 480x272, 5px at 800x480), so 4
+    /// is the floor that is safe everywhere. Measured, not derived.
+    static constexpr size_t MIN_VISIBLE_CHIPS = 4;
+
+    /// How many chips fit in one row `content_width` px wide with `gap` px
+    /// between them; never less than 1.
+    ///
+    /// Pure/stateless. The chips are drawn in a single non-wrapping row of fixed
+    /// height, so everything past the right edge is clipped rather than wrapped —
+    /// the card caps what it draws at this number and summarises the remainder in
+    /// a "+N" pill. A non-positive width (layout not settled) yields
+    /// MIN_VISIBLE_CHIPS. Exposed static so the arithmetic is testable without
+    /// LVGL geometry.
+    [[nodiscard]] static size_t chips_that_fit(int32_t content_width, int32_t gap);
+
     /// Find a tool by its real gcode `.tool_index`, not by vector position.
     ///
     /// `tool_info` may be used-filtered (compacted), so position no longer
@@ -253,6 +310,25 @@ class FilamentMappingCard {
     lv_obj_t* warning_container_ = nullptr;
 
     bool should_show_ = false; ///< Cached visibility intent — see should_show()
+    /// Palette sizes from the last update(), kept so set_used_tools() can re-run
+    /// the visibility rule without a palette in hand. Deliberately NOT read off
+    /// tool_info_, whose size apply_used_tools_filter() shrinks. The two differ
+    /// when a slicer reports materials and no colours (OrcaSlicer on a K2 Plus),
+    /// and the two gates ask different questions, so both are kept.
+    size_t palette_colour_count_ = 0; ///< gcode_colors.size()
+    size_t palette_tool_count_ = 0;   ///< max(colors, materials) = build_tool_info()'s count
+
+    /**
+     * @brief Recompute `should_show_` from used_tools_ + the stored palette counts.
+     *
+     * The single copy of the visibility rule. Called by update() (which stores
+     * the counts first) and by set_used_tools() (where the precise used-tool set
+     * can flip the answer the palette gave). Pure decision — no widget or
+     * mapping side effects — so either caller can run it before doing its work.
+     *
+     * @return the new value of should_show_, so update() can early-out on false.
+     */
+    bool recompute_visibility();
 
     std::vector<helix::ToolMapping> mappings_;
     std::vector<helix::GcodeToolInfo> tool_info_;

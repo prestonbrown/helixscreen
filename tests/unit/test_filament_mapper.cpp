@@ -1266,6 +1266,162 @@ TEST_CASE("compute_defaults flags multiple mismatches in multi-tool scenario",
     CHECK(result[2].material_mismatch);       // ABS vs PETG
 }
 
+// =============================================================================
+// Colour mismatch — the per-chip surround's claim
+// =============================================================================
+// The stacked chip already SHOWS both colours, so this flag only decides
+// whether the chip is surrounded. Every guard below is a claim we must not make
+// falsely: a surround that fires on prints that are fine trains the user to
+// ignore it.
+
+TEST_CASE("colour mismatch: set only when the comparison is real",
+          "[filament][mapping][mapper][colour_mismatch]") {
+    AvailableSlot lane{};
+    lane.slot_index = 0;
+    lane.backend_index = 0;
+    lane.local_slot_index = 0;
+    lane.color_rgb = 0xFF0000; // red lane
+    lane.material = "PLA";
+
+    GcodeToolInfo red{};
+    red.tool_index = 0;
+    red.color_rgb = 0xFE0101; // within COLOR_MATCH_TOLERANCE of the lane
+    red.color_known = true;
+    red.material = "PLA";
+
+    GcodeToolInfo blue = red;
+    blue.color_rgb = 0x0000FF; // far outside tolerance
+
+    GcodeToolInfo unknown = blue;
+    unknown.color_known = false; // nothing was claimed about this tool's colour
+
+    // Close enough => no warning, using the SAME predicate auto-match uses, so a
+    // lane the matcher would have picked never draws a warning.
+    CHECK_FALSE(FilamentMapper::classify_mismatches(red, lane).color_mismatch);
+    // Genuinely different => warn.
+    CHECK(FilamentMapper::classify_mismatches(blue, lane).color_mismatch);
+    // Unknown gcode colour => no claim to contradict.
+    CHECK_FALSE(FilamentMapper::classify_mismatches(unknown, lane).color_mismatch);
+
+    // An EMPTY lane has no colour; its own border already says so, and warning
+    // twice for one cause reads as two faults.
+    AvailableSlot empty = lane;
+    empty.is_empty = true;
+    CHECK_FALSE(FilamentMapper::classify_mismatches(blue, empty).color_mismatch);
+}
+
+TEST_CASE("classify_mismatches answers material the way every seeding site did",
+          "[filament][mapping][mapper][colour_mismatch]") {
+    // The four inline copies this replaced all read: both sides named, and not
+    // compatible. Colour never enters into it, and an empty lane is not special
+    // here - only the colour half suppresses on empty.
+    AvailableSlot lane{};
+    lane.color_rgb = 0xFF0000;
+    lane.material = "PLA";
+
+    GcodeToolInfo tool{};
+    tool.color_rgb = 0xFF0000;
+    tool.material = "PETG";
+
+    CHECK(FilamentMapper::classify_mismatches(tool, lane).material_mismatch);
+
+    tool.material = "PLA+"; // same compatibility group
+    CHECK_FALSE(FilamentMapper::classify_mismatches(tool, lane).material_mismatch);
+
+    tool.material = "PETG";
+    lane.material = ""; // lane says nothing -> nothing to contradict
+    CHECK_FALSE(FilamentMapper::classify_mismatches(tool, lane).material_mismatch);
+
+    lane.material = "PLA";
+    tool.material = ""; // file says nothing -> nothing to contradict
+    CHECK_FALSE(FilamentMapper::classify_mismatches(tool, lane).material_mismatch);
+}
+
+TEST_CASE("colour mismatch reaches the mapping on every seeding path",
+          "[filament][mapping][mapper][colour_mismatch]") {
+    // One shared classifier is only worth having if every path that resolves a
+    // lane runs it. Each SECTION drives one of them through its public entry.
+    std::vector<AvailableSlot> slots = {
+        {0, 0, 0xFF0000, "PLA", false, -1}, // red lane 0
+        {1, 0, 0x00FF00, "PLA", false, -1}, // green lane 1
+    };
+
+    SECTION("firmware mapping onto a wrong-coloured lane warns") {
+        slots[1].current_tool_mapping = 0; // firmware routes T0 to the green lane
+        std::vector<GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}};
+        auto result = FilamentMapper::compute_defaults(tools, slots);
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].mapped_slot == 1);
+        CHECK(result[0].color_mismatch);
+    }
+
+    SECTION("a colour-matched lane never warns") {
+        std::vector<GcodeToolInfo> tools = {{0, 0x00FF00, "PLA"}};
+        auto result = FilamentMapper::compute_defaults(tools, slots);
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].mapped_slot == 1); // matched the green lane
+        CHECK_FALSE(result[0].color_mismatch);
+    }
+
+    SECTION("the positional fallback warns about the lane it settles for") {
+        // Blue is nowhere near either lane, so nothing colour-matches and T0
+        // falls back to its own positional lane 0, which is red.
+        std::vector<GcodeToolInfo> tools = {{0, 0x0000FF, "PLA"}};
+        auto result = FilamentMapper::compute_defaults(tools, slots);
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].mapped_slot == 0);
+        CHECK(result[0].color_mismatch);
+    }
+
+    SECTION("the last-resort unclaimed lane warns too") {
+        // T3 has no positional lane, so it takes the first unclaimed compatible
+        // one. The chip shows that lane's colour next to the file's; nothing
+        // about "we had to guess" makes the difference less real.
+        std::vector<GcodeToolInfo> tools = {{3, 0x0000FF, "PLA"}};
+        auto result = FilamentMapper::compute_defaults(tools, slots);
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].mapped_slot == 0);
+        CHECK(result[0].color_mismatch);
+    }
+
+    SECTION("use_current_assignments warns on the head the firmware would pick") {
+        // Auto-colour-map OFF: T0 keeps head 0 (red) whatever the file asked for.
+        std::vector<GcodeToolInfo> tools = {{0, 0x00FF00, "PLA"}};
+        auto result = FilamentMapper::use_current_assignments(tools, slots);
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].mapped_slot == 0);
+        CHECK(result[0].color_mismatch);
+    }
+
+    SECTION("a tool with no lane to compare against comes back unresolved") {
+        // The other half of guard 2, and all that can be asserted on this side of
+        // it: with no lanes there is nothing to classify, so the tool is AUTO with
+        // no slot. That the surround stays off for such a tool is not assertable
+        // here - classify_mismatches() takes a resolved AvailableSlot&, so an
+        // unresolved tool cannot reach it and a color_mismatch assertion would be
+        // reading a default-initialised bool. The render side is where that
+        // becomes observable, and it is pinned there against a real chip.
+        std::vector<GcodeToolInfo> tools = {{0, 0x0000FF, "PLA"}};
+        auto result = FilamentMapper::compute_defaults(tools, {});
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].is_auto);
+        CHECK(result[0].mapped_slot == -1);
+    }
+
+    SECTION("a tool mapped onto an empty lane warns once, not twice") {
+        // The lane's own empty marker is the real problem; its reported colour
+        // is stale left-over data. Two borders for one cause read as two faults.
+        std::vector<AvailableSlot> with_empty = {
+            {0, 0, 0xFF0000, "", true, 0}, // empty lane, firmware routes T0 here
+        };
+        std::vector<GcodeToolInfo> tools = {{0, 0x0000FF, "PLA"}};
+        auto result = FilamentMapper::use_current_assignments(tools, with_empty);
+        REQUIRE(result.size() == 1);
+        CHECK(result[0].mapped_slot == 0);
+        CHECK_FALSE(result[0].color_mismatch);
+    }
+}
+
 TEST_CASE("materials_match handles non-AMS external spool comparison",
           "[filament_mapper][material_mismatch]") {
     // These are the exact comparisons the material_compatibility gate
