@@ -1184,56 +1184,86 @@ EOF
 
 ### Task 5: Verify on the mock at 480x272 and refresh screenshots
 
-**Files:**
-- Modify: screenshot fixtures under whatever path `scripts/screenshot-recipes.sh` writes to, if the print-detail token is covered there.
+Rewritten after tasks 1-4 landed: the original spec predated the colour surround, the triangle
+fix, the overflow cap and the centering, and it never even passed a resolution. Everything below
+is a recipe the controller has actually run on this branch.
 
-- [ ] **Step 1: Drive the CFS/editable case**
+**Files:** screenshot fixtures under whatever path `scripts/screenshot-recipes.sh` writes to,
+only if a print-detail token is covered there.
+
+**The recipe that works.** `-s 480x272` is the point of this task; without it you verify the
+roomy case and learn nothing. `HELIX_MOCK_AMS` selects the backend (`afc` = editable,
+`snapmaker` = the U1's non-editable-but-remappable shape). The 4-colour file is
+`u1_4color_ring`, which is `card_root[2]` in the default listing - confirm with
+`ctl text "filename_label[2]"` rather than trusting the index.
 
 ```bash
-export HELIX_SOCK=/tmp/helix-unify-filament-chips.sock
-export HELIX_CONFIG_DIR=/tmp/helix-config-unify-filament-chips
+cd /home/pbrown/Code/Printing/helixscreen/.worktrees/unify-filament-chips
+export HELIX_SOCK=/tmp/helix-t5.sock HELIX_CONFIG_DIR=/tmp/helix-cfg-t5
 mkdir -p "$HELIX_CONFIG_DIR"
-SDL_VIDEODRIVER=dummy ./build/bin/helix-screen --test -vv --remote-socket "$HELIX_SOCK" > /tmp/helix-chips.log 2>&1 &
-CHIPS_PID=$!
-./build/bin/helix-screen ctl -s "$HELIX_SOCK" navigate print_select
-# open a multi-colour file, then:
-./build/bin/helix-screen ctl -s "$HELIX_SOCK" ls filament_mapping_card
-./build/bin/helix-screen ctl -s "$HELIX_SOCK" geom filament_mapping_rows
-./build/bin/helix-screen ctl -s "$HELIX_SOCK" text filament_mapping_card
+HELIX_MOCK_AMS=afc SDL_VIDEODRIVER=dummy ./build/bin/helix-screen --test -vv \
+  -s 480x272 --remote-socket "$HELIX_SOCK" > /tmp/t5.log 2>&1 &
+echo $! > /tmp/t5.pid
+# then: ctl navigate print_select; ctl click "card_root[2]"
 ```
-Expected: chips present, `filament_mapping_rows` 32px tall with 40px children, no horizontal overflow past the card. Prefer `geom`/`text` over reading a screenshot — a screenshot only proves what a scroll position exposed.
+Kill by the captured PID at the end. Never `pkill -f`, it self-matches.
 
-- [ ] **Step 2: Drive the remap and confirm the number moves**
+**`ctl`'s name lookup SKIPS HIDDEN WIDGETS**, so "Widget not found" IS the hidden reading, not an
+error. That matters for every "must render nothing" check below.
 
-Open the remap modal from the card tap, change a tool to a different lane, accept, then re-read:
-```bash
-./build/bin/helix-screen ctl -s "$HELIX_SOCK" text filament_mapping_card
-```
-Expected: the lane digit reflects the new lane. This is the reported bug, verified end to end rather than only at the unit seam.
+- [ ] **Step 1: chips, geometry, centering (editable backend)**
 
-- [ ] **Step 3: Confirm the non-editable case still renders**
+`ctl geom filament_mapping_rows` and the first/last chip. Expected at 480x272: row x=295 w=181
+h=32, chips 40x32, and the left and right margins equal within 1px (the odd leftover goes right).
+Prefer `geom`/`text` over a screenshot - a screenshot only proves what a scroll position exposed.
 
-Restart under a Snapmaker-style mock (see `HELIX_MOCK_*` in `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` for the U1 preset) and repeat Step 1. Expected: the same card, the same chips, and `color_card_remappable` still 1 (U1 supports native remap).
+- [ ] **Step 2: the reported bug, end to end**
 
-- [ ] **Step 4: Kill the instance**
+Tap the card, remap a tool to a different lane, accept, then `ctl text filament_mapping_card`.
+The lane digit must follow the new lane. This is the K2 report verified through the real UI
+rather than only at the unit seam.
 
-```bash
-kill "$CHIPS_PID"
-```
-Never `pkill -f` — it self-matches.
+- [ ] **Step 3: the colour surround, both directions**
 
-- [ ] **Step 5: Refresh screenshots if the print-detail token is covered**
+Use `HELIX_MOCK_AMS_STATE=grade` - every lane gets a filled PLA grade in the same compat group as
+the file's PLA (`ams_backend_mock.cpp:307-310`), so material comes back clean and colour is the
+only variable. Without it a material mismatch confounds the result and the run proves nothing.
+Expected on `u1_4color_ring`: the log line reads `advisory=false, block=false, color=true`,
+`ctl state` shows the triangle HIDDEN, and the chips whose lane colour is outside tolerance carry
+the surround while any inside it does not.
+
+- [ ] **Step 4: the bypass single-lane case must render NOTHING**
+
+Engage bypass with a single-tool print. Before this branch the gate suppressed the mapping card
+but the swatch card showed anyway. With one card and one gate, `filament_mapping_card` must be
+absent from `ctl ls` entirely. Confirm it, do not assume the merge closed it.
+
+- [ ] **Step 5: overflow**
+
+Drive a file with more tools than fit at 181px (capacity is ~4 there). Expected: capped chips
+plus the `+N` `filament_mapping_more_pill`, the pill fully inside the row, nothing clipped at the
+edge and no second row.
+
+- [ ] **Step 6: the non-editable backend renders the same card**
+
+Restart with `HELIX_MOCK_AMS=snapmaker` and repeat Step 1. Expected: the same card, the same
+chips, and `color_card_remappable` still 1 - the U1 reports `RemapStrategy::SnapmakerNative`
+despite `editable == false`, so its tap must still open the picker.
+
+- [ ] **Step 7: refresh screenshots only if a recipe already exists**
 
 ```bash
 grep -n "print_detail\|print_select" scripts/screenshot-recipes.sh
 ```
-If a recipe exists, regenerate it and commit the new PNG. If not, skip — do not add a new recipe as part of this change.
+Regenerate and commit if so. If not, skip - do not add a recipe as part of this change.
 
-- [ ] **Step 6: Ask for a visual check**
+- [ ] **Step 8: hand it to Preston with the state already on screen**
 
-Drive to the print-detail screen on both backends and tell Preston exactly what to compare: chip width, band split, divider contrast, and whether the header reads cleanly with two warning icons plus the chevron at 480x272. That judgment is the one thing `ctl` cannot answer.
-
----
+Drive to print-detail on both backends, leave it there, and say exactly what to look at:
+whether the two warning icons plus the chevron read cleanly in the header at 181px, whether the
+40x32 chip's two bands and their digits are legible on a real panel, and whether the surround is
+distinguishable from the empty-lane border when both appear. That judgement is the one thing
+`ctl` cannot answer, and it is the only thing this task genuinely needs a human for.
 
 ## Self-review notes
 
