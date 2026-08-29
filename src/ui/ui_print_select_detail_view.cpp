@@ -39,6 +39,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <fstream>
 
 namespace helix::ui {
@@ -1547,20 +1548,33 @@ void PrintSelectDetailView::recompute_preflight() {
     auto mapping = effective_mappings();
     preflight_result_ = helix::PreflightValidator::validate(tools, slots, mapping, bypass_active);
 
-    bool any_mismatch = false;
-    for (const auto& check : preflight_result_.checks) {
-        if (check.severity != helix::ToolCheck::Severity::Ok) {
-            any_mismatch = true;
-            break;
-        }
-    }
-    lv_subject_set_int(&filament_mismatch_, any_mismatch ? 1 : 0);
+    // The triangle means MATERIAL, and only material. PreflightResult already
+    // separates the three severities and this used to flatten them: any severity
+    // other than Ok lit it, so a ColorMismatch raised a card-level colour alarm
+    // that was explicitly decided against. An empty lane is published next to it
+    // as its own signal, and colour is the per-chip surround on the swatch - the
+    // chip shows both colours side by side, so an alarm here would fire on most
+    // prints and devalue the triangle that flags what cannot be seen.
+    lv_subject_set_int(&filament_mismatch_, preflight_result_.has_advisory() ? 1 : 0);
     lv_subject_set_int(&empty_tools_warning_, preflight_result_.has_block() ? 1 : 0);
 
-    spdlog::debug(
-        "[DetailView] Preflight: {} tools, {} slots, {} checks, mismatch={}, block={}, bypass={}",
-        tools.size(), slots.size(), preflight_result_.checks.size(), any_mismatch,
-        preflight_result_.has_block(), bypass_active);
+    // Log every severity separately, not only the one the triangle publishes.
+    // The bug above was three findings sharing one lamp, so the log must not
+    // repeat it: someone looking at a chip that wears a colour surround while
+    // the triangle is dark needs to see WHICH finding preflight made, and
+    // "advisory=false" alone cannot tell "nothing was wrong" from "something
+    // was, and it was not material". These three are the complete set - every
+    // severity other than Ok is one of them.
+    const bool color_flagged =
+        std::any_of(preflight_result_.checks.begin(), preflight_result_.checks.end(),
+                    [](const helix::ToolCheck& c) {
+                        return c.severity == helix::ToolCheck::Severity::ColorMismatch;
+                    });
+    spdlog::debug("[DetailView] Preflight: {} tools, {} slots, {} checks, advisory={}, block={}, "
+                  "color={}, bypass={}",
+                  tools.size(), slots.size(), preflight_result_.checks.size(),
+                  preflight_result_.has_advisory(), preflight_result_.has_block(), color_flagged,
+                  bypass_active);
 }
 
 std::set<int> PrintSelectDetailView::tools_used_effective() const {

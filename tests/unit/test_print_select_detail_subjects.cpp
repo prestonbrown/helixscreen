@@ -29,12 +29,17 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
+#include "ams_types.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "pre_print_option.h"
+#include "preflight_validator.h"
 #include "tools_used_cache.h"
 
 #include <cstdlib>
 #include <filesystem>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -393,4 +398,161 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     view.hide();
     helix::ui::UpdateQueue::instance().drain();
+}
+
+// ============================================================================
+// filament_mismatch means MATERIAL, and only material
+// ============================================================================
+//
+// The subject print_file_detail.xml:303 binds the warning triangle's hidden flag
+// to. recompute_preflight() used to set it on ANY severity other than Ok, which
+// flattened three different problems into one lamp: an empty lane (which already
+// has empty_tools_warning), a material mismatch, and a colour mismatch - the
+// card-level colour alarm that was explicitly decided against, since the stacked
+// chip shows both colours side by side and its own surround says the rest.
+//
+// PreflightResult already separated them: has_block() is the empty lane,
+// has_advisory() is the material mismatch. Only this call site did not ask.
+
+namespace {
+
+/// A started mock backend on AmsState, torn down on scope exit. AmsState is a
+/// singleton, so a test that installs a backend and walks away leaves it live for
+/// every test that runs after it. Mirrors MappingCardRenderFixture's wiring.
+struct ScopedAmsBackend {
+    AmsBackendMock* backend = nullptr;
+
+    explicit ScopedAmsBackend(int slot_count) {
+        auto& ams = AmsState::instance();
+        ams.init_subjects(false);
+        auto owned = std::make_unique<AmsBackendMock>(slot_count);
+        backend = owned.get();
+        backend->set_operation_delay(0);
+        ams.set_backend(std::move(owned));
+        backend->start();
+    }
+
+    ~ScopedAmsBackend() {
+        helix::ui::UpdateQueue::instance().drain();
+        if (backend) {
+            backend->stop();
+        }
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "filament_mismatch is lit by a material mismatch and by nothing else",
+                 "[print_select][detail_view][subjects][preflight][colour_mismatch]") {
+    CacheDirGuard guard;
+    // ONE lane, so the mapping cannot wander: with no colour match available the
+    // positional fallback lands T0 on slot 0 and every SECTION validates the
+    // pairing it set up rather than one the seeding chose.
+    ScopedAmsBackend ams(1);
+
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    REQUIRE(view.create(test_screen()) != nullptr);
+
+    // hide() has to run even when a REQUIRE fails. A section that leaves the
+    // overlay pushed trips NavigationManager's strict-mode check on the NEXT
+    // section's show(), turning one failed assertion into a SIGABRT that buries
+    // which case actually broke.
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } closer{view};
+
+    lv_subject_t* const triangle = lv_xml_get_subject(nullptr, "filament_mismatch");
+    lv_subject_t* const empty_warning = lv_xml_get_subject(nullptr, "empty_tools_warning");
+    REQUIRE(triangle != nullptr);
+    REQUIRE(empty_warning != nullptr);
+
+    // A warmed tools-used cache is what makes recompute_preflight() run at all:
+    // it is a no-op until either the viewer has parsed or a headless scan landed.
+    constexpr size_t kSize = 4321;
+    constexpr time_t kMtime = 8765;
+    helix::ToolsUsedCache warmer;
+    warmer.store("sub/one_tool.gcode", kSize, kMtime, {0});
+
+    // T0 prints red PLA, per the slicer palette show() is handed.
+    const std::vector<std::string> colors{"#FF0000"};
+    const std::vector<std::string> materials{"PLA"};
+
+    // set_slot_info deliberately drops SlotStatus (no real backend accepts a
+    // user-written status), so the empty case has to go through
+    // force_slot_status - see ams_backend_mock.cpp:999.
+    auto load_lane = [&ams](uint32_t rgb, const char* material, SlotStatus status) {
+        auto slot = ams.backend->get_slot_info(0);
+        slot.color_rgb = rgb;
+        slot.material = material;
+        ams.backend->set_slot_info(0, slot, /*persist=*/false);
+        ams.backend->force_slot_status(0, status);
+    };
+
+    // Asserting the severity is load-bearing, not belt-and-braces: a result with
+    // NO checks at all leaves the subject at 0 and would pass the colour SECTION
+    // under both the old code and the new, proving nothing about either.
+    auto only_severity = [&view](helix::ToolCheck::Severity expected) {
+        const auto& checks = view.preflight_result().checks;
+        REQUIRE(checks.size() == 1);
+        REQUIRE(checks[0].severity == expected);
+    };
+
+    SECTION("a colour-only mismatch leaves the triangle dark") {
+        load_lane(0x0000FF, "PLA", SlotStatus::LOADED); // right polymer, nowhere near red
+        view.show("one_tool.gcode", "sub", "PLA", colors, materials, kSize, kMtime);
+        view.recompute_preflight();
+
+        only_severity(helix::ToolCheck::Severity::ColorMismatch);
+        CHECK(lv_subject_get_int(triangle) == 0);
+        CHECK(lv_subject_get_int(empty_warning) == 0);
+    }
+
+    SECTION("a material mismatch lights it") {
+        load_lane(0xFF0000, "PETG", SlotStatus::LOADED); // exactly the file's colour
+        view.show("one_tool.gcode", "sub", "PLA", colors, materials, kSize, kMtime);
+        view.recompute_preflight();
+
+        only_severity(helix::ToolCheck::Severity::MaterialMismatch);
+        CHECK(lv_subject_get_int(triangle) == 1);
+        CHECK(lv_subject_get_int(empty_warning) == 0);
+    }
+
+    SECTION("an empty lane is its own signal, not the triangle") {
+        load_lane(0xFF0000, "PLA", SlotStatus::EMPTY);
+        view.show("one_tool.gcode", "sub", "PLA", colors, materials, kSize, kMtime);
+        view.recompute_preflight();
+
+        only_severity(helix::ToolCheck::Severity::EmptySlot);
+        CHECK(lv_subject_get_int(triangle) == 0);
+        CHECK(lv_subject_get_int(empty_warning) == 1); // the block, published separately
+    }
+
+    SECTION("a lane that satisfies the file lights nothing") {
+        // The complement. Without it a subject wired to a constant 0 would pass
+        // the two dark cases above and the empty case's triangle assertion too.
+        load_lane(0xFF0000, "PLA", SlotStatus::LOADED);
+        view.show("one_tool.gcode", "sub", "PLA", colors, materials, kSize, kMtime);
+        view.recompute_preflight();
+
+        only_severity(helix::ToolCheck::Severity::Ok);
+        CHECK(lv_subject_get_int(triangle) == 0);
+        CHECK(lv_subject_get_int(empty_warning) == 0);
+    }
 }
