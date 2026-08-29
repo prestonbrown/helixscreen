@@ -96,6 +96,22 @@ class MyPanel {
 };
 ```
 
+> **The helpers cannot report dismissal.** A dialog shown this way is pushed with **no
+> owner**, so `Modal`'s instance teardown never runs for it. Backdrop click, ESC, and
+> `Modal::rebuild_top()` (which fires on a breakpoint or theme change under hot reload)
+> all close it through the static `Modal::hide()`, which calls **neither** `on_confirm`
+> **nor** `on_cancel`. The caller is never told the dialog went away.
+>
+> That is fine when the callbacks only *do* something. It is a bug when the caller holds
+> state the callbacks are meant to resolve - a re-entry guard, a pending-request flag, a
+> stored dialog pointer, an entry in a queue. Dismissal leaks that state and the feature
+> silently stops working, with no log line to say why.
+>
+> **Own a `Modal` subclass when a dismissal has to be observable.** `on_hide()` runs
+> however the dialog closed, which is the resolve point the helpers have no equivalent
+> for. `include/lan_client_auth_router.h` is the reference shape: a decision callback for
+> the answer, a dismiss callback for the close-without-an-answer case.
+
 **Severity levels** control the header icon:
 - `ModalSeverity::Info` -- blue info icon
 - `ModalSeverity::Warning` -- yellow alert icon
@@ -436,6 +452,17 @@ class ControlsPanel {
 
 `ModalGuard` supports move semantics, assignment from raw `lv_obj_t*`, explicit `hide()`, and `release()` to take ownership.
 
+> **`ModalGuard` guarantees the dialog gets hidden, not that your callbacks are safe.** It
+> calls the static `Modal::hide()`, which for a helper dialog runs no instance teardown.
+> Read the sequence in the comment above for what it is: the panel destructor runs the
+> guard, the guard *starts an exit animation*, and the dialog then outlives the very object
+> that was handed to `on_confirm`/`on_cancel` as `user_data`.
+>
+> Despite the name this is not the `ObserverGuard` bargain. `ObserverGuard` detaches the
+> observer, so nothing can dispatch afterwards; `ModalGuard` only asks the dialog to close.
+> If the callbacks capture something that dies with the owner, own a `Modal` subclass and
+> let its teardown run instead.
+
 ---
 
 ## ModalStack Internals
@@ -460,7 +487,15 @@ Most callers reach for the static one as `Modal::hide(Modal::get_top())` and can
 whether the dialog on top belongs to a `Modal` subclass. Without the owner, hiding a
 subclass that way skipped `on_hide()`: the instance leaked, any `active_instance_` static
 stayed non-null, and `backdrop_`/`dialog_` dangled. The static overload now looks the
-owner up and delegates, so both spellings tear a modal down identically.
+owner up and delegates, so both spellings tear a modal down identically **when the dialog
+has an owner**.
+
+A dialog from `modal_show_confirmation()` / `modal_show_alert()` has none: the static
+`Modal::show()` factory pushes with `owner = nullptr`, so there is nothing to delegate to
+and the static teardown is all that runs. It never reaches `on_hide()`, and there is no
+`lifetime_` to invalidate because there is no instance to own one. The practical
+consequence is the one in "Three Ways to Create Modals" above - **a helper dialog cannot
+tell its caller it was dismissed.**
 
 `Modal::rebuild_top()` (the `HELIX_HOT_RELOAD=1` path) uses the owner differently — an
 instance-backed modal is hidden rather than rebuilt, because re-creating it from XML alone
@@ -662,7 +697,11 @@ If your XML used `extends="ui_card"`, simply change to `extends="ui_dialog"`. Th
 
 ## Checklist: Adding a New Modal
 
-1. **Choose approach**: Helper function, static `Modal::show()`, or subclass?
+1. **Choose approach**: Helper function, static `Modal::show()`, or subclass? Pick a
+   subclass when a dismissal has to be observable (the caller holds a guard, flag or
+   pending entry that the buttons are supposed to clear), or when the callbacks capture
+   something shorter-lived than the dialog. Helper otherwise. This is a lifetime question,
+   not a question of how many buttons the dialog has.
 2. **Create XML** in `ui_xml/` using `extends="ui_dialog"` and `modal_button_row`
 3. **Register XML** in `src/xml_registration.cpp` (components must be registered before they're used by other components)
 4. **Register callbacks** via `lv_xml_register_event_cb()` in your C++ code
@@ -690,6 +729,11 @@ void MyModal::start_operation() {
     });
 }
 ```
+
+> This is a **subclass-only** facility. `modal_show_confirmation()` / `modal_show_alert()`
+> construct no instance, so there is no `lifetime_` behind them and nothing to expire a
+> token. A helper dialog whose async callback can outlive it has no protection at all -
+> which is another reason to reach for a subclass.
 
 `Modal::hide()` calls `lifetime_.invalidate()` before `on_hide()`, so all outstanding tokens expire automatically. Your `on_hide()` override does **not** need to manually invalidate — just handle observer cleanup and state reset.
 
@@ -722,4 +766,4 @@ removed.) All live in `include/ui_modal.h`, `namespace helix::ui`:
 | `helix::ui::modal_init_subjects()` | subject registration |
 | `helix::ui::modal_configure(...)` | configures the shared `modal_dialog` |
 
-New code should prefer the `Modal::` class methods or the `helix::ui::modal_show_confirmation()` / `helix::ui::modal_show_alert()` helpers.
+New code should prefer the `Modal::` class methods or the `helix::ui::modal_show_confirmation()` / `helix::ui::modal_show_alert()` helpers - subject to the rule in "Three Ways to Create Modals": if the caller has to know the dialog was dismissed, or the callbacks capture something shorter-lived than the dialog, own a `Modal` subclass instead.

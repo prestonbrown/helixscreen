@@ -103,6 +103,11 @@ class Modal {
     /**
      * @brief Hide a modal by its dialog pointer
      * @param dialog Dialog object returned by show()
+     *
+     * Delegates to the owning instance's hide() when the dialog was shown
+     * through the instance API, so on_hide() and lifetime_ invalidation still
+     * run. A dialog from the static factory or the confirmation/alert helpers
+     * has no owner and therefore no on_hide(): nothing observes that close.
      */
     static void hide(lv_obj_t* dialog);
 
@@ -459,6 +464,16 @@ void modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea);
  * @param user_data User data passed to callbacks
  * @param cancel_text Secondary button text, or nullptr to default to "Cancel"
  * @return The created dialog widget, or nullptr on failure
+ *
+ * @warning Dismissal is NOT reported. This pushes with no owner, so closing the
+ *          dialog by backdrop tap, ESC, or Modal::rebuild_top() calls neither
+ *          on_confirm nor on_cancel. If the caller holds state those callbacks
+ *          are meant to resolve (a re-entry guard, a pending-request flag, a
+ *          stored dialog pointer), it leaks on dismissal. Own a Modal subclass
+ *          in that case and resolve in on_hide(), which always runs - see
+ *          include/lan_client_auth_router.h.
+ * @warning user_data is held by the button callbacks for as long as the dialog
+ *          lives, which includes its exit animation. It must outlive the dialog.
  */
 lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalSeverity severity,
                                   const char* confirm_text, lv_event_cb_t on_confirm,
@@ -477,6 +492,9 @@ lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalS
  * @param on_ok Callback for OK button (receives user_data), or nullptr
  * @param user_data User data passed to callback
  * @return The created dialog widget, or nullptr on failure
+ *
+ * @warning Same ownership caveats as modal_show_confirmation(): no owner, so a
+ *          dismissal reports nothing, and user_data must outlive the dialog.
  */
 lv_obj_t* modal_show_alert(const char* title, const char* message,
                            ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
