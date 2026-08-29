@@ -665,7 +665,7 @@ docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	199	sr
 docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	242	src/api/display_backend.cpp	215bb69fe26b	db783b634a34
 docs/devel/architecture/15-known-debt.md	include/sensor_registry.h	60	include/sensor_registry.h	7f03fa23f905	68f5a7ddc2d4
 docs/devel/architecture/15-known-debt.md	scripts/check_imperative_ui.py	10	scripts/check_imperative_ui.py	10d17ed720c9	02bdf36e7680
-docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1583	scripts/quality-checks.sh	bdd7bb103b0b	6b373a10db4b
+docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1583	scripts/quality-checks.sh	8170b88897e1	6ff99be85ea0
 docs/devel/architecture/15-known-debt.md	src/api/moonraker_discovery_sequence.cpp	856	src/api/moonraker_discovery_sequence.cpp	859d76692100	84ebb0feab81
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	96	src/printer/printer_discovery.cpp	701fe2945490	d988be8c6ecc
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	105	src/printer/printer_discovery.cpp	b4eafb8019aa	2173247c26a9
