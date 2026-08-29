@@ -1749,13 +1749,13 @@ SECTION_START=$(date +%s)
 echo -n "🪟 Checking X11 macro collisions..."
 
 if [ -f "scripts/check_x11_macro_collisions.py" ]; then
-  # X11 defines None, Status, Bool and friends as macros. SDL's Linux headers
-  # pull X11 in, so an identifier sharing one of those names preprocesses into a
-  # numeric constant in any TU that reaches SDL - and only there. Every printer
-  # target builds clean, so this is invisible until the x86_64 Debian and
-  # Raspberry Pi jobs run, which for v0.99.118 was after the tag was cut
-  # (InvalidationScope::None, fixed in b942c8b1e). Annotate a deliberate one
-  # `// X11_MACRO_OK: <reason>`.
+  # X11's <X.h> defines None, Success, Above and friends as bare macros. SDL's
+  # Linux headers reach X.h through GL, so an identifier sharing one of those
+  # names preprocesses into a numeric constant in any TU that reaches SDL - and
+  # only there. Our own SDL is built without X11, so no local build reproduces
+  # it; for v0.99.118 it surfaced only after the tag was cut, on the x86_64
+  # Debian and Raspberry Pi jobs (InvalidationScope::None, fixed in 3ec0c17be).
+  # Annotate a deliberate one `// X11_MACRO_OK: <reason>`.
   if python3 scripts/check_x11_macro_collisions.py --max-allowed 0 >/tmp/x11_macros.out 2>&1; then
     section_time $SECTION_START
     echo ""

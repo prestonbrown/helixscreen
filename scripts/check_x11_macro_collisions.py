@@ -4,25 +4,33 @@
 # Lint gate: no C++ identifier may collide with an X11 macro inside a translation
 # unit that reaches SDL or X11.
 #
-# X11's headers are pre-standard C: they publish their constants as object-like
-# #defines, not as enums or constexprs. `None` is `#define None 0L`, `Status` is
-# `#define Status int`. A macro has no scope, so it rewrites a QUALIFIED C++ name
-# too -- `InvalidationScope::None` preprocesses to `InvalidationScope::0L` and the
-# compiler reports something that looks nothing like the cause.
+# <X11/X.h> is pre-standard C: it publishes its constants as object-like #defines,
+# not as enums or constexprs. `None` is `#define None 0L`. A macro has no scope, so
+# it rewrites a QUALIFIED C++ name too -- `InvalidationScope::None` preprocesses to
+# `InvalidationScope::0L` and the compiler reports something that looks nothing
+# like the cause.
 #
 # That shipped. v0.99.118 tagged, then failed to build on x86_64 Debian, Raspberry
 # Pi and Raspberry Pi 32-bit because include/gcode_selection_state.h declared
 #   enum class InvalidationScope { None, SolidCache, SolidAndGhost };
 # and src/rendering/gcode_gles_renderer.cpp includes <SDL.h>, whose Linux include
 # chain reaches <X11/X.h>. Every printer target built clean -- none of them link
-# X11 -- so nothing saw it until the release job ran, after the tag was cut.
-# Fixed by renaming the enumerator to `Nothing` (b942c8b1e).
+# X11 -- and no local build reproduces it either, because our SDL is built without
+# X11 (no .d file under build/obj mentions X11/X.h). Nothing saw it until the
+# release job ran, after the tag was cut. Fixed by renaming the enumerator to
+# `Nothing` (3ec0c17be).
 #
-# WHAT IS FLAGGED
+# WHAT IS FLAGGED -- every hit is fatal, there is no advisory class
 #   A colliding identifier used in one of the two shapes the preprocessor rewrites:
 #     qualified   Foo::None, helix::gcode::InvalidationScope::None
 #     enumerator  enum class Foo { None, ... }   (the declaration itself)
 #   ...in a file that shares a translation unit with an SDL/X11 include.
+#
+#   Both rules earn their keep, and the real bug needed the QUALIFIED one: the enum
+#   DECLARATION in gcode_selection_state.h was pulled in at gcode_gles_renderer.cpp
+#   line 11, ELEVEN LINES BEFORE the <SDL.h> at line 22, so it preprocessed with no
+#   macro live and is correctly not flagged. What failed were the two USES at lines
+#   1729 and 1735 of that same .cpp, past the include.
 #
 # WHAT IS NOT FLAGGED, deliberately
 #   - Any file no SDL/X11-including TU pulls in. The tree has ~96 uses of `::None`
@@ -40,21 +48,26 @@
 #   - Any line carrying `// X11_MACRO_OK: <reason>` (or on one of the 3 lines
 #     above it, since enum bodies and long qualified names wrap).
 #
-# TWO TIERS, AND WHY
-#   xcore -- macros from <X11/X.h>.               FATAL.
-#   xlib  -- macros only in <X11/Xlib.h>/<Xutil.h>. Reported, not fatal.
+# WHY THE INCLUDE ORDER IS MODELLED, AND WHY THAT COMPLEXITY IS THE POINT
+#   Order modelling is the only thing separating a real break from correct code
+#   here. Measured 2026-08-29 with this file's own two rules and this file's macro
+#   list, at three modelling strengths, on the clean tree and on the pre-fix tree:
 #
-#   This is not squeamishness, it is what the evidence says. X.h is what SDL's
-#   chain reaches; Xlib.h is a level further out and is pulled only by
-#   SDL_syswm.h / SDL_egl.h, which nothing here includes. The proof is in the
-#   tree: src/application/application.cpp includes <SDL.h> AND writes
-#   `UpdateChecker::Status` (line 2377). `Status` is `#define Status int` in
-#   Xlib.h -- if that macro were reachable the line would preprocess to
-#   `UpdateChecker::int` and fail -- and that file compiles on all three
-#   platforms that the `None` collision broke. So the xlib tier is a real but
-#   unproven exposure: it is counted and printed so it stays visible, and it does
-#   not fail the build, because failing on a known-good line is how a gate gets
-#   deleted. `--strict` promotes it if the include graph ever changes.
+#     modelling strength                            clean    pre-fix
+#     naive -- every file in src/ + include/          123        130
+#       (204 / 213 with tests/ scanned too, 49 of
+#        those inside tests/catch_amalgamated.hpp)
+#     order-BLIND -- only the transitive closure of
+#       the 12 TUs that reach an SDL/X11 root          47         50
+#     order-AWARE -- this gate                          0          2
+#
+#   The clean column is pure false positives: that tree builds on all three
+#   platforms the collision broke. The pre-fix column's 2 are the ACTUAL build
+#   failures -- gcode_gles_renderer.cpp:1729 and :1735 -- and nothing else, while
+#   order-blind buries them under 47 that are fine and adds a third that is also
+#   fine (the enum DECLARATION, which preprocessed before <SDL.h> and compiled).
+#   Anyone tempted to "simplify" this into a grep should reproduce that table
+#   first. A gate that cries wolf 47 times gets switched off.
 #
 # INCLUDE FOLLOWING: PROJECT HEADERS ONLY, ONE HOP INTO THE SYSTEM
 #   Includes are resolved inside src/ and include/ only. A system include is never
@@ -67,14 +80,7 @@
 #
 #   Exposure is per TRANSLATION UNIT and ORDER-AWARE: the walk expands a TU's
 #   includes in textual order and a file is exposed only from the point the first
-#   SDL/X11 root has been pulled in. That is not a refinement, it is the whole
-#   gate. gcode_selection_state.h includes no SDL -- it was reached at
-#   gcode_gles_renderer.cpp:11, ELEVEN LINES BEFORE the <SDL.h> at line 22 -- so
-#   its `enum class InvalidationScope { None }` preprocessed with no macro live
-#   and compiled. What failed were the two USES at lines 1729 and 1735 of that
-#   same .cpp, past the include. Ignore order and the gate reports 47 sites on a
-#   tree that builds clean on all three affected platforms; model it and the same
-#   tree reports 0, while the pre-fix tree reports exactly those two lines.
+#   SDL/X11 root has been pulled in.
 #
 #   Include guards are modelled as `#pragma once` (every project header has one),
 #   so the first expansion in a TU is the one that counts -- that is what keeps
@@ -91,23 +97,32 @@
 #   `EndlessSpoolRestriction::None` in include/ams_types.h, a line that has
 #   always compiled. `#ifndef` and `#if !defined(...)` are not exceptions.
 #
-# THE MACRO LIST
-#   Derived on 2026-08-28 from /usr/include/X11/X.h (346 object-like macros after
-#   dropping the reserved `_`-prefixed and `X_PROTOCOL*` guards) and
-#   /usr/include/X11/Xlib.h + /usr/include/X11/Xutil.h (163 more). Embedded rather
-#   than read at runtime, because the gate has to give the same verdict on a CI
-#   container and a printer, neither of which ships X11 headers. `--derive`
-#   re-reads the local headers when present and diffs them against the embedded
-#   set, so the list can be refreshed deliberately instead of drifting.
+# THE MACRO LIST: <X11/X.h> ONLY
+#   346 object-like macros, derived on 2026-08-28 from /usr/include/X11/X.h after
+#   dropping the reserved `_`-prefixed names and the `X_PROTOCOL*` guards.
+#
+#   X.h and nothing else, because X.h is what SDL's include chain reaches.
+#   Xlib.h / Xutil.h sit a level further out and are pulled only by SDL_syswm.h /
+#   SDL_egl.h, which nothing here includes. The tree proves it: this repo's
+#   src/application/application.cpp includes <SDL.h> AND writes
+#   `UpdateChecker::Status` (line 2377). `Status` is `#define Status int` in
+#   Xlib.h and appears nowhere in X.h -- if that macro were reachable the line
+#   would preprocess to `UpdateChecker::int` and fail -- and that file compiles on
+#   all three platforms the `None` collision broke. An Xlib tier would therefore
+#   contribute exactly one finding to this tree, and that finding would be wrong.
+#
+#   Embedded rather than read at runtime, because the gate has to give the same
+#   verdict on a CI container and on a printer, neither of which ships X11
+#   headers. `--derive` re-reads the local X.h when present and diffs it against
+#   the embedded set, so the list is refreshed deliberately instead of drifting.
 #
 # Usage:
-#   check_x11_macro_collisions.py                 # fail on any xcore collision
+#   check_x11_macro_collisions.py                 # fail on any collision
 #   check_x11_macro_collisions.py --max-allowed 0 # ratcheting baseline
 #   check_x11_macro_collisions.py --list          # every site, file:line
 #   check_x11_macro_collisions.py --summary       # counts only
 #   check_x11_macro_collisions.py --exposed       # list the exposed TUs/headers
-#   check_x11_macro_collisions.py --strict        # xlib tier fails too
-#   check_x11_macro_collisions.py --derive        # re-derive list from /usr/include/X11
+#   check_x11_macro_collisions.py --derive        # re-derive list from X11/X.h
 
 import argparse
 import os
@@ -153,8 +168,8 @@ def platform_gated_out(cond_stack):
             return True
     return False
 
-# xcore: 346
-XCORE = {
+# 346 object-like macros from <X11/X.h>.
+X_MACROS = {
     'Above', 'AllTemporary', 'AllocAll', 'AllocNone', 'AllowExposures', 'AlreadyGrabbed',
     'Always', 'AnyButton', 'AnyKey', 'AnyModifier', 'AnyPropertyType', 'ArcChord',
     'ArcPieSlice', 'AsyncBoth', 'AsyncKeyboard', 'AsyncPointer', 'AutoRepeatModeDefault',
@@ -224,49 +239,6 @@ XCORE = {
     'VisibilityChangeMask', 'VisibilityFullyObscured', 'VisibilityNotify',
     'VisibilityPartiallyObscured', 'VisibilityUnobscured', 'WestGravity', 'WhenMapped',
     'WindingRule', 'XYBitmap', 'XYPixmap', 'YSorted', 'YXBanded', 'YXSorted', 'ZPixmap',
-}
-# xlib: 163
-XLIB = {
-    'AllHints', 'AllPlanes', 'AllValues', 'BitmapFileInvalid', 'BitmapNoMemory',
-    'BitmapOpenFailed', 'BitmapSuccess', 'Bool', 'DontCareState', 'False', 'HeightValue',
-    'IconMaskHint', 'IconPixmapHint', 'IconPositionHint', 'IconWindowHint', 'IconicState',
-    'InactiveState', 'InputHint', 'NoValue', 'NormalState', 'PAllHints', 'PAspect',
-    'PBaseSize', 'PMaxSize', 'PMinSize', 'PPosition', 'PResizeInc', 'PSize', 'PWinGravity',
-    'QueuedAfterFlush', 'QueuedAfterReading', 'QueuedAlready', 'RectangleIn',
-    'RectangleOut', 'RectanglePart', 'ReleaseByFreeingColormap', 'StateHint', 'Status',
-    'True', 'USPosition', 'USSize', 'VisualAllMask', 'VisualBitsPerRGBMask',
-    'VisualBlueMaskMask', 'VisualClassMask', 'VisualColormapSizeMask', 'VisualDepthMask',
-    'VisualGreenMaskMask', 'VisualIDMask', 'VisualNoMask', 'VisualRedMaskMask',
-    'VisualScreenMask', 'WidthValue', 'WindowGroupHint', 'WithdrawnState',
-    'XBufferOverflow', 'XCNOENT', 'XCNOMEM', 'XCSUCCESS', 'XConverterNotFound',
-    'XIMHighlight', 'XIMHotKeyStateOFF', 'XIMHotKeyStateON', 'XIMInitialState',
-    'XIMPreeditArea', 'XIMPreeditCallbacks', 'XIMPreeditDisable', 'XIMPreeditEnable',
-    'XIMPreeditNone', 'XIMPreeditNothing', 'XIMPreeditPosition', 'XIMPreeditUnKnown',
-    'XIMPreserveState', 'XIMPrimary', 'XIMReverse', 'XIMSecondary', 'XIMStatusArea',
-    'XIMStatusCallbacks', 'XIMStatusNone', 'XIMStatusNothing',
-    'XIMStringConversionBottomEdge', 'XIMStringConversionBuffer', 'XIMStringConversionChar',
-    'XIMStringConversionConcealed', 'XIMStringConversionLeftEdge',
-    'XIMStringConversionLine', 'XIMStringConversionRetrieval',
-    'XIMStringConversionRightEdge', 'XIMStringConversionSubstitution',
-    'XIMStringConversionTopEdge', 'XIMStringConversionWord', 'XIMStringConversionWrapped',
-    'XIMTertiary', 'XIMUnderline', 'XIMVisibleToBackword', 'XIMVisibleToCenter',
-    'XIMVisibleToForward', 'XLocaleNotSupported', 'XLookupBoth', 'XLookupChars',
-    'XLookupKeySym', 'XLookupNone', 'XNArea', 'XNAreaNeeded', 'XNBackground',
-    'XNBackgroundPixmap', 'XNBaseFontName', 'XNClientWindow', 'XNColormap',
-    'XNContextualDrawing', 'XNCursor', 'XNDefaultString', 'XNDestroyCallback',
-    'XNDirectionalDependentDrawing', 'XNFilterEvents', 'XNFocusWindow', 'XNFontInfo',
-    'XNFontSet', 'XNForeground', 'XNGeometryCallback', 'XNHotKey', 'XNHotKeyState',
-    'XNInputStyle', 'XNLineSpace', 'XNMissingCharSet', 'XNOMAutomatic', 'XNOrientation',
-    'XNPreeditAttributes', 'XNPreeditCaretCallback', 'XNPreeditDoneCallback',
-    'XNPreeditDrawCallback', 'XNPreeditStartCallback', 'XNPreeditState',
-    'XNPreeditStateNotifyCallback', 'XNQueryICValuesList', 'XNQueryIMValuesList',
-    'XNQueryInputStyle', 'XNQueryOrientation', 'XNR6PreeditCallback', 'XNRequiredCharSet',
-    'XNResetState', 'XNResourceClass', 'XNResourceName', 'XNSeparatorofNestedList',
-    'XNSpotLocation', 'XNStatusAttributes', 'XNStatusDoneCallback', 'XNStatusDrawCallback',
-    'XNStatusStartCallback', 'XNStdColormap', 'XNStringConversion',
-    'XNStringConversionCallback', 'XNVaNestedList', 'XNVisiblePosition', 'XNegative',
-    'XNoMemory', 'XUrgencyHint', 'XValue', 'X_HAVE_UTF8_STRING', 'XlibSpecificationRelease',
-    'YNegative', 'YValue', 'ZoomState',
 }
 
 # `Foo::None`, `a::b::None`. The lookbehind stops `A::B::None` counting twice and
@@ -468,7 +440,7 @@ def taint_lines(directives):
     return first
 
 
-def scan_file(path, src, macros, tier_of, taint_from):
+def scan_file(path, src, macros, taint_from):
     code = blank_comments_and_strings(src)
     lines = src.split('\n')
     hits = []
@@ -487,8 +459,7 @@ def scan_file(path, src, macros, tier_of, taint_from):
         ln = lineno_of(m.start())
         if ln < taint_from or opted_out(ln):
             continue
-        hits.append((path, ln, 'qualified', m.group(1), tier_of[m.group(1)],
-                     lines[ln - 1].strip()[:110]))
+        hits.append((path, ln, 'qualified', m.group(1), lines[ln - 1].strip()[:110]))
 
     for start, body in enum_bodies(code):
         for em in ENUMERATOR_RE.finditer(body):
@@ -498,33 +469,27 @@ def scan_file(path, src, macros, tier_of, taint_from):
             ln = lineno_of(start + em.start(1))
             if ln < taint_from or opted_out(ln):
                 continue
-            hits.append((path, ln, 'enumerator', name, tier_of[name],
-                         lines[ln - 1].strip()[:110]))
+            hits.append((path, ln, 'enumerator', name, lines[ln - 1].strip()[:110]))
     return hits
 
 
-def derive_from_headers():
-    tiers = {'xcore': ['/usr/include/X11/X.h'],
-             'xlib': ['/usr/include/X11/Xlib.h', '/usr/include/X11/Xutil.h']}
-    seen, found = set(), {}
-    missing = []
-    for tier, paths in tiers.items():
-        names = set()
-        for p in paths:
-            if not os.path.exists(p):
-                missing.append(p)
-                continue
-            for line in open(p, errors='ignore'):
-                m = re.match(r'\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)(\s|$)', line)
-                if not m:
-                    continue
-                n = m.group(1)
-                if n in seen or n.startswith('_') or n.startswith('X_PROTOCOL') or n == 'X_H':
-                    continue
-                seen.add(n)
-                names.add(n)
-        found[tier] = names
-    return found, missing
+X_HEADER = '/usr/include/X11/X.h'
+
+
+def derive_from_header():
+    """Object-like macro names in <X11/X.h>, or None when it is not installed."""
+    if not os.path.exists(X_HEADER):
+        return None
+    names = set()
+    for line in open(X_HEADER, errors='ignore'):
+        m = re.match(r'\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)(\s|$)', line)
+        if not m:
+            continue
+        n = m.group(1)
+        if n.startswith('_') or n.startswith('X_PROTOCOL') or n == 'X_H':
+            continue
+        names.add(n)
+    return names
 
 
 def main():
@@ -532,16 +497,14 @@ def main():
         description='Fail on a C++ identifier that an X11 macro would rewrite.',
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--max-allowed', type=int, default=None,
-                    help='Pass if fatal collisions <= N (ratcheting baseline). '
+                    help='Pass if collisions <= N (ratcheting baseline). '
                          'Default: fail on any.')
-    ap.add_argument('--strict', action='store_true',
-                    help='Count the advisory xlib tier as fatal too')
     ap.add_argument('--list', action='store_true', help='Print every site')
-    ap.add_argument('--summary', action='store_true', help='Per-tier counts only')
+    ap.add_argument('--summary', action='store_true', help='Counts only')
     ap.add_argument('--exposed', action='store_true',
                     help='List the files that share a TU with an SDL/X11 include')
     ap.add_argument('--derive', action='store_true',
-                    help='Re-derive the macro list from /usr/include/X11 and diff')
+                    help='Re-derive the macro list from <X11/X.h> and diff')
     ap.add_argument('--repo-root', default=None, help='Repo root (default: script parent)')
     ap.add_argument('paths', nargs='*', help='Restrict the report to these files')
     args = ap.parse_args()
@@ -549,30 +512,21 @@ def main():
     root = args.repo_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     if args.derive:
-        found, missing = derive_from_headers()
-        if missing:
-            print('X11 headers not installed here: ' + ', '.join(missing))
+        live = derive_from_header()
+        if live is None:
+            print(f'X11 header not installed here: {X_HEADER}')
             print('The embedded list stands; re-run --derive on a box with libx11-dev.')
             return 0
+        print(f'{len(live)} derived from {X_HEADER}, {len(X_MACROS)} embedded')
         rc = 0
-        for tier, embedded in (('xcore', XCORE), ('xlib', XLIB)):
-            live = found[tier]
-            print(f'{tier}: {len(live)} derived, {len(embedded)} embedded')
-            for label, diff in (('only in headers', live - embedded),
-                                ('only embedded', embedded - live)):
-                if diff:
-                    rc = 1
-                    print(f'  {label}: {" ".join(sorted(diff))}')
-        print('✅ macro list matches the local X11 headers' if not rc
-              else '❌ macro list has drifted from the local X11 headers')
+        for label, diff in (('only in the header', live - X_MACROS),
+                            ('only embedded', X_MACROS - live)):
+            if diff:
+                rc = 1
+                print(f'  {label}: {" ".join(sorted(diff))}')
+        print('✅ macro list matches the local <X11/X.h>' if not rc
+              else '❌ macro list has drifted from the local <X11/X.h>')
         return rc
-
-    tier_of = {}
-    for n in XCORE:
-        tier_of[n] = 'xcore'
-    for n in XLIB:
-        tier_of[n] = 'xlib'
-    macros = set(tier_of)
 
     files = read_repo_files(root)
     directives = build_include_graph(root, files)
@@ -596,29 +550,19 @@ def main():
     for p in exposed:
         if wanted is not None and p not in wanted:
             continue
-        hits += scan_file(p, files[p] or '', macros, tier_of, taint[p])
-
-    fatal = [h for h in hits if h[4] == 'xcore' or args.strict]
-    advisory = [] if args.strict else [h for h in hits if h[4] != 'xcore']
+        hits += scan_file(p, files[p] or '', X_MACROS, taint[p])
 
     if args.list:
-        for path, ln, rule, macro, tier, text in hits:
-            mark = 'FATAL' if (tier == 'xcore' or args.strict) else 'advisory'
-            print(f'{path}:{ln}: [{rule}/{tier}] `{macro}` collides with an X11 macro '
-                  f'({mark})\n      {text}')
+        for path, ln, rule, macro, text in hits:
+            print(f'{path}:{ln}: [{rule}] `{macro}` collides with an X11 macro'
+                  f'\n      {text}')
         print()
 
     if args.list or args.summary:
-        print(f'  exposed files      {len(exposed):>5}')
-        print(f'  xcore (X.h)        {len([h for h in hits if h[4] == "xcore"]):>5}   fatal')
-        print(f'  xlib (Xlib/Xutil)  {len([h for h in hits if h[4] == "xlib"]):>5}   '
-              f'{"fatal (--strict)" if args.strict else "advisory"}')
+        print(f'  exposed files   {len(exposed):>5}')
+        print(f'  collisions      {len(hits):>5}   all fatal')
 
-    if advisory and not args.list:
-        print(f'ℹ️  X11 macros: {len(advisory)} advisory (xlib-tier) collision(s); '
-              f'run --list to see them.')
-
-    total = len(fatal)
+    total = len(hits)
     limit = args.max_allowed
     if limit is not None and total > limit:
         print(f'❌ X11 macro collisions: {total} exceeds baseline ({limit}).')
@@ -632,9 +576,9 @@ def main():
         return 0
 
     print('   These names sit in a translation unit that reaches <SDL.h>/<X11/*>, where')
-    print('   the X11 header defines them as object-like macros — the preprocessor')
-    print('   rewrites them even through a `::`. Rename the identifier (InvalidationScope')
-    print('   ::None became ::Nothing in b942c8b1e), or annotate `// X11_MACRO_OK: reason`.')
+    print('   <X11/X.h> defines them as object-like macros — the preprocessor rewrites')
+    print('   them even through a `::`. Rename the identifier (InvalidationScope::None')
+    print('   became ::Nothing in 3ec0c17be), or annotate `// X11_MACRO_OK: reason`.')
     print('   Run: python3 scripts/check_x11_macro_collisions.py --list')
     return 1
 
