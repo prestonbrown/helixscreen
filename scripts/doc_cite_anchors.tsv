@@ -374,6 +374,7 @@ docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	143	include
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	508	include/ams_backend_afc.h	0923cff2a285	40ecabbe663b
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_cfs.h	121	include/ams_backend_cfs.h	145104540e13	63abe8abc3b4
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_happy_hare.h	43	include/ams_backend_happy_hare.h	eae0848cebca	3e7cbc49d3bd
+docs/devel/architecture/07-filament-ams.md	include/ams_backend_happy_hare.h	301	include/ams_backend_happy_hare.h	1221173afc37	12f6786be255
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_qidi.h	48	include/ams_backend_qidi.h	4cdfd1bba71a	42091e2e448f
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_snapmaker.h	68	include/ams_backend_snapmaker.h	f21d9db94cbf	b9bade8ede85
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_toolchanger.h	50	include/ams_backend_toolchanger.h	eb06ccdf0564	110515488b98
@@ -666,7 +667,7 @@ docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	199	sr
 docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	242	src/api/display_backend.cpp	215bb69fe26b	db783b634a34
 docs/devel/architecture/15-known-debt.md	include/sensor_registry.h	60	include/sensor_registry.h	7f03fa23f905	68f5a7ddc2d4
 docs/devel/architecture/15-known-debt.md	scripts/check_imperative_ui.py	10	scripts/check_imperative_ui.py	10d17ed720c9	02bdf36e7680
-docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1601	scripts/quality-checks.sh	6d7f21091b39	329987e887da
+docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1601	scripts/quality-checks.sh	c1311e45b528	e1e5b48c3ef8
 docs/devel/architecture/15-known-debt.md	src/api/moonraker_discovery_sequence.cpp	856	src/api/moonraker_discovery_sequence.cpp	859d76692100	84ebb0feab81
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	96	src/printer/printer_discovery.cpp	701fe2945490	d988be8c6ecc
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	105	src/printer/printer_discovery.cpp	b4eafb8019aa	2173247c26a9
@@ -714,6 +715,7 @@ docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	393	src/
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	846	src/ui/ui_gcode_viewer.cpp	bc7ee7ce4797	5a634b985148
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1485	src/ui/ui_gcode_viewer.cpp	e98a0f98ccb3	55635dd6d787
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1554	src/ui/ui_gcode_viewer.cpp	2ffe7c1e24ab	19e76dc8a70f
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1716	src/ui/ui_gcode_viewer.cpp	7771485c9606	de32ed131956
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1825	src/ui/ui_gcode_viewer.cpp	3beda2c23532	875d26cbb085
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	379	src/ui/ui_panel_print_status.cpp	683c7d398d45	d94959216ef9
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1079	src/ui/ui_panel_print_status.cpp	ed987a71bbbf	8cb6648d0caf

@@ -132,7 +132,7 @@ Edit the file under `lib/<sub>/`, then `cd lib/<sub> && git diff -- <the files y
 
 **DATA in C++, APPEARANCE in XML, Subjects connect them.**
 
-**Absolute for new code.** The tree still has 370 sites that break these rules
+**Absolute for new code.** The tree still has 367 sites that break these rules
 (`scripts/check_imperative_ui.py --list`). Some were deliberate pragmatism from when the XML
 engine could not express what was needed; some are plain mistakes that got through review.
 Both are debt, tracked in prestonbrown/helixscreen#1140 and being ported. **Existing imperative
