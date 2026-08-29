@@ -22,6 +22,33 @@ FORGEX_CHROOT="/data/.mod/.forge-x"
 # Backlight control script path (INSIDE the chroot, not on the host)
 FORGEX_BACKLIGHT="/root/printer_data/py/backlight.py"
 
+# Boot splash ownership. ForgeX 1.4.2 replaced its static boot images with a
+# persistent `splash` daemon that owns /dev/fb0 and page-flips, started by
+# S00init and stopped only by S99root. S90helixscreen starts helix-splash
+# before forking its wait subshell, so on those releases two processes drive
+# the framebuffer for the whole S90->S99 window and tear over each other.
+#
+# Releases up to 1.4.1 have no such daemon: they blit load.img.xz then
+# splash.img.xz and nothing repaints afterwards. Nothing is competing for the
+# framebuffer there, and our splash is the only thing showing boot progress,
+# so it stays on.
+#
+# Probe for the daemon rather than reading version.txt. Version strings are
+# not trustworthy here: there is no 1.4.2 tag (only 1.4.2-beta-2), `main`
+# still reports 1.4.1, and tag 1.3.1 ships a version.txt reading 1.3.0.
+#
+# Sourced at file scope by both helixscreen.init and helix-launcher.sh, so one
+# assignment covers both. An explicit HELIX_NO_SPLASH in the environment wins.
+FORGEX_SPLASH_BIN="${FORGEX_SPLASH_BIN:-/opt/config/mod/.bin/exec/splash}"
+if [ -z "${HELIX_NO_SPLASH}" ]; then
+    if [ -x "$FORGEX_SPLASH_BIN" ]; then
+        HELIX_NO_SPLASH=1
+    else
+        HELIX_NO_SPLASH=0
+    fi
+    export HELIX_NO_SPLASH
+fi
+
 # Stop stock FlashForge UI and competing screen UIs.
 # The AD5M stock firmware runs ffstartup-arm which launches firmwareExe
 # (the stock Qt touchscreen UI). Both must be killed for HelixScreen to
