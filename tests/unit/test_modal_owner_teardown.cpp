@@ -103,6 +103,16 @@ class ReentrantModal : public Modal {
     }
 };
 
+/// Simulates a user tap on a dialog's backdrop - the dismissal path a caller
+/// did not initiate. Modal::hide(dialog) is no longer one: hide() distinguishes
+/// caller closes (Programmatic) from user/environment ones, so a test that
+/// means "dismissed" must drive this, not a programmatic close.
+void tap_backdrop(lv_obj_t* dialog) {
+    lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
+    REQUIRE(backdrop != nullptr);
+    lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
+}
+
 /// True when `backdrop` is the last (topmost) child of its parent.
 bool is_foreground_child(lv_obj_t* backdrop) {
     lv_obj_t* parent = lv_obj_get_parent(backdrop);
@@ -567,7 +577,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Dismissing a confirmation invokes on_dismis
     REQUIRE(dialog != nullptr);
     REQUIRE(dismissed == 0);
 
-    Modal::hide(dialog); // neither button
+    tap_backdrop(dialog); // user dismissed - neither button
     process_lvgl(50);
 
     CHECK(dismissed == 1);
@@ -664,7 +674,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm reports a dismissal to on_dis
         [&confirmed]() { ++confirmed; }, nullptr, nullptr, [&dismissed]() { ++dismissed; });
     REQUIRE(dialog != nullptr);
 
-    Modal::hide(dialog); // backdrop tap / ESC: neither button
+    tap_backdrop(dialog); // user dismissed - neither button
     process_lvgl(50);
 
     CHECK(confirmed == 0);
@@ -752,7 +762,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An expired dismiss token suppresses on_dism
     // for. A panel destroyed by StaticPanelRegistry teardown does this.
     guard.reset();
 
-    Modal::hide(dialog);
+    tap_backdrop(dialog); // dismissal on a dead owner - the reason the tie exists
     process_lvgl(50);
 
     CHECK(dismissed == 0); // callback skipped rather than run on a dead owner
@@ -773,7 +783,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A live dismiss token still fires on_dismiss
         nullptr, nullptr, [&dismissed]() { ++dismissed; }, guard.token());
     REQUIRE(dialog != nullptr);
 
-    Modal::hide(dialog);
+    tap_backdrop(dialog);
     process_lvgl(50);
 
     CHECK(dismissed == 1);
@@ -972,7 +982,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A dismissal callback may close its own dial
                                                 });
     REQUIRE(handle != nullptr);
 
-    Modal::hide(handle);
+    tap_backdrop(handle);
     process_lvgl(50);
 
     CHECK(dismissed == 1);
@@ -1088,4 +1098,74 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A button with a callback is not a dismissal
 
     CHECK(cancels == 1);
     CHECK(dismissed == 0);
+}
+
+// ============================================================================
+// A caller's own close is not a dismissal
+// ============================================================================
+
+// on_dismiss fired on ANY close where no button callback ran - including the
+// caller's own Modal::hide() from teardown. Deferred through async_call, the
+// callback landed a tick AFTER a destructor finished, which is the UAF shape
+// that got the #1380 per-site fix reverted. The two callers that could hit it
+// were safe only because each nulled its handle first and passed a token;
+// neither is required by the signature. hide() now defaults to Programmatic,
+// and on_dismiss means "closed by something other than you".
+TEST_CASE_METHOD(LVGLUITestFixture, "A caller's own close does not invoke on_dismiss",
+                 "[modal][teardown][1380]") {
+    helix::ui::modal_init_subjects();
+
+    int dismissed = 0;
+    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
+        nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    REQUIRE(dialog != nullptr);
+
+    Modal::hide(dialog); // the caller's teardown shape: null the handle, close
+    process_lvgl(50);
+
+    CHECK(dismissed == 0);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// Same contract on the declarative form, whose callers are the #1380 sweep's
+// target: converting a site must not arm a deferred callback against its own
+// teardown.
+TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm's programmatic close does not invoke on_dismiss",
+                 "[modal][teardown][1380]") {
+    helix::ui::modal_init_subjects();
+
+    int dismissed = 0;
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, nullptr,
+                                                nullptr, [&dismissed]() { ++dismissed; });
+    REQUIRE(dialog != nullptr);
+
+    Modal::hide(dialog);
+    process_lvgl(50);
+
+    CHECK(dismissed == 0);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// A hot-reload rebuild closes the dialog from outside the caller, so it still
+// reports - and this pins the HotReload reason so a later regression that
+// routes every close through the Programmatic default cannot silently eat it.
+TEST_CASE_METHOD(LVGLUITestFixture, "A hot-reload rebuild still reports a dismissal",
+                 "[modal][teardown][1380]") {
+    helix::ui::modal_init_subjects();
+
+    int dismissed = 0;
+    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
+        nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    REQUIRE(dialog != nullptr);
+
+    // Instance-backed, so rebuild_top hides rather than resurrects a broken
+    // copy - either way the caller did not close it.
+    Modal::rebuild_top();
+    process_lvgl(50);
+
+    CHECK(dismissed == 1);
+    CHECK(ModalStack::instance().stack_empty());
 }

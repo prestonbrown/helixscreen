@@ -108,6 +108,14 @@ class MyPanel {
 > always-fires resolve point and `on_dismiss` is called from it - deferred to the next tick,
 > so a callback that closes another dialog cannot re-enter the teardown it was called from.
 >
+> `on_dismiss` means "closed by something other than you": every close that is not the
+> caller's own `Modal::hide()` reports - a backdrop tap, ESC, a hot-reload rebuild, even a
+> button press whose side carries no callback. The caller's own programmatic `hide()` does
+> NOT fire it (each `hide()` entry point defaults to `Programmatic`, which `on_hide()` gates
+> on), so closing the dialog from teardown cannot arm a deferred callback against a
+> destructor that has already run. Nulling the stored handle first is still good hygiene,
+> but it is no longer the only thing standing between a close and a use-after-free.
+>
 > **If the capture can die before the dialog, pass a lifetime token too.** The dialog
 > outlives its exit animation, and a `std::function` capturing a panel that has since been
 > destroyed is a use-after-free. Hand it a token from the owner's `AsyncLifetimeGuard`

@@ -116,7 +116,7 @@ What is banned is the form between them: a bare `if (tok.expired()) return;` on 
 
 Details that matter in review: `lifetime_.defer()` reads `this->lifetime_`, so it is main-thread-only — from a background thread it is exactly the #707 race, use `tok.defer()`. All defer paths check the generation *before* enqueueing, so a callback whose owner already died never even occupies a queue slot. And every skip increments a per-tag counter drained by telemetry as `async_lifetime_skips` — a hot tag there is the early signal that an owner is repeatedly dying with pending work (#1165).
 
-Who has a guard already: `Modal` ([`include/ui_modal.h:76`](../../../include/ui_modal.h#L76)) and `OverlayBase` ([`include/overlay_base.h:88`](../../../include/overlay_base.h#L88)) ship with `lifetime_` members and invalidate them in `hide()`/`cleanup()`. Standalone classes declare `helix::AsyncLifetimeGuard lifetime_;` — 101 files reference the type at audit time.
+Who has a guard already: `Modal` ([`include/ui_modal.h:96`](../../../include/ui_modal.h#L96)) and `OverlayBase` ([`include/overlay_base.h:88`](../../../include/overlay_base.h#L88)) ship with `lifetime_` members and invalidate them in `hide()`/`cleanup()`. Standalone classes declare `helix::AsyncLifetimeGuard lifetime_;` — 101 files reference the type at audit time.
 
 ### Guard two: `SubjectLifetime` — observers that outlive their subject
 

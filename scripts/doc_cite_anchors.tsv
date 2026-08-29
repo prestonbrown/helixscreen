@@ -226,7 +226,7 @@ docs/devel/architecture/03-threading-lifetime.md	include/http_executor.h	33	incl
 docs/devel/architecture/03-threading-lifetime.md	include/http_executor.h	87	include/http_executor.h	03b7db36cd87	5da6f7be74ef
 docs/devel/architecture/03-threading-lifetime.md	include/moonraker_client.h	78	include/moonraker_client.h	56e0d5e200c7	362de559c33a
 docs/devel/architecture/03-threading-lifetime.md	include/overlay_base.h	88	include/overlay_base.h	6e3789e358d3	ae7902ff2bfb
-docs/devel/architecture/03-threading-lifetime.md	include/ui_modal.h	76	include/ui_modal.h	f08d448ca6ed	3d21583bd125
+docs/devel/architecture/03-threading-lifetime.md	include/ui_modal.h	96	include/ui_modal.h	f08d448ca6ed	3d21583bd125
 docs/devel/architecture/03-threading-lifetime.md	include/ui_observer_guard.h	40	include/ui_observer_guard.h	a97d24514272	760fa7601f78
 docs/devel/architecture/03-threading-lifetime.md	include/ui_observer_guard.h	136	include/ui_observer_guard.h	374401388dc5	790d430eb812
 docs/devel/architecture/03-threading-lifetime.md	include/ui_timer_guard.h	18	include/ui_timer_guard.h	5e0644b50c91	0d7338fec80e
@@ -412,11 +412,11 @@ docs/devel/architecture/08-panels-navigation.md	include/panel_factory.h	34	inclu
 docs/devel/architecture/08-panels-navigation.md	include/panel_lifecycle.h	32	include/panel_lifecycle.h	389a08ad89dc	9a0fd56d3136
 docs/devel/architecture/08-panels-navigation.md	include/ui/ui_lazy_panel_helper.h	65	include/ui/ui_lazy_panel_helper.h	f4100ed91ab1	e8b1dc442e73
 docs/devel/architecture/08-panels-navigation.md	include/ui_info_qr_modal.h	11	include/ui_info_qr_modal.h	15c9a802e386	0a07344dd145
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	76	include/ui_modal.h	f08d448ca6ed	3d21583bd125
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	140	include/ui_modal.h	0e840182fd09	5f222c1bcd02
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	332	include/ui_modal.h	a3a513c94aa9	d435ae83b902
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	507	include/ui_modal.h	6c2ef49c636c	6fa5bf1d4867
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	571	include/ui_modal.h	5c3e521983d5	70097ee77233
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	96	include/ui_modal.h	f08d448ca6ed	3d21583bd125
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	164	include/ui_modal.h	0e840182fd09	5f222c1bcd02
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	365	include/ui_modal.h	a3a513c94aa9	d435ae83b902
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	542	include/ui_modal.h	6c2ef49c636c	6fa5bf1d4867
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	609	include/ui_modal.h	5c3e521983d5	0681e60e275c
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	34	include/ui_nav_manager.h	d5cd25c0566a	a756985314a6
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	176	include/ui_nav_manager.h	021de0d8ba4a	947fba563ccc
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	195	include/ui_nav_manager.h	1cd60fbc777e	9f3aa2be3767

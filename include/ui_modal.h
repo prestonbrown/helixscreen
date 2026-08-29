@@ -34,6 +34,26 @@ enum class ModalSeverity {
     Error = 2,
 };
 
+/**
+ * @brief What closed a modal, for hooks that must tell caller closes from
+ *        user/environment ones.
+ *
+ * Both hide() entry points default to Programmatic: the caller closed its own
+ * dialog and already knows. The paths a caller does not control - backdrop tap,
+ * ESC, a dialog button, an XML hot-reload rebuild - pass their own value, so
+ * on_dismiss can mean exactly "closed by something other than you" instead of
+ * "closed without a button callback", which also fired for the caller's own
+ * teardown close (deferred one tick past a destructor - the UAF shape behind
+ * the #1380 revert).
+ */
+enum class ModalCloseReason {
+    Programmatic, ///< The caller's own code closed the dialog (hide() default)
+    BackdropTap,  ///< User tapped the backdrop
+    EscKey,       ///< User pressed ESC
+    ButtonPress,  ///< A dialog button was pressed
+    HotReload,    ///< XML hot reload replaced the dialog (dev builds)
+};
+
 // ============================================================================
 // MODAL CLASS
 // ============================================================================
@@ -105,6 +125,10 @@ class Modal {
     /**
      * @brief Hide a modal by its dialog pointer
      * @param dialog Dialog object returned by show()
+     * @param reason What closed it; Programmatic (the default) means the caller
+     *        closed its own dialog, which does not fire a confirmation's
+     *        on_dismiss. Modal's own input paths pass their reason so a
+     *        dismissal is still reported.
      *
      * Delegates to the owning instance's hide() when the dialog has one, so
      * on_hide() and lifetime_ invalidation still run. The confirmation/alert
@@ -112,7 +136,7 @@ class Modal {
      * Modal::show() factory has no owner and therefore no on_hide(): nothing
      * observes that close.
      */
-    static void hide(lv_obj_t* dialog);
+    static void hide(lv_obj_t* dialog, ModalCloseReason reason = ModalCloseReason::Programmatic);
 
     /**
      * @brief Get the topmost modal's dialog
@@ -156,11 +180,15 @@ class Modal {
 
     /**
      * @brief Hide this modal instance
+     * @param reason What closed it. Defaults to Programmatic - a caller closing
+     *        its own modal. Modal's backdrop/ESC/hot-reload handlers pass their
+     *        reason; a subclass that cares (ConfirmationModal) reads it from
+     *        close_reason_ inside on_hide().
      *
      * Note: This overloads the static hide() - use modal.hide() for instances,
      * Modal::hide(dialog) for simple modals.
      */
-    void hide();
+    void hide(ModalCloseReason reason = ModalCloseReason::Programmatic);
 
     /**
      * @brief Check if this modal is currently visible
@@ -262,6 +290,11 @@ class Modal {
     lv_obj_t* backdrop_ = nullptr;
     lv_obj_t* dialog_ = nullptr;
     lv_obj_t* parent_ = nullptr;
+
+    /// Why the in-progress (or most recent) hide() was initiated. Set on every
+    /// hide() entry, before on_hide() runs; read it there to distinguish a
+    /// caller's own close (Programmatic) from everything else.
+    ModalCloseReason close_reason_ = ModalCloseReason::Programmatic;
 
     /// Async callback safety. Automatically invalidated on hide().
     /// Subclasses use lifetime_.defer(...) or lifetime_.token() for
@@ -492,10 +525,12 @@ void modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea);
  * @param on_cancel Callback for cancel button (receives user_data), or nullptr for no callback
  * @param user_data User data passed to callbacks
  * @param cancel_text Secondary button text, or nullptr to default to "Cancel"
- * @param on_dismiss Called when the dialog closes WITHOUT either button being
- *        pressed - a backdrop tap, ESC, or a hot-reload rebuild. Pass this
- *        whenever the caller holds state the buttons are meant to resolve (a
- *        re-entry guard, a pending flag, a stored handle); without it that
+ * @param on_dismiss Called when the dialog is closed by something other than
+ *        the caller - a backdrop tap, ESC, a hot-reload rebuild, or a button
+ *        press whose side carries no callback. The caller's own
+ *        Modal::hide(dialog) does NOT fire it: the caller already knows. Pass
+ *        this whenever the caller holds state the buttons are meant to resolve
+ *        (a re-entry guard, a pending flag, a stored handle); without it that
  *        state leaks on a dismissal. It must not capture anything that can die
  *        before the dialog - the dialog outlives its exit animation.
  * @return The created dialog widget, or nullptr on failure
@@ -523,8 +558,10 @@ lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalS
  * This form also closes the dialog itself when a button is pressed - the
  * lv_event_cb_t form leaves that to the caller.
  *
- * @param on_dismiss Called when the dialog closes with neither button pressed
- *        (backdrop tap, ESC, hot-reload rebuild). Nothing else reports that.
+ * @param on_dismiss Called when the dialog is closed by something other than
+ *        the caller - a backdrop tap, ESC, a hot-reload rebuild, or a button
+ *        press whose side carries no callback. The caller's own
+ *        Modal::hide(dialog) does NOT fire it: the caller already knows.
  * @param owner_token Gates ALL THREE callbacks, not just the dismissal: none of
  *        them runs once the token has expired. Pass it whenever a callback
  *        captures something that can die before the dialog does - which is the
@@ -566,7 +603,8 @@ lv_obj_t* modal_alert(const char* title, const char* message,
  * @return The created dialog widget, or nullptr on failure
  *
  * @warning Same caveats as modal_show_confirmation(): user_data must outlive the
- *          dialog. Pass on_dismiss to learn about a close with no button press.
+ *          dialog. Pass on_dismiss to learn about a close the caller did not
+ *          initiate - the caller's own Modal::hide(dialog) reports nothing.
  */
 lv_obj_t* modal_show_alert(const char* title, const char* message,
                            ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
@@ -582,11 +620,13 @@ lv_obj_t* modal_show_alert(const char* title, const char* message,
  * decided RAM is below helix::RESONANCE_LOW_RAM_WARN_MB. Returns the dialog
  * handle (store it to dismiss on teardown) or nullptr on failure.
  *
- * @param on_dismiss Called when the dialog closes with neither button pressed.
- *        Both callers gate re-entry on the returned handle being null, so a
- *        dismissal that leaves it set makes every later attempt a silent no-op
- *        - clear the handle from here. Pass @p dismiss_token too when the
- *        capture can die before the dialog. Do NOT hand-roll an
+ * @param on_dismiss Called when the dialog is closed by something other than
+ *        the caller - a backdrop tap, ESC, or a hot-reload rebuild; the
+ *        caller's own Modal::hide() reports nothing. Both callers gate
+ *        re-entry on the returned handle being null, so a dismissal that
+ *        leaves it set makes every later attempt a silent no-op - clear the
+ *        handle from here. Pass @p dismiss_token too when the capture can die
+ *        before the dialog. Do NOT hand-roll an
  *        LV_EVENT_DELETE hook for this: one that outlives its owner is the
  *        use-after-free that got prestonbrown/helixscreen#1380 reverted.
  */

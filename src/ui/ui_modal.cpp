@@ -710,7 +710,23 @@ static void raise_top_modal_to_foreground(ModalStack& stack) {
     }
 }
 
-void Modal::hide(lv_obj_t* dialog) {
+static const char* close_reason_name(ModalCloseReason reason) {
+    switch (reason) {
+    case ModalCloseReason::Programmatic:
+        return "programmatic";
+    case ModalCloseReason::BackdropTap:
+        return "backdrop tap";
+    case ModalCloseReason::EscKey:
+        return "esc key";
+    case ModalCloseReason::ButtonPress:
+        return "button press";
+    case ModalCloseReason::HotReload:
+        return "hot reload";
+    }
+    return "unknown";
+}
+
+void Modal::hide(lv_obj_t* dialog, ModalCloseReason reason) {
     if (!dialog) {
         spdlog::error("[Modal] hide() called with null dialog");
         return;
@@ -743,12 +759,12 @@ void Modal::hide(lv_obj_t* dialog) {
     // delegate. The owner is cleared when the entry is marked exiting, so the
     // is_exiting guard above guarantees this pointer is still live.
     if (Modal* owner = stack.owner_for(dialog)) {
-        owner->hide();
+        owner->hide(reason);
         raise_top_modal_to_foreground(stack);
         return;
     }
 
-    spdlog::info("[Modal] Hiding modal");
+    spdlog::info("[Modal] Hiding modal ({})", close_reason_name(reason));
 
     // An owner-less dialog (the confirmation/alert helpers, and the static
     // Modal::show factory) has no instance teardown to delegate to, but the
@@ -810,14 +826,14 @@ bool Modal::rebuild_top() {
         spdlog::info("[Modal::rebuild_top] Modal '{}' is instance-backed - hiding instead of "
                      "rebuilding",
                      name);
-        owner->hide();
+        owner->hide(ModalCloseReason::HotReload);
         return false;
     }
 
     spdlog::info("[Modal::rebuild_top] Modal '{}' cannot be rebuilt from XML (runtime attrs and "
                  "post-show wiring are not recoverable) - hiding instead",
                  name);
-    Modal::hide(dialog);
+    Modal::hide(dialog, ModalCloseReason::HotReload);
     return false;
 }
 
@@ -860,10 +876,15 @@ bool Modal::show(lv_obj_t* /*parent*/, const char** attrs) {
     return true;
 }
 
-void Modal::hide() {
+void Modal::hide(ModalCloseReason reason) {
     if (!backdrop_) {
         return; // Already hidden, safe to call multiple times
     }
+
+    // Read by on_hide() (and anything it calls) to tell a caller's own close
+    // from one the caller did not initiate. Every hide() sets it, so a bail-out
+    // below can only leave a value the next real hide() overwrites.
+    close_reason_ = reason;
 
     // Check if backdrop is still tracked — if not, it was deleted by another path
     if (!ModalStack::instance().backdrop_for_backdrop(backdrop_)) {
@@ -879,7 +900,7 @@ void Modal::hide() {
         return;
     }
 
-    spdlog::info("[{}] Hiding modal", get_name());
+    spdlog::info("[{}] Hiding modal ({})", get_name(), close_reason_name(reason));
 
     // Cancel all deferred async callbacks before any widget cleanup
     lifetime_.invalidate();
@@ -1072,7 +1093,7 @@ void Modal::backdrop_click_cb(lv_event_t* e) {
     if (self) {
         // Instance modal
         spdlog::debug("[{}] Backdrop clicked - closing", self->get_name());
-        self->hide();
+        self->hide(ModalCloseReason::BackdropTap);
     } else {
         // Static modal - find in stack and close topmost
         auto& stack = ModalStack::instance();
@@ -1081,7 +1102,7 @@ void Modal::backdrop_click_cb(lv_event_t* e) {
 
         if (top_backdrop == current_target) {
             spdlog::debug("[Modal] Backdrop clicked on topmost modal - closing");
-            Modal::hide(top_dialog);
+            Modal::hide(top_dialog, ModalCloseReason::BackdropTap);
         }
     }
 
@@ -1106,7 +1127,7 @@ void Modal::esc_key_cb(lv_event_t* e) {
         lv_obj_t* top = ModalStack::instance().top_dialog();
         if (top) {
             spdlog::debug("[Modal] ESC key pressed - closing topmost modal");
-            Modal::hide(top);
+            Modal::hide(top, ModalCloseReason::EscKey);
         }
     }
 
@@ -1359,7 +1380,7 @@ class ConfirmationModal : public Modal {
     // Never reached: every button is routed to our own handler by wire_side(),
     // precisely so that on_cancel() below can mean one thing.
     void on_ok() override {
-        Modal::on_ok();
+        hide(ModalCloseReason::ButtonPress);
     }
 
     void on_cancel() override {
@@ -1368,11 +1389,16 @@ class ConfirmationModal : public Modal {
         // button pressed": hide and let on_hide() report the dismissal. That is
         // what makes the documented on_dismiss contract true for ESC as well as
         // for a backdrop tap, on every dialog shape.
-        Modal::on_cancel();
+        hide(ModalCloseReason::EscKey);
     }
 
     void on_hide() override {
-        if (!answered_ && on_dismiss_) {
+        // Programmatic is the caller closing its own dialog; it already knows,
+        // and a deferred on_dismiss there lands a tick after the caller's
+        // teardown may have finished. Everything else - backdrop, ESC, a button
+        // with no caller callback, hot reload - closed the dialog from outside
+        // and is the caller's to learn about.
+        if (!answered_ && on_dismiss_ && close_reason_ != ModalCloseReason::Programmatic) {
             // Deferred, for two reasons. on_hide() runs mid-teardown - the stack
             // entry is already un-owned but not yet marked exiting - so calling
             // back synchronously lets a reentrant modal_hide() run a SECOND full
@@ -1437,9 +1463,11 @@ class ConfirmationModal : public Modal {
             if (self->fn_confirm_ && self->owner_alive()) {
                 self->fn_confirm_();
             }
-            // We own the close unless a legacy caller's callback does it.
+            // We own the close unless a legacy caller's callback does it. A
+            // button press is not the caller's own close, so it carries its
+            // reason even when no callback on this side latched answered_.
             if (self->declarative_ || !self->cb_confirm_) {
-                self->hide();
+                self->hide(ModalCloseReason::ButtonPress);
             }
         }
         LVGL_SAFE_EVENT_CB_END();
@@ -1459,9 +1487,11 @@ class ConfirmationModal : public Modal {
             if (self->fn_cancel_ && self->owner_alive()) {
                 self->fn_cancel_();
             }
-            // We own the close unless a legacy caller's callback does it.
+            // We own the close unless a legacy caller's callback does it. A
+            // button press is not the caller's own close, so it carries its
+            // reason even when no callback on this side latched answered_.
             if (self->declarative_ || !self->cb_cancel_) {
-                self->hide();
+                self->hide(ModalCloseReason::ButtonPress);
             }
         }
         LVGL_SAFE_EVENT_CB_END();
