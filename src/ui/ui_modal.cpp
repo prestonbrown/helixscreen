@@ -689,6 +689,31 @@ void Modal::hide(lv_obj_t* dialog) {
 
     spdlog::info("[Modal] Hiding modal");
 
+    // An owner-less dialog keeps every button callback live, still holding the
+    // caller's user_data, for the whole MODAL_EXIT_DURATION_MS exit animation.
+    // That window is long enough for a second tap, and the second tap is not a
+    // cosmetic double-fire: it re-runs the confirm action against state the
+    // first one already consumed, and because top_dialog() skips exiting
+    // entries, a nested Modal::hide(Modal::get_top()) then resolves to the
+    // modal UNDERNEATH. Instance hide() closes this window at the equivalent
+    // point; the static path has to close it too, since the helper factories
+    // (modal_show_confirmation / modal_show_alert) never set an owner.
+    //
+    // Deliberately NOT clear_user_data_recursive(): the helpers keep their
+    // user_data in per-callback storage (lv_event_get_user_data), which that
+    // function does not touch, so it would buy nothing here - while nulling an
+    // lv_obj's user_data strands ui_button's UiButtonData, whose
+    // button_delete_cb frees it only when the magic still reads back.
+    disable_clicks_recursive(dialog);
+
+    // Mirrors the instance teardown. Both handlers already refuse to act on a
+    // stale target on their own - backdrop_click_cb compares against the live
+    // top backdrop, and defocus_tree() below takes the tree out of the focus
+    // group before any ESC can reach it - so this is consistency and defence in
+    // depth rather than a fix for a reachable path.
+    lv_obj_remove_event_cb(backdrop, backdrop_click_cb);
+    lv_obj_remove_event_cb(backdrop, esc_key_cb);
+
     // Remove entire tree from focus group to prevent scroll-on-focus during exit animation
     helix::ui::defocus_tree(backdrop);
 

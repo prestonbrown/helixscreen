@@ -24,6 +24,8 @@
 // teardown synchronous apart from the deferred widget delete.
 #include "../lvgl_ui_test_fixture.h"
 
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 
 namespace {
@@ -364,6 +366,82 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Hiding a statically shown top modal raises 
 
     process_lvgl(50);
     Modal::hide(lower);
+    process_lvgl(50);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// ============================================================================
+// The owner-less path has to disarm its own dialog
+// ============================================================================
+
+// modal_show_confirmation() / modal_show_alert() push with no owner, so the
+// static hide() has nothing to delegate to. It still has to close the window
+// the instance path closes: for MODAL_EXIT_DURATION_MS the buttons remain
+// clickable while still holding the caller's per-callback user_data, and a
+// second tap in that window re-enters the confirm handler with the first tap's
+// state already consumed. Clearing LV_OBJ_FLAG_CLICKABLE is what stops it -
+// LVGL's indev processing skips non-clickable objects, so the queued press
+// never reaches the callback.
+TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms the dialog buttons",
+                 "[modal][teardown]") {
+    // modal_configure() no-ops without these; the app does this at startup.
+    helix::ui::modal_init_subjects();
+
+    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+        "Delete Page", "Remove this page and all its widgets?", ModalSeverity::Warning, "Delete",
+        nullptr, nullptr, nullptr);
+    REQUIRE(dialog != nullptr);
+    // The whole point: this dialog has no Modal instance behind it.
+    REQUIRE(ModalStack::instance().owner_for(dialog) == nullptr);
+
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    lv_obj_t* secondary = lv_obj_find_by_name(dialog, "btn_secondary");
+    REQUIRE(primary != nullptr);
+    REQUIRE(secondary != nullptr);
+    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_has_flag(secondary, LV_OBJ_FLAG_CLICKABLE));
+
+    Modal::hide(dialog);
+
+    // Deletion is deferred to the end of the exit animation, so the widgets are
+    // still live here. This is precisely the window a second tap lands in.
+    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(lv_obj_is_valid(secondary));
+    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_has_flag(secondary, LV_OBJ_FLAG_CLICKABLE));
+
+    process_lvgl(50);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// The disarm has to reach nested XML components, not just the dialog's direct
+// children - modal_dialog wraps its buttons in a row container.
+TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms nested dialog children",
+                 "[modal][teardown]") {
+    lv_obj_t* dialog = Modal::show(TEST_COMPONENT);
+    REQUIRE(dialog != nullptr);
+    REQUIRE(ModalStack::instance().owner_for(dialog) == nullptr);
+
+    // Collect every clickable descendant below the dialog's immediate children.
+    std::vector<lv_obj_t*> nested;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(dialog); i++) {
+        lv_obj_t* child = lv_obj_get_child(dialog, i);
+        for (uint32_t j = 0; j < lv_obj_get_child_count(child); j++) {
+            lv_obj_t* grandchild = lv_obj_get_child(child, j);
+            if (lv_obj_has_flag(grandchild, LV_OBJ_FLAG_CLICKABLE)) {
+                nested.push_back(grandchild);
+            }
+        }
+    }
+    REQUIRE_FALSE(nested.empty());
+
+    Modal::hide(dialog);
+
+    for (lv_obj_t* obj : nested) {
+        REQUIRE(lv_obj_is_valid(obj));
+        CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
+    }
+
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
 }
