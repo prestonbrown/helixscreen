@@ -222,28 +222,36 @@ bool click(lv_obj_t* widget) {
     return click_at(x, y);
 }
 
-bool click_at(int32_t x, int32_t y) {
+bool press_at(int32_t x, int32_t y) {
     if (!virtual_indev) {
         spdlog::error("[UITest] Input device not initialized - call init() first");
         return false;
     }
 
-    spdlog::debug("[UITest] Simulating click at ({}, {})", x, y);
-
-    // Simulate press
+    spdlog::debug("[UITest] Simulating press at ({}, {})", x, y);
     last_data.point.x = x;
     last_data.point.y = y;
     last_data.state = LV_INDEV_STATE_PRESSED;
     lv_indev_read(virtual_indev); // Directly read indev to process press
     wait_ms(50);                  // Minimum press duration
+    return true;
+}
 
-    // Simulate release
+bool release() {
+    if (!virtual_indev) {
+        spdlog::error("[UITest] Input device not initialized - call init() first");
+        return false;
+    }
+
+    spdlog::debug("[UITest] Simulating release");
     last_data.state = LV_INDEV_STATE_RELEASED;
     lv_indev_read(virtual_indev); // Directly read indev to process release
     wait_ms(50);                  // Allow click handlers to execute
-
-    spdlog::debug("[UITest] Click simulation complete");
     return true;
+}
+
+bool click_at(int32_t x, int32_t y) {
+    return press_at(x, y) && release();
 }
 
 bool type_text(const std::string& text) {

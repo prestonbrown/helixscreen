@@ -278,6 +278,12 @@ class Modal {
     // Internal implementation
     bool create_and_show(lv_obj_t* parent, const char* comp_name, const char** attrs);
     void destroy();
+
+    /// Make a closing dialog inert: clear stale user_data, stop new presses,
+    /// drop any press already in flight, and unwire the backdrop handlers.
+    /// Shared by all three teardown paths (static hide, instance hide, ~Modal)
+    /// so they cannot drift apart. Either argument may be null.
+    static void disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog);
     void wire_button(const char* name, const char* role_name, lv_event_cb_t cb);
 
     // Static event handlers
@@ -507,6 +513,13 @@ lv_obj_t* modal_show_alert(const char* title, const char* message,
  * points (input-shaper panel + wizard) can't diverge. Caller has already
  * decided RAM is below helix::RESONANCE_LOW_RAM_WARN_MB. Returns the dialog
  * handle (store it to dismiss on teardown) or nullptr on failure.
+ *
+ * @warning Inherits modal_show_confirmation()'s caveats, and the stored handle is
+ *          exactly the case they describe: on a backdrop tap or ESC neither
+ *          callback runs, so a caller that also gates on that handle being null
+ *          (both current callers do) never clears it and the feature goes quiet.
+ *          Clear it from an LV_EVENT_DELETE hook on the dialog, or own a Modal
+ *          subclass and resolve in on_hide().
  */
 lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_event_cb_t on_confirm,
                                          lv_event_cb_t on_cancel, void* user_data);

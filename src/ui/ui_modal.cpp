@@ -3,6 +3,7 @@
 
 #include "ui_modal.h"
 
+#include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_effects.h"
 #include "ui_event_safety.h"
@@ -69,11 +70,20 @@ constexpr const char* DEFAULT_PRIMARY_TEXT = "OK";
 constexpr const char* DEFAULT_CANCEL_TEXT = "Cancel";
 } // namespace
 
-// Recursively clear user_data on an object tree to prevent stale pointer dispatch
+// Recursively clear user_data on an object tree to prevent stale pointer
+// dispatch. Subclasses that stash `this` there rely on this: ClogDetectionConfigModal
+// walks up looking for the first non-null user_data and casts it to its own type
+// (clog_detection_config_modal.cpp:20), so a slot left set after teardown resolves
+// to a freed instance.
+//
+// ui_button is the one thing that must be left alone. It owns its user_data slot
+// (a heap UiButtonData) and button_delete_cb frees it by reading the slot back and
+// checking a magic word - null it here and the allocation is stranded with nothing
+// left to free it.
 static void clear_user_data_recursive(lv_obj_t* obj) {
     if (!obj)
         return;
-    if (lv_obj_get_user_data(obj) != nullptr) {
+    if (lv_obj_get_user_data(obj) != nullptr && !ui_button_owns_user_data(obj)) {
         lv_obj_set_user_data(obj, nullptr);
     }
     uint32_t child_count = lv_obj_get_child_count(obj);
@@ -82,11 +92,10 @@ static void clear_user_data_recursive(lv_obj_t* obj) {
     }
 }
 
-// Recursively remove LV_OBJ_FLAG_CLICKABLE from an object tree to prevent
-// LVGL from delivering queued/delayed touch events during exit animation.
-// Belt-and-suspenders defense alongside clear_user_data_recursive: even if a
-// nested XML component button retains non-null user_data, its click callback
-// won't fire because LVGL skips non-clickable objects in indev processing.
+// Recursively remove LV_OBJ_FLAG_CLICKABLE from an object tree. lv_obj_hit_test
+// rejects a non-clickable object (lv_obj_pos.c:1209), so a NEW press can no
+// longer select anything in the tree. This does NOT stop a press that is already
+// down - see Modal::disarm_tree.
 static void disable_clicks_recursive(lv_obj_t* obj) {
     if (!obj)
         return;
@@ -492,16 +501,10 @@ Modal::~Modal() {
         lv_anim_delete(backdrop_, nullptr);
         if (dialog_) {
             lv_anim_delete(dialog_, nullptr);
-            // Clear user_data on all wired buttons to prevent stale dispatch
-            // after destruction — matches what hide() does for animated exits
-            clear_user_data_recursive(dialog_);
-            disable_clicks_recursive(dialog_);
         }
-
-        // Remove event callbacks that hold `this` as user_data to prevent
-        // stale Modal* dispatch if events fire after destruction
-        lv_obj_remove_event_cb(backdrop_, backdrop_click_cb);
-        lv_obj_remove_event_cb(backdrop_, esc_key_cb);
+        // Same disarm as hide(); the derived class is already gone here, so
+        // nothing may dispatch into it.
+        disarm_tree(backdrop_, dialog_);
 
         // Hide immediately without calling virtual on_hide() - derived class already destroyed
         // Note: lv_obj_safe_delete handles focus group cleanup (helix::ui::defocus_tree)
@@ -511,6 +514,38 @@ Modal::~Modal() {
         dialog_ = nullptr;
     }
     spdlog::trace("[Modal] Destroyed");
+}
+
+void Modal::disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog) {
+    if (dialog) {
+        // Order matters only in that all three must happen before the widgets
+        // start animating out; the dialog stays alive for MODAL_EXIT_DURATION_MS
+        // after a hide, and every callback on it is still wired.
+        clear_user_data_recursive(dialog);
+        disable_clicks_recursive(dialog);
+
+        // Clearing CLICKABLE stops a NEW press from selecting anything in the
+        // tree, but it does NOT stop one that is already down: LVGL dispatches
+        // LV_EVENT_CLICKED on release to the object captured at press time and
+        // gates that on LV_STATE_DISABLED only, never on the flag
+        // (lv_indev.c indev_proc_release). A finger held on the confirm button
+        // while a background path closes the modal would still fire the
+        // callback on lift-off. Dropping the captured object closes that.
+        //
+        // Note this resets the pressed object for every indev, not only one
+        // pressing this dialog - lv_indev_reset's obj argument scopes
+        // last_pressed/last_hovered but not act_obj. Correct here regardless: a
+        // modal owns input behind a full-screen backdrop, so there is no other
+        // legitimate press in flight to cancel.
+        lv_indev_reset(nullptr, dialog);
+    }
+
+    if (backdrop) {
+        // These carry `this` as per-callback user_data for an instance modal, so
+        // they must not survive into the exit animation.
+        lv_obj_remove_event_cb(backdrop, backdrop_click_cb);
+        lv_obj_remove_event_cb(backdrop, esc_key_cb);
+    }
 }
 
 // ============================================================================
@@ -689,30 +724,14 @@ void Modal::hide(lv_obj_t* dialog) {
 
     spdlog::info("[Modal] Hiding modal");
 
-    // An owner-less dialog keeps every button callback live, still holding the
-    // caller's user_data, for the whole MODAL_EXIT_DURATION_MS exit animation.
-    // That window is long enough for a second tap, and the second tap is not a
-    // cosmetic double-fire: it re-runs the confirm action against state the
-    // first one already consumed, and because top_dialog() skips exiting
-    // entries, a nested Modal::hide(Modal::get_top()) then resolves to the
-    // modal UNDERNEATH. Instance hide() closes this window at the equivalent
-    // point; the static path has to close it too, since the helper factories
-    // (modal_show_confirmation / modal_show_alert) never set an owner.
-    //
-    // Deliberately NOT clear_user_data_recursive(): the helpers keep their
-    // user_data in per-callback storage (lv_event_get_user_data), which that
-    // function does not touch, so it would buy nothing here - while nulling an
-    // lv_obj's user_data strands ui_button's UiButtonData, whose
-    // button_delete_cb frees it only when the magic still reads back.
-    disable_clicks_recursive(dialog);
-
-    // Mirrors the instance teardown. Both handlers already refuse to act on a
-    // stale target on their own - backdrop_click_cb compares against the live
-    // top backdrop, and defocus_tree() below takes the tree out of the focus
-    // group before any ESC can reach it - so this is consistency and defence in
-    // depth rather than a fix for a reachable path.
-    lv_obj_remove_event_cb(backdrop, backdrop_click_cb);
-    lv_obj_remove_event_cb(backdrop, esc_key_cb);
+    // An owner-less dialog (the confirmation/alert helpers, and the static
+    // Modal::show factory) has no instance teardown to delegate to, but the
+    // window between "closing" and "freed" is the same one, so it gets the same
+    // disarm. Without it a second tap re-runs the confirm action against state
+    // the first already consumed, and because top_dialog() skips exiting
+    // entries, a nested Modal::hide(Modal::get_top()) resolves to the modal
+    // UNDERNEATH.
+    disarm_tree(backdrop, dialog);
 
     // Remove entire tree from focus group to prevent scroll-on-focus during exit animation
     helix::ui::defocus_tree(backdrop);
@@ -839,25 +858,10 @@ void Modal::hide() {
     // Cancel all deferred async callbacks before any widget cleanup
     lifetime_.invalidate();
 
-    // Clear user_data on all wired buttons in the dialog tree to prevent
-    // stale vtable dispatch if events fire during exit animation after
-    // the Modal subclass has been deleted (e.g. CrashReportModal's
-    // async_call(delete this) in on_hide())
-    if (dialog_) {
-        clear_user_data_recursive(dialog_);
-        // Also disable clickability on entire dialog tree so LVGL won't
-        // deliver queued/delayed touch events during exit animation.
-        // Defends against nested XML component buttons that
-        // clear_user_data_recursive may not reach.
-        disable_clicks_recursive(dialog_);
-    }
-
-    // Remove event callbacks from backdrop to prevent stale Modal* dispatch.
-    // The backdrop has click and ESC handlers with `this` as user_data
-    // (lv_event_get_user_data, NOT lv_obj_get_user_data). If on_hide()
-    // schedules self-deletion, these callbacks would dispatch to freed memory.
-    lv_obj_remove_event_cb(backdrop_, backdrop_click_cb);
-    lv_obj_remove_event_cb(backdrop_, esc_key_cb);
+    // Make the tree inert before anything can dispatch into a subclass that
+    // on_hide() may be about to delete (e.g. CrashReportModal's
+    // async_call(delete this)).
+    disarm_tree(backdrop_, dialog_);
 
     // Drop the stack's owner pointer before the hook runs. Two reasons: a
     // subclass that self-deletes from on_hide() via async_call(delete this) is

@@ -15,6 +15,7 @@
  * overload can delegate.
  */
 
+#include "ui_button.h"
 #include "ui_modal.h"
 #include "ui_update_queue.h"
 
@@ -23,6 +24,7 @@
 // tree here. The fixture also forces animations off, which makes modal exit
 // teardown synchronous apart from the deferred widget delete.
 #include "../lvgl_ui_test_fixture.h"
+#include "../ui_test_utils.h"
 
 #include <vector>
 
@@ -414,33 +416,150 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms the dialog buttons"
     CHECK(ModalStack::instance().stack_empty());
 }
 
-// The disarm has to reach nested XML components, not just the dialog's direct
-// children - modal_dialog wraps its buttons in a row container.
-TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms nested dialog children",
+// The buttons that matter are NOT direct children. print_cancel_confirm_modal
+// mounts a modal_button_row, whose own view is an lv_obj wrapping a divider and
+// an inner flex row, so btn_primary sits three levels below the dialog. The
+// earlier version of this test walked only to grandchildren and asserted on the
+// divider and the row container - it passed while every real button stayed
+// armed. Assert the depth explicitly so a shallower recursion cannot pass.
+TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms deeply nested buttons",
                  "[modal][teardown]") {
-    lv_obj_t* dialog = Modal::show(TEST_COMPONENT);
+    lv_obj_t* dialog = Modal::show("print_cancel_confirm_modal");
     REQUIRE(dialog != nullptr);
     REQUIRE(ModalStack::instance().owner_for(dialog) == nullptr);
 
-    // Collect every clickable descendant below the dialog's immediate children.
-    std::vector<lv_obj_t*> nested;
-    for (uint32_t i = 0; i < lv_obj_get_child_count(dialog); i++) {
-        lv_obj_t* child = lv_obj_get_child(dialog, i);
-        for (uint32_t j = 0; j < lv_obj_get_child_count(child); j++) {
-            lv_obj_t* grandchild = lv_obj_get_child(child, j);
-            if (lv_obj_has_flag(grandchild, LV_OBJ_FLAG_CLICKABLE)) {
-                nested.push_back(grandchild);
-            }
-        }
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+
+    // Prove this component really does nest the button below grandchild depth,
+    // so the assertion below exercises deep recursion rather than depth 1 or 2.
+    int depth = 0;
+    for (lv_obj_t* p = lv_obj_get_parent(primary); p && p != dialog; p = lv_obj_get_parent(p)) {
+        depth++;
     }
-    REQUIRE_FALSE(nested.empty());
+    REQUIRE(depth >= 2); // >= 2 ancestors between button and dialog
+    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
 
     Modal::hide(dialog);
 
-    for (lv_obj_t* obj : nested) {
-        REQUIRE(lv_obj_is_valid(obj));
-        CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
-    }
+    REQUIRE(lv_obj_is_valid(primary));
+    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+
+    process_lvgl(50);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// Clearing CLICKABLE only stops a NEW press. LVGL dispatches LV_EVENT_CLICKED on
+// release to the object captured at press time, gated on LV_STATE_DISABLED and
+// not on the flag, so a finger already down when the modal closes would still
+// fire the confirm callback on lift-off.
+//
+// The first half of this test is a known-positive: it drives a full press and
+// release through the virtual indev and REQUIREs the callback fired. Without it
+// a mis-aimed press (wrong coordinates, dialog still mid-entrance-animation)
+// would make the real assertion below pass for the wrong reason - removing
+// lv_indev_reset would not turn it red. The confirm callback here deliberately
+// does not hide, so the dialog is still up for the second half.
+TEST_CASE_METHOD(LVGLUITestFixture, "A press held across hide does not fire the confirm callback",
+                 "[modal][teardown]") {
+    helix::ui::modal_init_subjects();
+    UITest::init(test_screen());
+
+    static int confirms = 0;
+    confirms = 0;
+
+    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+        "Delete Page", "Remove this page and all its widgets?", ModalSeverity::Warning, "Delete",
+        [](lv_event_t*) { confirms++; }, nullptr, nullptr);
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+
+    // Let the entrance animation finish before measuring - MODAL_ENTRANCE_DURATION_MS
+    // is 250, and coordinates taken mid-animation point at a scaled dialog.
+    process_lvgl(400);
+    // process_lvgl() pumps timers but does not force a layout pass, and without
+    // one every widget still reads back as a zero-area rect at the origin - which
+    // would send the press below to (0,0) and quietly make this test vacuous.
+    lv_obj_update_layout(lv_screen_active());
+
+    lv_area_t coords;
+    lv_obj_get_coords(primary, &coords);
+    const int32_t cx = coords.x1 + lv_area_get_width(&coords) / 2;
+    const int32_t cy = coords.y1 + lv_area_get_height(&coords) / 2;
+
+    // Known-positive: this press/release MUST reach the callback, or everything
+    // below is vacuous.
+    REQUIRE(UITest::press_at(cx, cy));
+    REQUIRE(UITest::release());
+    process_lvgl(50);
+    REQUIRE(confirms == 1);
+
+    // Now the real case. Finger down on the confirm button...
+    REQUIRE(UITest::press_at(cx, cy));
+
+    // ...modal torn down underneath it (an emergency-stop state change, the
+    // remote-control server clearing modals, a hot-reload rebuild)...
+    Modal::hide(dialog);
+
+    // ...finger lifts. The press was captured before the teardown, so LVGL will
+    // still deliver CLICKED to it unless disarm_tree dropped the captured object.
+    REQUIRE(UITest::release());
+    process_lvgl(50);
+
+    CHECK(confirms == 1); // still 1, not 2
+
+    UITest::cleanup();
+    process_lvgl(50);
+}
+
+// The disarm nulls user_data across the dialog tree so a subclass that stashed
+// `this` there cannot be reached after teardown. ui_button is the exception: it
+// owns that slot, and button_delete_cb frees the allocation by reading it back.
+TEST_CASE_METHOD(LVGLUITestFixture, "Disarm preserves ui_button user_data but clears the rest",
+                 "[modal][teardown]") {
+    lv_obj_t* dialog = Modal::show("print_cancel_confirm_modal");
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+    REQUIRE(ui_button_owns_user_data(primary));
+
+    // A non-button carrying a stale owner pointer, the case the clear exists for.
+    lv_obj_t* content = lv_obj_get_child(dialog, 0);
+    REQUIRE(content != nullptr);
+    int sentinel = 0;
+    lv_obj_set_user_data(content, &sentinel);
+
+    Modal::hide(dialog);
+
+    REQUIRE(lv_obj_is_valid(primary));
+    // Still ui_button's own allocation - button_delete_cb can still free it.
+    CHECK(ui_button_owns_user_data(primary));
+    // The foreign pointer is gone.
+    CHECK(lv_obj_get_user_data(content) == nullptr);
+
+    process_lvgl(50);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// The extraction must not have weakened the two paths that already disarmed.
+TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared path",
+                 "[modal][teardown]") {
+    TrackingModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* dialog = modal.dialog();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+
+    modal.hide();
+
+    REQUIRE(lv_obj_is_valid(primary));
+    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(modal.hide_calls == 1);
 
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
