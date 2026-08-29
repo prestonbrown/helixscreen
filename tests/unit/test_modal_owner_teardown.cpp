@@ -564,3 +564,65 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
 }
+
+// ============================================================================
+// Dismissal has to resolve the caller's state (#1380)
+// ============================================================================
+
+// show_low_ram_resonance_warning()'s two callers both gate re-entry on their
+// dialog handle ("a second entry while the warning modal is open is a no-op")
+// and only their confirm/cancel callbacks cleared it. A backdrop tap or ESC
+// fires neither, so the handle stayed set and every later resonance calibration
+// became a silent no-op - on exactly the low-RAM machines the warning exists
+// for. The clear lives in the wrapper because it is one rule with two callers.
+TEST_CASE_METHOD(LVGLUITestFixture, "Dismissing the low-RAM warning clears the caller's handle",
+                 "[modal][teardown][1380]") {
+    helix::ui::modal_init_subjects();
+
+    lv_obj_t* slot = nullptr;
+    lv_obj_t* dialog =
+        helix::ui::show_low_ram_resonance_warning(256, nullptr, nullptr, nullptr, &slot);
+    REQUIRE(dialog != nullptr);
+    REQUIRE(slot == dialog); // wrapper populates the caller's handle
+
+    // Dismiss the way a backdrop tap or ESC does: neither callback runs.
+    Modal::hide(dialog);
+    process_lvgl(50);
+
+    CHECK(slot == nullptr);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// The clear must not fire blind. A dismissed dialog's DELETE arrives at the end
+// of its exit animation, by which point the owner may already have opened a new
+// warning - clearing then would blank the handle for a dialog that is still up,
+// re-opening the very re-entry hole this fixes.
+TEST_CASE_METHOD(LVGLUITestFixture, "A dying low-RAM dialog does not clear a re-opened one",
+                 "[modal][teardown][1380]") {
+    helix::ui::modal_init_subjects();
+
+    lv_obj_t* slot = nullptr;
+    lv_obj_t* first =
+        helix::ui::show_low_ram_resonance_warning(256, nullptr, nullptr, nullptr, &slot);
+    REQUIRE(first != nullptr);
+
+    // Close the first and immediately open a second, before the first's exit
+    // animation has completed and delivered its DELETE.
+    Modal::hide(first);
+    lv_obj_t* second =
+        helix::ui::show_low_ram_resonance_warning(256, nullptr, nullptr, nullptr, &slot);
+    REQUIRE(second != nullptr);
+    REQUIRE(second != first);
+    REQUIRE(slot == second);
+
+    // Now let the first one finish dying.
+    process_lvgl(50);
+
+    // The handle must still name the live dialog, not have been blanked.
+    CHECK(slot == second);
+
+    Modal::hide(second);
+    process_lvgl(50);
+    CHECK(slot == nullptr);
+    CHECK(ModalStack::instance().stack_empty());
+}

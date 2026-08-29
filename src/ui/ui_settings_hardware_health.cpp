@@ -349,7 +349,30 @@ void HardwareHealthOverlay::handle_hardware_action(const char* hardware_name, bo
         hardware_save_dialog_ = helix::ui::modal_show_confirmation(
             lv_tr("Save Hardware"), message_buf, ModalSeverity::Info, lv_tr("Save"),
             on_hardware_save_confirm, on_hardware_save_cancel, this);
+
+        if (hardware_save_dialog_) {
+            // Only the two buttons cleared pending_hardware_save_, so a backdrop
+            // tap or ESC left the name set.
+            lv_obj_add_event_cb(hardware_save_dialog_, on_hardware_save_dialog_deleted,
+                                LV_EVENT_DELETE, this);
+        }
     }
+}
+
+void HardwareHealthOverlay::on_hardware_save_dialog_deleted(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HardwareHealth] save_dialog_deleted");
+    auto* self = static_cast<HardwareHealthOverlay*>(lv_event_get_user_data(e));
+    if (self) {
+        // Idempotent: the buttons have already cleared this when they ran.
+        self->pending_hardware_save_.clear();
+        // Only drop the handle if it still names this dialog - a dismissed
+        // dialog's DELETE arrives after its exit animation, by which time a new
+        // one may already be open.
+        if (self->hardware_save_dialog_ == lv_event_get_target_obj(e)) {
+            self->hardware_save_dialog_ = nullptr;
+        }
+    }
+    LVGL_SAFE_EVENT_CB_END();
 }
 
 void HardwareHealthOverlay::handle_hardware_save_confirm() {

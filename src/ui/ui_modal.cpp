@@ -1276,7 +1276,8 @@ lv_obj_t* helix::ui::modal_show_alert(const char* title, const char* message,
 }
 
 lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_event_cb_t on_confirm,
-                                                    lv_event_cb_t on_cancel, void* user_data) {
+                                                    lv_event_cb_t on_cancel, void* user_data,
+                                                    lv_obj_t** owner_slot) {
     std::string msg;
     try {
         msg = fmt::format(lv_tr("This device has only {} MB of RAM. Resonance calibration is "
@@ -1290,6 +1291,31 @@ lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_event_cb
                     "memory-intensive and may cause a \"Timer Too Close\" error. "
                     "Continue anyway?");
     }
-    return modal_show_confirmation(lv_tr("Low Memory"), msg.c_str(), ModalSeverity::Warning,
-                                   lv_tr("Continue"), on_confirm, on_cancel, user_data);
+    lv_obj_t* dialog =
+        modal_show_confirmation(lv_tr("Low Memory"), msg.c_str(), ModalSeverity::Warning,
+                                lv_tr("Continue"), on_confirm, on_cancel, user_data);
+
+    // Both callers gate re-entry on their handle being null ("a second entry
+    // while the warning is open is a no-op"), and only their confirm/cancel
+    // callbacks cleared it. A backdrop tap or ESC fires neither, so the handle
+    // stayed set and every later calibration attempt was a silent no-op - on
+    // exactly the low-RAM machines this warning exists for. The clear belongs
+    // here rather than in each caller: it is one rule with two call sites, and
+    // the stale-handle guard below is the part that is easy to get wrong.
+    if (dialog && owner_slot) {
+        *owner_slot = dialog;
+        lv_obj_add_event_cb(
+            dialog,
+            [](lv_event_t* e) {
+                auto** slot = static_cast<lv_obj_t**>(lv_event_get_user_data(e));
+                // Only clear if the slot still names THIS dialog. A dismissed
+                // dialog's DELETE arrives at the end of its exit animation, by
+                // which time the owner may already have opened a new one.
+                if (slot && *slot == lv_event_get_target_obj(e)) {
+                    *slot = nullptr;
+                }
+            },
+            LV_EVENT_DELETE, owner_slot);
+    }
+    return dialog;
 }

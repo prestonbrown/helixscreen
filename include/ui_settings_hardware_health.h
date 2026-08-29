@@ -216,6 +216,9 @@ class HardwareHealthOverlay : public OverlayBase {
 
     static void on_hardware_save_confirm(lv_event_t* e);
     static void on_hardware_save_cancel(lv_event_t* e);
+    /// Runs however the save dialog closes, including a backdrop tap or ESC
+    /// which fire neither button. Owns clearing pending_hardware_save_.
+    static void on_hardware_save_dialog_deleted(lv_event_t* e);
 };
 
 /**

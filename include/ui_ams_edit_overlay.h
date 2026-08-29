@@ -298,6 +298,11 @@ class AmsEditOverlay : public OverlayBase {
     // view, so the now-inert selector must be brought back to life or
     // vendor/type/product picking silently stops working.
     void reattach_details_selector();
+
+    /// Runs however the identity-confirm dialog closes. The reattach lived only
+    /// in the Cancel callback, so a backdrop tap or ESC left the vendor/type/
+    /// product picker dead in the spool-edit view.
+    static void on_identity_dialog_deleted(lv_event_t* e);
     // Bind + configure + populate details_selector_ against the spool-edit
     // view's fragment (find + attach + configure + preselect). Shared by
     // enter_spool_edit() and reattach_details_selector(). Returns false (and

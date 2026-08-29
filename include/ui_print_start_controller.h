@@ -222,6 +222,9 @@ class PrintStartController {
     void on_gate_cancel();
     static void on_gate_proceed_static(lv_event_t* e);
     static void on_gate_cancel_static(lv_event_t* e);
+    /// Runs however a gate dialog closes. Backdrop tap / ESC / hot-reload
+    /// rebuild fire neither button, and there is no watchdog on this path.
+    static void on_gate_dialog_deleted(lv_event_t* e);
 
     // === Dependencies ===
     PrinterState& printer_state_;
