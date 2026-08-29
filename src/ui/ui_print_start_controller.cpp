@@ -718,10 +718,7 @@ bool PrintStartController::apply_filament_remaps() {
     // those, skip the generic set_tool_mapping() path SILENTLY — the pre-print
     // send (fired later from execute_print_start) does the work. Only warn when
     // the backend can NEITHER edit its mapping NOR apply it via a pre-print send.
-    const bool writes_a_table =
-        helix::printer::remap_is_persistent(backend->get_remap_strategy()) &&
-        backend->remap_ready();
-    if (!writes_a_table) {
+    if (!helix::printer::can_write_mapping_table(*backend)) {
         if (should_warn_remap_unsupported(*backend)) {
             spdlog::warn("[PrintStartController] Backend (idx={}) does not support editable tool "
                          "mapping — {} explicit remap(s) will be ignored",

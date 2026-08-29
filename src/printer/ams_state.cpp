@@ -1038,8 +1038,7 @@ bool AmsState::effective_auto_match() const {
         // untouched: it is still the one rule the print-start warning shares, and
         // gating it there would resurrect a false toast on the U1.
         if (!kPreprintSeedFollowsUserSetting &&
-            !(helix::printer::remap_is_persistent(backend->get_remap_strategy()) &&
-              backend->remap_ready())) {
+            !helix::printer::can_write_mapping_table(*backend)) {
             user_choice_honored = false;
         }
     }

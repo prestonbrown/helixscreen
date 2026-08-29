@@ -1478,9 +1478,7 @@ void AmsEditOverlay::update_ui() {
     // AD5X IFS set true unconditionally: before `_IFS_VARS` discovery the
     // dropdown was offered and its write went into local state the firmware
     // replays nothing from.
-    const bool can_edit_mapping =
-        backend && helix::printer::remap_is_persistent(backend->get_remap_strategy()) &&
-        backend->remap_ready();
+    const bool can_edit_mapping = backend && helix::printer::can_write_mapping_table(*backend);
 
     if (tool_remap_row) {
         if (can_edit_mapping) {

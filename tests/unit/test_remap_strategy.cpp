@@ -251,6 +251,32 @@ TEST_CASE("can_remap needs both a declared route and readiness", "[ams][strategy
     }
 }
 
+TEST_CASE("can_write_mapping_table needs a table-writing route AND readiness", "[ams][strategy]") {
+    using RS = AmsBackend::RemapStrategy;
+    struct Case {
+        const char* name;
+        RS strategy;
+        bool ready;
+        bool expected;
+    };
+    const Case cases[] = {
+        {"Native and ready", RS::Native, true, true},
+        // The two rows that make this a different question from can_remap():
+        // the U1 can remap and writes no table, and a Native backend that has
+        // not discovered its firmware object yet writes nothing that lands.
+        {"SnapmakerNative and ready", RS::SnapmakerNative, true, false},
+        {"Native, not ready", RS::Native, false, false},
+        {"GcodeRewrite and ready", RS::GcodeRewrite, true, true},
+        {"GcodeRewrite, not ready", RS::GcodeRewrite, false, false},
+        {"None but ready", RS::None, true, false},
+    };
+    for (const auto& c : cases) {
+        INFO(c.name);
+        StubBackend stub(c.strategy, c.ready);
+        CHECK(helix::printer::can_write_mapping_table(stub) == c.expected);
+    }
+}
+
 TEST_CASE("remap_is_persistent separates the table-writing routes from the pre-send",
           "[ams][strategy]") {
     using RS = AmsBackend::RemapStrategy;
