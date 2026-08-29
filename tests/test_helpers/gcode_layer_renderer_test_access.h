@@ -30,6 +30,20 @@ class GCodeLayerRendererTestAccess {
         }
     }
 
+    /// Start one ghost build and block until the worker has fully exited,
+    /// WITHOUT consulting the running flag. run_ghost_pass() spins on that
+    /// flag, which is fine when the flag is trusted and a hang when it is the
+    /// thing under test. Returns false when no worker was spawned at all (no
+    /// layers to draw, or the OS refused the thread).
+    static bool start_and_join_ghost_build(GCodeLayerRenderer& renderer) {
+        renderer.start_background_ghost_render();
+        if (!renderer.ghost_thread_.joinable()) {
+            return false;
+        }
+        renderer.ghost_thread_.join();
+        return true;
+    }
+
     /// True when the pass ran to completion rather than bailing out early.
     static bool ghost_completed(const GCodeLayerRenderer& renderer) {
         return renderer.ghost_thread_ready_.load();
