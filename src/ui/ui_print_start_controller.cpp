@@ -590,7 +590,6 @@ void PrintStartController::run_gates_from(size_t index) {
             }
             return;
         }
-        lv_obj_add_event_cb(print_gate_modal_, on_gate_dialog_deleted, LV_EVENT_DELETE, this);
         spdlog::debug("[PrintStartController] Gate '{}' warned - showing dialog",
                       gate_list_[i].name);
         return; // the dialog drives continuation
@@ -612,28 +611,6 @@ void PrintStartController::on_gate_proceed() {
         print_gate_modal_ = nullptr;
     }
     run_gates_from(gate_resume_index_ + 1);
-}
-
-void PrintStartController::on_gate_dialog_deleted(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStartController] on_gate_dialog_deleted");
-    auto* self = static_cast<PrintStartController*>(lv_event_get_user_data(e));
-    // Both button handlers clear print_gate_modal_ before this fires, and
-    // proceed may already have replaced it with the NEXT gate's dialog. So the
-    // handle still naming this dialog means nothing answered it - a backdrop
-    // tap, ESC, or a hot-reload rebuild. Resolve it the way Cancel does, or the
-    // print button stays stuck with no watchdog to recover it.
-    if (self && self->print_gate_modal_ == lv_event_get_target_obj(e)) {
-        self->print_gate_modal_ = nullptr;
-        if (self->update_print_button_) {
-            self->update_print_button_();
-        }
-        if (self->on_print_cancelled_) {
-            self->on_print_cancelled_();
-        }
-        spdlog::info("[PrintStartController] Gate dialog dismissed without an answer - "
-                     "treating as cancel");
-    }
-    LVGL_SAFE_EVENT_CB_END();
 }
 
 void PrintStartController::on_gate_cancel_static(lv_event_t* e) {

@@ -446,7 +446,7 @@ not necessary to hit the gutter between tiles.
 
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** Entering Edit
 Mode already selects whatever widget was under the press and starts dragging it
-(`src/ui/ui_panel_home.cpp:959-963`), and `GridEditMode::handle_long_press` opens the
+(`src/ui/ui_panel_home.cpp:954-958`), and `GridEditMode::handle_long_press` opens the
 catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp:1012-1046`) - so a
 second long press on a tile starts a drag instead. The nav bar's `+`
 (`ui_xml/navigation_bar.xml:22-28`) goes straight to `HomePanel::open_widget_catalog()`
@@ -455,7 +455,7 @@ grid selects nothing, and *then* a second long press does open the catalog - but
 button is the case that always works.
 
 **When the long press appears to do nothing**, check the suppressors before suspecting the
-pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:859-894`) drops it when:
+pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:854-889`) drops it when:
 
 | Condition | How to check |
 |-----------|--------------|
@@ -465,7 +465,7 @@ pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:859-894`) drop
 | The press target is an arc or slider | those consume drags for value adjustment - aim at a different part of the tile |
 
 Drift is not a factor with `long_press`: entering Edit Mode also requires a stationary
-hold (`src/ui/ui_panel_home.cpp:932`), and the synthetic pointer never moves during it.
+hold (`src/ui/ui_panel_home.cpp:927`), and the synthetic pointer never moves during it.
 
 **`home_edit_mode` is a read-only reflection - do not `set` it.** `ctl set home_edit_mode 1`
 returns success and does not enter Edit Mode. The subject is written by
@@ -473,7 +473,7 @@ returns success and does not enter Edit Mode. The subject is written by
 hand only unhides the nav bar's edit buttons, which bind to it
 (`ui_xml/navigation_bar.xml:25`). Clicking the `+` then still does nothing, because
 `HomePanel::open_widget_catalog()` no-ops unless `grid_edit_mode_.is_active()`
-(`src/ui/ui_panel_home.cpp:1025-1029`). `long_press` is the only way in.
+(`src/ui/ui_panel_home.cpp:1020-1024`). `long_press` is the only way in.
 
 A **target** is one of:
 

@@ -652,7 +652,7 @@ void InputShaperPanel::start_with_preflight(char axis) {
                 self->calibrate_all_mode_ = false; // user backed out before anything started
                 LVGL_SAFE_EVENT_CB_END();
             },
-            this, &low_ram_warn_dialog_);
+            this);
         if (!low_ram_warn_dialog_) {
             // Modal failed to build — don't silently block calibration.
             proceed_with_preflight(axis);

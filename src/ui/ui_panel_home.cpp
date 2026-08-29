@@ -709,11 +709,6 @@ void HomePanel::finalize_setup() {
             "Delete",
             [](lv_event_t* ev) {
                 LV_UNUSED(ev);
-                // Dismiss first. modal_show_confirmation wires only the caller's
-                // callback, so nothing closes this dialog on confirm - left up it
-                // stays on screen and every further tap deletes whatever page has
-                // since shifted into this index, saving each time.
-                Modal::hide(Modal::get_top());
                 auto& panel = get_global_home_panel();
                 int page_to_delete = panel.grid_edit_mode_.page_index();
                 auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");

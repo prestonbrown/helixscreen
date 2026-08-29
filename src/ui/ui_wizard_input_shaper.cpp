@@ -373,7 +373,7 @@ static void on_start_calibration_clicked(lv_event_t* e) {
                 // User backed out — leave the wizard step as-is (Start still visible).
                 LVGL_SAFE_EVENT_CB_END();
             },
-            step, &step->low_ram_warn_dialog_);
+            step);
         if (!step->low_ram_warn_dialog_) {
             // Modal failed to build — don't silently block calibration.
             begin_is_calibration_flow(step);
