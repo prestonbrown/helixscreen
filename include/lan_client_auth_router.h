@@ -32,7 +32,8 @@ class LanAuthPromptModal : public Modal {
     /// Answer chosen by the user. Fires before the dialog starts hiding.
     using DecisionCallback = std::function<void(bool approve)>;
     /// The dialog went away WITHOUT an answer - Modal::rebuild_top hides a
-    /// non-rebuildable dialog on a breakpoint or theme change. The request is
+    /// non-rebuildable dialog when XML hot reload rebuilds the active views
+    /// (dev builds only), and a backdrop tap or ESC does it anywhere. The request is
     /// still unanswered and the client will re-file, so the owner must drop it
     /// rather than hold its gate shut.
     using DismissCallback = std::function<void()>;

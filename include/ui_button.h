@@ -131,3 +131,18 @@ lv_obj_t* ui_button_get_icon(lv_obj_t* btn);
  * ui_button. Intended for tests.
  */
 lv_obj_t* ui_button_get_op_spinner(lv_obj_t* btn);
+
+/**
+ * @brief True when this object's lv_obj user_data is ui_button's own UiButtonData
+ *
+ * ui_button allocates a UiButtonData and stores it in the object's user_data
+ * slot; button_delete_cb frees it by reading that slot back and checking a magic
+ * word. A teardown path that nulls user_data across a widget tree therefore has
+ * to skip ui_buttons, or the allocation is stranded with nothing left to free
+ * it. Use this to make that distinction.
+ *
+ * Membership in the live-button registry is checked first, so this is safe on an
+ * arbitrary object whose user_data may be a foreign pointer or a small non-pointer
+ * sentinel (see #1111).
+ */
+bool ui_button_owns_user_data(const lv_obj_t* obj);
