@@ -40,6 +40,7 @@ src/api/drm_rotation_strategy.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_backend.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_manager.cpp  # not in the v1 Core+AMS cut
 src/api/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
 src/api/input_device_scanner.cpp  # not in the v1 Core+AMS cut
