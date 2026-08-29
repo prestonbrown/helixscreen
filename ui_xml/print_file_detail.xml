@@ -185,6 +185,14 @@
                 width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
                 style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_bottom="#space_sm"
                 scrollable="false">
+          <!-- Offered only while the LIVE viewer is what is on screen, because
+               that is the only thing the toggle recolours. Two ways to be inert,
+               so ONE expression rather than two stacked bindings: mode 0 means
+               the viewer is not the active preview (viewer_hidden above), and no
+               first frame means the slicer thumbnail is still drawn over it
+               (thumbnail_hidden above). invert="true" reads as "show when". -->
+          <bind_flag_if cond="detail_gcode_viewer_mode eq 1 and detail_viewer_first_frame eq 1"
+                        flag="hidden" invert="true"/>
           <text_small name="sliced_colors_label" text="Sliced colors" translation_tag="Sliced colors"/>
           <ui_switch name="sliced_colors_toggle" size="small">
             <bind_state_if_eq subject="detail_prefer_sliced_colors" state="checked" ref_value="1"/>

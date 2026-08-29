@@ -328,3 +328,69 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Sliced colors toggle sits outside the filam
         CHECK(p != card);
     }
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Sliced colors row is shown only while the live viewer is on screen",
+                 "[print_select][detail][xml]") {
+    // The toggle sets detail_prefer_sliced_colors, which apply_preview_colors()
+    // uses to choose which mappings feed the 3D gcode viewer. It reaches nothing
+    // else. So there are two ways for it to be inert: viewer mode 0, where the
+    // viewer is not the active preview at all (print_file_detail.xml binds
+    // viewer_hidden="detail_gcode_viewer_mode eq 0"), and no first frame yet,
+    // where the slicer thumbnail is still drawn over it
+    // (thumbnail_hidden="detail_viewer_first_frame eq 1"). Offering a control
+    // that changes nothing the user can see is the bug; both halves have to hold.
+    //
+    // Built through the real view rather than make_detail_root(): the two
+    // subjects below are registered by PrintSelectDetailView::init_subjects(),
+    // so a bare lv_xml_create() finds the row but not the subjects driving it.
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+
+    lv_obj_t* const row = lv_obj_find_by_name(root, "sliced_colors_row");
+    REQUIRE(row != nullptr);
+
+    lv_subject_t* const mode = lv_xml_get_subject(nullptr, "detail_gcode_viewer_mode");
+    lv_subject_t* const first_frame = lv_xml_get_subject(nullptr, "detail_viewer_first_frame");
+    REQUIRE(mode != nullptr);
+    REQUIRE(first_frame != nullptr);
+
+    auto set_state = [&](int viewer_mode, int frame) {
+        lv_subject_set_int(mode, viewer_mode);
+        lv_subject_set_int(first_frame, frame);
+        process_lvgl(20);
+    };
+
+    // Neither half, then each half alone. The show case below matters as much as
+    // these three: a binding that is wrong in that direction hides the row
+    // forever and would still pass a hidden-only test.
+    set_state(0, 0);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    set_state(1, 0); // viewer is the preview, but the thumbnail still covers it
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    set_state(0, 1); // a frame exists, but the viewer is not the active preview
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
+    // Both: the live viewer is what is on screen, the toggle recolours something
+    // visible, so the row is offered.
+    set_state(1, 1);
+    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
+    // And it goes away again when the viewer does - the binding is reactive, not
+    // a one-shot evaluated when the tree was built.
+    set_state(0, 1);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
+    view.hide();
+    helix::ui::UpdateQueue::instance().drain();
+}
