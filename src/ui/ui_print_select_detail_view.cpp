@@ -935,6 +935,10 @@ void PrintSelectDetailView::show_delete_confirmation(const std::string& filename
     // close, so every path here nulls the stored handle rather than hiding the
     // dialog; only confirm acts past that.
     auto drop_handle = [this] { confirmation_dialog_widget_ = nullptr; };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = drop_handle;
+    opts.on_dismiss = drop_handle;
+    opts.owner_token = lifetime_.token();
     confirmation_dialog_widget_ = helix::ui::modal_confirm(
         lv_tr("Delete File?"), msg_buf, ModalSeverity::Warning, lv_tr("Delete"),
         [this, drop_handle] {
@@ -943,7 +947,7 @@ void PrintSelectDetailView::show_delete_confirmation(const std::string& filename
                 on_delete_confirmed_();
             }
         },
-        drop_handle, nullptr, drop_handle, lifetime_.token());
+        opts);
 
     if (!confirmation_dialog_widget_) {
         spdlog::error("[DetailView] Failed to create confirmation dialog");

@@ -175,6 +175,10 @@ void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& 
     const PlrPromptStrings chosen = plr_prompt_strings(plan.backend, creality, standard);
     std::string body = plr_prompt_body(plan.recovery_file, chosen.with_file, chosen.generic);
 
+    ConfirmOptions opts;
+    opts.on_cancel = [api] { run_plr_discard(api); };
+    opts.cancel_text = lv_tr("Discard");
+
     // Resume = primary/confirm, Discard = secondary/cancel. modal_confirm closes
     // its own dialog on either button, and the callbacks capture the borrowed
     // `api` directly - no user_data to outlive anything. lv_tr(...) returns
@@ -182,7 +186,7 @@ void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& 
     // outlive the modal (they do).
     lv_obj_t* dialog = modal_confirm(
         lv_tr("Resume interrupted print?"), body.c_str(), ModalSeverity::Info, lv_tr("Resume"),
-        [api] { run_plr_resume(api); }, [api] { run_plr_discard(api); }, lv_tr("Discard"));
+        [api] { run_plr_resume(api); }, opts);
     if (!dialog) {
         spdlog::error("[PLR] Failed to create recovery prompt modal");
         return;

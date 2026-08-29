@@ -2702,6 +2702,23 @@ void Application::prompt_deferred_hardware_setup(std::vector<helix::wizard::Step
     spdlog::info("[Application] Offering deferred hardware setup ({} step(s))",
                  m_pending_hardware_setup_steps.size());
 
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [this] {
+        m_pending_hardware_setup_steps.clear();
+        // Declining is final for this printer. The offer is for optional
+        // role assignments the app already has working defaults for, the
+        // snapshot was written regardless so nothing is flagged either way,
+        // and re-asking on every boot is the exact nag the surrounding
+        // reconfig-wizard code records declines to avoid. `--wizard` still
+        // re-runs setup, and a saved role that later breaks still routes to
+        // the targeted reconfig wizard on its own.
+        settle_deferred_hardware_setup();
+        spdlog::info("[Application] Deferred hardware setup declined");
+    };
+    opts.cancel_text = lv_tr("Not now");
+    opts.on_dismiss = [this] { m_pending_hardware_setup_steps.clear(); };
+    opts.owner_token = m_async_lifetime.token();
+
     helix::ui::modal_confirm(
         lv_tr("Printer hardware detected"),
         lv_tr("Your printer was offline during setup, so hardware options were skipped. "
@@ -2725,20 +2742,7 @@ void Application::prompt_deferred_hardware_setup(std::vector<helix::wizard::Step
                 300, this);
             lv_timer_set_repeat_count(launch, 1);
         },
-        [this] {
-            m_pending_hardware_setup_steps.clear();
-            // Declining is final for this printer. The offer is for optional
-            // role assignments the app already has working defaults for, the
-            // snapshot was written regardless so nothing is flagged either way,
-            // and re-asking on every boot is the exact nag the surrounding
-            // reconfig-wizard code records declines to avoid. `--wizard` still
-            // re-runs setup, and a saved role that later breaks still routes to
-            // the targeted reconfig wizard on its own.
-            settle_deferred_hardware_setup();
-            spdlog::info("[Application] Deferred hardware setup declined");
-        },
-        lv_tr("Not now"), [this] { m_pending_hardware_setup_steps.clear(); },
-        m_async_lifetime.token());
+        opts);
 }
 
 void Application::settle_type_mismatch_warning() {
@@ -2828,6 +2832,19 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
                                        "options and presets.")),
                     detected.type_name, detected.confidence, saved);
 
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [this] {
+        // Declining is final for this saved type. Keeping the type is a
+        // deliberate choice (a heavily modified printer can legitimately
+        // outvote a 70% heuristic), and the persisted flag stops the
+        // prompt from re-appearing every boot. Re-identify remains
+        // available via the full `--wizard` run.
+        settle_type_mismatch_warning();
+        spdlog::info("[Application] Type mismatch warning declined");
+    };
+    opts.cancel_text = lv_tr("Keep current");
+    opts.owner_token = m_async_lifetime.token();
+
     helix::ui::modal_confirm(
         lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Re-identify"),
         [this] {
@@ -2848,16 +2865,7 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
                 300, this);
             lv_timer_set_repeat_count(launch, 1);
         },
-        [this] {
-            // Declining is final for this saved type. Keeping the type is a
-            // deliberate choice (a heavily modified printer can legitimately
-            // outvote a 70% heuristic), and the persisted flag stops the
-            // prompt from re-appearing every boot. Re-identify remains
-            // available via the full `--wizard` run.
-            settle_type_mismatch_warning();
-            spdlog::info("[Application] Type mismatch warning declined");
-        },
-        lv_tr("Keep current"), nullptr, m_async_lifetime.token());
+        opts);
 }
 
 void Application::launch_type_reidentify_wizard() {

@@ -1521,24 +1521,20 @@ lv_obj_t* helix::ui::modal_show_alert(const char* title, const char* message,
 
 lv_obj_t* helix::ui::modal_confirm(const char* title, const char* message, ModalSeverity severity,
                                    const char* confirm_text, std::function<void()> on_confirm,
-                                   std::function<void()> on_cancel, const char* cancel_text,
-                                   std::function<void()> on_dismiss,
-                                   std::optional<helix::LifetimeToken> owner_token) {
-    return build_confirmation(title, message, severity, confirm_text, cancel_text,
-                              /*has_cancel=*/true, std::move(on_dismiss), std::move(owner_token),
+                                   const ConfirmOptions& options) {
+    return build_confirmation(title, message, severity, confirm_text, options.cancel_text,
+                              /*has_cancel=*/true, options.on_dismiss, options.owner_token,
                               [&](ConfirmationModal& m) {
-                                  m.set_callbacks(std::move(on_confirm), std::move(on_cancel),
+                                  m.set_callbacks(std::move(on_confirm), options.on_cancel,
                                                   /*has_cancel=*/true);
                               });
 }
 
 lv_obj_t* helix::ui::modal_alert(const char* title, const char* message, ModalSeverity severity,
                                  const char* ok_text, std::function<void()> on_ok,
-                                 std::function<void()> on_dismiss,
-                                 std::optional<helix::LifetimeToken> owner_token) {
+                                 const AlertOptions& options) {
     return build_confirmation(title, message, severity, ok_text, nullptr, /*has_cancel=*/false,
-                              std::move(on_dismiss), std::move(owner_token),
-                              [&](ConfirmationModal& m) {
+                              options.on_dismiss, options.owner_token, [&](ConfirmationModal& m) {
                                   m.set_callbacks(std::move(on_ok), nullptr,
                                                   /*has_cancel=*/false);
                               });

@@ -1945,6 +1945,9 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
         }
     };
 
+    ConfirmOptions opts;
+    opts.on_cancel = true_abort;
+    opts.on_dismiss = true_abort;
     lv_obj_t* dlg = modal_confirm(
         lv_tr("Different filament?"),
         lv_tr("This doesn't match the linked Spoolman spool. Add it as a new spool, or update "
@@ -1956,7 +1959,7 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
             get_ams_edit_overlay().do_spoolman_save(
                 helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
         },
-        true_abort, nullptr, true_abort);
+        opts);
     if (!dlg) {
         // Couldn't show the dialog - abort rather than guess. Falling through to
         // a write here would pick one of two destructive outcomes on the user's

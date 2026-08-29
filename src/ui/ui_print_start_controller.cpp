@@ -583,13 +583,16 @@ void PrintStartController::run_gates_from(size_t index) {
         // print button - leaving that to the buttons alone stranded it disabled
         // on a backdrop tap or ESC, with the handle stale on top.
         auto cancel = [this] { on_gate_cancel(); };
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = cancel;
+        opts.on_dismiss = cancel;
+        opts.owner_token = lifetime_.token();
         print_gate_modal_ = helix::ui::modal_confirm(
             result.title.c_str(), result.body.c_str(),
             result.severity == helix::GateSeverity::Error  ? ModalSeverity::Error
             : result.severity == helix::GateSeverity::Info ? ModalSeverity::Info
                                                            : ModalSeverity::Warning,
-            result.proceed_label.c_str(), [this] { on_gate_proceed(); }, cancel, nullptr, cancel,
-            lifetime_.token());
+            result.proceed_label.c_str(), [this] { on_gate_proceed(); }, opts);
         if (!print_gate_modal_) {
             spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                           gate_list_[i].name);

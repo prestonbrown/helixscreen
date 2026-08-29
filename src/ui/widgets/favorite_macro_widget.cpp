@@ -307,14 +307,16 @@ void FavoriteMacroWidget::fetch_and_execute() {
             fmt::format(lv_tr("{} may cause unintended changes. Are you sure?"), display);
         // Copies, not `this`: the widget can be destroyed while the dialog is
         // open, and none of the paths below may touch it.
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [macro_name = macro_name_] {
+            spdlog::debug("[FavoriteMacroWidget] Dangerous macro cancelled: {}", macro_name);
+        };
         helix::ui::modal_confirm(
             lv_tr("Run Dangerous Macro?"), msg.c_str(), ::ModalSeverity::Warning, lv_tr("Run"),
             [macro_name = macro_name_, api, parent = parent_screen_] {
                 run_macro_after_confirm({macro_name, api, parent});
             },
-            [macro_name = macro_name_] {
-                spdlog::debug("[FavoriteMacroWidget] Dangerous macro cancelled: {}", macro_name);
-            });
+            opts);
         return;
     }
 

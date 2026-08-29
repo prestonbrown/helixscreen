@@ -611,6 +611,8 @@ void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
     auto msg = fmt::format("{} {}?", lv_tr("Pair with"), name);
     // mac/name ride in the capture; the old lv_event_cb_t form carried them in
     // a heap PairData that needed an LV_EVENT_DELETE net to free.
+    helix::ui::ConfirmOptions opts;
+    opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
     auto* dialog = helix::ui::modal_confirm(
         lv_tr("Pair Bluetooth Scanner"), msg.c_str(), ModalSeverity::Info, lv_tr("Pair"),
         [mac, name] {
@@ -765,10 +767,7 @@ void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
                 }
             }
         },
-        nullptr,            // on_cancel: nothing to undo
-        nullptr,            // cancel_text: default "Cancel"
-        nullptr,            // on_dismiss: no state to clear
-        lifetime_.token()); // owner_token: gates the confirm on this overlay
+        opts);
     if (!dialog) {
         spdlog::warn("[{}] Failed to show pairing confirmation modal", get_name());
     }

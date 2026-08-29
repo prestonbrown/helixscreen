@@ -847,9 +847,13 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
                   "only be turned back on from this screen.");
         // Cancel and a dismissal undo the same pending switch state.
         auto undo = [this] { handle_wlan_toggle_off_cancel(); };
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = undo;
+        opts.on_dismiss = undo;
+        opts.owner_token = lifetime_.token();
         helix::ui::modal_confirm(
             lv_tr("Turn Off WiFi?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Turn Off"),
-            [this] { handle_wlan_toggle_off_confirm(); }, undo, nullptr, undo, lifetime_.token());
+            [this] { handle_wlan_toggle_off_confirm(); }, opts);
         return;
     }
 
@@ -1422,9 +1426,13 @@ void NetworkSettingsOverlay::handle_network_settings_forget() {
         fmt::format(lv_tr("Forget network '{}'? You will need the password to reconnect."), ssid);
     // Cancel and a dismissal clear the same pending SSID.
     auto undo = [this] { handle_network_forget_cancel(); };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = undo;
+    opts.on_dismiss = undo;
+    opts.owner_token = lifetime_.token();
     helix::ui::modal_confirm(
         lv_tr("Forget Network?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Forget"),
-        [this] { handle_network_forget_confirm(); }, undo, nullptr, undo, lifetime_.token());
+        [this] { handle_network_forget_confirm(); }, opts);
 }
 
 void NetworkSettingsOverlay::handle_network_forget_confirm() {
