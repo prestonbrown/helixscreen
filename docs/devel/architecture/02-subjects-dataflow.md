@@ -70,7 +70,7 @@ flowchart TD
 
 ### From WebSocket to subject
 
-Moonraker pushes status as JSON-RPC notifications (`notify_status_update` carrying changed Klipper status objects). The WebSocket frame lands on the libhv event-loop thread inside `MoonrakerClient`; HelixScreen's registered callback ([`src/application/moonraker_manager.cpp:616`](../../../src/application/moonraker_manager.cpp#L616)) does exactly one thing and returns:
+Moonraker pushes status as JSON-RPC notifications (`notify_status_update` carrying changed Klipper status objects). The WebSocket frame lands on the libhv event-loop thread inside `MoonrakerClient`; HelixScreen's registered callback ([`src/application/moonraker_manager.cpp:617`](../../../src/application/moonraker_manager.cpp#L617)) does exactly one thing and returns:
 
 ```cpp
 // Register notification callback to queue updates for main thread
@@ -83,7 +83,7 @@ m_client->register_notify_update([this, alive](const json& notification) {
 });
 ```
 
-(verbatim from [`src/application/moonraker_manager.cpp:616`](../../../src/application/moonraker_manager.cpp#L616); the `alive` flag is the manager's destruction guard). Connection-state changes ride the same queue as synthesized `_connection_state` marker objects (`:260`). Nothing on that thread touches LVGL.
+(verbatim from [`src/application/moonraker_manager.cpp:617`](../../../src/application/moonraker_manager.cpp#L617); the `alive` flag is the manager's destruction guard). Connection-state changes ride the same queue as synthesized `_connection_state` marker objects (`:260`). Nothing on that thread touches LVGL.
 
 The dequeue happens on the main thread. `Application::main_loop()` ([`src/application/application.cpp:4039`](../../../src/application/application.cpp#L4039), entered once from `run()`) iterates: heartbeat and input housekeeping, `check_timeouts()`, then `process_notifications()` ([`src/application/application.cpp:4184`](../../../src/application/application.cpp#L4184)), and only then `lv_timer_handler()` (`:4136`) where rendering happens. `MoonrakerManager::process_notifications()` ([`src/application/moonraker_manager.cpp:252`](../../../src/application/moonraker_manager.cpp#L252)) drains the whole queue each pass: `_connection_state` markers go to `PrinterState::set_printer_connection_state()`, while `notify_status_update` frames are unpacked — Klipper `eventtime` and the cached-snapshot marker are read out alongside the status object — and handed to the state model:
 
@@ -98,7 +98,7 @@ get_printer_state().update_from_status(params[0], eventtime,
 helix::ToolState::instance().update_from_status(params[0]);
 ```
 
-(verbatim from [`src/application/moonraker_manager.cpp:311`](../../../src/application/moonraker_manager.cpp#L311)). The freshness pair matters: `eventtime` is monotonic per connection, so a stale replayed snapshot cannot overwrite a newer live reading. One correction to older docs: `PrinterState::update_from_notification()` ([`src/printer/printer_state.cpp:354`](../../../src/printer/printer_state.cpp#L354)) exists and does the same unpacking plus main-thread deferral, but the production dispatch path calls `update_from_status()` directly — the manager's own comment notes `update_from_notification` "is not wired up here"; only tests call it.
+(verbatim from [`src/application/moonraker_manager.cpp:312`](../../../src/application/moonraker_manager.cpp#L312)). The freshness pair matters: `eventtime` is monotonic per connection, so a stale replayed snapshot cannot overwrite a newer live reading. One correction to older docs: `PrinterState::update_from_notification()` ([`src/printer/printer_state.cpp:354`](../../../src/printer/printer_state.cpp#L354)) exists and does the same unpacking plus main-thread deferral, but the production dispatch path calls `update_from_status()` directly — the manager's own comment notes `update_from_notification` "is not wired up here"; only tests call it.
 
 `update_from_status()` ([`src/printer/printer_state.cpp:385`](../../../src/printer/printer_state.cpp#L385)) takes `state_mutex_` and fans out to a dozen state components — `temperature_state_`, `motion_state_`, `print_domain_`, `fan_state_`, LED, exclude-object, sensors. Each component parses its slice of the JSON and writes subjects through small setters that are change-gated: `PrinterNetworkState::set_klippy_state_internal()` ([`src/printer/printer_network_state.cpp:109`](../../../src/printer/printer_network_state.cpp#L109)) returns early if `lv_subject_get_int()` already equals the new value, and only otherwise calls `lv_subject_set_int()`. That matters because of how the subject engine behaves: `lv_subject_set_int()` (`lib/lvgl/src/core/lv_observer.c:122`) stores the previous and current value, then notifies **only if changed**. Equal-value writes are silent no-ops — which is why `PrinterTemperatureState` explicitly calls `lv_subject_notify()` when a temperature is unchanged ([`src/printer/printer_temperature_state.cpp:373`](../../../src/printer/printer_temperature_state.cpp#L373)) to force observers to re-run.
 
@@ -195,7 +195,7 @@ The trap the defaulted parameter hides: the factories take `const SubjectLifetim
 
 Read in this order; about 25 minutes total.
 
-1. [`src/application/moonraker_manager.cpp:616`](../../../src/application/moonraker_manager.cpp#L616) — `register_notify_update`: the entire background-thread obligation, one mutex-protected push. Then walk down to `:252` `process_notifications()` and notice the two payload shapes (`_connection_state` marker vs `notify_status_update`) and the direct `update_from_status()` call at `:316`.
+1. [`src/application/moonraker_manager.cpp:617`](../../../src/application/moonraker_manager.cpp#L617) — `register_notify_update`: the entire background-thread obligation, one mutex-protected push. Then walk down to `:252` `process_notifications()` and notice the two payload shapes (`_connection_state` marker vs `notify_status_update`) and the direct `update_from_status()` call at `:316`.
 2. [`src/application/application.cpp:4181`](../../../src/application/application.cpp#L4181) — the main-loop strip from `check_timeouts()` through `process_notifications()` (`:4107`) to `lv_timer_handler()` (`:4136`). This is the ordering the mermaid diagram encodes.
 3. [`src/printer/printer_state.cpp:385`](../../../src/printer/printer_state.cpp#L385) — `update_from_status()`: the `state_mutex_` lock and the fan-out to state components. Then `:651` and `:659` for the two marshalling flavors (`async_lifetime_.defer` vs `helix::async::call_method`), and `:711` `set_klippy_state_internal()` — the chokepoint that also resets Klippy-volatile subjects.
 4. [`src/printer/printer_network_state.cpp:109`](../../../src/printer/printer_network_state.cpp#L109) — a complete setter: change detection, `lv_subject_set_int()`, side effects only on transition.

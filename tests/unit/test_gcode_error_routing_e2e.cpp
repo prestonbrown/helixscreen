@@ -255,7 +255,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // ---- Assert the recovery modal is actually on screen ----
     // present_recovery_modal sets the title from e.title ("Toolhead jam") and
-    // populate_content() writes it into the label named "title". Walk the live
+    // populate_content() writes it into the label named "dialog_title". Walk the live
     // widget tree from the active screen — recovery_modal_ is private, so we
     // observe via the rendered tree, which is the user-visible proof.
     REQUIRE(Modal::any_visible());
