@@ -1263,6 +1263,26 @@ if [ "$STAGED_ONLY" = true ]; then
       EXIT_CODE=1
     fi
   fi
+
+  # Say what was actually verified. The build above compiles the WORKING TREE,
+  # which in --staged-only mode is not necessarily what is being committed: a
+  # rename touching five files and staged for four builds clean here and breaks
+  # in CI, because the fifth file is on disk but not in the commit. pre-push
+  # gates the real thing (it sweeps an isolated checkout of the pushed commit),
+  # so this is a warning rather than a failure - but an unqualified
+  # "Build successful" over unverified content is how the wrong thing gets
+  # trusted.
+  if [ "$STAGED_ONLY" = true ]; then
+    UNSTAGED_SRC="$(git diff --name-only --diff-filter=ACM -- \
+      '*.cpp' '*.cc' '*.c' '*.h' '*.hpp' '*.mm' 2>/dev/null || true)"
+    if [ -n "$UNSTAGED_SRC" ]; then
+      echo "⚠️  Build verified the WORKING TREE, not the staged commit"
+      echo "   These source files are modified but NOT staged:"
+      echo "$UNSTAGED_SRC" | sed 's/^/     /'
+      echo "   If the commit depends on them it will fail in CI. pre-push checks"
+      echo "   the pushed commit in isolation and will catch it before it leaves."
+    fi
+  fi
   echo ""
 fi
 
@@ -1721,6 +1741,73 @@ else
   section_time $SECTION_START
   echo ""
   echo "⚠️  check_timer_destructor_cancel.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🪟 Checking X11 macro collisions..."
+
+if [ -f "scripts/check_x11_macro_collisions.py" ]; then
+  # X11 defines None, Status, Bool and friends as macros. SDL's Linux headers
+  # pull X11 in, so an identifier sharing one of those names preprocesses into a
+  # numeric constant in any TU that reaches SDL - and only there. Every printer
+  # target builds clean, so this is invisible until the x86_64 Debian and
+  # Raspberry Pi jobs run, which for v0.99.118 was after the tag was cut
+  # (InvalidationScope::None, fixed in b942c8b1e). Annotate a deliberate one
+  # `// X11_MACRO_OK: <reason>`.
+  if python3 scripts/check_x11_macro_collisions.py --max-allowed 0 >/tmp/x11_macros.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/x11_macros.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/x11_macros.out
+    echo "   Rename the identifier; X11's macro always wins."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_x11_macro_collisions.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🐉 Checking clang/GCC divergence..."
+
+# Deliberately NOT in --staged-only: this is seconds per TU, and a changed header
+# fans out to every TU that includes it (json_utils.h reaches 29), which is too
+# slow to sit on every commit. pre-push runs this file in full mode inside an
+# isolated checkout of the pushed commit, so the class is still caught before
+# anything leaves the machine - just not on each commit.
+#
+# The class: CI's Ubuntu job compiles with clang and -Werror while every build
+# here uses g++. v0.99.118 shipped a red build because GCC accepts a comparison
+# clang rejects (-Wtautological-type-limit-compare in json_utils.h, fixed in
+# 5d3ea331c). Nothing local could see it.
+if [ "$STAGED_ONLY" = false ] && [ -f "scripts/check_clang_diagnostics.py" ]; then
+  if python3 scripts/check_clang_diagnostics.py >/tmp/clang_diag.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/clang_diag.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/clang_diag.out
+    echo "   These are errors on CI's Ubuntu job even though g++ accepts them."
+    EXIT_CODE=1
+  fi
+elif [ "$STAGED_ONLY" = true ]; then
+  section_time $SECTION_START
+  echo ""
+  echo "⏭️  clang divergence: skipped in pre-commit (runs on push and in CI)"
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_clang_diagnostics.py not found — skipping"
 fi
 
 echo ""

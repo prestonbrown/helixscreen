@@ -135,7 +135,7 @@ docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_sub_apis.h	348	include/i_m
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/rpc_error_correlation.h	26	include/rpc_error_correlation.h	17d6477799ff	899ed31909ed
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/rpc_error_policy.h	64	include/rpc_error_policy.h	f706ddb582af	831beb95cf7f
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/rpc_error_policy.h	87	include/rpc_error_policy.h	139682c7b06b	afec0aa6cbff
-docs/devel/RPC_ERROR_OWNERSHIP.md	scripts/quality-checks.sh	1666	scripts/quality-checks.sh	b6cd7c5e41a2	4321def9f3e5
+docs/devel/RPC_ERROR_OWNERSHIP.md	scripts/quality-checks.sh	1686	scripts/quality-checks.sh	b6cd7c5e41a2	4321def9f3e5
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/api/moonraker_api_controls.cpp	228	src/api/moonraker_api_controls.cpp	c1b97efa727e	cee1e5782965
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/api/moonraker_api_controls.cpp	373	src/api/moonraker_api_controls.cpp	a9b8566708d1	bcb1aa416125
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/api/moonraker_client_mock_print.cpp	87	src/api/moonraker_client_mock_print.cpp	ea62ff754ff6	cd85cbd4d3a5
@@ -666,7 +666,7 @@ docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	199	sr
 docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	242	src/api/display_backend.cpp	215bb69fe26b	db783b634a34
 docs/devel/architecture/15-known-debt.md	include/sensor_registry.h	60	include/sensor_registry.h	7f03fa23f905	68f5a7ddc2d4
 docs/devel/architecture/15-known-debt.md	scripts/check_imperative_ui.py	10	scripts/check_imperative_ui.py	10d17ed720c9	02bdf36e7680
-docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1583	scripts/quality-checks.sh	bdd7bb103b0b	6b373a10db4b
+docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1603	scripts/quality-checks.sh	bdd7bb103b0b	6b373a10db4b
 docs/devel/architecture/15-known-debt.md	src/api/moonraker_discovery_sequence.cpp	856	src/api/moonraker_discovery_sequence.cpp	859d76692100	84ebb0feab81
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	96	src/printer/printer_discovery.cpp	701fe2945490	d988be8c6ecc
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	105	src/printer/printer_discovery.cpp	b4eafb8019aa	2173247c26a9
