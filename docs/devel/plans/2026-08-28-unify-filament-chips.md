@@ -632,8 +632,22 @@ Today the card and the swatch row are mutually exclusive and gated by different 
 
 **Files:**
 - Modify: `src/ui/ui_filament_mapping_card.cpp:62-150` (`update`), `include/ui_filament_mapping_card.h`
-- Modify: `src/ui/ui_print_select_detail_view.cpp:2064-2071` (delete `swatches_card_visible_for`)
 - Test: `tests/unit/test_filament_mapping_visibility.cpp` (create)
+
+**Controller ruling — this task does NOT touch `src/ui/ui_print_select_detail_view.cpp`.**
+An earlier draft of this Files list said to delete `swatches_card_visible_for()` here. That was
+wrong and Task 3's own Step list never did it: the function cannot be deleted without rewriting
+its only caller (`render_authoritative_chips()`, ~`:1466`), and that rewrite is Task 4 Step 4.7.
+Both the function and its caller belong to Task 4. The rule is deliberately duplicated between
+the card and the detail view until then.
+
+**Known intermediate state, do not "fix" it in Task 3 or Task 4 will fight you:** while the
+duplication stands, a backend where the card HIDES (bypass with a single lane, no AMS, empty
+tool info) can still show the OLD swatch card, because `render_authoritative_chips()` computes
+`swatches_visible = !mapping_visible && swatches_card_visible_for(...)` and that evaluates true
+for a single tool on any multi-slot printer. This is NOT a regression introduced here - it is
+what main does today, because the bypass gate only ever suppressed one of the two surfaces.
+Task 4 closes it by construction when one predicate governs one card.
 
 **Interfaces:**
 - Consumes: `FilamentMapper::resolve_mapped_slot` from Task 2.
@@ -844,6 +858,142 @@ EOF
 
 ---
 
+### Task 3.5: Warn on colour mismatch with a per-chip surround
+
+Added mid-branch at Preston's request. The card triangle stays material-only (that decision
+stands); colour gets a quiet per-chip treatment instead, because the stacked chip already shows
+the mismatch and a card-level alarm would fire on most prints and devalue the triangle that
+flags what you cannot see.
+
+**Two borders, distinguished by SCOPE not colour.** `#warning` is already spoken for on this
+chip: `filament_swatch.xml:33` defines `empty_slot` (`bg_opa=60`, 2px `#warning` border) applied
+to `bottom_band` via `LV_STATE_USER_1` when the mapped lane is empty. So:
+
+- **Empty lane** keeps its border on `bottom_band` — a fact about the lane. Unchanged.
+- **Colour mismatch** draws a surround on the `swatch` ROOT — a fact about the pairing, which is
+  what a two-band chip represents. They remain readable when both apply.
+
+**Three guards, each of which is a claim we must not make falsely:**
+1. Only when `tool.color_known`. An unknown gcode colour has nothing to mismatch against — the
+   top band already renders as a transparent outline there.
+2. Never when the mapping is `is_auto` or unresolved. No lane chosen yet, so no comparison exists.
+3. Never when the resolved slot `is_empty`. An empty lane has no colour to compare, and its own
+   border already states the real problem. Warning twice for one cause reads as two faults.
+
+**Files:**
+- Modify: `include/filament_mapper.h` (`ToolMapping::color_mismatch`; the shared classifier)
+- Modify: `src/printer/filament_mapper.cpp` (`:186`, `:227`, `:256`, `:538`)
+- Modify: `ui_xml/components/filament_swatch.xml` (new style + selector on the view root)
+- Modify: `src/ui/ui_filament_mapping_card.cpp` (apply the state per chip)
+- Test: `tests/unit/test_filament_mapper.cpp` and `tests/unit/test_filament_mapping_used_filter.cpp`
+
+**Interfaces:**
+- Consumes: `FilamentMapper::colors_match()` (`filament_mapper.cpp:93`, `COLOR_MATCH_TOLERANCE = 50`,
+  luminance-weighted RGB distance) — already exists and is what auto-match uses, so "close or
+  totally same" is a predicate the codebase already defines. Do NOT invent a second threshold.
+- Produces: `ToolMapping::color_mismatch`, and one classifier both flags flow through.
+
+**DRY requirement, not optional.** `material_mismatch` is currently assigned at four separate
+sites, each re-typing `!tool.material.empty() && !slot.material.empty() && !materials_match(...)`.
+Adding a second flag beside it four more times doubles a twin. Extract ONE function that takes
+the tool and the resolved slot and sets both flags, and call it from all four sites. The four
+copies agreeing today is convention, not structure — folding them is also how any existing
+disagreement between them falls out. (Checked before writing this: all four are logically
+identical today, differing only in `slot.` vs `slot->` at `:538`. So the fold is a pure refactor
+with no behaviour change, which is what makes its mutation meaningful.)
+
+**Extract the CLASSIFICATION, not the control flow.** The four sites differ in what they do
+*around* the guard: `:186` and `:538` assign the lane then flag it, `:227` only checks
+compatibility on an already-chosen slot, and `:256` deliberately assigns the tool's positional
+lane and flags it so PrintStartController can warn — with the comment explaining that only the
+material-blind fallback below actually refuses an incompatible lane. Those decisions are
+genuinely different and must stay at their call sites. The shared function takes a tool and a
+resolved slot and answers "which flags apply", nothing more. Pulling the lane-assignment logic
+in with it would fuse four different policies into one and is the wrong abstraction.
+
+- [ ] **Step 1: Write the failing tests**
+
+Pure-seam tests in `tests/unit/test_filament_mapper.cpp` — no LVGL needed:
+
+```cpp
+TEST_CASE("colour mismatch: set only when the comparison is real",
+          "[filament][mapping][mapper][colour_mismatch]") {
+    helix::AvailableSlot lane{};
+    lane.slot_index = 0;
+    lane.backend_index = 0;
+    lane.local_slot_index = 0;
+    lane.color_rgb = 0xFF0000; // red lane
+    lane.material = "PLA";
+
+    helix::GcodeToolInfo red{};
+    red.tool_index = 0;
+    red.color_rgb = 0xFE0101; // within COLOR_MATCH_TOLERANCE of the lane
+    red.color_known = true;
+    red.material = "PLA";
+
+    helix::GcodeToolInfo blue = red;
+    blue.color_rgb = 0x0000FF; // far outside tolerance
+
+    helix::GcodeToolInfo unknown = blue;
+    unknown.color_known = false; // nothing was claimed about this tool's colour
+
+    // Close enough => no warning. This is the "go away when we map it to close
+    // or totally same" half, and it must use the SAME predicate auto-match uses.
+    CHECK_FALSE(classify(red, lane).color_mismatch);
+    // Genuinely different => warn.
+    CHECK(classify(blue, lane).color_mismatch);
+    // Unknown gcode colour => no claim to contradict.
+    CHECK_FALSE(classify(unknown, lane).color_mismatch);
+
+    // An EMPTY lane has no colour; its own border already says so, and warning
+    // twice for one cause reads as two faults.
+    helix::AvailableSlot empty = lane;
+    empty.is_empty = true;
+    CHECK_FALSE(classify(blue, empty).color_mismatch);
+}
+```
+
+Replace `classify(...)` with the real name and shape of the extracted function once you have
+chosen it; keep the four cases and their reasons exactly. Add a render test in
+`test_filament_mapping_used_filter.cpp` (reuse `MappingCardRenderFixture`) asserting the chip
+root carries the mismatch state when the flag is set and does not when it is clear — check the
+state, not a pixel.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+```bash
+make -j6 test && ./build/bin/helix-tests "[colour_mismatch]"
+```
+Expected: fails to compile until the classifier and the flag exist. Then RED on the assertions.
+
+- [ ] **Step 3: Add the flag and the shared classifier**
+
+`ToolMapping` gains `bool color_mismatch = false;` beside `material_mismatch`. Write the one
+function that sets both from (tool, slot), honouring all three guards above, and call it from
+all four existing assignment sites — deleting the inline material guard at each.
+
+- [ ] **Step 4: Add the style and apply it**
+
+In `ui_xml/components/filament_swatch.xml`, add a style beside `empty_slot` and attach it to the
+`swatch` view root under a free user state (`empty_slot` already owns `user_1` on `bottom_band`;
+use a different one on the root so the two never collide). Use `#warning` and the existing radius
+so the surround follows the chip's corners. Then apply the state per chip in
+`rebuild_compact_view()` with a `// DECLARATIVE_OK:` comment, exactly as the empty-slot variant
+is applied.
+
+- [ ] **Step 5: Verify at runtime, both states**
+
+Drive the mock so one tool maps to a far-off lane colour and another maps to a close one, then
+`ctl geom`/`ls` the chips. Remember `ctl`'s lookup skips hidden widgets. Confirm the surround
+appears on the mismatched chip and NOT on the matched one — a border that is always on, or never
+on, passes any test that only checks one direction.
+
+- [ ] **Step 6: Mutation, then commit**
+
+`make mutate-diff` applies (this touches `src/` and `include/`). Name the mutation in the body.
+
+---
+
 ### Task 4: Collapse the two XML cards into one FILAMENTS card
 
 **Files:**
@@ -975,7 +1125,7 @@ In `src/ui/ui_print_select_detail_view.cpp`:
 1. Delete the `color_swatches_row_` lookup (`:296`) and its null-out (`:943`).
 2. Move the tap handler from `color_requirements_card_` to the surviving card. Replace `:306-320` with a lookup of `filament_mapping_card` into a single member (reuse `color_requirements_card_`'s slot but rename it `filament_card_`), keeping the existing `lv_obj_add_event_cb(..., LV_EVENT_CLICKED, this)` and its comment about the clickable flag coming from `color_card_remappable`. The card is looked up twice today (`:306` and `:322`); collapse to one lookup and pass it to both the event_cb and `filament_mapping_card_.create()`.
 3. Delete `update_color_swatches()` entirely (`:1026-1156`) and its declaration (`include/ui_print_select_detail_view.h:1012`).
-4. Delete `swatches_card_visible_for()` (`:2064-2071`) and its declaration (`:1024`) — the rule moved into the card in Task 3.
+4. Delete `swatches_card_visible_for()` (`:2064-2071`) and its declaration (`:1024`) — the rule moved into the card in Task 3. **Task 3 deliberately left both this function and its caller alone**, so you own the deletion AND the caller rewrite in step 7 together; they cannot be separated or the build breaks. **Verify while you are here:** merging to one predicate must close a pre-existing hole where a bypassed single-lane print hid the mapping card but still showed the swatch card. After this task there is one card and one gate, so that state must render NOTHING. Add or extend a test that pins it.
 5. Delete the `color_swatches_visible_` subject: its `UI_MANAGED_SUBJECT_INT` (`:186`), its reset (`:447`), and the member (`include/ui_print_select_detail_view.h:682`).
 6. In `refresh_preview_colors_and_mismatch()` (`:1358-1370`), delete the `if (lv_subject_get_int(&color_swatches_visible_) == 1) { update_color_swatches(...); }` block. The card repaints itself from `set_mappings()` now, so this function is purely downstream work.
 7. In `render_authoritative_chips()` (`:1460-1476`), replace the two-surface branch with:
