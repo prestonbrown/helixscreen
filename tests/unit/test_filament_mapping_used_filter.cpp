@@ -448,3 +448,47 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A palette that fits draws no overflo
 
     process_lvgl(100);
 }
+
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "A capacity chosen before layout settled is corrected on the next rebuild",
+                 "[filament_mapping][overflow]") {
+    // The measured width decides how many chips get drawn, so it has to be an
+    // input to the render fingerprint too. A first render that lands before
+    // layout has settled takes the MIN_VISIBLE_CHIPS fallback; if the width is
+    // not in the fingerprint that wrong answer is permanent, because every later
+    // rebuild with the same data early-returns and on_ui_destroyed() is the only
+    // other thing that clears the fingerprint.
+    const std::vector<std::string> colors = {"#FF0000", "#00FF00", "#0000FF",
+                                             "#FFFF00", "#FF00FF", "#00FFFF"};
+    const std::vector<std::string> materials = {"PLA", "PETG", "PLA", "PETG", "PLA", "PETG"};
+
+    lv_obj_set_style_pad_all(rows, 0, 0);
+    lv_obj_set_style_border_width(rows, 0, 0);
+    lv_obj_set_width(rows, 0);
+    lv_obj_update_layout(rows);
+    REQUIRE(lv_obj_get_content_width(rows) <= 0);
+
+    // Unmeasurable row falls back to the floor, and six tools do not fit in four
+    // slots: three chips and a "+3".
+    card.update(colors, materials);
+    REQUIRE(FilamentMappingCard::MIN_VISIBLE_CHIPS == 4);
+    REQUIRE(lv_obj_get_child_count(rows) == 4);
+    lv_obj_t* const first_before = lv_obj_get_child(rows, 0);
+    lv_obj_t* const pill = lv_obj_get_child(rows, 3);
+    REQUIRE(lv_obj_find_by_name(pill, "count_label") != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(pill, "count_label"))) == "+3");
+
+    // Layout settles. Tools, mappings and slots are byte-identical to the render
+    // above — the width is the only thing that changed.
+    lv_obj_set_width(rows, 300);
+    lv_obj_update_layout(rows);
+    REQUIRE(FilamentMappingCard::chips_that_fit(lv_obj_get_content_width(rows),
+                                                theme_manager_get_spacing("space_xs")) == 6);
+
+    card.update(colors, materials);
+    CHECK(lv_obj_get_child_count(rows) == 6);         // all six fit now, no pill
+    CHECK(lv_obj_get_child(rows, 0) != first_before); // really re-rendered
+    CHECK(lv_obj_find_by_name(lv_obj_get_child(rows, 5), "top_band") != nullptr);
+
+    process_lvgl(100);
+}

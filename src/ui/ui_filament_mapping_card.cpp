@@ -242,6 +242,26 @@ void FilamentMappingCard::rebuild_compact_view() {
         fingerprint += std::to_string(s.backend_index) + "." + std::to_string(s.slot_index) + "=" +
                        std::to_string(s.color_rgb) + (s.is_empty ? "e" : "f") + "|";
     }
+
+    // ONE row, and what runs past its right edge is clipped, not wrapped:
+    // filament_mapping_rows is flex_flow="row" at a fixed height with
+    // scrollable="false". So cap the chips at what actually fits and say so with
+    // a "+N" pill - dropping the rest silently would hide lanes the print uses.
+    // n chips occupy n*CHIP_W + (n-1)*gap, hence the (+ gap) on both sides.
+    const int32_t gap = theme_manager_get_spacing("space_xs");
+    const int32_t avail = lv_obj_get_content_width(rows_container_);
+    const size_t capacity = chips_that_fit(avail, gap);
+
+    // Capacity is an input to the render, so it has to be an input to the
+    // fingerprint. A render that lands before layout has settled measures a
+    // zero-width row and takes the MIN_VISIBLE_CHIPS fallback; without this the
+    // wrong answer would be PERMANENT, because every later rebuild carrying the
+    // same data early-returns below and on_ui_destroyed() is the only other thing
+    // that clears the fingerprint. Encode the capacity rather than the raw width:
+    // a width change that does not change how many chips fit changes nothing on
+    // screen and should not cost a rebuild.
+    fingerprint += "c" + std::to_string(capacity);
+
     if (fingerprint == last_render_fingerprint_ && lv_obj_get_child_count(rows_container_) > 0) {
         return;
     }
@@ -253,18 +273,9 @@ void FilamentMappingCard::rebuild_compact_view() {
     // ui_xml/components/filament_swatch.xml — tune visuals without rebuilding.
     // C++ only supplies per-chip dynamic data: the two band colours, the Tx and
     // lane labels, the divider colour, and the empty-slot warning variant.
-    const int32_t gap = theme_manager_get_spacing("space_xs");
     lv_obj_set_flex_flow(rows_container_, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_flex_cross_place(rows_container_, LV_FLEX_ALIGN_CENTER, 0);
     lv_obj_set_style_pad_gap(rows_container_, gap, 0);
-
-    // ONE row, and what runs past its right edge is clipped, not wrapped:
-    // filament_mapping_rows is flex_flow="row" at a fixed height with
-    // scrollable="false". So cap the chips at what actually fits and say so with
-    // a "+N" pill - dropping the rest silently would hide lanes the print uses.
-    // n chips occupy n*CHIP_W + (n-1)*gap, hence the (+ gap) on both sides.
-    const int32_t avail = lv_obj_get_content_width(rows_container_);
-    const size_t capacity = chips_that_fit(avail, gap);
 
     // The "+N" pill takes one of the slots rather than being drawn past the edge,
     // so overflowing costs a chip.
@@ -345,8 +356,10 @@ void FilamentMappingCard::rebuild_compact_view() {
                 lv_obj_set_style_bg_opa(bottom, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
             }
             if (auto* slot_lbl = lv_obj_find_by_name(bottom, "slot_label")) {
-                const int lane_number =
-                    helix::FilamentMapper::mapped_lane_display_number(mapping, available_slots_);
+                // resolve_mapped_slot() already found the lane; asking
+                // mapped_lane_display_number() would rescan available_slots_ for
+                // the same answer, which is the split this task exists to close.
+                const int lane_number = resolved ? resolved->local_slot_index + 1 : -1;
                 if (lane_number > 0) {
                     lv_label_set_text_fmt(slot_lbl, "%d", lane_number);
                     // An empty lane draws no fill, so there is nothing to contrast
