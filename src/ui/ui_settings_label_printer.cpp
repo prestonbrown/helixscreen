@@ -1457,6 +1457,17 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
             lv_tr("Pair Bluetooth Printer"), msg.c_str(), ModalSeverity::Info, lv_tr("Pair"),
             on_pair_confirm, on_pair_cancel, mac_copy);
 
+        if (dialog) {
+            // Safety net, matching the identical flow in
+            // ui_settings_barcode_scanner.cpp: free the copy however the modal
+            // goes away (Pair, Cancel, backdrop tap, ESC). The button handlers
+            // read it but must NOT delete - this handler owns the cleanup.
+            lv_obj_add_event_cb(
+                dialog,
+                [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
+                LV_EVENT_DELETE, mac_copy);
+        }
+
         if (!dialog) {
             delete mac_copy;
             spdlog::warn("[{}] Failed to show pairing modal", get_name());
@@ -1829,7 +1840,7 @@ void LabelPrinterSettingsOverlay::on_pair_confirm(lv_event_t* e) {
 
     auto* mac_copy = static_cast<std::string*>(lv_event_get_user_data(e));
     std::string mac = *mac_copy;
-    delete mac_copy;
+    // Not deleted here - the dialog's LV_EVENT_DELETE handler owns the copy.
 
     // Close the modal via the Modal system
     auto* top = Modal::get_top();
@@ -1936,9 +1947,7 @@ void LabelPrinterSettingsOverlay::on_pair_confirm(lv_event_t* e) {
 
 void LabelPrinterSettingsOverlay::on_pair_cancel(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[LabelPrinterSettings] on_pair_cancel");
-
-    auto* mac_copy = static_cast<std::string*>(lv_event_get_user_data(e));
-    delete mac_copy;
+    LV_UNUSED(e); // the copy is freed by the dialog's LV_EVENT_DELETE handler
 
     // Close the modal via the Modal system
     auto* top = Modal::get_top();

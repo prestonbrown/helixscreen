@@ -509,6 +509,12 @@ lv_obj_t* modal_show_alert(const char* title, const char* message,
 /**
  * @brief Show the "low RAM before resonance calibration" warning modal.
  *
+ * @param owner_slot Optional address of the caller's dialog handle. When given,
+ *        it is set to the new dialog and cleared however the dialog closes -
+ *        including a backdrop tap or ESC, which fire neither callback. Callers
+ *        that gate re-entry on that handle MUST pass it, or a dismissal leaves
+ *        the gate shut forever. The slot must outlive the dialog.
+ *
  * Centralizes the (translated) copy and severity so the two calibration entry
  * points (input-shaper panel + wizard) can't diverge. Caller has already
  * decided RAM is below helix::RESONANCE_LOW_RAM_WARN_MB. Returns the dialog
@@ -522,6 +528,7 @@ lv_obj_t* modal_show_alert(const char* title, const char* message,
  *          subclass and resolve in on_hide().
  */
 lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_event_cb_t on_confirm,
-                                         lv_event_cb_t on_cancel, void* user_data);
+                                         lv_event_cb_t on_cancel, void* user_data,
+                                         lv_obj_t** owner_slot = nullptr);
 
 } // namespace helix::ui

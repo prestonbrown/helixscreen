@@ -6,6 +6,7 @@
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
+#include "ui_event_safety.h"
 #include "ui_hsv_picker.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
@@ -1920,6 +1921,9 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
               "the linked one to match?"),
         ModalSeverity::Warning, lv_tr("It's a new spool"), on_identity_confirm_cb,
         on_identity_cancel_cb, nullptr);
+    if (dlg) {
+        lv_obj_add_event_cb(dlg, on_identity_dialog_deleted, LV_EVENT_DELETE, nullptr);
+    }
     if (!dlg) {
         // Couldn't show the dialog — abort rather than guess. Falling through to
         // a write here would pick one of two destructive outcomes on the user's
@@ -1958,6 +1962,19 @@ void AmsEditOverlay::on_identity_cancel_cb(lv_event_t* /*e*/) {
     if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
         overlay.reattach_details_selector();
     }
+}
+
+void AmsEditOverlay::on_identity_dialog_deleted(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AmsEdit] identity_dialog_deleted");
+    LV_UNUSED(e);
+    // Same condition the Cancel path uses: only the spool-edit view has a
+    // detached selector to revive. Cancel still does this itself and the call is
+    // idempotent, so a dismissal is the case this actually rescues.
+    auto& overlay = get_ams_edit_overlay();
+    if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
+        overlay.reattach_details_selector();
+    }
+    LVGL_SAFE_EVENT_CB_END();
 }
 
 void AmsEditOverlay::reattach_details_selector() {

@@ -765,6 +765,7 @@ TEST_CASE("gate material_compatibility: warns with verbatim title",
 // Runner mechanics (toy gates — no printer state needed)
 // ---------------------------------------------------------------------------
 
+#include "ui_modal.h"
 #include "ui_print_start_controller.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -1090,4 +1091,65 @@ TEST_CASE("gate unaccounted_toolhead_filament: a missing capability entry reads 
     auto r = gate_named("unaccounted_toolhead_filament").evaluate(c);
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.body.find("Pull it out manually") != std::string::npos);
+}
+
+// ============================================================================
+// Dismissing a gate dialog must resolve the pipeline (#1380)
+// ============================================================================
+
+// modal_show_confirmation pushes with no owner, so a backdrop tap, ESC, or a
+// hot-reload rebuild closes the gate dialog without running either button
+// handler. update_print_button_() and on_print_cancelled_() therefore never
+// ran, and there is no watchdog on this path - the Print button stayed parked
+// with no way back.
+TEST_CASE("gate runner: dismissing the dialog resolves like cancel",
+          "[print-start][gate-pipeline][1380]") {
+    GateRunnerFixture fx;
+    fx.use_toy_gates(/*warn_first=*/true);
+
+    PrintStartControllerTestAccess::run_gates(fx.controller);
+    lv_obj_t* dlg = PrintStartControllerTestAccess::print_gate_modal(fx.controller);
+    REQUIRE(dlg != nullptr);
+    REQUIRE(fx.cancelled == 0);
+
+    // Neither button: this is the dismissal path.
+    Modal::hide(dlg);
+    fx.process_lvgl(50);
+
+    CHECK(fx.cancelled == 1);
+    CHECK(fx.button_updates >= 1);
+    CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) == nullptr);
+}
+
+// The resolve must not fire when a button DID answer. on_gate_proceed() clears
+// print_gate_modal_ and run_gates_from() may immediately put the NEXT gate's
+// dialog in it, while the first dialog's DELETE only arrives at the end of its
+// exit animation. Treating that late DELETE as a dismissal would cancel a print
+// that is still proceeding - and clear the live dialog's handle with it.
+TEST_CASE("gate runner: a proceeded gate's late delete does not cancel the print",
+          "[print-start][gate-pipeline][1380]") {
+    GateRunnerFixture fx;
+
+    // Two warning gates, so proceeding from the first opens a second dialog.
+    std::vector<PrintStartGate> gates;
+    gates.push_back({"warn_a", +[](const PrintStartContext&) { return warn_result("Warn A"); }});
+    gates.push_back({"warn_b", +[](const PrintStartContext&) { return warn_result("Warn B"); }});
+    PrintStartControllerTestAccess::set_gates(fx.controller, std::move(gates));
+
+    PrintStartControllerTestAccess::run_gates(fx.controller);
+    lv_obj_t* first = PrintStartControllerTestAccess::print_gate_modal(fx.controller);
+    REQUIRE(first != nullptr);
+
+    // User proceeds: gate B's dialog replaces gate A's in the handle, while
+    // gate A's widget is still animating out.
+    PrintStartControllerTestAccess::gate_proceed(fx.controller);
+    lv_obj_t* second = PrintStartControllerTestAccess::print_gate_modal(fx.controller);
+    REQUIRE(second != nullptr);
+    REQUIRE(second != first);
+
+    // Gate A's DELETE lands now.
+    fx.process_lvgl(50);
+
+    CHECK(fx.cancelled == 0); // the print was never cancelled
+    CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) == second);
 }

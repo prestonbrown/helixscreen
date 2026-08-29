@@ -27,8 +27,14 @@ namespace {
 
 /// Context for the "Restart from beginning?" modal shown when
 /// virtual_sdcard.is_active=false makes RESUME a silent no-op. Heap-allocated
-/// per show, freed in exactly one of on_restart_confirm / on_restart_cancel.
+/// per show and freed by the dialog's LV_EVENT_DELETE handler, which is the only
+/// path that runs however the modal closes. `answered` records whether a button
+/// resolved it, so a dismissal (backdrop tap, ESC) can still run on_failure -
+/// without it the Resume button spins until a 150s backstop fires a false
+/// "Resume command timed out" toast.
+
 struct RestartCtx {
+    bool answered = false;
     lv_obj_t* modal = nullptr;
     IMoonrakerAPI* api = nullptr;
     std::string filename;
@@ -46,8 +52,8 @@ void on_restart_cancel(lv_event_t* e) {
     if (ctx->modal) {
         modal_hide(ctx->modal);
     }
+    ctx->answered = true;
     auto on_failure = std::move(ctx->on_failure);
-    delete ctx;
     if (on_failure) {
         on_failure();
     }
@@ -64,11 +70,11 @@ void on_restart_confirm(lv_event_t* e) {
         modal_hide(ctx->modal);
         ctx->modal = nullptr;
     }
+    ctx->answered = true;
     IMoonrakerAPI* api = ctx->api;
     std::string filename = std::move(ctx->filename);
     std::string log_prefix = std::move(ctx->log_prefix);
     std::function<void()> on_failure = std::move(ctx->on_failure);
-    delete ctx;
 
     if (!api) {
         spdlog::error("{} restart_confirm: api is null", log_prefix);
@@ -159,7 +165,25 @@ void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename
         delete ctx;
         if (fail)
             fail();
+        return;
     }
+
+    // The only path that runs however the dialog closes. It owns the context,
+    // and it is where an unanswered dismissal resolves the caller's pending
+    // action - the buttons move on_failure out of the context when they answer,
+    // so this fires it only when neither did.
+    lv_obj_add_event_cb(
+        ctx->modal,
+        [](lv_event_t* e) {
+            auto* c = static_cast<RestartCtx*>(lv_event_get_user_data(e));
+            if (!c)
+                return;
+            if (!c->answered && c->on_failure) {
+                c->on_failure();
+            }
+            delete c;
+        },
+        LV_EVENT_DELETE, ctx);
 }
 
 void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
