@@ -1300,25 +1300,32 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
         filament_mapping_card_.update(current_filament_colors_, current_filament_materials_);
     }
 
-    // One chip surface for every backend: the card renders from its own store,
-    // so all this has to decide is whether that surface is on screen. The
-    // tool-count rule that used to live here as swatches_card_visible_for()
-    // moved into FilamentMappingCard::update() — one predicate, so a state that
-    // hides the card can no longer show a second surface drawing the same chips.
-    publish_card_visibility();
-
     // Backend-agnostic pre-flight validation (single source of truth for
     // filament_mismatch_ + empty_tools_warning_).
     recompute_preflight();
 
     // Restrict the mapping card to the tools this file actually uses — it was
     // populated from the full slicer palette. Empty/unknown => show all (safe
-    // default). Last, and order-independent with respect to the gate above:
-    // set_used_tools only DROPS mapping entries whose tool_index is outside
-    // tools_used, and the validator only ever looks mappings up by the
-    // tool_index of a tool in get_used_tool_info(), which is filtered by the
-    // same set.
+    // default). Order-independent with respect to the gate above: set_used_tools
+    // only DROPS mapping entries whose tool_index is outside tools_used, and the
+    // validator only ever looks mappings up by the tool_index of a tool in
+    // get_used_tool_info(), which is filtered by the same set.
     filament_mapping_card_.set_used_tools(tools_used);
+
+    // One chip surface for every backend: the card renders from its own store,
+    // so all this has to decide is whether that surface is on screen. The
+    // tool-count rule that used to live here as swatches_card_visible_for()
+    // moved into the card — one predicate, so a state that hides the card can no
+    // longer show a second surface drawing the same chips.
+    //
+    // LAST, after set_used_tools(). This function exists because the precise
+    // used-tool set has just arrived, and that set is an INPUT to the rule:
+    // publishing before it hands over would publish the answer the slicer
+    // palette gave, which over-counts. A bypassed print of a 3-colour file that
+    // uses one tool is the case that breaks — it wants one lane, the palette
+    // says three, and the card would show the chips the bypass gate exists to
+    // suppress.
+    publish_card_visibility();
 }
 
 void PrintSelectDetailView::recompute_preflight() {
@@ -1661,6 +1668,10 @@ void PrintSelectDetailView::apply_scan_result(std::set<int> tools, bool authorit
         // platforms, where the parse already populated both).
         recompute_preflight();
         filament_mapping_card_.set_used_tools(tools_used_effective());
+        // set_used_tools() re-decides visibility from the new set, so the
+        // subject has to follow it here too — this branch skips
+        // render_authoritative_chips(), which is where that normally happens.
+        publish_card_visibility();
     }
 
     // Release any deferred print attempt waiting on readiness.

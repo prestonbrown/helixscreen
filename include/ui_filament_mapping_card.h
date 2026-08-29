@@ -52,12 +52,17 @@ class FilamentMappingCard {
     /**
      * @brief Update with new file data + current AMS state
      *
-     * Caches whether the card should be visible (`should_show()`), based on
-     * AMS availability AND the file having at least one tool. Computes
-     * default mappings via FilamentMapper::compute_defaults().
+     * Caches whether the card should be visible (`should_show()`) by running
+     * `recompute_visibility()` - AMS availability, the bypass single-lane rule,
+     * and the multi-tool-vs-single-extruder tool-count rule, all of which read
+     * the current used-tool set. Computes default mappings via
+     * FilamentMapper::compute_defaults().
      *
-     * The detail view is responsible for publishing the cached state onto
-     * the `filament_mapping_visible` subject after this call returns.
+     * **The caller must publish `should_show()` onto the
+     * `filament_mapping_visible` subject after this returns.** The card never
+     * touches a subject itself. `set_used_tools()` carries the same obligation
+     * - it is the other entry point that re-decides visibility - so a caller
+     * that runs both publishes once, after the later of the two.
      *
      * @param gcode_colors Per-tool hex color strings (e.g., "#FF0000")
      * @param gcode_materials Per-tool material strings (e.g., "PLA")
@@ -70,6 +75,11 @@ class FilamentMappingCard {
      * WITHOUT recomputing tool->slot mappings — preserves the user's manual
      * remap and the auto assignment. Used by the detail view's live AMS-change
      * handler.
+     *
+     * Visibility is NOT re-decided here (nothing it refreshes is an input to
+     * the rule), so unlike update() and set_used_tools() this needs no publish.
+     * It does honour the current answer: a card whose `should_show()` is false
+     * ends up with no chips rather than a hidden set of stale ones.
      */
     void refresh_slot_data();
 
@@ -84,12 +94,24 @@ class FilamentMappingCard {
      * Recompacts the card's `tool_info_` / `mappings_` in lockstep to the
      * entries whose `.tool_index` is in `used` (preserving order and the real
      * `.tool_index` used for the "T%d" label), then rebuilds the compact view.
-     * Mappings-preserving — no recompute (mirrors refresh_slot_data).
+     * The tool→slot MAPPINGS are preserved — no re-seed (mirrors
+     * refresh_slot_data), so a user's manual remap survives.
      *
-     * `nullopt` OR an empty set ⇒ no filter (show all). This is the safety
-     * rule: it avoids blanking the card pre-parse, and avoids the headless
-     * single-extruder case (where the used set is empty forever) hiding
-     * everything.
+     * **VISIBILITY IS RE-DECIDED, and the caller must publish it.** `used` is an
+     * input to both lane-count rules in `recompute_visibility()`, so the precise
+     * set arriving here can flip the answer `update()` could only reach from the
+     * slicer palette: a bypassed print of a 3-colour file that really uses one
+     * tool wants ONE lane, and the bypass rule hides the card for it. A caller
+     * that skips the publish leaves `filament_mapping_visible` describing the
+     * palette's answer while the card describes the file's — silently, because
+     * nothing about the widget tree looks wrong. `PrintSelectDetailView` does
+     * this from `publish_card_visibility()`, called AFTER every
+     * `set_used_tools()`.
+     *
+     * `nullopt` OR an empty set ⇒ no filter (show all), and the same fallback
+     * inside the visibility rules. This is the safety rule: it avoids blanking
+     * the card pre-parse, and avoids the headless single-extruder case (where
+     * the used set is empty forever) hiding everything.
      */
     void set_used_tools(std::optional<std::set<int>> used);
 
@@ -288,6 +310,25 @@ class FilamentMappingCard {
     lv_obj_t* warning_container_ = nullptr;
 
     bool should_show_ = false; ///< Cached visibility intent — see should_show()
+    /// Palette sizes from the last update(), kept so set_used_tools() can re-run
+    /// the visibility rule without a palette in hand. Deliberately NOT read off
+    /// tool_info_, whose size apply_used_tools_filter() shrinks. The two differ
+    /// when a slicer reports materials and no colours (OrcaSlicer on a K2 Plus),
+    /// and the two gates ask different questions, so both are kept.
+    size_t palette_colour_count_ = 0; ///< gcode_colors.size()
+    size_t palette_tool_count_ = 0;   ///< max(colors, materials) = build_tool_info()'s count
+
+    /**
+     * @brief Recompute `should_show_` from used_tools_ + the stored palette counts.
+     *
+     * The single copy of the visibility rule. Called by update() (which stores
+     * the counts first) and by set_used_tools() (where the precise used-tool set
+     * can flip the answer the palette gave). Pure decision — no widget or
+     * mapping side effects — so either caller can run it before doing its work.
+     *
+     * @return the new value of should_show_, so update() can early-out on false.
+     */
+    bool recompute_visibility();
 
     std::vector<helix::ToolMapping> mappings_;
     std::vector<helix::GcodeToolInfo> tool_info_;

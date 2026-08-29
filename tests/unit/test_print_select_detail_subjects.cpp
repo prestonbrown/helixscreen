@@ -612,6 +612,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
     helix::ToolsUsedCache warmer;
     warmer.store("sub/bypass_one.gcode", kSize, kMtime, {0});
 
+    // THREE palette entries against ONE used tool, deliberately. The card
+    // decides visibility from print_lane_requirement(), which prefers the used
+    // set and falls back to the palette count - so a palette that happens to be
+    // the same size as the used set makes a rule reading the WRONG one
+    // indistinguishable from a rule reading the right one. A 3-colour file that
+    // really prints one tool is a re-sliced or multi-variant file, and it is the
+    // shape the bypass gate has to survive.
+    const std::vector<std::string> palette{"#FF0000", "#00FF00", "#0000FF"};
+    const std::vector<std::string> materials{"PLA", "PETG", "ABS"};
+
     lv_subject_t* const visible = lv_xml_get_subject(nullptr, "filament_mapping_visible");
     lv_subject_t* const remappable = lv_xml_get_subject(nullptr, "color_card_remappable");
     REQUIRE(visible != nullptr);
@@ -625,7 +635,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
         REQUIRE(ams.backend->is_bypass_active());
         REQUIRE(AmsState::instance().any_bypass_active());
 
-        view.show("bypass_one.gcode", "sub", "PLA", {"#FF0000"}, {"PLA"}, kSize, kMtime);
+        view.show("bypass_one.gcode", "sub", "PLA", palette, materials, kSize, kMtime);
 
         CHECK(lv_subject_get_int(visible) == 0);
         CHECK(lv_subject_get_int(remappable) == 0);
@@ -641,7 +651,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
         // fixture that cannot produce a chip under any conditions.
         REQUIRE_FALSE(AmsState::instance().any_bypass_active());
 
-        view.show("bypass_one.gcode", "sub", "PLA", {"#FF0000"}, {"PLA"}, kSize, kMtime);
+        view.show("bypass_one.gcode", "sub", "PLA", palette, materials, kSize, kMtime);
 
         CHECK(lv_subject_get_int(visible) == 1);
         CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));

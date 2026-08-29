@@ -61,18 +61,23 @@ void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container
 // Update / visibility
 // ============================================================================
 
-void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
-                                 const std::vector<std::string>& gcode_materials) {
+bool FilamentMappingCard::recompute_visibility() {
+    // The WHOLE visibility rule, in one place, so update() and set_used_tools()
+    // cannot reach different answers from the same state. It reads only
+    // used_tools_ and the two palette counts update() stored - never tool_info_,
+    // whose size apply_used_tools_filter() shrinks, which would make a second
+    // set_used_tools() for the same file decide against a number the first call
+    // had already trimmed.
     if (!card_ || !rows_container_) {
         should_show_ = false;
-        return;
+        return false;
     }
 
     // Check if AMS is available
     auto& ams = AmsState::instance();
     if (!ams.is_available()) {
         should_show_ = false;
-        return;
+        return false;
     }
 
     // NO editable-backend gate here. It once existed to avoid a dead control on
@@ -95,19 +100,23 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     // here: it prefers the scan's tools_used and falls back to the palette, and
     // a second copy of that precedence would drift into exactly the mismatch
     // this hides.
+    //
+    // The fallback is the COLOUR count, not the tool count: the two differ when
+    // a slicer reports materials and no colours (every OrcaSlicer file on a
+    // K2 Plus), and this gate has always asked "how many lanes does the file
+    // want", which is a question about colours.
     if (ams.any_bypass_active() &&
         helix::print_lane_requirement(used_tools_ ? *used_tools_ : std::set<int>{},
-                                      gcode_colors.size()) <= 1) {
+                                      palette_colour_count_) <= 1) {
         should_show_ = false;
-        return;
+        return false;
     }
 
-    // Build tool info from file metadata
-    tool_info_ = build_tool_info(gcode_colors, gcode_materials);
-
-    if (tool_info_.empty()) {
+    // Nothing to map. Equivalent to the build_tool_info() result being empty:
+    // it emits max(colours, materials) entries and filters none.
+    if (palette_tool_count_ == 0) {
         should_show_ = false;
-        return;
+        return false;
     }
 
     // Moved from PrintSelectDetailView::swatches_card_visible_for(): on a
@@ -128,9 +137,36 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     const bool is_multi_tool_printer =
         helix::ToolState::instance().is_multi_tool() || ams_slots > 1;
     const size_t tool_count = helix::print_lane_requirement(
-        used_tools_ ? *used_tools_ : std::set<int>{}, tool_info_.size());
+        used_tools_ ? *used_tools_ : std::set<int>{}, palette_tool_count_);
     if (!(is_multi_tool_printer ? tool_count > 0 : tool_count > 1)) {
         should_show_ = false;
+        return false;
+    }
+
+    // Visibility is published via the `filament_mapping_visible` subject by the
+    // detail view — see PrintSelectDetailView::publish_card_visibility().
+    should_show_ = true;
+    return true;
+}
+
+void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
+                                 const std::vector<std::string>& gcode_materials) {
+    // Stored before the decision, because the decision reads them - and kept,
+    // because set_used_tools() re-runs that decision without a palette to hand.
+    // build_tool_info() emits max(colours, materials) entries, so that max IS
+    // the tool count the rule used to read off tool_info_.size().
+    palette_colour_count_ = gcode_colors.size();
+    palette_tool_count_ = std::max(gcode_colors.size(), gcode_materials.size());
+
+    // Built BEFORE the decision, and unconditionally. It is a pure function of
+    // the arguments, and the print-start gate reads it back through
+    // PrintSelectDetailView::get_filament_tool_info() whether or not the card is
+    // showing - so returning early without it would hand that gate the PREVIOUS
+    // file's tools. The old code only avoided that on one of the four hidden
+    // paths by accident of ordering.
+    tool_info_ = build_tool_info(gcode_colors, gcode_materials);
+
+    if (!recompute_visibility()) {
         return;
     }
 
@@ -153,10 +189,6 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     // Build the compact UI
     rebuild_compact_view();
 
-    // Visibility is published via the `filament_mapping_visible` subject by the
-    // detail view — see PrintSelectDetailView::publish_card_visibility().
-    should_show_ = true;
-
     spdlog::debug("[FilamentMapping] Updated: {} tools, {} slots, {} mappings", tool_info_.size(),
                   available_slots_.size(), mappings_.size());
 }
@@ -175,10 +207,25 @@ void FilamentMappingCard::refresh_slot_data() {
 
 void FilamentMappingCard::set_used_tools(std::optional<std::set<int>> used) {
     used_tools_ = std::move(used);
-    // Compact the card's current tool_info_/mappings_ in lockstep. Mappings-
-    // preserving (no recompute) — mirrors refresh_slot_data. nullopt/empty is a
-    // no-op (show all). Does NOT touch the detail view's full-palette copies
-    // (current_filament_colors_/materials) — only the card's own vectors.
+
+    // Re-decide visibility FIRST. Both lane-count gates read used_tools_, so the
+    // precise set arriving here can flip an answer update() could only reach
+    // from the palette: a bypassed print of a 3-colour file that really uses one
+    // tool wants one lane, not three, and the bypass gate exists to hide exactly
+    // that. Without this the card stayed visible on the palette's say-so and
+    // then trimmed itself to a single chip - the K2 Plus state where a user read
+    // a chip as a lane claim and printed off the bypass spool anyway.
+    //
+    // Callers must re-publish afterwards; PrintSelectDetailView does that from
+    // publish_card_visibility(), which is why this does not reach for a subject
+    // itself - the card has never owned one.
+    recompute_visibility();
+
+    // Then compact the card's current tool_info_/mappings_ in lockstep.
+    // Mappings-preserving (no recompute) — mirrors refresh_slot_data.
+    // nullopt/empty is a no-op (show all). Does NOT touch the detail view's
+    // full-palette copies (current_filament_colors_/materials) — only the card's
+    // own vectors.
     apply_used_tools_filter(tool_info_, mappings_, used_tools_);
     rebuild_compact_view();
 }
@@ -218,6 +265,21 @@ void FilamentMappingCard::rebuild_compact_view() {
     // this point on; every use below must come after a fresh read (#1221).
     if (!rows_container_) {
         spdlog::debug("[FilamentMapping] Container destroyed during drain — skipping rebuild");
+        return;
+    }
+
+    // A card that is not going to be shown holds no chips. update() has always
+    // worked this way - it returns before this call on every hidden path - but
+    // set_used_tools() and refresh_slot_data() reach here directly, and a
+    // used-tool set that flips visibility off arrives through the first of
+    // those. Building the chips anyway left them parented under a hidden card:
+    // invisible, but real widgets carrying a lane claim the gate had just
+    // decided not to make, on a machine where that work is not free. Clearing
+    // the fingerprint keeps a later re-show from early-returning onto the empty
+    // container it would leave behind.
+    if (!should_show_) {
+        helix::ui::safe_clean_children(rows_container_);
+        last_render_fingerprint_.clear();
         return;
     }
 

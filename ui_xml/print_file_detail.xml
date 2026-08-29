@@ -262,11 +262,13 @@
                scrollable="false" so the card cannot grow either. The card caps
                the chips at what fits and renders a "+N" pill for the rest (see
                rebuild_compact_view). -->
-          <!-- SIZE_OK: 32 is the chip row height filament_swatch resolves its height="100%" against -->
+          <!-- SIZE_OK: 32 IS the chip height. filament_swatch is height="100%" and
+               resolves against this row's CONTENT box, so padding here shortens
+               the chips instead of growing the row - the card is flex column
+               with style_pad_gap, which is what spaces this from the header. -->
           <lv_obj name="filament_mapping_rows"
                   width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_flex_main_place="center" style_pad_top="#space_xs" scrollable="false" clickable="false"
-                  event_bubble="true">
+                  style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
             <!-- Chips added dynamically in C++ (clickable=false + event_bubble=true
                  on filament_swatch) so a tap reaches this card. -->
@@ -278,8 +280,7 @@
           <!-- SIZE_OK: skeleton row height mirrors filament_mapping_rows' literal 32 -->
           <lv_obj name="mapping_skeleton"
                   width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_flex_main_place="center" style_pad_top="#space_xs" scrollable="false" clickable="false"
-                  event_bubble="true">
+                  style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
             <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
             <lv_obj width="40"
