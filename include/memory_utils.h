@@ -188,4 +188,41 @@ bool is_gcode_2d_streaming_safe(size_t file_size_bytes);
 bool is_gcode_2d_streaming_safe_impl(size_t file_size_bytes, size_t available_kb, int display_width,
                                      int display_height);
 
+// ============================================================================
+// OOM priority
+// ============================================================================
+
+/**
+ * @brief Parse the HELIX_OOM_SCORE_ADJ contract exported by helix-launcher.sh.
+ *
+ * @param value Raw environment value; may be nullptr.
+ * @param out   Receives the adjustment, clamped to the kernel's [-1000, 1000].
+ * @return true when @p out was set, false when the value is absent, empty,
+ *         non-numeric, has trailing garbage, or is "0" — the documented
+ *         spelling for "leave this process alone".
+ */
+bool parse_oom_score_adj(const char* value, int& out);
+
+/**
+ * @brief Write an oom_score_adj value to @p path (for unit testing).
+ * @return true when the write succeeded.
+ *
+ * Raising the value is unprivileged. Lowering it below the inherited value
+ * requires CAP_SYS_RESOURCE and fails as a normal user, which is why the
+ * launcher only ever hands us a positive number.
+ */
+bool write_oom_score_adj(int adj, const char* path);
+
+/**
+ * @brief Apply HELIX_OOM_SCORE_ADJ to this process.
+ * @return true when an adjustment was written.
+ *
+ * No-op when the variable is unset or "0". helix-launcher.sh exports it only
+ * when Klipper is co-hosted, and exports rather than applies it because
+ * oom_score_adj is inherited across fork and preserved across exec: setting it
+ * in the launcher would also mark helix-watchdog, and killing the watchdog is
+ * what stops helix-screen from coming back.
+ */
+bool apply_oom_score_adj_from_env();
+
 } // namespace helix

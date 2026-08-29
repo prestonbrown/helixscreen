@@ -669,6 +669,15 @@ int Application::run(int argc, char** argv) {
     spdlog::debug("[Application] DPI: {}{}", (m_args.dpi > 0 ? m_args.dpi : LV_DPI_DEF),
                   (m_args.dpi > 0 ? " (custom)" : " (default)"));
 
+    // Volunteer as the kernel's first OOM victim when helix-launcher.sh found
+    // Klipper co-hosted on this board. No-op when the variable is unset.
+    //
+    // Placed after init_logging() rather than at the top of run(): anything
+    // logged before Phase 3 is dropped, and on a printer this line is the only
+    // way to confirm the handoff happened at all. Still ahead of LVGL, the
+    // display, the printer database, and every large allocation.
+    helix::apply_oom_score_adj_from_env();
+
     // Headless one-shot: detect printer via Moonraker REST, print JSON verdict, exit.
     // Must run after logging init but before any display/LVGL init.
     if (m_args.detect_printer) {
