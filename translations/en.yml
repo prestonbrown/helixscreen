@@ -1,7 +1,6 @@
 locale: en
 translations:
   ' (timed out)': ' (timed out)'
-  ' elapsed · ': ' elapsed · '
   ' frames': ' frames'
   ' left': ' left'
   '"%s" failed to load': '"%s" failed to load'
@@ -1476,7 +1475,6 @@ translations:
   MACRO DEVICES: MACRO DEVICES
   MAIN POWER BUTTON: MAIN POWER BUTTON
   MANUAL: MANUAL
-  MAPPING: MAPPING
   MB RAM: MB RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: MCU, host, and auxiliary temperature

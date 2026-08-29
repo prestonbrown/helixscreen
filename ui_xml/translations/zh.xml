@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="zh">
   <translation tag=" (timed out)" zh="（超时）"/>
-  <translation tag=" elapsed · " zh=" 已用 · "/>
   <translation tag=" frames" zh=" 帧"/>
   <translation tag=" left" zh=" 剩余"/>
   <translation tag="&quot;%s&quot; failed to load" zh="&quot;%s&quot; 加载失败"/>
@@ -1349,7 +1348,6 @@
   <translation tag="MACRO DEVICES" zh="宏设备"/>
   <translation tag="MAIN POWER BUTTON" zh="主电源按钮"/>
   <translation tag="MANUAL" zh="手动"/>
-  <translation tag="MAPPING" zh="映射"/>
   <translation tag="MB RAM" zh="MB 内存"/>
   <translation tag="MCU" zh="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" zh="MCU、主机及辅助温度监控"/>

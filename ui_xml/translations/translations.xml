@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="de en es fr it ja pt ru zh">
   <translation tag=" (timed out)" de=" (Zeitüberschreitung)" en=" (timed out)" es=" (tiempo agotado)" fr=" (délai dépassé)" it=" (tempo scaduto)" ja="（タイムアウト）" pt=" (tempo esgotado)" ru=" (время ожидания истекло)" zh="（超时）"/>
-  <translation tag=" elapsed · " de=" vergangen · " en=" elapsed · " es=" transcurrido · " fr=" écoulé · " it=" trascorso · " ja=" 経過 · " pt=" decorrido · " ru=" истёк · " zh=" 已用 · "/>
   <translation tag=" frames" de=" Bilder" en=" frames" es=" fotogramas" fr=" images" it=" fotogrammi" ja=" フレーム" pt=" quadros" ru=" кадров" zh=" 帧"/>
   <translation tag=" left" de=" übrig" en=" left" es=" restante" fr=" restant" it=" rimanente" ja=" 残り" pt=" restante" ru=" осталось" zh=" 剩余"/>
   <translation tag="&quot;%s&quot; failed to load" de="&quot;%s&quot; konnte nicht geladen werden" en="&quot;%s&quot; failed to load" es="&quot;%s&quot; no se pudo cargar" fr="&quot;%s&quot; na pas pu se charger" it="Caricamento di &quot;%s&quot; non riuscito" ja="&quot;%s&quot; の読み込みに失敗しました" pt="&quot;%s&quot; falhou ao carregar" ru="Не удалось загрузить «%s»" zh="&quot;%s&quot; 加载失败"/>
@@ -1349,7 +1348,6 @@
   <translation tag="MACRO DEVICES" de="MAKRO-GERÄTE" en="MACRO DEVICES" es="DISPOSITIVOS DE MACRO" fr="APPAREILS MACRO" it="DISPOSITIVI MACRO" ja="マクロデバイス" pt="DISPOSITIVOS DE MACRO" ru="МАКРО-УСТРОЙСТВА" zh="宏设备"/>
   <translation tag="MAIN POWER BUTTON" de="HAUPTSCHALTER" en="MAIN POWER BUTTON" es="BOTÓN DE ENCENDIDO PRINCIPAL" fr="BOUTON D&apos;ALIMENTATION PRINCIPAL" it="PULSANTE DI ACCENSIONE PRINCIPALE" ja="メイン電源ボタン" pt="BOTÃO DE ENERGIA PRINCIPAL" ru="ГЛАВНАЯ КНОПКА ПИТАНИЯ" zh="主电源按钮"/>
   <translation tag="MANUAL" de="MANUELL" en="MANUAL" es="MANUAL" fr="MANUEL" it="MANUALE" ja="手動" pt="MANUAL" ru="ВРУЧНУЮ" zh="手动"/>
-  <translation tag="MAPPING" de="ZUORDNUNG" en="MAPPING" es="ASIGNACIÓN" fr="AFFECTATION" it="MAPPATURA" ja="マッピング" pt="MAPEAMENTO" ru="СОПОСТАВЛЕНИЕ" zh="映射"/>
   <translation tag="MB RAM" de="MB RAM" en="MB RAM" es="MB de RAM" fr="Mo de RAM" it="MB RAM" ja="MB RAM" pt="MB RAM" ru="МБ ОЗУ" zh="MB 内存"/>
   <translation tag="MCU" de="MCU" en="MCU" es="MCU" fr="MCU" it="MCU" ja="MCU" pt="MCU" ru="MCU" zh="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" de="MCU-, Host- und Zusatztemperaturüberwachung" en="MCU, host, and auxiliary temperature monitoring" es="Monitoreo de temperatura de MCU, host y auxiliares" fr="Surveillance des températures MCU, hôte et auxiliaires" it="Monitoraggio temperature MCU, host e ausiliarie" ja="MCU、ホスト、補助温度の監視" pt="Monitoramento de temperatura MCU, host e auxiliar" ru="Мониторинг температуры MCU, хоста и вспомогательных датчиков" zh="MCU、主机及辅助温度监控"/>

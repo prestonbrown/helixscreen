@@ -7,6 +7,7 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::ui::format_layer_progress;
+using helix::ui::format_layer_progress_compact;
 
 TEST_CASE_METHOD(HelixTestFixture, "format_layer_progress renders total when known",
                  "[format][layer]") {
@@ -39,4 +40,16 @@ TEST_CASE_METHOD(HelixTestFixture, "format_layer_progress omits a missing Z heig
                  "[format][layer]") {
     REQUIRE(format_layer_progress(42, 213, true, 0) == "Layer 42 / 213");
     REQUIRE(format_layer_progress(42, 213, true, -5) == "Layer 42 / 213");
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "format_layer_progress_compact drops prose and parenthesised Z",
+                 "[format][layer]") {
+    // The metadata strip renders a layers icon where the prose form spells
+    // "Layer", and separates the Z with a middle dot instead of parentheses.
+    // The string must stay translation-neutral: its width is the row's budget.
+    REQUIRE(format_layer_progress_compact(474, 1334, true, 5540) == "474 / 1334 · 55.4mm");
+    REQUIRE(format_layer_progress_compact(42, 213, true, 0) == "42 / 213");
+    REQUIRE(format_layer_progress_compact(7, 0, true, 0) == "7");
+    REQUIRE(format_layer_progress_compact(42, 213, false, 2450) == "~42 / 213 · 24.5mm");
+    REQUIRE(format_layer_progress_compact(42, 213, true, -5) == "42 / 213");
 }
