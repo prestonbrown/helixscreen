@@ -46,17 +46,46 @@
 set -e
 
 # Co-hosted-with-Klipper detection — used below (just before exec) to decide
-# whether to nice the UI down. Defined here, called late, so platform hooks
-# and the init script's platform_wait_for_services have had time to bring
-# Klipper / Moonraker up before we look for them.
+# whether to nice the UI down and hand helix-screen a higher OOM score. Defined
+# here, called late, so platform hooks and the init script's
+# platform_wait_for_services have had time to bring Klipper / Moonraker up
+# before we look for them.
+#
+# Reads /proc/<pid>/cmdline directly instead of shelling out to pgrep. pgrep is
+# absent entirely on some BusyBox rootfs — Forge-X on the AD5M ships none — and
+# where BusyBox does provide it, `-f` matching is unreliable. Both probes in the
+# previous pgrep-plus-socket version missed there (Forge-X's klippy socket is
+# /tmp/uds and its Moonraker has none), so the UI ran at nice 0 against Klipper
+# on exactly the boards this exists to protect.
+#
+# Reading the files also avoids the pgrep self-match trap: nothing is spawned
+# with the search pattern on its own command line.
+#
+# HELIX_PROC_ROOT exists so the tests can point the scan at a fixture tree.
+: "${HELIX_PROC_ROOT:=/proc}"
 helix_klipper_co_hosted() {
-    if command -v pgrep >/dev/null 2>&1; then
-        pgrep -f '[k]lippy\.py'    >/dev/null 2>&1 && return 0
-        pgrep -f '[m]oonraker\.py' >/dev/null 2>&1 && return 0
-    fi
-    # Fallback for systems without pgrep -f: check default unix sockets.
+    # Patterns are deliberately narrow. A bare *moonraker* would also match a
+    # standalone kiosk started as `helix-screen --moonraker ws://host:7125`,
+    # which is precisely the not-co-hosted case that must stay at nice 0.
+    for _hkc_f in "$HELIX_PROC_ROOT"/[0-9]*/cmdline; do
+        [ -r "$_hkc_f" ] || continue
+        # argv is NUL-separated; fold to spaces for substring matching. A
+        # process that exits mid-scan makes tr fail — that is not an error.
+        _hkc_cmd=$(tr '\0' ' ' < "$_hkc_f" 2>/dev/null) || _hkc_cmd=""
+        case " ${_hkc_cmd} " in
+            *klippy.py*|*moonraker.py*|*moonraker-env*|*" -m moonraker"*)
+                unset _hkc_f _hkc_cmd
+                return 0
+                ;;
+        esac
+    done
+    unset _hkc_f _hkc_cmd
+
+    # Fallback for hosts where /proc is unreadable or Klipper lives in another
+    # PID namespace. /tmp/uds is Forge-X's klippy socket on the AD5M.
     [ -S /tmp/klippy_uds ]      && return 0
     [ -S /tmp/moonraker.sock ]  && return 0
+    [ -S /tmp/uds ]             && return 0
     return 1
 }
 
@@ -532,6 +561,31 @@ if helix_klipper_co_hosted; then
         fi
     fi
     unset _helix_nice
+
+    # Volunteer helix-screen as the kernel's first OOM victim. Co-hosted means
+    # Klipper is on this board, and Klipper cannot be restarted mid-print
+    # without ruining the job, while helix-screen has helix-watchdog sitting
+    # behind it. Measured on an AD5M (110MB total): every process sat at
+    # oom_score_adj 0, leaving the kill order Moonraker (score 156), Klipper
+    # (92), helix-screen (69) — exactly backwards.
+    #
+    # Exported rather than applied here, because oom_score_adj is inherited
+    # across fork and preserved across exec: setting it on the launcher would
+    # mark this shell and helix-watchdog too, and killing the watchdog is what
+    # stops helix-screen from coming back. helix-screen applies it to
+    # /proc/self instead, so only the process actually holding the memory
+    # volunteers. Raising the value is unprivileged, so this works as the
+    # non-root service user; only lowering below 0 needs CAP_SYS_RESOURCE.
+    #
+    # Not gated on RAM size: if Klipper is on this box then losing the UI is
+    # the cheaper outcome no matter how much memory the board has.
+    # Override with HELIX_OOM_SCORE_ADJ=<n> in helixscreen.env (0 disables).
+    _helix_oom="${HELIX_OOM_SCORE_ADJ:-300}"
+    if [ "${_helix_oom}" != "0" ]; then
+        export HELIX_OOM_SCORE_ADJ="${_helix_oom}"
+        log "Co-hosted with Klipper/Moonraker — helix-screen oom_score_adj +${_helix_oom}"
+    fi
+    unset _helix_oom
 fi
 
 # Runtime crash fallback predicate. Defined before the run loop so it is
