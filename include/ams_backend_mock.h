@@ -327,6 +327,19 @@ class AmsBackendMock : public AmsBackend {
     void force_slot_status(int slot_index, SlotStatus status);
 
     /**
+     * @brief Force a slot's remaining filament length in metres (for testing)
+     *
+     * remaining_length_m is firmware-derived (the CFS insert probe produces it),
+     * so set_slot_info deliberately does not copy it - the same discipline as
+     * status. Stage it here instead when a test needs a measured or sentinel
+     * length (100 = never measured, 255 = failed probe).
+     *
+     * @param slot_index Slot to modify
+     * @param remaining_m Remaining length in metres
+     */
+    void force_slot_remaining(int slot_index, float remaining_m);
+
+    /**
      * @brief Set per-slot error state (for testing error visualization)
      * @param slot_index Slot to modify
      * @param error Error to set, or nullopt to clear

@@ -1005,6 +1005,29 @@ struct SlotInfo {
         }
         return static_cast<int>(std::lround(*lvl * 100.0f));
     }
+
+    /**
+     * @brief Remaining-length display string, or "" when it is not a
+     *        measurement.
+     *
+     * The CFS box reports two sentinel lengths that must never render as
+     * measurements: 100 is the "never measured" default the bay carries until
+     * the BOX_INFO_REFRESH probe sequence runs (see the probe notes in
+     * ams_backend_cfs.cpp), and 255 is what a probe against a busy box leaves
+     * behind (#1387). Anything <= 0 is equally not a measurement. Callers fall
+     * back to remaining_weight_g when this is empty.
+     *
+     * The sentinels are box dialect values; a genuine reading on another
+     * backend that happens to land exactly on 100.0 falls to the weight, the
+     * lesser mistake next to presenting a sentinel as a measurement.
+     */
+    [[nodiscard]] std::string remaining_length_display() const {
+        if (remaining_length_m <= 0.0f || remaining_length_m == 100.0f ||
+            remaining_length_m == 255.0f) {
+            return {};
+        }
+        return std::to_string(static_cast<int>(remaining_length_m)) + "m";
+    }
 };
 
 /**
