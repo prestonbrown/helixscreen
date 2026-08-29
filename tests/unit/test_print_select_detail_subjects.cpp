@@ -560,8 +560,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "One filament card, titled FILAMENTS, with t
     // Chrome absorbed from the retired card: the tap cue and the empty-lane
     // warning, plus the mismatch icon this card already had.
     CHECK(lv_obj_find_by_name(card, "color_card_remap_chevron") != nullptr);
-    CHECK(lv_obj_find_by_name(card, "empty_tools_warning_icon") != nullptr);
-    CHECK(lv_obj_find_by_name(card, "filament_mismatch_icon") != nullptr);
+
+    // The two header lamps must not be the same lamp. While they lived in
+    // mutually exclusive cards a user could never see both at once; one card
+    // puts them adjacent in the same row, and two identical amber triangles
+    // report "something is wrong" twice without saying which thing. An empty
+    // lane BLOCKS the print, a material mismatch only advises, and the app's
+    // canonical severity mapping (ui_preflight_check_modal.cpp severity_visual)
+    // already draws them close/danger and alert/warning respectively.
+    //
+    // The icon widget is an lv_label holding the glyph's codepoint, so this
+    // compares what is actually drawn rather than the XML attribute that asked
+    // for it - a src that silently failed to resolve would fall back and be
+    // caught here too.
+    lv_obj_t* const mismatch = lv_obj_find_by_name(card, "filament_mismatch_icon");
+    lv_obj_t* const empty_lane = lv_obj_find_by_name(card, "empty_tools_warning_icon");
+    REQUIRE(mismatch != nullptr);
+    REQUIRE(empty_lane != nullptr);
+
+    const char* const mismatch_glyph = lv_label_get_text(mismatch);
+    const char* const empty_glyph = lv_label_get_text(empty_lane);
+    REQUIRE(mismatch_glyph != nullptr);
+    REQUIRE(empty_glyph != nullptr);
+    CHECK(std::string(mismatch_glyph) != std::string(empty_glyph));
+
+    // And they differ in colour too, so the pair stays distinguishable to a
+    // reader who cannot tell the two small glyphs apart at 480x272.
+    CHECK_FALSE(lv_color_eq(lv_obj_get_style_text_color(mismatch, LV_PART_MAIN),
+                            lv_obj_get_style_text_color(empty_lane, LV_PART_MAIN)));
 }
 
 // The two surfaces used to disagree about exactly one state.

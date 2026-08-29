@@ -29,6 +29,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../mapping_card_render_fixture.h"
 
 #include <set>
 
@@ -80,18 +81,39 @@ TEST_CASE_METHOD(MappingCardFixture,
     REQUIRE(rows == nullptr);
 }
 
-TEST_CASE_METHOD(MappingCardFixture,
+TEST_CASE_METHOD(MappingCardRenderFixture,
                  "rebuild_compact_view: still rebuilds normally when nothing is queued",
                  "[filament][mapping][filament_mapping][1221]") {
     // Mutation guard for the fix: a bare early-return added after the drain
     // would satisfy the crash test above while silently disabling the card.
-    // With an empty queue the container must survive and stay styled.
+    // With an empty queue the container must survive AND be re-rendered.
+    //
+    // MappingCardRenderFixture, NOT the MappingCardFixture the crash test uses.
+    // rebuild_compact_view() styles and populates the container only for a card
+    // it is going to show, and "show" needs a started AMS backend and a palette
+    // - neither of which that fixture has. On it, the function returns before
+    // lv_obj_set_flex_flow() ever runs, so every assertion here read an
+    // untouched container, and LV_FLEX_FLOW_ROW is 0x00, the LVGL style default
+    // for a property with no case in lv_style_prop_get_default(). The flow check
+    // passed whether or not the production call existed.
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    REQUIRE(card.should_show());
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+
+    // ONE tool out of a two-tool palette, deliberately: it changes the render
+    // fingerprint, so this goes through a real rebuild rather than the
+    // idempotent-render early-out that an identical set would hit. Without that
+    // the chip count below would be describing update()'s render, not this one,
+    // and the early-return this case exists to catch would sail through.
     REQUIRE_NOTHROW(card.set_used_tools(std::set<int>{0}));
 
     REQUIRE(rows != nullptr);
     REQUIRE(lv_obj_is_valid(rows));
+    // The rebuild genuinely ran: 2 chips became 1. This is what makes the flow
+    // assertion below a statement about code that executed.
+    REQUIRE(lv_obj_get_child_count(rows) == 1);
     // ROW, not ROW_WRAP: the chips live in one fixed-height row, so a wrapped
     // second row would be clipped rather than shown - rebuild_compact_view caps
     // them at what fits and renders a "+N" pill for the rest instead.
-    REQUIRE(lv_obj_get_style_flex_flow(rows, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_style_flex_flow(rows, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
 }

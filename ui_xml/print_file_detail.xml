@@ -222,9 +222,15 @@
              renders stacked filament_swatch chips from its own mappings store.
              Visibility is the C++-owned filament_mapping_visible subject,
              published after each FilamentMappingCard::update(). Tapping opens
-             the remap picker; the chevron says so, and both it and the card's
-             clickable flag come from color_card_remappable so the card never
-             swallows a tap it would silently drop. -->
+             the remap picker, and the chevron says so.
+
+             The clickable binding below is NOT the only writer of that flag:
+             FilamentMappingCard::create() also adds CLICKABLE unconditionally,
+             and lv_subject_set_int only notifies on a CHANGE, so publishing
+             color_card_remappable=0 over an already-0 subject never fires this
+             binding and the C++ flag survives. A tap on a non-remappable
+             backend is stopped by on_color_card_clicked()'s own guard, not by
+             the flag. Tracked; do not read this binding as authoritative. -->
         <ui_card name="filament_mapping_card"
                  width="100%" style_pad_hor="0" style_pad_ver="#space_md" style_pad_gap="#space_xs"
                  style_border_width="0" flex_flow="column">
@@ -238,8 +244,16 @@
                   src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="filament_mismatch" flag="hidden" ref_value="0"/>
             </icon>
+            <!-- DANGER, and a different glyph from the mismatch triangle beside
+                 it. These two lamps were never visible at once while they lived
+                 in mutually exclusive cards; one card puts them side by side, and
+                 two identical amber triangles say "something is wrong" twice
+                 without saying which thing. Severity matches the canonical
+                 mapping in ui_preflight_check_modal.cpp's severity_visual():
+                 EmptySlot is close/danger, a material mismatch is alert/warning.
+                 An empty lane BLOCKS the print; a mismatch only advises. -->
             <icon name="empty_tools_warning_icon"
-                  src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
+                  src="close" size="sm" variant="danger" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="empty_tools_warning" flag="hidden" ref_value="0"/>
             </icon>
             <!-- Spacer: pushes the tap cue to the trailing edge without giving
