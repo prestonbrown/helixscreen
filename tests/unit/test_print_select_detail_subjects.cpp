@@ -190,13 +190,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
     REQUIRE(ready != nullptr);
     REQUIRE(lv_subject_get_int(ready) == 0); // fresh view: skeleton armed
 
-    // The other half of the cache seed: render_authoritative_chips() decides
-    // swatch-card visibility from the PRECISE used-tool set. No AMS backend is
-    // registered here, so the mapping card stays hidden and the swatch card is
-    // the surface that must reflect the seeded set.
-    lv_subject_t* swatches = lv_xml_get_subject(nullptr, "color_swatches_visible");
-    REQUIRE(swatches != nullptr);
-
     const std::vector<std::string> colors{"#FF0000", "#00FF00", "#0000FF", "#FFFF00"};
     // The (path, size, mtime) triple show() is called with — the cache key.
     constexpr size_t kSize = 1234;
@@ -219,11 +212,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
         // cache hit — the deferred push/on_activate hasn't even run yet.
         REQUIRE(lv_subject_get_int(ready) == 1);
         REQUIRE(view.get_tools_used() == std::set<int>{0, 2});
-        // Authoritative chips rendered in the same show() call: 2 used tools on
-        // a single-extruder printer clears swatches_card_visible_for()'s >1
-        // threshold, and show() had just reset this subject to 0 — so a 1 here
-        // can only come from the cache seed's render.
-        REQUIRE(lv_subject_get_int(swatches) == 1);
 
         pop_and_drain();
         REQUIRE(lv_subject_get_int(ready) == 0); // latch re-arms on deactivate
@@ -232,9 +220,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
     SECTION("cold cache: skeleton (0) until the scan resolves") {
         view.show("flash.gcode", "sub", "PLA", colors, {}, kSize, kMtime);
         REQUIRE(lv_subject_get_int(ready) == 0);
-        // Nothing authoritative to render yet — the swatch card stays in the
-        // neutral "not yet known" state show() reset it to.
-        REQUIRE(lv_subject_get_int(swatches) == 0);
 
         // Drain runs the deferred push → on_activate → scan kick-off. With no
         // API the degrade path marks the scan done immediately — the same
@@ -555,4 +540,255 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(triangle) == 0);
         CHECK(lv_subject_get_int(empty_warning) == 0);
     }
+}
+
+// ============================================================================
+// One card, one gate
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture, "One filament card, titled FILAMENTS, with the tap chevron",
+                 "[print_select][detail][xml]") {
+    lv_obj_t* const root = make_detail_root(test_screen());
+    REQUIRE(root != nullptr);
+
+    // The second card is gone: one surface for the chips on every backend.
+    CHECK(lv_obj_find_by_name(root, "color_requirements_card") == nullptr);
+    CHECK(lv_obj_find_by_name(root, "color_swatches_row") == nullptr);
+
+    lv_obj_t* const card = lv_obj_find_by_name(root, "filament_mapping_card");
+    REQUIRE(card != nullptr);
+    // Chrome absorbed from the retired card: the tap cue and the empty-lane
+    // warning, plus the mismatch icon this card already had.
+    CHECK(lv_obj_find_by_name(card, "color_card_remap_chevron") != nullptr);
+    CHECK(lv_obj_find_by_name(card, "empty_tools_warning_icon") != nullptr);
+    CHECK(lv_obj_find_by_name(card, "filament_mismatch_icon") != nullptr);
+}
+
+// The two surfaces used to disagree about exactly one state.
+// FilamentMappingCard::should_show() hides the card for a single-lane print
+// with bypass engaged - a K2 Plus user read a chip as "this maps to lane 2",
+// tapped it to confirm, and printed off the bypass spool. But
+// render_authoritative_chips() computed the SECOND surface as
+// `!mapping_visible && swatches_card_visible_for(...)`, and that rule is TRUE
+// for one tool on any multi-slot printer. Hiding one surface therefore SHOWED
+// the other, and the chips the incident was about stayed on screen anyway.
+// One card behind one predicate leaves nothing to disagree with.
+TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no filament chip at all",
+                 "[print_select][detail_view][subjects][bypass]") {
+    CacheDirGuard guard;
+    // FOUR lanes on purpose. The retired rule asked only "multi-slot printer
+    // AND at least one tool referenced", so a multi-slot backend is what made
+    // the second surface appear for this one-tool file. A single-slot backend
+    // would hide it for an unrelated reason and prove nothing about bypass.
+    ScopedAmsBackend ams(4);
+
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } closer{view};
+
+    // A warmed cache is what makes show() render authoritatively in the same
+    // call. Without it the used-tool set is unknown, every surface is
+    // legitimately blank, and the assertions below would hold no matter what
+    // the visibility rules did.
+    constexpr size_t kSize = 999;
+    constexpr time_t kMtime = 1111;
+    helix::ToolsUsedCache warmer;
+    warmer.store("sub/bypass_one.gcode", kSize, kMtime, {0});
+
+    lv_subject_t* const visible = lv_xml_get_subject(nullptr, "filament_mapping_visible");
+    lv_subject_t* const remappable = lv_xml_get_subject(nullptr, "color_card_remappable");
+    REQUIRE(visible != nullptr);
+    REQUIRE(remappable != nullptr);
+
+    lv_obj_t* const card = lv_obj_find_by_name(root, "filament_mapping_card");
+    REQUIRE(card != nullptr);
+
+    SECTION("bypass engaged: no chip, no card, no tap affordance") {
+        REQUIRE(ams.backend->enable_bypass().success());
+        REQUIRE(ams.backend->is_bypass_active());
+        REQUIRE(AmsState::instance().any_bypass_active());
+
+        view.show("bypass_one.gcode", "sub", "PLA", {"#FF0000"}, {"PLA"}, kSize, kMtime);
+
+        CHECK(lv_subject_get_int(visible) == 0);
+        CHECK(lv_subject_get_int(remappable) == 0);
+        CHECK(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+        // The teeth. "top_band" is a child of filament_swatch and of nothing
+        // else in the tree, so finding one anywhere under the detail root means
+        // a chip was drawn. The retired swatch renderer drew exactly one here.
+        CHECK(lv_obj_find_by_name(root, "top_band") == nullptr);
+    }
+
+    SECTION("same file WITHOUT bypass: the one card renders its chip") {
+        // The known positive. Without it the zeros above could come from a
+        // fixture that cannot produce a chip under any conditions.
+        REQUIRE_FALSE(AmsState::instance().any_bypass_active());
+
+        view.show("bypass_one.gcode", "sub", "PLA", {"#FF0000"}, {"PLA"}, kSize, kMtime);
+
+        CHECK(lv_subject_get_int(visible) == 1);
+        CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_find_by_name(root, "top_band") != nullptr);
+    }
+}
+
+// The chevron and the card's clickable flag both read color_card_remappable,
+// and it is now published from the same call that publishes the card's
+// visibility. This walks the whole `card_visible && color_card_opens_remap()`
+// truth table, because each half fails in its own way: without the first, a
+// hidden card lights a chevron pointing at chips nobody can see (the state the
+// retired second surface used to draw); without the second, a card on a backend
+// with no remap picker cues a tap it would silently drop.
+TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the backend",
+                 "[print_select][detail_view][subjects][remap]") {
+    CacheDirGuard guard;
+    // FOUR lanes: enough for the multi-tool half of the card's tool-count rule,
+    // so a one-tool file is not what decides visibility in any section below.
+    ScopedAmsBackend ams(4);
+
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } closer{view};
+
+    constexpr size_t kSize = 2468;
+    constexpr time_t kMtime = 1357;
+    helix::ToolsUsedCache warmer;
+    warmer.store("sub/two_tools.gcode", kSize, kMtime, {0, 1});
+    warmer.store("sub/no_palette.gcode", kSize, kMtime, {0});
+
+    lv_subject_t* const visible = lv_xml_get_subject(nullptr, "filament_mapping_visible");
+    lv_subject_t* const remappable = lv_xml_get_subject(nullptr, "color_card_remappable");
+    REQUIRE(visible != nullptr);
+    REQUIRE(remappable != nullptr);
+
+    const std::vector<std::string> two_colors{"#FF0000", "#00FF00"};
+    const std::vector<std::string> two_materials{"PLA", "PETG"};
+
+    SECTION("card shown on a backend with a picker: chevron lit") {
+        // Snapmaker U1 shape - mapping not editable inline, but the backend has
+        // a native remap picker, so color_card_opens_remap() is true. The known
+        // positive: without it the zeros below could be a subject nothing ever
+        // sets.
+        ams.backend->set_snapmaker_mode(true);
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        CHECK(lv_subject_get_int(visible) == 1);
+        CHECK(lv_subject_get_int(remappable) == 1);
+        CHECK(lv_obj_find_by_name(root, "top_band") != nullptr);
+    }
+
+    SECTION("card hidden on that same backend: chevron dark") {
+        // Same backend, same picker - only the card is gone, because an empty
+        // palette leaves the card with no tool to map. The chevron must follow
+        // the card, not the backend.
+        ams.backend->set_snapmaker_mode(true);
+        view.show("no_palette.gcode", "sub", "PLA", {}, {}, kSize, kMtime);
+
+        CHECK(lv_subject_get_int(visible) == 0);
+        CHECK(lv_subject_get_int(remappable) == 0);
+        CHECK(lv_obj_find_by_name(root, "top_band") == nullptr);
+    }
+
+    SECTION("card shown on a backend with no picker: chevron dark") {
+        // The other half. The plain mock reports RemapStrategy::None, so the
+        // card is worth showing - the chips still say which lane each tool
+        // resolves to - but a tap opens nothing and must not be advertised.
+        REQUIRE_FALSE(helix::ui::PrintSelectDetailView::color_card_opens_remap());
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        CHECK(lv_subject_get_int(visible) == 1);
+        CHECK(lv_subject_get_int(remappable) == 0);
+        CHECK(lv_obj_find_by_name(root, "top_band") != nullptr);
+    }
+}
+
+// One tap, one picker. The merged card inherits FilamentMappingCard::create()'s
+// own CLICKED handler; the retired second card carried its own
+// lv_obj_add_event_cb, and moving THAT onto this widget as well would leave two
+// handlers on one object. LVGL fires every matching handler, so a single tap
+// would call the remap opener twice - which on a live screen is the picker
+// opening over itself. Pinned because the obvious way to "move the tap handler
+// to the surviving card" is exactly the way that breaks it.
+TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap picker once",
+                 "[print_select][detail_view][remap]") {
+    CacheDirGuard guard;
+    ScopedAmsBackend ams(4);
+    // Snapmaker U1 shape: the only mock configuration where a tap is meant to
+    // reach the opener at all (color_card_opens_remap() gates on the backend's
+    // remap strategy).
+    ams.backend->set_snapmaker_mode(true);
+
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } closer{view};
+
+    int opens = 0;
+    view.set_on_remap_requested([&opens]() { ++opens; });
+
+    constexpr size_t kSize = 1122;
+    constexpr time_t kMtime = 3344;
+    helix::ToolsUsedCache warmer;
+    warmer.store("sub/two_tools.gcode", kSize, kMtime, {0, 1});
+    view.show("two_tools.gcode", "sub", "PLA", {"#FF0000", "#00FF00"}, {"PLA", "PETG"}, kSize,
+              kMtime);
+
+    lv_obj_t* const card = lv_obj_find_by_name(root, "filament_mapping_card");
+    REQUIRE(card != nullptr);
+    // The card is on screen and says it can be tapped - otherwise a count of 1
+    // below could mean "one handler" or "the guard swallowed the second".
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_card_remappable")) == 1);
+
+    lv_obj_send_event(card, LV_EVENT_CLICKED, nullptr);
+    CHECK(opens == 1);
 }

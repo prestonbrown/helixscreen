@@ -154,7 +154,7 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     rebuild_compact_view();
 
     // Visibility is published via the `filament_mapping_visible` subject by the
-    // detail view — see PrintSelectDetailView::publish_mapping_visibility().
+    // detail view — see PrintSelectDetailView::publish_card_visibility().
     should_show_ = true;
 
     spdlog::debug("[FilamentMapping] Updated: {} tools, {} slots, {} mappings", tool_info_.size(),

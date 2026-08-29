@@ -704,7 +704,7 @@ docs/devel/architecture/16-gcode-pipeline.md	include/tools_used_cache.h	20	inclu
 docs/devel/architecture/16-gcode-pipeline.md	include/ui_gcode_viewer.h	35	include/ui_gcode_viewer.h	8fbacae23d45	0edab65bcdf1
 docs/devel/architecture/16-gcode-pipeline.md	include/ui_gcode_viewer.h	608	include/ui_gcode_viewer.h	d9778c4d9e76	75636ccaaa2b
 docs/devel/architecture/16-gcode-pipeline.md	include/ui_gcode_viewer.h	628	include/ui_gcode_viewer.h	4650c2f51b92	d71dd180dd48
-docs/devel/architecture/16-gcode-pipeline.md	include/ui_print_select_detail_view.h	878	include/ui_print_select_detail_view.h	931c262d612f	445cd8631a00
+docs/devel/architecture/16-gcode-pipeline.md	include/ui_print_select_detail_view.h	873	include/ui_print_select_detail_view.h	931c262d612f	445cd8631a00
 docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	136	src/rendering/gcode_layer_renderer.cpp	31a1c6287ac6	b3af85bd25f8
 docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	1538	src/rendering/gcode_layer_renderer.cpp	3ee0d3650cc3	0ab7e2a6a345
 docs/devel/architecture/16-gcode-pipeline.md	src/rendering/gcode_layer_renderer.cpp	1775	src/rendering/gcode_layer_renderer.cpp	946fdfc61d42	bfd0b0fb4aad
@@ -718,11 +718,11 @@ docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	37
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1079	src/ui/ui_panel_print_status.cpp	ed987a71bbbf	8cb6648d0caf
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1998	src/ui/ui_panel_print_status.cpp	ec051ba125be	352e2708ac96
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	3440	src/ui/ui_panel_print_status.cpp	12337ba6e443	da052ae6914a
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	490	src/ui/ui_print_select_detail_view.cpp	97194cd2ef4d	9cfd78a06905
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	601	src/ui/ui_print_select_detail_view.cpp	b1c018930d0b	8c8d44f4f15e
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	646	src/ui/ui_print_select_detail_view.cpp	945c5afe0719	4c8b1163bcc1
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	1425	src/ui/ui_print_select_detail_view.cpp	70dafa222f7f	c055a9bbbd88
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	1789	src/ui/ui_print_select_detail_view.cpp	70dafa222f7f	2076c057abb4
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	1886	src/ui/ui_print_select_detail_view.cpp	1bb74515a99f	f95d8caf9f50
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	455	src/ui/ui_print_select_detail_view.cpp	97194cd2ef4d	9cfd78a06905
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	566	src/ui/ui_print_select_detail_view.cpp	b1c018930d0b	8c8d44f4f15e
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	611	src/ui/ui_print_select_detail_view.cpp	945c5afe0719	4c8b1163bcc1
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	1253	src/ui/ui_print_select_detail_view.cpp	70dafa222f7f	c055a9bbbd88
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	1631	src/ui/ui_print_select_detail_view.cpp	70dafa222f7f	2076c057abb4
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	1728	src/ui/ui_print_select_detail_view.cpp	1bb74515a99f	f95d8caf9f50
 docs/devel/architecture/16-gcode-pipeline.md	ui_xml/components/print_status_preview_card.xml	38	ui_xml/components/print_status_preview_card.xml	a4b520d36fa4	06b0eb04399e
 docs/devel/printers/SNAPMAKER_U1_SUPPORT.md	display_backend_drm.cpp	497	src/api/display_backend_drm.cpp	fd05c08059bc	55440bb5b4fe

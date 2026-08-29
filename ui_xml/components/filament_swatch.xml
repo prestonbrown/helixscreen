@@ -19,7 +19,7 @@
        via flex_grow. width="40" is tunable — the snug size that fits the widest
        label ("T31").
 
-       C++ (update_color_swatches) owns only the dynamic data:
+       C++ (FilamentMappingCard::rebuild_compact_view) owns only the dynamic data:
          - top_band bg = gcode/palette intended color
          - bottom_band bg = mapped slot present color (or empty variant)
          - tool_label text + contrast color (against top band bg)

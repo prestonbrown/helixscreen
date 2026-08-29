@@ -180,19 +180,15 @@ void PrintSelectDetailView::init_subjects() {
     // via bind_flag_if_eq in print_file_detail.xml.
     UI_MANAGED_SUBJECT_INT(filament_mapping_visible_, 0, "filament_mapping_visible", subjects_);
 
-    // Legacy color swatches card visibility (0=hidden, 1=visible). Shown
-    // only when the mapping card is NOT visible AND the file is multi-tool.
-    // The two subjects are mutually exclusive by construction — see show()
-    // and the metadata-derived-colors path.
-    UI_MANAGED_SUBJECT_INT(color_swatches_visible_, 0, "color_swatches_visible", subjects_);
-
-    // Whether a tap on the color-requirements card opens the remap picker
-    // (0=no, 1=yes). Binds the card's chevron AND its clickable flag in
+    // Whether a tap on the filament card opens the remap picker (0=no,
+    // 1=yes). Binds the card's chevron AND its clickable flag in
     // print_file_detail.xml, so the affordance and the behaviour move together.
+    // Published alongside filament_mapping_visible_ by
+    // publish_card_visibility(), against the same backend snapshot.
     UI_MANAGED_SUBJECT_INT(color_card_remappable_, 0, "color_card_remappable", subjects_);
 
     // Empty-tools warning visibility (0=hidden, 1=visible). Set by
-    // update_color_swatches() when any T-command-referenced slot is empty.
+    // recompute_preflight() when any T-command-referenced slot is empty.
     UI_MANAGED_SUBJECT_INT(empty_tools_warning_, 0, "empty_tools_warning", subjects_);
 
     // Pre-print time estimate (formatted string for bind_text)
@@ -292,49 +288,22 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     pre_print_options_container_ =
         lv_obj_find_by_name(overlay_root_, "pre_print_options_container");
 
-    // Look up the color swatches row container (parent card visibility is
-    // driven by the color_swatches_visible subject — no flag manipulation here).
-    color_swatches_row_ = lv_obj_find_by_name(overlay_root_, "color_swatches_row");
-
-    // Make the color-requirements card tappable so the U1's visible swatches
-    // open the native remap modal — matching the AFC/CFS whole-card click in
-    // FilamentMappingCard. The card's children already declare
+    // Look up and initialize the one filament card. Its children declare
     // clickable=false + event_bubble=true in print_file_detail.xml (L071), so
-    // the parent receives the click. lv_obj_add_event_cb on the card mirrors the
-    // sibling FilamentMappingCard pattern (allowed exception). Whether the card
-    // is clickable at all, and whether it shows the chevron that says so, both
-    // come from color_card_remappable — see color_card_opens_remap().
-    color_requirements_card_ = lv_obj_find_by_name(overlay_root_, "color_requirements_card");
-    if (color_requirements_card_) {
-        // No add_flag(CLICKABLE) here: print_file_detail.xml binds the flag to
-        // color_card_remappable, the same subject the chevron reads. Adding it
-        // unconditionally made the card swallow taps on every backend that
-        // cannot remap and answer none of them.
-        lv_obj_add_event_cb(
-            color_requirements_card_,
-            [](lv_event_t* e) {
-                auto* self = static_cast<PrintSelectDetailView*>(lv_event_get_user_data(e));
-                self->on_color_card_clicked();
-            },
-            LV_EVENT_CLICKED, this);
-    }
-
-    // Look up and initialize filament mapping card
+    // the card itself receives every tap landing on a chip. FilamentMappingCard
+    // ::create() installs the CLICKED handler (allowed exception) — deliberately
+    // NOT a second lv_obj_add_event_cb here, which would fire the remap opener
+    // twice per tap. Whether the card is clickable at all, and whether it shows
+    // the chevron that says so, both come from color_card_remappable.
     lv_obj_t* mapping_card = lv_obj_find_by_name(overlay_root_, "filament_mapping_card");
     lv_obj_t* mapping_rows = lv_obj_find_by_name(overlay_root_, "filament_mapping_rows");
     lv_obj_t* mapping_warning = lv_obj_find_by_name(overlay_root_, "filament_mapping_warning");
     filament_mapping_card_.create(mapping_card, mapping_rows, mapping_warning);
     // Route the card tap to the panel's single remap opener instead of the
     // card's own internal modal, so there is ONE opener and ONE modal instance
-    // for every backend (AFC/CFS card tap, U1 swatch tap, preflight "Remap…"
-    // all reach PrintSelectPanel::open_remap_modal()). on_remap_requested_ is
-    // wired by the panel in create_detail_view() right after construction, so the
-    // null check is just defensive — a tap before wiring is a no-op, not a crash.
-    filament_mapping_card_.set_on_tap([this]() {
-        if (on_remap_requested_) {
-            on_remap_requested_();
-        }
-    });
+    // for every backend (AFC/CFS card tap, U1 chip tap, preflight "Remap…" all
+    // reach PrintSelectPanel::open_remap_modal()).
+    filament_mapping_card_.set_on_tap([this]() { on_color_card_clicked(); });
     filament_mapping_card_.set_on_mappings_changed([this]() {
         // Fired by set_mappings() AFTER it repaints the chips, so this is only
         // the downstream work: re-colour the preview and re-gate pre-flight.
@@ -425,28 +394,24 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // Update filament mapping card (shown when AMS is available)
     filament_mapping_card_.update(filament_colors, filament_materials);
 
-    // Publish the mapping-card display subjects. The mapping card's visibility
-    // depends only on its own state (AMS presence + slicer colors), so it can
-    // be decided here. The swatches card, by contrast, must reflect the real
-    // per-tool set used by the file — which is only known once the gcode is
-    // parsed.
-    const bool mapping_visible = filament_mapping_card_.should_show();
-    lv_subject_set_int(&filament_mapping_visible_, mapping_visible ? 1 : 0);
+    // Publish the card's display subjects. Its visibility depends only on its
+    // own state (AMS presence + slicer colors + bypass), so it can be decided
+    // here, pre-parse; render_authoritative_chips() re-publishes both against
+    // the precise used-tool set as soon as that set is known.
+    publish_card_visibility();
 
-    // Swatches start in a neutral "not yet known" state: hidden, no warning.
-    // Seeding from the slicer palette index here mislabels chips (a T0+T2 file
-    // renders as T0/T1) and inspects the wrong AMS slots. The authoritative
-    // render happens in try_extract_gcode_colors() once the gcode viewer has
-    // parsed and produced tools_used_indices. Reset every show() so re-selecting
-    // a different file never leaks stale swatch state.
+    // The warnings start in a neutral "not yet known" state. Seeding them from
+    // the slicer palette index here inspects the wrong AMS slots, because the
+    // palette over-counts the tools the file really uses. The authoritative
+    // answer arrives with the pre-flight validator once the gcode viewer has
+    // parsed and produced tools_used_indices. Reset every show() so
+    // re-selecting a different file never leaks stale warning state.
     //
     // filament_mismatch_ is likewise neutral-until-parse: seeding it from
     // filament_mapping_card_.has_mismatch() here would flash a value computed
     // against the full slicer palette before the validator runs against the
     // precise tools_used set. The pre-flight validator in
     // try_extract_gcode_colors() is the sole authoritative post-parse writer.
-    lv_subject_set_int(&color_swatches_visible_, 0);
-    lv_subject_set_int(&color_card_remappable_, 0);
     lv_subject_set_int(&empty_tools_warning_, 0);
     lv_subject_set_int(&filament_mismatch_, 0);
     lv_subject_set_int(&detail_prefer_sliced_colors_, 0); // every open starts on actual colors
@@ -496,10 +461,10 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
 
         // Seed the authoritative render from the cached set — the same shape
         // as finish_scan()'s !is_gcode_loaded() branch, which the skipped scan
-        // would have run. Without this, a reprint's first frame would show the
-        // full slicer palette (mapping pills) / no swatches at all until the
-        // viewer parse lands — and on Thumbnail-Only / parse-fallback opens,
-        // where the parse never fires, the swatch card would never appear.
+        // would have run. Without this, a reprint's first frame would show a
+        // card built from the full slicer palette until the viewer parse lands
+        // — and on Thumbnail-Only / parse-fallback opens, where the parse never
+        // fires, it would never be corrected at all.
         render_authoritative_chips(tools_used_effective());
     }
 
@@ -941,9 +906,6 @@ void PrintSelectDetailView::on_ui_destroyed() {
         prep_manager_->set_option_state_provider(nullptr);
     }
 
-    color_swatches_row_ = nullptr;
-    color_requirements_card_ = nullptr;
-
     // Filament mapping card
     filament_mapping_card_.on_ui_destroyed();
 
@@ -1022,134 +984,6 @@ void PrintSelectDetailView::on_cancel_delete_static(lv_event_t* e) {
     if (self) {
         self->hide_delete_confirmation();
     }
-}
-
-void PrintSelectDetailView::update_color_swatches(const std::set<int>& tool_indices,
-                                                  const std::vector<std::string>& palette_colors) {
-    // TWO-TONE chip: the TOP band shows the GCODE FILE intended color (slicer
-    // palette) + the gcode tool number ("T0", "T2"); the BOTTOM band shows the
-    // ACTUAL present color of the EFFECTIVE mapped slot + that slot's lane
-    // number ("1", "4"). A thin divider separates them. We source the mapped
-    // slot from the resolved tool→slot mapping (NOT backend->get_slot_info(),
-    // since slot != tool on multi-unit backends like the U1). This mirrors
-    // recompute_preflight() / open_remap_modal: use the card's current mappings
-    // if present (so chips reflect a user edit after Done), else compute the
-    // defaults — the same effective mapping the remap dialog shows.
-    //
-    // No-backend / palette-only: collect_available_slots() is empty and
-    // compute_defaults yields mapped_slot < 0, so no lane resolves — the bottom
-    // band stays blank and the chip is effectively just the gcode-color top band.
-    if (!color_swatches_row_) {
-        return;
-    }
-
-    helix::ui::safe_clean_children(color_swatches_row_);
-
-    const auto tools = get_used_tool_info(); // real tool_index, intended colors
-    auto slots = AmsState::instance().collect_available_slots();
-    // Effective (toggle-aware) mapping: card edits win on editable backends;
-    // U1/ACE auto-match so the bottom band shows the matched lane, not identity.
-    auto mappings = effective_mappings();
-
-    const lv_color_t neutral = theme_manager_get_color("text_muted");
-
-    for (int tool : tool_indices) {
-        // Resolve this tool's effective mapping → present slot.
-        const helix::AvailableSlot* resolved = nullptr;
-        for (const auto& m : mappings) {
-            if (m.tool_index != tool) {
-                continue;
-            }
-            if (!m.is_auto && m.mapped_slot >= 0) {
-                for (const auto& s : slots) {
-                    if (s.slot_index == m.mapped_slot && s.backend_index == m.mapped_backend) {
-                        resolved = &s;
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-
-        // TOP band: gcode intended color from the slicer palette. Falls back to
-        // the neutral chip default when the palette has no entry for this tool.
-        lv_color_t gcode_color = neutral;
-        if (tool >= 0 && static_cast<size_t>(tool) < palette_colors.size() &&
-            !palette_colors[tool].empty()) {
-            gcode_color = theme_manager_parse_hex_color(palette_colors[tool].c_str());
-        }
-
-        // BOTTOM band: present color of the effective mapped slot.
-        lv_color_t slot_color = neutral;
-        bool have_slot_color = false;
-        bool slot_is_empty = false;
-        std::string slot_number_text;
-
-        if (resolved) {
-            slot_number_text = std::to_string(resolved->local_slot_index + 1);
-            if (resolved->is_empty) {
-                // Mapped to an empty lane — show which lane it routes to but
-                // render the empty-slot variant on the bottom band.
-                slot_is_empty = true;
-            } else {
-                slot_color = lv_color_hex(resolved->color_rgb);
-                have_slot_color = true;
-            }
-        }
-        // No resolved lane (auto/unmapped or no backend): bottom band stays
-        // blank (no number, default fill) — chip reads as just the gcode top.
-
-        auto* swatch =
-            static_cast<lv_obj_t*>(lv_xml_create(color_swatches_row_, "filament_swatch", nullptr));
-        if (!swatch) {
-            continue;
-        }
-        // Fix the chip width in code: a numeric width on the component <view>
-        // root is not honored by lv_xml_create (only "content"/"%"), and the
-        // band labels use flex_grow (which contributes 0 to content-width), so
-        // without an explicit width the whole chip collapses to 0. A uniform
-        // width lets both bands cross-stretch to the same width (connected,
-        // full-bleed) and centers the labels. Height comes from the 32px parent
-        // row via the XML height="100%". Tunable.
-        lv_obj_set_width(swatch, 40);
-
-        // Top band fill + label.
-        if (auto* top_band = lv_obj_find_by_name(swatch, "top_band")) {
-            lv_obj_set_style_bg_color(top_band, gcode_color, 0);
-            if (auto* tool_label = lv_obj_find_by_name(top_band, "tool_label")) {
-                lv_label_set_text_fmt(tool_label, "T%d", tool);
-                lv_obj_set_style_text_color(tool_label,
-                                            theme_manager_get_contrast_color(gcode_color), 0);
-            }
-        }
-
-        // Bottom band fill (or empty variant) + lane number.
-        lv_color_t bottom_text_color = slot_is_empty ? theme_manager_get_color("warning")
-                                                     : theme_manager_get_contrast_color(slot_color);
-        if (auto* bottom_band = lv_obj_find_by_name(swatch, "bottom_band")) {
-            if (slot_is_empty) {
-                lv_obj_add_state(bottom_band, LV_STATE_USER_1);
-            } else if (have_slot_color) {
-                lv_obj_set_style_bg_color(bottom_band, slot_color, 0);
-            }
-            if (auto* slot_label = lv_obj_find_by_name(bottom_band, "slot_label")) {
-                lv_label_set_text(slot_label, slot_number_text.c_str());
-                lv_obj_set_style_text_color(slot_label, bottom_text_color, 0);
-            }
-        }
-
-        // Divider: a color that reads against BOTH band fills. Blend the two
-        // band colors (50/50) and take the contrast of the blend, so the rule
-        // stays visible whether the bands are light, dark, or mixed.
-        if (auto* divider = lv_obj_find_by_name(swatch, "divider")) {
-            lv_color_t blend = lv_color_mix(gcode_color, slot_color, LV_OPA_50);
-            lv_obj_set_style_bg_color(divider, theme_manager_get_contrast_color(blend), 0);
-        }
-    }
-
-    // Note: empty_tools_warning_ is published by the pre-flight validator in
-    // try_extract_gcode_colors() (the single source of truth), NOT here — this
-    // method only renders swatches.
 }
 
 void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int success_count) {
@@ -1362,11 +1196,9 @@ void PrintSelectDetailView::refresh_preview_colors_and_mismatch() {
     // Re-evaluate the pre-flight gate so a subsequent Print reflects the current
     // tool->slot mapping (native remap flow reads get_filament_mappings()).
     recompute_preflight();
-    // Re-render the FILAMENTS chips so slot number + present color track the
-    // current mapping/slot state.
-    if (lv_subject_get_int(&color_swatches_visible_) == 1) {
-        update_color_swatches(tools_used_effective(), current_filament_colors_);
-    }
+    // The chips themselves are NOT repainted here: the card repaints from
+    // set_mappings()/refresh_slot_data() before this runs, so everything left
+    // in this function is downstream of that one render.
 }
 
 void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
@@ -1397,10 +1229,6 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
     // could not, without it having to succeed first.
     mark_palette_settled();
     publish_mapping_ready();
-
-    // Re-publish the mapping card's own visibility: the pre-parse publish in
-    // show() predates the palette backfill above, which can flip should_show().
-    lv_subject_set_int(&filament_mapping_visible_, filament_mapping_card_.should_show() ? 1 : 0);
 
     // Authoritative render from the precise tools_used set — not the slicer
     // palette size (which often over-counts).
@@ -1446,42 +1274,38 @@ bool PrintSelectDetailView::effective_auto_match() const {
 }
 
 std::vector<helix::ToolMapping> PrintSelectDetailView::effective_mappings() const {
-    // Editable backends: the card seeds and owns mappings_, and user edits win.
+    // Whenever the card is showing it has seeded mappings_, and any edit the
+    // user made through the remap picker landed there, so that copy wins.
     auto m = filament_mapping_card_.get_mappings();
     if (!m.empty()) {
         return m;
     }
-    // Non-editable backends (U1 / ACE): the card is hidden and get_mappings() is
-    // empty — resolve the effective (toggle-aware) mapping the same way the live
-    // render does, so swatches + preflight + render all agree.
+    // Card not showing (no AMS, bypassed single-lane, nothing the file uses):
+    // get_mappings() is empty, so resolve the effective (toggle-aware) mapping
+    // the same way the live render does, keeping the chips, preflight and the
+    // 3D preview on one answer.
     return AmsState::instance().seed_tool_mappings(get_used_tool_info(),
                                                    AmsState::instance().collect_available_slots());
 }
 
 void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tools_used,
                                                        bool refresh_card_from_palette) {
-    // Swatch-card visibility is decided against the PRECISE used-tool set, not
-    // the slicer palette size (which over-counts), and only when the mapping
-    // card is not already showing the same information.
-    const bool mapping_visible = filament_mapping_card_.should_show();
-    const bool swatches_visible = !mapping_visible && swatches_card_visible_for(tools_used.size());
-    lv_subject_set_int(&color_swatches_visible_, swatches_visible ? 1 : 0);
-    // Published from the same place, against the same backend snapshot: a card
-    // shown without this would advertise nothing, and a chevron shown without
-    // the card would point at a control that is not there.
-    lv_subject_set_int(&color_card_remappable_,
-                       swatches_visible && color_card_opens_remap() ? 1 : 0);
-    if (swatches_visible) {
-        update_color_swatches(tools_used, current_filament_colors_);
-    }
-
-    // Headless path only (see finish_scan()). Sequenced AFTER the swatch render
-    // — which resolves lanes through the card's CURRENT, possibly user-edited,
-    // mappings — and BEFORE the gate, which must validate against the rebuilt
-    // ones.
+    // Headless path only (see finish_scan()). FIRST, because should_show() and
+    // the chips are both rebuilt by update(): publishing before it would
+    // publish the answer the pre-parse palette gave, which is how a card that
+    // should now appear stays hidden (the same ordering apply_footer_summary()
+    // documents). Also BEFORE the gate, which must validate against the
+    // rebuilt mappings.
     if (refresh_card_from_palette) {
         filament_mapping_card_.update(current_filament_colors_, current_filament_materials_);
     }
+
+    // One chip surface for every backend: the card renders from its own store,
+    // so all this has to decide is whether that surface is on screen. The
+    // tool-count rule that used to live here as swatches_card_visible_for()
+    // moved into FilamentMappingCard::update() — one predicate, so a state that
+    // hides the card can no longer show a second surface drawing the same chips.
+    publish_card_visibility();
 
     // Backend-agnostic pre-flight validation (single source of truth for
     // filament_mismatch_ + empty_tools_warning_).
@@ -1633,6 +1457,21 @@ void PrintSelectDetailView::open_filament_mapping_modal() {
     filament_mapping_card_.open_mapping_modal();
 }
 
+void PrintSelectDetailView::publish_card_visibility() {
+    // ONE place, and the only writer of either subject, so the three sites that
+    // learn something new about the card - show(), the footer-palette backfill
+    // and render_authoritative_chips() - cannot drift into publishing different
+    // answers from the same state. Reads the card's cached should_show(), so a
+    // caller that changed anything the card decides on must run update() first.
+    const bool card_visible = filament_mapping_card_.should_show();
+    lv_subject_set_int(&filament_mapping_visible_, card_visible ? 1 : 0);
+    // Published from the same place, against the same backend snapshot: a card
+    // shown without this would advertise nothing, and a chevron shown without
+    // the card would point at a control that is not there. It also clears the
+    // card's clickable flag, so a hidden card cannot swallow a tap either.
+    lv_subject_set_int(&color_card_remappable_, card_visible && color_card_opens_remap() ? 1 : 0);
+}
+
 bool PrintSelectDetailView::color_card_opens_remap() {
     // ANY backend that supports remap (strategy != None); the panel opener
     // itself guards plugin presence etc.
@@ -1641,15 +1480,18 @@ bool PrintSelectDetailView::color_card_opens_remap() {
 }
 
 void PrintSelectDetailView::on_color_card_clicked() {
-    // The color-requirements swatch card is the visible remap entry point on
-    // backends whose editable FilamentMappingCard is hidden (e.g. Snapmaker U1).
-    // Kept as a guard even though the XML now clears the card's clickable flag
-    // on a non-remappable backend: the flag can only be as fresh as the last
-    // publish, and this is the cheap way to make a stale one harmless.
+    // The filament card is the remap entry point on EVERY backend that has one,
+    // including those whose mapping is not editable inline (Snapmaker U1).
+    // Kept as a guard even though the XML clears the card's clickable flag on a
+    // non-remappable backend: the flag can only be as fresh as the last publish,
+    // and this is the cheap way to make a stale one harmless.
     if (!color_card_opens_remap()) {
         return;
     }
-    spdlog::debug("[PrintSelect] swatch tap -> remap modal");
+    spdlog::debug("[PrintSelect] filament card tap -> remap modal");
+    // on_remap_requested_ is wired by the panel in create_detail_view() right
+    // after construction, so the null check is just defensive — a tap before
+    // wiring is a no-op, not a crash.
     if (on_remap_requested_) {
         on_remap_requested_();
     }
@@ -1790,30 +1632,30 @@ void PrintSelectDetailView::apply_scan_result(std::set<int> tools, bool authorit
                                 current_file_modified_, tools_used_effective());
     }
 
-    // Render the per-tool color swatches from the REAL used-tool
-    // set recovered by the headless scan. On 2D-only platforms
-    // (Snapmaker U1, AD5M) the gcode viewer never parses, so
-    // try_extract_gcode_colors() — the viewer-parse owner of this
-    // render — never fires and the detail panel would otherwise
-    // show no color info at all (regression 22d37fd47). Mirror its
-    // visibility decision and renderer here, sourcing the tool set
-    // from tools_used_effective() so the swatches reflect the
-    // precise used tools (e.g. {0,2}), not an over-counted palette.
+    // Render the per-tool chips from the REAL used-tool set recovered
+    // by the headless scan. On 2D-only platforms (Snapmaker U1, AD5M)
+    // the gcode viewer never parses, so try_extract_gcode_colors() —
+    // the viewer-parse owner of this render — never fires and the
+    // detail panel would otherwise show no color info at all
+    // (regression 22d37fd47). Mirror its visibility decision and
+    // render here, sourcing the tool set from tools_used_effective()
+    // so the chips reflect the precise used tools (e.g. {0,2}), not an
+    // over-counted palette.
     //
     // Guard on !is_gcode_loaded(): when the viewer DID parse (full
     // platforms) it already owns the render — don't double-fire.
     if (!is_gcode_loaded()) {
-        // refresh_card_from_palette: the card widget renders its own
-        // swatches/rows from tool_info_, so on editable-card backends that
-        // take the headless path (e.g. CFS on a 2D-only platform) it must
-        // be fed here just as the viewer-parse path feeds it. Redundant for
+        // refresh_card_from_palette: the card widget renders its chips
+        // from tool_info_, so on a backend that takes the headless path
+        // (e.g. CFS on a 2D-only platform) it must be fed here just as
+        // the viewer-parse path feeds it. Redundant for
         // preflight/remap LOGIC — those source per-tool info from
         // current_filament_colors_/materials via get_used_tool_info(), not
         // from the card instance — but necessary for card display.
         render_authoritative_chips(tools_used_effective(),
                                    /*refresh_card_from_palette=*/true);
     } else {
-        // The viewer parse already owns the swatch render — re-running it
+        // The viewer parse already owns the chip render — re-running it
         // would rebuild identical chips. Pre-flight and the card's used-tool
         // filter still refresh from the scan result (a no-op on full
         // platforms, where the parse already populated both).
@@ -2007,8 +1849,7 @@ void PrintSelectDetailView::apply_footer_summary(const helix::gcode::GcodeFooter
         // publishing that is how a card that should now appear stays hidden.
         // Mirrors try_extract_gcode_colors()'s ordering.
         filament_mapping_card_.update(current_filament_colors_, current_filament_materials_);
-        lv_subject_set_int(&filament_mapping_visible_,
-                           filament_mapping_card_.should_show() ? 1 : 0);
+        publish_card_visibility();
         palette_arrived = true;
     }
 
@@ -2073,15 +1914,6 @@ void PrintSelectDetailView::start_full_tools_scan(LifetimeToken tok, std::set<in
             finish_scan(tok, std::move(tools), /*authoritative=*/true);
         });
     });
-}
-
-bool PrintSelectDetailView::swatches_card_visible_for(size_t tool_count) const {
-    // Multi-tool printers: any tool referenced is enough (lane identity matters).
-    // Single-extruder: 2+ tools required (manual-swap multi-color files).
-    const int ams_slots = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
-    const bool is_multi_tool_printer =
-        helix::ToolState::instance().is_multi_tool() || ams_slots > 1;
-    return is_multi_tool_printer ? tool_count > 0 : tool_count > 1;
 }
 
 void PrintSelectDetailView::load_gcode_for_preview() {

@@ -3357,9 +3357,10 @@ helix::printer::ToolMappingCapabilities AmsBackendMock::get_tool_mapping_capabil
     }
 
     // Snapmaker U1: mapping is SUPPORTED (1:1 lanes) but NOT editable from the
-    // UI — the firmware owns it. This hides the inline FilamentMappingCard so the
-    // print-detail color_swatches_row renders the two-tone chips (mirrors the
-    // real AmsBackendSnapmaker, which reports supports_tool_mapping=false).
+    // UI — the firmware owns it (mirrors the real AmsBackendSnapmaker, which
+    // reports supports_tool_mapping=false). The card still shows its two-tone
+    // chips here; only the inline EDIT is unavailable, and a tap goes to the
+    // native remap picker instead.
     if (snapmaker_mode_) {
         return {true, false, "Snapmaker native lane mapping (read-only)"};
     }
