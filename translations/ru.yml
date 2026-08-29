@@ -1,7 +1,6 @@
 locale: ru
 translations:
   ' (timed out)': ' (время ожидания истекло)'
-  ' elapsed · ': ' истёк · '
   ' frames': ' кадров'
   ' left': ' осталось'
   '"%s" failed to load': Не удалось загрузить «%s»
@@ -1500,7 +1499,6 @@ translations:
   MACRO DEVICES: МАКРО-УСТРОЙСТВА
   MAIN POWER BUTTON: ГЛАВНАЯ КНОПКА ПИТАНИЯ
   MANUAL: ВРУЧНУЮ
-  MAPPING: СОПОСТАВЛЕНИЕ
   MB RAM: МБ ОЗУ
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Мониторинг температуры MCU, хоста

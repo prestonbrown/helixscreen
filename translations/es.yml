@@ -1,7 +1,6 @@
 locale: es
 translations:
   ' (timed out)': ' (tiempo agotado)'
-  ' elapsed · ': ' transcurrido · '
   ' frames': ' fotogramas'
   ' left': ' restante'
   '"%s" failed to load': '"%s" no se pudo cargar'
@@ -1517,7 +1516,6 @@ translations:
   MACRO DEVICES: DISPOSITIVOS DE MACRO
   MAIN POWER BUTTON: BOTÓN DE ENCENDIDO PRINCIPAL
   MANUAL: MANUAL
-  MAPPING: ASIGNACIÓN
   MB RAM: MB de RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Monitoreo de temperatura de MCU,

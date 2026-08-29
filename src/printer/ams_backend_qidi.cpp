@@ -191,7 +191,6 @@ AmsBackendQidi::AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* clie
     system_info_.type_name = "QIDI Box"; // i18n: do not translate - product name
     system_info_.total_slots = NUM_SLOTS;
     system_info_.supports_bypass = false;
-    system_info_.supports_tool_mapping = true;
     system_info_.supports_purge = false;
     system_info_.tip_method = TipMethod::CUT;
 
@@ -962,11 +961,6 @@ void AmsBackendQidi::apply_filas_list(const std::string& content) {
 AmsSystemInfo AmsBackendQidi::get_system_info() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return system_info_;
-}
-
-helix::printer::ToolMappingCapabilities AmsBackendQidi::get_tool_mapping_capabilities() const {
-    // QIDI Box maps tools to slots via save_variables value_t<N> assignment.
-    return {true, true, "Tool-to-slot mapping via save_variables"};
 }
 
 std::vector<int> AmsBackendQidi::get_tool_mapping() const {

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="it">
   <translation tag=" (timed out)" it=" (tempo scaduto)"/>
-  <translation tag=" elapsed · " it=" trascorso · "/>
   <translation tag=" frames" it=" fotogrammi"/>
   <translation tag=" left" it=" rimanente"/>
   <translation tag="&quot;%s&quot; failed to load" it="Caricamento di &quot;%s&quot; non riuscito"/>
@@ -1349,7 +1348,6 @@
   <translation tag="MACRO DEVICES" it="DISPOSITIVI MACRO"/>
   <translation tag="MAIN POWER BUTTON" it="PULSANTE DI ACCENSIONE PRINCIPALE"/>
   <translation tag="MANUAL" it="MANUALE"/>
-  <translation tag="MAPPING" it="MAPPATURA"/>
   <translation tag="MB RAM" it="MB RAM"/>
   <translation tag="MCU" it="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" it="Monitoraggio temperature MCU, host e ausiliarie"/>

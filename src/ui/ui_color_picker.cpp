@@ -87,40 +87,6 @@ ColorPicker::~ColorPicker() {
     spdlog::trace("[ColorPicker] Destroyed");
 }
 
-ColorPicker::ColorPicker(ColorPicker&& other) noexcept
-    : Modal(std::move(other)), selected_color_(other.selected_color_), palette_(other.palette_),
-      color_callback_(std::move(other.color_callback_)),
-      dismiss_callback_(std::move(other.dismiss_callback_)),
-      subjects_initialized_(other.subjects_initialized_) {
-    // Copy buffers
-    std::memcpy(hex_buf_, other.hex_buf_, sizeof(hex_buf_));
-    std::memcpy(name_buf_, other.name_buf_, sizeof(name_buf_));
-
-    // Subjects are not movable - they stay with original
-    other.subjects_initialized_ = false;
-
-    is_tiny_mode_ = other.is_tiny_mode_;
-    other.is_tiny_mode_ = false;
-}
-
-ColorPicker& ColorPicker::operator=(ColorPicker&& other) noexcept {
-    if (this != &other) {
-        Modal::operator=(std::move(other));
-        selected_color_ = other.selected_color_;
-        palette_ = other.palette_;
-        color_callback_ = std::move(other.color_callback_);
-        dismiss_callback_ = std::move(other.dismiss_callback_);
-        subjects_initialized_ = other.subjects_initialized_;
-        std::memcpy(hex_buf_, other.hex_buf_, sizeof(hex_buf_));
-        std::memcpy(name_buf_, other.name_buf_, sizeof(name_buf_));
-        other.subjects_initialized_ = false;
-
-        is_tiny_mode_ = other.is_tiny_mode_;
-        other.is_tiny_mode_ = false;
-    }
-    return *this;
-}
-
 // ============================================================================
 // Public API
 // ============================================================================

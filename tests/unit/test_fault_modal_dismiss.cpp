@@ -104,6 +104,28 @@ TEST_CASE_METHOD(FaultModalFixture, "A printer-fault modal is swept when the fau
     CHECK(Modal::get_top() == nullptr);
 }
 
+// The sweep is not the dialog's caller: it closes with the External reason so
+// a caller holding state the buttons resolve still learns about the close.
+// With the plain hide() default (Programmatic) the sweep would silently strand
+// exactly what on_dismiss exists to clear - the #1380 leak wearing a system hat.
+TEST_CASE_METHOD(FaultModalFixture, "Sweeping a fault modal reports to its on_dismiss",
+                 "[1266][faultmodal][1380]") {
+    int dismissed = 0;
+    lv_obj_t* dialog = helix::ui::modal_show_alert(
+        "Printer Error", "Lost communication with MCU 'BoxTurtle'", ModalSeverity::Error, "OK",
+        nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    REQUIRE(dialog != nullptr);
+    track_fault_modal(dialog);
+    settle();
+    REQUIRE(dismissed == 0);
+
+    CHECK(dismiss_fault_modals() == 1);
+    settle();
+
+    CHECK(dismissed == 1);
+    CHECK(Modal::get_top() == nullptr);
+}
+
 TEST_CASE_METHOD(FaultModalFixture, "A HelixScreen-side error modal survives the sweep",
                  "[1266][faultmodal]") {
     // ui_notification_error defaults to modal=true, so a wizard load failure

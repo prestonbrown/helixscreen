@@ -1702,7 +1702,7 @@ void PrintStatusPanel::load_gcode_file(const char* file_path) {
 }
 
 void PrintStatusPanel::update_layer_text() {
-    std::string text = helix::ui::format_layer_progress(
+    std::string text = helix::ui::format_layer_progress_compact(
         lifecycle_.current_layer(), lifecycle_.total_layers(), printer_state_.layer_is_accurate(),
         lv_subject_get_int(printer_state_.get_gcode_position_z_subject()));
     std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
@@ -1713,8 +1713,7 @@ void PrintStatusPanel::update_filament_used_text() {
     int filament_mm = lv_subject_get_int(get_printer_state().get_print_filament_used_subject());
     if (filament_mm > 0) {
         std::string fil_str =
-            helix::format::format_filament_length(static_cast<double>(filament_mm)) + " " +
-            lv_tr("used");
+            helix::format::format_filament_length(static_cast<double>(filament_mm));
         std::strncpy(filament_used_text_buf_, fil_str.c_str(), sizeof(filament_used_text_buf_) - 1);
         filament_used_text_buf_[sizeof(filament_used_text_buf_) - 1] = '\0';
     } else {
@@ -3294,8 +3293,7 @@ void PrintStatusPanel::update_objects_text() {
     int total = static_cast<int>(defined.size());
     int active = std::max(0, total - static_cast<int>(excluded.size()));
     if (total >= 2) {
-        std::snprintf(objects_text_buf_, sizeof(objects_text_buf_), "%d of %d objects", active,
-                      total);
+        std::snprintf(objects_text_buf_, sizeof(objects_text_buf_), "%d/%d", active, total);
     } else {
         objects_text_buf_[0] = '\0';
     }

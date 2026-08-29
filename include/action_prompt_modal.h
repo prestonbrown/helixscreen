@@ -58,13 +58,13 @@ class ActionPromptModal : public Modal {
     ActionPromptModal();
     ~ActionPromptModal() override;
 
-    // Non-copyable
+    // Non-copyable, non-movable (Modal's move operations are deleted; nothing
+    // ever moved an ActionPromptModal by value - its owner holds it by
+    // unique_ptr)
     ActionPromptModal(const ActionPromptModal&) = delete;
     ActionPromptModal& operator=(const ActionPromptModal&) = delete;
-
-    // Movable
-    ActionPromptModal(ActionPromptModal&& other) noexcept;
-    ActionPromptModal& operator=(ActionPromptModal&& other) noexcept;
+    ActionPromptModal(ActionPromptModal&&) = delete;
+    ActionPromptModal& operator=(ActionPromptModal&&) = delete;
 
     /**
      * @brief Show modal with prompt data

@@ -47,7 +47,6 @@ AmsBackendHappyHare::AmsBackendHappyHare(IMoonrakerAPI* api, IMoonrakerClient* c
     // false so nothing claims the feature is running before mmu.
     // endless_spool_enabled arrives (see handle_status_update).
     system_info_.endless_spool_enabled = false;
-    system_info_.supports_tool_mapping = true;
     // Bypass support is determined at runtime from mmu.has_bypass status field.
     // Starts false so the bypass UI stays absent until the firmware confirms it:
     // an optimistic default shows the toggle, the Device Operations section and
@@ -137,7 +136,6 @@ AmsSystemInfo AmsBackendHappyHare::get_system_info() const {
     info.number_of_toolchanges = system_info_.number_of_toolchanges;
     info.filament_loaded = system_info_.filament_loaded;
     info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_tool_mapping = system_info_.supports_tool_mapping;
     info.supports_bypass = system_info_.supports_bypass;
     info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
     info.tip_method = system_info_.tip_method;
@@ -2937,11 +2935,6 @@ AmsError AmsBackendHappyHare::reset_endless_spool() {
 // ============================================================================
 // Tool Mapping Operations
 // ============================================================================
-
-helix::printer::ToolMappingCapabilities AmsBackendHappyHare::get_tool_mapping_capabilities() const {
-    // Happy Hare supports tool-to-gate mapping via MMU_TTG_MAP G-code
-    return {true, true, "Tool-to-gate mapping via MMU_TTG_MAP"};
-}
 
 std::vector<int> AmsBackendHappyHare::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);

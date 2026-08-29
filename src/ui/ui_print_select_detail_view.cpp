@@ -16,6 +16,7 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
@@ -930,9 +931,19 @@ void PrintSelectDetailView::show_delete_confirmation(const std::string& filename
              "Are you sure you want to delete '%s'? This action cannot be undone.",
              filename.c_str());
 
-    confirmation_dialog_widget_ = helix::ui::modal_show_confirmation(
+    // The modal closes itself on a button press and deletes itself after any
+    // close, so every path here nulls the stored handle rather than hiding the
+    // dialog; only confirm acts past that.
+    auto drop_handle = [this] { confirmation_dialog_widget_ = nullptr; };
+    confirmation_dialog_widget_ = helix::ui::modal_confirm(
         lv_tr("Delete File?"), msg_buf, ModalSeverity::Warning, lv_tr("Delete"),
-        on_confirm_delete_static, on_cancel_delete_static, this);
+        [this, drop_handle] {
+            drop_handle();
+            if (on_delete_confirmed_) {
+                on_delete_confirmed_();
+            }
+        },
+        drop_handle, nullptr, drop_handle, lifetime_.token());
 
     if (!confirmation_dialog_widget_) {
         spdlog::error("[DetailView] Failed to create confirmation dialog");
@@ -968,23 +979,6 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
 // ============================================================================
 // Internal Methods
 // ============================================================================
-
-void PrintSelectDetailView::on_confirm_delete_static(lv_event_t* e) {
-    auto* self = static_cast<PrintSelectDetailView*>(lv_event_get_user_data(e));
-    if (self) {
-        self->hide_delete_confirmation();
-        if (self->on_delete_confirmed_) {
-            self->on_delete_confirmed_();
-        }
-    }
-}
-
-void PrintSelectDetailView::on_cancel_delete_static(lv_event_t* e) {
-    auto* self = static_cast<PrintSelectDetailView*>(lv_event_get_user_data(e));
-    if (self) {
-        self->hide_delete_confirmation();
-    }
-}
 
 void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int success_count) {
     if (!history_status_row_ || !history_status_icon_ || !history_status_label_) {
@@ -1480,10 +1474,14 @@ void PrintSelectDetailView::publish_card_visibility() {
 }
 
 bool PrintSelectDetailView::color_card_opens_remap() {
-    // ANY backend that supports remap (strategy != None); the panel opener
-    // itself guards plugin presence etc.
+    // ANY backend that can carry out the pick — route AND readiness. Asking the
+    // route alone advertised a tap on an AD5X before `_IFS_VARS` discovery, and
+    // nothing downstream refused it: the opener's plugin guard only turns away
+    // GcodeRewrite, and IFS declares Native. The picker opened and Done silently
+    // wrote state the firmware replays nothing from. Now the chevron goes dark
+    // instead.
     auto* backend = AmsState::instance().get_backend();
-    return backend && backend->get_remap_strategy() != AmsBackend::RemapStrategy::None;
+    return backend && helix::printer::can_remap(*backend);
 }
 
 void PrintSelectDetailView::on_color_card_clicked() {

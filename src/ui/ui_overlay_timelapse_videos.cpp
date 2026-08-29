@@ -765,57 +765,47 @@ void TimelapseVideosOverlay::confirm_delete(const std::string& filename) {
 
     std::string message = fmt::format(lv_tr("Delete {}?"), filename);
 
-    delete_confirmation_dialog_ = helix::ui::modal_show_confirmation(
+    // The modal closes itself on a button press and deletes itself after any
+    // close, so every path here nulls the stored handle rather than hiding the
+    // dialog; cancel and dismissal also clear the staged filename so it cannot
+    // leak into a later delete.
+    auto drop_staged = [this] {
+        delete_confirmation_dialog_ = nullptr;
+        pending_delete_filename_.clear();
+    };
+    delete_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Delete Video"), message.c_str(), ModalSeverity::Warning, lv_tr("Delete"),
-        on_delete_confirmed, on_delete_cancelled, this);
-}
-
-void TimelapseVideosOverlay::on_delete_confirmed(lv_event_t* e) {
-    auto* self = static_cast<TimelapseVideosOverlay*>(lv_event_get_user_data(e));
-    if (!self || !g_timelapse_videos)
-        return;
-
-    // Hide the dialog
-    if (self->delete_confirmation_dialog_) {
-        helix::ui::modal_hide(self->delete_confirmation_dialog_);
-        self->delete_confirmation_dialog_ = nullptr;
-    }
-
-    if (!self->api_ || self->pending_delete_filename_.empty())
-        return;
-
-    std::string full_path = "timelapse/" + self->pending_delete_filename_;
-    auto tok = self->lifetime_.token();
-
-    spdlog::info("[Timelapse Videos] Deleting video: {}", self->pending_delete_filename_);
-
-    self->api_->files().delete_file(
-        full_path,
-        [self, tok]() {
-            if (tok.expired())
+        [this] {
+            delete_confirmation_dialog_ = nullptr;
+            if (!g_timelapse_videos || !api_ || pending_delete_filename_.empty()) {
+                pending_delete_filename_.clear();
                 return;
-            tok.defer([self]() {
-                spdlog::info("[Timelapse Videos] Video deleted, refreshing list");
-                self->fetch_video_list();
-            });
+            }
+
+            std::string full_path = "timelapse/" + pending_delete_filename_;
+            auto tok = lifetime_.token();
+
+            spdlog::info("[Timelapse Videos] Deleting video: {}", pending_delete_filename_);
+
+            api_->files().delete_file(
+                full_path,
+                [this, tok]() {
+                    if (tok.expired())
+                        return;
+                    tok.defer([this]() {
+                        spdlog::info("[Timelapse Videos] Video deleted, refreshing list");
+                        fetch_video_list();
+                    });
+                },
+                [](const MoonrakerError& error) {
+                    spdlog::error("[Timelapse Videos] Failed to delete video: {}", error.message);
+                });
+
+            pending_delete_filename_.clear();
         },
-        [](const MoonrakerError& error) {
-            spdlog::error("[Timelapse Videos] Failed to delete video: {}", error.message);
-        });
-
-    self->pending_delete_filename_.clear();
-}
-
-void TimelapseVideosOverlay::on_delete_cancelled(lv_event_t* e) {
-    auto* self = static_cast<TimelapseVideosOverlay*>(lv_event_get_user_data(e));
-    if (!self)
-        return;
-
-    if (self->delete_confirmation_dialog_) {
-        helix::ui::modal_hide(self->delete_confirmation_dialog_);
-        self->delete_confirmation_dialog_ = nullptr;
-    }
-    self->pending_delete_filename_.clear();
+        drop_staged,
+        nullptr, // cancel_text: default "Cancel"
+        drop_staged, lifetime_.token());
 }
 
 // ============================================================================

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="ru">
   <translation tag=" (timed out)" ru=" (время ожидания истекло)"/>
-  <translation tag=" elapsed · " ru=" истёк · "/>
   <translation tag=" frames" ru=" кадров"/>
   <translation tag=" left" ru=" осталось"/>
   <translation tag="&quot;%s&quot; failed to load" ru="Не удалось загрузить «%s»"/>
@@ -1349,7 +1348,6 @@
   <translation tag="MACRO DEVICES" ru="МАКРО-УСТРОЙСТВА"/>
   <translation tag="MAIN POWER BUTTON" ru="ГЛАВНАЯ КНОПКА ПИТАНИЯ"/>
   <translation tag="MANUAL" ru="ВРУЧНУЮ"/>
-  <translation tag="MAPPING" ru="СОПОСТАВЛЕНИЕ"/>
   <translation tag="MB RAM" ru="МБ ОЗУ"/>
   <translation tag="MCU" ru="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" ru="Мониторинг температуры MCU, хоста и вспомогательных датчиков"/>

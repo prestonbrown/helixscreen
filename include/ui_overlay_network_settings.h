@@ -311,10 +311,6 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Scoped per [L039] to avoid colliding with other overlays' forget flows
     // (barcode scanner, label printer) in the flat XML callback namespace.
     static void on_network_settings_forget(lv_event_t* e);
-    static void on_network_forget_confirm(lv_event_t* e);
-    static void on_network_forget_cancel(lv_event_t* e);
-    static void on_wlan_toggle_off_confirm(lv_event_t* e);
-    static void on_wlan_toggle_off_cancel(lv_event_t* e);
 
     // Network test modal callbacks
     static void on_network_test_close(lv_event_t* e);

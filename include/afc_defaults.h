@@ -17,7 +17,6 @@ namespace helix::printer {
  */
 struct AfcCapabilities {
     bool supports_endless_spool = true;
-    bool supports_tool_mapping = true;
     bool supports_bypass = true;
     bool supports_purge = true;
     TipMethod tip_method = TipMethod::CUT;

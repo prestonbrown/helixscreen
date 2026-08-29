@@ -632,21 +632,10 @@ void SpoolmanPanel::delete_spool(int spool_id) {
 
     std::string message = spool_desc + "\n" + lv_tr("This cannot be undone.");
 
-    // Store spool_id for the confirmation callback via a static (only one delete at a time)
-    static int s_pending_delete_id = 0;
-    s_pending_delete_id = spool_id;
-
-    helix::ui::modal_show_confirmation(
+    helix::ui::modal_confirm(
         lv_tr("Delete Spool?"), message.c_str(), ModalSeverity::Warning, lv_tr("Delete"),
-        [](lv_event_t* /*e*/) {
-            // Close the confirmation dialog immediately
-            lv_obj_t* top = Modal::get_top();
-            if (top) {
-                Modal::hide(top);
-            }
-
-            int id = s_pending_delete_id;
-            spdlog::info("[Spoolman] Confirmed delete of spool {}", id);
+        [spool_id] {
+            spdlog::info("[Spoolman] Confirmed delete of spool {}", spool_id);
 
             IMoonrakerAPI* api = get_moonraker_api();
             if (!api) {
@@ -656,10 +645,10 @@ void SpoolmanPanel::delete_spool(int spool_id) {
             }
 
             api->spoolman().delete_spoolman_spool(
-                id,
-                [id]() {
-                    spdlog::info("[Spoolman] Spool {} deleted successfully", id);
-                    helix::ui::queue_update([id]() {
+                spool_id,
+                [spool_id]() {
+                    spdlog::info("[Spoolman] Spool {} deleted successfully", spool_id);
+                    helix::ui::queue_update([spool_id]() {
                         ToastManager::instance().show(ToastSeverity::SUCCESS,
                                                       lv_tr("Spool deleted"), 2000);
                         auto& panel = get_global_spoolman_panel();
@@ -667,16 +656,15 @@ void SpoolmanPanel::delete_spool(int spool_id) {
                         panel.refresh_spools();
                     });
                 },
-                [id](const MoonrakerError& err) {
-                    spdlog::error("[Spoolman] Failed to delete spool {}: {}", id, err.message);
+                [spool_id](const MoonrakerError& err) {
+                    spdlog::error("[Spoolman] Failed to delete spool {}: {}", spool_id,
+                                  err.message);
                     helix::ui::queue_update([]() {
                         ToastManager::instance().show(ToastSeverity::ERROR,
                                                       lv_tr("Failed to delete spool"), 3000);
                     });
                 });
-        },
-        nullptr, // No cancel callback needed
-        nullptr);
+        });
 }
 
 // ============================================================================

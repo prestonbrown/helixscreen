@@ -427,7 +427,6 @@ TEST_CASE("AD5X IFS get_system_info", "[ams][ad5x_ifs]") {
     REQUIRE(sys.units.size() == 1);
     REQUIRE(sys.units[0].slots.size() == 4);
     REQUIRE(sys.supports_bypass);
-    REQUIRE(sys.supports_tool_mapping);
     // The ENABLE bit; AVAILABILITY lives in get_endless_spool_capabilities().
     REQUIRE_FALSE(sys.endless_spool_enabled);
     REQUIRE_FALSE(sys.supports_purge);

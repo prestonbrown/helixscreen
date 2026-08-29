@@ -31,6 +31,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_backend.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
@@ -2730,8 +2731,7 @@ void PrintSelectPanel::on_file_long_pressed(size_t file_index) {
     apply_file_selection(file);
 
     // Reuse the existing confirmation modal. The detail view's
-    // show_delete_confirmation() is a thin wrapper around modal_show_confirmation()
-    // and does not require the detail view to be visible.
+    // show_delete_confirmation() does not require the detail view to be visible.
     show_delete_confirmation();
 }
 
@@ -2825,7 +2825,7 @@ void PrintSelectPanel::open_remap_modal() {
         return;
     }
     const auto strategy = backend->get_remap_strategy();
-    if (strategy == AmsBackend::RemapStrategy::None) {
+    if (!helix::printer::can_remap(*backend)) {
         return;
     }
 
@@ -2837,11 +2837,10 @@ void PrintSelectPanel::open_remap_modal() {
     // of a picker whose Done would silently fail.
     if (strategy == AmsBackend::RemapStrategy::GcodeRewrite &&
         !printer_state_.service_has_helix_plugin()) {
-        helix::ui::modal_show_alert(
-            lv_tr("Remap needs the HelixPrint plugin"),
-            lv_tr("Install the HelixPrint plugin in Advanced settings to remap "
-                  "filament without affecting print history."),
-            ModalSeverity::Info, lv_tr("OK"), nullptr, nullptr);
+        helix::ui::modal_alert(lv_tr("Remap needs the HelixPrint plugin"),
+                               lv_tr("Install the HelixPrint plugin in Advanced settings to remap "
+                                     "filament without affecting print history."),
+                               ModalSeverity::Info, lv_tr("OK"));
         return;
     }
 

@@ -61,26 +61,24 @@ using namespace helix;
 namespace {
 
 /// RAII spdlog capture: collects formatted log lines so the test can count the
-/// toasts the user would actually have seen.
+/// toasts the user would actually have seen. Swaps a dedicated capture logger
+/// into the default slot (restoring it after) rather than appending a sink to
+/// the current default logger: the mock's simulation threads log concurrently,
+/// and mutating the shared logger's sink vector races their sink_it_
+/// iteration (nightly TSAN, run 33248697758). Same shape as
+/// SplitButtonLogCapture in test_split_button.cpp.
 class LogCapture {
   public:
     LogCapture() : sink_(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(512)) {
-        logger_ = spdlog::default_logger();
-        prev_level_ = logger_->level();
         sink_->set_level(spdlog::level::trace);
-        logger_->sinks().push_back(sink_);
+        logger_ = std::make_shared<spdlog::logger>("jog_toast_capture", sink_);
         logger_->set_level(spdlog::level::trace);
+        original_ = spdlog::default_logger();
+        spdlog::set_default_logger(logger_);
     }
 
     ~LogCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-            if (*it == sink_) {
-                sinks.erase(it);
-                break;
-            }
-        }
-        logger_->set_level(prev_level_);
+        spdlog::set_default_logger(original_);
     }
 
     std::vector<std::string> lines() const {
@@ -99,7 +97,7 @@ class LogCapture {
   private:
     std::shared_ptr<spdlog::sinks::ringbuffer_sink_mt> sink_;
     std::shared_ptr<spdlog::logger> logger_;
-    spdlog::level::level_enum prev_level_;
+    std::shared_ptr<spdlog::logger> original_;
 };
 
 } // namespace

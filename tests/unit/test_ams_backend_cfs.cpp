@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ams_backend_cfs.h"
+#include "ams_remap.h"
 #include "ams_types.h"
 #include "config.h"
 #include "filament_catalog.h"
@@ -1785,13 +1786,11 @@ TEST_CASE("CFS set_tool_mapping updates local tool_to_slot_map", "[ams][cfs][rem
     }
 }
 
-TEST_CASE("CFS get_tool_mapping_capabilities advertises editable", "[ams][cfs][remap]") {
+TEST_CASE("CFS declares a persistent remap route and owns its table", "[ams][cfs][remap]") {
     CfsRemapHelper helper;
-    auto caps = helper.get_tool_mapping_capabilities();
-    REQUIRE(caps.supported);
-    REQUIRE(caps.editable);
-    // Description is informational; non-empty so UI can show backend-specific copy
-    REQUIRE_FALSE(caps.description.empty());
+    REQUIRE(helper.owns_tool_mapping_table());
+    REQUIRE(helix::printer::can_remap(helper));
+    REQUIRE(helix::printer::remap_is_persistent(helper.get_remap_strategy()));
 }
 
 // =============================================================================
@@ -2448,10 +2447,17 @@ namespace {
 // make_single_unit_box() synthesizes those from material/color presence, which
 // is exactly the coupling these tests need to break: a REMOVED tagged spool has
 // sentinel vender alongside latched material/color/remain_len.
+//
+// filament_useup_value / active_filament drive the runout-episode inputs:
+// the latch (top-level box field) and the feeding lane (T1.filament letter).
+// Defaults reproduce the historical hardcoded frame (latch 1, no active lane),
+// so existing callers are unchanged.
 json make_unit_box_explicit(const std::vector<std::string>& material_types,
                             const std::vector<std::string>& color_values,
                             const std::vector<std::string>& venders,
-                            const std::vector<std::string>& remain_lens) {
+                            const std::vector<std::string>& remain_lens,
+                            int filament_useup_value = 1,
+                            const std::string& active_filament = "None") {
     json box = json::parse(R"({
         "state": "connect",
         "filament": 0,
@@ -2473,6 +2479,8 @@ json make_unit_box_explicit(const std::vector<std::string>& material_types,
     box["T1"]["color_value"] = color_values;
     box["T1"]["vender"] = venders;
     box["T1"]["remain_len"] = remain_lens;
+    box["filament_useup"] = filament_useup_value;
+    box["T1"]["filament"] = active_filament;
     return box;
 }
 
@@ -2783,6 +2791,182 @@ TEST_CASE("CFS removal keeps a user-locked assignment for an unloaded slot",
     auto stored = rig.api->mock_get_db_value("lane_data", "lane4");
     REQUIRE(!stored.is_null());
     CHECK(stored["material"] == "ASA-CF");
+}
+
+// =============================================================================
+// Runout vs the remembered Spoolman link (#1390).
+//
+// filament_runout (box.filament_useup) is box-wide and STICKY: set by "spool
+// used up", cleared only by a successful extrude. clear_stale_override_on_
+// removal_locked deliberately retains any override carrying identity, so an
+// override's Spoolman id survived the exhausted spool being pulled - and was
+// re-asserted onto whatever fresh spool the user loaded next. The lane that
+// ran out must be captured at the runout edge (current_slot is gone by the
+// time the bay reads EMPTY) and exactly that lane's id drops, once.
+// =============================================================================
+
+namespace {
+
+// Seat all four bays, bay D (global slot 3 / lane 4) feeding, no runout.
+json make_runout_seated_box(int useup, const std::string& active) {
+    return make_unit_box_explicit(
+        /*material_types=*/{"unknown", "unknown", "101001", "101001"},
+        /*color_values=*/{"0FFFFFF", "01A1A1A", "01A1A1A", "0C12E1F"},
+        /*venders=*/{"unknown", "unknown", "unknown", "unknown"},
+        /*remain_lens=*/{"100", "0", "46", "50"}, useup, active);
+}
+
+// Bay D emptied: vender drops to the sentinel, RFID payload stays latched (so
+// no fingerprint change ever fires check_hardware_event_clear - the removal
+// path these tests exercise is exactly the one that must NOT clear identity).
+json make_runout_removed_box(int useup, const std::string& active) {
+    json box = make_runout_seated_box(useup, active);
+    box["T1"]["vender"] = json::array({"unknown", "unknown", "unknown", "none"});
+    return box;
+}
+
+// Link bay D's lane to Spoolman spool 137 through the real persist path, so
+// both the in-memory override and the lane_data record carry the id.
+void link_lane_four_to_spool_137(AmsBackendCfs& backend) {
+    SlotInfo edit;
+    edit.material = "ASA-CF";
+    edit.brand = "Elegoo";
+    edit.spool_name = "Black ASA";
+    edit.color_rgb = 0x1A1A1A;
+    edit.spoolman_id = 137;
+    edit.spoolman_vendor_id = 21;
+    REQUIRE(backend.set_slot_info(3, edit, /*persist=*/true).success());
+}
+
+} // namespace
+
+TEST_CASE("CFS runout invalidates the exhausted lane's remembered Spoolman link",
+          "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_runout_strips_link");
+
+    // Lane 4 feeding on a healthy spool: the latch is observed CLEAR (0).
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+
+    link_lane_four_to_spool_137(*rig.backend);
+    REQUIRE(rig.api->mock_get_db_value("lane_data", "lane4").value("spool_id", 0) == 137);
+
+    // The spool runs out mid-print: latch rises 0 -> 1 while bay D is still
+    // the seated, active lane. This edge is what captures the lane.
+    rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"D"));
+
+    // The user pulls the exhausted spool. Bay D reads EMPTY.
+    rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+
+    auto ovr = CfsTestAccess::get_override(*rig.backend, 3);
+    REQUIRE(ovr.has_value());
+    SECTION("the Spoolman handle is dropped from the override") {
+        CHECK(ovr->spoolman_id == 0);
+        CHECK(ovr->spoolman_vendor_id == 0);
+    }
+    SECTION("identity survives: only the handle is gone") {
+        CHECK(ovr->material == "ASA-CF");
+        CHECK(ovr->brand == "Elegoo");
+        CHECK(ovr->spool_name == "Black ASA");
+        CHECK(ovr->user_locked_color);
+        CHECK(ovr->user_locked_material);
+    }
+    SECTION("the live slot shows the drop immediately") {
+        auto info = rig.backend->get_slot_info(3);
+        CHECK(info.spoolman_id == 0);
+        CHECK(info.spoolman_vendor_id == 0);
+        CHECK(info.material == "ASA-CF");
+        CHECK(info.status == SlotStatus::EMPTY);
+    }
+    SECTION("the persisted lane_data record keeps identity, loses the id") {
+        auto stored = rig.api->mock_get_db_value("lane_data", "lane4");
+        REQUIRE(!stored.is_null());
+        CHECK(stored.value("spool_id", 0) == 0);
+        CHECK(stored.value("spoolman_vendor_id", 0) == 0);
+        CHECK(stored["vendor_name"] == "Elegoo");
+        CHECK(stored["helix_material"] == "ASA-CF");
+        CHECK(stored["spool_name"] == "Black ASA");
+    }
+}
+
+TEST_CASE("CFS empty bay without a runout edge keeps the Spoolman link",
+          "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_no_edge_keeps_link");
+
+    // The transient-unreadable-tag protection from clear_stale_override_on_
+    // removal_locked must keep working: an EMPTY poll alone, with no captured
+    // runout episode, never strips a link.
+    SECTION("no runout observed at all (latch 0 throughout)") {
+        rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+        link_lane_four_to_spool_137(*rig.backend);
+
+        for (int i = 0; i < 2; ++i) {
+            rig.poll(make_runout_removed_box(/*useup=*/0, /*active=*/"None"));
+            CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+        }
+    }
+
+    SECTION("sticky latch with no observed edge (first sighting already 1)") {
+        // App started while the latch was already tripped, or the rise was
+        // never observed: there is no 0 -> 1 transition, so no episode.
+        rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"D"));
+        link_lane_four_to_spool_137(*rig.backend);
+        rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+
+        CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+    }
+}
+
+TEST_CASE("CFS runout on one lane does not strip another lane's link",
+          "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_wrong_lane_keeps_link");
+
+    // Lane 2 (bay B) is the feeding lane this print.
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"B"));
+
+    // Lane 4 (bay D) idles with its own link.
+    link_lane_four_to_spool_137(*rig.backend);
+
+    // Lane 2 runs out; the edge captures slot 1 (bay B), not slot 3 (bay D).
+    rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"B"));
+
+    // The user empties lane 4 for an unrelated reason while lane 2's episode
+    // is armed: lane 4's link must survive.
+    rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"B"));
+
+    auto ovr = CfsTestAccess::get_override(*rig.backend, 3);
+    REQUIRE(ovr.has_value());
+    CHECK(ovr->spoolman_id == 137);
+    CHECK(ovr->spoolman_vendor_id == 21);
+    CHECK(rig.backend->get_slot_info(3).spoolman_id == 137);
+    CHECK(rig.api->mock_get_db_value("lane_data", "lane4").value("spool_id", 0) == 137);
+}
+
+TEST_CASE("CFS runout strip fires once per episode", "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_runout_strip_one_shot");
+
+    // Full episode: edge while lane 4 feeds, bay D then reads EMPTY.
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+    link_lane_four_to_spool_137(*rig.backend);
+    rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"D"));
+    rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 0);
+
+    // The user links the fresh spool by hand while the sticky latch is still
+    // tripped. A later transient EMPTY read of the same bay must not strip
+    // the new link: the episode was consumed by the first strip.
+    link_lane_four_to_spool_137(*rig.backend);
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+
+    for (int i = 0; i < 2; ++i) {
+        rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+        CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+    }
+
+    // The latch finally clears (fresh spool feeding) and the bay goes empty
+    // again - a deliberate unload, not a runout: still no strip.
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+    rig.poll(make_runout_removed_box(/*useup=*/0, /*active=*/"None"));
+    CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
 }
 
 TEST_CASE("CFS: a labeled untagged spool stays AVAILABLE while it is seated",

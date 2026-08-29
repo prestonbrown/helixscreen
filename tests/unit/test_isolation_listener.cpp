@@ -23,6 +23,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/live_thread_count.h"
+#include "../test_helpers/thumbnail_processor_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "http_executor.h"
 #include "thumbnail_processor.h"
@@ -35,6 +36,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <future>
 #include <string>
 #include <unistd.h>
 #include <utility>
@@ -132,6 +134,24 @@ class IsolationListener : public Catch::EventListenerBase {
         // Spawning it here folds it into every test's threads_ baseline, so the
         // delta check only catches genuine per-test thread leaks.
         (void)helix::ThumbnailProcessor::instance();
+
+        // And grow that same pool to its steady-state max before the baseline
+        // is captured. HThreadPool::commit() grows on demand while a worker is
+        // busy, and the pool never shrinks — so the first test to overlap two
+        // thumbnail tasks (print-select's metadata refresh does) reads as a
+        // per-test thread leak, when the second worker is as process-lifetime
+        // as the first (nightlies 08-27/08-29 flagged the print-select delete
+        // test this way). Hold one worker busy while committing a no-op: the
+        // commit grows the pool to max, then let both tasks finish.
+        {
+            auto pool = ThumbnailProcessorTestAccess::pool(helix::ThumbnailProcessor::instance());
+            std::promise<void> hold;
+            auto busy = pool->commit([&hold] { hold.get_future().wait(); });
+            auto grow = pool->commit([] {});
+            hold.set_value();
+            busy.wait();
+            grow.wait();
+        }
 
         // Same rationale for the HttpExecutor lanes: fast() (4 workers) and
         // slow() (1 worker) are process-wide pools whose worker threads start

@@ -237,7 +237,6 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     // Initialize system info
     system_info_.type = AmsType::SNAPMAKER;
     system_info_.type_name = "Snapmaker SnapSwap";
-    system_info_.supports_tool_mapping = false;
     system_info_.supports_bypass = false;
     system_info_.has_hardware_bypass_sensor = false;
     // The U1 has no filament cutter and forms no discrete tip — unload is just

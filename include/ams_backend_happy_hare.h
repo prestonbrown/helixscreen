@@ -236,17 +236,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         return RemapStrategy::Native;
     }
 
-    // Tool Mapping support
-    /**
-     * @brief Get tool mapping capabilities for Happy Hare
-     *
-     * Happy Hare supports tool-to-gate mapping via MMU_TTG_MAP G-code.
-     *
-     * @return Capabilities with supported=true, editable=true
-     */
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
+    /// Happy Hare owns the tool-to-gate map (MMU_TTG_MAP) and get_tool_mapping()
+    /// returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
 
+    // Tool Mapping support
     /**
      * @brief Get current tool-to-slot mapping
      *

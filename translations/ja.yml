@@ -1,7 +1,6 @@
 locale: ja
 translations:
   ' (timed out)': （タイムアウト）
-  ' elapsed · ': ' 経過 · '
   ' frames': ' フレーム'
   ' left': ' 残り'
   '"%s" failed to load': '"%s" の読み込みに失敗しました'
@@ -1384,7 +1383,6 @@ translations:
   MACRO DEVICES: マクロデバイス
   MAIN POWER BUTTON: メイン電源ボタン
   MANUAL: 手動
-  MAPPING: マッピング
   MB RAM: MB RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: MCU、ホスト、補助温度の監視

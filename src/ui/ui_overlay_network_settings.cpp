@@ -845,9 +845,11 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
         std::string msg =
             lv_tr("This device has no wired network connection. If you turn WiFi off, it can "
                   "only be turned back on from this screen.");
-        helix::ui::modal_show_confirmation(
+        // Cancel and a dismissal undo the same pending switch state.
+        auto undo = [this] { handle_wlan_toggle_off_cancel(); };
+        helix::ui::modal_confirm(
             lv_tr("Turn Off WiFi?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Turn Off"),
-            on_wlan_toggle_off_confirm, on_wlan_toggle_off_cancel, nullptr);
+            [this] { handle_wlan_toggle_off_confirm(); }, undo, nullptr, undo, lifetime_.token());
         return;
     }
 
@@ -855,8 +857,6 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
 }
 
 void NetworkSettingsOverlay::handle_wlan_toggle_off_confirm() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
-
     lv_obj_t* sw = pending_wlan_toggle_switch_;
     pending_wlan_toggle_switch_ = nullptr;
     if (!sw)
@@ -867,8 +867,6 @@ void NetworkSettingsOverlay::handle_wlan_toggle_off_confirm() {
 }
 
 void NetworkSettingsOverlay::handle_wlan_toggle_off_cancel() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
-
     lv_obj_t* sw = pending_wlan_toggle_switch_;
     pending_wlan_toggle_switch_ = nullptr;
     if (sw) {
@@ -1422,14 +1420,14 @@ void NetworkSettingsOverlay::handle_network_settings_forget() {
 
     std::string msg =
         fmt::format(lv_tr("Forget network '{}'? You will need the password to reconnect."), ssid);
-    helix::ui::modal_show_confirmation(
+    // Cancel and a dismissal clear the same pending SSID.
+    auto undo = [this] { handle_network_forget_cancel(); };
+    helix::ui::modal_confirm(
         lv_tr("Forget Network?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Forget"),
-        on_network_forget_confirm, on_network_forget_cancel, nullptr);
+        [this] { handle_network_forget_confirm(); }, undo, nullptr, undo, lifetime_.token());
 }
 
 void NetworkSettingsOverlay::handle_network_forget_confirm() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
-
     std::string ssid = pending_forget_ssid_;
     pending_forget_ssid_.clear();
 
@@ -1475,7 +1473,6 @@ void NetworkSettingsOverlay::handle_network_forget_confirm() {
 }
 
 void NetworkSettingsOverlay::handle_network_forget_cancel() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
     pending_forget_ssid_.clear();
 }
 
@@ -1515,30 +1512,6 @@ void NetworkSettingsOverlay::on_network_settings_forget(lv_event_t* e) {
     (void)e;
     auto& self = get_network_settings_overlay();
     self.handle_network_settings_forget();
-}
-
-void NetworkSettingsOverlay::on_network_forget_confirm(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_network_forget_confirm();
-}
-
-void NetworkSettingsOverlay::on_network_forget_cancel(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_network_forget_cancel();
-}
-
-void NetworkSettingsOverlay::on_wlan_toggle_off_confirm(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_wlan_toggle_off_confirm();
-}
-
-void NetworkSettingsOverlay::on_wlan_toggle_off_cancel(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_wlan_toggle_off_cancel();
 }
 
 void NetworkSettingsOverlay::on_network_test_close(lv_event_t* e) {

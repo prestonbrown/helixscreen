@@ -21,6 +21,7 @@
 #include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/thumbnail_processor_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "thumbnail_processor.h"
 
@@ -31,19 +32,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-/// Grants tests the private constructor. Declared a friend in
-/// include/thumbnail_processor.h.
-struct ThumbnailProcessorTestAccess {
-    // Raw pointers, deliberately: both the ctor AND the dtor are private, so
-    // unique_ptr's default deleter cannot be instantiated outside this friend.
-    static helix::ThumbnailProcessor* make() {
-        return new helix::ThumbnailProcessor();
-    }
-    static void destroy(helix::ThumbnailProcessor* p) {
-        delete p;
-    }
-};
 
 namespace {
 

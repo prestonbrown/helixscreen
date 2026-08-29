@@ -1,7 +1,6 @@
 locale: zh
 translations:
   ' (timed out)': （超时）
-  ' elapsed · ': ' 已用 · '
   ' frames': ' 帧'
   ' left': ' 剩余'
   '"%s" failed to load': '"%s" 加载失败'
@@ -1377,7 +1376,6 @@ translations:
   MACRO DEVICES: 宏设备
   MAIN POWER BUTTON: 主电源按钮
   MANUAL: 手动
-  MAPPING: 映射
   MB RAM: MB 内存
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: MCU、主机及辅助温度监控

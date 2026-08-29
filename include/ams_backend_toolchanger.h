@@ -97,6 +97,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return RemapStrategy::Native;
     }
 
+    /// A tool changer has one extruder per tool, so its table is identity — but it
+    /// is a real table the firmware owns and ASSIGN_TOOL rewrites, and
+    /// get_tool_mapping() returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
+
     /// Klipper tool-changers have one extruder per tool. Tool N sources slot N
     /// directly — identity mapping — which activates per-extruder consumption
     /// tracking in FilamentConsumptionTracker.
@@ -255,8 +262,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // Tool mapping via klipper-toolchanger ASSIGN_TOOL command
     AmsError reset_tool_mappings() override;
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     // Bypass mode (not applicable for tool changers)

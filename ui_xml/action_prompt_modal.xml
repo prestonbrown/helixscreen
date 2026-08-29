@@ -26,7 +26,7 @@
             style_pad_gap="#space_sm" scrollable="false">
       <!-- ERROR icon - default-hidden; toggled imperatively in populate_content() for severity="error" -->
       <icon name="icon_error" src="alert_octagon" size="md" variant="danger" hidden="true"/>
-      <text_heading name="title" text="Action Required" translation_tag="Action Required" flex_grow="1"/>
+      <text_heading name="dialog_title" text="Action Required" translation_tag="Action Required" flex_grow="1"/>
     </lv_obj>
     <!-- Horizontal divider below title -->
     <divider_horizontal/>

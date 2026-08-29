@@ -16,6 +16,7 @@
 // The decision is a pure function so it is testable without LVGL; the sidebar
 // calls it rather than duplicating the condition.
 
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
@@ -25,29 +26,6 @@
 #include "../catch_amalgamated.hpp"
 
 namespace {
-
-// All four backends are constructible with null api/client for header-level
-// capability inspection (no Moonraker connection, no start()) — same idiom as
-// test_ams_backend_afc_capabilities.cpp / test_ams_backend_cfs.cpp.
-class AfcProbe : public AmsBackendAfc {
-  public:
-    AfcProbe() : AmsBackendAfc(nullptr, nullptr) {}
-};
-
-class HappyHareProbe : public AmsBackendHappyHare {
-  public:
-    HappyHareProbe() : AmsBackendHappyHare(nullptr, nullptr) {}
-};
-
-class CfsProbe : public helix::printer::AmsBackendCfs {
-  public:
-    CfsProbe() : helix::printer::AmsBackendCfs(nullptr, nullptr) {}
-};
-
-class AceProbe : public AmsBackendAce {
-  public:
-    AceProbe() : AmsBackendAce(nullptr, nullptr) {}
-};
 
 AmsSystemInfo make_info(int current_slot, bool filament_loaded) {
     AmsSystemInfo info;

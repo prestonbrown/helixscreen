@@ -4,23 +4,25 @@
  * @file test_print_status_metadata_strip_fit.cpp
  * @brief The metadata strip's rows must degrade when their labels do not fit.
  *
- * The layer/objects/filament row (print_status_preview_card.xml) is a flex
- * row of content-sized labels. LVGL computes a space_between row's inter-item
- * gap as (row_width - content_width) / (n-1) with no clamp at zero
- * (lv_flex.c place_content), so when the labels are together wider than the
- * row the gap goes negative and adjacent labels render on top of each other.
- * Observed on a live K2 Plus (800x480) mid-print: the row is 363px there and
- * "Layer 474 / 1334 (55.4mm)" + "12 of 12 objects" + "92.6m used" measured
- * 393px, so each pair overlapped by 15px.
+ * The layer/objects/filament row (print_status_preview_card.xml) was a flex
+ * row of content-sized prose labels. LVGL computes a space_between row's
+ * inter-item gap as (row_width - content_width) / (n-1) with no clamp at zero
+ * (lv_flex.c place_content), so when the labels were together wider than the
+ * row the gap went negative and adjacent labels rendered on top of each
+ * other. Observed on a live K2 Plus (800x480) mid-print: the row is 363px
+ * there and "Layer 474 / 1334 (55.4mm)" + "12 of 12 objects" + "92.6m used"
+ * measured 393px, so each pair overlapped by 15px.
  *
- * The contract these tests pin: when the row overflows, its variable-length
- * label yields (shrinks and ellipsizes) instead of the labels
- * interpenetrating. The strings below are the ones measured on that printer;
- * the fixture display is the same 800x480, so the same widths apply.
+ * The strip is now icon clusters over bare values (language-neutral widths),
+ * with the layer cluster growing and dotting as the overflow floor. The
+ * contract these tests pin: no cluster ever starts before its left neighbour
+ * ends, whatever the data, and an overflowing layer value yields instead of
+ * interpenetrating. The strings below mirror that print at this fixture's
+ * 800x480.
  *
- * The status row one line below has the same class of hazard: its inner
- * elapsed/remaining/eta row is content-sized inside a flex_grow slot, and a
- * long time string pair runs under the percent label on its right.
+ * The status row below has the same class of hazard: a long elapsed/remaining
+ * pair once ran under the percent label on its right; the eta now grows and
+ * dots.
  */
 
 #include "ui_panel_print_status.h"
@@ -106,36 +108,42 @@ struct MetadataStripFixture : public LVGLUITestFixture {
 } // namespace
 
 TEST_CASE_METHOD(MetadataStripFixture,
-                 "Metadata strip: layer/objects/filament row never overlaps its labels",
+                 "Metadata strip: layer/objects/filament row never overlaps its clusters",
                  "[print_status][metadata_strip]") {
-    // The exact strings measured on the live K2 Plus print: 393px of content
-    // in the 363px row this 800x480 fixture produces.
+    // The icon-cluster strings for the print that broke the prose row on a
+    // live K2 Plus (393px of prose in this 800x480 fixture's 363px row).
     lv_obj_t* layer = label("layer_progress_label");
     lv_obj_t* objects = label("objects_count_label");
     lv_obj_t* filament = label("filament_used_label");
 
-    // Simulate the multi-object print state: the objects label is bound
-    // hidden while fewer than two objects are defined, and its text arrives
-    // from a subject. Both are set directly here - the row's flex behaviour
-    // is under test, not the visibility binding.
-    lv_obj_clear_flag(objects, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(layer, "Layer 474 / 1334 (55.4mm)");
-    lv_label_set_text(objects, "12 of 12 objects");
-    lv_label_set_text(filament, "92.6m used");
+    // Simulate the multi-object print state: the whole objects cluster is
+    // bound hidden while fewer than two objects are defined, and its text
+    // arrives from a subject. Both are set directly here - the row's flex
+    // behaviour is under test, not the visibility binding.
+    lv_obj_t* objects_cluster = lv_obj_find_by_name(root_, "objects_cluster");
+    REQUIRE(objects_cluster != nullptr);
+    lv_obj_clear_flag(objects_cluster, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(layer, "474 / 1334 · 55.4mm");
+    lv_label_set_text(objects, "12/12");
+    lv_label_set_text(filament, "92.6m");
 
     lv_obj_update_layout(root_);
 
-    const int layer_right = right_edge(layer);
-    const int objects_right = right_edge(objects);
-    CAPTURE(layer_right, lv_obj_get_x(objects), objects_right, lv_obj_get_x(filament));
+    const int objects_left = left_edge_screen(objects_cluster);
+    const int layer_right = right_edge_screen(layer);
+    const int objects_right = right_edge_screen(objects);
+    const int filament_left = left_edge_screen(filament);
+    CAPTURE(layer_right, objects_left, objects_right, filament_left);
 
-    // No label may start before its left neighbour ends. The unfixed row
-    // distributes its deficit as negative gaps, which lands here.
-    REQUIRE(lv_obj_get_x(objects) >= layer_right);
-    REQUIRE(lv_obj_get_x(filament) >= objects_right);
+    // No cluster may start before its left neighbour ends. The unfixed row
+    // distributed its deficit as negative gaps, which lands here.
+    REQUIRE(objects_left >= layer_right);
+    REQUIRE(filament_left >= objects_right);
 
-    // And the yielding label must actually have yielded: with
-    // long_mode="dots" its box is narrower than the full text it holds.
+    // Overflow must still degrade, not interpenetrate: with long_mode="dots"
+    // the layer value's box is narrower than the full text it holds.
+    lv_label_set_text(layer, "474 / 13340 · 554.4mm plus a pathological tail");
+    lv_obj_update_layout(root_);
     REQUIRE(lv_label_get_long_mode(layer) == LV_LABEL_LONG_MODE_DOTS);
     lv_point_t full;
     lv_text_get_size(&full, lv_label_get_text(layer),
@@ -143,6 +151,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
                      lv_obj_get_style_text_letter_space(layer, LV_PART_MAIN), 0, LV_COORD_MAX,
                      LV_TEXT_FLAG_NONE);
     REQUIRE(lv_obj_get_width(layer) < full.x);
+    REQUIRE(left_edge_screen(filament) >= right_edge_screen(objects));
 }
 
 TEST_CASE_METHOD(MetadataStripFixture,

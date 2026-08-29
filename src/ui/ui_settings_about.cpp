@@ -577,15 +577,9 @@ void AboutSettingsOverlay::on_about_install_update_clicked(lv_event_t* /*e*/) {
             fmt::format(lv_tr("This channel offers v{}, older than the installed v{}. "
                               "Anything added since then will be removed."),
                         cached->version, HELIX_VERSION);
-        helix::ui::modal_show_confirmation(
-            lv_tr("Install Older Version?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Install"),
-            [](lv_event_t* /*e*/) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[AboutSettings] downgrade_confirm_cb");
-                Modal::hide(Modal::get_top());
-                get_about_settings_overlay().show_update_download_modal();
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            nullptr, nullptr);
+        helix::ui::modal_confirm(lv_tr("Install Older Version?"), msg.c_str(),
+                                 ModalSeverity::Warning, lv_tr("Install"),
+                                 [] { get_about_settings_overlay().show_update_download_modal(); });
     } else {
         get_about_settings_overlay().show_update_download_modal();
     }
