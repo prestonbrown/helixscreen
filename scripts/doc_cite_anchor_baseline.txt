@@ -13,7 +13,7 @@
 # `make regen-doc-links`; the finding prints the nearest distinctive code.
 #
 # doc	cited-path:line	reason
-max-unresolved: 9
+max-unresolved: 0
 
 docs/devel/PRINT_STATE_MACHINE.md	include/printer_print_state.h:321	low-information
 docs/devel/QIDI_BOX_HEATER.md	ams_backend_qidi.cpp:688	low-information

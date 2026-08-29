@@ -366,18 +366,10 @@ void FilamentMappingModal::on_toggle_changed(bool auto_color) {
 }
 
 void FilamentMappingModal::recalculate_mappings() {
-    if (auto_color_map_) {
-        // Color matching: clear firmware mappings so they don't override color matches
-        auto slots_for_matching = available_slots_;
-        for (auto& s : slots_for_matching) {
-            s.current_tool_mapping = -1;
-        }
-        mappings_ = helix::FilamentMapper::compute_defaults(tool_info_, slots_for_matching);
-    } else {
-        // Positional assignment (T0→slot 0, T1→slot 1, etc.)
-        mappings_ = helix::FilamentMapper::use_current_assignments(
-            tool_info_, available_slots_, AmsState::instance().collect_firmware_routing());
-    }
+    // The modal owns a live toggle the user can flip before committing, so it
+    // supplies its own answer rather than the persisted one.
+    mappings_ =
+        AmsState::instance().seed_tool_mappings(tool_info_, available_slots_, auto_color_map_);
 }
 
 } // namespace helix::ui

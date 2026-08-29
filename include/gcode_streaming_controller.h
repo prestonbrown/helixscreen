@@ -457,6 +457,24 @@ class GCodeStreamingController {
      */
     std::string get_object_name(int16_t index) const;
 
+    /**
+     * @brief Number of names currently in the merged object-name table
+     *
+     * Grows as layers load (load_layer() runs on the prefetch worker), so a
+     * consumer that caches a snapshot polls this to learn the table changed
+     * without paying for a copy every frame.
+     */
+    size_t object_name_table_size() const;
+
+    /**
+     * @brief Copy of the whole merged object-name table
+     *
+     * Taken under name_table_mutex_, so the returned vector is safe to keep and
+     * index while the worker keeps appending to the live table. Indices are
+     * stable — remap_object_name_indices() only ever appends.
+     */
+    std::vector<std::string> object_name_table_snapshot() const;
+
   private:
     /**
      * @brief Load a layer from source and parse to segments

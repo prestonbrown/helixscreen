@@ -2559,6 +2559,11 @@ void AmsBackendMock::set_snapmaker_mode(bool enabled) {
         system_info_.units[0].display_name = "SnapSwap";
     }
 
+    // An idle U1 has no task, so it publishes no routing at all — only the
+    // firmware's default table, which says nothing about any particular file.
+    // set_snapmaker_print_task() (or HELIX_MOCK_REMAP below) stages one.
+    set_snapmaker_task_locked({});
+
     system_info_.current_tool = 0;
     system_info_.current_slot = 0;
     system_info_.filament_loaded = true;
@@ -2621,6 +2626,16 @@ void AmsBackendMock::apply_remap_overrides(const std::string& csv) {
     }
 
     slots_.set_tool_map(forward);
+
+    // On a U1 a remap does not move the lanes: it becomes the print task's
+    // extruder_map_table, which is what get_tool_mapping() answers from. Staging
+    // it as a task is what keeps this knob's purpose — showing a non-identity
+    // routing in the swatches — working now that the attachment map no longer
+    // stands in for the routing. Head N owns lane N there, so the CSV's slot
+    // numbers are already head numbers.
+    if (snapmaker_mode_) {
+        set_snapmaker_task_locked(forward);
+    }
 }
 
 void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
@@ -3413,7 +3428,47 @@ std::vector<int> AmsBackendMock::get_tool_mapping() const {
         return {};
     }
 
+    if (snapmaker_mode_) {
+        // The real gate, not a re-implementation of it — same reason
+        // build_preprint_gcode() delegates to the real builder. Without it the
+        // mock published the attachment map as this print's routing, and
+        // FilamentMapper::effective_routing() believes any non-empty answer.
+        return AmsBackendSnapmaker::task_routing(snapmaker_extruders_used_,
+                                                 snapmaker_extruder_map_);
+    }
+
     return slots_.build_system_info().tool_to_slot_map;
+}
+
+helix::FirmwareRouting AmsBackendMock::firmware_default_routing() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (snapmaker_mode_) {
+        return AmsBackendSnapmaker::default_routing();
+    }
+    // Every other mode this mock emulates is lane-per-tool.
+    return AmsBackend::firmware_default_routing();
+}
+
+void AmsBackendMock::set_snapmaker_print_task(std::vector<int> routing) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    set_snapmaker_task_locked(std::move(routing));
+}
+
+void AmsBackendMock::set_snapmaker_task_locked(std::vector<int> routing) {
+    snapmaker_extruder_map_ = std::move(routing);
+    snapmaker_extruders_used_.assign(
+        static_cast<size_t>(system_info_.total_slots > 0 ? system_info_.total_slots : 0), false);
+    for (int head : snapmaker_extruder_map_) {
+        if (head >= 0 && head < static_cast<int>(snapmaker_extruders_used_.size())) {
+            snapmaker_extruders_used_[static_cast<size_t>(head)] = true;
+        }
+    }
+    if (snapmaker_extruder_map_.empty()) {
+        spdlog::debug("[AmsBackendMock] Snapmaker print task cleared - no routing published");
+    } else {
+        spdlog::info("[AmsBackendMock] Snapmaker print task: {} tool(s) routed",
+                     snapmaker_extruder_map_.size());
+    }
 }
 
 // ============================================================================

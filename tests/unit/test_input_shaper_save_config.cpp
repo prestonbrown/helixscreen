@@ -112,7 +112,7 @@ std::vector<ShaperResponseCurve> make_curves() {
 /// Index of the mzv chip within make_curves().
 constexpr int kMzvChip = 1;
 
-bool contains(const std::string& haystack, const std::string& needle) {
+bool has_substr(const std::string& haystack, const std::string& needle) {
     return haystack.find(needle) != std::string::npos;
 }
 
@@ -133,7 +133,7 @@ class ToastRecorder {
 
     [[nodiscard]] bool saw(const std::string& needle) const {
         for (const auto& m : messages_) {
-            if (contains(m, needle))
+            if (has_substr(m, needle))
                 return true;
         }
         return false;
@@ -233,17 +233,17 @@ TEST_CASE_METHOD(SaveConfigFixture,
 
     const std::string written = uploaded(kOptionsPath);
 
-    CHECK(contains(written, "shaper_type_x: mzv"));
-    CHECK(contains(written, "shaper_freq_x: 41.6"));
-    CHECK(contains(written, "shaper_type_y: mzv"));
-    CHECK(contains(written, "shaper_freq_y: 32.6"));
+    CHECK(has_substr(written, "shaper_type_x: mzv"));
+    CHECK(has_substr(written, "shaper_freq_x: 41.6"));
+    CHECK(has_substr(written, "shaper_type_y: mzv"));
+    CHECK(has_substr(written, "shaper_freq_y: 32.6"));
 
     // The firmware's own pick must not survive anywhere in the file - not as a
     // type and not as its frequency.
-    CHECK_FALSE(contains(written, "2hump_ei"));
-    CHECK_FALSE(contains(written, "3hump_ei"));
-    CHECK_FALSE(contains(written, "52.8"));
-    CHECK_FALSE(contains(written, "44.9"));
+    CHECK_FALSE(has_substr(written, "2hump_ei"));
+    CHECK_FALSE(has_substr(written, "3hump_ei"));
+    CHECK_FALSE(has_substr(written, "52.8"));
+    CHECK_FALSE(has_substr(written, "44.9"));
 }
 
 // ============================================================================
@@ -261,14 +261,14 @@ TEST_CASE_METHOD(SaveConfigFixture,
 
     const std::string written = uploaded(kOptionsPath);
 
-    CHECK(contains(written, "shaper_type_x: 2hump_ei"));
-    CHECK(contains(written, "shaper_freq_x: 52.8"));
-    CHECK(contains(written, "shaper_type_y: 3hump_ei"));
-    CHECK(contains(written, "shaper_freq_y: 44.9"));
+    CHECK(has_substr(written, "shaper_type_x: 2hump_ei"));
+    CHECK(has_substr(written, "shaper_freq_x: 52.8"));
+    CHECK(has_substr(written, "shaper_type_y: 3hump_ei"));
+    CHECK(has_substr(written, "shaper_freq_y: 44.9"));
 
     // The old values are replaced in place, not left behind alongside the new.
-    CHECK_FALSE(contains(written, "shaper_freq_x: 47.4"));
-    CHECK_FALSE(contains(written, "shaper_freq_y: 35.0"));
+    CHECK_FALSE(has_substr(written, "shaper_freq_x: 47.4"));
+    CHECK_FALSE(has_substr(written, "shaper_freq_y: 35.0"));
 }
 
 // ============================================================================
@@ -323,19 +323,19 @@ TEST_CASE_METHOD(SaveConfigFixture, "save_configuration creates [input_shaper] w
     // them must now carry a complete [input_shaper].
     const std::string root = uploaded(kRootPath);
     const std::string options = uploaded(kOptionsPath);
-    const std::string written = contains(options, "[input_shaper]") ? options : root;
+    const std::string written = has_substr(options, "[input_shaper]") ? options : root;
 
     INFO("printer.cfg:\n" << root << "\nconf.d/options.cfg:\n" << options);
 
-    CHECK(contains(written, "[input_shaper]"));
-    CHECK(contains(written, "shaper_type_x: mzv"));
-    CHECK(contains(written, "shaper_freq_x: 41.6"));
-    CHECK(contains(written, "shaper_type_y: mzv"));
-    CHECK(contains(written, "shaper_freq_y: 32.6"));
+    CHECK(has_substr(written, "[input_shaper]"));
+    CHECK(has_substr(written, "shaper_type_x: mzv"));
+    CHECK(has_substr(written, "shaper_freq_x: 41.6"));
+    CHECK(has_substr(written, "shaper_type_y: mzv"));
+    CHECK(has_substr(written, "shaper_freq_y: 32.6"));
 
     // Creating the section must not eat what was already in the file.
-    CHECK(contains(options, "[stepper_x]"));
-    CHECK(contains(options, "step_pin: PA2"));
+    CHECK(has_substr(options, "[stepper_x]"));
+    CHECK(has_substr(options, "step_pin: PA2"));
 }
 
 // ============================================================================
@@ -357,12 +357,12 @@ TEST_CASE_METHOD(SaveConfigFixture, "save_configuration never issues SAVE_CONFIG
     // picked, which is the whole reason this path rewrites the file itself.
     for (const auto& script : client_.gcode_script_history()) {
         INFO("gcode issued: " << script);
-        CHECK_FALSE(contains(script, "SAVE_CONFIG"));
+        CHECK_FALSE(has_substr(script, "SAVE_CONFIG"));
     }
 
     // Guard against the assertion above passing because nothing was recorded at
     // all: the config really was rewritten on this run.
-    CHECK(contains(uploaded(kOptionsPath), "shaper_type_x: mzv"));
+    CHECK(has_substr(uploaded(kOptionsPath), "shaper_type_x: mzv"));
 }
 
 // ============================================================================
@@ -414,5 +414,5 @@ TEST_CASE_METHOD(SaveConfigFixture, "the success toast survives the panel closin
     CHECK(toasts.saw("Input shaper settings applied!"));
 
     // The write itself still happened - the toast is not standing in for it.
-    CHECK(contains(uploaded(kOptionsPath), "shaper_type_x: mzv"));
+    CHECK(has_substr(uploaded(kOptionsPath), "shaper_type_x: mzv"));
 }

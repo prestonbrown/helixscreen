@@ -57,6 +57,11 @@ struct ConfigEdit {
     std::string value; // ignored for REMOVE_KEY
 };
 
+/// True when every edit is an ADD_KEY, i.e. the whole list reads "make sure this
+/// key says X" and carries no assumption that the section already exists. An
+/// empty list is false — it asserts nothing about any section.
+bool all_add_key(const std::vector<ConfigEdit>& edits);
+
 class KlipperConfigEditor {
   public:
     /// Cancels any in-flight FIRMWARE_RESTART health monitor and waits for it to

@@ -14,7 +14,7 @@ Collect all of these before starting:
 
 ```bash
 git rev-parse --abbrev-ref HEAD          # Must be "main"
-git status --porcelain | grep -v -E '\.claude-recall/(LESSONS\.md|LESSONS\.md\.lock|CLAUDE\.md)'  # Must be empty (ignoring recall files)
+git status --porcelain | grep -v -E '\.claude-recall/(LESSONS\.md|LESSONS\.md\.lock|CLAUDE\.md|injection-stats\.json|stats\.json)'  # Must be empty (ignoring recall files)
 git fetch origin && git status -sb        # Must be up-to-date with origin/main
 cat VERSION.txt                           # Current version
 git describe --tags --abbrev=0 2>/dev/null  # Last tag (e.g., v0.9.3)
@@ -32,7 +32,7 @@ All of these must pass. If ANY fails, STOP and tell the user why.
 | Check | How | Fail action |
 |-------|-----|-------------|
 | On `main` branch | `git rev-parse --abbrev-ref HEAD` = "main" | STOP: "Switch to main first" |
-| Clean working tree | `git status --porcelain` is empty after ignoring `LESSONS.md`, `LESSONS.md.lock`, and `CLAUDE.md` in `.claude-recall/` | STOP: "Uncommitted changes — commit or stash first" |
+| Clean working tree | `git status --porcelain` is empty after ignoring `LESSONS.md`, `LESSONS.md.lock`, `CLAUDE.md`, `injection-stats.json`, and `stats.json` in `.claude-recall/`. All five are recall's own state, rewritten by any session; since worktrees route their writes here (`PROJECT_DIR`, see `setup-worktree.sh`), they are dirty most of the time and are not a reason to hold a release. Commit them with it. | STOP: "Uncommitted changes — commit or stash first" |
 | Up to date with origin | `git fetch origin` then check `git status -sb` for "behind" | STOP: "Branch is behind origin/main — pull first" |
 | Tags fetched | `git fetch --tags origin` | Just do it silently |
 
@@ -92,11 +92,18 @@ Do not release on a red `main`. Before starting, also confirm CI is green for th
 being released:
 
 ```bash
-gh run list --workflow="Code Quality" --limit 1 --json conclusion,headSha
+# EVERY workflow, not just Code Quality. Build compiles with clang on Ubuntu while
+# local builds here use g++, so a clang-only diagnostic under -Werror is red on CI
+# and green on the release machine - checking one workflow reads as all-clear.
+gh run list --limit 20 --json conclusion,status,workflowName,headSha \
+  --jq '.[] | select(.conclusion == "failure") | "\(.workflowName)\t\(.headSha[0:9])"'
 ```
 
-If the latest run is a `failure`, treat it as a STOP — fix it first. (v0.99.92 shipped
-with Code Quality red for ~10 hours because this gate did not exist.)
+If ANY workflow's latest run is a `failure`, treat it as a STOP — fix it first.
+(v0.99.92 shipped with Code Quality red for ~10 hours because this gate did not exist.
+v0.99.118 nearly shipped with the Ubuntu `Build` job red for an hour, because the gate
+only looked at Code Quality: `Build Status` even prints "tolerated because this is an
+integration branch", so main stays red without anything stopping a release.)
 
 ### C++ tests
 ```bash

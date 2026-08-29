@@ -158,6 +158,7 @@
   <translation tag="All axes homed" zh="所有轴已归位"/>
   <translation tag="All fields are required" zh="所有字段均为必填项"/>
   <translation tag="All plugins loaded successfully" zh="所有插件加载成功"/>
+  <translation tag="Allow" zh="允许"/>
   <translation tag="Allow Home Screen Editing" zh="允许编辑主屏幕"/>
   <translation tag="Allow cold load/unload" zh="允许冷态加载/卸载"/>
   <translation tag="Allow display to sleep during active prints" zh="打印时允许屏幕休眠"/>
@@ -168,6 +169,7 @@
   <translation tag="Ambient Transfer" zh="环境传热"/>
   <translation tag="AmsIdentify" zh="识别 AMS"/>
   <translation tag="An accelerometer was detected on your printer." zh="在您的打印机上检测到加速度计。"/>
+  <translation tag="An app on your network is asking to connect to this printer." zh="网络中的某个应用请求连接到此打印机。"/>
   <translation tag="An error occurred during calibration." zh="校准过程中发生错误。"/>
   <translation tag="An error occurred during filament loading." zh="装载耗材时发生错误。"/>
   <translation tag="An error occurred during measurement." zh="测量时发生错误。"/>
@@ -549,6 +551,7 @@
   <translation tag="Connecting..." zh="正在连接..."/>
   <translation tag="Connection" zh="连接"/>
   <translation tag="Connection Failed" zh="连接失败"/>
+  <translation tag="Connection Request" zh="连接请求"/>
   <translation tag="Connection Stability" zh="连接稳定性"/>
   <translation tag="Connection failed" zh="连接失败"/>
   <translation tag="Connection failed to {}:{}" zh="连接 {}:{} 失败"/>
@@ -581,6 +584,7 @@
   <translation tag="Corner roundness" zh="圆角程度"/>
   <translation tag="Correction (Ki)" zh="校正 (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." zh="无法分析 PRINT_START 宏。部分打印选项可能不可用。"/>
+  <translation tag="Could not answer the connection request" zh="无法响应连接请求"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." zh="无法检查摄像头状态。&#10;请检查打印机连接。"/>
   <translation tag="Could not confirm cancel"/>
   <translation tag="Could not forget device" zh="无法忘记设备"/>
@@ -662,6 +666,7 @@
   <translation tag="Delete {}?" zh="删除 {}?"/>
   <translation tag="Delta:" zh="差值："/>
   <translation tag="Density" zh="密度"/>
+  <translation tag="Deny" zh="拒绝"/>
   <translation tag="Deploy" zh="部署"/>
   <translation tag="Describe the issue (optional)" zh="描述问题（可选）"/>
   <translation tag="Detailed" zh="详细"/>
@@ -673,6 +678,7 @@
   <translation tag="Dev" zh="开发版"/>
   <translation tag="Dev channel requires dev_url in config" zh="开发频道需要在配置中设置 dev_url"/>
   <translation tag="Device" zh="设备"/>
+  <translation tag="Device connected" zh="设备已连接"/>
   <translation tag="Device name" zh="设备名称"/>
   <translation tag="Device name is required" zh="设备名称为必填项"/>
   <translation tag="Device: " zh="设备: "/>
@@ -2868,6 +2874,7 @@
   <translation tag="{} filament sensors available" zh="{} 个耗材传感器可用"/>
   <translation tag="{} filament • {}" zh="耗材 {} • {}"/>
   <translation tag="{} heater turned off" zh="{} 加热器已关闭"/>
+  <translation tag="{} is asking to connect to this printer." zh="{} 请求连接到此打印机。"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." zh="{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." zh="{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。"/>
   <translation tag="{} is not set up on this printer"/>

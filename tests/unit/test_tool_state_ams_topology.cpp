@@ -551,3 +551,38 @@ TEST_CASE_METHOD(ToolBadgeFixture, "tool badge stays hidden and empty on a singl
     REQUIRE(badge_shown() == 0);
     REQUIRE(badge_text().empty());
 }
+
+// ============================================================================
+// Init order — the AMS push must not land on subjects that do not exist yet
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "[ToolState][ams-topology] topology before init_subjects is refused whole",
+                 "[tool-state][ams][ams-topology][regression]") {
+    // AmsState::init_subjects() creates its backend and syncs it straight
+    // through build_ams_topology() into set_ams_topology(). Reached before
+    // ToolState::init_subjects() had run, every lv_subject_set_int() below
+    // landed on a zeroed lv_subject_t (LV_SUBJECT_TYPE_INVALID): LVGL dropped
+    // the write and warned, while tools_ was rebuilt anyway. The vector then
+    // said 4 tools and tool_count/tools_version said 0 - a divergence nothing
+    // republished until PrinterDiscovery's init_tools() happened to reset the
+    // override. Applying nothing is the only answer that cannot diverge.
+    auto& ts = helix::ToolState::instance();
+    ts.deinit_subjects();
+
+    helix::ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.tool_name_prefix = "T";
+
+    ts.set_ams_topology(topo);
+
+    REQUIRE_FALSE(ts.ams_topology_active());
+    REQUIRE(ts.tool_count() == 0);
+    REQUIRE(ts.tools().empty());
+
+    // Same contract on the way back out: nothing to clear, nothing published.
+    ts.clear_ams_topology();
+    REQUIRE_FALSE(ts.ams_topology_active());
+}

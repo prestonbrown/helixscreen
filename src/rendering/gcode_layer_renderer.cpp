@@ -8,11 +8,14 @@
 #include "config.h"
 #include "gcode_ghost_sampling.h"
 #include "gcode_parser.h"
+#include "gcode_selection_style.h"
+#include "lv_draw_buf_guard.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -20,6 +23,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <thread>
 
 namespace helix {
@@ -31,26 +35,9 @@ namespace gcode {
 
 namespace {
 
-/// Orange-red color for excluded objects (strikethrough style)
-constexpr uint32_t EXCLUDED_OBJECT_COLOR = 0xFF6B35;
-constexpr uint8_t EXCLUDED_R = (EXCLUDED_OBJECT_COLOR >> 16) & 0xFF;
-constexpr uint8_t EXCLUDED_G = (EXCLUDED_OBJECT_COLOR >> 8) & 0xFF;
-constexpr uint8_t EXCLUDED_B = EXCLUDED_OBJECT_COLOR & 0xFF;
-
-/// Selection blue for highlighted objects
-constexpr uint32_t HIGHLIGHTED_OBJECT_COLOR = 0x42A5F5;
-constexpr uint8_t HIGHLIGHTED_R = (HIGHLIGHTED_OBJECT_COLOR >> 16) & 0xFF;
-constexpr uint8_t HIGHLIGHTED_G = (HIGHLIGHTED_OBJECT_COLOR >> 8) & 0xFF;
-constexpr uint8_t HIGHLIGHTED_B = HIGHLIGHTED_OBJECT_COLOR & 0xFF;
-
-/// Light grey for selection bracket wireframes
-constexpr uint32_t BRACKET_COLOR = 0xC0C0C0;
-
-/// Object pick distance threshold (pixels)
-constexpr float PICK_THRESHOLD_PX = 15.0f;
-
-/// Alpha value for excluded objects (60%)
-constexpr uint8_t EXCLUDED_ALPHA = 153;
+/// Core stroke width the lv_draw_line path uses for an extrusion move. Named so
+/// the fallback halo pre-pass widens the same number render_segment() draws.
+constexpr int DRAW_LINE_EXTRUSION_WIDTH = 2;
 
 /// Ghost-look tuning. The goal is a faint, translucent, see-through apparition — NOT a
 /// dimmer solid copy and NOT a washed-out gray. The transparency cue comes from letting
@@ -101,9 +88,6 @@ constexpr float DEFAULT_EXTRUSION_WIDTH_MM = 0.4f;
 constexpr int MIN_EXTRUSION_PIXEL_WIDTH = 1;
 constexpr int MAX_EXTRUSION_PIXEL_WIDTH = 8;
 
-/// Minimum line length for thick line perpendicular computation
-constexpr float MIN_LINE_LENGTH = 0.001f;
-
 } // namespace
 
 // ============================================================================
@@ -123,7 +107,6 @@ GCodeLayerRenderer::~GCodeLayerRenderer() {
     cancel_background_ghost_render();
 
     destroy_cache();
-    destroy_ssao_cache();
     destroy_ghost_cache();
 }
 
@@ -139,6 +122,7 @@ void GCodeLayerRenderer::set_gcode(const ParsedGCodeFile* gcode) {
     bounds_valid_ = false;
     current_layer_ = 0;
     warmup_frames_remaining_ = WARMUP_FRAMES; // Allow panel to render before heavy caching
+    refresh_selection_index_map(/*force=*/true);
     invalidate_cache();
 
     if (gcode_) {
@@ -155,6 +139,7 @@ void GCodeLayerRenderer::set_streaming_controller(GCodeStreamingController* cont
     bounds_valid_ = false;
     current_layer_ = 0;
     warmup_frames_remaining_ = WARMUP_FRAMES; // Allow panel to render before heavy caching
+    refresh_selection_index_map(/*force=*/true);
     invalidate_cache();
 
     if (streaming_controller_) {
@@ -266,7 +251,18 @@ void GCodeLayerRenderer::set_tool_color_overrides(const std::vector<uint32_t>& a
     // Invalidate caches so new colors take effect
     invalidate_cache();
 
-    spdlog::debug("[GCodeLayerRenderer] Applied {} tool color overrides", ams_colors.size());
+    // Log the values, not just the count: an override that silently resolves to
+    // the unknown-slot placeholder looks identical to a real one at count level,
+    // and it is what a preview renders when no filament data is known.
+    std::string applied;
+    for (size_t i = 0; i < ams_colors.size(); ++i) {
+        if (i > 0) {
+            applied += ", ";
+        }
+        applied += fmt::format("#{:06X}", ams_colors[i] & 0xFFFFFFu);
+    }
+    spdlog::debug("[GCodeLayerRenderer] Applied {} tool color overrides: [{}]", ams_colors.size(),
+                  applied);
 }
 
 void GCodeLayerRenderer::reset_colors() {
@@ -284,6 +280,11 @@ void GCodeLayerRenderer::reset_colors() {
     // Support: orange/warning color to distinguish from model
     color_support_ = theme_manager_get_color("warning");
 
+    // Selection cues from ui_xml/gcode_tokens.xml. Resolved here, on the main
+    // thread, because every consumer is either a rasterizer inner loop or the
+    // ghost worker, and neither may walk LVGL's const registry itself.
+    sel_palette_ = selection::palette_from_theme();
+
     use_custom_extrusion_color_ = false;
     use_custom_travel_color_ = false;
     use_custom_support_color_ = false;
@@ -291,19 +292,23 @@ void GCodeLayerRenderer::reset_colors() {
 }
 
 void GCodeLayerRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
-    if (names == excluded_objects_) {
-        return; // No change - skip expensive cache invalidation
+    if (names == selection_.excluded()) {
+        // No change — bail before the join below, so a repeated no-op set does not
+        // kill and restart a healthy background ghost render. Reading the set is safe
+        // while the worker runs; only mutating it is not.
+        return;
     }
-    // Join the background ghost-render worker before reassigning excluded_objects_: the worker
-    // copy-reads this member without a lock, so rehashing/freeing it here would race its copy.
+    // Join the background ghost-render worker before mutating selection_: the worker takes a
+    // by-value copy of it, and rehashing/freeing the sets here would race that copy. Must stay
+    // ahead of set_excluded() — do not reorder.
     cancel_background_ghost_render();
-    excluded_objects_ = names;
-    invalidate_cache();
+    apply_selection_scope(selection_.set_excluded(names));
 }
 
 void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
-    if (names == highlighted_objects_) {
-        return; // No change - skip expensive cache invalidation
+    const InvalidationScope scope = selection_.set_highlighted(names);
+    if (scope == InvalidationScope::None) {
+        return;
     }
     if (names.empty()) {
         spdlog::debug("[GCodeLayerRenderer] Selection cleared");
@@ -312,8 +317,47 @@ void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::s
             spdlog::debug("[GCodeLayerRenderer] Selection brackets active for '{}'", name);
         }
     }
-    highlighted_objects_ = names;
-    invalidate_cache();
+    apply_selection_scope(scope);
+}
+
+void GCodeLayerRenderer::apply_selection_scope(InvalidationScope scope) {
+    switch (scope) {
+    case InvalidationScope::None:
+        return;
+    case InvalidationScope::SolidCache:
+        // Highlight only. The ghost pass never draws highlight, so leaving its cache
+        // and its worker alone saves a multi-second re-render of an identical image.
+        invalidate_solid_cache();
+        return;
+    case InvalidationScope::SolidAndGhost:
+        invalidate_cache();
+        return;
+    }
+}
+
+void GCodeLayerRenderer::refresh_selection_index_map(bool force) {
+    if (gcode_) {
+        const size_t count = gcode_->object_name_table.size();
+        if (force || count != selection_index_map_size_) {
+            selection_.rebuild_index_map(gcode_->object_name_table);
+            selection_index_map_size_ = count;
+        }
+        return;
+    }
+    if (streaming_controller_) {
+        // Poll the size first — object_name_table_snapshot() copies every name.
+        if (force || streaming_controller_->object_name_table_size() != selection_index_map_size_) {
+            const std::vector<std::string> table =
+                streaming_controller_->object_name_table_snapshot();
+            selection_index_map_size_ = table.size();
+            selection_.rebuild_index_map(table);
+        }
+        return;
+    }
+    if (force || selection_index_map_size_ != 0) {
+        selection_.rebuild_index_map({});
+        selection_index_map_size_ = 0;
+    }
 }
 
 // ============================================================================
@@ -375,8 +419,7 @@ void GCodeLayerRenderer::auto_fit() {
             // ±inf box yields NaN offsets in compute_auto_fit and every
             // projected point becomes garbage.
             spdlog::debug("[GCodeLayerRenderer] Empty global bbox, using default 200x200");
-            bb.min = {0.0f, 0.0f, 0.0f};
-            bb.max = {200.0f, 200.0f, 0.0f};
+            bb = AABB::default_plate_bbox();
         }
     } else {
         return;
@@ -426,8 +469,7 @@ void GCodeLayerRenderer::fit_layer() {
     AABB bb = gcode_->layers[current_layer_].bounding_box;
     if (bb.is_empty()) {
         // Layer holds only travel moves — same ±inf NaN trap as auto_fit().
-        bb.min = {0.0f, 0.0f, 0.0f};
-        bb.max = {200.0f, 200.0f, 0.0f};
+        bb = AABB::default_plate_bbox();
     }
 
     bounds_min_x_ = bb.min.x;
@@ -533,36 +575,35 @@ bool GCodeLayerRenderer::has_support_detection() const {
 
 void GCodeLayerRenderer::destroy_cache() {
     if (cache_buf_) {
-        if (lv_is_initialized()) {
-            // Mechanism B (#929): cache_buf_ is referenced by parallel-render-thread
-            // draw tasks via dsc.src in blit_cache(); freeing it while a task is
-            // in flight UAFs in argb8888_image_blend (cluster:pstat-async-delete,
-            // v0.99.54 production telemetry pinned the source pointer to a freed
-            // mmap'd cache_buf_).
-            //
-            // lv_draw_wait_for_finish() blocks until every draw unit's pending
-            // tasks complete (no-op when LV_USE_OS == 0, so single-threaded
-            // builds are unaffected). After it returns, no in-flight task
-            // references cache_buf_ and lv_draw_buf_destroy is safe.
-            crash_handler::breadcrumb::note("cache_buf", "destroy_pre");
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(cache_buf_);
-            crash_handler::breadcrumb::note("cache_buf", "destroy_post");
-        }
-        cache_buf_ = nullptr;
+        // Mechanism B (#929): cache_buf_ is referenced by parallel-render-thread
+        // draw tasks via dsc.src in blit_cache(); freeing it while a task is in
+        // flight UAFs in argb8888_image_blend (cluster:pstat-async-delete,
+        // v0.99.54 production telemetry pinned the source pointer to a freed
+        // mmap'd cache_buf_). safe_draw_buf_destroy() owns the drain.
+        helix::safe_draw_buf_destroy(cache_buf_, "cache_buf");
+        // Offsets into a buffer that no longer exists.
+        ssao_undo_.clear();
     }
     cached_up_to_layer_ = -1;
     cached_width_ = 0;
     cached_height_ = 0;
 }
 
-void GCodeLayerRenderer::invalidate_cache() {
+void GCodeLayerRenderer::invalidate_solid_cache() {
     // Clear the cache buffer content but keep the buffer allocated
     if (cache_buf_) {
         lv_draw_buf_clear(cache_buf_, nullptr);
     }
+    // The pixels the undo log describes are gone, so there is nothing to put
+    // back. Replaying here would paint the old shading onto a cleared canvas.
+    ssao_undo_.clear();
     cached_up_to_layer_ = -1;
     ssao_cache_valid_ = false;
+    selection_rim_stamped_ = false;
+}
+
+void GCodeLayerRenderer::invalidate_cache() {
+    invalidate_solid_cache();
 
     // Cancel any in-progress background ghost rendering
     cancel_background_ghost_render();
@@ -579,34 +620,45 @@ void GCodeLayerRenderer::invalidate_cache() {
 // SSAO Post-Processing
 // ============================================================================
 
-void GCodeLayerRenderer::ensure_ssao_cache(int width, int height) {
-    if (ssao_buf_ && ssao_cached_width_ == width && ssao_cached_height_ == height)
-        return;
+helix::gcode::RenderMemoryReport GCodeLayerRenderer::memory_report() const {
+    helix::gcode::RenderMemoryReport r;
 
-    destroy_ssao_cache();
-    ssao_buf_ = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
-    if (!ssao_buf_) {
-        spdlog::error("[GCodeLayerRenderer] Failed to create SSAO buffer {}x{}", width, height);
-        return;
-    }
-    lv_draw_buf_clear(ssao_buf_, nullptr);
-    ssao_cached_width_ = width;
-    ssao_cached_height_ = height;
+    // Real stride, not width*4. lv_draw_buf_create() is called with
+    // LV_STRIDE_AUTO, which aligns each row up to LV_DRAW_BUF_STRIDE_ALIGN, so
+    // the naive product understates the allocation.
+    auto draw_buf_bytes = [](const lv_draw_buf_t* b) -> size_t {
+        return b ? static_cast<size_t>(b->header.stride) * b->header.h : 0;
+    };
+
+    r.add("solid_cache", draw_buf_bytes(cache_buf_));
+    r.add("ghost_cache", draw_buf_bytes(ghost_buf_));
+    r.add("ghost_raw",
+          ghost_raw_buffer_ ? ghost_raw_stride_ * static_cast<size_t>(ghost_raw_height_) : 0);
+    // Not a canvas any more. The SSAO pass records only the pixels it darkens,
+    // so this line is the measurement of that trade rather than a buffer.
+    r.add("ssao_undo", ssao_undo_.capacity() * sizeof(SsaoUndoEntry));
+    return r;
 }
 
-void GCodeLayerRenderer::destroy_ssao_cache() {
-    if (ssao_buf_) {
-        if (lv_is_initialized()) {
-            // ssao_buf_ feeds dsc.src in apply_ssao()'s blit (line ~595) — same
-            // parallel-render UAF pattern as cache_buf_ (#929). Wait for in-flight
-            // draw tasks before freeing.
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(ssao_buf_);
-        }
-        ssao_buf_ = nullptr;
+void GCodeLayerRenderer::log_memory_report(const char* when) const {
+    if (!spdlog::should_log(spdlog::level::debug)) {
+        return;
     }
-    ssao_cached_width_ = 0;
-    ssao_cached_height_ = 0;
+    const auto r = memory_report();
+    spdlog::debug("[GCodeLayerRenderer] memory after {}: {}", when, r.format());
+}
+
+void GCodeLayerRenderer::restore_ssao_shading() {
+    if (ssao_undo_.empty()) {
+        return;
+    }
+    if (cache_buf_) {
+        auto* px = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(cache_buf_->data));
+        for (const auto& e : ssao_undo_) {
+            px[e.offset_px] = e.original;
+        }
+    }
+    ssao_undo_.clear();
     ssao_cache_valid_ = false;
 }
 
@@ -617,73 +669,83 @@ void GCodeLayerRenderer::apply_ssao() {
     const int w = cached_width_;
     const int h = cached_height_;
 
-    ensure_ssao_cache(w, h);
-    if (!ssao_buf_)
-        return;
+    // Start from a pristine buffer, always. Defence rather than mechanism: every
+    // path that invalidates the shading today already restores it first
+    // (render_layers_to_cache before it draws, set_ssao_enabled on toggle), and
+    // removing this line leaves the whole suite green. It stays because the
+    // failure it prevents is silent and cumulative - the darkening is a MULTIPLY,
+    // so a second pass over its own output gives 0.3 * 0.3 and the model creeps
+    // darker - and because restore_ssao_shading() costs one branch when there is
+    // nothing to undo. A new invalidation path that forgets to restore is caught
+    // here instead of shipping.
+    restore_ssao_shading();
 
-    auto* src_data = static_cast<uint8_t*>(cache_buf_->data);
-    auto* dst_data = static_cast<uint8_t*>(ssao_buf_->data);
-    uint32_t stride = cache_buf_->header.stride;
-    uint32_t stride_px = stride / 4;
-
-    auto* src = reinterpret_cast<const uint32_t*>(src_data);
-    auto* dst = reinterpret_cast<uint32_t*>(dst_data);
-
-    // Copy source to destination first
-    std::memcpy(dst_data, src_data, static_cast<size_t>(h) * stride);
+    auto* data = static_cast<uint8_t*>(cache_buf_->data);
+    const uint32_t stride = cache_buf_->header.stride;
+    const uint32_t stride_px = stride / 4;
+    auto* px = reinterpret_cast<uint32_t*>(data);
 
     uint32_t start_ms = lv_tick_get();
 
     // =========================================================================
-    // Silhouette outline: 1px dark border on alpha boundary
-    // For each empty pixel adjacent to a filled pixel, draw a dark outline.
-    // Makes the model pop from the background.
+    // Silhouette outline: 1px dark border on alpha boundary.
+    //
+    // Runs IN PLACE on the render cache. That is safe for one specific reason:
+    // the pass reads only the ALPHA of its neighbours and writes only RGB, so a
+    // pixel it has already rewritten still answers every later neighbour test
+    // identically. It used to memcpy the whole canvas into a second buffer to
+    // get that guarantee, which the channel split already provides for free.
     // =========================================================================
     constexpr float OUTLINE_DARKEN = 0.3f; // Outline brightness (0=black, 1=original)
 
+    size_t filled_px = 0; // pixels with any coverage at all
+
+    // One allocation per pass at most: the edge population is stable frame to
+    // frame, so after the first scan the vector is already big enough.
+    ssao_undo_.clear();
+
     for (int y = 1; y < h - 1; y++) {
         for (int x = 1; x < w - 1; x++) {
-            uint32_t pixel = src[y * stride_px + x];
-            uint8_t alpha = (pixel >> 24) & 0xFF;
+            const uint32_t offset = static_cast<uint32_t>(y) * stride_px + static_cast<uint32_t>(x);
+            const uint32_t pixel = px[offset];
+            const uint8_t alpha = (pixel >> 24) & 0xFF;
+
+            if (alpha == helix::gcode::kSelectedAlpha) {
+                // Selected object. Its edge is the white rim stroke_selection_rim()
+                // already wrote; darkening it here would turn the rim grey, and
+                // darkening the rest of its boundary would put a dark line just
+                // inside the white one.
+                continue;
+            }
 
             if (alpha > 0) {
+                ++filled_px;
                 // Filled pixel: check if it's on the silhouette edge
                 // (has at least one empty neighbor in 4-connected)
-                bool on_edge = ((src[(y - 1) * stride_px + x] >> 24) == 0) ||
-                               ((src[(y + 1) * stride_px + x] >> 24) == 0) ||
-                               ((src[y * stride_px + (x - 1)] >> 24) == 0) ||
-                               ((src[y * stride_px + (x + 1)] >> 24) == 0);
+                const bool on_edge = ((px[offset - stride_px] >> 24) == 0) ||
+                                     ((px[offset + stride_px] >> 24) == 0) ||
+                                     ((px[offset - 1] >> 24) == 0) || ((px[offset + 1] >> 24) == 0);
 
                 if (on_edge) {
-                    uint8_t r = static_cast<uint8_t>(((pixel >> 16) & 0xFF) * OUTLINE_DARKEN);
-                    uint8_t g = static_cast<uint8_t>(((pixel >> 8) & 0xFF) * OUTLINE_DARKEN);
-                    uint8_t b = static_cast<uint8_t>((pixel & 0xFF) * OUTLINE_DARKEN);
-                    dst[y * stride_px + x] =
-                        (static_cast<uint32_t>(alpha) << 24) | (r << 16) | (g << 8) | b;
+                    ssao_undo_.push_back(SsaoUndoEntry{offset, pixel});
+                    const uint8_t r = static_cast<uint8_t>(((pixel >> 16) & 0xFF) * OUTLINE_DARKEN);
+                    const uint8_t g = static_cast<uint8_t>(((pixel >> 8) & 0xFF) * OUTLINE_DARKEN);
+                    const uint8_t b = static_cast<uint8_t>((pixel & 0xFF) * OUTLINE_DARKEN);
+                    px[offset] = (static_cast<uint32_t>(alpha) << 24) |
+                                 (static_cast<uint32_t>(r) << 16) |
+                                 (static_cast<uint32_t>(g) << 8) | b;
                 }
             }
         }
     }
 
     uint32_t elapsed = lv_tick_elaps(start_ms);
-    spdlog::debug("[GCodeLayerRenderer] SSAO (outline) applied in {}ms ({}x{})", elapsed, w, h);
+    spdlog::debug("[GCodeLayerRenderer] SSAO (outline) applied in {}ms ({}x{}), "
+                  "edge_px={} filled_px={}, undo_log={}KB",
+                  elapsed, w, h, ssao_undo_.size(), filled_px,
+                  (ssao_undo_.size() * sizeof(SsaoUndoEntry) + 1023) / 1024);
 
     ssao_cache_valid_ = true;
-}
-
-void GCodeLayerRenderer::blit_ssao_cache(lv_layer_t* target) {
-    if (!ssao_buf_)
-        return;
-
-    lv_draw_image_dsc_t dsc;
-    lv_draw_image_dsc_init(&dsc);
-    dsc.src = ssao_buf_;
-
-    lv_area_t coords = {widget_offset_x_, widget_offset_y_,
-                        widget_offset_x_ + ssao_cached_width_ - 1,
-                        widget_offset_y_ + ssao_cached_height_ - 1};
-
-    lv_draw_image(target, &dsc, &coords);
 }
 
 void GCodeLayerRenderer::ensure_cache(int width, int height) {
@@ -695,7 +757,7 @@ void GCodeLayerRenderer::ensure_cache(int width, int height) {
     if (!cache_buf_) {
         // Create the draw buffer (no canvas widget - avoids clip area contamination
         // from overlays/toasts on lv_layer_top())
-        // Must stay ARGB8888 — blend_pixel() writes 4-byte BGRA pixels directly
+        // Must stay ARGB8888 — helix::gcode::blend() writes 4-byte BGRA pixels directly
         cache_buf_ = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
         if (!cache_buf_) {
             spdlog::error("[GCodeLayerRenderer] Failed to create cache buffer {}x{}", width,
@@ -712,12 +774,23 @@ void GCodeLayerRenderer::ensure_cache(int width, int height) {
 
         spdlog::debug("[GCodeLayerRenderer] Created cache buffer: {}x{}", width, height);
         helix::MemoryMonitor::log_now("gcode_cache_buffer_created");
+        log_memory_report("solid cache created");
     }
 }
 
 int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
     if (!cache_buf_)
         return from_layer - 1;
+
+    if (from_layer == 0) {
+        cache_build_start_ms_ = lv_tick_get();
+        cache_build_reported_ = false;
+    }
+
+    // Undo the shading BEFORE new geometry lands on top of it. Segments drawn
+    // over a darkened pixel would bake that darkening in permanently, and the
+    // log would then restore a colour the new geometry had already replaced.
+    restore_ssao_shading();
 
     // Need either gcode file or streaming controller
     if (!gcode_ && !streaming_controller_)
@@ -767,6 +840,13 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
         } else if (gcode_) {
             // Full file mode: get segments from parsed file
             segments = &gcode_->layers[layer_idx].segments;
+        }
+
+        if (segments && streaming_controller_) {
+            // The load above may have interned new object names, and this cache is
+            // written once per layer — a segment classified before the map catches up
+            // would keep the wrong color for the life of the cache.
+            refresh_selection_index_map();
         }
 
         if (!segments) {
@@ -840,44 +920,38 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                     }
                 }
 
-                r = static_cast<uint8_t>(r * brightness);
-                g = static_cast<uint8_t>(g * brightness);
-                b = static_cast<uint8_t>(b * brightness);
+                r = apply_shading(r, brightness);
+                g = apply_shading(g, brightness);
+                b = apply_shading(b, brightness);
             }
 
-            // Override color for excluded/highlighted objects
-            if (seg.object_name_index >= 0) {
-                const std::string& obj_name = resolve_object_name(seg.object_name_index);
-                if (!obj_name.empty()) {
-                    if (excluded_objects_.count(obj_name) > 0) {
-                        // Excluded: orange-red with reduced alpha
-                        r = EXCLUDED_R;
-                        g = EXCLUDED_G;
-                        b = EXCLUDED_B;
-                        uint32_t color = (static_cast<uint32_t>(EXCLUDED_ALPHA) << 24) | (r << 16) |
-                                         (g << 8) | b;
-                        draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
-                        ++segments_rendered;
-                        continue;
-                    }
-                    if (highlighted_objects_.count(obj_name) > 0) {
-                        // Highlighted: selection blue, full alpha
-                        r = HIGHLIGHTED_R;
-                        g = HIGHLIGHTED_G;
-                        b = HIGHLIGHTED_B;
-                    }
-                }
+            // Selection and exclusion, classified on the interned index — no
+            // per-segment string allocation on this hot path. A selected object
+            // draws in its own color at its own width, exactly like an
+            // unselected one, and carries kSelectedAlpha in the alpha byte. The
+            // rim scan after the cache completes turns that tag into the white
+            // silhouette; nothing here paints white.
+            const SelectionFlags sel = selection_.classify(seg.object_name_index);
+            const auto style =
+                selection::resolve(sel_palette_, sel.excluded, sel.highlighted, seg.is_extrusion);
+            if (style.override_color) {
+                r = sel_palette_.excluded_r();
+                g = sel_palette_.excluded_g();
+                b = sel_palette_.excluded_b();
             }
 
-            // Build ARGB8888 color (full alpha for solid layers)
-            uint32_t color = (255u << 24) | (r << 16) | (g << 8) | b;
+            const uint32_t color =
+                (static_cast<uint32_t>(style.opa) << 24) | (r << 16) | (g << 8) | b;
 
-            // Draw using software line drawing - bypasses LVGL draw API for AD5M compatibility
-            if (ssao_enabled_.load(std::memory_order_relaxed)) {
-                draw_thick_line_aa_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
-            } else {
-                draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
-            }
+            // A tagged segment must not be antialiased: blend_coverage writes
+            // coverage into alpha, which would strip the tag from precisely the
+            // edge pixels the rim is derived from. Excluded objects were already
+            // aliased for their own reason (partial alpha over partial alpha
+            // compounds into mud), so this only changes selected objects.
+            const bool aa = antialias_enabled_.load(std::memory_order_relaxed) && !style.tagged &&
+                            !style.override_color;
+            helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
+                                     aa ? helix::gcode::Aa::On : helix::gcode::Aa::Off);
             ++segments_rendered;
         }
 
@@ -889,10 +963,8 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                   from_layer, to_layer, segments_rendered, cached_width_, cached_height_,
                   cache_buf_ ? cache_buf_->header.stride : 0);
 
-    // Cache content changed; the SSAO post-processed copy is now stale.
-    // Without this, blit_ssao_cache() keeps drawing the first SSAO snapshot
-    // (frozen at the layer where SSAO was first applied) and progressive
-    // layers never become visible during an active print.
+    // Cache content changed, so the shading is stale. apply_ssao() restores
+    // before it re-scans, so simply marking it invalid is enough here.
     ssao_cache_valid_ = false;
 
     return last_rendered;
@@ -917,16 +989,9 @@ void GCodeLayerRenderer::blit_cache(lv_layer_t* target) {
 // ============================================================================
 
 void GCodeLayerRenderer::destroy_ghost_cache() {
-    if (ghost_buf_) {
-        if (lv_is_initialized()) {
-            // ghost_buf_ feeds dsc.src in render_ghost_layers's blit (line ~894) —
-            // same parallel-render UAF pattern as cache_buf_ (#929). Wait for
-            // in-flight draw tasks before freeing.
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(ghost_buf_);
-        }
-        ghost_buf_ = nullptr;
-    }
+    // ghost_buf_ feeds dsc.src in render_ghost_layers's blit — same
+    // parallel-render UAF pattern as cache_buf_ (#929).
+    helix::safe_draw_buf_destroy(ghost_buf_, "ghost_buf");
     ghost_cached_width_ = 0;
     ghost_cached_height_ = 0;
     ghost_cache_valid_ = false;
@@ -953,6 +1018,7 @@ void GCodeLayerRenderer::ensure_ghost_cache(int width, int height) {
         ghost_cache_valid_ = false;
         spdlog::debug("[GCodeLayerRenderer] Created ghost cache buffer: {}x{}", width, height);
         helix::MemoryMonitor::log_now("gcode_ghost_buffer_created");
+        log_memory_report("ghost cache created");
     }
 }
 
@@ -1041,6 +1107,11 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
 
     uint32_t start_time = lv_tick_get();
 
+    // Selection classification runs off an index map snapshotted from the data
+    // source's name table; refresh it before anything classifies, and before the
+    // background ghost worker is handed its copy below.
+    refresh_selection_index_map();
+
     // Store widget screen offset for world_to_screen()
     if (widget_area) {
         widget_offset_x_ = widget_area->x1;
@@ -1105,6 +1176,15 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
         if (cache_buf_) {
             // Check if we need to render new layers
             if (target_layer > cached_up_to_layer_) {
+                // The rim is stamped into the cache as pixels, so appending onto a
+                // cache that already carries one leaves white behind wherever the
+                // old boundary was — the print grows upward and the stale rim
+                // becomes interior. Start over instead. Only reachable while an
+                // object is selected, which is a transient interaction.
+                if (selection_rim_stamped_) {
+                    invalidate_solid_cache();
+                }
+
                 // Progressive rendering: only render up to layers_per_frame_ at a time
                 // This prevents UI freezing during initial load or big jumps
                 int from_layer = cached_up_to_layer_ + 1;
@@ -1123,9 +1203,12 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                         cached_up_to_layer_, target_layer);
                 }
             } else if (target_layer < cached_up_to_layer_) {
-                // Going backwards - need to re-render from scratch (progressively)
-                lv_draw_buf_clear(cache_buf_, nullptr);
-                cached_up_to_layer_ = -1;
+                // Going backwards - need to re-render from scratch (progressively).
+                // Same reset as the forward branch above, and it has to be the
+                // same one: the rim and the SSAO shading are baked into these
+                // pixels, so clearing them without dropping both flags leaves the
+                // next pass treating a blank buffer as already decorated.
+                invalidate_solid_cache();
 
                 int to_layer = std::min(layers_per_frame_ - 1, target_layer);
                 cached_up_to_layer_ = render_layers_to_cache(0, to_layer);
@@ -1134,23 +1217,48 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             // else: same layer, just blit cached image
 
             // =====================================================================
+            // SELECTION RIM: derive the white silhouette from the alpha tag.
+            //
+            // Only on a complete cache — a rim over a half-built stack would
+            // trace the top of whatever has been drawn so far. Runs once per
+            // build, and only while something is selected.
+            // =====================================================================
+            if (!cache_build_reported_ && cached_up_to_layer_ >= target_layer &&
+                cache_build_start_ms_ != 0) {
+                cache_build_reported_ = true;
+                spdlog::debug("[GCodeLayerRenderer] Cache build complete: {} layers in {}ms "
+                              "({} segments, aa={}, layers_per_frame={})",
+                              cached_up_to_layer_ + 1, lv_tick_elaps(cache_build_start_ms_),
+                              last_segment_count_,
+                              antialias_enabled_.load(std::memory_order_relaxed) ? "on" : "off",
+                              layers_per_frame_);
+            }
+
+            if (selection_.any_highlighted() && !selection_rim_stamped_ &&
+                cached_up_to_layer_ >= target_layer) {
+                const int rim = selection::outline_width_px(cached_width_);
+                helix::gcode::stroke_selection_rim(cache_target(), rim, rim, sel_palette_.outline,
+                                                   helix::gcode::ChannelOrder::Bgra);
+                selection_rim_stamped_ = true;
+                ssao_cache_valid_ = false;
+            }
+
+            // =====================================================================
             // BLIT: Ghost first (underneath), then solid on top
             // =====================================================================
             if (ghost_enabled && ghost_buf_) {
                 blit_ghost_cache(layer);
             }
 
-            // Apply SSAO post-processing when enabled and cache is fully built
-            bool ssao_on = ssao_enabled_.load(std::memory_order_relaxed);
-            bool cache_complete = (cached_up_to_layer_ >= target_layer);
-            if (ssao_on && cache_complete) {
-                if (!ssao_cache_valid_) {
-                    apply_ssao();
-                }
-                blit_ssao_cache(layer);
-            } else {
-                blit_cache(layer);
+            // Apply SSAO post-processing when enabled and cache is fully built.
+            // There is one buffer now, so both branches blit the same thing; the
+            // difference is only whether the shading has been applied to it.
+            const bool ssao_on = ssao_enabled_.load(std::memory_order_relaxed);
+            const bool cache_complete = (cached_up_to_layer_ >= target_layer);
+            if (ssao_on && cache_complete && !ssao_cache_valid_) {
+                apply_ssao();
             }
+            blit_cache(layer);
             segments_rendered = last_segment_count_;
         }
     } else {
@@ -1176,6 +1284,48 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
         }
 
         if (segments) {
+            // Streaming may have interned new names while loading this layer.
+            if (streaming_controller_) {
+                refresh_selection_index_map();
+            }
+
+            // Halo pre-pass, same mechanism as render_layers_to_cache(): white
+            // and wider first, normal strokes over the top, only the rim left.
+            // See that comment for why it cannot be folded into the loop below.
+            // Without it these view modes would show no selection at all, since
+            // the blue recolour render_segment() used to apply is gone.
+            if (selection_.any_highlighted()) {
+                lv_draw_line_dsc_t halo_dsc;
+                lv_draw_line_dsc_init(&halo_dsc);
+                halo_dsc.color = lv_color_hex(sel_palette_.outline);
+                halo_dsc.opa = LV_OPA_COVER;
+                halo_dsc.width = static_cast<int32_t>(
+                    selection::halo_width(DRAW_LINE_EXTRUSION_WIDTH, is_small_panel()));
+                for (const auto& seg : *segments) {
+                    if (!should_render_segment(seg))
+                        continue;
+
+                    const SelectionFlags sel = selection_.classify(seg.object_name_index);
+                    const auto style = selection::resolve(sel_palette_, sel.excluded,
+                                                          sel.highlighted, seg.is_extrusion);
+                    if (!style.fallback_halo)
+                        continue;
+                    if (!selection::halo_feature(seg.feature_type))
+                        continue;
+
+                    glm::ivec2 h1 = world_to_screen(seg.start.x, seg.start.y, seg.start.z);
+                    glm::ivec2 h2 = world_to_screen(seg.end.x, seg.end.y, seg.end.z);
+                    if (h1.x == h2.x && h1.y == h2.y)
+                        continue;
+
+                    halo_dsc.p1.x = static_cast<lv_value_precise_t>(h1.x);
+                    halo_dsc.p1.y = static_cast<lv_value_precise_t>(h1.y);
+                    halo_dsc.p2.x = static_cast<lv_value_precise_t>(h2.x);
+                    halo_dsc.p2.y = static_cast<lv_value_precise_t>(h2.y);
+                    lv_draw_line(layer, &halo_dsc);
+                }
+            }
+
             for (const auto& seg : *segments) {
                 if (!should_render_segment(seg))
                     continue;
@@ -1291,19 +1441,18 @@ void GCodeLayerRenderer::render_segment(lv_layer_t* layer, const ToolpathSegment
         dsc.color = base_color;
     }
 
-    // Check excluded/highlighted state for width/opacity
-    const std::string& seg_obj_name = resolve_object_name(seg.object_name_index);
-    bool is_excluded = !seg_obj_name.empty() && excluded_objects_.count(seg_obj_name) > 0;
-    bool is_highlighted = !seg_obj_name.empty() && highlighted_objects_.count(seg_obj_name) > 0;
+    // Check excluded state for width/opacity. A highlighted object draws exactly
+    // like an unselected one: this is the draw-API fallback, where the halo
+    // pre-pass in render() carries selection, so the core stroke must NOT widen -
+    // a wider core would eat its own halo.
+    const SelectionFlags sel = selection_.classify(seg.object_name_index);
+    const bool is_excluded = sel.excluded;
 
     if (is_excluded) {
         dsc.width = 1;
         dsc.opa = LV_OPA_60;
-    } else if (is_highlighted) {
-        dsc.width = 3;
-        dsc.opa = LV_OPA_COVER;
     } else if (seg.is_extrusion) {
-        dsc.width = 2;
+        dsc.width = DRAW_LINE_EXTRUSION_WIDTH;
         dsc.opa = LV_OPA_COVER;
     } else {
         dsc.width = 1;
@@ -1477,10 +1626,10 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 
             // Inflated by the same slop the segment test uses, so a tap on the
             // edge of a thin object still lands.
-            if (click_pos.x < min_sx - PICK_THRESHOLD_PX ||
-                click_pos.x > max_sx + PICK_THRESHOLD_PX ||
-                click_pos.y < min_sy - PICK_THRESHOLD_PX ||
-                click_pos.y > max_sy + PICK_THRESHOLD_PX)
+            if (click_pos.x < min_sx - selection::kPickThresholdPx ||
+                click_pos.x > max_sx + selection::kPickThresholdPx ||
+                click_pos.y < min_sy - selection::kPickThresholdPx ||
+                click_pos.y > max_sy + selection::kPickThresholdPx)
                 continue;
 
             if (candidate_count < MAX_CANDIDATES) {
@@ -1579,21 +1728,11 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
             glm::ivec2 p1 = world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
             glm::ivec2 p2 = world_to_screen_raw(transform, seg.end.x, seg.end.y, seg.end.z);
 
-            // Calculate distance from click to line segment
-            glm::vec2 v(static_cast<float>(p2.x - p1.x), static_cast<float>(p2.y - p1.y));
-            glm::vec2 w(click_pos.x - static_cast<float>(p1.x),
-                        click_pos.y - static_cast<float>(p1.y));
+            const float dist = point_segment_distance(
+                click_pos, glm::vec2(static_cast<float>(p1.x), static_cast<float>(p1.y)),
+                glm::vec2(static_cast<float>(p2.x), static_cast<float>(p2.y)));
 
-            float segment_length_sq = glm::dot(v, v);
-            float t = (segment_length_sq > 0.0001f)
-                          ? std::clamp(glm::dot(w, v) / segment_length_sq, 0.0f, 1.0f)
-                          : 0.0f;
-
-            glm::vec2 closest_point(static_cast<float>(p1.x) + t * v.x,
-                                    static_cast<float>(p1.y) + t * v.y);
-            float dist = glm::length(click_pos - closest_point);
-
-            if (dist < PICK_THRESHOLD_PX && dist < closest_distance) {
+            if (dist < selection::kPickThresholdPx && dist < closest_distance) {
                 closest_distance = dist;
                 picked_index = seg.object_name_index;
             }
@@ -1612,17 +1751,11 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 }
 
 lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) const {
-    // Check excluded/highlighted state first
-    if (seg.object_name_index >= 0) {
-        const std::string& obj_name = resolve_object_name(seg.object_name_index);
-        if (!obj_name.empty()) {
-            if (excluded_objects_.count(obj_name) > 0) {
-                return lv_color_hex(EXCLUDED_OBJECT_COLOR);
-            }
-            if (highlighted_objects_.count(obj_name) > 0) {
-                return lv_color_hex(HIGHLIGHTED_OBJECT_COLOR);
-            }
-        }
+    // Check excluded state first. Highlight is deliberately absent: a selected
+    // object keeps its filament color and is marked by the white rim instead.
+    const SelectionFlags sel = selection_.classify(seg.object_name_index);
+    if (sel.excluded) {
+        return lv_color_hex(sel_palette_.excluded);
     }
 
     // Existing logic below
@@ -1641,11 +1774,11 @@ lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) con
 
 void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
     // Only render if we have highlighted objects and full gcode data
-    if (highlighted_objects_.empty() || !gcode_) {
+    if (!selection_.any_highlighted() || !gcode_) {
         return;
     }
 
-    for (const auto& object_name : highlighted_objects_) {
+    for (const auto& object_name : selection_.highlighted()) {
         auto it = gcode_->objects.find(object_name);
         if (it == gcode_->objects.end()) {
             continue;
@@ -1653,23 +1786,17 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
 
         const AABB& bbox = it->second.bounding_box;
 
-        // Calculate corner bracket length (20% of shortest edge, capped at 5mm)
-        // Same formula as 3D renderer
-        float dx = bbox.max.x - bbox.min.x;
-        float dy = bbox.max.y - bbox.min.y;
-        float dz = bbox.max.z - bbox.min.z;
-        float min_edge = std::min({dx, dy, dz});
-        float bracket_len = std::min(min_edge * 0.2f, 5.0f);
-
-        // If bounding box is degenerate, skip
-        if (bracket_len < 0.01f) {
+        // Corner bracket length, shared with the 3D renderers. Zero means the box
+        // is empty or too small to bracket legibly.
+        const float bracket_len = selection::bracket_arm_length(bbox);
+        if (bracket_len == 0.0f) {
             continue;
         }
 
         // Set up line drawing style
         lv_draw_line_dsc_t dsc;
         lv_draw_line_dsc_init(&dsc);
-        dsc.color = lv_color_hex(BRACKET_COLOR);
+        dsc.color = lv_color_hex(sel_palette_.bracket);
         dsc.width = 2;
         dsc.opa = LV_OPA_COVER;
 
@@ -1692,6 +1819,37 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
 // ghost cache generation, we render to a raw pixel buffer in a background
 // thread using software Bresenham line drawing, then copy to the LVGL
 // draw buffer on the main thread when complete.
+
+GCodeLayerRenderer::GhostSnapshot GCodeLayerRenderer::capture_ghost_snapshot() const {
+    // Main thread only. Every read below is of a member the main thread owns and
+    // may change at any moment; doing them here means the worker gets one
+    // internally consistent set rather than whatever happened to be current when
+    // it got scheduled.
+    GhostSnapshot snap;
+    snap.transform = capture_transform_params();
+    // The ghost buffer can differ from the display canvas, so the transform is
+    // retargeted to it. ghost_raw_* are set just above the call site, and are
+    // only ever changed after the worker has been joined.
+    snap.transform.canvas_width = ghost_raw_width_;
+    snap.transform.canvas_height = ghost_raw_height_;
+
+    snap.selection = selection_;
+    snap.tool_palette = tool_palette_;
+    snap.palette = sel_palette_;
+    snap.color_extrusion = color_extrusion_;
+    snap.use_custom_extrusion = use_custom_extrusion_color_;
+
+    snap.show_travels = show_travels_.load(std::memory_order_relaxed);
+    snap.show_extrusions = show_extrusions_.load(std::memory_order_relaxed);
+    snap.show_supports = show_supports_.load(std::memory_order_relaxed);
+
+    snap.line_width = get_extrusion_pixel_width();
+    snap.layer_count = get_layer_count();
+
+    snap.gcode = gcode_;
+    snap.streaming = streaming_controller_;
+    return snap;
+}
 
 void GCodeLayerRenderer::start_background_ghost_render() {
     // Cancel any existing render first
@@ -1725,7 +1883,11 @@ void GCodeLayerRenderer::start_background_ghost_render() {
 
     // Launch background thread - only set running flag after successful creation
     try {
-        ghost_thread_ = std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this);
+        // Snapshot on THIS thread, then hand it over. std::thread copies the
+        // argument on the spawning side, so everything the worker reads was
+        // sampled while the main thread still owned it.
+        ghost_thread_ = std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this,
+                                    capture_ghost_snapshot());
         ghost_thread_running_.store(true);
     } catch (const std::system_error& e) {
         spdlog::error("[GCodeLayerRenderer] Failed to start ghost render thread: {}", e.what());
@@ -1767,9 +1929,9 @@ bool GCodeLayerRenderer::is_ghost_build_running() const {
     return ghost_thread_running_.load();
 }
 
-void GCodeLayerRenderer::background_ghost_render_thread() {
-    // Works with both full-file mode (gcode_) and streaming mode (streaming_controller_)
-    if (!ghost_raw_buffer_ || (!gcode_ && !streaming_controller_)) {
+void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
+    // Works with both full-file mode (snap.gcode) and streaming mode (snap.streaming).
+    if (!ghost_raw_buffer_ || (!snap.gcode && !snap.streaming)) {
         ghost_thread_running_.store(false);
         return;
     }
@@ -1777,46 +1939,45 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
     // Use std::chrono for timing - lv_tick_get() is not thread-safe
     auto start_time = std::chrono::steady_clock::now();
     size_t segments_rendered = 0;
-    int total_layers = get_layer_count();
+    const int total_layers = snap.layer_count;
 
     // =========================================================================
-    // THREAD SAFETY: Capture ALL shared state at thread start
-    // These values may be modified by the main thread during rendering, so we
-    // take a snapshot to ensure consistent rendering throughout.
+    // THREAD SAFETY
+    //
+    // Everything non-atomic this function needs was captured by
+    // capture_ghost_snapshot() on the MAIN thread before the thread was spawned.
+    // Read it from `snap`, never from a member.
+    //
+    // The members that remain legal to touch below are exactly three, and all of
+    // them are safe by construction:
+    //   - ghost_thread_cancel_ / ghost_thread_ready_ / ghost_thread_running_,
+    //     which are atomics
+    //   - ghost_raw_buffer_ and its dimensions, which are only reallocated by
+    //     start_background_ghost_render() after it has joined this thread
+    // Anything else is a data race, and this file used to have several: the
+    // capture block that lived here read color_extrusion_, tool_palette_, and
+    // the whole transform straight off the object, on this thread, while the
+    // main thread was free to be writing them.
     // =========================================================================
+    const TransformParams& transform = snap.transform;
+    const bool local_show_travels = snap.show_travels;
+    const bool local_show_extrusions = snap.show_extrusions;
+    const bool local_show_supports = snap.show_supports;
+    const lv_color_t local_color_extrusion = snap.color_extrusion;
+    const GCodeColorPalette& local_tool_palette = snap.tool_palette;
+    const int local_line_width = snap.line_width;
+    const selection::Palette local_palette = snap.palette;
 
-    // Use TransformParams for unified coordinate conversion - includes content offset!
-    // This is the SINGLE SOURCE OF TRUTH for coordinate transforms.
-    TransformParams transform = capture_transform_params();
-    // Override canvas size with ghost buffer dimensions (may differ from display)
-    transform.canvas_width = ghost_raw_width_;
-    transform.canvas_height = ghost_raw_height_;
+    // Not const: in streaming mode the loop below grows the merged name table as
+    // it loads layers, and the index map has to follow or a newly interned
+    // excluded object would stop being dimmed.
+    SelectionState& local_selection = snap.selection;
+    size_t local_name_table_size = 0;
 
-    // Visibility flags (can be changed via set_show_*() on main thread)
-    const bool local_show_travels = show_travels_.load(std::memory_order_relaxed);
-    const bool local_show_extrusions = show_extrusions_.load(std::memory_order_relaxed);
-    const bool local_show_supports = show_supports_.load(std::memory_order_relaxed);
+    auto* local_streaming = snap.streaming;
+    auto* local_gcode = snap.gcode;
 
-    // Color (can be changed via set_extrusion_color() on main thread)
-    const lv_color_t local_color_extrusion = color_extrusion_;
-
-    // Tool palette (for multi-color ghost rendering)
-    const GCodeColorPalette local_tool_palette = tool_palette_;
-    const bool local_use_custom_extrusion = use_custom_extrusion_color_;
-
-    // Capture extrusion pixel width (uses scale_ which may change on main thread)
-    const int local_line_width = get_extrusion_pixel_width();
-
-    // Capture excluded objects for ghost rendering (thread-safe copy)
-    const auto local_excluded = excluded_objects_;
-
-    // Capture data source pointers — these may be nulled on the main thread after
-    // cancel_background_ghost_render() joins us, but we must not read the member
-    // fields during iteration (the objects they point to could be destroyed).
-    auto* local_streaming = streaming_controller_;
-    auto* local_gcode = gcode_;
-
-    // Local object name resolver using captured pointers (not member fields)
+    // Local object name resolver using the snapshot (not member fields)
     auto local_resolve_name = [local_gcode, local_streaming](int16_t index) -> std::string {
         if (index < 0)
             return {};
@@ -1910,8 +2071,19 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
         if (!segments)
             continue;
 
+        // Loading the layer above may have interned new object names. Poll the size
+        // (cheap) and re-snapshot only when it grew.
+        if (local_streaming) {
+            if (local_streaming->object_name_table_size() != local_name_table_size) {
+                const std::vector<std::string> table =
+                    local_streaming->object_name_table_snapshot();
+                local_name_table_size = table.size();
+                local_selection.rebuild_index_map(table);
+            }
+        }
+
         for (const auto& seg : *segments) {
-            // Resolve object name once per segment (used for support detection + exclusion)
+            // Resolve object name once per segment (used for support detection)
             const std::string obj_name = local_resolve_name(seg.object_name_index);
 
             if (!local_should_render(seg, obj_name))
@@ -1940,16 +2112,28 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
                 uint8_t tb = wash_to_white(tc.blue, GHOST_WASH_PERCENT) * bright_pct / 100;
                 seg_color = (255u << 24) | (tr << 16) | (tg << 8) | tb;
             }
-            if (!obj_name.empty() && local_excluded.count(obj_name) > 0) {
+            const SelectionFlags ghost_sel = local_selection.classify(seg.object_name_index);
+            if (ghost_sel.excluded) {
                 // Excluded: dim orange-red
-                uint8_t ex_r = EXCLUDED_R * GHOST_INFILL_BRIGHT_PERCENT / 100;
-                uint8_t ex_g = EXCLUDED_G * GHOST_INFILL_BRIGHT_PERCENT / 100;
-                uint8_t ex_b = EXCLUDED_B * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_r = local_palette.excluded_r() * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_g = local_palette.excluded_g() * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_b = local_palette.excluded_b() * GHOST_INFILL_BRIGHT_PERCENT / 100;
                 seg_color = (255u << 24) | (ex_r << 16) | (ex_g << 8) | ex_b;
             }
 
+            // Same tag the solid cache applies, for the same reason: the rim is
+            // derived from it once the buffer is complete. The ghost is what is
+            // visible for most of a print, so a cue that skipped it would be a
+            // cue you cannot see.
+            const auto ghost_style =
+                selection::resolve(local_palette, false, ghost_sel.highlighted, seg.is_extrusion);
+            if (ghost_style.tagged) {
+                seg_color = (static_cast<uint32_t>(ghost_style.opa) << 24) | (seg_color & 0xFFFFFF);
+            }
+
             // Draw line using Bresenham algorithm (width-aware)
-            draw_thick_line_bresenham(p1.x, p1.y, p2.x, p2.y, seg_color, local_line_width);
+            helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, seg_color,
+                                     local_line_width, helix::gcode::Aa::Off);
             ++segments_rendered;
         }
 
@@ -1960,6 +2144,16 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
         if (local_streaming) {
             std::this_thread::sleep_for(std::chrono::milliseconds(GHOST_STREAM_YIELD_MS));
         }
+    }
+
+    // The ghost buffer is rendered whole on every pass, so the rim can be stamped
+    // straight into it with no staleness to manage — unlike the solid cache,
+    // which grows a layer at a time.
+    if (local_selection.any_highlighted()) {
+        helix::gcode::stroke_selection_rim(ghost_target(),
+                                           selection::outline_width_px(ghost_raw_width_),
+                                           selection::outline_width_px(ghost_raw_width_),
+                                           local_palette.outline, helix::gcode::ChannelOrder::Bgra);
     }
 
     // Mark as ready for main thread to copy
@@ -2032,155 +2226,16 @@ void GCodeLayerRenderer::copy_raw_to_ghost_buf() {
                   copied_height);
 }
 
-void GCodeLayerRenderer::blend_pixel(int x, int y, uint32_t color) {
-    // Bounds check
-    if (x < 0 || x >= ghost_raw_width_ || y < 0 || y >= ghost_raw_height_) {
-        return;
+helix::gcode::RasterTarget GCodeLayerRenderer::cache_target() const {
+    if (!cache_buf_) {
+        return {};
     }
-
-    // Calculate pixel offset (ARGB8888 = 4 bytes per pixel)
-    uint8_t* pixel = ghost_raw_buffer_.get() + y * ghost_raw_stride_ + x * 4;
-
-    // Simple overwrite for now (could add alpha blending later)
-    // LVGL uses ARGB8888: byte order is B, G, R, A on little-endian
-    pixel[0] = color & 0xFF;         // B
-    pixel[1] = (color >> 8) & 0xFF;  // G
-    pixel[2] = (color >> 16) & 0xFF; // R
-    pixel[3] = (color >> 24) & 0xFF; // A
+    return {static_cast<uint8_t*>(cache_buf_->data), static_cast<size_t>(cache_buf_->header.stride),
+            cached_width_, cached_height_};
 }
 
-void GCodeLayerRenderer::blend_pixel_solid(int x, int y, uint32_t color) {
-    // Bounds check using cached dimensions
-    if (x < 0 || x >= cached_width_ || y < 0 || y >= cached_height_ || !cache_buf_) {
-        return;
-    }
-
-    // Get stride from LVGL buffer (may differ from width * 4 due to alignment)
-    uint32_t stride = cache_buf_->header.stride;
-
-    // Calculate pixel offset (ARGB8888 = 4 bytes per pixel)
-    uint8_t* pixel = static_cast<uint8_t*>(cache_buf_->data) + y * stride + x * 4;
-
-    // LVGL uses ARGB8888: byte order is B, G, R, A on little-endian
-    pixel[0] = color & 0xFF;         // B
-    pixel[1] = (color >> 8) & 0xFF;  // G
-    pixel[2] = (color >> 16) & 0xFF; // R
-    pixel[3] = (color >> 24) & 0xFF; // A
-}
-
-void GCodeLayerRenderer::blend_pixel_solid_alpha(int x, int y, uint32_t color, uint8_t coverage) {
-    if (x < 0 || x >= cached_width_ || y < 0 || y >= cached_height_ || !cache_buf_)
-        return;
-    if (coverage == 0)
-        return;
-
-    uint32_t stride = cache_buf_->header.stride;
-    uint8_t* pixel = static_cast<uint8_t*>(cache_buf_->data) + y * stride + x * 4;
-
-    uint8_t src_b = color & 0xFF;
-    uint8_t src_g = (color >> 8) & 0xFF;
-    uint8_t src_r = (color >> 16) & 0xFF;
-
-    if (coverage == 255 || pixel[3] == 0) {
-        // Full coverage or empty destination: just write
-        pixel[0] = src_b;
-        pixel[1] = src_g;
-        pixel[2] = src_r;
-        pixel[3] = coverage;
-    } else {
-        // Alpha blend: src over dst
-        uint8_t dst_a = pixel[3];
-        uint16_t inv = 255 - coverage;
-        pixel[0] = static_cast<uint8_t>((src_b * coverage + pixel[0] * inv) / 255);
-        pixel[1] = static_cast<uint8_t>((src_g * coverage + pixel[1] * inv) / 255);
-        pixel[2] = static_cast<uint8_t>((src_r * coverage + pixel[2] * inv) / 255);
-        pixel[3] = static_cast<uint8_t>(coverage + (dst_a * inv) / 255);
-    }
-}
-
-void GCodeLayerRenderer::draw_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Xiaolin Wu's anti-aliased line algorithm
-    bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
-    if (steep) {
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-    }
-    if (x0 > x1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    float gradient = (dx < 0.001f) ? 1.0f : dy / dx;
-
-    // Strip alpha from color — we'll set it per-pixel via coverage
-    uint32_t base_color = color & 0x00FFFFFF;
-
-    // First endpoint
-    float yend = static_cast<float>(y0);
-    float intery = yend + gradient;
-
-    if (steep) {
-        blend_pixel_solid_alpha(static_cast<int>(yend), x0, base_color, 255);
-    } else {
-        blend_pixel_solid_alpha(x0, static_cast<int>(yend), base_color, 255);
-    }
-
-    // Second endpoint
-    if (steep) {
-        blend_pixel_solid_alpha(y1, x1, base_color, 255);
-    } else {
-        blend_pixel_solid_alpha(x1, y1, base_color, 255);
-    }
-
-    // Main loop — draw pixels with fractional coverage for AA
-    for (int x = x0 + 1; x < x1; x++) {
-        int iy = static_cast<int>(intery);
-        float frac = intery - iy;
-        uint8_t coverage_lo = static_cast<uint8_t>((1.0f - frac) * 255);
-        uint8_t coverage_hi = static_cast<uint8_t>(frac * 255);
-
-        if (steep) {
-            blend_pixel_solid_alpha(iy, x, base_color, coverage_lo);
-            blend_pixel_solid_alpha(iy + 1, x, base_color, coverage_hi);
-        } else {
-            blend_pixel_solid_alpha(x, iy, base_color, coverage_lo);
-            blend_pixel_solid_alpha(x, iy + 1, base_color, coverage_hi);
-        }
-        intery += gradient;
-    }
-}
-
-void GCodeLayerRenderer::draw_thick_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color,
-                                                  int width) {
-    if (width <= 1) {
-        draw_line_aa_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    constexpr float MIN_LINE_LENGTH = 0.5f;
-    float len = std::sqrt(dx * dx + dy * dy);
-
-    if (len < MIN_LINE_LENGTH) {
-        draw_line_aa_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Perpendicular direction for thickness offset
-    float px = -dy / len;
-    float py = dx / len;
-
-    // Draw parallel lines offset perpendicular to the main line
-    int half = width / 2;
-    for (int i = -half; i <= half; i++) {
-        float offset = static_cast<float>(i);
-        int ox = static_cast<int>(std::round(px * offset));
-        int oy = static_cast<int>(std::round(py * offset));
-        draw_line_aa_solid(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
-    }
+helix::gcode::RasterTarget GCodeLayerRenderer::ghost_target() const {
+    return {ghost_raw_buffer_.get(), ghost_raw_stride_, ghost_raw_width_, ghost_raw_height_};
 }
 
 int GCodeLayerRenderer::get_extrusion_pixel_width() const {
@@ -2197,132 +2252,11 @@ int GCodeLayerRenderer::get_extrusion_pixel_width() const {
     // Streaming mode: no metadata available, use default 0.4mm
 
     int pixel_width = static_cast<int>(std::round(width_mm * scale_));
-    return std::clamp(pixel_width, MIN_EXTRUSION_PIXEL_WIDTH, MAX_EXTRUSION_PIXEL_WIDTH);
-}
-
-void GCodeLayerRenderer::draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color,
-                                                   int width) {
-    if (width <= 1) {
-        draw_line_bresenham(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Compute perpendicular direction to the line
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    float len = std::sqrt(dx * dx + dy * dy);
-
-    if (len < MIN_LINE_LENGTH) {
-        draw_line_bresenham(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Perpendicular unit vector (rotated 90 degrees)
-    float px = -dy / len;
-    float py = dx / len;
-
-    // Draw parallel lines offset by [-width/2, +width/2]
-    float half = static_cast<float>(width - 1) * 0.5f;
-    for (int i = 0; i < width; ++i) {
-        float offset = static_cast<float>(i) - half;
-        int ox = static_cast<int>(std::round(px * offset));
-        int oy = static_cast<int>(std::round(py * offset));
-        draw_line_bresenham(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
-    }
-}
-
-void GCodeLayerRenderer::draw_thick_line_bresenham_solid(int x0, int y0, int x1, int y1,
-                                                         uint32_t color, int width) {
-    if (width <= 1) {
-        draw_line_bresenham_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Compute perpendicular direction to the line
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    float len = std::sqrt(dx * dx + dy * dy);
-
-    if (len < MIN_LINE_LENGTH) {
-        draw_line_bresenham_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Perpendicular unit vector (rotated 90 degrees)
-    float px = -dy / len;
-    float py = dx / len;
-
-    // Draw parallel lines offset by [-width/2, +width/2]
-    float half = static_cast<float>(width - 1) * 0.5f;
-    for (int i = 0; i < width; ++i) {
-        float offset = static_cast<float>(i) - half;
-        int ox = static_cast<int>(std::round(px * offset));
-        int oy = static_cast<int>(std::round(py * offset));
-        draw_line_bresenham_solid(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
-    }
-}
-
-void GCodeLayerRenderer::draw_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Bresenham's line algorithm for software line drawing to solid cache
-
-    int dx = std::abs(x1 - x0);
-    int dy = -std::abs(y1 - y0);
-    int sx = x0 < x1 ? 1 : -1;
-    int sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy;
-
-    while (true) {
-        blend_pixel_solid(x0, y0, color);
-
-        if (x0 == x1 && y0 == y1)
-            break;
-
-        int e2 = 2 * err;
-        if (e2 >= dy) {
-            if (x0 == x1)
-                break;
-            err += dy;
-            x0 += sx;
-        }
-        if (e2 <= dx) {
-            if (y0 == y1)
-                break;
-            err += dx;
-            y0 += sy;
-        }
-    }
-}
-
-void GCodeLayerRenderer::draw_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Bresenham's line algorithm for software line drawing
-    // This runs in the background thread where LVGL APIs are not available
-
-    int dx = std::abs(x1 - x0);
-    int dy = -std::abs(y1 - y0);
-    int sx = x0 < x1 ? 1 : -1;
-    int sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy;
-
-    while (true) {
-        blend_pixel(x0, y0, color);
-
-        if (x0 == x1 && y0 == y1)
-            break;
-
-        int e2 = 2 * err;
-        if (e2 >= dy) {
-            if (x0 == x1)
-                break;
-            err += dy;
-            x0 += sx;
-        }
-        if (e2 <= dx) {
-            if (y0 == y1)
-                break;
-            err += dx;
-            y0 += sy;
-        }
-    }
+    const int clamped =
+        std::clamp(pixel_width, MIN_EXTRUSION_PIXEL_WIDTH, MAX_EXTRUSION_PIXEL_WIDTH);
+    spdlog::trace("[GCodeLayerRenderer] extrusion width: {}mm * scale {} = {}px (clamped {})",
+                  width_mm, scale_, pixel_width, clamped);
+    return clamped;
 }
 
 // ============================================================================

@@ -932,28 +932,28 @@ $(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
 $(UI_TEST_UTILS_OBJ): $(TEST_DIR)/ui_test_utils.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile LVGL test fixture (shared base class for UI tests)
 # Uses DEPFLAGS to track header dependencies
 $(LVGL_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[LVGL-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile HelixScreen test fixture (base class that resets process singletons)
 # Uses DEPFLAGS to track header dependencies
 $(HELIX_TEST_FIXTURE_OBJ): $(TEST_DIR)/helix_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[HELIX-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile test fixtures (reusable fixtures with mock initialization helpers)
 # Uses DEPFLAGS to track header dependencies
 $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[TEST-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile LVGL UI test fixture (full UI integration test fixture)
 # Uses DEPFLAGS to track header dependencies
@@ -961,8 +961,22 @@ $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HE
 $(LVGL_UI_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_ui_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+
+# Warnings promoted to errors for TEST code only.
+#
+# -Wtype-limits is already on via -Wextra, and GCC was already reporting
+# "comparison of unsigned expression in '>= 0' is always true" in every build.
+# Nobody reads a warning in a 900-file build log, so three vacuous assertions
+# sat in the suite: test_gcode_streaming_controller.cpp:379 asserted that a
+# size_t was >= 0 in a section named "respond_to_memory_pressure reduces cache",
+# which passes even if the call does nothing.
+#
+# Scoped to tests/ rather than the whole tree deliberately: in production an
+# always-true comparison is usually a defensive bound worth keeping, while in a
+# test it is an assertion that cannot fail.
+TEST_WARN_FLAGS := -Werror=type-limits
 
 # Compile test sources
 # Uses DEPFLAGS to track header dependencies for incremental rebuilds
@@ -970,7 +984,7 @@ $(LVGL_UI_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_ui_test_fixture.cpp $(LIBHV_LIB) $
 $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
 
 # Compile application subdirectory test sources
@@ -978,7 +992,7 @@ $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $
 $(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-APP]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF) -c $< -o $@
 	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF),$<,$@)
 
 # Compile libhv dns_resolv.c for test_dns_resolver
@@ -1291,3 +1305,111 @@ help-test:
 	echo "$${C}Cleanup:$${X}"; \
 	echo "  $${G}clean-tests$${X}          - Remove test build artifacts"; \
 	echo "  $${G}clean-sanitizers$${X}     - Remove sanitizer test binaries"
+
+# ============================================================================
+# Test quality gates
+#
+# The suite being green says nothing about whether it would go red if the code
+# broke. These four targets answer that question at increasing cost:
+#
+#   make check-tautology       instant  assertions that cannot fail (source)
+#   make test-vacuous          seconds  assertions that cannot fail (real run)
+#   make cov-diff              minutes  changed lines the suite never executes
+#   make test-order-dependence minutes  tests that pass only because of what
+#                                       ran before them
+#   make mutate-diff           hours    changed lines no test actually detects
+#
+# Only the last one is an oracle. The first three are cheap screens that find
+# the degenerate cases before you spend a build per hunk on the real question.
+# ============================================================================
+
+# One full --success report, shared by every gate that reads a run. Generating
+# it costs a whole suite pass, so test-vacuous and test-order-dependence both
+# consume this file rather than each producing their own.
+SUITE_REPORT ?= $(BUILD_DIR)/suite-report.xml
+# ~[subprocess] and ~[socket_discovery] are not about speed: those cases fork,
+# and the child shares the parent's report file description. Their writes
+# interleave with Catch2's XML mid-element, so the report comes out structurally
+# corrupt ("not well-formed (invalid token)") even though the run passes and
+# even though --out keeps test stdout away from it. Verified per-tag: a report
+# of [subprocess] alone is malformed, [socket_discovery] alone is malformed,
+# [splash] (which also forks) is clean. Every gate that reads a report is
+# blocked by this, so the report excludes them and they are judged by the suite
+# itself. See prestonbrown/helixscreen#1375.
+VACUOUS_FILTER ?= ~[.]~[slow]~[subprocess]~[socket_discovery]
+# Ratchet. May fall, never rise. 50 no-assertion + 2 literal-tautology as of
+# the run that introduced this gate.
+VACUOUS_MAX ?= 52
+
+# --out is not optional: tests that shell out print ANSI status to stdout, and
+# with the report on stdout too the XML comes back complete but unparseable.
+.PHONY: suite-report
+suite-report: test-build
+	$(ECHO) "$(CYAN)$(BOLD)Running suite with per-assertion reporting...$(RESET)"
+	$(Q)$(TEST_BIN) "$(VACUOUS_FILTER)" --reporter xml --success --out $(SUITE_REPORT) >/dev/null 2>&1 || true
+	$(Q)test -s $(SUITE_REPORT) || { echo "no report produced"; exit 1; }
+
+.PHONY: test-vacuous
+test-vacuous: suite-report
+	$(Q)python3 scripts/check_vacuous_tests.py $(SUITE_REPORT) --max-allowed $(VACUOUS_MAX)
+
+# A test that passes only because of what ran before it. Re-runs each source
+# file's cases alone and compares against the full-suite result, so it costs
+# one extra process per test file on top of the shared report.
+# Zero, tree-wide, verified across 922 files. The one finding this gate was
+# built against (test_grid_edit_mode.cpp "build_default_grid only sets positions
+# for anchor widgets") was fixed on main in 6face7cdc, and re-running the gate
+# against that file confirms it. Keep it at 0: the class is closed and any new
+# finding is a regression.
+ORDER_DEP_MAX ?= 0
+ORDER_DEP_JOBS ?= 8
+
+.PHONY: test-order-dependence
+test-order-dependence: suite-report
+	$(Q)python3 scripts/check_test_order_dependence.py $(SUITE_REPORT) \
+		--jobs $(ORDER_DEP_JOBS) --max-allowed $(ORDER_DEP_MAX)
+
+.PHONY: check-tautology
+check-tautology:
+	$(Q)python3 scripts/check_test_tautology.py --max-allowed $(TAUTOLOGY_MAX)
+	$(Q)python3 scripts/check_test_mirrors.py --max-allowed $(MIRROR_MAX)
+
+TAUTOLOGY_MAX ?= 3
+MIRROR_MAX ?= 17
+
+# ---- diff coverage ---------------------------------------------------------
+# Its own object tree, so this never disturbs the normal build.
+COV_FILTER ?= ~[.]~[slow]
+
+# Its own binary NAME as well as its own object tree, matching TEST_ASAN_BIN.
+# Without this the instrumented binary lands on build/bin/helix-tests and every
+# later `make test-run` silently runs an instrumented build until something
+# forces a relink.
+TEST_COV_BIN := $(BIN_DIR)/helix-tests-cov
+
+.PHONY: cov-build
+cov-build:
+	$(ECHO) "$(CYAN)$(BOLD)Building instrumented test binary (COVERAGE=1)...$(RESET)"
+	$(Q)$(MAKE) COVERAGE=1 TEST_BIN=$(TEST_COV_BIN) $(TEST_COV_BIN)
+
+.PHONY: cov-run
+cov-run:
+	$(ECHO) "$(CYAN)$(BOLD)Running suite to produce .gcda...$(RESET)"
+	$(Q)find $(BUILD_DIR)/obj-cov -name '*.gcda' -delete 2>/dev/null || true
+	$(Q)$(TEST_COV_BIN) "$(COV_FILTER)" >/dev/null 2>&1 || true
+	$(ECHO) "  $$(find $(BUILD_DIR)/obj-cov -name '*.gcda' | wc -l) .gcda file(s)"
+
+.PHONY: cov-diff
+cov-diff: cov-build cov-run
+	$(Q)python3 scripts/cov_diff.py $(COV_DIFF_ARGS)
+
+# ---- mutation --------------------------------------------------------------
+# Reverts each changed hunk in turn and looks for red. Costs a compile plus a
+# link per hunk, so scope it: --limit N, or --tests to narrow the suite.
+.PHONY: mutate-diff
+mutate-diff:
+	$(Q)python3 scripts/mutate_diff.py $(MUTATE_ARGS)
+
+.PHONY: mutate-list
+mutate-list:
+	$(Q)python3 scripts/mutate_diff.py --list-only $(MUTATE_ARGS)

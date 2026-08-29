@@ -255,12 +255,6 @@ ConfigStructure KlipperConfigEditor::parse_structure(const std::string& content)
     return result;
 }
 
-namespace {
-
-// The one file every Klipper install has and every include chain starts from.
-// Also the home for a section no active file declares yet.
-constexpr const char* ROOT_CONFIG_FILE = "printer.cfg";
-
 // True when every edit is an ADD_KEY, i.e. the whole list reads "make sure this
 // key says X" and carries no assumption that the section already exists.
 bool all_add_key(const std::vector<ConfigEdit>& edits) {
@@ -268,6 +262,12 @@ bool all_add_key(const std::vector<ConfigEdit>& edits) {
         return e.type == ConfigEdit::Type::ADD_KEY;
     });
 }
+
+namespace {
+
+// The one file every Klipper install has and every include chain starts from.
+// Also the home for a section no active file declares yet.
+constexpr const char* ROOT_CONFIG_FILE = "printer.cfg";
 
 // Split content into lines, preserving the ability to rejoin with \n
 std::vector<std::string> split_lines(const std::string& content) {

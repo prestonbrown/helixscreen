@@ -1589,8 +1589,10 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # eight such sites the 2026-08-28 sync brought over, each following its file's
   # dominant convention (the inline predicates beside the global AmsAction enum,
   # two more ui_gcode_viewer_* C-style entry points, and a custom XML widget
-  # module registered by C-string name).
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2304 --summary >/tmp/namespace_check.out 2>&1; then
+  # module registered by C-string name). 2304 -> 2305 is the next sync's single
+  # site: RecoverySuppression::RESTART_FLAG_TIMEOUT joins an existing global
+  # namespace whose other constants are already counted here.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2305 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -2080,6 +2082,41 @@ echo ""
 }
 
 # ====================================================================
+# Assertions must be able to fail
+# ====================================================================
+qc_test_tautology() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🎯 Checking for assertions that cannot fail..."
+
+if [ -f "scripts/check_test_tautology.py" ]; then
+  # Ratchet, read from mk/tests.mk for the reason above. All findings are a
+  # set_X(literal) round-trip through an accessor pair that only stores and
+  # loads. May fall, never rise.
+  TAUTOLOGY_MAX=$(sed -n 's/^TAUTOLOGY_MAX ?= *\([0-9][0-9]*\).*/\1/p' mk/tests.mk | head -1)
+  if python3 scripts/check_test_tautology.py --summary --max-allowed "${TAUTOLOGY_MAX:-0}" >/tmp/test_tautology.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_tautology.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_tautology.out
+    echo "   Run: python3 scripts/check_test_tautology.py --list"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_test_tautology.py not found — skipping"
+fi
+
+echo ""
+
+return $EXIT_CODE
+}
+
+# ====================================================================
 # Tests must exercise shipped code, not a copy of it
 # ====================================================================
 qc_test_mirrors() {
@@ -2088,7 +2125,16 @@ SECTION_START=$(date +%s)
 echo -n "🪞 Checking for mirror tests..."
 
 if [ -f "scripts/check_test_mirrors.py" ]; then
-  if python3 scripts/check_test_mirrors.py --max-allowed 0 >/tmp/test_mirrors.out 2>&1; then
+  # Ratchet, not a clean-tree assertion. Signals 1 and 2 (shadow-include,
+  # mirror-comment) are at 0 and must stay there. Signal 3 (redefined-symbol)
+  # arrived with pre-existing findings; the number may fall, never rise.
+  #
+  # Read from mk/tests.mk rather than repeated here. A second hand-written copy
+  # of the same threshold is how it goes stale: main rewrote
+  # test_update_checker.cpp, the real count fell 18 -> 17, and a duplicated
+  # constant would have kept passing at 18 with a regression's worth of slack.
+  MIRROR_MAX=$(sed -n 's/^MIRROR_MAX ?= *\([0-9][0-9]*\).*/\1/p' mk/tests.mk | head -1)
+  if python3 scripts/check_test_mirrors.py --summary --max-allowed "${MIRROR_MAX:-0}" >/tmp/test_mirrors.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/test_mirrors.out
@@ -2174,7 +2220,11 @@ if [ -f "scripts/check_doc_refs.py" ]; then
     # Deliberately not auto-fixed: a "gone" or "blank" anchor, which
     # check_doc_refs.py reports without the regen hint. There the cited line's
     # own text changed, and no generator can decide whether the sentence around
-    # it is still true.
+    # it is still true. Nor are the two integrity failures — a committed
+    # doc_cite_anchors.tsv missing from the working tree, and the
+    # unresolved-path count over its `max-unresolved:` ceiling. Neither emits
+    # the hint, so neither reaches the regen below: one wants the file
+    # restored, the other wants a citation whose path actually resolves.
     if [ "$AUTO_FIX" = true ] && grep -q "Run: make regen-doc-links" /tmp/doc_refs.out; then
       python3 scripts/doc_cite_anchors.py >>/tmp/doc_refs.out 2>&1
       python3 scripts/gen_doc_links.py >>/tmp/doc_refs.out 2>&1
@@ -2743,7 +2793,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2772,6 +2822,7 @@ qc_trigger_re() {
                         echo '\.(cpp|c|h|mm)$' ;;
     qc_design_tokens)   echo '\.(cpp|h|xml)$' ;;
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
+    qc_test_tautology)  echo '^tests/|^include/|^src/|^scripts/check_test_tautology\.py$' ;;
     qc_test_widget_registry)
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
     qc_doc_refs)        echo '\.md$|^scripts/(check_doc_refs|doc_cite_anchors)\.py$|^scripts/doc_cite_anchors\.tsv$|^scripts/doc_cite_anchor_baseline\.txt$' ;;

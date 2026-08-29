@@ -173,6 +173,7 @@ translations:
   All axes homed: Tous les axes référencés
   All fields are required: Tous les champs sont requis
   All plugins loaded successfully: Tous les plugins ont été chargés avec succès
+  Allow: 'Autoriser'
   Allow Home Screen Editing: 'Autoriser la modification de l''écran d''accueil'
   Allow cold load/unload: Autoriser le chargement/déchargement à froid
   Allow display to sleep during active prints: Permettre la mise en veille pendant
@@ -187,6 +188,7 @@ translations:
   AmsIdentify: Identifier l'AMS
   An accelerometer was detected on your printer.: Un accéléromètre a été détecté sur
     votre imprimante.
+  An app on your network is asking to connect to this printer.: 'Une application de votre réseau demande à se connecter à cette imprimante.'
   An error occurred during calibration.: Une erreur s'est produite pendant la calibration.
   An error occurred during filament loading.: Une erreur sest produite lors du chargement
     du filament.
@@ -637,6 +639,7 @@ translations:
   Connecting...: Connexion...
   Connection: Connexion
   Connection Failed: Connexion échouée
+  Connection Request: 'Demande de connexion'
   Connection Stability: Stabilité de la connexion
   Connection failed: Connexion échouée
   Connection failed to {}:{}: Connexion échouée à {}:{}
@@ -673,6 +676,7 @@ translations:
   Correction (Ki): Correction (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Impossible
     d'analyser la macro PRINT_START. Certaines options d'impression peuvent être indisponibles.
+  Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Impossible de vérifier la webcam.\nVérifiez la connexion."
   Could not confirm cancel: ''
@@ -758,6 +762,7 @@ translations:
   Delete {}?: Supprimer {} ?
   'Delta:': 'Delta :'
   Density: Densité
+  Deny: 'Refuser'
   Deploy: Déployer
   Describe the issue (optional): Décrivez le problème (optionnel)
   Detailed: Détaillé
@@ -770,6 +775,7 @@ translations:
   Dev channel requires dev_url in config: Le canal de développement nécessite dev_url
     dans la configuration
   Device: Appareil
+  Device connected: 'Appareil connecté'
   Device name: Nom de lappareil
   Device name is required: Le nom de l'appareil est requis
   'Device: ': 'Appareil : '
@@ -3302,6 +3308,7 @@ translations:
   '{} filament sensors available': '{} capteurs de filament disponibles'
   '{} filament • {}': '{} de filament • {}'
   '{} heater turned off': Chauffage {} désactivé
+  '{} is asking to connect to this printer.': '{} demande à se connecter à cette imprimante.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} est installé mais son passage à la bobine de secours est désactivé, aucun changement automatique n''aura donc lieu.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} est installé, mais son réglage de bobine de secours n''a pas pu être lu - ne comptez pas sur un changement automatique.'
   '{} is not set up on this printer': ''

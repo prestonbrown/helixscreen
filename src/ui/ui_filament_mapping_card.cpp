@@ -127,19 +127,11 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     // source of truth shared with the print detail view's preflight check).
     available_slots_ = AmsState::instance().collect_available_slots();
 
-    // Compute mappings based on user preference
-    if (SettingsManager::instance().get_auto_color_map()) {
-        // Color matching: clear firmware mappings so they don't override color matches
-        auto slots_for_matching = available_slots_;
-        for (auto& s : slots_for_matching) {
-            s.current_tool_mapping = -1;
-        }
-        mappings_ = helix::FilamentMapper::compute_defaults(tool_info_, slots_for_matching);
-    } else {
-        // Positional assignment (T0→slot 0, T1→slot 1, etc.)
-        mappings_ = helix::FilamentMapper::use_current_assignments(
-            tool_info_, available_slots_, AmsState::instance().collect_firmware_routing());
-    }
+    // Seed through the shared rule. Reads the EFFECTIVE auto-match predicate, not
+    // the raw setting this used to read - identical wherever the card is shown
+    // (it is hidden on the non-editable backends where the two differ) and
+    // correct if that ever changes.
+    mappings_ = AmsState::instance().seed_tool_mappings(tool_info_, available_slots_);
 
     // Restrict to the tools the gcode actually uses. update() rebuilds from the
     // full palette, so re-apply the current set here — a used-tools set pushed

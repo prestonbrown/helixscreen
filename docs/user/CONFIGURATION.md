@@ -1062,7 +1062,6 @@ Located in the `gcode_viewer` section:
 ```json
 {
   "gcode_viewer": {
-    "shading_model": "smooth",
     "tube_sides": 4,
     "streaming_mode": "auto",
     "streaming_threshold_percent": 40,
@@ -1071,15 +1070,6 @@ Located in the `gcode_viewer` section:
   }
 }
 ```
-
-### `shading_model`
-**Type:** string
-**Default:** `"smooth"`
-**Values:** `"flat"`, `"smooth"`, `"phong"`
-**Description:** 3D rendering quality:
-- `flat` - Faceted look, lowest GPU cost
-- `smooth` - Gouraud shading, good balance (default)
-- `phong` - Per-pixel lighting, highest quality
 
 ### `tube_sides`
 **Type:** integer
@@ -2128,7 +2118,6 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
   },
 
   "gcode_viewer": {
-    "shading_model": "smooth",
     "tube_sides": 8,
     "streaming_mode": "auto",
     "streaming_threshold_percent": 40,

@@ -82,6 +82,7 @@ src/application/fault_surface_correlation.cpp  # not in the v1 Core+AMS cut
 src/application/gcode_error_router.cpp  # not in the v1 Core+AMS cut
 src/application/gcode_narration_router.cpp  # not in the v1 Core+AMS cut
 src/application/hardware_fingerprint.cpp  # not in the v1 Core+AMS cut
+src/application/lan_client_auth_router.cpp  # not in the v1 Core+AMS cut
 src/application/main_loop_handler.cpp  # not in the v1 Core+AMS cut
 src/application/remote_screen_fb0_sink.cpp  # not in the v1 Core+AMS cut
 src/application/remote_screen_manager.cpp  # not in the v1 Core+AMS cut
@@ -98,6 +99,7 @@ src/print/thumbnail_processor.cpp  # not in the v1 Core+AMS cut
 src/print/timelapse_thumbnailer.cpp  # not in the v1 Core+AMS cut
 src/printer/ams_backend_mock.cpp  # NOT the blanket rule: this one IS compiled, but only on the CONFIG_HELIX_MOCK_PRINTER arm (MOCK_SRCS in CMakeLists.txt), never in the default build
 src/printer/detection_manager.cpp  # not in the v1 Core+AMS cut
+src/printer/lan_client_authorization.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_fan_analyzer.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_manager.cpp  # not in the v1 Core+AMS cut
 src/printer/printer_discovery.cpp  # not in the v1 Core+AMS cut
@@ -124,7 +126,10 @@ src/rendering/gcode_layer_index.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_layer_renderer.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_object_thumbnail_renderer.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_projection.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_raster.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_selection_state.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_selection_style.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_streaming_config.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_streaming_controller.cpp  # not in the v1 Core+AMS cut
 src/rendering/geometry_budget_manager.cpp  # not in the v1 Core+AMS cut

@@ -1493,6 +1493,61 @@ TEST_CASE("effective_tool_colors returns empty for no tools", "[filament_mapper]
 }
 
 // =============================================================================
+// effective_tool_colors with no filament system present
+// =============================================================================
+//
+// Most printers have no AMS and no Spoolman, so collect_available_slots()
+// returns nothing. What the mapper hands back in that case decides what the
+// G-code preview renders, and an AD5M rendered every file - a #000000 cube and
+// a #F7F7F7 cube alike - in the same 0x808080 grey.
+
+TEST_CASE("effective_tool_colors keeps the slicer color when no slots exist",
+          "[filament_mapper][color]") {
+    std::vector<GcodeToolInfo> tools(1);
+    tools[0].tool_index = 0;
+    tools[0].color_rgb = 0x00A899; // what the slicer declared
+
+    const auto colors = FilamentMapper::effective_tool_colors(tools, {}, /*auto_color_map=*/false);
+
+    REQUIRE(colors.size() == 1);
+    // An unmapped tool resolves to its own slicer color. If this ever returns
+    // the 0x808080 placeholder instead, every preview on a printer without a
+    // filament system renders flat grey.
+    CHECK(colors[0] == 0x00A899);
+}
+
+TEST_CASE("effective_tool_colors falls back to the placeholder only when the slicer gave nothing",
+          "[filament_mapper][color]") {
+    std::vector<GcodeToolInfo> tools(1);
+    tools[0].tool_index = 0;
+    tools[0].color_rgb = 0x808080; // build_tool_info's value_or default
+
+    const auto colors = FilamentMapper::effective_tool_colors(tools, {}, /*auto_color_map=*/false);
+
+    REQUIRE(colors.size() == 1);
+    CHECK(colors[0] == 0x808080);
+}
+
+TEST_CASE("effective_tool_colors leaves gaps neutral without disturbing used tools",
+          "[filament_mapper][color]") {
+    // A print that uses only T0 and T2 must land T2's color at index 2 - the
+    // viewer's override vector is indexed by logical tool number, so a dense
+    // 2-entry vector would paint T2's toolpaths with T1's color.
+    std::vector<GcodeToolInfo> tools(2);
+    tools[0].tool_index = 0;
+    tools[0].color_rgb = 0xED1C24;
+    tools[1].tool_index = 2;
+    tools[1].color_rgb = 0x00C502;
+
+    const auto colors = FilamentMapper::effective_tool_colors(tools, {}, /*auto_color_map=*/false);
+
+    REQUIRE(colors.size() == 3);
+    CHECK(colors[0] == 0xED1C24);
+    CHECK(colors[1] == 0x808080); // unused tool number stays neutral
+    CHECK(colors[2] == 0x00C502);
+}
+
+// =============================================================================
 // compute_defaults — a tool whose color is unknown
 // =============================================================================
 //

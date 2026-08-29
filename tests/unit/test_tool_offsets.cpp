@@ -80,7 +80,7 @@ PrinterDiscovery mixed_case_macro_printer(int tool_count = 4) {
     return hw;
 }
 
-bool contains(const std::vector<std::string>& v, const std::string& s) {
+bool vec_has(const std::vector<std::string>& v, const std::string& s) {
     return std::find(v.begin(), v.end(), s) != v.end();
 }
 
@@ -117,8 +117,7 @@ TEST_CASE("tool offsets: klipper-toolchanger needs no extra subscription", "[too
 // Precedence: the trap that makes row order load-bearing
 // ============================================================================
 
-TEST_CASE("tool offsets: the TOOL_OFFSET macro outranks klipper-toolchanger",
-          "[tool_offsets]") {
+TEST_CASE("tool offsets: the TOOL_OFFSET macro outranks klipper-toolchanger", "[tool_offsets]") {
     // A MedusaHC ships [toolchanger] and [tool T0..T3], so it matches BOTH
     // rows. Its macros print off the TOOL_OFFSET variables and never read
     // klipper-toolchanger's own offset, so resolving to the second row would
@@ -129,7 +128,7 @@ TEST_CASE("tool offsets: the TOOL_OFFSET macro outranks klipper-toolchanger",
     CHECK(to_::provider_name(hw) == "TOOL_OFFSET macro");
     CHECK(to_::set_tool_z_gcode(hw, 1, -50).rfind("SET_GCODE_VARIABLE", 0) == 0);
     CHECK(to_::required_status_objects(hw).size() == 1);
-    CHECK(contains(to_::required_status_objects(hw), "gcode_macro TOOL_OFFSET"));
+    CHECK(vec_has(to_::required_status_objects(hw), "gcode_macro TOOL_OFFSET"));
 }
 
 TEST_CASE("tool offsets: a frame carrying both schemas reads the authoritative one",
@@ -200,8 +199,8 @@ TEST_CASE("tool offsets: a mixed-case macro is subscribed as printer.cfg spells 
 
     REQUIRE(to_::supports_per_tool_z(hw));
     CHECK(to_::provider_name(hw) == "TOOL_OFFSET macro");
-    CHECK(contains(to_::required_status_objects(hw), "gcode_macro Tool_Offset"));
-    CHECK_FALSE(contains(to_::required_status_objects(hw), "gcode_macro TOOL_OFFSET"));
+    CHECK(vec_has(to_::required_status_objects(hw), "gcode_macro Tool_Offset"));
+    CHECK_FALSE(vec_has(to_::required_status_objects(hw), "gcode_macro TOOL_OFFSET"));
 }
 
 TEST_CASE("tool offsets: a mixed-case macro's writes use the config-case mux key",
@@ -251,8 +250,7 @@ TEST_CASE("tool offsets: a mixed-case macro still owns its frame", "[tool_offset
 // Reading
 // ============================================================================
 
-TEST_CASE("tool offsets: klipper-toolchanger reads off the tool's own object",
-          "[tool_offsets]") {
+TEST_CASE("tool offsets: klipper-toolchanger reads off the tool's own object", "[tool_offsets]") {
     json status = json{{"tool T2", json{{"active", true}, {"gcode_z_offset", -0.15}}}};
 
     auto microns = to_::read_tool_z_microns(status, 2, "T2");
@@ -307,9 +305,8 @@ TEST_CASE("tool offsets: a malformed or empty frame is ignored", "[tool_offsets]
     CHECK_FALSE(to_::read_tool_z_microns(json::array(), 0, "T0").has_value());
     CHECK_FALSE(to_::read_tool_z_microns(json(nullptr), 0, "T0").has_value());
     // No name to key the object off.
-    CHECK_FALSE(
-        to_::read_tool_z_microns(json{{"tool T0", json{{"gcode_z_offset", -0.1}}}}, 0, "")
-            .has_value());
+    CHECK_FALSE(to_::read_tool_z_microns(json{{"tool T0", json{{"gcode_z_offset", -0.1}}}}, 0, "")
+                    .has_value());
 }
 
 // ============================================================================

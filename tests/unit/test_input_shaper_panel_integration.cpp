@@ -160,11 +160,12 @@ namespace {
 class InputShaperDeltaFixture : public LVGLUITestFixture {
   public:
     InputShaperDeltaFixture() : mock_client_(MoonrakerClientMock::PrinterType::VORON_24) {
-        // A previous test's mock run may have left the calibration CSVs in
-        // /tmp; the marker-line injection below keys off the X file appearing,
-        // so both must start absent.
-        std::remove("/tmp/calibration_data_x_mock.csv");
-        std::remove("/tmp/calibration_data_y_mock.csv");
+        // A previous test's mock run in THIS process may have left the
+        // calibration CSVs behind; the marker-line injection below keys off the
+        // X file appearing, so both must start absent. Scoped to our own PID -
+        // on the old fixed path this deleted the fixture of whichever
+        // concurrent shard happened to be mid-parse.
+        MoonrakerClientMock::remove_shaper_csvs();
 
         // Live-before config staged per-test (mock default is mzv@36.7/ei@47.6;
         // the staged pair deliberately differs so a leaked default fails loud).
@@ -210,6 +211,10 @@ class InputShaperDeltaFixture : public LVGLUITestFixture {
         lv_obj_delete(view_);
         helix::ui::UpdateQueue::instance().drain();
         api_.reset();
+
+        // Do not strand this process's CSVs in /tmp: the path carries our PID,
+        // so nothing else will ever overwrite them.
+        MoonrakerClientMock::remove_shaper_csvs();
     }
 
     /// Widget by name inside the panel view (fails loud when the XML drops it)

@@ -1380,6 +1380,15 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
         // filament_mismatch_ / empty_tools_warning_ subjects are NOT published
         // here — the pre-flight validator below is the single source of truth.
         filament_mapping_card_.update(current_filament_colors_, current_filament_materials_);
+
+        // Re-push the preview colors now that we finally know them. The earlier
+        // apply_preview_colors() ran while current_filament_colors_ was still
+        // empty, so build_tool_info() handed every tool its 0x808080 unknown
+        // default and that grey went to the renderer as a per-tool override -
+        // outranking the slicer palette the viewer had installed correctly. On a
+        // printer with no AMS and no Spoolman that is every file, which is why an
+        // AD5M drew a #000000 cube and a #F7F7F7 cube in the same grey.
+        apply_preview_colors();
     }
 
     // The viewer has read the file: whatever it found (or did not) is the
@@ -1444,9 +1453,8 @@ std::vector<helix::ToolMapping> PrintSelectDetailView::effective_mappings() cons
     // Non-editable backends (U1 / ACE): the card is hidden and get_mappings() is
     // empty — resolve the effective (toggle-aware) mapping the same way the live
     // render does, so swatches + preflight + render all agree.
-    return helix::FilamentMapper::effective_mappings(
-        get_used_tool_info(), AmsState::instance().collect_available_slots(),
-        effective_auto_match(), AmsState::instance().collect_firmware_routing());
+    return AmsState::instance().seed_tool_mappings(get_used_tool_info(),
+                                                   AmsState::instance().collect_available_slots());
 }
 
 void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tools_used,

@@ -306,24 +306,6 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
 }
 
 /**
- * @brief Check if update is available by comparing versions
- *
- * @param current_version Current installed version
- * @param latest_version Latest release version
- * @return true if latest > current
- */
-bool is_update_available(const std::string& current_version, const std::string& latest_version) {
-    auto current = helix::version::parse_version(current_version);
-    auto latest = helix::version::parse_version(latest_version);
-
-    if (!current || !latest) {
-        return false; // Can't determine, assume no update
-    }
-
-    return *latest > *current;
-}
-
-/**
  * @brief Resolve a system tool to an absolute path, falling back to bare name.
  *
  * Searches well-known absolute locations before falling back to the bare name
@@ -357,10 +339,6 @@ std::string resolve_tool(const std::string& name) {
     spdlog::warn("[UpdateChecker] resolve_tool: '{}' not found in standard paths, using bare name",
                  name);
     return name; // fallback: rely on PATH
-}
-
-bool tool_available(const std::string& name) {
-    return !find_tool_path(name).empty();
 }
 
 /// Populate ReleaseInfo download URLs from a per-platform manifest asset
@@ -644,10 +622,9 @@ std::string strip_ansi_codes(const std::string& s) {
 // Channel Version Comparison
 // ============================================================================
 
-// Deliberately at global scope, not in the anonymous namespace above with
-// is_update_available(): this one is declared in the header and exercised
-// directly by tests/unit/test_update_checker.cpp. (is_update_available() has
-// internal linkage, which is why that test file carries its own copy of it.)
+// Deliberately at global scope rather than in the anonymous namespace above:
+// it is declared in the header and exercised directly by
+// tests/unit/test_update_checker.cpp.
 ChannelVersionRelation compare_channel_version(const std::string& installed,
                                                const std::string& channel_version) {
     auto current = helix::version::parse_version(installed);

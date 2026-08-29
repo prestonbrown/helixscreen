@@ -78,9 +78,32 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // State queries
     /// Four physical heads, up to 32 logical tools: [0,1,2,3,0,0,...]. Verified
     /// live against print_task_config.extruder_map_table on a U1.
-    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override {
+    ///
+    /// Static because AmsBackendMock answers with it too, and the head count is
+    /// exactly the sort of constant that goes stale in a second copy: the
+    /// inherited identity default agrees for T0-T3 and diverges silently from T4
+    /// up. Same reasoning as preprint_gcode() below.
+    [[nodiscard]] static helix::FirmwareRouting default_routing() {
         return helix::FirmwareRouting::fixed_heads(NUM_TOOLS, 0);
     }
+
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override {
+        return default_routing();
+    }
+
+    /// The routing a caller may act on, from the firmware's own two fields.
+    ///
+    /// @param extruders_used print_task_config.extruders_used - the firmware's
+    ///        own "a task is configured" signal, all-false when idle.
+    /// @param extruder_map   print_task_config.extruder_map_table.
+    /// @return @p extruder_map when a task is configured, EMPTY otherwise. Empty
+    ///         means "no opinion", which is what stops the identity table an idle
+    ///         U1 holds from being read as this print's routing.
+    ///
+    /// Static and pure so the mock gates the same way rather than carrying a
+    /// second copy of the rule.
+    [[nodiscard]] static std::vector<int> task_routing(const std::vector<bool>& extruders_used,
+                                                       const std::vector<int>& extruder_map);
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;

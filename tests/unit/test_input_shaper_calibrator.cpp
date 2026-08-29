@@ -134,10 +134,11 @@ class HomingGateAPI : public MoonrakerAPI {
 class InputShaperCalibratorTestFixture : public LVGLTestFixture {
   public:
     InputShaperCalibratorTestFixture() : mock_client_(MoonrakerClientMock::PrinterType::VORON_24) {
-        // A previous mock run may have left the calibration CSVs in /tmp; the
-        // collector keys its "chart available" decision off them.
-        std::remove("/tmp/calibration_data_x_mock.csv");
-        std::remove("/tmp/calibration_data_y_mock.csv");
+        // A previous mock run in THIS process may have left the calibration
+        // CSVs behind; the collector keys its "chart available" decision off
+        // them. Scoped to our own PID so the removal cannot reach a concurrent
+        // shard's fixture (see MoonrakerClientMock::shaper_csv_path).
+        MoonrakerClientMock::remove_shaper_csvs();
 
         printer_state_.init_subjects(false);
         // execute_gcode()'s halted gate would otherwise reject every command.
@@ -160,6 +161,7 @@ class InputShaperCalibratorTestFixture : public LVGLTestFixture {
 
     ~InputShaperCalibratorTestFixture() override {
         helix::ui::UpdateQueue::instance().drain();
+        MoonrakerClientMock::remove_shaper_csvs();
     }
 
     void reset_callbacks() {

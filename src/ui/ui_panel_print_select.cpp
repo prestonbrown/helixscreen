@@ -2866,10 +2866,11 @@ void PrintSelectPanel::open_remap_modal() {
     // for U1 / ACE the card is hidden and get_filament_mappings() is empty, so we
     // fall back to FilamentMapper defaults (identical to the prior per-backend
     // openers).
-    auto mappings = detail_view_->get_filament_mappings();
-    if (mappings.empty()) {
-        mappings = helix::FilamentMapper::compute_defaults(tool_info, slots);
-    }
+    // The detail view already implements exactly this rule - card edits win, else
+    // resolve through the shared seed. Calling compute_defaults() here instead
+    // ignored the auto-colour toggle AND skipped clearing firmware mappings, so
+    // this modal could seed differently from the swatches behind it.
+    auto mappings = detail_view_->effective_mappings();
 
     remap_modal_.set_tool_info(tool_info);
     remap_modal_.set_available_slots(slots);

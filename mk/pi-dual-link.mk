@@ -196,9 +196,18 @@ FBDEV_LDFLAGS := $(filter-out -ldrm -linput -lEGL -lGLESv2 -lgbm,$(LDFLAGS))
 # Order-only (after the `|`) rather than a normal prerequisite on purpose — the
 # fbdev binary must not be considered out of date merely because the DRM binary
 # is newer, which would relink it on every incremental build.
+# $(REMOTE_LINENOISE_OBJ) is empty unless ENABLE_REMOTE_CONTROL=yes, which is
+# the default for any build that does not pass HELIX_PACKAGING=1. It has to be
+# listed here as well as on $(TARGET) (mk/rules.mk) because this recipe links
+# $(filter-out %.a,$^) -- what is not a prerequisite is not linked. Omitting it
+# cost three green-looking platforms: the release cross-builds pass
+# HELIX_PACKAGING=1, which filters src/remote/*.cpp out of APP_SRCS entirely, so
+# only .github/workflows/ccache-warm.yml built the configuration that references
+# linenoise, and all three of its jobs died here on 11 undefined references.
 $(FBDEV_TARGET): $(APP_C_OBJS) $(FBDEV_APP_OBJS) $(FBDEV_GLES_VARIANT_OBJS) $(FBDEV_CRASH_OBJ) \
                  $(FBDEV_LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(LV_MARKDOWN_OBJS) \
-                 $(QUIRC_OBJS) $(FONT_OBJS) $(TRANS_OBJS) $(DISPLAY_LIB_FBDEV) $(WPA_DEPS) \
+                 $(QUIRC_OBJS) $(FONT_OBJS) $(TRANS_OBJS) $(REMOTE_LINENOISE_OBJ) \
+                 $(DISPLAY_LIB_FBDEV) $(WPA_DEPS) \
                  | $(TARGET)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD/fbdev]$(RESET) $@"

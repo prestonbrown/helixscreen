@@ -10,6 +10,7 @@
 
 using helix::calibration::SelectedShaper;
 using helix::calibration::shaper_config_edits;
+using helix::system::all_add_key;
 using helix::system::ConfigEdit;
 
 namespace {
@@ -28,11 +29,6 @@ std::string edited_value(const std::vector<ConfigEdit>& edits, const std::string
             return e.value;
     }
     return "<absent>";
-}
-
-bool all_add_key(const std::vector<ConfigEdit>& edits) {
-    return std::all_of(edits.begin(), edits.end(),
-                       [](const ConfigEdit& e) { return e.type == ConfigEdit::Type::ADD_KEY; });
 }
 
 } // namespace

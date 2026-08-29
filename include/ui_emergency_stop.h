@@ -55,6 +55,23 @@ static constexpr uint32_t NORMAL = 10000; ///< Standard restarts (firmware resta
 /// stands.
 static constexpr uint32_t LONG = 15000;
 static constexpr uint32_t EXTRA = 30000; ///< Multi-step operations (PID→MPC migration)
+
+/// Backstop on a user-initiated restart being treated as still in flight.
+///
+/// EXTRA rather than a number of its own: it is the longest klippy outage this
+/// file already accepts as expected, so nothing here widens what the project
+/// calls a normal restart. A platform recovery sequence is not instant (the K2
+/// bounces its klipper_mcu daemon before klippy reconnects), and 30s clears that
+/// comfortably.
+///
+/// Erring short is cheap and erring long is not, which is why this is not
+/// widened "to be safe": expiring early costs a recovery dialog during a slow
+/// restart, and the klippy-READY handler dismisses that one itself with a
+/// "Printer ready" toast. Expiring late - or never, which is what a bare flag
+/// did - hides every subsequent shutdown for the life of the process. Same
+/// preference as the LONG comment above: a spurious dialog over a silently-eaten
+/// shutdown.
+static constexpr uint32_t RESTART_FLAG_TIMEOUT = EXTRA;
 } // namespace RecoverySuppression
 
 /**
@@ -181,9 +198,12 @@ class EmergencyStopOverlay {
      *
      * True while a SAVE_CONFIG-style suppression window is active
      * (is_recovery_suppressed()) or a user-initiated restart is in flight
-     * (restart_in_progress_). UI consumers of klippy_state use this to treat the
-     * transient SHUTDOWN as a restart rather than an error — no red status icon,
-     * no navigate-to-home, no firmware_restart widget injection.
+     * (restart_in_progress()). UI consumers of klippy_state use this to treat
+     * the transient SHUTDOWN as a restart rather than an error — no red status
+     * icon, no navigate-to-home, no firmware_restart widget injection.
+     *
+     * Both halves are deadline-backed, so this goes false on its own if the
+     * restart never reports READY.
      *
      * @return true if a SHUTDOWN right now should be read as an expected restart
      */
@@ -216,10 +236,23 @@ class EmergencyStopOverlay {
     lv_obj_t* confirmation_dialog_ = nullptr;
     lv_obj_t* recovery_dialog_ = nullptr;
 
-    // Restart operation tracking - prevents recovery dialog during expected SHUTDOWN.
-    // Atomic: written from the klippy_state observer (may run on the WebSocket
-    // thread) and read by is_expected_restart() on the LVGL main thread.
-    std::atomic<bool> restart_in_progress_{false};
+    // Restart operation tracking - prevents recovery dialog during expected
+    // SHUTDOWN. Deadline (lv_tick_get() ms) past which the restart stops
+    // counting as in flight, 0 when none is.
+    //
+    // A deadline rather than a bool because the only thing that ever cleared the
+    // bool was the klippy-READY handler: a printer whose MCU comes back up in a
+    // hard shutdown never delivers a READY - a Klipper RESTART cannot clear an
+    // MCU shutdown - so the flag stayed true for the life of the process and
+    // every later shutdown was dropped at the guard in show_recovery_for_main().
+    // Expiry is enforced on the READ side (restart_in_progress()) rather than by
+    // a timer that clears it: a timer is one more thing a teardown path can
+    // skip, and a read cannot be skipped.
+    //
+    // Atomic for the same reason as suppress_recovery_until_: armed from the
+    // restart paths, cleared by the klippy_state observer (which may run on the
+    // WebSocket thread), read on the LVGL main thread.
+    std::atomic<uint32_t> restart_expires_at_{0};
 
     // Skip the first klippy_state observer fire — it carries the subject's
     // default (SHUTDOWN) before Moonraker has reported real state. A real
@@ -256,6 +289,14 @@ class EmergencyStopOverlay {
     // cancel_recovery_recheck_timer().
     lv_timer_t* recovery_recheck_timer_ = nullptr;
 
+    // Consecutive re-checks show_recovery_for_main() declined for the currently
+    // latched reason. Bounds the retry loop that follows a decline: the setup
+    // wizard can hold its guard true for as long as the user takes over it, and
+    // a timer cycling for the rest of the process is not a useful way to say so.
+    // Plain int, not atomic: only arm_recovery_recheck(), recovery_recheck_cb()
+    // and deinit_subjects() touch it, all on the main thread.
+    int recovery_recheck_retries_ = 0;
+
     // Visibility subject (1=visible, 0=hidden) - drives XML bindings
     lv_subject_t estop_visible_;
 
@@ -290,9 +331,25 @@ class EmergencyStopOverlay {
 
     void show_recovery_dialog();
 
-    /// Arm the one-shot re-check for the current suppression deadline.
-    /// Main thread only - it calls lv_timer_create().
+    /// Start treating klippy's next SHUTDOWN as a user-initiated restart, for
+    /// RecoverySuppression::RESTART_FLAG_TIMEOUT or until klippy reports READY,
+    /// whichever comes first. Safe from any thread - one atomic store.
+    void begin_restart_window();
+
+    /// Whether a user-initiated restart is still in flight. Deadline-backed, so
+    /// a restart that never reports READY stops counting on its own rather than
+    /// suppressing every recovery dialog for the rest of the process.
+    bool restart_in_progress() const;
+
+    /// Arm the one-shot re-check for the current suppression deadline, and reset
+    /// the decline budget. Main thread only - it calls lv_timer_create().
     void arm_recovery_recheck();
+
+    /// Arm the one-shot re-check a fixed delay from now, leaving the decline
+    /// budget alone. The retry half of arm_recovery_recheck(), which cannot use
+    /// the deadline arithmetic: after a decline the window has already expired,
+    /// so that would compute a 1ms period and spin. Main thread only.
+    void arm_recovery_recheck_in(uint32_t delay_ms);
 
     /// Cancel the re-check timer via lv_timer_cancel_safe(), which self-guards
     /// on lv_is_initialized() and neuters rather than unlinking, so this is safe
@@ -303,7 +360,14 @@ class EmergencyStopOverlay {
     /// Main-thread half of show_recovery_for(). Reads and writes
     /// recovery_dialog_/recovery_reason_ and queries ModalStack, none of which
     /// may be touched from the libhv thread.
-    void show_recovery_for_main(RecoveryReason reason);
+    ///
+    /// @return false when a guard declined - setup wizard, restart in flight, or
+    ///         AbortManager handling the shutdown. All three are states the user
+    ///         is expected to leave, so a caller that took the reason out of
+    ///         pending_recovery_reason_ to get here must put it back rather than
+    ///         treat the decline as delivery. true when the dialog was shown,
+    ///         queued, or is already up.
+    bool show_recovery_for_main(RecoveryReason reason);
     void dismiss_recovery_dialog();
     void update_recovery_dialog_content();
     void restart_klipper();

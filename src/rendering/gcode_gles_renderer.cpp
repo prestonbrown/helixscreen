@@ -7,6 +7,9 @@
 
 #include "data_root_resolver.h"
 #include "gcode_gl_fallback.h"
+#include "gcode_projection.h"
+#include "gcode_selection_style.h"
+#include "lv_draw_buf_guard.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -27,6 +30,7 @@
 // GLES2 function declarations and common headers (both paths)
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -206,7 +210,7 @@ class EglContextGuard {
 // GLSL Shaders
 // ============================================================
 
-static const char* VERTEX_SHADER_SOURCE = R"(
+static const char* VERTEX_SHADER_DECLS = R"(
     // Per-pixel Phong shading with camera-following light.
     // Vertex format is packed (see PackedVertex):
     //   a_position : vec3 float
@@ -226,7 +230,13 @@ static const char* VERTEX_SHADER_SOURCE = R"(
     varying vec3 v_normal;
     varying vec3 v_position;
     varying vec3 v_base_color;
+)";
 
+/// The octahedral normal decoder, kept as ONE piece of GLSL text and spliced into
+/// every vertex shader that needs it (the lit pass and the selection shell). A
+/// second copy could drift, and a shell extruded along a differently-decoded
+/// normal would not wrap the surface it is meant to outline.
+static const char* OCT_DECODE_GLSL = R"(
     // Decode an octahedral-encoded normal (Meyer et al., 2010).
     vec3 oct_decode(vec2 e) {
         vec3 n;
@@ -239,7 +249,9 @@ static const char* VERTEX_SHADER_SOURCE = R"(
         }
         return normalize(n);
     }
+)";
 
+static const char* VERTEX_SHADER_MAIN = R"(
     void main() {
         gl_Position = u_mvp * vec4(a_position, 1.0);
         vec3 normal = oct_decode(a_normal);
@@ -261,6 +273,7 @@ static const char* FRAGMENT_SHADER_SOURCE = R"(
     uniform float u_specular_intensity;
     uniform float u_specular_shininess;
     uniform float u_base_alpha;
+    uniform float u_lift_strength;
 
     void main() {
         vec3 n = normalize(v_normal);
@@ -280,7 +293,19 @@ static const char* FRAGMENT_SHADER_SOURCE = R"(
             spec += pow(max(dot(n, half_dir), 0.0), u_specular_shininess);
         }
 
-        vec3 color = v_base_color * diffuse + vec3(spec * u_specular_intensity);
+        // Headroom-proportional lift, the same idea as apply_shading() on the
+        // 2D path and for the same reason. base * diffuse is a MULTIPLY: a black
+        // filament has nothing to multiply, so all form collapses and the only
+        // signal left is the specular term, which peaks around a quarter
+        // intensity. The object reads as a flat silhouette.
+        //
+        // Adding light proportional to what the channel has left (1 - base)
+        // gives a dark filament the range it lacks while a light one, having
+        // almost no headroom, is left essentially as it was.
+        float lit = clamp((diffuse.r + diffuse.g + diffuse.b) / 3.0, 0.0, 1.0);
+        vec3 lift = (vec3(1.0) - v_base_color) * lit * u_lift_strength;
+
+        vec3 color = v_base_color * diffuse + lift + vec3(spec * u_specular_intensity);
         gl_FragColor = vec4(color, u_base_alpha);
     }
 )";
@@ -297,21 +322,22 @@ static constexpr glm::vec3 LIGHT_FRONT_DIR{0.6985074f, 0.1397015f, 0.6985074f};
 // ============================================================
 
 GCodeGLESRenderer::GCodeGLESRenderer() {
+    // Selection cues from ui_xml/gcode_tokens.xml, resolved once here on the
+    // main thread — same place and same reason as GCodeLayerRenderer's ctor.
+    // The tokens are registered in the theme phase of startup, long before any
+    // panel builds the viewer widget that owns this renderer, and the GL passes
+    // consume the palette as uniforms rather than re-reading the registry.
+    reset_colors();
     spdlog::debug("[GCode GLES] GCodeGLESRenderer created");
 }
 
 GCodeGLESRenderer::~GCodeGLESRenderer() {
     destroy_gl();
 
-    if (draw_buf_) {
-        // draw_buf_ is handed to the parallel render thread via dsc.src in
-        // draw_cached_to_lvgl (line ~1313/1397) — same UAF pattern as
-        // GCodeLayerRenderer::cache_buf_ (#929). Wait for in-flight draw tasks
-        // before freeing.
-        lv_draw_wait_for_finish();
-        lv_draw_buf_destroy(draw_buf_);
-        draw_buf_ = nullptr;
-    }
+    // draw_buf_ is handed to the parallel render thread via dsc.src in
+    // draw_cached_to_lvgl — same UAF pattern as GCodeLayerRenderer::cache_buf_
+    // (#929).
+    helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
 
     spdlog::trace("[GCode GLES] GCodeGLESRenderer destroyed");
 }
@@ -555,7 +581,9 @@ bool GCodeGLESRenderer::compile_shaders() {
     if (!guard.ok())
         return false;
 
-    GLuint vs = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER_SOURCE);
+    const std::string vertex_src =
+        std::string(VERTEX_SHADER_DECLS) + OCT_DECODE_GLSL + VERTEX_SHADER_MAIN;
+    GLuint vs = compile_shader(GL_VERTEX_SHADER, vertex_src.c_str());
     GLuint fs = compile_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE);
     if (!vs || !fs) {
         if (vs)
@@ -598,6 +626,7 @@ bool GCodeGLESRenderer::compile_shaders() {
     u_specular_shininess_ = glGetUniformLocation(program_, "u_specular_shininess");
     u_model_view_ = glGetUniformLocation(program_, "u_model_view");
     u_base_alpha_ = glGetUniformLocation(program_, "u_base_alpha");
+    u_lift_strength_ = glGetUniformLocation(program_, "u_lift_strength");
     a_position_ = glGetAttribLocation(program_, "a_position");
     a_normal_ = glGetAttribLocation(program_, "a_normal");
     a_color_ = glGetAttribLocation(program_, "a_color");
@@ -664,6 +693,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
 
     fbo_width_ = width;
     fbo_height_ = height;
+    log_memory_report("fbo created");
     spdlog::debug("[GCode GLES] FBO created: {}x{}", width, height);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -706,6 +736,10 @@ void GCodeGLESRenderer::destroy_gl() {
         if (line_vbo_) {
             glDeleteBuffers(1, &line_vbo_);
             line_vbo_ = 0;
+        }
+        if (shell_program_) {
+            glDeleteProgram(shell_program_);
+            shell_program_ = 0;
         }
 
         // Unbind before destroying
@@ -753,6 +787,10 @@ void GCodeGLESRenderer::destroy_gl() {
     if (line_vbo_) {
         glDeleteBuffers(1, &line_vbo_);
         line_vbo_ = 0;
+    }
+    if (shell_program_) {
+        glDeleteProgram(shell_program_);
+        shell_program_ = 0;
     }
 
     if (egl_display_ && egl_context_) {
@@ -1112,9 +1150,9 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
     current_state.progress_layer = progress_layer_;
     current_state.layer_start = layer_start_;
     current_state.layer_end = layer_end_;
-    current_state.highlight_count = highlighted_objects_.size();
-    current_state.highlight_set_hash = highlighted_objects_hash_;
-    current_state.exclude_count = excluded_objects_.size();
+    current_state.highlight_count = selection_.highlighted().size();
+    current_state.highlight_set_hash = selection_.highlighted_hash();
+    current_state.exclude_count = selection_.excluded().size();
     current_state.filament_color = filament_color_;
     current_state.ghost_opacity = ghost_opacity_;
 
@@ -1216,6 +1254,14 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
+    // Alpha is not part of the picture: readback converts RGBA to RGB and throws
+    // the alpha byte away. So it is reserved as the selection tag channel, and
+    // masking it off here is what guarantees the tag means only one thing. Ghost
+    // layers blend with GL_ONE_MINUS_SRC_ALPHA, which would otherwise leave
+    // arbitrary alpha behind and put stray rim pixels on unselected geometry.
+    // Everything stays at the cleared 255 until render_selection_tag() unmasks.
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+
     // Select active geometry
     auto* active_vbos = &layer_vbos_;
     active_geometry_ = geometry_.get();
@@ -1274,6 +1320,9 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
     // Material
     glUniform1f(u_specular_intensity_, specular_intensity_);
     glUniform1f(u_specular_shininess_, specular_shininess_);
+    // Matches depth_shading::LIFT_STRENGTH on the 2D path, so the same model in
+    // the same filament reads the same way in either renderer.
+    glUniform1f(u_lift_strength_, helix::gcode::depth_shading::LIFT_STRENGTH);
 
     // Per-vertex color mode: use vertex colors when geometry has a color palette.
     // With per-tool AMS overrides, the palette is updated in-place so vertex colors
@@ -1318,11 +1367,25 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
 
     glUseProgram(0);
 
+    // Tag the selected object's visible pixels AFTER the geometry is final, so
+    // "visible" means what actually survived depth testing. Solid layers only —
+    // the ghost pass is faded context, and a full-strength rim there would read as
+    // a solid object. The rim itself is drawn on the CPU after readback.
+    {
+        int tag_end = draw_end;
+        if (progress_layer_ >= 0 && progress_layer_ < max_layer) {
+            tag_end = std::min(progress_layer_, draw_end);
+        }
+        render_selection_tag(gcode, mvp_dequant, draw_start, tag_end);
+    }
+
     // Selection brackets on top, using the same MVP as the geometry pass so
     // brackets stay anchored to objects under rotation/zoom. Drawn last with
-    // depth test disabled inside render_brackets_3d().
+    // depth test disabled inside render_brackets_3d(). Alpha is still masked, so
+    // the brackets cannot overwrite the tag they sit on top of.
     render_brackets_3d(gcode, mvp);
 
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -1420,12 +1483,8 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
 
     // Create or recreate draw buffer at widget size
     if (!draw_buf_ || draw_buf_width_ != widget_w || draw_buf_height_ != widget_h) {
-        if (draw_buf_) {
-            // draw_buf_ may still be in flight to the parallel render thread
-            // (#929 cluster). Drain pending draws before freeing.
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(draw_buf_);
-        }
+        // May still be in flight to the parallel render thread (#929 cluster).
+        helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
         draw_buf_ = lv_draw_buf_create(static_cast<uint32_t>(widget_w),
                                        static_cast<uint32_t>(widget_h), LV_COLOR_FORMAT_RGB888, 0);
         if (!draw_buf_) {
@@ -1450,6 +1509,28 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
     }
     glReadPixels(0, 0, fbo_width_, fbo_height_, GL_RGBA, GL_UNSIGNED_BYTE, readback_buf_.data());
     check_gl_error("glReadPixels");
+
+    // The white silhouette, derived from the tag render_selection_tag() left in
+    // the alpha byte. Byte 3 is alpha in the readback's RGBA and in the
+    // rasterizer's ARGB8888 alike, so the tag scan reads the same offset either
+    // way — but the rim COLOUR is an XML token and need not be grey, so the
+    // readback's channel order has to be named. glReadPixels above asked for
+    // GL_RGBA, which puts red at byte 0 where an ARGB8888 buffer puts blue.
+    if (selection_.any_highlighted()) {
+        const int rim = selection::outline_width_px(fbo_width_);
+        const RasterTarget rt{readback_buf_.data(), static_cast<size_t>(fbo_width_) * 4, fbo_width_,
+                              fbo_height_};
+        size_t tagged = 0;
+        if (spdlog::should_log(spdlog::level::trace)) {
+            for (size_t i = 3; i < readback_buf_.size(); i += 4) {
+                tagged += (readback_buf_[i] == helix::gcode::kSelectedAlpha);
+            }
+        }
+        helix::gcode::stroke_selection_rim(rt, rim, rim, sel_palette_.outline,
+                                           helix::gcode::ChannelOrder::Rgba);
+        spdlog::trace("[GCode GLES] Selection rim: {} tagged px of {}, rim {}px", tagged,
+                      static_cast<size_t>(fbo_width_) * fbo_height_, rim);
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -1604,14 +1685,6 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
     }
 }
 
-void GCodeGLESRenderer::set_smooth_shading(bool /*enable*/) {
-    frame_dirty_ = true;
-}
-
-void GCodeGLESRenderer::set_extrusion_width(float width_mm) {
-    extrusion_width_ = width_mm;
-}
-
 void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
     // Simplification is applied during geometry build, not at render time
 }
@@ -1651,22 +1724,15 @@ void GCodeGLESRenderer::set_highlighted_object(const std::string& name) {
 }
 
 void GCodeGLESRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
-    if (highlighted_objects_ != names) {
-        highlighted_objects_ = names;
-        // Memoize the set hash so the per-frame cached-state build doesn't
-        // iterate every name on each LVGL invalidation tick.
-        size_t h = 0;
-        for (const auto& n : highlighted_objects_) {
-            h ^= std::hash<std::string>{}(n) + 0x9e3779b9 + (h << 6) + (h >> 2);
-        }
-        highlighted_objects_hash_ = h;
+    // SelectionState memoizes the set hash, so the per-frame cached-state build
+    // does not iterate every name on each LVGL invalidation tick.
+    if (selection_.set_highlighted(names) != InvalidationScope::None) {
         frame_dirty_ = true;
     }
 }
 
 void GCodeGLESRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
-    if (excluded_objects_ != names) {
-        excluded_objects_ = names;
+    if (selection_.set_excluded(names) != InvalidationScope::None) {
         frame_dirty_ = true;
     }
 }
@@ -1677,6 +1743,8 @@ void GCodeGLESRenderer::set_global_opacity(lv_opa_t opacity) {
 }
 
 void GCodeGLESRenderer::reset_colors() {
+    // Main thread; the GL passes below consume these as uniforms.
+    sel_palette_ = selection::palette_from_theme();
     palette_.has_override = false;
     filament_color_ = DEFAULT_FILAMENT_COLOR;
     frame_dirty_ = true;
@@ -1684,9 +1752,12 @@ void GCodeGLESRenderer::reset_colors() {
 
 void GCodeGLESRenderer::clear_cached_frame() {
     // Free the cached draw buffer so stale frames aren't blitted during render deferral
+    // Frees the SAME draw_buf_ the destructor guards as a #929 hazard, but this
+    // site had no lv_draw_wait_for_finish() at all: a deferred-render clear could
+    // free the buffer out from under an in-flight draw task. The shared helper
+    // makes that impossible to get wrong again.
     if (draw_buf_) {
-        lv_draw_buf_destroy(draw_buf_);
-        draw_buf_ = nullptr;
+        helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
         draw_buf_width_ = 0;
         draw_buf_height_ = 0;
     }
@@ -1803,27 +1874,48 @@ size_t GCodeGLESRenderer::get_geometry_color_count() const {
     return 0;
 }
 
-size_t GCodeGLESRenderer::get_memory_usage() const {
-    size_t total = sizeof(*this);
+helix::gcode::RenderMemoryReport GCodeGLESRenderer::memory_report() const {
+    helix::gcode::RenderMemoryReport r;
+
+    size_t geometry = 0;
     if (geometry_) {
-        total += geometry_->vertices.size() * sizeof(RibbonVertex);
-        total += geometry_->strips.size() * sizeof(TriangleStrip);
-        total += geometry_->strip_color_index.size() * sizeof(uint8_t);
+        geometry += geometry_->vertices.size() * sizeof(RibbonVertex);
+        geometry += geometry_->strips.size() * sizeof(TriangleStrip);
+        geometry += geometry_->strip_color_index.size() * sizeof(uint8_t);
     }
-    if (draw_buf_) {
-        total += static_cast<size_t>(draw_buf_width_ * draw_buf_height_ * 3);
-    }
-    // Approximate GPU VRAM usage (VBOs + FBO)
+    r.add("geometry", geometry);
+
+    // RGB888, no alpha: blit_to_lvgl drops the alpha byte on the way in, which
+    // is what freed it up to carry the selection tag.
+    r.add("draw_buf", draw_buf_ ? static_cast<size_t>(draw_buf_width_) *
+                                      static_cast<size_t>(draw_buf_height_) * 3
+                                : 0);
+
+    // Was missing from the old accounting entirely. It is a full RGBA copy of
+    // the framebuffer and it is resident for the life of the renderer.
+    r.add("readback", readback_buf_.size());
+
+    size_t vbo = 0;
     for (const auto& lv : layer_vbos_) {
         if (lv.vbo) {
-            total += lv.vertex_count * PackedVertex::stride();
+            vbo += lv.vertex_count * PackedVertex::stride();
         }
     }
-    if (fbo_.id) {
-        // Color RBO (RGBA8 = 4 bytes/pixel) + Depth RBO (16-bit = 2 bytes/pixel)
-        total += static_cast<size_t>(fbo_width_ * fbo_height_ * 6);
+    r.add("vbo_gpu", vbo);
+
+    // Colour RBO (RGBA8, 4 bytes) + depth RBO (16-bit, 2 bytes). Lives in VRAM,
+    // reported alongside host heap because on the SoCs we ship to it is the same
+    // physical memory.
+    r.add("fbo_gpu",
+          fbo_.id ? static_cast<size_t>(fbo_width_) * static_cast<size_t>(fbo_height_) * 6 : 0);
+    return r;
+}
+
+void GCodeGLESRenderer::log_memory_report(const char* when) const {
+    if (!spdlog::should_log(spdlog::level::debug)) {
+        return;
     }
-    return total;
+    spdlog::debug("[GCode GLES] memory after {}: {}", when, memory_report().format());
 }
 
 size_t GCodeGLESRenderer::get_triangle_count() const {
@@ -1904,7 +1996,7 @@ bool GCodeGLESRenderer::init_line_program() {
 }
 
 void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const glm::mat4& mvp) {
-    if (highlighted_objects_.empty())
+    if (!selection_.any_highlighted())
         return;
     if (!line_program_ && !init_line_program())
         return;
@@ -1912,9 +2004,9 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
     // Collect line endpoints (one vec3 per vertex, two verts per line).
     // 8 corners * 3 axes * 2 verts = 48 vertices per object.
     std::vector<glm::vec3> verts;
-    verts.reserve(highlighted_objects_.size() * 48);
+    verts.reserve(selection_.highlighted().size() * 48);
 
-    for (const auto& name : highlighted_objects_) {
+    for (const auto& name : selection_.highlighted()) {
         auto it = gcode.objects.find(name);
         if (it == gcode.objects.end())
             continue;
@@ -1933,21 +2025,18 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
             bmax = quant.dequantize_vec3(quant.quantize_vec3(bbox.max));
         }
 
-        const float dx = bmax.x - bmin.x;
-        const float dy = bmax.y - bmin.y;
-        const float dz = bmax.z - bmin.z;
-        const float min_edge = std::min({dx, dy, dz});
-        // 20% of shortest edge, capped at 5mm — matches the 2D layer renderer
-        // and the deleted TinyGL impl, so 2D and 3D bracket sizing feel alike.
-        const float bracket_len = std::min(min_edge * 0.2f, 5.0f);
-        if (bracket_len < 0.01f)
+        // Shared sizing, so 2D and 3D bracket proportions cannot drift apart.
+        // Measured on the quantized box, not the raw one.
+        const AABB quantized{bmin, bmax};
+        const float bracket_len = selection::bracket_arm_length(quantized);
+        if (bracket_len == 0.0f)
             continue;
 
-        AABB{bmin, bmax}.for_each_bracket_arm(bracket_len,
-                                              [&](const glm::vec3& origin, const glm::vec3& tip) {
-                                                  verts.push_back(origin);
-                                                  verts.push_back(tip);
-                                              });
+        quantized.for_each_bracket_arm(bracket_len,
+                                       [&](const glm::vec3& origin, const glm::vec3& tip) {
+                                           verts.push_back(origin);
+                                           verts.push_back(tip);
+                                       });
     }
 
     if (verts.empty())
@@ -1957,8 +2046,9 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
     glDisable(GL_DEPTH_TEST);
     glUseProgram(line_program_);
     glUniformMatrix4fv(line_u_mvp_, 1, GL_FALSE, glm::value_ptr(mvp));
-    // #C0C0C0 silver, fully opaque — matches the 2D bracket color.
-    glUniform4f(line_u_color_, 0.75f, 0.75f, 0.75f, 1.0f);
+    // Silver, fully opaque, from the same constant the 2D path draws.
+    const glm::vec4 bracket_rgba = selection::to_vec4(sel_palette_.bracket);
+    glUniform4f(line_u_color_, bracket_rgba.r, bracket_rgba.g, bracket_rgba.b, bracket_rgba.a);
 
     glBindBuffer(GL_ARRAY_BUFFER, line_vbo_);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(verts.size() * sizeof(glm::vec3)),
@@ -1978,6 +2068,216 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
 }
 
 // ============================================================
+// Selection Silhouette (3D shell pass, drawn under the lit geometry)
+// ============================================================
+
+static const char* SHELL_VERTEX_DECLS = R"(
+    // Selection tag. Consumes the same packed vertex layout as the lit program,
+    // so it draws straight from the layer VBOs with no extra buffer:
+    //   a_position : vec3, raw quantized int16 (dequantization folded into u_mvp)
+    // The normal is not read: this pass reproduces the object exactly where the
+    // lit pass already drew it, and writes nothing but alpha.
+    uniform mat4 u_mvp;
+    attribute vec3 a_position;
+)";
+
+static const char* SHELL_VERTEX_MAIN = R"(
+    void main() {
+        gl_Position = u_mvp * vec4(a_position, 1.0);
+    }
+)";
+
+/// Alpha written by the tag pass, matching the software rasterizer's tag so both
+/// renderers hand stroke_selection_rim() the same thing.
+static constexpr float SHELL_TAG_ALPHA = static_cast<float>(kSelectedAlpha) / 255.0f;
+
+bool GCodeGLESRenderer::init_shell_program() {
+    if (shell_program_)
+        return true;
+
+    const std::string vertex_src =
+        std::string(SHELL_VERTEX_DECLS) + OCT_DECODE_GLSL + SHELL_VERTEX_MAIN;
+    GLuint vs = compile_shader(GL_VERTEX_SHADER, vertex_src.c_str());
+    if (!vs)
+        return false;
+    // Same flat-color fragment shader the bracket program uses — one uniform color,
+    // no lighting. No reason for a second copy.
+    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, LINE_FRAGMENT_SHADER);
+    if (!fs) {
+        glDeleteShader(vs);
+        return false;
+    }
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, vs);
+    glAttachShader(prog, fs);
+    glLinkProgram(prog);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    GLint linked = GL_FALSE;
+    glGetProgramiv(prog, GL_LINK_STATUS, &linked);
+    if (!linked) {
+        GLchar log[512];
+        glGetProgramInfoLog(prog, sizeof(log), nullptr, log);
+        spdlog::error("[GCode GLES] Shell program link failed: {}", log);
+        glDeleteProgram(prog);
+        return false;
+    }
+
+    shell_u_mvp_ = glGetUniformLocation(prog, "u_mvp");
+    shell_u_color_ = glGetUniformLocation(prog, "u_color");
+    shell_a_position_ = glGetAttribLocation(prog, "a_position");
+
+    if (shell_a_position_ < 0) {
+        spdlog::error("[GCode GLES] Tag program missing a_position");
+        glDeleteProgram(prog);
+        return false;
+    }
+
+    shell_program_ = prog;
+    spdlog::debug("[GCode GLES] Selection tag program ready");
+    return true;
+}
+
+void GCodeGLESRenderer::render_selection_tag(const ParsedGCodeFile& gcode,
+                                             const glm::mat4& mvp_dequant, int layer_start,
+                                             int layer_end) {
+    // Gate before anything else, including the program link: an unselected plate
+    // must cost nothing at all.
+    if (!selection_.any_highlighted())
+        return;
+    if (!active_geometry_ || active_geometry_->object_runs.empty())
+        return; // no exclude-object metadata, or the run-count guard tripped
+    if (layer_end < layer_start)
+        return;
+
+    // Resolve the selected names to interned indices, once, into a flat lookup.
+    // This is the same table the geometry builder resolved
+    // segment.object_name_index against — the viewer builds the geometry from,
+    // and renders, one ParsedGCodeFile — so the indices in object_runs are
+    // directly comparable.
+    //
+    // A vector<int16_t> plus std::find was the first shape here, copied from the
+    // code it replaced. That is a linear scan per RUN per LAYER, inside a
+    // per-frame pass; an indexed array is the same information with the search
+    // removed, and it is what SelectionState::classify() already does on the 2D
+    // side.
+    std::vector<bool> wanted(gcode.object_name_table.size(), false);
+    bool any_wanted = false;
+    for (const auto& name : selection_.highlighted()) {
+        for (size_t i = 0; i < gcode.object_name_table.size(); ++i) {
+            if (gcode.object_name_table[i] == name) {
+                wanted[i] = true;
+                any_wanted = true;
+                break;
+            }
+        }
+    }
+    if (!any_wanted)
+        return;
+
+    if (!shell_program_ && !init_shell_program())
+        return;
+
+    // Save every piece of state this pass touches. render_brackets_3d brackets its
+    // own glDisable(GL_DEPTH_TEST) the same way; anything left unrestored here
+    // corrupts the frame.
+    GLint prev_program = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
+    GLint prev_buffer = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev_buffer);
+    GLboolean prev_depth_mask = GL_TRUE;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &prev_depth_mask);
+    GLint prev_depth_func = GL_LESS;
+    glGetIntegerv(GL_DEPTH_FUNC, &prev_depth_func);
+
+    // Alpha only. The color channels already hold the lit image and must survive
+    // untouched; the rest of the frame runs with alpha writes masked off (see
+    // render_to_fbo) so nothing but this pass can put kSelectedAlpha anywhere.
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+
+    // Depth test stays enabled, but the function MUST be relaxed to LEQUAL. The
+    // renderer never calls glDepthFunc, so it runs on the GL default of LESS, and
+    // re-drawing a triangle at exactly the depth it already wrote fails LESS on
+    // every single fragment — the pass drew its 125 runs and tagged zero pixels.
+    // With LEQUAL it passes exactly where this object is the frontmost thing and
+    // fails where something else occludes it, which is the definition of
+    // "visible" and so the contour we want. Depth WRITES go off: the buffer is
+    // already correct and re-writing it would be a no-op at best.
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+
+    glUseProgram(shell_program_);
+    glUniformMatrix4fv(shell_u_mvp_, 1, GL_FALSE, glm::value_ptr(mvp_dequant));
+    glUniform4f(shell_u_color_, 0.0f, 0.0f, 0.0f, SHELL_TAG_ALPHA);
+
+    glEnableVertexAttribArray(static_cast<GLuint>(shell_a_position_));
+
+    constexpr size_t STRIDE = PackedVertex::stride();
+    size_t runs_drawn = 0;
+
+    for (int layer = layer_start; layer <= layer_end; ++layer) {
+        if (layer < 0 || layer >= static_cast<int>(layer_vbos_.size()))
+            continue;
+        const auto& lv = layer_vbos_[static_cast<size_t>(layer)];
+        if (!lv.vbo || lv.vertex_count == 0)
+            continue;
+
+        const auto runs = active_geometry_->layer_object_runs(static_cast<size_t>(layer));
+        if (runs.empty())
+            continue;
+
+        bool bound = false;
+        for (const auto& run : runs) {
+            if (run.object_index < 0 || static_cast<size_t>(run.object_index) >= wanted.size() ||
+                !wanted[static_cast<size_t>(run.object_index)]) {
+                continue;
+            }
+            // Runs are validated at build time, but the VBO can lag the geometry
+            // during incremental upload — never let a stale run read past the buffer.
+            if (static_cast<size_t>(run.vertex_offset) + run.vertex_count > lv.vertex_count)
+                continue;
+
+            if (!bound) {
+                glBindBuffer(GL_ARRAY_BUFFER, lv.vbo);
+                glVertexAttribPointer(static_cast<GLuint>(shell_a_position_), 3, GL_SHORT, GL_FALSE,
+                                      static_cast<GLsizei>(STRIDE),
+                                      reinterpret_cast<void*>(PackedVertex::position_offset()));
+                bound = true;
+            }
+
+            glDrawArrays(GL_TRIANGLES, static_cast<GLint>(run.vertex_offset),
+                         static_cast<GLsizei>(run.vertex_count));
+            ++runs_drawn;
+        }
+    }
+
+    glDisableVertexAttribArray(static_cast<GLuint>(shell_a_position_));
+
+    // Restore, in the reverse order of the saves. Alpha writes go back to masked
+    // off, which is how the rest of the frame runs.
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prev_buffer));
+    glDepthMask(prev_depth_mask);
+    glDepthFunc(static_cast<GLenum>(prev_depth_func));
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    glUseProgram(static_cast<GLuint>(prev_program));
+
+    // One error check for the whole pass, matching draw_layers. A fault here is
+    // the same class of driver failure and must fall back the same way.
+    GLenum tag_err = glGetError();
+    if (gl_draw_error_is_fatal(tag_err)) {
+        spdlog::error("[GCode GLES] Fatal GL error in selection tag pass: 0x{:04X} — disabling "
+                      "GPU rendering, falling back to 2D",
+                      tag_err);
+        gl_render_failed_ = true;
+        return;
+    }
+
+    spdlog::trace("[GCode GLES] Selection tag: {} runs over layers {}..{}", runs_drawn, layer_start,
+                  layer_end);
+}
+
+// ============================================================
 // Object Picking (CPU-side, no GL needed)
 // ============================================================
 
@@ -1988,7 +2288,56 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
     float closest_distance = std::numeric_limits<float>::max();
     std::optional<std::string> picked_object;
 
-    constexpr float PICK_THRESHOLD = PICK_THRESHOLD_PX;
+    constexpr float PICK_THRESHOLD = selection::kPickThresholdPx;
+
+    // Stage 1: which objects could the tap possibly be on?
+    //
+    // Stage 2 costs two mat4 multiplies and a point-to-segment distance for
+    // EVERY segment of every visible layer, and the test plate parses to 135,197
+    // of them. Projecting eight corners per object first, and skipping segments
+    // whose object's projected box is nowhere near the tap, turns most of that
+    // into one array lookup. The 2D picker got this treatment in 1ee6ba494; this
+    // is the same idea against the same data.
+    //
+    // Objects are keyed by interned index, so the candidate set is a flat array
+    // rather than a set of strings.
+    std::vector<bool> candidate(gcode.object_name_table.size(), false);
+    bool any_candidate = false;
+    for (const auto& [name, obj] : gcode.objects) {
+        const AABB& box = obj.bounding_box;
+        // Defined but never extruded: the corners are +/-inf and projecting them
+        // yields garbage that would match every tap.
+        if (box.is_empty()) {
+            continue;
+        }
+        int16_t idx = -1;
+        for (size_t i = 0; i < gcode.object_name_table.size(); ++i) {
+            if (gcode.object_name_table[i] == name) {
+                idx = static_cast<int16_t>(i);
+                break;
+            }
+        }
+        if (idx < 0) {
+            continue;
+        }
+
+        // This used to reject corners with std::abs(clip.w) < EPSILON, which let a
+        // corner BEHIND the camera through and mirrored it onto the screen,
+        // corrupting the candidate box. project_aabb_to_screen() rejects w <= EPSILON.
+        const ScreenBounds sb =
+            project_aabb_to_screen(transform, box, viewport_width_, viewport_height_);
+        // A box that projects to nothing usable stays a candidate: better to pay
+        // for stage 2 than to drop a pick outright.
+        if (!sb.valid || sb.contains(screen_pos.x, screen_pos.y, PICK_THRESHOLD)) {
+            candidate[static_cast<size_t>(idx)] = true;
+            any_candidate = true;
+        }
+    }
+    // No object metadata at all (or nothing near the tap): fall through with
+    // everything eligible rather than silently refusing to pick.
+    if (!any_candidate && gcode.objects.empty()) {
+        candidate.assign(candidate.size(), true);
+    }
 
     int ls = layer_start_;
     int le = (layer_end_ < 0 || layer_end_ >= static_cast<int>(gcode.layers.size()))
@@ -2005,32 +2354,32 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
                 continue;
             if (segment.object_name_index < 0)
                 continue;
-
-            glm::vec4 start_clip = transform * glm::vec4(segment.start, 1.0f);
-            glm::vec4 end_clip = transform * glm::vec4(segment.end, 1.0f);
-
-            if (std::abs(start_clip.w) < CLIP_SPACE_W_EPSILON ||
-                std::abs(end_clip.w) < CLIP_SPACE_W_EPSILON)
-                continue;
-
-            glm::vec3 start_ndc = glm::vec3(start_clip) / start_clip.w;
-            glm::vec3 end_ndc = glm::vec3(end_clip) / end_clip.w;
-
-            if (start_ndc.x < -1 || start_ndc.x > 1 || start_ndc.y < -1 || start_ndc.y > 1 ||
-                end_ndc.x < -1 || end_ndc.x > 1 || end_ndc.y < -1 || end_ndc.y > 1) {
+            // Stage 1 result: one array lookup instead of two mat4 multiplies.
+            if (static_cast<size_t>(segment.object_name_index) < candidate.size() &&
+                !candidate[static_cast<size_t>(segment.object_name_index)]) {
                 continue;
             }
 
-            glm::vec2 start_screen((start_ndc.x + 1) * 0.5f * viewport_width_,
-                                   (1 - start_ndc.y) * 0.5f * viewport_height_);
-            glm::vec2 end_screen((end_ndc.x + 1) * 0.5f * viewport_width_,
-                                 (1 - end_ndc.y) * 0.5f * viewport_height_);
+            // Was std::abs(w) < EPSILON here too, with the same behind-camera
+            // defect as the candidate pass above.
+            const auto start_screen =
+                project_clip_to_screen(transform, segment.start, viewport_width_, viewport_height_);
+            const auto end_screen =
+                project_clip_to_screen(transform, segment.end, viewport_width_, viewport_height_);
+            if (!start_screen || !end_screen)
+                continue;
 
-            glm::vec2 v = end_screen - start_screen;
-            glm::vec2 w = screen_pos - start_screen;
-            float len_sq = glm::dot(v, v);
-            float t = (len_sq > 0.0001f) ? std::clamp(glm::dot(w, v) / len_sq, 0.0f, 1.0f) : 0.0f;
-            float dist = glm::length(screen_pos - (start_screen + t * v));
+            // Both endpoints must be on screen. This was spelled as an NDC range
+            // check on [-1, 1]; in screen pixels that is exactly the viewport rect.
+            const auto on_screen = [&](const glm::vec2& p) {
+                return p.x >= 0.0f && p.x <= static_cast<float>(viewport_width_) && p.y >= 0.0f &&
+                       p.y <= static_cast<float>(viewport_height_);
+            };
+            if (!on_screen(*start_screen) || !on_screen(*end_screen)) {
+                continue;
+            }
+
+            const float dist = point_segment_distance(screen_pos, *start_screen, *end_screen);
 
             if (dist < PICK_THRESHOLD && dist < closest_distance) {
                 closest_distance = dist;
@@ -2050,36 +2399,16 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
             if (bbox.is_empty())
                 continue;
 
-            const auto corners = bbox.corners();
-
-            float min_sx = std::numeric_limits<float>::max();
-            float min_sy = std::numeric_limits<float>::max();
-            float max_sx = std::numeric_limits<float>::lowest();
-            float max_sy = std::numeric_limits<float>::lowest();
-            bool any_in_front = false;
-
-            for (const auto& corner : corners) {
-                glm::vec4 clip = transform * glm::vec4(corner, 1.0f);
-                if (clip.w <= CLIP_SPACE_W_EPSILON)
-                    continue; // behind the camera
-                any_in_front = true;
-                glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                float sx = (ndc.x + 1.0f) * 0.5f * viewport_width_;
-                float sy = (1.0f - ndc.y) * 0.5f * viewport_height_;
-                min_sx = std::min(min_sx, sx);
-                min_sy = std::min(min_sy, sy);
-                max_sx = std::max(max_sx, sx);
-                max_sy = std::max(max_sy, sy);
-            }
-            if (!any_in_front)
+            const ScreenBounds sb =
+                project_aabb_to_screen(transform, bbox, viewport_width_, viewport_height_);
+            if (!sb.valid)
                 continue;
 
-            if (screen_pos.x < min_sx || screen_pos.x > max_sx || screen_pos.y < min_sy ||
-                screen_pos.y > max_sy)
+            if (!sb.contains(screen_pos.x, screen_pos.y))
                 continue;
 
             // Prefer the smallest (innermost) hit when objects overlap on screen.
-            float area = (max_sx - min_sx) * (max_sy - min_sy);
+            float area = sb.area();
             if (area < closest_inside_area) {
                 closest_inside_area = area;
                 picked_object = name;

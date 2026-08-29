@@ -158,6 +158,7 @@
   <translation tag="All axes homed" pt="Todos os eixos referenciados"/>
   <translation tag="All fields are required" pt="Todos os campos são obrigatórios"/>
   <translation tag="All plugins loaded successfully" pt="Todos os plugins carregados com sucesso"/>
+  <translation tag="Allow" pt="Permitir"/>
   <translation tag="Allow Home Screen Editing" pt="Permitir a edição da tela inicial"/>
   <translation tag="Allow cold load/unload" pt="Permitir carregar/descarregar a frio"/>
   <translation tag="Allow display to sleep during active prints" pt="Permitir suspensão da tela durante impressões"/>
@@ -168,6 +169,7 @@
   <translation tag="Ambient Transfer" pt="Transferência Ambiente"/>
   <translation tag="AmsIdentify" pt="Identificar AMS"/>
   <translation tag="An accelerometer was detected on your printer." pt="Um acelerômetro foi detectado na sua impressora."/>
+  <translation tag="An app on your network is asking to connect to this printer." pt="Um aplicativo na sua rede quer conectar-se a esta impressora."/>
   <translation tag="An error occurred during calibration." pt="Ocorreu um erro durante a calibração."/>
   <translation tag="An error occurred during filament loading." pt="Ocorreu um erro durante o carregamento do filamento."/>
   <translation tag="An error occurred during measurement." pt="Ocorreu um erro durante a medição."/>
@@ -549,6 +551,7 @@
   <translation tag="Connecting..." pt="Conectando..."/>
   <translation tag="Connection" pt="Conexão"/>
   <translation tag="Connection Failed" pt="Conexão Falhou"/>
+  <translation tag="Connection Request" pt="Solicitação de conexão"/>
   <translation tag="Connection Stability" pt="Estabilidade da Conexão"/>
   <translation tag="Connection failed" pt="Conexão falhou"/>
   <translation tag="Connection failed to {}:{}" pt="Falha na conexão com {}:{}"/>
@@ -581,6 +584,7 @@
   <translation tag="Corner roundness" pt="Arredondamento dos cantos"/>
   <translation tag="Correction (Ki)" pt="Correção (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." pt="Não foi possível analisar a macro PRINT_START. Algumas opções de impressão podem estar indisponíveis."/>
+  <translation tag="Could not answer the connection request" pt="Não foi possível responder à solicitação de conexão"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." pt="Não foi possível verificar status da webcam.&#10;Verifique a conexão da impressora."/>
   <translation tag="Could not confirm cancel"/>
   <translation tag="Could not forget device" pt="Não foi possível esquecer o dispositivo"/>
@@ -662,6 +666,7 @@
   <translation tag="Delete {}?" pt="Excluir {}?"/>
   <translation tag="Delta:" pt="Delta:"/>
   <translation tag="Density" pt="Densidade"/>
+  <translation tag="Deny" pt="Negar"/>
   <translation tag="Deploy" pt="Implantar"/>
   <translation tag="Describe the issue (optional)" pt="Descreva o problema (opcional)"/>
   <translation tag="Detailed" pt="Detalhado"/>
@@ -673,6 +678,7 @@
   <translation tag="Dev" pt="Dev"/>
   <translation tag="Dev channel requires dev_url in config" pt="Canal dev requer dev_url na configuração"/>
   <translation tag="Device" pt="Dispositivo"/>
+  <translation tag="Device connected" pt="Dispositivo conectado"/>
   <translation tag="Device name" pt="Nome do dispositivo"/>
   <translation tag="Device name is required" pt="Nome do dispositivo é obrigatório"/>
   <translation tag="Device: " pt="Dispositivo: "/>
@@ -2868,6 +2874,7 @@
   <translation tag="{} filament sensors available" pt="{} sensores de filamento disponíveis"/>
   <translation tag="{} filament • {}" pt="{} de filamento • {}"/>
   <translation tag="{} heater turned off" pt="Aquecedor {} desligado"/>
+  <translation tag="{} is asking to connect to this printer." pt="{} quer conectar-se a esta impressora."/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." pt="{} está instalado mas sua troca para carretel reserva está desligada, então não haverá troca automática."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." pt="{} está instalado, mas não foi possível ler sua configuração de carretel reserva - não conte com uma troca automática."/>
   <translation tag="{} is not set up on this printer"/>

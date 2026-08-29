@@ -11,20 +11,19 @@
 
 #include "tool_state.h"
 
-#include "i_moonraker_client.h"
-#include "tool_offsets.h"
-
 #include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "data_root_resolver.h"
 #include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
+#include "tool_offsets.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -39,6 +38,27 @@
 #include <fstream>
 
 namespace helix {
+
+namespace {
+
+/// Refuse a mutation that would publish into subjects that do not exist yet.
+///
+/// Every ToolState mutator ends in lv_subject_set_int(). Before
+/// init_subjects() those subjects are still zeroed (LV_SUBJECT_TYPE_INVALID),
+/// so LVGL drops each write and only warns, while the plain members the same
+/// call rebuilt keep the new value. That divergence is invisible: tools_ says
+/// four tools and tool_count says zero, and nothing republishes until some
+/// unrelated path happens to rebuild the list. Applying nothing is the only
+/// outcome that cannot diverge.
+bool subjects_ready(bool initialized, const char* what) {
+    if (initialized) {
+        return true;
+    }
+    spdlog::error("[ToolState] {} before init_subjects() - ignored", what);
+    return false;
+}
+
+} // namespace
 
 ToolState& ToolState::instance() {
     static ToolState instance;
@@ -246,6 +266,10 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
 }
 
 void ToolState::set_ams_topology(const ToolTopology& topo) {
+    if (!subjects_ready(subjects_initialized_, "set_ams_topology()")) {
+        return;
+    }
+
     bool needs_rebuild = !ams_topology_active_ || ams_topology_tool_count_ != topo.tool_count ||
                          ams_topology_tool_to_slot_ != topo.tool_to_slot ||
                          ams_topology_tool_name_prefix_ != topo.tool_name_prefix;
@@ -303,6 +327,9 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
 }
 
 void ToolState::clear_ams_topology() {
+    if (!subjects_ready(subjects_initialized_, "clear_ams_topology()")) {
+        return;
+    }
     if (!ams_topology_active_)
         return;
     ams_topology_active_ = false;
@@ -489,8 +516,7 @@ void ToolState::update_from_status(const nlohmann::json& status) {
 
 void ToolState::query_tool_z_offsets(IMoonrakerClient* client,
                                      const helix::PrinterDiscovery& hardware) {
-    if (!client || tools_.empty() ||
-        lv_subject_get_int(&per_tool_z_supported_) != 1) {
+    if (!client || tools_.empty() || lv_subject_get_int(&per_tool_z_supported_) != 1) {
         return;
     }
 
@@ -510,8 +536,8 @@ void ToolState::query_tool_z_offsets(IMoonrakerClient* client,
     // lv_subject_set_int() off the main thread fires observers into LVGL
     // (CLAUDE.md § Threading invariant 1). bg_cb also drops the body if the
     // subjects were torn down while the request was in flight.
-    auto cb = async_lifetime_.bg_cb(
-        "ToolState::query_tool_z_offsets", [this](nlohmann::json response) {
+    auto cb =
+        async_lifetime_.bg_cb("ToolState::query_tool_z_offsets", [this](nlohmann::json response) {
             if (!response.contains("result") || !response["result"].contains("status")) {
                 spdlog::debug("[ToolState] Tool z-offset query returned no status");
                 return;

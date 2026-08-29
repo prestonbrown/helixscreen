@@ -32,12 +32,46 @@ class EmergencyStopOverlayTestAccess {
         o.suppress_recovery_until_.store(0, std::memory_order_relaxed);
     }
 
-    /// Set the user-initiated-restart flag the way the recovery dialog's
-    /// Restart path does. Tests driving a klippy READY need the flag armed to
-    /// exercise the expected-restart branch, and a test that arms it without
-    /// delivering READY must clear it or every later test inherits it.
+    /// The reason a suppression window is holding back. Distinct from
+    /// recovery_reason(), which is what the dialog is currently showing: a
+    /// re-check that a guard declines must leave this set and that one clear.
+    static RecoveryReason pending_recovery_reason(const EmergencyStopOverlay& o) {
+        return static_cast<RecoveryReason>(
+            o.pending_recovery_reason_.load(std::memory_order_relaxed));
+    }
+
+    /// Drop the latched reason. Singleton hygiene, same as reset_suppression():
+    /// a latch left behind surfaces a recovery dialog inside a later test.
+    static void reset_pending_recovery_reason(EmergencyStopOverlay& o) {
+        o.pending_recovery_reason_.store(static_cast<int>(RecoveryReason::NONE),
+                                         std::memory_order_relaxed);
+    }
+
+    /// Whether the re-check timer is currently armed. The teardown assertion
+    /// wants this rather than "did a dialog appear": a timer that survives
+    /// deinit_subjects() fires against the NEXT session, so the bug is the live
+    /// handle, and observing its effect means letting it run against subjects
+    /// that were just freed.
+    static bool recheck_timer_armed(const EmergencyStopOverlay& o) {
+        return o.recovery_recheck_timer_ != nullptr;
+    }
+
+    /// Set the user-initiated-restart window the way the recovery dialog's
+    /// Restart path does. Tests driving a klippy READY need it armed to exercise
+    /// the expected-restart branch, and a test that arms it without delivering
+    /// READY must clear it or every later test inherits it.
+    ///
+    /// Both halves call the production code rather than writing the member: true
+    /// runs begin_restart_window(), which is exactly what restart_klipper() and
+    /// firmware_restart() call, and false stores the 0 the klippy-READY handler
+    /// stores. A test that seeded the deadline itself would be testing its own
+    /// arithmetic - including the expiry, which is the point.
     static void set_restart_in_progress(EmergencyStopOverlay& o, bool in_progress) {
-        o.restart_in_progress_.store(in_progress, std::memory_order_relaxed);
+        if (in_progress) {
+            o.begin_restart_window();
+        } else {
+            o.restart_expires_at_.store(0, std::memory_order_relaxed);
+        }
     }
 
     /// Drop the dependency pointers init() installed. Same singleton problem as

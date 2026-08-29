@@ -31,6 +31,7 @@
 #include <map>
 #include <random>
 #include <sstream>
+#include <unistd.h>
 #include <unordered_set>
 
 using namespace helix;
@@ -5509,6 +5510,19 @@ void write_mock_shaper_csv(const std::string& path, char axis) {
 
 } // anonymous namespace
 
+std::string MoonrakerClientMock::shaper_csv_path(char axis_lower) {
+    // getpid(), not a random suffix: the path has to be stable for the whole
+    // process so a fixture's std::remove() between cases still finds the file
+    // its own mock wrote, while staying disjoint from every concurrent shard.
+    return "/tmp/calibration_data_" + std::string(1, axis_lower) + "_mock_" +
+           std::to_string(static_cast<long>(::getpid())) + ".csv";
+}
+
+void MoonrakerClientMock::remove_shaper_csvs() {
+    std::remove(shaper_csv_path('x').c_str());
+    std::remove(shaper_csv_path('y').c_str());
+}
+
 json MoonrakerClientMock::build_input_shaper_config() const {
     char freq_x[16];
     char freq_y[16];
@@ -5588,9 +5602,8 @@ void MoonrakerClientMock::dispatch_shaper_calibrate_response(char axis) {
     snprintf(buf, sizeof(buf), "Recommended shaper_type_%c = mzv, shaper_freq_%c = 53.8 Hz",
              axis_lower, axis_lower);
     lines.emplace_back(buf);
-    snprintf(buf, sizeof(buf),
-             "Shaper calibration data written to /tmp/calibration_data_%c_mock.csv file",
-             axis_lower);
+    snprintf(buf, sizeof(buf), "Shaper calibration data written to %s file",
+             shaper_csv_path(axis_lower).c_str());
     const std::string csv_line(buf);
 
     struct ShaperSimState {
@@ -5618,8 +5631,7 @@ void MoonrakerClientMock::dispatch_shaper_calibrate_response(char axis) {
             // When shaper_csv_writable_ is false, simulate Klipper's /tmp
             // output being unreadable (e.g. PrivateTmp) by removing any
             // stale file at the path instead of writing it.
-            std::string csv_path =
-                std::string("/tmp/calibration_data_") + s->axis_lower + std::string("_mock.csv");
+            std::string csv_path = shaper_csv_path(s->axis_lower);
             if (s->mock->shaper_csv_writable_) {
                 write_mock_shaper_csv(csv_path, s->axis_lower);
             } else {

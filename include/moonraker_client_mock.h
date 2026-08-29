@@ -618,6 +618,30 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     }
 
     /**
+     * @brief Path the mock writes SHAPER_CALIBRATE data to, for @p axis_lower
+     *
+     * Per-process, because `make test-run` shards the suite across as many
+     * helix-tests PROCESSES as the box has jobs, and three test files touch this
+     * file: the panel integration and calibrator fixtures both std::remove() it
+     * between cases, and the API test asserts on it. On a fixed path those land
+     * in different shards and delete each other's fixture mid-run - the writer
+     * then parses an absent CSV, freq_response comes back empty, and the verdict
+     * row silently never populates. Embedding the PID makes concurrent shards
+     * disjoint. Tests MUST use this rather than rebuilding the literal.
+     */
+    static std::string shaper_csv_path(char axis_lower);
+
+    /**
+     * @brief Delete both axes' CSVs for THIS process
+     *
+     * Fixtures call it on the way in (so a previous case in this process cannot
+     * leak a stale file into the next) and on the way out (so a shard does not
+     * strand its files in /tmp - each process now writes its own, where the old
+     * fixed path was simply overwritten).
+     */
+    static void remove_shaper_csvs();
+
+    /**
      * @brief Set the [resonance_tester] sweep range the mock reports and replays
      *
      * Drives both `configfile.settings.resonance_tester` and the frequencies

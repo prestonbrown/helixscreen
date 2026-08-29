@@ -148,6 +148,8 @@ RibbonGeometry::RibbonGeometry(RibbonGeometry&& other) noexcept
       strip_layer_index(std::move(other.strip_layer_index)),
       layer_strip_ranges(std::move(other.layer_strip_ranges)),
       max_layer_index(other.max_layer_index), layer_bboxes(std::move(other.layer_bboxes)),
+      object_runs(std::move(other.object_runs)),
+      layer_object_run_ranges(std::move(other.layer_object_run_ranges)),
       color_cache(std::move(other.color_cache)),
       prepared_buffers(std::move(other.prepared_buffers)),
       extrusion_triangle_count(other.extrusion_triangle_count),
@@ -166,6 +168,8 @@ RibbonGeometry& RibbonGeometry::operator=(RibbonGeometry&& other) noexcept {
         strip_layer_index = std::move(other.strip_layer_index);
         layer_strip_ranges = std::move(other.layer_strip_ranges);
         layer_bboxes = std::move(other.layer_bboxes);
+        object_runs = std::move(other.object_runs);
+        layer_object_run_ranges = std::move(other.layer_object_run_ranges);
         max_layer_index = other.max_layer_index;
         color_cache = std::move(other.color_cache);
         prepared_buffers = std::move(other.prepared_buffers);
@@ -322,6 +326,10 @@ void RibbonGeometry::clear() {
     layer_strip_ranges.shrink_to_fit();
     layer_bboxes.clear();
     layer_bboxes.shrink_to_fit();
+    object_runs.clear();
+    object_runs.shrink_to_fit();
+    layer_object_run_ranges.clear();
+    layer_object_run_ranges.shrink_to_fit();
     prepared_buffers.clear();
     prepared_buffers.shrink_to_fit();
     max_layer_index = 0;
@@ -371,6 +379,33 @@ void RibbonGeometry::validate() const {
             spdlog::warn("[GCode::Builder] Layer {} strip range [{}, +{}) exceeds strip count {}",
                          layer, first, count, strips.size());
             ++issues;
+        }
+    }
+
+    // Object runs must land inside their layer's own VBO, since the renderer
+    // glDrawArrays over them against that VBO. An out-of-range run reads past the
+    // buffer, which is a GPU-side fault rather than a wrong pixel.
+    for (size_t layer = 0; layer < layer_object_run_ranges.size(); ++layer) {
+        const auto [rfirst, rcount] = layer_object_run_ranges[layer];
+        if (rcount == 0) {
+            continue;
+        }
+        if (static_cast<size_t>(rfirst) + rcount > object_runs.size()) {
+            spdlog::warn("[GCode::Builder] Layer {} run range [{}, +{}) exceeds run count {}",
+                         layer, rfirst, rcount, object_runs.size());
+            ++issues;
+            continue;
+        }
+        const size_t layer_verts =
+            (layer < layer_strip_ranges.size()) ? layer_strip_ranges[layer].second * 6 : 0;
+        for (size_t r = rfirst; r < static_cast<size_t>(rfirst) + rcount; ++r) {
+            const auto& run = object_runs[r];
+            if (static_cast<size_t>(run.vertex_offset) + run.vertex_count > layer_verts) {
+                spdlog::warn("[GCode::Builder] Layer {} run [{}, +{}) exceeds its {} VBO vertices",
+                             layer, run.vertex_offset, run.vertex_count, layer_verts);
+                ++issues;
+                break;
+            }
         }
     }
 
@@ -514,15 +549,18 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
                  "tube_sides={}, tolerance={:.3f}mm",
                  layer_height_mm_, extrusion_width_mm_, tube_sides_, validated_opts.tolerance_mm);
 
-    // Calculate quantization parameters from bounding box
-    // IMPORTANT: Expand bounds to account for tube width (vertices extend beyond segment positions)
-    // Use sqrt(2) safety factor because rectangular tubes on diagonal segments can expand
-    // in multiple dimensions simultaneously (e.g., perp_horizontal + perp_vertical)
-    float max_tube_width = std::max(extrusion_width_mm_, travel_width_mm_);
-    float expansion_margin = max_tube_width * 1.5f; // Safety factor for diagonal expansion
+    // Calculate quantization parameters from bounding box.
+    //
+    // Expand to cover tube width: vertices sit off the segment centre line, so a
+    // box drawn to the centre lines alone would quantize the surface out of
+    // range. tube_half_diagonal() is the exact reach; kQuantBoundsSlack keeps the
+    // historical margin on top of it, because under-expanding here wraps vertices
+    // while over-expanding costs only grid resolution. (The comment here used to
+    // claim a sqrt(2) factor while the code applied 1.5.)
+    const float max_tube_width = std::max(extrusion_width_mm_, travel_width_mm_);
+    const float expansion_margin = tube_half_diagonal(max_tube_width) * kQuantBoundsSlack;
     AABB expanded_bbox = gcode.global_bounding_box;
-    expanded_bbox.min -= glm::vec3(expansion_margin, expansion_margin, expansion_margin);
-    expanded_bbox.max += glm::vec3(expansion_margin, expansion_margin, expansion_margin);
+    expanded_bbox.expand_by(expansion_margin);
     quant_params_.calculate_scale(expanded_bbox);
 
     spdlog::debug(
@@ -638,6 +676,24 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         }
     }
 
+    // Per-object vertex runs, for the GLES selection tag. Collected only when the
+    // file carries exclude-object metadata: without it every segment's
+    // object_name_index is -1, there is nothing to trace, and both tables stay
+    // unallocated.
+    //
+    // Accumulated in STRIP space here and converted to per-layer VBO vertex offsets
+    // after layer_strip_ranges is built below, because a run's offset is relative to
+    // its own layer's VBO and that layer's first strip is not known until then.
+    const bool collect_runs = !gcode.object_name_table.empty();
+    struct PendingRun {
+        uint16_t layer;
+        int16_t object_index;
+        size_t first_strip;
+        size_t strip_count;
+    };
+    std::vector<PendingRun> pending_runs;
+    bool runs_abandoned = false;
+
     size_t segments_since_budget_check = 0;
 
     for (size_t i = 0; i < simplified.size(); ++i) {
@@ -687,8 +743,8 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         // so expand by max(extrusion_width, segment.width) * 0.5 * sqrt(2).
         if (layer_idx < geometry.layer_bboxes.size()) {
             AABB& layer_bbox = geometry.layer_bboxes[layer_idx];
-            float tube_width = std::max(extrusion_width_mm_, segment.width);
-            float expansion = tube_width * 0.5f * 1.41421356f; // sqrt(2) for diagonal
+            const float tube_width = std::max(extrusion_width_mm_, segment.width);
+            const float expansion = tube_half_diagonal(tube_width);
             glm::vec3 expand_vec(expansion, expansion, expansion);
             layer_bbox.expand(segment.start - expand_vec);
             layer_bbox.expand(segment.start + expand_vec);
@@ -723,6 +779,47 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
                 }
                 layer_last_strip[layer_idx] = s;
                 layer_strip_totals[layer_idx]++;
+            }
+        }
+
+        // Extend or open this object's run. Extends when the previous segment was
+        // the same object in the same layer AND its strips end exactly where these
+        // begin — layers are not guaranteed contiguous in file order, so the
+        // adjacency test is on the strip indices, not on the layer alone.
+        // Every extrusion of the object joins a run, whatever its feature type.
+        // The runs are what render_selection_tag() draws, and the rim is derived
+        // from the boundary of the tagged region rather than painted directly, so
+        // leaving the interior untagged makes every infill gap and every hole read
+        // as a boundary of its own. Viewed from above that is the whole failure:
+        // an untagged top face leaves a perimeter ring narrower than 2 * rim_px,
+        // which fuses into solid white and breaks the silhouette into fragments.
+        if (collect_runs && !runs_abandoned && segment.object_name_index >= 0 &&
+            strips_after > strips_before) {
+            const size_t added = strips_after - strips_before;
+            bool extended = false;
+            if (!pending_runs.empty()) {
+                PendingRun& last = pending_runs.back();
+                if (last.layer == layer_idx && last.object_index == segment.object_name_index &&
+                    last.first_strip + last.strip_count == strips_before) {
+                    last.strip_count += added;
+                    extended = true;
+                }
+            }
+            if (!extended) {
+                if (pending_runs.size() >= MAX_OBJECT_RUNS) {
+                    // Past the ceiling the side table stops being cheap relative to
+                    // the geometry it indexes. Drop it entirely and let the renderer
+                    // behave exactly as it did before runs existed.
+                    spdlog::debug("[GCode::Builder] Object runs exceed {} — abandoning run "
+                                  "collection (3D selection silhouette disabled for this file)",
+                                  MAX_OBJECT_RUNS);
+                    pending_runs.clear();
+                    pending_runs.shrink_to_fit();
+                    runs_abandoned = true;
+                } else {
+                    pending_runs.push_back(
+                        {layer_idx, segment.object_name_index, strips_before, added});
+                }
             }
         }
 
@@ -770,6 +867,79 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         spdlog::warn("[GCode::Builder] {} layers have non-contiguous strip ranges "
                      "(using span-based ranges as fallback)",
                      non_contiguous_layers);
+    }
+
+    // Convert the accumulated strip-space runs into per-layer VBO vertex ranges.
+    // Each strip expands to exactly 6 vertices (expand_strips), and a layer's VBO is
+    // built from layer_strip_ranges[layer], so a run's vertex offset is
+    // (first_strip - layer_first_strip) * 6.
+    if (collect_runs && !runs_abandoned && !pending_runs.empty()) {
+        // Group by layer so layer_object_runs() can hand out a contiguous span.
+        // Stable, so runs stay in ascending strip order within a layer.
+        std::stable_sort(
+            pending_runs.begin(), pending_runs.end(),
+            [](const PendingRun& x, const PendingRun& y) { return x.layer < y.layer; });
+
+        geometry.layer_object_run_ranges.assign(gcode.layers.size(), {0, 0});
+        geometry.object_runs.reserve(pending_runs.size());
+
+        bool overflowed = false;
+        for (const PendingRun& pr : pending_runs) {
+            if (pr.layer >= geometry.layer_strip_ranges.size()) {
+                continue;
+            }
+            const auto [layer_first_strip, layer_span] = geometry.layer_strip_ranges[pr.layer];
+            if (layer_span == 0 || pr.first_strip < layer_first_strip) {
+                continue;
+            }
+            const size_t rel_strip = pr.first_strip - layer_first_strip;
+            if (rel_strip + pr.strip_count > layer_span) {
+                continue;
+            }
+
+            size_t offset = rel_strip * 6;
+            size_t remaining = pr.strip_count * 6;
+            while (remaining > 0) {
+                // Split rather than truncate: vertex_count is uint16, and
+                // MAX_RUN_VERTICES keeps every piece strip-aligned.
+                const size_t chunk = std::min<size_t>(remaining, MAX_RUN_VERTICES);
+                if (geometry.object_runs.size() >= MAX_OBJECT_RUNS) {
+                    overflowed = true;
+                    break;
+                }
+                auto& range = geometry.layer_object_run_ranges[pr.layer];
+                if (range.second == 0) {
+                    range.first = static_cast<uint32_t>(geometry.object_runs.size());
+                }
+                range.second++;
+                geometry.object_runs.push_back(
+                    {static_cast<uint32_t>(offset), static_cast<uint16_t>(chunk), pr.object_index});
+                offset += chunk;
+                remaining -= chunk;
+            }
+            if (overflowed) {
+                break;
+            }
+        }
+
+        if (overflowed || geometry.object_runs.empty()) {
+            if (overflowed) {
+                spdlog::debug("[GCode::Builder] Object runs exceed {} after splitting — "
+                              "abandoning run collection",
+                              MAX_OBJECT_RUNS);
+            }
+            geometry.object_runs.clear();
+            geometry.object_runs.shrink_to_fit();
+            geometry.layer_object_run_ranges.clear();
+            geometry.layer_object_run_ranges.shrink_to_fit();
+        } else {
+            geometry.object_runs.shrink_to_fit();
+            spdlog::debug("[GCode::Builder] Recorded {} object runs across {} layers ({} bytes)",
+                          geometry.object_runs.size(), geometry.layer_object_run_ranges.size(),
+                          geometry.object_runs.size() * sizeof(ObjectRun) +
+                              geometry.layer_object_run_ranges.size() *
+                                  sizeof(std::pair<uint32_t, uint32_t>));
+        }
     }
 
     // Store quantization parameters for dequantization during rendering
@@ -945,21 +1115,6 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
     // Compute color
     uint32_t rgb = compute_segment_color(segment, quant.min_bounds.z, quant.max_bounds.z);
-    static const std::string empty_obj_name;
-    const std::string& seg_obj_name =
-        current_gcode_ ? current_gcode_->get_object_name(segment.object_name_index)
-                       : empty_obj_name;
-    if (!highlighted_objects_.empty() && !seg_obj_name.empty() &&
-        highlighted_objects_.count(seg_obj_name) > 0) {
-        constexpr float HIGHLIGHT_BRIGHTNESS = 1.8f;
-        uint8_t r =
-            static_cast<uint8_t>(std::min(255.0f, ((rgb >> 16) & 0xFF) * HIGHLIGHT_BRIGHTNESS));
-        uint8_t g =
-            static_cast<uint8_t>(std::min(255.0f, ((rgb >> 8) & 0xFF) * HIGHLIGHT_BRIGHTNESS));
-        uint8_t b = static_cast<uint8_t>(std::min(255.0f, (rgb & 0xFF) * HIGHLIGHT_BRIGHTNESS));
-        rgb = (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) |
-              static_cast<uint32_t>(b);
-    }
 
     uint8_t color_idx = add_to_color_palette(geometry, rgb);
 

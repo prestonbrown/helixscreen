@@ -37,6 +37,7 @@
 #include "http_executor.h"
 #include "job_queue_state.h"
 #include "keyboard_shortcuts.h"
+#include "lan_client_auth_router.h"
 #include "layout_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
@@ -3951,6 +3952,13 @@ void Application::init_action_prompt() {
     // handler key from the error router; ignores `!!` / `Error:` lines.
     m_gcode_narration_router = std::make_unique<helix::GcodeNarrationRouter>(api, client);
 
+    // Firmware-brokered LAN pairing: on machines whose firmware asks the
+    // printer's own screen to approve a slicer or phone app before letting it
+    // in, HelixScreen is now that screen. Without this the request is
+    // broadcast to nobody and pairing hangs. Inert on firmwares that never
+    // send one — the notification is its own capability probe.
+    m_lan_client_auth_router = std::make_unique<helix::LanClientAuthRouter>(client);
+
     // AMS error bridge: observes AmsState's action subject and surfaces
     // AmsAction::ERROR from STATUS-driven backends (IFS, QIDI, etc.) via the
     // recovery modal. Complements GcodeErrorRouter which handles `!!` lines.
@@ -4953,6 +4961,7 @@ void Application::tear_down_printer_state() {
     //      Reset the router BEFORE the presenter (presenter must outlive router).
     //      AmsErrorBridge also holds a reference to the presenter — reset it first.
     m_gcode_narration_router.reset();
+    m_lan_client_auth_router.reset();
     m_gcode_error_router.reset();
     m_ams_error_bridge.reset();
     m_recovery_presenter.reset();
@@ -5296,6 +5305,7 @@ void Application::shutdown() {
     // Reset the router BEFORE the presenter (presenter must outlive router).
     // AmsErrorBridge also holds a reference to the presenter — reset it first.
     m_gcode_narration_router.reset();
+    m_lan_client_auth_router.reset();
     m_gcode_error_router.reset();
     m_ams_error_bridge.reset();
     m_recovery_presenter.reset();

@@ -8,7 +8,11 @@
 #include "gcode_camera.h"
 #include "gcode_color_palette.h"
 #include "gcode_geometry_builder.h"
+#include "gcode_ghost_mode.h"
 #include "gcode_parser.h"
+#include "gcode_render_memory.h"
+#include "gcode_selection_state.h"
+#include "gcode_selection_style.h"
 
 #include <lvgl/lvgl.h>
 
@@ -24,9 +28,6 @@
 
 namespace helix {
 namespace gcode {
-
-enum class GhostRenderMode : uint8_t { Dimmed = 0, Stipple = 1 };
-constexpr GhostRenderMode DEFAULT_GHOST_RENDER_MODE = GhostRenderMode::Stipple;
 
 // ====== Named Constants (rendering parameters) ======
 
@@ -54,12 +55,6 @@ constexpr glm::vec4 DEFAULT_FILAMENT_COLOR{0.15f, 0.65f, 0.60f, 1.0f};
 
 // Ghost layer default opacity (out of 255)
 constexpr uint8_t DEFAULT_GHOST_OPACITY = 5; // ~2% opacity — ghost layers should barely be visible
-
-// Object picking screen-space threshold (pixels)
-constexpr float PICK_THRESHOLD_PX = 15.0f;
-
-// Near-zero threshold for clipping space W division
-constexpr float CLIP_SPACE_W_EPSILON = 0.0001f;
 
 // Frame-skip epsilon for float comparisons
 constexpr float ANGLE_EPSILON = 1e-5f;
@@ -180,8 +175,6 @@ class GCodeGLESRenderer {
     // ====== Color / Material ======
 
     void set_filament_color(const std::string& hex_color);
-    void set_smooth_shading(bool enable);
-    void set_extrusion_width(float width_mm);
     void set_simplification_tolerance(float tolerance_mm);
     void set_specular(float intensity, float shininess);
     void set_debug_face_colors(bool enable);
@@ -204,6 +197,16 @@ class GCodeGLESRenderer {
     void reset_colors();
     void clear_cached_frame();
     RenderingOptions get_options() const;
+
+    /// The selection palette this renderer resolved from the XML tokens.
+    ///
+    /// Read-only view of sel_palette_, so the token wiring is observable without
+    /// a GL context: the outline colour reaches stroke_selection_rim() and the
+    /// bracket colour reaches the wireframe uniforms from here, and both are
+    /// wrong in the same silent way if the palette is never resolved.
+    const selection::Palette& selection_palette() const {
+        return sel_palette_;
+    }
 
     // ====== Object Picking ======
 
@@ -240,7 +243,13 @@ class GCodeGLESRenderer {
         return triangles_rendered_ / 2;
     }
     size_t get_geometry_color_count() const;
-    size_t get_memory_usage() const;
+    /// Itemized heap and VRAM this renderer holds, for A/B measurement. Replaces
+    /// a get_memory_usage() that returned a bare total, had no caller anywhere,
+    /// and silently omitted the readback buffer.
+    helix::gcode::RenderMemoryReport memory_report() const;
+
+    /// Emit memory_report() at debug level, tagged with what just happened.
+    void log_memory_report(const char* when) const;
     size_t get_triangle_count() const;
 
   private:
@@ -298,6 +307,40 @@ class GCodeGLESRenderer {
     /// image that gets blitted to LVGL. Matches the deleted TinyGL impl.
     void render_brackets_3d(const ParsedGCodeFile& gcode, const glm::mat4& mvp);
 
+    /// Lazily compile/link the tag program used by the selection silhouette.
+    bool init_shell_program();
+
+    /**
+     * @brief Mark the highlighted objects' visible pixels in the framebuffer alpha.
+     *
+     * The silhouette has to follow the real toolpath: an object's bounding box is
+     * a box, and EXCLUDE_OBJECT_DEFINE POLYGON= is the slicer's CONVEX HULL (a cat
+     * is described as an octagon), so neither can trace a concave shape. The mesh
+     * is the only thing that carries the true contour, and
+     * RibbonGeometry::object_runs is what makes a per-object subset of it drawable.
+     *
+     * This does NOT draw the rim. It re-draws the object's own triangles at the
+     * depth the lit pass already established, with the color mask set to alpha
+     * only, so every pixel where the object is VISIBLE ends up holding
+     * kSelectedAlpha. stroke_selection_rim() derives the white contour from that
+     * after readback, exactly as the software renderer does.
+     *
+     * The predecessor was an inverted hull: push the mesh out along its normals,
+     * cull front faces, let the lit pass overpaint the middle. That is
+     * dilate-and-overpaint, and it needs a watertight mesh to work. A toolpath is
+     * a stack of separate tubes, so on a sloped wall the pushed shell of one ring
+     * shows through the gap above it and keeps showing through - a test cone was
+     * mostly white by layer 130. Deriving the contour from the rendered pixels has
+     * no such failure mode, and it costs one depth-only draw instead of a full
+     * second rasterization of the object.
+     *
+     * @param mvp_dequant The lit pass's u_mvp — MVP with dequantization folded in.
+     * @param layer_start,layer_end Solid layer range only; ghost layers are faded
+     *        context and a full-strength rim there would read as a solid object.
+     */
+    void render_selection_tag(const ParsedGCodeFile& gcode, const glm::mat4& mvp_dequant,
+                              int layer_start, int layer_end);
+
     // ====== Frame Skip ======
 
     struct CachedRenderState {
@@ -352,6 +395,13 @@ class GCodeGLESRenderer {
     int line_u_color_ = -1;
     int line_a_position_ = -1;
     unsigned int line_vbo_ = 0;
+    // Flat-color shell program for the selection silhouette. Consumes the same
+    // packed vertex layout as the lit program, so it draws straight from the
+    // layer VBOs with no extra buffer.
+    unsigned int shell_program_ = 0;
+    int shell_u_mvp_ = -1;
+    int shell_u_color_ = -1;
+    int shell_a_position_ = -1;
     // Uniform locations
     int u_mvp_ = -1;
     int u_normal_matrix_ = -1;
@@ -363,6 +413,7 @@ class GCodeGLESRenderer {
     int u_specular_shininess_ = -1;
     int u_model_view_ = -1;
     int u_base_alpha_ = -1;
+    int u_lift_strength_ = -1;
     // Attribute locations
     int a_position_ = -1;
     int a_normal_ = -1;
@@ -404,20 +455,24 @@ class GCodeGLESRenderer {
     // ====== Configuration ======
 
     GCodeColorPalette palette_; ///< Tool color palette for per-vertex coloring
-    std::mutex palette_mutex_;  ///< Guards geometry color palette reads/writes
+
+    /// Selection colors from ui_xml/gcode_tokens.xml, refreshed in reset_colors().
+    /// The defaults cover a frame drawn before that first refresh, and the
+    /// headless tests, which register no tokens.
+    selection::Palette sel_palette_;
+    std::mutex palette_mutex_; ///< Guards geometry color palette reads/writes
     glm::vec4 filament_color_{DEFAULT_FILAMENT_COLOR};
     float specular_intensity_ = DEFAULT_SPECULAR_INTENSITY;
     float specular_shininess_ = DEFAULT_SPECULAR_SHININESS;
-    float extrusion_width_ = 0.5f;
     bool debug_face_colors_ = false;
     bool show_travels_ = false;
     bool show_extrusions_ = true;
     int layer_start_ = -1;
     int layer_end_ = -1;
     std::string highlighted_object_;
-    std::unordered_set<std::string> highlighted_objects_;
-    size_t highlighted_objects_hash_ = 0; // recomputed in set_highlighted_objects
-    std::unordered_set<std::string> excluded_objects_;
+    /// Excluded + highlighted names and the memoized order-independent highlight
+    /// hash the frame-skip comparator reads. See gcode_selection_state.h.
+    SelectionState selection_;
     lv_opa_t global_opacity_ = LV_OPA_COVER;
 
     // ====== Ghost / Progress ======

@@ -268,8 +268,6 @@ void PrintStartController::execute_print_start() {
             // NOTE: Called from background HTTP thread - must defer LVGL calls to main thread
             [update_button, show_detail, ps](bool success, const std::string& error) {
                 helix::ui::queue_update([success, error, update_button, show_detail, ps]() {
-                    auto& status_panel = get_global_print_status_panel();
-
                     if (success) {
                         // Deliberately does NOT end preparation: the RPC
                         // succeeding is when PRINT_START BEGINS. The printer's

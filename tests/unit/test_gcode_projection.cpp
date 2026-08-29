@@ -3,6 +3,8 @@
 
 #include "gcode_projection.h"
 
+#include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 #include <utility>
 
 #include "../catch_amalgamated.hpp"
@@ -451,4 +453,99 @@ TEST_CASE("compute_auto_fit - zero occlusion ignores shape entirely", "[gcode][p
         INFO("dz=" << dz);
         REQUIRE(fit.content_offset_y_percent == Approx(0.0f).margin(1e-6));
     }
+}
+
+// ===========================================================================
+// Clip-space projection helpers (DRY-4)
+//
+// These replaced three hand-written copies of the same eight-corner /
+// point-to-segment math in gcode_gles_renderer.cpp, gcode_renderer.cpp and
+// gcode_layer_renderer.cpp. The copies had drifted on the one predicate that
+// matters, which is what these cases pin.
+// ===========================================================================
+
+namespace {
+
+/// A perspective camera at +Z looking back toward the origin. With this MVP,
+/// clip.w is the view-space depth: positive in front, negative behind.
+glm::mat4 test_mvp() {
+    const glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1.0f, 0.1f, 1000.0f);
+    const glm::mat4 view =
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 100.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    return proj * view;
+}
+
+} // namespace
+
+TEST_CASE("project_clip_to_screen places a point in front of the camera", "[projection][clip]") {
+    const auto s = helix::gcode::project_clip_to_screen(test_mvp(), glm::vec3(0.0f), 200, 100);
+    REQUIRE(s.has_value());
+    // Dead centre of the world maps to dead centre of the viewport.
+    CHECK(s->x == Catch::Approx(100.0f));
+    CHECK(s->y == Catch::Approx(50.0f));
+}
+
+// THE REGRESSION. The candidate-bbox loop and the per-segment loop both used
+// `std::abs(clip.w) < EPSILON`, which only rejects points near the w == 0 plane.
+// A point behind the camera has a large NEGATIVE w, sails through that test, and
+// divides to a mirrored NDC — reported at a confident, wrong screen position.
+TEST_CASE("project_clip_to_screen rejects a point behind the camera", "[projection][clip]") {
+    // The camera sits at z = +100 looking toward the origin, so z = +500 is
+    // well behind it.
+    const glm::vec3 behind(0.0f, 0.0f, 500.0f);
+
+    const glm::vec4 clip = test_mvp() * glm::vec4(behind, 1.0f);
+    REQUIRE(clip.w < 0.0f);              // precondition: it IS behind
+    REQUIRE(std::abs(clip.w) > 0.0001f); // and the OLD abs() test would pass it
+
+    CHECK_FALSE(helix::gcode::project_clip_to_screen(test_mvp(), behind, 200, 100).has_value());
+}
+
+TEST_CASE("project_aabb_to_screen reports invalid when the whole box is behind",
+          "[projection][clip]") {
+    helix::gcode::AABB box;
+    box.min = glm::vec3(-10.0f, -10.0f, 400.0f);
+    box.max = glm::vec3(10.0f, 10.0f, 600.0f);
+    const auto sb = helix::gcode::project_aabb_to_screen(test_mvp(), box, 200, 100);
+    CHECK_FALSE(sb.valid);
+}
+
+TEST_CASE("project_aabb_to_screen bounds a box in front of the camera", "[projection][clip]") {
+    helix::gcode::AABB box;
+    box.min = glm::vec3(-10.0f, -10.0f, -10.0f);
+    box.max = glm::vec3(10.0f, 10.0f, 10.0f);
+    const auto sb = helix::gcode::project_aabb_to_screen(test_mvp(), box, 200, 100);
+    REQUIRE(sb.valid);
+    CHECK(sb.min_x < sb.max_x);
+    CHECK(sb.min_y < sb.max_y);
+    // The box straddles the origin, so its screen box straddles the centre.
+    CHECK(sb.contains(100.0f, 50.0f));
+    // ...and a point far outside is only inside once given enough slack.
+    CHECK_FALSE(sb.contains(sb.max_x + 20.0f, 50.0f));
+    CHECK(sb.contains(sb.max_x + 20.0f, 50.0f, /*slack=*/25.0f));
+}
+
+TEST_CASE("point_segment_distance measures to the segment, not the infinite line",
+          "[projection][pick]") {
+    const glm::vec2 a(0.0f, 0.0f);
+    const glm::vec2 b(10.0f, 0.0f);
+
+    // Perpendicular, over the middle of the span.
+    CHECK(helix::gcode::point_segment_distance({5.0f, 3.0f}, a, b) == Catch::Approx(3.0f));
+
+    // Past the far end: clamped to b, so 5 out and 3 up is a 3-4-5 triangle.
+    // The infinite-line answer would be 3.0, which is the bug this guards.
+    CHECK(helix::gcode::point_segment_distance({14.0f, 3.0f}, a, b) == Catch::Approx(5.0f));
+
+    // Past the near end, symmetrically.
+    CHECK(helix::gcode::point_segment_distance({-4.0f, 3.0f}, a, b) == Catch::Approx(5.0f));
+}
+
+TEST_CASE("point_segment_distance handles a zero-length segment", "[projection][pick]") {
+    // Two identical endpoints: the old copies divided by segment_length_sq and
+    // leaned on a 0.0001f guard to avoid a NaN. Distance to the point is the
+    // only sensible answer.
+    const glm::vec2 p(3.0f, 4.0f);
+    CHECK(helix::gcode::point_segment_distance(p, glm::vec2(0.0f), glm::vec2(0.0f)) ==
+          Catch::Approx(5.0f));
 }
