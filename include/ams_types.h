@@ -1880,10 +1880,6 @@ struct EndlessSpoolStatus {
 [[nodiscard]] EndlessSpoolStatus endless_spool_status(const EndlessSpoolCapabilities& caps);
 
 /**
- * @brief Capabilities for tool mapping feature
- */
-
-/**
  * @brief Action type for dynamic device controls
  */
 enum class ActionType {

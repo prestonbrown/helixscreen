@@ -92,7 +92,7 @@ struct AutoMatchFixture : public LVGLTestFixture {
     /// so no case here is a re-implementation of the predicate.
     enum class Shape {
         Persistent,   ///< AFC / CFS / Happy Hare / QIDI: Native, writes a table
-        PreprintOnly, ///< Snapmaker U1: SnapmakerNative, no table, no pre-send needed
+        PreprintOnly, ///< Snapmaker U1: SnapmakerNative + requires_preprint_send()
         NeitherRoute, ///< ACE: RemapStrategy::None — no picker exists
     };
 

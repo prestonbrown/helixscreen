@@ -380,6 +380,24 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     }
 
     // ========================================================================
+    // HELIX_MOCK_REMAP_READY — declared remap route, not usable yet
+    // ========================================================================
+    // The AD5X-IFS-before-`_IFS_VARS` shape: RemapStrategy::Native declared,
+    // remap_ready() false, so every "can this printer remap" gate answers no.
+    // It is the state all three readiness-gated UI surfaces act on (the
+    // pre-flight Remap button, the detail-view chip tap, the AMS edit overlay's
+    // tool dropdown), and without this knob it is unreachable in a --test run,
+    // which is how a backend could declare a route it cannot use and no mock run
+    // would show it.
+    if (const char* ready_env = std::getenv("HELIX_MOCK_REMAP_READY")) {
+        if (std::string(ready_env) == "0") {
+            mock->set_remap_ready(false);
+            spdlog::info("[AMS Backend] Mock remap route declared but NOT ready "
+                         "(AD5X-before-_IFS_VARS shape)");
+        }
+    }
+
+    // ========================================================================
     // HELIX_MOCK_REMAP — seed per-tool→slot mapping (test-only)
     // CSV of "tool:slot" pairs, e.g. "0:3,2:1". Sets each named slot's
     // firmware tool mapping so FilamentMapper::compute_defaults() resolves the

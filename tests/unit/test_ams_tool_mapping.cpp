@@ -213,10 +213,19 @@ TEST_CASE("Tool mapping with system_info integration", "[ams][tool_mapping][inte
         CHECK_FALSE(backend.get_system_info().tool_to_slot_map.empty());
     }
 
-    SECTION("tool changer mode updates system_info") {
+    SECTION("tool changer mode publishes an identity table") {
+        // owns_tool_mapping_table() answers !snapmaker_mode_, so asserting it
+        // alone would pass with or without the line above. What the mode
+        // actually changes is the table's SHAPE: tools ARE slots, so it is
+        // identity, and that is what a consumer reads.
         backend.set_tool_changer_mode(true);
+        REQUIRE(backend.start());
 
-        CHECK(backend.owns_tool_mapping_table());
+        const auto& map = backend.get_system_info().tool_to_slot_map;
+        REQUIRE(map.size() == 4);
+        for (size_t i = 0; i < map.size(); ++i) {
+            CHECK(map[i] == static_cast<int>(i));
+        }
     }
 
     backend.stop();

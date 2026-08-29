@@ -105,9 +105,14 @@ Deleted: `ToolMappingCapabilities`, `AmsBackend::get_tool_mapping_capabilities()
 | AD5X IFS, before discovery | `{false,false}` → false | `Native` / **false** | false | yes |
 | Base `AmsBackend` | false | `None` / true | false | yes |
 | **Mock, filament-system mode** | `{true,true}` → **true** | `None` / true | **false** | **no — Task 4** |
+| **Mock, tool-changer mode** | `{false,false}` → **false** | `None` / true | **true after Task 4** | **no — Task 4** |
 
-The mock is the only disagreement, and it is the defect: it declares editable mapping and
-`RemapStrategy::None` at once. Task 4 resolves it.
+The mock is the only disagreement, and it is the defect — in BOTH directions. Its
+filament-system mode declares editable mapping and `RemapStrategy::None` at once. Its
+tool-changer mode declares "not supported" where the real `AmsBackendToolChanger` declares
+`{true,true}` and `Native`, so correcting it flips `can_remap()` false→true there and with
+it `effective_auto_match()`, `color_card_opens_remap()` and the pre-flight button under
+`--test`. Both rows move toward the backend being emulated; Task 4 resolves them together.
 
 ---
 

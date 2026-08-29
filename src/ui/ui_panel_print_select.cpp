@@ -31,6 +31,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_backend.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
@@ -2825,7 +2826,7 @@ void PrintSelectPanel::open_remap_modal() {
         return;
     }
     const auto strategy = backend->get_remap_strategy();
-    if (strategy == AmsBackend::RemapStrategy::None) {
+    if (!helix::printer::can_remap(*backend)) {
         return;
     }
 

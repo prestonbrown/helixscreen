@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_preflight_check_modal.h"
+#include "ui_update_queue.h"
 
+#include "ams_backend_mock.h"
+#include "ams_remap.h"
+#include "ams_state.h"
 #include "preflight_validator.h"
+
+#include <memory>
 
 // LVGLUITestFixture registers ALL XML components (via
 // helix::register_xml_components()), including preflight_check_modal.xml and
@@ -86,4 +92,94 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreflightCheckModal renders one visible row
 
     modal->hide(); // on_hide() -> async self-delete
     process_lvgl(50);
+}
+
+// The Remap affordance is offered only when the backend can actually carry out
+// the pick — the declared route AND its readiness. Asking the route alone
+// offered the button on an AD5X before `_IFS_VARS` discovery, where
+// set_tool_mapping() writes local state the firmware replays nothing from, so
+// the user's pick was accepted and silently dropped at print start.
+//
+// Driven through the mock's readiness knob, which is the only way to reach that
+// shape without a real AD5X: HELIX_MOCK_REMAP_READY=0 does the same thing in a
+// --test run.
+namespace {
+
+/// Installs a mock backend into AmsState for the life of the case.
+struct ScopedAmsBackend {
+    AmsBackendMock* backend = nullptr;
+
+    explicit ScopedAmsBackend(int slot_count) {
+        auto& ams = AmsState::instance();
+        ams.init_subjects(false);
+        auto owned = std::make_unique<AmsBackendMock>(slot_count);
+        backend = owned.get();
+        backend->set_operation_delay(0);
+        ams.set_backend(std::move(owned));
+        backend->start();
+    }
+    ~ScopedAmsBackend() {
+        helix::ui::UpdateQueue::instance().drain();
+        if (backend) {
+            backend->stop();
+        }
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+    }
+};
+
+/// Show the modal and report whether the Remap button is offered.
+bool remap_button_offered(lv_obj_t* screen, void (*process)(lv_obj_t*)) {
+    helix::PreflightResult pf;
+    pf.checks = {make_check(0, 0x2E8B57, "PLA", 0, true, helix::ToolCheck::Severity::Ok)};
+
+    auto* modal = new helix::ui::PreflightCheckModal();
+    modal->set_checks(pf);
+    REQUIRE(modal->show(screen));
+    process(screen);
+
+    lv_obj_t* btn = lv_obj_find_by_name(screen, "btn_tertiary");
+    REQUIRE(btn != nullptr);
+    const bool offered = !lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN);
+
+    modal->hide();
+    process(screen);
+    return offered;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PreflightCheckModal offers Remap only when the route is usable",
+                 "[preflight][modal][ui][remap]") {
+    static LVGLUITestFixture* self = nullptr;
+    self = this;
+    auto pump = [](lv_obj_t* s) {
+        self->process_lvgl(50);
+        lv_obj_update_layout(s);
+    };
+
+    SECTION("a ready backend that declares a route is offered the button") {
+        ScopedAmsBackend ams(4);
+        REQUIRE(helix::printer::can_remap(*ams.backend));
+        CHECK(remap_button_offered(test_screen(), pump));
+    }
+
+    SECTION("a backend with no route at all is not") {
+        ScopedAmsBackend ams(4);
+        ams.backend->set_remap_strategy(AmsBackend::RemapStrategy::None);
+        REQUIRE_FALSE(helix::printer::can_remap(*ams.backend));
+        CHECK_FALSE(remap_button_offered(test_screen(), pump));
+    }
+
+    SECTION("a declared route that is not READY is not either") {
+        // The case the route-only gate got wrong: strategy says Native, the
+        // firmware object it writes through has not been discovered.
+        ScopedAmsBackend ams(4);
+        ams.backend->set_remap_ready(false);
+        REQUIRE(ams.backend->get_remap_strategy() != AmsBackend::RemapStrategy::None);
+        REQUIRE_FALSE(helix::printer::can_remap(*ams.backend));
+        CHECK_FALSE(remap_button_offered(test_screen(), pump));
+    }
 }

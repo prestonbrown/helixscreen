@@ -3,7 +3,7 @@
 
 // Pin the AFC backend's tool_mapping capability advertisement (#956).
 //
-// AmsState builds a ToolTopology from get_tool_mapping_capabilities() +
+// AmsState builds a ToolTopology from owns_tool_mapping_table() +
 // get_tool_mapping() and forwards it to ToolState's tool switcher widget. If
 // the real AmsBackendAfc silently stops advertising support, the switcher
 // falls back to the printer's native tools and the AFC lane->T mapping never

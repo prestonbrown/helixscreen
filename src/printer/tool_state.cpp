@@ -279,19 +279,34 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                 t.gcode_x_offset = previous[i].gcode_x_offset;
                 t.gcode_y_offset = previous[i].gcode_y_offset;
                 t.gcode_z_offset = previous[i].gcode_z_offset;
-                // And the spool record, for the same reason: which spool is
-                // mounted is durable user data, not something a topology rebuild
-                // gets to discard. Dropping it silently zeroed every assignment
-                // the moment a table-owning backend first published its topology
-                // — and again on any remap, since a changed tool_to_slot is what
-                // triggers this rebuild. Carried by tool index because that is
-                // all this function knows; AmsState::sync_from_backend() bridges
-                // slot->tool immediately afterwards and corrects any tool whose
-                // slot really did change hands.
-                t.spoolman_id = previous[i].spoolman_id;
-                t.spool_name = previous[i].spool_name;
-                t.remaining_weight_g = previous[i].remaining_weight_g;
-                t.total_weight_g = previous[i].total_weight_g;
+                // And the spool record, but ONLY while this tool still sources
+                // the same lane. Which spool is mounted is durable user data and
+                // a rebuild has no business discarding it — dropping it wholesale
+                // zeroed every assignment the moment a table-owning backend first
+                // published its topology. But it is a fact about the LANE, so a
+                // tool that changed lanes has no claim on the old record.
+                //
+                // Carrying it by index regardless is worse than dropping it. A
+                // remap evicts both losing sides (assign_tool_slot in
+                // ams_tool_map_sync.h), so it routinely leaves one tool mapped to
+                // no lane at all — and AmsState::sync_from_backend()'s slot->tool
+                // bridge skips slots whose mapped_tool is < 0, so nothing would
+                // ever correct that tool. It would keep a spool that is now
+                // driving a different head, and on a backend without firmware
+                // spool persistence that phantom is written to tool_spools.json
+                // and the Moonraker DB and outlives a restart.
+                //
+                // backend_slot < 0 on the previous entry means no topology had
+                // been published yet: the record was assigned against the tool
+                // itself, so it is still the tool's own.
+                const bool same_lane =
+                    previous[i].backend_slot < 0 || previous[i].backend_slot == t.backend_slot;
+                if (same_lane) {
+                    t.spoolman_id = previous[i].spoolman_id;
+                    t.spool_name = previous[i].spool_name;
+                    t.remaining_weight_g = previous[i].remaining_weight_g;
+                    t.total_weight_g = previous[i].total_weight_g;
+                }
             }
             tools_.push_back(std::move(t));
         }

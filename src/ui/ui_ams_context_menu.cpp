@@ -815,21 +815,11 @@ void AmsContextMenu::configure_dropdowns() {
 
     bool show_any_dropdown = false;
 
-    // Tool mapping dropdown - hidden until we have a good UX for remapping
-    // (currently 1:1 lane-to-tool mapping is the only conflict-free option)
-    // if (backend_) {
-    //     auto tool_caps = backend_->get_tool_mapping_capabilities();
-    //     if (tool_caps.supported) {
-    //         populate_tool_dropdown();
-    //         if (tool_row) {
-    //             lv_obj_remove_flag(tool_row, LV_OBJ_FLAG_HIDDEN);
-    //         }
-    //         if (tool_dropdown_ && !tool_caps.editable) {
-    //             lv_obj_add_state(tool_dropdown_, LV_STATE_DISABLED);
-    //         }
-    //         show_any_dropdown = true;
-    //     }
-    // }
+    // No tool-mapping dropdown here: remapping is reached from the filament
+    // card on the print-detail view, which has the file's tool list to map
+    // against. A commented-out attempt lived here for a while, written against
+    // the retired capability struct; it is deleted rather than migrated because
+    // nothing has wanted this surface since the shared picker shipped.
     (void)tool_row;
 
     // Configure endless spool dropdown — see decide_show_backup_row().

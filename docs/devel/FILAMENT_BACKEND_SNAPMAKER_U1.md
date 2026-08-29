@@ -241,8 +241,9 @@ semantics — logical (0-31) vs physical (0-3) index rules, persistence behavior
 `filament_official` FORCE gate — live in
 [Firmware API: `print_task_config`](#firmware-api-print_task_config) below.
 
-`set_tool_mapping()` itself returns `not_supported` (`system_info_.supports_tool_mapping
-= false`): the physical head-to-spool attachment is fixed 1:1 and cannot be edited, and
+`set_tool_mapping()` itself returns `not_supported`, and the backend declares
+`owns_tool_mapping_table() == false`: the physical head-to-spool attachment is fixed 1:1
+and cannot be edited, and
 remaps happen per-print through the pre-print path above. Routing is not fixed — the
 firmware's `extruder_map_table` holds the live logical-to-physical answer for the current
 print, and `get_tool_mapping()` publishes it (read-only; the write side is the pre-print

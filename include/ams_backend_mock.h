@@ -240,7 +240,12 @@ class AmsBackendMock : public AmsBackend {
 
     /// Emulate a backend built to remap through a firmware object it has not
     /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.
-    /// The only way to reach that state in a mock run.
+    /// Reached in a mock run with HELIX_MOCK_REMAP_READY=0.
+    ///
+    /// Note that ifs_mode_ does NOT set this — the mock AD5X declares itself
+    /// ready, where the real AmsBackendAd5xIfs answers has_ifs_vars_. That is
+    /// deliberate (a mock that starts unusable makes a poor demo) and it is why
+    /// the knob exists: the pre-discovery shape has to be asked for.
     void set_remap_ready(bool ready);
 
     // Mirrors get_remap_strategy(): when emulating Snapmaker U1 the controller

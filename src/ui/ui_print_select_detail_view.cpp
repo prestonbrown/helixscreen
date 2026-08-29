@@ -1482,9 +1482,11 @@ void PrintSelectDetailView::publish_card_visibility() {
 
 bool PrintSelectDetailView::color_card_opens_remap() {
     // ANY backend that can carry out the pick — route AND readiness. Asking the
-    // route alone advertised a tap on an AD5X before `_IFS_VARS` discovery, which
-    // the panel opener's own plugin guard then refused; now the two agree and the
-    // chevron goes dark instead of opening a picker that cannot commit.
+    // route alone advertised a tap on an AD5X before `_IFS_VARS` discovery, and
+    // nothing downstream refused it: the opener's plugin guard only turns away
+    // GcodeRewrite, and IFS declares Native. The picker opened and Done silently
+    // wrote state the firmware replays nothing from. Now the chevron goes dark
+    // instead.
     auto* backend = AmsState::instance().get_backend();
     return backend && helix::printer::can_remap(*backend);
 }
