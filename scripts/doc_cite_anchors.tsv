@@ -501,9 +501,9 @@ docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	30	inc
 docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	71	include/theme_manager.h	2813a788429d	ed76b1b9f3f3
 docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	177	include/theme_manager.h	0bccbb80c324	2702e0a2262f
 docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	288	include/theme_manager.h	209f61ea690b	81827e29d99d
-docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	333	include/theme_manager.h	c5f724c397bf	9421214a146f
-docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	391	include/theme_manager.h	a499e7659ca4	4b45763283c4
-docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	773	include/theme_manager.h	c31d7b5d68fb	46996b034bd0
+docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	338	include/theme_manager.h	c5f724c397bf	9421214a146f
+docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	399	include/theme_manager.h	a499e7659ca4	4b45763283c4
+docs/devel/architecture/10-theme-tokens-layout.md	include/theme_manager.h	781	include/theme_manager.h	c31d7b5d68fb	46996b034bd0
 docs/devel/architecture/10-theme-tokens-layout.md	include/ui_breakpoint.h	26	include/ui_breakpoint.h	e952e9b61633	054ce1d127d3
 docs/devel/architecture/10-theme-tokens-layout.md	include/ui_breakpoint.h	56	include/ui_breakpoint.h	a3200749a28d	1ca60935ad68
 docs/devel/architecture/10-theme-tokens-layout.md	scripts/check_responsive_token_scope.py	1	scripts/check_responsive_token_scope.py	0a16f788b636	b77610e75552

@@ -298,13 +298,18 @@ class ThemeManager {
 #define UI_SCREEN_XLARGE_W 1280
 #define UI_SCREEN_XLARGE_H 720
 
-// Spacing tokens available (use theme_manager_get_spacing() to read values):
-//   space_xxs: 2/3/4px  (small/medium/large breakpoints)
-//   space_xs:  4/5/6px
-//   space_sm:  6/7/8px
-//   space_md:  8/10/12px
-//   space_lg:  12/16/20px
-//   space_xl:  16/20/24px
+// Spacing tokens (read with theme_manager_get_spacing()):
+//   space_xxs, space_xs, space_sm, space_md, space_lg, space_xl
+//
+// The values are NOT listed here on purpose. They live in ui_xml/globals.xml as
+// <px name="space_*_<tier>"> and a copy in this header drifts silently: the list
+// that used to sit here named three tiers of the seven that exist, so the value
+// it gave for a 480x272 screen was wrong by more than half.
+//
+// Tiers come from breakpoint_for() in include/ui_breakpoint.h - micro, tiny,
+// small, medium, large, xlarge, xxlarge - keyed on the SMALLER screen dimension,
+// so portrait layouts pick the cramped axis. Spacing defines tiny..xxlarge only;
+// micro (<=272, i.e. 480x272) falls back to tiny.
 
 // Opacity constants (matching globals.xml values)
 #define UI_DISABLED_OPA 128 // disabled_opa - 50% opacity for disabled/dimmed elements
@@ -341,8 +346,11 @@ void theme_manager_deinit();
  * @param resolution Screen dimension in pixels (typically responsive_dimension(display) —
  *                   the smaller of width and height, so portrait orientations pick a
  *                   breakpoint matched to the cramped axis).
- * @return "_tiny" (≤390), "_small" (391-460), "_medium" (461-550), "_large" (551-700), or "_xlarge"
- * (>700)
+ * @return one of "_micro", "_tiny", "_small", "_medium", "_large", "_xlarge",
+ *         "_xxlarge". The band boundaries are the UI_BREAKPOINT_*_MAX defines in
+ *         include/ui_breakpoint.h and are not repeated here - this list used to
+ *         omit both "_micro" and "_xxlarge", which hid that a 480x272 screen
+ *         (min dimension 272, so "_micro") is a tier of its own.
  */
 const char* theme_manager_get_breakpoint_suffix(int32_t resolution);
 
@@ -782,13 +790,10 @@ void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination);
  * This function is the C++ interface to the unified spacing system. All spacing
  * in C++ code should use this function to stay consistent with XML layouts.
  *
- * Available tokens:
- *   space_xxs: 2/3/4px  (small/medium/large)
- *   space_xs:  4/5/6px
- *   space_sm:  6/7/8px
- *   space_md:  8/10/12px
- *   space_lg:  12/16/20px
- *   space_xl:  16/20/24px
+ * Available tokens: space_xxs, space_xs, space_sm, space_md, space_lg, space_xl
+ *
+ * Values live in ui_xml/globals.xml, not here - see the spacing-token comment
+ * near the breakpoint defines above for why they are deliberately not restated.
  *
  * @param token Spacing token name (e.g., "space_lg", "space_md", "space_xs")
  * @return Spacing value in pixels, or 0 if token not found

@@ -260,6 +260,16 @@ TEST_CASE("UI Theme: Parse colors from globals.xml", "[ui_theme][color][integrat
 // ============================================================================
 
 TEST_CASE("UI Theme: Breakpoint suffix detection", "[ui_theme][responsive]") {
+    SECTION("Micro breakpoint (≤272px)") {
+        // The tier 480x272 lands in: the argument is responsive_dimension(), the
+        // SMALLER of width and height, so a 480x272 panel resolves on 272. It was
+        // untested until now because the header documented only five of the seven
+        // tiers this function returns, omitting _micro entirely - and _tiny's own
+        // case probes 320, which is above the micro boundary and so never noticed.
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(272), "_micro") == 0);
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(240), "_micro") == 0);
+    }
+
     SECTION("Tiny breakpoint (height ≤390px)") {
         // Heights at or below 390 should select _tiny variants
         REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(320), "_tiny") == 0);
@@ -300,6 +310,14 @@ TEST_CASE("UI Theme: Breakpoint suffix detection", "[ui_theme][responsive]") {
 }
 
 TEST_CASE("UI Theme: Breakpoint boundary conditions", "[ui_theme][responsive]") {
+    SECTION("Exact boundary: 272 → micro") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(272), "_micro") == 0);
+    }
+
+    SECTION("Exact boundary: 273 → tiny") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(273), "_tiny") == 0);
+    }
+
     SECTION("Exact boundary: 460 → small") {
         REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(460), "_small") == 0);
     }
