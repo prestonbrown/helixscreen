@@ -222,51 +222,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "on_hide reaching back into static hide does
 }
 
 // ============================================================================
-// Move semantics keep the stack's owner pointer live
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Move constructor reassigns the stack owner", "[modal][1230]") {
-    TrackingModal source;
-    REQUIRE(source.show(test_screen()));
-    lv_obj_t* dialog = source.dialog();
-    REQUIRE(dialog != nullptr);
-
-    TrackingModal moved(std::move(source));
-    REQUIRE(moved.dialog() == dialog);
-    REQUIRE(moved.is_visible());
-
-    Modal::hide(dialog);
-
-    CHECK(moved.hide_calls == 1);
-    CHECK(source.hide_calls == 0);
-    CHECK_FALSE(moved.is_visible());
-
-    process_lvgl(50);
-    CHECK(ModalStack::instance().stack_empty());
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Move assignment reassigns the stack owner", "[modal][1230]") {
-    TrackingModal source;
-    TrackingModal target;
-    REQUIRE(source.show(test_screen()));
-    lv_obj_t* dialog = source.dialog();
-    REQUIRE(dialog != nullptr);
-
-    target = std::move(source);
-    REQUIRE(target.dialog() == dialog);
-    REQUIRE(target.is_visible());
-
-    Modal::hide(dialog);
-
-    CHECK(target.hide_calls == 1);
-    CHECK(source.hide_calls == 0);
-    CHECK_FALSE(target.is_visible());
-
-    process_lvgl(50);
-    CHECK(ModalStack::instance().stack_empty());
-}
-
-// ============================================================================
 // Stacking: the next modal down must be raised on the delegate path too
 // ============================================================================
 

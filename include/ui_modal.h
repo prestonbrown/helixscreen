@@ -69,7 +69,6 @@ enum class ModalCloseReason {
  * - Modal stacking with proper z-order
  * - Backdrop click-to-close and ESC handling
  * - Standard Ok/Cancel button wiring
- * - Move semantics support
  *
  * ## Usage - Simple Modals (no subclass):
  * @code
@@ -98,13 +97,14 @@ class Modal {
     Modal();
     virtual ~Modal();
 
-    // Non-copyable
+    // Non-copyable, non-movable. A moved Modal's wired buttons still carry the
+    // moved-from pointer as per-callback user_data, so the move operations were
+    // a latent hazard with zero production callers - only the two tests written
+    // to test them ever exercised the retargeting.
     Modal(const Modal&) = delete;
     Modal& operator=(const Modal&) = delete;
-
-    // Movable
-    Modal(Modal&& other) noexcept;
-    Modal& operator=(Modal&& other) noexcept;
+    Modal(Modal&&) = delete;
+    Modal& operator=(Modal&&) = delete;
 
     // ========================================================================
     // STATIC FACTORY API (for simple modals)

@@ -575,65 +575,6 @@ void Modal::disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner) {
 }
 
 // ============================================================================
-// MODAL CLASS - MOVE SEMANTICS
-// ============================================================================
-
-Modal::Modal(Modal&& other) noexcept
-    : backdrop_(other.backdrop_), dialog_(other.dialog_), parent_(other.parent_) {
-    // Note: lifetime_ is intentionally NOT moved — AsyncLifetimeGuard is non-movable.
-    // The moved-to Modal gets a fresh guard; the moved-from Modal's guard expires
-    // on destruction, correctly cancelling any outstanding callbacks.
-    other.backdrop_ = nullptr;
-    other.dialog_ = nullptr;
-    other.parent_ = nullptr;
-
-    // The stack entry still names the moved-from object as its owner. Retarget
-    // it so an owner-aware hide reaches the instance that now holds the widgets.
-    if (backdrop_) {
-        ModalStack::instance().reassign_owner(backdrop_, this);
-    }
-}
-
-Modal& Modal::operator=(Modal&& other) noexcept {
-    if (this != &other) {
-        // Clean up our modal first
-        // NOTE: Do NOT call virtual on_hide() here - it's unsafe to call virtual
-        // functions during move operations. Callers should call hide() before
-        // move-assigning if they need lifecycle hooks.
-        if (backdrop_) {
-            // Cancel animations before deleting
-            lv_anim_delete(backdrop_, nullptr);
-            if (dialog_) {
-                lv_anim_delete(dialog_, nullptr);
-            }
-            // Note: lv_obj_safe_delete handles focus group cleanup (helix::ui::defocus_tree)
-            ModalStack::instance().remove(backdrop_);
-            helix::ui::safe_delete(backdrop_);
-            // dialog_ is a child of backdrop_ and was destroyed with it
-            dialog_ = nullptr;
-        }
-
-        // Move state
-        backdrop_ = other.backdrop_;
-        dialog_ = other.dialog_;
-        parent_ = other.parent_;
-
-        // Clear source
-        other.backdrop_ = nullptr;
-        other.dialog_ = nullptr;
-        other.parent_ = nullptr;
-
-        // The stack entry still names the moved-from object as its owner.
-        // Retarget it so an owner-aware hide reaches the instance that now
-        // holds the widgets.
-        if (backdrop_) {
-            ModalStack::instance().reassign_owner(backdrop_, this);
-        }
-    }
-    return *this;
-}
-
-// ============================================================================
 // MODAL CLASS - STATIC FACTORY API
 // ============================================================================
 
@@ -1303,13 +1244,6 @@ class ModalConfigRollback {
 };
 
 /// Payload for a deferred dismissal callback.
-/// Heap-allocated per fire because async_call carries a void*, and it holds the token so liveness
-/// is checked when the callback actually runs, not when it was scheduled.
-struct DismissPayload {
-    std::function<void()> fn;
-    std::optional<helix::LifetimeToken> token;
-};
-
 /// The owner behind the confirmation/alert helpers.
 ///
 /// They used to push through the static Modal::show() factory, which records no
@@ -1403,19 +1337,16 @@ class ConfirmationModal : public Modal {
             // entry is already un-owned but not yet marked exiting - so calling
             // back synchronously lets a reentrant modal_hide() run a SECOND full
             // teardown on the same backdrop. And the token has to be checked when
-            // the callback actually runs, not when it was scheduled.
-            auto* payload = new DismissPayload{on_dismiss_, owner_token_};
-            helix::ui::async_call(
-                [](void* d) {
-                    std::unique_ptr<DismissPayload> p(static_cast<DismissPayload*>(d));
-                    if (p->token && p->token->expired()) {
-                        return; // owner died while the dialog was closing
-                    }
-                    if (p->fn) {
-                        p->fn();
-                    }
-                },
-                payload);
+            // the callback actually runs, not when it was scheduled - which is
+            // exactly LifetimeToken::defer(), pre-enqueue drop and telemetry
+            // included, rather than a private fork of the same check.
+            if (owner_token_) {
+                owner_token_->defer("ConfirmationModal::on_dismiss", std::move(on_dismiss_));
+            } else {
+                // Untokened callers keep the legacy contract: the capture
+                // outlives the dialog.
+                helix::ui::queue_update(std::move(on_dismiss_));
+            }
         }
         helix::ui::async_call([](void* data) { delete static_cast<ConfirmationModal*>(data); },
                               this);

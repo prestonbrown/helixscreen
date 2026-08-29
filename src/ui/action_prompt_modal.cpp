@@ -87,34 +87,6 @@ ActionPromptModal::~ActionPromptModal() {
     // Note: No spdlog here - logger may be destroyed before us during shutdown [L010]
 }
 
-ActionPromptModal::ActionPromptModal(ActionPromptModal&& other) noexcept
-    : Modal(std::move(other)), prompt_data_(std::move(other.prompt_data_)),
-      gcode_callback_(std::move(other.gcode_callback_)),
-      created_buttons_(std::move(other.created_buttons_)),
-      created_text_labels_(std::move(other.created_text_labels_)),
-      button_callback_data_(std::move(other.button_callback_data_)) {
-    // Update callback data to point to this instance (moved-to)
-    for (auto& cbd : button_callback_data_) {
-        cbd->modal = this;
-    }
-}
-
-ActionPromptModal& ActionPromptModal::operator=(ActionPromptModal&& other) noexcept {
-    if (this != &other) {
-        Modal::operator=(std::move(other));
-        prompt_data_ = std::move(other.prompt_data_);
-        gcode_callback_ = std::move(other.gcode_callback_);
-        created_buttons_ = std::move(other.created_buttons_);
-        created_text_labels_ = std::move(other.created_text_labels_);
-        button_callback_data_ = std::move(other.button_callback_data_);
-        // Update callback data to point to this instance (moved-to)
-        for (auto& cbd : button_callback_data_) {
-            cbd->modal = this;
-        }
-    }
-    return *this;
-}
-
 // ============================================================================
 // Public API
 // ============================================================================
