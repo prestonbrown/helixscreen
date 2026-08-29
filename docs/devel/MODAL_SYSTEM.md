@@ -75,8 +75,10 @@ dialog_ = helix::ui::modal_show_confirmation(
     lv_tr("Delete"),
     on_confirm_cb, on_cancel_cb, this);
 
-// Alert dialog (single OK button)
-helix::ui::modal_show_alert(
+// Alert dialog (single OK button). modal_alert() is the preferred form: the
+// callback is a std::function, so nothing of the caller's is attached to a
+// widget, and the dialog closes itself.
+helix::ui::modal_alert(
     lv_tr("Tip of the Day"),
     lv_tr("You can long-press the home button..."),
     ModalSeverity::Info);
@@ -96,22 +98,36 @@ class MyPanel {
 };
 ```
 
-> **The helpers cannot report dismissal.** A dialog shown this way is pushed with **no
-> owner**, so `Modal`'s instance teardown never runs for it. Backdrop click, ESC, and
-> `Modal::rebuild_top()` (XML hot reload, dev builds only - it closes a dialog it cannot
-> faithfully rebuild) all close it through the static `Modal::hide()`, which calls
-> **neither** `on_confirm` **nor** `on_cancel`. The caller is never told the dialog went
-> away.
+> **Pass `on_dismiss` whenever the caller holds state the buttons are meant to resolve.**
+> Backdrop click, ESC and `Modal::rebuild_top()` (XML hot reload, dev builds only) close
+> the dialog without either button being pressed, so `on_confirm`/`on_cancel` never run. A
+> re-entry guard, a pending-request flag, a stored dialog pointer or a queue entry left
+> behind by that leaks, and the feature silently stops working with no log line to say why.
 >
-> That is fine when the callbacks only *do* something. It is a bug when the caller holds
-> state the callbacks are meant to resolve - a re-entry guard, a pending-request flag, a
-> stored dialog pointer, an entry in a queue. Dismissal leaks that state and the feature
-> silently stops working, with no log line to say why.
+> The helpers are backed by an internal `ConfirmationModal` instance, so `on_hide()` is the
+> always-fires resolve point and `on_dismiss` is called from it - deferred to the next tick,
+> so a callback that closes another dialog cannot re-enter the teardown it was called from.
 >
-> **Own a `Modal` subclass when a dismissal has to be observable.** `on_hide()` runs
-> however the dialog closed, which is the resolve point the helpers have no equivalent
-> for. `include/lan_client_auth_router.h` is the reference shape: a decision callback for
-> the answer, a dismiss callback for the close-without-an-answer case.
+> `on_dismiss` means "closed by something other than you": every close that is not the
+> caller's own `Modal::hide()` reports - a backdrop tap, ESC, a hot-reload rebuild, even a
+> button press whose side carries no callback. The caller's own programmatic `hide()` does
+> NOT fire it (each `hide()` entry point defaults to `Programmatic`, which `on_hide()` gates
+> on), so closing the dialog from teardown cannot arm a deferred callback against a
+> destructor that has already run. Nulling the stored handle first is still good hygiene,
+> but it is no longer the only thing standing between a close and a use-after-free.
+>
+> **If the capture can die before the dialog, pass a lifetime token too.** The dialog
+> outlives its exit animation, and a `std::function` capturing a panel that has since been
+> destroyed is a use-after-free. Hand it a token from the owner's `AsyncLifetimeGuard`
+> (`lifetime_.token()`) and the call is skipped once the owner is gone.
+>
+> **New code should prefer `modal_confirm()` / `modal_alert()`.** They take `std::function`
+> throughout, attach nothing of the caller's to a widget, and close the dialog themselves -
+> so a callback never has to guess at `Modal::get_top()` to dismiss the dialog it was fired
+> from. Their `owner_token` also gates **all three** callbacks, not just the dismissal,
+> which is the one guarantee the `lv_event_cb_t` form cannot make: those callbacks are
+> invoked by LVGL straight off the button, so their `void*` still has to outlive the dialog
+> on its own.
 
 **Severity levels** control the header icon:
 - `ModalSeverity::Info` -- blue info icon
@@ -496,12 +512,16 @@ stayed non-null, and `backdrop_`/`dialog_` dangled. The static overload now look
 owner up and delegates, so both spellings tear a modal down identically **when the dialog
 has an owner**.
 
-A dialog from `modal_show_confirmation()` / `modal_show_alert()` has none: the static
-`Modal::show()` factory pushes with `owner = nullptr`, so there is nothing to delegate to
-and the static teardown is all that runs. It never reaches `on_hide()`, and there is no
-`lifetime_` to invalidate because there is no instance to own one. The practical
-consequence is the one in "Three Ways to Create Modals" above - **a helper dialog cannot
-tell its caller it was dismissed.**
+The confirmation and alert helpers are owned. Each one builds an internal
+`ConfirmationModal` (`src/ui/ui_modal.cpp`), so `on_hide()` runs, `lifetime_` is
+invalidated, and a dismissal is reported through `on_dismiss` - see "Three Ways to Create
+Modals" above.
+
+The bare static `Modal::show()` factory is the shape with no owner: it pushes with
+`owner = nullptr`, so there is nothing to delegate to and the static teardown is all that
+runs. It never reaches `on_hide()`, and there is no `lifetime_` to invalidate because
+there is no instance to own one. **A dialog shown that way cannot tell anyone it was
+dismissed.**
 
 `Modal::rebuild_top()` (the `HELIX_HOT_RELOAD=1` path) uses the owner differently — an
 instance-backed modal is hidden rather than rebuilt, because re-creating it from XML alone
@@ -736,10 +756,11 @@ void MyModal::start_operation() {
 }
 ```
 
-> This is a **subclass-only** facility. `modal_show_confirmation()` / `modal_show_alert()`
-> construct no instance, so there is no `lifetime_` behind them and nothing to expire a
-> token. A helper dialog whose async callback can outlive it has no protection at all -
-> which is another reason to reach for a subclass.
+> Inside a subclass this is `lifetime_`, invalidated for you by `hide()`. The helpers take
+> the *caller's* token instead - `dismiss_token` on the `lv_event_cb_t` forms, `owner_token`
+> on `modal_confirm()` / `modal_alert()` - because the thing that can die early there is the
+> caller, not the modal. Only the bare static `Modal::show()` factory has no protection at
+> all, which is one reason not to reach for it.
 
 `Modal::hide()` calls `lifetime_.invalidate()` before `on_hide()`, so all outstanding tokens expire automatically. Your `on_hide()` override does **not** need to manually invalidate — just handle observer cleanup and state reset.
 
@@ -772,4 +793,4 @@ removed.) All live in `include/ui_modal.h`, `namespace helix::ui`:
 | `helix::ui::modal_init_subjects()` | subject registration |
 | `helix::ui::modal_configure(...)` | configures the shared `modal_dialog` |
 
-New code should prefer the `Modal::` class methods or the `helix::ui::modal_show_confirmation()` / `helix::ui::modal_show_alert()` helpers - subject to the rule in "Three Ways to Create Modals": if the caller has to know the dialog was dismissed, or the callbacks capture something shorter-lived than the dialog, own a `Modal` subclass instead.
+New code should prefer the `Modal::` class methods or the `helix::ui::modal_confirm()` / `helix::ui::modal_alert()` helpers. The older `modal_show_confirmation()` / `modal_show_alert()` spellings still work and still take an `on_dismiss`; they exist for the call sites that pass a raw `lv_event_cb_t`. Subject to the rule in "Three Ways to Create Modals": if the dialog needs custom content rather than title + message + buttons, own a `Modal` subclass instead.

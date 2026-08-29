@@ -221,8 +221,6 @@ class PrintStartController {
 
     void on_gate_proceed();
     void on_gate_cancel();
-    static void on_gate_proceed_static(lv_event_t* e);
-    static void on_gate_cancel_static(lv_event_t* e);
 
     // === Dependencies ===
     PrinterState& printer_state_;

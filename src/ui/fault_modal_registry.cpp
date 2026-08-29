@@ -64,7 +64,9 @@ int dismiss_fault_modals() {
         if (!backdrop || stack.is_exiting(backdrop)) {
             continue;
         }
-        Modal::hide(dialog);
+        // External, not Programmatic: this sweep is not the dialog's caller,
+        // so on_dismiss still reports the close to whoever armed it.
+        Modal::hide(dialog, ModalCloseReason::External);
         dismissed++;
     }
 

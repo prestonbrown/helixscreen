@@ -3105,12 +3105,23 @@ void FilamentPanel::show_load_warning() {
         load_warning_dialog_ = nullptr;
     }
 
-    load_warning_dialog_ = helix::ui::modal_show_confirmation(
+    // Every close path drops the stored handle; only the buttons act past that.
+    auto drop_handle = [this] { load_warning_dialog_ = nullptr; };
+    load_warning_dialog_ = helix::ui::modal_confirm(
         lv_tr("Filament Detected"),
         lv_tr("The toolhead sensor indicates filament is already loaded. "
               "Proceed with load anyway?"),
-        ModalSeverity::Warning, lv_tr("Proceed"), on_load_warning_proceed, on_load_warning_cancel,
-        this);
+        ModalSeverity::Warning, lv_tr("Proceed"),
+        [this, drop_handle] {
+            drop_handle(); // the dialog closes itself
+            execute_load();
+        },
+        [drop_handle] {
+            drop_handle();
+            spdlog::debug("[FilamentPanel] Load cancelled by user");
+        },
+        nullptr, // cancel_text: default "Cancel"
+        drop_handle, lifetime_.token());
 
     if (!load_warning_dialog_) {
         spdlog::error("[{}] Failed to create load warning dialog", get_name());
@@ -3127,12 +3138,22 @@ void FilamentPanel::show_unload_warning() {
         unload_warning_dialog_ = nullptr;
     }
 
-    unload_warning_dialog_ = helix::ui::modal_show_confirmation(
+    auto drop_unload_handle = [this] { unload_warning_dialog_ = nullptr; };
+    unload_warning_dialog_ = helix::ui::modal_confirm(
         lv_tr("No Filament Detected"),
         lv_tr("The toolhead sensor indicates no filament is present. "
               "Proceed with unload anyway?"),
-        ModalSeverity::Warning, lv_tr("Proceed"), on_unload_warning_proceed,
-        on_unload_warning_cancel, this);
+        ModalSeverity::Warning, lv_tr("Proceed"),
+        [this, drop_unload_handle] {
+            drop_unload_handle(); // the dialog closes itself
+            execute_unload();
+        },
+        [drop_unload_handle] {
+            drop_unload_handle();
+            spdlog::debug("[FilamentPanel] Unload cancelled by user");
+        },
+        nullptr, // cancel_text: default "Cancel"
+        drop_unload_handle, lifetime_.token());
 
     if (!unload_warning_dialog_) {
         spdlog::error("[{}] Failed to create unload warning dialog", get_name());
@@ -3140,58 +3161,6 @@ void FilamentPanel::show_unload_warning() {
     }
 
     spdlog::debug("[{}] Unload warning dialog shown", get_name());
-}
-
-void FilamentPanel::on_load_warning_proceed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FilamentPanel] on_load_warning_proceed");
-    auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-    if (self) {
-        // Hide dialog first
-        if (self->load_warning_dialog_) {
-            helix::ui::modal_hide(self->load_warning_dialog_);
-            self->load_warning_dialog_ = nullptr;
-        }
-        // Execute load
-        self->execute_load();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void FilamentPanel::on_load_warning_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FilamentPanel] on_load_warning_cancel");
-    auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-    if (self && self->load_warning_dialog_) {
-        helix::ui::modal_hide(self->load_warning_dialog_);
-        self->load_warning_dialog_ = nullptr;
-        spdlog::debug("[FilamentPanel] Load cancelled by user");
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void FilamentPanel::on_unload_warning_proceed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FilamentPanel] on_unload_warning_proceed");
-    auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-    if (self) {
-        // Hide dialog first
-        if (self->unload_warning_dialog_) {
-            helix::ui::modal_hide(self->unload_warning_dialog_);
-            self->unload_warning_dialog_ = nullptr;
-        }
-        // Execute unload
-        self->execute_unload();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void FilamentPanel::on_unload_warning_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FilamentPanel] on_unload_warning_cancel");
-    auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-    if (self && self->unload_warning_dialog_) {
-        helix::ui::modal_hide(self->unload_warning_dialog_);
-        self->unload_warning_dialog_ = nullptr;
-        spdlog::debug("[FilamentPanel] Unload cancelled by user");
-    }
-    LVGL_SAFE_EVENT_CB_END();
 }
 
 // ============================================================================

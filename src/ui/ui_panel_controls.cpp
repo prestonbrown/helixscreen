@@ -1112,9 +1112,12 @@ void ControlsPanel::handle_save_z_offset() {
             : lv_tr("This will apply the Z-offset to your endstop and restart Klipper to save the "
                     "configuration. The printer will briefly disconnect.");
 
-    save_z_offset_confirmation_dialog_ = helix::ui::modal_show_confirmation(
+    save_z_offset_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Save Z-Offset?"), confirm_msg, ModalSeverity::Warning, lv_tr("Save"),
-        on_save_z_offset_confirm, on_save_z_offset_cancel, this);
+        [this] { handle_save_z_offset_confirm(); }, [this] { handle_save_z_offset_cancel(); },
+        nullptr,                                                  // cancel_text: default "Cancel"
+        [this] { save_z_offset_confirmation_dialog_.release(); }, // on_dismiss: drop the handle
+        lifetime_.token());
 
     if (!save_z_offset_confirmation_dialog_) {
         LOG_ERROR_INTERNAL("Failed to create save Z-offset confirmation dialog");
@@ -1140,7 +1143,8 @@ void ControlsPanel::handle_save_z_offset_confirm() {
         spdlog::warn("[{}] Save Z-offset guard timed out — re-enabling save", get_name());
     });
 
-    save_z_offset_confirmation_dialog_.hide();
+    // The dialog closes itself on the button press; just drop the stored handle
+    save_z_offset_confirmation_dialog_.release();
 
     if (!api_) {
         NOTIFY_ERROR(lv_tr("No printer connection"));
@@ -1179,8 +1183,7 @@ void ControlsPanel::handle_save_z_offset_confirm() {
 void ControlsPanel::handle_save_z_offset_cancel() {
     spdlog::debug("[{}] Save Z-offset cancelled", get_name());
 
-    // ModalGuard handles cleanup
-    save_z_offset_confirmation_dialog_.hide();
+    save_z_offset_confirmation_dialog_.release();
 }
 
 // ============================================================================
@@ -1559,25 +1562,16 @@ void ControlsPanel::execute_macro(size_t index) {
     }
 
     const auto& info = StandardMacros::instance().get(*slot);
-    pending_macro_run_index_ = index;
     std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
-    macro_run_confirmation_dialog_ = helix::ui::modal_show_confirmation(
+    macro_run_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] macro_run_confirm_cb");
-            auto* self = static_cast<ControlsPanel*>(lv_event_get_user_data(e));
-            size_t idx = self->pending_macro_run_index_;
-            self->macro_run_confirmation_dialog_.hide();
-            self->do_execute_macro(idx);
-            LVGL_SAFE_EVENT_CB_END();
+        [this, index] {
+            macro_run_confirmation_dialog_.release(); // the dialog closes itself
+            do_execute_macro(index);
         },
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] macro_run_cancel_cb");
-            auto* self = static_cast<ControlsPanel*>(lv_event_get_user_data(e));
-            self->macro_run_confirmation_dialog_.hide();
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        this);
+        nullptr, // no cancel action beyond closing the dialog
+        nullptr, // cancel_text: default "Cancel"
+        [this] { macro_run_confirmation_dialog_.release(); }, lifetime_.token());
 }
 
 void ControlsPanel::do_execute_macro(size_t index) {
@@ -1771,9 +1765,13 @@ void ControlsPanel::handle_motors_clicked() {
     spdlog::debug("[{}] Motors Disable card clicked - showing confirmation", get_name());
 
     // ModalGuard's operator= hides any previous dialog before assigning new one
-    motors_confirmation_dialog_ = helix::ui::modal_show_confirmation(
+    motors_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Disable Motors?"), lv_tr("Release all stepper motors. Position will be lost."),
-        ModalSeverity::Warning, lv_tr("Disable"), on_motors_confirm, on_motors_cancel, this);
+        ModalSeverity::Warning, lv_tr("Disable"), [this] { handle_motors_confirm(); },
+        [this] { handle_motors_cancel(); },
+        nullptr,                                           // cancel_text: default "Cancel"
+        [this] { motors_confirmation_dialog_.release(); }, // on_dismiss: drop the handle
+        lifetime_.token());
 
     if (!motors_confirmation_dialog_) {
         LOG_ERROR_INTERNAL("Failed to create motors confirmation dialog");
@@ -1787,8 +1785,8 @@ void ControlsPanel::handle_motors_clicked() {
 void ControlsPanel::handle_motors_confirm() {
     spdlog::debug("[{}] Motors disable confirmed", get_name());
 
-    // Hide dialog first - ModalGuard handles cleanup
-    motors_confirmation_dialog_.hide();
+    // The dialog closes itself on the button press; just drop the stored handle
+    motors_confirmation_dialog_.release();
 
     // Send M84 command to disable motors
     if (api_) {
@@ -1805,8 +1803,7 @@ void ControlsPanel::handle_motors_confirm() {
 void ControlsPanel::handle_motors_cancel() {
     spdlog::debug("[{}] Motors disable cancelled", get_name());
 
-    // ModalGuard handles cleanup
-    motors_confirmation_dialog_.hide();
+    motors_confirmation_dialog_.release();
 }
 
 void ControlsPanel::handle_calibration_bed_mesh() {
@@ -1861,11 +1858,6 @@ PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, secondary_temps_click
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, nozzle_target_edit)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, bed_target_edit)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, chamber_target_edit)
-
-PANEL_TRAMPOLINE_USERDATA(ControlsPanel, motors_confirm)
-PANEL_TRAMPOLINE_USERDATA(ControlsPanel, motors_cancel)
-PANEL_TRAMPOLINE_USERDATA(ControlsPanel, save_z_offset_confirm)
-PANEL_TRAMPOLINE_USERDATA(ControlsPanel, save_z_offset_cancel)
 
 // ============================================================================
 // CALIBRATION BUTTON TRAMPOLINES (XML event_cb - use global accessor)

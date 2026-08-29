@@ -125,7 +125,7 @@ void ui_panel_belt_tension_register_callbacks() {
          [](lv_event_t* /*e*/) { get_global_belt_tension_panel().handle_retry_clicked(); }},
         {"belt_tension_help_cb",
          [](lv_event_t* /*e*/) {
-             helix::ui::modal_show_alert(
+             helix::ui::modal_alert(
                  lv_tr("Belt Tension Check"),
                  lv_tr("Uneven belt tension causes print artifacts like layer shifts, "
                        "VFAs (vertical fine artifacts), and ringing.\n\n"
@@ -136,7 +136,7 @@ void ui_panel_belt_tension_register_callbacks() {
          }},
         {"belt_tension_results_help_cb",
          [](lv_event_t* /*e*/) {
-             helix::ui::modal_show_alert(
+             helix::ui::modal_alert(
                  lv_tr("Understanding Results"),
                  lv_tr("Frequency Delta: Difference between Path A and B. "
                        "Ideally under 5 Hz; over 15 Hz needs adjustment.\n\n"
@@ -146,7 +146,7 @@ void ui_panel_belt_tension_register_callbacks() {
          }},
         {"belt_tension_strobe_help_cb",
          [](lv_event_t* /*e*/) {
-             helix::ui::modal_show_alert(
+             helix::ui::modal_alert(
                  lv_tr("Visual Fine-Tuning"),
                  lv_tr("The motor vibrates the belt while a strobe light flashes at the "
                        "same frequency. When the belt appears to stand still (frozen), "

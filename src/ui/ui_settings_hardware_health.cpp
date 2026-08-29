@@ -330,7 +330,8 @@ void HardwareHealthOverlay::handle_hardware_action(const char* hardware_name, bo
         });
     } else {
         // "Save" - Add to expected hardware (with confirmation)
-        // Close any existing dialog first (must happen before writing to static buffer)
+        // Re-entry guard: two rows tapped in quick succession must not stack
+        // two dialogs over the same pending name.
         if (hardware_save_dialog_) {
             helix::ui::modal_hide(hardware_save_dialog_);
             hardware_save_dialog_ = nullptr;
@@ -339,25 +340,30 @@ void HardwareHealthOverlay::handle_hardware_action(const char* hardware_name, bo
         // Store name for confirmation callback
         pending_hardware_save_ = hw_name;
 
-        // Static message buffer (safe since we close existing dialogs first)
         char message_buf[256];
         snprintf(message_buf, sizeof(message_buf),
                  "Add '%s' to expected hardware?\n\nYou'll be notified if it's removed later.",
                  hw_name.c_str());
 
-        // Show confirmation dialog
-        hardware_save_dialog_ = helix::ui::modal_show_confirmation(
+        // The dialog closes itself on either button; the stored handle only
+        // feeds the close-existing guard above.
+        hardware_save_dialog_ = helix::ui::modal_confirm(
             lv_tr("Save Hardware"), message_buf, ModalSeverity::Info, lv_tr("Save"),
-            on_hardware_save_confirm, on_hardware_save_cancel, this);
+            [this] { handle_hardware_save_confirm(); }, [this] { handle_hardware_save_cancel(); },
+            nullptr, // cancel_text: default "Cancel"
+            [this] {
+                // Backdrop tap / ESC strands the same pending name cancel clears
+                hardware_save_dialog_ = nullptr;
+                pending_hardware_save_.clear();
+            },
+            lifetime_.token());
     }
 }
 
 void HardwareHealthOverlay::handle_hardware_save_confirm() {
-    // Close dialog first
-    if (hardware_save_dialog_) {
-        helix::ui::modal_hide(hardware_save_dialog_);
-        hardware_save_dialog_ = nullptr;
-    }
+    // Runs from the dialog's confirm callback, BEFORE it self-closes; drop the
+    // stale handle now so nothing re-hides an exiting/reused dialog address.
+    hardware_save_dialog_ = nullptr;
 
     Config* cfg = Config::get_instance();
 
@@ -382,35 +388,11 @@ void HardwareHealthOverlay::handle_hardware_save_confirm() {
 }
 
 void HardwareHealthOverlay::handle_hardware_save_cancel() {
-    // Close dialog
-    if (hardware_save_dialog_) {
-        helix::ui::modal_hide(hardware_save_dialog_);
-        hardware_save_dialog_ = nullptr;
-    }
+    // Runs from the dialog's cancel callback, BEFORE it self-closes; drop the
+    // stale handle now so nothing re-hides an exiting/reused dialog address.
+    hardware_save_dialog_ = nullptr;
 
     pending_hardware_save_.clear();
-}
-
-// ============================================================================
-// STATIC CALLBACKS
-// ============================================================================
-
-void HardwareHealthOverlay::on_hardware_save_confirm(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HardwareHealthOverlay] on_hardware_save_confirm");
-    auto* self = static_cast<HardwareHealthOverlay*>(lv_event_get_user_data(e));
-    if (self) {
-        self->handle_hardware_save_confirm();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void HardwareHealthOverlay::on_hardware_save_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HardwareHealthOverlay] on_hardware_save_cancel");
-    auto* self = static_cast<HardwareHealthOverlay*>(lv_event_get_user_data(e));
-    if (self) {
-        self->handle_hardware_save_cancel();
-    }
-    LVGL_SAFE_EVENT_CB_END();
 }
 
 } // namespace helix::settings

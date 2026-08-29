@@ -1476,10 +1476,12 @@ void BedMeshPanel::show_delete_confirm_modal(const std::string& profile_name) {
     snprintf(msg_buf, sizeof(msg_buf), "Delete profile '%s'? This action cannot be undone.",
              profile_name.c_str());
 
-    delete_modal_widget_ = helix::ui::modal_show_confirmation(
+    delete_modal_widget_ = helix::ui::modal_confirm(
         lv_tr("Delete Profile?"), msg_buf, ModalSeverity::Warning, lv_tr("Delete"),
-        on_delete_confirm_cb, on_delete_cancel_cb,
-        nullptr); // Uses global panel reference
+        [this] { confirm_delete_profile(); }, [this] { hide_all_modals(); },
+        nullptr,                                    // cancel_text: default "Cancel"
+        [this] { delete_modal_widget_ = nullptr; }, // on_dismiss: drop the stored handle
+        lifetime_.token());
 
     if (!delete_modal_widget_) {
         spdlog::error("[{}] Failed to create delete confirmation modal", get_name());
@@ -1930,23 +1932,11 @@ void BedMeshPanel::ask_before_overwrite(OverwriteTarget target, const std::strin
     pending_overwrite_name_ = name;
 
     std::string msg = fmt::format(lv_tr("'{}' already exists. Replace the stored mesh?"), name);
-    helix::ui::modal_show_confirmation(
+    // Cancel and a dismissal resolve the same pending overwrite state.
+    auto cancel = [this] { cancel_overwrite(); };
+    helix::ui::modal_confirm(
         lv_tr("Replace Profile?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Replace"),
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[BedMeshPanel] overwrite_confirm_cb");
-            auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
-            Modal::hide(Modal::get_top());
-            self->confirm_overwrite();
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[BedMeshPanel] overwrite_cancel_cb");
-            auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
-            Modal::hide(Modal::get_top());
-            self->cancel_overwrite();
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        this);
+        [this] { confirm_overwrite(); }, cancel, nullptr, cancel, lifetime_.token());
 }
 
 void BedMeshPanel::confirm_overwrite() {

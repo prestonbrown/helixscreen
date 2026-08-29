@@ -137,10 +137,6 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     static void on_bt_connect(lv_event_t* e);
     static void on_bt_forget(lv_event_t* e);
     static void on_label_count_changed(lv_event_t* e);
-
-    // Pairing modal callbacks
-    static void on_pair_confirm(lv_event_t* e);
-    static void on_pair_cancel(lv_event_t* e);
 };
 
 LabelPrinterSettingsOverlay& get_label_printer_settings_overlay();

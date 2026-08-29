@@ -2470,9 +2470,8 @@ bool show_demo_overlay(const std::string& name) {
         message += lv_tr("Load the required filaments or start anyway?");
         static char demo_message[1024];
         snprintf(demo_message, sizeof(demo_message), "%s", message.c_str());
-        helix::ui::modal_show_confirmation(lv_tr("Color Mismatch"), demo_message,
-                                           ModalSeverity::Warning, lv_tr("Start Anyway"), nullptr,
-                                           nullptr, nullptr);
+        helix::ui::modal_confirm(lv_tr("Color Mismatch"), demo_message, ModalSeverity::Warning,
+                                 lv_tr("Start Anyway"), nullptr);
         return true;
     }
 
@@ -2695,45 +2694,39 @@ void Application::launch_deferred_hardware_setup() {
 }
 
 void Application::prompt_deferred_hardware_setup(std::vector<helix::wizard::StepId> steps) {
-    // The steps to run are captured for the confirm callback. modal_show_confirmation
-    // takes a single void* user_data, so park them on the Application instance the
-    // callbacks already receive rather than heap-allocating a context.
+    // The steps to run are parked on the Application instance for the confirm
+    // callback's timer to consume (launch_deferred_hardware_setup() reads them
+    // from there). on_dismiss clears them too, so a backdrop tap or ESC cannot
+    // strand the offer.
     m_pending_hardware_setup_steps = std::move(steps);
     spdlog::info("[Application] Offering deferred hardware setup ({} step(s))",
                  m_pending_hardware_setup_steps.size());
 
-    helix::ui::modal_show_confirmation(
+    helix::ui::modal_confirm(
         lv_tr("Printer hardware detected"),
         lv_tr("Your printer was offline during setup, so hardware options were skipped. "
               "Set them up now?"),
         ModalSeverity::Info, lv_tr("Set up"),
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[Application] deferred_hardware_setup_confirm");
-            auto* app = static_cast<Application*>(lv_event_get_user_data(e));
-            Modal::hide(Modal::get_top());
+        [this] {
             // Settle first: the wizard tears itself down asynchronously, and a
             // crash mid-run must not leave the offer pending forever.
-            app->settle_deferred_hardware_setup();
+            settle_deferred_hardware_setup();
             // Build the wizard AFTER the modal's exit animation, not inside the
-            // click that started it: Modal::hide() only marks the backdrop
-            // exiting, so creating the full-screen wizard here would put it
-            // underneath a still-fading backdrop. The pending step list lives on
-            // the Application instance until the timer consumes it.
+            // click that started it: the dialog's own close only marks the
+            // backdrop exiting, so creating the full-screen wizard here would
+            // put it underneath a still-fading backdrop. The pending step list
+            // lives on the Application instance until the timer consumes it.
             lv_timer_t* launch = lv_timer_create(
                 [](lv_timer_t* t) {
                     auto* self = static_cast<Application*>(lv_timer_get_user_data(t));
                     lv_timer_delete(t);
                     self->launch_deferred_hardware_setup();
                 },
-                300, app);
+                300, this);
             lv_timer_set_repeat_count(launch, 1);
-            LVGL_SAFE_EVENT_CB_END();
         },
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[Application] deferred_hardware_setup_decline");
-            auto* app = static_cast<Application*>(lv_event_get_user_data(e));
-            Modal::hide(Modal::get_top());
-            app->m_pending_hardware_setup_steps.clear();
+        [this] {
+            m_pending_hardware_setup_steps.clear();
             // Declining is final for this printer. The offer is for optional
             // role assignments the app already has working defaults for, the
             // snapshot was written regardless so nothing is flagged either way,
@@ -2741,11 +2734,11 @@ void Application::prompt_deferred_hardware_setup(std::vector<helix::wizard::Step
             // reconfig-wizard code records declines to avoid. `--wizard` still
             // re-runs setup, and a saved role that later breaks still routes to
             // the targeted reconfig wizard on its own.
-            app->settle_deferred_hardware_setup();
+            settle_deferred_hardware_setup();
             spdlog::info("[Application] Deferred hardware setup declined");
-            LVGL_SAFE_EVENT_CB_END();
         },
-        this, lv_tr("Not now"));
+        lv_tr("Not now"), [this] { m_pending_hardware_setup_steps.clear(); },
+        m_async_lifetime.token());
 }
 
 void Application::settle_type_mismatch_warning() {
@@ -2826,52 +2819,45 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
     spdlog::info("[Application] Printer type mismatch: saved '{}' but detected '{}' ({}%)", saved,
                  detected.type_name, detected.confidence);
 
-    // modal_show_confirmation takes a plain const char* — compose the
-    // parameterized body first (fmt::runtime: the format string is the
-    // translated handle, not a compile-time literal).
+    // modal_confirm takes a plain const char* - compose the parameterized body
+    // first (fmt::runtime: the format string is the translated handle, not a
+    // compile-time literal).
     const std::string body =
         fmt::format(fmt::runtime(lv_tr("This printer looks like a {} ({}% confidence), but it is "
                                        "set up as a {}. A wrong type applies incorrect pre-print "
                                        "options and presets.")),
                     detected.type_name, detected.confidence, saved);
 
-    helix::ui::modal_show_confirmation(
+    helix::ui::modal_confirm(
         lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Re-identify"),
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[Application] type_mismatch_confirm");
-            auto* app = static_cast<Application*>(lv_event_get_user_data(e));
-            Modal::hide(Modal::get_top());
+        [this] {
             // Settle first: the wizard tears itself down asynchronously, and a
             // crash mid-run must not leave the prompt pending forever.
-            app->settle_type_mismatch_warning();
+            settle_type_mismatch_warning();
             // Build the wizard AFTER the modal's exit animation, not inside the
-            // click that started it: Modal::hide() only marks the backdrop
-            // exiting, so creating the full-screen wizard here would put it
-            // underneath a still-fading backdrop (same 300 ms one-shot as
-            // launch_deferred_hardware_setup).
+            // click that started it: the dialog's own close only marks the
+            // backdrop exiting, so creating the full-screen wizard here would
+            // put it underneath a still-fading backdrop (same 300 ms one-shot
+            // as launch_deferred_hardware_setup).
             lv_timer_t* launch = lv_timer_create(
                 [](lv_timer_t* t) {
                     auto* self = static_cast<Application*>(lv_timer_get_user_data(t));
                     lv_timer_delete(t);
                     self->launch_type_reidentify_wizard();
                 },
-                300, app);
+                300, this);
             lv_timer_set_repeat_count(launch, 1);
-            LVGL_SAFE_EVENT_CB_END();
         },
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[Application] type_mismatch_decline");
-            Modal::hide(Modal::get_top());
+        [this] {
             // Declining is final for this saved type. Keeping the type is a
             // deliberate choice (a heavily modified printer can legitimately
             // outvote a 70% heuristic), and the persisted flag stops the
             // prompt from re-appearing every boot. Re-identify remains
             // available via the full `--wizard` run.
-            static_cast<Application*>(lv_event_get_user_data(e))->settle_type_mismatch_warning();
+            settle_type_mismatch_warning();
             spdlog::info("[Application] Type mismatch warning declined");
-            LVGL_SAFE_EVENT_CB_END();
         },
-        this, lv_tr("Keep current"));
+        lv_tr("Keep current"), nullptr, m_async_lifetime.token());
 }
 
 void Application::launch_type_reidentify_wizard() {
@@ -4467,7 +4453,7 @@ void Application::show_screensaver_migration_notice_if_pending() {
 
     spdlog::info("[Application] Showing one-time screensaver migration notice");
 
-    helix::ui::modal_show_alert(
+    helix::ui::modal_alert(
         lv_tr("Screensaver disabled"),
         lv_tr("The animated screensaver has been turned off on this device to prevent "
               "it from interfering with prints. You can re-enable it in "

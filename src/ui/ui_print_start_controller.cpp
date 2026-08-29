@@ -577,12 +577,19 @@ void PrintStartController::run_gates_from(size_t index) {
             print_gate_modal_ = nullptr;
         }
         gate_resume_index_ = i;
-        print_gate_modal_ = helix::ui::modal_show_confirmation(
+        // The modal closes itself on a button press and deletes itself after
+        // any close. A dismissal resolves like Cancel: the user walked away
+        // from the gate chain, and every other terminal path re-enables the
+        // print button - leaving that to the buttons alone stranded it disabled
+        // on a backdrop tap or ESC, with the handle stale on top.
+        auto cancel = [this] { on_gate_cancel(); };
+        print_gate_modal_ = helix::ui::modal_confirm(
             result.title.c_str(), result.body.c_str(),
             result.severity == helix::GateSeverity::Error  ? ModalSeverity::Error
             : result.severity == helix::GateSeverity::Info ? ModalSeverity::Info
                                                            : ModalSeverity::Warning,
-            result.proceed_label.c_str(), on_gate_proceed_static, on_gate_cancel_static, this);
+            result.proceed_label.c_str(), [this] { on_gate_proceed(); }, cancel, nullptr, cancel,
+            lifetime_.token());
         if (!print_gate_modal_) {
             spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                           gate_list_[i].name);
@@ -598,35 +605,13 @@ void PrintStartController::run_gates_from(size_t index) {
     execute_print_start();
 }
 
-void PrintStartController::on_gate_proceed_static(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStartController] on_gate_proceed_static");
-    if (auto* self = static_cast<PrintStartController*>(lv_event_get_user_data(e))) {
-        self->on_gate_proceed();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void PrintStartController::on_gate_proceed() {
-    if (print_gate_modal_) {
-        helix::ui::modal_hide(print_gate_modal_);
-        print_gate_modal_ = nullptr;
-    }
+    print_gate_modal_ = nullptr;
     run_gates_from(gate_resume_index_ + 1);
 }
 
-void PrintStartController::on_gate_cancel_static(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStartController] on_gate_cancel_static");
-    if (auto* self = static_cast<PrintStartController*>(lv_event_get_user_data(e))) {
-        self->on_gate_cancel();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void PrintStartController::on_gate_cancel() {
-    if (print_gate_modal_) {
-        helix::ui::modal_hide(print_gate_modal_);
-        print_gate_modal_ = nullptr;
-    }
+    print_gate_modal_ = nullptr;
     if (update_print_button_) {
         update_print_button_();
     }

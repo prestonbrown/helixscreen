@@ -117,7 +117,6 @@ fi
 
 echo ""
 
-
 # Every staged path, including deletions - a removed .cpp can invalidate a doc
 # that cites it, so the doc gate has to see D as well as ACMR.
 QC_STAGED_ALL=""
@@ -132,7 +131,6 @@ fi
 VENV_PYTHON=".venv/bin/python"
 TRANS_FMT_PY="${VENV_PYTHON:-python3}"
 [ -x "$TRANS_FMT_PY" ] || TRANS_FMT_PY=python3
-
 
 # ====================================================================
 # Phase 1: Critical Checks

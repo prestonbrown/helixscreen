@@ -704,11 +704,9 @@ void HomePanel::finalize_setup() {
 
     // Set delete page callback for edit mode
     grid_edit_mode_.set_delete_page_callback([this]() {
-        helix::ui::modal_show_confirmation(
+        helix::ui::modal_confirm(
             "Delete Page", "Remove this page and all its widgets?", ModalSeverity::Warning,
-            "Delete",
-            [](lv_event_t* ev) {
-                LV_UNUSED(ev);
+            "Delete", [] {
                 auto& panel = get_global_home_panel();
                 int page_to_delete = panel.grid_edit_mode_.page_index();
                 auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
@@ -716,8 +714,7 @@ void HomePanel::finalize_setup() {
                 config.save();
                 panel.grid_edit_mode_.exit();
                 panel.rebuild_carousel();
-            },
-            nullptr, nullptr);
+            });
     });
 
     spdlog::debug("[{}] Finalize complete", get_name());

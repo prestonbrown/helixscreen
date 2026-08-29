@@ -908,18 +908,11 @@ void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
     if (in_error_state) {
         EmergencyStopOverlay::instance().firmware_restart();
     } else {
-        helix::ui::modal_show_confirmation(
+        helix::ui::modal_confirm(
             lv_tr("Restart Firmware?"),
             lv_tr("This will restart Klipper firmware. Any active operations will be interrupted."),
             ModalSeverity::Warning, lv_tr("Restart"),
-            [](lv_event_t*) {
-                lv_obj_t* top = Modal::get_top();
-                if (top) {
-                    Modal::hide(top);
-                }
-                EmergencyStopOverlay::instance().firmware_restart();
-            },
-            nullptr, nullptr);
+            [] { EmergencyStopOverlay::instance().firmware_restart(); });
     }
 }
 

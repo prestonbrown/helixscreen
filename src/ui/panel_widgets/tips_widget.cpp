@@ -322,8 +322,8 @@ void TipsWidget::handle_tip_text_clicked() {
     spdlog::info("[TipsWidget] Tip text clicked - showing detail dialog");
 
     // Use alert helper which auto-handles OK button to close
-    helix::ui::modal_show_alert(current_tip_.title.c_str(), current_tip_.content.c_str(),
-                                ModalSeverity::Info);
+    helix::ui::modal_alert(current_tip_.title.c_str(), current_tip_.content.c_str(),
+                           ModalSeverity::Info);
 }
 
 void TipsWidget::handle_tip_rotation_timer() {

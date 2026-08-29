@@ -280,7 +280,8 @@ class Application {
     // reconnect.
     bool m_type_mismatch_shown = false;
     // Steps the deferred hardware-setup offer will run if accepted. Held here
-    // because modal_show_confirmation() carries a single void* user_data.
+    // for launch_deferred_hardware_setup()'s timer to consume from the
+    // instance when the user accepts.
     std::vector<helix::wizard::StepId> m_pending_hardware_setup_steps;
     // Guards the firmware z-offset persistence enablement (see
     // include/z_offset_persistence.h) so it is sent at most once per app session.
