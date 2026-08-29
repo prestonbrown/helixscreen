@@ -3374,7 +3374,30 @@ AmsBackendMock::RemapStrategy AmsBackendMock::get_remap_strategy() const {
     if (snapmaker_mode_) {
         return RemapStrategy::SnapmakerNative;
     }
-    return RemapStrategy::None;
+    return remap_strategy_;
+}
+
+bool AmsBackendMock::remap_ready() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return remap_ready_;
+}
+
+bool AmsBackendMock::owns_tool_mapping_table() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // The U1 owns none — its extruders are independent. Every other mode stands
+    // in for a backend that does, including the tool changer, whose table is
+    // identity but real and rewritten by ASSIGN_TOOL.
+    return !snapmaker_mode_;
+}
+
+void AmsBackendMock::set_remap_strategy(RemapStrategy strategy) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    remap_strategy_ = strategy;
+}
+
+void AmsBackendMock::set_remap_ready(bool ready) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    remap_ready_ = ready;
 }
 
 bool AmsBackendMock::requires_preprint_send() const {

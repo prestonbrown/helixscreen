@@ -47,10 +47,8 @@ class PrintStartControllerTestAccess {
 
     // --- remap-unsupported discriminator (test_print_start_filament_gate.cpp) ---
 
-    static bool should_warn_remap_unsupported(const helix::printer::ToolMappingCapabilities& caps,
-                                              bool applies_via_preprint) {
-        return helix::ui::PrintStartController::should_warn_remap_unsupported(caps,
-                                                                              applies_via_preprint);
+    static bool should_warn_remap_unsupported(const AmsBackend& backend) {
+        return helix::ui::PrintStartController::should_warn_remap_unsupported(backend);
     }
 
     // --- remap restore (test_remap_restore_confirmation.cpp) ---

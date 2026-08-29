@@ -16,6 +16,7 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
@@ -1480,10 +1481,12 @@ void PrintSelectDetailView::publish_card_visibility() {
 }
 
 bool PrintSelectDetailView::color_card_opens_remap() {
-    // ANY backend that supports remap (strategy != None); the panel opener
-    // itself guards plugin presence etc.
+    // ANY backend that can carry out the pick — route AND readiness. Asking the
+    // route alone advertised a tap on an AD5X before `_IFS_VARS` discovery, which
+    // the panel opener's own plugin guard then refused; now the two agree and the
+    // chevron goes dark instead of opening a picker that cannot commit.
     auto* backend = AmsState::instance().get_backend();
-    return backend && backend->get_remap_strategy() != AmsBackend::RemapStrategy::None;
+    return backend && helix::printer::can_remap(*backend);
 }
 
 void PrintSelectDetailView::on_color_card_clicked() {

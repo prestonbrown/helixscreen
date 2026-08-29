@@ -18,6 +18,8 @@
 
 #include "ams_bypass_policy.h"
 #include "ams_lane_state.h"
+#include "ams_remap.h"
+#include "ams_tool_topology.h"
 #include "app_globals.h"
 #include "data_root_resolver.h"
 #include "filament_database.h"
@@ -61,15 +63,16 @@ struct AsyncSyncData {
     int slot_index; // Only used if full_sync == false
 };
 
-// Build a ToolTopology from a backend that multiplexes tools. Returns std::nullopt
-// if the backend does not own the tool list (e.g., AD5X CFS, ACE — single tool,
-// many slots). Falls back to a 1:1 mapping if the backend reports tool-mapping
-// support but returns an empty mapping vector.
-std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int backend_index) {
+} // namespace
+
+// Declared in ams_tool_topology.h; see there for what nullopt means to callers.
+std::optional<helix::ToolTopology> helix::build_ams_topology(AmsBackend* backend,
+                                                             int backend_index) {
     if (!backend)
         return std::nullopt;
-    auto caps = backend->get_tool_mapping_capabilities();
-    if (!caps.supported)
+    // Table ownership, NOT remap capability. Two different questions that part
+    // company on the U1: it can remap and owns no table.
+    if (!backend->owns_tool_mapping_table())
         return std::nullopt;
 
     std::vector<int> mapping = backend->get_tool_mapping();
@@ -89,8 +92,6 @@ std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int b
     topo.backend_index = backend_index;
     return topo;
 }
-
-} // namespace
 
 AmsState& AmsState::instance() {
     // ~9.5KB singleton: relocate to PSRAM on ESP to reclaim internal DRAM (it's
@@ -1027,17 +1028,18 @@ bool AmsState::effective_auto_match() const {
     // no way for the user to decline it.
     bool user_choice_honored = false;
     if (auto* backend = get_backend(0)) {
-        user_choice_honored = backend->honors_user_tool_mapping();
+        user_choice_honored = helix::printer::can_remap(*backend);
 
         // HOLD — kPreprintSeedFollowsUserSetting (ams_state.h) carries the full
         // reasoning and the hardware evidence that would lift it. A backend that
-        // reports editable=false can only have answered true through its
+        // cannot remap PERSISTENTLY can only have answered true through its
         // pre-print send, so this is exactly the case being held, and putting it
         // back leaves the U1 seeding as it does today. The predicate itself is
         // untouched: it is still the one rule the print-start warning shares, and
         // gating it there would resurrect a false toast on the U1.
         if (!kPreprintSeedFollowsUserSetting &&
-            !backend->get_tool_mapping_capabilities().editable) {
+            !(helix::printer::remap_is_persistent(backend->get_remap_strategy()) &&
+              backend->remap_ready())) {
             user_choice_honored = false;
         }
     }
@@ -1562,7 +1564,7 @@ void AmsState::sync_from_backend() {
 
     // Push tool topology to ToolState when the active backend multiplexes tools.
     // Otherwise leave ToolState in its extruder-enumerated state.
-    if (auto topo = build_ams_topology(backend, 0)) {
+    if (auto topo = helix::build_ams_topology(backend, 0)) {
         helix::ToolState::instance().set_ams_topology(*topo);
     } else if (helix::ToolState::instance().ams_topology_active()) {
         // Backend stopped multiplexing (e.g., AMS removed). Drop the override

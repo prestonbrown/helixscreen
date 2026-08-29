@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "active_print_media_manager.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
@@ -640,20 +641,19 @@ void PrintStartController::on_gate_cancel() {
 // Filament Remap Lifecycle
 // ============================================================================
 
-bool PrintStartController::should_warn_remap_unsupported(
-    const helix::printer::ToolMappingCapabilities& caps, bool applies_via_preprint) {
+bool PrintStartController::should_warn_remap_unsupported(const AmsBackend& backend) {
     // A backend that applies the remap via its firmware-native pre-print path
     // (Snapmaker U1) honors the user's choice through build_preprint_gcode()
-    // even though caps.editable is false — so the toast would be a stale false
-    // alarm. Only warn when the backend can neither edit its mapping nor apply
-    // it via a pre-print send.
+    // even though it writes no persistent table — so the toast would be a stale
+    // false alarm. Only warn when the backend has no route at all, or has one it
+    // cannot use yet.
     //
     // Which is exactly the shared rule, called rather than restated:
     // AmsState::effective_auto_match() asks the same question to decide whether
-    // the auto-color toggle is a live control, and a second copy of the two-route
-    // test would drift into a printer that warns the remap is unsupported while
-    // still honoring it (or the reverse).
-    return !helix::printer::honors_user_tool_mapping(caps, applies_via_preprint);
+    // the auto-color toggle is a live control, and a second copy of the test
+    // would drift into a printer that warns the remap is unsupported while still
+    // honoring it (or the reverse).
+    return !helix::printer::can_remap(backend);
 }
 
 bool PrintStartController::apply_filament_remaps() {
@@ -718,9 +718,11 @@ bool PrintStartController::apply_filament_remaps() {
     // those, skip the generic set_tool_mapping() path SILENTLY — the pre-print
     // send (fired later from execute_print_start) does the work. Only warn when
     // the backend can NEITHER edit its mapping NOR apply it via a pre-print send.
-    auto caps = backend->get_tool_mapping_capabilities();
-    if (!caps.editable) {
-        if (should_warn_remap_unsupported(caps, backend->requires_preprint_send())) {
+    const bool writes_a_table =
+        helix::printer::remap_is_persistent(backend->get_remap_strategy()) &&
+        backend->remap_ready();
+    if (!writes_a_table) {
+        if (should_warn_remap_unsupported(*backend)) {
             spdlog::warn("[PrintStartController] Backend (idx={}) does not support editable tool "
                          "mapping — {} explicit remap(s) will be ignored",
                          backend_idx, mappings.size());
