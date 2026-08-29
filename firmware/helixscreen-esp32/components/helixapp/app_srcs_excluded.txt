@@ -60,6 +60,7 @@ src/api/moonraker_request_tracker.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_rest_api.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_spoolman_api.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/api/moonraker_timelapse_api.cpp  # not in the v1 Core+AMS cut
+src/api/netd_protocol.cpp  # not in the v1 Core+AMS cut
 src/api/touch_calibration_wrapper.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend_linux.cpp  # not in the v1 Core+AMS cut
