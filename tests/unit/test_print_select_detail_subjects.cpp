@@ -760,9 +760,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
     }
 
     SECTION("card shown on a backend with no picker: chevron dark") {
-        // The other half. The plain mock reports RemapStrategy::None, so the
-        // card is worth showing - the chips still say which lane each tool
-        // resolves to - but a tap opens nothing and must not be advertised.
+        // The other half. A backend with no remap route at all - ACE, or a
+        // single-extruder printer with no AMS - still makes the card worth
+        // showing, because the chips say which lane each tool resolves to. A tap
+        // opens nothing and must not be advertised.
+        //
+        // Declared explicitly. The plain mock used to answer RemapStrategy::None
+        // for every non-Snapmaker mode, which is what made this case free - and
+        // also what left the picker unreachable under --test for the five
+        // backends that really do declare Native.
+        ams.backend->set_remap_strategy(AmsBackend::RemapStrategy::None);
         REQUIRE_FALSE(helix::ui::PrintSelectDetailView::color_card_opens_remap());
         view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
 

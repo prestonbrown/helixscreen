@@ -12,6 +12,7 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
@@ -1467,17 +1468,27 @@ void AmsEditOverlay::update_ui() {
     lv_obj_t* tool_remap_row = find_widget("tool_remap_row");
     lv_obj_t* tool_dropdown = find_widget("tool_dropdown");
     auto* backend = AmsState::instance().get_backend();
-    bool can_remap = backend && backend->get_system_info().supports_tool_mapping;
+    // This dropdown EDITS the backend's table through set_tool_mapping(), so the
+    // question is whether such a write lands — not the broader "can the user's
+    // pick be honored somehow", which the U1 answers yes to via its pre-print
+    // send while refusing set_tool_mapping outright. Same rule the print-start
+    // generic apply path gates on, called rather than restated.
+    //
+    // Was AmsSystemInfo::supports_tool_mapping, a second copy of the answer that
+    // AD5X IFS set true unconditionally: before `_IFS_VARS` discovery the
+    // dropdown was offered and its write went into local state the firmware
+    // replays nothing from.
+    const bool can_edit_mapping = backend && helix::printer::can_write_mapping_table(*backend);
 
     if (tool_remap_row) {
-        if (can_remap) {
+        if (can_edit_mapping) {
             lv_obj_remove_flag(tool_remap_row, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(tool_remap_row, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
-    if (tool_dropdown && can_remap) {
+    if (tool_dropdown && can_edit_mapping) {
         int tool_count = static_cast<int>(backend->get_system_info().tool_to_slot_map.size());
         std::string tool_options;
         for (int i = 0; i < tool_count; i++) {

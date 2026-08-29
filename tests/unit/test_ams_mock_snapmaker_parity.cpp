@@ -25,6 +25,7 @@
  * tools lands.
  */
 
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_types.h"
@@ -39,12 +40,6 @@
 using namespace helix;
 
 namespace {
-
-/// The real backend, reachable without a Moonraker connection.
-class SnapmakerProbe : public AmsBackendSnapmaker {
-  public:
-    SnapmakerProbe() : AmsBackendSnapmaker(nullptr, nullptr) {}
-};
 
 /// The routing the app would actually colour by, given what a backend published.
 /// This is AmsState::routed_tool_colors()'s own composition — the accessor, the

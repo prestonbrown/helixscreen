@@ -241,8 +241,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
      */
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     /// True except on K1, where BOX_MODIFY_TN no-ops (#968) so no confirming
@@ -264,6 +262,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     }
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
+    }
+
+    /// The CFS owns its own tool->slot table and get_tool_mapping() returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
     }
     // CFS unloads filament from the toolhead at end-of-print and reloads it as
     // part of the next print-start sequence, so the toolhead is expected to be

@@ -5,59 +5,20 @@
  * @brief Unit tests for tool mapping interface across AMS backends
  *
  * Tests for tool mapping feature:
- * - ToolMappingCapabilities struct
- * - get_tool_mapping_capabilities() virtual method
+ * - owns_tool_mapping_table() virtual method
+ * - get_remap_strategy() / remap_ready(), asked through helix::printer::can_remap
  * - get_tool_mapping() virtual method
  * - set_tool_mapping() method
  * - Backend-specific implementations (Mock, AFC, Happy Hare, ACE, ToolChanger)
  */
 
 #include "ams_backend_mock.h"
+#include "ams_remap.h"
 #include "ams_types.h"
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::printer;
-
-// =============================================================================
-// Type Tests - ToolMappingCapabilities
-// =============================================================================
-
-TEST_CASE("ToolMappingCapabilities struct exists and has required fields",
-          "[ams][tool_mapping][types]") {
-    SECTION("default construction") {
-        ToolMappingCapabilities caps;
-
-        // Default should be not supported
-        CHECK(caps.supported == false);
-        CHECK(caps.editable == false);
-        CHECK(caps.description.empty());
-    }
-
-    SECTION("can construct with values - fully supported") {
-        ToolMappingCapabilities caps{true, true, "Per-lane tool assignment via SET_MAP"};
-
-        CHECK(caps.supported == true);
-        CHECK(caps.editable == true);
-        CHECK(caps.description == "Per-lane tool assignment via SET_MAP");
-    }
-
-    SECTION("can construct with values - read-only") {
-        ToolMappingCapabilities caps{true, false, "Fixed 1:1 mapping"};
-
-        CHECK(caps.supported == true);
-        CHECK(caps.editable == false);
-        CHECK(caps.description == "Fixed 1:1 mapping");
-    }
-
-    SECTION("not supported has empty description") {
-        ToolMappingCapabilities caps{false, false, ""};
-
-        CHECK(caps.supported == false);
-        CHECK(caps.editable == false);
-        CHECK(caps.description.empty());
-    }
-}
 
 // =============================================================================
 // Base Class Interface Tests
@@ -70,13 +31,13 @@ TEST_CASE("AmsBackend base class has tool mapping virtual methods",
     backend.set_operation_delay(0);
     REQUIRE(backend.start());
 
-    SECTION("get_tool_mapping_capabilities returns valid struct") {
-        auto caps = backend.get_tool_mapping_capabilities();
-
-        // Mock should return supported=true, editable=true by default (filament system mode)
-        CHECK(caps.supported == true);
-        CHECK(caps.editable == true);
-        CHECK_FALSE(caps.description.empty());
+    SECTION("the mock declares the shape of a filament system by default") {
+        // Native, ready, and owning its own tool->slot table — what AFC, CFS,
+        // Happy Hare and QIDI all declare.
+        CHECK(backend.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+        CHECK(backend.remap_ready());
+        CHECK(helix::printer::can_remap(backend));
+        CHECK(backend.owns_tool_mapping_table());
     }
 
     SECTION("get_tool_mapping returns vector of mappings") {
@@ -111,12 +72,10 @@ TEST_CASE("Mock backend tool mapping - filament system mode", "[ams][tool_mappin
     backend.set_operation_delay(0);
     REQUIRE(backend.start());
 
-    SECTION("default capabilities are editable") {
-        auto caps = backend.get_tool_mapping_capabilities();
-
-        CHECK(caps.supported == true);
-        CHECK(caps.editable == true);
-        CHECK_FALSE(caps.description.empty());
+    SECTION("the default mode writes a persistent mapping table") {
+        CHECK(helix::printer::remap_is_persistent(backend.get_remap_strategy()));
+        CHECK(backend.remap_ready());
+        CHECK(backend.owns_tool_mapping_table());
     }
 
     SECTION("get_tool_mapping returns default 1:1 mapping") {
@@ -190,20 +149,14 @@ TEST_CASE("Mock backend tool mapping - tool changer mode",
     backend.set_tool_changer_mode(true);
     REQUIRE(backend.start());
 
-    SECTION("tool changer reports not supported") {
-        auto caps = backend.get_tool_mapping_capabilities();
-
-        CHECK(caps.supported == false);
-        CHECK(caps.editable == false);
-        CHECK(caps.description.empty());
-    }
-
-    SECTION("get_tool_mapping returns empty for tool changer") {
-        // Tool changers have fixed 1:1 mapping - tools ARE slots
-        // Implementation returns system_info_.tool_to_slot_map which is still populated,
-        // but the capabilities indicate mapping is not supported/editable
-        auto caps = backend.get_tool_mapping_capabilities();
-        CHECK_FALSE(caps.supported);
+    SECTION("tool changer mode declares what the real tool changer declares") {
+        // It used to declare the opposite: RemapStrategy::None and "not
+        // supported", while AmsBackendToolChanger declares Native and remaps via
+        // ASSIGN_TOOL. Its table is identity — tools ARE slots — but identity is
+        // still a real table the firmware owns and rewrites.
+        CHECK(backend.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+        CHECK(helix::printer::can_remap(backend));
+        CHECK(backend.owns_tool_mapping_table());
     }
 
     backend.stop();
@@ -251,18 +204,28 @@ TEST_CASE("Tool mapping with system_info integration", "[ams][tool_mapping][inte
     backend.set_operation_delay(0);
     REQUIRE(backend.start());
 
-    SECTION("system_info.supports_tool_mapping reflects capabilities") {
-        auto caps = backend.get_tool_mapping_capabilities();
-        auto info = backend.get_system_info();
-
-        CHECK(info.supports_tool_mapping == caps.supported);
+    SECTION("tool_to_slot_map is published for a table-owning backend") {
+        // AmsSystemInfo::supports_tool_mapping used to carry a second copy of
+        // owns_tool_mapping_table()'s answer and was pinned here to agree with
+        // it. The field is gone; what a consumer actually needs from
+        // system_info is the table itself.
+        REQUIRE(backend.owns_tool_mapping_table());
+        CHECK_FALSE(backend.get_system_info().tool_to_slot_map.empty());
     }
 
-    SECTION("tool changer mode updates system_info") {
+    SECTION("tool changer mode publishes an identity table") {
+        // owns_tool_mapping_table() answers !snapmaker_mode_, so asserting it
+        // alone would pass with or without the line above. What the mode
+        // actually changes is the table's SHAPE: tools ARE slots, so it is
+        // identity, and that is what a consumer reads.
         backend.set_tool_changer_mode(true);
+        REQUIRE(backend.start());
 
-        auto caps = backend.get_tool_mapping_capabilities();
-        CHECK_FALSE(caps.supported);
+        const auto& map = backend.get_system_info().tool_to_slot_map;
+        REQUIRE(map.size() == 4);
+        for (size_t i = 0; i < map.size(); ++i) {
+            CHECK(map[i] == static_cast<int>(i));
+        }
     }
 
     backend.stop();
@@ -273,27 +236,28 @@ TEST_CASE("Tool mapping with system_info integration", "[ams][tool_mapping][inte
 // =============================================================================
 
 TEST_CASE("Tool mapping capabilities vary by backend mode", "[ams][tool_mapping][comparison]") {
-    SECTION("Mock filament system supports editable mapping") {
+    SECTION("Mock filament system writes a persistent mapping") {
         AmsBackendMock mock(4);
         mock.set_operation_delay(0);
         REQUIRE(mock.start());
 
-        auto caps = mock.get_tool_mapping_capabilities();
-        CHECK(caps.supported == true);
-        CHECK(caps.editable == true);
+        CHECK(helix::printer::can_remap(mock));
+        CHECK(helix::printer::remap_is_persistent(mock.get_remap_strategy()));
 
         mock.stop();
     }
 
-    SECTION("Mock tool changer does not support mapping") {
+    SECTION("Mock in Snapmaker mode remaps without writing a table") {
+        // The mode that genuinely differs: SnapmakerNative reaches the printer
+        // through a pre-print send, so the pick is honored and nothing persists.
         AmsBackendMock mock(4);
         mock.set_operation_delay(0);
-        mock.set_tool_changer_mode(true);
+        mock.set_snapmaker_mode(true);
         REQUIRE(mock.start());
 
-        auto caps = mock.get_tool_mapping_capabilities();
-        CHECK(caps.supported == false);
-        CHECK(caps.editable == false);
+        CHECK(helix::printer::can_remap(mock));
+        CHECK_FALSE(helix::printer::remap_is_persistent(mock.get_remap_strategy()));
+        CHECK_FALSE(mock.owns_tool_mapping_table());
 
         mock.stop();
     }

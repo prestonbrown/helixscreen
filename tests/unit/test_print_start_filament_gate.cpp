@@ -20,6 +20,13 @@
 
 #include "ui_print_start_controller.h"
 
+#include "../test_helpers/ad5x_ifs_test_access.h"
+#include "../test_helpers/ams_backend_probes.h"
+#include "ams_backend_ace.h"
+#include "ams_backend_ad5x_ifs.h"
+#include "ams_backend_afc.h"
+#include "ams_backend_snapmaker.h"
+
 #include "../catch_amalgamated.hpp"
 
 // Friend shim lives in test_helpers/ — it must be defined exactly once across
@@ -30,47 +37,52 @@
 // Remap-unsupported warning discriminator (Snapmaker U1 stale-toast bug).
 //
 // apply_filament_remaps() must NOT toast "remap not supported" for a backend
-// that applies the remap via its firmware-native pre-print path
-// (requires_preprint_send) — build_preprint_gcode() honors the user's choice
-// even though get_tool_mapping_capabilities() reports editable=false. The toast
-// is only correct for a backend that can NEITHER edit its mapping NOR apply it
-// via a pre-print send.
+// that applies the remap via its firmware-native pre-print path — the U1's
+// build_preprint_gcode() honors the user's choice while writing no persistent
+// mapping table. The toast is only correct for a backend with no route at all,
+// or with one it cannot use yet.
+//
+// Driven through REAL backends rather than hand-built capability values. The
+// retired two-argument form took a capability struct and a pre-send flag, which
+// a caller could pull from two different backends and which made a test's
+// premise a fiction it wrote itself: it could assert a shape no backend has.
 // ============================================================================
 
-namespace {
-helix::printer::ToolMappingCapabilities caps(bool supported, bool editable) {
-    return {supported, editable, ""};
-}
-} // namespace
-
-TEST_CASE("remap warning: Snapmaker (editable=false + pre-print) is SILENT",
+TEST_CASE("remap warning: Snapmaker applies via its pre-print send, so it is SILENT",
           "[print-start][filament-gate][remap]") {
-    // Real AmsBackendSnapmaker: get_tool_mapping_capabilities() -> {false,false}
-    // (default), requires_preprint_send() -> true. The remap flows through
-    // build_preprint_gcode, so no warning.
-    auto& A = PrintStartControllerTestAccess::should_warn_remap_unsupported;
-    CHECK_FALSE(A(caps(/*supported=*/false, /*editable=*/false), /*applies_via_preprint=*/true));
-    // Mock snapmaker_mode reports {true,false} + pre-print — also silent.
-    CHECK_FALSE(A(caps(/*supported=*/true, /*editable=*/false), /*applies_via_preprint=*/true));
+    // RemapStrategy::SnapmakerNative: no persistent table is written and the
+    // remap still reaches the printer, through build_preprint_gcode.
+    SnapmakerProbe sm;
+    CHECK_FALSE(PrintStartControllerTestAccess::should_warn_remap_unsupported(sm));
 }
 
-TEST_CASE("remap warning: genuinely-incapable backend (no edit, no pre-print) WARNS",
+TEST_CASE("remap warning: a backend with no route at all WARNS",
           "[print-start][filament-gate][remap]") {
-    // ACE-like: {false,false} capabilities AND no pre-print send -> the remap
-    // genuinely cannot be honored, so the warning is correct.
-    auto& A = PrintStartControllerTestAccess::should_warn_remap_unsupported;
-    CHECK(A(caps(/*supported=*/false, /*editable=*/false), /*applies_via_preprint=*/false));
-    // supported-but-not-editable AND no pre-print -> also unhonorable -> warn.
-    CHECK(A(caps(/*supported=*/true, /*editable=*/false), /*applies_via_preprint=*/false));
+    // ACE declares RemapStrategy::None — the remap genuinely cannot be honored
+    // by any path, so the warning is the honest thing to show.
+    AceProbe ace;
+    CHECK(PrintStartControllerTestAccess::should_warn_remap_unsupported(ace));
 }
 
-TEST_CASE("remap warning: editable backend never warns (generic remap path is live)",
+TEST_CASE("remap warning: a table-writing backend never warns",
           "[print-start][filament-gate][remap]") {
-    // AFC / ToolChanger / QIDI / CFS / AD5X-IFS report editable=true: the generic
-    // set_tool_mapping() path in apply_filament_remaps honors the remap, so the
-    // decision helper is never even reached for the warning — but assert the
-    // predicate is false for editable backends regardless of pre-print flag.
-    auto& A = PrintStartControllerTestAccess::should_warn_remap_unsupported;
-    CHECK_FALSE(A(caps(/*supported=*/true, /*editable=*/true), /*applies_via_preprint=*/false));
-    CHECK_FALSE(A(caps(/*supported=*/true, /*editable=*/true), /*applies_via_preprint=*/true));
+    // AFC / ToolChanger / QIDI / CFS report Native: the generic
+    // set_tool_mapping() path honors the remap, so the helper is never even
+    // reached for the warning — but the predicate must still say "no warning".
+    AfcProbe afc;
+    CHECK_FALSE(PrintStartControllerTestAccess::should_warn_remap_unsupported(afc));
+}
+
+TEST_CASE("remap warning: a declared route that is not READY still warns",
+          "[print-start][filament-gate][remap]") {
+    // The case the retired predicate could not see. AD5X IFS declares Native
+    // unconditionally, but before `_IFS_VARS` is discovered set_tool_mapping()
+    // writes local state the firmware replays nothing from — the user's pick is
+    // dropped in silence. Warning is correct here, and was correct before only
+    // because a SECOND capability query happened to answer "not supported".
+    Ad5xIfsProbe ad5x;
+    CHECK(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
+
+    Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+    CHECK_FALSE(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
 }

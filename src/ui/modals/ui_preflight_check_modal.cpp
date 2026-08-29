@@ -9,6 +9,7 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -70,11 +71,14 @@ void PreflightCheckModal::on_show() {
     wire_cancel_button("btn_secondary");
     wire_tertiary_button("btn_tertiary");
 
-    // Remap is only offered when the active backend can actually remap. For
-    // None-strategy backends (single-extruder / no AMS) hide the button.
+    // Remap is only offered when the active backend can actually remap — which
+    // is the declared route AND its readiness, not the route alone. A backend
+    // built to remap through a firmware object it has not discovered yet (AD5X
+    // IFS before `_IFS_VARS`) would otherwise be offered a write that is
+    // silently dropped at print start.
     bool remap_supported = false;
     if (auto* backend = AmsState::instance().get_backend()) {
-        remap_supported = backend->get_remap_strategy() != AmsBackend::RemapStrategy::None;
+        remap_supported = helix::printer::can_remap(*backend);
     }
     if (auto* remap_btn = find_widget("btn_tertiary")) {
         if (remap_supported) {

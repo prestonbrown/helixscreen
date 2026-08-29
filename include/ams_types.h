@@ -1258,7 +1258,6 @@ struct AmsSystemInfo {
     /// from this field** rather than answering independently, so the two cannot
     /// diverge. Read the capabilities, not this.
     bool endless_spool_enabled = false;
-    bool supports_tool_mapping = false;
     bool supports_bypass = false;            ///< Has bypass selector position
     bool has_hardware_bypass_sensor = false; ///< true=auto-detect sensor, false=virtual/manual
     TipMethod tip_method = TipMethod::CUT;   ///< How filament tip is handled during unload
@@ -1879,51 +1878,6 @@ struct EndlessSpoolStatus {
  *    translation, so this costs no string.
  */
 [[nodiscard]] EndlessSpoolStatus endless_spool_status(const EndlessSpoolCapabilities& caps);
-
-/**
- * @brief Capabilities for tool mapping feature
- *
- * Describes whether tool mapping is supported and whether the UI can modify
- * the configuration. Different backends have different capabilities:
- * - AFC: Fully editable, per-lane tool assignment via SET_MAP
- * - Happy Hare: Fully editable, tool-to-gate mapping via MMU_TTG_MAP
- * - Mock: Configurable for testing both modes
- * - ACE: Not supported (1:1 fixed mapping)
- * - ToolChanger: Not supported (tools ARE slots)
- */
-struct ToolMappingCapabilities {
-    bool supported = false;  ///< Does this backend support tool mapping?
-    bool editable = false;   ///< Can the UI modify the mapping?
-    std::string description; ///< UI hint text (e.g., "Per-lane tool assignment via SET_MAP")
-};
-
-/**
- * @brief Can a backend with these capabilities carry out an explicit user
- *        tool->lane choice, by EITHER route?
- *
- * Named and shared because @c editable answers only half of it, and the missing
- * half is silent. A backend can honor the choice two ways: the generic
- * set_tool_mapping() path (@c editable), or a firmware-native pre-print send
- * that writes the routing itself (@p applies_via_preprint — the Snapmaker U1,
- * whose SET_PRINT_EXTRUDER_MAP is emitted from build_preprint_gcode()). The U1
- * reports editable=false and still honors every pick the user makes, so any
- * caller that reads editability alone concludes the opposite of the truth about
- * it.
- *
- * Two callers ask this, for reasons that must not drift apart:
- * PrintStartController, deciding whether "remap not supported" is an honest
- * toast or a stale false alarm; and AmsState::effective_auto_match(), deciding
- * whether the user's auto-color preference is a live control on this printer or
- * a setting nothing can act on.
- *
- * @param caps                 backend->get_tool_mapping_capabilities()
- * @param applies_via_preprint backend->requires_preprint_send()
- * @return true when the backend can carry out the user's choice. Pure.
- */
-[[nodiscard]] inline bool honors_user_tool_mapping(const ToolMappingCapabilities& caps,
-                                                   bool applies_via_preprint) {
-    return applies_via_preprint || (caps.supported && caps.editable);
-}
 
 /**
  * @brief Action type for dynamic device controls

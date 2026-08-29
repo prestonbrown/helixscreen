@@ -72,9 +72,12 @@ struct SingleExtruderMappingCardFixture : MappingCardRenderFixture {
 
 TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows on a backend whose mapping is not editable",
                  "[filament_mapping][visibility]") {
-    // snapmaker_mode_ makes get_tool_mapping_capabilities() report
-    // {supported=true, editable=false} — the U1 case. Before the merge this
-    // hid the card and a second surface drew the chips; that surface is gone.
+    // snapmaker_mode_ is the U1 case: RemapStrategy::SnapmakerNative, so the
+    // pick IS honored (through the pre-print send) while no tool->slot table is
+    // written and owns_tool_mapping_table() is false. Before the merge this hid
+    // the card and a second surface drew the chips; that surface is gone.
+    // should_show() reads neither, which is the point — card visibility is
+    // decided by the tools the file uses, not by what the backend can remap.
     mock->set_snapmaker_mode(true);
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     CHECK(card.should_show());

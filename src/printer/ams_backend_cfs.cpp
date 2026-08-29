@@ -664,7 +664,6 @@ AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json,
     // strings: were the box to ever report the "-1" sentinel here (the documented
     // absence marker everywhere else in this object), != 0 would read it as TRUE.
     info.endless_spool_enabled = helix::json_util::safe_int(box_json, "auto_refill", 0) == 1;
-    info.supports_tool_mapping = true;
 
     // box.filament is a stale active-lane SELECTION index, NOT a "filament
     // loaded" truth — it retains a lane number even when nothing is loaded,
@@ -1081,7 +1080,6 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // ships as JSON null when idle).
     info.endless_spool_enabled =
         helix::json_util::safe_bool(box_json, "runout_swap_enabled", false);
-    info.supports_tool_mapping = true;
 
     // `runout` is null while idle and carries a slot descriptor once tripped;
     // presence of any non-null value is the runout signal. filament_loaded is
@@ -3520,12 +3518,6 @@ helix::printer::EndlessSpoolCapabilities AmsBackendCfs::get_endless_spool_capabi
                                                           : EndlessSpoolEnabled::Off,
             .editability = EndlessSpoolEditability::ReadOnly,
             .restriction = EndlessSpoolRestriction::FirmwareManaged};
-}
-
-helix::printer::ToolMappingCapabilities AmsBackendCfs::get_tool_mapping_capabilities() const {
-    return {.supported = true,
-            .editable = true,
-            .description = "Tool reassignment via BOX_MODIFY_TN"}; // i18n: do not translate
 }
 
 std::vector<int> AmsBackendCfs::get_tool_mapping() const {
