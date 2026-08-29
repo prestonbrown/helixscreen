@@ -273,14 +273,10 @@ void ConsolePanel::register_callbacks() {
         {"on_console_clear_clicked",
          [](lv_event_t* /*e*/) {
              spdlog::debug("[Console] Clear button clicked");
-             helix::ui::modal_show_confirmation(
-                 lv_tr("Clear Console?"), lv_tr("This will remove all entries from the display."),
-                 ModalSeverity::Info, lv_tr("Clear"),
-                 [](lv_event_t* /*e*/) {
-                     Modal::hide(Modal::get_top());
-                     get_global_console_panel().clear_display();
-                 },
-                 nullptr, nullptr);
+             helix::ui::modal_confirm(lv_tr("Clear Console?"),
+                                      lv_tr("This will remove all entries from the display."),
+                                      ModalSeverity::Info, lv_tr("Clear"),
+                                      [] { get_global_console_panel().clear_display(); });
          }},
         {"on_console_settings_clicked",
          [](lv_event_t* /*e*/) {

@@ -1914,49 +1914,44 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
     // to match" is deliberately NOT offered here — correcting a mislabelled
     // spool belongs in the Spoolman panel's own edit, where it is not one
     // mis-tap away from overwriting a different spool's identity.
-    lv_obj_t* dlg = modal_show_confirmation(
+    // TRUE ABORT for Cancel and for any dismissal (backdrop tap, ESC): do
+    // NOTHING else - no close_editor(), no completion. The staged edits
+    // (working_info_, details_color_, ...) stay exactly as they were so the
+    // user can tweak and re-Save (the dialog reappears - same diff) or Back out
+    // (Back already discards via working_info_ = original_info_). Committing
+    // the slot locally here would leak the unconfirmed "different filament"
+    // identity into the AMS panel while Spoolman still shows the old one -
+    // exactly the outcome this confirmation exists to gate.
+    auto true_abort = [] {
+        auto& overlay = get_ams_edit_overlay();
+        // handle_spool_edit_save()'s header-Save "finish" path unconditionally
+        // detaches + clears the catalog selector before reaching here (see
+        // reattach_details_selector()'s doc comment for why). Abort leaves the
+        // user ON the spool-edit view, so revive the selector or the vendor/
+        // type/product picker goes dead.
+        if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
+            overlay.reattach_details_selector();
+        }
+    };
+
+    lv_obj_t* dlg = modal_confirm(
         lv_tr("Different filament?"),
         lv_tr("This doesn't match the linked Spoolman spool. Add it as a new spool, or update "
               "the linked one to match?"),
-        ModalSeverity::Warning, lv_tr("It's a new spool"), on_identity_confirm_cb,
-        on_identity_cancel_cb, nullptr);
+        ModalSeverity::Warning, lv_tr("It's a new spool"),
+        // "It's a new spool" - create and rebind; the previously linked spool
+        // is left exactly as it was.
+        [] {
+            get_ams_edit_overlay().do_spoolman_save(
+                helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
+        },
+        true_abort, nullptr, true_abort);
     if (!dlg) {
-        // Couldn't show the dialog — abort rather than guess. Falling through to
+        // Couldn't show the dialog - abort rather than guess. Falling through to
         // a write here would pick one of two destructive outcomes on the user's
         // behalf, which is exactly what this gate exists to prevent.
         spdlog::warn("[AmsEditOverlay] identity confirmation failed to show; aborting save");
         close_editor(false);
-    }
-}
-
-void AmsEditOverlay::on_identity_confirm_cb(lv_event_t* /*e*/) {
-    // Dismiss the confirmation FIRST — modal_dialog has no auto-close, and
-    // leaving it up would keep the buttons re-tappable, double-firing the
-    // Spoolman write. Confirmation modals still stack above the overlay (§13.6).
-    Modal::hide(Modal::get_top());
-    // "It's a new spool" — create and rebind; the previously linked spool is
-    // left exactly as it was.
-    get_ams_edit_overlay().do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
-}
-
-void AmsEditOverlay::on_identity_cancel_cb(lv_event_t* /*e*/) {
-    // TRUE ABORT: dismiss the confirmation and do NOTHING else — no
-    // close_editor(), no completion. The staged edits (working_info_,
-    // details_color_, ...) stay exactly as they were so the user can tweak
-    // and re-Save (the dialog reappears — same diff) or Back out (Back
-    // already discards via working_info_ = original_info_). Committing the
-    // slot locally here would leak the unconfirmed "different filament"
-    // identity into the AMS panel while Spoolman still shows the old one —
-    // exactly the outcome this confirmation exists to gate.
-    Modal::hide(Modal::get_top());
-    auto& overlay = get_ams_edit_overlay();
-    // handle_spool_edit_save()'s header-Save "finish" path unconditionally
-    // detaches + clears the catalog selector before reaching here (see
-    // reattach_details_selector()'s doc comment for why). Abort leaves the
-    // user ON the spool-edit view, so revive the selector or the vendor/
-    // type/product picker goes dead.
-    if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
-        overlay.reattach_details_selector();
     }
 }
 

@@ -2730,8 +2730,7 @@ void PrintSelectPanel::on_file_long_pressed(size_t file_index) {
     apply_file_selection(file);
 
     // Reuse the existing confirmation modal. The detail view's
-    // show_delete_confirmation() is a thin wrapper around modal_show_confirmation()
-    // and does not require the detail view to be visible.
+    // show_delete_confirmation() does not require the detail view to be visible.
     show_delete_confirmation();
 }
 

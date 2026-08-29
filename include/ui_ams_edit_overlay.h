@@ -286,9 +286,6 @@ class AmsEditOverlay : public OverlayBase {
     void do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent intent =
                               helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
     void prompt_identity_change_then_save();
-    /// Primary action: "It's a new spool" — create + rebind, old spool untouched.
-    static void on_identity_confirm_cb(lv_event_t* e);
-    static void on_identity_cancel_cb(lv_event_t* e);
     // Re-bind + repopulate details_selector_ against the still-open spool-edit
     // view's fragment. handle_spool_edit_save() unconditionally detaches +
     // clears the selector before reaching commit_and_close() (needed so the

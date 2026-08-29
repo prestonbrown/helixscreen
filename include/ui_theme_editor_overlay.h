@@ -124,8 +124,6 @@ class ThemeEditorOverlay : public OverlayBase {
     static void on_slider_changed(lv_event_t* e);
     static void on_close_requested(lv_event_t* e);
     static void on_back_clicked(lv_event_t* e);
-    static void on_discard_confirm(lv_event_t* e);
-    static void on_discard_cancel(lv_event_t* e);
 
     // Unified slider property callback (uses user_data to identify property)
     static void on_property_changed(lv_event_t* e);

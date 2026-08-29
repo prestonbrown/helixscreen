@@ -986,16 +986,6 @@ class PrintSelectDetailView : public OverlayBase {
     void populate_option_rows();
 
     /**
-     * @brief Static callback for delete confirmation
-     */
-    static void on_confirm_delete_static(lv_event_t* e);
-
-    /**
-     * @brief Static callback for cancel delete
-     */
-    static void on_cancel_delete_static(lv_event_t* e);
-
-    /**
      * @brief Update color swatches display.
      *
      * Renders one swatch per entry in `tool_indices`, sourcing each swatch's
