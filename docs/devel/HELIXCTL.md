@@ -385,7 +385,7 @@ connection, so the hold elapses with no client attached, and the command that fo
 re-samples the device in a way that restarts the press. `long_press` exists because the
 hold has to happen server-side. It latches the press, holds without touching the pointer
 while LVGL keeps sampling it on its own timer - exactly as under a resting finger - and
-then releases (`src/remote/remote_control_server.cpp:1968-2005`).
+then releases (`src/remote/remote_control_server.cpp:1971-2008`).
 
 `hold_ms` is optional. Omitted, the server derives the hold from the **configured**
 long-press time (`InputSettingsManager::get_long_press_time()`, the Touch & Input
@@ -415,7 +415,7 @@ helix-screen ctl release
 
 Separate commands are right for those last two: what matters is where the pointer goes,
 not how long it rests, and the press stays latched between connections. `long_press`
-always ends in its own release (`src/remote/remote_control_server.cpp:2001`), so a
+always ends in its own release (`src/remote/remote_control_server.cpp:2004`), so a
 hold-then-slide gesture - long-press to raise a popover, then slide onto it - has no
 single-command form.
 

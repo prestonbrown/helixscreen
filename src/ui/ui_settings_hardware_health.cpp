@@ -361,7 +361,8 @@ void HardwareHealthOverlay::handle_hardware_action(const char* hardware_name, bo
 }
 
 void HardwareHealthOverlay::handle_hardware_save_confirm() {
-    // modal_confirm closed the dialog before invoking this; drop the stale handle
+    // Runs from the dialog's confirm callback, BEFORE it self-closes; drop the
+    // stale handle now so nothing re-hides an exiting/reused dialog address.
     hardware_save_dialog_ = nullptr;
 
     Config* cfg = Config::get_instance();
@@ -387,7 +388,8 @@ void HardwareHealthOverlay::handle_hardware_save_confirm() {
 }
 
 void HardwareHealthOverlay::handle_hardware_save_cancel() {
-    // modal_confirm closed the dialog before invoking this; drop the stale handle
+    // Runs from the dialog's cancel callback, BEFORE it self-closes; drop the
+    // stale handle now so nothing re-hides an exiting/reused dialog address.
     hardware_save_dialog_ = nullptr;
 
     pending_hardware_save_.clear();

@@ -52,6 +52,8 @@ enum class ModalCloseReason {
     EscKey,       ///< User pressed ESC
     ButtonPress,  ///< A dialog button was pressed
     HotReload,    ///< XML hot reload replaced the dialog (dev builds)
+    External,     ///< A system sweep closed it (ctl reset, fault-modal
+                  ///< dismissal) - not the caller, so a dismissal reports
 };
 
 // ============================================================================

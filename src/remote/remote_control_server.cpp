@@ -460,7 +460,10 @@ nlohmann::json RemoteControlServer::handle_reset(const nlohmann::json& /*params*
             if (!top) {
                 break;
             }
-            Modal::hide(top);
+            // External, not Programmatic: the reset is not the dialog's caller,
+            // so a caller holding state the buttons resolve (the print-gate
+            // guard) still learns about the close through on_dismiss.
+            Modal::hide(top, ModalCloseReason::External);
             modals_cleared++;
         }
         if (modals_cleared == MAX_MODAL_DEPTH && !ModalStack::instance().empty()) {

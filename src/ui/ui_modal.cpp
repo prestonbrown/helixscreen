@@ -71,8 +71,22 @@ constexpr const char* DEFAULT_PRIMARY_TEXT = "OK";
 constexpr const char* DEFAULT_CANCEL_TEXT = "Cancel";
 } // namespace
 
-// Recursively clear user_data on an object tree to prevent stale pointer
-// dispatch. Subclasses that stash `this` there rely on this: ClogDetectionConfigModal
+// Walk a widget tree depth-first, visiting every non-null object. The three
+// disarm passes below differ only in what they do per object; expressing the
+// skeleton once means a future pass cannot forget the child iteration or the
+// null guard the recursive originals each carried separately.
+template <typename Fn> static void for_each_in_tree(lv_obj_t* obj, Fn&& fn) {
+    if (!obj)
+        return;
+    fn(obj);
+    uint32_t child_count = lv_obj_get_child_count(obj);
+    for (uint32_t i = 0; i < child_count; i++) {
+        for_each_in_tree(lv_obj_get_child(obj, i), fn);
+    }
+}
+
+// Clear user_data on an object tree to prevent stale pointer dispatch.
+// Subclasses that stash `this` there rely on this: ClogDetectionConfigModal
 // walks up looking for the first non-null user_data and casts it to its own type
 // (clog_detection_config_modal.cpp:20), so a slot left set after teardown resolves
 // to a freed instance.
@@ -81,44 +95,30 @@ constexpr const char* DEFAULT_CANCEL_TEXT = "Cancel";
 // (a heap UiButtonData) and button_delete_cb frees it by reading the slot back and
 // checking a magic word - null it here and the allocation is stranded with nothing
 // left to free it.
-static void clear_user_data_recursive(lv_obj_t* obj) {
-    if (!obj)
-        return;
-    if (lv_obj_get_user_data(obj) != nullptr && !ui_button_owns_user_data(obj)) {
-        lv_obj_set_user_data(obj, nullptr);
-    }
-    uint32_t child_count = lv_obj_get_child_count(obj);
-    for (uint32_t i = 0; i < child_count; i++) {
-        clear_user_data_recursive(lv_obj_get_child(obj, i));
-    }
+static void clear_user_data_in_tree(lv_obj_t* root) {
+    for_each_in_tree(root, [](lv_obj_t* obj) {
+        if (lv_obj_get_user_data(obj) != nullptr && !ui_button_owns_user_data(obj)) {
+            lv_obj_set_user_data(obj, nullptr);
+        }
+    });
+}
+
+// Remove every event callback in the tree whose per-callback user_data is
+// `owner`. lv_obj_remove_event_cb_with_user_data treats a null callback as a
+// wildcard (lv_obj_event.c), so one pass catches wire_button()'s hooks and any
+// a subclass added itself.
+static void remove_owner_callbacks_in_tree(lv_obj_t* root, void* owner) {
+    for_each_in_tree(root, [owner](lv_obj_t* obj) {
+        lv_obj_remove_event_cb_with_user_data(obj, nullptr, owner);
+    });
 }
 
 // Recursively remove LV_OBJ_FLAG_CLICKABLE from an object tree. lv_obj_hit_test
 // rejects a non-clickable object (lv_obj_pos.c:1209), so a NEW press can no
 // longer select anything in the tree. This does NOT stop a press that is already
 // down - see Modal::disarm_tree.
-// Remove every event callback in the tree whose per-callback user_data is
-// `owner`. lv_obj_remove_event_cb_with_user_data treats a null callback as a
-// wildcard (lv_obj_event.c), so one pass catches wire_button()'s hooks and any
-// a subclass added itself.
-static void remove_owner_callbacks_recursive(lv_obj_t* obj, void* owner) {
-    if (!obj)
-        return;
-    lv_obj_remove_event_cb_with_user_data(obj, nullptr, owner);
-    uint32_t child_count = lv_obj_get_child_count(obj);
-    for (uint32_t i = 0; i < child_count; i++) {
-        remove_owner_callbacks_recursive(lv_obj_get_child(obj, i), owner);
-    }
-}
-
-static void disable_clicks_recursive(lv_obj_t* obj) {
-    if (!obj)
-        return;
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
-    uint32_t child_count = lv_obj_get_child_count(obj);
-    for (uint32_t i = 0; i < child_count; i++) {
-        disable_clicks_recursive(lv_obj_get_child(obj, i));
-    }
+static void disable_clicks_in_tree(lv_obj_t* root) {
+    for_each_in_tree(root, [](lv_obj_t* obj) { lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE); });
 }
 
 // ============================================================================
@@ -536,8 +536,8 @@ void Modal::disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner) {
         // Order matters only in that all three must happen before the widgets
         // start animating out; the dialog stays alive for MODAL_EXIT_DURATION_MS
         // after a hide, and every callback on it is still wired.
-        clear_user_data_recursive(dialog);
-        disable_clicks_recursive(dialog);
+        clear_user_data_in_tree(dialog);
+        disable_clicks_in_tree(dialog);
 
         // Clearing CLICKABLE stops a NEW press from selecting anything in the
         // tree, but it does NOT stop one that is already down: LVGL dispatches
@@ -565,12 +565,12 @@ void Modal::disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner) {
     // An instance that frees itself from on_hide() is gone on the next tick
     // while these widgets live out MODAL_EXIT_DURATION_MS. Any callback still
     // carrying it - wire_button()'s hooks, or one a subclass added - would then
-    // dispatch on freed memory. disable_clicks_recursive() stops a finger from
+    // dispatch on freed memory. disable_clicks_in_tree() stops a finger from
     // reaching them, but not lv_obj_send_event (which `ctl click` and tests
     // use, and which ignores the CLICKABLE flag).
     if (owner) {
         // backdrop is the dialog's parent, so one walk from there covers both.
-        remove_owner_callbacks_recursive(backdrop ? backdrop : dialog, owner);
+        remove_owner_callbacks_in_tree(backdrop ? backdrop : dialog, owner);
     }
 }
 
@@ -663,6 +663,8 @@ static const char* close_reason_name(ModalCloseReason reason) {
         return "button press";
     case ModalCloseReason::HotReload:
         return "hot reload";
+    case ModalCloseReason::External:
+        return "external sweep";
     }
     return "unknown";
 }
@@ -1218,10 +1220,8 @@ class ModalConfigRollback {
     ModalConfigRollback()
         : severity_(lv_subject_get_int(helix::ui::modal_get_severity_subject())),
           show_cancel_(lv_subject_get_int(helix::ui::modal_get_show_cancel_subject())),
-          primary_(static_cast<const char*>(
-              lv_subject_get_pointer(helix::ui::modal_get_primary_text_subject()))),
-          cancel_(static_cast<const char*>(
-              lv_subject_get_pointer(helix::ui::modal_get_cancel_text_subject()))) {}
+          primary_(snapshot_caption(helix::ui::modal_get_primary_text_subject())),
+          cancel_(snapshot_caption(helix::ui::modal_get_cancel_text_subject())) {}
 
     void commit() {
         committed_ = true;
@@ -1231,15 +1231,29 @@ class ModalConfigRollback {
         if (committed_) {
             return;
         }
+        // modal_configure() stores these pointers into the shared caption
+        // subjects, which fires the still-live previous dialog's bind_text
+        // observers synchronously - so the pointers must be alive HERE. The
+        // snapshot is by value because the previous dialog's caption strings
+        // are routinely frame-locals by the time a rollback runs (the
+        // print-gate chain's GateCheckResult is dead the moment its
+        // run_gates_from() iteration returns). The subjects keep pointing at
+        // these strings after this dtor finishes, but nothing reads a caption
+        // subject until the next modal_configure() replaces it.
         helix::ui::modal_configure(static_cast<ModalSeverity>(severity_), show_cancel_ != 0,
-                                   primary_, cancel_);
+                                   primary_.c_str(), cancel_.c_str());
     }
 
   private:
+    static std::string snapshot_caption(lv_subject_t* subject) {
+        const char* text = static_cast<const char*>(lv_subject_get_pointer(subject));
+        return text ? std::string(text) : std::string();
+    }
+
     int32_t severity_;
     int32_t show_cancel_;
-    const char* primary_;
-    const char* cancel_;
+    std::string primary_;
+    std::string cancel_;
     bool committed_ = false;
 };
 
