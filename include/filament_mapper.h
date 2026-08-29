@@ -76,6 +76,17 @@ struct AvailableSlot {
     }
 };
 
+/// What is wrong with pairing one tool with one lane.
+///
+/// Produced by FilamentMapper::classify_mismatches() and adopted whole, so a
+/// seeding path cannot pick up one warning and quietly miss the other - which
+/// is exactly how the six hand-written copies of the material rule would have
+/// drifted the moment a second flag was added beside it.
+struct MismatchFlags {
+    bool material_mismatch = false;
+    bool color_mismatch = false;
+};
+
 /// Result of mapping a single tool
 struct ToolMapping {
     int tool_index = -1;            ///< G-code tool number
@@ -84,12 +95,29 @@ struct ToolMapping {
     bool material_mismatch = false; ///< True if slot material != expected material
     bool is_auto = false;           ///< True if using "auto" (no explicit mapping)
 
+    /// Adopt a classified pairing's warnings. Both flags or neither.
+    void set_mismatches(const MismatchFlags& flags) {
+        material_mismatch = flags.material_mismatch;
+        color_mismatch = flags.color_mismatch;
+    }
+
     enum class MatchReason {
         FIRMWARE_MAPPING, ///< Matched via current firmware tool-to-slot mapping
         COLOR_MATCH,      ///< Matched by closest color
         AUTO,             ///< No explicit mapping, let firmware decide
     };
     MatchReason reason = MatchReason::AUTO;
+
+    /// True when the lane will print in a colour the file did not ask for.
+    /// Advisory only, and deliberately NOT part of the card's warning triangle:
+    /// the stacked chip already shows both colours side by side, so an alarm
+    /// here would fire on most prints and devalue the triangle that flags what
+    /// the user cannot see. Drives the per-chip surround instead.
+    ///
+    /// Kept last rather than beside material_mismatch for the reason every other
+    /// late field in this header is: the tests positionally aggregate-initialise
+    /// this struct, and a bool inserted mid-struct silently rebinds them.
+    bool color_mismatch = false;
 };
 
 /// Pure logic class for computing filament-to-tool mappings.
@@ -105,6 +133,22 @@ class FilamentMapper {
     /// Check if two colors are within matching tolerance.
     /// Uses weighted RGB distance (luminance-weighted) with tolerance of 40 units.
     static bool colors_match(uint32_t color_a, uint32_t color_b);
+
+    /// The warnings that apply to pairing @p tool with the lane it resolved to.
+    ///
+    /// ONE rule for every seeding path. Callers keep their own policy - which
+    /// lane to assign, and whether to refuse it - and ask this only what is
+    /// wrong with a pairing they have already made. A tool with no resolved
+    /// lane never reaches here, which is how "no lane chosen yet" stays out of
+    /// the warning set without a guard at each call site.
+    ///
+    /// Colour is the stricter of the two about what it will claim: it needs the
+    /// file to have stated a colour (GcodeToolInfo::color_known) and the lane to
+    /// hold filament, because an empty lane's reported colour is stale and its
+    /// own empty marker already names the real problem. It uses colors_match(),
+    /// the same predicate auto-matching uses, so a lane the matcher would have
+    /// picked never draws a warning.
+    static MismatchFlags classify_mismatches(const GcodeToolInfo& tool, const AvailableSlot& slot);
 
     /// Find the best matching slot for a given color and material.
     /// Skips non-empty slots with incompatible materials.

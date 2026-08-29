@@ -245,8 +245,13 @@ void FilamentMappingCard::rebuild_compact_view() {
                        t.material + "|";
     }
     for (const auto& m : mappings_) {
+        // color_mismatch decides whether the chip is surrounded, so it is a render
+        // input like every other field here. It happens to be derivable from the
+        // tool and slot state encoded above, but nothing enforces that: the
+        // mapping modal writes flags into this vector directly.
         fingerprint += std::to_string(m.tool_index) + ">" + std::to_string(m.mapped_slot) + ":" +
-                       std::to_string(m.mapped_backend) + (m.is_auto ? "a" : "m") + "|";
+                       std::to_string(m.mapped_backend) + (m.is_auto ? "a" : "m") +
+                       (m.color_mismatch ? "x" : "-") + "|";
     }
     for (const auto& s : available_slots_) {
         fingerprint += std::to_string(s.backend_index) + "." + std::to_string(s.slot_index) + "=" +
@@ -321,6 +326,16 @@ void FilamentMappingCard::rebuild_compact_view() {
         // Every mutation below is per-item payload on a C++-generated collection:
         // the card builds one chip per used tool from runtime data, so there is no
         // XML instance per tool to hang a bind on.
+
+        // Colour mismatch surrounds the WHOLE chip (color_mismatch style, under
+        // selector user_2 in filament_swatch.xml): the wrong thing is the pairing
+        // the two bands represent, not either band on its own. That scope is also
+        // what keeps it apart from the empty-lane border below, which stays on
+        // bottom_band because "this lane holds nothing" is a fact about the lane.
+        // DECLARATIVE_OK: per-item payload on a C++-generated collection.
+        if (mapping.color_mismatch) {
+            lv_obj_add_state(chip, LV_STATE_USER_2);
+        }
 
         // TOP band: the gcode file's intended colour for this tool.
         if (auto* top = lv_obj_find_by_name(chip, "top_band")) {

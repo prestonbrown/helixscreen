@@ -337,6 +337,43 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill o
     process_lvgl(100);
 }
 
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "A colour-mismatched chip is surrounded and a matched one is not",
+                 "[filament_mapping][swatch][colour_mismatch]") {
+    // Scope is what separates this from the empty-lane border: empty is a fact
+    // about the LANE and stays on bottom_band, colour is a fact about the
+    // PAIRING and surrounds the whole chip. Both directions in ONE render -
+    // a surround that is always on, or never on, passes a one-sided check.
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+
+    auto mappings = mappings_to_slots({0, 1});
+    mappings[0].color_mismatch = true;
+    card.set_mappings(std::move(mappings));
+
+    lv_obj_t* const mismatched = lv_obj_get_child(rows, 0);
+    lv_obj_t* const matched = lv_obj_get_child(rows, 1);
+    REQUIRE(mismatched != nullptr);
+    REQUIRE(matched != nullptr);
+    CHECK(lv_obj_has_state(mismatched, LV_STATE_USER_2));
+    CHECK_FALSE(lv_obj_has_state(matched, LV_STATE_USER_2));
+
+    // The state is only half the wiring: filament_swatch.xml has to hang the
+    // colour_mismatch style off it, and the chip's own inline border_width="0"
+    // is what that style has to beat.
+    CHECK(lv_obj_get_style_border_width(mismatched, LV_PART_MAIN) == 2);
+    CHECK(lv_color_eq(lv_obj_get_style_border_color(mismatched, LV_PART_MAIN),
+                      theme_manager_get_color("warning")));
+    CHECK(lv_obj_get_style_border_width(matched, LV_PART_MAIN) == 0);
+
+    // The empty-lane border keeps its own scope: nothing was added to the bands.
+    lv_obj_t* const band = lv_obj_find_by_name(mismatched, "bottom_band");
+    REQUIRE(band != nullptr);
+    CHECK_FALSE(lv_obj_has_state(band, LV_STATE_USER_1));
+
+    process_lvgl(100);
+}
+
 TEST_CASE("resolve_mapped_slot: a mapping that outlived its lane resolves to nothing",
           "[filament][mapping][mapper]") {
     // Unit unplugged between the mapping and the render. Better to show no
