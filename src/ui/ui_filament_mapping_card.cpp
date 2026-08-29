@@ -8,6 +8,7 @@
 
 #include "ams_state.h"
 #include "color_utils.h"
+#include "filament_mapper.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "print_start_checks.h"
 #include "settings_manager.h"
@@ -20,9 +21,9 @@
 
 namespace helix::ui {
 
-// Pills are instantiated from ui_xml/components/filament_mapping_pill.xml
-// (dynamic count depends on the gcode file). lv_obj_add_event_cb is used on
-// the card itself for the modal-open handler as an allowed exception.
+// Chips are instantiated from ui_xml/components/filament_swatch.xml (dynamic
+// count depends on the gcode file). lv_obj_add_event_cb is used on the card
+// itself for the modal-open handler as an allowed exception.
 
 // ============================================================================
 // Setup
@@ -248,140 +249,112 @@ void FilamentMappingCard::rebuild_compact_view() {
 
     helix::ui::safe_clean_children(rows_container_);
 
-    // Pill layout, sizing, padding, fonts all live in
-    // ui_xml/components/filament_mapping_pill.xml — tune visuals without
-    // rebuilding. C++ only supplies per-pill dynamic data: colors, Tx label,
-    // and the empty-slot warning variant.
+    // Chip layout, sizing, padding, fonts all live in
+    // ui_xml/components/filament_swatch.xml — tune visuals without rebuilding.
+    // C++ only supplies per-chip dynamic data: the two band colours, the Tx and
+    // lane labels, the divider colour, and the empty-slot warning variant.
     lv_obj_set_flex_flow(rows_container_, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_style_flex_cross_place(rows_container_, LV_FLEX_ALIGN_CENTER, 0);
     lv_obj_set_style_pad_gap(rows_container_, theme_manager_get_spacing("space_xs"), 0);
 
-    size_t count = std::min(mappings_.size(), tool_info_.size());
-    bool multi_tool = count > 1;
-    // Cap visible pills so a file with many tools doesn't flood the right
-    // column. Beyond the cap, the remaining tools are summarized in a single
-    // "+N" overflow pill that fills the final grid cell (tap the card to see
-    // and edit the full mapping).
-    constexpr size_t MAX_VISIBLE_PILLS = 6;
-    size_t visible = count;
-    bool overflow = count > MAX_VISIBLE_PILLS;
-    if (overflow) {
-        visible = MAX_VISIBLE_PILLS - 1; // leave space for the overflow pill
-    }
-    for (size_t i = 0; i < visible; ++i) {
-        const auto& mapping = mappings_[i];
-        const auto& tool = tool_info_[i];
+    const bool multi_tool = tool_info_.size() > 1;
+    const lv_color_t neutral = theme_manager_get_color("text_muted");
 
-        auto* pill = static_cast<lv_obj_t*>(
-            lv_xml_create(rows_container_, "filament_mapping_pill", nullptr));
-        if (!pill) {
+    for (size_t i = 0; i < tool_info_.size(); ++i) {
+        const auto& tool = tool_info_[i];
+        auto* chip =
+            static_cast<lv_obj_t*>(lv_xml_create(rows_container_, "filament_swatch", nullptr));
+        if (!chip) {
             continue;
         }
-        // Target two pills per row (2x2 grid for four-tool prints). Slightly
-        // under 50% so the inter-pill gap doesn't force wrapping.
-        lv_obj_set_width(pill, lv_pct(48));
+        // Fix the chip width in code: a numeric width on a component <view> root
+        // is not honoured by lv_xml_create (only "content"/"%"), and the band
+        // labels use flex_grow (which contributes 0 to content width), so without
+        // this the whole chip collapses to 0.
+        lv_obj_set_width(chip, 40); // DECLARATIVE_OK: lv_xml_create width limitation
 
-        // G-code color dot and Tx label (only shown for multi-tool files).
-        // An unknown color gets the OUTLINE treatment the empty slot dot below
-        // uses, not a solid fill: painting the neutral stand-in reads as "this
-        // file prints in grey", which is a claim about the file that nothing has
-        // made. (The K2 Plus report this fixes: a re-opened print rendered a
-        // grey dot pointing at the real black lane color.)
-        lv_color_t gcode_color = lv_color_hex(tool.color_rgb);
-        if (auto* gcode_dot = lv_obj_find_by_name(pill, "gcode_dot")) {
-            // DECLARATIVE_OK: per-item payload on a C++-generated collection. The
-            // card builds one pill per used tool from runtime data, so there is no
-            // XML instance per tool to hang a bind on — the sibling slot_dot below
-            // paints its own empty-slot variant the same way, and both restore the
-            // opposite branch's properties explicitly because pills are recycled.
+        // mappings_ is built parallel to tool_info_ and compacted in lockstep by
+        // apply_used_tools_filter, so index i is this tool's mapping. Fall back to
+        // a default mapping rather than indexing past the end if that ever drifts.
+        const ToolMapping mapping = (i < mappings_.size()) ? mappings_[i] : ToolMapping{};
+        const helix::AvailableSlot* const resolved =
+            helix::FilamentMapper::resolve_mapped_slot(mapping, available_slots_);
+
+        // Every mutation below is per-item payload on a C++-generated collection:
+        // the card builds one chip per used tool from runtime data, so there is no
+        // XML instance per tool to hang a bind on.
+
+        // TOP band: the gcode file's intended colour for this tool.
+        if (auto* top = lv_obj_find_by_name(chip, "top_band")) {
             if (tool.color_known) {
-                lv_obj_set_style_bg_opa(gcode_dot, LV_OPA_COVER, 0); // DECLARATIVE_OK: see above
-                lv_obj_set_style_bg_color(gcode_dot, gcode_color, 0);
-                lv_obj_set_style_border_opa(gcode_dot, 30, 0); // DECLARATIVE_OK: see above
+                lv_obj_set_style_bg_opa(top, LV_OPA_COVER, 0); // DECLARATIVE_OK: see above
+                lv_obj_set_style_bg_color(top, lv_color_hex(tool.color_rgb), 0);
             } else {
-                lv_obj_set_style_bg_opa(gcode_dot, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
-                lv_obj_set_style_border_color(gcode_dot, theme_manager_get_color("text_muted"),
-                                              0); // DECLARATIVE_OK: see above
-                lv_obj_set_style_border_opa(gcode_dot, LV_OPA_COVER,
-                                            0); // DECLARATIVE_OK: see above
+                // No fill: painting the neutral stand-in reads as "this file
+                // prints in grey", a claim nothing has made. (K2 Plus report.)
+                lv_obj_set_style_bg_opa(top, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
             }
-        }
-        if (auto* tool_lbl = lv_obj_find_by_name(pill, "tool_label")) {
-            if (multi_tool) {
-                lv_label_set_text_fmt(tool_lbl, "T%d", tool.tool_index);
-                // Contrast is computed against the fill; with no fill there is
-                // nothing to contrast against, so take the normal text color.
-                lv_obj_set_style_text_color(tool_lbl,
-                                            tool.color_known
-                                                ? theme_manager_get_contrast_color(gcode_color)
-                                                : theme_manager_get_color("text"),
-                                            0);
-                lv_obj_remove_flag(tool_lbl, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-
-        // Slot color dot — resolve mapped slot; empty slots render as a
-        // transparent circle with a warning-colored border.
-        uint32_t slot_color = 0x808080;
-        bool slot_empty = false;
-        if (!mapping.is_auto && mapping.mapped_slot >= 0) {
-            for (const auto& s : available_slots_) {
-                if (s.slot_index == mapping.mapped_slot &&
-                    s.backend_index == mapping.mapped_backend) {
-                    slot_color = s.color_rgb;
-                    slot_empty = s.is_empty;
-                    break;
+            if (auto* tool_lbl = lv_obj_find_by_name(top, "tool_label")) {
+                if (multi_tool) {
+                    lv_label_set_text_fmt(tool_lbl, "T%d", tool.tool_index);
+                    // Contrast is computed against the fill; with no fill there is
+                    // nothing to contrast against, so take the normal text colour.
+                    lv_obj_set_style_text_color(tool_lbl,
+                                                tool.color_known ? theme_manager_get_contrast_color(
+                                                                       lv_color_hex(tool.color_rgb))
+                                                                 : theme_manager_get_color("text"),
+                                                0);
+                    lv_obj_remove_flag(tool_lbl, LV_OBJ_FLAG_HIDDEN);
+                } else {
+                    lv_obj_add_flag(tool_lbl, LV_OBJ_FLAG_HIDDEN);
                 }
             }
         }
-        if (auto* slot_dot = lv_obj_find_by_name(pill, "slot_dot")) {
-            if (slot_empty) {
-                lv_obj_set_style_bg_opa(slot_dot, LV_OPA_TRANSP, 0);
-                lv_obj_set_style_border_width(slot_dot, 2, 0);
-                lv_obj_set_style_border_color(slot_dot, theme_manager_get_color("warning"), 0);
-                lv_obj_set_style_border_opa(slot_dot, LV_OPA_COVER, 0);
-            } else {
-                lv_obj_set_style_bg_color(slot_dot, lv_color_hex(slot_color), 0);
-            }
 
-            // Lane number on the mapped dot. The swatch says which colour will
-            // print; it cannot say which spool it comes from, and two bays
-            // loaded with the same filament are a common enough setup that the
-            // chip is otherwise ambiguous exactly when it matters. Mirrors the
-            // Tx label hosted by gcode_dot above, including its contrast rule.
-            //
-            // The mutations below are per-item payload on a C++-generated
-            // collection: the card builds one pill per used tool from runtime
-            // data, so there is no XML instance per tool to hang a bind on -
-            // the same reason the two dots either side of this are set here.
-            if (auto* slot_lbl = lv_obj_find_by_name(slot_dot, "slot_label")) {
+        // BOTTOM band: the present colour of the effective mapped lane.
+        const bool slot_empty = resolved && resolved->is_empty;
+        const lv_color_t slot_color =
+            (resolved && !resolved->is_empty) ? lv_color_hex(resolved->color_rgb) : neutral;
+        if (auto* bottom = lv_obj_find_by_name(chip, "bottom_band")) {
+            if (slot_empty) {
+                // Declarative empty_slot style (warning border, reduced opacity)
+                // declared in filament_swatch.xml under selector user_1.
+                lv_obj_add_state(bottom, LV_STATE_USER_1);
+            } else if (resolved) {
+                lv_obj_set_style_bg_color(bottom, slot_color, 0); // DECLARATIVE_OK: see above
+            } else {
+                // No lane chosen yet: naming one would be a claim the mapping has
+                // not made, so the band stays blank.
+                lv_obj_set_style_bg_opa(bottom, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
+            }
+            if (auto* slot_lbl = lv_obj_find_by_name(bottom, "slot_label")) {
                 const int lane_number =
                     helix::FilamentMapper::mapped_lane_display_number(mapping, available_slots_);
                 if (lane_number > 0) {
-                    lv_label_set_text_fmt(slot_lbl, "%d", lane_number); // DECLARATIVE_OK: see above
-                    // An empty lane draws no fill, so there is nothing to
-                    // contrast against - take the normal text colour.
-                    const lv_color_t lane_fg =
-                        slot_empty ? theme_manager_get_color("text")
-                                   : theme_manager_get_contrast_color(lv_color_hex(slot_color));
-                    lv_obj_set_style_text_color(slot_lbl, lane_fg, 0); // DECLARATIVE_OK: see above
-                    lv_obj_remove_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);  // DECLARATIVE_OK: see above
+                    lv_label_set_text_fmt(slot_lbl, "%d", lane_number);
+                    // An empty lane draws no fill, so there is nothing to contrast
+                    // against - take the warning colour that the band border uses.
+                    lv_obj_set_style_text_color(slot_lbl,
+                                                slot_empty
+                                                    ? theme_manager_get_color("warning")
+                                                    : theme_manager_get_contrast_color(slot_color),
+                                                0);
+                    lv_obj_remove_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);
                 } else {
-                    // Auto/unmapped: no lane has been chosen yet, so naming one
-                    // would be a claim the mapping has not made.
-                    lv_obj_add_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: see above
+                    lv_obj_add_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);
                 }
             }
         }
-    }
 
-    if (overflow) {
-        if (auto* more = static_cast<lv_obj_t*>(
-                lv_xml_create(rows_container_, "filament_mapping_more_pill", nullptr))) {
-            lv_obj_set_width(more, lv_pct(48));
-            if (auto* lbl = lv_obj_find_by_name(more, "count_label")) {
-                lv_label_set_text_fmt(lbl, "+%zu", count - visible);
-            }
+        // Divider: a colour that reads against BOTH band fills. Blend the two
+        // 50/50 and take the contrast of the blend, so the rule stays visible
+        // whether the bands are light, dark or mixed.
+        if (auto* divider = lv_obj_find_by_name(chip, "divider")) {
+            const lv_color_t top_color = tool.color_known ? lv_color_hex(tool.color_rgb) : neutral;
+            lv_obj_set_style_bg_color(
+                divider,
+                theme_manager_get_contrast_color(lv_color_mix(top_color, slot_color, LV_OPA_50)),
+                0); // DECLARATIVE_OK: see above
         }
     }
 
@@ -415,13 +388,8 @@ void FilamentMappingCard::open_mapping_modal() {
     mapping_modal_.set_tool_info(tool_info_);
     mapping_modal_.set_available_slots(available_slots_);
     mapping_modal_.set_mappings(mappings_);
-    mapping_modal_.set_on_mappings_updated([this](auto mappings) {
-        mappings_ = std::move(mappings);
-        rebuild_compact_view();
-        if (on_mappings_changed_) {
-            on_mappings_changed_();
-        }
-    });
+    mapping_modal_.set_on_mappings_updated(
+        [this](auto mappings) { set_mappings(std::move(mappings)); });
     mapping_modal_.show(lv_screen_active());
 }
 

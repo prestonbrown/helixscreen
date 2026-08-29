@@ -20,23 +20,22 @@
  *  - empty set => no filter (show all, NOT zero — the safety rule that avoids
  *    blanking the card pre-parse / on the headless single-extruder path).
  *
- * The last test case exercises the full render path (MappingCardRenderFixture,
+ * The later test cases exercise the full render path (MappingCardRenderFixture,
  * built on LVGLUITestFixture + a mock AMS backend): rebuild_compact_view()
  * must be a NO-OP when its inputs are unchanged and children exist, so the
  * late AMS resync that arrives after the print-detail panel opens cannot
- * flash the pills through a destroy/recreate cycle.
+ * flash the chips through a destroy/recreate cycle; it must render stacked
+ * filament_swatch chips; and set_mappings() must repaint them, because the
+ * lane number inside each chip is written imperatively during the rebuild.
  */
 
 #include "ui_filament_mapping_card.h"
-#include "ui_update_queue.h"
 
-#include "../lvgl_ui_test_fixture.h"
-#include "ams_backend_mock.h"
-#include "ams_state.h"
+#include "../mapping_card_render_fixture.h"
 
-#include <memory>
 #include <optional>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -195,56 +194,6 @@ TEST_CASE("find_by_tool_index: full palette resolves each tool to its own entry"
 // Idempotent rebuild (full render path)
 // ============================================================================
 
-namespace {
-
-// The pure-seam tests above need no LVGL; this one renders real pills, so it
-// needs LVGLUITestFixture (XML component registration — lv_xml_create must
-// build filament_mapping_pill) plus a started AmsBackendMock so update()
-// passes its availability/editable-mapping gates. Widget wiring mirrors
-// MappingCardFixture (test_filament_mapping_drain_reentrancy.cpp); AMS wiring
-// mirrors test_ams_available_slots.cpp.
-struct MappingCardRenderFixture : LVGLUITestFixture {
-    FilamentMappingCard card;
-    lv_obj_t* card_widget = nullptr;
-    lv_obj_t* rows = nullptr;
-    lv_obj_t* warning = nullptr;
-    AmsBackendMock* mock = nullptr;
-
-    MappingCardRenderFixture() {
-        // AmsState subjects must exist before backend events fire; the base
-        // fixture already initialized PrinterState's (the init order
-        // subject_initializer.cpp enforces in production).
-        auto& ams = AmsState::instance();
-        ams.init_subjects(false);
-
-        auto owned = std::make_unique<AmsBackendMock>(4);
-        mock = owned.get();
-        mock->set_operation_delay(0);
-        ams.set_backend(std::move(owned));
-        mock->start();
-
-        card_widget = lv_obj_create(test_screen());
-        rows = lv_obj_create(card_widget);
-        warning = lv_obj_create(card_widget);
-        card.create(card_widget, rows, warning);
-    }
-
-    ~MappingCardRenderFixture() override {
-        // Detach while LVGL still runs and before members die (base-class
-        // teardown has not happened yet). Drain first so queued backend-event
-        // syncs don't leak into the next test.
-        helix::ui::UpdateQueue::instance().drain();
-        if (mock) {
-            mock->stop();
-        }
-        auto& ams = AmsState::instance();
-        ams.clear_backends();
-        ams.deinit_subjects();
-    }
-};
-
-} // namespace
-
 TEST_CASE_METHOD(MappingCardRenderFixture,
                  "FilamentMappingCard rebuild is idempotent on identical input",
                  "[filament_mapping][idempotent]") {
@@ -277,4 +226,144 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     // Flush the async deletes of the replaced pills (safe_clean_children
     // reparents + lv_obj_delete_async) before teardown.
     process_lvgl(100);
+}
+
+// ============================================================================
+// Stacked-swatch render + repaint
+// ============================================================================
+
+namespace {
+
+// Lane number currently drawn in chip `idx`'s bottom band, or "" when hidden.
+// Re-fetches the chip every call: a real rebuild reparents the old children
+// away, so a cached pointer would report pre-rebuild text forever and the test
+// would pass on a broken card.
+std::string rendered_lane_number(lv_obj_t* rows, uint32_t idx) {
+    lv_obj_t* const chip = lv_obj_get_child(rows, static_cast<int32_t>(idx));
+    if (chip == nullptr) {
+        return "<no chip>";
+    }
+    lv_obj_t* const band = lv_obj_find_by_name(chip, "bottom_band");
+    if (band == nullptr) {
+        return "<no bottom_band>";
+    }
+    lv_obj_t* const lbl = lv_obj_find_by_name(band, "slot_label");
+    if (lbl == nullptr) {
+        return "<no slot_label>";
+    }
+    if (lv_obj_has_flag(lbl, LV_OBJ_FLAG_HIDDEN)) {
+        return "";
+    }
+    return lv_label_get_text(lbl);
+}
+
+// One explicit mapping per tool, so the rendered lane number is a pure function
+// of the slot index chosen here rather than of the seeding heuristic.
+std::vector<ToolMapping> mappings_to_slots(const std::vector<int>& slots) {
+    std::vector<ToolMapping> m;
+    m.reserve(slots.size());
+    for (size_t i = 0; i < slots.size(); ++i) {
+        ToolMapping tm;
+        tm.tool_index = static_cast<int>(i);
+        tm.mapped_slot = slots[i];
+        tm.mapped_backend = 0;
+        tm.is_auto = false;
+        tm.reason = ToolMapping::MatchReason::FIRMWARE_MAPPING;
+        m.push_back(tm);
+    }
+    return m;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "FilamentMappingCard renders stacked filament_swatch chips",
+                 "[filament_mapping][swatch]") {
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    REQUIRE(card.should_show());
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+
+    // The stacked chip's structure, not the pill's. A pill has gcode_dot/arrow/
+    // slot_dot; a swatch has top_band/divider/bottom_band.
+    lv_obj_t* const chip = lv_obj_get_child(rows, 0);
+    CHECK(lv_obj_find_by_name(chip, "top_band") != nullptr);
+    CHECK(lv_obj_find_by_name(chip, "divider") != nullptr);
+    CHECK(lv_obj_find_by_name(chip, "bottom_band") != nullptr);
+    CHECK(lv_obj_find_by_name(chip, "gcode_dot") == nullptr);
+
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "FilamentMappingCard::set_mappings repaints the lane number",
+                 "[filament_mapping][remap]") {
+    // The native-remap flow does not go through the card's own modal callback:
+    // the print-detail view overrides the card's tap handler, so an accepted
+    // remap arrives here as a bare set_mappings() call. The lane number is
+    // written imperatively during rebuild, so a setter that stores without
+    // rebuilding leaves the old lane on screen while the print runs the new one.
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+
+    // Tool 0 on the mock's 4th lane (local_slot_index 3 => displayed "4").
+    card.set_mappings(mappings_to_slots({3, 1}));
+    CHECK(rendered_lane_number(rows, 0) == "4");
+
+    // The reported scenario: remap tool 0 down to the 3rd lane, same colour but
+    // more filament. The chip must follow the mapping.
+    card.set_mappings(mappings_to_slots({2, 1}));
+    CHECK(rendered_lane_number(rows, 0) == "3");
+
+    // Untouched tools keep their lane — a repaint, not a reset.
+    CHECK(rendered_lane_number(rows, 1) == "2");
+
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill on the top band",
+                 "[filament_mapping][swatch]") {
+    // A K2 Plus report: painting the neutral stand-in reads as "this file prints
+    // in grey", a claim about the file that nothing has made. The pill fixed this
+    // via GcodeToolInfo::color_known; the swatch renderer never had the guard, so
+    // it must not be lost in the move. Empty palette entry => colour unknown.
+    card.update({"", ""}, {"PLA", "PETG"});
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+
+    lv_obj_t* const band = lv_obj_find_by_name(lv_obj_get_child(rows, 0), "top_band");
+    REQUIRE(band != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(band, LV_PART_MAIN) == LV_OPA_TRANSP);
+
+    process_lvgl(100);
+}
+
+TEST_CASE("resolve_mapped_slot: a mapping that outlived its lane resolves to nothing",
+          "[filament][mapping][mapper]") {
+    // Unit unplugged between the mapping and the render. Better to show no
+    // number than a stale one — and the swatch renderer used to re-derive
+    // local_slot_index + 1 inline, with no such guard.
+    std::vector<helix::AvailableSlot> slots;
+    helix::AvailableSlot s{};
+    s.slot_index = 0;
+    s.backend_index = 0;
+    s.local_slot_index = 0;
+    slots.push_back(s);
+
+    ToolMapping gone;
+    gone.tool_index = 0;
+    gone.mapped_slot = 7; // no such lane
+    gone.mapped_backend = 0;
+    CHECK(helix::FilamentMapper::resolve_mapped_slot(gone, slots) == nullptr);
+    CHECK(helix::FilamentMapper::mapped_lane_display_number(gone, slots) == -1);
+
+    ToolMapping automatic;
+    automatic.tool_index = 0;
+    automatic.is_auto = true;
+    CHECK(helix::FilamentMapper::resolve_mapped_slot(automatic, slots) == nullptr);
+
+    ToolMapping ok;
+    ok.tool_index = 0;
+    ok.mapped_slot = 0;
+    ok.mapped_backend = 0;
+    REQUIRE(helix::FilamentMapper::resolve_mapped_slot(ok, slots) == &slots[0]);
+    CHECK(helix::FilamentMapper::mapped_lane_display_number(ok, slots) == 1);
 }

@@ -98,16 +98,19 @@ class FilamentMappingCard {
     }
 
     /**
-     * @brief Replace the current tool→slot mappings.
+     * @brief Replace the current tool→slot mappings and repaint.
      *
-     * Stores the provided mappings into the card's internal store and fires
-     * on_mappings_changed_ so downstream consumers (color sync, pre-flight gate)
-     * re-evaluate. Used by the U1 native-remap flow, where the inline card
-     * widget is hidden but its mappings_ store still feeds get_effective_remap()
-     * and recompute_preflight(). Safe to call when widgets are not created.
+     * The single mapping-store writer. Stores, re-renders the chips, then fires
+     * on_mappings_changed_ so downstream consumers (preview colours, pre-flight
+     * gate) re-evaluate. The repaint is not optional: the lane number inside each
+     * chip is written imperatively during rebuild_compact_view(), so a store
+     * without a rebuild leaves the pre-remap lane on screen while the print runs
+     * the new one. Safe to call before create() — rebuild_compact_view() returns
+     * early when rows_container_ is null.
      */
     void set_mappings(std::vector<helix::ToolMapping> mappings) {
         mappings_ = std::move(mappings);
+        rebuild_compact_view();
         if (on_mappings_changed_) {
             on_mappings_changed_();
         }

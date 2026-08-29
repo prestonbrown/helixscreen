@@ -335,9 +335,9 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         }
     });
     filament_mapping_card_.set_on_mappings_changed([this]() {
-        // The card already refreshed its own slot/mapping state from the user's
-        // edit — just re-color + re-gate. set_mappings() fires this synchronously
-        // on the main thread, so a direct call is safe.
+        // Fired by set_mappings() AFTER it repaints the chips, so this is only
+        // the downstream work: re-colour the preview and re-gate pre-flight.
+        // Synchronous, on the main thread, so a direct call is safe.
         refresh_preview_colors_and_mismatch();
     });
 

@@ -282,6 +282,15 @@ class FilamentMapper {
     static int mapped_lane_display_number(const ToolMapping& mapping,
                                           const std::vector<AvailableSlot>& slots);
 
+    /// Resolve a mapping to the AvailableSlot it points at, or nullptr.
+    /// nullptr covers all three "no lane to name" cases: an explicit "auto"
+    /// (the firmware picks at print time), an unmapped tool, and a mapping that
+    /// outlived its lane (unit unplugged between the mapping and the render).
+    /// The returned pointer aliases `slots` and is invalidated by any mutation
+    /// of that vector.
+    [[nodiscard]] static const AvailableSlot*
+    resolve_mapped_slot(const ToolMapping& mapping, const std::vector<AvailableSlot>& slots);
+
     static constexpr int COLOR_MATCH_TOLERANCE = 50;
 };
 
