@@ -294,3 +294,37 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
         pop_and_drain();
     }
 }
+
+// ============================================================================
+// print_file_detail.xml structure
+// ============================================================================
+
+namespace {
+// No fixture builds this root today. LVGLUITestFixture registers every
+// production component and initialises subjects first, so this should work;
+// if it returns null, the detail view's own subjects are not part of the
+// fixture's Phase 4 and this whole XML-structure approach is not viable.
+lv_obj_t* make_detail_root(lv_obj_t* parent) {
+    return static_cast<lv_obj_t*>(lv_xml_create(parent, "print_file_detail", nullptr));
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Sliced colors toggle sits outside the filament card",
+                 "[print_select][detail][xml]") {
+    // The toggle recolors the 3D preview, not the chips. Task 4 merges the two
+    // cards and the header cannot carry the toggle, the chevron and two icons
+    // at 480x272 — so the toggle must already live outside the card.
+    lv_obj_t* const root = make_detail_root(test_screen());
+    REQUIRE(root != nullptr);
+
+    lv_obj_t* const toggle = lv_obj_find_by_name(root, "sliced_colors_toggle");
+    REQUIRE(toggle != nullptr);
+
+    lv_obj_t* const card = lv_obj_find_by_name(root, "filament_mapping_card");
+    REQUIRE(card != nullptr);
+
+    // Walk up from the toggle: the filament card must not be an ancestor.
+    for (lv_obj_t* p = lv_obj_get_parent(toggle); p != nullptr; p = lv_obj_get_parent(p)) {
+        CHECK(p != card);
+    }
+}

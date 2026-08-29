@@ -175,6 +175,22 @@
           <icon name="history_status_icon" src="check" size="sm" variant="success"/>
           <text_body name="history_status_label" text=""/>
         </lv_obj>
+        <!-- Sliced colors toggle. Belongs to the 3D PREVIEW, not the chips:
+             apply_preview_colors() uses detail_prefer_sliced_colors to pick
+             which mappings feed the viewer (sliced = each tool's own slicer
+             color; actual = the matched-lane colors). It sits at the top of the
+             right column because the preview owns the left column and is
+             flex_grow=1 there — a row under it would steal render height. -->
+        <lv_obj name="sliced_colors_row"
+                width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_bottom="#space_sm"
+                scrollable="false">
+          <text_small name="sliced_colors_label" text="Sliced colors" translation_tag="Sliced colors"/>
+          <ui_switch name="sliced_colors_toggle" size="small">
+            <bind_state_if_eq subject="detail_prefer_sliced_colors" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="on_toggle_sliced_colors"/>
+          </ui_switch>
+        </lv_obj>
         <!-- Filaments card (legacy multi-color swatch fallback).
              Visibility driven by the C++-owned color_swatches_visible
              subject — shown only when the mapping card is hidden AND the
@@ -264,9 +280,8 @@
                  width="100%" style_pad_hor="0" style_pad_ver="#space_md" style_pad_gap="#space_xs"
                  style_border_width="0" flex_flow="column">
           <bind_flag_if_eq subject="filament_mapping_visible" flag="hidden" ref_value="0"/>
-          <!-- Header row: section title left, sliced-colors toggle right. The
-               toggle belongs to this card because it only has meaning relative
-               to the mapping shown below it. -->
+          <!-- Header row: section title, with a mismatch warning icon when the
+               selected filament doesn't match the mapped lane. -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false"
@@ -279,18 +294,6 @@
                     src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
                 <bind_flag_if_eq subject="filament_mismatch" flag="hidden" ref_value="0"/>
               </icon>
-            </lv_obj>
-            <!-- Switch stays clickable (it is the control); the wrapper passes
-                 taps through so the rest of the header still reaches the card. -->
-            <lv_obj width="content"
-                    height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                    style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
-              <text_small name="sliced_colors_label"
-                          text="Sliced colors" translation_tag="Sliced colors" clickable="false" event_bubble="true"/>
-              <ui_switch name="sliced_colors_toggle" size="small">
-                <bind_state_if_eq subject="detail_prefer_sliced_colors" state="checked" ref_value="1"/>
-                <event_cb trigger="value_changed" callback="on_toggle_sliced_colors"/>
-              </ui_switch>
             </lv_obj>
           </lv_obj>
           <lv_obj name="filament_mapping_rows"
