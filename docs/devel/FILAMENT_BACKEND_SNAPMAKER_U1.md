@@ -217,12 +217,12 @@ so the config must land before `PRINT_START`. `requires_preprint_send() = true` 
 **always-on, even with no remap**: `SET_PRINT_USED_EXTRUDERS` suppresses the spurious
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
 empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:259-266`,
-`src/ui/ui_print_start_controller.cpp:317-337`).
+`src/ui/ui_print_start_controller.cpp:318-338`).
 
 Send ordering is guaranteed on our side of the wire. Both start paths gate on
 `requires_preprint_send()` and hand the real start step to
 `send_snapmaker_preprint_then()` as its completion continuation, then `return` - the
-start cannot fire first (`src/ui/ui_print_start_controller.cpp:321-335`, reprint
+start cannot fire first (`src/ui/ui_print_start_controller.cpp:322-336`, reprint
 `:454-471`). The built gcode goes out as a single `printer.gcode.script` JSON-RPC with a
 15 s timeout (`:355-404`, dispatched at `src/api/moonraker_api_controls.cpp:426`); the
 print-start request is issued only from that request's success callback, and an error or

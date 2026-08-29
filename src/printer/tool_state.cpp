@@ -278,6 +278,19 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                 t.gcode_x_offset = previous[i].gcode_x_offset;
                 t.gcode_y_offset = previous[i].gcode_y_offset;
                 t.gcode_z_offset = previous[i].gcode_z_offset;
+                // And the spool record, for the same reason: which spool is
+                // mounted is durable user data, not something a topology rebuild
+                // gets to discard. Dropping it silently zeroed every assignment
+                // the moment a table-owning backend first published its topology
+                // — and again on any remap, since a changed tool_to_slot is what
+                // triggers this rebuild. Carried by tool index because that is
+                // all this function knows; AmsState::sync_from_backend() bridges
+                // slot->tool immediately afterwards and corrects any tool whose
+                // slot really did change hands.
+                t.spoolman_id = previous[i].spoolman_id;
+                t.spool_name = previous[i].spool_name;
+                t.remaining_weight_g = previous[i].remaining_weight_g;
+                t.total_weight_g = previous[i].total_weight_g;
             }
             tools_.push_back(std::move(t));
         }

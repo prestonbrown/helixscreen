@@ -586,3 +586,45 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ts.clear_ams_topology();
     REQUIRE_FALSE(ts.ams_topology_active());
 }
+
+// A topology rebuild fires whenever the tool count, the tool->slot table or the
+// name prefix moves — and a user remap moves the table. Which spool is mounted
+// is durable user data (see "Spool assignment: identity is durable, weight is
+// cache" in the architecture guide), so it has to survive that rebuild the way
+// the per-tool hardware mappings already do.
+//
+// It did not. Every assignment was zeroed the first time a table-owning backend
+// published its topology, and again on every remap. Nothing caught it because
+// the only backend these tests reached through was the mock in tool-changer
+// mode, which declared it owned no tool table while the real
+// AmsBackendToolChanger declares it does — so the rebuild never ran here at all.
+TEST_CASE_METHOD(ToolStateFixture, "[ToolState][ams-topology] a rebuild keeps the spool record",
+                 "[tool-state][ams][ams-topology][spool]") {
+    auto& ts = ToolState::instance();
+
+    ToolTopology topo;
+    topo.tool_count = 2;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    REQUIRE(ts.tools().size() == 2);
+
+    ts.assign_spool(0, 42, "Red PLA", 750.0f, 1000.0f);
+    REQUIRE(ts.tools()[0].spoolman_id == 42);
+
+    // A remap: T0 now sources the other lane. Changing tool_to_slot is exactly
+    // what triggers the rebuild.
+    topo.tool_to_slot = {1, 0};
+    ts.set_ams_topology(topo);
+
+    CHECK(ts.tools()[0].spoolman_id == 42);
+    CHECK(ts.tools()[0].spool_name == "Red PLA");
+    CHECK(ts.tools()[0].remaining_weight_g == Catch::Approx(750.0f));
+    CHECK(ts.tools()[0].total_weight_g == Catch::Approx(1000.0f));
+    // The rebuild really did happen — the new table is in effect, so this is not
+    // passing because nothing moved.
+    CHECK(ts.tools()[0].backend_slot == 1);
+
+    ts.clear_ams_topology();
+}
