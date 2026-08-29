@@ -299,4 +299,32 @@ TEST_CASE("netd ethernet has_interface accepts end0 and rejects virtual bridges"
     fs::remove_all(skip, ec);
 }
 
+// ============================================================================
+// Factory selection: with the daemon's socket present (the fixture's
+// HELIX_NETD_SOCKET), EthernetBackend::create() returns the netd backend,
+// proven behaviorally — the returned backend GETs the fake daemon and maps
+// the snapshot. Assertions are host-independent (the factory reads the real
+// /sys, whose interface names vary by CI machine).
+// ============================================================================
+TEST_CASE_METHOD(EthernetNetdFixture, "netd ethernet factory selects the netd backend",
+                 "[netd][ethernet]") {
+    std::unique_ptr<EthernetBackend> selected = EthernetBackend::create();
+    REQUIRE(selected != nullptr);
+
+    EthernetInfo info;
+    std::thread caller([&selected, &info] { info = selected->get_info(); });
+    const size_t baseline = server_->recorded_line_count();
+    const bool spoke = wait_until([&] { return server_->recorded_line_count() > baseline; });
+    if (spoke) {
+        server_->push_line("MODE=ETHERNET");
+        server_->push_line("STATE=ONLINE");
+        server_->push_line("IP=10.0.0.7");
+        server_->push_line("OK");
+    }
+    caller.join();
+    REQUIRE(spoke);
+    REQUIRE(info.connected);
+    REQUIRE(info.ip_address == "10.0.0.7");
+}
+
 #endif // !__ANDROID__

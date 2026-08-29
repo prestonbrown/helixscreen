@@ -20,6 +20,8 @@
 // esp_wifi backend lives in the firmware tree; only the declaration in
 // wifi_backend.h is needed here.
 #elif !defined(__ANDROID__)
+#include "netd_protocol.h"
+#include "wifi_backend_netd.h"
 #include "wifi_backend_networkmanager.h"
 #include "wifi_backend_wpa_supplicant.h"
 #endif
@@ -128,9 +130,22 @@ std::unique_ptr<WifiBackend> WifiBackend::create(bool silent) {
     spdlog::info("[WifiBackend] Android platform - WiFi not managed natively");
     return nullptr;
 #else
-    // Linux: pick between NetworkManager and wpa_supplicant using CHEAP
-    // probes (no subprocess, no socket I/O). The actual initialization
-    // happens in the caller via start_async().
+    // Linux: pick between the network daemon (netd), NetworkManager, and
+    // wpa_supplicant using CHEAP probes (no subprocess, no socket I/O). The
+    // actual initialization happens in the caller via start_async().
+    //
+    // netd takes exclusive ownership of networking on the firmwares that
+    // ship it (driver, supplicant, DHCP, and single-transport enforcement),
+    // so it outranks everything: when the daemon is present we must drive
+    // the network through it, never around it.
+    if (helix::netd::available()) {
+        spdlog::debug("[WifiBackend] Selecting netd backend (daemon owns networking){}",
+                      silent ? " (silent)" : "");
+        auto backend = std::make_unique<WifiBackendNetd>();
+        backend->set_silent(silent);
+        return backend;
+    }
+
     //
     // Committing to NM requires BOTH the nmcli binary AND a liveness signal
     // for the NM daemon — its runtime directory. Vanilla Pi OS (and

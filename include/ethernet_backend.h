@@ -70,11 +70,18 @@ class EthernetBackend {
     /**
      * @brief Create appropriate backend for current platform
      *
-     * Tries platform-specific backend first, falls back to mock on failure:
-     * - macOS: EthernetBackendMacOS → EthernetBackendMock (fallback)
-     * - Linux: EthernetBackendLinux → EthernetBackendMock (fallback)
+     * - macOS: EthernetBackendMacOS
+     * - Linux: EthernetBackendNetd when the printer's network daemon is
+     *          present (interface truth comes from the daemon, which may
+     *          have downed eth0 to enforce its single transport), else
+     *          EthernetBackendLinux
+     * - test mode: EthernetBackendMock (unless --real-ethernet)
      *
-     * @return Unique pointer to backend instance
+     * There is no failure fallback between the platform backends: create()
+     * never probes the network, so the choice is a cheap filesystem
+     * question answered before any backend runs.
+     *
+     * @return Unique pointer to backend instance (null on Android)
      */
     static std::unique_ptr<EthernetBackend> create();
 };

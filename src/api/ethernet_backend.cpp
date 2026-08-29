@@ -14,6 +14,8 @@
 #include "ethernet_backend_macos.h"
 #elif !defined(__ANDROID__)
 #include "ethernet_backend_linux.h"
+#include "ethernet_backend_netd.h"
+#include "netd_protocol.h"
 #endif
 
 std::unique_ptr<EthernetBackend> EthernetBackend::create() {
@@ -41,6 +43,21 @@ std::unique_ptr<EthernetBackend> EthernetBackend::create() {
     spdlog::info("[EthernetBackend] Android platform - Ethernet not managed natively");
     return nullptr;
 #else
+    // Linux: when the printer's network daemon owns the network, interface
+    // truth comes from it (a daemon enforcing single-transport downs eth0,
+    // which ioctls then misread as "no cable"); otherwise ask the OS.
+    if (helix::netd::available()) {
+        spdlog::debug("[EthernetBackend] Creating netd backend");
+        auto backend = std::make_unique<EthernetBackendNetd>();
+
+        if (backend->has_interface()) {
+            spdlog::debug("[EthernetBackend] netd backend initialized (interface found)");
+        } else {
+            spdlog::info("[EthernetBackend] No Ethernet interface found");
+        }
+        return backend;
+    }
+
     // Linux: Use native backend (handles missing interface gracefully)
     spdlog::debug("[EthernetBackend] Creating Linux backend");
     auto backend = std::make_unique<EthernetBackendLinux>();

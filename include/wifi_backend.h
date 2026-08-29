@@ -8,7 +8,8 @@
  * @pattern Pure virtual interface + static create()/create_auto() factory methods
  * @threading Implementation-dependent; see concrete implementations
  *
- * @see wifi_backend_wpa_supplicant.cpp, wifi_backend_networkmanager.cpp, wifi_backend_macos.cpp
+ * @see wifi_backend_wpa_supplicant.cpp, wifi_backend_networkmanager.cpp, wifi_backend_netd.cpp,
+ *      wifi_backend_macos.cpp
  */
 
 #pragma once
@@ -517,7 +518,8 @@ class WifiBackend {
     /**
      * @brief Create appropriate backend for current platform
      *
-     * - Linux: WifiBackendNetworkManager (preferred) or WifiBackendWpaSupplicant
+     * - Linux: WifiBackendNetd (when the printer's network daemon is present),
+     *          else WifiBackendNetworkManager (preferred) or WifiBackendWpaSupplicant
      * - macOS: WifiBackendMacOS (or mock in test mode)
      *
      * NON-BLOCKING CONTRACT: This factory MUST return quickly (< 50 ms)
@@ -527,10 +529,13 @@ class WifiBackend {
      * should register for the "READY" event (or "INIT_FAILED") before
      * relying on is_running().
      *
-     * Selection strategy on Linux: a cheap file-existence probe
-     * (access("/usr/bin/nmcli", X_OK)) picks NetworkManager when present,
-     * otherwise wpa_supplicant. No subprocesses are spawned during
-     * selection.
+     * Selection strategy on Linux: a daemon-ownership probe
+     * (helix::netd::available(), two access()/stat() calls) picks the netd
+     * backend first when the printer's network daemon is present — it owns
+     * the radio, the supplicant, and DHCP, so nothing else may touch them.
+     * Otherwise a cheap file-existence probe (access("/usr/bin/nmcli", X_OK))
+     * picks NetworkManager when present, else wpa_supplicant. No subprocesses
+     * are spawned during selection.
      *
      * @param silent If true, suppress error modals on startup failures
      * @return Unique pointer to backend instance (non-null on supported

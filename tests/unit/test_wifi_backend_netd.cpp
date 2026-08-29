@@ -202,6 +202,26 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd start sends SUBSCRIBE then GET", "[ne
 }
 
 // ============================================================================
+// 2b. Factory selection: when the daemon's socket is present (the fixture's
+//     HELIX_NETD_SOCKET), WifiBackend::create() returns the netd backend —
+//     proven behaviorally by the SUBSCRIBE handshake, not by type inspection
+//     (the build is -fno-rtti). Reordering the factory branches so the probe
+//     is skipped would leave nothing speaking to the fake daemon.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd factory selects the netd backend", "[netd][wifi]") {
+    std::unique_ptr<WifiBackend> selected = WifiBackend::create(false);
+    REQUIRE(selected != nullptr);
+
+    REQUIRE(selected->start().success());
+    REQUIRE(wait_until([&] { return server_->recorded_line_count() >= 1; }));
+    const auto lines = server_->recorded_lines();
+    REQUIRE_FALSE(lines.empty());
+    REQUIRE(lines[0] == "SUBSCRIBE");
+
+    selected->stop();
+}
+
+// ============================================================================
 // 3. Snapshot pushes surface through get_status(), and a status read never
 //    writes to the socket.
 // ============================================================================
