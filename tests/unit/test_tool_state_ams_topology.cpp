@@ -102,9 +102,8 @@ TEST_CASE_METHOD(ToolStateFixture,
 
     auto mock = AmsBackend::create_mock(4);
     REQUIRE(mock != nullptr);
-    auto caps = mock->get_tool_mapping_capabilities();
-    if (!caps.supported)
-        return; // Mock lacks tool multiplexing; skipped.
+    if (!mock->owns_tool_mapping_table())
+        return; // Mock owns no tool->slot table; skipped.
 
     ams.set_backend(std::move(mock));
     ams.sync_from_backend();
@@ -173,7 +172,7 @@ TEST_CASE_METHOD(ToolStateFixture,
                  "across rebuild (regression for ToolChanger backend)",
                  "[tool-state][ams][ams-topology][regression]") {
     // Production sequence for a ToolChanger printer that also advertises
-    // supports_tool_mapping=true (AmsBackendToolChanger does):
+    // owns_tool_mapping_table() true (AmsBackendToolChanger does):
     //   1. init_tools(discovery) → tools_[i].extruder_name = "extruder", "extruder1", ...
     //   2. sync_from_backend() → build_ams_topology() → set_ams_topology() rebuilds tools_
     //

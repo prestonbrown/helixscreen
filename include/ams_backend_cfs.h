@@ -241,8 +241,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
      */
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     /// True except on K1, where BOX_MODIFY_TN no-ops (#968) so no confirming

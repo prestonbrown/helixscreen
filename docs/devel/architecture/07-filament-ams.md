@@ -172,13 +172,49 @@ as "no opinion" and never as identity — see the U1's idle table in
 [FILAMENT_BACKEND_SNAPMAKER_U1.md](../FILAMENT_BACKEND_SNAPMAKER_U1.md) for why that
 distinction is load-bearing.
 
+### Can this printer honor the pick: three questions, one spelling each
+
+Routing says which head prints tool N *today*. Whether the user can CHANGE that is a
+separate axis, and it is three questions, not one. Each has exactly one spelling, and
+generic code asks it through [`include/ams_remap.h`](../../../include/ams_remap.h) rather than assembling an answer:
+
+| Question | Ask | Backend declares |
+|---|---|---|
+| Can the user's tool→lane pick be carried out at all, right now? | `helix::printer::can_remap(backend)` | `get_remap_strategy()` + `remap_ready()` |
+| Does the route write a table that outlives the send? | `helix::printer::remap_is_persistent(strategy)` | (derived from the strategy) |
+| Does this backend own a tool→slot table for `ToolState` to adopt? | `backend.owns_tool_mapping_table()` | that virtual |
+
+`remap_ready()` is the axis worth understanding, because nothing modelled it for a long
+time. A backend can be BUILT to remap and not be able to yet: AD5X IFS declares
+`RemapStrategy::Native` unconditionally, but until the `_IFS_VARS` macro is discovered,
+`set_tool_mapping()` writes local state the firmware replays nothing from, so the user's
+pick is dropped in silence. Readiness lives in that one virtual — a second gate anywhere
+else is how the answers drifted apart before.
+
+The third question is not the first two, and the Snapmaker U1 is where they part company:
+it carries out every pick the user makes, through its pre-print
+`SET_PRINT_EXTRUDER_MAP` send, and owns no tool→slot table — its four extruders are
+independent, so `ToolState`'s extruder enumeration is the correct model and an AMS
+topology would be a fiction. `build_ams_topology()` therefore asks about the table, never
+about remap capability.
+
+`requires_preprint_send()` stays separate from all three on purpose. It answers a
+print-start sequencing question — the U1's pre-send is always-on, even with no remap, to
+suppress a spurious-feed runout — and folding it back into the strategy would re-conflate
+sequencing with capability.
+
+**When adding a firmware:** declare `get_remap_strategy()`, add `remap_ready()` only if
+discovery gates it, and `owns_tool_mapping_table()` only if you own a table. One file.
+[`tests/unit/test_remap_strategy.cpp`](../../../tests/unit/test_remap_strategy.cpp) pins every backend's answers, so a forgotten
+declaration fails a test instead of shipping a silent contradiction.
+
 ### Spool assignment: identity is durable, weight is cache
 
 Which spool is mounted where is *not* AMS state. `sync_from_backend()` bridges for every slot with a `mapped_tool` ([`src/printer/ams_state.cpp:1859`](../../../src/printer/ams_state.cpp#L1859)-1876): a slot with `spoolman_id > 0` calls `ToolState::assign_spool()`.
 
 A slot that lost its spool calls `clear_spool()` **only when the backend reports `has_firmware_spool_persistence()`** — for backends without it (tool changer), ToolState is the source of truth and the sync runs the other way, populating empty slots from ToolState so assignments loaded at startup reach the slot UI. The one-slot path (`update_slot()`, `:1968`-1974) applies the same firmware-persistence gate to its assign-and-save, without the clear or reverse-populate branches.
 
-`ToolState::assign_spool()` ([`src/printer/tool_state.cpp:603`](../../../src/printer/tool_state.cpp#L603)) splits the record in two. Identity (spool id + name) is the durable half: a change sets `spool_dirty_` and logs at info. Weights are a cache — firmware reports them as continuous floats, and the code comment preserves the war story (`:584`): an exact compare on bundle L53W5PKG meant 590 rewrites of the JSON, 590 Moonraker DB POSTs and 590 panel rebuilds in one session. `same_displayed_weight()` (`:555`) compares at whole grams — `std::lround(a) == std::lround(b)`, against the last *stored* value so a slow slide fires once per gram — and a weight-only change bumps `tools_version_` for UI refresh while never marking the record dirty.
+`ToolState::assign_spool()` ([`src/printer/tool_state.cpp:604`](../../../src/printer/tool_state.cpp#L604)) splits the record in two. Identity (spool id + name) is the durable half: a change sets `spool_dirty_` and logs at info. Weights are a cache — firmware reports them as continuous floats, and the code comment preserves the war story (`:584`): an exact compare on bundle L53W5PKG meant 590 rewrites of the JSON, 590 Moonraker DB POSTs and 590 panel rebuilds in one session. `same_displayed_weight()` (`:555`) compares at whole grams — `std::lround(a) == std::lround(b)`, against the last *stored* value so a slow slide fires once per gram — and a weight-only change bumps `tools_version_` for UI refresh while never marking the record dirty.
 
 Persistence (`save_spool_assignments()`, `:801`) always writes local JSON first — atomic tmp-file-plus-rename, after resolving the installer's symlink so the first save does not replace the link with a file (`:704`-759) — then fire-and-forgets a DB POST to namespace `helix-screen`, key `tool_spool_assignments`.
 
@@ -197,7 +233,7 @@ Its weight refresh writes back into the primary backend's slots with `set_slot_i
 
 One trap the interface answers: pushing "active spool" to Spoolman is gated on `manages_active_spool()` ([`src/printer/ams_state.cpp:3065`](../../../src/printer/ams_state.cpp#L3065)-3073). AFC, for instance, updates Spoolman itself when HelixScreen sends its native spool command — calling Spoolman directly would update the widget while bypassing the firmware's own state (#644).
 
-For debugging, every class in this chapter logs under a stable tag: `[AMS State]` for the coordinator, `[ToolState]` for assignments, `[SpoolmanAPI]` for Spoolman RPC, and one backend tag per system (`backend_log_tag()`, e.g. `[AMS AFC]` at [`include/ams_backend_afc.h:518`](../../../include/ams_backend_afc.h#L518), `[AMS HappyHare]` at [`include/ams_backend_happy_hare.h:301`](../../../include/ams_backend_happy_hare.h#L301)). A `-vv` run makes the whole event pipeline visible — creation, events, queued syncs, and spool saves each leave a line.
+For debugging, every class in this chapter logs under a stable tag: `[AMS State]` for the coordinator, `[ToolState]` for assignments, `[SpoolmanAPI]` for Spoolman RPC, and one backend tag per system (`backend_log_tag()`, e.g. `[AMS AFC]` at [`include/ams_backend_afc.h:508`](../../../include/ams_backend_afc.h#L508), `[AMS HappyHare]` at [`include/ams_backend_happy_hare.h:301`](../../../include/ams_backend_happy_hare.h#L301)). A `-vv` run makes the whole event pipeline visible — creation, events, queued syncs, and spool saves each leave a line.
 
 ## Patterns & gotchas
 
@@ -205,7 +241,7 @@ For debugging, every class in this chapter logs under a stable tag: `[AMS State]
 - **Observing secondary-backend subjects requires the lifetime token.** `BackendSlotSubjects` are dynamic — destroyed in `clear_backends()`/rediscovery. Use the `SubjectLifetime`-taking accessor overloads; the plain ones are for one-frame reads on the main thread.
 - **Do not write subjects from backend-event context.** The event path queues *before* touching anything ([`ams_state.cpp:2214`](../../../src/printer/ams_state.cpp#L2214)); the queued body is where mutex + subjects happen. A shortcut around `queue_update` reintroduces the bg-thread LVGL crash family (chapter 03).
 - **Don't "fix" the gram threshold.** Weight churn marking the record dirty is the L53W5PKG regression reborn; weights are re-fetched on connect, so persisting them buys nothing. Compare via `same_displayed_weight()` or not at all.
-- **Save and load are deliberately asymmetric.** Save writes the local JSON first (fast, reliable) and fire-and-forgets the DB POST; load prefers the DB and falls back to the file, seeding the DB on failure ([`tool_state.cpp:842`](../../../src/printer/tool_state.cpp#L842)-900). The file is the recovery path, not the primary — don't reorder them.
+- **Save and load are deliberately asymmetric.** Save writes the local JSON first (fast, reliable) and fire-and-forgets the DB POST; load prefers the DB and falls back to the file, seeding the DB on failure ([`tool_state.cpp:843`](../../../src/printer/tool_state.cpp#L843)-901). The file is the recovery path, not the primary — don't reorder them.
 - **`tools_version_` (ToolState) and `slots_version_` (AmsState) are different clocks.** The first bumps on tool/spool data changes (including weight-only); the second on slot card data. Binding a rebuild to the wrong one yields either twitchy or stale UI.
 - **Clearing a spool assignment is conditional, and the condition is OWNERSHIP.** Forward-clear when the LANE owns the assignment; tool changers, where each tool owns its own spool, get the *reverse* sync instead ([`ams_state.cpp:1868`](../../../src/printer/ams_state.cpp#L1868), `:1830`). Clearing unconditionally destroys the just-loaded assignment. The question is `supports_per_tool_spool_assignment()`, not `has_firmware_spool_persistence()` — the latter asks whether *firmware* remembers the spool id, which CFS and AD5X IFS answer no to while keeping identity in our own `lane_data` override store. Gating on it put those two in the tool-changer branch, so a lane the user cleared was refilled from ToolState on the very next poll.
 - **Slot and unit subjects are capped**: `MAX_SLOTS = 16`, `MAX_UNITS = 8` ([`include/ams_state.h:127`](../../../include/ams_state.h#L127), `:77`). Units past the cap render cards bound to always-off placeholder subjects rather than missing names — extend the constants consciously, not casually.
@@ -240,7 +276,7 @@ Read in this order; about 30 minutes total.
 8. [`src/printer/ams_state.cpp:2242`](../../../src/printer/ams_state.cpp#L2242) — `on_backend_event()`: queue-only body, shutdown-flag guard, the SLOT_CHANGED parse-or-full-sync fallback; then follow one queued call into `sync_backend()` at `:1284`.
 9. [`include/ams_state.h:1675`](../../../include/ams_state.h#L1675) — `BackendSlotSubjects` and its lifetime-token comment; glance at the storage members at `:1558`-1560 (mutex, `backends_`, `secondary_slot_subjects_`).
 10. [`src/printer/ams_state.cpp:1859`](../../../src/printer/ams_state.cpp#L1859) — the ToolState bridge: forward assign, the firmware-persistence-gated clear, and the reverse sync for tool-changer backends below it.
-11. [`src/printer/tool_state.cpp:596`](../../../src/printer/tool_state.cpp#L596) — `same_displayed_weight()` (the whole-gram compare) and the L53W5PKG comment at `:584`; then `assign_spool()` at `:562` for the identity/weight split, and the save path at `:704` (atomic write, symlink resolution) and `:801` (local-first, DB fire-and-forget).
+11. [`src/printer/tool_state.cpp:597`](../../../src/printer/tool_state.cpp#L597) — `same_displayed_weight()` (the whole-gram compare) and the L53W5PKG comment at `:584`; then `assign_spool()` at `:562` for the identity/weight split, and the save path at `:704` (atomic write, symlink resolution) and `:801` (local-first, DB fire-and-forget).
 12. [`src/printer/spoolman_manager.cpp:362`](../../../src/printer/spoolman_manager.cpp#L362) — the `persist=false` weight write-back and the feedback-loop comment; then [`include/spoolman_manager.h:22`](../../../include/spoolman_manager.h#L22)-64 for the manager's charter (poll, breaker, identity cache, no-AMS operation).
 13. [`include/ams_state.h:802`](../../../include/ams_state.h#L802) — the two-scope lifetime doc (`get_subjects_lifetime()` vs the per-slot tokens) with its PrintStatusPanel example; the best single comment on when observers need a token.
 14. [`include/filament_op_dispatch.h:9`](../../../include/filament_op_dispatch.h#L9) — the tier enum and header comment framing the four-dispatch-surface question; stop here — the ladder itself is FILAMENT_MANAGEMENT.md territory.

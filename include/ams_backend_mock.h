@@ -204,8 +204,6 @@ class AmsBackendMock : public AmsBackend {
     [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
 
     // Tool mapping
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
     /// The APPLIED routing, gated the way the emulated firmware gates it.
     ///
     /// In Snapmaker mode that gate is AmsBackendSnapmaker::task_routing(): empty

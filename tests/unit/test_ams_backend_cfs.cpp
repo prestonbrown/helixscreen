@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ams_backend_cfs.h"
+#include "ams_remap.h"
 #include "ams_types.h"
 #include "config.h"
 #include "filament_catalog.h"
@@ -1785,13 +1786,11 @@ TEST_CASE("CFS set_tool_mapping updates local tool_to_slot_map", "[ams][cfs][rem
     }
 }
 
-TEST_CASE("CFS get_tool_mapping_capabilities advertises editable", "[ams][cfs][remap]") {
+TEST_CASE("CFS declares a persistent remap route and owns its table", "[ams][cfs][remap]") {
     CfsRemapHelper helper;
-    auto caps = helper.get_tool_mapping_capabilities();
-    REQUIRE(caps.supported);
-    REQUIRE(caps.editable);
-    // Description is informational; non-empty so UI can show backend-specific copy
-    REQUIRE_FALSE(caps.description.empty());
+    REQUIRE(helper.owns_tool_mapping_table());
+    REQUIRE(helix::printer::can_remap(helper));
+    REQUIRE(helix::printer::remap_is_persistent(helper.get_remap_strategy()));
 }
 
 // =============================================================================

@@ -140,9 +140,8 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     void clear_slot_override(int slot_index) override;
     AmsError set_tool_mapping(int tool_number, int slot_index) override;
 
-    // ACE has fixed 1:1 mapping (tools ARE slots), not configurable
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
+    // ACE has fixed 1:1 mapping (tools ARE slots), not configurable — it
+    // declares RemapStrategy::None and owns no tool->slot table.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     // ========================================================================

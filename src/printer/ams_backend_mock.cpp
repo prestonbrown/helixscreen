@@ -77,7 +77,6 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
     // Use shared AFC defaults for capabilities
     auto caps = helix::printer::afc_default_capabilities();
     system_info_.endless_spool_enabled = caps.supports_endless_spool;
-    system_info_.supports_tool_mapping = caps.supports_tool_mapping;
     system_info_.supports_bypass = caps.supports_bypass;
     system_info_.supports_purge = caps.supports_purge;
     system_info_.tip_method = caps.tip_method;
@@ -407,7 +406,6 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     info.number_of_toolchanges = system_info_.number_of_toolchanges;
     info.filament_loaded = system_info_.filament_loaded;
     info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_tool_mapping = system_info_.supports_tool_mapping;
     info.supports_bypass = system_info_.supports_bypass;
     info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
     info.tip_method = system_info_.tip_method;
@@ -1661,7 +1659,6 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -1861,7 +1858,6 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
         system_info_.endless_spool_enabled = true;
         endless_spool_supported_ = true;
         endless_spool_editable_ = true;
-        system_info_.supports_tool_mapping = true;
         system_info_.has_hardware_bypass_sensor = false;
         system_info_.tip_method = TipMethod::CUT;
         system_info_.supports_purge = true;
@@ -2031,7 +2027,6 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -2224,7 +2219,6 @@ void AmsBackendMock::set_vivid_mixed_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -2402,7 +2396,6 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
         system_info_.type_name = "AD5X IFS";
         system_info_.total_slots = 4;
         system_info_.supports_bypass = true;
-        system_info_.supports_tool_mapping = true;
         system_info_.endless_spool_enabled = false;
         // Must clear the CAPABILITY flag too, not just this bit: the flag is what
         // get_endless_spool_capabilities() reads, and leaving it at its default
@@ -2486,7 +2479,6 @@ void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     system_info_.endless_spool_enabled = false;
     endless_spool_supported_ = false;
     endless_spool_editable_ = false;
-    system_info_.supports_tool_mapping = false;
     system_info_.supports_bypass = false;
     system_info_.has_hardware_bypass_sensor = false;
     system_info_.tip_method = TipMethod::NONE;
@@ -2639,7 +2631,6 @@ void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -2868,7 +2859,6 @@ void AmsBackendMock::set_torture_mode(bool enabled) {
     system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
     endless_spool_supported_ = afc_caps.supports_endless_spool;
     endless_spool_editable_ = afc_caps.supports_endless_spool;
-    system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
     system_info_.supports_bypass = afc_caps.supports_bypass;
     system_info_.supports_purge = afc_caps.supports_purge;
     system_info_.tip_method = afc_caps.tip_method;
@@ -3347,27 +3337,6 @@ AmsError AmsBackendMock::apply_endless_spool_backup(int slot_index, int backup_s
 // ============================================================================
 // Tool mapping implementation
 // ============================================================================
-
-helix::printer::ToolMappingCapabilities AmsBackendMock::get_tool_mapping_capabilities() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    // Tool changers don't support tool mapping (tools ARE slots)
-    if (tool_changer_mode_) {
-        return {false, false, ""};
-    }
-
-    // Snapmaker U1: mapping is SUPPORTED (1:1 lanes) but NOT editable from the
-    // UI — the firmware owns it (mirrors the real AmsBackendSnapmaker, which
-    // reports supports_tool_mapping=false). The card still shows its two-tone
-    // chips here; only the inline EDIT is unavailable, and a tap goes to the
-    // native remap picker instead.
-    if (snapmaker_mode_) {
-        return {true, false, "Snapmaker native lane mapping (read-only)"};
-    }
-
-    // Filament systems support editable tool mapping
-    return {true, true, "Mock tool-to-slot mapping"};
-}
 
 AmsBackendMock::RemapStrategy AmsBackendMock::get_remap_strategy() const {
     std::lock_guard<std::mutex> lock(mutex_);

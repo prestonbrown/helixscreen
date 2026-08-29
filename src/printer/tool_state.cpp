@@ -257,9 +257,10 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
     if (needs_rebuild) {
         // Snapshot per-tool hardware mappings populated by init_tools() so we can
         // preserve them across the rebuild. Without this, ToolChanger printers
-        // (which advertise supports_tool_mapping=true and trigger this rebuild)
-        // lose their per-tool extruder/heater/fan assignments and revert to the
-        // ToolInfo default extruder_name="extruder", breaking heater/fan control.
+        // (which answer owns_tool_mapping_table() true and so trigger this
+        // rebuild) lose their per-tool extruder/heater/fan assignments and revert
+        // to the ToolInfo default extruder_name="extruder", breaking heater/fan
+        // control.
         std::vector<ToolInfo> previous = std::move(tools_);
         tools_.clear();
         tools_.reserve(topo.tool_count);

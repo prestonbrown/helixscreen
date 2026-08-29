@@ -1848,7 +1848,7 @@ Where the override lands, by backend:
 | Happy Hare | Runtime from `[mmu_machine] has_bypass`; `false` until first status | Only when `has_bypass: 0` | Consults `bypass_available_for()`; `MMU_SELECT_BYPASS` runs |
 | CFS | Converges on first full box frame: true (Fork: + payload `external` entry) | no | Consults `bypass_available_for()` — real `T<external>` on Fork, sensor-derived declaration on stock |
 | ACE | Hardcoded `false` (`ams_backend_ace.cpp:44`) | yes | `not_supported` |
-| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:241`) | yes | `not_supported` |
+| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:240`) | yes | `not_supported` |
 | Tool Changer | Hardcoded `false` (`:31`) | yes | `not_supported` |
 | QIDI Box | Hardcoded `false` (`:193`) | yes | `not_supported` |
 
@@ -1879,7 +1879,7 @@ The input is `AmsState::any_bypass_active()`, which polls every backend's `is_by
 Two things it is deliberately **not**:
 
 - **Not `AmsSystemInfo::current_slot == -2`.** The AFC backend sets that at
-  `ams_backend_afc.cpp:2241` while parsing `bypass_state`, but nine later writes in the same
+  `ams_backend_afc.cpp:2239` while parsing `bypass_state`, but nine later writes in the same
   file can overwrite it — including the mount-state derivation from #1229, which is
   intentionally unguarded so it cannot re-latch. `is_bypass_active()` returns the firmware's own
   report and is stable.
@@ -2230,7 +2230,7 @@ Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. 
 - `recover_lane_position()` -- Physical retract of a stranded lane (default: NOT_SUPPORTED)
 - `get_dryer_info()`, `start_drying()`, `stop_drying()`, `update_drying()` -- Dryer control
 - `get_endless_spool_capabilities()`, `get_endless_spool_config()` -- Endless spool state. `set_endless_spool_backup()` is **not** an override point: it is non-virtual and owns every rejection. Supply `apply_endless_spool_backup()` (protected, transport only), `endless_spool_slot_count()` (protected, only if `total_slots` is wrong for you), and `endless_spool_backup_eligibility()` (only to tighten the default polymer-plus-grade rule; return `Eligible`/`Incompatible` only, unless your firmware genuinely has a soft case). `reset_endless_spool()` already works for any editable backend by looping the setter with -1 - override it only if your firmware has a real reset primitive. See § [Endless Spool](#endless-spool-shared-model).
-- `get_tool_mapping_capabilities()`, `get_tool_mapping()` -- Tool mapping
+- `get_remap_strategy()`, `remap_ready()`, `owns_tool_mapping_table()`, `get_tool_mapping()` -- Tool mapping. **Three questions, one spelling each.** `get_remap_strategy()` says HOW a user's tool->lane pick is carried out (`Native` writes your table, `GcodeRewrite` rewrites the job, `SnapmakerNative` is a firmware pre-print send, `None` means it cannot be). `remap_ready()` says whether that route is usable YET -- default true, override only where discovery gates it, as AD5X IFS does on `_IFS_VARS`. `owns_tool_mapping_table()` says whether you hold a tool->slot table for `ToolState` to adopt; the Snapmaker U1 answers **no** and still honors every pick, through its pre-print send, which is why this is not the same question as the first two. Ask them through `helix::printer::can_remap()` and `remap_is_persistent()` in `ams_remap.h` -- never by combining them at a call site, which is how one question came to have six answers that could disagree.
 - `get_device_sections()`, `get_device_actions()`, `execute_device_action()` -- Device-specific actions
 - `set_discovered_lanes()`, `set_discovered_tools()` -- Discovery configuration
 - `supports_auto_heat_on_load()` -- Auto-heat capability

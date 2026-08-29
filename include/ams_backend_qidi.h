@@ -71,8 +71,6 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] PathSegment infer_error_segment() const override;
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
 
     /// Forward map (index = tool, value = global slot), derived from the
     /// per-slot mapped_tool the save_variables read-path writes. The base

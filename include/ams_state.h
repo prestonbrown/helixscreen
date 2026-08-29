@@ -57,8 +57,8 @@ class PrinterDiscovery;
  *        Verified on a real U1; see VERDICT below before reopening this.
  *
  * The Snapmaker U1 carries a user's tool->lane pick only through its
- * firmware-native pre-print send, so AmsBackend::honors_user_tool_mapping()
- * correctly reports that it CAN honor one. Letting that decide the seed as well
+ * firmware-native pre-print send, so helix::printer::can_remap() correctly
+ * reports that it CAN honor one. Letting that decide the seed as well
  * changes what the U1 does with a file the user never remapped: today it always
  * color-matches, and following the setting seeds positionally instead, because
  * the persisted default is false. Positional means every tool keeps the head the
@@ -365,8 +365,8 @@ class AmsState {
      * then colors from a different one.
      *
      * A backend that can carry out an explicit user tool->lane choice — by
-     * EITHER route, an editable mapping card or a firmware-native pre-print send
-     * (AmsBackend::honors_user_tool_mapping) — has a picker the user reaches,
+     * EITHER route, a table it writes itself or a firmware-native pre-print send
+     * (helix::printer::can_remap) — has a picker the user reaches,
      * and that picker carries the auto-color toggle. Its setting wins both ways.
      * A backend that can honor the choice by NEITHER route (ACE) has no picker,
      * so nothing can have flipped the persisted preference and the default

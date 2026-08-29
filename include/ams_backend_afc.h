@@ -422,16 +422,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     // Tool Mapping support
     /**
-     * @brief Get tool mapping capabilities for AFC
-     *
-     * AFC supports per-lane tool assignment via SET_MAP G-code.
-     *
-     * @return Capabilities with supported=true, editable=true
-     */
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
-
-    /**
      * @brief Get current tool-to-slot mapping
      *
      * Returns the tool_to_slot_map from system_info_.
