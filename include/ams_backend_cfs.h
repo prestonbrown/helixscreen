@@ -265,6 +265,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
     }
+
+    /// The CFS owns its own tool->slot table and get_tool_mapping() returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
     // CFS unloads filament from the toolhead at end-of-print and reloads it as
     // part of the next print-start sequence, so the toolhead is expected to be
     // empty at print-start. The runout sensor reading "no filament" then is by

@@ -348,6 +348,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return RemapStrategy::Native;
     }
 
+    /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
+
     [[nodiscard]] bool has_firmware_spool_persistence() const override {
         return true; // AFC uses SET_SPOOL_ID gcode for persistence
     }

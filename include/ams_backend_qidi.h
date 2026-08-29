@@ -90,6 +90,11 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
     }
+
+    /// The QIDI box owns its own tool->slot table, same shape as CFS.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
     [[nodiscard]] bool is_bypass_active() const override;
 

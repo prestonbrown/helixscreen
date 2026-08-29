@@ -468,6 +468,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         return RemapStrategy::Native;
     }
 
+    // Both gated on the SAME discovery: the `_IFS_VARS` macro. Native is what
+    // this backend is BUILT to do; until the macro is found, set_tool_mapping()
+    // can only mutate local state the firmware ignores, and get_tool_mapping()
+    // returns nothing to build a topology from. Defined out-of-line because
+    // has_ifs_vars_ lives under mutex_.
+    [[nodiscard]] bool remap_ready() const override;
+    [[nodiscard]] bool owns_tool_mapping_table() const override;
+
     // IFS retracts filament from the extruder at end-of-print by default, so
     // the toolhead is expected to be empty at the next print-start. Suppresses
     // the pre-print runout warning modal.

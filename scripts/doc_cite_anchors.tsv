@@ -117,7 +117,7 @@ docs/devel/PRINT_STATE_MACHINE.md	print_completion.cpp	312	src/print/print_compl
 docs/devel/PRINT_STATE_MACHINE.md	src/print/print_completion.cpp	141	src/print/print_completion.cpp	85cadc1ef66a	0b34194ef8c8
 docs/devel/PRINT_STATE_MACHINE.md	src/printer/print_lifecycle_state.cpp	96	src/printer/print_lifecycle_state.cpp	d62ca1f7629b	d0dc2cfddb1b
 docs/devel/PRINT_STATE_MACHINE.md	src/printer/printer_print_state.cpp	1526	src/printer/printer_print_state.cpp	a4ebc5aac956	403018efe7d6
-docs/devel/QIDI_BOX_HEATER.md	include/ams_backend_qidi.h	285	include/ams_backend_qidi.h	de744ac21fbf	b810e13e2a7b
+docs/devel/QIDI_BOX_HEATER.md	include/ams_backend_qidi.h	290	include/ams_backend_qidi.h	de744ac21fbf	b810e13e2a7b
 docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1027	src/printer/ams_backend_qidi.cpp	56a622b77823	70d7e140eada
 docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1034	src/printer/ams_backend_qidi.cpp	dd5c11bf6a9a	b7d84c90b86c
 docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1048	src/printer/ams_backend_qidi.cpp	8a96f4820e1a	5ae9af48feba
@@ -371,7 +371,7 @@ docs/devel/architecture/07-filament-ams.md	include/ams_backend.h	59	include/ams_
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_ace.h	46	include/ams_backend_ace.h	857c1ee9d1ff	49c8b4d5dec3
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_ad5x_ifs.h	88	include/ams_backend_ad5x_ifs.h	1cda1a94e943	4e1384cec945
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	143	include/ams_backend_afc.h	c532a92d95be	48a297a6b655
-docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	513	include/ams_backend_afc.h	0923cff2a285	40ecabbe663b
+docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	518	include/ams_backend_afc.h	0923cff2a285	40ecabbe663b
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_cfs.h	121	include/ams_backend_cfs.h	145104540e13	63abe8abc3b4
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_happy_hare.h	43	include/ams_backend_happy_hare.h	eae0848cebca	3e7cbc49d3bd
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_qidi.h	48	include/ams_backend_qidi.h	4cdfd1bba71a	42091e2e448f

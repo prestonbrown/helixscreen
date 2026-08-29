@@ -2666,6 +2666,22 @@ void AmsBackendAd5xIfs::update_slot_weight(int slot_index, float remaining_weigh
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
 }
 
+bool AmsBackendAd5xIfs::remap_ready() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Native is declared unconditionally because that is what this backend is
+    // built to do. Whether the write can LAND is this question: without the
+    // `_IFS_VARS` macro, set_tool_mapping() mutates local state the firmware
+    // replays nothing from, so a user's pick is silently dropped at print start.
+    return has_ifs_vars_;
+}
+
+bool AmsBackendAd5xIfs::owns_tool_mapping_table() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Same gate, different question: get_tool_mapping() returns {} without the
+    // macro, so there is no table for a ToolTopology to be built from.
+    return has_ifs_vars_;
+}
+
 helix::printer::ToolMappingCapabilities AmsBackendAd5xIfs::get_tool_mapping_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!has_ifs_vars_) {

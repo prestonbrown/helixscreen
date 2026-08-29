@@ -1977,6 +1977,46 @@ class AmsBackend {
     }
 
     /**
+     * @brief Is the declared remap strategy usable RIGHT NOW?
+     *
+     * The axis get_remap_strategy() cannot express: a backend can be BUILT to
+     * remap and not be able to yet, because the firmware object it writes
+     * through has not been discovered. This is THE place readiness lives — a
+     * second gate elsewhere is precisely how two answers to one question drifted
+     * apart before, with get_remap_strategy() saying Native unconditionally
+     * while a separate capability query said "not supported".
+     *
+     * Default true: a backend with no discovery step is ready on construction.
+     * Override only where a real gate exists (AD5X IFS: `_IFS_VARS`).
+     *
+     * Ask it through helix::printer::can_remap(), not directly — readiness on
+     * its own is true for every backend that never had a route to begin with.
+     *
+     * @note Backends whose gate lives under a mutex must take it here.
+     */
+    [[nodiscard]] virtual bool remap_ready() const {
+        return true;
+    }
+
+    /**
+     * @brief Does this backend own a tool->slot table worth building a
+     *        ToolTopology from?
+     *
+     * A DIFFERENT question from remap capability, and the two part company on
+     * shipped hardware. The Snapmaker U1 carries out every remap the user picks,
+     * through its pre-print send, and owns no such table: its extruders are
+     * independent, so ToolState's extruder enumeration is the correct model and
+     * an AMS topology would be a fiction. Answer this only about the table.
+     *
+     * Default false. Override true where get_tool_mapping() returns a real
+     * per-tool table — the lane-multiplexing backends, and the tool changer
+     * whose table is identity but real.
+     */
+    [[nodiscard]] virtual bool owns_tool_mapping_table() const {
+        return false;
+    }
+
+    /**
      * @brief Clear the backend's persistent message/error queue.
      *
      * AFC keeps a persistent message queue that will not clear until

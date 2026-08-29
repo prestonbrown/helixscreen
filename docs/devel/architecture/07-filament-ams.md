@@ -197,7 +197,7 @@ Its weight refresh writes back into the primary backend's slots with `set_slot_i
 
 One trap the interface answers: pushing "active spool" to Spoolman is gated on `manages_active_spool()` ([`src/printer/ams_state.cpp:3063`](../../../src/printer/ams_state.cpp#L3063)-3071). AFC, for instance, updates Spoolman itself when HelixScreen sends its native spool command — calling Spoolman directly would update the widget while bypassing the firmware's own state (#644).
 
-For debugging, every class in this chapter logs under a stable tag: `[AMS State]` for the coordinator, `[ToolState]` for assignments, `[SpoolmanAPI]` for Spoolman RPC, and one backend tag per system (`backend_log_tag()`, e.g. `[AMS AFC]` at [`include/ams_backend_afc.h:513`](../../../include/ams_backend_afc.h#L513), `[AMS HappyHare]` at [`include/ams_backend_happy_hare.h:301`](../../../include/ams_backend_happy_hare.h#L301)). A `-vv` run makes the whole event pipeline visible — creation, events, queued syncs, and spool saves each leave a line.
+For debugging, every class in this chapter logs under a stable tag: `[AMS State]` for the coordinator, `[ToolState]` for assignments, `[SpoolmanAPI]` for Spoolman RPC, and one backend tag per system (`backend_log_tag()`, e.g. `[AMS AFC]` at [`include/ams_backend_afc.h:518`](../../../include/ams_backend_afc.h#L518), `[AMS HappyHare]` at [`include/ams_backend_happy_hare.h:301`](../../../include/ams_backend_happy_hare.h#L301)). A `-vv` run makes the whole event pipeline visible — creation, events, queued syncs, and spool saves each leave a line.
 
 ## Patterns & gotchas
 
