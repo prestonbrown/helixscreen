@@ -20,6 +20,7 @@
  */
 
 #include "../test_helpers/ad5x_ifs_test_access.h"
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
@@ -32,45 +33,6 @@
 #include "ams_tool_topology.h"
 
 #include "../catch_amalgamated.hpp"
-
-namespace {
-
-// Minimal probes — nullptr api/client, so no Moonraker connection is needed.
-// Same pattern as tests/unit/test_remap_strategy.cpp.
-class AfcProbe : public AmsBackendAfc {
-  public:
-    AfcProbe() : AmsBackendAfc(nullptr, nullptr) {}
-};
-class HappyHareProbe : public AmsBackendHappyHare {
-  public:
-    HappyHareProbe() : AmsBackendHappyHare(nullptr, nullptr) {}
-};
-class CfsProbe : public helix::printer::AmsBackendCfs {
-  public:
-    CfsProbe() : helix::printer::AmsBackendCfs(nullptr, nullptr) {}
-};
-class QidiProbe : public AmsBackendQidi {
-  public:
-    QidiProbe() : AmsBackendQidi(nullptr, nullptr) {}
-};
-class ToolChangerProbe : public AmsBackendToolChanger {
-  public:
-    ToolChangerProbe() : AmsBackendToolChanger(nullptr, nullptr) {}
-};
-class SnapmakerProbe : public AmsBackendSnapmaker {
-  public:
-    SnapmakerProbe() : AmsBackendSnapmaker(nullptr, nullptr) {}
-};
-class AceProbe : public AmsBackendAce {
-  public:
-    AceProbe() : AmsBackendAce(nullptr, nullptr) {}
-};
-class Ad5xIfsProbe : public AmsBackendAd5xIfs {
-  public:
-    Ad5xIfsProbe() : AmsBackendAd5xIfs(nullptr, nullptr) {}
-};
-
-} // namespace
 
 TEST_CASE("Table-owning backends produce a ToolTopology", "[ams][topology]") {
     SECTION("AFC") {

@@ -11,27 +11,15 @@
 // boundary, complementing the AmsState-level end-to-end coverage in
 // test_tool_state_ams_topology.cpp ("AFC mock with 4 lanes drives ToolState").
 
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_afc.h"
 #include "ams_remap.h"
 #include "ams_types.h"
 
 #include "../catch_amalgamated.hpp"
 
-namespace {
-
-// AmsBackendAfc is constructible with nullptr api/client for header-level
-// capability inspection (no Moonraker connection, no start()). This mirrors
-// the pattern in test_ams_backend_afc.cpp's AmsBackendAfcTestHelper but is
-// kept anonymous here to avoid coupling to that file's internals.
-class AfcCapabilityProbe : public AmsBackendAfc {
-  public:
-    AfcCapabilityProbe() : AmsBackendAfc(nullptr, nullptr) {}
-};
-
-} // namespace
-
 TEST_CASE("AFC backend advertises tool_mapping support", "[ams][afc][tool-state][capabilities]") {
-    AfcCapabilityProbe afc;
+    AfcProbe afc;
 
     // build_ams_topology() reads this to decide whether to publish a
     // ToolTopology built from get_tool_mapping(). If it flips to false, the tool
@@ -48,7 +36,7 @@ TEST_CASE("AFC backend advertises tool_mapping support", "[ams][afc][tool-state]
 
 TEST_CASE("AFC backend get_tool_mapping returns the SlotRegistry tool_to_slot vector",
           "[ams][afc][tool-state][capabilities]") {
-    AfcCapabilityProbe afc;
+    AfcProbe afc;
 
     // Without an active connection the registry is empty; we don't assert any
     // specific shape here. We only assert the call is safe (no UB, no throw)

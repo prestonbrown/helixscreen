@@ -9,9 +9,11 @@
 // gcode tools span 0-31. Firmware's default map is [0,1,2,3,0,0,...], so any
 // extended tool (4-31) without an explicit user remap falls to physical head 0.
 //
-// The function is intentionally network-free, so we construct the backend with
-// a nullptr api/client probe — mirroring SnapmakerProbe in test_remap_strategy.cpp.
+// The function is intentionally network-free, so it runs against SnapmakerProbe
+// from tests/test_helpers/ams_backend_probes.h — a real backend with no
+// connection behind it.
 
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_snapmaker.h"
 #include "filament_mapper.h"
 
@@ -21,18 +23,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-namespace {
-
-// Minimal probe — constructed with nullptr api/client so no Moonraker
-// connection is required. build_preprint_gcode is a pure const method that
-// never touches api_, so a default/probe instance is sufficient.
-class SnapmakerProbe : public AmsBackendSnapmaker {
-  public:
-    SnapmakerProbe() : AmsBackendSnapmaker(nullptr, nullptr) {}
-};
-
-} // namespace
 
 TEST_CASE("Snapmaker build_preprint_gcode writes every used tool explicitly",
           "[snapmaker][preprint]") {
