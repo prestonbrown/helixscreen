@@ -125,6 +125,30 @@ static void format_titled_display(char* out, size_t out_size, bool has_title, co
     }
 }
 
+// True when the modal on top of the stack already shows this exact title.
+// Both error paths (async callback and show_error_notification) suppress a
+// second modal with the same title, which only works while the modal on top
+// is one of the known same-title carriers exposing its title under the
+// canonical kModalTitleWidgetName. Modals that can never carry an error
+// title have no such widget and fail open by design.
+static bool top_modal_shows_title(const char* title) {
+    lv_obj_t* existing_modal = helix::ui::modal_get_top();
+    if (!existing_modal) {
+        return false;
+    }
+    lv_obj_t* title_label = lv_obj_find_by_name(existing_modal, helix::ui::kModalTitleWidgetName);
+    if (!title_label) {
+        // A modal is up but its title is not reachable under the canonical
+        // name, so this check cannot see it. Expected for non-carrier modals;
+        // if a carrier renamed its title widget this is where it shows up.
+        spdlog::debug("[Notification] Top modal has no {} widget; duplicate check cannot read it",
+                      helix::ui::kModalTitleWidgetName);
+        return false;
+    }
+    const char* existing_title = lv_label_get_text(title_label);
+    return existing_title && strcmp(existing_title, title) == 0;
+}
+
 // Async callbacks for lv_async_call (called on main thread)
 static void async_message_callback(void* user_data) {
     AsyncMessageData* data = (AsyncMessageData*)user_data;
@@ -179,19 +203,10 @@ static void async_error_callback(void* user_data) {
 
         if (data->modal && data->has_title) {
             // Check if a modal with the same title is already showing
-            lv_obj_t* existing_modal = helix::ui::modal_get_top();
-            if (existing_modal) {
-                // The modal_dialog.xml uses "dialog_title" for the title label
-                lv_obj_t* title_label = lv_obj_find_by_name(existing_modal, "dialog_title");
-                if (title_label) {
-                    const char* existing_title = lv_label_get_text(title_label);
-                    if (existing_title && strcmp(existing_title, data->title) == 0) {
-                        spdlog::debug("[Notification] Skipping duplicate modal (async): '{}'",
-                                      data->title);
-                        delete data;
-                        return;
-                    }
-                }
+            if (top_modal_shows_title(data->title)) {
+                spdlog::debug("[Notification] Skipping duplicate modal (async): '{}'", data->title);
+                delete data;
+                return;
             }
 
             // Show modal dialog for critical errors
@@ -494,17 +509,9 @@ static void show_error_notification(const char* title, const char* message, bool
         if (modal && title) {
             // Check if a modal with the same title is already showing
             // This prevents duplicate modals when multiple components report the same error
-            lv_obj_t* existing_modal = helix::ui::modal_get_top();
-            if (existing_modal) {
-                // The modal_dialog.xml uses "dialog_title" for the title label
-                lv_obj_t* title_label = lv_obj_find_by_name(existing_modal, "dialog_title");
-                if (title_label) {
-                    const char* existing_title = lv_label_get_text(title_label);
-                    if (existing_title && strcmp(existing_title, title) == 0) {
-                        spdlog::debug("[Notification] Skipping duplicate modal: '{}'", title);
-                        return;
-                    }
-                }
+            if (top_modal_shows_title(title)) {
+                spdlog::debug("[Notification] Skipping duplicate modal: '{}'", title);
+                return;
             }
 
             // Show modal dialog for critical errors

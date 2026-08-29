@@ -464,6 +464,15 @@ class ModalStack {
 
 namespace helix::ui {
 
+// Canonical widget name carrying a modal's title text. Every C++ site that
+// reads or writes a modal title by name (duplicate-title suppression in
+// ui_notification, the reconnect auto-close in moonraker_manager,
+// ActionPromptModal's title population) uses this constant; the XML side
+// names the widget with the same literal, which is the one remaining copy.
+// A modal whose title is not reachable under this name is invisible to those
+// behaviors (issue #1389).
+inline constexpr const char* kModalTitleWidgetName = "dialog_title";
+
 /**
  * @brief Initialize subjects for modal_dialog.xml bindings
  *

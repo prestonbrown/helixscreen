@@ -130,8 +130,10 @@ void ActionPromptModal::populate_content() {
         return;
     }
 
-    // Set title
-    lv_obj_t* title_label = find_widget("title");
+    // Set title. kModalTitleWidgetName is the canonical name ui_notification.cpp's
+    // duplicate-title suppression looks up, so every modal that can sit on top
+    // of the stack must expose its title under it (#1389).
+    lv_obj_t* title_label = find_widget(kModalTitleWidgetName);
     if (title_label) {
         lv_label_set_text(title_label, prompt_data_.title.c_str());
     }
