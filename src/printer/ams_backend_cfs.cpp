@@ -18,7 +18,9 @@
 #include "moonraker_error.h"
 #include "operation_patterns.h" // helix::contains_ci
 #include "post_op_cooldown_manager.h"
+#include "print_lifecycle_state.h" // PrintState, job_holds_machine
 #include "printer_detector.h"
+#include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
 #include "settings_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -241,6 +243,11 @@ struct CfsErrorEntry {
     /// result to the friendly message. nullptr = no per-error format
     /// known yet (no regression — message displays unchanged).
     std::string (*format_values)(const nlohmann::json&) = nullptr;
+    /// True when the firmware's own `msg` names the real cause and the table
+    /// text cannot (one code, several causes: key843 fires for a busy box AND
+    /// an unreadable tag). lookup_message_with_values then uses the firmware's
+    /// wording as the message whenever the caller has one (#1387).
+    bool prefer_fw_msg = false;
 };
 
 // Format-callback aliases keep the table tidy. Only key849 has been
@@ -322,8 +329,12 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
       AmsAlertLevel::SYSTEM, nullptr}},
     {"key843",
      {"Can't read filament RFID tag",
-      "Re-seat the spool in the slot, ensure the RFID label faces the reader", AmsAlertLevel::SLOT,
-      fmt_unit_slot}},
+      // The busy-box case (#1387) needs no spool handling at all, so the
+      // re-seat remedy is conditional, not asserted: the firmware msg names
+      // the actual cause.
+      "If it keeps failing once the box is idle, re-seat the spool with the RFID label "
+      "facing the reader",
+      AmsAlertLevel::SLOT, fmt_unit_slot, /*prefer_fw_msg=*/true}},
     {"key844",
      {"PTFE tube connection loose", "Re-seat the Bowden tube connector on the CFS unit",
       AmsAlertLevel::UNIT, fmt_unit_only}},
@@ -414,14 +425,15 @@ CfsErrorDecoder::lookup_message(const std::string& key_code) {
     return std::make_pair(it->second.message, it->second.hint);
 }
 
-std::optional<std::pair<std::string, std::string>>
-CfsErrorDecoder::lookup_message_with_values(const std::string& key_code,
-                                            const nlohmann::json& values) {
+std::optional<std::pair<std::string, std::string>> CfsErrorDecoder::lookup_message_with_values(
+    const std::string& key_code, const nlohmann::json& values, const std::string& fw_msg) {
     auto it = CFS_ERROR_TABLE.find(key_code);
     if (it == CFS_ERROR_TABLE.end())
         return std::nullopt;
     const auto& entry = it->second;
-    std::string message = entry.message;
+    // A preferring entry's table text asserts one cause for a code with
+    // several; the firmware's msg says which one actually fired (#1387).
+    std::string message = (entry.prefer_fw_msg && !fw_msg.empty()) ? fw_msg : entry.message;
     if (entry.format_values) {
         std::string locator = entry.format_values(values);
         if (!locator.empty()) {
@@ -571,14 +583,20 @@ void AmsBackendCfs::on_started() {
     if (client_) {
         client_->send_jsonrpc(
             "printer.objects.query", params,
-            [this](const nlohmann::json& response) {
+            [this, token = lifetime_.token()](const nlohmann::json& response) {
                 if (response.contains("result") && response["result"].contains("status") &&
                     response["result"]["status"].is_object()) {
                     // Wrap in notify_status_update format for handle_status_update
                     nlohmann::json notification = {
                         {"params", nlohmann::json::array({response["result"]["status"]})}};
-                    handle_status_update(notification);
-                    spdlog::info("[AMS CFS] Initial state loaded");
+                    // The response callback runs on the libhv WS thread; the
+                    // notify subscription defers handle_status_update to main,
+                    // and this entry point must match it (handle_status_update
+                    // reads LVGL subjects for the insert-probe gate).
+                    token.defer("AmsBackendCfs::initial_state", [this, notification]() {
+                        handle_status_update(notification);
+                        spdlog::info("[AMS CFS] Initial state loaded");
+                    });
                 } else {
                     spdlog::warn("[AMS CFS] Initial state query returned unexpected format");
                 }
@@ -1326,6 +1344,18 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
     // unit number -> bay bitmask, filled under mutex_ and dispatched after it.
     std::map<int, int> insert_probes;
 
+    // Print-lifecycle input for the insert-probe gate below. handle_status_update
+    // runs on the main thread (the subscription defers every notify there, and
+    // on_started's initial-state query response defers through the same token), so a
+    // synchronous subject read is safe. A null api_ (unit-test rigs, cold boot)
+    // means the lifecycle is unknown, treated as not holding the machine,
+    // mirroring the filament-op guard's null path in ams_subscription_backend.
+    bool print_holds_machine = false;
+    if (api_) {
+        print_holds_machine = job_holds_machine(static_cast<PrintState>(
+            lv_subject_get_int(api_->printer_state().get_print_lifecycle_subject())));
+    }
+
     // Drop the previous frame's derived LOADED stamp before anything below
     // reads or rebuilds the slot vector, so the override/clear/mirror pass sees
     // firmware truth. apply_seated_slot_stamp_locked() at the bottom re-derives
@@ -1542,6 +1572,60 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             // (JSON null while idle, a descriptor once tripped).
             if (box.contains("filament_useup") || (is_flat && box.contains("runout"))) {
                 system_info_.filament_runout = new_info.filament_runout;
+            }
+
+            // Insert-probe gate (#1387): a box mid-operation answers an RFID
+            // refresh with busy, firmware raises key843, and the failed probe
+            // pins the bay's remain_len at 255, so a probe caught on an insert
+            // edge must wait for an idle box. Two busy signals cover the
+            // observed case:
+            //  - filament_runout, the box-wide filament_useup latch above
+            //  - print_holds_machine, read from the print lifecycle at the top
+            //    of this function (NOT system_info_.action: CFS only sets that
+            //    around our own dispatched scripts, so a runout pause leaves it
+            //    IDLE)
+            // Deferred, not dropped. Blocked probes park in deferred_probes_
+            // and re-dispatch on the first later poll that reads idle, which
+            // is also the settle the issue asked for: the deferral spans at
+            // least one full status-poll cycle between the busy observation and
+            // the probe, so no timer is needed. Entries leave the set on that
+            // dispatch, giving each probe exactly one deferred retry and never
+            // a loop; a bay probed again needs a fresh insert edge.
+            if (!insert_probes.empty() || !deferred_probes_.empty()) {
+                if (system_info_.filament_runout || print_holds_machine) {
+                    if (!insert_probes.empty()) {
+                        for (const auto& [unit, mask] : insert_probes)
+                            deferred_probes_[unit] |= mask;
+                        spdlog::debug("{} Box busy (runout={} print_holds={}) - deferring "
+                                      "RFID insert probe",
+                                      backend_log_tag(), system_info_.filament_runout,
+                                      print_holds_machine);
+                        insert_probes.clear();
+                    }
+                } else {
+                    // Idle again: release the deferred probes into this frame's
+                    // dispatch set. insert_probes from this frame's own edges
+                    // (if any) merge in by OR. A bay the user emptied while the
+                    // deferral was pending is dropped: its occupied edge is
+                    // long consumed and the spool is gone, so there is nothing
+                    // to probe.
+                    for (const auto& [unit, mask] : deferred_probes_) {
+                        int live_mask = 0;
+                        for (int bay = 0; bay < 4; ++bay) {
+                            if ((mask & (1 << bay)) == 0) {
+                                continue;
+                            }
+                            auto occupied = bay_occupied_.find((unit - 1) * 4 + bay);
+                            if (occupied != bay_occupied_.end() && occupied->second) {
+                                live_mask |= (1 << bay);
+                            }
+                        }
+                        if (live_mask != 0) {
+                            insert_probes[unit] |= live_mask;
+                        }
+                    }
+                    deferred_probes_.clear();
+                }
             }
 
             // Active slot from T{n}.filament field ("A"/"B"/"C"/"D"). When the

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_cfs.h"
 #include "ams_types.h"
 #include "config.h"
@@ -15,6 +17,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "test_helpers/cfs_test_access.h"
+#include "test_helpers/print_state_test_drivers.h"
 
 #include <filesystem>
 #include <memory>
@@ -110,6 +113,25 @@ class CfsK1RemapHelper : public CfsRemapHelper {
   public:
     CfsK1RemapHelper() {
         CfsTestAccess::set_macro_variant_k1(*this);
+    }
+};
+
+// CfsRemapHelper's gcode capture plus a REAL PrinterState wired behind a mock
+// api, so tests can drive the print lifecycle the insert-probe gate reads. The
+// plain helper passes a null api, where the lifecycle reads as unknown and
+// never holds the machine (mirroring the production null-api path).
+// api_ is patched after the base ctor because PrinterState must outlive the
+// backend and a base-class init list has nowhere to declare it.
+class CfsLifecycleHelper : public CfsRemapHelper {
+  public:
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    std::unique_ptr<MoonrakerAPIMock> api;
+
+    CfsLifecycleHelper() {
+        state.init_subjects(false);
+        api = std::make_unique<MoonrakerAPIMock>(client, state);
+        api_ = api.get();
     }
 };
 } // namespace
@@ -574,6 +596,36 @@ TEST_CASE("CFS error message+values decoding", "[ams][cfs]") {
         json values = json::array({1, "A"});
         auto out = CfsErrorDecoder::lookup_message_with_values("key999", values);
         REQUIRE_FALSE(out.has_value());
+    }
+
+    SECTION("key843 prefers the firmware's own msg when present") {
+        // key843's causes vary (a busy box, an unreadable tag) and the
+        // firmware's msg names which one fired (#1387). The table text would
+        // assert one cause for all of them.
+        json values = json::array({1, "B"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key843", values,
+                                                               "read rfid failed, box is busy");
+        REQUIRE(out.has_value());
+        CHECK(out->first.find("box is busy") != std::string::npos);
+        CHECK(out->first.find("Can't read filament RFID tag") == std::string::npos);
+        // The unit/slot locator is still spliced onto the firmware's wording.
+        CHECK(out->first.find("unit 1 slot B") != std::string::npos);
+    }
+
+    SECTION("key843 without a firmware msg keeps the table text") {
+        json values = json::array({1, "B"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key843", values);
+        REQUIRE(out.has_value());
+        CHECK(out->first.find("Can't read filament RFID tag") != std::string::npos);
+    }
+
+    SECTION("non-preferring codes ignore the firmware msg") {
+        // key849's table text is right for every cause; the firmware wording
+        // ("retrude error...") must not displace it.
+        json values = json::array({1, "B"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key849", values, "retrude error");
+        REQUIRE(out.has_value());
+        CHECK(out->first.find("Retract failed") != std::string::npos);
     }
 }
 
@@ -2448,6 +2500,8 @@ namespace {
 // make_single_unit_box() synthesizes those from material/color presence, which
 // is exactly the coupling these tests need to break: a REMOVED tagged spool has
 // sentinel vender alongside latched material/color/remain_len.
+// filament_useup defaults to 0 (loaded and feeding) so the fixture is an idle
+// box; the #1387 gate tests override it to 1 for the busy case.
 json make_unit_box_explicit(const std::vector<std::string>& material_types,
                             const std::vector<std::string>& color_values,
                             const std::vector<std::string>& venders,
@@ -2457,7 +2511,7 @@ json make_unit_box_explicit(const std::vector<std::string>& material_types,
         "filament": 0,
         "auto_refill": 1,
         "enable": 1,
-        "filament_useup": 1,
+        "filament_useup": 0,
         "map": {"T1A": "T1A", "T1B": "T1B", "T1C": "T1C", "T1D": "T1D"},
         "T1": {
             "state": "connect",
@@ -3031,6 +3085,127 @@ TEST_CASE("CFS probes RFID on a bay insert, without feeding filament",
         REQUIRE(backend.captured.size() == 1);
         CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
     }
+}
+
+TEST_CASE("CFS defers the insert probe while the box latched runout",
+          "[ams][cfs][presence][probe_on_insert][1387]") {
+    // The #1387 shape: the box is mid-operation (runout pause, filament_useup
+    // latched at 1) when the user seats a fresh spool. Probing a busy box makes
+    // it answer busy, firmware raises key843, and the failed probe pins the
+    // bay's remain_len at 255. The probe must wait for an idle poll and fire
+    // exactly once when it comes.
+    CfsRemapHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(empty_bcd); // seeds bay_occupied_ without probing
+    backend.captured.clear();
+
+    // Spool into bay B on the same frame the box reports runout.
+    json busy = make_unit_box_explicit(
+        {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+        {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+    busy["filament_useup"] = 1;
+    poll(busy);
+    CHECK(backend.captured.empty()); // deferred, not dropped
+
+    // The reload lands: useup clears, and exactly one deferred re-attempt
+    // fires on that poll.
+    json idle = busy;
+    idle["filament_useup"] = 0;
+    poll(idle);
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
+
+    // And only once: a further idle poll must not re-probe.
+    backend.captured.clear();
+    poll(idle);
+    CHECK(backend.captured.empty());
+}
+
+TEST_CASE("CFS drops a deferred insert probe when the bay empties first",
+          "[ams][cfs][presence][probe_on_insert][1387]") {
+    // A spool inserted into a busy box defers its probe; if the user pulls it
+    // back out before the box goes idle, there is nothing left to probe and
+    // the deferred mask must not fire.
+    CfsRemapHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(empty_bcd); // seeds bay_occupied_ without probing
+    backend.captured.clear();
+
+    json busy = make_unit_box_explicit(
+        {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+        {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+    busy["filament_useup"] = 1;
+    poll(busy);
+    CHECK(backend.captured.empty()); // deferred
+
+    // Bay B emptied again while the deferral was pending; the idle poll must
+    // release nothing.
+    json idle_and_empty =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    idle_and_empty["filament_useup"] = 0;
+    poll(idle_and_empty);
+    CHECK(backend.captured.empty());
+
+    // The deferred set is consumed: re-seating the spool starts a fresh edge
+    // and probes normally on the idle box.
+    json reseat = busy;
+    reseat["filament_useup"] = 0;
+    poll(reseat);
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
+}
+
+TEST_CASE("CFS defers the insert probe while a print holds the machine",
+          "[ams][cfs][presence][probe_on_insert][1387]") {
+    // The other busy signal from #1387: the job owns the toolhead. A runout
+    // pause leaves CFS's own system_info_.action IDLE (it is only synthesized
+    // around OUR dispatched scripts), so the pause has to be read from the
+    // print lifecycle.
+    CfsLifecycleHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(empty_bcd); // seeds bay_occupied_ without probing
+    backend.captured.clear();
+
+    // publish_lifecycle_state() runs synchronously inside update_from_status,
+    // so the subject the gate reads is current without draining the queue. The
+    // drain is only hygiene: update_from_status queues unrelated work (the
+    // filament-sensor manager) that must not leak past this test.
+    helix::test::set_wire_state(backend.state, helix::PrintJobState::PAUSED);
+    helix::ui::UpdateQueue::instance().drain();
+
+    const json b_in = make_unit_box_explicit(
+        {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+        {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(b_in);
+    CHECK(backend.captured.empty()); // deferred while the print holds the machine
+
+    // Job ends: the deferred probe fires once on the next poll. This poll has
+    // NO new insert edge (bay_occupied_ already latched), so the dispatch can
+    // only come from the deferred set.
+    helix::test::set_wire_state(backend.state, helix::PrintJobState::STANDBY);
+    helix::ui::UpdateQueue::instance().drain();
+    poll(b_in);
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
 }
 
 TEST_CASE("FillUnsetOnly mirror does not overwrite user-locked fields",

@@ -63,8 +63,14 @@ class CfsErrorDecoder {
     /// `std::string` so the caller doesn't have to mix const-char + string
     /// concatenation. Falls back to the un-augmented message+hint when
     /// the values shape is unknown for that code.
+    ///
+    /// `fw_msg` is the firmware's own `msg` from the same JSON error. For a
+    /// table entry that prefers it (see CfsErrorEntry::prefer_fw_msg) and a
+    /// non-empty msg, that wording replaces the table message: the code's
+    /// causes vary and the firmware names the one that fired (#1387).
     static std::optional<std::pair<std::string, std::string>>
-    lookup_message_with_values(const std::string& key_code, const nlohmann::json& values);
+    lookup_message_with_values(const std::string& key_code, const nlohmann::json& values,
+                               const std::string& fw_msg = "");
 };
 
 /// Macro dialect emitted by the CFS backend.
@@ -735,6 +741,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// at vender "unknown" / material_type "unknown" indefinitely), so the edge
     /// is the only moment we get to ask for one.
     std::unordered_map<int, bool> bay_occupied_;
+
+    /// Insert probes blocked by the busy gate in handle_status_update
+    /// (#1387): unit number -> bay bitmask, OR-merged so a bay re-inserted
+    /// while still deferred keeps one entry. Entries leave the set on the
+    /// first idle poll's dispatch: one deferred probe is retried exactly
+    /// once, never looped. Guarded by mutex_ like bay_occupied_ beside it,
+    /// and like it has no reset path.
+    std::map<int, int> deferred_probes_;
 
     /// Collect the bays whose insert edge needs an RFID read. Called under
     /// mutex_ with the raw box payload; returns unit number -> bay bitmask so
