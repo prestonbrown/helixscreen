@@ -1730,7 +1730,15 @@ void MoonrakerSpoolmanAPIMock::get_spoolman_spools(SpoolListCallback on_success,
     spdlog::debug("[MoonrakerAPIMock] get_spoolman_spools() -> {} spools", mock_spools_.size());
 
     if (on_success) {
-        std::vector<SpoolInfo> sorted = mock_spools_;
+        // List GETs exclude archived spools (see update_spoolman_spool); the
+        // single-spool GET below deliberately still serves them.
+        std::vector<SpoolInfo> sorted;
+        sorted.reserve(mock_spools_.size());
+        for (const auto& spool : mock_spools_) {
+            if (archived_spool_ids_.count(spool.id) == 0) {
+                sorted.push_back(spool);
+            }
+        }
         sort_spools_by_recency(sorted);
         on_success(sorted);
     }
@@ -1823,6 +1831,19 @@ void MoonrakerSpoolmanAPIMock::update_spoolman_spool(int spool_id, const nlohman
     spdlog::info("[MoonrakerAPIMock] update_spoolman_spool({}, {} fields)", spool_id,
                  spool_data.size());
     spool_updates.push_back({spool_id, spool_data});
+
+    // Real Spoolman keeps an archived spool and only filters it from LIST GETs
+    // (the single-spool GET still returns it, which is how its web UI offers
+    // the un-archive toggle). Track the flag in a side set; other fields in the
+    // same PATCH still apply to the retained spool below.
+    if (spool_data.contains("archived")) {
+        const bool archived = spool_data["archived"].get<bool>();
+        if (archived) {
+            archived_spool_ids_.insert(spool_id);
+        } else {
+            archived_spool_ids_.erase(spool_id);
+        }
+    }
 
     for (auto& spool : mock_spools_) {
         if (spool.id == spool_id) {

@@ -27,7 +27,7 @@ SpoolmanContextMenu::~SpoolmanContextMenu() {
 
 SpoolmanContextMenu::SpoolmanContextMenu(SpoolmanContextMenu&& other) noexcept
     : ContextMenu(std::move(other)), action_callback_(std::move(other.action_callback_)),
-      pending_spool_(std::move(other.pending_spool_)) {}
+      pending_spool_(std::move(other.pending_spool_)), archive_allowed_(other.archive_allowed_) {}
 
 SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other) noexcept {
     if (this != &other) {
@@ -35,6 +35,7 @@ SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other)
         ContextMenu::operator=(std::move(other));
         action_callback_ = std::move(other.action_callback_);
         pending_spool_ = std::move(other.pending_spool_);
+        archive_allowed_ = other.archive_allowed_;
     }
     return *this;
 }
@@ -48,11 +49,12 @@ void SpoolmanContextMenu::set_action_callback(ActionCallback callback) {
 }
 
 bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spool,
-                                         lv_obj_t* near_widget) {
+                                         lv_obj_t* near_widget, bool allow_archive) {
     register_callbacks();
 
     // Store spool info before base class calls on_created
     pending_spool_ = spool;
+    archive_allowed_ = allow_archive;
 
     // Base class handles: XML creation, on_created callback, positioning, and
     // claiming the active-menu slot the static callbacks resolve through.
@@ -102,6 +104,19 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     lv_obj_t* vendor_label = lv_obj_find_by_name(menu_obj, "spool_vendor_label");
     if (vendor_label) {
         lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (!archive_allowed_) {
+        lv_obj_t* btn_archive = lv_obj_find_by_name(menu_obj, "btn_archive");
+        if (btn_archive) {
+            // Per-instance decision at menu-creation time, next to the imperative
+            // header fill above. No subject models the Spoolman active-spool id,
+            // so a bind_flag_if has nothing to bind to; the panel passes the
+            // decision per show (the AMS menu's on_created does the same for its
+            // conditional entries).
+            // DECLARATIVE_OK: per-show visibility decision with no subject to bind
+            lv_obj_add_flag(btn_archive, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 
     // Prevent context menu buttons from triggering scroll on the underlying list
@@ -162,6 +177,11 @@ void SpoolmanContextMenu::handle_duplicate() {
     dispatch_spoolman_action(MenuAction::DUPLICATE);
 }
 
+void SpoolmanContextMenu::handle_archive() {
+    spdlog::info("[SpoolmanContextMenu] Archive requested for spool {}", get_item_index());
+    dispatch_spoolman_action(MenuAction::ARCHIVE);
+}
+
 void SpoolmanContextMenu::handle_delete() {
     spdlog::info("[SpoolmanContextMenu] Delete requested for spool {}", get_item_index());
     dispatch_spoolman_action(MenuAction::DELETE);
@@ -181,6 +201,7 @@ void SpoolmanContextMenu::register_callbacks() {
         {"spoolman_context_edit_cb", on_edit_cb},
         {"spoolman_context_print_label_cb", on_print_label_cb},
         {"spoolman_context_duplicate_cb", on_duplicate_cb},
+        {"spoolman_context_archive_cb", on_archive_cb},
         {"spoolman_context_delete_cb", on_delete_cb},
     });
 
@@ -225,6 +246,13 @@ void SpoolmanContextMenu::on_duplicate_cb(lv_event_t* /*e*/) {
     auto* self = get_active_instance();
     if (self) {
         self->handle_duplicate();
+    }
+}
+
+void SpoolmanContextMenu::on_archive_cb(lv_event_t* /*e*/) {
+    auto* self = get_active_instance();
+    if (self) {
+        self->handle_archive();
     }
 }
 
