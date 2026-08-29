@@ -5,6 +5,83 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.118] - 2026-08-28
+
+<!-- whatsnew
+The fifth 1.0 release candidate. Highlights:
+
+- Tapping an object in the preview outlines it in white instead of recolouring it
+- Dark filaments show real form instead of reading as a flat cut-out
+- On a printer with no AMS, the 2D preview draws real filament colours instead of grey
+- Installing an update no longer locks up the touchscreen
+- A macro that stops the printer says so, instead of claiming a restart
+- Slicers and phone apps asking to pair now get an Allow/Deny prompt
+-->
+
+The fifth 1.0 release candidate. Most of the work went into the G-code preview - object
+selection, filament colour and shading were all reworked, and the whole path is faster.
+The rest is multi-tool correctness and a set of recovery fixes for printers that stop
+and do not come back.
+
+### Added
+
+- **Pairing prompts** - when a slicer or phone app asks to pair over the network, the
+  printer shows an Allow/Deny prompt instead of leaving the request unanswered.
+- **RFID read on insert** - putting a spool into a CFS bay reads its tag straight away,
+  rather than waiting for something else to trigger a scan.
+- **Unmount is refused when the dock sensors cannot tell which tool is mounted** - on a
+  tool changer, the panel now blocks the unmount and says why, rather than acting on a
+  guess about which toolhead is on the carriage.
+- **A hot-end tool changer gets its own progress bar** - grip, move, grip, matching what
+  the machine actually does, instead of the filament Heat/Cut/Feed steps. The bar hides
+  itself on machines that report no phases, and the actions read Mount and Unmount.
+
+### Fixed
+
+**G-code preview**
+
+- **Selecting an object** - tapping an object in the preview now outlines it in white
+  instead of recolouring it blue, so you can still see its filament colour. The outline
+  traces the whole object rather than only its outer walls. Works in the print-status
+  preview and in the file browser's detail view, on files sliced with object labels.
+- **Dark filaments** - black and near-black spools show real form and depth instead of
+  reading as a flat cut-out.
+- **Filament colours without an AMS** - on a printer with no AMS and no Spoolman, the 2D
+  preview drew every tool in the same placeholder grey. It now uses the real colours.
+- **Tool changer previews** - each tool's paths are drawn in the colour of the filament
+  actually routed to it, instead of painting the whole model in T0's colour.
+- **Files that skip a tool number** - a file using T0 and T2 but not T1 now routes T2 to
+  its own lane, instead of sliding it onto the next lane in the list. Verified on a
+  Snapmaker U1.
+
+**Multi-tool and filament**
+
+- **Reprinting on a Snapmaker U1** now follows the tool routing the original print ran
+  with, instead of resetting it to the firmware default.
+- **CFS bays** - naming a bay no longer blanks an untagged one, and a manual assignment
+  no longer makes an empty bay look loaded. Note that bay labels are remembered only
+  until the panel restarts.
+- **Cancelling filament mapping** puts the auto-colour preference back the way it was.
+
+**Recovery and stability**
+
+- **A macro that stops the printer** no longer claims the firmware is restarting. The
+  recovery dialog comes up instead.
+- **A shutdown during an intentional restart** now reaches the recovery dialog rather
+  than being silently swallowed - including when an MCU comes back up already halted,
+  which previously left the printer looking idle for the rest of the session.
+- **Installing an update** no longer locks up the touchscreen. Install, Cancel, then
+  Install again could freeze the interface for up to an hour.
+- **LED presets** - the preset buttons no longer vanish when a macro light is selected,
+  and a macro light that only supports on and off now actually turns off.
+- **Long setting labels and descriptions wrap** instead of being cut off. Most visible
+  in German, French and Spanish, and on small screens.
+
+### Changed
+
+- **Preview performance** - object tapping, antialiasing and the shading pass were all
+  reworked. Large models load and redraw faster and use less memory.
+
 ## [0.99.117] - 2026-08-26
 
 <!-- whatsnew
@@ -5799,6 +5876,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.99.118]: https://github.com/prestonbrown/helixscreen/compare/v0.99.117...v0.99.118
 [0.99.117]: https://github.com/prestonbrown/helixscreen/compare/v0.99.116...v0.99.117
 [0.99.116]: https://github.com/prestonbrown/helixscreen/compare/v0.99.115...v0.99.116
 [0.99.115]: https://github.com/prestonbrown/helixscreen/compare/v0.99.114...v0.99.115
