@@ -96,22 +96,23 @@ class MyPanel {
 };
 ```
 
-> **The helpers cannot report dismissal.** A dialog shown this way is pushed with **no
-> owner**, so `Modal`'s instance teardown never runs for it. Backdrop click, ESC, and
-> `Modal::rebuild_top()` (XML hot reload, dev builds only - it closes a dialog it cannot
-> faithfully rebuild) all close it through the static `Modal::hide()`, which calls
-> **neither** `on_confirm` **nor** `on_cancel`. The caller is never told the dialog went
-> away.
+> **Pass `on_dismiss` whenever the caller holds state the buttons are meant to resolve.**
+> Backdrop click, ESC and `Modal::rebuild_top()` (XML hot reload, dev builds only) close
+> the dialog without either button being pressed, so `on_confirm`/`on_cancel` never run. A
+> re-entry guard, a pending-request flag, a stored dialog pointer or a queue entry left
+> behind by that leaks, and the feature silently stops working with no log line to say why.
 >
-> That is fine when the callbacks only *do* something. It is a bug when the caller holds
-> state the callbacks are meant to resolve - a re-entry guard, a pending-request flag, a
-> stored dialog pointer, an entry in a queue. Dismissal leaks that state and the feature
-> silently stops working, with no log line to say why.
+> The helpers are backed by an internal `ConfirmationModal` instance, so `on_hide()` is the
+> always-fires resolve point and `on_dismiss` is called from it - deferred to the next tick,
+> so a callback that closes another dialog cannot re-enter the teardown it was called from.
 >
-> **Own a `Modal` subclass when a dismissal has to be observable.** `on_hide()` runs
-> however the dialog closed, which is the resolve point the helpers have no equivalent
-> for. `include/lan_client_auth_router.h` is the reference shape: a decision callback for
-> the answer, a dismiss callback for the close-without-an-answer case.
+> **If the capture can die before the dialog, pass `dismiss_token` too.** The dialog outlives
+> its exit animation, and a `std::function` capturing a panel that has since been destroyed
+> is a use-after-free. Hand it a token from the owner's `AsyncLifetimeGuard`
+> (`lifetime_.token()`) and the call is skipped once the owner is gone.
+>
+> New code should prefer `modal_confirm()` / `modal_alert()`, which take `std::function`
+> throughout and attach nothing to a widget at all.
 
 **Severity levels** control the header icon:
 - `ModalSeverity::Info` -- blue info icon

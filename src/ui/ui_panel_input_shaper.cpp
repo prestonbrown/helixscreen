@@ -652,7 +652,12 @@ void InputShaperPanel::start_with_preflight(char axis) {
                 self->calibrate_all_mode_ = false; // user backed out before anything started
                 LVGL_SAFE_EVENT_CB_END();
             },
-            this);
+            this,
+            // A dismissal (backdrop tap, ESC) runs neither callback, and the
+            // re-entry guard above keys on this handle - left set, every later
+            // calibration is a silent no-op. lifetime_ ties it to the owner so a
+            // panel torn down while the dialog is up cannot be called back.
+            [this]() { low_ram_warn_dialog_ = nullptr; }, lifetime_.token());
         if (!low_ram_warn_dialog_) {
             // Modal failed to build — don't silently block calibration.
             proceed_with_preflight(axis);

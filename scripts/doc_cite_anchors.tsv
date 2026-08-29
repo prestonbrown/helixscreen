@@ -226,7 +226,7 @@ docs/devel/architecture/03-threading-lifetime.md	include/http_executor.h	33	incl
 docs/devel/architecture/03-threading-lifetime.md	include/http_executor.h	87	include/http_executor.h	03b7db36cd87	5da6f7be74ef
 docs/devel/architecture/03-threading-lifetime.md	include/moonraker_client.h	78	include/moonraker_client.h	56e0d5e200c7	362de559c33a
 docs/devel/architecture/03-threading-lifetime.md	include/overlay_base.h	88	include/overlay_base.h	6e3789e358d3	ae7902ff2bfb
-docs/devel/architecture/03-threading-lifetime.md	include/ui_modal.h	74	include/ui_modal.h	f08d448ca6ed	3d21583bd125
+docs/devel/architecture/03-threading-lifetime.md	include/ui_modal.h	76	include/ui_modal.h	f08d448ca6ed	3d21583bd125
 docs/devel/architecture/03-threading-lifetime.md	include/ui_observer_guard.h	40	include/ui_observer_guard.h	a97d24514272	760fa7601f78
 docs/devel/architecture/03-threading-lifetime.md	include/ui_observer_guard.h	136	include/ui_observer_guard.h	374401388dc5	790d430eb812
 docs/devel/architecture/03-threading-lifetime.md	include/ui_timer_guard.h	18	include/ui_timer_guard.h	5e0644b50c91	0d7338fec80e
@@ -412,11 +412,11 @@ docs/devel/architecture/08-panels-navigation.md	include/panel_factory.h	34	inclu
 docs/devel/architecture/08-panels-navigation.md	include/panel_lifecycle.h	32	include/panel_lifecycle.h	389a08ad89dc	9a0fd56d3136
 docs/devel/architecture/08-panels-navigation.md	include/ui/ui_lazy_panel_helper.h	65	include/ui/ui_lazy_panel_helper.h	f4100ed91ab1	e8b1dc442e73
 docs/devel/architecture/08-panels-navigation.md	include/ui_info_qr_modal.h	11	include/ui_info_qr_modal.h	15c9a802e386	0a07344dd145
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	74	include/ui_modal.h	f08d448ca6ed	3d21583bd125
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	137	include/ui_modal.h	0e840182fd09	5f222c1bcd02
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	309	include/ui_modal.h	a3a513c94aa9	d435ae83b902
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	484	include/ui_modal.h	6c2ef49c636c	ff92e21830f5
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	505	include/ui_modal.h	5c3e521983d5	547429ca4163
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	76	include/ui_modal.h	f08d448ca6ed	3d21583bd125
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	140	include/ui_modal.h	0e840182fd09	5f222c1bcd02
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	332	include/ui_modal.h	a3a513c94aa9	d435ae83b902
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	507	include/ui_modal.h	6c2ef49c636c	6fa5bf1d4867
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	564	include/ui_modal.h	5c3e521983d5	70097ee77233
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	34	include/ui_nav_manager.h	d5cd25c0566a	a756985314a6
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	176	include/ui_nav_manager.h	021de0d8ba4a	947fba563ccc
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	195	include/ui_nav_manager.h	1cd60fbc777e	9f3aa2be3767
@@ -666,7 +666,7 @@ docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	199	sr
 docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	242	src/api/display_backend.cpp	215bb69fe26b	db783b634a34
 docs/devel/architecture/15-known-debt.md	include/sensor_registry.h	60	include/sensor_registry.h	7f03fa23f905	68f5a7ddc2d4
 docs/devel/architecture/15-known-debt.md	scripts/check_imperative_ui.py	10	scripts/check_imperative_ui.py	10d17ed720c9	02bdf36e7680
-docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1603	scripts/quality-checks.sh	bdd7bb103b0b	6b373a10db4b
+docs/devel/architecture/15-known-debt.md	scripts/quality-checks.sh	1603	scripts/quality-checks.sh	3f3a6cf36e4a	999a046ca368
 docs/devel/architecture/15-known-debt.md	src/api/moonraker_discovery_sequence.cpp	856	src/api/moonraker_discovery_sequence.cpp	859d76692100	84ebb0feab81
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	96	src/printer/printer_discovery.cpp	701fe2945490	d988be8c6ecc
 docs/devel/architecture/15-known-debt.md	src/printer/printer_discovery.cpp	105	src/printer/printer_discovery.cpp	b4eafb8019aa	2173247c26a9
