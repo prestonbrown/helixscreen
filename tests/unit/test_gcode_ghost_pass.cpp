@@ -129,9 +129,14 @@ template <typename Frame> void settle(GCodeLayerRenderer& r, Frame&& frame) {
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                         std::chrono::steady_clock::now() - start)
                         .count();
-    UNSCOPED_INFO("settle: " << ms << "ms " << frames << " frames " << spawns
-                             << " ghost spawn(s) needs_more=" << r.needs_more_frames()
-                             << " running=" << r.is_ghost_build_running());
+    // INFO, not UNSCOPED_INFO: an unscoped message is discarded by the NEXT
+    // assertion whether it passes or fails, so the needs_more_frames() check
+    // below would eat it and the is_ghost_build_running() failure — the one
+    // that actually happens — would report with no diagnostic at all. A
+    // scoped message survives every assertion in this function.
+    INFO("settle: " << ms << "ms " << frames << " frames " << spawns
+                    << " ghost spawn(s) needs_more=" << r.needs_more_frames()
+                    << " running=" << r.is_ghost_build_running());
     REQUIRE_FALSE(r.needs_more_frames()); // never settled: harness bug
     REQUIRE_FALSE(r.is_ghost_build_running());
 }
