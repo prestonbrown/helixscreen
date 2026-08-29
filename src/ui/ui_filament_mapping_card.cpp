@@ -13,6 +13,7 @@
 #include "print_start_checks.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
+#include "tool_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -74,30 +75,15 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
         return;
     }
 
-    // Hide on backends with no editable tool mapping (Snapmaker U1, ACE).
-    // Without this, users can open the modal and pick mappings that the
-    // print-start path then warns away — dead control. The print-start
-    // warning toast stays as a safety net.
-    bool any_editable = false;
-    for (int i = 0, n = ams.backend_count(); i < n; ++i) {
-        auto* backend = ams.get_backend(i);
-        if (!backend) {
-            continue;
-        }
-        auto caps = backend->get_tool_mapping_capabilities();
-        if (caps.supported && caps.editable) {
-            any_editable = true;
-            break;
-        }
-    }
-    if (!any_editable) {
-        should_show_ = false;
-        return;
-    }
+    // NO editable-backend gate here. It once existed to avoid a dead control on
+    // Snapmaker U1 / ACE, back when a second surface (the print-detail FILAMENTS
+    // card) drew the same chips there. That surface is gone, so hiding here would
+    // show the user nothing at all. Whether a TAP does anything is a separate
+    // question, answered by PrintSelectDetailView::color_card_opens_remap().
 
-    // Same dead-control rule as the check above, extended to the case that
-    // actually bit a user: with bypass engaged a single-tool print takes its
-    // filament from the external spool, and print_start_checks.cpp compares
+    // A dead-control rule survives here even without the editable-backend gate
+    // above: with bypass engaged a single-tool print takes its filament from
+    // the external spool, and print_start_checks.cpp compares
     // against that spool instead of the lanes (the `any_bypass_active &&
     // print_lane_requirement(...) <= 1` short-circuit). Offering a lane mapping
     // there claims something the print will not do — a K2 Plus user read the
@@ -120,6 +106,19 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
     tool_info_ = build_tool_info(gcode_colors, gcode_materials);
 
     if (tool_info_.empty()) {
+        should_show_ = false;
+        return;
+    }
+
+    // Moved from PrintSelectDetailView::swatches_card_visible_for(): on a
+    // multi-tool printer any referenced tool is worth showing (lane identity
+    // matters); on a single extruder it takes 2+ tools to be a manual-swap
+    // multi-colour file rather than an ordinary single-colour print.
+    const int ams_slots = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
+    const bool is_multi_tool_printer =
+        helix::ToolState::instance().is_multi_tool() || ams_slots > 1;
+    const size_t tool_count = used_tools_ ? used_tools_->size() : tool_info_.size();
+    if (!(is_multi_tool_printer ? tool_count > 0 : tool_count > 1)) {
         should_show_ = false;
         return;
     }

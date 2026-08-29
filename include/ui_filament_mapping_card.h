@@ -25,8 +25,11 @@ namespace helix::ui {
  * (`should_show()`); the print detail view publishes that on a subject the
  * XML binds via `bind_flag_if_eq` — see print_file_detail.xml's
  * `filament_mapping_visible` binding. Card visible iff AMS/toolchanger is
- * detected AND the file uses at least one tool AND at least one backend
- * advertises editable tool-mapping capabilities.
+ * detected AND bypass is not suppressing a single-lane print AND the file
+ * uses enough tools to be worth showing (any tool on a multi-tool printer,
+ * 2+ on a single extruder) — see should_show(). Whether tapping the card
+ * opens anything is a separate question, editable or not: see
+ * PrintSelectDetailView::color_card_opens_remap().
  */
 class FilamentMappingCard {
   public:
@@ -170,8 +173,14 @@ class FilamentMappingCard {
     /**
      * @brief Whether the card should be visible after the latest `update()`
      *
-     * True iff AMS is available, at least one backend advertises editable
-     * tool-mapping capabilities, and the file declares at least one tool.
+     * True iff AMS is available, bypass is not suppressing a single-lane
+     * print, the file declares at least one tool, and the tool count clears
+     * the multi-tool-printer-aware floor (any tool on a multi-tool printer,
+     * 2+ tools on a single extruder). No longer gated on any backend's tool
+     * mapping being editable — a second surface used to draw the chips on
+     * non-editable backends (Snapmaker U1, ACE); it is gone, so hiding here
+     * would show the user nothing. Whether a tap does anything is a separate
+     * question, answered by PrintSelectDetailView::color_card_opens_remap().
      */
     [[nodiscard]] bool should_show() const {
         return should_show_;
