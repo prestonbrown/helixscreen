@@ -217,7 +217,14 @@ Two behaviours must survive the port, both of which exist in exactly one of the 
 - Modify: `include/filament_mapper.h`, `src/printer/filament_mapper.cpp` (add `resolve_mapped_slot`)
 - Modify: `src/ui/ui_filament_mapping_card.cpp:249-395` (`rebuild_compact_view` body), `:412-426` (`open_mapping_modal`)
 - Modify: `include/ui_filament_mapping_card.h:100-119` (`set_mappings`)
+- Modify: `ui_xml/print_file_detail.xml` (`filament_mapping_rows` height)
+- Create: `tests/mapping_card_render_fixture.h`
 - Test: `tests/unit/test_filament_mapping_used_filter.cpp`
+
+**Two controller rulings folded in (pre-flight scan):**
+
+1. **`filament_mapping_rows` must change from `height="content"` to `height="32"` in this task**, not in Task 4. `filament_swatch` is `height="100%"` and collapses to zero inside a content-height parent, so without this the app renders zero-height chips between Task 2 and Task 4. The unit tests cannot catch it — they render into a container the fixture builds, not the XML one. Task 4's replacement block already carries `height="32"`, so the two agree.
+2. **Extract `MappingCardRenderFixture` into a new `tests/mapping_card_render_fixture.h`** and have `tests/unit/test_filament_mapping_used_filter.cpp` include it. Task 3 includes the same header. Without this the fixture reaches a fourth hand-written copy, which the Global Constraints forbid. Move the struct verbatim — same members, same constructor/destructor bodies, same includes it depends on (`ui_filament_mapping_card.h`, `ui_update_queue.h`, `../lvgl_ui_test_fixture.h`, `ams_backend_mock.h`, `ams_state.h`) — and give the header an SPDX line plus `#pragma once`. Do not change its behaviour while moving it; the existing idempotent-rebuild test must stay green as proof the move was faithful.
 
 **Interfaces:**
 - Consumes: `FilamentMappingCard` members `tool_info_`, `mappings_`, `available_slots_` (already present).
@@ -636,6 +643,8 @@ Today the card and the swatch row are mutually exclusive and gated by different 
 
 Create `tests/unit/test_filament_mapping_visibility.cpp`:
 
+**Controller ruling (pre-flight scan):** do NOT hand-write a fixture here. Task 2 extracted `MappingCardRenderFixture` into `tests/mapping_card_render_fixture.h`; include that and use it. The `VisibilityFixture` shown below is exactly the copy-paste twin the Global Constraints forbid — it is reproduced only so you can see which members the tests need. Replace it with `#include "../mapping_card_render_fixture.h"` and `TEST_CASE_METHOD(MappingCardRenderFixture, ...)`.
+
 ```cpp
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -707,7 +716,7 @@ struct VisibilityFixture : LVGLUITestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(VisibilityFixture,
+TEST_CASE_METHOD(MappingCardRenderFixture,
                  "Card shows on a backend whose mapping is not editable",
                  "[filament_mapping][visibility]") {
     // snapmaker_mode_ makes get_tool_mapping_capabilities() report
@@ -720,7 +729,7 @@ TEST_CASE_METHOD(VisibilityFixture,
     process_lvgl(100);
 }
 
-TEST_CASE_METHOD(VisibilityFixture,
+TEST_CASE_METHOD(MappingCardRenderFixture,
                  "Card hides a single-lane print while bypass is engaged",
                  "[filament_mapping][visibility]") {
     // With bypass engaged a single-tool print takes filament from the external
@@ -732,15 +741,19 @@ TEST_CASE_METHOD(VisibilityFixture,
     process_lvgl(100);
 }
 
-TEST_CASE_METHOD(VisibilityFixture,
-                 "Card hides a single-colour file on a single-extruder printer",
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "Card shows a single-tool file on a multi-tool printer",
                  "[filament_mapping][visibility]") {
-    // Nothing to map: one tool, one extruder. The multi-tool branch is covered
-    // by the tests above, which run against the 4-slot mock.
+    // The reachable half of the tool-count rule moved from
+    // swatches_card_visible_for(): on a multi-tool printer ANY referenced tool
+    // is worth showing, because which lane it routes to is the whole question.
+    // (The single-extruder tools>1 branch needs a 1-slot backend the 4-slot mock
+    // cannot present; it is covered by Task 5's manual verification instead of a
+    // test that cannot fail.)
     card.set_used_tools(std::set<int>{0});
     card.update({"#FF0000"}, {"PLA"});
-    // A 4-slot AMS counts as multi-tool, so force the single-extruder branch by
-    // dropping to a backend with one slot.
+    CHECK(card.should_show());
+    CHECK(lv_obj_get_child_count(rows) == 1);
     process_lvgl(100);
 }
 ```
