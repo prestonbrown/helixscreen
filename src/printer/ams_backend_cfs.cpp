@@ -1538,7 +1538,9 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             // Update runout flag only when the field was actually present.
             // Stock spells it filament_useup; the flat schema spells it runout
             // (JSON null while idle, a descriptor once tripped).
-            if (box.contains("filament_useup") || (is_flat && box.contains("runout"))) {
+            const bool runout_field_present =
+                box.contains("filament_useup") || (is_flat && box.contains("runout"));
+            if (runout_field_present) {
                 system_info_.filament_runout = new_info.filament_runout;
             }
 
@@ -1559,6 +1561,14 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             } else if ((has_unit_data || is_flat) && system_info_.action != AmsAction::LOADING) {
                 system_info_.current_slot = -1;
                 system_info_.current_tool = -1;
+            }
+
+            // Runout-episode bookkeeping (#1390). Runs after the current_slot
+            // update above so the edge capture reads this frame's settled
+            // active lane, and before the convergence loop below so the strip
+            // sees the captured lane.
+            if (runout_field_present) {
+                update_runout_episode_locked();
             }
 
             // Override integration convergence point. Firmware-sourced fields
@@ -1585,17 +1595,23 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                     // BEFORE apply_overrides so the values reflect firmware,
                     // not the override-masked view. FillUnsetOnly: CFS user
                     // edits don't reach firmware, so we must not let firmware
-                    // overwrite them — see mirror_firmware_to_lane_data docs.
+                    // overwrite them - see mirror_firmware_to_lane_data docs.
+                    //
+                    // The runout strip (#1390) runs inside the same !cleared
+                    // gate and before the mirror: it POSTs the stripped record,
+                    // which must not race a clear's DELETE, and the mirror must
+                    // read the already-stripped override.
                     //
                     // Skipped on a parse that cleared: a clear fires clear_async
                     // (DELETE) and the mirror fires save_async (POST) against
                     // the SAME lane_data key. Both are async and independently
                     // ordered, so issuing them together is a write race whose
-                    // outcome depends on which reply Moonraker processes last —
+                    // outcome depends on which reply Moonraker processes last -
                     // a DELETE landing second silently drops the record we just
                     // published. The next poll republishes from firmware truth
                     // with the delete already settled.
                     if (!cleared) {
+                        strip_spoolman_link_on_runout_locked(slot, global_idx);
                         helix::ams::mirror_firmware_to_lane_data(
                             override_store_.get(), overrides_, global_idx, slot.color_rgb,
                             slot.material, slot.status == SlotStatus::AVAILABLE,
@@ -3915,6 +3931,101 @@ void AmsBackendCfs::clear_override_locked(int slot_index, SlotInfo& slot) {
             }
         });
     }
+}
+
+void AmsBackendCfs::update_runout_episode_locked() {
+    const bool tripped = system_info_.filament_runout;
+    const int previous = runout_latch_seen_;
+    runout_latch_seen_ = tripped ? 1 : 0;
+
+    if (!tripped) {
+        // The latch cleared: a successful extrude re-established filament at
+        // the gate, so this episode is over. Whatever empties the lane next
+        // is a deliberate unload, not the runout this capture described.
+        if (runout_lane_ >= 0) {
+            spdlog::debug("{} runout latch cleared - episode for slot {} ended without a strip",
+                          backend_log_tag(), runout_lane_);
+            runout_lane_ = -1;
+        }
+        return;
+    }
+
+    // Only a 0 -> 1 rise this session actually witnessed is a runout edge. A
+    // first sighting already at 1 (previous == -1, session started mid-runout)
+    // has no before-state to rise from, and a latch still 1 from an earlier
+    // observation must not arm a second episode.
+    if (previous != 0) {
+        return;
+    }
+
+    // Capture the feeding lane NOW. filament_runout is box-wide and sticky,
+    // and current_slot drops to -1 once no unit reports an active lane - by
+    // the time the exhausted spool is pulled, the active-lane signal is gone.
+    // -2 is the bypass sentinel, not a bay; treat it as no capture rather
+    // than storing an unmatchable lane.
+    runout_lane_ = system_info_.current_slot;
+    if (runout_lane_ >= 0) {
+        spdlog::info("{} runout observed on slot {} - its Spoolman link will be dropped once "
+                     "the bay reads empty",
+                     backend_log_tag(), runout_lane_);
+    } else {
+        spdlog::debug("{} runout observed with no active lane reported - no episode captured",
+                      backend_log_tag());
+        runout_lane_ = -1;
+    }
+}
+
+void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slot_index) {
+    if (runout_lane_ != slot_index || slot.status != SlotStatus::EMPTY) {
+        return;
+    }
+    auto it = overrides_.find(slot_index);
+    if (it == overrides_.end()) {
+        return;
+    }
+    auto& o = it->second;
+    if (o.spoolman_id == 0 && o.spoolman_vendor_id == 0) {
+        // No remembered link on this lane; the episode stays armed in case a
+        // link appears before the latch clears.
+        return;
+    }
+
+    const int old_id = o.spoolman_id;
+    // Drop ONLY the Spoolman handle. Brand, material, color, catalog pick,
+    // lock flags and temperatures describe the lane's contents and survive -
+    // the fresh spool the user loads keeps inheriting a correctly-labeled
+    // lane while the exhausted spool's id stops being re-asserted onto it.
+    o.spoolman_id = 0;
+    o.spoolman_vendor_id = 0;
+    o.updated_at = std::chrono::system_clock::now();
+
+    // Immediate visibility on the live SlotInfo, same pattern as
+    // clear_override_locked: apply_overrides runs after this and its sentinel
+    // rule (id 0 falls through to firmware truth) keeps the zero in place.
+    slot.spoolman_id = 0;
+    slot.spoolman_vendor_id = 0;
+
+    spdlog::info("{} slot {} reads empty after a confirmed runout - dropping the remembered "
+                 "Spoolman link (spool {}), keeping identity",
+                 backend_log_tag(), slot_index, old_id);
+
+    if (override_store_) {
+        // POST the whole stripped record - clear_async would DELETE the
+        // lane_data entry the identity fields must keep. Callback captures
+        // by value only: the store may outlive this backend (same discipline
+        // as every other save_async in this file).
+        const std::string tag = backend_log_tag();
+        override_store_->save_async(slot_index, o, [tag, slot_index](bool ok, std::string err) {
+            if (!ok) {
+                spdlog::warn("{} save_async failed for slot {}: {}", tag, slot_index, err);
+            }
+        });
+    }
+
+    // One episode, one lane, one strip: consumed here so a later transient
+    // EMPTY read while the sticky latch never cleared cannot strip a
+    // freshly relinked spool.
+    runout_lane_ = -1;
 }
 
 void AmsBackendCfs::clear_slot_override(int slot_index) {
