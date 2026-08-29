@@ -98,9 +98,10 @@ class MyPanel {
 
 > **The helpers cannot report dismissal.** A dialog shown this way is pushed with **no
 > owner**, so `Modal`'s instance teardown never runs for it. Backdrop click, ESC, and
-> `Modal::rebuild_top()` (which fires on a breakpoint or theme change under hot reload)
-> all close it through the static `Modal::hide()`, which calls **neither** `on_confirm`
-> **nor** `on_cancel`. The caller is never told the dialog went away.
+> `Modal::rebuild_top()` (XML hot reload, dev builds only - it closes a dialog it cannot
+> faithfully rebuild) all close it through the static `Modal::hide()`, which calls
+> **neither** `on_confirm` **nor** `on_cancel`. The caller is never told the dialog went
+> away.
 >
 > That is fine when the callbacks only *do* something. It is a bug when the caller holds
 > state the callbacks are meant to resolve - a re-entry guard, a pending-request flag, a
@@ -452,16 +453,21 @@ class ControlsPanel {
 
 `ModalGuard` supports move semantics, assignment from raw `lv_obj_t*`, explicit `hide()`, and `release()` to take ownership.
 
-> **`ModalGuard` guarantees the dialog gets hidden, not that your callbacks are safe.** It
-> calls the static `Modal::hide()`, which for a helper dialog runs no instance teardown.
-> Read the sequence in the comment above for what it is: the panel destructor runs the
-> guard, the guard *starts an exit animation*, and the dialog then outlives the very object
-> that was handed to `on_confirm`/`on_cancel` as `user_data`.
+> **`ModalGuard` guarantees the dialog gets hidden, not that it is gone.** It calls the
+> static `Modal::hide()`, which starts a 150ms exit animation - so the sequence in the
+> comment above is: the panel destructor runs the guard, and the dialog then outlives the
+> very object that was handed to `on_confirm`/`on_cancel` as `user_data`.
 >
-> Despite the name this is not the `ObserverGuard` bargain. `ObserverGuard` detaches the
-> observer, so nothing can dispatch afterwards; `ModalGuard` only asks the dialog to close.
-> If the callbacks capture something that dies with the owner, own a `Modal` subclass and
-> let its teardown run instead.
+> `Modal::hide()` disarms the tree on the way out (`Modal::disarm_tree`), so a click can no
+> longer reach those callbacks. What it does not do is make the pointer valid: a teardown
+> that never goes through `hide()` - the screen being deleted out from under the dialog, or
+> `ModalStack::clear()` at shutdown - leaves the tree fully armed. **`user_data` must still
+> outlive the dialog.**
+>
+> Despite the name this is not the `ObserverGuard` bargain: `ObserverGuard` detaches the
+> observer so nothing can dispatch afterwards, while `ModalGuard` only asks the dialog to
+> close. If the callbacks capture something that dies with the owner, own a `Modal`
+> subclass and let its teardown run instead.
 
 ---
 
