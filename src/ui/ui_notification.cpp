@@ -196,7 +196,7 @@ static void async_error_callback(void* user_data) {
 
             // Show modal dialog for critical errors
             lv_obj_t* dialog =
-                helix::ui::modal_show_alert(data->title, data->message, ModalSeverity::Error, "OK");
+                helix::ui::modal_alert(data->title, data->message, ModalSeverity::Error, "OK");
             if (data->fault) {
                 helix::ui::track_fault_modal(dialog);
             }
@@ -508,8 +508,7 @@ static void show_error_notification(const char* title, const char* message, bool
             }
 
             // Show modal dialog for critical errors
-            lv_obj_t* dialog =
-                helix::ui::modal_show_alert(title, message, ModalSeverity::Error, "OK");
+            lv_obj_t* dialog = helix::ui::modal_alert(title, message, ModalSeverity::Error, "OK");
             if (fault) {
                 helix::ui::track_fault_modal(dialog);
             }

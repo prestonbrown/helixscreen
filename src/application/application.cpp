@@ -4467,7 +4467,7 @@ void Application::show_screensaver_migration_notice_if_pending() {
 
     spdlog::info("[Application] Showing one-time screensaver migration notice");
 
-    helix::ui::modal_show_alert(
+    helix::ui::modal_alert(
         lv_tr("Screensaver disabled"),
         lv_tr("The animated screensaver has been turned off on this device to prevent "
               "it from interfering with prints. You can re-enable it in "

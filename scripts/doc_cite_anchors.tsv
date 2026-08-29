@@ -4,7 +4,7 @@
 # doc	cited-path	line	resolved-path	line-hash	context-hash
 CLAUDE.md	app_globals.h	149	include/app_globals.h	17aedc246413	015cf811cb2e
 CLAUDE.md	src/printer/printer_state.cpp	622	src/printer/printer_state.cpp	776e116cdef2	2a5165823b4a
-CLAUDE.md	src/ui/ui_panel_macros.cpp	370	src/ui/ui_panel_macros.cpp	e348703290cc	31b9f70d28d0
+CLAUDE.md	src/ui/ui_change_host_modal.cpp	482	src/ui/ui_change_host_modal.cpp	0921d9f8ecde	d8d618bc1d30
 CLAUDE.md	temperature_service.cpp	669	src/ui/temperature_service.cpp	c07ddbffc0e9	92dc5aea3992
 docs/devel/BED_MESH_RENDERING_INTERNALS.md	bed_mesh_renderer.cpp	576	src/rendering/bed_mesh_renderer.cpp	91dca0ac8fb5	462210033bf0
 docs/devel/BED_MESH_RENDERING_INTERNALS.md	bed_mesh_renderer.h	36	include/bed_mesh_renderer.h	9a8dc225a80e	7cf55d2f2513
@@ -416,7 +416,7 @@ docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	76	include/ui
 docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	140	include/ui_modal.h	0e840182fd09	5f222c1bcd02
 docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	332	include/ui_modal.h	a3a513c94aa9	d435ae83b902
 docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	507	include/ui_modal.h	6c2ef49c636c	6fa5bf1d4867
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	564	include/ui_modal.h	5c3e521983d5	70097ee77233
+docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	571	include/ui_modal.h	5c3e521983d5	70097ee77233
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	34	include/ui_nav_manager.h	d5cd25c0566a	a756985314a6
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	176	include/ui_nav_manager.h	021de0d8ba4a	947fba563ccc
 docs/devel/architecture/08-panels-navigation.md	include/ui_nav_manager.h	195	include/ui_nav_manager.h	1cd60fbc777e	9f3aa2be3767

@@ -1307,9 +1307,9 @@ struct DismissPayload {
 class ConfirmationModal : public Modal {
   public:
     ConfirmationModal(std::string title, std::string message, std::function<void()> on_dismiss,
-                      std::optional<helix::LifetimeToken> dismiss_token)
+                      std::optional<helix::LifetimeToken> owner_token)
         : title_(std::move(title)), message_(std::move(message)),
-          on_dismiss_(std::move(on_dismiss)), dismiss_token_(std::move(dismiss_token)) {}
+          on_dismiss_(std::move(on_dismiss)), owner_token_(std::move(owner_token)) {}
 
     /// Legacy form: raw lv_event_cb_t + void* user_data, wired straight to the
     /// buttons so the existing call sites' contract is untouched.
@@ -1378,7 +1378,7 @@ class ConfirmationModal : public Modal {
             // back synchronously lets a reentrant modal_hide() run a SECOND full
             // teardown on the same backdrop. And the token has to be checked when
             // the callback actually runs, not when it was scheduled.
-            auto* payload = new DismissPayload{on_dismiss_, dismiss_token_};
+            auto* payload = new DismissPayload{on_dismiss_, owner_token_};
             helix::ui::async_call(
                 [](void* d) {
                     std::unique_ptr<DismissPayload> p(static_cast<DismissPayload*>(d));
@@ -1396,6 +1396,15 @@ class ConfirmationModal : public Modal {
     }
 
   private:
+    /// Whether the caller that opened this dialog is still alive. Untokened
+    /// callers answer true, which is the legacy contract: the capture simply has
+    /// to outlive the dialog. Only the std::function callbacks can be gated -
+    /// a legacy lv_event_cb_t is a second callback on the button, invoked by
+    /// LVGL after ours returns, and there is no way to call it off from here.
+    bool owner_alive() const {
+        return !owner_token_ || !owner_token_->expired();
+    }
+
     /// Route one side of the dialog. Our handler always goes on first, so
     /// answered_ is recorded even when the caller's callback closes the dialog.
     void wire_side(const char* name, lv_event_cb_t cb, bool primary) {
@@ -1425,7 +1434,7 @@ class ConfirmationModal : public Modal {
             if (self->fn_confirm_ || self->cb_confirm_) {
                 self->answered_ = true;
             }
-            if (self->fn_confirm_) {
+            if (self->fn_confirm_ && self->owner_alive()) {
                 self->fn_confirm_();
             }
             // We own the close unless a legacy caller's callback does it.
@@ -1447,7 +1456,7 @@ class ConfirmationModal : public Modal {
             if (self->fn_cancel_ || self->cb_cancel_) {
                 self->answered_ = true;
             }
-            if (self->fn_cancel_) {
+            if (self->fn_cancel_ && self->owner_alive()) {
                 self->fn_cancel_();
             }
             // We own the close unless a legacy caller's callback does it.
@@ -1461,7 +1470,7 @@ class ConfirmationModal : public Modal {
     std::string title_;
     std::string message_;
     std::function<void()> on_dismiss_;
-    std::optional<helix::LifetimeToken> dismiss_token_;
+    std::optional<helix::LifetimeToken> owner_token_;
     std::function<void()> fn_confirm_;
     std::function<void()> fn_cancel_;
     lv_event_cb_t cb_confirm_ = nullptr;
@@ -1482,7 +1491,7 @@ class ConfirmationModal : public Modal {
 lv_obj_t* build_confirmation(const char* title, const char* message, ModalSeverity severity,
                              const char* primary_text, const char* cancel_text, bool has_cancel,
                              std::function<void()> on_dismiss,
-                             std::optional<helix::LifetimeToken> dismiss_token,
+                             std::optional<helix::LifetimeToken> owner_token,
                              const std::function<void(ConfirmationModal&)>& setup) {
     if (!title || !message) {
         spdlog::error("[Modal] title and message are required");
@@ -1496,7 +1505,7 @@ lv_obj_t* build_confirmation(const char* title, const char* message, ModalSeveri
                                           : nullptr);
 
     auto* owner =
-        new ConfirmationModal(title, message, std::move(on_dismiss), std::move(dismiss_token));
+        new ConfirmationModal(title, message, std::move(on_dismiss), std::move(owner_token));
     setup(*owner);
     if (!owner->show_dialog()) {
         spdlog::error("[Modal] Failed to create dialog: '{}'", title);
@@ -1539,9 +1548,9 @@ lv_obj_t* helix::ui::modal_confirm(const char* title, const char* message, Modal
                                    const char* confirm_text, std::function<void()> on_confirm,
                                    std::function<void()> on_cancel, const char* cancel_text,
                                    std::function<void()> on_dismiss,
-                                   std::optional<helix::LifetimeToken> dismiss_token) {
+                                   std::optional<helix::LifetimeToken> owner_token) {
     return build_confirmation(title, message, severity, confirm_text, cancel_text,
-                              /*has_cancel=*/true, std::move(on_dismiss), std::move(dismiss_token),
+                              /*has_cancel=*/true, std::move(on_dismiss), std::move(owner_token),
                               [&](ConfirmationModal& m) {
                                   m.set_callbacks(std::move(on_confirm), std::move(on_cancel),
                                                   /*has_cancel=*/true);
@@ -1551,9 +1560,9 @@ lv_obj_t* helix::ui::modal_confirm(const char* title, const char* message, Modal
 lv_obj_t* helix::ui::modal_alert(const char* title, const char* message, ModalSeverity severity,
                                  const char* ok_text, std::function<void()> on_ok,
                                  std::function<void()> on_dismiss,
-                                 std::optional<helix::LifetimeToken> dismiss_token) {
+                                 std::optional<helix::LifetimeToken> owner_token) {
     return build_confirmation(title, message, severity, ok_text, nullptr, /*has_cancel=*/false,
-                              std::move(on_dismiss), std::move(dismiss_token),
+                              std::move(on_dismiss), std::move(owner_token),
                               [&](ConfirmationModal& m) {
                                   m.set_callbacks(std::move(on_ok), nullptr,
                                                   /*has_cancel=*/false);

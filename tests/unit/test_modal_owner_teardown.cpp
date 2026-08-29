@@ -779,6 +779,108 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A live dismiss token still fires on_dismiss
     CHECK(dismissed == 1);
 }
 
+// The declarative form's callbacks are invoked by the modal itself, so unlike a
+// legacy lv_event_cb_t they CAN be called off. The token therefore gates all
+// three, which is what makes a `this` capture safe to hand to modal_confirm():
+// the legacy form's void* still has to outlive the dialog on its own.
+TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_confirm's confirm",
+                 "[modal][teardown][1383]") {
+    helix::ui::modal_init_subjects();
+
+    int confirmed = 0;
+    auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
+
+    lv_obj_t* dialog = helix::ui::modal_confirm(
+        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
+        [&confirmed]() { ++confirmed; }, nullptr, nullptr, nullptr, guard->token());
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+
+    guard.reset(); // owner dies with the dialog still on screen
+
+    lv_obj_send_event(primary, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+
+    CHECK(confirmed == 0);                       // not run on a dead owner
+    CHECK(ModalStack::instance().stack_empty()); // but the dialog still closes
+}
+
+// Same gate on the other side. The two handlers are separate functions, so a
+// mutation that drops the check from only one of them has to show up somewhere.
+TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_confirm's cancel",
+                 "[modal][teardown][1383]") {
+    helix::ui::modal_init_subjects();
+
+    int cancelled = 0;
+    auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
+
+    lv_obj_t* dialog = helix::ui::modal_confirm(
+        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr,
+        [&cancelled]() { ++cancelled; }, nullptr, nullptr, guard->token());
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* secondary = lv_obj_find_by_name(dialog, "btn_secondary");
+    REQUIRE(secondary != nullptr);
+
+    guard.reset();
+
+    lv_obj_send_event(secondary, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+
+    CHECK(cancelled == 0);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// Known-positive for the two above: with the guard alive the same click DOES
+// reach the callback, so their zeros mean "suppressed" and not "never wired".
+TEST_CASE_METHOD(LVGLUITestFixture, "A live owner token still runs modal_confirm's callback",
+                 "[modal][teardown][1383]") {
+    helix::ui::modal_init_subjects();
+
+    int confirmed = 0;
+    helix::AsyncLifetimeGuard guard;
+
+    lv_obj_t* dialog = helix::ui::modal_confirm(
+        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
+        [&confirmed]() { ++confirmed; }, nullptr, nullptr, nullptr, guard.token());
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+    lv_obj_send_event(primary, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+
+    CHECK(confirmed == 1);
+}
+
+// modal_alert routes its single button through the same primary handler, so the
+// gate has to hold for the one-button shape too.
+TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_alert's callback",
+                 "[modal][teardown][1383]") {
+    helix::ui::modal_init_subjects();
+
+    int acked = 0;
+    auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
+
+    lv_obj_t* dialog = helix::ui::modal_alert(
+        "Heads up", "Something happened", ModalSeverity::Info, "OK", [&acked]() { ++acked; },
+        nullptr, guard->token());
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(primary != nullptr);
+
+    guard.reset();
+
+    lv_obj_send_event(primary, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+
+    CHECK(acked == 0);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
 // The owner frees itself one tick after on_hide(), while the dialog lives out
 // MODAL_EXIT_DURATION_MS. Every callback carrying that pointer must be gone
 // before then, or a programmatic click in the window dispatches into freed

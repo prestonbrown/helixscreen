@@ -2837,11 +2837,10 @@ void PrintSelectPanel::open_remap_modal() {
     // of a picker whose Done would silently fail.
     if (strategy == AmsBackend::RemapStrategy::GcodeRewrite &&
         !printer_state_.service_has_helix_plugin()) {
-        helix::ui::modal_show_alert(
-            lv_tr("Remap needs the HelixPrint plugin"),
-            lv_tr("Install the HelixPrint plugin in Advanced settings to remap "
-                  "filament without affecting print history."),
-            ModalSeverity::Info, lv_tr("OK"), nullptr, nullptr);
+        helix::ui::modal_alert(lv_tr("Remap needs the HelixPrint plugin"),
+                               lv_tr("Install the HelixPrint plugin in Advanced settings to remap "
+                                     "filament without affecting print history."),
+                               ModalSeverity::Info, lv_tr("OK"));
         return;
     }
 

@@ -525,6 +525,13 @@ lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalS
  *
  * @param on_dismiss Called when the dialog closes with neither button pressed
  *        (backdrop tap, ESC, hot-reload rebuild). Nothing else reports that.
+ * @param owner_token Gates ALL THREE callbacks, not just the dismissal: none of
+ *        them runs once the token has expired. Pass it whenever a callback
+ *        captures something that can die before the dialog does - which is the
+ *        usual case, since the dialog outlives its exit animation. This is the
+ *        one thing the lv_event_cb_t form cannot offer: its callbacks are
+ *        invoked by LVGL directly off the button, so a capture there simply has
+ *        to outlive the dialog.
  * @return The created dialog widget, or nullptr on failure
  */
 lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity severity,
@@ -532,7 +539,7 @@ lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity se
                         std::function<void()> on_cancel = nullptr,
                         const char* cancel_text = nullptr,
                         std::function<void()> on_dismiss = nullptr,
-                        std::optional<helix::LifetimeToken> dismiss_token = std::nullopt);
+                        std::optional<helix::LifetimeToken> owner_token = std::nullopt);
 
 /**
  * @brief Single-button alert whose callback never touches a widget
@@ -543,7 +550,7 @@ lv_obj_t* modal_alert(const char* title, const char* message,
                       ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
                       std::function<void()> on_ok = nullptr,
                       std::function<void()> on_dismiss = nullptr,
-                      std::optional<helix::LifetimeToken> dismiss_token = std::nullopt);
+                      std::optional<helix::LifetimeToken> owner_token = std::nullopt);
 
 /**
  * @brief Show an info/alert dialog with single "OK" button
