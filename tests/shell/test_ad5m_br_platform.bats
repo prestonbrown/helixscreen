@@ -64,6 +64,36 @@ load helpers
     }
 }
 
+@test "ad5m: tracker enabled (HELIX_HAS_TRACKER) for PWM PCM playback" {
+    run make -n PLATFORM_TARGET=ad5m CROSS_COMPILE= CC=gcc CXX=g++ print-cxxflags
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q 'DHELIX_HAS_TRACKER' || {
+        echo "Expected -DHELIX_HAS_TRACKER in ad5m CXXFLAGS (SCHED_IDLE render loop is printer-safe):"
+        echo "$output"
+        return 1
+    }
+    echo "$output" | grep -q 'DHELIX_PWM_AUTO_EXPORT' || {
+        echo "Expected -DHELIX_PWM_AUTO_EXPORT in ad5m CXXFLAGS (stock kernel ships pwm6 unexported):"
+        echo "$output"
+        return 1
+    }
+}
+
+@test "ad5x: tracker stays disabled" {
+    run make -n PLATFORM_TARGET=ad5x CROSS_COMPILE= CC=gcc CXX=g++ print-cxxflags
+    [ "$status" -eq 0 ]
+    ! echo "$output" | grep -q 'DHELIX_HAS_TRACKER' || {
+        echo "Unexpected -DHELIX_HAS_TRACKER (render loop not re-validated on ad5x):"
+        echo "$output"
+        return 1
+    }
+    ! echo "$output" | grep -q 'DHELIX_PWM_AUTO_EXPORT' || {
+        echo "Unexpected -DHELIX_PWM_AUTO_EXPORT (pwm6 function unverified on ad5x):"
+        echo "$output"
+        return 1
+    }
+}
+
 @test "ad5m-br: no libusb" {
     # Pass CROSS_COMPILE so the cross-target LDFLAGS branch fires and libusb
     # filter is evaluated meaningfully.

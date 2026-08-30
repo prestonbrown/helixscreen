@@ -152,6 +152,10 @@ docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	445	s
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	480	src/printer/ams_subscription_backend.cpp	8d6a1131138d	3cdd3709bc93
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	545	src/printer/ams_subscription_backend.cpp	359b20bf7fb8	acb8114396cc
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/toolhead_homing.cpp	60	src/printer/toolhead_homing.cpp	06f16f5e4b64	adcc7a362fa0
+docs/devel/SOUND_SYSTEM.md	include/pwm_sound_backend.h	45	include/pwm_sound_backend.h	e6c5c177e3ca	b3c8fe7db862
+docs/devel/SOUND_SYSTEM.md	include/pwm_sound_backend.h	76	include/pwm_sound_backend.h	516bc4eaf8f0	0bc7cf86c297
+docs/devel/SOUND_SYSTEM.md	src/system/pwm_sound_backend.cpp	236	src/system/pwm_sound_backend.cpp	c2faf4f958de	2b25918a3869
+docs/devel/SOUND_SYSTEM.md	src/system/pwm_sound_backend.cpp	440	src/system/pwm_sound_backend.cpp	065f9e8afc6d	30af171b990d
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	281	lib/helix-xml/src/xml/lv_xml.c	088d8240b210	33197fcbf9b6
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	438	lib/helix-xml/src/xml/lv_xml.c	daa12916c9dd	5547864e6a2e
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	473	lib/helix-xml/src/xml/lv_xml.c	b5a36c449474	fc0dbfc9b693
