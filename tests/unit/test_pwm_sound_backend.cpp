@@ -1,13 +1,22 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/pwm_sound_backend_test_access.h"
 #include "pwm_sound_backend.h"
 
+#include <atomic>
+#include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <memory>
+#include <sched.h>
 #include <string>
+#include <thread>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -617,6 +626,280 @@ TEST_CASE("PWM backend amplitude clamped to 0-1 range", "[sound][pwm]") {
     // Square wave at 1000 Hz: period=1000000, duty = 1000000 * 0.5 * clamp(1.5,0,1) = 500000
     backend.set_tone(1000.0f, 1.5f, 0.5f);
     REQUIRE(read_sysfs_file(pwm_dir + "/duty_cycle") == "500000");
+
+    cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
+// PCM render loop (virtual clock)
+// ============================================================================
+
+namespace {
+
+/// Virtual monotonic clock. wait_until() jumps `now` to the deadline instead
+/// of sleeping, so a whole park/resume cycle runs in milliseconds of real
+/// time. arm_jump() schedules a one-shot forward jump that fires inside the
+/// next read() — the catch-up test uses it to simulate a scheduling stall.
+class VirtualClock {
+  public:
+    int64_t read() {
+        if (jump_armed_.exchange(false)) {
+            now_ += jump_ns_;
+        }
+        return now_;
+    }
+
+    void wait_until(int64_t deadline) {
+        if (deadline > now_) {
+            now_ = deadline;
+        }
+    }
+
+    void arm_jump(int64_t ns) {
+        jump_ns_ = ns;
+        jump_armed_.store(true);
+    }
+
+  private:
+    // now_ is only touched from the render thread (both seams run there);
+    // the test thread only arms the jump through the atomics below.
+    int64_t now_ = 1000000000LL; // arbitrary nonzero start
+    int64_t jump_ns_ = 0;
+    std::atomic<bool> jump_armed_{false};
+};
+
+/// Mock sysfs + initialized backend with the virtual clock and a shrunken
+/// park threshold installed BEFORE the render thread starts.
+///
+/// Any shared state a source lambda captures by reference must be declared
+/// BEFORE the harness: the destructor clears the render source (joining the
+/// render thread) and runs before those locals die.
+struct PwmVirtualRun {
+    std::string base;
+    std::unique_ptr<PWMSoundBackend> backend;
+    VirtualClock clock;
+
+    explicit PwmVirtualRun(int park_threshold) : base(create_mock_sysfs(0, 6)) {
+        backend = std::make_unique<PWMSoundBackend>(base, 0, 6);
+        REQUIRE(backend->initialize());
+        PWMSoundBackendTestAccess::set_park_silent_buffers(*backend, park_threshold);
+        PWMSoundBackendTestAccess::set_now_fn(*backend, [this] { return clock.read(); });
+        PWMSoundBackendTestAccess::set_wait_until_fn(
+            *backend, [this](int64_t deadline) { clock.wait_until(deadline); });
+    }
+
+    ~PwmVirtualRun() {
+        backend->clear_render_source();
+        cleanup_mock_sysfs(base);
+    }
+};
+
+/// Poll pred() every 1 ms of real time until true or timeout.
+bool wait_for(const std::function<bool()>& pred, int timeout_ms = 2000) {
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (pred()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return pred();
+}
+
+} // namespace
+
+TEST_CASE("render loop parks after sustained silence", "[sound][pwm]") {
+    PwmVirtualRun run(2);
+    run.backend->set_render_source(
+        [](float* buf, size_t frames, int) { std::memset(buf, 0, frames * sizeof(float)); });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    // Park drops both duty and enable: the channel is fully off, not held
+    // at a mid-scale duty.
+    REQUIRE(read_sysfs_file(run.base + "/pwmchip0/pwm6/enable") == "0");
+    REQUIRE(read_sysfs_file(run.base + "/pwmchip0/pwm6/duty_cycle") == "0");
+}
+
+TEST_CASE("parked loop stops writing duty", "[sound][pwm]") {
+    PwmVirtualRun run(2);
+    run.backend->set_render_source(
+        [](float* buf, size_t frames, int) { std::memset(buf, 0, frames * sizeof(float)); });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    // 20 ms of real time is thousands of virtual park polls; the probe path
+    // must not touch duty_cycle.
+    uint64_t w1 = PWMSoundBackendTestAccess::duty_writes(*run.backend);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    uint64_t w2 = PWMSoundBackendTestAccess::duty_writes(*run.backend);
+    REQUIRE(w2 == w1);
+}
+
+TEST_CASE("parked loop resumes on non-silent buffer", "[sound][pwm]") {
+    std::atomic<bool> silent{true}; // declared before run: outlives the join
+    PwmVirtualRun run(2);
+    run.backend->set_render_source([&silent](float* buf, size_t frames, int) {
+        float v = silent.load() ? 0.0f : 0.5f;
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = v;
+        }
+    });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    silent.store(false);
+    REQUIRE(wait_for([&] { return !PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    // Resume re-enables the channel and duty writes continue.
+    REQUIRE(read_sysfs_file(run.base + "/pwmchip0/pwm6/enable") == "1");
+    uint64_t w1 = PWMSoundBackendTestAccess::duty_writes(*run.backend);
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::duty_writes(*run.backend) > w1; }));
+}
+
+TEST_CASE("non-zero buffer resets the silence run", "[sound][pwm]") {
+    std::atomic<int> full_buffers{0}; // 512-frame source calls (probes excluded)
+    std::atomic<bool> gate_open{false};
+    PwmVirtualRun run(3);
+    run.backend->set_render_source([&](float* buf, size_t frames, int) {
+        if (frames != static_cast<size_t>(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES)) {
+            std::memset(buf, 0, frames * sizeof(float)); // probes stay silent
+            return;
+        }
+        // Pattern: z, z, NON-ZERO, z, z, z... The non-zero buffer must
+        // restart the run, so parking needs 3 zeros AFTER it, not 3 total.
+        int n = full_buffers.fetch_add(1);
+        float v = (n == 2) ? 0.5f : 0.0f;
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = v;
+        }
+        if (n == 5) {
+            // Hold inside the 6th buffer's render call: buffers 0-4 are fully
+            // processed (run == 2), and buffer 5 cannot complete or park
+            // while gated, so the mid-run assertions below are deterministic.
+            while (!gate_open.load()) {
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+            }
+        }
+    });
+
+    REQUIRE(wait_for([&] { return full_buffers.load() >= 6; }));
+    // z, z, nz, z, z: the run restarted at the non-zero buffer and now
+    // stands at 2 — no park, even though 4 of the last 5 buffers were silent.
+    REQUIRE(PWMSoundBackendTestAccess::silent_buffer_run(*run.backend) == 2);
+    REQUIRE_FALSE(PWMSoundBackendTestAccess::parked(*run.backend));
+
+    gate_open.store(true);
+    // The 6th buffer completes a fresh run of 3 consecutive zeros.
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+}
+
+TEST_CASE("catch-up drops samples instead of bursting", "[sound][pwm]") {
+    std::atomic<int> full_buffers{0};
+    // Duty writes per full buffer. Element k is finalized by source call k+1;
+    // only the render thread touches the vector until the test joins it.
+    std::vector<uint64_t> buffer_writes;
+    uint64_t writes_at_start = 0;
+    PwmVirtualRun run(8); // non-zero content never parks
+    PWMSoundBackend* backend = run.backend.get();
+    run.backend->set_render_source([&](float* buf, size_t frames, int) {
+        if (frames != static_cast<size_t>(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES)) {
+            return;
+        }
+        int n = full_buffers.fetch_add(1);
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.5f;
+        }
+        if (n > 0) {
+            buffer_writes.push_back(PWMSoundBackendTestAccess::duty_writes(*backend) -
+                                    writes_at_start);
+        }
+        writes_at_start = PWMSoundBackendTestAccess::duty_writes(*backend);
+        if (n == 2) {
+            // Arm a +10-sample-interval jump: it fires on the render thread's
+            // next now_fn() call, mid-buffer — a scheduling stall.
+            run.clock.arm_jump(10 * (1000000000LL / PWMSoundBackend::PCM_SAMPLE_RATE));
+        }
+    });
+
+    REQUIRE(wait_for([&] { return full_buffers.load() >= 5; }));
+    run.backend->clear_render_source();
+    // Finalize the last buffer's delta now that the loop is joined.
+    buffer_writes.push_back(PWMSoundBackendTestAccess::duty_writes(*run.backend) - writes_at_start);
+
+    REQUIRE(buffer_writes.size() >= 4);
+    // Normal pacing writes every sample of the buffer.
+    REQUIRE(buffer_writes[0] == 512);
+    REQUIRE(buffer_writes[1] == 512);
+    // The stalled buffer drops the missed samples instead of bursting them.
+    REQUIRE(buffer_writes[2] < 512);
+    REQUIRE(buffer_writes[2] > 480); // bounded drop: ~10 samples, not the buffer
+    // And the loop keeps running normally afterwards.
+    REQUIRE(buffer_writes[3] == 512);
+}
+
+TEST_CASE("render thread applies SCHED_IDLE", "[sound][pwm]") {
+    PwmVirtualRun run(8);
+    run.backend->set_render_source([](float* buf, size_t frames, int) {
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.25f;
+        }
+    });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::duty_writes(*run.backend) > 0; }));
+
+    // CHECK, not REQUIRE: an unprivileged sandbox may refuse SCHED_IDLE; the
+    // loop logs that and continues at SCHED_OTHER (policy stays -1).
+    CHECK(PWMSoundBackendTestAccess::applied_sched_policy(*run.backend) == SCHED_IDLE);
+}
+
+// ============================================================================
+// PCM render loop (real clock) — [slow], excluded from make test-run
+// ============================================================================
+
+TEST_CASE("render loop paces near 8 kHz with real clock", "[sound][pwm][slow]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    backend.set_render_source([](float* buf, size_t frames, int sr) {
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.4f * std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) /
+                                     static_cast<float>(sr));
+        }
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    uint64_t writes = PWMSoundBackendTestAccess::duty_writes(backend);
+    backend.clear_render_source();
+
+    // 0.5 s at 8 kHz = 4000 writes. Far undershooting means over-sleeping;
+    // overshooting means the deadline pacing broke and the loop bursts.
+    REQUIRE(writes >= 2500);
+    REQUIRE(writes <= 9000);
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("clear_render_source joins promptly while parked", "[sound][pwm][slow]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+    PWMSoundBackendTestAccess::set_park_silent_buffers(backend, 2);
+
+    backend.set_render_source(
+        [](float* buf, size_t frames, int) { std::memset(buf, 0, frames * sizeof(float)); });
+
+    // Real clock: 2 silent buffers of 64 ms each before the park lands.
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(backend); }, 5000));
+
+    auto t0 = std::chrono::steady_clock::now();
+    backend.clear_render_source();
+    auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0)
+            .count();
+    // Parked polls sleep 10 ms per cycle; the join must not wait out a buffer.
+    REQUIRE(elapsed_ms < 250);
 
     cleanup_mock_sysfs(base);
 }

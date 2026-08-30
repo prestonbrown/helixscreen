@@ -116,9 +116,25 @@ class PWMSoundBackend : public SoundBackend {
     static int64_t resync_sample_index(int64_t now_ns, int64_t base_ns, int64_t interval_ns);
 
   private:
+    friend class PWMSoundBackendTestAccess;
+
     void start_render_thread();
     void stop_render_thread();
     void render_loop();
+
+    /// Demote the render thread to SCHED_IDLE (plus 1 ns timerslack) so its
+    /// pacing can never starve klippy or the UI, no matter how it schedules
+    void apply_render_thread_priority();
+
+    /// Park the channel after sustained digital silence: duty 0 + enable 0,
+    /// then the caller drops to the cheap poll. Leaves enabled_ and
+    /// in_pcm_mode_ untouched — silence()'s render_running_ guard and
+    /// set_tone's first-tone branch key off them.
+    void park_output();
+
+    /// Leave the parked state: duty 0 + enable 1 (period was already set by
+    /// enter_pcm_mode; re-writing duty keeps the enable transition pop-free)
+    void resume_output();
 
     /// Write channel_ to <base>/pwmchip<N>/export so the kernel materializes
     /// the channel directory. Returns false only when the chip directory is
@@ -146,6 +162,18 @@ class PWMSoundBackend : public SoundBackend {
     std::atomic<bool> render_running_{false};
     bool in_pcm_mode_ = false;
 
+    // Park/catch-up state — written on the render thread, read by tests
+    std::atomic<bool> parked_{false};
+    std::atomic<int> silent_buffer_run_{0};
+    std::atomic<uint64_t> duty_write_count_{0};
+    int park_silent_buffers_ = PCM_PARK_SILENT_BUFFERS;
+
+    // Clock/sleep seams — injected by tests before the render thread starts,
+    // otherwise defaulted by render_loop() itself
+    std::function<int64_t()> now_fn_;
+    std::function<void(int64_t)> wait_until_fn_;
+    int applied_sched_policy_ = -1;
+
     // Pre-opened file descriptors for fast sysfs writes in render loop
     int fd_duty_ = -1;
     int fd_period_ = -1;
@@ -154,6 +182,8 @@ class PWMSoundBackend : public SoundBackend {
     // Track last period for glitch-free tone transitions
     uint32_t last_period_ns_ = 0;
 
-    // Render buffer
+    // Render buffer (PCM_RENDER_BUFFER_FRAMES per source call) and the
+    // smaller probe buffer the parked loop polls with
     std::vector<float> render_buf_;
+    std::vector<float> park_probe_buf_;
 };
