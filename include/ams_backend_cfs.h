@@ -241,7 +241,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
      * `enabled` comes from `box.auto_refill` (stock) / `box.runout_swap_enabled`
      * (flat fork) via AmsSystemInfo::endless_spool_enabled, so on and off are now
      * distinguishable; the old struct hardcoded `supported = true` and buried the
-     * real state in an untranslated `description` string.
+     * real state in an untranslated `description` string. When auto-refill is on
+     * AND the frame carried `same_material` AND no group pairs two lanes,
+     * `enabled` degrades to OnWithoutBackup (#1391): a runout would stop the
+     * print despite the setting, and advertising plain On is a promise the box
+     * cannot keep. Frames without the field (the flat dialect never sends it)
+     * keep the plain On answer - no data is not a negative - and a stock delta
+     * that omits the field retains the last known grouping (presence-gated
+     * like filament_runout); only a schema switch to flat clears it.
      *
      * @note Takes `mutex_`; callers must NOT hold it.
      */
