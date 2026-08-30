@@ -113,7 +113,7 @@ void LanClientAuthRouter::on_request(const std::string& method, const nlohmann::
         return;
     }
 
-    if (lan_auth::suppressed_by_denial(req->client_id, denied_client_id_, denied_at_,
+    if (lan_auth::suppressed_by_denial(req->client_id, denied_clients_,
                                        std::chrono::steady_clock::now())) {
         // A denied client never enters the firmware's registry, so each of its
         // reconnects files a fresh request. Dropping it here is the whole fix;
@@ -161,12 +161,21 @@ void LanClientAuthRouter::decide(bool approve) {
     pending_.reset();
 
     // Suppression keys on an actual denial only (prestonbrown/helixscreen#1376):
-    // an approval clears any stale record, a dismissal never writes one.
+    // an approval clears that client's record, a dismissal never writes one.
     if (approve) {
-        denied_client_id_.clear();
+        denied_clients_.erase(req.client_id);
     } else {
-        denied_client_id_ = req.client_id;
-        denied_at_ = std::chrono::steady_clock::now();
+        // Prune expired entries so the map stays bounded by clients denied
+        // within the window, not by every client ever denied.
+        const auto now = std::chrono::steady_clock::now();
+        for (auto it = denied_clients_.begin(); it != denied_clients_.end();) {
+            if (now - it->second >= lan_auth::denial_suppression_window) {
+                it = denied_clients_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        denied_clients_[req.client_id] = now;
     }
 
     std::optional<lan_auth::Decision> decision = lan_auth::build_decision(req, approve);

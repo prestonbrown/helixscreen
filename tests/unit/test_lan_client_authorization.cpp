@@ -22,6 +22,7 @@
 #include "lan_client_authorization.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -287,37 +288,50 @@ TEST_CASE("lan auth: the failure log can name the state the firmware sent", "[la
 TEST_CASE("lan auth: a denied client is suppressed inside the window", "[lanauth][1376]") {
     using helix::lan_auth::suppressed_by_denial;
     const auto denied_at = std::chrono::steady_clock::time_point{std::chrono::seconds{1000}};
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> denied = {
+        {"orca-1", denied_at}};
 
-    CHECK(
-        suppressed_by_denial("orca-1", "orca-1", denied_at, denied_at + std::chrono::seconds{59}));
+    CHECK(suppressed_by_denial("orca-1", denied, denied_at + std::chrono::seconds{59}));
 }
 
 TEST_CASE("lan auth: suppression ends at the window boundary", "[lanauth][1376]") {
+    using helix::lan_auth::denial_suppression_window;
     using helix::lan_auth::suppressed_by_denial;
     const auto denied_at = std::chrono::steady_clock::time_point{std::chrono::seconds{1000}};
-    using helix::lan_auth::denial_suppression_window;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> denied = {
+        {"orca-1", denied_at}};
 
     // The window is exclusive: at exactly 60s the client may ask again, so a
     // mistaken Deny costs one minute and not a restart.
-    CHECK_FALSE(
-        suppressed_by_denial("orca-1", "orca-1", denied_at, denied_at + denial_suppression_window));
-    CHECK_FALSE(
-        suppressed_by_denial("orca-1", "orca-1", denied_at, denied_at + std::chrono::hours{1}));
+    CHECK_FALSE(suppressed_by_denial("orca-1", denied, denied_at + denial_suppression_window));
+    CHECK_FALSE(suppressed_by_denial("orca-1", denied, denied_at + std::chrono::hours{1}));
 }
 
-TEST_CASE("lan auth: suppression is keyed to the denied client only", "[lanauth][1376]") {
+TEST_CASE("lan auth: suppression is keyed per denied client", "[lanauth][1376]") {
     using helix::lan_auth::suppressed_by_denial;
     const auto denied_at = std::chrono::steady_clock::time_point{std::chrono::seconds{1000}};
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> denied = {
+        {"orca-1", denied_at}};
 
     // A different client asking during the window still gets its prompt.
-    CHECK_FALSE(
-        suppressed_by_denial("app-2", "orca-1", denied_at, denied_at + std::chrono::seconds{10}));
+    CHECK_FALSE(suppressed_by_denial("app-2", denied, denied_at + std::chrono::seconds{10}));
+}
+
+TEST_CASE("lan auth: denying a second client leaves the first suppressed", "[lanauth][1376]") {
+    using helix::lan_auth::suppressed_by_denial;
+    const auto t0 = std::chrono::steady_clock::time_point{std::chrono::seconds{1000}};
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> denied = {
+        {"orca-1", t0}, {"app-2", t0 + std::chrono::seconds{20}}};
+
+    // The single-slot bug this pins: B's later denial must not re-arm A.
+    CHECK(suppressed_by_denial("orca-1", denied, t0 + std::chrono::seconds{30}));
+    CHECK(suppressed_by_denial("app-2", denied, t0 + std::chrono::seconds{30}));
 }
 
 TEST_CASE("lan auth: no recorded denial suppresses nothing", "[lanauth][1376]") {
     using helix::lan_auth::suppressed_by_denial;
-    // Empty denied id is the "no denial on record" state - e.g. after an
-    // approval cleared it, or a dismissal which answered nothing.
-    CHECK_FALSE(suppressed_by_denial("orca-1", "", std::chrono::steady_clock::time_point{},
-                                     std::chrono::steady_clock::time_point{}));
+    // An empty map is the "nothing denied" state - e.g. after an approval
+    // cleared the entry, or a dismissal which answered nothing.
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> denied;
+    CHECK_FALSE(suppressed_by_denial("orca-1", denied, std::chrono::steady_clock::time_point{}));
 }
