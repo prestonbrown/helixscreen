@@ -935,8 +935,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
     // The derived lifecycle, read once beside the other whole-printer flags for
     // the same reason (our lock never protected it): both phase-aware terms
     // below need it.
-    const auto lifecycle = static_cast<PrintState>(
-        lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+    const auto lifecycle = get_printer_state().get_print_lifecycle();
     const bool job_owns_machine = job_holds_machine(lifecycle);
     AmsType backend_type = AmsType::NONE;
     if (auto* backend = AmsState::instance().get_backend()) {

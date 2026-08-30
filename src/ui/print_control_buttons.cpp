@@ -128,9 +128,8 @@ void PrintControlButtons::handle_primary_button() {
         spdlog::warn("[PrintControl] No API - cannot dispatch primary action");
         return;
     }
-    auto state = static_cast<helix::PrintJobState>(
-        // RAW_PRINT_STATE_OK: picks which macro to send; see below.
-        lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+    // RAW_PRINT_STATE_OK: picks which macro to send; see below.
+    auto state = get_printer_state().get_print_job_state();
     auto& macros = StandardMacros::instance();
 
     // RAW_PRINT_STATE_OK: chooses WHICH macro to send. Pause is meaningless

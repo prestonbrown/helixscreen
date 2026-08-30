@@ -300,6 +300,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
     // Idle -> Complete and correctly does not notify.
     (void)subject; // the lifecycle subject; read through the typed accessor
     const auto lifecycle = get_printer_state().get_print_lifecycle();
+    // PRINT_STATE_CAST_OK: the PREVIOUS lifecycle has no typed accessor, and
+    // this transition check needs the prior value; the prev subject is
+    // PrintState-typed by construction, so the pairing is not in question.
     const auto prev_lifecycle = static_cast<PrintState>(
         lv_subject_get_int(get_printer_state().get_print_lifecycle_prev_subject()));
 
@@ -311,10 +314,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
 
     if (should_notify_print_ended(prev_lifecycle, lifecycle, outcome)) {
         // The terminal job state still drives which message and sound are used.
-        const auto current = static_cast<PrintJobState>(
-            // RAW_PRINT_STATE_OK: terminal-outcome formatting is about what the
-            // printer reported, and the outcome enum derives from it directly.
-            lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+        // RAW_PRINT_STATE_OK: terminal-outcome formatting is about what the
+        // printer reported, and the outcome enum derives from it directly.
+        const auto current = get_printer_state().get_print_job_state();
         // Get filename from PrinterState and format for display
         const char* raw_filename =
             lv_subject_get_string(get_printer_state().get_print_filename_subject());
