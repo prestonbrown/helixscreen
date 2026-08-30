@@ -122,8 +122,12 @@ class PrintSelectCardView {
     // Non-copyable, movable
     PrintSelectCardView(const PrintSelectCardView&) = delete;
     PrintSelectCardView& operator=(const PrintSelectCardView&) = delete;
-    PrintSelectCardView(PrintSelectCardView&& other) noexcept;
-    PrintSelectCardView& operator=(PrintSelectCardView&& other) noexcept;
+    // Non-movable: the container's LV_EVENT_DELETE net is keyed to this
+    // instance, so a move would strand it on the moved-from object. The
+    // views are held by unique_ptr and never moved; the compiler enforces
+    // that staying true.
+    PrintSelectCardView(PrintSelectCardView&&) = delete;
+    PrintSelectCardView& operator=(PrintSelectCardView&&) = delete;
 
     // === Configuration ===
 
@@ -321,6 +325,15 @@ class PrintSelectCardView {
     static void on_card_clicked(lv_event_t* e);
     static void on_card_long_pressed(lv_event_t* e);
     static void on_card_press_lost(lv_event_t* e);
+
+    /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
+    /// run while the tree those pointers refer to is mid-deletion.
+    void clear_cached_state();
+
+    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
+    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
+    /// outlive it (prestonbrown/helixscreen#1396).
+    static void on_container_delete(lv_event_t* e);
 };
 
 } // namespace helix::ui

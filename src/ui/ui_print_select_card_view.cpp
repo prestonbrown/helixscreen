@@ -56,63 +56,6 @@ PrintSelectCardView::~PrintSelectCardView() {
     spdlog::trace("[PrintSelectCardView] Destroyed");
 }
 
-PrintSelectCardView::PrintSelectCardView(PrintSelectCardView&& other) noexcept
-    : container_(other.container_), leading_spacer_(other.leading_spacer_),
-      trailing_spacer_(other.trailing_spacer_), card_pool_(std::move(other.card_pool_)),
-      card_pool_indices_(std::move(other.card_pool_indices_)),
-      card_data_pool_(std::move(other.card_data_pool_)), cards_per_row_(other.cards_per_row_),
-      visible_start_row_(other.visible_start_row_), visible_end_row_(other.visible_end_row_),
-      cached_gradient_(other.cached_gradient_), cached_gradient_w_(other.cached_gradient_w_),
-      cached_gradient_h_(other.cached_gradient_h_),
-      cached_gradient_dark_(other.cached_gradient_dark_),
-      theme_observer_(std::move(other.theme_observer_)),
-      on_file_click_(std::move(other.on_file_click_)),
-      on_file_long_press_(std::move(other.on_file_long_press_)),
-      on_metadata_fetch_(std::move(other.on_metadata_fetch_)),
-      suppress_next_click_(other.suppress_next_click_) {
-    other.container_ = nullptr;
-    other.leading_spacer_ = nullptr;
-    other.trailing_spacer_ = nullptr;
-    other.visible_start_row_ = -1;
-    other.visible_end_row_ = -1;
-    other.cached_gradient_ = nullptr;
-    other.suppress_next_click_ = false;
-}
-
-PrintSelectCardView& PrintSelectCardView::operator=(PrintSelectCardView&& other) noexcept {
-    if (this != &other) {
-        cleanup();
-
-        container_ = other.container_;
-        leading_spacer_ = other.leading_spacer_;
-        trailing_spacer_ = other.trailing_spacer_;
-        card_pool_ = std::move(other.card_pool_);
-        card_pool_indices_ = std::move(other.card_pool_indices_);
-        card_data_pool_ = std::move(other.card_data_pool_);
-        cards_per_row_ = other.cards_per_row_;
-        visible_start_row_ = other.visible_start_row_;
-        visible_end_row_ = other.visible_end_row_;
-        cached_gradient_ = other.cached_gradient_;
-        cached_gradient_w_ = other.cached_gradient_w_;
-        cached_gradient_h_ = other.cached_gradient_h_;
-        cached_gradient_dark_ = other.cached_gradient_dark_;
-        theme_observer_ = std::move(other.theme_observer_);
-        on_file_click_ = std::move(other.on_file_click_);
-        on_file_long_press_ = std::move(other.on_file_long_press_);
-        on_metadata_fetch_ = std::move(other.on_metadata_fetch_);
-        suppress_next_click_ = other.suppress_next_click_;
-
-        other.container_ = nullptr;
-        other.leading_spacer_ = nullptr;
-        other.trailing_spacer_ = nullptr;
-        other.visible_start_row_ = -1;
-        other.visible_end_row_ = -1;
-        other.cached_gradient_ = nullptr;
-        other.suppress_next_click_ = false;
-    }
-    return *this;
-}
-
 // ============================================================================
 // Setup / Cleanup
 // ============================================================================
@@ -124,6 +67,20 @@ bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_c
         return false;
     }
 
+    if (container_ != container) {
+        if (container_) {
+            // A different container means the tree the pool was built under is
+            // gone (hot-reload rebuild deletes and re-creates the widget tree
+            // on the same surviving panel). Cached pointers would dangle. Unhook
+            // the old net: rebuild deletes the old subtree on the DEFERRED
+            // path, so it may still fire one tick from now — after this view
+            // has already moved on — and must not wipe the fresh pool.
+            lv_obj_remove_event_cb_with_user_data(container_, on_container_delete, this);
+            clear_cached_state();
+        }
+        lv_obj_add_event_cb(container, on_container_delete, LV_EVENT_DELETE, this);
+    }
+
     container_ = container;
     on_file_click_ = std::move(on_file_click);
     on_metadata_fetch_ = std::move(on_metadata_fetch);
@@ -132,7 +89,7 @@ bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_c
     return true;
 }
 
-void PrintSelectCardView::cleanup() {
+void PrintSelectCardView::clear_cached_state() {
     // Deinitialize subjects - this properly removes all attached observers.
     // We use lv_subject_deinit() instead of lv_observer_remove() because
     // widget-bound observers (from lv_label_bind_text, lv_obj_bind_flag_if_*)
@@ -167,13 +124,39 @@ void PrintSelectCardView::cleanup() {
     card_pool_indices_.clear();
 
     // Clear widget references (owned by LVGL widget tree)
-    container_ = nullptr;
     leading_spacer_ = nullptr;
     trailing_spacer_ = nullptr;
     visible_start_row_ = -1;
     visible_end_row_ = -1;
     last_leading_height_ = -1;
     last_trailing_height_ = -1;
+}
+
+void PrintSelectCardView::on_container_delete(lv_event_t* e) {
+    auto* self = static_cast<PrintSelectCardView*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    // The callback dies with the container, so nothing to remove here — just
+    // drop the cached pointers before they dangle (prestonbrown/helixscreen#1396).
+    // Guarded: a deferred subtree deletion can land after setup() already
+    // re-pointed this view at a replacement tree, and that late fire must not
+    // wipe the new pool.
+    if (self->container_ != lv_event_get_target(e)) {
+        return;
+    }
+    self->container_ = nullptr;
+    self->clear_cached_state();
+}
+
+void PrintSelectCardView::cleanup() {
+    // Remove the delete net first when the container still outlives this view,
+    // so it can never fire into a destroyed owner.
+    if (container_) {
+        lv_obj_remove_event_cb_with_user_data(container_, on_container_delete, this);
+    }
+    clear_cached_state();
+    container_ = nullptr;
     spdlog::debug("[PrintSelectCardView] cleanup()");
 }
 

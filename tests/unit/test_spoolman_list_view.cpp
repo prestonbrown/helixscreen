@@ -1,12 +1,15 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_print_select_card_view.h"
+#include "ui_print_select_list_view.h"
 #include "ui_spoolman_list_view.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 
 #include <string>
+#include <type_traits>
 
 #include "../catch_amalgamated.hpp"
 
@@ -213,3 +216,129 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites
     // Rows are recycled in place, so the label pointer stays valid.
     REQUIRE(std::string(lv_label_get_text(weight_label)) == "42g");
 }
+
+// ============================================================================
+// Container replacement (hot-reload rebuild) — prestonbrown/helixscreen#1396
+//
+// OverlayBase::rebuild() and PanelBase::rebuild() delete the widget tree and
+// re-create it via create() on the SAME panel instance. The list view is a
+// member of that panel, so it survives while every pool row and spacer it
+// cached dangles. setup() with the fresh container must drop the dead pool.
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - container deletion drops the cached pool",
+                 "[spoolman_list_view][ui_integration][hot-reload]") {
+    SpoolmanListView view;
+    lv_obj_t* container_a = lv_obj_create(test_screen());
+    lv_obj_set_size(container_a, 400, 600);
+    lv_obj_add_flag(container_a, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container_a, LV_FLEX_FLOW_COLUMN);
+    view.setup(container_a);
+
+    auto spools = make_test_spools(10);
+    view.populate(spools, 1);
+    process_lvgl(50);
+    REQUIRE(view.is_initialized() == true);
+    const uint32_t children_a = lv_obj_get_child_count(container_a);
+    REQUIRE(children_a > 0); // pool rows + spacers live under the container
+
+    // The rebuild path deletes the tree while the owning panel survives.
+    lv_obj_delete(container_a);
+
+    // The pool was built under the deleted tree; keeping it means every later
+    // populate touches freed widgets (the #1396 SIGSEGV).
+    REQUIRE(view.is_initialized() == false);
+    REQUIRE(view.container() == nullptr);
+
+    // create() re-runs setup() with the fresh container; populate must build a
+    // new pool there rather than reuse the freed rows.
+    lv_obj_t* container_b = lv_obj_create(test_screen());
+    lv_obj_set_size(container_b, 400, 600);
+    lv_obj_add_flag(container_b, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container_b, LV_FLEX_FLOW_COLUMN);
+    view.setup(container_b);
+    view.populate(spools, 1);
+    process_lvgl(50);
+
+    REQUIRE(view.is_initialized() == true);
+    REQUIRE(lv_obj_get_child_count(container_b) == children_a);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "SpoolmanListView - re-setup with the same container keeps the pool",
+                 "[spoolman_list_view][ui_integration]") {
+    SpoolmanListView view;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 600);
+    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    view.setup(container);
+
+    auto spools = make_test_spools(10);
+    view.populate(spools, 1);
+    process_lvgl(50);
+    const uint32_t children_before = lv_obj_get_child_count(container);
+    REQUIRE(children_before > 0);
+
+    // Deactivate/reactivate keeps the tree alive; setup() must not treat this
+    // as a replacement and rebuild a second pool over the first.
+    REQUIRE(view.setup(container) == true);
+    view.populate(spools, 1);
+    process_lvgl(50);
+
+    REQUIRE(view.is_initialized() == true);
+    REQUIRE(lv_obj_get_child_count(container) == children_before);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "SpoolmanListView - late deletion of a replaced container keeps the new pool",
+                 "[spoolman_list_view][ui_integration][hot-reload]") {
+    // OverlayBase::rebuild() frees the old subtree on the DEFERRED path
+    // (safe_delete_subtree → safe_delete_deferred), so the old tree's
+    // LV_EVENT_DELETE can land one tick AFTER create() has already re-run
+    // setup() with the replacement container. That late fire must not wipe
+    // the freshly built pool.
+    SpoolmanListView view;
+    lv_obj_t* container_a = lv_obj_create(test_screen());
+    lv_obj_set_size(container_a, 400, 600);
+    lv_obj_add_flag(container_a, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container_a, LV_FLEX_FLOW_COLUMN);
+    view.setup(container_a);
+    auto spools = make_test_spools(10);
+    view.populate(spools, 1);
+    process_lvgl(50);
+
+    // Rebuild: setup() gets the replacement container first...
+    lv_obj_t* container_b = lv_obj_create(test_screen());
+    lv_obj_set_size(container_b, 400, 600);
+    lv_obj_add_flag(container_b, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container_b, LV_FLEX_FLOW_COLUMN);
+    view.setup(container_b);
+    view.populate(spools, 1);
+    process_lvgl(50);
+    REQUIRE(view.is_initialized() == true);
+    REQUIRE(view.container() == container_b);
+    const uint32_t children_b = lv_obj_get_child_count(container_b);
+    REQUIRE(children_b > 0);
+
+    // ...and only then does the old subtree's deferred deletion land.
+    lv_obj_delete(container_a);
+    process_lvgl(50);
+
+    REQUIRE(view.is_initialized() == true);
+    REQUIRE(view.container() == container_b);
+    REQUIRE(lv_obj_get_child_count(container_b) == children_b);
+}
+
+// The PrintSelect views share this fix's contract: their pools die with their
+// containers via an LV_EVENT_DELETE net keyed to the instance, so the classes
+// must stay non-movable — a move would strand the net on the moved-from
+// object. Pinned at compile time in the file that owns the contract test.
+static_assert(!std::is_move_constructible_v<helix::ui::PrintSelectCardView>,
+              "PrintSelectCardView must stay non-movable (delete-net keys to the instance)");
+static_assert(!std::is_move_assignable_v<helix::ui::PrintSelectCardView>,
+              "PrintSelectCardView must stay non-movable (delete-net keys to the instance)");
+static_assert(!std::is_move_constructible_v<helix::ui::PrintSelectListView>,
+              "PrintSelectListView must stay non-movable (delete-net keys to the instance)");
+static_assert(!std::is_move_assignable_v<helix::ui::PrintSelectListView>,
+              "PrintSelectListView must stay non-movable (delete-net keys to the instance)");

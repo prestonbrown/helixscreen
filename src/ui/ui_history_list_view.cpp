@@ -56,6 +56,20 @@ bool HistoryListView::setup(lv_obj_t* container, lv_obj_t* scroll_parent,
         return false;
     }
 
+    if (container_ != container) {
+        if (container_) {
+            // A different container means the tree the pool was built under is
+            // gone (hot-reload rebuild deletes and re-creates the widget tree
+            // on the same surviving panel). Cached pointers would dangle. Unhook
+            // the old net: rebuild deletes the old subtree on the DEFERRED
+            // path, so it may still fire one tick from now — after this view
+            // has already moved on — and must not wipe the fresh pool.
+            lv_obj_remove_event_cb_with_user_data(container_, on_container_delete, this);
+            clear_cached_state();
+        }
+        lv_obj_add_event_cb(container, on_container_delete, LV_EVENT_DELETE, this);
+    }
+
     container_ = container;
     scroll_parent_ = scroll_parent ? scroll_parent : container;
     on_click_ = std::move(on_click);
@@ -63,10 +77,9 @@ bool HistoryListView::setup(lv_obj_t* container, lv_obj_t* scroll_parent,
     return true;
 }
 
-void HistoryListView::cleanup() {
+void HistoryListView::clear_cached_state() {
     pool_.clear();
     pool_indices_.clear();
-    container_ = nullptr;
     scroll_parent_ = nullptr;
     leading_spacer_ = nullptr;
     trailing_spacer_ = nullptr;
@@ -77,6 +90,33 @@ void HistoryListView::cleanup() {
     cached_row_gap_ = 0;
     last_leading_height_ = -1;
     last_trailing_height_ = -1;
+}
+
+void HistoryListView::on_container_delete(lv_event_t* e) {
+    auto* self = static_cast<HistoryListView*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    // The callback dies with the container, so nothing to remove here — just
+    // drop the cached pointers before they dangle (prestonbrown/helixscreen#1396).
+    // Guarded: a deferred subtree deletion can land after setup() already
+    // re-pointed this view at a replacement tree, and that late fire must not
+    // wipe the new pool.
+    if (self->container_ != lv_event_get_target(e)) {
+        return;
+    }
+    self->container_ = nullptr;
+    self->clear_cached_state();
+}
+
+void HistoryListView::cleanup() {
+    // Remove the delete net first when the container still outlives this view,
+    // so it can never fire into a destroyed owner.
+    if (container_) {
+        lv_obj_remove_event_cb_with_user_data(container_, on_container_delete, this);
+    }
+    clear_cached_state();
+    container_ = nullptr;
     spdlog::debug("[HistoryListView] cleanup()");
 }
 
