@@ -76,6 +76,14 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
                 // actions routes to a blocking modal whose advice would assert
                 // one cause for all of them. A toast needs no action.
                 e.severity = ErrorSeverity::WARNING;
+            } else if (code == "key839") {
+                // key839 is "no filament at the CFS extrude position": the
+                // firmware restating the slot's emptiness that the runout flow
+                // is already prompting about (#1388). It offers no action that
+                // prompt lacks, so the blanket CRITICAL promotion just stacks a
+                // second blocking modal on one runout. WARNING routes it to a
+                // deduped toast instead.
+                e.severity = ErrorSeverity::WARNING;
             }
         } else if (code == "key298") {
             e.severity = ErrorSeverity::WARNING;

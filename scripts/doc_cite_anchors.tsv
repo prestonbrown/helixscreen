@@ -260,8 +260,8 @@ docs/devel/architecture/04-moonraker.md	include/moonraker_client.h	812	include/m
 docs/devel/architecture/04-moonraker.md	include/moonraker_manager.h	311	include/moonraker_manager.h	6c1d75cb440e	5b2ce028b96e
 docs/devel/architecture/04-moonraker.md	include/moonraker_manager.h	391	include/moonraker_manager.h	93c321d2e81c	602fbce03716
 docs/devel/architecture/04-moonraker.md	include/moonraker_request_tracker.h	145	include/moonraker_request_tracker.h	fcf95ace20a4	80221a83b24d
-docs/devel/architecture/04-moonraker.md	include/runtime_config.h	26	include/runtime_config.h	663c13299631	cd73af17f14e
-docs/devel/architecture/04-moonraker.md	include/runtime_config.h	191	include/runtime_config.h	8178bb54f33e	035f42b98585
+docs/devel/architecture/04-moonraker.md	include/runtime_config.h	28	include/runtime_config.h	663c13299631	cd73af17f14e
+docs/devel/architecture/04-moonraker.md	include/runtime_config.h	193	include/runtime_config.h	8178bb54f33e	035f42b98585
 docs/devel/architecture/04-moonraker.md	include/system/crash_reporter.h	259	include/system/crash_reporter.h	beff75ee6eb8	72379c2d6e6b
 docs/devel/architecture/04-moonraker.md	include/system/telemetry_manager.h	763	include/system/telemetry_manager.h	3d40ce6710e1	dd6a678124aa
 docs/devel/architecture/04-moonraker.md	include/system/update_checker.h	82	include/system/update_checker.h	7e6e7016ff1a	03e7b728b172
