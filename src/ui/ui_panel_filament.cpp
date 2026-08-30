@@ -1900,6 +1900,15 @@ int FilamentPanel::selected_op_slot() const {
 }
 
 void FilamentPanel::update_filament_op_buttons() {
+    // The observer handlers that queue this run from panel construction on,
+    // but the gating subjects only exist once init_subjects() has — writing
+    // them before that walks indeterminate memory (the 0xbe-filled
+    // load_disabled_subject_ in the #1393 shard crashes; the chamber display
+    // 20 lines up already carries this guard). No-op until the panel is live.
+    if (!are_subjects_initialized()) {
+        return;
+    }
+
     // Recompute Load/Unload/Purge gating from the SELECTED tool's LIVE load
     // state (Task 5). Without an AMS backend (single-extruder / external-spool
     // mode) we have no per-slot load signal, so leave both enabled — the only
