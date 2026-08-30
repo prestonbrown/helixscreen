@@ -129,6 +129,15 @@ std::string encode_scan();
 std::string encode_cancel();
 
 /**
+ * @brief True for ERR reasons that mean a credentials rejection.
+ *
+ * The one place that knows the daemon's auth-failure vocabulary; both the
+ * sync error mapping and the async AUTH_FAILED event path classify through
+ * this, so a renamed reason is fixed once.
+ */
+bool is_auth_failure_reason(const std::string& reason);
+
+/**
  * @brief Encode a join request. Both parameters are base64-encoded so any
  * UTF-8 SSID or passphrase survives the line framing.
  *

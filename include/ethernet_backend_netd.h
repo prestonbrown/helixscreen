@@ -5,6 +5,7 @@
 
 #include "ethernet_backend.h"
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -16,27 +17,37 @@
  * synchronous: no events, no threads, no sockets of its own — every
  * get_info() opens one connection, sends one GET, and closes.
  *
- * has_interface() is deliberately daemon-free: it scans sysfs directly, so
- * the Ethernet row's visibility never flaps when the daemon restarts, and a
- * downed eth0 (which still exists in sysfs) still counts as present.
+ * Kernel state is the fallback half: adapter identity (interface/MAC) comes
+ * from the kernel reader even when the daemon answers (its connected-first
+ * preference is the right pick on multi-adapter boxes), and when the daemon
+ * is unreachable the kernel reading IS the answer — a daemon that died
+ * mid-session must not blank a row whose kernel address is still live.
  *
- * Interface detection mirrors EthernetBackendLinux's name classification:
- * accept the well-known physical prefixes (eth/eno/enp/enP/ens/end/enx/em),
- * reject loopback, wireless, bridge and container names.
+ * has_interface() is deliberately daemon-free: it scans sysfs directly (the
+ * shared ethernet:: classification), so the Ethernet row's visibility never
+ * flaps when the daemon restarts, and a downed eth0 (which still exists in
+ * sysfs) still counts as present.
  *
  * Both calls are safe to invoke from any thread except the LVGL thread:
- * get_info() blocks for up to helix::netd::query_snapshot()'s default
- * 500 ms timeout while the daemon answers. EthernetManager already runs it
- * on a worker thread.
+ * get_info() blocks for up to ~1 s worst case (2x the 500 ms per-read
+ * timeout — a healthy daemon answers in milliseconds) and runs on the
+ * shared HttpExecutor fast lane, so that bound is worker-pinning time.
+ * EthernetManager already runs it on a worker thread.
  */
 class EthernetBackendNetd : public EthernetBackend {
   public:
     /**
-     * @param sysfs_root Sysfs mount to read <root>/class/net/ under.
-     *                   Injectable so tests can point at a fake tree;
-     *                   production uses the default "/sys".
+     * @param sysfs_root   Sysfs mount to read <root>/class/net/ under.
+     *                     Injectable so tests can point at a fake tree;
+     *                     production uses the default "/sys".
+     * @param kernel_state Kernel-state reader used for adapter identity and
+     *                     as the whole answer when the daemon is unreachable.
+     *                     Injectable so tests are host-independent; the
+     *                     default reads the real kernel through
+     *                     EthernetBackendLinux.
      */
-    explicit EthernetBackendNetd(const std::string& sysfs_root = "/sys");
+    explicit EthernetBackendNetd(const std::string& sysfs_root = "/sys",
+                                 std::function<EthernetInfo()> kernel_state = nullptr);
     ~EthernetBackendNetd() override;
 
     // ========================================================================
@@ -47,32 +58,6 @@ class EthernetBackendNetd : public EthernetBackend {
     EthernetInfo get_info() override;
 
   private:
-    /**
-     * @brief Check if an interface name looks like physical Ethernet
-     *
-     * Prefix tables only (no sysfs probe): reject loopback, wireless and
-     * virtual prefixes first, then accept the well-known physical Ethernet
-     * naming schemes.
-     *
-     * @param name Interface name (e.g., "eth0", "enp3s0")
-     * @return true if the name matches an Ethernet pattern
-     */
-    static bool is_ethernet_interface_name(const std::string& name);
-
-    /**
-     * @brief Scan <sysfs_root>/class/net/ for ethernet interfaces
-     *
-     * @return Ethernet-style interface names (e.g., {"eth0", "enp3s0"})
-     */
-    std::vector<std::string> scan_sysfs_interfaces() const;
-
-    /**
-     * @brief Read <sysfs_root>/class/net/<interface>/address, trimmed
-     *
-     * @return The MAC string, or "" when unreadable (logged at trace only:
-     *         a MAC is PII)
-     */
-    std::string read_mac_address(const std::string& interface) const;
-
     std::string sysfs_root_;
+    std::function<EthernetInfo()> kernel_state_;
 };

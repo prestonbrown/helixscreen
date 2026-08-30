@@ -918,6 +918,14 @@ the factory falls through to NetworkManager/wpa_supplicant.
 HELIX_NETD_BIN=/bin/true HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
 ```
 
+Recovery-boot note: a boot that ships the daemon but runs the stock stack
+(the firmware's own netd-failure fallback, or a `SKIP_MOD_SOFT` boot) still
+selects the netd backends — the binary is present, so the probe commits.
+WiFi then reads unavailable until the daemon returns; Ethernet still shows
+kernel state (the netd ethernet backend falls back to the kernel reading
+when the daemon is unreachable). Point `HELIX_NETD_BIN` at a nonexistent
+path in `helixscreen.env` to make such a boot use the stock backends.
+
 ---
 
 ## UI Automation

@@ -23,20 +23,9 @@ using helix::netd::Ack;
 using helix::netd::LineAssembler;
 using helix::netd::NetdSnapshot;
 using helix::netd::ScanRow;
+using helix_test::b64;
 using helix_test::EnvVarGuard;
-
-namespace {
-
-std::string b64(const std::string& raw) {
-    return hv::Base64Encode(reinterpret_cast<const unsigned char*>(raw.data()),
-                            static_cast<unsigned int>(raw.size()));
-}
-
-std::string unb64(const std::string& encoded) {
-    return hv::Base64Decode(encoded.c_str(), static_cast<unsigned int>(encoded.size()));
-}
-
-} // namespace
+using helix_test::unb64;
 
 // ============================================================================
 // parse_snapshot_line — known fields, case-insensitive keys, merge semantics

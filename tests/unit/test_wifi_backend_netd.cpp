@@ -39,26 +39,10 @@
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
 
-namespace {
-
-std::string b64(const std::string& raw) {
-    return hv::Base64Encode(reinterpret_cast<const unsigned char*>(raw.data()),
-                            static_cast<unsigned int>(raw.size()));
-}
-
-/// Bounded polling wait (real clock, small step). The fake server exposes
-/// no condition variable, so tests poll its recorded state with this.
-bool wait_until(const std::function<bool()>& pred, int timeout_ms = 5000, int step_ms = 10) {
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
-    while (std::chrono::steady_clock::now() < deadline) {
-        if (pred())
-            return true;
-        std::this_thread::sleep_for(std::chrono::milliseconds(step_ms));
-    }
-    return pred();
-}
-
-} // namespace
+// Shared netd test helpers (b64/unb64/wait_until) live in netd_test_server.h.
+using helix_test::b64;
+using helix_test::unb64;
+using helix_test::wait_until;
 
 // ============================================================================
 // Fixture: fake daemon + repointed env + event-counting backend handle.
@@ -69,7 +53,6 @@ class NetdBackendFixture {
   public:
     static constexpr int kReconnectMs = 200;
     static constexpr int kWatchdogMs = 300;
-    static constexpr int kAckWaitMs = 500;
 
     NetdBackendFixture() {
         char dir_template[] = "/tmp/helix_netd_backend_XXXXXX";
@@ -85,7 +68,7 @@ class NetdBackendFixture {
 
         // Through the base interface everywhere: the drift test drives every
         // pure virtual through std::unique_ptr<WifiBackend>.
-        backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, kWatchdogMs, kAckWaitMs);
+        backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, kWatchdogMs);
     }
 
     ~NetdBackendFixture() {
@@ -292,6 +275,68 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd state diff fires CONNECTED and DISCON
 }
 
 // ============================================================================
+// 4b. A drop that passes through an intermediate state must still surface:
+//     CONNECTED -> RETRYING (beacon loss) -> DISCONNECTED is ONE disconnect.
+//     The old terminal-state gate consumed was_connected_ on the RETRYING
+//     push and swallowed the drop entirely.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd drop via RETRYING still fires DISCONNECTED",
+                 "[netd][wifi]") {
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    server_->push_line("MODE=WIFI");
+    server_->push_line("STATE=CONNECTED");
+    REQUIRE(wait_for_event("CONNECTED", 1));
+
+    // Beacon loss: the daemon passes through RETRYING before the terminal
+    // state. The DISCONNECTED must fire here (the link IS down), not be
+    // deferred past a gate that will never open again.
+    server_->push_line("STATE=RETRYING");
+    REQUIRE(wait_for_event("DISCONNECTED", 1));
+
+    server_->push_line("STATE=DISCONNECTED");
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    REQUIRE(event_count("DISCONNECTED") == 1);
+    REQUIRE(event_count("CONNECTED") == 1);
+}
+
+// ============================================================================
+// 4c. Ack attribution: a late ERR for an accepted-but-unacked SCAN must never
+//     read as a verdict on a join sent behind it — the join stays accepted,
+//     the scan completes, and no join-failure event fires.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd late scan error does not fail a parked join",
+                 "[netd][wifi]") {
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    // Scan accepted by timeout (the daemon says nothing).
+    WiFiError scan{WiFiResult::UNKNOWN_ERROR};
+    std::thread scan_caller([&] { scan = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    scan_caller.join();
+    REQUIRE(scan.success());
+
+    // A join goes out behind the outstanding scan.
+    WiFiError join{WiFiResult::UNKNOWN_ERROR};
+    std::thread join_caller([&] { join = backend_->connect_network("Cafe 5G", "pw"); });
+    REQUIRE(wait_until([&] {
+        return line_recorded("CONNECT_WIFI ssid=" + b64("Cafe 5G") + " psk=" + b64("pw"));
+    }));
+
+    // The daemon finally answers — with the SCAN's failure.
+    server_->push_line("ERR SCAN_FAILED");
+    join_caller.join();
+
+    REQUIRE(join.success());                     // the join was never rejected
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1)); // the scan still completed
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    REQUIRE(event_count("AUTH_FAILED") == 0);
+    REQUIRE(event_count("DISCONNECTED") == 0);
+}
+
+// ============================================================================
 // 5. Join wire format: byte-exact CONNECT_WIFI lines, psk token omitted
 //    entirely for open networks.
 // ============================================================================
@@ -304,7 +349,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd connect_network sends exact wire line
     const std::string want_secured = "CONNECT_WIFI ssid=" + b64("Cafe 5G") + " psk=" + b64("pw");
     REQUIRE(wait_until([&] { return line_recorded(want_secured); }));
     caller.join();
-    // No ack ever came: the timeout window means "accepted, daemon owns it".
+    // Fire-and-forget: the send succeeded, the daemon owns the join.
     REQUIRE(secured.success());
 
     WiFiError open{WiFiResult::UNKNOWN_ERROR};
@@ -325,28 +370,29 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd connect_network sends exact wire line
 }
 
 // ============================================================================
-// 6. Rejected join: ERR WRONG_KEY => AUTHENTICATION_FAILED return and ONE
-//    AUTH_FAILED event, not multiplied by RETRYING pushes or repeat errors.
+// 6. Rejected join: connect_network returns immediately (fire-and-forget —
+//    the daemon owns the join), and the terminal ERR WRONG_KEY arrives as
+//    ONE AUTH_FAILED event, not multiplied by RETRYING pushes or repeats.
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd rejected join maps to AUTH_FAILED once",
                  "[netd][wifi]") {
     register_standard_events();
     REQUIRE(backend_->start().success());
 
-    WiFiError result{WiFiResult::SUCCESS};
+    WiFiError result{WiFiResult::UNKNOWN_ERROR};
     std::thread caller([&] { result = backend_->connect_network("Cafe 5G", "pw"); });
     REQUIRE(wait_until([&] {
         return line_recorded("CONNECT_WIFI ssid=" + b64("Cafe 5G") + " psk=" + b64("pw"));
     }));
+    caller.join();
+    // Sent, not waited on: the verdict comes as an event.
+    REQUIRE(result.success());
 
     // The daemon narrates its retries, then reports the terminal failure.
     server_->push_line("STATE=CONNECTING");
     server_->push_line("STATE=RETRYING");
     server_->push_line("REASON=WRONG_KEY");
     server_->push_line("ERR WRONG_KEY");
-
-    caller.join();
-    REQUIRE(result.result == WiFiResult::AUTHENTICATION_FAILED);
     REQUIRE(wait_for_event("AUTH_FAILED", 1));
 
     // More retry narration and a repeated error must not multiply the event.
@@ -390,27 +436,32 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "
     REQUIRE(networks[0].security_type == "PSK");
     REQUIRE(networks[0].frequency_mhz == 2437);
     REQUIRE(networks[0].band_mask == (WIFI_BAND_2_4GHZ | WIFI_BAND_5GHZ));
+
+    // A 5 GHz BSS in the results is evidence the radio sees the band.
+    REQUIRE(backend_->supports_5ghz());
 }
 
 // ============================================================================
-// 8. A refused scan rejects synchronously: error return, the reason in
-//    technical_msg, no SCAN_COMPLETE event, empty result cache.
+// 8. A refused scan: fire-and-forget means the ERR arrives as a daemon line
+//    and completes the scan through the outstanding-scan attribution — one
+//    SCAN_COMPLETE, an empty cache (nothing was found), and the caller's
+//    return is success (the obligation is discharged by the event).
 // ============================================================================
-TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan rejects synchronously", "[netd][wifi]") {
+TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan completes empty", "[netd][wifi]") {
     register_standard_events();
     REQUIRE(backend_->start().success());
 
-    WiFiError result{WiFiResult::SUCCESS};
+    WiFiError result{WiFiResult::UNKNOWN_ERROR};
     std::thread caller([&] { result = backend_->trigger_scan(); });
     REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
-    server_->push_line("ERR SCAN_FAILED");
-
     caller.join();
-    REQUIRE(result.result == WiFiResult::BACKEND_ERROR);
-    REQUIRE(result.technical_msg.find("SCAN_FAILED") != std::string::npos);
+    REQUIRE(result.success()); // never parked: the send itself succeeded
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(2 * kWatchdogMs));
-    REQUIRE(event_count("SCAN_COMPLETE") == 0);
+    server_->push_line("ERR SCAN_FAILED");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(kWatchdogMs));
+    REQUIRE(event_count("SCAN_COMPLETE") == 1);
 
     std::vector<WiFiNetwork> networks;
     REQUIRE(backend_->get_scan_results(networks).success());

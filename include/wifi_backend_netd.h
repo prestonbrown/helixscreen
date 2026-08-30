@@ -44,14 +44,17 @@
  *   connect, then GET to seed the snapshot (the daemon only pushes on
  *   change). The connection is re-established by a timer whenever it drops
  *   while the backend is running.
- * - Commands from other threads park ONE pending-ack slot. The wait is an
- *   early-reject window only: on timeout the op is treated as accepted and
- *   any late ack arrives unsolicited and drives events.
+ * - Commands are FIRE-AND-FORGET: the daemon acks operation COMPLETION, not
+ *   acceptance (a join's OK can trail by tens of seconds), so parking the
+ *   caller for a verdict would freeze the UI thread for the length of a
+ *   radio operation. Verdicts arrive as daemon lines and drive events;
+ *   attribution is by outstanding work (a pending scan claims the next
+ *   ack; everything else maps to the join in flight).
  * - stop() closes the connection but keeps the event loop alive (libhv
  *   loops cannot restart); the destructor does the full stop+join+cleanup.
  *
  * The constructor's millisecond knobs are injectable so tests can shrink
- * the reconnect/watchdog/ack timings; production uses the defaults.
+ * the reconnect/watchdog timings; production uses the defaults.
  */
 class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
   public:
@@ -63,15 +66,8 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
      *                         return from trigger_scan() OBLIGATES an
      *                         eventual SCAN_COMPLETE, or WiFiManager's scan
      *                         scheduler latches forever.
-     * @param ack_wait_ms       How long a sent command waits for its OK/ERR
-     *                         ack before being treated as accepted (default
-     *                         2 s). The daemon acks operation COMPLETION,
-     *                         not acceptance — CONNECT_WIFI's OK can lag by
-     *                         tens of seconds, so this is a reject window,
-     *                         never a verdict.
      */
-    explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000,
-                             int ack_wait_ms = 2000);
+    explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000);
 
     /**
      * @brief Destructor - full teardown (stop loop, join threads, close socket)
@@ -115,9 +111,9 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// destructor (scheduled before the loop is stopped).
     void cleanup_netd();
 
-    /// ::socket + ::connect to helix::netd::socket_path(), register the fd
-    /// with libhv, send SUBSCRIBE + GET. Loop thread. @p error_out receives
-    /// a log-safe errno description on failure.
+    /// ::socket + ::connect to helix::netd::socket_path() (non-blocking,
+    /// bounded), register the fd with libhv, send SUBSCRIBE + GET. Loop
+    /// thread. @p error_out receives a log-safe errno description on failure.
     bool open_connection(std::string& error_out);
 
     /// hio_close() the current connection (which closes the fd — this class
@@ -146,12 +142,14 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     /// Dispatch one complete daemon line: ack, then scan row, then snapshot
     /// field, then ignore (the order documented in netd_protocol.h).
-    void handle_line(const std::string& line);
+    /// Returns true when a snapshot field merged — the caller batches the
+    /// state-diff to once per read batch.
+    bool handle_line(const std::string& line);
 
-    /// Apply an OK/ERR line. @p pending_cmd is the command whose parked slot
-    /// this ack resolved ("" when the ack was unsolicited — a late or
-    /// daemon-initiated completion).
-    void handle_ack(const helix::netd::Ack& ack, const std::string& pending_cmd);
+    /// Apply an OK/ERR line with no outstanding scan (the scan path in
+    /// handle_line owns the outstanding-scan case): late or daemon-initiated
+    /// join verdicts, mapped to events.
+    void handle_ack(const helix::netd::Ack& ack);
 
     /// State-diff event logic over the just-merged snapshot.
     void handle_snapshot_diff(const helix::netd::NetdSnapshot& after);
@@ -168,38 +166,25 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     // Write path (any thread)
     // ========================================================================
 
-    /// Blocking-send @p line (which must already end in '\n') on the daemon
-    /// socket under cmd_mutex_. Bounded: partial writes poll for writability
-    /// with a hard attempt cap, so a wedged peer cannot pin a caller thread.
-    /// Callable from the loop thread (handshake, liveness probe) too.
+    /// Non-blocking send under cmd_mutex_ for EXTERNAL threads. Commands are
+    /// tiny, so a send that cannot complete immediately means a wedged
+    /// daemon: report failure on the spot and leave recovery to the
+    /// liveness/reconnect machinery — the caller (the UI thread) is never
+    /// parked.
     bool write_line_raw(const std::string& line);
 
-    /// Outcome of a parked command send.
-    struct SendOutcome {
-        enum class Kind {
-            NotSent, ///< The socket was down; the daemon never saw the command.
-            Ok,      ///< OK ack arrived within ack_wait_ms_.
-            Err,     ///< ERR ack arrived within ack_wait_ms_ (text = reason).
-            Timeout, ///< No ack in the window; the op is treated as accepted.
-        };
-        Kind kind{Kind::NotSent};
-        std::string text; ///< ERR reason, when kind == Err.
-    };
+    /// Non-blocking send for the loop thread's own lines (handshake, liveness
+    /// GET). No mutex (the loop serializes against the connection mutators)
+    /// and the same fail-fast policy as write_line_raw().
+    bool write_line_from_loop(const std::string& line);
 
-    /// Send @p cmd (no trailing newline) and park the pending-ack slot while
-    /// waiting, up to ack_wait_ms_. EXTERNAL THREADS ONLY — it blocks on a
-    /// condvar that the event loop resolves, so calling it on the loop
-    /// thread would self-deadlock. Loop-thread sends use write_line_raw().
-    SendOutcome send_request(const std::string& cmd);
+    /// Fire-and-forget command send from an external thread: send, arm the
+    /// liveness probe, return. No verdict is waited for — see the class doc.
+    bool send_line(const std::string& cmd);
 
     /// If nothing arrives from the daemon while an op is outstanding, probe
     /// with GET, then force a reconnect — the first-party client's watchdog.
     void arm_liveness_probe();
-
-    /// Resolve the parked slot (if any) with @p ack and wake its waiter.
-    /// Returns the command whose slot was resolved ("" when the ack was
-    /// unsolicited — a late or daemon-initiated completion).
-    std::string resolve_pending(const helix::netd::Ack& ack);
 
     // ========================================================================
     // Helpers
@@ -209,30 +194,30 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// probe (never a hardcoded netdev name). Empty when unresolvable.
     void read_mac_address_once();
 
-    bool event_loop_active() const {
-        return const_cast<WifiBackendNetd*>(this)->hv::EventLoopThread::isRunning();
+    bool event_loop_active() {
+        return hv::EventLoopThread::isRunning();
     }
 
+    /// Schedule cleanup_netd() on the loop and wait for it, bounded at 2 s.
+    /// The shared_ptr keeps the promise alive if the wait times out and the
+    /// cleanup runs later — the wpa backend's use-after-free fix, extracted
+    /// here as ONE copy shared by stop() and the destructor.
+    void schedule_cleanup_bounded();
+
     void signal_init_complete(const std::string& error);
+
+    /// Dispatch INIT_FAILED at most once per init attempt: the async worker
+    /// (on start() timeout) and a late-running init_netd() can both observe
+    /// the same failure, and double-dispatching would double-notify the
+    /// manager.
+    void emit_init_failed_once(const std::string& error);
 
     // ========================================================================
     // State
     // ========================================================================
 
-    /// The parked pending-ack slot. Dismissed = released without a verdict
-    /// (displaced by a newer op, or teardown): the waiter treats its op as
-    /// accepted — losing the slot never cancels a daemon-owned operation.
-    struct AckWait {
-        enum class Result { Waiting, Ok, Err, Dismissed };
-        std::mutex mtx;
-        std::condition_variable cv;
-        Result result{Result::Waiting};
-        std::string text; ///< ERR reason / OK text, once resolved.
-    };
-
     const int reconnect_ms_;
     const int scan_watchdog_ms_;
-    const int ack_wait_ms_;
 
     // Connection. io_ / fd_ are written under cmd_mutex_; fd_ is owned by
     // io_ once registered (hio_close closes it — never ::close(fd_) too).
@@ -268,6 +253,11 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// Auth failures fire AUTH_FAILED once per failure, never per RETRYING
     /// push; cleared when a new join is accepted or a CONNECTED lands.
     std::atomic<bool> auth_failure_latched_{false};
+    /// Set when any scan row arrives on the 5 GHz band — a stronger answer
+    /// to supports_5ghz() than a hardcoded claim.
+    std::atomic<bool> seen_5ghz_network_{false};
+    /// Guards emit_init_failed_once()'s at-most-once dispatch per attempt.
+    std::atomic<bool> init_failed_dispatched_{false};
     bool was_connected_ = false; ///< loop thread only (snapshot state diff)
 
     // Timers and liveness bookkeeping. Loop thread only.
@@ -275,10 +265,6 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     hv::TimerID reconnect_timer_{kNoTimer};
     hv::TimerID scan_watchdog_timer_{kNoTimer};
     std::chrono::steady_clock::time_point last_line_at_;
-
-    std::mutex pending_mutex_;
-    std::shared_ptr<AckWait> pending_ack_; ///< Parked slot, or null.
-    std::string pending_cmd_;              ///< Command that parked it.
 
     // Async init worker (start_async()); joined in stop() and the dtor.
     std::thread async_init_thread_;

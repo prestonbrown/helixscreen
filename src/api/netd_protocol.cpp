@@ -244,6 +244,10 @@ std::string encode_cancel() {
     return "CANCEL";
 }
 
+bool is_auth_failure_reason(const std::string& reason) {
+    return reason == "WRONG_KEY" || reason == "AUTH_FAILED" || reason == "INVALID_PSK";
+}
+
 std::string encode_connect_wifi(const std::string& ssid, const std::string& psk) {
     std::string command = "CONNECT_WIFI ssid=" + encode_b64_field(ssid);
     if (!psk.empty()) {
@@ -309,10 +313,12 @@ QueryResult query_snapshot(int timeout_ms) {
     }
 
     // Read until an ack ends the reply, the daemon closes, or the socket goes
-    // quiet (per-read timeout). An overall deadline bounds a daemon that drips
-    // lines forever.
+    // quiet (per-read timeout). An overall deadline bounds a daemon that
+    // drips lines without ever acking: 2x the per-read budget. get_info()
+    // callers run on the shared HttpExecutor fast lane, so this bound is the
+    // most a wedged daemon can pin one of those workers.
     const auto deadline =
-        std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms) * 4;
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms) * 2;
     LineAssembler assembler;
     bool got_any_bytes = false;
     bool ack_seen = false;

@@ -58,9 +58,9 @@ constexpr int kLivenessGiveUpMs = 5000;
 // Lifecycle
 // ============================================================================
 
-WifiBackendNetd::WifiBackendNetd(int reconnect_ms, int scan_watchdog_ms, int ack_wait_ms)
+WifiBackendNetd::WifiBackendNetd(int reconnect_ms, int scan_watchdog_ms)
     : hv::EventLoopThread(nullptr), reconnect_ms_(reconnect_ms),
-      scan_watchdog_ms_(scan_watchdog_ms), ack_wait_ms_(ack_wait_ms) {
+      scan_watchdog_ms_(scan_watchdog_ms) {
     spdlog::debug("[WifiBackendNetd] Initialized (netd mode)");
 }
 
@@ -78,20 +78,34 @@ WifiBackendNetd::~WifiBackendNetd() {
     // Clean up while the loop still runs: the hio belongs to the loop's
     // lifetime, so the close must be scheduled (and finish) BEFORE the loop
     // stops. Same ordering rationale as the wpa backend's destructor.
-    if (event_loop_active() && loop()) {
-        auto cleanup_done = std::make_shared<std::promise<void>>();
-        std::future<void> cleanup_future = cleanup_done->get_future();
-        loop()->runInLoop([this, cleanup_done]() {
-            cleanup_netd();
-            cleanup_done->set_value();
-        });
-        if (cleanup_future.wait_for(std::chrono::seconds(2)) == std::future_status::timeout) {
-            spdlog::warn("[WifiBackendNetd] Cleanup timed out after 2 seconds");
-        }
-    }
+    schedule_cleanup_bounded();
 
     hv::EventLoopThread::stop();
     hv::EventLoopThread::join();
+}
+
+void WifiBackendNetd::schedule_cleanup_bounded() {
+    if (!event_loop_active() || !loop()) {
+        // Loop not running: no I/O callbacks can fire, cleanup directly.
+        cleanup_netd();
+        return;
+    }
+    auto cleanup_done = std::make_shared<std::promise<void>>();
+    std::future<void> cleanup_future = cleanup_done->get_future();
+    loop()->runInLoop([this, cleanup_done]() {
+        cleanup_netd();
+        cleanup_done->set_value();
+    });
+    if (cleanup_future.wait_for(std::chrono::seconds(2)) == std::future_status::timeout) {
+        spdlog::warn("[WifiBackendNetd] Cleanup timed out after 2 seconds");
+    }
+}
+
+void WifiBackendNetd::emit_init_failed_once(const std::string& error) {
+    bool expected = false;
+    if (!init_failed_dispatched_.compare_exchange_strong(expected, true))
+        return;
+    dispatch_event("INIT_FAILED", error);
 }
 
 void WifiBackendNetd::signal_init_complete(const std::string& error) {
@@ -106,6 +120,7 @@ void WifiBackendNetd::signal_init_complete(const std::string& error) {
 WiFiError WifiBackendNetd::start() {
     spdlog::debug("[WifiBackendNetd] Starting...");
     shutdown_requested_.store(false);
+    init_failed_dispatched_.store(false);
 
     if (event_loop_active()) {
         // stop() deliberately leaves the event loop alive (libhv loops cannot
@@ -181,17 +196,16 @@ void WifiBackendNetd::start_async() {
             if (result.success()) {
                 dispatch_event("READY", "");
             } else if (!ran_init) {
-                // start() failed before init_netd() ran, so no INIT_FAILED
-                // was dispatched there; emit it here. When init_netd() did
-                // run and fail it already dispatched — re-dispatching would
-                // double-notify the manager.
-                dispatch_event("INIT_FAILED", result.technical_msg);
+                // start() timed out before init_netd() ran; the late init
+                // may still dispatch its own failure, so route through the
+                // at-most-once guard.
+                emit_init_failed_once(result.technical_msg);
             }
         });
     } catch (const std::system_error& e) {
         spdlog::error("[WifiBackendNetd] Failed to spawn init thread: {}", e.what());
         async_init_in_progress_.store(false);
-        dispatch_event("INIT_FAILED", "system busy");
+        emit_init_failed_once("system busy");
     }
 }
 
@@ -204,6 +218,12 @@ void WifiBackendNetd::stop() {
     // NO CANCEL is ever sent here: stop() detaches this process from the
     // daemon; it does not abort a daemon-owned operation.
     want_connection_.store(false);
+    // Guard a still-QUEUED init_netd(): if start() timed out waiting for it,
+    // the task is pending on the loop, and without this flag it would later
+    // open a connection and resurrect a backend the caller just stopped
+    // (re-arming want_connection_ and is_running_). start() clears the flag
+    // again on the next explicit start.
+    shutdown_requested_.store(true);
 
     if (!init_complete_.load()) {
         spdlog::trace("[WifiBackendNetd] stop(): never initialized");
@@ -215,24 +235,7 @@ void WifiBackendNetd::stop() {
     init_succeeded_.store(false);
     init_complete_.store(false);
 
-    // hio/timer manipulation MUST run on the loop thread. Schedule via
-    // runInLoop with a shared-promise sync — the shared_ptr keeps the
-    // promise alive if this wait times out and the deferred cleanup runs
-    // later (the wpa backend's use-after-free fix).
-    if (event_loop_active() && loop()) {
-        auto cleanup_done = std::make_shared<std::promise<void>>();
-        std::future<void> cleanup_future = cleanup_done->get_future();
-        loop()->runInLoop([this, cleanup_done]() {
-            cleanup_netd();
-            cleanup_done->set_value();
-        });
-        if (cleanup_future.wait_for(std::chrono::seconds(2)) == std::future_status::timeout) {
-            spdlog::warn("[WifiBackendNetd] Cleanup timed out after 2 seconds");
-        }
-    } else {
-        // Loop not running: no I/O callbacks can fire, cleanup directly.
-        cleanup_netd();
-    }
+    schedule_cleanup_bounded();
 
     spdlog::debug("[WifiBackendNetd] Stopped");
 }
@@ -270,7 +273,7 @@ void WifiBackendNetd::init_netd() {
     std::string error;
     if (!open_connection(error)) {
         spdlog::warn("[WifiBackendNetd] Init failed: {}", error);
-        dispatch_event("INIT_FAILED", error);
+        emit_init_failed_once(error);
         signal_init_complete(error);
         return;
     }
@@ -298,29 +301,19 @@ void WifiBackendNetd::cleanup_netd() {
     scan_pending_.store(false);
     connect_in_flight_.store(false);
 
-    // Dismiss any parked sender: its op reads as a timeout (accepted
-    // semantics — losing the socket never cancels a daemon-owned op).
-    std::shared_ptr<AckWait> slot;
-    {
-        std::lock_guard<std::mutex> lock(pending_mutex_);
-        slot = pending_ack_;
-        pending_ack_.reset();
-        pending_cmd_.clear();
-    }
-    if (slot) {
-        {
-            std::lock_guard<std::mutex> lk(slot->mtx);
-            slot->result = AckWait::Result::Dismissed;
-        }
-        slot->cv.notify_all();
-    }
-
     close_connection();
     spdlog::debug("[WifiBackendNetd] Daemon connection cleaned up");
 }
 
 bool WifiBackendNetd::open_connection(std::string& error_out) {
     const std::string path = helix::netd::socket_path();
+
+    // A previous init that outlived its caller's start() timeout may have
+    // left a connection open; never overwrite a live hio (its fd would
+    // leak until the loop dies).
+    if (io_ != nullptr) {
+        close_connection();
+    }
 
     const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -337,18 +330,39 @@ bool WifiBackendNetd::open_connection(std::string& error_out) {
     }
     std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
 
-    // A blocking connect is bounded here: the peer is local, so connect()
-    // returns immediately with a verdict (same trade the wpa backend makes
-    // with wpa_ctrl_open2()).
-    if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        error_out = "connect(\"" + path + "\"): " + std::strerror(errno);
-        ::close(fd);
-        return false;
-    }
-
+    // Non-blocking connect with a bounded wait. A local connect usually
+    // completes instantly, but a daemon wedged with a full accept backlog
+    // would BLOCK the loop thread in ::connect() forever — killing every
+    // timer and read on the loop and hanging the destructor's join. One
+    // second to connect, then the reconnect cadence owns the retry.
     const int flags = ::fcntl(fd, F_GETFL, 0);
     if (flags >= 0) {
         (void)::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+    const int connect_rc = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    if (connect_rc != 0) {
+        if (errno != EINPROGRESS) {
+            error_out = "connect(\"" + path + "\"): " + std::strerror(errno);
+            ::close(fd);
+            return false;
+        }
+        pollfd connect_poll{};
+        connect_poll.fd = fd;
+        connect_poll.events = POLLOUT;
+        if (::poll(&connect_poll, 1, 1000) <= 0) {
+            error_out = "connect(\"" + path + "\"): timed out after 1 s";
+            ::close(fd);
+            return false;
+        }
+        int socket_error = 0;
+        socklen_t error_len = sizeof(socket_error);
+        if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_len) != 0 ||
+            socket_error != 0) {
+            error_out = "connect(\"" + path +
+                        "\"): " + std::strerror(socket_error != 0 ? socket_error : errno);
+            ::close(fd);
+            return false;
+        }
     }
 
     hio_t* io = hio_get(hv::EventLoopThread::loop()->loop(), fd);
@@ -372,9 +386,9 @@ bool WifiBackendNetd::open_connection(std::string& error_out) {
 
     // Subscribe for pushes, then GET to seed the snapshot: the daemon only
     // pushes on CHANGE, so without the seed a connected printer shows blank
-    // until the next state change.
-    if (!write_line_raw(helix::netd::encode_subscribe() + "\n") ||
-        !write_line_raw(helix::netd::encode_get() + "\n")) {
+    // until the next state change. Loop-thread sends: no mutex, no waiting.
+    if (!write_line_from_loop(helix::netd::encode_subscribe() + "\n") ||
+        !write_line_from_loop(helix::netd::encode_get() + "\n")) {
         error_out = std::string("handshake write failed: ") + std::strerror(errno);
         close_connection();
         return false;
@@ -447,6 +461,9 @@ void WifiBackendNetd::on_read(void* data, int nbyte) {
         // (libhv normally closes the hio without delivering this case —
         // on_socket_closed() is the real detection path; this is defense.)
         spdlog::debug("[WifiBackendNetd] Daemon connection lost (read returned {})", nbyte);
+        if (scan_pending_.load()) {
+            finish_scan(); // the in-flight scan died with the connection
+        }
         close_connection();
         if (want_connection_.load() && !shutdown_requested_.load()) {
             arm_reconnect_timer();
@@ -454,9 +471,23 @@ void WifiBackendNetd::on_read(void* data, int nbyte) {
         return;
     }
 
-    for (const std::string& line :
-         assembler_.feed(std::string_view(static_cast<const char*>(data), nbyte))) {
-        handle_line(line);
+    // Apply the whole read batch, then diff once. A daemon push is one line
+    // per field; merging field-by-field and diffing per line would fire
+    // events off half-merged snapshots (CONNECTED before the SSID/IP lines
+    // of the same push have landed).
+    const std::vector<std::string> lines =
+        assembler_.feed(std::string_view(static_cast<const char*>(data), nbyte));
+    bool merged_any_field = false;
+    for (const std::string& line : lines) {
+        merged_any_field = handle_line(line) || merged_any_field;
+    }
+    if (merged_any_field) {
+        helix::netd::NetdSnapshot after;
+        {
+            std::lock_guard<std::mutex> lock(snapshot_mutex_);
+            after = snapshot_;
+        }
+        handle_snapshot_diff(after);
     }
 }
 
@@ -480,88 +511,73 @@ void WifiBackendNetd::on_socket_closed(hio_t* io) {
     assembler_.reset();
 
     spdlog::debug("[WifiBackendNetd] Daemon connection lost");
+    // The in-flight scan's answers died with the connection: complete it
+    // from whatever rows arrived before the drop, so the scheduler never
+    // latches. (Leaving it armed would let the reconnect handshake's seed
+    // acks complete it over an emptied cache instead.)
+    if (scan_pending_.load()) {
+        finish_scan();
+    }
     if (want_connection_.load() && !shutdown_requested_.load()) {
         arm_reconnect_timer();
     }
 }
 
-void WifiBackendNetd::handle_line(const std::string& line) {
+bool WifiBackendNetd::handle_line(const std::string& line) {
     last_line_at_ = std::chrono::steady_clock::now();
 
     // Dispatch order per netd_protocol.h: ack -> scan row -> snapshot field
-    // -> ignore.
+    // -> ignore. Returns true when a snapshot field merged; the caller diffs
+    // once per read batch, not per line.
     const helix::netd::Ack ack = helix::netd::parse_ack(line);
     if (ack.kind != helix::netd::Ack::Kind::None) {
-        handle_ack(ack, resolve_pending(ack));
-        return;
+        // Sends are fire-and-forget, so attribution is by outstanding work:
+        // while a scan is pending, the next ack is that scan's completion
+        // (its rows precede the OK; an ERR ends it too). Any other ack is a
+        // late or daemon-initiated verdict on a join, mapped to events.
+        if (scan_pending_.load()) {
+            if (ack.kind == helix::netd::Ack::Kind::Err) {
+                spdlog::debug("[WifiBackendNetd] Outstanding scan failed: {}", ack.text);
+            }
+            finish_scan();
+        } else {
+            handle_ack(ack);
+        }
+        return false;
     }
 
     if (const auto row = helix::netd::parse_scan_row(line)) {
         std::lock_guard<std::mutex> lock(scan_mutex_);
         scan_rows_.push_back(*row);
-        return;
+        if (row->frequency_mhz >= 4900) {
+            // A 5 GHz BSS answers supports_5ghz() better than any static
+            // claim: the radio demonstrably sees the band.
+            seen_5ghz_network_.store(true);
+        }
+        return false;
     }
 
-    helix::netd::NetdSnapshot after;
-    bool carried_field = false;
     {
         std::lock_guard<std::mutex> lock(snapshot_mutex_);
-        carried_field = helix::netd::parse_snapshot_line(line, snapshot_);
-        after = snapshot_;
-    }
-    if (carried_field) {
-        handle_snapshot_diff(after);
+        if (helix::netd::parse_snapshot_line(line, snapshot_))
+            return true;
     }
     // Anything else is a newer daemon's addition: ignored (forward compat).
+    return false;
 }
 
-std::string WifiBackendNetd::resolve_pending(const helix::netd::Ack& ack) {
-    std::shared_ptr<AckWait> slot;
-    std::string cmd;
-    {
-        std::lock_guard<std::mutex> lock(pending_mutex_);
-        if (pending_ack_) {
-            slot = pending_ack_;
-            cmd = pending_cmd_;
-            pending_ack_.reset();
-            pending_cmd_.clear();
-        }
-    }
-    if (slot) {
-        {
-            std::lock_guard<std::mutex> lk(slot->mtx);
-            slot->result = ack.ok() ? AckWait::Result::Ok : AckWait::Result::Err;
-            slot->text = ack.text;
-        }
-        slot->cv.notify_all();
-    }
-    return cmd;
-}
-
-void WifiBackendNetd::handle_ack(const helix::netd::Ack& ack, const std::string& pending_cmd) {
-    const bool resolved = !pending_cmd.empty();
-
+void WifiBackendNetd::handle_ack(const helix::netd::Ack& ack) {
     if (ack.kind == helix::netd::Ack::Kind::Ok) {
-        // An OK completing a scan ends it NOW, whether it resolved the parked
-        // SCAN (rows precede the OK, so the results are already cached) or
-        // arrived unsolicited after the slot timed out. Waiting out the
-        // watchdog instead would add its full bound to every scan's latency;
-        // the watchdog remains the backstop for a daemon that never acks.
-        const bool completes_scan =
-            scan_pending_.load() && (!resolved || pending_cmd == helix::netd::encode_scan());
-        if (completes_scan) {
-            finish_scan();
-        }
+        // An OK with no outstanding scan is a join's late completion (or a
+        // reconnect-handshake seed ack) — the CONNECTED it implies arrives
+        // separately as snapshot pushes.
         return;
     }
 
-    // ERR: map by reason. The ack protocol carries no op id, so a parked
-    // slot's command is the one disambiguation available; unsolicited errors
-    // are attributed by reason alone.
+    // ERR: a late or daemon-initiated join verdict, mapped by reason (the
+    // protocol module owns the vocabulary).
     const std::string& reason = ack.text;
-    const bool auth_failure =
-        reason == "WRONG_KEY" || reason == "AUTH_FAILED" || reason == "INVALID_PSK";
-    if (auth_failure) {
+    if (helix::netd::is_auth_failure_reason(reason)) {
         // Terminal join failure: fire AUTH_FAILED once per failure, never per
         // RETRYING push or repeated error. The latch clears when a new join
         // is accepted or a CONNECTED lands.
@@ -570,15 +586,9 @@ void WifiBackendNetd::handle_ack(const helix::netd::Ack& ack, const std::string&
             dispatch_event("AUTH_FAILED", reason);
         }
     } else if (connect_in_flight_.exchange(false)) {
-        // Any other failure while a join is user-visible (parked or
-        // unsolicited) ends that attempt as a disconnect.
+        // Any other failure while a join is user-visible ends that attempt
+        // as a disconnect.
         dispatch_event("DISCONNECTED", reason);
-    }
-
-    // An unsolicited ERR also closes out an accepted-but-unacked scan: a
-    // successful trigger_scan() obligates an eventual SCAN_COMPLETE.
-    if (!resolved && scan_pending_.load()) {
-        finish_scan();
     }
 }
 
@@ -590,9 +600,13 @@ void WifiBackendNetd::handle_snapshot_diff(const helix::netd::NetdSnapshot& afte
         auth_failure_latched_.store(false);
         connect_in_flight_.store(false);
         dispatch_event("CONNECTED", after.state);
-    } else if (!now_connected && was_connected_ &&
-               (after.state == "DISCONNECTED" || after.state == "OFFLINE" ||
-                after.state == "CANCELLED")) {
+    } else if (!now_connected && was_connected_) {
+        // ANY loss of the connected state is a disconnect — including drops
+        // that pass through an intermediate state first (RETRYING on beacon
+        // loss, DHCP_WAIT, or the MODE flipping to ETHERNET). Gating on
+        // terminal states only would consume was_connected_ on the
+        // intermediate push and swallow the drop entirely: CONNECTED ->
+        // RETRYING -> DISCONNECTED must still surface as one DISCONNECTED.
         dispatch_event("DISCONNECTED", after.state);
     }
     was_connected_ = now_connected;
@@ -640,14 +654,17 @@ void WifiBackendNetd::dispatch_event(const std::string& event_name, const std::s
 // Write path (any thread)
 // ============================================================================
 
-bool WifiBackendNetd::write_line_raw(const std::string& line) {
-    std::lock_guard<std::mutex> lock(cmd_mutex_);
+bool WifiBackendNetd::write_line_from_loop(const std::string& line) {
+    // LOOP THREAD ONLY. io_/fd_ are mutated only by open_connection() and
+    // close_connection(), both of which also run on the loop thread — the
+    // loop itself serializes this write against them, so no mutex is needed.
+    // Never wait here: a wedged peer's full buffer must not stall the loop
+    // (timers, reads, the liveness watchdog all share it) — drop the line
+    // and let the watchdog force the reconnect.
     if (io_ == nullptr || fd_ < 0)
         return false;
-
     const char* data = line.data();
     size_t remaining = line.size();
-    int waits = 0;
     while (remaining > 0) {
         const ssize_t n = ::send(fd_, data, remaining, MSG_NOSIGNAL);
         if (n > 0) {
@@ -657,65 +674,54 @@ bool WifiBackendNetd::write_line_raw(const std::string& line) {
         }
         if (n < 0 && errno == EINTR)
             continue;
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) && waits < 20) {
-            // Bounded wait for buffer space: a wedged peer must not pin the
-            // caller (or the loop thread) forever. 20 x 100 ms is the cap.
-            pollfd pfd{};
-            pfd.fd = fd_;
-            pfd.events = POLLOUT;
-            ++waits;
-            if (::poll(&pfd, 1, 100) > 0)
-                continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            break; // buffer full: daemon wedged; do not park the loop
+        spdlog::debug("[WifiBackendNetd] Daemon write failed: {}", std::strerror(errno));
+        return false;
+    }
+    return remaining == 0;
+}
+
+bool WifiBackendNetd::write_line_raw(const std::string& line) {
+    // EXTERNAL THREADS (the LVGL thread's fire-and-forget sends). Same
+    // fail-fast policy as the loop path: commands are tiny, so a full
+    // buffer means a wedged daemon — report failure immediately and let
+    // the liveness/reconnect machinery own recovery. The caller (the UI
+    // thread) is never parked.
+    std::lock_guard<std::mutex> lock(cmd_mutex_);
+    if (io_ == nullptr || fd_ < 0)
+        return false;
+
+    const char* data = line.data();
+    size_t remaining = line.size();
+    while (remaining > 0) {
+        const ssize_t n = ::send(fd_, data, remaining, MSG_NOSIGNAL);
+        if (n > 0) {
+            data += n;
+            remaining -= static_cast<size_t>(n);
+            continue;
         }
+        if (n < 0 && errno == EINTR)
+            continue;
         spdlog::debug("[WifiBackendNetd] Daemon write failed: {}", std::strerror(errno));
         return false;
     }
     return true;
 }
 
-WifiBackendNetd::SendOutcome WifiBackendNetd::send_request(const std::string& cmd) {
+// Fire-and-forget send from an external thread: the daemon acks operation
+// COMPLETION (an OK can trail a join by tens of seconds), so parking the
+// caller for a verdict would freeze the UI thread for the length of a radio
+// operation. Every command goes out, the caller returns immediately, and
+// verdicts arrive as daemon lines that drive events. A failed or wedged
+// send reports false on the spot; the liveness/reconnect machinery owns
+// daemon-side recovery.
+bool WifiBackendNetd::send_line(const std::string& cmd) {
     spdlog::debug("[WifiBackendNetd] Sending '{}'", command_name(cmd));
-
-    auto slot = std::make_shared<AckWait>();
-    {
-        std::lock_guard<std::mutex> lock(pending_mutex_);
-        // One slot: parking a second op displaces the first, whose waiter
-        // reads Dismissed and treats its op as accepted — the same semantics
-        // as its own timeout.
-        pending_ack_ = slot;
-        pending_cmd_ = cmd;
-    }
-
-    if (!write_line_raw(cmd + "\n")) {
-        std::lock_guard<std::mutex> lock(pending_mutex_);
-        if (pending_ack_ == slot) {
-            pending_ack_.reset();
-            pending_cmd_.clear();
-        }
-        return SendOutcome{SendOutcome::Kind::NotSent, {}};
-    }
-
+    if (!write_line_raw(cmd + "\n"))
+        return false;
     arm_liveness_probe();
-
-    // Early-reject window ONLY: OK/ERR here are operation COMPLETION acks,
-    // so a timeout means "accepted, the daemon owns the rest" — the late ack
-    // arrives unsolicited and drives events.
-    std::unique_lock<std::mutex> lock(slot->mtx);
-    const bool resolved = slot->cv.wait_for(lock, std::chrono::milliseconds(ack_wait_ms_), [&slot] {
-        return slot->result != AckWait::Result::Waiting;
-    });
-    if (!resolved)
-        return SendOutcome{SendOutcome::Kind::Timeout, {}};
-    switch (slot->result) {
-    case AckWait::Result::Ok:
-        return SendOutcome{SendOutcome::Kind::Ok, slot->text};
-    case AckWait::Result::Err:
-        return SendOutcome{SendOutcome::Kind::Err, slot->text};
-    case AckWait::Result::Dismissed:
-    case AckWait::Result::Waiting:
-        break;
-    }
-    return SendOutcome{SendOutcome::Kind::Timeout, {}};
+    return true;
 }
 
 void WifiBackendNetd::arm_liveness_probe() {
@@ -726,7 +732,7 @@ void WifiBackendNetd::arm_liveness_probe() {
             std::chrono::milliseconds(kLivenessProbeMs))
             return;
         spdlog::debug("[WifiBackendNetd] Daemon silent while an op is pending; sending GET");
-        (void)write_line_raw(helix::netd::encode_get() + "\n");
+        (void)write_line_from_loop(helix::netd::encode_get() + "\n");
         loop()->setTimeout(kLivenessGiveUpMs, [this](hv::TimerID) {
             if (shutdown_requested_.load() || io_ == nullptr)
                 return;
@@ -760,22 +766,13 @@ WiFiError WifiBackendNetd::trigger_scan() {
     }
     scan_pending_.store(true);
 
-    const SendOutcome outcome = send_request(helix::netd::encode_scan());
-    switch (outcome.kind) {
-    case SendOutcome::Kind::NotSent:
+    // Fire-and-forget: an immediate ERR (BUSY, SCAN_FAILED) arrives as a
+    // daemon line and completes the scan through the same attribution as the
+    // OK; the caller never waits.
+    if (!send_line(helix::netd::encode_scan())) {
         scan_pending_.store(false);
         return WiFiErrorHelper::connection_failed(
             "netd connection is down; scan was not requested");
-    case SendOutcome::Kind::Err:
-        scan_pending_.store(false);
-        // SCAN_FAILED / BUSY / SCAN_IN_PROGRESS all reject synchronously;
-        // the manager resolves this through its failure path.
-        return WiFiError(WiFiResult::BACKEND_ERROR, "SCAN refused: " + outcome.text,
-                         "Failed to start network scan",
-                         "Check the printer's network service and try again");
-    case SendOutcome::Kind::Ok:
-    case SendOutcome::Kind::Timeout:
-        break;
     }
 
     // The scan obligation: a SUCCESS here obligates an eventual
@@ -829,27 +826,14 @@ WiFiError WifiBackendNetd::connect_network(const std::string& ssid, const std::s
     auth_failure_latched_.store(false);
     connect_in_flight_.store(true);
 
-    const SendOutcome outcome = send_request(helix::netd::encode_connect_wifi(ssid, password));
-    switch (outcome.kind) {
-    case SendOutcome::Kind::NotSent:
+    // Fire-and-forget: the daemon owns the join, and its verdict arrives as
+    // CONNECTED / DISCONNECTED / AUTH_FAILED events (the ERR reasons map
+    // through helix::netd::is_auth_failure_reason on the loop thread). The
+    // caller never waits; NEVER auto-CANCEL.
+    if (!send_line(helix::netd::encode_connect_wifi(ssid, password))) {
         connect_in_flight_.store(false);
         return WiFiErrorHelper::connection_failed(
             "netd connection is down; join was not requested");
-    case SendOutcome::Kind::Err: {
-        // The AUTH_FAILED/DISCONNECTED events for this failure are fired from
-        // the loop thread by handle_ack(); this maps the synchronous return.
-        const std::string& reason = outcome.text;
-        if (reason == "WRONG_KEY" || reason == "AUTH_FAILED" || reason == "INVALID_PSK")
-            return WiFiErrorHelper::authentication_failed(ssid);
-        if (reason == "NOT_FOUND")
-            return WiFiErrorHelper::network_not_found(ssid);
-        return WiFiErrorHelper::connection_failed("netd refused the join: " + reason);
-    }
-    case SendOutcome::Kind::Ok:
-    case SendOutcome::Kind::Timeout:
-        // Accepted: the daemon owns the join; its outcome arrives as
-        // CONNECTED / DISCONNECTED / AUTH_FAILED events. NEVER auto-CANCEL.
-        break;
     }
     return WiFiErrorHelper::success();
 }
@@ -890,9 +874,10 @@ WifiBackend::ConnectionStatus WifiBackendNetd::get_status() {
 }
 
 bool WifiBackendNetd::supports_5ghz() const {
-    // This backend drives a 2.4 GHz-only radio; the picker shows the
-    // "only 2.4 GHz networks" hint.
-    return false;
+    // Derived from evidence, not asserted: the moment any scan row lands on
+    // the 5 GHz band, the radio demonstrably sees it. Until a scan has been
+    // seen, report the conservative 2.4 GHz-only default for this hardware.
+    return seen_5ghz_network_.load();
 }
 
 WiFiError WifiBackendNetd::set_radio_enabled(bool on) {
@@ -911,17 +896,12 @@ void WifiBackendNetd::read_mac_address_once() {
     if (!mac_address_.empty())
         return;
     // Resolve the netdev through the sysfs probe — never a hardcoded name;
-    // iface is filled even when the link is down.
+    // iface is filled even when the link is down. The MAC read itself is the
+    // shared, redaction-aware helper (not a local re-read of sysfs).
     const helix::ui::wifi::OsWifiLink link = helix::ui::wifi::probe_os_wifi_link();
     if (link.iface.empty())
         return;
-    std::ifstream file("/sys/class/net/" + link.iface + "/address");
-    std::string mac;
-    if (!file.is_open() || !std::getline(file, mac))
-        return;
-    while (!mac.empty() && std::isspace(static_cast<unsigned char>(mac.back())))
-        mac.pop_back();
-    mac_address_ = mac;
+    mac_address_ = helix::ui::wifi::wifi_get_device_mac(link.iface);
     spdlog::trace("[WifiBackendNetd] Station address from {}: {}", link.iface, mac_address_);
 }
 

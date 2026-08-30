@@ -33,22 +33,11 @@
 #if !defined(__ANDROID__)
 
 namespace {
-
 namespace fs = std::filesystem;
-
-/// Bounded polling wait (real clock, small step) — same shape as the wifi
-/// netd tests: the fake server exposes no condition variable.
-bool wait_until(const std::function<bool()>& pred, int timeout_ms = 5000, int step_ms = 10) {
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
-    while (std::chrono::steady_clock::now() < deadline) {
-        if (pred())
-            return true;
-        std::this_thread::sleep_for(std::chrono::milliseconds(step_ms));
-    }
-    return pred();
-}
-
 } // namespace
+
+// Shared netd test helpers (wait_until et al) live in netd_test_server.h.
+using helix_test::wait_until;
 
 // ============================================================================
 // Fixture: fake sysfs tree (eth0 with an address file, plus lo/wlan0 the
@@ -66,11 +55,6 @@ class EthernetNetdFixture {
         fs::create_directories(net + "/eth0");
         fs::create_directories(net + "/lo");
         fs::create_directories(net + "/wlan0");
-        // Trailing newline: the reader must trim.
-        {
-            std::ofstream address(net + "/eth0/address");
-            address << "aa:bb:cc:12:34:56\n";
-        }
 
         sock_env_.set(dir_ + "/netd.sock");
         bin_env_.unset();
@@ -78,7 +62,17 @@ class EthernetNetdFixture {
         server_ = std::make_unique<helix_test::NetdFakeServer>();
         REQUIRE(server_->start(dir_ + "/netd.sock"));
 
-        backend_ = std::make_unique<EthernetBackendNetd>(dir_ + "/sys");
+        // Host-independent kernel state: identity only until a case flips
+        // kernel_connected/kernel_ip for the fallback scenarios.
+        backend_ = std::make_unique<EthernetBackendNetd>(dir_ + "/sys", [this] {
+            EthernetInfo kernel;
+            kernel.interface = "eth0";
+            kernel.mac_address = "aa:bb:cc:12:34:56";
+            kernel.connected = kernel_connected;
+            kernel.ip_address = kernel_connected ? kernel_ip : "";
+            kernel.status = kernel_connected ? "Connected" : "No cable";
+            return kernel;
+        });
     }
 
     ~EthernetNetdFixture() {
@@ -111,6 +105,9 @@ class EthernetNetdFixture {
     helix_test::EnvVarGuard bin_env_{"HELIX_NETD_BIN"};
     std::unique_ptr<helix_test::NetdFakeServer> server_;
     std::unique_ptr<EthernetBackendNetd> backend_;
+    /// Kernel-stub state for the fallback cases (captured by the stub above).
+    bool kernel_connected = false;
+    std::string kernel_ip = "172.16.0.9";
 
   private:
     std::string dir_;
@@ -126,8 +123,8 @@ TEST_CASE_METHOD(EthernetNetdFixture, "netd ethernet online snapshot maps to con
 
     REQUIRE(info.connected);
     REQUIRE(info.ip_address == "10.0.0.5");
-    REQUIRE(info.interface == "eth0");                // resolved from the sysfs scan
-    REQUIRE(info.mac_address == "aa:bb:cc:12:34:56"); // trimmed from the address file
+    REQUIRE(info.interface == "eth0");                // identity from the kernel reader
+    REQUIRE(info.mac_address == "aa:bb:cc:12:34:56"); // (connected-first preference)
     REQUIRE(info.status == "Connected");
 }
 
@@ -209,8 +206,28 @@ TEST_CASE_METHOD(EthernetNetdFixture, "netd unreachable daemon leaves sysfs dete
 
     REQUIRE_FALSE(info.connected);
     REQUIRE(info.ip_address.empty());
-    REQUIRE(info.status == "Network daemon unavailable");
+    // Daemon gone, kernel disconnected: the kernel reading is the answer, so
+    // its status (not a generic "daemon unavailable") is what the row keeps.
+    // The daemon-unavailable wording surfaces in the kernel-connected case.
+    REQUIRE(info.status == "No cable");
     REQUIRE(backend_->has_interface());
+}
+
+// ============================================================================
+// 4b. Daemon unreachable while the KERNEL still carries a live address: the
+//     kernel reading is the answer — a daemon death mid-session must not
+//     blank a row whose address is still up.
+// ============================================================================
+TEST_CASE_METHOD(EthernetNetdFixture, "netd dead daemon falls back to kernel truth",
+                 "[netd][ethernet]") {
+    kernel_connected = true; // the stub's kernel state, injected at construction
+    sock_env_.set("/tmp/helix_netd_no_such_daemon/netd.sock");
+
+    const EthernetInfo info = backend_->get_info();
+    REQUIRE(info.connected);
+    REQUIRE(info.ip_address == kernel_ip);
+    REQUIRE(info.interface == "eth0");
+    REQUIRE(info.status == "Connected (daemon unavailable)");
 }
 
 // ============================================================================

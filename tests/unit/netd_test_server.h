@@ -10,6 +10,8 @@
  *
  * - EnvVarGuard — RAII save/restore of one environ entry, so a failed
  *   REQUIRE cannot leak a repointed HELIX_NETD_* into the rest of the suite.
+ * - wait_until / b64 / unb64 — the polling wait and base64 helpers every
+ *   netd test TU needs; one copy here instead of one per file.
  * - NetdFakeServer — a real AF_UNIX SOCK_STREAM listener with one acceptor
  *   thread. It plays the daemon side of the netd line protocol well enough
  *   to exercise a client backend: it records every complete line any client
@@ -22,11 +24,14 @@
  */
 
 #include "../../include/netd_protocol.h"
+#include "hv/base64.h"
 
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cstring>
+#include <functional>
 #include <mutex>
 #include <poll.h>
 #include <string>
@@ -38,6 +43,29 @@
 #include <vector>
 
 namespace helix_test {
+
+/// Bounded polling wait on the real clock with a small step. The fake server
+/// exposes no condition variable, so tests poll its recorded state.
+inline bool wait_until(const std::function<bool()>& pred, int timeout_ms = 5000, int step_ms = 10) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (pred())
+            return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(step_ms));
+    }
+    return pred();
+}
+
+/// Base64 of a raw string, the way the netd wire protocol encodes fields.
+inline std::string b64(const std::string& raw) {
+    return hv::Base64Encode(reinterpret_cast<const unsigned char*>(raw.data()),
+                            static_cast<unsigned int>(raw.size()));
+}
+
+/// Inverse of b64().
+inline std::string unb64(const std::string& encoded) {
+    return hv::Base64Decode(encoded.c_str(), static_cast<unsigned int>(encoded.size()));
+}
 
 // Saves one environ entry on construction and restores it (set or unset) on
 // destruction, so a failed REQUIRE cannot leak a repointed HELIX_NETD_* into
