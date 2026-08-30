@@ -263,7 +263,7 @@ void WifiBackendNetd::register_event_callback(const std::string& name,
 // ============================================================================
 
 void WifiBackendNetd::init_netd() {
-    read_mac_address_once();
+    read_mac_address_if_empty();
 
     if (shutdown_requested_.load()) {
         signal_init_complete("shutdown requested during init");
@@ -599,6 +599,10 @@ void WifiBackendNetd::handle_snapshot_diff(const helix::netd::NetdSnapshot& afte
         // parity). Never fire CONNECTED for mode==ETHERNET.
         auth_failure_latched_.store(false);
         connect_in_flight_.store(false);
+        // Reaching WIFI means the transport flipped and wlan0 exists now; on a
+        // box that booted in ETHERNET mode the init-time MAC read found
+        // nothing. The empty guard makes this a no-op once resolved.
+        read_mac_address_if_empty();
         dispatch_event("CONNECTED", after.state);
     } else if (!now_connected && was_connected_) {
         // ANY loss of the connected state is a disconnect — including drops
@@ -859,8 +863,11 @@ WifiBackend::ConnectionStatus WifiBackendNetd::get_status() {
     ConnectionStatus status;
     helix::netd::NetdSnapshot snapshot;
     {
+        // mac_address_ shares this lock: the loop thread can refresh it on a
+        // CONNECTED transition while a reader is here.
         std::lock_guard<std::mutex> lock(snapshot_mutex_);
         snapshot = snapshot_;
+        status.mac_address = mac_address_;
     }
     // Association counts even with an empty IP (wpa COMPLETED parity), and
     // ethernet mode is not "connected wifi". Reads never touch the socket.
@@ -868,7 +875,6 @@ WifiBackend::ConnectionStatus WifiBackendNetd::get_status() {
     status.ssid = snapshot.ssid;
     status.ip_address = snapshot.ip;
     status.signal_strength = parse_signal_percent(snapshot.signal);
-    status.mac_address = mac_address_;
     status.frequency_mhz = 0; // the protocol carries no association frequency
     return status;
 }
@@ -892,7 +898,7 @@ bool WifiBackendNetd::is_radio_enabled() const {
     return true;
 }
 
-void WifiBackendNetd::read_mac_address_once() {
+void WifiBackendNetd::read_mac_address_if_empty() {
     if (!mac_address_.empty())
         return;
     // Resolve the netdev through the sysfs probe — never a hardcoded name;
@@ -901,7 +907,13 @@ void WifiBackendNetd::read_mac_address_once() {
     const helix::ui::wifi::OsWifiLink link = helix::ui::wifi::probe_os_wifi_link();
     if (link.iface.empty())
         return;
-    mac_address_ = helix::ui::wifi::wifi_get_device_mac(link.iface);
+    const std::string mac = helix::ui::wifi::wifi_get_device_mac(link.iface);
+    if (mac.empty())
+        return;
+    // get_status() reads this from any thread; init and the loop-thread retry
+    // are the only writers.
+    std::lock_guard<std::mutex> lock(snapshot_mutex_);
+    mac_address_ = mac;
     spdlog::trace("[WifiBackendNetd] Station address from {}: {}", link.iface, mac_address_);
 }
 

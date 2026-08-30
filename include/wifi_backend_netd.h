@@ -190,9 +190,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     // Helpers
     // ========================================================================
 
-    /// Read the station MAC from sysfs once per init, via the interface
-    /// probe (never a hardcoded netdev name). Empty when unresolvable.
-    void read_mac_address_once();
+    /// Read the station MAC from sysfs via the interface probe (never a
+    /// hardcoded netdev name); no-op once non-empty. Called at init AND on a
+    /// CONNECTED transition: a box booted in ETHERNET mode has no wlan0 up
+    /// when init runs, so the first read legitimately finds nothing and the
+    /// MAC would stay blank for the whole session without the retry
+    /// (prestonbrown/helixscreen#1399). Empty when unresolvable.
+    void read_mac_address_if_empty();
 
     bool event_loop_active() {
         return hv::EventLoopThread::isRunning();
@@ -235,7 +239,9 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     std::mutex scan_mutex_;
     std::vector<helix::netd::ScanRow> scan_rows_; ///< Rows of the current/last scan.
 
-    std::string mac_address_; ///< Station MAC, read once at init.
+    /// Station MAC. Written at init and on the CONNECTED retry (loop thread),
+    /// read by get_status() from any thread — guard with snapshot_mutex_.
+    std::string mac_address_;
 
     // start()/start_async() synchronization (same shape as the wpa backend).
     std::mutex init_mutex_;

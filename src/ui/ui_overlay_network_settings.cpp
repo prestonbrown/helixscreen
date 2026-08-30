@@ -478,6 +478,12 @@ void NetworkSettingsOverlay::cleanup() {
 // Helper Functions
 // ============================================================================
 
+void NetworkSettingsOverlay::refresh_transport_status() {
+    update_wifi_status();
+    update_ethernet_status();
+    update_any_network_connected();
+}
+
 void NetworkSettingsOverlay::update_wifi_status() {
     if (!wifi_manager_) {
         spdlog::debug("[NetworkSettingsOverlay] Cannot update WiFi status: no WiFiManager");
@@ -1309,8 +1315,7 @@ void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
                     spdlog::info("[NetworkSettingsOverlay] Connected to hidden network: {}",
                                  helix::redact::ssid(ssid_str));
                     handle_hidden_cancel_clicked();
-                    update_wifi_status();
-                    update_any_network_connected();
+                    refresh_transport_status();
 
                     if (wifi_manager_) {
                         auto scan_token = lifetime_.token();
@@ -1394,8 +1399,7 @@ void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
                     if (success) {
                         spdlog::info("[NetworkSettingsOverlay] Connected to {}",
                                      helix::redact::ssid(current_ssid_));
-                        update_wifi_status();
-                        update_any_network_connected();
+                        refresh_transport_status();
                     } else {
                         spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}", error);
                     }
@@ -1455,8 +1459,7 @@ void NetworkSettingsOverlay::handle_network_forget_confirm() {
                              helix::redact::ssid(ssid));
                 ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Network forgotten"),
                                               2000);
-                update_wifi_status();
-                update_any_network_connected();
+                refresh_transport_status();
 
                 // Refresh the scan list so a stale "connected" checkmark clears.
                 if (wifi_manager_ && wifi_manager_->is_enabled()) {
@@ -1697,8 +1700,7 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
             if (success) {
                 spdlog::info("[NetworkSettingsOverlay] Connected to {}", helix::redact::ssid(ssid));
                 hide_password_modal();
-                update_wifi_status();
-                update_any_network_connected();
+                refresh_transport_status();
 
                 // Refresh network list to show checkmark on connected network
                 if (wifi_manager_) {
