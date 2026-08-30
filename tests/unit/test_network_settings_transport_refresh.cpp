@@ -95,5 +95,12 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     helix::WiFiManagerTestAccess::fire_connected(*wm, "");
     helix::ui::UpdateQueue::instance().drain();
 
-    REQUIRE(lv_subject_get_int(&Access::wifi_connected(*overlay)) == 1);
+    // Convergence wait, not a single drain: the refresh chain's ethernet half
+    // resolves on an HttpExecutor worker and can re-queue under load, and the
+    // suite's 96-way shard burst makes one-shot drains racy (tests/CLAUDE.md
+    // "join the worker, then drain" - there is no joinable handle here).
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return lv_subject_get_int(&Access::wifi_connected(*overlay)) == 1;
+    }));
 }
