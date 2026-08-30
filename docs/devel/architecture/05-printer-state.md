@@ -49,7 +49,7 @@ flowchart TB
 
 ### One orchestrator, thirteen domains
 
-`PrinterState` ([`include/printer_state.h:213`](../../../include/printer_state.h#L213)) keeps its historical public API but holds the implementation as thirteen domain components by value ([`include/printer_state.h:2313`](../../../include/printer_state.h#L2313)-2356): `temperature_state_`, `motion_state_`, `led_state_component_`, `fan_state_`, `print_domain_`, `capabilities_state_`, `plugin_status_state_`, `calibration_state_`, `hardware_validation_state_`, `composite_visibility_state_`, `network_state_`, `versions_state_`, `excluded_objects_state_`. Callers never touch a domain directly — `PrinterState` forwards. Each domain follows the same shape: `init_subjects(bool register_xml)`, `deinit_subjects()`, `update_from_status()`, change-gated setters.
+`PrinterState` ([`include/printer_state.h:213`](../../../include/printer_state.h#L213)) keeps its historical public API but holds the implementation as thirteen domain components by value ([`include/printer_state.h:2334`](../../../include/printer_state.h#L2334)-2377): `temperature_state_`, `motion_state_`, `led_state_component_`, `fan_state_`, `print_domain_`, `capabilities_state_`, `plugin_status_state_`, `calibration_state_`, `hardware_validation_state_`, `composite_visibility_state_`, `network_state_`, `versions_state_`, `excluded_objects_state_`. Callers never touch a domain directly — `PrinterState` forwards. Each domain follows the same shape: `init_subjects(bool register_xml)`, `deinit_subjects()`, `update_from_status()`, change-gated setters.
 
 | Domain | Owns (from its header) |
 |--------|------------------------|

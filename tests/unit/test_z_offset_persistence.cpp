@@ -282,3 +282,53 @@ TEST_CASE("z-offset persistence: enable gate fires once, while idle", "[zoffset]
     // Never twice in a session.
     CHECK_FALSE(should_enable_persistence(true, false, true));
 }
+
+// ============================================================================
+// Helper-Script save-zoffset (prestonbrown/helixscreen#1401)
+// ============================================================================
+
+TEST_CASE("z-offset persistence: Helper-Script's wrapper is detected by the renamed original",
+          "[zoffset][persistence][1401]") {
+    // save-zoffset.cfg wraps SET_GCODE_OFFSET with rename_existing, which is
+    // what makes `gcode_macro _SET_GCODE_OFFSET` exist at all - stock Klipper
+    // has no such object. Keying on the rename rather than on the wrapper name
+    // keeps a custom wrapper with a different rename out.
+    PrinterDiscovery hw = printer_with_macros({"_SET_GCODE_OFFSET"});
+
+    CHECK(helix::zoffset::firmware_persists_z_offset(hw));
+    CHECK(helix::zoffset::persistence_provider_name(hw) == "Helper-Script");
+    CHECK(contains(helix::zoffset::required_status_objects(hw), "save_variables"));
+    // The module loads at boot via its own delayed_gcode; there is nothing to
+    // enable and no stale probe-delta variable to clear.
+    CHECK(helix::zoffset::persistence_enable_gcode(hw).empty());
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(hw).empty());
+}
+
+TEST_CASE("z-offset persistence: the Helper-Script row reads the zoffset save-variable",
+          "[zoffset][persistence][1401]") {
+    // SAVE_VARIABLE VARIABLE=zoffset VALUE="{'z': -0.475}" lands in Moonraker's
+    // status as save_variables.variables.zoffset = {"z": -0.475}.
+    json frame =
+        json{{"save_variables", json{{"variables", json{{"zoffset", json{{"z", -0.475}}}}}}}};
+    auto microns = helix::zoffset::read_persisted_offset_microns(frame);
+    REQUIRE(microns.has_value());
+    CHECK(*microns == -475);
+
+    // Seeded as {'z': None} before the first wrapped SET_GCODE_OFFSET.
+    json null_z =
+        json{{"save_variables", json{{"variables", json{{"zoffset", json{{"z", nullptr}}}}}}}};
+    CHECK_FALSE(helix::zoffset::read_persisted_offset_microns(null_z).has_value());
+
+    // A save_variables store without the module's variable is some other
+    // consumer's data - not ours to read.
+    json other = json{{"save_variables", json{{"variables", json{{"lan_clients", 7}}}}}};
+    CHECK_FALSE(helix::zoffset::read_persisted_offset_microns(other).has_value());
+}
+
+TEST_CASE("z-offset persistence: ZMOD outranks the Helper-Script wrapper",
+          "[zoffset][persistence][1401]") {
+    // A box carrying both rows' macros resolves to the first hit in the table;
+    // the schemas are distinct so reads never collide either.
+    PrinterDiscovery hw = printer_with_macros({"SAVE_ZMOD_DATA", "_SET_GCODE_OFFSET"});
+    CHECK(helix::zoffset::persistence_provider_name(hw) == "ZMOD");
+}
