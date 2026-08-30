@@ -287,13 +287,15 @@ TEST_CASE("z-offset persistence: enable gate fires once, while idle", "[zoffset]
 // Helper-Script save-zoffset (prestonbrown/helixscreen#1401)
 // ============================================================================
 
-TEST_CASE("z-offset persistence: Helper-Script's wrapper is detected by the renamed original",
+TEST_CASE("z-offset persistence: Helper-Script's wrapper is detected by the wrapper object",
           "[zoffset][persistence][1401]") {
-    // save-zoffset.cfg wraps SET_GCODE_OFFSET with rename_existing, which is
-    // what makes `gcode_macro _SET_GCODE_OFFSET` exist at all - stock Klipper
-    // has no such object. Keying on the rename rather than on the wrapper name
-    // keeps a custom wrapper with a different rename out.
-    PrinterDiscovery hw = printer_with_macros({"_SET_GCODE_OFFSET"});
+    // save-zoffset.cfg defines [gcode_macro SET_GCODE_OFFSET] with
+    // rename_existing, and shadowing a builtin REQUIRES rename_existing - so
+    // the wrapper object existing in objects/list is exactly "a renaming
+    // wrapper is installed". The renamed original is a bare command, never an
+    // object (verified against debug bundle 5J49T5RU: SET_GCODE_OFFSET in the
+    // 83 macro objects, _SET_GCODE_OFFSET in none).
+    PrinterDiscovery hw = printer_with_macros({"SET_GCODE_OFFSET"});
 
     CHECK(helix::zoffset::firmware_persists_z_offset(hw));
     CHECK(helix::zoffset::persistence_provider_name(hw) == "Helper-Script");
