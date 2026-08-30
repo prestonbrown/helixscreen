@@ -219,6 +219,13 @@ void SpoolEditModal::on_hide() {}
 std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>&, const std::string&) {
     return {};
 }
+std::string build_searchable_text(const SpoolInfo&) {
+    return {};
+}
+std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>&, const std::string&,
+                                     const std::vector<std::string>&) {
+    return {};
+}
 
 // src/printer/spoolman_manager.cpp — the real init_subjects() registers only
 // observers (no XML subjects), so a no-op leaves no binding unsatisfied.
