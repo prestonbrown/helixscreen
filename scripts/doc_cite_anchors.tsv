@@ -679,7 +679,7 @@ docs/devel/architecture/15-known-debt.md	src/ui/panel_widgets/led_widget.cpp	109
 docs/devel/architecture/15-known-debt.md	src/ui/panel_widgets/nozzle_layout.h	31	src/ui/panel_widgets/nozzle_layout.h	0efc7d08b56d	ca5595c1c303
 docs/devel/architecture/15-known-debt.md	src/ui/temperature_service.cpp	205	src/ui/temperature_service.cpp	4aa7689c054c	32121fceeee4
 docs/devel/architecture/15-known-debt.md	src/ui/temperature_service.cpp	669	src/ui/temperature_service.cpp	c07ddbffc0e9	92dc5aea3992
-docs/devel/architecture/15-known-debt.md	src/ui/ui_overlay_network_settings.cpp	671	src/ui/ui_overlay_network_settings.cpp	3bf5dfc6dd26	a68626882001
+docs/devel/architecture/15-known-debt.md	src/ui/ui_overlay_network_settings.cpp	683	src/ui/ui_overlay_network_settings.cpp	3bf5dfc6dd26	a68626882001
 docs/devel/architecture/15-known-debt.md	src/ui/ui_panel_gcode_test.cpp	391	src/ui/ui_panel_gcode_test.cpp	519472c9039b	15070977d864
 docs/devel/architecture/15-known-debt.md	src/ui/ui_panel_gcode_test.cpp	405	src/ui/ui_panel_gcode_test.cpp	4970afc267e4	7a1b96221613
 docs/devel/architecture/15-known-debt.md	src/ui/ui_temperature_utils.cpp	61	src/ui/ui_temperature_utils.cpp	cd7a308a981f	b1d9be3af0c1

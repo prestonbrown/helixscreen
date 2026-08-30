@@ -58,6 +58,11 @@
  */
 class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
   public:
+    /// Station-MAC source: the wlan address, or empty while the netdev can't
+    /// be resolved yet. Injectable so tests can simulate wlan0 appearing late
+    /// (prestonbrown/helixscreen#1399); production probes sysfs.
+    using MacReader = std::function<std::string()>;
+
     /**
      * @param reconnect_ms      Delay before re-establishing a dropped daemon
      *                         connection (default 5 s).
@@ -66,8 +71,11 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
      *                         return from trigger_scan() OBLIGATES an
      *                         eventual SCAN_COMPLETE, or WiFiManager's scan
      *                         scheduler latches forever.
+     * @param mac_reader        Station-MAC source (default: sysfs probe via
+     *                         probe_os_wifi_link + wifi_get_device_mac).
      */
-    explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000);
+    explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000,
+                             MacReader mac_reader = {});
 
     /**
      * @brief Destructor - full teardown (stop loop, join threads, close socket)
@@ -190,11 +198,11 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     // Helpers
     // ========================================================================
 
-    /// Read the station MAC from sysfs via the interface probe (never a
-    /// hardcoded netdev name); no-op once non-empty. Called at init AND on a
-    /// CONNECTED transition: a box booted in ETHERNET mode has no wlan0 up
-    /// when init runs, so the first read legitimately finds nothing and the
-    /// MAC would stay blank for the whole session without the retry
+    /// Read the station MAC through mac_reader_ (sysfs probe in production,
+    /// never a hardcoded netdev name); no-op once non-empty. Called at init
+    /// AND on a CONNECTED transition: a box booted in ETHERNET mode has no
+    /// wlan0 up when init runs, so the first read legitimately finds nothing
+    /// and the MAC would stay blank for the whole session without the retry
     /// (prestonbrown/helixscreen#1399). Empty when unresolvable.
     void read_mac_address_if_empty();
 
@@ -242,6 +250,11 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// Station MAC. Written at init and on the CONNECTED retry (loop thread),
     /// read by get_status() from any thread — guard with snapshot_mutex_.
     std::string mac_address_;
+
+    /// The injected MAC source; never null (the ctor falls back to the sysfs
+    /// probe). Called without snapshot_mutex_ held — only the assignment
+    /// under it takes the lock.
+    const MacReader mac_reader_;
 
     // start()/start_async() synchronization (same shape as the wpa backend).
     std::mutex init_mutex_;

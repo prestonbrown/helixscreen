@@ -45,6 +45,16 @@ std::string command_name(const std::string& cmd) {
     return cmd.substr(0, space);
 }
 
+// Production MAC source for the injectable reader: resolve the netdev through
+// the sysfs probe — never a hardcoded name; iface is filled even when the link
+// is down — then read the address through the shared, redaction-aware helper.
+std::string default_mac_reader() {
+    const helix::ui::wifi::OsWifiLink link = helix::ui::wifi::probe_os_wifi_link();
+    if (link.iface.empty())
+        return std::string();
+    return helix::ui::wifi::wifi_get_device_mac(link.iface);
+}
+
 // Liveness watchdog constants (the first-party client's cadence): if an op
 // is outstanding and the daemon says nothing for this long, ask for a
 // snapshot; if even that draws no line for this much longer, the connection
@@ -58,9 +68,10 @@ constexpr int kLivenessGiveUpMs = 5000;
 // Lifecycle
 // ============================================================================
 
-WifiBackendNetd::WifiBackendNetd(int reconnect_ms, int scan_watchdog_ms)
+WifiBackendNetd::WifiBackendNetd(int reconnect_ms, int scan_watchdog_ms, MacReader mac_reader)
     : hv::EventLoopThread(nullptr), reconnect_ms_(reconnect_ms),
-      scan_watchdog_ms_(scan_watchdog_ms) {
+      scan_watchdog_ms_(scan_watchdog_ms),
+      mac_reader_(mac_reader ? std::move(mac_reader) : MacReader(default_mac_reader)) {
     spdlog::debug("[WifiBackendNetd] Initialized (netd mode)");
 }
 
@@ -901,20 +912,17 @@ bool WifiBackendNetd::is_radio_enabled() const {
 void WifiBackendNetd::read_mac_address_if_empty() {
     if (!mac_address_.empty())
         return;
-    // Resolve the netdev through the sysfs probe — never a hardcoded name;
-    // iface is filled even when the link is down. The MAC read itself is the
-    // shared, redaction-aware helper (not a local re-read of sysfs).
-    const helix::ui::wifi::OsWifiLink link = helix::ui::wifi::probe_os_wifi_link();
-    if (link.iface.empty())
-        return;
-    const std::string mac = helix::ui::wifi::wifi_get_device_mac(link.iface);
+    // The reader owns netdev resolution (sysfs probe in production, injected
+    // stub in tests); empty means "no interface yet", which the CONNECTED
+    // retry turns into a recoverable condition.
+    const std::string mac = mac_reader_();
     if (mac.empty())
         return;
     // get_status() reads this from any thread; init and the loop-thread retry
     // are the only writers.
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
     mac_address_ = mac;
-    spdlog::trace("[WifiBackendNetd] Station address from {}: {}", link.iface, mac_address_);
+    spdlog::trace("[WifiBackendNetd] Station address resolved: {}", mac_address_);
 }
 
 #endif // !__APPLE__ && !__ANDROID__

@@ -582,4 +582,41 @@ TEST_CASE("wifi signal percent from dbm clamps and scales", "[netd][wifi]") {
     REQUIRE(wifi_signal_percent_from_dbm(-60) == 50);
 }
 
+// ============================================================================
+// 13. MAC retry (#1399): a box booted in ETHERNET mode has no wlan0 when
+//     init runs, so the init-time read legitimately finds nothing. The
+//     CONNECTED transition must retry the read and the result must surface
+//     through get_status(), or the MAC stays blank for the whole session.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd MAC read retries on the CONNECTED transition",
+                 "[netd][wifi][1399]") {
+    // wlan0 appearing late: the first read (init) finds no interface, every
+    // later one sees the station address.
+    std::atomic<int> reads{0};
+    const std::string injected_mac = "02:41:1C:9A:7B:05";
+    auto mac_reader = [&reads, injected_mac]() -> std::string {
+        return reads.fetch_add(1) == 0 ? std::string() : injected_mac;
+    };
+    // Swap in a backend built with the injected reader (the fixture's own was
+    // never started, so its teardown here is a no-op).
+    backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, kWatchdogMs, mac_reader);
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    // start() waits for init, and init reads the MAC before signaling
+    // completion — so the empty first read has already happened here.
+    REQUIRE(backend_->get_status().mac_address.empty());
+
+    // The transport flips: MODE=WIFI plus the rising edge to CONNECTED is the
+    // transition handle_snapshot_diff retries the read on (the fixture starts
+    // from a disconnected snapshot, so this is the first edge).
+    server_->push_line("MODE=WIFI");
+    server_->push_line("STATE=CONNECTED");
+    REQUIRE(wait_for_event("CONNECTED", 1));
+
+    // The retry runs before the CONNECTED dispatch on the same loop thread,
+    // so the event landing means the address is already committed.
+    REQUIRE(backend_->get_status().mac_address == injected_mac);
+}
+
 #endif // !__APPLE__ && !__ANDROID__

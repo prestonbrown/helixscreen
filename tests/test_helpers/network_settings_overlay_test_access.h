@@ -30,4 +30,14 @@ class NetworkSettingsOverlayTestAccess {
     static void watch(NetworkSettingsOverlay& o, lv_obj_t* modal) {
         lv_obj_add_event_cb(modal, NetworkSettingsOverlay::on_modal_deleted, LV_EVENT_DELETE, &o);
     }
+    /// The overlay's manager pointer — tests point it at a locally owned
+    /// WiFiManager instead of the process-global singleton, before create().
+    static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
+        return o.wifi_manager_;
+    }
+    /// The wifi_connected subject (0/1) — the observable a transport refresh
+    /// must move.
+    static lv_subject_t& wifi_connected(NetworkSettingsOverlay& o) {
+        return o.wifi_connected_;
+    }
 };

@@ -388,6 +388,18 @@ void NetworkSettingsOverlay::on_activate() {
     update_ethernet_status();
     update_any_network_connected();
 
+    // Subscribe to backend state changes so an open overlay refreshes its
+    // transport rows when the backend flips transports underneath it: on a
+    // single-transport platform (netd enforces this) a join or leave downs
+    // and re-ups the OTHER transport too, and nothing here re-queries it
+    // until the user taps something (prestonbrown/helixscreen#1398).
+    // Registered per activation — on_deactivate() invalidates lifetime_, so
+    // a create()-time token would die at the first close and never return.
+    if (wifi_manager_) {
+        wifi_manager_->add_state_observer(lifetime_.token(),
+                                          [this]() { refresh_transport_status(); });
+    }
+
     // Update band capability indicator (show "Only 2.4GHz" if 5GHz not supported)
     if (wifi_manager_) {
         bool only_24ghz = !wifi_manager_->supports_5ghz();
