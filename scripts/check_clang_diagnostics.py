@@ -90,7 +90,11 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-TU_EXTENSIONS = (".cpp", ".cc", ".cxx", ".mm", ".c")
+# C++ translation units only. The tree's .c files are generated LVGL font
+# data under assets/fonts/ (compiled -std=c11); replaying their commands
+# through clang++ is a category error - "invalid argument '-std=c11' not
+# allowed with 'C++'" - and hand-written C does not exist in src/ or include/.
+TU_EXTENSIONS = (".cpp", ".cc", ".cxx", ".mm")
 HEADER_EXTENSIONS = (".h", ".hpp", ".hh", ".hxx", ".inc", ".ipp")
 
 # Compiler wrappers that may lead the command line; dropped before argv[0] is
