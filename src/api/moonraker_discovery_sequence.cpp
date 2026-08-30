@@ -1586,6 +1586,20 @@ void MoonrakerDiscoverySequence::complete_discovery_subscription(uint64_t seq) {
     json subscription_objects = build_subscription_objects(hw, heaters_, sensors_, fans_, leds_,
                                                            afc_objects_, filament_sensors_, mcus_);
 
+    // A matched z-offset persistence provider (ZMOD, Forge-X, Helper-Script's
+    // save-zoffset) owns offset storage. "Save Z Offset" must stand down or
+    // its probe fold double-applies on every restart
+    // (prestonbrown/helixscreen#1401). One capability question - no vendor
+    // name reaches this file.
+    if (helix::zoffset::firmware_persists_z_offset(hw)) {
+        get_printer_state().set_z_offset_external_persistence(
+            helix::zoffset::persistence_provider_name(hw));
+    } else {
+        // A previously-matched provider since uninstalled: restore the
+        // type-derived strategy. No-op when the flag was never set.
+        get_printer_state().clear_z_offset_external_persistence();
+    }
+
     if (!mcus_.empty()) {
         spdlog::info("[Moonraker Client] Subscribing to {} MCU object(s): {}", mcus_.size(),
                      json(mcus_).dump());

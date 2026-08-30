@@ -172,4 +172,15 @@ std::optional<Decision> build_decision(const PendingRequest& req, bool approve) 
     return Decision{provider->decision_method, provider->decision_params(req, approve)};
 }
 
+bool suppressed_by_denial(
+    const std::string& client_id,
+    const std::unordered_map<std::string, std::chrono::steady_clock::time_point>& denied_clients,
+    std::chrono::steady_clock::time_point now) {
+    auto it = denied_clients.find(client_id);
+    if (it == denied_clients.end()) {
+        return false;
+    }
+    return now - it->second < denial_suppression_window;
+}
+
 } // namespace helix::lan_auth

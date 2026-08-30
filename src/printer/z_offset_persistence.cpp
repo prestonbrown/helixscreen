@@ -107,6 +107,38 @@ std::optional<int> read_forge_x(const nlohmann::json& status) {
     return static_cast<int>(std::lround(z->get<double>() * 1000.0));
 }
 
+// --- Helper-Script save-zoffset (Creality K1/K1C/K1 Max and friends) --------
+//
+// Guilouz's Helper-Script ships save-zoffset.cfg: it wraps SET_GCODE_OFFSET
+// (rename_existing: _SET_GCODE_OFFSET), mirrors every offset into the
+// `zoffset` save-variable, and a boot-time delayed_gcode re-applies that value
+// 2s after every Klipper start. The module IS a z-offset persistence provider:
+// the offset survives restarts without any probe fold.
+//
+// That is exactly why our "Save Z Offset" is dangerous on these boxes
+// (prestonbrown/helixscreen#1401): Z_OFFSET_APPLY_PROBE folds the gcode offset
+// into the probe's z_offset, SAVE_CONFIG restarts Klipper, and the boot gcode
+// re-applies the SAME offset on top - the probe value grows by the full offset
+// on every save cycle (observed 0.060 -> 2.515mm over five cycles, ending in
+// nozzle-on-bed). Detection flips the save path to firmware-managed, the same
+// treatment ZMOD and Forge-X already get.
+std::optional<int> read_helper_script(const nlohmann::json& status) {
+    const nlohmann::json* variables = nested_object(status, "save_variables", "variables");
+    if (!variables) {
+        return std::nullopt;
+    }
+    auto zoffset = variables->find("zoffset");
+    if (zoffset == variables->end() || !zoffset->is_object()) {
+        return std::nullopt;
+    }
+    auto z = zoffset->find("z");
+    if (z == zoffset->end() || !z->is_number()) {
+        // Seeded as {'z': None} before the first wrapped SET_GCODE_OFFSET.
+        return std::nullopt;
+    }
+    return static_cast<int>(std::lround(z->get<double>() * 1000.0));
+}
+
 const std::vector<Provider>& providers() {
     // Row order is match priority: a box exposing two firmwares' macros
     // resolves to the first hit.
@@ -123,6 +155,21 @@ const std::vector<Provider>& providers() {
          "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
          nullptr,
          &read_forge_x},
+        // Keyed on the WRAPPER object. Klipper exposes a builtin command as a
+        // printer object ONLY when a [gcode_macro] shadows it (and shadowing a
+        // builtin requires rename_existing), so `gcode_macro
+        // SET_GCODE_OFFSET` in objects/list is exactly "a renaming wrapper
+        // exists" - stock Klipper never lists it. The renamed original the
+        // wrapper creates is a bare command, not an object; verified against
+        // debug bundle 5J49T5RU: 83 macro objects including
+        // SET_GCODE_OFFSET, none named _SET_GCODE_OFFSET. Must stay below
+        // ZMOD, which also wraps the command.
+        {"Helper-Script",
+         "SET_GCODE_OFFSET",
+         {"save_variables"},
+         nullptr,
+         nullptr,
+         &read_helper_script},
     };
     return table;
 }

@@ -421,16 +421,33 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         spdlog::info("[Fbdev Backend] Touch range source: environment override{}",
                      stored_range.valid ? " (stored calibration range ignored)" : "");
     } else if (stored_range.valid) {
-        if (!env_swap_override) {
-            lv_evdev_set_swap_axes(touch_, stored_range.swap_axes);
+        // A stored range solved on a rotated panel folds the rotation into
+        // (min,max,swap) and double-applies it at runtime
+        // (prestonbrown/helixscreen#1394). The range stage post-dates the
+        // rotation-blind solver by days, so any stored range on a rotated
+        // display is from the broken window: ignore it and ride the
+        // affine-only path. Rotation is read from config because the display
+        // is not rotated yet at backend init.
+        const int configured_rotation =
+            helix::Config::get_instance()
+                ? helix::Config::get_instance()->get<int>("/display/rotate", 0)
+                : 0;
+        if (configured_rotation != 0) {
+            spdlog::warn("[Fbdev Backend] Ignoring stored touch range on a {}°-rotated display"
+                         " - solved through the rotation, affine-only path applies",
+                         configured_rotation);
+        } else {
+            if (!env_swap_override) {
+                lv_evdev_set_swap_axes(touch_, stored_range.swap_axes);
+            }
+            lv_evdev_set_calibration(touch_, stored_range.min_x, stored_range.min_y,
+                                     stored_range.max_x, stored_range.max_y);
+            spdlog::info("[Fbdev Backend] Touch range source: stored calibration "
+                         "X({}..{}) Y({}..{}) swap={}{}",
+                         stored_range.min_x, stored_range.max_x, stored_range.min_y,
+                         stored_range.max_y, stored_range.swap_axes,
+                         env_swap_override ? " (swap held by environment override)" : "");
         }
-        lv_evdev_set_calibration(touch_, stored_range.min_x, stored_range.min_y, stored_range.max_x,
-                                 stored_range.max_y);
-        spdlog::info("[Fbdev Backend] Touch range source: stored calibration "
-                     "X({}..{}) Y({}..{}) swap={}{}",
-                     stored_range.min_x, stored_range.max_x, stored_range.min_y, stored_range.max_y,
-                     stored_range.swap_axes,
-                     env_swap_override ? " (swap held by environment override)" : "");
     } else {
         spdlog::info("[Fbdev Backend] Touch range source: kernel/MT-declared ABS range");
     }

@@ -146,6 +146,14 @@ class LanClientAuthRouter {
     /// The request currently on screen, if any. Doubles as the dedup gate.
     std::optional<lan_auth::PendingRequest> pending_;
 
+    /// Clients the user DENIED, and when. Repeat requests from one are
+    /// dropped for lan_auth::denial_suppression_window. Only decide(false)
+    /// writes here: a dismissal answered nothing and must leave the gate open
+    /// (prestonbrown/helixscreen#1376). Per-client rather than a single slot:
+    /// denying a second client must not re-arm the first one's prompts.
+    /// Bounded by pruning entries outside the window on each write.
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> denied_clients_;
+
     /// The prompt showing pending_. Owned, so it dies with this router and its
     /// callbacks can hold a plain `this`.
     std::unique_ptr<LanAuthPromptModal> prompt_;

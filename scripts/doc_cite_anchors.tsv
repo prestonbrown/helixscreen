@@ -299,7 +299,7 @@ docs/devel/architecture/05-printer-state.md	include/observer_factory.h	668	inclu
 docs/devel/architecture/05-printer-state.md	include/printer_motion_state.h	38	include/printer_motion_state.h	e97003da4b87	c093bf33a458
 docs/devel/architecture/05-printer-state.md	include/printer_print_state.h	741	include/printer_print_state.h	273dce92e5a8	5241f696ba8f
 docs/devel/architecture/05-printer-state.md	include/printer_state.h	213	include/printer_state.h	9c64f3470d4f	969f5c54f667
-docs/devel/architecture/05-printer-state.md	include/printer_state.h	2313	include/printer_state.h	925ec742483d	fab58457c303
+docs/devel/architecture/05-printer-state.md	include/printer_state.h	2334	include/printer_state.h	925ec742483d	fab58457c303
 docs/devel/architecture/05-printer-state.md	include/printer_temperature_state.h	64	include/printer_temperature_state.h	7b686ef090c5	feb405ad1622
 docs/devel/architecture/05-printer-state.md	include/static_panel_registry.h	34	include/static_panel_registry.h	da1dcbc39acb	5b7460b0470e
 docs/devel/architecture/05-printer-state.md	include/static_subject_registry.h	50	include/static_subject_registry.h	167c3f0d9227	9c7666c03263
@@ -346,7 +346,7 @@ docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_client_mo
 docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery_sequence.cpp	856	src/api/moonraker_discovery_sequence.cpp	859d76692100	84ebb0feab81
 docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery_sequence.cpp	1367	src/api/moonraker_discovery_sequence.cpp	c8851164ad07	1763b56e2ecc
 docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery_sequence.cpp	1464	src/api/moonraker_discovery_sequence.cpp	e34b6ee02779	fdc86ce30d75
-docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery_sequence.cpp	1613	src/api/moonraker_discovery_sequence.cpp	0891c236b9de	d1bad618eaea
+docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery_sequence.cpp	1627	src/api/moonraker_discovery_sequence.cpp	0891c236b9de	d1bad618eaea
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	2994	src/application/application.cpp	1244b16cbb0d	b61f63380b11
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3019	src/application/application.cpp	ddd4cd4e9d5a	d1173cf74b99
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3160	src/application/application.cpp	0008878f18b7	83ba3957fd35

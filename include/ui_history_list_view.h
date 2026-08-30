@@ -125,6 +125,15 @@ class HistoryListView {
     void create_spacers();
     void configure_row(lv_obj_t* row, size_t data_index, const PrintHistoryJob& job);
 
+    /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
+    /// run while the tree those pointers refer to is mid-deletion.
+    void clear_cached_state();
+
+    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
+    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
+    /// outlive it (prestonbrown/helixscreen#1396).
+    static void on_container_delete(lv_event_t* e);
+
     // === Static Callbacks ===
     static void on_row_click_static(lv_event_t* e);
 };

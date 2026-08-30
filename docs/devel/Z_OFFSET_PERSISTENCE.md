@@ -92,11 +92,17 @@ call site changes:
 {"ZMOD",     "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1", &read_zmod},
 {"Forge-X",  "SET_MOD",        {"mod_params"},     "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
  &read_forge_x},
+{"Helper-Script", "SET_GCODE_OFFSET", {"save_variables"}, nullptr, &read_helper_script},
 //  name       detect macro      status objects     enable gcode (or nullptr)         reader
 ```
 
 - **detect macro** — matched via `PrinterDiscovery::has_macro()`, case-insensitive,
-  exact (the mod's own `SET_MOD_PARAM` does not trip the `SET_MOD` row).
+  exact (the mod's own `SET_MOD_PARAM` does not trip the `SET_MOD` row). The
+  Helper-Script row keys on the WRAPPER object: Klipper lists a builtin command
+  as a `gcode_macro` object only where a macro shadows it (which requires
+  `rename_existing`), so `SET_GCODE_OFFSET` present in objects/list IS "a
+  renaming wrapper is installed" — the renamed original is a bare command,
+  never an object.
 - **row order** — match priority. A box exposing two firmwares' macros resolves to
   the first row; ZMOD stays first.
 - **reader** — pulls microns out of a status frame; must return `nullopt` for any
