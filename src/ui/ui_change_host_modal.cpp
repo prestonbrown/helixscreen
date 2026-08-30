@@ -479,15 +479,17 @@ void show_connection_failed_modal(const std::string& title, const std::string& m
             return;
         }
 
-        helix::ui::modal_confirm(
-            title.c_str(), message.c_str(), ModalSeverity::Error, lv_tr("Reconnect"), reconnect,
-            [] {
-                // This prompt closes itself the moment this returns, so the host
-                // form is never left stacked over a live error modal whose
-                // buttons stay pressable behind it.
-                show_change_host_modal();
-            },
-            lv_tr("Change Address"));
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [] {
+            // This prompt closes itself the moment this returns, so the host
+            // form is never left stacked over a live error modal whose
+            // buttons stay pressable behind it.
+            show_change_host_modal();
+        };
+        opts.cancel_text = lv_tr("Change Address");
+
+        helix::ui::modal_confirm(title.c_str(), message.c_str(), ModalSeverity::Error,
+                                 lv_tr("Reconnect"), reconnect, opts);
     });
 }
 

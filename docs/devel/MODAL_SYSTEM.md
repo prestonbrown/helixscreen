@@ -517,6 +517,17 @@ The confirmation and alert helpers are owned. Each one builds an internal
 invalidated, and a dismissal is reported through `on_dismiss` - see "Three Ways to Create
 Modals" above.
 
+One-shot modals are owned by their stack entry. `Modal::show_owned()` (or the
+`assume_ownership()` call inside a class's own show helper) hands the instance to
+the entry that tracks its widgets; the entry frees it when it goes - one tick
+after the exit animation on a normal close, immediately in `clear()`. That
+replaced the self-delete-from-on_hide() idiom across every one-shot modal
+(InfoQrModal, CrashReportModal, PreflightCheckModal, ...), whose only free path
+was `on_hide()`: any teardown that bypassed `hide()` - `ModalStack::clear()` at a
+soft restart, `hide()`'s untracked-backdrop early return - leaked the C++ object
+(prestonbrown/helixscreen#1382). A modal that is reshown stays owned by its
+member or `unique_ptr` holder and uses plain `show()`.
+
 The bare static `Modal::show()` factory is the shape with no owner: it pushes with
 `owner = nullptr`, so there is nothing to delegate to and the static teardown is all that
 runs. It never reaches `on_hide()`, and there is no `lifetime_` to invalidate because
@@ -528,10 +539,10 @@ instance-backed modal is hidden rather than rebuilt, because re-creating it from
 would skip `on_show()` and the subclass's button wiring and leave a dialog whose buttons do
 nothing.
 
-Instance `hide()` clears the owner before invoking `on_hide()`. A subclass that self-deletes
-from the hook is freed on the next LVGL tick while the stack entry lives until the exit
-animation finishes, and a hook that itself calls the static overload would otherwise be
-delegated straight back into the same `hide()`.
+Instance `hide()` clears the owner before invoking `on_hide()`, so a hook that itself calls
+the static overload is not delegated straight back into the same `hide()`. An owned
+instance is not freed at that point - only when the entry leaves - so `on_hide()` bodies
+must not assume destruction has begun.
 
 ### Animations
 

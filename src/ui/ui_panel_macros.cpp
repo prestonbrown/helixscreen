@@ -370,6 +370,13 @@ void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
 
         std::string msg = fmt::format(lv_tr("{} may cause unintended changes. Are you sure?"),
                                       prettify_macro_name(macro_name));
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [this] {
+            pending_dangerous_macro_.clear();
+            spdlog::debug("[MacrosPanel] Dangerous macro cancelled");
+        };
+        opts.on_dismiss = [this] { pending_dangerous_macro_.clear(); };
+        opts.owner_token = lifetime_.token();
         helix::ui::modal_confirm(
             lv_tr("Run Dangerous Macro?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Run"),
             [this] {
@@ -377,11 +384,7 @@ void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
                 pending_dangerous_macro_.clear();
                 fetch_params_and_run(macro);
             },
-            [this] {
-                pending_dangerous_macro_.clear();
-                spdlog::debug("[MacrosPanel] Dangerous macro cancelled");
-            },
-            nullptr, [this] { pending_dangerous_macro_.clear(); }, lifetime_.token());
+            opts);
         return;
     }
 
@@ -400,6 +403,10 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
         if (needs_confirm) {
             pending_run_macro_ = macro_name;
             std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));
+            helix::ui::ConfirmOptions opts;
+            opts.on_cancel = [this] { pending_run_macro_.clear(); };
+            opts.on_dismiss = [this] { pending_run_macro_.clear(); };
+            opts.owner_token = lifetime_.token();
             helix::ui::modal_confirm(
                 lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
                 [this] {
@@ -407,8 +414,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
                     pending_run_macro_.clear();
                     execute_macro(macro);
                 },
-                [this] { pending_run_macro_.clear(); }, nullptr,
-                [this] { pending_run_macro_.clear(); }, lifetime_.token());
+                opts);
             return;
         }
         execute_macro(macro_name);

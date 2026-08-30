@@ -20,8 +20,9 @@ namespace helix::ui {
  * encoding the same values as plain text, so a user can pull the numbers onto
  * a phone. There is no OS clipboard on a printer — the QR is the transport.
  *
- * Heap-allocated and self-deleting: construct with the result set, call
- * show_modal(), and the instance deletes itself once hidden.
+ * One-shot: construct with the result set, call show_modal(), then hand the
+ * instance to ModalStack::assume_ownership() - the stack frees it when its
+ * entry goes (#1382).
  */
 class ScrewsTiltShareModal : public Modal {
   public:
@@ -47,7 +48,6 @@ class ScrewsTiltShareModal : public Modal {
 
   protected:
     void on_show() override;
-    void on_hide() override;
 
   private:
     std::vector<ScrewTiltResult> results_;

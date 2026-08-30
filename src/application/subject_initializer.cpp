@@ -79,6 +79,7 @@
 #include <spdlog/spdlog.h>
 
 #include <chrono>
+#include <memory>
 
 namespace {
 
@@ -142,19 +143,17 @@ class HomeConfirmModal : public Modal {
         // skips both. Every dismissal must land the backend at IDLE the same
         // way the Cancel button does, so the fallback treats it as cancel.
         resolve(on_cancel_);
-        // Heap-allocated, self-deleting instance (same idiom as
-        // InfoQrModal::on_hide()) -- deferred via async_call so the delete
-        // doesn't run synchronously inside the exit-animation machinery.
-        helix::ui::async_call([](void* data) { delete static_cast<HomeConfirmModal*>(data); },
-                              this);
+        // No self-delete: the ModalStack owns this instance and frees it when
+        // its entry goes (#1382).
     }
 
   public:
     // Same fallback-as-cancel contract as on_hide(), for the one path that
     // never reaches it: show() itself failing (no active screen). Called by
-    // install_home_confirm_prompter() right before deleting an unshown
-    // instance -- without this, a failed show() would silently drop both
-    // callbacks and wedge the backend exactly like the bug this class fixes.
+    // install_home_confirm_prompter() right before the unique_ptr frees an
+    // unshown instance -- without this, a failed show() would silently drop
+    // both callbacks and wedge the backend exactly like the bug this class
+    // fixes.
     void resolve_unshown_as_cancelled() {
         resolve(on_cancel_);
     }
@@ -201,7 +200,8 @@ void install_home_confirm_prompter() {
                 lv_tr("The printer is not homed. Continuing will home all axes, moving the "
                       "toolhead. Make sure the bed is clear."),
                 nullptr};
-            auto* modal = new HomeConfirmModal(std::move(on_confirm), std::move(on_cancel));
+            auto modal =
+                std::make_unique<HomeConfirmModal>(std::move(on_confirm), std::move(on_cancel));
             // show(lv_obj_t*, const char**) -- the instance overload (parent is
             // ignored internally; it always uses lv_screen_active()). A bare
             // nullptr is ambiguous against the static show(const char*, const
@@ -209,8 +209,13 @@ void install_home_confirm_prompter() {
             if (!modal->show(static_cast<lv_obj_t*>(nullptr), attrs)) {
                 spdlog::error("[SubjectInitializer] Failed to show home-confirm modal");
                 modal->resolve_unshown_as_cancelled();
-                delete modal;
+                return; // the unique_ptr frees the never-shown instance
             }
+            // The stack owns the instance from here: freed when its entry
+            // goes, by whichever path that is (#1382). Grab the backdrop
+            // before the move -- argument evaluation is unsequenced.
+            lv_obj_t* backdrop = modal->backdrop();
+            ModalStack::instance().assume_ownership(backdrop, std::move(modal));
         });
 }
 

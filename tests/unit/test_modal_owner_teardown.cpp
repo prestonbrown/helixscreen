@@ -54,30 +54,25 @@ class TrackingModal : public Modal {
     }
 };
 
-/// Live-instance count for SelfDeletingModal, which mirrors the production
-/// subclasses (DebugBundleModal, PreflightCheckModal, SpaghettiDetectionModal,
-/// ...) that free themselves from on_hide().
+/// Live-instance count for StackOwnedModal, which mirrors the one-shot
+/// production modals (DebugBundleModal, PreflightCheckModal,
+/// SpaghettiDetectionModal, ...) shown through Modal::show_owned().
 int g_self_deleting_live = 0;
 
-class SelfDeletingModal : public Modal {
+class StackOwnedModal : public Modal {
   public:
-    SelfDeletingModal() {
+    StackOwnedModal() {
         ++g_self_deleting_live;
     }
-    ~SelfDeletingModal() override {
+    ~StackOwnedModal() override {
         --g_self_deleting_live;
     }
 
     const char* get_name() const override {
-        return "SelfDeletingModal";
+        return "StackOwnedModal";
     }
     const char* component_name() const override {
         return TEST_COMPONENT;
-    }
-    void on_hide() override {
-        auto* self = this;
-        helix::ui::async_call([](void* data) { delete static_cast<SelfDeletingModal*>(data); },
-                              self);
     }
 };
 
@@ -181,23 +176,46 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(Modal::get_top() == nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Self-deleting modal destructs when torn down statically",
-                 "[modal][1230]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "An owned modal instance is freed by its stack entry",
+                 "[modal][1230][1382]") {
     g_self_deleting_live = 0;
 
-    auto* modal = new SelfDeletingModal();
-    REQUIRE(modal->show(test_screen()));
+    // The one-shot idiom: show through the stack, which owns the instance from
+    // here on. The local unique_ptr is spent either way - no naked new.
+    auto modal = std::make_unique<StackOwnedModal>();
+    lv_obj_t* dialog = nullptr;
+    REQUIRE(Modal::show_owned(std::move(modal), test_screen()));
     REQUIRE(g_self_deleting_live == 1);
 
-    lv_obj_t* dialog = modal->dialog();
+    // Still shown, still owned: nothing freed yet.
+    dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
 
-    // on_hide() queues `delete this`; without owner-aware delegation the static
-    // overload never calls it and the heap object leaks.
+    // Any close - here the static overload the ~50 call sites use - ends in
+    // the entry's removal, which frees the instance.
     Modal::hide(dialog);
     process_lvgl(50);
 
     CHECK(g_self_deleting_live == 0);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// #1382: clear() never routes through hide(), so the self-delete idiom's only
+// free path never ran - every confirmation or one-shot modal open at a soft
+// restart leaked its C++ object. An entry-owned instance dies with the entry,
+// however the entry goes.
+TEST_CASE_METHOD(LVGLUITestFixture, "clear() frees owned modal instances",
+                 "[modal][teardown][1382]") {
+    g_self_deleting_live = 0;
+
+    auto modal = std::make_unique<StackOwnedModal>();
+    REQUIRE(Modal::show_owned(std::move(modal), test_screen()));
+    REQUIRE(g_self_deleting_live == 1);
+    REQUIRE(Modal::get_top() != nullptr);
+
+    ModalStack::instance().clear();
+
+    CHECK(g_self_deleting_live == 0); // freed, not leaked
     CHECK(ModalStack::instance().stack_empty());
 }
 
@@ -602,10 +620,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm invokes the callback and clos
     helix::ui::modal_init_subjects();
 
     int confirmed = 0, cancelled = 0, dismissed = 0;
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [&cancelled] { ++cancelled; };
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
     lv_obj_t* dialog = helix::ui::modal_confirm(
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [&confirmed]() { ++confirmed; }, [&cancelled]() { ++cancelled; }, nullptr,
-        [&dismissed]() { ++dismissed; });
+        [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
@@ -624,9 +644,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm reports a dismissal to on_dis
     helix::ui::modal_init_subjects();
 
     int confirmed = 0, dismissed = 0;
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
     lv_obj_t* dialog = helix::ui::modal_confirm(
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [&confirmed]() { ++confirmed; }, nullptr, nullptr, [&dismissed]() { ++dismissed; });
+        [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
 
     tap_backdrop(dialog); // user dismissed - neither button
@@ -643,9 +665,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm cancel is an answer, not a di
     helix::ui::modal_init_subjects();
 
     int cancelled = 0, dismissed = 0;
-    lv_obj_t* dialog = helix::ui::modal_confirm(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr,
-        [&cancelled]() { ++cancelled; }, nullptr, [&dismissed]() { ++dismissed; });
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [&cancelled] { ++cancelled; };
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* secondary = lv_obj_find_by_name(dialog, "btn_secondary");
@@ -755,9 +779,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_con
     int confirmed = 0;
     auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
 
+    helix::ui::ConfirmOptions opts;
+    opts.owner_token = guard->token();
     lv_obj_t* dialog = helix::ui::modal_confirm(
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [&confirmed]() { ++confirmed; }, nullptr, nullptr, nullptr, guard->token());
+        [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
@@ -781,9 +807,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_con
     int cancelled = 0;
     auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
 
-    lv_obj_t* dialog = helix::ui::modal_confirm(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr,
-        [&cancelled]() { ++cancelled; }, nullptr, nullptr, guard->token());
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [&cancelled] { ++cancelled; };
+    opts.owner_token = guard->token();
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* secondary = lv_obj_find_by_name(dialog, "btn_secondary");
@@ -807,9 +835,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A live owner token still runs modal_confirm
     int confirmed = 0;
     helix::AsyncLifetimeGuard guard;
 
+    helix::ui::ConfirmOptions opts;
+    opts.owner_token = guard.token();
     lv_obj_t* dialog = helix::ui::modal_confirm(
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [&confirmed]() { ++confirmed; }, nullptr, nullptr, nullptr, guard.token());
+        [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
@@ -829,9 +859,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_ale
     int acked = 0;
     auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
 
+    helix::ui::AlertOptions alert_opts;
+    alert_opts.owner_token = guard->token();
     lv_obj_t* dialog = helix::ui::modal_alert(
         "Heads up", "Something happened", ModalSeverity::Info, "OK", [&acked]() { ++acked; },
-        nullptr, guard->token());
+        alert_opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
@@ -1091,9 +1123,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm's programmatic close does not
     helix::ui::modal_init_subjects();
 
     int dismissed = 0;
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
     lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
-                                                ModalSeverity::Warning, "Delete", nullptr, nullptr,
-                                                nullptr, [&dismissed]() { ++dismissed; });
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     Modal::hide(dialog);

@@ -1476,12 +1476,14 @@ void BedMeshPanel::show_delete_confirm_modal(const std::string& profile_name) {
     snprintf(msg_buf, sizeof(msg_buf), "Delete profile '%s'? This action cannot be undone.",
              profile_name.c_str());
 
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [this] { hide_all_modals(); };
+    opts.on_dismiss = [this] { delete_modal_widget_ = nullptr; }; // drop the stored handle
+    opts.owner_token = lifetime_.token();
+
     delete_modal_widget_ = helix::ui::modal_confirm(
         lv_tr("Delete Profile?"), msg_buf, ModalSeverity::Warning, lv_tr("Delete"),
-        [this] { confirm_delete_profile(); }, [this] { hide_all_modals(); },
-        nullptr,                                    // cancel_text: default "Cancel"
-        [this] { delete_modal_widget_ = nullptr; }, // on_dismiss: drop the stored handle
-        lifetime_.token());
+        [this] { confirm_delete_profile(); }, opts);
 
     if (!delete_modal_widget_) {
         spdlog::error("[{}] Failed to create delete confirmation modal", get_name());
@@ -1934,9 +1936,13 @@ void BedMeshPanel::ask_before_overwrite(OverwriteTarget target, const std::strin
     std::string msg = fmt::format(lv_tr("'{}' already exists. Replace the stored mesh?"), name);
     // Cancel and a dismissal resolve the same pending overwrite state.
     auto cancel = [this] { cancel_overwrite(); };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = cancel;
+    opts.on_dismiss = cancel;
+    opts.owner_token = lifetime_.token();
     helix::ui::modal_confirm(
         lv_tr("Replace Profile?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Replace"),
-        [this] { confirm_overwrite(); }, cancel, nullptr, cancel, lifetime_.token());
+        [this] { confirm_overwrite(); }, opts);
 }
 
 void BedMeshPanel::confirm_overwrite() {
