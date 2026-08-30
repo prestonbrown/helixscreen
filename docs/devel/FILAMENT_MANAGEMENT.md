@@ -1416,7 +1416,7 @@ unit-testable (`tests/unit/test_ams_endless_spool.cpp`).
 | Axis | Type | Values |
 |------|------|--------|
 | Availability | `EndlessSpoolAvailability` | `Unsupported` / `RequiresPlugin` / `Available` |
-| Enablement | `EndlessSpoolEnabled` | `Unknown` / `Off` / `On` |
+| Enablement | `EndlessSpoolEnabled` | `Unknown` / `Off` / `On` / `OnWithoutBackup` |
 | Editability | `EndlessSpoolEditability` | `ReadOnly` / `PerSlot` / `Group` |
 
 The axes are independent because real backends occupy the corners. CFS is
@@ -1425,7 +1425,9 @@ rendered both states identically. `RequiresPlugin` is retained in the enum for a
 backend whose package genuinely can be missing; no backend currently uses it, since the
 AD5X stock-zMod path moved to `Available`/`FirmwareManaged` once source-read of
 `ANALOG_PRUTOK` established that switchover is always-on there. `Unknown` is not `Off`: only
-`Off` justifies telling the user that no automatic switchover will happen.
+`Off` justifies telling the user that no automatic switchover will happen. `OnWithoutBackup`
+(CFS, #1391) is `On` plus a grouping-derived negative: the setting is on, but no two lanes
+currently group, so a runout would stop the print anyway.
 
 Editability carries a shape, not just a yes/no, because the write shape matters to the UI: a
 `PerSlot` write touches one slot (AFC `SET_RUNOUT`), while a `Group` write can move other

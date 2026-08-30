@@ -892,6 +892,30 @@ TEST_CASE("endless_spool_status turns capabilities into a status line",
         CHECK(status.kind != EndlessSpoolStatusKind::Off);
     }
 
+    SECTION("OnWithoutBackup says the setting is on but nothing would switch") {
+        // CFS with auto-refill on and no two lanes grouping (#1391). Not the
+        // On sentence (a false promise), not Off (the setting IS on), and
+        // critically not kind On: the AMS panel hides On when healthy, and
+        // this state is the warning that panel exists to surface.
+        EndlessSpoolCapabilities caps;
+        caps.availability = EndlessSpoolAvailability::Available;
+        caps.enabled = EndlessSpoolEnabled::OnWithoutBackup;
+        caps.editability = EndlessSpoolEditability::ReadOnly;
+        caps.restriction = EndlessSpoolRestriction::FirmwareManaged;
+        const auto status = endless_spool_status(caps);
+
+        CHECK(status.kind == EndlessSpoolStatusKind::OnWithoutBackup);
+        CHECK(status.kind != EndlessSpoolStatusKind::On);
+        CHECK(static_cast<int>(status.kind) != 0); // 0 is what the XML hides on
+        CHECK(status.kind != EndlessSpoolStatusKind::Off);
+        CHECK(status.text ==
+              "Auto-refill is on but no two lanes hold matching filament, so nothing will "
+              "switch on runout\nThe printer's firmware chooses the backup spool itself");
+        // The first line must not be the plain-On or plain-Off sentence.
+        CHECK(status.text.find("Switches to a backup spool") == std::string::npos);
+        CHECK(status.text.find("Will not switch spools") == std::string::npos);
+    }
+
     SECTION("a restriction reason is appended on its own line") {
         // CFS with auto-refill ON: it will switch, and the firmware owns which
         // spool. Both facts, one line each.
@@ -973,7 +997,7 @@ TEST_CASE("endless_spool_status turns capabilities into a status line",
              {EndlessSpoolAvailability::Unsupported, EndlessSpoolAvailability::RequiresPlugin,
               EndlessSpoolAvailability::Available}) {
             for (auto en : {EndlessSpoolEnabled::Unknown, EndlessSpoolEnabled::Off,
-                            EndlessSpoolEnabled::On}) {
+                            EndlessSpoolEnabled::On, EndlessSpoolEnabled::OnWithoutBackup}) {
                 for (auto restr :
                      {EndlessSpoolRestriction::None, EndlessSpoolRestriction::MultiUnit,
                       EndlessSpoolRestriction::FirmwareManaged, EndlessSpoolRestriction::NotReady,

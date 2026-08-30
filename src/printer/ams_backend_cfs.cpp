@@ -730,14 +730,40 @@ AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json,
 
     // Build same_material lookup: material_type code -> material name string
     // "same_material" contains groups like ["101001", "0000000", ["T1A"], "PLA"]
-    // where the last element is a human-readable material name
+    // where the last element is a human-readable material name. group[2] (the
+    // lane list) feeds the auto-refill capability: get_endless_spool_
+    // capabilities() answers from these ordinals whether any two lanes
+    // actually group (#1391). Presence of the array is recorded separately
+    // because "no data" (the flat dialect never sends the field) must stay
+    // distinguishable from "parsed and nothing groups".
     std::unordered_map<std::string, std::string> same_material_names;
     if (box_json.contains("same_material") && box_json["same_material"].is_array()) {
+        info.endless_spool_groups_reported = true;
+        // One entry per addressable bay (T1A..T4D, tnn_to_slot's domain), not
+        // one per CONNECTED unit: a box whose T1 dropped must not lose T2's
+        // groups to a shorter vector.
+        info.endless_spool_group_ids.assign(16, -1);
+        int group_ordinal = 0;
         for (const auto& group : box_json["same_material"]) {
             if (group.is_array() && group.size() >= 4 && group[0].is_string() &&
                 group[3].is_string()) {
                 same_material_names[group[0].get<std::string>()] = group[3].get<std::string>();
             }
+            // Lane list, with the same per-entry is_string discipline as every
+            // other index into this array: one malformed group must skip its
+            // entry, not throw the whole box frame away.
+            if (group.is_array() && group.size() >= 3 && group[2].is_array()) {
+                for (const auto& lane : group[2]) {
+                    if (!lane.is_string()) {
+                        continue;
+                    }
+                    int slot = CfsMaterialDb::tnn_to_slot(lane.get<std::string>());
+                    if (slot >= 0 && slot < static_cast<int>(info.endless_spool_group_ids.size())) {
+                        info.endless_spool_group_ids[static_cast<size_t>(slot)] = group_ordinal;
+                    }
+                }
+            }
+            ++group_ordinal;
         }
     }
 
@@ -1491,6 +1517,24 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                 system_info_.total_slots = new_info.total_slots;
                 system_info_.endless_spool_enabled = new_info.endless_spool_enabled;
                 system_info_.tool_to_slot_map = std::move(new_info.tool_to_slot_map);
+                // Presence-gated like filament_runout below: a stock delta
+                // frame carries a changed T1 subtree but no same_material key
+                // (the field rides full frames), and copying the parse's empty
+                // defaults would silently revert OnWithoutBackup to plain On
+                // until the firmware re-sends the list. Copy the grouping only
+                // when this frame actually carried the field. A flat frame is
+                // the one deliberate exception: it is a schema transition, not
+                // a delta omission, and the flat dialect never sends
+                // same_material - retaining stock-era grouping would answer
+                // from a dead schema forever, so it is cleared.
+                if (is_flat) {
+                    system_info_.endless_spool_group_ids.clear();
+                    system_info_.endless_spool_groups_reported = false;
+                } else if (new_info.endless_spool_groups_reported) {
+                    system_info_.endless_spool_group_ids =
+                        std::move(new_info.endless_spool_group_ids);
+                    system_info_.endless_spool_groups_reported = true;
+                }
             }
 
             // Bays that just went from empty to occupied and still carry no
@@ -3613,9 +3657,24 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
 helix::printer::EndlessSpoolCapabilities AmsBackendCfs::get_endless_spool_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);
     using namespace helix::printer;
+
+    // Honest enablement (#1391): auto_refill on promises a refill ATTEMPT, but
+    // the box only swaps between same_material-identical spools, so when every
+    // group is a singleton a runout stops the print despite the setting being
+    // on. Say so. Only when the frame actually carried the grouping, though:
+    // the flat dialect never sends same_material, and no data is not a
+    // negative. endless_spool_config_from_groups() already encodes "a group of
+    // one backs nothing up" (and drops singletons), so this reads that rule
+    // instead of restating it.
+    EndlessSpoolEnabled enabled =
+        system_info_.endless_spool_enabled ? EndlessSpoolEnabled::On : EndlessSpoolEnabled::Off;
+    if (enabled == EndlessSpoolEnabled::On && system_info_.endless_spool_groups_reported &&
+        endless_spool_config_from_groups(system_info_.endless_spool_group_ids).empty()) {
+        enabled = EndlessSpoolEnabled::OnWithoutBackup;
+    }
+
     return {.availability = EndlessSpoolAvailability::Available,
-            .enabled = system_info_.endless_spool_enabled ? EndlessSpoolEnabled::On
-                                                          : EndlessSpoolEnabled::Off,
+            .enabled = enabled,
             .editability = EndlessSpoolEditability::ReadOnly,
             .restriction = EndlessSpoolRestriction::FirmwareManaged};
 }
