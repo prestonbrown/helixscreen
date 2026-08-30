@@ -1074,10 +1074,9 @@ void PrintStartController::recover_pending_remap() {
         // the first live lifecycle value and fires restore_filament_mapping on
         // the terminal value that follows, so the attach-fire on the current
         // PRINTING/PAUSED value arms it rather than firing early.
-        auto current_state = static_cast<PrintJobState>(
-            // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
-            // while a job runs; a preparing job has no mapping to restore.
-            lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
+        // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
+        // while a job runs; a preparing job has no mapping to restore.
+        auto current_state = printer_state_.get_print_job_state();
         // The mapping is restored on a TERMINAL state; this only suppresses the
         // observer's immediate registration-fire while a job is running. The wire
         // question is the right one: a preparing job has no mapping to restore.

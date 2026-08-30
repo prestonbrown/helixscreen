@@ -1028,6 +1028,27 @@ struct SlotInfo {
         }
         return std::to_string(static_cast<int>(remaining_length_m)) + "m";
     }
+
+    /**
+     * @brief The slot's remaining-filament display string: length when it is
+     *        a measurement, weight when only the weight is known, "" when
+     *        neither.
+     *
+     * The length-then-weight fallback lives here so every push site renders
+     * the same string: the length helper already hides the CFS sentinels
+     * (#1387), and the weight carries the display when it yields nothing.
+     * A weight <= 0 is the "unknown" default, not a measurement.
+     */
+    [[nodiscard]] std::string remaining_display() const {
+        std::string length = remaining_length_display();
+        if (!length.empty()) {
+            return length;
+        }
+        if (remaining_weight_g > 0) {
+            return std::to_string(static_cast<int>(remaining_weight_g)) + "g";
+        }
+        return {};
+    }
 };
 
 /**

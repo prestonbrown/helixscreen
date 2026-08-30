@@ -1376,8 +1376,7 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
     // mirroring the filament-op guard's null path in ams_subscription_backend.
     bool print_holds_machine = false;
     if (api_) {
-        print_holds_machine = job_holds_machine(static_cast<PrintState>(
-            lv_subject_get_int(api_->printer_state().get_print_lifecycle_subject())));
+        print_holds_machine = job_holds_machine(api_->printer_state().get_print_lifecycle());
     }
 
     // Drop the previous frame's derived LOADED stamp before anything below

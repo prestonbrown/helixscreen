@@ -100,8 +100,7 @@ static void on_print_state_changed_for_navigation(lv_observer_t* observer, lv_su
 ObserverGuard init_print_start_navigation_observer() {
     // Initialize prev_print_state to current state to prevent false trigger on startup
     // RAW_PRINT_STATE_OK: see the first-tick contract on prev_print_state.
-    prev_print_state = static_cast<PrintJobState>(
-        lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+    prev_print_state = get_printer_state().get_print_job_state();
     spdlog::debug("[PrintStartNav] Observer registered (initial state={})",
                   static_cast<int>(prev_print_state));
 

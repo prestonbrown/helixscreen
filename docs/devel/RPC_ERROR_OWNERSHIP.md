@@ -150,8 +150,8 @@ The same capture-then-forward appears at every layer that wraps:
 |------|-------------|
 | `MoonrakerAPI::execute_gcode()` | `src/api/moonraker_api_controls.cpp:373-375` — before the activity-counter wrapping |
 | `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp:401-403` — also the site that sets `silent = (on_error != nullptr)` |
-| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:546` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
-| `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:446-449` — the G28 leg forwards the *caller's* answer, not the wrapper's |
+| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:545` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
+| `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:445-448` — the G28 leg forwards the *caller's* answer, not the wrapper's |
 | `LedEffectBackend::activate_effect()` / `stop_all_effects()` | `src/led/led_controller.cpp:1023-1027`, `:1052-1054` — `caller_surfaces_errors && (on_error != nullptr)` |
 
 ### The parameter
@@ -169,7 +169,7 @@ The same capture-then-forward appears at every layer that wraps:
 It defaults to `true`, which is right for the common case — a UI callback that toasts. **A
 callback that only `spdlog`s, only resets internal state, or does both must pass `false`.**
 `AmsSubscriptionBackend::handle_dispatch_error()`
-(`src/printer/ams_subscription_backend.cpp:481-493`) is exactly that shape by default: with no
+(`src/printer/ams_subscription_backend.cpp:480-492`) is exactly that shape by default: with no
 caller `on_error` it logs and sets `AmsAction::IDLE`, which no user sees.
 
 Direct `send_jsonrpc()` callers do not pass an intent at all. The tracker infers

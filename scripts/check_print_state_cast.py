@@ -32,9 +32,23 @@ from pathlib import Path
 # were sitting in it; the typed observer factories replaced them.
 PATTERN = re.compile(
     r"static_cast<\s*(PrintState|helix::PrintJobState|PrintJobState)\s*>\s*\("
-    r"\s*(lv_subject_get_int|[A-Za-z_][A-Za-z0-9_]*\s*\))"
+    r"(?:\s|//[^\n]*)*(lv_subject_get_int|[A-Za-z_][A-Za-z0-9_]*\s*\))"
 )
 OPT_OUT = "PRINT_STATE_CAST_OK:"
+
+# The third blind spot, found by the 2026-08-29 convergence audit: clang-format
+# wraps a long accessor chain right after the cast's opening paren, so
+# `static_cast<PrintState>(` and the lv_subject_get_int() that names the subject
+# land on different lines and a per-line search sees neither. Eight sites sat in
+# that wrap while the gate reported 0. The pattern's \s* already spans newlines,
+# so searching a small joined window instead of the bare line closes it.
+#
+# The fourth, found the same day in review: the codebase's idiom puts the
+# RAW_PRINT_STATE_OK comment (which the sibling raw-read gate demands) INSIDE
+# the parens, between the cast and the read. Whitespace alone cannot bridge a
+# comment line, so the inter-paren gap also accepts line comments, and the
+# window covers a cast plus two comment lines plus the read.
+CAST_SPAN_LINES = 4
 
 # The derivation layer legitimately converts between the wire and the lifecycle,
 # and observer_factory.h is where the subject/enum pairing is SUPPOSED to live -
@@ -68,12 +82,23 @@ def main(argv: list[str]) -> int:
         except (OSError, UnicodeDecodeError):
             continue
         for i, line in enumerate(lines, 1):
-            if not PATTERN.search(line):
+            # Search the line joined with its successors, not the bare line:
+            # a wrapped cast puts the subject read on the next line down.
+            span = "\n".join(lines[i - 1 : i - 1 + CAST_SPAN_LINES])
+            m = PATTERN.search(span)
+            if not m:
+                continue
+            if span[: m.start()].count("\n"):
+                # The match starts on an earlier line; that line's own window
+                # holds the whole match, so it is reported exactly once there.
                 continue
             window = "\n".join(lines[max(0, i - 4) : i])
             if OPT_OUT in window or OPT_OUT in line:
                 continue
-            hits.append(f"{rel}:{i}: {line.strip()}")
+            # Collapse the matched span to one line so a wrapped read reports
+            # as the statement it is, not a line ending in a bare `(`.
+            matched = " ".join(part.strip() for part in m.group(0).split("\n"))
+            hits.append(f"{rel}:{i}: {matched}")
 
     if hits:
         print("Hand-cast of an lv_subject int into a print enum:")

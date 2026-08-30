@@ -239,7 +239,7 @@ interesting arm, and it gates on `outcome` in both directions:
   silent - otherwise abandoning a start would announce the last print's
   completion.
 
-The completion observer (`print_completion.cpp:312`) reads both halves of the
+The completion observer (`print_completion.cpp:315`) reads both halves of the
 transition from `PrinterPrintState`; it no longer owns a latch of its own.
 
 ---

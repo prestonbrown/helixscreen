@@ -225,8 +225,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // only on a backend whose filament macro homes itself (AD5X IFS). Reading
     // the raw print_active subject here — which is 1 for both — would keep the
     // menu greyed through the runout pause that is the whole recovery workflow.
-    const auto lifecycle = static_cast<PrintState>(
-        lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+    const auto lifecycle = get_printer_state().get_print_lifecycle();
     const bool print_blocks_op = helix::ui::print_blocks_filament_op(
         lifecycle, backend_ && backend_->filament_ops_self_home());
 
