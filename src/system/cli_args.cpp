@@ -727,7 +727,8 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
     // backend: MoonrakerClientMock publishes the objects and status a real
     // hotend changer does, and the production AmsBackendToolChanger is meant to
     // drive them. That is exactly what --real-ams already means, so imply it
-    // rather than adding a third knob that can disagree with this one.
+    // rather than adding a third knob that can disagree with this one. Same for
+    // the standalone IFS module mode (real AmsBackendAd5xIfs).
     if (config.test_mode && !config.use_real_ams) {
         if (const char* ams_env = std::getenv("HELIX_MOCK_AMS"); ams_env && ams_env[0]) {
             std::string mode(ams_env);
@@ -738,6 +739,11 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                 config.use_real_ams = true;
                 spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
                              "tool-changer backend)",
+                             mode);
+            } else if (mode == "ifs-module" || mode == "ifs_module" || mode == "ad5x-module") {
+                config.use_real_ams = true;
+                spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
+                             "AD5X IFS backend)",
                              mode);
             }
         }
