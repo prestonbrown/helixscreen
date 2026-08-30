@@ -244,13 +244,33 @@ void TouchCalibrationPanel::capture_point(Point raw, const Point* device_raw) {
         // the range is programmed, so nothing here can widen what VERIFY approves.
         // Deliberately after validation, so a matrix the user will be asked to
         // retry never leaves a range fit behind.
-        if (raw_points_valid_) {
-            range_fit_ =
-                compute_range_fit(screen_points_, raw_points_, screen_width_, screen_height_);
-        } else {
-            range_fit_ = TouchRangeFit{};
-            spdlog::debug("[TouchCalibrationPanel] No raw digitizer readings captured - "
-                          "affine-only calibration (this is normal off evdev)");
+        //
+        // Rotation-blind no more: the solve below maps raw -> LOGICAL screen
+        // (the targets are logical, post-rotation), but the solved range runs at
+        // the evdev stage whose output LVGL rotates AGAIN - on a rotated panel
+        // the rotation folds into the stored (min,max,swap) and every later
+        // tap lands through a double transform, with the evdev clamp flattening
+        // the logical-shaped output against the physical extents
+        // (prestonbrown/helixscreen#1394). A rotated panel keeps the affine-only
+        // shape, which was the long-tested path before the range stage existed
+        // (#1259) and composes correctly with lv_display_rotate_point().
+        // Braced: declarations in a case body stay in scope at later labels,
+        // and an initialized one makes the implicit jump ill-formed.
+        {
+            lv_display_t* disp = lv_display_get_default();
+            const bool unrotated = !disp || lv_display_get_rotation(disp) == LV_DISPLAY_ROTATION_0;
+            if (raw_points_valid_ && unrotated) {
+                range_fit_ =
+                    compute_range_fit(screen_points_, raw_points_, screen_width_, screen_height_);
+            } else {
+                range_fit_ = TouchRangeFit{};
+                spdlog::info("[TouchCalibrationPanel] Affine-only calibration"
+                             "{}{}",
+                             raw_points_valid_ ? "" : " - no raw digitizer readings captured",
+                             unrotated ? ""
+                                       : " - display is rotated, the evdev range stage"
+                                         " would double-apply the rotation");
+            }
         }
 
         state_ = State::VERIFY;
