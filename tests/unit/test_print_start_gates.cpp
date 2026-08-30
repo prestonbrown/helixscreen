@@ -791,7 +791,7 @@ CheckResult pass_result() {
 }
 
 /// Fixture with a controller wired to counting callbacks. LVGLUITestFixture
-/// (not bare LVGLTestFixture): modal_show_confirmation builds XML components.
+/// (not bare LVGLTestFixture): modal_confirm builds XML components.
 class GateRunnerFixture : public LVGLUITestFixture {
   public:
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};

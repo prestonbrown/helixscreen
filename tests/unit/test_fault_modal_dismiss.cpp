@@ -74,9 +74,9 @@ class FaultModalFixture : public XMLTestFixture {
     }
 
     /// A fault alert exactly as ui_notification_printer_fault() builds it:
-    /// modal_show_alert() + track_fault_modal() on the returned dialog.
+    /// modal_alert() + track_fault_modal() on the returned dialog.
     lv_obj_t* raise_fault(const char* title, const char* message) {
-        lv_obj_t* dialog = helix::ui::modal_show_alert(title, message, ModalSeverity::Error, "OK");
+        lv_obj_t* dialog = helix::ui::modal_alert(title, message, ModalSeverity::Error, "OK");
         REQUIRE(dialog != nullptr);
         track_fault_modal(dialog);
         settle();
@@ -85,7 +85,7 @@ class FaultModalFixture : public XMLTestFixture {
 
     /// A HelixScreen-side alert: same widget, never registered as a fault.
     lv_obj_t* raise_untracked(const char* title, const char* message) {
-        lv_obj_t* dialog = helix::ui::modal_show_alert(title, message, ModalSeverity::Error, "OK");
+        lv_obj_t* dialog = helix::ui::modal_alert(title, message, ModalSeverity::Error, "OK");
         REQUIRE(dialog != nullptr);
         settle();
         return dialog;
@@ -111,9 +111,11 @@ TEST_CASE_METHOD(FaultModalFixture, "A printer-fault modal is swept when the fau
 TEST_CASE_METHOD(FaultModalFixture, "Sweeping a fault modal reports to its on_dismiss",
                  "[1266][faultmodal][1380]") {
     int dismissed = 0;
-    lv_obj_t* dialog = helix::ui::modal_show_alert(
-        "Printer Error", "Lost communication with MCU 'BoxTurtle'", ModalSeverity::Error, "OK",
-        nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    helix::ui::AlertOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog =
+        helix::ui::modal_alert("Printer Error", "Lost communication with MCU 'BoxTurtle'",
+                               ModalSeverity::Error, "OK", nullptr, opts);
     REQUIRE(dialog != nullptr);
     track_fault_modal(dialog);
     settle();

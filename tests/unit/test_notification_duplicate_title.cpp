@@ -48,12 +48,12 @@ class DuplicateTitleFixture : public LVGLUITestFixture {
 TEST_CASE_METHOD(DuplicateTitleFixture,
                  "An error alert's title is reachable under the canonical widget name",
                  "[1389][notification][modal]") {
-    // Control half: modal_show_alert (what ui_notification_error pushes) is
+    // Control half: modal_alert (what ui_notification_error pushes) is
     // built from modal_dialog.xml, which names its title "dialog_title". This
     // case proves the canonical name works at all, so the ActionPromptModal
     // case cannot pass by some other accident.
-    lv_obj_t* dialog = helix::ui::modal_show_alert("Printer Error", "Move out of range",
-                                                   ModalSeverity::Error, "OK");
+    lv_obj_t* dialog =
+        helix::ui::modal_alert("Printer Error", "Move out of range", ModalSeverity::Error, "OK");
     helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(dialog != nullptr);

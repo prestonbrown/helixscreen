@@ -19,7 +19,7 @@ class IMoonrakerClient;
 
 /// The "may this client in?" prompt.
 ///
-/// A Modal subclass rather than a modal_show_confirmation() call, because the
+/// A Modal subclass rather than a modal_confirm() call, because the
 /// owner here outlives no dialog reliably: Application replaces the router on a
 /// printer switch, and a click - or the DELETE that arrives after the exit
 /// animation - could otherwise land on a prompt whose owner is gone. The Modal

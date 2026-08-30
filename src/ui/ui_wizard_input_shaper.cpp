@@ -347,38 +347,17 @@ static void on_start_calibration_clicked(lv_event_t* e) {
         // Re-entry guard: a second entry while the warning modal is open is a no-op.
         if (step->low_ram_warn_dialog_)
             return;
-        step->low_ram_warn_dialog_ = helix::ui::show_low_ram_resonance_warning(
-            mem.total_mb(),
-            [](lv_event_t* ev) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Input Shaper] low_ram_confirm");
-                auto* self = static_cast<WizardInputShaperStep*>(lv_event_get_user_data(ev));
-                if (!self)
-                    return;
-                if (self->low_ram_warn_dialog_) {
-                    helix::ui::modal_hide(self->low_ram_warn_dialog_);
-                    self->low_ram_warn_dialog_ = nullptr;
-                }
-                begin_is_calibration_flow(self);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            [](lv_event_t* ev) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Input Shaper] low_ram_cancel");
-                auto* self = static_cast<WizardInputShaperStep*>(lv_event_get_user_data(ev));
-                if (!self)
-                    return;
-                if (self->low_ram_warn_dialog_) {
-                    helix::ui::modal_hide(self->low_ram_warn_dialog_);
-                    self->low_ram_warn_dialog_ = nullptr;
-                }
-                // User backed out — leave the wizard step as-is (Start still visible).
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            step,
-            // A dismissal (backdrop tap, ESC) runs neither callback, and the
-            // re-entry guard above keys on this handle - left set, every later
-            // calibration is a silent no-op. lifetime_ ties it to the owner so a
-            // panel torn down while the dialog is up cannot be called back.
-            [step]() { step->low_ram_warn_dialog_ = nullptr; }, step->get_lifetime_token());
+        // The helper owns the re-entry scaffold: it clears the step's stored
+        // handle on every close path. The token ties all three callbacks to
+        // the step so one torn down while the dialog is up is not called back.
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = []() {
+            // User backed out - leave the wizard step as-is (Start still visible).
+        };
+        opts.owner_token = step->get_lifetime_token();
+        helix::ui::show_low_ram_resonance_warning(
+            mem.total_mb(), &step->low_ram_warn_dialog_,
+            [step]() { begin_is_calibration_flow(step); }, opts);
         if (!step->low_ram_warn_dialog_) {
             // Modal failed to build — don't silently block calibration.
             begin_is_calibration_flow(step);
