@@ -54,30 +54,4 @@ inline void safe_delete_obj(lv_obj_t*& obj) {
     obj = nullptr;
 }
 
-/**
- * @brief Safely delete an LVGL timer and null the pointer
- * @param timer Reference to timer pointer (will be nulled after deletion)
- *
- * Safe to call with nullptr - no-op in that case.
- * Skips deletion during shutdown (lv_deinit will clean up).
- * Prevents double-free by nulling pointer after deletion.
- */
-inline void safe_delete_timer(lv_timer_t*& timer) {
-    if (!timer) {
-        return;
-    }
-    // Skip if LVGL not initialized
-    if (!lv_is_initialized()) {
-        timer = nullptr;
-        return;
-    }
-    // Skip during destroy_all() - lv_deinit() will clean up all timers
-    if (StaticPanelRegistry::is_destroying_all()) {
-        timer = nullptr;
-        return;
-    }
-    lv_timer_delete(timer);
-    timer = nullptr;
-}
-
 } // namespace helix::ui
