@@ -78,16 +78,20 @@ EthernetInfo EthernetBackendNetd::get_info() {
     // call this from the LVGL thread (see header).
     const helix::netd::QueryResult result = helix::netd::query_snapshot();
 
-    if (!result.reached) {
-        // Daemon gone, kernel truth stands. Mark the degraded source without
-        // hiding the state.
+    if (!result.reached || !result.saw_mode) {
+        // Daemon unreachable, or it answered without a MODE= line (an ERR
+        // verdict): either way it said nothing authoritative about which
+        // transport owns the link, and its mode-less snapshot must not blank
+        // a row whose kernel address is live. Kernel truth stands, marked
+        // degraded without hiding the state.
         if (info.connected) {
             info.status = "Connected (daemon unavailable)";
         } else if (info.status.empty() || info.status == "Unknown") {
             info.status = "Network daemon unavailable";
         }
-        spdlog::debug("[EthernetNetd] Daemon unreachable; kernel state: connected={} iface '{}'",
-                      info.connected, info.interface);
+        spdlog::debug("[EthernetNetd] Daemon not authoritative (reached={} mode={}): kernel "
+                      "state: connected={} iface '{}'",
+                      result.reached, result.saw_mode, info.connected, info.interface);
         return info;
     }
 

@@ -9,6 +9,8 @@
 #include <cerrno>
 #include <chrono>
 #include <cstring>
+#include <fcntl.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -122,7 +124,7 @@ bool parse_snapshot_line(const std::string& line, NetdSnapshot& out) {
     if (eq == std::string::npos)
         return false;
 
-    const std::string key = ascii_lower(trim_copy(line.substr(0, eq)));
+    const std::string key = snapshot_line_key(line);
     const std::string value = trim_copy(line.substr(eq + 1));
 
     // Known keys only; everything else is a newer daemon's addition and is
@@ -147,6 +149,13 @@ bool parse_snapshot_line(const std::string& line, NetdSnapshot& out) {
         return false;
     }
     return true;
+}
+
+std::string snapshot_line_key(const std::string& line) {
+    const size_t eq = line.find('=');
+    if (eq == std::string::npos)
+        return {};
+    return ascii_lower(trim_copy(line.substr(0, eq)));
 }
 
 std::optional<ScanRow> parse_scan_row(const std::string& line) {
@@ -248,6 +257,14 @@ bool is_auth_failure_reason(const std::string& reason) {
     return reason == "WRONG_KEY" || reason == "AUTH_FAILED" || reason == "INVALID_PSK";
 }
 
+bool is_scan_failure_reason(const std::string& reason) {
+    return reason == "SCAN_FAILED" || reason == "SCAN_IN_PROGRESS";
+}
+
+bool is_busy_reason(const std::string& reason) {
+    return reason == "BUSY";
+}
+
 std::string encode_connect_wifi(const std::string& ssid, const std::string& psk) {
     std::string command = "CONNECT_WIFI ssid=" + encode_b64_field(ssid);
     if (!psk.empty()) {
@@ -284,7 +301,7 @@ QueryResult query_snapshot(int timeout_ms) {
     QueryResult result;
 
     const std::string path = socket_path();
-    const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    const int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (fd < 0)
         return result;
 
@@ -295,10 +312,32 @@ QueryResult query_snapshot(int timeout_ms) {
         return result;
     }
     std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
-    if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+
+    // Non-blocking connect with a bounded wait: a daemon wedged with a full
+    // accept backlog would otherwise park a blocking connect (and this
+    // function's callers are shared HttpExecutor workers). EINPROGRESS +
+    // POLLOUT + SO_ERROR is the usual dance.
+    const int rc = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    if (rc != 0 && errno != EINPROGRESS) {
         ::close(fd);
         return result;
     }
+    if (rc != 0) {
+        pollfd pfd{fd, POLLOUT, 0};
+        const int ready = ::poll(&pfd, 1, timeout_ms);
+        int so_error = 0;
+        socklen_t optlen = sizeof(so_error);
+        if (ready <= 0 || ::getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_error, &optlen) != 0 ||
+            so_error != 0) {
+            ::close(fd);
+            return result;
+        }
+    }
+    // Back to blocking mode so the SO_RCVTIMEO read loop below keeps its
+    // per-read timeout semantics.
+    const int flags = ::fcntl(fd, F_GETFL, 0);
+    if (flags >= 0)
+        (void)::fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 
     struct timeval tv {};
     tv.tv_sec = timeout_ms / 1000;
@@ -340,8 +379,11 @@ QueryResult query_snapshot(int timeout_ms) {
                 ack_seen = true;
                 break;
             }
-            if (parse_snapshot_line(line, result.snapshot))
+            if (parse_snapshot_line(line, result.snapshot)) {
+                if (snapshot_line_key(line) == "mode")
+                    result.saw_mode = true;
                 continue;
+            }
             (void)parse_scan_row(line); // rows are not part of a GET reply; tolerated
         }
     }

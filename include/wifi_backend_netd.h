@@ -73,9 +73,14 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
      *                         scheduler latches forever.
      * @param mac_reader        Station-MAC source (default: sysfs probe via
      *                         probe_os_wifi_link + wifi_get_device_mac).
+     * @param liveness_probe_ms Silence from the daemon that triggers a GET
+     *                         probe while an op is outstanding (default 20 s).
+     * @param liveness_giveup_ms Silence past the probe that means the daemon
+     *                         is wedged and the connection is forced (5 s).
      */
     explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000,
-                             MacReader mac_reader = {});
+                             MacReader mac_reader = {}, int liveness_probe_ms = 20000,
+                             int liveness_giveup_ms = 5000);
 
     /**
      * @brief Destructor - full teardown (stop loop, join threads, close socket)
@@ -192,7 +197,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     /// If nothing arrives from the daemon while an op is outstanding, probe
     /// with GET, then force a reconnect — the first-party client's watchdog.
+    /// One chain at a time (a pending chain already covers the question) and
+    /// OWNED: the ids are cancelled wherever the other timers are, so a
+    /// stopped backend cannot be probed by a stale chain.
     void arm_liveness_probe();
+
+    /// Kill a pending probe/give-up chain. Loop thread.
+    void cancel_liveness_probe();
 
     // ========================================================================
     // Helpers
@@ -230,6 +241,8 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     const int reconnect_ms_;
     const int scan_watchdog_ms_;
+    const int liveness_probe_ms_;
+    const int liveness_giveup_ms_;
 
     // Connection. io_ / fd_ are written under cmd_mutex_; fd_ is owned by
     // io_ once registered (hio_close closes it — never ::close(fd_) too).
@@ -246,6 +259,12 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     std::mutex scan_mutex_;
     std::vector<helix::netd::ScanRow> scan_rows_; ///< Rows of the current/last scan.
+    /// False from the moment a scan is requested (caller thread) until its
+    /// first row arrives (loop thread) — the previous scan's rows stay cached
+    /// until the new one demonstrably has results, so a refused scan (ERR
+    /// BUSY mid-join) never blanks the list on screen. Atomic: two threads
+    /// touch it.
+    std::atomic<bool> scan_rows_reset_{false};
 
     /// Station MAC. Written at init and on the CONNECTED retry (loop thread),
     /// read by get_status() from any thread — guard with snapshot_mutex_.
@@ -283,6 +302,8 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     static constexpr hv::TimerID kNoTimer{0};
     hv::TimerID reconnect_timer_{kNoTimer};
     hv::TimerID scan_watchdog_timer_{kNoTimer};
+    hv::TimerID liveness_probe_timer_{kNoTimer};
+    hv::TimerID liveness_giveup_timer_{kNoTimer};
     std::chrono::steady_clock::time_point last_line_at_;
 
     // Async init worker (start_async()); joined in stop() and the dtor.

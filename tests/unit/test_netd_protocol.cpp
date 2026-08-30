@@ -595,6 +595,7 @@ TEST_CASE("netd query_snapshot reaches a live daemon and parses the snapshot", "
     server.teardown();
 
     REQUIRE(result.reached);
+    REQUIRE(result.saw_mode); // the reply carried MODE=: authoritative for transport
     REQUIRE(result.snapshot.mode == "WIFI");
     REQUIRE(result.snapshot.state == "ONLINE");
     REQUIRE(result.snapshot.ssid == ssid);
@@ -619,6 +620,56 @@ TEST_CASE("netd query_snapshot reports unreachable on a nonexistent socket path"
     const helix::netd::QueryResult result = helix::netd::query_snapshot(200);
     REQUIRE_FALSE(result.reached);
     REQUIRE(result.snapshot.mode.empty());
+}
+
+TEST_CASE("netd query_snapshot is bounded against a wedged full-backlog listener",
+          "[netd][protocol]") {
+    // A listener that never accepts, with its backlog deliberately filled by
+    // un-accepted client sockets: a BLOCKING connect would park forever (and
+    // these callers are shared HttpExecutor workers). The nonblocking
+    // connect + poll must come back unreachable within a small multiple of
+    // the timeout budget. Under the blocking-connect mutation this case
+    // hangs, which the shard timeout reports.
+    char dir_template[] = "/tmp/helix_netd_wedge_XXXXXX";
+    char* dir = ::mkdtemp(dir_template);
+    REQUIRE(dir != nullptr);
+    const std::string dir_s(dir);
+    EnvVarGuard sock("HELIX_NETD_SOCKET");
+    EnvVarGuard bin("HELIX_NETD_BIN");
+
+    const std::string wedge = dir_s + "/wedge.sock";
+    const int listen_fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    REQUIRE(listen_fd >= 0);
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    std::strncpy(addr.sun_path, wedge.c_str(), sizeof(addr.sun_path) - 1);
+    REQUIRE(::bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0);
+    REQUIRE(::listen(listen_fd, 0) == 0);
+
+    // Fill the (minimal) backlog so the next connect cannot complete.
+    std::vector<int> fillers;
+    for (int i = 0; i < 4; ++i) {
+        const int c = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+        REQUIRE(c >= 0);
+        (void)::connect(c, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+        fillers.push_back(c);
+    }
+
+    sock.set(wedge);
+    bin.unset();
+    const auto began = std::chrono::steady_clock::now();
+    const helix::netd::QueryResult result = helix::netd::query_snapshot(200);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::steady_clock::now() - began)
+                             .count();
+    REQUIRE_FALSE(result.reached);
+    REQUIRE(elapsed < 1500); // ~the 2x-deadline budget, not forever
+
+    for (const int c : fillers)
+        ::close(c);
+    ::close(listen_fd);
+    ::unlink(wedge.c_str());
+    ::rmdir(dir_s.c_str());
 }
 
 TEST_CASE("netd query_snapshot reports unreachable when the socket file exists but nobody listens",
@@ -673,4 +724,72 @@ TEST_CASE("netd query_snapshot reports unreachable when the daemon answers nothi
 
     REQUIRE_FALSE(result.reached);
     ::rmdir(dir_s.c_str());
+}
+
+TEST_CASE("netd query_snapshot marks a mode-less reply as not authoritative", "[netd][protocol]") {
+    char dir_template[] = "/tmp/helix_netd_erronly_XXXXXX";
+    char* dir = ::mkdtemp(dir_template);
+    REQUIRE(dir != nullptr);
+    const std::string dir_s(dir);
+    EnvVarGuard sock("HELIX_NETD_SOCKET");
+    EnvVarGuard bin("HELIX_NETD_BIN");
+
+    FakeNetd server;
+    server.path = dir_s + "/netd.sock";
+    server.reply = "STATE=ONLINE\nOK\n"; // fields, but no MODE= anywhere
+    REQUIRE(server.start());
+    std::thread worker([&server] { server.serve(); });
+
+    sock.set(server.path);
+    bin.unset();
+    const helix::netd::QueryResult result = helix::netd::query_snapshot(1000);
+    worker.join();
+    server.teardown();
+
+    REQUIRE(result.reached);
+    REQUIRE(result.snapshot.state == "ONLINE"); // the fields still merge
+    REQUIRE_FALSE(result.saw_mode);             // but the reply decides nothing about transport
+    ::rmdir(dir_s.c_str());
+}
+
+// ============================================================================
+// Reason classification — the vocabulary behind ack attribution between a
+// pending scan and a pending join.
+// ============================================================================
+
+TEST_CASE("netd auth failure reasons classify exactly", "[netd][protocol]") {
+    REQUIRE(helix::netd::is_auth_failure_reason("WRONG_KEY"));
+    REQUIRE(helix::netd::is_auth_failure_reason("AUTH_FAILED"));
+    REQUIRE(helix::netd::is_auth_failure_reason("INVALID_PSK"));
+    REQUIRE_FALSE(helix::netd::is_auth_failure_reason("SCAN_FAILED"));
+    REQUIRE_FALSE(helix::netd::is_auth_failure_reason("BUSY"));
+    REQUIRE_FALSE(helix::netd::is_auth_failure_reason(""));
+}
+
+TEST_CASE("netd scan failure reasons classify exactly, BUSY excluded", "[netd][protocol]") {
+    REQUIRE(helix::netd::is_scan_failure_reason("SCAN_FAILED"));
+    REQUIRE(helix::netd::is_scan_failure_reason("SCAN_IN_PROGRESS"));
+    // BUSY can deny a join too: the caller weighs it by outstanding work.
+    REQUIRE_FALSE(helix::netd::is_scan_failure_reason("BUSY"));
+    REQUIRE_FALSE(helix::netd::is_scan_failure_reason("WRONG_KEY"));
+    REQUIRE_FALSE(helix::netd::is_scan_failure_reason(""));
+}
+
+TEST_CASE("netd busy reason classifies exactly", "[netd][protocol]") {
+    REQUIRE(helix::netd::is_busy_reason("BUSY"));
+    REQUIRE_FALSE(helix::netd::is_busy_reason("SCAN_FAILED"));
+    REQUIRE_FALSE(helix::netd::is_busy_reason(""));
+}
+
+// ============================================================================
+// snapshot_line_key — which field a line carried
+// ============================================================================
+
+TEST_CASE("netd snapshot_line_key lowercases and trims the key", "[netd][protocol]") {
+    REQUIRE(helix::netd::snapshot_line_key("MODE=ETHERNET") == "mode");
+    REQUIRE(helix::netd::snapshot_line_key(" State\t=RETRYING") == "state");
+    // The FIRST '=' splits; a value's '=' stays in the value.
+    REQUIRE(helix::netd::snapshot_line_key("REASON=a=b") == "reason");
+    REQUIRE(helix::netd::snapshot_line_key("OK").empty());
+    REQUIRE(helix::netd::snapshot_line_key("").empty());
 }

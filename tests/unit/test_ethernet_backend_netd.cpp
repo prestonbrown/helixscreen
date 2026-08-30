@@ -231,6 +231,25 @@ TEST_CASE_METHOD(EthernetNetdFixture, "netd dead daemon falls back to kernel tru
 }
 
 // ============================================================================
+// 4c. A reachable daemon whose reply carries no MODE= line (an ERR verdict):
+//     the answer decides nothing about which transport owns the link, so the
+//     kernel reading of a live eth0 must stand — not be blanked by treating
+//     the mode-less snapshot as authoritative.
+// ============================================================================
+TEST_CASE_METHOD(EthernetNetdFixture, "netd err-only reply keeps the kernel ethernet reading",
+                 "[netd][ethernet]") {
+    kernel_connected = true; // the stub's kernel state, injected at construction
+
+    const EthernetInfo info = query_with_reply({"ERR"});
+
+    REQUIRE(info.connected);
+    REQUIRE(info.ip_address == kernel_ip);
+    REQUIRE(info.interface == "eth0");
+    REQUIRE(info.mac_address == "aa:bb:cc:12:34:56");
+    REQUIRE(info.status == "Connected (daemon unavailable)");
+}
+
+// ============================================================================
 // 8. One-shot contract: every get_info() is its own connection carrying
 //    exactly one GET — no SUBSCRIBE, nothing persistent.
 // ============================================================================

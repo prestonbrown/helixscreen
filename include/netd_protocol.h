@@ -87,6 +87,16 @@ Ack parse_ack(const std::string& line);
 bool parse_snapshot_line(const std::string& line, NetdSnapshot& out);
 
 /**
+ * @brief Lowercased key of a snapshot line ("MODE=ETHERNET" -> "mode"), or
+ *        empty when the line carries no '='.
+ *
+ * The one-place key spelling for callers that need to know WHICH field a
+ * line carried (the ethernet backend's authority check), keeping the key
+ * vocabulary out of the backends.
+ */
+std::string snapshot_line_key(const std::string& line);
+
+/**
  * @brief Parse one SCAN reply row, or nullopt if the line is not a scan row.
  *
  * A scan row starts with "FREQUENCY=" and contains " NETWORK=". Tokens
@@ -138,6 +148,21 @@ std::string encode_cancel();
 bool is_auth_failure_reason(const std::string& reason);
 
 /**
+ * @brief True for ERR reasons that deny or fail a SCAN request.
+ *
+ * Companion to is_auth_failure_reason(): the scan side of the reason
+ * vocabulary, so a renamed reason is fixed once here. BUSY is deliberately
+ * absent — a join can be refused BUSY too — so a caller attributing one ERR
+ * between a pending scan and a pending join weighs BUSY by its own
+ * outstanding work, not by this predicate.
+ */
+bool is_scan_failure_reason(const std::string& reason);
+
+/// True for the ERR reason that can deny either a scan or a join: the one
+/// reason whose attribution depends on the caller's outstanding work.
+bool is_busy_reason(const std::string& reason);
+
+/**
  * @brief Encode a join request. Both parameters are base64-encoded so any
  * UTF-8 SSID or passphrase survives the line framing.
  *
@@ -170,6 +195,10 @@ bool available();
 
 struct QueryResult {
     bool reached{};        ///< False on any connect/write/read failure or timeout with no reply.
+    bool saw_mode{};       ///< True when a reply line carried MODE=: only that answer is
+                           ///< authoritative about which transport owns the link. A daemon
+                           ///< that replied without it (an ERR verdict) said nothing
+                           ///< authoritative, and its empty snapshot must not blank a row.
     NetdSnapshot snapshot; ///< Every snapshot line the daemon sent, merged.
 };
 
