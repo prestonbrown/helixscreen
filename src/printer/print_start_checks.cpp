@@ -258,7 +258,7 @@ CheckResult gate_unresolved_tools(const PrintStartContext& ctx) {
     }
 
     // Body ported verbatim from show_color_mismatch_warning (no static buffer:
-    // modal_show_confirmation copies the message string).
+    // modal_confirm copies the message string).
     std::string message = lv_tr("These tools have no matching filament loaded:");
     message += "\n\n";
     for (int tool_idx : unresolved) {
@@ -336,7 +336,7 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
     }
 
     // Body ported verbatim from show_material_mismatch_warning (no static
-    // buffer: modal_show_confirmation copies the message string).
+    // buffer: modal_confirm copies the message string).
     std::string message;
 
     if (mismatches.size() == 1) {

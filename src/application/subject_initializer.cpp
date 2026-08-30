@@ -86,14 +86,11 @@ namespace {
 // The one live installation of helix::ui::HomeConfirmPrompter (Task 8). Every
 // other caller of set_home_confirm_prompter() is a test.
 //
-// Built on the Modal INSTANCE API (helix::ui::Modal subclass), not the static
-// modal_show_confirmation() factory used by the first cut of this code. The
-// static factory's dialog is created via the plain Modal::show("modal_dialog", ...)
-// path, and on that path Modal::show() unconditionally wires the backdrop-tap
-// and ESC handlers with a null Modal* user_data (ui_modal.cpp's
-// backdrop_click_cb/esc_key_cb "static modal" branch) -- both just call
-// Modal::hide(dialog) directly and never touch the confirm/cancel
-// lv_event_cb_t at all. Since AmsBackendAfc/AmsBackendToolChanger arm their
+// Built on the Modal INSTANCE API (helix::ui::Modal subclass), not the bare
+// static Modal::show() factory. A bare-show dialog is pushed with no owner:
+// nothing observes its close, so backdrop-tap and ESC just tear the widgets
+// down and no hook fires (the first cut of this code used the helper form on
+// that path and learned this the hard way). Since AmsBackendAfc/AmsBackendToolChanger arm their
 // optimistic AmsAction *before* calling ensure_homed_then(), and
 // ensure_homed_then()'s unhomed branch now always returns success() once it
 // decides to prompt (no more synchronous failure return for `!result` to
@@ -187,12 +184,12 @@ class HomeConfirmModal : public Modal {
 void install_home_confirm_prompter() {
     helix::ui::set_home_confirm_prompter(
         [](std::function<void()> on_confirm, std::function<void()> on_cancel) {
-            // Same subjects the static modal_show_confirmation() helper
+            // Same subjects the modal_confirm() helper
             // configures (severity/button text) -- "modal_dialog" is a shared
             // XML component bound to these, regardless of which API shows it.
             // modal_configure() leaves a null cancel_text's subject untouched
             // (stale from whichever dialog configured it last), unlike
-            // modal_show_confirmation() which defaults it -- pass it explicitly.
+            // modal_confirm() which defaults it -- pass it explicitly.
             helix::ui::modal_configure(ModalSeverity::Warning, /*show_cancel=*/true,
                                        lv_tr("Home & Continue"), lv_tr("Cancel"));
             const char* attrs[] = {

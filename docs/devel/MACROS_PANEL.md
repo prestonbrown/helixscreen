@@ -15,7 +15,7 @@ Home Panel
 ├── MacrosWidget (1x1) ──────────→ Opens MacrosPanel overlay
 ├── FavoriteMacroWidget (1x1) ──→ Executes a single configured macro
 │   └── fetch_and_execute()
-│       ├── Dangerous? → modal_show_confirmation()   (always, ignores the toggle)
+│       ├── Dangerous? → modal_confirm()   (always, ignores the toggle)
 │       ├── require_confirmation off → execute_macro_gcode(), no params, no dialog
 │       └── require_confirmation on  → same three knowledge levels as the panel,
 │                                      with the Safety confirm on KNOWN_NO_PARAMS
@@ -32,7 +32,7 @@ MacrosPanel (overlay)
 │
 ├── on_macro_card_clicked (static callback)
 │   └── fetch_params_and_execute()
-│       ├── Dangerous? → modal_show_confirmation() → fetch_params_and_run()
+│       ├── Dangerous? → modal_confirm() → fetch_params_and_run()
 │       └── Safe? → fetch_params_and_run()
 │           ├── KNOWN_NO_PARAMS → execute_macro()
 │           ├── KNOWN_PARAMS → MacroParamModal → execute_with_params()
@@ -91,7 +91,7 @@ These macros show a confirmation dialog before execution:
 - `M112`
 - `EMERGENCY_STOP`
 
-The confirmation uses `modal_show_confirmation()` with appropriate severity level.
+The confirmation uses `modal_confirm()` with appropriate severity level.
 
 Dangerous macros are the one gate nothing can turn off. The Macro Button widget's
 per-instance "Require Confirmation?" opt-out (below) is checked *after* this

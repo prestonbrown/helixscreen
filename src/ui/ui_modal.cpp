@@ -854,8 +854,8 @@ bool Modal::rebuild_top() {
     // closes the top one instead of resurrecting a broken copy.
     //
     // An instance-backed modal loses on_show() population and its button
-    // wiring. A statically shown one loses just as much: modal_show_confirmation
-    // and modal_show_alert pass title/message as runtime attrs to lv_xml_create
+    // wiring. A statically shown one loses just as much: modal_confirm
+    // and modal_alert pass title/message as runtime attrs to lv_xml_create
     // and then attach their button callbacks with lv_obj_add_event_cb, and
     // neither survives a re-show. The result looked convincing and was inert -
     // resolve_params found no value for $title/$message and left the labels at
@@ -1378,24 +1378,14 @@ class ConfirmationModal : public Modal {
         : title_(std::move(title)), message_(std::move(message)),
           on_dismiss_(std::move(on_dismiss)), owner_token_(std::move(owner_token)) {}
 
-    /// Legacy form: raw lv_event_cb_t + void* user_data, wired straight to the
-    /// buttons so the existing call sites' contract is untouched.
-    void set_legacy_buttons(lv_event_cb_t on_confirm, lv_event_cb_t on_cancel, void* user_data,
-                            bool has_cancel) {
-        cb_confirm_ = on_confirm;
-        cb_cancel_ = on_cancel;
-        user_data_ = user_data;
-        has_cancel_ = has_cancel;
-    }
-
-    /// Declarative form: the callback never touches a widget, so there is no
-    /// user_data to outlive anything and nothing is attached (prestonbrown/helixscreen#1383).
+    /// The callbacks never touch a widget, so nothing of the caller's is
+    /// attached to one and there is no user_data to outlive anything
+    /// (prestonbrown/helixscreen#1383).
     void set_callbacks(std::function<void()> on_confirm, std::function<void()> on_cancel,
                        bool has_cancel) {
         fn_confirm_ = std::move(on_confirm);
         fn_cancel_ = std::move(on_cancel);
         has_cancel_ = has_cancel;
-        declarative_ = true;
     }
 
     /// Builds its own attrs so the strings outlive XML creation by construction
@@ -1417,9 +1407,9 @@ class ConfirmationModal : public Modal {
 
   protected:
     void on_show() override {
-        wire_side("btn_primary", cb_confirm_, /*primary=*/true);
+        wire_side("btn_primary", /*primary=*/true);
         if (has_cancel_) {
-            wire_side("btn_secondary", cb_cancel_, /*primary=*/false);
+            wire_side("btn_secondary", /*primary=*/false);
         }
     }
 
@@ -1455,8 +1445,8 @@ class ConfirmationModal : public Modal {
             if (owner_token_) {
                 owner_token_->defer("ConfirmationModal::on_dismiss", std::move(on_dismiss_));
             } else {
-                // Untokened callers keep the legacy contract: the capture
-                // outlives the dialog.
+                // Untokened callers keep the older contract: the capture
+                // simply has to outlive the dialog.
                 helix::ui::queue_update(std::move(on_dismiss_));
             }
         }
@@ -1467,30 +1457,18 @@ class ConfirmationModal : public Modal {
 
   private:
     /// Whether the caller that opened this dialog is still alive. Untokened
-    /// callers answer true, which is the legacy contract: the capture simply has
-    /// to outlive the dialog. Only the std::function callbacks can be gated -
-    /// a legacy lv_event_cb_t is a second callback on the button, invoked by
-    /// LVGL after ours returns, and there is no way to call it off from here.
+    /// callers answer true: their capture simply has to outlive the dialog.
     bool owner_alive() const {
         return !owner_token_ || !owner_token_->expired();
     }
 
-    /// Route one side of the dialog. Our handler always goes on first, so
-    /// answered_ is recorded even when the caller's callback closes the dialog.
-    void wire_side(const char* name, lv_event_cb_t cb, bool primary) {
-        const char* role = primary ? "confirm" : "cancel";
-        wire_button_with(name, role,
+    /// Route one side of the dialog through our own handler, so a press is
+    /// always classified (answered vs dismissed) and the close is always ours.
+    void wire_side(const char* name, bool primary) {
+        wire_button_with(name, primary ? "confirm" : "cancel",
                          primary ? &ConfirmationModal::primary_clicked
                                  : &ConfirmationModal::secondary_clicked,
                          this);
-        if (!declarative_ && cb) {
-            // DECLARATIVE_OK: the legacy overload's callback is a raw
-            // lv_event_cb_t resolved at runtime, and XML's
-            // <event_cb callback="name"/> binds a REGISTERED NAME - there is no
-            // declarative spelling for an arbitrary function pointer. Its own
-            // user_data is passed verbatim; disarm_tree() strips only ours.
-            wire_button_with(name, role, cb, user_data_);
-        }
     }
 
     static void primary_clicked(lv_event_t* e) {
@@ -1501,18 +1479,15 @@ class ConfirmationModal : public Modal {
             // from the press, so leave answered_ false and let on_hide() report
             // it as a dismissal - otherwise the state on_dismiss exists to clear
             // is stranded, which is the prestonbrown/helixscreen#1380 leak.
-            if (self->fn_confirm_ || self->cb_confirm_) {
+            if (self->fn_confirm_) {
                 self->answered_ = true;
             }
             if (self->fn_confirm_ && self->owner_alive()) {
                 self->fn_confirm_();
             }
-            // We own the close unless a legacy caller's callback does it. A
-            // button press is not the caller's own close, so it carries its
+            // A button press is not the caller's own close, so it carries its
             // reason even when no callback on this side latched answered_.
-            if (self->declarative_ || !self->cb_confirm_) {
-                self->hide(ModalCloseReason::ButtonPress);
-            }
+            self->hide(ModalCloseReason::ButtonPress);
         }
         LVGL_SAFE_EVENT_CB_END();
     }
@@ -1525,18 +1500,15 @@ class ConfirmationModal : public Modal {
             // from the press, so leave answered_ false and let on_hide() report
             // it as a dismissal - otherwise the state on_dismiss exists to clear
             // is stranded, which is the prestonbrown/helixscreen#1380 leak.
-            if (self->fn_cancel_ || self->cb_cancel_) {
+            if (self->fn_cancel_) {
                 self->answered_ = true;
             }
             if (self->fn_cancel_ && self->owner_alive()) {
                 self->fn_cancel_();
             }
-            // We own the close unless a legacy caller's callback does it. A
-            // button press is not the caller's own close, so it carries its
+            // A button press is not the caller's own close, so it carries its
             // reason even when no callback on this side latched answered_.
-            if (self->declarative_ || !self->cb_cancel_) {
-                self->hide(ModalCloseReason::ButtonPress);
-            }
+            self->hide(ModalCloseReason::ButtonPress);
         }
         LVGL_SAFE_EVENT_CB_END();
     }
@@ -1547,15 +1519,11 @@ class ConfirmationModal : public Modal {
     std::optional<helix::LifetimeToken> owner_token_;
     std::function<void()> fn_confirm_;
     std::function<void()> fn_cancel_;
-    lv_event_cb_t cb_confirm_ = nullptr;
-    lv_event_cb_t cb_cancel_ = nullptr;
-    void* user_data_ = nullptr;
     bool has_cancel_ = false;
     bool answered_ = false;
-    bool declarative_ = false;
 };
 
-/// The one build sequence behind all four helpers.
+/// The one build sequence behind both forms.
 ///
 /// Ordering matters and used to be re-typed per helper: the rollback guard must
 /// be constructed BEFORE modal_configure() overwrites the shared subjects, or it
@@ -1598,31 +1566,6 @@ lv_obj_t* build_confirmation(const char* title, const char* message, ModalSeveri
 
 } // namespace
 
-lv_obj_t* helix::ui::modal_show_confirmation(const char* title, const char* message,
-                                             ModalSeverity severity, const char* confirm_text,
-                                             lv_event_cb_t on_confirm, lv_event_cb_t on_cancel,
-                                             void* user_data, const char* cancel_text,
-                                             std::function<void()> on_dismiss,
-                                             std::optional<helix::LifetimeToken> dismiss_token) {
-    return build_confirmation(
-        title, message, severity, confirm_text, cancel_text, /*has_cancel=*/true,
-        std::move(on_dismiss), std::move(dismiss_token), [&](ConfirmationModal& m) {
-            m.set_legacy_buttons(on_confirm, on_cancel, user_data, /*has_cancel=*/true);
-        });
-}
-
-lv_obj_t* helix::ui::modal_show_alert(const char* title, const char* message,
-                                      ModalSeverity severity, const char* ok_text,
-                                      lv_event_cb_t on_ok, void* user_data,
-                                      std::function<void()> on_dismiss,
-                                      std::optional<helix::LifetimeToken> dismiss_token) {
-    return build_confirmation(
-        title, message, severity, ok_text, nullptr, /*has_cancel=*/false, std::move(on_dismiss),
-        std::move(dismiss_token), [&](ConfirmationModal& m) {
-            m.set_legacy_buttons(on_ok, nullptr, user_data, /*has_cancel=*/false);
-        });
-}
-
 lv_obj_t* helix::ui::modal_confirm(const char* title, const char* message, ModalSeverity severity,
                                    const char* confirm_text, std::function<void()> on_confirm,
                                    const ConfirmOptions& options) {
@@ -1644,9 +1587,9 @@ lv_obj_t* helix::ui::modal_alert(const char* title, const char* message, ModalSe
                               });
 }
 
-lv_obj_t* helix::ui::show_low_ram_resonance_warning(
-    size_t total_mb, lv_event_cb_t on_confirm, lv_event_cb_t on_cancel, void* user_data,
-    std::function<void()> on_dismiss, std::optional<helix::LifetimeToken> dismiss_token) {
+lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
+                                                    std::function<void()> on_confirm,
+                                                    const ConfirmOptions& options) {
     std::string msg;
     try {
         msg = fmt::format(lv_tr("This device has only {} MB of RAM. Resonance calibration is "
@@ -1660,7 +1603,31 @@ lv_obj_t* helix::ui::show_low_ram_resonance_warning(
                     "memory-intensive and may cause a \"Timer Too Close\" error. "
                     "Continue anyway?");
     }
-    return modal_show_confirmation(lv_tr("Low Memory"), msg.c_str(), ModalSeverity::Warning,
-                                   lv_tr("Continue"), on_confirm, on_cancel, user_data, nullptr,
-                                   std::move(on_dismiss), std::move(dismiss_token));
+    // The re-entry scaffold lives HERE, once: the caller's stored handle is
+    // cleared on every close path (drop leads both buttons and is the
+    // dismissal report), so a second entry while the dialog is open is the
+    // caller's only remaining guard. The two call sites used to carry this
+    // wiring hand-written, in copy.
+    ConfirmOptions all = options;
+    auto drop = [dialog_handle]() {
+        if (dialog_handle) {
+            *dialog_handle = nullptr;
+        }
+    };
+    all.on_dismiss = drop;
+    std::function<void()> confirm = on_confirm;
+    if (confirm) {
+        confirm = [drop, confirm = std::move(on_confirm)]() {
+            drop();
+            confirm();
+        };
+    } else {
+        confirm = drop;
+    }
+    lv_obj_t* dialog = modal_confirm(lv_tr("Low Memory"), msg.c_str(), ModalSeverity::Warning,
+                                     lv_tr("Continue"), std::move(confirm), all);
+    if (dialog_handle) {
+        *dialog_handle = dialog;
+    }
+    return dialog;
 }
