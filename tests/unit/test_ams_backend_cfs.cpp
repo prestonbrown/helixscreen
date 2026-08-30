@@ -4047,18 +4047,161 @@ TEST_CASE("CFS runout: ordinary console chatter is ignored", "[ams][cfs][1250]")
 // the real state lived was an untranslated English string.
 
 TEST_CASE("CFS endless spool: auto-refill on and off are distinguishable",
-          "[ams][cfs][endless_spool]") {
-    SECTION("auto_refill=1 reads as available and ON") {
+          "[ams][cfs][endless_spool][1391]") {
+    SECTION("auto_refill=1 with a two-lane same_material group reads as available and ON") {
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        // make_runout_box colors: T1A=0FFFFFF, T1B/T1C/T1D=01A1A1A, all
+        // material 101001. T1B+T1C form one real pairing; the live-K2 shape
+        // from CREALITY_K2_SUPPORT.md § "Top-Level Fields".
+        box["same_material"] =
+            json::array({json::array({"101001", "01A1A1A", json::array({"T1B", "T1C"}), "PLA"}),
+                         json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.availability == EndlessSpoolAvailability::Available);
+        CHECK(caps.enabled == EndlessSpoolEnabled::On);
+        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
+        CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
+        CHECK_FALSE(caps.editable());
+    }
+
+    SECTION("auto_refill=1 with same_material present but no pairing reads as ON WITHOUT "
+            "BACKUP") {
+        // The honest negative (#1391): the setting is on, but the firmware's
+        // own grouping says every group is a singleton, so a runout would stop
+        // the print anyway. Advertising plain On here is the false promise the
+        // issue exists to remove.
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        box["same_material"] =
+            json::array({json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1B"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1C"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.availability == EndlessSpoolAvailability::Available);
+        CHECK(caps.enabled == EndlessSpoolEnabled::OnWithoutBackup);
+        // Still firmware-managed: the honest state changes WHAT WE SAY, not
+        // what we claim to control.
+        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
+        CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
+    }
+
+    SECTION("auto_refill=1 with no same_material key stays ON (no data is not a negative)") {
+        // The flat dialect never sends same_material, and a stock delta frame
+        // may omit it; "we did not read the grouping" must not be reported as
+        // "nothing groups". Only a parsed list with no pairing justifies the
+        // degraded answer.
         CfsRemapHelper backend;
         CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
 
         auto caps = backend.get_endless_spool_capabilities();
         CHECK(caps.availability == EndlessSpoolAvailability::Available);
         CHECK(caps.enabled == EndlessSpoolEnabled::On);
-        // The box picks the refill spool from its own same_material groups.
-        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
         CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
-        CHECK_FALSE(caps.editable());
+    }
+
+    SECTION("same_material lane lists parse into per-slot group ordinals") {
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        box["same_material"] =
+            json::array({json::array({"101001", "01A1A1A", json::array({"T1B", "T1C"}), "PLA"}),
+                         json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        const auto info = backend.get_system_info();
+        CHECK(info.endless_spool_groups_reported);
+        // TNN address space: one entry per addressable bay T1A..T4D.
+        REQUIRE(info.endless_spool_group_ids.size() == 16);
+        CHECK(info.endless_spool_group_ids[0] == 1); // T1A: singleton group
+        CHECK(info.endless_spool_group_ids[1] == 0); // T1B: paired with T1C
+        CHECK(info.endless_spool_group_ids[2] == 0);
+        CHECK(info.endless_spool_group_ids[3] == -1); // T1D: not grouped
+        for (int i = 4; i < 16; ++i) {
+            CHECK(info.endless_spool_group_ids[i] == -1); // unaddressed bays
+        }
+    }
+
+    SECTION("no same_material key leaves the grouping data empty and unreported") {
+        CfsRemapHelper backend;
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
+
+        const auto info = backend.get_system_info();
+        CHECK_FALSE(info.endless_spool_groups_reported);
+        CHECK(info.endless_spool_group_ids.empty());
+    }
+
+    SECTION("a stock delta frame without same_material retains the known grouping") {
+        // A stock delta carries a changed T1 subtree but omits same_material
+        // (the field rides full frames). The honest warning must survive that
+        // frame rather than reverting to plain On until the firmware next
+        // re-sends the list - the same presence-gating rule filament_runout
+        // already follows.
+        CfsRemapHelper backend;
+        json grouped = make_runout_box(0);
+        grouped["same_material"] =
+            json::array({json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1B"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1C"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(grouped));
+        REQUIRE(backend.get_endless_spool_capabilities().enabled ==
+                EndlessSpoolEnabled::OnWithoutBackup);
+
+        // Delta: units present, no same_material key at all.
+        json delta = make_runout_box(0);
+        delta["T1"]["remain_len"] = std::vector<std::string>{"40", "0", "46", "50"};
+        CfsTestAccess::handle_status(backend, make_cfs_notification(delta));
+
+        CHECK(backend.get_endless_spool_capabilities().enabled ==
+              EndlessSpoolEnabled::OnWithoutBackup);
+        const auto info = backend.get_system_info();
+        CHECK(info.endless_spool_groups_reported);
+        CHECK(info.endless_spool_group_ids.size() == 16);
+    }
+
+    SECTION("a flat frame drops stock-era grouping (schema transition, not a delta)") {
+        // The flat dialect never sends same_material, so the presence gate
+        // alone would keep answering from the stock frame's grouping forever
+        // after a mid-session firmware swap. A schema change is a real
+        // transition: the grouping is cleared, and the capability falls back
+        // to the plain On answer (unknown, not a negative).
+        CfsRemapHelper backend;
+        json grouped = make_runout_box(0);
+        grouped["same_material"] =
+            json::array({json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1B"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1C"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(grouped));
+        REQUIRE(backend.get_endless_spool_capabilities().enabled ==
+                EndlessSpoolEnabled::OnWithoutBackup);
+
+        json flat = json::parse(R"({
+            "driver_ready": true, "api_version": 1, "state": "IDLE",
+            "runout": null, "runout_swap_enabled": true,
+            "slots": [
+                {"index": 0, "present": true, "loaded": false,
+                 "material": "PLA", "color": "#111111"},
+                {"index": 1, "present": true, "loaded": false,
+                 "material": "PC", "color": "#F2F2F2"},
+                {"index": 2, "present": true, "loaded": false,
+                 "material": "PLA", "color": "#111111"},
+                {"index": 3, "present": false, "loaded": false,
+                 "material": "", "color": ""}
+            ]
+        })");
+        CfsTestAccess::handle_status(backend, make_cfs_notification(flat));
+
+        CHECK(backend.get_endless_spool_capabilities().enabled == EndlessSpoolEnabled::On);
+        const auto info = backend.get_system_info();
+        CHECK_FALSE(info.endless_spool_groups_reported);
+        CHECK(info.endless_spool_group_ids.empty());
     }
 
     SECTION("auto_refill=0 reads as available and OFF") {

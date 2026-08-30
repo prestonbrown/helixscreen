@@ -15,7 +15,7 @@ namespace helix::ui {
 namespace {
 
 // Dialogs raised for a printer-side fault. Main-thread only: every mutation
-// happens either beside a modal_show_alert() call or inside an LV_EVENT_DELETE
+// happens either beside a modal_alert() call or inside an LV_EVENT_DELETE
 // handler, both of which LVGL already guarantees run on the main thread.
 std::vector<lv_obj_t*> s_fault_modals;
 
@@ -36,7 +36,7 @@ void forget_fault_modal(lv_event_t* e) {
 
 void track_fault_modal(lv_obj_t* dialog) {
     if (!dialog) {
-        return; // modal_show_alert() already logged why it failed
+        return; // modal_alert() already logged why it failed
     }
     s_fault_modals.push_back(dialog);
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.

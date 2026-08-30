@@ -322,8 +322,7 @@ AmsError AmsSubscriptionBackend::refuse_if_printing() const {
     if (!api_) {
         return AmsErrorHelper::success();
     }
-    const auto lifecycle = static_cast<PrintState>(
-        lv_subject_get_int(api_->printer_state().get_print_lifecycle_subject()));
+    const auto lifecycle = api_->printer_state().get_print_lifecycle();
     if (!job_holds_machine(lifecycle)) {
         return AmsErrorHelper::success();
     }

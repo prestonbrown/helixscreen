@@ -742,8 +742,7 @@ void MoonrakerManager::init_print_start_collector() {
     // RAW_PRINT_STATE_OK: the collector MEASURES the pre-print window, so every
     // state it reacts to must be the printer's own. On the lifecycle its
     // completion signal would be the very state it is waiting to observe.
-    s_arming.note_transition(static_cast<PrintJobState>(
-        lv_subject_get_int(get_printer_state().get_print_state_enum_subject())));
+    s_arming.note_transition(get_printer_state().get_print_job_state());
     spdlog::debug("[MoonrakerManager] PRINT_START collector observer registered (initial state={})",
                   static_cast<int>(s_arming.prev_state()));
 
@@ -855,8 +854,7 @@ void MoonrakerManager::init_print_start_collector() {
                 // user runs by hand is parsed as a pre-print phase, re-raising
                 // the "Preparing Print" overlay over whatever they are doing.
                 // RAW_PRINT_STATE_OK: collector teardown mirrors its arming.
-                const auto job_state = static_cast<helix::PrintJobState>(
-                    lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+                const auto job_state = get_printer_state().get_print_job_state();
                 if (collector->is_active() && should_stop_collector_on_retirement(job_state)) {
                     collector->stop();
                     spdlog::info("[MoonrakerManager] PRINT_START collector stopped (retired "

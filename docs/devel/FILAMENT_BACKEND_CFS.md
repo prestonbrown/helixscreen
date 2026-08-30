@@ -116,18 +116,27 @@ present on both families and are now emitted on both.
 
 ### Endless spool (auto-refill)
 
-CFS reports `Available` + `ReadOnly` + `FirmwareManaged`, with `enabled` from
+CFS reports `Available` + `ReadOnly` + `FirmwareManaged`, with `enabled` derived from
 `box.auto_refill` (stock) or `box.runout_swap_enabled` (flat fork) via
 `AmsSystemInfo::endless_spool_enabled`. On and off are therefore distinguishable, which the
 old two-bool struct could not express - it hardcoded `supported = true` and buried the real
 state in an untranslated `description`.
 
+When auto-refill is on AND the frame carried `same_material` AND no group pairs two or more
+lanes, `enabled` is `OnWithoutBackup` instead of `On` (#1391): the firmware swaps between
+identical spools, and with every group a singleton a runout stops the print despite the
+setting being on. A frame without `same_material` (the flat dialect never sends it; a stock
+delta may omit it) keeps the plain `On` answer - no data is not a negative. A stock delta
+that omits the field retains the last known grouping instead of clearing it
+(presence-gated like `filament_runout`); only a schema switch to flat clears it.
+
 `AmsBackendCfs` deliberately does **not** override `get_endless_spool_config()`. The box picks
 the refill spool itself from its own `same_material` groups and exposes no per-slot mapping to
 read, so the base's empty relation is the truthful answer, and it is what keeps the context
 menu from drawing a backup dropdown that could only ever read "None". `box.same_material` is
-parsed for one purpose only - a material-code-to-name lookup used when resolving a slot's
-material name - and is not wired to endless spool.
+parsed for two purposes: a material-code-to-name lookup used when resolving a slot's material
+name, and the per-lane group ordinals (`AmsSystemInfo::endless_spool_group_ids`) behind the
+`OnWithoutBackup` derivation above. Nothing is pushed back to the firmware on its basis.
 
 The user-facing on/off control is the `toggle_auto_refill` device action, which emits
 `BOX_ENABLE_AUTO_REFILL ENABLE=1|0` — a setter, not a toggle: it inverts the last

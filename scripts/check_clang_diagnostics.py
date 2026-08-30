@@ -90,7 +90,11 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-TU_EXTENSIONS = (".cpp", ".cc", ".cxx", ".mm", ".c")
+# C++ translation units only. The tree's .c files are generated LVGL font
+# data under assets/fonts/ (compiled -std=c11); replaying their commands
+# through clang++ is a category error - "invalid argument '-std=c11' not
+# allowed with 'C++'" - and hand-written C does not exist in src/ or include/.
+TU_EXTENSIONS = (".cpp", ".cc", ".cxx", ".mm")
 HEADER_EXTENSIONS = (".h", ".hpp", ".hh", ".hxx", ".inc", ".ipp")
 
 # Compiler wrappers that may lead the command line; dropped before argv[0] is
@@ -231,7 +235,7 @@ def entry_args(entry: dict) -> list[str]:
     return out
 
 
-def load_compile_db(root: str) -> dict[str, dict]:
+def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:
     """file realpath -> entry, from .ccj fragments unioned over compile_commands.json."""
     db: dict[str, dict] = {}
 
@@ -244,7 +248,7 @@ def load_compile_db(root: str) -> dict[str, dict]:
         db[os.path.realpath(path)] = entry
 
     cc_json = os.path.join(root, "compile_commands.json")
-    if os.path.exists(cc_json):
+    if frag_root is None and os.path.exists(cc_json):
         try:
             with open(cc_json) as fh:
                 for entry in json.load(fh):
@@ -253,8 +257,13 @@ def load_compile_db(root: str) -> dict[str, dict]:
             pass
 
     # Fragments last: they are per-TU and written at compile time, so they are
-    # never staler than the aggregated JSON.
-    for frag in glob.glob(os.path.join(root, "build", "obj", "**", "*.ccj"), recursive=True):
+    # never staler than the aggregated JSON. frag_root redirects the fragment
+    # glob to a caller-supplied directory: the meta-test builds a throwaway
+    # database there so its fixtures can never leak into (or depend on) this
+    # tree's build/obj - a leftover fixture under build/obj would be unioned
+    # into every real --all audit until something cleaned it up.
+    frag_dir = frag_root if frag_root else os.path.join(root, "build", "obj")
+    for frag in glob.glob(os.path.join(frag_dir, "**", "*.ccj"), recursive=True):
         try:
             with open(frag) as fh:
                 absorb(json.load(fh))
@@ -430,7 +439,13 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
     notes: list[str] = []
 
     if args.all:
-        return sorted(db.values(), key=lambda e: e.get("file", "")), notes
+        # Same TU filter as the explicit-files path: --all must not bypass it,
+        # or every .c in the compile database (generated fonts, the expat
+        # sources inside lib/helix-xml) gets its -std=c11 command line replayed
+        # through clang++ - the exact misclassification the filter exists for.
+        return sorted((e for e in db.values()
+                       if str(e.get("file", "")).endswith(TU_EXTENSIONS)),
+                      key=lambda e: e.get("file", "")), notes
 
     paths = args.files or changed_files(root)
     if not paths:
@@ -492,6 +507,9 @@ def main() -> int:
                     help="cap on TUs checked per changed header (default 40)")
     ap.add_argument("--max-report", type=int, default=5, help="how many failing TUs to print in full")
     ap.add_argument("--warnings", action="store_true", help="also print clang warnings (never fatal)")
+    ap.add_argument("--compile-db-dir", default=None, metavar="DIR",
+                    help="read *.ccj compile-command fragments from DIR instead of "
+                         "build/obj, and skip compile_commands.json (test isolation)")
     args = ap.parse_args()
 
     root = REPO_ROOT
@@ -501,7 +519,7 @@ def main() -> int:
         print(f"SKIP: clang syntax check -- {desc}")
         return 0
 
-    db = load_compile_db(root)
+    db = load_compile_db(root, args.compile_db_dir)
     if not db:
         print("SKIP: clang syntax check -- no compile database (build the tree first)")
         return 0

@@ -317,9 +317,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // the app does this at startup. Idempotent — warns and returns if already up.
     helix::ui::modal_init_subjects();
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Printer type mismatch", "This printer looks like something else.", ModalSeverity::Warning,
-        "Re-identify", nullptr, nullptr, nullptr, "Keep current");
+    helix::ui::ConfirmOptions opts;
+    opts.cancel_text = "Keep current";
+    lv_obj_t* dialog =
+        helix::ui::modal_confirm("Printer type mismatch", "This printer looks like something else.",
+                                 ModalSeverity::Warning, "Re-identify", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* title = lv_obj_find_by_name(dialog, "dialog_title");
@@ -404,45 +406,55 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms deeply nested butto
 // release through the virtual indev and REQUIREs the callback fired. Without it
 // a mis-aimed press (wrong coordinates, dialog still mid-entrance-animation)
 // would make the real assertion below pass for the wrong reason - removing
-// lv_indev_reset would not turn it red. The confirm callback here deliberately
-// does not hide, so the dialog is still up for the second half.
+// lv_indev_reset would not turn it red. modal_confirm closes itself on a press,
+// so that press consumes the dialog and the held-press half below raises a
+// fresh one.
 TEST_CASE_METHOD(LVGLUITestFixture, "A press held across hide does not fire the confirm callback",
                  "[modal][teardown]") {
     helix::ui::modal_init_subjects();
     UITest::init(test_screen());
 
-    static int confirms = 0;
-    confirms = 0;
+    int confirms = 0;
+    auto show_delete_dialog = [&]() -> lv_obj_t* {
+        lv_obj_t* dialog = helix::ui::modal_confirm(
+            "Delete Page", "Remove this page and all its widgets?", ModalSeverity::Warning,
+            "Delete", [&confirms]() { ++confirms; });
+        REQUIRE(dialog != nullptr);
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page and all its widgets?", ModalSeverity::Warning, "Delete",
-        [](lv_event_t*) { confirms++; }, nullptr, nullptr);
-    REQUIRE(dialog != nullptr);
+        // Let the entrance animation finish before measuring -
+        // MODAL_ENTRANCE_DURATION_MS is 250, and coordinates taken mid-animation
+        // point at a scaled dialog.
+        process_lvgl(400);
+        // process_lvgl() pumps timers but does not force a layout pass, and
+        // without one every widget still reads back as a zero-area rect at the
+        // origin - which would send the press below to (0,0) and quietly make
+        // this test vacuous.
+        lv_obj_update_layout(lv_screen_active());
+        return dialog;
+    };
 
-    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
-    REQUIRE(primary != nullptr);
-
-    // Let the entrance animation finish before measuring - MODAL_ENTRANCE_DURATION_MS
-    // is 250, and coordinates taken mid-animation point at a scaled dialog.
-    process_lvgl(400);
-    // process_lvgl() pumps timers but does not force a layout pass, and without
-    // one every widget still reads back as a zero-area rect at the origin - which
-    // would send the press below to (0,0) and quietly make this test vacuous.
-    lv_obj_update_layout(lv_screen_active());
-
-    lv_area_t coords;
-    lv_obj_get_coords(primary, &coords);
-    const int32_t cx = coords.x1 + lv_area_get_width(&coords) / 2;
-    const int32_t cy = coords.y1 + lv_area_get_height(&coords) / 2;
+    auto confirm_button_center = [](lv_obj_t* dialog) {
+        lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
+        REQUIRE(primary != nullptr);
+        lv_area_t coords;
+        lv_obj_get_coords(primary, &coords);
+        return std::pair{coords.x1 + lv_area_get_width(&coords) / 2,
+                         coords.y1 + lv_area_get_height(&coords) / 2};
+    };
 
     // Known-positive: this press/release MUST reach the callback, or everything
-    // below is vacuous.
-    REQUIRE(UITest::press_at(cx, cy));
-    REQUIRE(UITest::release());
-    process_lvgl(50);
-    REQUIRE(confirms == 1);
+    // below is vacuous. It also closes the dialog, per the contract.
+    {
+        auto [cx, cy] = confirm_button_center(show_delete_dialog());
+        REQUIRE(UITest::press_at(cx, cy));
+        REQUIRE(UITest::release());
+        process_lvgl(50);
+        REQUIRE(confirms == 1);
+    }
 
     // Now the real case. Finger down on the confirm button...
+    lv_obj_t* dialog = show_delete_dialog();
+    auto [cx, cy] = confirm_button_center(dialog);
     REQUIRE(UITest::press_at(cx, cy));
 
     // ...modal torn down underneath it (an emergency-stop state change, the
@@ -515,18 +527,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
 // The confirmation helpers are owned by an instance (#1379)
 // ============================================================================
 
-// The helpers used to push through the static factory with owner = nullptr, so
-// nothing observed their close: no on_hide(), no lifetime_, and a dismissal
-// reported nothing to the caller. Re-homing them on an internal Modal subclass
-// makes on_hide() the always-fires resolve point without changing any of the 63
-// call sites' signatures.
+// modal_confirm()/modal_alert() used to push through the static factory with
+// owner = nullptr, so nothing observed their close: no on_hide(), no lifetime_,
+// and a dismissal reported nothing to the caller. Housing them on an internal
+// Modal subclass makes on_hide() the always-fires resolve point.
 TEST_CASE_METHOD(LVGLUITestFixture, "A confirmation dialog is owned by a Modal instance",
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation("Delete Page", "Remove this page?",
-                                                          ModalSeverity::Warning, "Delete", nullptr,
-                                                          nullptr, nullptr);
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr);
     REQUIRE(dialog != nullptr);
 
     // The whole point of #1379: there is now something to delegate to.
@@ -537,63 +547,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A confirmation dialog is owned by a Modal i
     CHECK(ModalStack::instance().stack_empty());
 }
 
-// A backdrop tap or ESC fires neither button. That is the case every #1380 site
-// was stranded by, and it is now reportable.
-TEST_CASE_METHOD(LVGLUITestFixture, "Dismissing a confirmation invokes on_dismiss",
-                 "[modal][teardown][1379]") {
-    helix::ui::modal_init_subjects();
-
-    int dismissed = 0;
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
-        nullptr, nullptr, [&dismissed]() { ++dismissed; });
-    REQUIRE(dialog != nullptr);
-    REQUIRE(dismissed == 0);
-
-    tap_backdrop(dialog); // user dismissed - neither button
-    process_lvgl(50);
-
-    CHECK(dismissed == 1);
-    CHECK(ModalStack::instance().stack_empty());
-}
-
-// ...but answering must NOT look like a dismissal, or every caller that resolves
-// its own state in a button handler would resolve it twice.
-TEST_CASE_METHOD(LVGLUITestFixture, "Answering a confirmation does not invoke on_dismiss",
-                 "[modal][teardown][1379]") {
-    helix::ui::modal_init_subjects();
-
-    int dismissed = 0;
-    static int confirms = 0;
-    confirms = 0;
-
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [](lv_event_t*) { ++confirms; }, nullptr, nullptr, nullptr,
-        [&dismissed]() { ++dismissed; });
-    REQUIRE(dialog != nullptr);
-
-    lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
-    REQUIRE(primary != nullptr);
-    lv_obj_send_event(primary, LV_EVENT_CLICKED, nullptr);
-    REQUIRE(confirms == 1);
-
-    Modal::hide(dialog);
-    process_lvgl(50);
-
-    CHECK(dismissed == 0); // answered, not dismissed
-    CHECK(ModalStack::instance().stack_empty());
-}
-
 // The owner is what makes the static hide() overload run a real teardown, so a
 // helper dialog closed through it now disarms like any instance-backed modal.
 TEST_CASE_METHOD(LVGLUITestFixture, "A helper dialog disarms through its owner",
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation("Delete Page", "Remove this page?",
-                                                          ModalSeverity::Warning, "Delete", nullptr,
-                                                          nullptr, nullptr);
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr);
     REQUIRE(dialog != nullptr);
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(primary != nullptr);
@@ -682,22 +643,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm cancel is an answer, not a di
     CHECK(ModalStack::instance().stack_empty());
 }
 
-// ESC routes to on_cancel() for instance-backed modals. Binding that hook to the
-// cancel BUTTON would make the two indistinguishable, and a legacy caller that
-// supplied a cancel callback would then leave ESC unable to close the dialog at
-// all - it would mark the modal answered and leave it on screen. The legacy path
-// therefore leaves the hooks unwired so Modal::on_cancel()'s default still runs.
-TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes a legacy confirmation that has a cancel callback",
+// ESC routes to the instance's on_cancel(), and ConfirmationModal's on_cancel()
+// means one thing: "closed with no button pressed" - both buttons are routed to
+// its own handlers instead. ESC must therefore close the dialog and report a
+// dismissal without touching the caller's cancel callback: that callback
+// belongs to the cancel button, and an ESC that resolved it would answer the
+// dialog's question by a path the caller cannot distinguish from a press.
+TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal, not the cancel callback",
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    static int cancels = 0;
-    cancels = 0;
+    int cancelled = 0;
     int dismissed = 0;
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr,
-        [](lv_event_t*) { ++cancels; }, nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [&cancelled] { ++cancelled; };
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
@@ -712,9 +675,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes a legacy confirmation that has a
     CHECK(ModalStack::instance().stack_empty());
     // ...report a dismissal, since no button was pressed...
     CHECK(dismissed == 1);
-    // ...and NOT invoke the caller's cancel callback, which is bound to the
-    // button. That would be a behaviour change across 63 call sites.
-    CHECK(cancels == 0);
+    // ...and NOT invoke the caller's cancel callback, which belongs to the
+    // button.
+    CHECK(cancelled == 0);
 }
 
 // ============================================================================
@@ -723,18 +686,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes a legacy confirmation that has a
 
 // on_dismiss is a std::function the caller supplies, and the dialog outlives its
 // exit animation - so a capture whose owner dies first is a use-after-free. That
-// is the shape that got #1380 reverted. dismiss_token is the tie: it is checked
-// when the callback actually fires, not when it was scheduled.
-TEST_CASE_METHOD(LVGLUITestFixture, "An expired dismiss token suppresses on_dismiss",
+// is the shape that got #1380 reverted. The owner token is the tie: it is
+// checked when the callback actually fires, not when it was scheduled.
+TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses the dismissal report",
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
     int dismissed = 0;
     auto guard = std::make_unique<helix::AsyncLifetimeGuard>();
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
-        nullptr, nullptr, [&dismissed]() { ++dismissed; }, guard->token());
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    opts.owner_token = guard->token();
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     // The owner dies while the dialog is still up - the exact race the tie exists
@@ -750,16 +715,18 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An expired dismiss token suppresses on_dism
 
 // ...and a live token must not suppress it, or the tie would silently disable
 // the whole mechanism.
-TEST_CASE_METHOD(LVGLUITestFixture, "A live dismiss token still fires on_dismiss",
+TEST_CASE_METHOD(LVGLUITestFixture, "A live owner token still fires the dismissal report",
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
     int dismissed = 0;
     helix::AsyncLifetimeGuard guard;
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
-        nullptr, nullptr, [&dismissed]() { ++dismissed; }, guard.token());
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    opts.owner_token = guard.token();
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     tap_backdrop(dialog);
@@ -885,31 +852,28 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An expired owner token suppresses modal_ale
 // disable_clicks_recursive removes, which is how `ctl click` reaches disabled
 // widgets.
 //
-// Scope note: this strips the OWNER's callbacks. The caller's own
-// lv_event_cb_t is registered with the caller's user_data and is left in place
-// until the widget is deleted - it is the caller's pointer, not ours, and
-// removing arbitrary third-party callbacks during teardown is not this
-// function's business. Real input cannot reach it (disable_clicks_recursive +
-// lv_indev_reset); only a synthetic lv_obj_send_event can.
+// Scope note: this strips the OWNER's callbacks - modal_confirm's button
+// handler, which carries the ConfirmationModal pointer. ui_button's own
+// callbacks (sound, style, delete) are registered with null user_data and are
+// left in place until the widget is deleted: they are the button's, not ours,
+// and button_delete_cb still has to free the button's allocation. Real input
+// cannot reach the stripped handler (disable_clicks_recursive + lv_indev_reset);
+// only a synthetic lv_obj_send_event can.
 TEST_CASE_METHOD(LVGLUITestFixture, "Teardown strips the owner's callbacks from the dialog",
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    static int confirms = 0;
-    confirms = 0;
-
-    // Non-null user_data matters: the caller's callback must NOT be registered
-    // with the owner pointer, or the strip would take it too and this test
-    // could not tell "removed ours" from "removed everything".
-    static int marker_data = 0;
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [](lv_event_t*) { ++confirms; }, nullptr, &marker_data);
+    int confirmed = 0;
+    lv_obj_t* dialog =
+        helix::ui::modal_confirm("Delete Page", "Remove this page?", ModalSeverity::Warning,
+                                 "Delete", [&confirmed]() { ++confirmed; });
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(primary != nullptr);
-    // The owner's answered_ marker plus the caller's callback are both here.
+    // The owner's button handler plus ui_button's own callbacks are both here.
+    // Null-vs-owner user_data is the discriminator: the strip must take ours
+    // and only ours.
     const uint32_t before = lv_obj_get_event_count(primary);
     REQUIRE(before >= 2);
 
@@ -917,8 +881,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Teardown strips the owner's callbacks from 
 
     REQUIRE(lv_obj_is_valid(primary));
     const uint32_t after = lv_obj_get_event_count(primary);
-    // Exactly one removed: ours. The caller's callback carries its own
-    // user_data and is deliberately left alone.
+    // Exactly one removed: ours. ui_button's callbacks carry null user_data and
+    // are deliberately left alone.
     CHECK(after == before - 1);
 
     process_lvgl(50);
@@ -937,36 +901,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A dismissal callback may close its own dial
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    static lv_obj_t* handle = nullptr;
-    static int dismissed = 0;
-    static lv_obj_t* top_when_dismissed = nullptr;
-    static bool top_was_captured = false;
-    handle = nullptr;
-    dismissed = 0;
-    top_when_dismissed = nullptr;
-    top_was_captured = false;
+    lv_obj_t* handle = nullptr;
+    int dismissed = 0;
+    lv_obj_t* top_when_dismissed = nullptr;
+    bool top_was_captured = false;
 
-    handle = helix::ui::modal_show_confirmation("Delete Page", "Remove this page?",
-                                                ModalSeverity::Warning, "Delete", nullptr, nullptr,
-                                                nullptr, nullptr, []() {
-                                                    ++dismissed;
-                                                    // Deferral is what makes the reentrant call
-                                                    // below safe, and this is the observable
-                                                    // difference: by the time a DEFERRED callback
-                                                    // runs, the dialog is already marked exiting,
-                                                    // so it is no longer the top modal and a
-                                                    // reentrant hide cannot target it. Fired
-                                                    // synchronously from on_hide() it would still
-                                                    // be top - which is precisely the window where
-                                                    // a second full teardown lands on the same
-                                                    // backdrop.
-                                                    top_when_dismissed = Modal::get_top();
-                                                    top_was_captured = true;
-                                                    if (handle) {
-                                                        helix::ui::modal_hide(handle);
-                                                        handle = nullptr;
-                                                    }
-                                                });
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&]() {
+        ++dismissed;
+        // Deferral is what makes the reentrant call below safe, and this is the
+        // observable difference: by the time a DEFERRED callback runs, the
+        // dialog is already marked exiting, so it is no longer the top modal
+        // and a reentrant hide cannot target it. Fired synchronously from
+        // on_hide() it would still be top - which is precisely the window
+        // where a second full teardown lands on the same backdrop.
+        top_when_dismissed = Modal::get_top();
+        top_was_captured = true;
+        if (handle) {
+            helix::ui::modal_hide(handle);
+            handle = nullptr;
+        }
+    };
+    handle = helix::ui::modal_confirm("Delete Page", "Remove this page?", ModalSeverity::Warning,
+                                      "Delete", nullptr, opts);
     REQUIRE(handle != nullptr);
 
     tap_backdrop(handle);
@@ -992,14 +949,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal with a cancel butto
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    static int confirms = 0;
-    confirms = 0;
+    int confirmed = 0;
     int dismissed = 0;
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog = helix::ui::modal_confirm(
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [](lv_event_t*) { ++confirms; }, /*on_cancel=*/nullptr, nullptr, nullptr,
-        [&dismissed]() { ++dismissed; });
+        [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
     // The cancel button exists - this is the shape that used to swallow ESC.
     REQUIRE(lv_obj_find_by_name(dialog, "btn_secondary") != nullptr);
@@ -1011,7 +968,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal with a cancel butto
     process_lvgl(50);
 
     CHECK(dismissed == 1);
-    CHECK(confirms == 0);
+    CHECK(confirmed == 0);
     CHECK(ModalStack::instance().stack_empty());
 }
 
@@ -1021,9 +978,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal on an alert",
     helix::ui::modal_init_subjects();
 
     int dismissed = 0;
-    lv_obj_t* dialog =
-        helix::ui::modal_show_alert("Heads up", "Something happened", ModalSeverity::Info, "OK",
-                                    nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    helix::ui::AlertOptions alert_opts;
+    alert_opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog = helix::ui::modal_alert("Heads up", "Something happened", ModalSeverity::Info,
+                                              "OK", nullptr, alert_opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
@@ -1044,14 +1002,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A button with no callback reports a dismiss
                  "[modal][teardown][1379]") {
     helix::ui::modal_init_subjects();
 
-    static int confirms = 0;
-    confirms = 0;
+    int confirmed = 0;
     int dismissed = 0;
 
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog = helix::ui::modal_confirm(
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
-        [](lv_event_t*) { ++confirms; }, /*on_cancel=*/nullptr, nullptr, nullptr,
-        [&dismissed]() { ++dismissed; });
+        [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
 
     lv_obj_t* secondary = lv_obj_find_by_name(dialog, "btn_secondary");
@@ -1059,32 +1017,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A button with no callback reports a dismiss
     lv_obj_send_event(secondary, LV_EVENT_CLICKED, nullptr);
     process_lvgl(50);
 
-    CHECK(confirms == 0);
+    CHECK(confirmed == 0);
     CHECK(dismissed == 1); // nothing else told the caller
     CHECK(ModalStack::instance().stack_empty());
-}
-
-// ...but a press that DOES reach a callback is an answer, not a dismissal.
-TEST_CASE_METHOD(LVGLUITestFixture, "A button with a callback is not a dismissal",
-                 "[modal][teardown][1379]") {
-    helix::ui::modal_init_subjects();
-
-    static int cancels = 0;
-    cancels = 0;
-    int dismissed = 0;
-
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr,
-        [](lv_event_t*) { ++cancels; }, nullptr, nullptr, [&dismissed]() { ++dismissed; });
-    REQUIRE(dialog != nullptr);
-
-    lv_obj_t* secondary = lv_obj_find_by_name(dialog, "btn_secondary");
-    REQUIRE(secondary != nullptr);
-    lv_obj_send_event(secondary, LV_EVENT_CLICKED, nullptr);
-    process_lvgl(50);
-
-    CHECK(cancels == 1);
-    CHECK(dismissed == 0);
 }
 
 // ============================================================================
@@ -1097,27 +1032,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A button with a callback is not a dismissal
 // that got the #1380 per-site fix reverted. The two callers that could hit it
 // were safe only because each nulled its handle first and passed a token;
 // neither is required by the signature. hide() now defaults to Programmatic,
-// and on_dismiss means "closed by something other than you".
-TEST_CASE_METHOD(LVGLUITestFixture, "A caller's own close does not invoke on_dismiss",
-                 "[modal][teardown][1380]") {
-    helix::ui::modal_init_subjects();
-
-    int dismissed = 0;
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
-        nullptr, nullptr, [&dismissed]() { ++dismissed; });
-    REQUIRE(dialog != nullptr);
-
-    Modal::hide(dialog); // the caller's teardown shape: null the handle, close
-    process_lvgl(50);
-
-    CHECK(dismissed == 0);
-    CHECK(ModalStack::instance().stack_empty());
-}
-
-// Same contract on the declarative form, whose callers are the #1380 sweep's
-// target: converting a site must not arm a deferred callback against its own
-// teardown.
+// and on_dismiss means "closed by something other than you". Converting a
+// site to the declarative form must not arm a deferred callback against its
+// own teardown either.
 TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm's programmatic close does not invoke on_dismiss",
                  "[modal][teardown][1380]") {
     helix::ui::modal_init_subjects();
@@ -1144,9 +1061,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A hot-reload rebuild still reports a dismis
     helix::ui::modal_init_subjects();
 
     int dismissed = 0;
-    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
-        "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete", nullptr, nullptr,
-        nullptr, nullptr, [&dismissed]() { ++dismissed; });
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [&dismissed] { ++dismissed; };
+    lv_obj_t* dialog = helix::ui::modal_confirm("Delete Page", "Remove this page?",
+                                                ModalSeverity::Warning, "Delete", nullptr, opts);
     REQUIRE(dialog != nullptr);
 
     // Instance-backed, so rebuild_top hides rather than resurrects a broken

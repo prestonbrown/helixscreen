@@ -149,7 +149,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // ---- Seam 2: presentation (REAL ui_modal.o) ----
     // process_line's MODAL arm calls
     //   ui_notification_error(modal_title_for(*ev), ev->detail.c_str(), /*modal=*/true)
-    // which, in production, routes the modal case to modal_show_alert(...). In
+    // which, in production, routes the modal case to modal_alert(...). In
     // the test binary ui_notification_error is a logging-only stub (see header
     // comment), so we drive the same modal layer it would with the SAME
     // (title, detail) process_line hands it. modal_title_for(GENERIC) ==
@@ -159,8 +159,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // in production, not this alert path. What this seam still proves is the
     // property it was written for — the FULL untruncated detail reaches a
     // blocking modal — and that property is presenter-independent.
-    lv_obj_t* dialog = helix::ui::modal_show_alert("Printer Error", ev->detail.c_str(),
-                                                   ModalSeverity::Error, "OK");
+    lv_obj_t* dialog =
+        helix::ui::modal_alert("Printer Error", ev->detail.c_str(), ModalSeverity::Error, "OK");
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50);
 

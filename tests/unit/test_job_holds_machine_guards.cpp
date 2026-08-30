@@ -19,6 +19,11 @@
  *     is the last person who wants an upgrade prompt, and a paused print is
  *     still mid-print.
  *
+ *  3. The sensor-edge toast's runout-surface ownership term (#1388): during a
+ *     job, a backend that raises its own runout fault owns the surface and the
+ *     toast yields; a backend with no fault of its own (or no backend at all)
+ *     keeps the toast, because there it is the only runout signal.
+ *
  * Both are driven through the real subject, never by writing
  * print_state_enum directly: the lifecycle is published by
  * PrinterPrintState::publish_lifecycle_state(), which only runs from
@@ -33,6 +38,7 @@
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
+#include "ams_backend_cfs.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
@@ -85,22 +91,26 @@ PrintState published_lifecycle(PrinterState& ps) {
     return ps.get_print_lifecycle();
 }
 
-/// AD5X-IFS backend installed as the active AMS backend, one RUNOUT-role
-/// toolhead sensor seeded with filament present, and the warning-toast hook
-/// captured. Everything the idle-unload suppression reads.
-class Ad5xToastFixture : public LVGLTestFixture {
+/// One RUNOUT-role toolhead sensor seeded with filament present, the
+/// warning-toast hook captured, and the lifecycle drivable. Everything the
+/// toast-suppression terms read except the AMS backend, whose type decides the
+/// #1388 ownership arm - each subclass (or test body) installs the backend it
+/// needs on top of this rig.
+class SensorEdgeToastFixture : public LVGLTestFixture {
   public:
     PrinterState& printer_state = get_printer_state();
     FilamentSensorManager& mgr = FilamentSensorManager::instance();
     std::vector<std::string> warnings;
 
-    Ad5xToastFixture() {
+    SensorEdgeToastFixture() {
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
 
         AmsState::instance().deinit_subjects();
         AmsState::instance().init_subjects(false);
-        AmsState::instance().set_backend(std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr));
+        // Start from no backend so the only-signal case is the default and a
+        // backend leaked by an earlier test cannot flip which arm suppresses.
+        AmsState::instance().clear_backends();
 
         PostUnloadGraceTestAccess::reset(mgr);
         mgr.discover_sensors({"filament_switch_sensor toolhead_sensor"});
@@ -114,7 +124,7 @@ class Ad5xToastFixture : public LVGLTestFixture {
             [this](const std::string& msg) { warnings.push_back(msg); });
     }
 
-    ~Ad5xToastFixture() override {
+    ~SensorEdgeToastFixture() override {
         helix::ui::set_test_notification_warning_hook(nullptr);
         PostUnloadGraceTestAccess::reset(mgr);
         AmsState::instance().set_backend(nullptr);
@@ -122,6 +132,12 @@ class Ad5xToastFixture : public LVGLTestFixture {
         helix::ui::UpdateQueue::instance().drain();
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
+    }
+
+    /// Install the backend whose type the ownership gate reads. Called from a
+    /// subclass ctor or the top of a test body, before the sensor edge.
+    void install_backend(std::unique_ptr<AmsBackend> backend) {
+        AmsState::instance().set_backend(std::move(backend));
     }
 
     /// Report the toolhead sensor as empty and return how many "filament gone"
@@ -140,6 +156,15 @@ class Ad5xToastFixture : public LVGLTestFixture {
             }
         }
         return n;
+    }
+};
+
+/// AD5X-IFS backend installed as the active AMS backend: everything the
+/// idle-unload suppression reads.
+class Ad5xToastFixture : public SensorEdgeToastFixture {
+  public:
+    Ad5xToastFixture() {
+        install_backend(std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr));
     }
 };
 
@@ -207,6 +232,59 @@ TEST_CASE_METHOD(Ad5xToastFixture, "AD5X head-empty mid-print is a real runout",
                  "[ams][ad5x][filament-sensor][job-holds-machine]") {
     drive_lifecycle(printer_state, "printing");
     REQUIRE(published_lifecycle(printer_state) == PrintState::Printing);
+
+    CHECK(report_head_empty() == 1);
+}
+
+// ============================================================================
+// 1b. Runout-surface ownership while a job holds the machine (#1388)
+// ============================================================================
+
+TEST_CASE_METHOD(SensorEdgeToastFixture,
+                 "CFS head-empty mid-print yields to the backend that owns the runout surface",
+                 "[ams][cfs][filament-sensor][job-holds-machine][1388]") {
+    // A real CFS backend with no transport, the same rig shape
+    // test_ams_backend_cfs.cpp uses: the ownership gate asks only for its type.
+    install_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+
+    // Guard against a leaked filament operation from an earlier test: that
+    // suppresses the toast through a different arm of the same expression and
+    // would make this pass for the wrong reason.
+    REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
+
+    drive_lifecycle(printer_state, "printing");
+    REQUIRE(published_lifecycle(printer_state) == PrintState::Printing);
+
+    // The CFS raises its own runout fault while a job runs, so its prompt is
+    // already the surface and the sensor-edge toast restates it (#1388).
+    // Flipping CFS to false in backend_owns_runout_during_job() makes this 1.
+    CHECK(report_head_empty() == 0);
+}
+
+TEST_CASE_METHOD(SensorEdgeToastFixture,
+                 "head-empty mid-print still toasts when no backend owns the surface",
+                 "[ams][filament-sensor][job-holds-machine][1388]") {
+    // No AMS backend at all: nobody else reports a runout, so the sensor-edge
+    // toast is the only signal and must fire. This is the case a blanket
+    // "quiet while a job runs" term would have silenced (#1388).
+    REQUIRE(AmsState::instance().get_backend() == nullptr);
+
+    drive_lifecycle(printer_state, "printing");
+    REQUIRE(published_lifecycle(printer_state) == PrintState::Printing);
+
+    CHECK(report_head_empty() == 1);
+}
+
+TEST_CASE_METHOD(SensorEdgeToastFixture, "CFS head-empty while idle still toasts",
+                 "[ams][cfs][filament-sensor][job-holds-machine][1388]") {
+    install_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+    REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
+
+    // The gate is scoped to the job phase: idle, the CFS raises no fault of
+    // its own and the sensor edge is news again. Dropping the job_holds_machine
+    // conjunct from the manager's ownership term makes this 0.
+    drive_lifecycle(printer_state, "standby");
+    REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
 
     CHECK(report_head_empty() == 1);
 }

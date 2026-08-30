@@ -148,6 +148,28 @@ bool backend_owns_runout_surface(AmsType type) {
 
 } // namespace
 
+bool backend_owns_runout_during_job(AmsType type) {
+    switch (type) {
+    case AmsType::HAPPY_HARE: // classify_error() fires while a job runs
+    case AmsType::AFC:        // classify_error() + current_error()
+    case AmsType::CFS:        // classify_error() (the ActionPromptModal #1388 observed)
+        return true;
+    case AmsType::AD5X_IFS: // the runout detector fires only while PAUSED and
+                            // only after a 30-180s confirm dwell, so at the
+                            // sensor edge nothing has fired yet and quieting
+                            // the toast would open a silent window; the toast
+                            // is the immediate surface mid-print
+    case AmsType::ACE:      // no error hook: the toast is the only runout signal
+    case AmsType::QIDI_BOX: // current_error() reports lane-BLOCKED faults, not
+                            // runout; for runout the toast is the only signal
+    case AmsType::TOOL_CHANGER:
+    case AmsType::SNAPMAKER:
+    case AmsType::NONE:
+        return false;
+    }
+    return false;
+}
+
 bool RuntimeConfig::should_show_runout_modal() const {
     // If explicitly forced via env var, always show
     if (std::getenv("HELIX_FORCE_RUNOUT_MODAL") != nullptr) {

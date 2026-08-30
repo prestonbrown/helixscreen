@@ -151,6 +151,23 @@ TEST_CASE("key843 is a WARNING toast, not a blocking modal", "[error-center][cla
     REQUIRE(e->code == "key843");
 }
 
+TEST_CASE("key839 is a WARNING toast, not a second blocking modal",
+          "[error-center][classify][1388]") {
+    // key839 restates the slot's emptiness that an already-visible runout
+    // prompt explains (#1388): it carries no recovery action that prompt
+    // lacks, so the key8xx blanket CRITICAL promotion just stacks a second
+    // blocking modal on one runout. WARNING routes it to a deduped toast.
+    ClassifyContext ctx;
+    auto e = classify(
+        R"(!! {"code":"key839","msg":"no filament at extrude position","values":[1,4]})", ctx);
+    REQUIRE(e.has_value());
+    REQUIRE(e->severity == helix::ErrorSeverity::WARNING);
+    REQUIRE(e->recovery_actions.empty());
+    REQUIRE(e->source == helix::ErrorSource::CFS);
+    REQUIRE(e->code == "key839");
+    REQUIRE_FALSE(e->sticky);
+}
+
 TEST_CASE("key840 carries a recovery action", "[error-center][classify]") {
     ClassifyContext ctx;
     auto e = classify(R"(!! {"code":"key840","msg":"box switch state error"})", ctx);

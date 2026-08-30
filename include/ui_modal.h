@@ -540,43 +540,6 @@ inline lv_obj_t* modal_get_top() {
 void modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea);
 
 /**
- * @brief Show a confirmation dialog with callbacks
- *
- * Consolidates the common pattern of:
- * 1. Configure modal severity and button text
- * 2. Show modal_dialog with title/message
- * 3. Wire up confirm/cancel button callbacks
- *
- * @param title Dialog title text
- * @param message Dialog message text
- * @param severity Visual severity (Info, Warning, Error)
- * @param confirm_text Primary button text (e.g., "Delete", "Proceed")
- * @param on_confirm Callback for confirm button (receives user_data)
- * @param on_cancel Callback for cancel button (receives user_data), or nullptr for no callback
- * @param user_data User data passed to callbacks
- * @param cancel_text Secondary button text, or nullptr to default to "Cancel"
- * @param on_dismiss Called when the dialog is closed by something other than
- *        the caller - a backdrop tap, ESC, a hot-reload rebuild, or a button
- *        press whose side carries no callback. The caller's own
- *        Modal::hide(dialog) does NOT fire it: the caller already knows. Pass
- *        this whenever the caller holds state the buttons are meant to resolve
- *        (a re-entry guard, a pending flag, a stored handle); without it that
- *        state leaks on a dismissal. It must not capture anything that can die
- *        before the dialog - the dialog outlives its exit animation.
- * @return The created dialog widget, or nullptr on failure
- *
- * @warning user_data is held by the button callbacks for as long as the dialog
- *          lives, which includes its exit animation. It must outlive the dialog.
- *          The std::function form (modal_confirm) has no user_data at all.
- */
-lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalSeverity severity,
-                                  const char* confirm_text, lv_event_cb_t on_confirm,
-                                  lv_event_cb_t on_cancel, void* user_data,
-                                  const char* cancel_text = nullptr,
-                                  std::function<void()> on_dismiss = nullptr,
-                                  std::optional<helix::LifetimeToken> dismiss_token = std::nullopt);
-
-/**
  * @brief The optional tail of modal_confirm(), gathered into one struct
  *
  * C++17 has no designated initializers, so as positional parameters this tail
@@ -604,10 +567,7 @@ struct ConfirmOptions {
     /// Gates ALL THREE callbacks, not just the dismissal: none of them runs
     /// once the token has expired. Pass it whenever a callback captures
     /// something that can die before the dialog does - which is the usual
-    /// case, since the dialog outlives its exit animation. This is the one
-    /// thing the lv_event_cb_t form cannot offer: its callbacks are invoked
-    /// by LVGL directly off the button, so a capture there simply has to
-    /// outlive the dialog.
+    /// case, since the dialog outlives its exit animation.
     std::optional<helix::LifetimeToken> owner_token;
 };
 
@@ -627,14 +587,10 @@ struct AlertOptions {
 /**
  * @brief Confirmation dialog whose callbacks never touch a widget
  *
- * The declarative form of modal_show_confirmation(). The callbacks are
- * std::function, invoked from the modal's own on_ok()/on_cancel() hooks, so
- * there is no lv_event_cb_t to attach to a button and no void* user_data to
- * outlive the dialog. Prefer this for new code; the lv_event_cb_t form remains
- * for the existing call sites (prestonbrown/helixscreen#1383).
- *
- * This form also closes the dialog itself when a button is pressed - the
- * lv_event_cb_t form leaves that to the caller.
+ * The callbacks are std::function, invoked from the modal's own button
+ * handlers, so nothing of the caller's is attached to a widget and there is
+ * no user_data to outlive the dialog (prestonbrown/helixscreen#1383). The
+ * dialog closes itself when a button is pressed.
  *
  * @param options The optional tail - cancel callback/text, dismissal report,
  *        owner token - one field per concern, nothing threaded positionally.
@@ -647,56 +603,28 @@ lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity se
 /**
  * @brief Single-button alert whose callback never touches a widget
  *
- * Declarative counterpart to modal_show_alert() - see modal_confirm().
+ * Single-button form of modal_confirm() - see there for the contract.
  */
 lv_obj_t* modal_alert(const char* title, const char* message,
                       ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
                       std::function<void()> on_ok = nullptr, const AlertOptions& options = {});
 
 /**
- * @brief Show an info/alert dialog with single "OK" button
- *
- * Simplified version for informational dialogs with no cancel button.
- *
- * @param title Dialog title text
- * @param message Dialog message text
- * @param severity Visual severity (default: Info)
- * @param ok_text Button text (default: "OK")
- * @param on_ok Callback for OK button (receives user_data), or nullptr
- * @param user_data User data passed to callback
- * @return The created dialog widget, or nullptr on failure
- *
- * @warning Same caveats as modal_show_confirmation(): user_data must outlive the
- *          dialog. Pass on_dismiss to learn about a close the caller did not
- *          initiate - the caller's own Modal::hide(dialog) reports nothing.
- */
-lv_obj_t* modal_show_alert(const char* title, const char* message,
-                           ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
-                           lv_event_cb_t on_ok = nullptr, void* user_data = nullptr,
-                           std::function<void()> on_dismiss = nullptr,
-                           std::optional<helix::LifetimeToken> dismiss_token = std::nullopt);
-
-/**
  * @brief Show the "low RAM before resonance calibration" warning modal.
  *
- * Centralizes the (translated) copy and severity so the two calibration entry
- * points (input-shaper panel + wizard) can't diverge. Caller has already
- * decided RAM is below helix::RESONANCE_LOW_RAM_WARN_MB. Returns the dialog
- * handle (store it to dismiss on teardown) or nullptr on failure.
- *
- * @param on_dismiss Called when the dialog is closed by something other than
- *        the caller - a backdrop tap, ESC, or a hot-reload rebuild; the
- *        caller's own Modal::hide() reports nothing. Both callers gate
- *        re-entry on the returned handle being null, so a dismissal that
- *        leaves it set makes every later attempt a silent no-op - clear the
- *        handle from here. Pass @p dismiss_token too when the capture can die
- *        before the dialog. Do NOT hand-roll an
- *        LV_EVENT_DELETE hook for this: one that outlives its owner is the
- *        use-after-free that got prestonbrown/helixscreen#1380 reverted.
+ * Centralizes the (translated) copy, severity, AND the re-entry scaffold so
+ * the two calibration entry points (input-shaper panel + wizard) can't
+ * diverge: pass the address of the stored handle and this helper clears it on
+ * every close path - button press, backdrop/ESC dismissal, teardown - and
+ * falls back to acting on a failed build only through the caller's own
+ * null-handle check. @p options carries the decline callback and the owner
+ * token (its on_dismiss slot belongs to the helper: clearing the handle IS
+ * the dismissal report). Do NOT hand-roll an LV_EVENT_DELETE hook for this:
+ * one that outlives its owner is the use-after-free that got
+ * prestonbrown/helixscreen#1380 reverted.
  */
-lv_obj_t*
-show_low_ram_resonance_warning(size_t total_mb, lv_event_cb_t on_confirm, lv_event_cb_t on_cancel,
-                               void* user_data, std::function<void()> on_dismiss = nullptr,
-                               std::optional<helix::LifetimeToken> dismiss_token = std::nullopt);
+lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
+                                         std::function<void()> on_confirm,
+                                         const ConfirmOptions& options = {});
 
 } // namespace helix::ui

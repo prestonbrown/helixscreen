@@ -214,6 +214,7 @@ translations:
   Auto-lock: 自动锁定
   Auto-poll for weight updates: 自动轮询重量更新
   Auto-probe or manually check screw heights: 自动探测或手动检查螺丝高度
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: 自动渲染视频
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: 自动卸载仅适用于本地 Moonraker

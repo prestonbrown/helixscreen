@@ -389,7 +389,7 @@ or report sensors. Corrupting it confuses restore and remap; it does not move mo
 The blocker on #968 comment 5 item 2 was not knowing the field name or format, and the risk
 that a malformed value takes Klipper down. The `PART=` argument to `BOX_MODIFY_TN_DATA` uses
 the **same spellings as the JSON fields**, which our existing color sync already demonstrates
-(`PART=color_value`, `src/printer/ams_backend_cfs.cpp:2018`). So:
+(`PART=color_value`, `src/printer/ams_backend_cfs.cpp:2061`). So:
 
 ```gcode
 BOX_MODIFY_TN_DATA ADDR=<1..4> NUM=<A|B|C|D> PART=material_type DATA=<value>

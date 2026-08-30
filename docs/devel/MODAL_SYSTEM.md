@@ -60,31 +60,34 @@ The system supports three approaches, from simplest to most flexible.
 For standard "title + message + buttons" dialogs, use the helper functions. These use the built-in `modal_dialog.xml` component.
 
 > **Namespace:** every modal helper below lives in `namespace helix::ui` (declared in
-> `include/ui_modal.h`) — e.g. `helix::ui::modal_show_confirmation(...)`. There is no
-> `ui_modal_*` prefix. Snippets fully-qualify the calls; add a `using namespace helix::ui;`
-> if you prefer the short form.
+> `include/ui_modal.h`). There is no `ui_modal_*` prefix. Snippets fully-qualify
+> the calls; add a `using namespace helix::ui;` if you prefer the short form.
 
 ```cpp
 #include "ui_modal.h"
 
-// Confirmation dialog (two buttons: confirm + cancel)
-dialog_ = helix::ui::modal_show_confirmation(
+// Confirmation dialog (two buttons: confirm + cancel). The callbacks are
+// std::function, the dialog closes itself on a press, and owner_token gates
+// all three callbacks.
+helix::ui::ConfirmOptions opts;
+opts.on_cancel = [this] { cancel_the_thing(); };
+opts.owner_token = lifetime_.token();
+dialog_ = helix::ui::modal_confirm(
     lv_tr("Delete File?"),
     lv_tr("This cannot be undone."),
     ModalSeverity::Warning,
     lv_tr("Delete"),
-    on_confirm_cb, on_cancel_cb, this);
+    [this] { delete_the_file(); },
+    opts);
 
-// Alert dialog (single OK button). modal_alert() is the preferred form: the
-// callback is a std::function, so nothing of the caller's is attached to a
-// widget, and the dialog closes itself.
+// Alert dialog (single OK button).
 helix::ui::modal_alert(
     lv_tr("Tip of the Day"),
     lv_tr("You can long-press the home button..."),
     ModalSeverity::Info);
 ```
 
-`helix::ui::modal_show_confirmation()` returns the dialog widget pointer for cleanup. Store it in a `ModalGuard` for RAII:
+`helix::ui::modal_confirm()` returns the dialog widget pointer for callers that dismiss it programmatically. Store it in a `ModalGuard` for RAII:
 
 ```cpp
 #include "ui/ui_modal_guard.h"
@@ -93,7 +96,7 @@ class MyPanel {
     helix::ui::ModalGuard delete_dialog_;  // Auto-hides in destructor
 
     void show_delete() {
-        delete_dialog_ = helix::ui::modal_show_confirmation(...);
+        delete_dialog_ = helix::ui::modal_confirm(...);
     }
 };
 ```
@@ -125,7 +128,7 @@ class MyPanel {
 > throughout, attach nothing of the caller's to a widget, and close the dialog themselves -
 > so a callback never has to guess at `Modal::get_top()` to dismiss the dialog it was fired
 > from. Their `owner_token` also gates **all three** callbacks, not just the dismissal,
-> which is the one guarantee the `lv_event_cb_t` form cannot make: those callbacks are
+> which became possible when the `lv_event_cb_t` forms were retired: those callbacks were
 > invoked by LVGL straight off the button, so their `void*` still has to outlive the dialog
 > on its own.
 
@@ -361,14 +364,14 @@ Usage in XML:
 
 ### `modal_dialog`
 
-The generic title + message dialog used by `helix::ui::modal_show_confirmation()` and `helix::ui::modal_show_alert()`. Uses subject bindings for dynamic content:
+The generic title + message dialog used by `helix::ui::modal_confirm()` and `helix::ui::modal_alert()`. Uses subject bindings for dynamic content:
 
 - `dialog_severity` -- controls which icon is shown (0=info, 1=warning, 2=error)
 - `dialog_show_cancel` -- toggles cancel button visibility
 - `dialog_primary_text` -- primary button label
 - `dialog_cancel_text` -- cancel button label
 
-You rarely interact with `modal_dialog` directly. Use `helix::ui::modal_show_confirmation()` or `helix::ui::modal_show_alert()` instead.
+You rarely interact with `modal_dialog` directly. Use `helix::ui::modal_confirm()` or `helix::ui::modal_alert()` instead.
 
 ---
 
@@ -446,7 +449,7 @@ Pick the token by the card's chrome shape (values in `ui_xml/globals.xml`):
 
 ## ModalGuard (RAII for Static API)
 
-When using `helix::ui::modal_show_confirmation()` or `Modal::show()`, the returned `lv_obj_t*` must eventually be hidden. `ModalGuard` automates this:
+When using `Modal::show()` or a `modal_confirm()` whose handle you keep, the returned `lv_obj_t*` must eventually be hidden. `ModalGuard` automates this:
 
 ```cpp
 #include "ui/ui_modal_guard.h"
@@ -457,7 +460,7 @@ class ControlsPanel {
 
     void confirm_disable_motors() {
         // ModalGuard::operator= hides any previous dialog first
-        motors_dialog_ = helix::ui::modal_show_confirmation(
+        motors_dialog_ = helix::ui::modal_confirm(
             lv_tr("Disable Motors?"),
             lv_tr("Release all stepper motors."),
             ModalSeverity::Warning, lv_tr("Disable"),
@@ -472,13 +475,15 @@ class ControlsPanel {
 > **`ModalGuard` guarantees the dialog gets hidden, not that it is gone.** It calls the
 > static `Modal::hide()`, which starts a 150ms exit animation - so the sequence in the
 > comment above is: the panel destructor runs the guard, and the dialog then outlives the
-> very object that was handed to `on_confirm`/`on_cancel` as `user_data`.
+> panel. For tier-2 dialogs whose buttons a caller hand-wired with `wire_button_with()`,
+> that means whatever those callbacks capture must outlive the dialog too.
 >
 > `Modal::hide()` disarms the tree on the way out (`Modal::disarm_tree`), so a click can no
 > longer reach those callbacks. What it does not do is make the pointer valid: a teardown
 > that never goes through `hide()` - the screen being deleted out from under the dialog, or
-> `ModalStack::clear()` at shutdown - leaves the tree fully armed. **`user_data` must still
-> outlive the dialog.**
+> `ModalStack::clear()` at shutdown - leaves the tree fully armed. The helper forms
+> (`modal_confirm()`/`modal_alert()`) avoid the question entirely: their callbacks are
+> std::function copies gated by `owner_token`, not pointers attached to widgets.
 >
 > Despite the name this is not the `ObserverGuard` bargain: `ObserverGuard` detaches the
 > observer so nothing can dispatch afterwards, while `ModalGuard` only asks the dialog to
@@ -720,10 +725,11 @@ if (confirm) lv_obj_add_event_cb(confirm, on_confirm, LV_EVENT_CLICKED, this);
 
 **After** (single call):
 ```cpp
-dialog_ = helix::ui::modal_show_confirmation(
+helix::ui::ConfirmOptions opts;
+opts.on_cancel = on_cancel;
+dialog_ = helix::ui::modal_confirm(
     "Delete?", "Cannot be undone.",
-    ModalSeverity::Warning, "Delete",
-    on_confirm, on_cancel, this);
+    ModalSeverity::Warning, "Delete", on_confirm, opts);
 ```
 
 ### C++: extends="ui_card" to extends="ui_dialog"
@@ -768,7 +774,7 @@ void MyModal::start_operation() {
 ```
 
 > Inside a subclass this is `lifetime_`, invalidated for you by `hide()`. The helpers take
-> the *caller's* token instead - `dismiss_token` on the `lv_event_cb_t` forms, `owner_token`
+> the *caller's* token instead - `owner_token`
 > on `modal_confirm()` / `modal_alert()` - because the thing that can die early there is the
 > caller, not the modal. Only the bare static `Modal::show()` factory has no protection at
 > all, which is one reason not to reach for it.
@@ -804,4 +810,4 @@ removed.) All live in `include/ui_modal.h`, `namespace helix::ui`:
 | `helix::ui::modal_init_subjects()` | subject registration |
 | `helix::ui::modal_configure(...)` | configures the shared `modal_dialog` |
 
-New code should prefer the `Modal::` class methods or the `helix::ui::modal_confirm()` / `helix::ui::modal_alert()` helpers. The older `modal_show_confirmation()` / `modal_show_alert()` spellings still work and still take an `on_dismiss`; they exist for the call sites that pass a raw `lv_event_cb_t`. Subject to the rule in "Three Ways to Create Modals": if the dialog needs custom content rather than title + message + buttons, own a `Modal` subclass instead.
+Use the `Modal::` class methods or the `helix::ui::modal_confirm()` / `helix::ui::modal_alert()` helpers; the `lv_event_cb_t` spellings (`modal_show_confirmation()` / `modal_show_alert()`) are gone. Subject to the rule in "Three Ways to Create Modals": if the dialog needs custom content rather than title + message + buttons, own a `Modal` subclass instead.

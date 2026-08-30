@@ -9,7 +9,7 @@
  *    to say (its job is explaining the greyed backup dropdown), and
  *  - the AMS panel passes hide_when_healthy so the healthy sentence ("will
  *    switch") is not permanently on screen; only attention kinds (Off, Unknown,
- *    NeedsPlugin) surface there.
+ *    NeedsPlugin, OnWithoutBackup) surface there.
  *
  * Hidden(0) hides the line everywhere: a printer without the mechanism has no
  * truthful sentence in either site.
@@ -96,6 +96,12 @@ TEST_CASE("ams_endless_status hides healthy state only when asked", "[ams][xml]"
         REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
 
         set_endless_state(EndlessSpoolStatusKind::NeedsPlugin);
+        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+
+        // The honest degraded state (#1391) must NOT hide with the healthy
+        // line: it is an attention kind, and hiding it here is exactly the
+        // silence the fix exists to remove.
+        set_endless_state(EndlessSpoolStatusKind::OnWithoutBackup);
         REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
 
         // No mechanism: hidden with or without the prop.

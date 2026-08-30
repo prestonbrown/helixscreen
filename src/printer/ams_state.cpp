@@ -1788,13 +1788,9 @@ void AmsState::sync_from_backend() {
                 any_slot_changed = true;
             }
 
-            // Update remaining filament string. The length helper hides the
-            // CFS sentinels (100 = never measured, 255 = failed probe, #1387);
-            // when it yields nothing, the weight carries the display.
-            std::string remaining = slot->remaining_length_display();
-            if (remaining.empty() && slot->remaining_weight_g > 0) {
-                remaining = std::to_string(static_cast<int>(slot->remaining_weight_g)) + "g";
-            }
+            // Update remaining filament string (length when measured, weight
+            // as the fallback, "" when neither).
+            std::string remaining = slot->remaining_display();
             if (strcmp(lv_subject_get_string(&slot_remaining_[i]), remaining.c_str()) != 0) {
                 lv_subject_copy_string(&slot_remaining_[i], remaining.c_str());
             }
@@ -2184,14 +2180,9 @@ void AmsState::update_slot(int slot_index) {
             changed = true;
         }
 
-        // Update remaining filament string. Same rule as sync_from_backend's
-        // per-slot loop: the length helper hides the CFS sentinels (100 = never
-        // measured, 255 = failed probe, #1387) and the weight carries the
-        // display when it yields nothing.
-        std::string remaining = slot.remaining_length_display();
-        if (remaining.empty() && slot.remaining_weight_g > 0) {
-            remaining = std::to_string(static_cast<int>(slot.remaining_weight_g)) + "g";
-        }
+        // Update remaining filament string (length when measured, weight as
+        // the fallback, "" when neither).
+        std::string remaining = slot.remaining_display();
         if (strcmp(lv_subject_get_string(&slot_remaining_[slot_index]), remaining.c_str()) != 0) {
             lv_subject_copy_string(&slot_remaining_[slot_index], remaining.c_str());
         }
@@ -2731,8 +2722,7 @@ void AmsState::recompute_action_detail() {
         // is no such translation key yet and this is the lowest-priority
         // fallback in the chain - the AmsAction string wins whenever the AMS is
         // doing anything at all.
-        auto print_state = static_cast<PrintJobState>(
-            lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+        auto print_state = get_printer_state().get_print_job_state();
         switch (print_state) {
         case PrintJobState::PRINTING:
             new_detail = lv_tr("Printing");

@@ -1028,6 +1028,27 @@ struct SlotInfo {
         }
         return std::to_string(static_cast<int>(remaining_length_m)) + "m";
     }
+
+    /**
+     * @brief The slot's remaining-filament display string: length when it is
+     *        a measurement, weight when only the weight is known, "" when
+     *        neither.
+     *
+     * The length-then-weight fallback lives here so every push site renders
+     * the same string: the length helper already hides the CFS sentinels
+     * (#1387), and the weight carries the display when it yields nothing.
+     * A weight <= 0 is the "unknown" default, not a measurement.
+     */
+    [[nodiscard]] std::string remaining_display() const {
+        std::string length = remaining_length_display();
+        if (!length.empty()) {
+            return length;
+        }
+        if (remaining_weight_g > 0) {
+            return std::to_string(static_cast<int>(remaining_weight_g)) + "g";
+        }
+        return {};
+    }
 };
 
 /**
@@ -1281,6 +1302,24 @@ struct AmsSystemInfo {
     /// from this field** rather than answering independently, so the two cannot
     /// diverge. Read the capabilities, not this.
     bool endless_spool_enabled = false;
+
+    /// Auto-refill equivalence groups as the firmware reported them:
+    /// endless_spool_group_ids[global_slot] = group ordinal, -1 = ungrouped.
+    /// Same transport story as endless_spool_enabled - the WebSocket parse
+    /// builds it off the main thread and commits it under the backend mutex.
+    /// One entry per addressable bay (CFS T1A..T4D), so the index is the TNN
+    /// address space, not the count of connected units. get_endless_spool_
+    /// capabilities() is the reader that matters; it only asks whether any
+    /// group pairs two or more lanes.
+    std::vector<int> endless_spool_group_ids;
+
+    /// True when the parsed frame actually carried grouping data (CFS
+    /// `same_material`, present as an array even when no two lanes match).
+    /// Without it, "no data" (the flat dialect never sends the field) and
+    /// "parsed and nothing groups" would be indistinguishable, and the
+    /// capability answer would claim a negative it never read.
+    bool endless_spool_groups_reported = false;
+
     bool supports_bypass = false;            ///< Has bypass selector position
     bool has_hardware_bypass_sensor = false; ///< true=auto-detect sensor, false=virtual/manual
     TipMethod tip_method = TipMethod::CUT;   ///< How filament tip is handled during unload
@@ -1675,7 +1714,14 @@ enum class BackupEligibility : int { Eligible = 0, GradeDiffers = 1, Incompatibl
 enum class EndlessSpoolEnabled : int {
     Unknown = -1, ///< Not readable from this backend / not read yet.
     Off = 0,
-    On = 1
+    On = 1,
+    /// Switched on, but the grouping data says nothing would switch: no two
+    /// lanes currently stand in for each other, so a runout will stop the
+    /// print despite the setting being on. CFS derives this from its
+    /// `same_material` groups (#1391); an enable axis value rather than a
+    /// bool beside it because EndlessSpoolCapabilities holds enums only, and
+    /// a separate flag could contradict `enabled`.
+    OnWithoutBackup = 2
 };
 
 /**
@@ -1861,11 +1907,17 @@ endless_spool_config_from_groups(const std::vector<int>& group_ids);
  * and saying "off" there is a promise we cannot keep.
  */
 enum class EndlessSpoolStatusKind : int {
-    Hidden = 0,     ///< Unsupported - render nothing.
-    On = 1,         ///< A runout will switch to a backup spool.
-    Off = 2,        ///< A runout will NOT switch. The print stops.
-    Unknown = 3,    ///< The backend could not tell us. Not the same as Off.
-    NeedsPlugin = 4 ///< The mechanism exists; its package is not installed.
+    Hidden = 0,      ///< Unsupported - render nothing.
+    On = 1,          ///< A runout will switch to a backup spool.
+    Off = 2,         ///< A runout will NOT switch. The print stops.
+    Unknown = 3,     ///< The backend could not tell us. Not the same as Off.
+    NeedsPlugin = 4, ///< The mechanism exists; its package is not installed.
+    /// Switched on but nothing would switch: no two lanes currently group, so
+    /// a runout will stop the print anyway (CFS same_material, #1391). MUST
+    /// NOT be On: the AMS panel hides kind On when healthy
+    /// (hide_when_healthy), and this state is exactly the sentence that panel
+    /// exists to surface.
+    OnWithoutBackup = 5
 };
 
 /**

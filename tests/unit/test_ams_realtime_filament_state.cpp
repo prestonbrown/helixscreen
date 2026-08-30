@@ -441,6 +441,25 @@ TEST_CASE_METHOD(LVGLTestFixture, "SlotInfo remaining-length display hides senti
     CHECK(s.remaining_length_display().empty());
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "SlotInfo remaining display falls back to weight",
+                 "[ams][ams_state][1387]") {
+    SlotInfo s;
+    // Length wins when it is a real measurement.
+    s.remaining_length_m = 42.0f;
+    s.remaining_weight_g = 750.0f;
+    CHECK(s.remaining_display() == "42m");
+    // Sentinel and non-measurement lengths fall to the weight.
+    s.remaining_length_m = 100.0f;
+    CHECK(s.remaining_display() == "750g");
+    s.remaining_length_m = -1.0f;
+    CHECK(s.remaining_display() == "750g");
+    // No measurable length and no positive weight: nothing to show.
+    s.remaining_weight_g = -1.0f;
+    CHECK(s.remaining_display().empty());
+    s.remaining_weight_g = 0.0f;
+    CHECK(s.remaining_display().empty());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "AmsState remaining subject falls back to weight on sentinels",
                  "[ams][ams_state][1387]") {
     auto& ams = AmsState::instance();
