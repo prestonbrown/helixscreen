@@ -11,12 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The fifth 1.0 release candidate. Highlights:
 
 - Tapping an object in the preview outlines it in white instead of recolouring it
-- A filament remap chosen before printing now sticks - it was silently undone at print start
+- A filament remap chosen before printing now sticks
 - Dismissing a confirmation no longer strands the screen behind it
-- One filament runout no longer raises six notifications, two of them stacked dialogs
+- One filament runout no longer stacks six notifications
 - Dark filaments show real form instead of reading as a flat cut-out
 - Installing an update no longer locks up the touchscreen
-- AD5M printers updated to the Forge-X 1.4.2 mod keep working alongside its new splash and network daemon
+- AD5M printers on the Forge-X 1.4.2 mod keep working
 -->
 
 The fifth 1.0 release candidate. Half the cycle went into the G-code preview - object
