@@ -26,89 +26,10 @@ EthernetBackendLinux::~EthernetBackendLinux() {
 }
 
 bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
-    // Linux physical Ethernet interface detection.
-    //
-    // Strategy:
-    //   1. Reject loopback and known virtual / wireless prefixes up front.
-    //   2. Fast-path accept well-known physical Ethernet prefixes.
-    //   3. For anything else, consult sysfs: accept only if it has a real
-    //      backing device, is not wireless, and reports ARPHRD_ETHER.
-    //
-    // The sysfs fallback catches interfaces that don't match any known prefix
-    // (e.g. USB NICs named `enx<mac>`, Rockchip `end0`, older Dell `em0`, or
-    // kernel-renamed interfaces on embedded boards).
-
-    if (name.empty() || name == "lo") {
-        return false;
-    }
-
-    // Reject obviously non-Ethernet prefixes.
-    static const char* const REJECT_PREFIXES[] = {
-        "wlan",   "wlp", "wlx",    // WiFi
-        "docker", "br-", "virbr",  // Virtual bridges
-        "veth",                    // Container virtual Ethernet pairs
-        "tun",    "tap",           // VPN / tunnels
-        "bond",                    // Bonded interfaces (aggregate, not physical)
-        "ppp",                     // Point-to-point (cellular, dial-up)
-        "can",                     // CAN bus
-        "sit",    "gre", "ip6tnl", // IP-over-IP tunnels
-    };
-    for (const char* prefix : REJECT_PREFIXES) {
-        size_t len = std::strlen(prefix);
-        if (name.compare(0, len, prefix) == 0) {
-            return false;
-        }
-    }
-
-    // Fast-path: well-known physical Ethernet naming schemes. Accepting these
-    // without sysfs lets `get_info()` work against libhv's ifconfig_t list
-    // even if sysfs is unavailable (e.g. containerized test environments).
-    static const char* const ETHERNET_PREFIXES[] = {
-        "eth", // Traditional kernel naming (eth0, eth1, ...)
-        "eno", // systemd onboard / firmware index (eno1, ...)
-        "enp", // systemd PCI bus/slot (enp3s0, ...)
-        "enP", // Rockchip / Orange Pi PCI domain (enP4p65s0, ...)
-        "ens", // systemd hot-plug slot (ens33, ...)
-        "end", // RK3588 / NanoPi / some Radxa boards (end0, ...)
-        "enx", // systemd MAC-based (USB NICs: enx001122334455)
-        "em",  // biosdevname (older Dell / Fedora: em1, em2)
-    };
-    for (const char* prefix : ETHERNET_PREFIXES) {
-        size_t len = std::strlen(prefix);
-        if (name.compare(0, len, prefix) == 0) {
-            return true;
-        }
-    }
-
-    // Unknown naming scheme — probe sysfs to classify it.
-    const std::string base = "/sys/class/net/" + name;
-    struct stat st;
-
-    // Must have a backing hardware device (excludes most virtual interfaces
-    // that slipped past the reject list).
-    if (stat((base + "/device").c_str(), &st) != 0) {
-        return false;
-    }
-
-    // Must not be a wireless device (WiFi drivers expose a `wireless/` dir).
-    if (stat((base + "/wireless").c_str(), &st) == 0) {
-        return false;
-    }
-
-    // Check ARPHRD type — 1 == ARPHRD_ETHER. Anything else (772=loopback,
-    // 776=SIT tunnel, 778=IPGRE, 823=IEEE802154, etc.) is not Ethernet.
-    std::ifstream type_file(base + "/type");
-    if (!type_file.is_open()) {
-        return false;
-    }
-    int arp_type = -1;
-    type_file >> arp_type;
-    if (arp_type != 1) {
-        return false;
-    }
-
-    spdlog::debug("[EthernetLinux] Accepted interface via sysfs probe: {}", name);
-    return true;
+    // Classification lives in one shared place (ethernet::is_ethernet_interface,
+    // ethernet_backend.cpp) — the daemon-backed backend classifies with the
+    // same rule, and two copies would silently disagree about a machine.
+    return ethernet::is_ethernet_interface(name);
 }
 
 std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
@@ -133,39 +54,8 @@ std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
 }
 
 std::vector<std::string> EthernetBackendLinux::scan_sysfs_interfaces() {
-    std::vector<std::string> ethernet_interfaces;
-
-    // Scan /sys/class/net/ directly - this finds interfaces regardless of IP assignment
-    const char* sysfs_net = "/sys/class/net";
-
-    // RAII guard: unique_ptr with custom deleter ensures closedir() is always called
-    auto dir_deleter = [](DIR* d) {
-        if (d)
-            closedir(d);
-    };
-    std::unique_ptr<DIR, decltype(dir_deleter)> dir(opendir(sysfs_net), dir_deleter);
-
-    if (!dir) {
-        spdlog::warn("[EthernetLinux] Cannot open {}", sysfs_net);
-        return ethernet_interfaces;
-    }
-
-    struct dirent* entry;
-    while ((entry = readdir(dir.get())) != nullptr) {
-        // Skip . and ..
-        if (entry->d_name[0] == '.') {
-            continue;
-        }
-
-        std::string name = entry->d_name;
-        if (is_ethernet_interface(name)) {
-            spdlog::debug("[EthernetLinux] Found Ethernet interface via sysfs: {}", name);
-            ethernet_interfaces.push_back(name);
-        }
-    }
-
-    // No manual closedir() needed - RAII handles cleanup
-    return ethernet_interfaces;
+    // Shared implementation (ethernet::scan_sysfs_interfaces).
+    return ethernet::scan_sysfs_interfaces();
 }
 
 bool EthernetBackendLinux::has_interface() {

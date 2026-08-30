@@ -2160,8 +2160,9 @@ std::vector<std::string> WifiBackendWpaSupplicant::split_by_tabs(const std::stri
 }
 
 int WifiBackendWpaSupplicant::dbm_to_percentage(int dbm) {
-    // -30 dBm = 100% (excellent), -90 dBm = 0% (unusable)
-    return std::max(0, std::min(100, (dbm + 90) * 100 / 60));
+    // -30 dBm = 100% (excellent), -90 dBm = 0% (unusable). One shared
+    // mapping for every dBm-speaking backend (netd uses it directly).
+    return wifi_signal_percent_from_dbm(dbm);
 }
 
 std::string WifiBackendWpaSupplicant::detect_security_type(const std::string& flags,

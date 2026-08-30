@@ -874,6 +874,58 @@ The WiFi backend normally finds the control socket automatically: it auto-detect
 HELIX_WPA_SOCKET_DIR=/data/misc/wifi/sockets ./build/bin/helix-screen
 ```
 
+### `HELIX_NETD_SOCKET`
+
+Override the control socket of the printer's network daemon (`netd`, the
+exclusive owner of WiFi/ethernet on the firmwares that ship it).
+
+Both the WiFi and Ethernet backends speak to the daemon over this AF_UNIX
+socket, and backend selection itself probes it. The daemon is detected by
+socket presence OR the on-disk binary — never by a version string, which is
+untrustworthy across these firmware releases. Set this only to repoint at a
+non-standard deployment or at a test double.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute path to an AF_UNIX SOCK_STREAM socket |
+| **Default** | `/run/netd.sock` |
+| **File** | `src/api/netd_protocol.cpp` |
+
+```bash
+# Run the app against a fake daemon on a dev box
+HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
+```
+
+Also the seam the netd unit tests use to drive the real backends against an
+in-test listener (`tests/unit/netd_test_server.h`).
+
+### `HELIX_NETD_BIN`
+
+Override the on-disk daemon binary path used as the second half of the
+presence probe when the socket is down (the daemon exists on disk even
+before it has created its socket at boot). When neither the socket nor an
+executable at this path exists, the netd backends stand down entirely and
+the factory falls through to NetworkManager/wpa_supplicant.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute path to an executable file |
+| **Default** | `/opt/config/mod/.bin/exec/netd` |
+| **File** | `src/api/netd_protocol.cpp` |
+
+```bash
+# Force the netd backends active on a dev box by naming any executable
+HELIX_NETD_BIN=/bin/true HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
+```
+
+Recovery-boot note: a boot that ships the daemon but runs the stock stack
+(the firmware's own netd-failure fallback, or a `SKIP_MOD_SOFT` boot) still
+selects the netd backends — the binary is present, so the probe commits.
+WiFi then reads unavailable until the daemon returns; Ethernet still shows
+kernel state (the netd ethernet backend falls back to the kernel reading
+when the daemon is unreachable). Point `HELIX_NETD_BIN` at a nonexistent
+path in `helixscreen.env` to make such a boot use the stock backends.
+
 ---
 
 ## UI Automation

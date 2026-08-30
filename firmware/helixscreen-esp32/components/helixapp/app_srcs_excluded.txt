@@ -40,6 +40,7 @@ src/api/drm_rotation_strategy.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_backend.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/ethernet_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/api/ethernet_manager.cpp  # not in the v1 Core+AMS cut
 src/api/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
 src/api/input_device_scanner.cpp  # not in the v1 Core+AMS cut
@@ -60,6 +61,7 @@ src/api/moonraker_request_tracker.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_rest_api.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_spoolman_api.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/api/moonraker_timelapse_api.cpp  # not in the v1 Core+AMS cut
+src/api/netd_protocol.cpp  # not in the v1 Core+AMS cut
 src/api/touch_calibration_wrapper.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend_linux.cpp  # not in the v1 Core+AMS cut
@@ -67,6 +69,7 @@ src/api/usb_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/api/usb_manager.cpp  # not in the v1 Core+AMS cut
 src/api/webcam_service_health.cpp  # camera service health; only consumer is the excluded discovery sequence
 src/api/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_saved_config.cpp  # not in the v1 Core+AMS cut

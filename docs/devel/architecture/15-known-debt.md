@@ -191,7 +191,7 @@ Read in this order; about 25 minutes total.
 2. [`scripts/quality-checks.sh:1601`](../../../scripts/quality-checks.sh#L1601) — where the baseline 367 is enforced and how a port ratchets it down.
 3. [`src/ui/ui_panel_gcode_test.cpp:391`](../../../src/ui/ui_panel_gcode_test.cpp#L391) — the archetype of the 67 event sites: find by name, add callback, null-check each. First project #1 is this block.
 4. [`ui_xml/gcode_test_panel.xml:61`](../../../ui_xml/gcode_test_panel.xml#L61) — the same buttons from the XML side, callback-less today; picture the `<event_cb>` the port adds.
-5. [`src/ui/ui_overlay_network_settings.cpp:665`](../../../src/ui/ui_overlay_network_settings.cpp#L665) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.
+5. [`src/ui/ui_overlay_network_settings.cpp:671`](../../../src/ui/ui_overlay_network_settings.cpp#L671) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.
 6. [`src/ui/panel_widgets/fan_stack_widget.cpp:653`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L653) — `bind_fan_observer()`: the manual subject read that works around the deferred initial fire under populate's freeze.
 7. [`src/ui/panel_widgets/led_widget.cpp:75`](../../../src/ui/panel_widgets/led_widget.cpp#L75) — the twin: same problem, same workaround, separately evolved. Then `:109` for `bind_led()` itself.
 8. [`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60) — the registry class nothing in production constructs.
