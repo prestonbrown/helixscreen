@@ -14,6 +14,7 @@
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
+#include "runtime_config.h" // backend_owns_runout_during_job()
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
@@ -931,21 +932,31 @@ void FilamentSensorManager::update_from_status(const json& status) {
     const bool ams_active = AmsState::instance().is_filament_operation_active();
     // Peeked, never consumed - the idle runout modal owns the one shot.
     const bool post_unload_grace = AmsState::instance().post_unload_runout_grace_armed();
+    // The derived lifecycle, read once beside the other whole-printer flags for
+    // the same reason (our lock never protected it): both phase-aware terms
+    // below need it.
+    const auto lifecycle = static_cast<PrintState>(
+        lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+    const bool job_owns_machine = job_holds_machine(lifecycle);
+    AmsType backend_type = AmsType::NONE;
+    if (auto* backend = AmsState::instance().get_backend()) {
+        backend_type = backend->get_type();
+    }
     // AD5X-IFS auto-unloads filament back into the IFS between prints. The head
     // sensor going empty when the printer is idle is firmware behaviour, not a
-    // user-facing event. "Between prints" is the lifecycle's Idle/terminal side, not
-    // merely "not PRINTING": a head-empty during a pre-print block is not the
-    // firmware's idle auto-unload and must not be swallowed.
-    bool ad5x_idle_unload = false;
-    if (auto* backend = AmsState::instance().get_backend()) {
-        if (backend->get_type() == AmsType::AD5X_IFS) {
-            const auto lifecycle = static_cast<PrintState>(
-                lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
-            if (!job_holds_machine(lifecycle)) {
-                ad5x_idle_unload = true;
-            }
-        }
-    }
+    // user-facing event. "Between prints" is the lifecycle's Idle/terminal side,
+    // not merely "not PRINTING": a head-empty during a pre-print block is not
+    // the firmware's idle auto-unload and must not be swallowed.
+    const bool ad5x_idle_unload = backend_type == AmsType::AD5X_IFS && !job_owns_machine;
+    // While a job holds the machine, a backend that raises its own runout fault
+    // owns the runout surface for that phase: its prompt is already telling the
+    // user what happened, with recovery actions derived from live hardware, so
+    // the sensor-edge toast restates it (#1388). Ownership-scoped, never a
+    // blanket muzzle: on a backend with no error hook of its own, and with no
+    // backend at all, this toast is the only runout signal there is. The
+    // per-backend table lives in backend_owns_runout_during_job().
+    const bool runout_surface_owned_during_job =
+        job_owns_machine && backend_owns_runout_during_job(backend_type);
 
     // Phase 1: Update state under lock, collect notifications
     {
@@ -1042,9 +1053,15 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // Toasts are suppressed during the startup grace period, wizard
                 // setup, and active AMS filament operations (load/unload moves
                 // filament past sensors intentionally, generating spurious
-                // triggers). ams_active and ad5x_idle_unload were read above,
-                // before the lock. The runout role is preserved either way, so
-                // in-print events still fire.
+                // triggers), and - while a job holds the machine - whenever the
+                // filament backend owns the runout surface for that phase (its
+                // own prompt already tells the story; see #1388). A backend that
+                // owns nothing, and no backend at all, keeps the toast: there it
+                // is the only runout signal. ams_active, ad5x_idle_unload and
+                // runout_surface_owned_during_job were read above, before the
+                // lock. The runout ROLE is preserved either way, so runout
+                // detection and its subjects still fire in-print; only the
+                // toast is quieted.
                 // An unload the user asked for ends by dragging filament off the
                 // sensor, and that edge lands seconds AFTER the action returns to
                 // IDLE — so ams_active above is already false by then and cannot
@@ -1057,7 +1074,8 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // deliberately-armed INFO and is untouched here.
                 const bool post_unload_removal = !state.filament_detected && post_unload_grace;
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
-                                     !ad5x_idle_unload && !post_unload_removal && master_enabled_ &&
+                                     !ad5x_idle_unload && !post_unload_removal &&
+                                     !runout_surface_owned_during_job && master_enabled_ &&
                                      sensor.enabled && sensor.role != FilamentSensorRole::NONE;
                 if (within_grace_period && master_enabled_ && sensor.enabled &&
                     sensor.role != FilamentSensorRole::NONE) {
@@ -1073,6 +1091,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
                     spdlog::debug(
                         "[FilamentSensorManager] Suppressing AD5X idle-unload toast for {}",
                         sensor.sensor_name);
+                } else if (runout_surface_owned_during_job && master_enabled_ && sensor.enabled &&
+                           sensor.role != FilamentSensorRole::NONE) {
+                    spdlog::debug(
+                        "[FilamentSensorManager] Suppressing toast for {} - {} owns the runout "
+                        "surface during the job",
+                        sensor.sensor_name, ams_type_to_string(backend_type));
                 }
                 notifications.push_back(notif);
             }
