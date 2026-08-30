@@ -27,11 +27,26 @@ struct UsbHidDevice {
     int bus_type = 0;       // BUS_USB=0x03, BUS_BLUETOOTH=0x05
 };
 
-/// Check if a specific bit is set in a sysfs capability hex bitmask.
-/// The kernel prints space-separated hex words (unsigned long), rightmost = lowest bits.
-/// Handles both 32-bit and 64-bit word widths automatically by inferring
-/// bits-per-word from the longest hex word in the bitmask (<=8 digits = 32-bit,
-/// >8 digits = 64-bit). Single-word bitmasks use actual digit count.
+/// Map a uname(2) machine string to the word width in bits of sysfs capability
+/// bitmaps, which is the kernel's unsigned long width: 64-bit kernels print
+/// 64-bit words, 32-bit kernels print 32-bit words, regardless of how many hex
+/// digits any single word happens to show.
+int sysfs_bitmap_word_bits_for_machine(const std::string& machine);
+
+/// Word width in bits of sysfs capability bitmaps on the running kernel,
+/// derived from uname(2). Falls back to the build's unsigned long width if
+/// uname fails.
+int sysfs_bitmap_word_bits();
+
+/// Check if a specific bit is set in a sysfs capability hex bitmask whose
+/// words are `word_bits` wide. The kernel prints space-separated hex words
+/// (one unsigned long each) highest word first, with %lx (no zero padding),
+/// and strips leading zero words, so the width cannot be recovered from the
+/// string itself and must come from the kernel arch.
+bool check_capability_bit_at_width(const std::string& hex_bitmask, int bit, int word_bits);
+
+/// Check if a specific bit is set in a sysfs capability hex bitmask, parsed at
+/// the running kernel's word width.
 bool check_capability_bit(const std::string& hex_bitmask, int bit);
 
 /// Check whether a device's sysfs VID/PID matches any entry in a blacklist.

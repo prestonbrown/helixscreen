@@ -2,18 +2,57 @@
 
 #include "input_device_scanner.h"
 
+#include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <map>
 
 #include "../catch_amalgamated.hpp"
 
 using helix::input::check_capability_bit;
+using helix::input::check_capability_bit_at_width;
+using helix::input::sysfs_bitmap_word_bits;
+using helix::input::sysfs_bitmap_word_bits_for_machine;
 
 namespace fs = std::filesystem;
 
 namespace {
+
+// Build a sysfs capability string the way the kernel prints bitmaps at the
+// running machine's word width: space-separated hex words, highest word
+// first, each via %llx with no zero padding, leading zero words stripped.
+// Mock caps built with this parse exactly like real sysfs on whatever machine
+// runs the tests (64-bit dev/CI and 32-bit ARM targets alike).
+std::string caps_string(std::initializer_list<int> bits) {
+    const int word_bits = helix::input::sysfs_bitmap_word_bits();
+    std::map<int, unsigned long long> words; // keyed by word-from-right
+    int highest_nonzero = -1;
+    for (int bit : bits) {
+        const int word = bit / word_bits;
+        words[word] |= 1ULL << (bit % word_bits);
+        highest_nonzero = std::max(highest_nonzero, word);
+    }
+
+    std::string out;
+    for (int word = (highest_nonzero < 0 ? 0 : highest_nonzero); word >= 0; --word) {
+        if (!out.empty())
+            out += ' ';
+        char buf[24];
+        std::snprintf(buf, sizeof(buf), "%llx", words[word]);
+        out += buf;
+    }
+    return out;
+}
+
+// Key caps of a typical USB mouse: BTN_LEFT..BTN_EXTRA (keycodes 272-276).
+// On a 64-bit kernel this prints "1f0000 0 0 0 0", on 32-bit
+// "1f0000 0 0 0 0 0 0 0 0" — both real field strings.
+std::string mouse_key_caps() {
+    return caps_string({272, 273, 274, 275, 276});
+}
 
 struct MockInputTree {
     std::string base;
@@ -100,50 +139,148 @@ TEST_CASE("check_capability_bit parses sysfs hex bitmasks", "[input]") {
     }
 
     SECTION("KEY_A in multi-word bitmask (32-bit words)") {
-        REQUIRE(check_capability_bit("10000 40000000", 30));
+        REQUIRE(check_capability_bit_at_width("10000 40000000", 30, 32));
     }
 
     SECTION("KEY_A in multi-word bitmask (64-bit words)") {
-        REQUIRE(check_capability_bit("10000 0000000040000000", 30));
+        // A real 64-bit kernel prints this bitmap (bits 30 and 48) as a
+        // single word; the two-word form exercises the index math when word 0
+        // is the rightmost of several words.
+        REQUIRE(check_capability_bit_at_width("10000 40000000", 30, 64));
+        REQUIRE(check_capability_bit_at_width("1000040000000", 30, 64));
+        REQUIRE(check_capability_bit_at_width("1000040000000", 48, 64));
     }
 
     SECTION("BTN_LEFT (bit 272) in 32-bit word format") {
-        REQUIRE(check_capability_bit("10000 0 0 0 0 0 0 0 0", 272));
+        REQUIRE(check_capability_bit_at_width("1f0000 0 0 0 0 0 0 0 0", 272, 32));
     }
 
     SECTION("BTN_LEFT (bit 272) in 64-bit word format") {
-        // At least one word must have >8 hex digits to signal 64-bit
-        REQUIRE(check_capability_bit("10000 0000000000000000 0 0 0", 272));
+        // The same mouse on a 64-bit kernel: word 4 from the right is the
+        // highest nonzero word, so only five words print. The kernel uses %lx
+        // without zero padding and strips leading zero words, so no word here
+        // has 16 hex digits.
+        REQUIRE(check_capability_bit_at_width("1f0000 0 0 0 0", 272, 64));
     }
 
     SECTION("BTN_LEFT not set") {
         REQUIRE_FALSE(check_capability_bit("0 0 0 0 0 0 0 0 0", 272));
     }
 
-    SECTION("KEY_POWER (bit 116) — should not match KEY_A check") {
-        REQUIRE(check_capability_bit("0 0 0 0 0 100000 0 0 0", 116));
-        REQUIRE_FALSE(check_capability_bit("0 0 0 0 0 100000 0 0 0", 30));
+    SECTION("KEY_POWER (bit 116) - should not match KEY_A check") {
+        // 32-bit word format: the set word is word 3 from the right.
+        REQUIRE(check_capability_bit_at_width("0 0 0 0 0 100000 0 0 0", 116, 32));
+        REQUIRE_FALSE(check_capability_bit_at_width("0 0 0 0 0 100000 0 0 0", 30, 32));
     }
 
     SECTION("real-world keyboard capability string from Pi 5 (aarch64)") {
-        // This keyboard has both KEY_A and BTN_LEFT set (combo keyboard+trackpad)
+        // 64-bit kernel words: this combo keyboard+trackpad has KEY_A in word
+        // 0 and BTN_LEFT in word 4 from the right, which prints as "403ffff".
         const char* real_kb = "3 0 0 0 0 0 403ffff 73ffff206efffd f3cfffff ffffffff fffffffe";
-        REQUIRE(check_capability_bit(real_kb, 30));  // KEY_A
-        REQUIRE(check_capability_bit(real_kb, 272)); // BTN_LEFT (combo device)
+        REQUIRE(check_capability_bit_at_width(real_kb, 30, 64));  // KEY_A
+        REQUIRE(check_capability_bit_at_width(real_kb, 272, 64)); // BTN_LEFT (combo device)
     }
 
     SECTION("real-world mouse capability string") {
+        // 32-bit kernel form: nine words, BTN_LEFT..BTN_EXTRA in word 8.
         const char* real_mouse_32 = "1f0000 0 0 0 0 0 0 0 0";
-        REQUIRE(check_capability_bit(real_mouse_32, 272));
-        REQUIRE(check_capability_bit(real_mouse_32, 273));
-        REQUIRE_FALSE(check_capability_bit(real_mouse_32, 30));
+        REQUIRE(check_capability_bit_at_width(real_mouse_32, 272, 32));
+        REQUIRE(check_capability_bit_at_width(real_mouse_32, 273, 32));
+        REQUIRE_FALSE(check_capability_bit_at_width(real_mouse_32, 30, 32));
 
-        const char* real_mouse_64 = "1f0000 0000000000000000 0 0 0";
-        REQUIRE(check_capability_bit(real_mouse_64, 272));
+        // The same mouse on a 64-bit kernel (field report, Flytech KPC6
+        // x86_64): five words, unpadded.
+        const char* real_mouse_64 = "1f0000 0 0 0 0";
+        REQUIRE(check_capability_bit_at_width(real_mouse_64, 272, 64));
+        REQUIRE(check_capability_bit_at_width(real_mouse_64, 273, 64));
+        REQUIRE_FALSE(check_capability_bit_at_width(real_mouse_64, 30, 64));
+    }
+
+    SECTION("wrapper parses at the running kernel's word width") {
+        // Built the way this machine's own kernel would print a mouse's key
+        // caps; the wrapper must resolve bits at the kernel's word width.
+        const std::string mouse_key = mouse_key_caps();
+        REQUIRE(check_capability_bit(mouse_key, 272));
+        REQUIRE(check_capability_bit(mouse_key, 273));
+        REQUIRE_FALSE(check_capability_bit(mouse_key, 30));
     }
 
     SECTION("negative bit number returns false") {
         REQUIRE_FALSE(check_capability_bit("ffffffff", -1));
+    }
+}
+
+TEST_CASE("check_capability_bit_at_width parses real sysfs field strings", "[input]") {
+    SECTION("64-bit mouse key caps from an x86_64 field report") {
+        // Real /sys/class/input/eventN/device/capabilities/key of a USB mouse
+        // on a 64-bit kernel: BTN_LEFT..BTN_EXTRA (272-276) land in word 4
+        // from the right. Every word is short, which is why digit-count
+        // inference misreads this as 32-bit words.
+        const char* mouse_key = "1f0000 0 0 0 0";
+        REQUIRE(check_capability_bit_at_width(mouse_key, 272, 64));       // BTN_LEFT
+        REQUIRE(check_capability_bit_at_width(mouse_key, 273, 64));       // BTN_RIGHT
+        REQUIRE(check_capability_bit_at_width(mouse_key, 276, 64));       // BTN_EXTRA
+        REQUIRE_FALSE(check_capability_bit_at_width(mouse_key, 330, 64)); // BTN_TOUCH
+        REQUIRE_FALSE(check_capability_bit_at_width(mouse_key, 30, 64));  // KEY_A
+    }
+
+    SECTION("64-bit keyboard key caps from the same machine") {
+        const char* kb_key = "1000000000007 ff800000000007ff febeffdff3cfffff fffffffffffffffe";
+        REQUIRE(check_capability_bit_at_width(kb_key, 30, 64));        // KEY_A
+        REQUIRE_FALSE(check_capability_bit_at_width(kb_key, 272, 64)); // no BTN_LEFT
+        REQUIRE_FALSE(check_capability_bit_at_width(kb_key, 330, 64)); // no BTN_TOUCH
+    }
+
+    SECTION("32-bit mouse key caps (shipped ARM targets)") {
+        const char* mouse_key = "1f0000 0 0 0 0 0 0 0 0";
+        REQUIRE(check_capability_bit_at_width(mouse_key, 272, 32));
+        REQUIRE_FALSE(check_capability_bit_at_width(mouse_key, 30, 32));
+    }
+
+    SECTION("32-bit KEY_POWER word") {
+        const char* power_key = "0 0 0 0 0 100000 0 0 0";
+        REQUIRE(check_capability_bit_at_width(power_key, 116, 32));
+        REQUIRE_FALSE(check_capability_bit_at_width(power_key, 30, 32));
+    }
+
+    SECTION("32-bit multitouch abs caps") {
+        const char* mt_abs = "600000 0"; // ABS_MT_POSITION_X(53) + Y(54)
+        REQUIRE(check_capability_bit_at_width(mt_abs, 53, 32));
+        REQUIRE(check_capability_bit_at_width(mt_abs, 54, 32));
+    }
+
+    SECTION("negative bit and empty string return false at both widths") {
+        REQUIRE_FALSE(check_capability_bit_at_width("ffffffff", -1, 32));
+        REQUIRE_FALSE(check_capability_bit_at_width("ffffffff", -1, 64));
+        REQUIRE_FALSE(check_capability_bit_at_width("", 30, 32));
+        REQUIRE_FALSE(check_capability_bit_at_width("", 30, 64));
+    }
+}
+
+TEST_CASE("sysfs bitmap word width maps kernel arch to word bits", "[input]") {
+    SECTION("64-bit kernels") {
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("x86_64") == 64);
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("aarch64") == 64);
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("mips64") == 64);
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("riscv64") == 64);
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("s390x") == 64);
+    }
+
+    SECTION("armv8l is 32-bit userland on a 64-bit kernel") {
+        // A 32-bit process on an aarch64 kernel sees COMPAT_UTS_MACHINE
+        // "armv8l"; the kernel that printed the bitmap is still 64-bit.
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("armv8l") == 64);
+    }
+
+    SECTION("32-bit kernels") {
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("armv7l") == 32);
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("armv6l") == 32);
+        REQUIRE(sysfs_bitmap_word_bits_for_machine("i686") == 32);
+    }
+
+    SECTION("running machine resolves to a real kernel word width") {
+        const int bits = sysfs_bitmap_word_bits();
+        REQUIRE((bits == 32 || bits == 64));
     }
 }
 
@@ -153,7 +290,7 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
     SECTION("detects mouse with REL_X + REL_Y + BTN_LEFT") {
         MockInputTree tree("mouse_basic");
         tree.add_device(3, "Logitech USB Mouse",
-                        {{"rel", "3"}, {"key", "1f0000 0 0 0 0 0 0 0 0"}, {"abs", "0"}});
+                        {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}});
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE(result.has_value());
@@ -186,8 +323,7 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
     SECTION("picks mouse when touchscreen also present") {
         MockInputTree tree("mouse_with_touch");
         tree.add_device(0, "Goodix Touchscreen", {{"abs", "3"}, {"rel", "0"}, {"key", "0"}});
-        tree.add_device(2, "USB Mouse",
-                        {{"rel", "3"}, {"key", "1f0000 0 0 0 0 0 0 0 0"}, {"abs", "0"}});
+        tree.add_device(2, "USB Mouse", {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}});
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE(result.has_value());
@@ -198,7 +334,7 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
     SECTION("skips device with both ABS and REL (touchscreen with mouse emulation)") {
         MockInputTree tree("mouse_abs_rel");
         tree.add_device(0, "TouchMouseCombo",
-                        {{"abs", "3"}, {"rel", "3"}, {"key", "1f0000 0 0 0 0 0 0 0 0"}});
+                        {{"abs", "3"}, {"rel", "3"}, {"key", mouse_key_caps()}});
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE_FALSE(result.has_value());
@@ -210,12 +346,13 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
         // bits 53+54 set = 0x60000000000000 in a 64-bit word, or
         // in 32-bit: bit 53 = word 1 bit 21, bit 54 = word 1 bit 22
         // = 0x600000 in word 1 from right
-        tree.add_device(0, "Goodix Capacitive TouchScreen",
-                        {
-                            {"abs", "600000 0"}, // ABS_MT_POSITION_X(53) + ABS_MT_POSITION_Y(54)
-                            {"rel", "0"},
-                            {"key", "400 0 0 0 0 0 0 0 0 0 0"} // BTN_TOUCH(330)
-                        });
+        tree.add_device(
+            0, "Goodix Capacitive TouchScreen",
+            {
+                {"abs", caps_string({53, 54})}, // ABS_MT_POSITION_X(53) + ABS_MT_POSITION_Y(54)
+                {"rel", "0"},
+                {"key", caps_string({330})} // BTN_TOUCH(330)
+            });
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE_FALSE(result.has_value());
@@ -224,13 +361,13 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
     SECTION("skips device with BTN_TOUCH even without ABS axes") {
         MockInputTree tree("mouse_btn_touch");
         // Hypothetical device with REL_X/REL_Y + BTN_LEFT but also BTN_TOUCH
-        tree.add_device(
-            0, "WeirdTouchDevice",
-            {
-                {"abs", "0"},
-                {"rel", "3"},
-                {"key", "400 0 1f0000 0 0 0 0 0 0 0 0"} // BTN_TOUCH(330) + BTN_LEFT(272)
-            });
+        tree.add_device(0, "WeirdTouchDevice",
+                        {
+                            {"abs", "0"},
+                            {"rel", "3"},
+                            {"key", caps_string({330, 272, 273, 274, 275,
+                                                 276})} // BTN_TOUCH(330) + BTN_LEFT(272)
+                        });
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE_FALSE(result.has_value());
@@ -238,10 +375,10 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
 
     SECTION("still detects real mouse when MT-only touchscreen present") {
         MockInputTree tree("mouse_with_mt_touch");
-        tree.add_device(0, "Goodix Capacitive TouchScreen",
-                        {{"abs", "600000 0"}, {"rel", "0"}, {"key", "400 0 0 0 0 0 0 0 0 0 0"}});
-        tree.add_device(2, "USB Mouse",
-                        {{"rel", "3"}, {"key", "1f0000 0 0 0 0 0 0 0 0"}, {"abs", "0"}});
+        tree.add_device(
+            0, "Goodix Capacitive TouchScreen",
+            {{"abs", caps_string({53, 54})}, {"rel", "0"}, {"key", caps_string({330})}});
+        tree.add_device(2, "USB Mouse", {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}});
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE(result.has_value());
@@ -265,8 +402,7 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
 
     SECTION("skips device with no bustype file") {
         MockInputTree tree("mouse_no_bus");
-        tree.add_device(0, "Virtual Mouse",
-                        {{"rel", "3"}, {"key", "1f0000 0 0 0 0 0 0 0 0"}, {"abs", "0"}},
+        tree.add_device(0, "Virtual Mouse", {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}},
                         ""); // No bustype file
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
@@ -275,8 +411,7 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
 
     SECTION("detects Bluetooth mouse") {
         MockInputTree tree("mouse_bt");
-        tree.add_device(0, "BT Mouse",
-                        {{"rel", "3"}, {"key", "1f0000 0 0 0 0 0 0 0 0"}, {"abs", "0"}},
+        tree.add_device(0, "BT Mouse", {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}},
                         "0005"); // BUS_BLUETOOTH
 
         auto result = find_mouse_device(tree.dev_dir, tree.sysfs_dir);
@@ -300,7 +435,7 @@ TEST_CASE("find_keyboard_device detects USB HID keyboards via sysfs", "[input]")
     SECTION("skips power button (KEY_POWER=116 but no KEY_A)") {
         MockInputTree tree("kb_power");
         tree.add_device(0, "Power Button",
-                        {{"key", "0 0 0 0 0 100000 0 0 0"}, {"rel", "0"}, {"abs", "0"}}, "0019");
+                        {{"key", caps_string({116})}, {"rel", "0"}, {"abs", "0"}}, "0019");
 
         auto result = find_keyboard_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE_FALSE(result.has_value());
@@ -326,8 +461,9 @@ TEST_CASE("find_keyboard_device detects USB HID keyboards via sysfs", "[input]")
 
     SECTION("combo keyboard+mouse device detected as keyboard") {
         MockInputTree tree("kb_combo");
-        tree.add_device(0, "Logitech K400",
-                        {{"key", "1f0000 0 0 0 0 0 0 0 40000000"}, {"rel", "3"}, {"abs", "0"}});
+        tree.add_device(
+            0, "Logitech K400",
+            {{"key", caps_string({30, 272, 273, 274, 275, 276})}, {"rel", "3"}, {"abs", "0"}});
 
         auto result = find_keyboard_device(tree.dev_dir, tree.sysfs_dir);
         REQUIRE(result.has_value());
