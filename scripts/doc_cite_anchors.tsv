@@ -10,7 +10,7 @@ docs/devel/BED_MESH_RENDERING_INTERNALS.md	bed_mesh_renderer.cpp	576	src/renderi
 docs/devel/BED_MESH_RENDERING_INTERNALS.md	bed_mesh_renderer.h	36	include/bed_mesh_renderer.h	9a8dc225a80e	7cf55d2f2513
 docs/devel/BUILD_SYSTEM.md	mk/cross.mk	728	mk/cross.mk	da1cc2e857c5	6c300046c8f9
 docs/devel/BUILD_SYSTEM.md	mk/fonts.mk	107	mk/fonts.mk	4b9fe8a0823e	d3a88479c470
-docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	80	include/ams_backend_ad5x_ifs.h	42b73c99c671	10abcf0d5a77
+docs/devel/CLAUDE.md	include/ams_backend_ad5x_ifs.h	93	include/ams_backend_ad5x_ifs.h	42b73c99c671	10abcf0d5a77
 docs/devel/CLAUDE.md	plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	118	docs/devel/plans/2026-06-25-ad5x-ifs-seated-chan-robustness.md	08e4b44931cb	cd6be061ab1b
 docs/devel/CONTRIBUTOR_GOTCHAS.md	HELIXCTL.md	580	docs/devel/HELIXCTL.md	9a570b9ce286	234aeb46482d
 docs/devel/CONTRIBUTOR_GOTCHAS.md	src/ui/page_scroll_auto_inject.cpp	67	src/ui/page_scroll_auto_inject.cpp	79ddc99d9874	18d2db06eb9c
@@ -62,15 +62,15 @@ docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	223	
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	259	include/ams_backend_snapmaker.h	595b2898803d	871d40197bbb
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	394	include/ams_backend_snapmaker.h	cc3adf6ce1d2	71a1b1199f6d
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	423	include/ams_backend_snapmaker.h	998af9261219	56532ada7eaa
-docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	414	include/printer_discovery.h	326effbda208	3524ca83cf02
-docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	552	include/printer_discovery.h	7b7faefb4711	bea8ec43ccc5
+docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	431	include/printer_discovery.h	326effbda208	3524ca83cf02
+docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	569	include/printer_discovery.h	7b7faefb4711	bea8ec43ccc5
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/snapmaker_resume.h	11	include/snapmaker_resume.h	bdcf8bc246e8	4b07cd470f5d
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/api/moonraker_api_controls.cpp	426	src/api/moonraker_api_controls.cpp	3984c90ef18a	b8c2ceb467a1
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/printer/ams_subscription_backend.cpp	57	src/printer/ams_subscription_backend.cpp	589878aa5e77	b3b61b755723
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/ui/ui_print_start_controller.cpp	318	src/ui/ui_print_start_controller.cpp	487d271930ed	235f3dd005a0
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/ui/ui_print_start_controller.cpp	322	src/ui/ui_print_start_controller.cpp	538407a1844d	6fc99a7fcc8a
 docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_ace.cpp	44	src/printer/ams_backend_ace.cpp	8c4fdcbdf294	6d40d9fdfa8e
-docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_ad5x_ifs.cpp	134	src/printer/ams_backend_ad5x_ifs.cpp	14611c095236	73c89b40afc3
+docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_ad5x_ifs.cpp	135	src/printer/ams_backend_ad5x_ifs.cpp	14611c095236	73c89b40afc3
 docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_afc.cpp	2239	src/printer/ams_backend_afc.cpp	2594e75ce27c	a1d839b66d42
 docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_snapmaker.cpp	240	src/printer/ams_backend_snapmaker.cpp	8c4fdcbdf294	2cc849e82121
 docs/devel/FILAMENT_MANAGEMENT.md	gcode_error_router.cpp	173	src/application/gcode_error_router.cpp	6ce42666f637	d3fe32949be4
@@ -370,7 +370,7 @@ docs/devel/architecture/07-filament-ams.md	ams_state.cpp	2205	src/printer/ams_st
 docs/devel/architecture/07-filament-ams.md	ams_state.cpp	2233	src/printer/ams_state.cpp	d5b107e5b4e8	d9cbc530c3e9
 docs/devel/architecture/07-filament-ams.md	include/ams_backend.h	59	include/ams_backend.h	1492637f9bd3	1b42c7a20245
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_ace.h	46	include/ams_backend_ace.h	857c1ee9d1ff	49c8b4d5dec3
-docs/devel/architecture/07-filament-ams.md	include/ams_backend_ad5x_ifs.h	88	include/ams_backend_ad5x_ifs.h	1cda1a94e943	4e1384cec945
+docs/devel/architecture/07-filament-ams.md	include/ams_backend_ad5x_ifs.h	101	include/ams_backend_ad5x_ifs.h	1cda1a94e943	4e1384cec945
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	143	include/ams_backend_afc.h	c532a92d95be	48a297a6b655
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_afc.h	508	include/ams_backend_afc.h	0923cff2a285	40ecabbe663b
 docs/devel/architecture/07-filament-ams.md	include/ams_backend_cfs.h	127	include/ams_backend_cfs.h	145104540e13	63abe8abc3b4
@@ -388,7 +388,7 @@ docs/devel/architecture/07-filament-ams.md	include/ams_subscription_backend.h	53
 docs/devel/architecture/07-filament-ams.md	include/ams_types.h	42	include/ams_types.h	d1bfafcdd4d4	76265fa04d05
 docs/devel/architecture/07-filament-ams.md	include/filament_op_dispatch.h	9	include/filament_op_dispatch.h	858270cf3bf2	a52ac2b92d10
 docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	52	include/printer_discovery.h	ed815f1532ea	265d63c39d5c
-docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	593	include/printer_discovery.h	20cf4848a033	fe2de00854c0
+docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	610	include/printer_discovery.h	20cf4848a033	fe2de00854c0
 docs/devel/architecture/07-filament-ams.md	include/spoolman_manager.h	22	include/spoolman_manager.h	298affdb4fbe	a5ad15d44e07
 docs/devel/architecture/07-filament-ams.md	include/spoolman_manager.h	64	include/spoolman_manager.h	eb957c78bce2	38d2063bb343
 docs/devel/architecture/07-filament-ams.md	include/tool_state.h	172	include/tool_state.h	83c3144cff9b	3ede4bbdf97c

@@ -555,6 +555,13 @@
           "reason": "[zmod_ifs] section - AD5X IFS firmware (matches zmod_ifs, zmod_ifs_switch_sensor, zmod_ifs_motion_sensor, etc.)"
         },
         {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "ifs_materials",
+          "confidence": 98,
+          "reason": "[ifs_materials] section - standalone AD5X IFS module (Forge-X drop-in); unambiguous, no other firmware defines it"
+        },
+        {
           "type": "macro_match",
           "field": "macros",
           "pattern": "_IFS_",

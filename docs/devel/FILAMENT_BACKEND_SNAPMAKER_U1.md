@@ -61,10 +61,10 @@ One unit ("SnapSwap"), four slots, one per toolhead:
 
 **Wired to one object.** `PrinterDiscovery::parse_objects()` sets `has_snapmaker_` when
 the Klipper object list contains `filament_detect` — unique to U1 firmware
-(`include/printer_discovery.h:414-417`). Registration order matters: a real aftermarket
+(`include/printer_discovery.h:431-434`). Registration order matters: a real aftermarket
 MMU (AFC, Happy Hare, …) always wins even on U1 hardware that also reports
 `filament_detect`; the Snapmaker backend is the fallback for a stock U1 with no MMU,
-and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h:552-580`).
+and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h:569-597`).
 
 ### Status the Backend Reads
 
