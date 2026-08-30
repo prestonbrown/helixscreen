@@ -703,7 +703,12 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     h.backend->set_slot_info(0, slot);
 
     const int before = lv_subject_get_int(AmsState::instance().get_slots_version_subject());
-    REQUIRE_FALSE(SpoolmanManager::find_identity(1).has_value());
+    // Precondition WITHOUT find_identity(): that call is lookup-OR-FETCH, and
+    // its deferred cache-fill landing inside h.poll()'s drain would consume
+    // is_new for spool 1 - the poll below would then bump nothing and the
+    // assertion would flake on async delivery timing (#1403). cache_size()
+    // reads the same state without scheduling anything.
+    REQUIRE(IdTA::cache_size(SpoolmanManager::instance()) == 0);
 
     h.poll();
 
