@@ -78,6 +78,25 @@ void call_method_ref(T* instance, void (T::*method)(const V&), const V& value) {
 }
 
 /**
+ * @brief Queue a zero-argument member function call
+ *
+ * @tparam T Instance type
+ * @param instance Pointer to the object (must outlive the async call)
+ * @param method Member function pointer with signature void()
+ *
+ * @code
+ * helix::async::call_method(this, &PrinterState::clear_backlash_internal);
+ * @endcode
+ */
+template <typename T> void call_method(T* instance, void (T::*method)()) {
+    if (!instance) {
+        return;
+    }
+
+    helix::ui::queue_update([instance, method]() { (instance->*method)(); });
+}
+
+/**
  * @brief Queue a member function call with two parameters
  *
  * @tparam T Instance type

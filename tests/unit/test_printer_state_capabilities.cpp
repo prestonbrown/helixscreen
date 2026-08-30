@@ -487,3 +487,44 @@ TEST_CASE("PrinterState: a post-init answer still wins over the latched one",
 
     CHECK_FALSE(state.is_spoolman_available());
 }
+
+// ============================================================================
+// External z-offset persistence override (prestonbrown/helixscreen#1401)
+// ============================================================================
+
+TEST_CASE("PrinterState: an external z-offset persistence provider forces firmware-managed save",
+          "[printer_state][capabilities][1401]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    // An unknown printer resolves to probe/endstop from live probe state -
+    // never firmware-managed. Asserting that first is what makes the override
+    // assertion mean something.
+    state.set_printer_type_sync("Unknown Printer");
+    REQUIRE(state.get_z_offset_calibration_strategy() !=
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    REQUIRE(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 1);
+
+    // Discovery matched a provider (Helper-Script's save-zoffset wrapper, ZMOD,
+    // Forge-X): the module owns persistence, so Save Z Offset must stand down
+    // or its probe fold double-applies on every restart.
+    state.set_z_offset_external_persistence_internal("Helper-Script");
+    REQUIRE(state.get_z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    REQUIRE(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 0);
+
+    // Sticky across a type re-resolution that would recompute a
+    // probe/endstop strategy.
+    state.set_printer_type_sync("Another Unknown Printer");
+    REQUIRE(state.get_z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+
+    // And rediscovery without the module restores the type-derived strategy.
+    state.clear_z_offset_external_persistence_internal();
+    REQUIRE(state.get_z_offset_calibration_strategy() !=
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    REQUIRE(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 1);
+}
