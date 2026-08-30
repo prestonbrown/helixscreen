@@ -4,7 +4,6 @@
 #include "ui_crash_report_modal.h"
 
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "display_manager.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -39,6 +38,11 @@ CrashReportModal::CrashReportModal() {
 
 CrashReportModal::~CrashReportModal() {
     deinit_subjects();
+    // clear()-path teardown frees the instance without on_hide(), which is
+    // normally the one that drops the static pointer.
+    if (active_instance_ == this) {
+        active_instance_ = nullptr;
+    }
     spdlog::trace("[CrashReportModal] Destroyed");
 }
 
@@ -53,7 +57,6 @@ void CrashReportModal::set_report(const CrashReporter::CrashReport& report) {
 bool CrashReportModal::show_modal(lv_obj_t* parent) {
     register_callbacks();
     init_subjects();
-
     // Populate details subject with crash summary
     std::string details = "Signal: " + std::to_string(report_.signal) + " (" + report_.signal_name +
                           ")\nVersion: " + report_.app_version +
@@ -76,6 +79,22 @@ bool CrashReportModal::show_modal(lv_obj_t* parent) {
     }
 
     return result;
+}
+
+bool CrashReportModal::show_owned(const CrashReporter::CrashReport& report) {
+    auto modal = std::make_unique<CrashReportModal>();
+    modal->set_report(report);
+    if (!modal->show_modal(lv_screen_active())) {
+        // show_modal() already registered the XML-named subjects; the global
+        // subject map must not outlive the instance the unique_ptr frees here.
+        modal->deinit_subjects();
+        return false;
+    }
+    // Stack-owned one-shot: ModalStack frees the instance when its entry goes
+    // (#1382).
+    lv_obj_t* backdrop = modal->backdrop();
+    ModalStack::instance().assume_ownership(backdrop, std::move(modal));
+    return true;
 }
 
 // =============================================================================
@@ -105,11 +124,8 @@ void CrashReportModal::on_hide() {
     if (dm && dm->backend()) {
         dm->backend()->clear_framebuffer(0xFF000000);
     }
-
-    // Self-delete: this modal is heap-allocated in application.cpp startup
-    // and has no other owner. Deferred so hide() finishes before destruction.
-    auto* self = this;
-    helix::ui::async_call([](void* data) { delete static_cast<CrashReportModal*>(data); }, self);
+    // No self-delete: the ModalStack owns this instance and frees it when its
+    // entry goes (#1382).
 }
 
 // =============================================================================

@@ -540,7 +540,7 @@ void AboutSettingsOverlay::on_about_updates_unavailable_clicked(lv_event_t* /*e*
     // apply one itself. The command is the whole payload — without it the row
     // states a problem and offers nothing, which is what made the suppressed
     // state a dead end. The QR points at the docs for the longer story.
-    auto* modal = new helix::ui::InfoQrModal({
+    helix::ui::InfoQrModal::show_owned({
         .icon = "console",
         .title = lv_tr("Update from a Terminal"),
         // No command in here on purpose. The one-liner is not portable across the
@@ -555,7 +555,6 @@ void AboutSettingsOverlay::on_about_updates_unavailable_clicked(lv_event_t* /*e*
         .url = "https://helixscreen.org/docs/guide/getting-started/",
         .url_text = "helixscreen.org/docs",
     });
-    modal->show_modal(lv_screen_active());
     LVGL_SAFE_EVENT_CB_END();
 }
 

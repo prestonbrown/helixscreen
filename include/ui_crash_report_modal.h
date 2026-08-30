@@ -34,6 +34,10 @@ class CrashReportModal : public Modal {
     /// Show the modal on the given parent
     bool show_modal(lv_obj_t* parent);
 
+    /// One-shot form: show on the active screen and hand the instance to
+    /// ModalStack, which frees it when its entry goes (#1382).
+    static bool show_owned(const CrashReporter::CrashReport& report);
+
     const char* get_name() const override {
         return "Crash Report";
     }

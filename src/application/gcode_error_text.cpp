@@ -66,6 +66,13 @@ void GcodeErrorRouter::clean_error_text(std::string& text, std::string& out_code
             std::string json_str = text.substr(json_start, obj_end - json_start);
             try {
                 auto j = nlohmann::json::parse(json_str);
+                // Read the firmware's msg once: table entries that prefer it
+                // (key843: one code, several causes) decode with the real
+                // wording, and the uncoded fallback below reuses it.
+                std::string fw_msg;
+                if (j.contains("msg") && j["msg"].is_string()) {
+                    fw_msg = j["msg"].get<std::string>();
+                }
                 if (j.contains("code") && j["code"].is_string()) {
                     out_code = j["code"].get<std::string>();
                     nlohmann::json values = nlohmann::json::array();
@@ -74,7 +81,7 @@ void GcodeErrorRouter::clean_error_text(std::string& text, std::string& out_code
                     }
 #if HELIX_HAS_CFS
                     if (auto friendly = printer::CfsErrorDecoder::lookup_message_with_values(
-                            out_code, values)) {
+                            out_code, values, fw_msg)) {
                         text = friendly->first + ". " + friendly->second;
                         return;
                     }
@@ -82,8 +89,8 @@ void GcodeErrorRouter::clean_error_text(std::string& text, std::string& out_code
                     (void)values;
 #endif
                 }
-                if (j.contains("msg") && j["msg"].is_string()) {
-                    text = j["msg"].get<std::string>();
+                if (!fw_msg.empty()) {
+                    text = fw_msg;
                 }
             } catch (...) {
                 // Malformed JSON despite the {"code" prefix -- leave text

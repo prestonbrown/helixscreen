@@ -31,8 +31,9 @@
 //          content-sized parent, so the list collapsed to zero height — the
 //          rows were invisible even once they created.
 //
-// The modal self-deletes via on_hide() (heap-allocated in production), so these
-// tests heap-allocate and drain the async self-delete with process_lvgl().
+// The modal is a one-shot owned by its ModalStack entry (Modal::show_owned,
+// #1382): tests keep a raw view across show_owned() and stop touching the
+// instance once process_lvgl() has drained the entry's deferred free.
 
 namespace {
 
@@ -61,9 +62,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreflightCheckModal renders one visible row
         make_check(2, 0xF5A623, "PETG", -1, false, helix::ToolCheck::Severity::EmptySlot),
     };
 
-    auto* modal = new helix::ui::PreflightCheckModal();
+    auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
+    auto* modal = owned.get();
     modal->set_checks(pf);
-    REQUIRE(modal->show(test_screen()));
+    REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
     REQUIRE(modal->is_visible());
 
     // Run the event loop, then force a synchronous layout pass so geometry
@@ -90,7 +92,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreflightCheckModal renders one visible row
     REQUIRE(list_h >= rows_h);
     REQUIRE(list_h > 0);
 
-    modal->hide(); // on_hide() -> async self-delete
+    modal->hide(); // the entry frees the instance a tick later
     process_lvgl(50);
 }
 
@@ -134,9 +136,10 @@ bool remap_button_offered(lv_obj_t* screen, void (*process)(lv_obj_t*)) {
     helix::PreflightResult pf;
     pf.checks = {make_check(0, 0x2E8B57, "PLA", 0, true, helix::ToolCheck::Severity::Ok)};
 
-    auto* modal = new helix::ui::PreflightCheckModal();
+    auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
+    auto* modal = owned.get();
     modal->set_checks(pf);
-    REQUIRE(modal->show(screen));
+    REQUIRE(Modal::show_owned(std::move(owned), screen));
     process(screen);
 
     lv_obj_t* btn = lv_obj_find_by_name(screen, "btn_tertiary");

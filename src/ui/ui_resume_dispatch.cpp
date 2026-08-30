@@ -114,12 +114,16 @@ void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename
         }
     };
 
+    ConfirmOptions opts;
+    opts.on_cancel = declined;
+    opts.on_dismiss = declined;
+
     lv_obj_t* modal = modal_confirm(
         lv_tr("Print Was Terminated"), body.c_str(), ModalSeverity::Warning, lv_tr("Restart"),
         [api, filename, log_prefix, on_failure]() {
             restart_from_beginning(api, filename, log_prefix, on_failure);
         },
-        declined, nullptr, declined);
+        opts);
     if (!modal) {
         spdlog::error("{} Failed to create restart-from-beginning modal", log_prefix);
         if (on_failure) {

@@ -125,6 +125,28 @@ class Modal {
     static lv_obj_t* show(const char* component_name, const char** attrs = nullptr);
 
     /**
+     * @brief Show a heap modal and hand its lifetime to ModalStack
+     *
+     * The stack frees the instance when its entry leaves - exit-animation
+     * completion after any close, or clear() at teardown. This replaces the
+     * self-delete-from-on_hide() idiom, whose only free path was on_hide():
+     * any teardown that bypassed hide() (ModalStack::clear() at soft restart,
+     * hide()'s untracked-backdrop early return) leaked the object (#1382).
+     *
+     * One-shot modals only: an instance owned by the stack must never be
+     * reshown, because its entry - and with it the instance - is destroyed
+     * at the first close. Modals that are reshown stay owned by their member
+     * or unique_ptr holder and use show().
+     *
+     * @param modal The instance to show; freed here on either outcome
+     * @param parent Passed through to show() (ignored; always the active screen)
+     * @param attrs Optional XML attributes
+     * @return true if shown; on failure @p modal is destroyed, not leaked
+     */
+    static bool show_owned(std::unique_ptr<Modal> modal, lv_obj_t* parent,
+                           const char** attrs = nullptr);
+
+    /**
      * @brief Hide a modal by its dialog pointer
      * @param dialog Dialog object returned by show()
      * @param reason What closed it; Programmatic (the default) means the caller
@@ -338,10 +360,10 @@ class Modal {
     /// Shared by all three teardown paths (static hide, instance hide, ~Modal)
     /// so they cannot drift apart. Either argument may be null.
     /// @param owner When given, every event callback in the tree carrying this
-    ///        pointer as per-callback user_data is removed. A modal that frees
-    ///        itself from on_hide() is gone a tick later while its widgets live
-    ///        out the exit animation, and wire_button() parks `this` on every
-    ///        button it wires - without this strip those are dangling.
+    ///        pointer as per-callback user_data is removed. A stack-owned
+    ///        instance is freed only when its entry goes, while its widgets
+    ///        live out the exit animation first, and wire_button() parks `this`
+    ///        on every button it wires - without this strip those are dangling.
     static void disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner = nullptr);
 
     // Static event handlers
@@ -374,8 +396,12 @@ class ModalStack {
     void push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& component_name,
               Modal* owner = nullptr);
 
-    // Untrack a modal (called by Modal::destroy)
-    void remove(lv_obj_t* backdrop);
+    // Untrack a modal (called by Modal::destroy, animate_exit's no-animation
+    // branch, and exit_animation_done). An entry that owns its instance frees
+    // it here: synchronously when free_owned_now (timer context, preserves
+    // instance-before-widget-tree order), else deferred one tick (hide()'s
+    // frame is still on the stack).
+    void remove(lv_obj_t* backdrop, bool free_owned_now = false);
 
     /// Return the Modal instance that owns this dialog, or nullptr when the
     /// dialog is untracked or was created through the static factory.
@@ -405,31 +431,20 @@ class ModalStack {
         return stack_.empty();
     }
 
-    // Delete modal widgets and clear tracking (used during teardown after lv_anim_delete_all)
-    void clear() {
-        for (auto& entry : stack_) {
-            // Skip backdrops that LVGL already freed. A modal whose exit
-            // animation never completed stays in the stack as exiting=true with
-            // its remove() still owed to exit_animation_done(). If the backdrop's
-            // ancestor (e.g. the screen it was created on) is deleted first, LVGL
-            // frees the backdrop as part of that subtree — leaving a stale stack
-            // entry that points at freed memory. Deleting it again walks a
-            // poisoned object (obj->class_p) and crashes. Guard the same way
-            // exit_animation_done() and ~Modal already do (lv_obj_is_valid).
-            if (!entry.backdrop || !lv_obj_is_valid(entry.backdrop)) {
-                continue;
-            }
-            // Cancel animations before deletion — exit animation exec callbacks
-            // trigger lv_obj_set_style_*() which crashes on freed objects
-            lv_anim_delete(entry.backdrop, nullptr);
-            lv_obj_t* dialog = lv_obj_get_child(entry.backdrop, 0);
-            if (dialog) {
-                lv_anim_delete(dialog, nullptr);
-            }
-            lv_obj_delete(entry.backdrop);
-        }
-        stack_.clear();
-    }
+    /// Take ownership of a shown modal's instance. The entry must exist (its
+    /// show() succeeded); the instance is then freed when the entry leaves the
+    /// stack - at exit-animation completion after a hide(), or in clear().
+    /// This is the replacement for the self-delete-from-on_hide() idiom, which
+    /// leaked whenever teardown bypassed hide() (ModalStack::clear() at soft
+    /// restart, hide()'s untracked-backdrop early return) because nothing but
+    /// on_hide() ever freed the object (#1382).
+    void assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> instance);
+
+    // Delete modal widgets, free owned instances, and clear tracking (used
+    // during teardown after lv_anim_delete_all). Does NOT run on_hide(): a
+    // subclass hook that queues work during final teardown has nothing left
+    // to receive it.
+    void clear();
 
     // Mark a modal as exiting (animation in progress, ignore further hide() calls)
     // Returns true if found and marked, false if not found or already exiting
@@ -451,6 +466,10 @@ class ModalStack {
         std::string component_name;
         bool exiting; /**< true = exit animation in progress, ignore hide() calls */
         Modal* owner; /**< owning instance, or nullptr for static Modal::show() modals */
+        /// Set when this entry owns the instance (Modal::show_owned). Erasing
+        /// the entry frees it, so every path that empties the stack also frees
+        /// the modals it owns.
+        std::unique_ptr<Modal> owned_instance;
     };
 
     std::vector<ModalEntry> stack_;
@@ -558,6 +577,54 @@ lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalS
                                   std::optional<helix::LifetimeToken> dismiss_token = std::nullopt);
 
 /**
+ * @brief The optional tail of modal_confirm(), gathered into one struct
+ *
+ * C++17 has no designated initializers, so as positional parameters this tail
+ * forced every caller that wanted only a dismissal or only a token to thread
+ * nullptrs through the parameters in between - and each future parameter
+ * would have re-multiplied them. As a struct, a caller sets exactly the
+ * fields it means and leaves the rest defaulted.
+ */
+struct ConfirmOptions {
+    /// Cancel-button callback; unset for a close-only cancel
+    std::function<void()> on_cancel;
+
+    /// Cancel-button text; nullptr defaults to "Cancel"
+    const char* cancel_text = nullptr;
+
+    /// Fired when the dialog is closed by something other than the caller -
+    /// a backdrop tap, ESC, a hot-reload rebuild, or a button press whose
+    /// side carries no callback. The caller's own Modal::hide(dialog) does
+    /// NOT fire it: the caller already knows. Pass it whenever the caller
+    /// holds state the buttons are meant to resolve (a re-entry guard, a
+    /// pending flag, a stored handle); without it that state leaks on a
+    /// dismissal.
+    std::function<void()> on_dismiss;
+
+    /// Gates ALL THREE callbacks, not just the dismissal: none of them runs
+    /// once the token has expired. Pass it whenever a callback captures
+    /// something that can die before the dialog does - which is the usual
+    /// case, since the dialog outlives its exit animation. This is the one
+    /// thing the lv_event_cb_t form cannot offer: its callbacks are invoked
+    /// by LVGL directly off the button, so a capture there simply has to
+    /// outlive the dialog.
+    std::optional<helix::LifetimeToken> owner_token;
+};
+
+/**
+ * @brief The optional tail of modal_alert() - see ConfirmOptions for why a
+ *        struct. An alert has no cancel side, so only the dismissal report
+ *        and the token remain.
+ */
+struct AlertOptions {
+    /// See ConfirmOptions::on_dismiss
+    std::function<void()> on_dismiss;
+
+    /// See ConfirmOptions::owner_token
+    std::optional<helix::LifetimeToken> owner_token;
+};
+
+/**
  * @brief Confirmation dialog whose callbacks never touch a widget
  *
  * The declarative form of modal_show_confirmation(). The callbacks are
@@ -569,25 +636,13 @@ lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalS
  * This form also closes the dialog itself when a button is pressed - the
  * lv_event_cb_t form leaves that to the caller.
  *
- * @param on_dismiss Called when the dialog is closed by something other than
- *        the caller - a backdrop tap, ESC, a hot-reload rebuild, or a button
- *        press whose side carries no callback. The caller's own
- *        Modal::hide(dialog) does NOT fire it: the caller already knows.
- * @param owner_token Gates ALL THREE callbacks, not just the dismissal: none of
- *        them runs once the token has expired. Pass it whenever a callback
- *        captures something that can die before the dialog does - which is the
- *        usual case, since the dialog outlives its exit animation. This is the
- *        one thing the lv_event_cb_t form cannot offer: its callbacks are
- *        invoked by LVGL directly off the button, so a capture there simply has
- *        to outlive the dialog.
+ * @param options The optional tail - cancel callback/text, dismissal report,
+ *        owner token - one field per concern, nothing threaded positionally.
  * @return The created dialog widget, or nullptr on failure
  */
 lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity severity,
                         const char* confirm_text, std::function<void()> on_confirm,
-                        std::function<void()> on_cancel = nullptr,
-                        const char* cancel_text = nullptr,
-                        std::function<void()> on_dismiss = nullptr,
-                        std::optional<helix::LifetimeToken> owner_token = std::nullopt);
+                        const ConfirmOptions& options = {});
 
 /**
  * @brief Single-button alert whose callback never touches a widget
@@ -596,9 +651,7 @@ lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity se
  */
 lv_obj_t* modal_alert(const char* title, const char* message,
                       ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
-                      std::function<void()> on_ok = nullptr,
-                      std::function<void()> on_dismiss = nullptr,
-                      std::optional<helix::LifetimeToken> owner_token = std::nullopt);
+                      std::function<void()> on_ok = nullptr, const AlertOptions& options = {});
 
 /**
  * @brief Show an info/alert dialog with single "OK" button

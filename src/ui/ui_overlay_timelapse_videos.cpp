@@ -773,6 +773,10 @@ void TimelapseVideosOverlay::confirm_delete(const std::string& filename) {
         delete_confirmation_dialog_ = nullptr;
         pending_delete_filename_.clear();
     };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = drop_staged;
+    opts.on_dismiss = drop_staged;
+    opts.owner_token = lifetime_.token();
     delete_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Delete Video"), message.c_str(), ModalSeverity::Warning, lv_tr("Delete"),
         [this] {
@@ -803,9 +807,7 @@ void TimelapseVideosOverlay::confirm_delete(const std::string& filename) {
 
             pending_delete_filename_.clear();
         },
-        drop_staged,
-        nullptr, // cancel_text: default "Cancel"
-        drop_staged, lifetime_.token());
+        opts);
 }
 
 // ============================================================================

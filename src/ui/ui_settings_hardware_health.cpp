@@ -345,18 +345,20 @@ void HardwareHealthOverlay::handle_hardware_action(const char* hardware_name, bo
                  "Add '%s' to expected hardware?\n\nYou'll be notified if it's removed later.",
                  hw_name.c_str());
 
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [this] { handle_hardware_save_cancel(); };
+        opts.on_dismiss = [this] {
+            // Backdrop tap / ESC strands the same pending name cancel clears
+            hardware_save_dialog_ = nullptr;
+            pending_hardware_save_.clear();
+        };
+        opts.owner_token = lifetime_.token();
+
         // The dialog closes itself on either button; the stored handle only
         // feeds the close-existing guard above.
         hardware_save_dialog_ = helix::ui::modal_confirm(
             lv_tr("Save Hardware"), message_buf, ModalSeverity::Info, lv_tr("Save"),
-            [this] { handle_hardware_save_confirm(); }, [this] { handle_hardware_save_cancel(); },
-            nullptr, // cancel_text: default "Cancel"
-            [this] {
-                // Backdrop tap / ESC strands the same pending name cancel clears
-                hardware_save_dialog_ = nullptr;
-                pending_hardware_save_.clear();
-            },
-            lifetime_.token());
+            [this] { handle_hardware_save_confirm(); }, opts);
     }
 }
 

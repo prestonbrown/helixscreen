@@ -194,6 +194,8 @@ translations:
   Apply Changes: 应用更改
   Applying Changes: 正在应用更改
   Applying...: 正在应用...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: 确定要取消此打印吗？所有进度将丢失。
   Are you sure? This will power off or restart this device.: 确定吗？这将关闭或重启此设备。
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: 分配 Klipper
@@ -865,6 +867,7 @@ translations:
   Failed to analyze PRINT_START macro: 分析 PRINT_START 宏失败
   Failed to apply limits: 应用限制失败
   Failed to apply settings: 应用设置失败
+  Failed to archive spool: ''
   Failed to build raster data: 构建栅格数据失败
   'Failed to cancel: {}': '取消失败: {}'
   'Failed to clear print state: {}': 无法清除打印状态：{}
@@ -1248,6 +1251,7 @@ translations:
   'Invalid sheet template index: {} (have {})': '标签纸模板索引无效: {} (实际有 {})'
   Invalid status response from printer: 打印机返回的状态响应无效
   Issue description: 问题描述
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: 这是新料盘
   Jammed at the Toolhead: 工具头处堵塞
   Job Queue: 任务队列
@@ -2353,6 +2357,7 @@ translations:
   'Spool #{}': '线轴 #{}'
   Spool Info: 料盘信息
   Spool Weight (g): 料盘重量（克）
+  Spool archived: ''
   Spool created successfully: 料盘创建成功
   Spool deleted: 料盘已删除
   Spool motor: 料盘电机

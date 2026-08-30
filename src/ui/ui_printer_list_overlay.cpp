@@ -225,46 +225,42 @@ void PrinterListOverlay::handle_delete_printer(const std::string& printer_id) {
     // The id rides in the capture; the old module-static pending slot existed
     // only because the lv_event_cb_t form had no closure, and its clear-on-
     // dismiss lambda with it.
-    modal_confirm(
-        "Remove Printer", msg.c_str(), ModalSeverity::Error, "Remove",
-        [printer_id] {
-            if (printer_id.empty()) {
-                return;
-            }
+    modal_confirm("Remove Printer", msg.c_str(), ModalSeverity::Error, "Remove", [printer_id] {
+        if (printer_id.empty()) {
+            return;
+        }
 
-            auto* cfg = Config::get_instance();
-            if (cfg) {
-                bool was_active = (printer_id == cfg->get_active_printer_id());
-                spdlog::info("[PrinterListOverlay] Removing printer '{}'", printer_id);
-                cfg->remove_printer(printer_id);
-                cfg->save();
+        auto* cfg = Config::get_instance();
+        if (cfg) {
+            bool was_active = (printer_id == cfg->get_active_printer_id());
+            spdlog::info("[PrinterListOverlay] Removing printer '{}'", printer_id);
+            cfg->remove_printer(printer_id);
+            cfg->save();
 
-                if (was_active) {
-                    // Defer switch out of modal callback - soft restart tears down UI
-                    auto remaining = cfg->get_printer_ids();
-                    if (!remaining.empty()) {
-                        std::string next_id = remaining.front();
-                        helix::ui::queue_update([next_id]() {
-                            NavigationManager::instance().go_back(); // dismiss overlay
-                            NavigationManager::instance().trigger_printer_switch(next_id);
-                        });
-                    }
-                } else {
-                    // Defer repopulation out of modal callback to avoid widget
-                    // mutation mid-event
-                    helix::ui::queue_update([]() {
-                        auto* c = Config::get_instance();
-                        if (c) {
-                            auto remaining = c->get_printer_ids();
-                            get_printer_state().set_multi_printer_enabled(remaining.size() > 1);
-                        }
-                        get_printer_list_overlay().populate_printer_list();
+            if (was_active) {
+                // Defer switch out of modal callback - soft restart tears down UI
+                auto remaining = cfg->get_printer_ids();
+                if (!remaining.empty()) {
+                    std::string next_id = remaining.front();
+                    helix::ui::queue_update([next_id]() {
+                        NavigationManager::instance().go_back(); // dismiss overlay
+                        NavigationManager::instance().trigger_printer_switch(next_id);
                     });
                 }
+            } else {
+                // Defer repopulation out of modal callback to avoid widget
+                // mutation mid-event
+                helix::ui::queue_update([]() {
+                    auto* c = Config::get_instance();
+                    if (c) {
+                        auto remaining = c->get_printer_ids();
+                        get_printer_state().set_multi_printer_enabled(remaining.size() > 1);
+                    }
+                    get_printer_list_overlay().populate_printer_list();
+                });
             }
-        },
-        nullptr,  // on_cancel: nothing to undo
-        nullptr); // cancel_text: default "Cancel"
+        }
+    });
 }
 
 void PrinterListOverlay::handle_add_printer() {

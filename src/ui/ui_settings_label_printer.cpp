@@ -1453,6 +1453,8 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
         // The MAC rides in the capture; the old lv_event_cb_t form kept it in a
         // heap std::string that only the button callbacks freed, so a dismissal
         // leaked it (#1380).
+        helix::ui::ConfirmOptions opts;
+        opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
         auto* dialog = helix::ui::modal_confirm(
             lv_tr("Pair Bluetooth Printer"), msg.c_str(), ModalSeverity::Info, lv_tr("Pair"),
             [this, mac = device.mac] {
@@ -1556,10 +1558,7 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
                                                   3000);
                 }
             },
-            nullptr,            // on_cancel: nothing to undo
-            nullptr,            // cancel_text: default "Cancel"
-            nullptr,            // on_dismiss: no state to clear
-            lifetime_.token()); // owner_token: gates the confirm on this overlay
+            opts);
 
         if (!dialog) {
             spdlog::warn("[{}] Failed to show pairing modal", get_name());

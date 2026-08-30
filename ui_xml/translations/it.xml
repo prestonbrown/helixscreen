@@ -195,6 +195,8 @@
   <translation tag="Apply Changes" it="Applica modifiche"/>
   <translation tag="Applying Changes" it="Applicazione modifiche in corso"/>
   <translation tag="Applying..." it="Applicazione in corso..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." it="Sei sicuro di voler annullare questa stampa? Tutto il progresso verrà perso."/>
   <translation tag="Are you sure? This will power off or restart this device." it="Sei sicuro? Questo spegnerà o riavvierà questo dispositivo."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" it="Assegna macro Klipper per controllare LED tramite on/off, alternanza o preset"/>
@@ -857,6 +859,7 @@
   <translation tag="Failed to analyze PRINT_START macro" it="Analisi macro PRINT_START fallita"/>
   <translation tag="Failed to apply limits" it="Applicazione limiti fallita"/>
   <translation tag="Failed to apply settings" it="Applicazione impostazioni fallita"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" it="Costruzione dei dati raster non riuscita"/>
   <translation tag="Failed to cancel: {}" it="Impossibile annullare: {}"/>
   <translation tag="Failed to clear print state: {}" it="Impossibile cancellare lo stato di stampa: {}"/>
@@ -1223,6 +1226,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" it="Indice template foglio non valido: {} (disponibili {})"/>
   <translation tag="Invalid status response from printer" it="Risposta di stato non valida dalla stampante"/>
   <translation tag="Issue description" it="Descrizione problema"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" it="È una nuova bobina"/>
   <translation tag="Jammed at the Toolhead" it="Inceppato nella testina"/>
   <translation tag="Job Queue" it="Coda lavori"/>
@@ -2301,6 +2305,7 @@
   <translation tag="Spool #{}" it="Bobina #{}"/>
   <translation tag="Spool Info" it="Info bobina"/>
   <translation tag="Spool Weight (g)" it="Peso bobina (g)"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" it="Bobina creata con successo"/>
   <translation tag="Spool deleted" it="Bobina eliminata"/>
   <translation tag="Spool motor" it="Motore bobina"/>

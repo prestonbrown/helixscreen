@@ -67,6 +67,15 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
             if (code == "key840") {
                 e.recovery_actions.push_back(
                     {lv_tr("Reset CFS"), "BOX_ERROR_CLEAR", "error_classify::key840_reset"});
+            } else if (code == "key843") {
+                // key843 is the RFID-read failure: most often the box answering
+                // busy while mid-operation rather than a broken tag (#1387). It
+                // self-resolves when the box frees (the deferred insert probe
+                // lands) or the user re-seats a genuinely bad tag, so the key8xx
+                // blanket CRITICAL promotion is wrong here: CRITICAL without
+                // actions routes to a blocking modal whose advice would assert
+                // one cause for all of them. A toast needs no action.
+                e.severity = ErrorSeverity::WARNING;
             }
         } else if (code == "key298") {
             e.severity = ErrorSeverity::WARNING;

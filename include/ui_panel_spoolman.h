@@ -120,7 +120,12 @@ class SpoolmanPanel : public OverlayBase {
     void handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action, int spool_id);
     void set_active_spool(int spool_id);
     void duplicate_spool(int spool_id);
+    void archive_spool(int spool_id);
     void delete_spool(int spool_id);
+
+    /// "Display Name (#id)" for a confirm dialog, falling back to "Spool #id"
+    /// when the spool is no longer in the cache.
+    [[nodiscard]] std::string confirmation_spool_desc(int spool_id) const;
 
     void show_edit_modal(int spool_id);
 #if HELIX_HAS_LABEL_PRINTER

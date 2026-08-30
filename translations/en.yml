@@ -207,6 +207,8 @@ translations:
   Apply Changes: Apply Changes
   Applying Changes: Applying Changes
   Applying...: Applying...
+  Archive: Archive
+  Archive Spool?: Archive Spool?
   Are you sure you want to cancel this print? All progress will be lost.: Are you
     sure you want to cancel this print? All progress will be lost.
   Are you sure? This will power off or restart this device.: Are you sure? This will
@@ -927,6 +929,7 @@ translations:
   Failed to analyze PRINT_START macro: Failed to analyze PRINT_START macro
   Failed to apply limits: Failed to apply limits
   Failed to apply settings: Failed to apply settings
+  Failed to archive spool: Failed to archive spool
   Failed to build raster data: Failed to build raster data
   'Failed to cancel: {}': 'Failed to cancel: {}'
   'Failed to clear print state: {}': 'Failed to clear print state: {}'
@@ -1337,6 +1340,7 @@ translations:
     (have {})'
   Invalid status response from printer: Invalid status response from printer
   Issue description: Issue description
+  It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It's a new spool: It's a new spool
   Jammed at the Toolhead: Jammed at the Toolhead
   Job Queue: Job Queue
@@ -2514,6 +2518,7 @@ translations:
   'Spool #{}': 'Spool #{}'
   Spool Info: Spool Info
   Spool Weight (g): Spool Weight (g)
+  Spool archived: Spool archived
   Spool created successfully: Spool created successfully
   Spool deleted: Spool deleted
   Spool motor: Spool motor

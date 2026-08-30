@@ -1788,11 +1788,11 @@ void AmsState::sync_from_backend() {
                 any_slot_changed = true;
             }
 
-            // Update remaining filament string
-            std::string remaining;
-            if (slot->remaining_length_m > 0) {
-                remaining = std::to_string(static_cast<int>(slot->remaining_length_m)) + "m";
-            } else if (slot->remaining_weight_g > 0) {
+            // Update remaining filament string. The length helper hides the
+            // CFS sentinels (100 = never measured, 255 = failed probe, #1387);
+            // when it yields nothing, the weight carries the display.
+            std::string remaining = slot->remaining_length_display();
+            if (remaining.empty() && slot->remaining_weight_g > 0) {
                 remaining = std::to_string(static_cast<int>(slot->remaining_weight_g)) + "g";
             }
             if (strcmp(lv_subject_get_string(&slot_remaining_[i]), remaining.c_str()) != 0) {
@@ -2184,11 +2184,12 @@ void AmsState::update_slot(int slot_index) {
             changed = true;
         }
 
-        // Update remaining filament string
-        std::string remaining;
-        if (slot.remaining_length_m > 0) {
-            remaining = std::to_string(static_cast<int>(slot.remaining_length_m)) + "m";
-        } else if (slot.remaining_weight_g > 0) {
+        // Update remaining filament string. Same rule as sync_from_backend's
+        // per-slot loop: the length helper hides the CFS sentinels (100 = never
+        // measured, 255 = failed probe, #1387) and the weight carries the
+        // display when it yields nothing.
+        std::string remaining = slot.remaining_length_display();
+        if (remaining.empty() && slot.remaining_weight_g > 0) {
             remaining = std::to_string(static_cast<int>(slot.remaining_weight_g)) + "g";
         }
         if (strcmp(lv_subject_get_string(&slot_remaining_[slot_index]), remaining.c_str()) != 0) {

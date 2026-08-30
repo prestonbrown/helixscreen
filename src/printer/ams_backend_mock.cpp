@@ -1223,6 +1223,17 @@ void AmsBackendMock::force_slot_status(int slot_index, SlotStatus status) {
     }
 }
 
+void AmsBackendMock::force_slot_remaining(int slot_index, float remaining_m) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto* entry = slots_.get_mut(slot_index);
+    if (entry) {
+        entry->info.remaining_length_m = remaining_m;
+        spdlog::debug("[AmsBackendMock] Forced slot {} remaining length to {}", slot_index,
+                      remaining_m);
+    }
+}
+
 void AmsBackendMock::set_slot_error(int slot_index, std::optional<SlotError> error) {
     std::lock_guard<std::mutex> lock(mutex_);
 

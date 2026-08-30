@@ -3107,6 +3107,13 @@ void FilamentPanel::show_load_warning() {
 
     // Every close path drops the stored handle; only the buttons act past that.
     auto drop_handle = [this] { load_warning_dialog_ = nullptr; };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [drop_handle] {
+        drop_handle();
+        spdlog::debug("[FilamentPanel] Load cancelled by user");
+    };
+    opts.on_dismiss = drop_handle;
+    opts.owner_token = lifetime_.token();
     load_warning_dialog_ = helix::ui::modal_confirm(
         lv_tr("Filament Detected"),
         lv_tr("The toolhead sensor indicates filament is already loaded. "
@@ -3116,12 +3123,7 @@ void FilamentPanel::show_load_warning() {
             drop_handle(); // the dialog closes itself
             execute_load();
         },
-        [drop_handle] {
-            drop_handle();
-            spdlog::debug("[FilamentPanel] Load cancelled by user");
-        },
-        nullptr, // cancel_text: default "Cancel"
-        drop_handle, lifetime_.token());
+        opts);
 
     if (!load_warning_dialog_) {
         spdlog::error("[{}] Failed to create load warning dialog", get_name());
@@ -3139,6 +3141,13 @@ void FilamentPanel::show_unload_warning() {
     }
 
     auto drop_unload_handle = [this] { unload_warning_dialog_ = nullptr; };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [drop_unload_handle] {
+        drop_unload_handle();
+        spdlog::debug("[FilamentPanel] Unload cancelled by user");
+    };
+    opts.on_dismiss = drop_unload_handle;
+    opts.owner_token = lifetime_.token();
     unload_warning_dialog_ = helix::ui::modal_confirm(
         lv_tr("No Filament Detected"),
         lv_tr("The toolhead sensor indicates no filament is present. "
@@ -3148,12 +3157,7 @@ void FilamentPanel::show_unload_warning() {
             drop_unload_handle(); // the dialog closes itself
             execute_unload();
         },
-        [drop_unload_handle] {
-            drop_unload_handle();
-            spdlog::debug("[FilamentPanel] Unload cancelled by user");
-        },
-        nullptr, // cancel_text: default "Cancel"
-        drop_unload_handle, lifetime_.token());
+        opts);
 
     if (!unload_warning_dialog_) {
         spdlog::error("[{}] Failed to create unload warning dialog", get_name());

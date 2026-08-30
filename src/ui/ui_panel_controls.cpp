@@ -1112,12 +1112,14 @@ void ControlsPanel::handle_save_z_offset() {
             : lv_tr("This will apply the Z-offset to your endstop and restart Klipper to save the "
                     "configuration. The printer will briefly disconnect.");
 
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [this] { handle_save_z_offset_cancel(); };
+    opts.on_dismiss = [this] { save_z_offset_confirmation_dialog_.release(); }; // drop the handle
+    opts.owner_token = lifetime_.token();
+
     save_z_offset_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Save Z-Offset?"), confirm_msg, ModalSeverity::Warning, lv_tr("Save"),
-        [this] { handle_save_z_offset_confirm(); }, [this] { handle_save_z_offset_cancel(); },
-        nullptr,                                                  // cancel_text: default "Cancel"
-        [this] { save_z_offset_confirmation_dialog_.release(); }, // on_dismiss: drop the handle
-        lifetime_.token());
+        [this] { handle_save_z_offset_confirm(); }, opts);
 
     if (!save_z_offset_confirmation_dialog_) {
         LOG_ERROR_INTERNAL("Failed to create save Z-offset confirmation dialog");
@@ -1563,15 +1565,16 @@ void ControlsPanel::execute_macro(size_t index) {
 
     const auto& info = StandardMacros::instance().get(*slot);
     std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
+    helix::ui::ConfirmOptions opts;
+    opts.on_dismiss = [this] { macro_run_confirmation_dialog_.release(); };
+    opts.owner_token = lifetime_.token();
     macro_run_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
         [this, index] {
             macro_run_confirmation_dialog_.release(); // the dialog closes itself
             do_execute_macro(index);
         },
-        nullptr, // no cancel action beyond closing the dialog
-        nullptr, // cancel_text: default "Cancel"
-        [this] { macro_run_confirmation_dialog_.release(); }, lifetime_.token());
+        opts);
 }
 
 void ControlsPanel::do_execute_macro(size_t index) {
@@ -1764,14 +1767,15 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
 void ControlsPanel::handle_motors_clicked() {
     spdlog::debug("[{}] Motors Disable card clicked - showing confirmation", get_name());
 
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [this] { handle_motors_cancel(); };
+    opts.on_dismiss = [this] { motors_confirmation_dialog_.release(); }; // drop the handle
+    opts.owner_token = lifetime_.token();
+
     // ModalGuard's operator= hides any previous dialog before assigning new one
     motors_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Disable Motors?"), lv_tr("Release all stepper motors. Position will be lost."),
-        ModalSeverity::Warning, lv_tr("Disable"), [this] { handle_motors_confirm(); },
-        [this] { handle_motors_cancel(); },
-        nullptr,                                           // cancel_text: default "Cancel"
-        [this] { motors_confirmation_dialog_.release(); }, // on_dismiss: drop the handle
-        lifetime_.token());
+        ModalSeverity::Warning, lv_tr("Disable"), [this] { handle_motors_confirm(); }, opts);
 
     if (!motors_confirmation_dialog_) {
         LOG_ERROR_INTERNAL("Failed to create motors confirmation dialog");
