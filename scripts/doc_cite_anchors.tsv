@@ -660,8 +660,8 @@ docs/devel/architecture/14-build-platforms.md	mk/patches.mk	195	mk/patches.mk	1c
 docs/devel/architecture/14-build-platforms.md	mk/rules.mk	49	mk/rules.mk	ba63303391aa	95be71b076aa
 docs/devel/architecture/14-build-platforms.md	mk/rules.mk	123	mk/rules.mk	4ec48888fdc8	fe5f79475bd7
 docs/devel/architecture/14-build-platforms.md	mk/rules.mk	214	mk/rules.mk	677db6a5c24f	4aa693708d6e
-docs/devel/architecture/14-build-platforms.md	mk/tests.mk	397	mk/tests.mk	b76685ffd007	3dce62fd7aa3
-docs/devel/architecture/14-build-platforms.md	mk/tests.mk	400	mk/tests.mk	9717c7c7c221	bf7d67c957b0
+docs/devel/architecture/14-build-platforms.md	mk/tests.mk	408	mk/tests.mk	b76685ffd007	3dce62fd7aa3
+docs/devel/architecture/14-build-platforms.md	mk/tests.mk	411	mk/tests.mk	9717c7c7c221	bf7d67c957b0
 docs/devel/architecture/14-build-platforms.md	mk/translations.mk	84	mk/translations.mk	efc1f91df530	9f97ce07c4fc
 docs/devel/architecture/14-build-platforms.md	scripts/setup-worktree.sh	1	scripts/setup-worktree.sh	540d4428a52d	3de4973e80d9
 docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	199	src/api/display_backend.cpp	c89b2971ded9	01837564c908

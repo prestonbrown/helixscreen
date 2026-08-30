@@ -6,6 +6,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
@@ -16,8 +17,18 @@
 
 // Buffer size for render loop (frames per render call)
 // Larger = fewer source callbacks + better amortization of nanosleep overhead
-// 512 frames @ 16kHz = 32ms per buffer (good balance of latency vs efficiency)
+// 512 frames @ 8kHz = 64ms per buffer (good balance of latency vs efficiency);
+// mirrors PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES
 static constexpr size_t RENDER_BUFFER_FRAMES = 512;
+
+// Floor division for signed int64. C++ '/' truncates toward zero, but sample
+// arithmetic needs floor so a partial-sample deficit counts as a full sample
+// late (and a partial lead as a full sample early).
+static int64_t floor_div_i64(int64_t n, int64_t d) {
+    int64_t q = n / d;
+    int64_t r = n % d;
+    return (r != 0 && ((r < 0) != (d < 0))) ? q - 1 : q;
+}
 
 PWMSoundBackend::PWMSoundBackend(const std::string& base_path, int chip, int channel)
     : base_path_(base_path), chip_(chip), channel_(channel) {}
@@ -51,6 +62,20 @@ float PWMSoundBackend::waveform_duty_ratio(Waveform w) {
     return 0.50f;
 }
 
+int64_t PWMSoundBackend::park_probe_frames() {
+    return PCM_PARK_POLL_NS * PCM_SAMPLE_RATE / 1000000000LL;
+}
+
+int64_t PWMSoundBackend::samples_behind(int64_t now_ns, int64_t base_ns, int64_t sample_index,
+                                        int64_t interval_ns) {
+    return floor_div_i64(now_ns - (base_ns + sample_index * interval_ns), interval_ns);
+}
+
+int64_t PWMSoundBackend::resync_sample_index(int64_t now_ns, int64_t base_ns, int64_t interval_ns) {
+    int64_t index = floor_div_i64(now_ns - base_ns, interval_ns);
+    return index < 0 ? 0 : index;
+}
+
 bool PWMSoundBackend::supports_waveforms() const {
     return false;
 }
@@ -71,10 +96,45 @@ bool PWMSoundBackend::is_enabled() const {
     return enabled_;
 }
 
+bool PWMSoundBackend::try_export_channel() {
+    std::string chip_dir = base_path_ + "/pwmchip" + std::to_string(chip_);
+    if (!std::filesystem::exists(chip_dir)) {
+        return false;
+    }
+
+    std::string export_path = chip_dir + "/export";
+    int fd = ::open(export_path.c_str(), O_WRONLY);
+    if (fd < 0) {
+        spdlog::warn("[PWMSoundBackend] Cannot open {} for export (errno {})", export_path, errno);
+        return true;
+    }
+
+    std::string channel = std::to_string(channel_);
+    ssize_t written = ::write(fd, channel.c_str(), channel.size());
+    int write_errno = errno; // captured before close() can touch it
+    ::close(fd);
+
+    // EBUSY means the kernel already has this channel exported. Any other
+    // failure is worth a log line, but the caller's re-check of the channel
+    // directory decides the outcome.
+    if (written < 0 && write_errno != EBUSY) {
+        spdlog::warn("[PWMSoundBackend] Export write to {} failed (errno {})", export_path,
+                     write_errno);
+    }
+    return true;
+}
+
 bool PWMSoundBackend::initialize() {
     std::string path = channel_path();
     if (!std::filesystem::exists(path)) {
-        return false;
+#ifdef HELIX_PWM_AUTO_EXPORT
+        // The stock AD5M kernel ships the beeper channel unexported: nothing
+        // materializes pwm6 until its number is written to pwmchip0/export.
+        try_export_channel();
+#endif
+        if (!std::filesystem::exists(path)) {
+            return false;
+        }
     }
 
     // Pre-open file descriptors for fast writes in render loop

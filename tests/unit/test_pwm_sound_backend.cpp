@@ -159,8 +159,101 @@ TEST_CASE("PWM backend reports correct capabilities", "[sound][pwm]") {
 }
 
 // ============================================================================
+// PCM constants
+// ============================================================================
+
+TEST_CASE("PCM sample rate is 8 kHz", "[sound][pwm]") {
+    // Piezo roll-off is ~3-4 kHz; rendering faster buys no audible content
+    // while halving the time each duty-cycle write gets.
+    REQUIRE(PWMSoundBackend::PCM_SAMPLE_RATE == 8000);
+}
+
+TEST_CASE("PCM carrier frequency stays at 62.5 kHz", "[sound][pwm]") {
+    REQUIRE(PWMSoundBackend::PCM_CARRIER_HZ == 62500);
+}
+
+TEST_CASE("PCM pacing constants are pinned", "[sound][pwm]") {
+    REQUIRE(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES == 512);
+    REQUIRE(PWMSoundBackend::PCM_PARK_SILENT_BUFFERS == 8);
+    REQUIRE(PWMSoundBackend::PCM_PARK_POLL_NS == 10000000LL);
+    REQUIRE(PWMSoundBackend::PCM_CATCHUP_MAX_SAMPLES == 2);
+    REQUIRE(PWMSoundBackend::PCM_SPIN_BUDGET_NS == 20000LL);
+}
+
+TEST_CASE("park_probe_frames derives frames from poll interval and rate", "[sound][pwm]") {
+    // PCM_PARK_POLL_NS * PCM_SAMPLE_RATE / 1e9 = 10000000 * 8000 / 1e9 = 80
+    REQUIRE(PWMSoundBackend::park_probe_frames() == 80);
+}
+
+// ============================================================================
+// PCM pacing statics
+// ============================================================================
+
+TEST_CASE("samples_behind measures whole-sample lateness", "[sound][pwm]") {
+    const int64_t base = 1000000000000LL;
+    const int64_t interval = 125000LL; // 8 kHz
+    const int64_t deadline = base + 40 * interval;
+
+    REQUIRE(PWMSoundBackend::samples_behind(deadline, base, 40, interval) == 0);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + 1, base, 40, interval) == 0);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + interval - 1, base, 40, interval) == 0);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + interval, base, 40, interval) == 1);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + 3 * interval, base, 40, interval) == 3);
+}
+
+TEST_CASE("samples_behind floors rather than truncates when ahead of schedule", "[sound][pwm]") {
+    const int64_t base = 1000000000000LL;
+    const int64_t interval = 125000LL; // 8 kHz
+    const int64_t deadline = base + 40 * interval;
+
+    // 2.5 intervals ahead: floor(-2.5) = -3 (truncation would say -2)
+    REQUIRE(PWMSoundBackend::samples_behind(deadline - 2 * interval - interval / 2, base, 40,
+                                            interval) == -3);
+    // One ns past a whole two intervals ahead: floor(-(2i+1)/i) = -3
+    REQUIRE(PWMSoundBackend::samples_behind(base - 2 * interval - 1, base, 0, interval) == -3);
+}
+
+TEST_CASE("resync_sample_index clamps to zero and floors", "[sound][pwm]") {
+    const int64_t base = 1000000000000LL;
+    const int64_t interval = 125000LL; // 8 kHz
+
+    REQUIRE(PWMSoundBackend::resync_sample_index(base - 1, base, interval) == 0);
+    REQUIRE(PWMSoundBackend::resync_sample_index(base, base, interval) == 0);
+    REQUIRE(PWMSoundBackend::resync_sample_index(base + 7 * interval, base, interval) == 7);
+    REQUIRE(PWMSoundBackend::resync_sample_index(base + 8 * interval - 1, base, interval) == 7);
+}
+
+// ============================================================================
 // initialize() / shutdown() lifecycle
 // ============================================================================
+
+/// Create a fake sysfs pwmchip directory whose channel is NOT exported.
+/// Returns the base_path (caller must clean up).
+///
+/// Creates: <base>/pwmchip<chip>/{export,npwm} — no pwm<channel> directory.
+///
+/// A plain-file mock cannot reproduce the kernel materializing pwm<channel>
+/// in response to the export write, so initialize() still fails on this mock.
+/// Tests against it pin the export write itself, not the materialization.
+///
+/// `export` is seeded with "0" so an assertion of a written channel number
+/// distinguishes "backend wrote it" from "file was never touched".
+static std::string create_mock_sysfs_unexported(int chip = 0) {
+    std::string tmpl = "/tmp/pwm_test_XXXXXX";
+    char* dir = mkdtemp(tmpl.data());
+    REQUIRE(dir != nullptr);
+
+    std::string base(dir);
+    std::string chip_dir = base + "/pwmchip" + std::to_string(chip);
+
+    std::string mkdir_cmd = "mkdir -p " + chip_dir;
+    REQUIRE(system(mkdir_cmd.c_str()) == 0);
+
+    std::ofstream(chip_dir + "/export") << "0";
+    std::ofstream(chip_dir + "/npwm") << "16";
+
+    return base;
+}
 
 TEST_CASE("PWM backend initializes with valid sysfs paths", "[sound][pwm]") {
     auto base = create_mock_sysfs(0, 6);
@@ -174,6 +267,61 @@ TEST_CASE("PWM backend initializes with valid sysfs paths", "[sound][pwm]") {
 TEST_CASE("PWM backend fails to initialize with missing sysfs paths", "[sound][pwm]") {
     PWMSoundBackend backend("/tmp/nonexistent_pwm_path_12345", 0, 6);
     REQUIRE_FALSE(backend.initialize());
+}
+
+// ============================================================================
+// Channel auto-export on initialize()
+// ============================================================================
+
+TEST_CASE("initialize writes channel number to export when channel missing", "[sound][pwm]") {
+    auto base = create_mock_sysfs_unexported(0);
+
+    PWMSoundBackend backend(base, 0, 6);
+    // The mock never materializes pwm6, so the outcome stays failure — but the
+    // export write must have happened.
+    REQUIRE_FALSE(backend.initialize());
+    REQUIRE(read_sysfs_file(base + "/pwmchip0/export") == "6");
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("initialize does not touch export when channel exists", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+
+    // Sentinel: if initialize() writes to export, this gets clobbered
+    std::ofstream(base + "/pwmchip0/export") << "42";
+
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+    REQUIRE(read_sysfs_file(base + "/pwmchip0/export") == "42");
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("initialize tolerates unwritable export when channel already present", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+
+    // A directory at the export path makes any open-for-write fail EISDIR
+    // deterministically, even running as root.
+    std::string mkdir_cmd = "mkdir -p " + base + "/pwmchip0/export";
+    REQUIRE(system(mkdir_cmd.c_str()) == 0);
+
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("initialize returns false when no pwmchip exists", "[sound][pwm]") {
+    std::string tmpl = "/tmp/pwm_test_XXXXXX";
+    char* dir = mkdtemp(tmpl.data());
+    REQUIRE(dir != nullptr);
+    std::string base(dir);
+
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE_FALSE(backend.initialize());
+
+    cleanup_mock_sysfs(base);
 }
 
 TEST_CASE("PWM backend shutdown disables PWM output", "[sound][pwm]") {

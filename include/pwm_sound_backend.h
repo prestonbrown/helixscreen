@@ -7,6 +7,7 @@
 #include "sound_theme.h"
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -18,7 +19,7 @@
 /// Two modes of operation:
 /// 1. Tone mode: set_tone() writes frequency/duty to sysfs (SFX, system sounds)
 /// 2. PCM mode: render thread calls external render source, modulates PWM duty cycle
-///    at 16kHz to reproduce audio waveforms (tracker playback)
+///    at 8kHz to reproduce audio waveforms (tracker playback)
 ///
 /// Writes to /sys/class/pwm/pwmchipN/pwmM/{period,duty_cycle,enable}
 class PWMSoundBackend : public SoundBackend {
@@ -69,16 +70,61 @@ class PWMSoundBackend : public SoundBackend {
     /// Check if PWM is currently enabled
     bool is_enabled() const;
 
-    /// PCM render sample rate (Hz)
-    static constexpr int PCM_SAMPLE_RATE = 16000;
+    /// PCM render sample rate (Hz) — 8 kHz: the piezo's response rolls off
+    /// around 3-4 kHz, so rendering faster adds no audible content while
+    /// halving the wall-time each duty-cycle write gets
+    static constexpr int PCM_SAMPLE_RATE = 8000;
 
     /// PWM carrier frequency for PCM mode (Hz) — above audible range
     static constexpr int PCM_CARRIER_HZ = 62500;
+
+    /// Frames requested per render-source call — 512 @ 8 kHz = 64 ms per
+    /// buffer, amortizing sysfs write overhead without audible lag
+    static constexpr int PCM_RENDER_BUFFER_FRAMES = 512;
+
+    /// Consecutive exactly-silent buffers before the render loop parks the
+    /// channel (duty 0, enable 0) and drops to a 10 ms poll — 8 @ 64 ms
+    /// = ~512 ms of true silence means playback is over, not a quiet passage
+    static constexpr int PCM_PARK_SILENT_BUFFERS = 8;
+
+    /// Park poll interval (ns) — how often the parked loop re-checks for a
+    /// render source: 10 ms
+    static constexpr int64_t PCM_PARK_POLL_NS = 10000000LL;
+
+    /// Max samples to skip in one catch-up step after a scheduling stall —
+    /// a larger gap resyncs instead of replaying
+    static constexpr int PCM_CATCHUP_MAX_SAMPLES = 2;
+
+    /// Busy-wait budget at each sample deadline (ns) — sleep (TIMER_ABSTIME)
+    /// to deadline minus this budget, then spin the final stretch: 20 µs
+    /// absorbs hrtimer wake lateness without burning real CPU
+    static constexpr int64_t PCM_SPIN_BUDGET_NS = 20000LL;
+
+    /// Audio frames elapsed in one park poll interval: PCM_PARK_POLL_NS at
+    /// PCM_SAMPLE_RATE (10 ms @ 8 kHz = 80 frames)
+    static int64_t park_probe_frames();
+
+    /// Whole samples the render clock is late for sample_index's deadline —
+    /// floor((now_ns - (base_ns + sample_index*interval_ns)) / interval_ns).
+    /// Negative when ahead of schedule; floors (not truncates) so fractional
+    /// lateness in either direction counts as a full sample.
+    static int64_t samples_behind(int64_t now_ns, int64_t base_ns, int64_t sample_index,
+                                  int64_t interval_ns);
+
+    /// Sample index due at now_ns, clamped to 0 — the index to resume from
+    /// after a stall, floor((now_ns - base_ns) / interval_ns)
+    static int64_t resync_sample_index(int64_t now_ns, int64_t base_ns, int64_t interval_ns);
 
   private:
     void start_render_thread();
     void stop_render_thread();
     void render_loop();
+
+    /// Write channel_ to <base>/pwmchip<N>/export so the kernel materializes
+    /// the channel directory. Returns false only when the chip directory is
+    /// missing; a failed write is not fatal here — the caller re-checks the
+    /// channel directory, which is the authority on whether it worked.
+    bool try_export_channel();
 
     /// Switch PWM to PCM carrier frequency (fixed period, variable duty)
     void enter_pcm_mode();
