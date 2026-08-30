@@ -214,6 +214,7 @@
   <translation tag="Auto-lock" zh="自动锁定"/>
   <translation tag="Auto-poll for weight updates" zh="自动轮询重量更新"/>
   <translation tag="Auto-probe or manually check screw heights" zh="自动探测或手动检查螺丝高度"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" zh="自动渲染视频"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" zh="自动卸载仅适用于本地 Moonraker"/>

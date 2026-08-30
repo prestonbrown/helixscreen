@@ -241,6 +241,7 @@ translations:
   Auto-poll for weight updates: Aggiornamento peso automatico
   Auto-probe or manually check screw heights: Sondaggio automatico o controllo manuale
     dell'altezza delle viti
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Rendering video automatico
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: La disinstallazione automatica funziona

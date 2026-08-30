@@ -236,6 +236,7 @@ translations:
   Auto-poll for weight updates: Автоопрос обновлений веса
   Auto-probe or manually check screw heights: Автозондирование или ручная проверка
     высоты винтов
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Автоматический рендер видео
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: Автоудаление работает только с локальным

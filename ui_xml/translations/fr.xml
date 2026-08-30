@@ -214,6 +214,7 @@
   <translation tag="Auto-lock" fr="Verrouillage auto"/>
   <translation tag="Auto-poll for weight updates" fr="Interrogation auto des mises à jour de poids"/>
   <translation tag="Auto-probe or manually check screw heights" fr="Palpage auto ou vérification manuelle des hauteurs de vis"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" fr="Rendu vidéo automatique"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" fr="La désinstallation automatique ne fonctionne que sur Moonraker local"/>

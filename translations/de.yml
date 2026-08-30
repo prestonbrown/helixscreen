@@ -246,6 +246,7 @@ translations:
   Auto-poll for weight updates: Automatisch auf Gewichtsaktualisierungen prüfen
   Auto-probe or manually check screw heights: Automatisches Abtasten oder manuelle
     Prüfung der Schraubenhöhen
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Video automatisch rendern
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: Auto-Deinstallation funktioniert nur
