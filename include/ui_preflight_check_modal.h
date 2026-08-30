@@ -33,7 +33,8 @@ namespace helix::ui {
  * ToolCheck itself only carries the intended color/material.
  *
  * Mirrors SpaghettiDetectionModal: buttons wired programmatically in
- * on_show() via wire_*_button(); the heap object self-deletes in on_hide().
+ * on_show() via wire_*_button(). One-shot: shown through Modal::show_owned(),
+ * which hands the instance to ModalStack to free when its entry goes (#1382).
  */
 class PreflightCheckModal : public Modal {
   public:
@@ -62,7 +63,6 @@ class PreflightCheckModal : public Modal {
 
   protected:
     void on_show() override;
-    void on_hide() override;
     void on_ok() override { // Print Anyway
         if (on_force_)
             on_force_();

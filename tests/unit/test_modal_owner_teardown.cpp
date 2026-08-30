@@ -54,30 +54,25 @@ class TrackingModal : public Modal {
     }
 };
 
-/// Live-instance count for SelfDeletingModal, which mirrors the production
-/// subclasses (DebugBundleModal, PreflightCheckModal, SpaghettiDetectionModal,
-/// ...) that free themselves from on_hide().
+/// Live-instance count for StackOwnedModal, which mirrors the one-shot
+/// production modals (DebugBundleModal, PreflightCheckModal,
+/// SpaghettiDetectionModal, ...) shown through Modal::show_owned().
 int g_self_deleting_live = 0;
 
-class SelfDeletingModal : public Modal {
+class StackOwnedModal : public Modal {
   public:
-    SelfDeletingModal() {
+    StackOwnedModal() {
         ++g_self_deleting_live;
     }
-    ~SelfDeletingModal() override {
+    ~StackOwnedModal() override {
         --g_self_deleting_live;
     }
 
     const char* get_name() const override {
-        return "SelfDeletingModal";
+        return "StackOwnedModal";
     }
     const char* component_name() const override {
         return TEST_COMPONENT;
-    }
-    void on_hide() override {
-        auto* self = this;
-        helix::ui::async_call([](void* data) { delete static_cast<SelfDeletingModal*>(data); },
-                              self);
     }
 };
 
@@ -181,23 +176,46 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(Modal::get_top() == nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Self-deleting modal destructs when torn down statically",
-                 "[modal][1230]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "An owned modal instance is freed by its stack entry",
+                 "[modal][1230][1382]") {
     g_self_deleting_live = 0;
 
-    auto* modal = new SelfDeletingModal();
-    REQUIRE(modal->show(test_screen()));
+    // The one-shot idiom: show through the stack, which owns the instance from
+    // here on. The local unique_ptr is spent either way - no naked new.
+    auto modal = std::make_unique<StackOwnedModal>();
+    lv_obj_t* dialog = nullptr;
+    REQUIRE(Modal::show_owned(std::move(modal), test_screen()));
     REQUIRE(g_self_deleting_live == 1);
 
-    lv_obj_t* dialog = modal->dialog();
+    // Still shown, still owned: nothing freed yet.
+    dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
 
-    // on_hide() queues `delete this`; without owner-aware delegation the static
-    // overload never calls it and the heap object leaks.
+    // Any close - here the static overload the ~50 call sites use - ends in
+    // the entry's removal, which frees the instance.
     Modal::hide(dialog);
     process_lvgl(50);
 
     CHECK(g_self_deleting_live == 0);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
+// #1382: clear() never routes through hide(), so the self-delete idiom's only
+// free path never ran - every confirmation or one-shot modal open at a soft
+// restart leaked its C++ object. An entry-owned instance dies with the entry,
+// however the entry goes.
+TEST_CASE_METHOD(LVGLUITestFixture, "clear() frees owned modal instances",
+                 "[modal][teardown][1382]") {
+    g_self_deleting_live = 0;
+
+    auto modal = std::make_unique<StackOwnedModal>();
+    REQUIRE(Modal::show_owned(std::move(modal), test_screen()));
+    REQUIRE(g_self_deleting_live == 1);
+    REQUIRE(Modal::get_top() != nullptr);
+
+    ModalStack::instance().clear();
+
+    CHECK(g_self_deleting_live == 0); // freed, not leaked
     CHECK(ModalStack::instance().stack_empty());
 }
 

@@ -843,7 +843,11 @@ void ScrewsTiltPanel::handle_share_clicked() {
     if (screw_results_.empty()) {
         return;
     }
-    // Self-deleting modal — it removes itself on hide.
-    auto* modal = new helix::ui::ScrewsTiltShareModal(screw_results_);
-    modal->show_modal(nullptr);
+    // One-shot modal owned by ModalStack: freed when its entry goes (#1382).
+    auto modal = std::make_unique<helix::ui::ScrewsTiltShareModal>(screw_results_);
+    if (modal->show_modal(nullptr)) {
+        lv_obj_t* backdrop = modal->backdrop();
+        ModalStack::instance().assume_ownership(backdrop, std::move(modal));
+    }
+    // A failed show leaves the unique_ptr to free the instance.
 }

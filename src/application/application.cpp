@@ -923,9 +923,7 @@ int Application::run(int argc, char** argv) {
                 } else {
                     spdlog::info(
                         "[Application] Previous crash detected — showing crash report dialog");
-                    auto* modal = new CrashReportModal();
-                    modal->set_report(report);
-                    modal->show_modal(lv_screen_active());
+                    CrashReportModal::show_owned(report);
                 }
             }
         }
@@ -1920,11 +1918,10 @@ bool Application::init_panel_subjects() {
                                               lv_tr("Spaghetti detected — print paused"), 8000);
                 return;
             }
-            // DeferToSource: show the response modal. The modal self-deletes via its
-            // on_hide() override (async_call(delete this)) — LVGL/ModalStack cleanup
-            // never calls Modal::~Modal, so dropping this pointer is intentional and
-            // does NOT leak.
-            auto* modal = new SpaghettiDetectionModal();
+            // DeferToSource: show the response modal. Stack-owned via
+            // Modal::show_owned() (#1382): ModalStack frees the instance when
+            // its entry goes, on every teardown path.
+            auto modal = std::make_unique<SpaghettiDetectionModal>();
             // TODO(detection): attach latest camera frame when a stream is active
             modal->set_detection(e.message, nullptr);
             modal->set_on_resume([] {
@@ -1941,7 +1938,7 @@ bool Application::init_panel_subjects() {
                     nlohmann::json{{"script", "DEFECT_DETECTION_CONFIG NOODLE_SENSITIVITY=low"}},
                     nullptr, nullptr);
             });
-            modal->show(lv_screen_active());
+            Modal::show_owned(std::move(modal), lv_screen_active());
         });
     }
 
@@ -2447,9 +2444,9 @@ bool show_demo_overlay(const std::string& name) {
         empty.slot_present = false;
         empty.severity = helix::ToolCheck::Severity::EmptySlot;
         pf.checks = {ok, color, empty};
-        auto* modal = new helix::ui::PreflightCheckModal();
+        auto modal = std::make_unique<helix::ui::PreflightCheckModal>();
         modal->set_checks(pf);
-        modal->show(screen);
+        Modal::show_owned(std::move(modal), screen);
         return true;
     }
 

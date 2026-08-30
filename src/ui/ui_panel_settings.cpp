@@ -869,13 +869,12 @@ void SettingsPanel::show_restart_prompt() {
 
 void SettingsPanel::handle_debug_bundle_clicked() {
     spdlog::info("[SettingsPanel] Upload Debug Bundle clicked");
-    auto* modal = new DebugBundleModal();
-    modal->show_modal(lv_screen_active());
+    DebugBundleModal::show_owned();
 }
 
 void SettingsPanel::handle_discord_clicked() {
     spdlog::info("[SettingsPanel] Discord clicked");
-    auto* modal = new helix::ui::InfoQrModal({
+    helix::ui::InfoQrModal::show_owned({
         .icon = "message",
         .title = "Discord Community",
         .message = lv_tr("Join the HelixScreen community on Discord for discussion, "
@@ -883,12 +882,11 @@ void SettingsPanel::handle_discord_clicked() {
         .url = "https://discord.gg/RZCT2StKhr",
         .url_text = "discord.gg/RZCT2StKhr",
     });
-    modal->show_modal(lv_screen_active());
 }
 
 void SettingsPanel::handle_docs_clicked() {
     spdlog::info("[SettingsPanel] Documentation clicked");
-    auto* modal = new helix::ui::InfoQrModal({
+    helix::ui::InfoQrModal::show_owned({
         .icon = "book",
         .title = lv_tr("Documentation"),
         .message = lv_tr("Browse guides, configuration references, and troubleshooting "
@@ -896,7 +894,6 @@ void SettingsPanel::handle_docs_clicked() {
         .url = "https://helixscreen.org/docs/guide/getting-started/",
         .url_text = "helixscreen.org/docs",
     });
-    modal->show_modal(lv_screen_active());
 }
 
 void SettingsPanel::handle_sound_settings_clicked() {

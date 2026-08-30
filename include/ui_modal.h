@@ -125,6 +125,28 @@ class Modal {
     static lv_obj_t* show(const char* component_name, const char** attrs = nullptr);
 
     /**
+     * @brief Show a heap modal and hand its lifetime to ModalStack
+     *
+     * The stack frees the instance when its entry leaves - exit-animation
+     * completion after any close, or clear() at teardown. This replaces the
+     * self-delete-from-on_hide() idiom, whose only free path was on_hide():
+     * any teardown that bypassed hide() (ModalStack::clear() at soft restart,
+     * hide()'s untracked-backdrop early return) leaked the object (#1382).
+     *
+     * One-shot modals only: an instance owned by the stack must never be
+     * reshown, because its entry - and with it the instance - is destroyed
+     * at the first close. Modals that are reshown stay owned by their member
+     * or unique_ptr holder and use show().
+     *
+     * @param modal The instance to show; freed here on either outcome
+     * @param parent Passed through to show() (ignored; always the active screen)
+     * @param attrs Optional XML attributes
+     * @return true if shown; on failure @p modal is destroyed, not leaked
+     */
+    static bool show_owned(std::unique_ptr<Modal> modal, lv_obj_t* parent,
+                           const char** attrs = nullptr);
+
+    /**
      * @brief Hide a modal by its dialog pointer
      * @param dialog Dialog object returned by show()
      * @param reason What closed it; Programmatic (the default) means the caller
@@ -338,10 +360,10 @@ class Modal {
     /// Shared by all three teardown paths (static hide, instance hide, ~Modal)
     /// so they cannot drift apart. Either argument may be null.
     /// @param owner When given, every event callback in the tree carrying this
-    ///        pointer as per-callback user_data is removed. A modal that frees
-    ///        itself from on_hide() is gone a tick later while its widgets live
-    ///        out the exit animation, and wire_button() parks `this` on every
-    ///        button it wires - without this strip those are dangling.
+    ///        pointer as per-callback user_data is removed. A stack-owned
+    ///        instance is freed only when its entry goes, while its widgets
+    ///        live out the exit animation first, and wire_button() parks `this`
+    ///        on every button it wires - without this strip those are dangling.
     static void disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner = nullptr);
 
     // Static event handlers
@@ -374,8 +396,12 @@ class ModalStack {
     void push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& component_name,
               Modal* owner = nullptr);
 
-    // Untrack a modal (called by Modal::destroy)
-    void remove(lv_obj_t* backdrop);
+    // Untrack a modal (called by Modal::destroy, animate_exit's no-animation
+    // branch, and exit_animation_done). An entry that owns its instance frees
+    // it here: synchronously when free_owned_now (timer context, preserves
+    // instance-before-widget-tree order), else deferred one tick (hide()'s
+    // frame is still on the stack).
+    void remove(lv_obj_t* backdrop, bool free_owned_now = false);
 
     /// Return the Modal instance that owns this dialog, or nullptr when the
     /// dialog is untracked or was created through the static factory.
@@ -405,31 +431,20 @@ class ModalStack {
         return stack_.empty();
     }
 
-    // Delete modal widgets and clear tracking (used during teardown after lv_anim_delete_all)
-    void clear() {
-        for (auto& entry : stack_) {
-            // Skip backdrops that LVGL already freed. A modal whose exit
-            // animation never completed stays in the stack as exiting=true with
-            // its remove() still owed to exit_animation_done(). If the backdrop's
-            // ancestor (e.g. the screen it was created on) is deleted first, LVGL
-            // frees the backdrop as part of that subtree — leaving a stale stack
-            // entry that points at freed memory. Deleting it again walks a
-            // poisoned object (obj->class_p) and crashes. Guard the same way
-            // exit_animation_done() and ~Modal already do (lv_obj_is_valid).
-            if (!entry.backdrop || !lv_obj_is_valid(entry.backdrop)) {
-                continue;
-            }
-            // Cancel animations before deletion — exit animation exec callbacks
-            // trigger lv_obj_set_style_*() which crashes on freed objects
-            lv_anim_delete(entry.backdrop, nullptr);
-            lv_obj_t* dialog = lv_obj_get_child(entry.backdrop, 0);
-            if (dialog) {
-                lv_anim_delete(dialog, nullptr);
-            }
-            lv_obj_delete(entry.backdrop);
-        }
-        stack_.clear();
-    }
+    /// Take ownership of a shown modal's instance. The entry must exist (its
+    /// show() succeeded); the instance is then freed when the entry leaves the
+    /// stack - at exit-animation completion after a hide(), or in clear().
+    /// This is the replacement for the self-delete-from-on_hide() idiom, which
+    /// leaked whenever teardown bypassed hide() (ModalStack::clear() at soft
+    /// restart, hide()'s untracked-backdrop early return) because nothing but
+    /// on_hide() ever freed the object (#1382).
+    void assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> instance);
+
+    // Delete modal widgets, free owned instances, and clear tracking (used
+    // during teardown after lv_anim_delete_all). Does NOT run on_hide(): a
+    // subclass hook that queues work during final teardown has nothing left
+    // to receive it.
+    void clear();
 
     // Mark a modal as exiting (animation in progress, ignore further hide() calls)
     // Returns true if found and marked, false if not found or already exiting
@@ -451,6 +466,10 @@ class ModalStack {
         std::string component_name;
         bool exiting; /**< true = exit animation in progress, ignore hide() calls */
         Modal* owner; /**< owning instance, or nullptr for static Modal::show() modals */
+        /// Set when this entry owns the instance (Modal::show_owned). Erasing
+        /// the entry frees it, so every path that empties the stack also frees
+        /// the modals it owns.
+        std::unique_ptr<Modal> owned_instance;
     };
 
     std::vector<ModalEntry> stack_;

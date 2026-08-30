@@ -22,6 +22,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -139,7 +140,22 @@ void ModalStack::push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& c
                                     static_cast<long>(stack_.size()));
 }
 
-void ModalStack::remove(lv_obj_t* backdrop) {
+/// Delete a stack-owned instance, refusing if it managed to re-show itself.
+/// A one-shot that is visible again has a NEW stack entry tracking it; freeing
+/// here would leave that entry's owner dangling, so the instance is leaked
+/// loudly instead - the error names the programming mistake.
+static void free_owned_instance(Modal* instance) {
+    if (instance->is_visible()) {
+        spdlog::error("[ModalStack] owned instance '{}' re-shown before its free - leaking it "
+                      "rather than dangling the new entry's owner; show_owned() modals must be "
+                      "one-shot",
+                      instance->get_name());
+        return;
+    }
+    delete instance;
+}
+
+void ModalStack::remove(lv_obj_t* backdrop, bool free_owned_now) {
     auto it = std::find_if(stack_.begin(), stack_.end(),
                            [backdrop](const ModalEntry& e) { return e.backdrop == backdrop; });
     if (it != stack_.end()) {
@@ -147,7 +163,77 @@ void ModalStack::remove(lv_obj_t* backdrop) {
                       stack_.size() - 1);
         crash_handler::breadcrumb::note("modal-", it->component_name.c_str(),
                                         static_cast<long>(stack_.size() - 1));
+        std::unique_ptr<Modal> owned = std::move(it->owned_instance);
         stack_.erase(it);
+        if (owned) {
+            // An owned instance must die BEFORE its widget tree: subclass
+            // destructors may touch widgets they created in on_show()
+            // (BufferStatusModal's meter walks LVGL's event list on its
+            // objects), and hide() has already nulled the instance's own
+            // pointers so ~Modal takes its trivial path and leaves the tree
+            // alone. exit_animation_done() passes free_owned_now=true: it runs
+            // in LVGL's timer context, outside any hide() frame, and freeing
+            // there - before the backdrop deletion it queues next - preserves
+            // the instance-then-tree order the self-delete idiom had. The
+            // animations-off path runs remove() inside Modal::hide()'s frame
+            // (via animate_exit), whose trailing statements must not run on
+            // freed memory, so there the free is deferred one tick instead.
+            Modal* doomed = owned.release();
+            if (free_owned_now) {
+                free_owned_instance(doomed);
+            } else {
+                helix::ui::async_call(
+                    [](void* data) { free_owned_instance(static_cast<Modal*>(data)); }, doomed);
+            }
+        }
+    }
+}
+
+void ModalStack::assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> instance) {
+    for (auto& entry : stack_) {
+        if (entry.backdrop == backdrop) {
+            entry.owner = instance.get();
+            entry.owned_instance = std::move(instance);
+            return;
+        }
+    }
+    spdlog::warn("[ModalStack] assume_ownership: backdrop not in stack - freeing the instance");
+    // The unique_ptr frees it here; ~Modal sees its own hide()-nulled pointers.
+}
+
+void ModalStack::clear() {
+    // Drain from the top, one entry at a time: freeing an owned instance can
+    // erase its own entry (~Modal -> remove()), so holding an iterator across
+    // the loop body is unsafe. Each entry is moved out first.
+    while (!stack_.empty()) {
+        auto entry = std::move(stack_.back());
+        stack_.pop_back();
+
+        // Free the instance first. Its ~Modal finds no stack entry (popped
+        // above) and takes the already-untracked path - no widget cleanup,
+        // no second remove() - so this loop owns deleting the widgets for
+        // owned and unowned entries alike.
+        entry.owned_instance.reset();
+
+        // Skip backdrops that LVGL already freed. A modal whose exit
+        // animation never completed stays in the stack as exiting=true with
+        // its remove() still owed to exit_animation_done(). If the backdrop's
+        // ancestor (e.g. the screen it was created on) is deleted first, LVGL
+        // frees the backdrop as part of that subtree - leaving a stale entry
+        // that points at freed memory. Deleting it again walks a poisoned
+        // object (obj->class_p) and crashes. Guard the same way
+        // exit_animation_done() and ~Modal already do (lv_obj_is_valid).
+        if (!entry.backdrop || !lv_obj_is_valid(entry.backdrop)) {
+            continue;
+        }
+        // Cancel animations before deletion - exit animation exec callbacks
+        // trigger lv_obj_set_style_*() which crashes on freed objects
+        lv_anim_delete(entry.backdrop, nullptr);
+        lv_obj_t* dialog = lv_obj_get_child(entry.backdrop, 0);
+        if (dialog) {
+            lv_anim_delete(dialog, nullptr);
+        }
+        lv_obj_delete(entry.backdrop);
     }
 }
 
@@ -363,8 +449,11 @@ void ModalStack::exit_animation_done(lv_anim_t* anim) {
     }
     lv_anim_delete(backdrop, nullptr);
 
-    // Remove from stack (animation is complete, safe to remove)
-    stack.remove(backdrop);
+    // Remove from stack (animation is complete, safe to remove) and free an
+    // owned instance NOW, in this timer context: the backdrop deletion queued
+    // below must come after the instance's death, or a subclass destructor
+    // that touches its widgets (BufferStatusModal's meter) walks freed memory.
+    stack.remove(backdrop, /*free_owned_now=*/true);
 
     // Hide immediately, then defer actual deletion to the next LVGL tick.
     // MUST use lv_obj_delete_async() (not a custom lv_async_call lambda) so
@@ -562,12 +651,12 @@ void Modal::disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner) {
         lv_obj_remove_event_cb(backdrop, esc_key_cb);
     }
 
-    // An instance that frees itself from on_hide() is gone on the next tick
-    // while these widgets live out MODAL_EXIT_DURATION_MS. Any callback still
-    // carrying it - wire_button()'s hooks, or one a subclass added - would then
-    // dispatch on freed memory. disable_clicks_in_tree() stops a finger from
-    // reaching them, but not lv_obj_send_event (which `ctl click` and tests
-    // use, and which ignores the CLICKABLE flag).
+    // A stack-owned instance is freed when its entry goes, while these widgets
+    // live out MODAL_EXIT_DURATION_MS first. Any callback still carrying it -
+    // wire_button()'s hooks, or one a subclass added - would then dispatch on
+    // freed memory. disable_clicks_in_tree() stops a finger from reaching
+    // them, but not lv_obj_send_event (which `ctl click` and tests use, and
+    // which ignores the CLICKABLE flag).
     if (owner) {
         // backdrop is the dialog's parent, so one walk from there covers both.
         remove_owner_callbacks_in_tree(backdrop ? backdrop : dialog, owner);
@@ -636,6 +725,17 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
 
     spdlog::info("[Modal] Modal shown successfully");
     return dialog;
+}
+
+bool Modal::show_owned(std::unique_ptr<Modal> modal, lv_obj_t* parent, const char** attrs) {
+    Modal* raw = modal.get();
+    if (!raw->show(parent, attrs)) {
+        // The unique_ptr frees the failed instance; show() already cleaned up
+        // any partially built widgets.
+        return false;
+    }
+    ModalStack::instance().assume_ownership(raw->backdrop(), std::move(modal));
+    return true;
 }
 
 // If any visible (non-exiting) modal remains, bring the new topmost one to the
@@ -848,17 +948,14 @@ void Modal::hide(ModalCloseReason reason) {
     // Cancel all deferred async callbacks before any widget cleanup
     lifetime_.invalidate();
 
-    // Make the tree inert before anything can dispatch into a subclass that
-    // on_hide() may be about to delete (e.g. CrashReportModal's
-    // async_call(delete this)).
+    // Make the tree inert before anything can dispatch into a subclass whose
+    // on_hide() may queue its own teardown work.
     disarm_tree(backdrop_, dialog_, this);
 
-    // Drop the stack's owner pointer before the hook runs. Two reasons: a
-    // subclass that self-deletes from on_hide() via async_call(delete this) is
-    // freed on the next LVGL tick while the entry lives until the exit
-    // animation completes, and an on_hide() that reaches back into the static
-    // Modal::hide(dialog) overload would otherwise be delegated straight back
-    // into this function. Nothing may read the owner after this point.
+    // Drop the stack's owner pointer before the hook runs: an on_hide() that
+    // reaches back into the static Modal::hide(dialog) overload would
+    // otherwise be delegated straight back into this function. Nothing may
+    // read the owner after this point.
     ModalStack::instance().reassign_owner(backdrop_, nullptr);
 
     // Call hook before destruction
@@ -1269,10 +1366,11 @@ class ModalConfigRollback {
 /// to, the static hide() overload runs real teardown, and on_hide() runs however
 /// the dialog closed.
 ///
-/// Self-deletes from on_hide(), the idiom used by InfoQrModal, CrashReportModal
-/// and eight others. Modal::disarm_tree() strips every callback carrying `this`
-/// before that happens, so the widgets outliving it by one exit animation cannot
-/// dispatch into freed memory.
+/// One-shot, like InfoQrModal, CrashReportModal and the other show_owned()
+/// modals: build_confirmation() hands the instance to the stack, which frees it
+/// when its entry goes (#1382). Modal::disarm_tree() strips every callback
+/// carrying `this` before the entry's removal, so the widgets outliving it by
+/// one exit animation cannot dispatch into freed memory.
 class ConfirmationModal : public Modal {
   public:
     ConfirmationModal(std::string title, std::string message, std::function<void()> on_dismiss,
@@ -1362,8 +1460,9 @@ class ConfirmationModal : public Modal {
                 helix::ui::queue_update(std::move(on_dismiss_));
             }
         }
-        helix::ui::async_call([](void* data) { delete static_cast<ConfirmationModal*>(data); },
-                              this);
+        // No self-delete: the stack entry owns this instance and frees it when
+        // the entry goes (#1382) - at exit-animation completion, or in clear()
+        // at teardown, which is the path the old async delete never covered.
     }
 
   private:
@@ -1479,17 +1578,22 @@ lv_obj_t* build_confirmation(const char* title, const char* message, ModalSeveri
                                has_cancel ? (cancel_text ? cancel_text : lv_tr("Cancel"))
                                           : nullptr);
 
-    auto* owner =
-        new ConfirmationModal(title, message, std::move(on_dismiss), std::move(owner_token));
+    auto owner = std::make_unique<ConfirmationModal>(title, message, std::move(on_dismiss),
+                                                     std::move(owner_token));
     setup(*owner);
     if (!owner->show_dialog()) {
         spdlog::error("[Modal] Failed to create dialog: '{}'", title);
-        delete owner;
-        return nullptr;
+        return nullptr; // the unique_ptr frees the never-shown instance
     }
+    // The stack owns the instance from here: freed when its entry goes, by
+    // whichever path that is (#1382). Grab the widgets before the move: the
+    // two arguments below read owner, and argument evaluation is unsequenced.
+    lv_obj_t* dialog = owner->dialog();
+    lv_obj_t* backdrop = owner->backdrop();
+    ModalStack::instance().assume_ownership(backdrop, std::move(owner));
     rollback.commit();
     spdlog::debug("[Modal] Dialog shown: '{}'", title);
-    return owner->dialog();
+    return dialog;
 }
 
 } // namespace

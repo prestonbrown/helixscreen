@@ -5,7 +5,6 @@
 
 #include "ui_icon.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
@@ -185,15 +184,6 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
     }
 
     return row;
-}
-
-void PreflightCheckModal::on_hide() {
-    // Self-delete the heap object once hidden. ModalStack/LVGL cleanup never
-    // calls Modal::~Modal, so the C++ object must free itself here or it leaks
-    // on every show. Deferred via async_call so we never delete `this`
-    // mid-event. Mirrors SpaghettiDetectionModal::on_hide().
-    auto* self = this;
-    helix::ui::async_call([](void* data) { delete static_cast<PreflightCheckModal*>(data); }, self);
 }
 
 } // namespace helix::ui

@@ -2783,14 +2783,13 @@ void PrintSelectPanel::start_print(bool force) {
 }
 
 void PrintSelectPanel::show_preflight_modal(const helix::PreflightResult& pf) {
-    // Heap-allocated; self-deletes in PreflightCheckModal::on_hide() (LVGL /
-    // ModalStack cleanup never calls Modal::~Modal). Mirrors the spaghetti
-    // detection modal's lifecycle.
-    auto* modal = new helix::ui::PreflightCheckModal();
+    // Stack-owned one-shot: Modal::show_owned() hands the instance to
+    // ModalStack, which frees it when its entry goes (#1382).
+    auto modal = std::make_unique<helix::ui::PreflightCheckModal>();
     modal->set_checks(pf);
     modal->set_on_force([]() { get_global_print_select_panel().start_print(true); });
     modal->set_on_remap([]() { get_global_print_select_panel().on_preflight_remap(); });
-    modal->show(lv_screen_active());
+    Modal::show_owned(std::move(modal), lv_screen_active());
 }
 
 void PrintSelectPanel::on_preflight_remap() {
