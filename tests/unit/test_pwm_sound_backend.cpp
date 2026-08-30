@@ -640,8 +640,15 @@ namespace {
 /// of sleeping, so a whole park/resume cycle runs in milliseconds of real
 /// time. arm_jump() schedules a one-shot forward jump that fires inside the
 /// next read() — the catch-up test uses it to simulate a scheduling stall.
+/// wait_until() also records every deadline it receives; the pacing test
+/// asserts on them after the render thread is joined.
 class VirtualClock {
   public:
+    /// Virtual time starts here — far from machine-uptime-scale CLOCK_MONOTONIC
+    /// values, so a schedule base wrongly derived from the real clock is
+    /// trivially distinguishable.
+    static constexpr int64_t START_NS = 1000000000LL;
+
     int64_t read() {
         if (jump_armed_.exchange(false)) {
             now_ += jump_ns_;
@@ -653,6 +660,8 @@ class VirtualClock {
         if (deadline > now_) {
             now_ = deadline;
         }
+        deadlines_.push_back(deadline);
+        deadline_count_.fetch_add(1, std::memory_order_release);
     }
 
     void arm_jump(int64_t ns) {
@@ -660,12 +669,24 @@ class VirtualClock {
         jump_armed_.store(true);
     }
 
+    /// Deadlines received so far (safe to poll from the test thread).
+    int64_t deadline_count() const {
+        return deadline_count_.load(std::memory_order_acquire);
+    }
+
+    /// Full deadline log — only valid after the render thread is joined.
+    const std::vector<int64_t>& deadlines() const {
+        return deadlines_;
+    }
+
   private:
-    // now_ is only touched from the render thread (both seams run there);
-    // the test thread only arms the jump through the atomics below.
-    int64_t now_ = 1000000000LL; // arbitrary nonzero start
+    // now_/deadlines_ are only touched from the render thread (both seams run
+    // there); the test thread only arms the jump and reads the counters.
+    int64_t now_ = START_NS;
     int64_t jump_ns_ = 0;
     std::atomic<bool> jump_armed_{false};
+    std::vector<int64_t> deadlines_;
+    std::atomic<int64_t> deadline_count_{0};
 };
 
 /// Mock sysfs + initialized backend with the virtual clock and a shrunken
@@ -836,6 +857,52 @@ TEST_CASE("catch-up drops samples instead of bursting", "[sound][pwm]") {
     REQUIRE(buffer_writes[2] > 480); // bounded drop: ~10 samples, not the buffer
     // And the loop keeps running normally afterwards.
     REQUIRE(buffer_writes[3] == 512);
+}
+
+TEST_CASE("steady playback paces from the virtual clock's base", "[sound][pwm]") {
+    PwmVirtualRun run(8); // non-silent content never parks
+    run.backend->set_render_source([](float* buf, size_t frames, int) {
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.5f;
+        }
+    });
+
+    const int64_t interval = 1000000000LL / PWMSoundBackend::PCM_SAMPLE_RATE;
+    REQUIRE(wait_for([&] { return run.clock.deadline_count() >= 24; }));
+    run.backend->clear_render_source();
+
+    const std::vector<int64_t>& deadlines = run.clock.deadlines();
+    REQUIRE(deadlines.size() >= 24);
+    // The schedule base must come from the injected clock (virtual start +
+    // one sample interval for the first deadline). A CLOCK_MONOTONIC base
+    // sits at machine-uptime scale — far outside this window.
+    REQUIRE(deadlines[0] - VirtualClock::START_NS <= 2 * interval);
+    // Steady pacing: every consecutive deadline is exactly one sample
+    // interval after the previous one.
+    for (size_t i = 1; i < deadlines.size(); i++) {
+        REQUIRE(deadlines[i] - deadlines[i - 1] == interval);
+    }
+}
+
+TEST_CASE("a render source that fills nothing parks - stale buffer content is not audio",
+          "[sound][pwm]") {
+    std::atomic<int> full_buffers{0};
+    PwmVirtualRun run(2);
+    run.backend->set_render_source([&full_buffers](float* buf, size_t frames, int) {
+        if (frames != static_cast<size_t>(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES)) {
+            return; // probe calls: write nothing
+        }
+        // First buffer: real audio. Every later buffer: return without
+        // touching the buffer — only the loop's pre-clear makes those silent;
+        // without it the stale non-zero content would play (and never park).
+        if (full_buffers.fetch_add(1) == 0) {
+            for (size_t i = 0; i < frames; i++) {
+                buf[i] = 0.5f;
+            }
+        }
+    });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
 }
 
 TEST_CASE("render thread applies SCHED_IDLE", "[sound][pwm]") {
