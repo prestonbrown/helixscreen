@@ -124,6 +124,7 @@
   <translation tag="Acceleration to deceleration limit (mm/s²)" ru="Предел ускорения к торможению (мм/с²)"/>
   <translation tag="Accelerometer" ru="Акселерометр"/>
   <translation tag="Accelerometer communication failed. Try again." ru="Связь с акселерометром потеряна. Попробуйте снова."/>
+  <translation tag="Accelerometers" ru="Акселерометры"/>
   <translation tag="Accept" ru="Принять"/>
   <translation tag="Accepted Z Position: 0.000" ru="Принятая позиция Z: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ru="Принятая позиция Z: {:.3f}"/>
@@ -207,6 +208,7 @@
   <translation tag="Auto" ru="Авто"/>
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
   <translation tag="Auto Cal" ru="Авто кал."/>
+  <translation tag="Auto Fans" ru="Автоматические вентиляторы"/>
   <translation tag="Auto-Detect" ru="Автоопределение"/>
   <translation tag="Auto-Heat on Load" ru="Автонагрев при загрузке"/>
   <translation tag="Auto-detect" ru="Автоопределение"/>
@@ -483,6 +485,7 @@
   <translation tag="Collecting debug info..." ru="Сбор отладочной информации..."/>
   <translation tag="Color" ru="Цвет"/>
   <translation tag="Color Mismatch" ru="Несоответствие цвета"/>
+  <translation tag="Color Sensors" ru="Датчики цвета"/>
   <translation tag="Communication Test" ru="Проверка связи"/>
   <translation tag="Compact" ru="Компактный"/>
   <translation tag="Comparison" ru="Сравнение"/>
@@ -561,6 +564,7 @@
   <translation tag="Continue" ru="Продолжить"/>
   <translation tag="Control optional print start features" ru="Управление дополнительными функциями начала печати"/>
   <translation tag="Control power relays and smart outlets" ru="Управление реле и умными розетками"/>
+  <translation tag="Controllable Fans" ru="Управляемые вентиляторы"/>
   <translation tag="Controlled by hardware sensor" ru="Управляется аппаратным датчиком"/>
   <translation tag="Controller" ru="Контроллер"/>
   <translation tag="Controls" ru="Управление"/>
@@ -671,6 +675,7 @@
   <translation tag="Dev" ru="Разработка"/>
   <translation tag="Dev channel requires dev_url in config" ru="Dev-канал требует dev_url в конфиге"/>
   <translation tag="Device" ru="Устройство"/>
+  <translation tag="Device Section" ru="Раздел устройств"/>
   <translation tag="Device connected" ru="Устройство подключено"/>
   <translation tag="Device name" ru="Имя устройства"/>
   <translation tag="Device name is required" ru="Требуется название устройства"/>
@@ -1159,6 +1164,7 @@
   <translation tag="Hub &amp; Cutter" ru="Хаб и резак"/>
   <translation tag="Hub Bowden Length" ru="Длина боудена хаба"/>
   <translation tag="Humidity" ru="Влажность"/>
+  <translation tag="Humidity Sensors" ru="Датчики влажности"/>
   <translation tag="Hyperlapse" ru="Гиперлапс"/>
   <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." ru="Гиперлапс захватывает кадры через фиксированные интервалы времени. Подходит для очень долгих печатей."/>
   <translation tag="ID (optional)" ru="ID (необязательно)"/>
@@ -1498,6 +1504,7 @@
   <translation tag="Network name cannot be empty" ru="Имя сети не может быть пустым"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." ru="Сеть, дисплей, звук, настройка принтера и многое другое. Этот тур можно повторить в любой момент из раздела «Справка и о программе»."/>
   <translation tag="Never" ru="Никогда"/>
+  <translation tag="New Spool" ru="Новая катушка"/>
   <translation tag="New Spool: Step 1 of 3" ru="Новая катушка: Шаг 1 из 3"/>
   <translation tag="New Spool: Step {} of {}" ru="Новая катушка: шаг {} из {}"/>
   <translation tag="New Version Available" ru="Доступна новая версия"/>
@@ -1645,7 +1652,7 @@
   <translation tag="On/Off" ru="Вкл/Выкл"/>
   <translation tag="On/Off (state-aware)" ru="Вкл/Выкл (с отслеживанием)"/>
   <translation tag="On:" ru="Вкл:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." ru="Один тап запускает этот макрос без параметров. Опасные макросы всё равно запрашивают подтверждение."/>
   <translation tag="Ooze Reduction" ru="Снижение подтекания"/>
   <translation tag="Open" ru="Открыть"/>
   <translation tag="Open G-code command console" ru="Открыть консоль команд G-code"/>
@@ -1880,6 +1887,7 @@
   <translation tag="Probe Accuracy Failed" ru="Ошибка теста точности зонда"/>
   <translation tag="Probe Accuracy Test" ru="Тест точности датчика"/>
   <translation tag="Probe Management" ru="Управление датчиком"/>
+  <translation tag="Probe Sensors" ru="Датчики-зонды"/>
   <translation tag="Probe Speed" ru="Скорость зонда"/>
   <translation tag="Probe controls, accuracy test, and settings" ru="Управление датчиком, тест точности и настройки"/>
   <translation tag="Probing Bed Mesh" ru="Зондирование сетки стола"/>
@@ -1896,7 +1904,7 @@
   <translation tag="Profile name (e.g., default)" ru="Имя профиля (например, default)"/>
   <translation tag="Profile renamed" ru="Профиль переименован"/>
   <translation tag="Profiles" ru="Профили"/>
-  <translation tag="Prompt before running this macro"/>
+  <translation tag="Prompt before running this macro" ru="Спрашивать перед запуском этого макроса"/>
   <translation tag="Pulling filament back" ru="Откат филамента"/>
   <translation tag="Purge" ru="Продуть"/>
   <translation tag="Purge &amp; Wipe" ru="Продувка и очистка"/>
@@ -2007,7 +2015,7 @@
   <translation tag="Reprint" ru="Повторить печать"/>
   <translation tag="Reprint Last" ru="Перепечатать последнюю"/>
   <translation tag="Request Failed" ru="Запрос не выполнен"/>
-  <translation tag="Require Confirmation?"/>
+  <translation tag="Require Confirmation?" ru="Запрашивать подтверждение?"/>
   <translation tag="Require confirmation before emergency stop" ru="Требовать подтверждение перед аварийной остановкой"/>
   <translation tag="Requires Moonraker power device" ru="Требуется устройство питания Moonraker"/>
   <translation tag="Requires Moonraker-Timelapse plugin" ru="Требуется плагин Moonraker-Timelapse"/>
@@ -2377,6 +2385,7 @@
   <translation tag="Suppress raw debug output from printer firmware modules" ru="Скрывать отладочный вывод модулей прошивки принтера"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ru="Поверхности наследуют токены фона приложения для светлого и тёмного режимов."/>
   <translation tag="Switch Printer" ru="Переключить принтер"/>
+  <translation tag="Switch Sensors" ru="Датчики-переключатели"/>
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
   <translation tag="Switch to v%s" ru="Перейти на v%s"/>
   <translation tag="Switched to T{}" ru="Переключено на T{}"/>
@@ -2723,6 +2732,7 @@
   <translation tag="Widget Labels" ru="Подписи виджетов"/>
   <translation tag="Width" ru="Ширина"/>
   <translation tag="Width Sensor" ru="Датчик диаметра"/>
+  <translation tag="Width Sensors" ru="Датчики ширины"/>
   <translation tag="Wifi" ru="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" ru="При обрыве катушка не переключится"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" ru="Очистить сопло о силиконовую полоску"/>
