@@ -1744,18 +1744,22 @@ set_install_paths() {
     # A probed mod host installs into the mod's own payload root: the mod owns
     # the UI's service and its OTA manages the tree, so the per-platform roots
     # above (/srv, /opt, ...) are not where this install may write. The
-    # validate gate below then refuses the run unless --mod-payload accepted
-    # the in-place contract, which is the point: on a mod host, that IS the
-    # only contract. An explicitly user-provided INSTALL_DIR still wins over
-    # auto-detection, same as everywhere else in this file -- the branches
-    # above overwrite INSTALL_DIR, so restore the captured value here.
+    # validate gate below then refuses the run unless the payload contract
+    # (auto-detected in main.sh) accepted the in-place update, which is the
+    # point: on a mod host, that IS the default contract. --standalone opts
+    # back into the self-managed install, which keeps the platform root above.
+    # An explicitly user-provided INSTALL_DIR still wins over auto-detection,
+    # same as everywhere else in this file -- the branches above overwrite
+    # INSTALL_DIR, so restore the captured value here.
     if [ -n "${HOST_INSTALL_ROOT:-}" ]; then
         if [ -n "${_USER_INSTALL_DIR:-}" ]; then
             INSTALL_DIR="$_USER_INSTALL_DIR"
             log_info "Mod host: honoring the explicitly requested install directory"
-        else
+        elif [ "${STANDALONE_INSTALL:-}" != "1" ]; then
             INSTALL_DIR="$HOST_INSTALL_ROOT"
             log_info "Mod host: install root is the firmware mod's payload tree"
+        else
+            log_info "Mod host: --standalone keeps the platform root for this install"
         fi
         log_info "Install directory: ${INSTALL_DIR}"
     fi
@@ -10388,14 +10392,15 @@ usage() {
     echo "  --local FILE   Install from local archive (.zip or .tar.gz, skip download)"
     echo "  --skip-kiauh-registration"
     echo "                 Skip KIAUH extension registration (default: install if KIAUH detected)"
-    echo "  --mod-payload  Mod-host mode: replace the firmware mod's payload"
-    echo "                 contents in place. No service is installed or started"
-    echo "                 (the mod owns the UI service); config/ and platform/"
-    echo "                 are preserved."
-    echo "  --mod-payload-root PATH  Payload root (default: the mod's own tree;"
-    echo "                 requires --mod-payload)"
-    echo "  --mod-payload-updates    Also write the [update_manager helixscreen]"
-    echo "                 stanza into the mod's user.moonraker.conf (requires --mod-payload)"
+    echo "  --standalone   Self-managed install beside your printer's mod"
+    echo "                 (Forge-X / Z-Mod). Default on such hosts is the"
+    echo "                 payload install: contents replaced in place, no"
+    echo "                 service installed or started (the mod owns the UI"
+    echo "                 service), config/ and platform/ preserved."
+    echo "  --payload-root PATH  Payload root (default: the mod's own tree)"
+    echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
+    echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
+    echo "                 is a real side effect)"
     echo "  --help         Show this help message"
     echo ""
     echo "Examples:"
@@ -10405,7 +10410,7 @@ usage() {
     echo "  $0 --clean --yes      # Same, without the interactive confirmation"
     echo "  $0 --version v1.1.0   # Install specific version"
     echo "  $0 --local /tmp/helixscreen-ad5m.tar.gz  # Install from local file"
-    echo "  $0 --mod-payload      # Update the mod's payload in place (mod hosts)"
+    echo "  $0 --standalone       # Self-managed install beside the mod (mod hosts)"
 }
 
 # Parse the command line into the mode globals main() reads. Split out of
@@ -10422,6 +10427,8 @@ parse_installer_args() {
     skip_kiauh_registration=false
     MOD_PAYLOAD_ROOT=""
     HELIX_MOD_PAYLOAD_UPDATES=""
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_FLAG_GIVEN=""
 
     while [ $# -gt 0 ]; do
         case $1 in
@@ -10466,20 +10473,51 @@ parse_installer_args() {
                 skip_kiauh_registration=true
                 shift
                 ;;
-            --mod-payload)
-                HELIX_MOD_PAYLOAD=1
+            --standalone)
+                STANDALONE_INSTALL=1
                 shift
                 ;;
-            --mod-payload-root)
+            --payload-root)
                 if [ -z "${2:-}" ]; then
-                    log_error "--mod-payload-root requires a path argument"
+                    log_error "--payload-root requires a path argument"
                     exit 1
                 fi
                 MOD_PAYLOAD_ROOT="$2"
                 shift 2
                 ;;
-            --mod-payload-updates)
+            --auto-update)
+                # shellcheck disable=SC2034  # consumed by moonraker.sh (configure_moonraker_updates)
                 HELIX_MOD_PAYLOAD_UPDATES=1
+                shift
+                ;;
+            --no-mod-payload)
+                # Deprecated alias for --standalone (pre-release courtesy).
+                log_info "--no-mod-payload is deprecated; use --standalone"
+                STANDALONE_INSTALL=1
+                shift
+                ;;
+            --mod-payload-root)
+                # Deprecated alias for --payload-root.
+                if [ -z "${2:-}" ]; then
+                    log_error "--mod-payload-root requires a path argument"
+                    exit 1
+                fi
+                log_info "--mod-payload-root is deprecated; use --payload-root"
+                MOD_PAYLOAD_ROOT="$2"
+                shift 2
+                ;;
+            --mod-payload-updates)
+                # Deprecated alias for --auto-update.
+                log_info "--mod-payload-updates is deprecated; use --auto-update"
+                # shellcheck disable=SC2034  # consumed by moonraker.sh (configure_moonraker_updates)
+                HELIX_MOD_PAYLOAD_UPDATES=1
+                shift
+                ;;
+            --mod-payload)
+                # Compat no-op: the payload contract is auto-detected on hosts
+                # the mod profile recognizes. Kept so documented invocations
+                # keep working; mod_payload_mode_block says what it did.
+                MOD_PAYLOAD_FLAG_GIVEN=1
                 shift
                 ;;
             --help|-h)
@@ -10494,71 +10532,99 @@ parse_installer_args() {
         esac
     done
 
-    # The payload sub-flags have no meaning outside the mode; an operator
-    # typing one of them without --mod-payload almost certainly expected the
-    # in-place contract and would otherwise get a plain install.
-    if [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
-        if [ -n "$MOD_PAYLOAD_ROOT" ]; then
-            log_error "--mod-payload-root requires --mod-payload"
-            exit 1
-        fi
-        if [ -n "$HELIX_MOD_PAYLOAD_UPDATES" ]; then
-            log_error "--mod-payload-updates requires --mod-payload"
-            exit 1
-        fi
+    # A payload root is a payload-contract request; it cannot also name where
+    # a self-managed install goes (that is INSTALL_DIR).
+    if [ "${STANDALONE_INSTALL:-}" = "1" ] && [ -n "$MOD_PAYLOAD_ROOT" ]; then
+        log_error "--payload-root cannot be combined with --standalone"
+        exit 1
     fi
 }
 
-# --mod-payload mode wiring. Runs after set_install_paths (INSTALL_DIR holds
-# the mod's payload root, an explicit env INSTALL_DIR, or the platform
-# default) and before the pre-flight checks, so every later step sees the
-# mode's answers.
+# Auto-detect the payload contract (2026-08-31 steer): a bare install on a
+# host the mod profile recognized IS a payload install - the mod owns the UI
+# service and its OTA, so the in-place payload contract is the default and
+# every standalone destructive shape stays refused. Runs BEFORE
+# set_install_paths: its validate gate needs the contract armed to accept the
+# mod's payload root as INSTALL_DIR.
 #
-# Root precedence: --mod-payload-root > whatever set_install_paths chose
-# (an explicit env INSTALL_DIR > the host profile's HOST_INSTALL_ROOT).
+# Overrides: --standalone opts back into the self-managed install; naming a
+# payload root opts into the contract on any host (on a mod host that is
+# already the default). HELIX_MOD_PAYLOAD stays env-scrubbed (host_profile.sh)
+# - the probe and these flags are its only setters.
+mod_payload_autodetect() {
+    [ "${STANDALONE_INSTALL:-}" = "1" ] && return 0
+    if [ -n "${HOST_MOD_ROOT:-}" ] || [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
+        HELIX_MOD_PAYLOAD=1
+    fi
+}
+
+# Payload-mode wiring. Runs after set_install_paths (INSTALL_DIR holds the
+# mod's payload root, an explicit env INSTALL_DIR, or the platform default)
+# and before the pre-flight checks, so every later step sees the mode's
+# answers.
+#
+# Root precedence: --payload-root > whatever set_install_paths chose (an
+# explicit env INSTALL_DIR > the host profile's HOST_INSTALL_ROOT).
 mod_payload_mode_block() {
     if [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
         INSTALL_DIR="$MOD_PAYLOAD_ROOT"
-        # The override gets the same gate every other INSTALL_DIR passes:
-        # it must name helixscreen, and a mod-owned root needs the payload
+        # The override gets the same gate every other INSTALL_DIR passes: it
+        # must name helixscreen, and a mod-owned root needs the payload
         # contract this run is already in.
         validate_install_dir "$INSTALL_DIR" || exit 1
-        log_info "--mod-payload root (--mod-payload-root): $INSTALL_DIR"
+        log_info "Payload root (--payload-root): $INSTALL_DIR"
+    fi
+
+    # Compat no-op notice for the old opt-in flag, whichever way it lands.
+    if [ "${MOD_PAYLOAD_FLAG_GIVEN:-}" = "1" ]; then
+        if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+            log_info "--mod-payload is implied on this host (no effect)"
+        else
+            log_info "--mod-payload has no effect here; the payload contract applies"
+            log_info "where your printer's mod (Forge-X / Z-Mod) owns the UI"
+        fi
     fi
 
     # Open Decision 1: a payload root inside the mod's git tree does not
     # survive a Forge-X OTA -- their update_manager is type: git_repo and
     # git clean -fd removes .bin/helixscreen, which is untracked there.
-    # Only --mod-payload can reach a mod-owned INSTALL_DIR (validate_install_dir
-    # refuses it otherwise), so this fires in payload mode and never else.
+    # Only the payload contract can reach a mod-owned INSTALL_DIR
+    # (validate_install_dir refuses it otherwise), so this fires in payload
+    # mode and never else.
     if host_path_is_mod_owned "${INSTALL_DIR:-}"; then
         log_warn "This payload root lives inside the firmware mod's git tree."
         log_warn "A Forge-X OTA removes it: their updater cleans untracked files"
         log_warn "in the mod's repo. Prefer a root outside the tree:"
-        log_warn "  --mod-payload-root /usr/data/helixscreen"
+        log_warn "  --payload-root /usr/data/helixscreen"
     fi
 
     if [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
-        # A plain install on a mod host is the operator's choice (an explicit
-        # INSTALL_DIR); it is not refused, but the mod owns the UI service, so
-        # this installer will never start it. Say so and point at the mode
-        # built for this host.
+        # A self-managed install on a mod host is the operator's choice
+        # (--standalone, or an explicit INSTALL_DIR); it is not refused, but
+        # the mod owns the UI service, so this installer will never start it.
         if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
             log_warn "The firmware mod on this host owns the UI service."
-            log_warn "This install will not be started automatically."
-            log_warn "Prefer: sh install.sh --mod-payload"
+            log_warn "This standalone install will not be started automatically."
+            if [ "${STANDALONE_INSTALL:-}" = "1" ]; then
+                log_warn "Re-run without --standalone for the payload install."
+            else
+                log_warn "Re-run without the INSTALL_DIR override for the payload install."
+            fi
         fi
         return 0
     fi
 
     if [ "$uninstall_mode" != true ]; then
-        log_info "--mod-payload: replacing payload contents in place at $INSTALL_DIR"
-        log_info "--mod-payload: the mod owns the UI service; none is installed or started"
+        if [ "${MOD_PAYLOAD_FLAG_GIVEN:-}" = "1" ]; then
+            log_info "--mod-payload: replacing payload contents in place at $INSTALL_DIR"
+        else
+            log_info "Payload install (auto-detected): replacing contents in place at $INSTALL_DIR"
+        fi
+        log_info "The mod owns the UI service; none is installed or started"
     fi
     if [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ]; then
-        log_warn "--mod-payload without a probed mod tree: applying the in-place"
-        log_warn "contract anyway (--mod-payload-root names a root this host's"
-        log_warn "profile did not find)."
+        log_warn "--payload-root names a root this host's profile did not find;"
+        log_warn "applying the in-place payload contract anyway."
     fi
 }
 
@@ -10734,8 +10800,11 @@ main() {
     # so HOST_MOD_ROOT must already be probed by then.
     host_profile_probe
 
-    # Parse arguments. Also the ONLY place HELIX_MOD_PAYLOAD is ever set to 1.
+    # Parse arguments, then settle the payload contract BEFORE set_install_paths:
+    # its install-dir gate needs to know whether the mod's payload root is ours
+    # to write. Autodetect (probe) plus the operator's overrides decide.
     parse_installer_args "$@"
+    mod_payload_autodetect
 
     # Self-delete safety guard runs as early as possible — before platform
     # detection, which exits on "unsupported" hardware and would otherwise

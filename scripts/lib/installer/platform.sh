@@ -998,18 +998,22 @@ set_install_paths() {
     # A probed mod host installs into the mod's own payload root: the mod owns
     # the UI's service and its OTA manages the tree, so the per-platform roots
     # above (/srv, /opt, ...) are not where this install may write. The
-    # validate gate below then refuses the run unless --mod-payload accepted
-    # the in-place contract, which is the point: on a mod host, that IS the
-    # only contract. An explicitly user-provided INSTALL_DIR still wins over
-    # auto-detection, same as everywhere else in this file -- the branches
-    # above overwrite INSTALL_DIR, so restore the captured value here.
+    # validate gate below then refuses the run unless the payload contract
+    # (auto-detected in main.sh) accepted the in-place update, which is the
+    # point: on a mod host, that IS the default contract. --standalone opts
+    # back into the self-managed install, which keeps the platform root above.
+    # An explicitly user-provided INSTALL_DIR still wins over auto-detection,
+    # same as everywhere else in this file -- the branches above overwrite
+    # INSTALL_DIR, so restore the captured value here.
     if [ -n "${HOST_INSTALL_ROOT:-}" ]; then
         if [ -n "${_USER_INSTALL_DIR:-}" ]; then
             INSTALL_DIR="$_USER_INSTALL_DIR"
             log_info "Mod host: honoring the explicitly requested install directory"
-        else
+        elif [ "${STANDALONE_INSTALL:-}" != "1" ]; then
             INSTALL_DIR="$HOST_INSTALL_ROOT"
             log_info "Mod host: install root is the firmware mod's payload tree"
+        else
+            log_info "Mod host: --standalone keeps the platform root for this install"
         fi
         log_info "Install directory: ${INSTALL_DIR}"
     fi

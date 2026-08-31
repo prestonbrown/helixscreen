@@ -1,24 +1,27 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# --mod-payload mode end to end (lib/installer).
+# Payload mode end to end (lib/installer).
 #
 # On a host whose firmware is a mod with its own git tree (Forge-X / Z-Mod),
-# --mod-payload is the only install contract: the mod owns the UI service and
-# the OTA, so the installer replaces the payload root's CONTENTS in place
-# (never mv/rm -rf of the root), preserves config/ and platform/, writes no
-# service files, and leaves every Moonraker conf alone unless
-# --mod-payload-updates opted in to a stanza in the mod's user.moonraker.conf.
+# the payload contract is the DEFAULT (auto-detected 2026-08-31): the mod owns
+# the UI service and the OTA, so a bare install replaces the payload root's
+# CONTENTS in place (never mv/rm -rf of the root), preserves config/ and
+# platform/, writes no service files, and leaves every Moonraker conf alone
+# unless --auto-update opted in to a stanza in the mod's user.moonraker.conf.
+# The flags are overrides: --standalone escapes to a self-managed install,
+# --payload-root overrides where. The old --mod-payload spellings stay
+# accepted as deprecated aliases / a compat no-op.
 #
 # Covers the brief's five mode properties (a)-(e) plus the six carry-items
 # routed here from earlier task reviews:
-#   1. start_service short-circuits on HOST_SERVICE_MECHANISM, not the flag
-#   2. a normal install on a mod host warns it will not be started
-#   3. HELIX_MOD_PAYLOAD is settable only by the flag, never the environment
+#   1. start_service short-circuits on HOST_SERVICE_MECHANISM, not a flag
+#   2. a standalone install on a mod host warns it will not be started
+#   3. HELIX_MOD_PAYLOAD is settable only by the probe/flags, never the env
 #   4. detect_tmp_dir never auto-stages inside the mod tree
 #   5. the LOG_LEVEL migration is keyed on the host capability, not on
 #      PAYLOAD_ENV_PRESERVED
-#   6. the user.moonraker.conf stanza write is gated on --mod-payload-updates
+#   6. the user.moonraker.conf stanza write is gated on --auto-update
 
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
@@ -207,7 +210,7 @@ create_payload_tarball() {
     [ -x "$INSTALL_DIR/platform/hooks.sh" ]
 }
 
-@test "payload install: a fresh payload root (--mod-payload-root outside the tree) is populated" {
+@test "payload install: a fresh payload root (--payload-root outside the tree) is populated" {
     HELIX_MOD_PAYLOAD=1
     INSTALL_DIR="$SANDBOX/usr/data/helixscreen"
     create_payload_tarball
@@ -240,7 +243,7 @@ create_payload_tarball() {
     refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
 }
 
-@test "payload install: --mod-payload-updates writes the stanza into user.moonraker.conf only" {
+@test "payload install: --auto-update writes the stanza into user.moonraker.conf only" {
     mkdir -p "$SANDBOX/usr/data/config/mod_data" "$INSTALL_DIR/bin"
     create_fake_mips_elf "$INSTALL_DIR/bin/helix-screen"
     chmod +x "$INSTALL_DIR/bin/helix-screen"
@@ -316,7 +319,7 @@ create_payload_tarball() {
     refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
 }
 
-@test "payload uninstall: honors the run's --mod-payload-root, not the probed mod root" {
+@test "payload uninstall: honors the run's --payload-root, not the probed mod root" {
     # The uninstall sweep list must carry the run's ACTUAL INSTALL_DIR. A
     # custom root outside the fixed HELIX_INSTALL_DIRS six must be removed by
     # the run that targeted it, and a stale in-tree root that this run did NOT
@@ -372,10 +375,13 @@ create_payload_tarball() {
     [ "$forgex_line" -lt "$sweep_line" ]
 }
 
-@test "plain uninstall: a mod-owned payload root without the flag is skipped, not removed" {
-    # Coherence with Task 1's skip-not-exit sweeps: only the flag-armed run
-    # may remove the payload root.
+@test "standalone uninstall: a mod-owned payload root stays skipped, not removed" {
+    # Coherence with Task 1's skip-not-exit sweeps: a run that is NOT in the
+    # payload contract (--standalone, or any HELIX_MOD_PAYLOAD-unarmed run)
+    # never removes the mod's payload root. A bare uninstall on a mod host
+    # auto-arms and removes it instead - covered by the test above.
     HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=1
     seed_payload_root
     AD5M_FIRMWARE=""
     HELIX_INIT_SCRIPTS="$SANDBOX/nonexistent/helixscreen-init"
@@ -386,7 +392,7 @@ create_payload_tarball() {
 
     run uninstall "ad5x"
     [ "$status" -eq 0 ]
-    [ -d "$INSTALL_DIR" ] || fail "a plain uninstall removed the mod's payload root"
+    [ -d "$INSTALL_DIR" ] || fail "a standalone uninstall removed the mod's payload root"
 }
 
 # ============================================================================
@@ -424,7 +430,7 @@ esac
 # Mode block: root precedence + the OTA-clean warning (Open Decision 1)
 # ============================================================================
 
-@test "mode block: --mod-payload-root outranks the probed mod root, no OTA warning outside the tree" {
+@test "mode block: --payload-root outranks the probed mod root, no OTA warning outside the tree" {
     HELIX_MOD_PAYLOAD=1
     MOD_PAYLOAD_ROOT="$SANDBOX/usr/data/helixscreen"
     INSTALL_DIR="$HOST_INSTALL_ROOT"
@@ -448,7 +454,7 @@ esac
     [ "$INSTALL_DIR" = "$HOST_INSTALL_ROOT" ]
     [[ "$output" == *"inside the firmware mod's git tree"* ]]
     [[ "$output" == *"OTA"* ]]
-    [[ "$output" == *"--mod-payload-root"* ]]
+    [[ "$output" == *"--payload-root"* ]]
 }
 
 # ============================================================================
@@ -483,7 +489,7 @@ esac
 # Carry-item 2: a normal install on a mod host warns
 # ============================================================================
 
-@test "a normal install on a mod host warns the mod owns the UI service" {
+@test "an INSTALL_DIR-seam install on a mod host warns the mod owns the UI service" {
     HELIX_MOD_PAYLOAD=""
     INSTALL_DIR="$SANDBOX/usr/data/helixscreen"
 
@@ -491,9 +497,9 @@ esac
     [ "$status" -eq 0 ]
     [[ "$output" == *"owns the UI service"* ]]
     [[ "$output" == *"not be started automatically"* ]]
-    [[ "$output" == *"--mod-payload"* ]]
+    [[ "$output" == *"without the INSTALL_DIR override"* ]]
     # It is a warning, not a refusal: the install proceeds.
-    [[ "$output" != *"refusing"* ]]
+    [[ "$output" != *"Refusing"* ]]
 }
 
 # ============================================================================
@@ -511,34 +517,163 @@ esac
         || fail "an environment HELIX_MOD_PAYLOAD=1 survived the source-time scrub"
 }
 
-@test "parse_installer_args: --mod-payload arms the mode and captures its sub-flags" {
-    parse_installer_args --mod-payload
-    [ "$HELIX_MOD_PAYLOAD" = "1" ] || fail "flag did not arm the mode"
+# ============================================================================
+# Auto-detect steer (2026-08-31, Preston): a bare install on a mod host IS a
+# payload install. The flags are overrides: --standalone escapes back to a
+# self-managed install, --payload-root overrides where, --auto-update opts
+# into the Moonraker stanza. The old --mod-payload spellings stay accepted.
+# ============================================================================
 
-    parse_installer_args --mod-payload --mod-payload-root /usr/data/helixscreen --mod-payload-updates
+@test "autodetect: a bare run on a mod host arms the payload contract" {
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_ROOT=""
+    mod_payload_autodetect
+    [ "$HELIX_MOD_PAYLOAD" = "1" ] \
+        || fail "a bare run on a mod host did not become a payload install"
+}
+
+@test "autodetect: --standalone keeps a mod host on the self-managed install" {
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=1
+    mod_payload_autodetect
+    [ -z "$HELIX_MOD_PAYLOAD" ] \
+        || fail "--standalone still armed the payload contract"
+
+    # And the self-managed install lands on the platform default, not the
+    # mod's payload tree (set_install_paths must stand down too). No env
+    # INSTALL_DIR: platform.sh captured one at source time from setup().
+    HELIX_MOD_PAYLOAD=""
+    HOST_INSTALL_ROOT="$MOD_ROOT/.bin/helixscreen"
+    _USER_INSTALL_DIR=""
+    detect_tmp_dir() { TMP_DIR="$BATS_TEST_TMPDIR/tmp"; }
+    set_install_paths "ad5x" "forge_x"
+    [ "$INSTALL_DIR" = "/srv/helixscreen" ] \
+        || fail "standalone INSTALL_DIR='$INSTALL_DIR' (want the platform default)"
+}
+
+@test "autodetect: a ZMOD-shape host (no probed mod tree) never arms" {
+    # The probe does not recognize ZMOD trees, so HOST_MOD_ROOT stays empty
+    # there and the pre-Task-5 flow must be unchanged: no payload mode, and
+    # the mod-owned guard still refuses a direct hit on a canonical mod path.
+    HOST_MOD_ROOT=""
+    HOST_SERVICE_MECHANISM="systemd"
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=""
+    mod_payload_autodetect
+    [ -z "$HELIX_MOD_PAYLOAD" ] || fail "armed the payload contract without a probed mod"
+
+    run validate_install_dir "/usr/data/.mod/.zmod/srv/helixscreen"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"refusing"* ]]
+}
+
+@test "a bare install on a mod host behaves as mod-payload" {
+    # End to end through the mode's own seams: autodetect arms, the extract
+    # takes the in-place path, no stanza lands anywhere, the OTA warning
+    # prints - all with NO flag given.
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_ROOT=""
+    mod_payload_autodetect
+    [ "$HELIX_MOD_PAYLOAD" = "1" ] || fail "setup: autodetect did not arm"
+
+    seed_payload_root
+    create_payload_tarball
+    local inode_before
+    inode_before=$(stat -c %i "$INSTALL_DIR")
+    extract_release "ad5x"
+    [ "$(stat -c %i "$INSTALL_DIR")" = "$inode_before" ] \
+        || fail "the payload root was replaced instead of updated in place"
+    cmp -s "$BATS_TEST_TMPDIR/hooks.operator" "$INSTALL_DIR/platform/hooks.sh" \
+        || fail "deployed platform hooks were modified"
+
+    mkdir -p "$SANDBOX/usr/data/config/mod_data" "$INSTALL_DIR/bin"
+    printf '[server]\n' > "$MOD_ROOT/moonraker.conf"
+    cp "$MOD_ROOT/moonraker.conf" "$BATS_TEST_TMPDIR/mod-conf.original"
+    printf '[authorization]\n' > "$HOST_MOONRAKER_USER_CONF"
+    configure_moonraker_updates "ad5x"
+    cmp -s "$BATS_TEST_TMPDIR/mod-conf.original" "$MOD_ROOT/moonraker.conf" \
+        || fail "the mod's own moonraker.conf was modified"
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+
+    mod_payload_mode_block > "$BATS_TEST_TMPDIR/mode-block.out" 2>&1
+    grep -q "OTA" "$BATS_TEST_TMPDIR/mode-block.out" \
+        || fail "the OTA warning did not print on a bare mod-host install"
+}
+
+@test "--standalone on a mod host does a normal install with the warning" {
+    HELIX_MOD_PAYLOAD=""
+    parse_installer_args --standalone
+    mod_payload_autodetect
+    [ -z "$HELIX_MOD_PAYLOAD" ] || fail "--standalone armed the payload contract"
+    INSTALL_DIR="$SANDBOX/usr/data/helixscreen"
+
+    run mod_payload_mode_block
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"owns the UI service"* ]]
+    [[ "$output" == *"not be started automatically"* ]]
+    [[ "$output" == *"--standalone"* ]]
+    [[ "$output" != *"OTA"* ]]
+}
+
+@test "the name gate still refuses the mod tree itself as a payload root" {
+    # Blast-radius re-check under auto-arming: pointing --payload-root at the
+    # mod's git tree root (not our payload dir inside it) must be refused by
+    # the name gate - the exemption never licenses an unnamed directory.
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_ROOT="$MOD_ROOT"
+    mod_payload_autodetect
+    [ "$HELIX_MOD_PAYLOAD" = "1" ] || fail "setup: autodetect did not arm"
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+
+    run mod_payload_mode_block
+    [ "$status" -ne 0 ] || fail "the mod tree itself was accepted as a payload root"
+    [[ "$output" == *"Refusing"* ]]
+}
+
+@test "parse_installer_args: the override flags and their deprecated aliases" {
+    parse_installer_args --standalone --auto-update
+    [ "$STANDALONE_INSTALL" = "1" ] || fail "--standalone not captured"
+    [ "$HELIX_MOD_PAYLOAD_UPDATES" = "1" ] || fail "--auto-update not captured"
+
+    parse_installer_args --payload-root /usr/data/helixscreen
     [ "$MOD_PAYLOAD_ROOT" = "/usr/data/helixscreen" ] \
-        || fail "MOD_PAYLOAD_ROOT='$MOD_PAYLOAD_ROOT'"
-    [ "$HELIX_MOD_PAYLOAD_UPDATES" = "1" ] \
-        || fail "HELIX_MOD_PAYLOAD_UPDATES='$HELIX_MOD_PAYLOAD_UPDATES'"
+        || fail "--payload-root not captured: '$MOD_PAYLOAD_ROOT'"
+
+    # Old spellings still parse (courtesy aliases, pre-release surface) and
+    # say so. Direct calls with redirected output - run/$() would swallow the
+    # variable side effects the assertions read.
+    parse_installer_args --no-mod-payload > "$BATS_TEST_TMPDIR/parse1.out" 2>&1
+    [ "$STANDALONE_INSTALL" = "1" ] || fail "--no-mod-payload alias not applied"
+    grep -q "deprecated" "$BATS_TEST_TMPDIR/parse1.out"
+
+    parse_installer_args --mod-payload-root /usr/data/helixscreen --mod-payload-updates \
+        > "$BATS_TEST_TMPDIR/parse2.out" 2>&1
+    [ "$MOD_PAYLOAD_ROOT" = "/usr/data/helixscreen" ] || fail "--mod-payload-root alias not applied"
+    [ "$HELIX_MOD_PAYLOAD_UPDATES" = "1" ] || fail "--mod-payload-updates alias not applied"
+    grep -q "deprecated" "$BATS_TEST_TMPDIR/parse2.out"
+
+    # The old opt-in flag is a compat no-op: accepted, never an error.
+    run parse_installer_args --mod-payload
+    [ "$status" -eq 0 ]
 }
 
-@test "parse_installer_args: the payload sub-flags require --mod-payload" {
-    run parse_installer_args --mod-payload-root /usr/data/helixscreen
+@test "parse_installer_args: --payload-root cannot be combined with --standalone" {
+    run parse_installer_args --standalone --payload-root /usr/data/helixscreen
     [ "$status" -ne 0 ]
-    [[ "$output" == *"requires --mod-payload"* ]]
-
-    run parse_installer_args --mod-payload-updates
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"requires --mod-payload"* ]]
+    [[ "$output" == *"cannot be combined with --standalone"* ]]
 }
 
-@test "the bundled install.sh carries the --mod-payload arms and the env scrub" {
+@test "the bundled install.sh carries the override arms and the env scrub" {
     # The generated bundle is what users curl|sh; regeneration must carry the
-    # parser arms and the source-time scrub forward.
+    # parser arms (new spellings and their aliases) and the source-time scrub.
     local bundle="$WORKTREE_ROOT/scripts/install.sh"
-    grep -q -- '--mod-payload)' "$bundle"
-    grep -q -- '--mod-payload-root)' "$bundle"
-    grep -q -- '--mod-payload-updates)' "$bundle"
+    grep -q -- '--standalone)' "$bundle"
+    grep -q -- '--payload-root)' "$bundle"
+    grep -q -- '--auto-update)' "$bundle"
+    grep -q -- '--no-mod-payload)' "$bundle"
     grep -q '^HELIX_MOD_PAYLOAD=""$' "$bundle"
 }
 
