@@ -83,6 +83,17 @@ lv_obj_t* ui_filament_path_canvas_create(lv_obj_t* parent);
 void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology);
 
 /**
+ * @brief Place the hub directly above the toolhead (short shared segment).
+ *
+ * For systems whose combiner/hub mounts on the print head: the merge box
+ * is drawn just above the toolhead and each lane's tube runs the full
+ * height to it, so the only shared path is the short stub into the nozzle.
+ * Default placement (false) keeps the hub mid-canvas with a long shared
+ * run, which is the honest shape for a mid-machine merge unit.
+ */
+void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead);
+
+/**
  * @brief Set the number of slots
  *
  * @param obj The filament_path_canvas widget

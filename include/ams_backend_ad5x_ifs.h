@@ -190,8 +190,20 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::AD5X_IFS;
     }
+    // A LINEAR selector in the strict sense, but a passthrough one: four
+    // lines in, a camshaft-driven selector, four lines out - each lane's own
+    // tube continues through, unlike ERCF/Tradrack whose selector is itself
+    // the convergence onto one output tube.
     [[nodiscard]] PathTopology get_topology() const override {
         return PathTopology::LINEAR;
+    }
+
+    // The convergence the selector does NOT do is delegated to a combiner
+    // bolted just above the toolhead: four tubes run the whole way there and
+    // the shared path below it is centimetres. The canvas composes the two
+    // facts into one drawing.
+    [[nodiscard]] bool hub_on_toolhead() const override {
+        return true;
     }
     [[nodiscard]] PathSegment get_filament_segment() const override;
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;

@@ -272,7 +272,11 @@ struct FilamentPathData {
     bool show_bypass = true; // false = hide bypass path/spool entirely (e.g. tool changers)
 
     // Rendering mode
-    bool hub_only = false;   // true = stop rendering at hub (skip downstream)
+    bool hub_only = false; // true = stop rendering at hub (skip downstream)
+    // Hub co-located with the toolhead: the merge box sits just above the
+    // toolhead and the shared hub->nozzle run is a short stub (printers whose
+    // combiner mounts on the print head; the per-lane tubes run the whole way).
+    bool hub_on_toolhead = false;
     bool eject_mode = false; // true = allow segment to drop below LANE (past slot sensor)
 
     // Buffer element (TurtleNeck / eSpooler visualization)

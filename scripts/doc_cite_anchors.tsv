@@ -70,7 +70,7 @@ docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/printer/ams_subscription_backend
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/ui/ui_print_start_controller.cpp	318	src/ui/ui_print_start_controller.cpp	487d271930ed	235f3dd005a0
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/ui/ui_print_start_controller.cpp	322	src/ui/ui_print_start_controller.cpp	538407a1844d	6fc99a7fcc8a
 docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_ace.cpp	44	src/printer/ams_backend_ace.cpp	8c4fdcbdf294	6d40d9fdfa8e
-docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_ad5x_ifs.cpp	135	src/printer/ams_backend_ad5x_ifs.cpp	14611c095236	73c89b40afc3
+docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_ad5x_ifs.cpp	137	src/printer/ams_backend_ad5x_ifs.cpp	8c4fdcbdf294	6aea819fb325
 docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_afc.cpp	2239	src/printer/ams_backend_afc.cpp	2594e75ce27c	a1d839b66d42
 docs/devel/FILAMENT_MANAGEMENT.md	ams_backend_snapmaker.cpp	240	src/printer/ams_backend_snapmaker.cpp	8c4fdcbdf294	2cc849e82121
 docs/devel/FILAMENT_MANAGEMENT.md	gcode_error_router.cpp	173	src/application/gcode_error_router.cpp	6ce42666f637	d3fe32949be4
@@ -82,7 +82,7 @@ docs/devel/FILAMENT_MANAGEMENT.md	src/ui/panel_widgets/bypass_widget.h	33	src/ui
 docs/devel/FILAMENT_PATH_CANVAS.md	include/ams_types.h	544	include/ams_types.h	dfdb1e495ec7	3680b275c7e4
 docs/devel/FILAMENT_PATH_CANVAS.md	include/ams_types.h	622	include/ams_types.h	6dc96c833508	b8068a87609d
 docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_internal.h	17	src/ui/ui_filament_path_internal.h	c2d9cf8a073b	5f68261213ba
-docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_internal.h	383	src/ui/ui_filament_path_internal.h	9bd9f2378422	aced41c116d2
+docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_internal.h	387	src/ui/ui_filament_path_internal.h	9bd9f2378422	aced41c116d2
 docs/devel/FILAMENT_PATH_CANVAS.md	ui_filament_path_layers.cpp	183	src/ui/ui_filament_path_layers.cpp	d92b1c584386	f21fd8060b28
 docs/devel/HELIXCTL.md	include/remote_pointer.h	38	include/remote_pointer.h	e6324d01d270	dbbbef636869
 docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	1971	src/remote/remote_control_server.cpp	78bda741eafd	1f5e0732ac8c

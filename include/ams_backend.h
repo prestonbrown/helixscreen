@@ -550,6 +550,21 @@ class AmsBackend {
     [[nodiscard]] virtual PathTopology get_topology() const = 0;
 
     /**
+     * @brief Whether per-lane tubes converge at a combiner on the print head.
+     *
+     * True for passthrough-selector systems: a linear selector routes each
+     * lane's OWN tube (unlike ERCF/Tradrack, whose selector is the
+     * convergence), so the merge is delegated to a combiner bolted just
+     * above the toolhead and the shared path below it is centimetres. The
+     * path canvas composes this with the topology: each lane tube is drawn
+     * the full height into a hub box hugging the toolhead, instead of a
+     * selector's single output line or a mid-machine merge unit.
+     */
+    [[nodiscard]] virtual bool hub_on_toolhead() const {
+        return false;
+    }
+
+    /**
      * @brief Get the path topology for a specific unit
      *
      * In mixed-topology systems (e.g., Box Turtle + OpenAMS), different units

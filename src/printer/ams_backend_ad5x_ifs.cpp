@@ -132,7 +132,9 @@ AmsBackendAd5xIfs::AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient
     system_info_.type = AmsType::AD5X_IFS;
     system_info_.type_name = "AD5X IFS";
     system_info_.total_slots = NUM_PORTS;
-    system_info_.supports_bypass = true;
+    // No bypass on this machine: every path into the hub runs through a lane
+    // of the IFS, and there is no external direct-feed spool entry.
+    system_info_.supports_bypass = false;
     // The ENABLE bit only; AVAILABILITY comes from
     // get_endless_spool_capabilities(), which reads the _IFS_VARS latch. False
     // until a plugin's variable_backup is actually seen.

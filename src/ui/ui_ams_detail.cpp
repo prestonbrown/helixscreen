@@ -495,7 +495,13 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     ui_filament_path_canvas_set_slot_count(canvas, slot_count);
     PathTopology topo =
         (unit_index >= 0) ? backend->get_unit_topology(unit_index) : backend->get_topology();
+    // A passthrough selector with an on-head combiner draws as the merge fan
+    // with the hub at the toolhead: the slots ARE the selector's per-lane
+    // outputs, and each tube runs the full height to the combiner.
+    if (backend->hub_on_toolhead())
+        topo = PathTopology::HUB;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
+    ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
 
     // Pass slot_grid reference so draw callback can read actual slot positions
     // at render time — avoids setup-vs-draw timing mismatches across breakpoints.
