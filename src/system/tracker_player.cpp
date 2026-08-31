@@ -544,9 +544,13 @@ void TrackerPlayer::apply_to_backend() {
 
     for (int ch = 0; ch < 4; ++ch) {
         const auto& cs = channels_[static_cast<size_t>(ch)];
-        // Use period-derived freq for accuracy when period is available
+        // Note frequency, not sample rate: AMIGA_CLOCK/period is the Paula
+        // playback rate (8-14 kHz for typical notes) — the AD5M piezo cannot
+        // reproduce it. cs.freq carries the equal-tempered note, updated per
+        // tick by arpeggio/portamento/vibrato; the period ratio only covers
+        // period-only rows where no note frequency is known.
         float freq = cs.freq;
-        if (cs.period > 0) {
+        if (freq <= 0.0f && cs.period > 0) {
             freq = static_cast<float>(AMIGA_CLOCK / static_cast<double>(cs.period));
         }
         if (cs.active && freq > 0 && cs.volume > 0) {

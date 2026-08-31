@@ -136,6 +136,38 @@ TEST_CASE("TrackerPlayer basic playback starts and stops", "[tracker][player]") 
     REQUIRE_FALSE(backend->voices[0].active);
 }
 
+TEST_CASE("TrackerPlayer fallback emits note frequency, not sample rate", "[tracker][player]") {
+    // Real MOD rows carry an Amiga period. The fallback used to emit
+    // AMIGA_CLOCK/period — the Paula SAMPLE-playback rate, 8-14 kHz for
+    // typical notes, ultrasonic on a piezo with 2-4 kHz resonance. A melody
+    // must emit the equal-tempered note frequency instead.
+    const uint8_t c4 = 49; // A-4 is 58 in this numbering; C-4 = 58 - 9
+    REQUIRE(TrackerModule::note_to_freq(c4) == Catch::Approx(261.63f).margin(0.1f));
+
+    for (uint8_t note : {uint8_t(25) /* C-2, low */, c4, uint8_t(72) /* B-5, high */}) {
+        auto backend = std::make_shared<TrackerMockBackend>();
+        auto player = make_player(backend);
+
+        auto pat = empty_pattern(2);
+        pat[0] = {note, 1, 0x00, 0x00, TrackerModule::note_to_period(note)};
+
+        auto mod = make_module({0}, {pat}, 2);
+        player->load(mod);
+        player->play();
+
+        REQUIRE(backend->voices[0].active);
+        // The NOTE frequency (e.g. C-4 = 261.6 Hz), never the sample-rate
+        // value (AMIGA_CLOCK/428 = 8289 Hz)
+        REQUIRE(backend->voices[0].freq ==
+                Catch::Approx(TrackerModule::note_to_freq(note)).margin(0.1f));
+        // Audible on a piezo
+        REQUIRE(backend->voices[0].freq > 50.0f);
+        REQUIRE(backend->voices[0].freq < 4000.0f);
+
+        player->stop();
+    }
+}
+
 TEST_CASE("TrackerPlayer row advances after speed ticks", "[tracker][player]") {
     auto backend = std::make_shared<TrackerMockBackend>();
     auto player = make_player(backend);
