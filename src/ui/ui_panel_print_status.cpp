@@ -442,6 +442,17 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
 }
 
 PrintStatusPanel::~PrintStatusPanel() {
+    // The widget tree can outlive this panel: StaticPanelRegistry::destroy_all()
+    // runs before lv_deinit(), and destroy_overlay_ui()'s deletion is deferred.
+    // Uninstall the delete hook while the object is still valid, or the tree's
+    // eventual teardown would call on_root_deleted() on freed memory. A null
+    // delete_hook_root_ means the tree already died (the hook fired) or the
+    // explicit teardown path removed it — nothing left to uninstall.
+    if (delete_hook_root_ && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(delete_hook_root_, on_root_deleted, this);
+        delete_hook_root_ = nullptr;
+    }
+
     // Before deinit_subjects(): the mini-graph's observers are attached to
     // PrinterState subjects, and detaching them after those are freed is the
     // exact use-after-free ObserverGuard exists to prevent. Synchronous delete —
@@ -852,6 +863,13 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
+    // The panel/navigation layer owns this tree; a raw lv_obj_delete() gives
+    // the panel no other notice, and the queued observe_int_sync handlers
+    // would run against the freed child pointers on the next drain.
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+    lv_obj_add_event_cb(overlay_root_, on_root_deleted, LV_EVENT_DELETE, this);
+    delete_hook_root_ = overlay_root_;
+
     spdlog::debug("[{}] Setting up panel...", get_name());
 
     // Width comes from NavigationManager::push_overlay() — this panel declares
@@ -1229,6 +1247,16 @@ void PrintStatusPanel::cleanup() {
 void PrintStatusPanel::on_ui_destroyed() {
     spdlog::debug("[{}] on_ui_destroyed() - nulling widget pointers", get_name());
 
+    // The tree is only detached here (the actual deletion is deferred), so the
+    // delete hook is still installed on it. Remove it now: the panel can be
+    // destroyed before the deferred delete executes, and that late event must
+    // not reach a freed `this`. overlay_root_ is already null —
+    // safe_delete_deferred() cleared it — hence the dedicated hook copy.
+    if (delete_hook_root_ && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(delete_hook_root_, on_root_deleted, this);
+        delete_hook_root_ = nullptr;
+    }
+
     // Cancel pending deferred G-code load
     if (gcode_load_timer_) {
         lv_timer_delete(gcode_load_timer_);
@@ -1261,21 +1289,9 @@ void PrintStatusPanel::on_ui_destroyed() {
         lv_subject_set_int(&graph_fits_subject_, 0);
     }
 
-    // Null all child widget pointers (widget tree is already deleted by base class)
-    progress_bar_ = nullptr;
-    preparing_progress_bar_ = nullptr;
-    gcode_viewer_ = nullptr;
-    print_thumbnail_ = nullptr;
-    gradient_background_ = nullptr;
-    btn_timelapse_ = nullptr;
-    btn_tune_ = nullptr;
-    btn_cancel_ = nullptr;
-    // Lazy fan control overlay — force re-creation on next click so we don't
-    // dereference a pointer into a destroyed widget tree (mirrors FanStackWidget::detach).
-    fan_control_panel_ = nullptr;
-    success_badge_ = nullptr;
-    cancel_badge_ = nullptr;
-    error_badge_ = nullptr;
+    // Null all child widget pointers (the tree's actual deletion is deferred by
+    // the base class, but every pointer below is dead from here on)
+    forget_cached_widgets();
 
     // Heater icon animators — at this point the widget tree is only hidden
     // and reparented to the top layer (destroy_overlay_ui() defers the actual
@@ -1298,6 +1314,49 @@ void PrintStatusPanel::on_ui_destroyed() {
     displayed_file_.clear();
     gcode_displayed_file_.clear();
     pending_gcode_filename_.clear();
+}
+
+void PrintStatusPanel::on_root_deleted(lv_event_t* e) {
+    auto* self = static_cast<PrintStatusPanel*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    auto* dying = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+
+    // Only the tree the hook was installed for matters. OverlayBase::rebuild()
+    // deletes a replaced root after create() already pointed the panel at the
+    // successor, so that event can land while the successor's pointers are
+    // live — clearing them then would blank a live tree. (Compared against
+    // delete_hook_root_, not overlay_root_: the explicit teardown path has
+    // already cleared the latter by the time this deferred event fires.)
+    if (dying != self->delete_hook_root_) {
+        return;
+    }
+
+    self->forget_cached_widgets();
+    self->delete_hook_root_ = nullptr;
+    if (s_cached_panel == dying) {
+        s_cached_panel = nullptr;
+    }
+    spdlog::debug("[{}] Widget tree deleted - cached pointers dropped", self->get_name());
+}
+
+void PrintStatusPanel::forget_cached_widgets() {
+    overlay_root_ = nullptr;
+    progress_bar_ = nullptr;
+    preparing_progress_bar_ = nullptr;
+    gcode_viewer_ = nullptr;
+    print_thumbnail_ = nullptr;
+    gradient_background_ = nullptr;
+    btn_timelapse_ = nullptr;
+    btn_tune_ = nullptr;
+    btn_cancel_ = nullptr;
+    // Lazy fan control overlay — force re-creation on next click so we don't
+    // dereference a pointer into a destroyed widget tree (mirrors FanStackWidget::detach).
+    fan_control_panel_ = nullptr;
+    success_badge_ = nullptr;
+    cancel_badge_ = nullptr;
+    error_badge_ = nullptr;
 }
 
 lv_obj_t* PrintStatusPanel::get_cached_overlay() {

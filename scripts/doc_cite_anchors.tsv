@@ -445,8 +445,8 @@ docs/devel/architecture/08-panels-navigation.md	src/ui/ui_nav_manager.cpp	1826	s
 docs/devel/architecture/08-panels-navigation.md	src/ui/ui_nav_manager.cpp	1961	src/ui/ui_nav_manager.cpp	8b64a9668b60	f87895233822
 docs/devel/architecture/08-panels-navigation.md	src/ui/ui_nav_manager.cpp	2238	src/ui/ui_nav_manager.cpp	6635981d4099	8bf534de461b
 docs/devel/architecture/08-panels-navigation.md	src/ui/ui_panel_home.cpp	815	src/ui/ui_panel_home.cpp	5c515ba9fddd	b548f52808bc
-docs/devel/architecture/08-panels-navigation.md	src/ui/ui_panel_print_status.cpp	1315	src/ui/ui_panel_print_status.cpp	ee8f4538f1a8	782e6a87f460
-docs/devel/architecture/08-panels-navigation.md	src/ui/ui_panel_print_status.cpp	1329	src/ui/ui_panel_print_status.cpp	e723a1bfd6dd	3755753324cc
+docs/devel/architecture/08-panels-navigation.md	src/ui/ui_panel_print_status.cpp	1374	src/ui/ui_panel_print_status.cpp	ee8f4538f1a8	782e6a87f460
+docs/devel/architecture/08-panels-navigation.md	src/ui/ui_panel_print_status.cpp	1388	src/ui/ui_panel_print_status.cpp	e723a1bfd6dd	3755753324cc
 docs/devel/architecture/08-panels-navigation.md	src/ui/ui_settings_safety.cpp	35	src/ui/ui_settings_safety.cpp	9da33d893672	0ce3dd1c97b3
 docs/devel/architecture/08-panels-navigation.md	src/ui/ui_settings_safety.cpp	113	src/ui/ui_settings_safety.cpp	38f4fa12945b	22096c98e1fd
 docs/devel/architecture/08-panels-navigation.md	src/ui/ui_settings_safety.cpp	135	src/ui/ui_settings_safety.cpp	3df2eb1f6ffd	bcbbb3365f3e
@@ -721,9 +721,9 @@ docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1554	src
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1716	src/ui/ui_gcode_viewer.cpp	7771485c9606	de32ed131956
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	1825	src/ui/ui_gcode_viewer.cpp	3beda2c23532	875d26cbb085
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	379	src/ui/ui_panel_print_status.cpp	683c7d398d45	d94959216ef9
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1079	src/ui/ui_panel_print_status.cpp	ed987a71bbbf	8cb6648d0caf
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1996	src/ui/ui_panel_print_status.cpp	ec051ba125be	352e2708ac96
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	3435	src/ui/ui_panel_print_status.cpp	12337ba6e443	da052ae6914a
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	1097	src/ui/ui_panel_print_status.cpp	ed987a71bbbf	8cb6648d0caf
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	2055	src/ui/ui_panel_print_status.cpp	ec051ba125be	352e2708ac96
+docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	3494	src/ui/ui_panel_print_status.cpp	12337ba6e443	da052ae6914a
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	456	src/ui/ui_print_select_detail_view.cpp	97194cd2ef4d	9cfd78a06905
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	567	src/ui/ui_print_select_detail_view.cpp	b1c018930d0b	8c8d44f4f15e
 docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_print_select_detail_view.cpp	612	src/ui/ui_print_select_detail_view.cpp	945c5afe0719	4c8b1163bcc1

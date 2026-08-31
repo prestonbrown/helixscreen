@@ -158,6 +158,44 @@ class PrintStatusPanel : public OverlayBase {
      */
     void on_ui_destroyed() override;
 
+    /**
+     * @brief LV_EVENT_DELETE hook on the panel root — the only notice this
+     *        panel gets when the tree is deleted by anything other than
+     *        destroy_overlay_ui()
+     *
+     * A raw lv_obj_delete() (screen teardown, tests) fires no panel call, but
+     * the queued observe_int_sync handlers still run on the next drain and
+     * dereference the cached child pointers. Drops them via
+     * forget_cached_widgets(). Same contract as PowerPanel's hook (#776
+     * family).
+     */
+    static void on_root_deleted(lv_event_t* e);
+
+    /**
+     * @brief Drop every cached raw widget pointer, including overlay_root_
+     *
+     * Idempotent. Called from on_ui_destroyed() (explicit teardown) and
+     * on_root_deleted() (the tree died some other way). Does NOT touch the
+     * owned sub-objects (side list, map view, exclude manager) — those need a
+     * live tree to tear down and must never run from inside LVGL's delete
+     * event. Also does not touch delete_hook_root_: that member tracks where
+     * the delete hook is installed and is cleared only by the hook firing, the
+     * explicit teardown, or the destructor.
+     */
+    void forget_cached_widgets();
+
+    /**
+     * @brief The widget on_ui_destroyed()/~PrintStatusPanel must uninstall the
+     *        delete hook from
+     *
+     * Not overlay_root_: destroy_overlay_ui() hands that to
+     * safe_delete_deferred(), which nulls it immediately — before the deferred
+     * deletion runs and while the hook is still installed on the detached
+     * tree. This copy stays set until the hook fires on it, the explicit
+     * teardown removes it, or the destructor does, whichever comes first.
+     */
+    lv_obj_t* delete_hook_root_ = nullptr;
+
   public:
     //
     // === Legacy Compatibility ===
