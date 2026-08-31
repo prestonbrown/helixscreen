@@ -135,6 +135,18 @@ class IdentityCacheFixture : public LVGLTestFixture {
   public:
     IdentityCacheFixture() {
         get_printer_state().init_subjects(false);
+        // AmsState's subjects too: the identity tests assert on
+        // slots_version, and bump_slots_version()'s get+set on a
+        // never-initialized lv_subject_t warns and DROPS both writes — the
+        // counter stays 0 while the cache still fills, and the test fails as
+        // 0 > 0. In-family an earlier case's ams.init_subjects(false) hides
+        // this (shard composition, not scheduling, is the flake); run alone
+        // at case granularity nothing initializes the subject. Production
+        // cannot hit this (subject_initializer brings AmsState up before
+        // SpoolmanManager can poll), so this is test self-sufficiency, not a
+        // product fix — the file asserts on AmsState state, so the file owns
+        // initializing it.
+        AmsState::instance().init_subjects(false);
         IdTA::reset(SpoolmanManager::instance());
         AmsState::instance().clear_external_spool_info();
         helix::ui::UpdateQueue::instance().drain();
@@ -703,7 +715,12 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     h.backend->set_slot_info(0, slot);
 
     const int before = lv_subject_get_int(AmsState::instance().get_slots_version_subject());
-    REQUIRE_FALSE(SpoolmanManager::find_identity(1).has_value());
+    // Precondition WITHOUT find_identity(): that call is lookup-OR-FETCH, and
+    // its deferred cache-fill landing inside h.poll()'s drain would consume
+    // is_new for spool 1 - the poll below would then bump nothing and the
+    // assertion would flake on async delivery timing (#1403). cache_size()
+    // reads the same state without scheduling anything.
+    REQUIRE(IdTA::cache_size(SpoolmanManager::instance()) == 0);
 
     h.poll();
 

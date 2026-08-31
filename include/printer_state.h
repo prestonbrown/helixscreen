@@ -92,6 +92,34 @@ enum class PrintJobState {
 };
 
 /**
+ * @brief Has the printer taken a job?
+ *
+ * True for PRINTING and PAUSED: the two wire states reachable only from a job
+ * Klipper has accepted. A pause is not a lesser form of idle - the job exists,
+ * its clock runs, and `CANCEL_PRINT`/`PAUSE` land on something real.
+ *
+ * This is the wire-level half of the pair. Ask it when the decision turns on
+ * what the PRINTER reports: whether a macro would reach a live job, whether a
+ * sibling field like `print_filename` describes a running print, whether a
+ * transition to a terminal state ended a real one.
+ *
+ * @warning NOT the same question as `job_holds_machine(PrintState)`, which also
+ *          counts `Preparing`. Preparing is a job the app has committed to and
+ *          the printer has not reported, so during a host-side pre-start block
+ *          this predicate is false while the toolhead is genuinely moving. Ask
+ *          `job_holds_machine()` for "would acting now fight the printer", and
+ *          this one for "does the printer hold a job". Several callers depend on
+ *          the narrower answer and say so at their call site.
+ *
+ * The 0/1 subject mirror of this predicate is `print_active`, set from
+ * `PrinterPrintState::status_indicates_active_print()`, which asks the same
+ * question of a raw status payload and is defined in terms of this function.
+ */
+constexpr bool printer_has_job(PrintJobState state) {
+    return state == PrintJobState::PRINTING || state == PrintJobState::PAUSED;
+}
+
+/**
  * @brief Terminal outcome of a print job (for UI persistence)
  *
  * Captures how the last print ended. Unlike PrintJobState (which always reflects
@@ -2213,6 +2241,27 @@ class PrinterState {
     void set_printer_type_sync(const std::string& type);
 
     /**
+     * @brief Record that an installed SET_GCODE_OFFSET wrapper owns z-offset
+     *        persistence (zoffset:: matched a provider in discovery)
+     *
+     * Re-resolves the calibration strategy: with the offset persisted by the
+     * wrapper, the probe fold in "Save Z Offset" would double-apply it on
+     * every Klipper restart (prestonbrown/helixscreen#1401), so the strategy
+     * becomes FIRMWARE_MANAGED and the save path stands down. Sticky across
+     * printer-type re-resolution. Thread-safe: defers to the main thread.
+     * @param provider_name for the log line only
+     */
+    void set_z_offset_external_persistence(const std::string& provider_name);
+
+    /// Rediscovery found no provider (module uninstalled): restore the
+    /// type-derived strategy. Thread-safe like the setter.
+    void clear_z_offset_external_persistence();
+
+    /// Main-thread bodies; tests reach these directly.
+    void set_z_offset_external_persistence_internal(const std::string& provider_name);
+    void clear_z_offset_external_persistence_internal();
+
+    /**
      * @brief Get the current printer type name
      *
      * @return Const reference to the stored printer type string
@@ -2436,6 +2485,14 @@ class PrinterState {
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     lv_subject_t z_offset_can_save_{}; ///< 1 when manual save needed, 0 when auto-saved
+
+    /// An installed SET_GCODE_OFFSET wrapper (Helper-Script save-zoffset,
+    /// ZMOD, Forge-X) persists the z-offset itself. Folding the gcode offset
+    /// into the probe on top of that double-applies it on every restart
+    /// (prestonbrown/helixscreen#1401), so the strategy resolves to
+    /// FIRMWARE_MANAGED regardless of printer type. Set by discovery via
+    /// set_z_offset_external_persistence() when zoffset:: matches a provider.
+    bool z_offset_external_persistence_ = false;
 
     /// Last kinematics string (to skip redundant recomputation)
     std::string last_kinematics_;

@@ -63,6 +63,7 @@ configure_platform() {
     case "${AD5M_FIRMWARE:-}" in
         forge_x)
             configure_forgex_display || true
+            dismiss_forgex_feather_promo || true
             disable_stock_firmware_ui || true
             patch_forgex_screen_sh || true
             patch_forgex_screen_drawing || true

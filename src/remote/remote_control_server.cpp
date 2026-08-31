@@ -460,7 +460,10 @@ nlohmann::json RemoteControlServer::handle_reset(const nlohmann::json& /*params*
             if (!top) {
                 break;
             }
-            Modal::hide(top);
+            // External, not Programmatic: the reset is not the dialog's caller,
+            // so a caller holding state the buttons resolve (the print-gate
+            // guard) still learns about the close through on_dismiss.
+            Modal::hide(top, ModalCloseReason::External);
             modals_cleared++;
         }
         if (modals_cleared == MAX_MODAL_DEPTH && !ModalStack::instance().empty()) {
@@ -1238,42 +1241,6 @@ static void collect_by_name(lv_obj_t* parent, const std::string& name, std::vect
         }
         collect_by_name(child, name, out, include_hidden);
     }
-}
-
-// Pick the match the user is actually looking at. Overlays stack as increasing
-// child indices under the screen, and the top layer (modals) sits above all of
-// them, so rank by (top layer, top-level ancestor index, discovery order) and
-// take the highest. Without this, a name that exists in both a background
-// overlay and the visible one resolves to the background copy and the click
-// becomes a silent no-op.
-static lv_obj_t* topmost_visible(const std::vector<lv_obj_t*>& matches) {
-    lv_obj_t* best = nullptr;
-    // int64_t, not long: the key packs a rank at bit 40, and `long` is 32 bits
-    // on every 32-bit device target (armv7 K1/K2/AD5M/CC1, armhf Pi). There the
-    // shift is undefined and the rank and index fields collapse into each other,
-    // so `ctl click <name>` picks a widget under the panel instead of the modal
-    // on top of it. Never showed up while cross builds excluded this file.
-    int64_t best_key = -1;
-    for (size_t i = 0; i < matches.size(); ++i) {
-        lv_obj_t* cur = matches[i];
-        lv_obj_t* top_ancestor = cur;
-        while (lv_obj_t* parent = lv_obj_get_parent(top_ancestor)) {
-            if (!lv_obj_get_parent(parent)) {
-                break; // parent is the screen/layer root; top_ancestor is its child
-            }
-            top_ancestor = parent;
-        }
-        lv_obj_t* root = lv_obj_get_parent(top_ancestor);
-        const int64_t layer_rank = (root == lv_layer_top()) ? 1 : 0;
-        const int64_t key = (layer_rank << 40) |
-                            (static_cast<int64_t>(lv_obj_get_index(top_ancestor)) << 20) |
-                            static_cast<int64_t>(i);
-        if (key > best_key) {
-            best_key = key;
-            best = cur;
-        }
-    }
-    return best;
 }
 
 // The subtree a search is confined to — the caller's working directory, sent as

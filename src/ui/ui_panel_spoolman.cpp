@@ -45,16 +45,13 @@ DEFINE_GLOBAL_PANEL(SpoolmanPanel, g_spoolman_panel, get_global_spoolman_panel)
 // Constructor
 // ============================================================================
 
-SpoolmanPanel::SpoolmanPanel() {
+SpoolmanPanel::SpoolmanPanel()
+    : search_debounce_([this](const std::string&) { populate_spool_list(); }) {
     spdlog::trace("[{}] Constructor", get_name());
     std::memset(header_title_buf_, 0, sizeof(header_title_buf_));
 }
 
 SpoolmanPanel::~SpoolmanPanel() {
-    if (search_debounce_timer_) {
-        lv_timer_delete(search_debounce_timer_);
-        search_debounce_timer_ = nullptr;
-    }
     deinit_subjects();
 }
 
@@ -179,10 +176,7 @@ void SpoolmanPanel::on_deactivate() {
     SpoolmanManager::instance().stop_spoolman_polling();
 
     // Clean up debounce timer
-    if (search_debounce_timer_) {
-        lv_timer_delete(search_debounce_timer_);
-        search_debounce_timer_ = nullptr;
-    }
+    search_debounce_.cancel();
 
     // Reset visible state but keep pool intact for reactivation
     list_view_.reset();
@@ -198,6 +192,19 @@ void SpoolmanPanel::on_deactivate() {
 // ============================================================================
 
 void SpoolmanPanel::refresh_spools() {
+    // A queued archive/delete/duplicate completion refetches the GLOBAL panel
+    // and calls this; when that drain lands after fixture teardown ran
+    // StaticPanelRegistry::destroy_all(), the getter has lazily resurrected a
+    // shell whose init_subjects() never ran. Writing panel_state_subject_ on
+    // that shell walks whatever recycled bytes the heap returned — in the
+    // #1402 crashes they passed the INT type check and lv_subject_notify
+    // segfaulted on an ASCII "pointer". Same guard shape as #1393: no-op
+    // until the panel is live. Production never tears panels down mid-process,
+    // so the shell only exists in tests.
+    if (!are_subjects_initialized()) {
+        return;
+    }
+
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::warn("[{}] No API available, cannot refresh", get_name());
@@ -458,9 +465,10 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt) {
     context_menu_.set_action_callback([this](helix::ui::SpoolmanContextMenu::MenuAction action,
                                              int id) { handle_context_action(action, id); });
 
-    // Show context menu near the click point
+    // Show context menu near the click point. Archive is withheld for the
+    // active spool — it is feeding the printer.
     context_menu_.set_click_point(click_pt);
-    context_menu_.show_for_spool(lv_screen_active(), *spool, row);
+    context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_);
 }
 
 void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action,
@@ -484,6 +492,10 @@ void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAc
 
     case MenuAction::DUPLICATE:
         duplicate_spool(spool_id);
+        break;
+
+    case MenuAction::ARCHIVE:
+        archive_spool(spool_id);
         break;
 
     case MenuAction::DELETE:
@@ -620,33 +632,65 @@ void SpoolmanPanel::duplicate_spool(int spool_id) {
         });
 }
 
-void SpoolmanPanel::delete_spool(int spool_id) {
-    // Build confirmation message with spool info
+std::string SpoolmanPanel::confirmation_spool_desc(int spool_id) const {
     const SpoolInfo* spool = find_cached_spool(spool_id);
-    std::string spool_desc;
     if (spool) {
-        spool_desc = spool->display_name() + " (#" + std::to_string(spool_id) + ")";
-    } else {
-        spool_desc = std::string(lv_tr("Spool #")) + std::to_string(spool_id);
+        return spool->display_name() + " (#" + std::to_string(spool_id) + ")";
     }
+    return std::string(lv_tr("Spool #")) + std::to_string(spool_id);
+}
 
-    std::string message = spool_desc + "\n" + lv_tr("This cannot be undone.");
+void SpoolmanPanel::archive_spool(int spool_id) {
+    std::string message = confirmation_spool_desc(spool_id) + "\n" +
+                          lv_tr("It can be un-archived in Spoolman's web UI.");
 
-    // Store spool_id for the confirmation callback via a static (only one delete at a time)
-    static int s_pending_delete_id = 0;
-    s_pending_delete_id = spool_id;
+    // Reversible (unlike delete), so Info severity. Dismissal = no action, and
+    // there is no caller state to clean up, so no cancel/dismiss callbacks.
+    helix::ui::modal_confirm(
+        lv_tr("Archive Spool?"), message.c_str(), ModalSeverity::Info, lv_tr("Archive"),
+        [spool_id] {
+            spdlog::info("[Spoolman] Confirmed archive of spool {}", spool_id);
 
-    helix::ui::modal_show_confirmation(
-        lv_tr("Delete Spool?"), message.c_str(), ModalSeverity::Warning, lv_tr("Delete"),
-        [](lv_event_t* /*e*/) {
-            // Close the confirmation dialog immediately
-            lv_obj_t* top = Modal::get_top();
-            if (top) {
-                Modal::hide(top);
+            IMoonrakerAPI* api = get_moonraker_api();
+            if (!api) {
+                ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("API not available"),
+                                              3000);
+                return;
             }
 
-            int id = s_pending_delete_id;
-            spdlog::info("[Spoolman] Confirmed delete of spool {}", id);
+            nlohmann::json body;
+            body["archived"] = true;
+            api->spoolman().update_spoolman_spool(
+                spool_id, body,
+                [spool_id]() {
+                    spdlog::info("[Spoolman] Spool {} archived successfully", spool_id);
+                    helix::ui::queue_update([spool_id]() {
+                        ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                      lv_tr("Spool archived"), 2000);
+                        auto& panel = get_global_spoolman_panel();
+                        panel.preserve_scroll_ = true;
+                        panel.refresh_spools();
+                    });
+                },
+                [spool_id](const MoonrakerError& err) {
+                    spdlog::error("[Spoolman] Failed to archive spool {}: {}", spool_id,
+                                  err.message);
+                    helix::ui::queue_update([]() {
+                        ToastManager::instance().show(ToastSeverity::ERROR,
+                                                      lv_tr("Failed to archive spool"), 3000);
+                    });
+                });
+        });
+}
+
+void SpoolmanPanel::delete_spool(int spool_id) {
+    std::string message =
+        confirmation_spool_desc(spool_id) + "\n" + lv_tr("This cannot be undone.");
+
+    helix::ui::modal_confirm(
+        lv_tr("Delete Spool?"), message.c_str(), ModalSeverity::Warning, lv_tr("Delete"),
+        [spool_id] {
+            spdlog::info("[Spoolman] Confirmed delete of spool {}", spool_id);
 
             IMoonrakerAPI* api = get_moonraker_api();
             if (!api) {
@@ -656,10 +700,10 @@ void SpoolmanPanel::delete_spool(int spool_id) {
             }
 
             api->spoolman().delete_spoolman_spool(
-                id,
-                [id]() {
-                    spdlog::info("[Spoolman] Spool {} deleted successfully", id);
-                    helix::ui::queue_update([id]() {
+                spool_id,
+                [spool_id]() {
+                    spdlog::info("[Spoolman] Spool {} deleted successfully", spool_id);
+                    helix::ui::queue_update([spool_id]() {
                         ToastManager::instance().show(ToastSeverity::SUCCESS,
                                                       lv_tr("Spool deleted"), 2000);
                         auto& panel = get_global_spoolman_panel();
@@ -667,16 +711,15 @@ void SpoolmanPanel::delete_spool(int spool_id) {
                         panel.refresh_spools();
                     });
                 },
-                [id](const MoonrakerError& err) {
-                    spdlog::error("[Spoolman] Failed to delete spool {}: {}", id, err.message);
+                [spool_id](const MoonrakerError& err) {
+                    spdlog::error("[Spoolman] Failed to delete spool {}: {}", spool_id,
+                                  err.message);
                     helix::ui::queue_update([]() {
                         ToastManager::instance().show(ToastSeverity::ERROR,
                                                       lv_tr("Failed to delete spool"), 3000);
                     });
                 });
-        },
-        nullptr, // No cancel callback needed
-        nullptr);
+        });
 }
 
 // ============================================================================
@@ -741,26 +784,15 @@ void SpoolmanPanel::on_search_changed(lv_event_t* e) {
     const char* text = lv_textarea_get_text(textarea);
     panel.search_query_ = text ? text : "";
 
-    // Debounce: cancel existing timer, start new one
-    if (panel.search_debounce_timer_) {
-        lv_timer_delete(panel.search_debounce_timer_);
-        panel.search_debounce_timer_ = nullptr;
-    }
-
-    panel.search_debounce_timer_ = lv_timer_create(on_search_timer, SEARCH_DEBOUNCE_MS, &panel);
-    lv_timer_set_repeat_count(panel.search_debounce_timer_, 1);
+    // Debounced: empty applies immediately, anything else waits out the delay.
+    panel.search_debounce_.schedule(panel.search_query_);
 }
 
 void SpoolmanPanel::on_search_clear(lv_event_t* /*e*/) {
-    // Text is already cleared by text_input's internal clear button handler.
-    // We just need to update the search state and repopulate immediately.
-    auto& panel = get_global_spoolman_panel();
-    panel.search_query_.clear();
-    if (panel.search_debounce_timer_) {
-        lv_timer_delete(panel.search_debounce_timer_);
-        panel.search_debounce_timer_ = nullptr;
-    }
-    panel.populate_spool_list();
+    // The clear button's lv_textarea_set_text("") already fired value_changed,
+    // whose immediate empty-filter apply repopulated once. Applying again here
+    // would double the rebuild, so this only drops a straggling trigger.
+    get_global_spoolman_panel().search_debounce_.cancel();
 }
 
 void SpoolmanPanel::on_location_filter_changed(lv_event_t* e) {
@@ -788,20 +820,6 @@ void SpoolmanPanel::on_location_filter_changed(lv_event_t* e) {
 
     spdlog::debug("[Spoolman] Location filter: '{}'", panel.selected_location_);
     panel.populate_spool_list();
-}
-
-void SpoolmanPanel::on_search_timer(lv_timer_t* timer) {
-    auto* self = static_cast<SpoolmanPanel*>(lv_timer_get_user_data(timer));
-    if (!self) {
-        return;
-    }
-
-    self->search_debounce_timer_ = nullptr;
-
-    spdlog::debug("[Spoolman] Search query: '{}'", self->search_query_);
-
-    // Re-filter and repopulate (populate_spool_list handles empty/non-empty states)
-    self->populate_spool_list();
 }
 
 #if HELIX_HAS_LABEL_PRINTER

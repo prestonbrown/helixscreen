@@ -27,6 +27,11 @@ class DebugBundleModal : public Modal {
     /// Show the modal and return success
     bool show_modal(lv_obj_t* parent);
 
+    /// One-shot owned show: create, show on the active screen, and hand the
+    /// instance to ModalStack, which frees it when its entry goes (#1382).
+    /// Returns false if the XML failed to create; the instance is not leaked.
+    static bool show_owned();
+
     const char* get_name() const override {
         return "Debug Bundle";
     }

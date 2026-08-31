@@ -2,63 +2,129 @@
 
 Configuration knobs for the G-code viewer. For the pipeline these settings sit inside — render-mode selection and precedence, streaming vs full parse, downloads and caches — see [the G-code pipeline chapter](architecture/16-gcode-pipeline.md); for runtime env overrides (`HELIX_GCODE_MODE`, `HELIX_GCODE_STREAMING`) see [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
 
-## Shading Model
+Everything below is read at runtime and verified against the code. Config keys
+live under `gcode_viewer` in `settings.json` unless noted; the viewer loads them
+once at startup, so changes need a restart.
 
-> **Status note (v0.99.115):** this key is currently **inert**. It is written into the config defaults (`src/system/config.cpp` — default `"phong"`) and the settings template, but no code reads it: the GLES renderer always renders per-pixel Phong with a camera-following light (`src/rendering/gcode_gles_renderer.cpp`), and `set_smooth_shading()` is an uncalled stub. Editing `shading_model` in `settings.json` has no effect on the current build. The section below is kept as the reference for what the values mean, for whenever the switch is wired up again.
+> **`shading_model` is gone.** It was documented here as a three-way choice
+> between `flat`, `smooth` and `phong`, with a comparison table and a
+> recommendation per device tier. Nothing ever read it. It was seeded into
+> `settings.json.template` as `"smooth"` and into `config.cpp`'s defaults as
+> `"phong"` — two files disagreeing about the default of a key that had no
+> effect either way, which is what gave it away. The setters behind it
+> (`GCodeGLESRenderer::set_smooth_shading()`, which ignored its argument, and
+> `GeometryBuilder::set_smooth_shading()`) had no callers. Removed along with the
+> key. Shading is controlled by `HELIX_SSAO` and the device tier, below.
 
-The G-code 3D viewer supports three shading models for rendering extrusion paths. Configure via `settings.json`:
+## Which renderer draws
+
+`display/gcode_render_mode` (a **display** key, not a `gcode_viewer` one) picks
+the renderer:
+
+| Value | Mode | Notes |
+|-------|------|-------|
+| 0 | Auto | 3D where GLES is available, 2D otherwise. Default. |
+| 1 | 3D | Only offered on `ENABLE_GLES_3D` builds |
+| 2 | 2D Layers | Software rasterizer, every platform |
+| 3 | Thumbnail Only | No toolpath rendering at all |
+
+On a build without GLES there is no 3D mode at all, and the settings dropdown
+omits the option. A stored value of `1` from a device that does have GLES
+degrades to 2D rather than reaching anything.
+
+`HELIX_GCODE_MODE=3D|2D` overrides for one run. `3D` on a build without a 3D
+renderer falls back to 2D and says so in the log.
+
+## Shading, and what it costs
+
+Two things travel under the name "enhanced shading", and they are priced very
+differently:
+
+| | What it does | Cost |
+|---|---|---|
+| Outline pass | Darkens the silhouette edge, plus cheap normal-based shading | ~2 ms per cache revalidation, measured on an AD5M |
+| Antialiasing | Wu's algorithm instead of Bresenham for every stroke | **~6.1x** the aliased rasterization cost |
+
+They are separate flags because tying them together forced a constrained device
+to choose between looking flat and building slowly.
+
+**Defaults by tier:**
+
+| Device | Outline | Antialiasing |
+|--------|---------|--------------|
+| Unconstrained | on | on |
+| Constrained (`MemoryInfo::is_constrained_device()`) | **on** | **off** |
+
+`HELIX_SSAO` overrides both together, so a forced comparison stays honest:
+
+| Value | Effect |
+|-------|--------|
+| `1` | Both on, whatever the tier says |
+| `0` | Both off |
+| unset / anything else | Tier default |
+
+Only the exact strings `0` and `1` are honoured. Confirm which way it went from
+the log line at viewer init (`enhanced shading`, `outline shading on,
+antialiasing off`, or `HELIX_SSAO=...`).
+
+For scale, on the 135,197-segment test plate the rasterizer spends roughly 29 ms
+aliased against 178 ms antialiased, and the adaptive controller settles at 49
+layers per frame instead of 22 — so a preview appears about 2.2x faster with
+antialiasing off.
+
+## Geometry (3D only)
+
+### `tube_sides`
+**Type:** int **Default:** 4 **Values:** 4, 8, 16
+Cross-section of the extruded tube. 4 is a diamond and the cheapest; 16 is
+circular and matches OrcaSlicer. Anything else logs a warning and falls back to
+16. The geometry budget tier can override this downward on constrained devices.
+
+## Streaming and pacing (2D)
+
+### `streaming_mode`
+**Type:** string **Default:** `"auto"`
+Whether large files stream layer-by-layer instead of loading whole.
+
+### `streaming_threshold_percent`
+**Type:** int **Default:** 40
+Share of available memory a file may occupy before streaming engages.
+
+### `layers_per_frame`
+**Type:** int **Default:** 0 (adaptive)
+How many layers the progressive cache build draws per frame. `0` hands the
+decision to the adaptive controller, which is almost always what you want —
+it is also the thing that reacts to antialiasing being on.
+
+### `adaptive_layer_target_ms`
+**Type:** int **Default:** 16
+Per-frame budget the adaptive controller aims at. Raising it builds the preview
+sooner at the cost of frame smoothness.
+
+## Memory
+
+Both renderers report their own footprint, itemized, at debug level whenever
+their buffer set changes:
+
+```
+[GCodeLayerRenderer] memory after solid cache created: 1243 KB total
+    (solid_cache 427, ghost_cache 427, ghost_raw 383, ssao_undo 8)
+```
+
+Useful when deciding whether a device tier can afford something. Note that
+process RSS cannot answer that question: cross-run RSS carries megabytes of
+noise, and `free()` does not lower it without `malloc_trim`.
+
+## Example
 
 ```json
 {
   "gcode_viewer": {
-    "shading_model": "phong"
+    "tube_sides": 8,
+    "streaming_mode": "auto",
+    "streaming_threshold_percent": 40,
+    "layers_per_frame": 0,
+    "adaptive_layer_target_ms": 16
   }
 }
 ```
-
-### Shading Options
-
-| Model | Description | Visual Quality | Performance |
-|-------|-------------|----------------|-------------|
-| `flat` | Uniform lighting per face, faceted appearance | Low (sharp edges visible) | Best (lowest cost) |
-| `smooth` | Gouraud shading - per-vertex lighting interpolated across faces | Medium | Good |
-| `phong` | Per-pixel lighting with smooth gradients | High (default) | Good (negligible overhead) |
-
-### Recommendations
-
-- **Default: `phong`** - Provides the best visual quality with smooth gradients that clearly show the 3D tube geometry. Performance impact is negligible on modern hardware.
-
-- **Use `flat`** - For debugging geometry (clearly shows face boundaries) or on extremely constrained hardware.
-
-- **Use `smooth`** - Not recommended for current diamond tube implementation. Due to per-face vertex structure, smooth shading produces identical results to flat shading.
-
-### Technical Notes
-
-The current diamond cross-section implementation uses separate vertices for each face (not shared) to enable per-face coloring in debug mode. This means:
-
-- Each face has 4 vertices with identical normals
-- `smooth` (Gouraud) shading interpolates between identical normals, producing the same result as `flat`
-- `phong` (per-pixel) shading provides gradients across each face for better depth perception
-
-### Configuration Location
-
-- **Template**: `config/settings.json.template` (note: the template ships `"smooth"` while the code default in `src/system/config.cpp` is `"phong"` — an unrelated template inconsistency)
-- **Runtime**: the config directory's `settings.json` (on device `~/helixscreen/config/`; `--test` runs use `settings-test.json` from the same directory)
-- **Code**: defaults are seeded in `src/system/config.cpp`
-
-### Example
-
-To switch to flat shading for debugging:
-
-1. Edit your settings.json:
-   ```json
-   {
-     "gcode_viewer": {
-       "shading_model": "flat"
-     }
-   }
-   ```
-
-2. Restart the application (config is loaded once at startup)
-
-3. The G-code viewer will now use flat shading with clearly visible face boundaries

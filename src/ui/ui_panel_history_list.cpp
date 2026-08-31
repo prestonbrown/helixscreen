@@ -58,7 +58,9 @@ HistoryListPanel& get_global_history_list_panel() {
 // Constructor
 // ============================================================================
 
-HistoryListPanel::HistoryListPanel() : history_manager_(get_print_history_manager()) {
+HistoryListPanel::HistoryListPanel()
+    : history_manager_(get_print_history_manager()),
+      search_debounce_([this](const std::string&) { do_debounced_search(); }) {
     spdlog::trace("[{}] Constructor", get_name());
 }
 
@@ -69,10 +71,6 @@ HistoryListPanel::~HistoryListPanel() {
     if (mgr && history_observer_) {
         mgr->remove_observer(&history_observer_);
         history_observer_ = nullptr;
-    }
-    if (search_timer_) {
-        lv_timer_delete(search_timer_);
-        search_timer_ = nullptr;
     }
     // Guard against static destruction order fiasco (spdlog may be gone)
     if (!StaticPanelRegistry::is_destroyed()) {
@@ -348,7 +346,7 @@ void HistoryListPanel::on_deactivate() {
     }
 
     // Cancel any pending search timer
-    helix::ui::safe_delete_timer(search_timer_);
+    search_debounce_.cancel();
 
     // Reset filter state for fresh start on next activation
     search_query_.clear();
@@ -850,32 +848,22 @@ void HistoryListPanel::apply_sort(std::vector<PrintHistoryJob>& jobs) {
 // ============================================================================
 
 void HistoryListPanel::on_search_changed() {
-    // Cancel existing timer if any
-    helix::ui::safe_delete_timer(search_timer_);
-
-    // Create debounce timer (300ms)
-    search_timer_ = lv_timer_create(on_search_timer_static, 300, this);
-    lv_timer_set_repeat_count(search_timer_, 1); // Fire once
+    if (!search_box_) {
+        return;
+    }
+    const char* text = lv_textarea_get_text(search_box_);
+    // Debounced: empty applies immediately, anything else waits out the delay.
+    search_debounce_.schedule(text ? text : "");
 }
 
 void HistoryListPanel::on_search_clear() {
-    // Text is already cleared by text_input's internal clear button handler.
-    // We just need to update the search state and apply immediately.
-    search_query_.clear();
-    helix::ui::safe_delete_timer(search_timer_);
-    apply_filters_and_sort();
-}
-
-void HistoryListPanel::on_search_timer_static(lv_timer_t* timer) {
-    auto* panel = static_cast<HistoryListPanel*>(lv_timer_get_user_data(timer));
-    if (panel) {
-        panel->do_debounced_search();
-    }
+    // The clear button's lv_textarea_set_text("") already fired value_changed,
+    // whose immediate empty-filter apply re-sorted once. Applying again here
+    // would double the work, so this only drops a straggling trigger.
+    search_debounce_.cancel();
 }
 
 void HistoryListPanel::do_debounced_search() {
-    search_timer_ = nullptr; // Timer is auto-deleted after single fire
-
     if (!search_box_) {
         return;
     }

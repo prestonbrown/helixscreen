@@ -9,9 +9,11 @@
 // gcode tools span 0-31. Firmware's default map is [0,1,2,3,0,0,...], so any
 // extended tool (4-31) without an explicit user remap falls to physical head 0.
 //
-// The function is intentionally network-free, so we construct the backend with
-// a nullptr api/client probe — mirroring SnapmakerProbe in test_remap_strategy.cpp.
+// The function is intentionally network-free, so it runs against SnapmakerProbe
+// from tests/test_helpers/ams_backend_probes.h — a real backend with no
+// connection behind it.
 
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_snapmaker.h"
 #include "filament_mapper.h"
 
@@ -21,18 +23,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-namespace {
-
-// Minimal probe — constructed with nullptr api/client so no Moonraker
-// connection is required. build_preprint_gcode is a pure const method that
-// never touches api_, so a default/probe instance is sufficient.
-class SnapmakerProbe : public AmsBackendSnapmaker {
-  public:
-    SnapmakerProbe() : AmsBackendSnapmaker(nullptr, nullptr) {}
-};
-
-} // namespace
 
 TEST_CASE("Snapmaker build_preprint_gcode writes every used tool explicitly",
           "[snapmaker][preprint]") {
@@ -137,7 +127,13 @@ TEST_CASE("get_effective_remap identity-filter drops identity + auto entries",
     // The production identity filter itself. get_effective_remap() is nothing but
     // effective_mappings() piped through this, so a change to the filter shows up
     // in these expectations instead of leaving a stale copy green.
-    auto effective_remap = &helix::FilamentMapper::identity_filtered_remap;
+    // The U1 is a FOUR-HEAD machine, so these expectations are stated under its
+    // own routing rather than whatever the parameter defaults to. Wrapped in a
+    // lambda because a default argument does not survive a function pointer.
+    const auto u1_routing = helix::FirmwareRouting::fixed_heads(4, 0);
+    auto effective_remap = [&u1_routing](const std::vector<helix::ToolMapping>& m) {
+        return helix::FilamentMapper::identity_filtered_remap(m, u1_routing);
+    };
 
     auto mk = [](int tool, int slot) {
         helix::ToolMapping m;
@@ -194,7 +190,13 @@ TEST_CASE("Snapmaker routing: real U1 4-color-ring auto match drives the extrude
     // get_effective_remap()'s identity filter, called rather than restated: it is
     // FilamentMapper::identity_filtered_remap(), the one the detail view applies
     // to effective_mappings() before handing the map to build_preprint_gcode().
-    auto effective_remap = &helix::FilamentMapper::identity_filtered_remap;
+    // The U1 is a FOUR-HEAD machine, so these expectations are stated under its
+    // own routing rather than whatever the parameter defaults to. Wrapped in a
+    // lambda because a default argument does not survive a function pointer.
+    const auto u1_routing = helix::FirmwareRouting::fixed_heads(4, 0);
+    auto effective_remap = [&u1_routing](const std::vector<helix::ToolMapping>& m) {
+        return helix::FilamentMapper::identity_filtered_remap(m, u1_routing);
+    };
 
     // Sliced per-tool colors (T0=white, T1=black, T2=yellow, T3=red), all PLA.
     std::vector<helix::GcodeToolInfo> tools = {

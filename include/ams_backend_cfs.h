@@ -63,8 +63,14 @@ class CfsErrorDecoder {
     /// `std::string` so the caller doesn't have to mix const-char + string
     /// concatenation. Falls back to the un-augmented message+hint when
     /// the values shape is unknown for that code.
+    ///
+    /// `fw_msg` is the firmware's own `msg` from the same JSON error. For a
+    /// table entry that prefers it (see CfsErrorEntry::prefer_fw_msg) and a
+    /// non-empty msg, that wording replaces the table message: the code's
+    /// causes vary and the firmware names the one that fired (#1387).
     static std::optional<std::pair<std::string, std::string>>
-    lookup_message_with_values(const std::string& key_code, const nlohmann::json& values);
+    lookup_message_with_values(const std::string& key_code, const nlohmann::json& values,
+                               const std::string& fw_msg = "");
 };
 
 /// Macro dialect emitted by the CFS backend.
@@ -235,14 +241,19 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
      * `enabled` comes from `box.auto_refill` (stock) / `box.runout_swap_enabled`
      * (flat fork) via AmsSystemInfo::endless_spool_enabled, so on and off are now
      * distinguishable; the old struct hardcoded `supported = true` and buried the
-     * real state in an untranslated `description` string.
+     * real state in an untranslated `description` string. When auto-refill is on
+     * AND the frame carried `same_material` AND no group pairs two lanes,
+     * `enabled` degrades to OnWithoutBackup (#1391): a runout would stop the
+     * print despite the setting, and advertising plain On is a promise the box
+     * cannot keep. Frames without the field (the flat dialect never sends it)
+     * keep the plain On answer - no data is not a negative - and a stock delta
+     * that omits the field retains the last known grouping (presence-gated
+     * like filament_runout); only a schema switch to flat clears it.
      *
      * @note Takes `mutex_`; callers must NOT hold it.
      */
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     /// True except on K1, where BOX_MODIFY_TN no-ops (#968) so no confirming
@@ -265,6 +276,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
     }
+
+    /// The CFS owns its own tool->slot table and get_tool_mapping() returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
     // CFS unloads filament from the toolhead at end-of-print and reloads it as
     // part of the next print-start sequence, so the toolhead is expected to be
     // empty at print-start. The runout sensor reading "no filament" then is by
@@ -284,11 +300,24 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     [[nodiscard]] static CfsSchema detect_schema(const nlohmann::json& box_json);
 
     /// Parse a `box` object, dispatching on detect_schema().
-    static AmsSystemInfo parse_box_status(const nlohmann::json& box_json);
+    ///
+    /// `own_labels` is the caller's snapshot of pushed_material_codes_ (nullptr
+    /// when unavailable, e.g. from tests). It only ever REMOVES a false tag
+    /// signal — see parse_stock_box_status.
+    static AmsSystemInfo
+    parse_box_status(const nlohmann::json& box_json,
+                     const std::unordered_map<int, std::string>* own_labels = nullptr);
 
     /// Stock (`T1`..`T4`) parse. Split out of parse_box_status when the flat
     /// schema arrived; behavior unchanged.
-    static AmsSystemInfo parse_stock_box_status(const nlohmann::json& box_json);
+    ///
+    /// `own_labels` maps global slot index -> the material_type code THIS app
+    /// wrote to that bay. Firmware echoes it back forever, so without it a
+    /// user's own label reads as RFID tag payload and suppresses the untagged
+    /// presence fallback. Passing nullptr restores the pre-#1077-fix reading.
+    static AmsSystemInfo
+    parse_stock_box_status(const nlohmann::json& box_json,
+                           const std::unordered_map<int, std::string>* own_labels = nullptr);
 
     /// Flat (`slots[]`) parse — community Kalico box.py reimplementations.
     static AmsSystemInfo parse_flat_box_status(const nlohmann::json& box_json);
@@ -679,6 +708,59 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // firmware populates them from the RFID material database.
     void clear_override_locked(int slot_index, SlotInfo& slot);
 
+    /// Runout-episode bookkeeping (#1390). filament_runout is a box-wide
+    /// STICKY latch (set by "spool used up", cleared only by a successful
+    /// extrude), so an EMPTY bay alone cannot tell a transient unreadable-tag
+    /// read from a confirmed runout. This helper observes the latch per full
+    /// box frame and, on a 0 -> 1 rise it actually witnessed, captures
+    /// system_info_.current_slot as the lane that ran out - the active-lane
+    /// signal is gone (-1) by the time the exhausted spool is pulled, so the
+    /// lane must be latched at the edge, not read at the empty poll.
+    ///
+    /// Mirrors the AmsState runout-indicator discipline (ams_state.cpp
+    /// sync_from_backend): a first sighting already at 1 seeds the
+    /// observation but is NOT an edge - there is no before-state to rise
+    /// from, so a session that starts mid-runout arms nothing and the link
+    /// survives. The episode ends when the latch is observed clearing again
+    /// (whatever empties the lane next is a deliberate unload, not this
+    /// runout) or when strip_spoolman_link_on_runout_locked consumes it.
+    ///
+    /// Caller must hold mutex_. Runs inside handle_status_update AFTER the
+    /// current_slot update (the capture reads the settled active lane) and
+    /// BEFORE the override convergence loop (the strip reads runout_lane_).
+    void update_runout_episode_locked();
+
+    /// One-shot #1390 strip. When the lane captured at the runout edge reads
+    /// EMPTY and its override still remembers a Spoolman link, drop ONLY
+    /// spoolman_id / spoolman_vendor_id - brand, material, color, catalog
+    /// pick, lock flags and temperatures describe the lane's contents and
+    /// survive ("unlinking means stop tracking this in Spoolman, not forget
+    /// what is in the lane", SlotInfo::clear_spoolman_link semantics applied
+    /// to the persisted record). The exhausted spool's id must not survive a
+    /// confirmed runout: the early return in clear_stale_override_on_
+    /// removal_locked kept it alive, and it was re-asserted onto whatever
+    /// fresh spool the user loaded next. User locks do not protect the id -
+    /// they guard color and material, and no lock exists for the link.
+    ///
+    /// Persists with save_async (POST of the whole stripped record), NOT
+    /// clear_override_locked, whose clear_async DELETEs the record the
+    /// identity fields must keep. One episode strips at most one lane:
+    /// runout_lane_ is consumed here, so a later transient EMPTY read of the
+    /// same bay cannot strip a freshly relinked spool.
+    ///
+    /// Caller must hold mutex_ and must call this BEFORE apply_overrides (the
+    /// merge would re-paint the old id onto the live slot for this poll).
+    void strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slot_index);
+
+    // Runout-episode state (see the two helpers above). All access under
+    // mutex_. Tri-state latch observation: -1 = never observed (startup),
+    // 0 = last observation clear, 1 = last observation tripped.
+    int runout_latch_seen_ = -1;
+    // Lane captured at the witnessed 0 -> 1 runout rise; -1 = no live
+    // episode. -2 (bypass sentinel) is never stored: the external spool is
+    // not a bay and has no lane override.
+    int runout_lane_ = -1;
+
     // Persistent per-slot overrides. Writers (on_started bulk load,
     // set_slot_info persist path, check_hardware_event_clear) all hold
     // mutex_. Reads happen inside apply_overrides, which is also called
@@ -692,6 +774,29 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // other RFID-fingerprint backend (Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
 
+    /// material_type codes THIS app wrote to a bay via
+    /// push_slot_identity_to_firmware, keyed by global slot index.
+    ///
+    /// `material_type` is user-writable (BOX_MODIFY_TN_DATA PART=material_type,
+    /// #968) and the firmware echoes our write back on every later frame,
+    /// byte-identical to a real RFID read. The presence derivation treats a
+    /// non-sentinel code as proof of a tag and suppresses the untagged
+    /// remain_len fallback on that basis, so without this map labeling a bay
+    /// flipped a seated untagged spool to EMPTY on any firmware whose `vender`
+    /// stays sentinel for untagged spools — the exact population the fallback
+    /// exists for (#1077).
+    ///
+    /// Recorded ONLY when the bay's pre-push code was a sentinel. A bay that
+    /// already reported a real code is genuinely tagged, and relabeling it must
+    /// not unsuppress the fallback: remain_len latches after removal, so the
+    /// pulled spool would ghost as AVAILABLE forever.
+    ///
+    /// Session-scoped by design — it records something we observed happening,
+    /// not something we can re-derive. After a restart a labeled untagged bay
+    /// reads EMPTY-with-retained-identity again until the label is rewritten.
+    /// All access under mutex_.
+    std::unordered_map<int, std::string> pushed_material_codes_;
+
     /// Per-bay occupancy from the previous poll, keyed by global slot index.
     /// `vender` is the CFS's live occupancy signal (see parse_box_status), so a
     /// false -> true edge here IS a physical spool insert. Firmware does not
@@ -699,6 +804,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// at vender "unknown" / material_type "unknown" indefinitely), so the edge
     /// is the only moment we get to ask for one.
     std::unordered_map<int, bool> bay_occupied_;
+
+    /// Insert probes blocked by the busy gate in handle_status_update
+    /// (#1387): unit number -> bay bitmask, OR-merged so a bay re-inserted
+    /// while still deferred keeps one entry. Entries leave the set on the
+    /// first idle poll's dispatch: one deferred probe is retried exactly
+    /// once, never looped. Guarded by mutex_ like bay_occupied_ beside it,
+    /// and like it has no reset path.
+    std::map<int, int> deferred_probes_;
 
     /// Collect the bays whose insert edge needs an RFID read. Called under
     /// mutex_ with the raw box payload; returns unit number -> bay bitmask so

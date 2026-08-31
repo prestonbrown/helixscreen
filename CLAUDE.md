@@ -4,7 +4,7 @@
 
 **HelixScreen**: LVGL 9.5 touchscreen UI for Klipper 3D printers. XML engine in `lib/helix-xml/` — our own MIT fork of the engine LVGL removed in 9.5, and its own repo ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)), so a fresh clone needs `git submodule update --init --recursive`. Pattern: XML → Subjects → C++.
 
-**Before compiling:** Check for existing build processes (`pgrep -x -d' ' 'make|cc1plus'`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits. And `pgrep` takes ONE pattern: `pgrep -x make cc1plus` errors with "only one pattern can be provided", so with stderr suppressed it prints nothing and reads as an all-clear. Use the alternation form above, or one `pgrep -x` per name. **Check `free -h`'s Mem AND Swap rows together:** the `helix-tests` link is gated by memory headroom, not cores, and neither row decides on its own. An exhausted swap row is NOT a throttle signal while `Mem:` `available` is still tens of GB: a full `make -j6` built clean at 80Gi available with 14Mi free swap. The failure case is both tight at once, low `available` *and* swap near 0, where `-j8` dies mid-link with *no* `oom-kill` line while load average still looks healthy. `-j6` clears it. Dying at the *same* step twice is a resource ceiling, not another session interfering.
+**Before compiling:** Check for existing build processes (`pgrep -x -d' ' 'make|cc1plus'`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits. And `pgrep` takes ONE pattern: `pgrep -x make cc1plus` errors with "only one pattern can be provided", so with stderr suppressed it prints nothing and reads as an all-clear. Use the alternation form above, or one `pgrep -x` per name. **Check `free -h`'s Mem AND Swap rows together:** the `helix-tests` link is gated by memory headroom, not cores, and neither row decides on its own. An exhausted swap row is NOT a throttle signal while `Mem:` `available` is still tens of GB: a full `make -j6` built clean at 80Gi available with 14Mi free swap. The failure case is both tight at once, low `available` *and* swap near 0, where `-j8` dies mid-link with *no* `oom-kill` line while load average still looks healthy. `-j6` clears it. Dying at the *same* step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary, because `prune-orphan-test-objs` (`mk/tests.mk`) runs `rm -f $(TEST_BIN)` whenever it finds one orphan object, and it is a *sibling* prerequisite of the link, so `-j` gives them no order. The tell is in the log: `[LD] helix-tests` followed by `✓ Unit test binary ready` and NO `✗ Test linking failed!` means the linker exited 0 and something else removed the output. Every shard then reports `No such file or directory` and the suite reads RED with nothing wrong in your code. Memory is not the cause there - a starved link fails loudly and stops make. Under pressure, the peer is often another Claude session you can TALK to, not just a `pgrep` hit: `ListAgents` lists the other Claude sessions on this machine (the name is the address) and `SendMessage` asks directly — which tree, what target, how long — so you coordinate (wait for theirs, drop to `-j2`, take turns at the link) instead of racing blind; send with `notify_when_idle: true` to get ONE notice when that session goes idle instead of polling `free -h`. The symmetric duty: when the box is yours — no peer build, `available` in the tens of GB — MAXIMIZE. `-j` at full `nproc`, every core and all headroom spent, nothing rationed out of caution, and ramp back to full the moment a peer finishes. A stale `-j2` left running after pressure clears is just a slower way to waste the same machine.
 
 ```bash
 make -j                              # Build ONLY the program binary (NOT tests)
@@ -27,6 +27,10 @@ make pi-test                         # Build on thelio + deploy + run
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
 scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
+#   Also writes .claude/settings.local.json (gitignored) with PROJECT_DIR set to
+#   the MAIN tree, so claude-recall writes lessons and stats there instead of to
+#   a per-worktree .claude-recall/ that `git worktree remove` would discard.
+#   A worktree made by hand (plain `git worktree add`) does NOT get this.
 ```
 
 **XML changes need no rebuild:** `ui_xml/*.xml` is loaded at runtime — edit XML, then **relaunch** the binary to see changes (no `make` needed). Better: hot reload is **on by default for native dev builds** (cross-compiled release builds default it off) — the running app re-registers components within ~500ms of a save and rebuilds the active panel/overlay/modal in place. `HELIX_HOT_RELOAD=1`/`0` overrides the default either way. Invalid XML (mid-write truncation, syntax errors) is silently skipped on the polling thread — the existing UI stays live and the next poll retries.
@@ -52,10 +56,11 @@ scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
 > address.** Finding no `settings.json` there, `Config` bootstraps one from
 > `~/.helixscreen/settings.json.backup` — look for `[Config] Config missing — restoring
 > from backup:` in the log. That inherits the real `moonraker_host`, so a run **without**
-> `--test` opens a WebSocket to the actual printer. `--moonraker-url` does *not* override
-> the saved host. Keep `--test` (the mock client ignores the host entirely), or rewrite
-> `printers/<id>/moonraker_host` in the seeded `settings.json` before relying on the
-> instance being offline.
+> `--test` opens a WebSocket to the actual printer. Keep `--test` (the mock client ignores
+> the host entirely), or name the target explicitly with `--moonraker ws://HOST:7125`, which
+> **does** take precedence over the saved `moonraker_host` (the flag is `--moonraker`, not
+> `--moonraker-url`; verified 2026-08-27 — a seeded config defaulting to port 7125 connected
+> to `ws://127.0.0.1:7199/websocket` when the flag named it).
 >
 > Prefer `ctl text <name>` / `ctl geom <name>` over reading a screenshot — they are exact,
 > and a screenshot only proves what a scroll position happened to expose.
@@ -111,6 +116,7 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Build system** | `cmake`, `ninja` | `make -j` (pure Makefile) |
 | **No RTTI** | `dynamic_cast`, `typeid`, `std::type_index`, `any.type()` | `helix::type_tag<T>()` keys, virtual kind queries (`HELIX_CONTEXT_MENU_KIND`), pointer-form `any_cast`. Firmware builds `-fno-rtti`; lint-gated, escape hatch `// RTTI_OK: <reason>` |
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite the issue when one already exists: `fix(scope): thing (prestonbrown/helixscreen#123)`. No issue? `fix(scope): thing` is complete on its own — the commit body carries the explanation. |
+| **Unproven tests** | Claiming "tests pass" as evidence the change is tested | `make mutate-diff` (reverts each hunk, looks for red) and one line in the commit body naming the mutation. A green suite is not evidence: 11 changes in one release range revert green. See `tests/CLAUDE.md` § "Proving a test can fail" |
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph (cf. `feat(z-offset)` 25e1505e7). Reserve the long form for genuine state-machine fixes that touch multiple subsystems (cf. `fix(ams): DRY unload API` 504905a2). |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | Add/amend `patches/*.patch` — `mk/patches.mk` auto-applies. **Exception: `lib/helix-xml/` is our own submodule** ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)) — edit it directly, commit and push *in the submodule*, then commit the bumped pointer in this repo. Never write a patch for it. A worktree gets its own checkout of it (not a symlink), so engine edits stay in that branch. |
 
@@ -126,7 +132,7 @@ Edit the file under `lib/<sub>/`, then `cd lib/<sub> && git diff -- <the files y
 
 **DATA in C++, APPEARANCE in XML, Subjects connect them.**
 
-**Absolute for new code.** The tree still has 379 sites that break these rules
+**Absolute for new code.** The tree still has 367 sites that break these rules
 (`scripts/check_imperative_ui.py --list`). Some were deliberate pragmatism from when the XML
 engine could not express what was needed; some are plain mistakes that got through review.
 Both are debt, tracked in prestonbrown/helixscreen#1140 and being ported. **Existing imperative
@@ -261,7 +267,7 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 | Overlays | `NavigationManager::instance().push_overlay(root)` / `.go_back()` (`ui_nav_manager.h`) — pair every push with `register_overlay_instance(root, this)` or `on_deactivate()` never fires (tests abort; `HELIX_STRICT_OVERLAY_CHECK=1`) | `src/ui/ui_settings_safety.cpp` |
 | Modals (simple) | `Modal::show("component_name")` / `Modal::hide(dialog)` | `src/ui/ui_job_queue_modal.cpp` |
 | Modals (subclass) | Extend `Modal`, implement `get_name()` + `component_name()`, override `on_ok()`/`on_cancel()` | `include/ui_info_qr_modal.h` + `src/ui/ui_info_qr_modal.cpp` (42 + 62 lines — the whole pattern, nothing else) |
-| Confirmation dialog | `modal_show_confirmation(title, msg, severity, btn_text, on_confirm, on_cancel, data)` (in `helix::ui`) | `src/ui/ui_panel_macros.cpp:370` |
+| Confirmation dialog | `modal_confirm(title, msg, severity, btn_text, on_confirm, ConfirmOptions)` (in `helix::ui`) for new code - `std::function` throughout, closes its own dialog; the options struct carries `on_cancel`/`cancel_text`/`on_dismiss`/`owner_token`, and `owner_token` gates **all three** callbacks. The `lv_event_cb_t` spellings (`modal_show_confirmation()`/`modal_show_alert()`) are gone. All are owned, so a dismissal (backdrop tap, ESC, hot-reload rebuild) reaches `on_dismiss` - **pass it whenever the caller holds a guard/flag/pending entry the buttons were meant to clear**, or that state leaks | `src/ui/ui_change_host_modal.cpp:491`; subclass form: `include/lan_client_auth_router.h` |
 | Modal buttons (XML) | `<modal_button_row primary_text="Save" primary_callback="on_save"/>` | `ui_xml/bed_mesh_rename_modal.xml` |
 | Home-panel widget | Subclass `PanelWidget`; `attach()` + `on_size_changed()`. Instances are **recycled** across rebuilds, so any imperative apply must run from `attach()` too, not only on size change | `src/ui/panel_widgets/motion_widget.cpp` (64 lines) |
 | Background → UI | Never touch LVGL off the main thread; `ui_queue_update()` or `tok.defer()` | `src/printer/printer_state.cpp` `set_*_internal()` |
@@ -303,7 +309,63 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 **NEVER debug without flags!** Use `-vv` minimum.
 Trust debug output. Impossible values = bug is UPSTREAM. Ask "what ELSE?" not "did first fix work?"
 
+**A plain `> file` redirect drops the console log — but `--test` is exempt.** The console
+sink attaches for a TTY always, for a PIPE only with an explicit `-v`/`--log-level`, and for a
+regular file or socket never (a plain redirect is indistinguishable from the daemon redirect).
+`--test` overrides all of it and logs to any stdout kind, which is why most runs never hit
+this. A **non-`--test`** background run needs `2>&1 | tee /tmp/x.log` or
+`HELIX_LOG_DEST=console` — measured on one binary, identical flags: 645 lines through `tee`,
+3 through `>`. Full decision table: `docs/devel/LOGGING.md` § "Console sink".
+
 **Debug bundles**: `--save` writes `debug-bundle-<code>.json` to the **current working directory** — run it from `/tmp` so the bundle never lands in the repo: `cd /tmp && <repo>/scripts/debug-bundle.sh <SHARE_CODE> --save`. Investigate there, never commit a bundle. (If one ends up in the repo, move it to `/tmp`.)
+
+### Drive the UI yourself — `ctl` is not a question for Preston
+
+Anything observable or drivable is yours to do: reaching a panel, clicking a widget, reading a
+value, capturing a screenshot. Ask him only for the judgment a human eye has to make ("does
+this look right"), and even then drive to the state first and tell him exactly what to look
+at. `ctl text` / `state` / `geom` are exact; a screenshot only proves what a scroll position
+happened to expose.
+
+**Local mock — always allowed, no permission needed.** Use the pinned-socket recipe in Quick
+Start with `--test`, `SDL_VIDEODRIVER=dummy`, and `--sim-speed 4-10` when you need an active
+print. This is the default answer to "does my change work".
+
+**Real printer — ask once per session, then keep going.** Get Preston's OK before the first
+command that touches a real machine. After that, read-only commands (`ping`, `status`,
+`current`, `ls`, `text`, `state`, `geom`, `screenshot`) need no further asking. Anything that
+moves the machine or changes a print — gcode, home, heat, move, print/cancel,
+`FIRMWARE_RESTART`, emergency stop — is confirmed **every** time; one unconfirmed call cost a
+26-minute print. `ctl current` before you navigate and navigate back when you are done: that
+is his printer's screen, and he is standing in front of it.
+
+Two shapes, and they are not the same thing:
+
+| Shape | What it is | How |
+|-------|-----------|-----|
+| desktop UI → real Moonraker | your local build, real printer data, no device walk | `--moonraker ws://HOST:7125` |
+
+Both shapes are verified. Pointing a local `SDL_VIDEODRIVER=dummy` build at the CB1/Voron
+discovered its real hardware (`AFC_BoxTurtle Turtle_1`, 4 lanes, 10 AFC objects,
+quad_gantry_level) and `ctl` drove the resulting UI, so an AFC question does not need a
+device deploy - only the printer's Moonraker port on the LAN.
+| `ctl` → app on the device | the app actually running on the printer | ssh, then `<install>/bin/helix-screen ctl <cmd>` |
+
+**The device build gate — check the binary, never the help text.** `ENABLE_REMOTE_CONTROL`
+defaults to `yes`, but `HELIX_PACKAGING=1` forces it to `no`, so **an installed release has no
+ctl server**. The `--remote*` flags still appear in `--help` on those builds, so they look
+supported and buy nothing:
+
+```bash
+strings -a <install>/bin/helix-screen | grep -c list_callbacks   # 0 = no server compiled in
+```
+
+Verified 2026-08-27: CB1/Voron running packaged 0.99.116 → `0`, and `ctl` was rejected as an
+unknown argument. K2 Plus running dev cross-build 0.99.117 → `2`, with `ctl ping` answering
+`pong` over `/tmp/helixscreen-control.sock`, plus `navigate`/`ls`/`state`/`geom`/`screenshot`
+all working against the live machine. A device also needs `HELIX_REMOTE_CONTROL=1` in its
+`helixscreen.env` for the server to listen; `make deploy-*` sets that from the
+`.build-features` stamp `mk/rules.mk` writes beside the binary.
 
 ---
 

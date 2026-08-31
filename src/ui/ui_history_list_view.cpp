@@ -56,6 +56,15 @@ bool HistoryListView::setup(lv_obj_t* container, lv_obj_t* scroll_parent,
         return false;
     }
 
+    if (container_ != container) {
+        // A different container means the tree the pool was built under is
+        // gone (hot-reload rebuild deletes and re-creates the widget tree on
+        // the same surviving panel). Cached pointers would dangle. The net
+        // unhooks the old container itself and runs the destroyed hook (the
+        // pool wipe) before this view adopts the new tree.
+        retarget_container_net(container);
+    }
+
     container_ = container;
     scroll_parent_ = scroll_parent ? scroll_parent : container;
     on_click_ = std::move(on_click);
@@ -63,10 +72,9 @@ bool HistoryListView::setup(lv_obj_t* container, lv_obj_t* scroll_parent,
     return true;
 }
 
-void HistoryListView::cleanup() {
+void HistoryListView::clear_cached_state() {
     pool_.clear();
     pool_indices_.clear();
-    container_ = nullptr;
     scroll_parent_ = nullptr;
     leading_spacer_ = nullptr;
     trailing_spacer_ = nullptr;
@@ -77,6 +85,19 @@ void HistoryListView::cleanup() {
     cached_row_gap_ = 0;
     last_leading_height_ = -1;
     last_trailing_height_ = -1;
+}
+
+void HistoryListView::on_netted_container_destroyed() {
+    container_ = nullptr;
+    clear_cached_state();
+}
+
+void HistoryListView::cleanup() {
+    // Remove the delete net first when the container still outlives this view,
+    // so it can never fire into a destroyed owner.
+    detach_container_net();
+    clear_cached_state();
+    container_ = nullptr;
     spdlog::debug("[HistoryListView] cleanup()");
 }
 

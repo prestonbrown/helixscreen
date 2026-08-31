@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="es">
   <translation tag=" (timed out)" es=" (tiempo agotado)"/>
-  <translation tag=" elapsed · " es=" transcurrido · "/>
   <translation tag=" frames" es=" fotogramas"/>
   <translation tag=" left" es=" restante"/>
   <translation tag="&quot;%s&quot; failed to load" es="&quot;%s&quot; no se pudo cargar"/>
@@ -160,6 +159,7 @@
   <translation tag="All extruder temperatures with progress bars" es="Todas las temperaturas de extrusor con barras de progreso"/>
   <translation tag="All fields are required" es="Todos los campos son obligatorios"/>
   <translation tag="All plugins loaded successfully" es="Todos los plugins se cargaron correctamente"/>
+  <translation tag="Allow" es="Permitir"/>
   <translation tag="Allow Home Screen Editing" es="Permitir editar la pantalla de inicio"/>
   <translation tag="Allow cold load/unload" es="Permitir carga/descarga en frío"/>
   <translation tag="Allow display to sleep during active prints" es="Permitir que la pantalla se apague durante impresiones activas"/>
@@ -170,6 +170,7 @@
   <translation tag="Ambient Transfer" es="Transferencia ambiente"/>
   <translation tag="AmsIdentify" es="Identificar AMS"/>
   <translation tag="An accelerometer was detected on your printer." es="Se detectó un acelerómetro en su impresora."/>
+  <translation tag="An app on your network is asking to connect to this printer." es="Una aplicación de su red quiere conectarse a esta impresora."/>
   <translation tag="An error occurred during calibration." es="Ocurrió un error durante la calibración."/>
   <translation tag="An error occurred during filament loading." es="Ocurrió un error durante la carga del filamento."/>
   <translation tag="An error occurred during measurement." es="Ocurrió un error durante la medición."/>
@@ -194,6 +195,8 @@
   <translation tag="Apply Changes" es="Aplicar Cambios"/>
   <translation tag="Applying Changes" es="Aplicando Cambios"/>
   <translation tag="Applying..." es="Aplicando..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." es="¿Está seguro de que desea cancelar esta impresión? Todo el progreso se perderá."/>
   <translation tag="Are you sure? This will power off or restart this device." es="¿Está seguro? Esto apagará o reiniciará este dispositivo."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" es="Asignar macros de Klipper para controlar LEDs vía encendido/apagado, alternar o preajustes"/>
@@ -211,6 +214,7 @@
   <translation tag="Auto-lock" es="Bloqueo automático"/>
   <translation tag="Auto-poll for weight updates" es="Consultar peso automáticamente"/>
   <translation tag="Auto-probe or manually check screw heights" es="Sondear automáticamente o verificar manualmente las alturas de los tornillos"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" es="Renderizar video automáticamente"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" es="La desinstalación automática solo funciona con Moonraker local"/>
@@ -539,6 +543,7 @@
   <translation tag="Connecting..." es="Conectando..."/>
   <translation tag="Connection" es="Conexión"/>
   <translation tag="Connection Failed" es="Conexión Fallida"/>
+  <translation tag="Connection Request" es="Solicitud de conexión"/>
   <translation tag="Connection Stability" es="Estabilidad de la conexión"/>
   <translation tag="Connection failed" es="Conexión fallida"/>
   <translation tag="Connection failed to {}:{}" es="Conexión fallida a {}:{}"/>
@@ -571,6 +576,7 @@
   <translation tag="Corner roundness" es="Redondeo de esquinas"/>
   <translation tag="Correction (Ki)" es="Corrección (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." es="No se pudo analizar la macro PRINT_START. Algunas opciones de impresión pueden no estar disponibles."/>
+  <translation tag="Could not answer the connection request" es="No se pudo responder a la solicitud de conexión"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." es="No se pudo verificar la webcam.&#10;Compruebe la conexión."/>
   <translation tag="Could not forget device" es="No se pudo olvidar el dispositivo"/>
   <translation tag="Could not load printer database" es="No se pudo cargar la base de datos de impresoras"/>
@@ -653,6 +659,7 @@
   <translation tag="Delete {}?" es="¿Eliminar {}?"/>
   <translation tag="Delta:" es="Delta:"/>
   <translation tag="Density" es="Densidad"/>
+  <translation tag="Deny" es="Denegar"/>
   <translation tag="Deploy" es="Desplegar"/>
   <translation tag="Describe the issue (optional)" es="Describa el problema (opcional)"/>
   <translation tag="Detailed" es="Detallado"/>
@@ -664,6 +671,7 @@
   <translation tag="Dev" es="Dev"/>
   <translation tag="Dev channel requires dev_url in config" es="Canal de desarrollo requiere dev_url en la configuración"/>
   <translation tag="Device" es="Dispositivo"/>
+  <translation tag="Device connected" es="Dispositivo conectado"/>
   <translation tag="Device name" es="Nombre del dispositivo"/>
   <translation tag="Device name is required" es="El nombre del dispositivo es requerido"/>
   <translation tag="Device: " es="Dispositivo: "/>
@@ -852,6 +860,7 @@
   <translation tag="Failed to analyze PRINT_START macro" es="Error al analizar macro PRINT_START"/>
   <translation tag="Failed to apply limits" es="Error al aplicar límites"/>
   <translation tag="Failed to apply settings" es="Error al aplicar ajustes"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" es="Error al construir los datos de trama"/>
   <translation tag="Failed to cancel: {}" es="Error al cancelar: {}"/>
   <translation tag="Failed to clear print state: {}" es="No se pudo borrar el estado de impresión: {}"/>
@@ -1218,6 +1227,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" es="Índice de plantilla de hoja inválido: {} (hay {})"/>
   <translation tag="Invalid status response from printer" es="Respuesta de estado inválida de la impresora"/>
   <translation tag="Issue description" es="Descripción del problema"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" es="Es una bobina nueva"/>
   <translation tag="Jammed at the Toolhead" es="Atascado en el cabezal"/>
   <translation tag="Job Queue" es="Cola de trabajos"/>
@@ -1343,7 +1353,6 @@
   <translation tag="MACRO DEVICES" es="DISPOSITIVOS DE MACRO"/>
   <translation tag="MAIN POWER BUTTON" es="BOTÓN DE ENCENDIDO PRINCIPAL"/>
   <translation tag="MANUAL" es="MANUAL"/>
-  <translation tag="MAPPING" es="ASIGNACIÓN"/>
   <translation tag="MB RAM" es="MB de RAM"/>
   <translation tag="MCU" es="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" es="Monitoreo de temperatura de MCU, host y auxiliares"/>
@@ -1564,6 +1573,7 @@
   <translation tag="No slot currently matches." es="Actualmente no coincide ninguna ranura."/>
   <translation tag="No spool assigned" es="Sin bobina asignada"/>
   <translation tag="No spools found — tap to retry" es="No se encontraron bobinas — toque para reintentar"/>
+  <translation tag="No spools match your search"/>
   <translation tag="No tape detected in printer" es="No se detectó cinta en la impresora"/>
   <translation tag="No target printer configured" es="Ninguna impresora de destino configurada"/>
   <translation tag="No temperature sensors detected" es="No se detectaron sensores de temperatura"/>
@@ -2297,6 +2307,7 @@
   <translation tag="Spool #{}" es="Bobina n.º {}"/>
   <translation tag="Spool Info" es="Info de bobina"/>
   <translation tag="Spool Weight (g)" es="Peso de Bobina (g)"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" es="Bobina creada correctamente"/>
   <translation tag="Spool deleted" es="Bobina eliminada"/>
   <translation tag="Spool motor" es="Motor de bobina"/>
@@ -2828,6 +2839,7 @@
   <translation tag="{} filament sensors available" es="{} sensores de filamento disponibles"/>
   <translation tag="{} filament • {}" es="{} de filamento • {}"/>
   <translation tag="{} heater turned off" es="Calentador {} apagado"/>
+  <translation tag="{} is asking to connect to this printer." es="{} quiere conectarse a esta impresora."/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." es="{} está instalado pero su cambio a bobina de reserva está desactivado, así que no habrá ningún cambio automático."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." es="{} está instalado, pero no se pudo leer su ajuste de bobina de reserva - no cuentes con un cambio automático."/>
   <translation tag="{} is not set up on this printer"/>

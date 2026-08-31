@@ -8,7 +8,8 @@
  * @pattern Pure virtual interface + static create()/create_auto() factory methods
  * @threading Implementation-dependent; see concrete implementations
  *
- * @see wifi_backend_wpa_supplicant.cpp, wifi_backend_networkmanager.cpp, wifi_backend_macos.cpp
+ * @see wifi_backend_wpa_supplicant.cpp, wifi_backend_networkmanager.cpp, wifi_backend_netd.cpp,
+ *      wifi_backend_macos.cpp
  */
 
 #pragma once
@@ -172,6 +173,19 @@ enum WiFiBandFlag : uint8_t {
  *         WIFI_BAND_NONE when the frequency is unknown or not a WiFi band.
  */
 uint8_t wifi_band_flag_from_frequency(int frequency_mhz);
+
+/**
+ * @brief Map an RSSI in dBm onto the 0-100 percentage the UI displays
+ *
+ * -30 dBm reads as 100% (excellent), -90 dBm as 0% (unusable), linear in
+ * between, clamped at both ends. Declared here so the backends share one
+ * mapping instead of each hand-rolling a near-twin that silently drifts.
+ *
+ * @param dbm Signal strength in dBm (typically negative; positive or wildly
+ *            out-of-range values clamp rather than error)
+ * @return Signal strength percentage, 0-100
+ */
+int wifi_signal_percent_from_dbm(int dbm);
 
 /**
  * @brief Parse the output of `nmcli radio wifi` into a radio-on/off answer
@@ -370,6 +384,15 @@ class WifiBackend {
      * Initiates scan for available WiFi networks. Results delivered via
      * "SCAN_COMPLETE" event. Use get_scan_results() to retrieve networks.
      *
+     * CONTRACT: a success return OBLIGATES an eventual "SCAN_COMPLETE" — the
+     * caller's scan scheduler latches on the promise (WiFiManager gates every
+     * periodic tick on it). A backend that abandons the in-flight scan itself
+     * (e.g. the underlying daemon connection dropped and was re-established)
+     * must dispatch the completion from whatever state it retained. The one
+     * exception is stop(): a stopped backend sends nothing further, and the
+     * OWNER resolves the latch when it stops or swaps the backend
+     * (WiFiManager's NM->wpa fallback swap does exactly that).
+     *
      * @return WiFiError with detailed status information
      */
     virtual WiFiError trigger_scan() = 0;
@@ -504,7 +527,8 @@ class WifiBackend {
     /**
      * @brief Create appropriate backend for current platform
      *
-     * - Linux: WifiBackendNetworkManager (preferred) or WifiBackendWpaSupplicant
+     * - Linux: WifiBackendNetd (when the printer's network daemon is present),
+     *          else WifiBackendNetworkManager (preferred) or WifiBackendWpaSupplicant
      * - macOS: WifiBackendMacOS (or mock in test mode)
      *
      * NON-BLOCKING CONTRACT: This factory MUST return quickly (< 50 ms)
@@ -514,10 +538,13 @@ class WifiBackend {
      * should register for the "READY" event (or "INIT_FAILED") before
      * relying on is_running().
      *
-     * Selection strategy on Linux: a cheap file-existence probe
-     * (access("/usr/bin/nmcli", X_OK)) picks NetworkManager when present,
-     * otherwise wpa_supplicant. No subprocesses are spawned during
-     * selection.
+     * Selection strategy on Linux: a daemon-ownership probe
+     * (helix::netd::available(), two access()/stat() calls) picks the netd
+     * backend first when the printer's network daemon is present — it owns
+     * the radio, the supplicant, and DHCP, so nothing else may touch them.
+     * Otherwise a cheap file-existence probe (access("/usr/bin/nmcli", X_OK))
+     * picks NetworkManager when present, else wpa_supplicant. No subprocesses
+     * are spawned during selection.
      *
      * @param silent If true, suppress error modals on startup failures
      * @return Unique pointer to backend instance (non-null on supported

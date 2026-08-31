@@ -6,7 +6,7 @@
  * @brief Tests for the pure auto-navigation gate used by print start navigation.
  *
  * These tests call the REAL helix::print_start_nav_should_navigate() /
- * helix::is_active_print_state() (not shadow copies), so they are the
+ * helix::printer_has_job() (not shadow copies), so they are the
  * regression guard for the auto-open-print-status gate.
  *
  * The gate must fire on any inactive→active edge, not just →PRINTING:
@@ -21,17 +21,17 @@
 
 #include "../catch_amalgamated.hpp"
 
-using helix::is_active_print_state;
 using helix::print_start_nav_should_navigate;
+using helix::printer_has_job;
 using helix::PrintJobState;
 
-TEST_CASE("is_active_print_state: only PRINTING and PAUSED are active", "[print][navigation]") {
-    REQUIRE_FALSE(is_active_print_state(PrintJobState::STANDBY));
-    REQUIRE(is_active_print_state(PrintJobState::PRINTING));
-    REQUIRE(is_active_print_state(PrintJobState::PAUSED));
-    REQUIRE_FALSE(is_active_print_state(PrintJobState::COMPLETE));
-    REQUIRE_FALSE(is_active_print_state(PrintJobState::CANCELLED));
-    REQUIRE_FALSE(is_active_print_state(PrintJobState::ERROR));
+TEST_CASE("printer_has_job: only PRINTING and PAUSED count", "[print][navigation]") {
+    REQUIRE_FALSE(printer_has_job(PrintJobState::STANDBY));
+    REQUIRE(printer_has_job(PrintJobState::PRINTING));
+    REQUIRE(printer_has_job(PrintJobState::PAUSED));
+    REQUIRE_FALSE(printer_has_job(PrintJobState::COMPLETE));
+    REQUIRE_FALSE(printer_has_job(PrintJobState::CANCELLED));
+    REQUIRE_FALSE(printer_has_job(PrintJobState::ERROR));
 }
 
 TEST_CASE("Print start nav: inactive -> active edges navigate", "[print][navigation]") {

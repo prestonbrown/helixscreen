@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="ru">
   <translation tag=" (timed out)" ru=" (время ожидания истекло)"/>
-  <translation tag=" elapsed · " ru=" истёк · "/>
   <translation tag=" frames" ru=" кадров"/>
   <translation tag=" left" ru=" осталось"/>
   <translation tag="&quot;%s&quot; failed to load" ru="Не удалось загрузить «%s»"/>
@@ -160,6 +159,7 @@
   <translation tag="All extruder temperatures with progress bars" ru="Температуры всех экструдеров с индикаторами"/>
   <translation tag="All fields are required" ru="Все поля обязательны для заполнения"/>
   <translation tag="All plugins loaded successfully" ru="Все плагины успешно загружены"/>
+  <translation tag="Allow" ru="Разрешить"/>
   <translation tag="Allow Home Screen Editing" ru="Разрешить редактирование главного экрана"/>
   <translation tag="Allow cold load/unload" ru="Разрешить загрузку/выгрузку без нагрева"/>
   <translation tag="Allow display to sleep during active prints" ru="Разрешить спящий режим дисплея во время печати"/>
@@ -170,6 +170,7 @@
   <translation tag="Ambient Transfer" ru="Теплообмен с окружающей средой"/>
   <translation tag="AmsIdentify" ru="Определить AMS"/>
   <translation tag="An accelerometer was detected on your printer." ru="На вашем принтере обнаружен акселерометр."/>
+  <translation tag="An app on your network is asking to connect to this printer." ru="Приложение в вашей сети запрашивает подключение к этому принтеру."/>
   <translation tag="An error occurred during calibration." ru="Во время калибровки произошла ошибка."/>
   <translation tag="An error occurred during filament loading." ru="Произошла ошибка при загрузке филамента."/>
   <translation tag="An error occurred during measurement." ru="Произошла ошибка при измерении."/>
@@ -194,6 +195,8 @@
   <translation tag="Apply Changes" ru="Применить изменения"/>
   <translation tag="Applying Changes" ru="Применение изменений"/>
   <translation tag="Applying..." ru="Применение..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ru="Вы уверены, что хотите отменить печать? Весь прогресс будет потерян."/>
   <translation tag="Are you sure? This will power off or restart this device." ru="Вы уверены? Это выключит или перезагрузит данное устройство."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ru="Назначьте макросы Klipper для управления LED через вкл/выкл, переключение или пресеты"/>
@@ -211,6 +214,7 @@
   <translation tag="Auto-lock" ru="Автоблокировка"/>
   <translation tag="Auto-poll for weight updates" ru="Автоопрос обновлений веса"/>
   <translation tag="Auto-probe or manually check screw heights" ru="Автозондирование или ручная проверка высоты винтов"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" ru="Автоматический рендер видео"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" ru="Автоудаление работает только с локальным Moonraker"/>
@@ -539,6 +543,7 @@
   <translation tag="Connecting..." ru="Подключение..."/>
   <translation tag="Connection" ru="Соединение"/>
   <translation tag="Connection Failed" ru="Ошибка подключения"/>
+  <translation tag="Connection Request" ru="Запрос на подключение"/>
   <translation tag="Connection Stability" ru="Стабильность подключения"/>
   <translation tag="Connection failed" ru="Ошибка подключения"/>
   <translation tag="Connection failed to {}:{}" ru="Не удалось подключиться к {}:{}"/>
@@ -571,6 +576,7 @@
   <translation tag="Corner roundness" ru="Скругление углов"/>
   <translation tag="Correction (Ki)" ru="Коррекция (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ru="Не удалось проанализировать макрос PRINT_START. Некоторые параметры печати могут быть недоступны."/>
+  <translation tag="Could not answer the connection request" ru="Не удалось ответить на запрос подключения"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." ru="Не удалось проверить статус веб-камеры.&#10;Проверьте подключение принтера."/>
   <translation tag="Could not forget device" ru="Не удалось забыть устройство"/>
   <translation tag="Could not load printer database" ru="Не удалось загрузить базу данных принтеров"/>
@@ -653,6 +659,7 @@
   <translation tag="Delete {}?" ru="Удалить {}?"/>
   <translation tag="Delta:" ru="Дельта:"/>
   <translation tag="Density" ru="Плотность"/>
+  <translation tag="Deny" ru="Отклонить"/>
   <translation tag="Deploy" ru="Развернуть"/>
   <translation tag="Describe the issue (optional)" ru="Опишите проблему (необязательно)"/>
   <translation tag="Detailed" ru="Подробно"/>
@@ -664,6 +671,7 @@
   <translation tag="Dev" ru="Разработка"/>
   <translation tag="Dev channel requires dev_url in config" ru="Dev-канал требует dev_url в конфиге"/>
   <translation tag="Device" ru="Устройство"/>
+  <translation tag="Device connected" ru="Устройство подключено"/>
   <translation tag="Device name" ru="Имя устройства"/>
   <translation tag="Device name is required" ru="Требуется название устройства"/>
   <translation tag="Device: " ru="Устройство: "/>
@@ -852,6 +860,7 @@
   <translation tag="Failed to analyze PRINT_START macro" ru="Не удалось проанализировать макрос PRINT_START"/>
   <translation tag="Failed to apply limits" ru="Не удалось применить ограничения"/>
   <translation tag="Failed to apply settings" ru="Не удалось применить настройки"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" ru="Не удалось построить растровые данные"/>
   <translation tag="Failed to cancel: {}" ru="Не удалось отменить: {}"/>
   <translation tag="Failed to clear print state: {}" ru="Не удалось очистить состояние печати: {}"/>
@@ -1218,6 +1227,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" ru="Недопустимый индекс шаблона листа: {} (имеется {})"/>
   <translation tag="Invalid status response from printer" ru="Недопустимый ответ статуса от принтера"/>
   <translation tag="Issue description" ru="Описание проблемы"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" ru="Это новая катушка"/>
   <translation tag="Jammed at the Toolhead" ru="Замятие в печатающей головке"/>
   <translation tag="Job Queue" ru="Очередь заданий"/>
@@ -1343,7 +1353,6 @@
   <translation tag="MACRO DEVICES" ru="МАКРО-УСТРОЙСТВА"/>
   <translation tag="MAIN POWER BUTTON" ru="ГЛАВНАЯ КНОПКА ПИТАНИЯ"/>
   <translation tag="MANUAL" ru="ВРУЧНУЮ"/>
-  <translation tag="MAPPING" ru="СОПОСТАВЛЕНИЕ"/>
   <translation tag="MB RAM" ru="МБ ОЗУ"/>
   <translation tag="MCU" ru="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" ru="Мониторинг температуры MCU, хоста и вспомогательных датчиков"/>
@@ -1564,6 +1573,7 @@
   <translation tag="No slot currently matches." ru="Сейчас нет подходящего слота."/>
   <translation tag="No spool assigned" ru="Катушка не назначена"/>
   <translation tag="No spools found — tap to retry" ru="Катушки не найдены — нажмите для повтора"/>
+  <translation tag="No spools match your search"/>
   <translation tag="No tape detected in printer" ru="В принтере не обнаружена лента"/>
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
@@ -2297,6 +2307,7 @@
   <translation tag="Spool #{}" ru="Катушка #{}"/>
   <translation tag="Spool Info" ru="Информация о катушке"/>
   <translation tag="Spool Weight (g)" ru="Вес катушки (г)"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" ru="Катушка успешно создана"/>
   <translation tag="Spool deleted" ru="Катушка удалена"/>
   <translation tag="Spool motor" ru="Мотор катушки"/>
@@ -2828,6 +2839,7 @@
   <translation tag="{} filament sensors available" ru="Доступно датчиков филамента: {}"/>
   <translation tag="{} filament • {}" ru="{} филамента • {}"/>
   <translation tag="{} heater turned off" ru="Нагреватель {} выключен"/>
+  <translation tag="{} is asking to connect to this printer." ru="{} запрашивает подключение к этому принтеру."/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." ru="{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." ru="{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену."/>
   <translation tag="{} is not set up on this printer"/>

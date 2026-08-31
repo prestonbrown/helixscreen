@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_container_delete_net.h"
+
 #include "print_history_data.h"
 
 #include <functional>
@@ -24,7 +26,7 @@ namespace helix::ui {
  * - Imperative row updates (no per-row subjects)
  * - Click callback with data index for detail overlay navigation
  */
-class HistoryListView {
+class HistoryListView : public ContainerDeleteNet {
   public:
     static constexpr int POOL_SIZE = 30;  ///< Fixed pool of history row widgets
     static constexpr int BUFFER_ROWS = 2; ///< Extra rows above/below viewport
@@ -124,6 +126,18 @@ class HistoryListView {
     void init_pool();
     void create_spacers();
     void configure_row(lv_obj_t* row, size_t data_index, const PrintHistoryJob& job);
+
+    /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
+    /// run while the tree those pointers refer to is mid-deletion.
+    void clear_cached_state();
+
+    /// ContainerDeleteNet: the watched tree died — drop the pool
+    /// before its pointers dangle.
+    void on_netted_container_destroyed() override;
+
+    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
+    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
+    /// outlive it (prestonbrown/helixscreen#1396).
 
     // === Static Callbacks ===
     static void on_row_click_static(lv_event_t* e);

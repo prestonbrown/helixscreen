@@ -14,6 +14,7 @@
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
+#include "runtime_config.h" // backend_owns_runout_during_job()
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
@@ -719,20 +720,22 @@ bool FilamentSensorManager::has_real_runout() const {
 }
 
 namespace {
-// Firmware-default head a logical tool routes to with no remap. Delegates to the
-// shared FilamentMapper rule that PrintSelectDetailView::get_effective_remap()
-// filters against, so the lanes scanned here are the lanes actually routed to.
-int default_head_for_tool(int tool) {
-    return helix::FilamentMapper::default_head_for_tool(tool);
-}
-
-// Resolve the AMS slot a logical tool routes to, honoring an explicit remap.
-int slot_for_tool(int tool, const std::map<int, int>& remap) {
+// Resolve the AMS slot a logical tool routes to, honoring an explicit remap and
+// otherwise the backend's own firmware default map.
+//
+// @p routing must be the SAME map PrintSelectDetailView::get_effective_remap()
+// filtered against, or the lanes scanned here are not the lanes routed to. That
+// used to be a shared four-head constant, which was right for a U1 and wrong for
+// every lane-per-tool AMS - and the error was masked, because the filter's
+// matching mistake kept an entry in @p remap that sent this lookup to the right
+// lane anyway. Correcting one without the other silently scans lane 0.
+int slot_for_tool(int tool, const std::map<int, int>& remap,
+                  const helix::FirmwareRouting& routing) {
     auto it = remap.find(tool);
     if (it != remap.end() && it->second >= 0) {
         return it->second;
     }
-    return default_head_for_tool(tool);
+    return routing.head(tool);
 }
 } // namespace
 
@@ -785,8 +788,11 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
     // suppresses startup notification spam — is not the right gate here.)
     scan.sensor_available = initial_status_received_;
 
+    // One routing for the whole scan, from the same backend whose slots we read.
+    const helix::FirmwareRouting routing = scan.backend->firmware_default_routing();
+
     for (int tool : tools_used) {
-        const int slot = slot_for_tool(tool, remap);
+        const int slot = slot_for_tool(tool, remap, routing);
         const SlotInfo info = scan.backend->get_slot_info(slot);
 
         // FIX issue 6: an unresolvable slot (no such slot -> slot_index<0) or a
@@ -827,12 +833,17 @@ FilamentSensorManager::find_empty_required_lanes(const std::set<int>& tools_used
     return scan.empty_lanes;
 }
 
-// RAW_PRINT_STATE_OK: the badge is scoped to the tools the RUNNING file uses.
-// During a preparing window get_tools_used() still describes the previous job, so
-// widening this to job_holds_machine() would scope the badge to the wrong file
-// instead of hiding it. Deliberately narrower than the lifecycle's is_active().
+// The badge is scoped to the tools the RUNNING file uses. During a preparing
+// window get_tools_used() still describes the previous job, so widening this to
+// job_holds_machine() would scope the badge to the wrong file instead of hiding
+// it. Deliberately narrower than the lifecycle's is_active().
+//
+// Kept as its own name because the QUESTION is about get_tools_used()'s
+// freshness, not about who owns the toolhead; the two are coextensional today
+// and could legitimately diverge. Sharing the boolean means they cannot drift by
+// accident, only on purpose.
 bool print_scopes_runout_badge(PrintJobState state) {
-    return state == PrintJobState::PRINTING || state == PrintJobState::PAUSED;
+    return printer_has_job(state);
 }
 
 int FilamentSensorManager::compute_scoped_runout_value(const std::set<int>& tools_used,
@@ -921,21 +932,30 @@ void FilamentSensorManager::update_from_status(const json& status) {
     const bool ams_active = AmsState::instance().is_filament_operation_active();
     // Peeked, never consumed - the idle runout modal owns the one shot.
     const bool post_unload_grace = AmsState::instance().post_unload_runout_grace_armed();
+    // The derived lifecycle, read once beside the other whole-printer flags for
+    // the same reason (our lock never protected it): both phase-aware terms
+    // below need it.
+    const auto lifecycle = get_printer_state().get_print_lifecycle();
+    const bool job_owns_machine = job_holds_machine(lifecycle);
+    AmsType backend_type = AmsType::NONE;
+    if (auto* backend = AmsState::instance().get_backend()) {
+        backend_type = backend->get_type();
+    }
     // AD5X-IFS auto-unloads filament back into the IFS between prints. The head
     // sensor going empty when the printer is idle is firmware behaviour, not a
-    // user-facing event. "Between prints" is the lifecycle's Idle/terminal side, not
-    // merely "not PRINTING": a head-empty during a pre-print block is not the
-    // firmware's idle auto-unload and must not be swallowed.
-    bool ad5x_idle_unload = false;
-    if (auto* backend = AmsState::instance().get_backend()) {
-        if (backend->get_type() == AmsType::AD5X_IFS) {
-            const auto lifecycle = static_cast<PrintState>(
-                lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
-            if (!job_holds_machine(lifecycle)) {
-                ad5x_idle_unload = true;
-            }
-        }
-    }
+    // user-facing event. "Between prints" is the lifecycle's Idle/terminal side,
+    // not merely "not PRINTING": a head-empty during a pre-print block is not
+    // the firmware's idle auto-unload and must not be swallowed.
+    const bool ad5x_idle_unload = backend_type == AmsType::AD5X_IFS && !job_owns_machine;
+    // While a job holds the machine, a backend that raises its own runout fault
+    // owns the runout surface for that phase: its prompt is already telling the
+    // user what happened, with recovery actions derived from live hardware, so
+    // the sensor-edge toast restates it (#1388). Ownership-scoped, never a
+    // blanket muzzle: on a backend with no error hook of its own, and with no
+    // backend at all, this toast is the only runout signal there is. The
+    // per-backend table lives in backend_owns_runout_during_job().
+    const bool runout_surface_owned_during_job =
+        job_owns_machine && backend_owns_runout_during_job(backend_type);
 
     // Phase 1: Update state under lock, collect notifications
     {
@@ -1032,9 +1052,15 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // Toasts are suppressed during the startup grace period, wizard
                 // setup, and active AMS filament operations (load/unload moves
                 // filament past sensors intentionally, generating spurious
-                // triggers). ams_active and ad5x_idle_unload were read above,
-                // before the lock. The runout role is preserved either way, so
-                // in-print events still fire.
+                // triggers), and - while a job holds the machine - whenever the
+                // filament backend owns the runout surface for that phase (its
+                // own prompt already tells the story; see #1388). A backend that
+                // owns nothing, and no backend at all, keeps the toast: there it
+                // is the only runout signal. ams_active, ad5x_idle_unload and
+                // runout_surface_owned_during_job were read above, before the
+                // lock. The runout ROLE is preserved either way, so runout
+                // detection and its subjects still fire in-print; only the
+                // toast is quieted.
                 // An unload the user asked for ends by dragging filament off the
                 // sensor, and that edge lands seconds AFTER the action returns to
                 // IDLE — so ams_active above is already false by then and cannot
@@ -1047,7 +1073,8 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // deliberately-armed INFO and is untouched here.
                 const bool post_unload_removal = !state.filament_detected && post_unload_grace;
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
-                                     !ad5x_idle_unload && !post_unload_removal && master_enabled_ &&
+                                     !ad5x_idle_unload && !post_unload_removal &&
+                                     !runout_surface_owned_during_job && master_enabled_ &&
                                      sensor.enabled && sensor.role != FilamentSensorRole::NONE;
                 if (within_grace_period && master_enabled_ && sensor.enabled &&
                     sensor.role != FilamentSensorRole::NONE) {
@@ -1063,6 +1090,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
                     spdlog::debug(
                         "[FilamentSensorManager] Suppressing AD5X idle-unload toast for {}",
                         sensor.sensor_name);
+                } else if (runout_surface_owned_during_job && master_enabled_ && sensor.enabled &&
+                           sensor.role != FilamentSensorRole::NONE) {
+                    spdlog::debug(
+                        "[FilamentSensorManager] Suppressing toast for {} - {} owns the runout "
+                        "surface during the job",
+                        sensor.sensor_name, ams_type_to_string(backend_type));
                 }
                 notifications.push_back(notif);
             }

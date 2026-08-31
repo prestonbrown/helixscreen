@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if HELIX_HAS_SNAPMAKER
 
 #include "ams_backend_snapmaker.h"
 
@@ -237,7 +238,6 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     // Initialize system info
     system_info_.type = AmsType::SNAPMAKER;
     system_info_.type_name = "Snapmaker SnapSwap";
-    system_info_.supports_tool_mapping = false;
     system_info_.supports_bypass = false;
     system_info_.has_hardware_bypass_sensor = false;
     // The U1 has no filament cutter and forms no discrete tip — unload is just
@@ -1936,9 +1936,8 @@ AmsError AmsBackendSnapmaker::validate_slot_index(int slot_index) const {
     return AmsErrorHelper::success();
 }
 
-std::vector<int> AmsBackendSnapmaker::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-
+std::vector<int> AmsBackendSnapmaker::task_routing(const std::vector<bool>& extruders_used,
+                                                   const std::vector<int>& extruder_map) {
     // Gate on a task actually being configured. With no task the firmware holds
     // a default identity map, and answering [0,1,2,3] there would hand callers a
     // confident wrong routing for any file whose tools do not line up with the
@@ -1947,11 +1946,16 @@ std::vector<int> AmsBackendSnapmaker::get_tool_mapping() const {
     // task" signal: it sets the flags when a task is set up and clears them when
     // the print ends (observed idle [F,F,F,F], mid-print [F,F,T,F]).
     const bool task_configured =
-        std::any_of(extruders_used_.begin(), extruders_used_.end(), [](bool b) { return b; });
+        std::any_of(extruders_used.begin(), extruders_used.end(), [](bool b) { return b; });
     if (!task_configured) {
         return {};
     }
-    return extruder_map_table_;
+    return extruder_map;
+}
+
+std::vector<int> AmsBackendSnapmaker::get_tool_mapping() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return task_routing(extruders_used_, extruder_map_table_);
 }
 
 std::vector<int> AmsBackendSnapmaker::last_print_tool_mapping() const {
@@ -2036,3 +2040,5 @@ std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
     }
     return out;
 }
+
+#endif // HELIX_HAS_SNAPMAKER

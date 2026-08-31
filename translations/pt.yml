@@ -1,7 +1,6 @@
 locale: pt
 translations:
   ' (timed out)': ' (tempo esgotado)'
-  ' elapsed · ': ' decorrido · '
   ' frames': ' quadros'
   ' left': ' restante'
   '"%s" failed to load': '"%s" falhou ao carregar'
@@ -171,6 +170,7 @@ translations:
   All extruder temperatures with progress bars: 'Todas as temperaturas dos extrusores com barras de progresso'
   All fields are required: Todos os campos são obrigatórios
   All plugins loaded successfully: Todos os plugins carregados com sucesso
+  Allow: 'Permitir'
   Allow Home Screen Editing: 'Permitir a edição da tela inicial'
   Allow cold load/unload: Permitir carregar/descarregar a frio
   Allow display to sleep during active prints: Permitir suspensão da tela durante
@@ -185,6 +185,7 @@ translations:
   AmsIdentify: Identificar AMS
   An accelerometer was detected on your printer.: Um acelerômetro foi detectado na
     sua impressora.
+  An app on your network is asking to connect to this printer.: 'Um aplicativo na sua rede quer conectar-se a esta impressora.'
   An error occurred during calibration.: Ocorreu um erro durante a calibração.
   An error occurred during filament loading.: Ocorreu um erro durante o carregamento
     do filamento.
@@ -215,6 +216,8 @@ translations:
   Apply Changes: Aplicar Alterações
   Applying Changes: Aplicando Alterações
   Applying...: Aplicando...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Tem certeza
     de que deseja cancelar esta impressão? Todo o progresso será perdido.
   Are you sure? This will power off or restart this device.: Tem certeza? Isso desligará
@@ -238,6 +241,7 @@ translations:
   Auto-poll for weight updates: Consultar peso automaticamente
   Auto-probe or manually check screw heights: Sondagem automática ou verificação manual
     da altura dos parafusos
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Renderizar vídeo automaticamente
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: A desinstalação automática só funciona
@@ -618,6 +622,7 @@ translations:
   Connecting...: Conectando...
   Connection: Conexão
   Connection Failed: Conexão Falhou
+  Connection Request: 'Solicitação de conexão'
   Connection Stability: Estabilidade da Conexão
   Connection failed: Conexão falhou
   Connection failed to {}:{}: Falha na conexão com {}:{}
@@ -654,6 +659,7 @@ translations:
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Não
     foi possível analisar a macro PRINT_START. Algumas opções de impressão podem estar
     indisponíveis.
+  Could not answer the connection request: 'Não foi possível responder à solicitação de conexão'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Não foi possível verificar status da webcam.\nVerifique a conexão da impressora."
   Could not forget device: Não foi possível esquecer o dispositivo
@@ -739,6 +745,7 @@ translations:
   Delete {}?: Excluir {}?
   'Delta:': 'Delta:'
   Density: Densidade
+  Deny: 'Negar'
   Deploy: Implantar
   Describe the issue (optional): Descreva o problema (opcional)
   Detailed: Detalhado
@@ -750,6 +757,7 @@ translations:
   Dev: Dev
   Dev channel requires dev_url in config: Canal dev requer dev_url na configuração
   Device: Dispositivo
+  Device connected: 'Dispositivo conectado'
   Device name: Nome do dispositivo
   Device name is required: Nome do dispositivo é obrigatório
   'Device: ': 'Dispositivo: '
@@ -953,6 +961,7 @@ translations:
   Failed to analyze PRINT_START macro: Falha ao analisar macro PRINT_START
   Failed to apply limits: Falha ao aplicar limites
   Failed to apply settings: Falha ao aplicar configurações
+  Failed to archive spool: ''
   Failed to build raster data: Falha ao construir os dados raster
   'Failed to cancel: {}': 'Falha ao cancelar: {}'
   'Failed to clear print state: {}': 'Falha ao limpar estado de impressão: {}'
@@ -1372,6 +1381,7 @@ translations:
     {} (tem {})'
   Invalid status response from printer: Resposta de status inválida da impressora
   Issue description: Descrição do problema
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: É um carretel novo
   Jammed at the Toolhead: Atolado no cabeçote
   Job Queue: Fila de Trabalhos
@@ -1515,7 +1525,6 @@ translations:
   MACRO DEVICES: DISPOSITIVOS DE MACRO
   MAIN POWER BUTTON: BOTÃO DE ENERGIA PRINCIPAL
   MANUAL: MANUAL
-  MAPPING: MAPEAMENTO
   MB RAM: MB RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Monitoramento de temperatura MCU,
@@ -1754,6 +1763,7 @@ translations:
   No slot currently matches.: 'Nenhum slot corresponde no momento.'
   No spool assigned: Nenhuma bobina atribuída
   No spools found — tap to retry: Nenhuma bobina encontrada — toque para tentar novamente
+  No spools match your search: ''
   No tape detected in printer: Nenhuma fita detectada na impressora
   No target printer configured: Nenhuma impressora de destino configurada
   No temperature sensors detected: 'Nenhum sensor de temperatura detectado'
@@ -2577,6 +2587,7 @@ translations:
   'Spool #{}': 'Bobina #{}'
   Spool Info: Info da bobina
   Spool Weight (g): Peso do Carretel (g)
+  Spool archived: ''
   Spool created successfully: Bobina criada com sucesso
   Spool deleted: Carretel excluído
   Spool motor: Motor da bobina
@@ -3235,6 +3246,7 @@ translations:
   '{} filament sensors available': '{} sensores de filamento disponíveis'
   '{} filament • {}': '{} de filamento • {}'
   '{} heater turned off': Aquecedor {} desligado
+  '{} is asking to connect to this printer.': '{} quer conectar-se a esta impressora.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} está instalado mas sua troca para carretel reserva está desligada, então não haverá troca automática.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} está instalado, mas não foi possível ler sua configuração de carretel reserva - não conte com uma troca automática.'
   '{} is not set up on this printer': ''

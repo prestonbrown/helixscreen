@@ -11,6 +11,11 @@
 
 #include "memory_utils.h"
 
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <unistd.h>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -174,4 +179,83 @@ TEST_CASE("MemoryInfo: available_mb conversion", "[memory]") {
 
     info.available_kb = 1024; // 1MB
     REQUIRE(info.available_mb() == 1);
+}
+
+// ============================================================================
+// oom_score_adj Tests
+//
+// helix-launcher.sh exports HELIX_OOM_SCORE_ADJ only when Klipper is co-hosted;
+// helix-screen applies it to itself so that under memory pressure the kernel
+// kills the UI (which helix-watchdog restarts) instead of Klipper (which
+// cannot be restarted mid-print).
+// ============================================================================
+
+TEST_CASE("parse_oom_score_adj: absent or empty value is not applicable", "[memory][oom]") {
+    int adj = -12345;
+    REQUIRE_FALSE(parse_oom_score_adj(nullptr, adj));
+    REQUIRE_FALSE(parse_oom_score_adj("", adj));
+    REQUIRE(adj == -12345); // untouched
+}
+
+TEST_CASE("parse_oom_score_adj: zero is the documented disable spelling", "[memory][oom]") {
+    int adj = -12345;
+    REQUIRE_FALSE(parse_oom_score_adj("0", adj));
+    REQUIRE(adj == -12345);
+}
+
+TEST_CASE("parse_oom_score_adj: accepts the launcher default", "[memory][oom]") {
+    int adj = 0;
+    REQUIRE(parse_oom_score_adj("300", adj));
+    REQUIRE(adj == 300);
+}
+
+TEST_CASE("parse_oom_score_adj: accepts a negative adjustment", "[memory][oom]") {
+    int adj = 0;
+    REQUIRE(parse_oom_score_adj("-500", adj));
+    REQUIRE(adj == -500);
+}
+
+TEST_CASE("parse_oom_score_adj: clamps to the kernel range", "[memory][oom]") {
+    int adj = 0;
+    REQUIRE(parse_oom_score_adj("2000", adj));
+    REQUIRE(adj == 1000);
+
+    REQUIRE(parse_oom_score_adj("-2000", adj));
+    REQUIRE(adj == -1000);
+}
+
+TEST_CASE("parse_oom_score_adj: rejects non-numeric and trailing garbage", "[memory][oom]") {
+    int adj = -12345;
+    REQUIRE_FALSE(parse_oom_score_adj("abc", adj));
+    REQUIRE_FALSE(parse_oom_score_adj("300x", adj));
+    REQUIRE_FALSE(parse_oom_score_adj("+", adj));
+    REQUIRE(adj == -12345);
+}
+
+TEST_CASE("write_oom_score_adj: writes the value verbatim", "[memory][oom]") {
+    auto path = std::filesystem::temp_directory_path() /
+                ("helix_oom_score_adj_" + std::to_string(::getpid()));
+
+    REQUIRE(write_oom_score_adj(300, path.string().c_str()));
+
+    std::ifstream in(path);
+    REQUIRE(in.is_open());
+    std::string contents;
+    std::getline(in, contents);
+    in.close();
+    std::filesystem::remove(path);
+
+    REQUIRE(contents == "300");
+}
+
+TEST_CASE("write_oom_score_adj: reports failure on an unwritable path", "[memory][oom]") {
+    // A path under a file (not a directory) can never be opened for writing.
+    auto base =
+        std::filesystem::temp_directory_path() / ("helix_oom_notdir_" + std::to_string(::getpid()));
+    std::ofstream(base) << "x";
+
+    auto bogus = base / "oom_score_adj";
+    REQUIRE_FALSE(write_oom_score_adj(300, bogus.string().c_str()));
+
+    std::filesystem::remove(base);
 }

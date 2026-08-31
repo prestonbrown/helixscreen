@@ -764,18 +764,7 @@ void PowerDeviceWidget::show_device_picker() {
     s_active_picker_ = this;
 
     // Self-clearing delete callback for parent deletion safety
-    lv_obj_add_event_cb(
-        picker_backdrop_,
-        [](lv_event_t* ev) {
-            auto* self = static_cast<PowerDeviceWidget*>(lv_event_get_user_data(ev));
-            if (!self)
-                return;
-            self->picker_backdrop_ = nullptr;
-            if (s_active_picker_ == self) {
-                s_active_picker_ = nullptr;
-            }
-        },
-        LV_EVENT_DELETE, this);
+    lv_obj_add_event_cb(picker_backdrop_, on_picker_backdrop_deleted, LV_EVENT_DELETE, this);
 
     // Position card near the widget
     if (card && widget_obj_) {
@@ -804,6 +793,16 @@ void PowerDeviceWidget::show_device_picker() {
     spdlog::debug("[PowerDeviceWidget] Picker shown with {} devices", device_names.size());
 }
 
+void PowerDeviceWidget::on_picker_backdrop_deleted(lv_event_t* ev) {
+    auto* self = static_cast<PowerDeviceWidget*>(lv_event_get_user_data(ev));
+    if (!self)
+        return;
+    self->picker_backdrop_ = nullptr;
+    if (s_active_picker_ == self) {
+        s_active_picker_ = nullptr;
+    }
+}
+
 void PowerDeviceWidget::dismiss_device_picker() {
     if (!picker_backdrop_) {
         return;
@@ -813,7 +812,14 @@ void PowerDeviceWidget::dismiss_device_picker() {
     picker_backdrop_ = nullptr;
     s_active_picker_ = nullptr;
 
-    if (lv_obj_is_valid(backdrop)) {
+    if (lv_is_initialized() && lv_obj_is_valid(backdrop)) {
+        // safe_delete_deferred() destroys the backdrop after this returns, and
+        // ~PowerDeviceWidget() -> detach() reaches here, so the hook would fire
+        // on a freed `this`. Everything it does - nulling picker_backdrop_ and
+        // s_active_picker_ - has already happened above. It stays installed on
+        // the paths that do NOT come through here: a backdrop killed with its
+        // parent screen still needs to clear both.
+        lv_obj_remove_event_cb_with_user_data(backdrop, on_picker_backdrop_deleted, this);
         helix::ui::safe_delete_deferred(backdrop);
     }
 

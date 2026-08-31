@@ -154,7 +154,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-fork` |
+| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-fork`, `ifs-module` |
 | **Default** | Happy Hare, LINEAR, 4 slots |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -173,6 +173,7 @@ Select the mock AMS topology/type.
 | `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
 | `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** Irbis3D controller. Aliases: `medusa`, `mhc`. See below |
 | `medusahc-fork` | 1 | MedusaHC as driven by topi314's fork. Alias: `medusa-fork` |
+| `ifs-module` | 1 | **Standalone AD5X IFS module - mock HARDWARE, real backend.** The Forge-X drop-in's `ifs`/`ifs_materials` objects + stock-named sensors. Aliases: `ifs_module`, `ad5x-module`. See below |
 
 ```bash
 # Simulate AFC Box Turtle
@@ -242,6 +243,25 @@ separate status frames rather than collapsing into one update. `SELECT_TOOL`,
 
 The default `mmu` object is suppressed in these modes - it would detect Happy Hare and
 stand a second AMS backend up alongside the changer.
+
+#### `ifs-module` - mock hardware, real backend
+
+Same rule as the MedusaHC modes: no `AmsBackendMock` is built. The mock publishes the
+standalone IFS module's objects (`ifs`, `ifs_materials`, `save_variables` with
+`ifs_loaded`) plus its stock-named sensors (`filament_switch_sensor lane1..4`,
+`filament_switch_sensor toolhead`), so real discovery sets `AmsType::AD5X_IFS` and the
+production `AmsBackendAd5xIfs` runs its module path — detection, subscription, the frame
+parse, `IFS_SET_MATERIAL` writes and the `T<n>`/`IFS_*` op dispatch all get exercised at
+runtime, not only in the unit tests. The default `mmu` object is suppressed (it would
+win detection over the IFS objects).
+
+`gcode_script()` handles `T<n>`, `IFS_SELECT`/`IFS_LOAD` (slot loads), `IFS_UNLOAD`,
+`IFS_EJECT` (clears the lane's presence) and `IFS_SET_MATERIAL` (updates the slot
+registry), with the result published on the next status notification:
+
+```bash
+HELIX_MOCK_AMS=ifs-module ./build/bin/helix-screen --test -vv
+```
 
 **Multi-extruder and tool testing:** Setting `HELIX_MOCK_AMS=toolchanger` also creates multiple tool definitions and extruders in the mock environment. Multiple extruders (extruder, extruder1, etc.) and tools are auto-discovered from Klipper objects at runtime, so no separate env var is needed to control extruder count. The toolchanger mock provides a complete multi-tool, multi-extruder test environment.
 
@@ -366,6 +386,25 @@ Enable or disable mock Spoolman integration. When disabled, `get_spoolman_status
 ```bash
 # Disable mock Spoolman to test "no Spoolman" scenarios
 HELIX_MOCK_SPOOLMAN=0 ./build/bin/helix-screen --test
+```
+
+### `HELIX_MOCK_SPOOLMAN_SPOOLS`
+
+Pad the mock Spoolman inventory with deterministic synthetic spools, so search/filter
+cost in the spool pickers can be measured at realistic inventory sizes. The hand-written
+inventory tops out at 19 spools; real Spoolman databases run to hundreds. Padding only
+extends the inventory - the curated spools the mock backends link against keep their ids
+(`tests/unit/test_mock_spool_consistency.cpp` pins those).
+
+| Property | Value |
+|----------|-------|
+| **Values** | integer target count (clamped to 5000) |
+| **Default** | 19 (unset - no padding) |
+| **File** | `src/api/moonraker_api_mock.cpp` (`init_mock_spools`) |
+
+```bash
+# Measure picker search cost against a 300-spool inventory
+HELIX_MOCK_SPOOLMAN_SPOOLS=300 ./build/bin/helix-screen --test -vv
 ```
 
 ### `HELIX_MOCK_FILAMENT_SENSORS`

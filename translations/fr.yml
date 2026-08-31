@@ -1,7 +1,6 @@
 locale: fr
 translations:
   ' (timed out)': ' (délai dépassé)'
-  ' elapsed · ': ' écoulé · '
   ' frames': ' images'
   ' left': ' restant'
   '"%s" failed to load': '"%s" na pas pu se charger'
@@ -173,6 +172,7 @@ translations:
   All extruder temperatures with progress bars: 'Toutes les températures d''extrudeur avec barres de progression'
   All fields are required: Tous les champs sont requis
   All plugins loaded successfully: Tous les plugins ont été chargés avec succès
+  Allow: 'Autoriser'
   Allow Home Screen Editing: 'Autoriser la modification de l''écran d''accueil'
   Allow cold load/unload: Autoriser le chargement/déchargement à froid
   Allow display to sleep during active prints: Permettre la mise en veille pendant
@@ -187,6 +187,7 @@ translations:
   AmsIdentify: Identifier l'AMS
   An accelerometer was detected on your printer.: Un accéléromètre a été détecté sur
     votre imprimante.
+  An app on your network is asking to connect to this printer.: 'Une application de votre réseau demande à se connecter à cette imprimante.'
   An error occurred during calibration.: Une erreur s'est produite pendant la calibration.
   An error occurred during filament loading.: Une erreur sest produite lors du chargement
     du filament.
@@ -220,6 +221,8 @@ translations:
   Apply Changes: Appliquer les modifications
   Applying Changes: Application des modifications
   Applying...: Application...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Êtes-vous
     sûr de vouloir annuler cette impression ? Toute la progression sera perdue.
   Are you sure? This will power off or restart this device.: Êtes-vous sûr ? Cela
@@ -243,6 +246,7 @@ translations:
   Auto-poll for weight updates: Interrogation auto des mises à jour de poids
   Auto-probe or manually check screw heights: Palpage auto ou vérification manuelle
     des hauteurs de vis
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Rendu vidéo automatique
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: La désinstallation automatique ne
@@ -624,6 +628,7 @@ translations:
   Connecting...: Connexion...
   Connection: Connexion
   Connection Failed: Connexion échouée
+  Connection Request: 'Demande de connexion'
   Connection Stability: Stabilité de la connexion
   Connection failed: Connexion échouée
   Connection failed to {}:{}: Connexion échouée à {}:{}
@@ -659,6 +664,7 @@ translations:
   Correction (Ki): Correction (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Impossible
     d'analyser la macro PRINT_START. Certaines options d'impression peuvent être indisponibles.
+  Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Impossible de vérifier la webcam.\nVérifiez la connexion."
   Could not forget device: Impossible d'oublier l'appareil
@@ -744,6 +750,7 @@ translations:
   Delete {}?: Supprimer {} ?
   'Delta:': 'Delta :'
   Density: Densité
+  Deny: 'Refuser'
   Deploy: Déployer
   Describe the issue (optional): Décrivez le problème (optionnel)
   Detailed: Détaillé
@@ -756,6 +763,7 @@ translations:
   Dev channel requires dev_url in config: Le canal de développement nécessite dev_url
     dans la configuration
   Device: Appareil
+  Device connected: 'Appareil connecté'
   Device name: Nom de lappareil
   Device name is required: Le nom de l'appareil est requis
   'Device: ': 'Appareil : '
@@ -964,6 +972,7 @@ translations:
   Failed to analyze PRINT_START macro: Échec de l'analyse de la macro PRINT_START
   Failed to apply limits: Échec de l'application des limites
   Failed to apply settings: Échec de l'application des paramètres
+  Failed to archive spool: ''
   Failed to build raster data: Échec de la construction des données raster
   'Failed to cancel: {}': 'Échec de l''annulation : {}'
   'Failed to clear print state: {}': 'Échec de l''effacement de l''état d''impression
@@ -1385,6 +1394,7 @@ translations:
     : {} (sur {})'
   Invalid status response from printer: Réponse détat invalide de limprimante
   Issue description: Description du problème
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: C'est une nouvelle bobine
   Jammed at the Toolhead: Bourrage à la tête d'outil
   Job Queue: File d'impression
@@ -1527,7 +1537,6 @@ translations:
   MACRO DEVICES: APPAREILS MACRO
   MAIN POWER BUTTON: BOUTON D'ALIMENTATION PRINCIPAL
   MANUAL: MANUEL
-  MAPPING: AFFECTATION
   MB RAM: Mo de RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Surveillance des températures MCU,
@@ -1767,6 +1776,7 @@ translations:
   No slot currently matches.: 'Aucun slot ne correspond actuellement.'
   No spool assigned: Aucune bobine assignée
   No spools found — tap to retry: Aucune bobine trouvée — appuyez pour réessayer
+  No spools match your search: ''
   No tape detected in printer: Aucun ruban détecté dans limprimante
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
@@ -2598,6 +2608,7 @@ translations:
   'Spool #{}': 'Bobine #{}'
   Spool Info: Info bobine
   Spool Weight (g): Poids de la bobine (g)
+  Spool archived: ''
   Spool created successfully: Bobine créée avec succès
   Spool deleted: Bobine supprimée
   Spool motor: Moteur de bobine
@@ -3266,6 +3277,7 @@ translations:
   '{} filament sensors available': '{} capteurs de filament disponibles'
   '{} filament • {}': '{} de filament • {}'
   '{} heater turned off': Chauffage {} désactivé
+  '{} is asking to connect to this printer.': '{} demande à se connecter à cette imprimante.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} est installé mais son passage à la bobine de secours est désactivé, aucun changement automatique n''aura donc lieu.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} est installé, mais son réglage de bobine de secours n''a pas pu être lu - ne comptez pas sur un changement automatique.'
   '{} is not set up on this printer': ''

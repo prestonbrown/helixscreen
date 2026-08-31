@@ -9,15 +9,6 @@
 namespace helix {
 
 /**
- * @brief True when the state represents an in-flight print job
- *
- * PRINTING and PAUSED both count as active: a paused job is still a live
- * job the user cares about (including firmware power-loss recovery, which
- * surfaces the restored job as PAUSED).
- */
-bool is_active_print_state(PrintJobState s);
-
-/**
  * @brief Pure decision function for print-start auto-navigation
  *
  * Returns true only on an inactive→active edge: the previous state was not

@@ -150,9 +150,9 @@ The same capture-then-forward appears at every layer that wraps:
 |------|-------------|
 | `MoonrakerAPI::execute_gcode()` | `src/api/moonraker_api_controls.cpp:373-375` — before the activity-counter wrapping |
 | `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp:401-403` — also the site that sets `silent = (on_error != nullptr)` |
-| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:546` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
-| `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:446-449` — the G28 leg forwards the *caller's* answer, not the wrapper's |
-| `LedController::send_led_command()` / strobe | `src/led/led_controller.cpp:1027`, `:1054` — `caller_surfaces_errors && (on_error != nullptr)` |
+| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:545` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
+| `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:445-448` — the G28 leg forwards the *caller's* answer, not the wrapper's |
+| `LedEffectBackend::activate_effect()` / `stop_all_effects()` | `src/led/led_controller.cpp:1023-1027`, `:1052-1054` — `caller_surfaces_errors && (on_error != nullptr)` |
 
 ### The parameter
 
@@ -169,7 +169,7 @@ The same capture-then-forward appears at every layer that wraps:
 It defaults to `true`, which is right for the common case — a UI callback that toasts. **A
 callback that only `spdlog`s, only resets internal state, or does both must pass `false`.**
 `AmsSubscriptionBackend::handle_dispatch_error()`
-(`src/printer/ams_subscription_backend.cpp:481-493`) is exactly that shape by default: with no
+(`src/printer/ams_subscription_backend.cpp:480-492`) is exactly that shape by default: with no
 caller `on_error` it logs and sets `AmsAction::IDLE`, which no user sees.
 
 Direct `send_jsonrpc()` callers do not pass an intent at all. The tracker infers
@@ -238,7 +238,7 @@ look for.
 ## The gate
 
 `scripts/check_gcode_error_ownership.py`, run at `--max-allowed 0` from
-`scripts/quality-checks.sh:1666-1692`.
+`scripts/quality-checks.sh:1684-1710`.
 
 It scans `src/` for `execute_gcode()` calls with an inline `[…](const MoonrakerError&)` lambda
 whose body is *entirely* logging or empty, and which pass neither `caller_surfaces_errors` nor
@@ -282,7 +282,7 @@ Behaviour is pinned by `tests/unit/test_rpc_error_policy.cpp` (the matrix),
    through rather than re-deriving it (`std::optional<bool>` is the pattern
    `AmsSubscriptionBackend` uses, `include/ams_subscription_backend.h:111-123`).
 6. Never re-implement the matrix. Call `rpc_error_policy::decide()` — the mock's inline gcode
-   path does exactly that (`src/api/moonraker_client_mock_print.cpp:91-121`) so its behaviour
+   path does exactly that (`src/api/moonraker_client_mock_print.cpp:87-121`) so its behaviour
    cannot drift from the real tracker's.
 
 ## What was measured on hardware

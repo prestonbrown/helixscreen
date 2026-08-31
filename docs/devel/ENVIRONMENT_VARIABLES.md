@@ -796,13 +796,21 @@ HELIX_GCODE_STREAMING=auto ./build/bin/helix-screen --test -vv &
 
 ### `HELIX_SSAO`
 
-Control enhanced 2D G-code shading. When enabled (default), the 2D layer renderer applies per-segment directional lighting, anti-aliased line drawing (Wu's algorithm), and a silhouette outline post-process for improved depth perception.
+Control enhanced 2D G-code shading: per-segment directional lighting, a
+silhouette outline post-process, and anti-aliased line drawing (Wu's algorithm).
+
+The outline pass and the antialiasing are **separate flags** internally, because
+they cost very different amounts. `HELIX_SSAO` overrides both together so a
+forced comparison covers all of it; the device tier sets them independently.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `0` (disable), unset (enabled by default) |
-| **Default** | Enabled |
-| **File** | `src/ui/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
+| **Values** | `1` (force both on), `0` (force both off), unset (device tier decides) |
+| **Default** | Unconstrained: both on. Constrained: outline on, antialiasing off. |
+| **File** | `include/gcode_ssao_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
+
+Only the exact strings `0` and `1` are honoured; anything else (including empty,
+`true`, `yes`) falls through to the tier.
 
 ```bash
 # Disable enhanced shading (use original flat rendering)
@@ -816,7 +824,15 @@ HELIX_SSAO=0 ./build/bin/helix-screen --test --gcode-file model.gcode -vv &
 - **Anti-aliased lines:** Wu's line algorithm replaces Bresenham for smoother edges
 - **Silhouette outline:** 1px darkened border on the alpha boundary of the model for edge definition
 
-Performance impact is minimal (~2ms post-process pass for the outline, negligible overhead for AA lines and normal shading).
+**Performance.** The outline pass is ~2 ms per cache revalidation, measured on a
+real AD5M. The antialiasing is not minimal and this doc used to claim it was:
+Wu's algorithm measures about **6.1x** the aliased rasterization cost
+(`tests/unit/test_gcode_raster_bench.cpp`, run with
+`./build/bin/helix-tests "[raster_bench]"`). On the 135,197-segment test plate
+that is roughly 29 ms aliased against 178 ms antialiased, and the adaptive
+controller settles at 49 layers per frame instead of 22 - so a preview appears
+about 2.2x faster with antialiasing off. That is why the constrained tier keeps
+the outline and drops the antialiasing rather than turning everything off.
 
 ---
 
@@ -857,6 +873,77 @@ The WiFi backend normally finds the control socket automatically: it auto-detect
 # Point HelixScreen at a vendor's non-standard control socket directory
 HELIX_WPA_SOCKET_DIR=/data/misc/wifi/sockets ./build/bin/helix-screen
 ```
+
+### `HELIX_WPA_NET_SYSFS`
+
+Override the sysfs directory the WiFi hardware probe scans for radio
+interfaces.
+
+The wpa backend's pre-flight check reads `/sys/class/net` looking for
+`wlan*`/`wlp*`/`wlx*`/`wifi*` interfaces with a `wireless` subdirectory, and
+refuses to start when none exist. This variable points that probe at a
+different tree. It exists for the fake-supplicant unit tests
+(`tests/test_helpers/wpa_fake_supplicant.h`), which provide a hermetic
+`wlan0` so the suite runs on machines without a radio (CI runners); no
+device deployment should ever need it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute directory path to use in place of `/sys/class/net` |
+| **Default** | Unset — the real `/sys/class/net` |
+| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+
+### `HELIX_NETD_SOCKET`
+
+Override the control socket of the printer's network daemon (`netd`, the
+exclusive owner of WiFi/ethernet on the firmwares that ship it).
+
+Both the WiFi and Ethernet backends speak to the daemon over this AF_UNIX
+socket, and backend selection itself probes it. The daemon is detected by
+socket presence OR the on-disk binary — never by a version string, which is
+untrustworthy across these firmware releases. Set this only to repoint at a
+non-standard deployment or at a test double.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute path to an AF_UNIX SOCK_STREAM socket |
+| **Default** | `/run/netd.sock` |
+| **File** | `src/api/netd_protocol.cpp` |
+
+```bash
+# Run the app against a fake daemon on a dev box
+HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
+```
+
+Also the seam the netd unit tests use to drive the real backends against an
+in-test listener (`tests/unit/netd_test_server.h`).
+
+### `HELIX_NETD_BIN`
+
+Override the on-disk daemon binary path used as the second half of the
+presence probe when the socket is down (the daemon exists on disk even
+before it has created its socket at boot). When neither the socket nor an
+executable at this path exists, the netd backends stand down entirely and
+the factory falls through to NetworkManager/wpa_supplicant.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute path to an executable file |
+| **Default** | `/opt/config/mod/.bin/exec/netd` |
+| **File** | `src/api/netd_protocol.cpp` |
+
+```bash
+# Force the netd backends active on a dev box by naming any executable
+HELIX_NETD_BIN=/bin/true HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
+```
+
+Recovery-boot note: a boot that ships the daemon but runs the stock stack
+(the firmware's own netd-failure fallback, or a `SKIP_MOD_SOFT` boot) still
+selects the netd backends — the binary is present, so the probe commits.
+WiFi then reads unavailable until the daemon returns; Ethernet still shows
+kernel state (the netd ethernet backend falls back to the kernel reading
+when the daemon is unreachable). Point `HELIX_NETD_BIN` at a nonexistent
+path in `helixscreen.env` to make such a boot use the stock backends.
 
 ---
 
@@ -1855,12 +1942,17 @@ Launcher-only knobs for splash handling, scheduling priority, and boot-time resp
 |----------|-------------|---------|
 | `HELIX_NO_SPLASH` | `1` disables the splash entirely — no `--splash-pid`, no `--splash-bin`, no heartbeat write. For debugging. | `0` |
 | `HELIX_NICE` | Nice value applied to the launcher (children inherit it) when co-hosted with Klipper/Moonraker. `0` disables the renice. | `10` |
+| `HELIX_OOM_SCORE_ADJ` | `oom_score_adj` that `helix-screen` applies to itself when co-hosted with Klipper/Moonraker, so the OOM killer takes the UI instead of Klipper. `0` disables. Clamped to the kernel's `[-1000, 1000]`. | `300` |
 | `HELIX_BOOT_RESPAWN_MAX` | Max boot-time respawns after an early death. `0` disables the self-heal. | `0` (disabled) |
 | `HELIX_BOOT_RESPAWN_WINDOW` | Seconds after launch within which a death counts as "lost the boot race" rather than a deliberate quit. | `25` |
 | `HELIX_BOOT_RESPAWN_DELAY` | Seconds to wait before each respawn. | `3` |
 
 **Usage Notes:**
 - The renice only happens when `helix_klipper_co_hosted` is true — a standalone display (remote Sonic Pad, dev workstation, kiosk pointed at a network printer) is never deprioritized. Raising nice is unprivileged, so it works as the non-root service user.
+- `helix_klipper_co_hosted` reads `/proc/<pid>/cmdline` directly rather than calling `pgrep`. `pgrep` is absent entirely on some BusyBox rootfs — Forge-X on the AD5M ships none — and the old socket fallback checked only `/tmp/klippy_uds` and `/tmp/moonraker.sock`, which Forge-X does not use (its klippy socket is `/tmp/uds`). Both probes missed there, so the UI ran at nice 0 against Klipper on exactly the boards this protects. `HELIX_PROC_ROOT` overrides the scan root for tests.
+- The co-host patterns match the klippy.py and moonraker.py script names, plus `moonraker-env` and `-m moonraker`. They are deliberately narrow: a bare `moonraker` would also match a standalone kiosk started as `helix-screen --moonraker ws://host:7125`, which must stay at nice 0.
+- `HELIX_OOM_SCORE_ADJ` is **exported** by the launcher, not applied by it. `oom_score_adj` is inherited across `fork` and preserved across `exec`, so setting it in the launcher would mark the launcher shell and `helix-watchdog` too — and killing the watchdog is what stops `helix-screen` from coming back. `helix-screen` writes it to `/proc/self/oom_score_adj` instead. Raising the value is unprivileged; only lowering it below 0 needs `CAP_SYS_RESOURCE`.
+- Measured on an AD5M (110 MB total, Forge-X 1.4.0): every process sat at `oom_score_adj` 0, leaving the OOM kill order Moonraker (score 156), Klipper (92), `helix-screen` (69) — exactly backwards, since `helix-screen` is the only one with a supervisor behind it.
 - The boot-respawn self-heal exists for firmwares that send `helix-screen` a single SIGTERM during a busy boot. `helix-screen` handles SIGTERM with a fast `_exit(0)` expecting a supervisor to restart it — on an unsupervised SysV boot (no `helix-watchdog`; BusyBox init does not respawn S99 children) that one signal is permanent. On the Snapmaker U1 that also strands the device off-network, since `helix-screen` owns the WiFi association.
 - A boot-time SIGTERM and a deliberate user quit both exit 0, so they are told apart by **uptime**: a process that dies inside `HELIX_BOOT_RESPAWN_WINDOW` seconds of launch is presumed to have lost the boot race. Opted into by the Snapmaker U1 platform hook.
 - A real `init stop` kills the launcher itself (its cleanup trap sets `HELIX_SHUTTING_DOWN`), so the respawn loop never fires for an intentional stop.

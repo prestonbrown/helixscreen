@@ -17,7 +17,7 @@
 namespace helix {
 
 // Track previous state to detect inactive→active print transitions
-// RAW_PRINT_STATE_OK: navigation's activation edge - see is_active_print_state().
+// RAW_PRINT_STATE_OK: navigation's activation edge - see printer_has_job().
 //
 // FIRST-TICK CONTRACT: observe fires once at registration, so this is re-seeded
 // to the CURRENT state in init_print_start_navigation_observer() before
@@ -28,16 +28,12 @@ namespace helix {
 // correct; read the local one before copying any of them.
 static PrintJobState prev_print_state = PrintJobState::STANDBY;
 
-// RAW_PRINT_STATE_OK: navigation's activation edge. On a lifecycle that
-// includes host-side Preparing this would push the status panel for a job the
-// printer has not accepted, duplicating the optimistic push in
+// Navigation's activation edge is the wire question: printer_has_job(). On a
+// lifecycle that includes host-side Preparing this would push the status panel
+// for a job the printer has not accepted, duplicating the optimistic push in
 // ui_panel_print_select.cpp.
-bool is_active_print_state(PrintJobState s) {
-    return s == PrintJobState::PRINTING || s == PrintJobState::PAUSED;
-}
-
 bool print_start_nav_should_navigate(PrintJobState prev, PrintJobState current) {
-    return !is_active_print_state(prev) && is_active_print_state(current);
+    return !printer_has_job(prev) && printer_has_job(current);
 }
 
 // Queue the print status overlay push on the UI thread. Shared by the
@@ -104,8 +100,7 @@ static void on_print_state_changed_for_navigation(lv_observer_t* observer, lv_su
 ObserverGuard init_print_start_navigation_observer() {
     // Initialize prev_print_state to current state to prevent false trigger on startup
     // RAW_PRINT_STATE_OK: see the first-tick contract on prev_print_state.
-    prev_print_state = static_cast<PrintJobState>(
-        lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+    prev_print_state = get_printer_state().get_print_job_state();
     spdlog::debug("[PrintStartNav] Observer registered (initial state={})",
                   static_cast<int>(prev_print_state));
 
@@ -114,7 +109,7 @@ ObserverGuard init_print_start_navigation_observer() {
     // subscribed. This happens after firmware power-loss recovery, where the
     // restored job can be PAUSED/PRINTING by the time initial connect completes
     // (#1099). Navigate now so the user lands on the running job.
-    if (is_active_print_state(prev_print_state) && !is_wizard_active()) {
+    if (printer_has_job(prev_print_state) && !is_wizard_active()) {
         spdlog::info("[PrintStartNav] Print already active at init (state={}) — "
                      "auto-navigating to print status",
                      static_cast<int>(prev_print_state));

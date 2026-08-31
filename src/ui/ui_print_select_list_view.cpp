@@ -29,44 +29,6 @@ PrintSelectListView::~PrintSelectListView() {
     spdlog::trace("[PrintSelectListView] Destroyed");
 }
 
-PrintSelectListView::PrintSelectListView(PrintSelectListView&& other) noexcept
-    : container_(other.container_), leading_spacer_(other.leading_spacer_),
-      trailing_spacer_(other.trailing_spacer_), list_pool_(std::move(other.list_pool_)),
-      list_pool_indices_(std::move(other.list_pool_indices_)),
-      list_data_pool_(std::move(other.list_data_pool_)), visible_start_(other.visible_start_),
-      visible_end_(other.visible_end_), on_file_click_(std::move(other.on_file_click_)),
-      on_metadata_fetch_(std::move(other.on_metadata_fetch_)) {
-    other.container_ = nullptr;
-    other.leading_spacer_ = nullptr;
-    other.trailing_spacer_ = nullptr;
-    other.visible_start_ = -1;
-    other.visible_end_ = -1;
-}
-
-PrintSelectListView& PrintSelectListView::operator=(PrintSelectListView&& other) noexcept {
-    if (this != &other) {
-        cleanup();
-
-        container_ = other.container_;
-        leading_spacer_ = other.leading_spacer_;
-        trailing_spacer_ = other.trailing_spacer_;
-        list_pool_ = std::move(other.list_pool_);
-        list_pool_indices_ = std::move(other.list_pool_indices_);
-        list_data_pool_ = std::move(other.list_data_pool_);
-        visible_start_ = other.visible_start_;
-        visible_end_ = other.visible_end_;
-        on_file_click_ = std::move(other.on_file_click_);
-        on_metadata_fetch_ = std::move(other.on_metadata_fetch_);
-
-        other.container_ = nullptr;
-        other.leading_spacer_ = nullptr;
-        other.trailing_spacer_ = nullptr;
-        other.visible_start_ = -1;
-        other.visible_end_ = -1;
-    }
-    return *this;
-}
-
 // ============================================================================
 // Setup / Cleanup
 // ============================================================================
@@ -78,6 +40,15 @@ bool PrintSelectListView::setup(lv_obj_t* container, FileClickCallback on_file_c
         return false;
     }
 
+    if (container_ != container) {
+        // A different container means the tree the pool was built under is
+        // gone (hot-reload rebuild deletes and re-creates the widget tree on
+        // the same surviving panel). Cached pointers would dangle. The net
+        // unhooks the old container itself and runs the destroyed hook (the
+        // pool wipe) before this view adopts the new tree.
+        retarget_container_net(container);
+    }
+
     container_ = container;
     on_file_click_ = std::move(on_file_click);
     on_metadata_fetch_ = std::move(on_metadata_fetch);
@@ -86,7 +57,7 @@ bool PrintSelectListView::setup(lv_obj_t* container, FileClickCallback on_file_c
     return true;
 }
 
-void PrintSelectListView::cleanup() {
+void PrintSelectListView::clear_cached_state() {
     // Deinitialize subjects - this properly removes all attached observers.
     // We use lv_subject_deinit() instead of lv_observer_remove() because
     // widget-bound observers can be auto-removed by LVGL when widgets are
@@ -108,13 +79,25 @@ void PrintSelectListView::cleanup() {
     list_pool_indices_.clear();
 
     // Clear widget references
-    container_ = nullptr;
     leading_spacer_ = nullptr;
     trailing_spacer_ = nullptr;
     visible_start_ = -1;
     visible_end_ = -1;
     last_leading_height_ = -1;
     last_trailing_height_ = -1;
+}
+
+void PrintSelectListView::on_netted_container_destroyed() {
+    container_ = nullptr;
+    clear_cached_state();
+}
+
+void PrintSelectListView::cleanup() {
+    // Remove the delete net first when the container still outlives this view,
+    // so it can never fire into a destroyed owner.
+    detach_container_net();
+    clear_cached_state();
+    container_ = nullptr;
     spdlog::debug("[PrintSelectListView] cleanup()");
 }
 

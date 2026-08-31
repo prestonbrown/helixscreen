@@ -36,7 +36,7 @@ namespace helix::ui {
  * any route (user acknowledgement, backdrop tap, this sweep, teardown), so
  * callers never have to unregister.
  *
- * **Main thread only.** No-op on nullptr, so a failed modal_show_alert() can be
+ * **Main thread only.** No-op on nullptr, so a failed modal_alert() can be
  * passed straight through.
  */
 void track_fault_modal(lv_obj_t* dialog);

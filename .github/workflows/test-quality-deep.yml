@@ -1,0 +1,151 @@
+name: Test Quality (deep)
+
+# The two expensive halves of the test-quality tooling. Both are manual on
+# purpose.
+#
+#   cov-diff     needs its own COVERAGE=1 build of the test binary, so it cannot
+#                reuse the nightly artifact. One full build plus one suite run.
+#   mutate-diff  reverts each changed hunk, rebuilds and re-runs the suite. That
+#                is a compile and a whole-program link PER HUNK, on a 2-core
+#                hosted runner. Always scope it with `limit` and `tests`.
+#
+# The cheap gates are not here: check-tautology and the mirror gate run on every
+# push via quality.yml, and test-vacuous plus test-order-dependence run nightly.
+#
+# Both tools are diff-scoped, so `base` is what they measure against. On a PR
+# use the target branch; on main use the previous release tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: 'Which analysis to run'
+        required: true
+        type: choice
+        options:
+          - cov-diff
+          - mutate-diff
+        default: cov-diff
+      base:
+        description: 'Diff base (branch, tag or SHA) the change is measured against'
+        required: true
+        type: string
+        default: 'main'
+      limit:
+        description: 'mutate-diff only: stop after N hunks (0 = no limit, expect hours)'
+        required: false
+        type: string
+        default: '10'
+      tests:
+        description: 'mutate-diff only: Catch2 filter scoping the suite per mutant'
+        required: false
+        type: string
+        default: '~[.]~[slow]'
+
+concurrency:
+  group: test-quality-deep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cov-diff:
+    name: Diff coverage
+    if: inputs.tool == 'cov-diff'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+        # cov_diff.py diffs against `base`, so that history has to be present.
+        fetch-depth: 0
+
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libfmt-dev libcairo2-dev libpango1.0-dev \
+          libpng-dev libjpeg-dev libnl-3-dev libnl-genl-3-dev
+
+    - name: Apply submodule patches
+      run: make apply-patches
+
+    - name: Build instrumented test binary
+      timeout-minutes: 120
+      run: make cov-build -j"$(nproc)"
+
+    - name: Run the suite to produce .gcda
+      timeout-minutes: 40
+      run: make cov-run
+
+    # Reports changed lines the suite never executed. This is a SCREEN, not a
+    # verdict: an executed line can still be untested, which is what mutate-diff
+    # is for. Read a clean report as "nothing is trivially untested".
+    - name: Diff coverage
+      run: |
+        python3 scripts/cov_diff.py --base "${{ inputs.base }}" --list
+
+  mutate-diff:
+    name: Mutation (hunk revert)
+    if: inputs.tool == 'mutate-diff'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+        fetch-depth: 0
+
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libfmt-dev libcairo2-dev libpango1.0-dev \
+          libpng-dev libjpeg-dev libnl-3-dev libnl-genl-3-dev
+
+    - name: Apply submodule patches
+      run: make apply-patches
+
+    - name: What would be mutated
+      run: |
+        python3 scripts/mutate_diff.py --base "${{ inputs.base }}" --list-only
+
+    # Establishes a green baseline before mutating anything: with a red suite
+    # every mutant reads as killed. The script refuses to continue without it.
+    #
+    # A SURVIVED hunk fails the job. That means no test in the scoped filter
+    # detects that change, whatever test files the diff also touched.
+    - name: Revert each hunk and look for red
+      timeout-minutes: 330
+      run: |
+        LIMIT=""
+        if [ "${{ inputs.limit }}" != "0" ] && [ -n "${{ inputs.limit }}" ]; then
+          LIMIT="--limit ${{ inputs.limit }}"
+        fi
+        python3 scripts/mutate_diff.py \
+          --base "${{ inputs.base }}" \
+          --tests "${{ inputs.tests }}" \
+          --jobs "$(nproc)" \
+          $LIMIT
+
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mutate-diff-log
+        path: /tmp/mutate-diff.log
+        retention-days: 7
+        if-no-files-found: ignore

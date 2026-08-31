@@ -307,4 +307,35 @@ lv_obj_t* resolve_path(const std::string& path, lv_obj_t* base, std::vector<lv_o
     return cur;
 }
 
+int64_t widget_pick_key(lv_obj_t* o, size_t discovery_order) {
+    if (!o) {
+        return -1;
+    }
+    lv_obj_t* top_ancestor = o;
+    while (lv_obj_t* parent = lv_obj_get_parent(top_ancestor)) {
+        if (!lv_obj_get_parent(parent)) {
+            break; // parent is the screen/layer root; top_ancestor is its child
+        }
+        top_ancestor = parent;
+    }
+    lv_obj_t* root = lv_obj_get_parent(top_ancestor);
+    const int64_t layer_rank = (root == lv_layer_top()) ? 1 : 0;
+    // int64_t throughout, not long: see the width note on the declaration.
+    return (layer_rank << 40) | (static_cast<int64_t>(lv_obj_get_index(top_ancestor)) << 20) |
+           static_cast<int64_t>(discovery_order);
+}
+
+lv_obj_t* topmost_visible(const std::vector<lv_obj_t*>& matches) {
+    lv_obj_t* best = nullptr;
+    int64_t best_key = -1;
+    for (size_t i = 0; i < matches.size(); ++i) {
+        const int64_t key = widget_pick_key(matches[i], i);
+        if (key > best_key) {
+            best_key = key;
+            best = matches[i];
+        }
+    }
+    return best;
+}
+
 } // namespace helix

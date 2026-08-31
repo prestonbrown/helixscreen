@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_container_delete_net.h"
+
 #include <functional>
 #include <lvgl.h>
 #include <memory>
@@ -71,7 +73,7 @@ using MetadataFetchCallback = std::function<void(size_t start, size_t end)>;
 /**
  * @brief Virtualized list view with widget pooling
  */
-class PrintSelectListView {
+class PrintSelectListView : public ContainerDeleteNet {
   public:
     PrintSelectListView();
     ~PrintSelectListView();
@@ -79,8 +81,12 @@ class PrintSelectListView {
     // Non-copyable, movable
     PrintSelectListView(const PrintSelectListView&) = delete;
     PrintSelectListView& operator=(const PrintSelectListView&) = delete;
-    PrintSelectListView(PrintSelectListView&& other) noexcept;
-    PrintSelectListView& operator=(PrintSelectListView&& other) noexcept;
+    // Non-movable: the container's LV_EVENT_DELETE net is keyed to this
+    // instance, so a move would strand it on the moved-from object. The
+    // views are held by unique_ptr and never moved; the compiler enforces
+    // that staying true.
+    PrintSelectListView(PrintSelectListView&&) = delete;
+    PrintSelectListView& operator=(PrintSelectListView&&) = delete;
 
     // === Configuration ===
 
@@ -181,6 +187,18 @@ class PrintSelectListView {
     void configure_row(lv_obj_t* row, size_t pool_index, size_t file_index,
                        const PrintFileData& file);
     void create_spacers();
+
+    /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
+    /// run while the tree those pointers refer to is mid-deletion.
+    void clear_cached_state();
+
+    /// ContainerDeleteNet: the watched tree died — drop the pool
+    /// before its pointers dangle.
+    void on_netted_container_destroyed() override;
+
+    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
+    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
+    /// outlive it (prestonbrown/helixscreen#1396).
 
     // === Static Callbacks ===
     static void on_row_clicked(lv_event_t* e);

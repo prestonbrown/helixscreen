@@ -53,35 +53,63 @@ class PrinterDiscovery;
  */
 /**
  * @brief Does a pre-print-send backend's SEED follow the persisted auto-color
- *        preference? HELD AT false pending hardware verification.
+ *        preference? NO - settled at false by hardware, not merely held.
+ *        Verified on a real U1; see VERDICT below before reopening this.
  *
  * The Snapmaker U1 carries a user's tool->lane pick only through its
- * firmware-native pre-print send, so AmsBackend::honors_user_tool_mapping()
- * correctly reports that it CAN honor one. Letting that decide the seed as well
+ * firmware-native pre-print send, so helix::printer::can_remap() correctly
+ * reports that it CAN honor one. Letting that decide the seed as well
  * changes what the U1 does with a file the user never remapped: today it always
- * color-matches, and following the setting would seed positionally instead,
- * because the persisted default is false. On a tool changer positional is the
- * slicer's own intent and FilamentMapper::identity_filtered_remap() drops it to
- * an empty map, so nothing is sent — which is why it is the intended end state.
+ * color-matches, and following the setting seeds positionally instead, because
+ * the persisted default is false. Positional means every tool keeps the head the
+ * firmware would route it to anyway, which on a tool changer is the slicer's own
+ * intent.
  *
- * It is held because no hardware has confirmed it. Flipping a default that
- * silently re-routes a multi-tool print is not something to ship on a mock.
+ * Positional does NOT mean an empty wire. FilamentMapper::identity_filtered_remap()
+ * drops identity entries, but the U1 pre-print builder still emits the full used-
+ * extruder map, so a positional seed goes out as an explicit identity
+ * (SET_PRINT_EXTRUDER_MAP 0->0, 2->2). Measured, not inferred - an earlier
+ * revision of this block claimed nothing is sent.
  *
- * TO SHIP IT: set this to true. Nothing else changes — the positional path, the
- * shared predicate and the picker are already in place and exercised; this
+ * Positional is also only correct because use_current_assignments() pairs each
+ * tool with its own default head. It used to pair by position in the used-tool
+ * list, which silently remapped any file using a SPARSE tool set - T0+T2 sent T2
+ * to lane 1, a lane the user never chose. Fixed, with a test; that bug is why
+ * this flip could not have shipped as it stood.
+ *
+ * HARDWARE VERIFICATION - Snapmaker U1, 2026-08-27, calicat_PLA_37m55s.gcode
+ * (T0 red 7.94g body / T2 black 2.63g tail; lanes loaded slot 0 BLACK, slot 1
+ * off-white, slot 2 RED, i.e. inverted relative to the file). Same file and
+ * printer, both settings, no user pick:
+ *
+ *   false (shipped)  picker T0->slot 3, T2->slot 1;  wire MAP 0->2, 2->0
+ *                    color match; prints body RED / tail BLACK.
+ *   true  (flipped)  picker T0->slot 1, T2->slot 3;  wire MAP 0->0, 2->2
+ *                    positional; observed toolhead.extruder alternating
+ *                    extruder <-> extruder2 across layers 2-6, i.e. T0 from head
+ *                    0 and T2 from head 2; prints body BLACK / tail RED.
+ *
+ * VERDICT: do NOT flip. The flip works mechanically, but positional honors the
+ * file's TOOL NUMBERS, so on any printer whose lanes are not loaded in tool
+ * order the print no longer matches the slice - here the desired red body /
+ * black tail became a black body with a red tail. Color matching is what makes
+ * a print come out as sliced regardless of which lane holds what, and that is
+ * what a user wants from a default. Positional was assumed to be "the slicer's
+ * own intent"; on a tool changer with freely-loaded lanes it is not.
+ *
+ * This is a structural result, not a tuning problem, so it will not change with
+ * a better test file: the only way to get sliced colors AND have the setting
+ * drive the seed is to flip this AND default auto_color_map to true, which is a
+ * larger change that buys nothing over leaving this false.
+ *
+ * IF YOU EVER DO FLIP IT: set this to true. Nothing else changes - the positional path, the
+ * shared predicate and the picker are in place and hardware-exercised; this
  * constant only decides whether the seed consults the setting or pins to
- * auto-match.
- *
- * EVIDENCE THAT WOULD JUSTIFY THE FLIP: a two-color print on a real U1 whose
- * lanes are inverted relative to the file (e.g. calicat_PLA_37m55s.gcode, T0 red
- * / T2 black, slot 0 black / slot 2 red). With the flip in place and the user
- * making no pick, the print must come out matching the SLICED colors — body red,
- * tail black — and the log must show SET_PRINT_EXTRUDER_MAP lines consistent
- * with what the picker displayed. A single-color result means the routing never
- * reached the wire and the flip must stay down.
+ * auto-match. tests/unit/test_effective_auto_match.cpp has a static_assert that
+ * fires when it flips, naming the case to invert.
  *
  * Does NOT gate PrintStartController::should_warn_remap_unsupported(), which has
- * always counted the pre-print route and must keep doing so — gating it there
+ * always counted the pre-print route and must keep doing so - gating it there
  * would resurrect a false "remap not supported" toast on the U1.
  */
 namespace helix {
@@ -286,6 +314,11 @@ class AmsState {
      */
     [[nodiscard]] std::vector<helix::AvailableSlot> collect_available_slots() const;
 
+    /// The primary backend's firmware DEFAULT tool -> head map, for the mapper.
+    /// Identity when no backend is present, which is also the majority shape.
+    /// NOT the live map - see AmsBackend::firmware_default_routing().
+    [[nodiscard]] helix::FirmwareRouting collect_firmware_routing() const;
+
     /**
      * @brief Whether ANY backend is currently feeding from its bypass / external
      *        spool instead of a slot.
@@ -332,8 +365,8 @@ class AmsState {
      * then colors from a different one.
      *
      * A backend that can carry out an explicit user tool->lane choice — by
-     * EITHER route, an editable mapping card or a firmware-native pre-print send
-     * (AmsBackend::honors_user_tool_mapping) — has a picker the user reaches,
+     * EITHER route, a table it writes itself or a firmware-native pre-print send
+     * (helix::printer::can_remap) — has a picker the user reaches,
      * and that picker carries the auto-color toggle. Its setting wins both ways.
      * A backend that can honor the choice by NEITHER route (ACE) has no picker,
      * so nothing can have flipped the persisted preference and the default
@@ -349,6 +382,31 @@ class AmsState {
      * Asks the PRIMARY backend: the picker the user reaches reflects backend 0.
      */
     [[nodiscard]] bool effective_auto_match() const;
+
+    /**
+     * @brief Seed the tool -> slot mapping. THE one place this rule lives.
+     *
+     * Composes the three things this class already owns - the effective
+     * auto-match predicate, the backend's firmware default routing, and the
+     * caller's slot list - into FilamentMapper::effective_mappings(). Every
+     * surface that shows or commits a mapping must come through here, or they
+     * drift: before this existed the card, the modal and the print-select detail
+     * view each re-assembled it, and two of them cleared firmware mappings
+     * before colour matching while a third did not.
+     *
+     * @param slots pass the SAME list you display, so the seed and the picker
+     *              cannot disagree about what is loaded.
+     */
+    [[nodiscard]] std::vector<helix::ToolMapping>
+    seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                       const std::vector<helix::AvailableSlot>& slots) const;
+
+    /// As above, but with the auto-colour answer supplied by the caller. Only
+    /// for the mapping modal, which lets the user flip it live before
+    /// committing; everything else must use the effective predicate.
+    [[nodiscard]] std::vector<helix::ToolMapping>
+    seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                       const std::vector<helix::AvailableSlot>& slots, bool auto_color_map) const;
 
     /**
      * @brief Per-tool render colors for the print that is actually running:
@@ -1093,6 +1151,18 @@ class AmsState {
      * @return Subject pointer or nullptr if out of range
      */
     [[nodiscard]] lv_subject_t* get_slot_status_subject(int slot_index);
+
+    /**
+     * @brief Get per-lane LaneState subject for a specific slot
+     *
+     * Holds helix::ui::LaneState (classify_lane) as int. THE presentation
+     * input for every surface that draws a lane. XML name:
+     * ams_slot_<n>_lane_state.
+     *
+     * @param slot_index Slot index (0 to MAX_SLOTS-1)
+     * @return Subject pointer or nullptr if out of range
+     */
+    [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int slot_index);
 
     /**
      * @brief Get slot color subject for a specific backend and slot
@@ -1893,6 +1963,7 @@ class AmsState {
     lv_subject_t slot_segments_[MAX_SLOTS];         // int: PathSegment enum value
     lv_subject_t slot_toolhead_present_[MAX_SLOTS]; // int: 0/1 per-slot toolhead sensor
     lv_subject_t slot_active_loaded_[MAX_SLOTS];    // int: 0/1 firmware seated & loaded
+    lv_subject_t slot_lane_states_[MAX_SLOTS];      // int: helix::ui::LaneState (classify_lane)
 
     // Per-unit environment subjects (CFS temp/humidity)
     lv_subject_t unit_temp_[MAX_UNITS];     // int: tenths of C (270 = 27.0C), 0 = no data

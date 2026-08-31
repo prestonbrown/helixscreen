@@ -85,8 +85,7 @@ bool UpgradeNudge::is_update_visible_now() const {
     // for the same reason, and a user who has just committed to a print is the
     // last person who wants an upgrade prompt. Deliberately normalised: this
     // makes the nudge strictly rarer, never more frequent.
-    const auto lifecycle = static_cast<PrintState>(
-        lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+    const auto lifecycle = get_printer_state().get_print_lifecycle();
     if (job_holds_machine(lifecycle)) {
         return false;
     }

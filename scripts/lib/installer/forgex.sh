@@ -27,9 +27,14 @@ FORGEX_PREV_DISPLAY_F="/opt/config/mod_data/helixscreen_prev_display"
 # STOCK to FEATHER, and Feather cannot be stopped as a process - it is Klipper
 # macros in config/feather.cfg driving screen.sh - so leaving it selected means
 # it keeps drawing over HelixScreen.
+#
+# The GuppyScreen init scripts and launcher are de-execed regardless: a SET_MOD
+# display change can reach .root/guppyscreen through zdisplay.sh without going
+# through start.sh at all, whatever mode variables.cfg names.
 configure_forgex_display() {
     var_file="/opt/config/mod_data/variables.cfg"
     guppy_init="/opt/config/mod/.root/S80guppyscreen"
+    guppy_bin="/opt/config/mod/.root/guppyscreen"
     tslib_init="/opt/config/mod/.root/S35tslib"
     changed=false
 
@@ -53,22 +58,101 @@ configure_forgex_display() {
         done
     fi
 
-    # Older HelixScreen installs de-execed these so GuppyScreen could not take
-    # the display. Under HEADLESS start.sh never invokes either, on any
-    # supported version, so the chmod is unnecessary - put it back rather than
-    # leave our own footprint on the firmware.
-    for init_script in "$guppy_init" "$tslib_init"; do
-        if [ -f "$init_script" ] && [ ! -x "$init_script" ]; then
-            log_info "Restoring execute bit on $init_script..."
-            $SUDO chmod +x "$init_script"
-            changed=true
-        fi
-    done
+    # Disable GuppyScreen init script (remove execute permission). HEADLESS
+    # never invokes it via start.sh, but belt-and-braces: nothing may be able
+    # to relaunch GuppyScreen while HelixScreen owns the framebuffer.
+    if [ -x "$guppy_init" ]; then
+        log_info "Disabling GuppyScreen init script..."
+        $SUDO chmod a-x "$guppy_init"
+        changed=true
+    fi
+
+    # Disable the GuppyScreen launcher too. start.sh runs S80guppyscreen at
+    # boot, but zdisplay.sh's apply_display_off() calls .root/guppyscreen
+    # directly, so disabling only the init script leaves GuppyScreen reachable
+    # on every SET_MOD display change and the framebuffer collision returns.
+    # That path is independent of the selected display mode, so it stays
+    # closed under HEADLESS as well.
+    if [ -x "$guppy_bin" ]; then
+        log_info "Disabling GuppyScreen launcher..."
+        $SUDO chmod a-x "$guppy_bin"
+        changed=true
+    fi
+
+    # Disable tslib init script (GuppyScreen's touch input layer)
+    # HelixScreen uses its own input handling
+    if [ -x "$tslib_init" ]; then
+        log_info "Disabling tslib init script..."
+        $SUDO chmod a-x "$tslib_init"
+        changed=true
+    fi
 
     if [ "$changed" = true ]; then
-        log_success "ForgeX configured for HelixScreen (HEADLESS mode)"
+        log_success "ForgeX configured for HelixScreen (HEADLESS mode, GuppyScreen disabled)"
         return 0
     fi
+    return 1
+}
+
+# Pre-dismiss ForgeX's "Try the new Feather screen" offer.
+#
+# ForgeX ships config/display_offer.cfg, a [delayed_gcode] that fires a few
+# seconds after every Klipper start and raises an action:prompt offering to
+# switch the display to Feather. Accepting it takes the screen away from
+# HelixScreen, and the prompt returns on each startup until answered.
+#
+# The macro is gated on the mod_params variable show_feather_promo, and its
+# "Never show again" button does nothing but set that variable to 0. Seeding
+# the variable is therefore exactly equivalent to the user having dismissed
+# it, and the prompt is never composed at all.
+#
+# Only touched when the installed ForgeX actually ships the offer, so older
+# releases never gain a variable their mod_params does not define. Only a
+# pending (non-zero) value is rewritten, so a user who already dismissed it
+# by hand is left alone -- and for the same reason uninstall does not restore
+# it, since we cannot tell our 0 from theirs.
+dismiss_forgex_feather_promo() {
+    var_file="${FORGEX_VAR_FILE:-/opt/config/mod_data/variables.cfg}"
+    offer_cfg="${FORGEX_OFFER_CFG:-/opt/config/mod/config/display_offer.cfg}"
+
+    if [ ! -f "$offer_cfg" ]; then
+        log_info "ForgeX has no Feather display offer, nothing to dismiss"
+        return 0
+    fi
+
+    if [ ! -f "$var_file" ]; then
+        log_info "ForgeX variables.cfg not found, cannot dismiss Feather offer"
+        return 1
+    fi
+
+    if grep -qE "^[[:space:]]*show_feather_promo[[:space:]]*=[[:space:]]*0[[:space:]]*$" "$var_file"; then
+        log_info "ForgeX Feather offer already dismissed"
+        return 0
+    fi
+
+    log_info "Dismissing ForgeX Feather display offer..."
+    tmp_file="${var_file}.tmp"
+
+    if grep -qE "^[[:space:]]*show_feather_promo[[:space:]]*=" "$var_file"; then
+        sed "s/^[[:space:]]*show_feather_promo[[:space:]]*=.*/show_feather_promo = 0/" \
+            "$var_file" > "$tmp_file"
+    else
+        # Klipper's [Variables] block is the only valid home for the key.
+        awk '
+        /^\[Variables\]/ && !done { print; print "show_feather_promo = 0"; done = 1; next }
+        { print }
+        ' "$var_file" > "$tmp_file"
+    fi
+
+    if [ -s "$tmp_file" ] && \
+       grep -qE "^show_feather_promo = 0$" "$tmp_file" 2>/dev/null; then
+        $SUDO mv "$tmp_file" "$var_file"
+        log_success "ForgeX Feather display offer dismissed"
+        return 0
+    fi
+
+    rm -f "$tmp_file"
+    log_warn "Failed to dismiss ForgeX Feather display offer"
     return 1
 }
 
@@ -512,6 +596,11 @@ uninstall_forgex() {
     fi
     if [ -f "/opt/config/mod/.root/S35tslib" ]; then
         $SUDO chmod +x "/opt/config/mod/.root/S35tslib" 2>/dev/null || true
+    fi
+    # install_forgex de-execs the launcher as well as the init script, so the
+    # GUPPY fallback below must restore both or the restored UI never starts.
+    if [ -f "/opt/config/mod/.root/guppyscreen" ]; then
+        $SUDO chmod +x "/opt/config/mod/.root/guppyscreen" 2>/dev/null || true
     fi
 
     # Clean up any leftover backup files from manual patches

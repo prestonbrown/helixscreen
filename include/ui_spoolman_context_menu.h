@@ -29,6 +29,8 @@ namespace helix::ui {
  *         case MenuAction::SET_ACTIVE: // set active spool...
  *         case MenuAction::EDIT:       // show edit modal...
  *         case MenuAction::PRINT_LABEL: // print label...
+ *         case MenuAction::DUPLICATE:  // create a copy...
+ *         case MenuAction::ARCHIVE:    // archive (hide from list)...
  *         case MenuAction::DELETE:     // show delete confirmation...
  *     }
  * });
@@ -45,6 +47,7 @@ class SpoolmanContextMenu : public ContextMenu {
         EDIT,        ///< Edit spool properties
         PRINT_LABEL, ///< Print a label for this spool
         DUPLICATE,   ///< Create a fresh copy of this spool
+        ARCHIVE,     ///< Archive this spool (hide it from the list)
         DELETE       ///< Delete this spool
     };
 
@@ -66,9 +69,13 @@ class SpoolmanContextMenu : public ContextMenu {
      * @param parent Parent screen for the menu
      * @param spool Spool info for display and action context
      * @param near_widget Widget to position menu near (typically spool row)
+     * @param allow_archive Offer the Archive action. The panel passes false for
+     *        the currently active spool — archiving it makes no sense while it
+     *        feeds the printer.
      * @return true if menu was shown successfully
      */
-    bool show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, lv_obj_t* near_widget);
+    bool show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, lv_obj_t* near_widget,
+                        bool allow_archive = true);
 
     /**
      * @brief Get spool ID the menu is currently shown for
@@ -94,7 +101,8 @@ class SpoolmanContextMenu : public ContextMenu {
   private:
     // === Spoolman-specific state ===
     ActionCallback action_callback_;
-    SpoolInfo pending_spool_; ///< Spool info stored between show and on_created
+    SpoolInfo pending_spool_;     ///< Spool info stored between show and on_created
+    bool archive_allowed_ = true; ///< show_for_spool's allow_archive, consumed in on_created
 
     /**
      * @brief Common dispatch: hide, then invoke the callback with the spool id
@@ -106,6 +114,7 @@ class SpoolmanContextMenu : public ContextMenu {
     void handle_edit();
     void handle_print_label();
     void handle_duplicate();
+    void handle_archive();
     void handle_delete();
 
     // === Static Callback Registration ===
@@ -120,6 +129,7 @@ class SpoolmanContextMenu : public ContextMenu {
     static void on_edit_cb(lv_event_t* e);
     static void on_print_label_cb(lv_event_t* e);
     static void on_duplicate_cb(lv_event_t* e);
+    static void on_archive_cb(lv_event_t* e);
     static void on_delete_cb(lv_event_t* e);
 };
 

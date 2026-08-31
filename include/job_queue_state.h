@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
+
 #include "async_lifetime_guard.h"
 #include "moonraker_queue_api.h"
 
@@ -42,6 +44,13 @@ class JobQueueState {
         return is_loaded_;
     }
 
+    /// Mark the cached queue stale without dropping it
+    ///
+    /// Leaves cached_jobs_ in place so a reader mid-outage still renders the
+    /// last known queue rather than blanking; only the loaded-latch drops, so
+    /// the next consumer to ask re-fetches. See observe_connection_staleness().
+    void invalidate();
+
     /// Get cached jobs
     const std::vector<JobQueueEntry>& get_jobs() const {
         return cached_jobs_;
@@ -60,6 +69,15 @@ class JobQueueState {
 
     void on_queue_fetched(const JobQueueStatus& status);
     void subscribe_to_notifications();
+
+    /**
+     * @brief Mark the queue stale whenever the Moonraker socket is not up
+     *
+     * Called in constructor. notify_job_queue_changed only reaches a live
+     * socket, so a queue edited from another client while we are down is never
+     * announced. See observe_connection_staleness() in connection_staleness.h.
+     */
+    void watch_connection_state();
     void update_subjects();
     void deinit_subjects();
 
@@ -69,6 +87,9 @@ class JobQueueState {
     // Cached data
     std::vector<JobQueueEntry> cached_jobs_;
     std::string queue_state_ = "ready";
+
+    /// Watches printer connection state so a dropped socket stales the queue.
+    ObserverGuard connection_observer_;
 
     // State
     bool is_loaded_ = false;

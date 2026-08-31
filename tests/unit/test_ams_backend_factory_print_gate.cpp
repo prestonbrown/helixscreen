@@ -67,12 +67,30 @@ namespace {
 /// factory learns to build it, and no list in this file needs touching.
 constexpr int AMS_TYPE_PROBE_LIMIT = 64;
 
-/// Backends that are compiled unconditionally. AD5X IFS and CFS are feature
-/// gated (HELIX_HAS_IFS / HELIX_HAS_CFS are 0 on the space-constrained cross
-/// builds), so they are not part of the floor. This is a lower bound that
-/// catches "create() silently stopped producing anything" — it is NOT the
-/// coverage list; the loops below cover whatever exists.
-constexpr int UNCONDITIONAL_BACKEND_COUNT = 6;
+/// Backends create() must produce in THIS build. Only three are compiled
+/// unconditionally (Happy Hare, AFC, Tool Changer); every vendor-specific
+/// backend is feature gated off on space-constrained targets. Deriving the
+/// floor from the gates keeps it honest instead of being a fixed number that
+/// silently goes stale each time another backend becomes gateable. Still a
+/// lower bound that catches "create() silently stopped producing anything" -
+/// it is NOT the coverage list; the loops below cover whatever exists.
+constexpr int EXPECTED_BACKEND_COUNT = 3
+#if HELIX_HAS_IFS
+                                       + 1
+#endif
+#if HELIX_HAS_CFS
+                                       + 1
+#endif
+#if HELIX_HAS_ACE
+                                       + 1
+#endif
+#if HELIX_HAS_QIDI
+                                       + 1
+#endif
+#if HELIX_HAS_SNAPMAKER
+                                       + 1
+#endif
+    ;
 
 /// True when @p e is the Layer 2 print-active refusal specifically, as opposed
 /// to any other failure a backend might return first. Derived from the error
@@ -215,7 +233,7 @@ TEST_CASE_METHOD(FactoryGateFixture, "AmsBackend::create builds a distinct backe
                  "[ams][safety][factory]") {
     const auto types = buildable_types();
     CAPTURE(types.size());
-    CHECK(types.size() >= UNCONDITIONAL_BACKEND_COUNT);
+    CHECK(types.size() >= EXPECTED_BACKEND_COUNT);
 
     for (AmsType type : types) {
         CAPTURE(ams_type_to_string(type));
@@ -252,7 +270,7 @@ TEST_CASE_METHOD(FactoryGateFixture,
             ++checked;
         }
     }
-    CHECK(checked >= UNCONDITIONAL_BACKEND_COUNT * static_cast<int>(motion_ops().size()));
+    CHECK(checked >= EXPECTED_BACKEND_COUNT * static_cast<int>(motion_ops().size()));
 }
 
 // ============================================================================

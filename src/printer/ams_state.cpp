@@ -17,6 +17,9 @@
 #include "ui_update_queue.h"
 
 #include "ams_bypass_policy.h"
+#include "ams_lane_state.h"
+#include "ams_remap.h"
+#include "ams_tool_topology.h"
 #include "app_globals.h"
 #include "data_root_resolver.h"
 #include "filament_database.h"
@@ -60,15 +63,16 @@ struct AsyncSyncData {
     int slot_index; // Only used if full_sync == false
 };
 
-// Build a ToolTopology from a backend that multiplexes tools. Returns std::nullopt
-// if the backend does not own the tool list (e.g., AD5X CFS, ACE — single tool,
-// many slots). Falls back to a 1:1 mapping if the backend reports tool-mapping
-// support but returns an empty mapping vector.
-std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int backend_index) {
+} // namespace
+
+// Declared in ams_tool_topology.h; see there for what nullopt means to callers.
+std::optional<helix::ToolTopology> helix::build_ams_topology(AmsBackend* backend,
+                                                             int backend_index) {
     if (!backend)
         return std::nullopt;
-    auto caps = backend->get_tool_mapping_capabilities();
-    if (!caps.supported)
+    // Table ownership, NOT remap capability. Two different questions that part
+    // company on the U1: it can remap and owns no table.
+    if (!backend->owns_tool_mapping_table())
         return std::nullopt;
 
     std::vector<int> mapping = backend->get_tool_mapping();
@@ -88,8 +92,6 @@ std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int b
     topo.backend_index = backend_index;
     return topo;
 }
-
-} // namespace
 
 AmsState& AmsState::instance() {
     // ~9.5KB singleton: relocate to PSRAM on ESP to reclaim internal DRAM (it's
@@ -475,6 +477,13 @@ void AmsState::init_subjects(bool register_xml) {
         if (register_xml) {
             snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_active_loaded", i);
             lv_xml_register_subject(nullptr, name_buf, &slot_active_loaded_[i]);
+        }
+
+        lv_subject_init_int(&slot_lane_states_[i], static_cast<int>(helix::ui::LaneState::Empty));
+        subjects_.register_subject(&slot_lane_states_[i]);
+        if (register_xml) {
+            snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_lane_state", i);
+            lv_xml_register_subject(nullptr, name_buf, &slot_lane_states_[i]);
         }
     }
 
@@ -972,6 +981,28 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     return slots;
 }
 
+std::vector<helix::ToolMapping>
+AmsState::seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                             const std::vector<helix::AvailableSlot>& slots) const {
+    return seed_tool_mappings(tools, slots, effective_auto_match());
+}
+
+std::vector<helix::ToolMapping>
+AmsState::seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
+                             const std::vector<helix::AvailableSlot>& slots,
+                             bool auto_color_map) const {
+    return helix::FilamentMapper::effective_mappings(tools, slots, auto_color_map,
+                                                     collect_firmware_routing());
+}
+
+helix::FirmwareRouting AmsState::collect_firmware_routing() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (auto* backend = get_backend(0)) {
+        return backend->firmware_default_routing();
+    }
+    return helix::FirmwareRouting::identity();
+}
+
 bool AmsState::any_bypass_active() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     for (const auto& backend : backends_) {
@@ -997,17 +1028,17 @@ bool AmsState::effective_auto_match() const {
     // no way for the user to decline it.
     bool user_choice_honored = false;
     if (auto* backend = get_backend(0)) {
-        user_choice_honored = backend->honors_user_tool_mapping();
+        user_choice_honored = helix::printer::can_remap(*backend);
 
         // HOLD — kPreprintSeedFollowsUserSetting (ams_state.h) carries the full
         // reasoning and the hardware evidence that would lift it. A backend that
-        // reports editable=false can only have answered true through its
+        // cannot remap PERSISTENTLY can only have answered true through its
         // pre-print send, so this is exactly the case being held, and putting it
         // back leaves the U1 seeding as it does today. The predicate itself is
         // untouched: it is still the one rule the print-start warning shares, and
         // gating it there would resurrect a false toast on the U1.
         if (!kPreprintSeedFollowsUserSetting &&
-            !backend->get_tool_mapping_capabilities().editable) {
+            !helix::printer::can_write_mapping_table(*backend)) {
             user_choice_honored = false;
         }
     }
@@ -1069,6 +1100,13 @@ lv_subject_t* AmsState::get_slot_status_subject(int slot_index) {
         return nullptr;
     }
     return &slot_statuses_[slot_index];
+}
+
+lv_subject_t* AmsState::get_slot_lane_state_subject(int slot_index) {
+    if (slot_index < 0 || slot_index >= MAX_SLOTS) {
+        return nullptr;
+    }
+    return &slot_lane_states_[slot_index];
 }
 
 lv_subject_t* AmsState::get_slot_remaining_subject(int slot_index) {
@@ -1525,7 +1563,7 @@ void AmsState::sync_from_backend() {
 
     // Push tool topology to ToolState when the active backend multiplexes tools.
     // Otherwise leave ToolState in its extruder-enumerated state.
-    if (auto topo = build_ams_topology(backend, 0)) {
+    if (auto topo = helix::build_ams_topology(backend, 0)) {
         helix::ToolState::instance().set_ams_topology(*topo);
     } else if (helix::ToolState::instance().ams_topology_active()) {
         // Backend stopped multiplexing (e.g., AMS removed). Drop the override
@@ -1732,6 +1770,15 @@ void AmsState::sync_from_backend() {
                 any_slot_changed = true;
             }
 
+            // Lane presentation classification (Present/Ghosted/Empty) — THE
+            // input every lane rendering surface binds to.
+            int new_lane_state = static_cast<int>(
+                helix::ui::classify_lane(slot->status, helix::ui::lane_has_identity(*slot)));
+            if (lv_subject_get_int(&slot_lane_states_[i]) != new_lane_state) {
+                lv_subject_set_int(&slot_lane_states_[i], new_lane_state);
+                any_slot_changed = true;
+            }
+
             // Fill percent (canonical display_fill_pct encoding). The ams_slot
             // widget observes this — so spool fill renders from state on every
             // panel, not just the ones that remember to push it imperatively.
@@ -1741,13 +1788,9 @@ void AmsState::sync_from_backend() {
                 any_slot_changed = true;
             }
 
-            // Update remaining filament string
-            std::string remaining;
-            if (slot->remaining_length_m > 0) {
-                remaining = std::to_string(static_cast<int>(slot->remaining_length_m)) + "m";
-            } else if (slot->remaining_weight_g > 0) {
-                remaining = std::to_string(static_cast<int>(slot->remaining_weight_g)) + "g";
-            }
+            // Update remaining filament string (length when measured, weight
+            // as the fallback, "" when neither).
+            std::string remaining = slot->remaining_display();
             if (strcmp(lv_subject_get_string(&slot_remaining_[i]), remaining.c_str()) != 0) {
                 lv_subject_copy_string(&slot_remaining_[i], remaining.c_str());
             }
@@ -2048,6 +2091,11 @@ void AmsState::sync_from_backend() {
             lv_subject_set_int(&slot_statuses_[i], default_status);
             any_slot_changed = true;
         }
+        int default_lane_state = static_cast<int>(helix::ui::LaneState::Empty);
+        if (lv_subject_get_int(&slot_lane_states_[i]) != default_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[i], default_lane_state);
+            any_slot_changed = true;
+        }
         // Clear remaining filament for unused slots
         if (strcmp(lv_subject_get_string(&slot_remaining_[i]), "") != 0) {
             lv_subject_copy_string(&slot_remaining_[i], "");
@@ -2121,13 +2169,20 @@ void AmsState::update_slot(int slot_index) {
             changed = true;
         }
 
-        // Update remaining filament string
-        std::string remaining;
-        if (slot.remaining_length_m > 0) {
-            remaining = std::to_string(static_cast<int>(slot.remaining_length_m)) + "m";
-        } else if (slot.remaining_weight_g > 0) {
-            remaining = std::to_string(static_cast<int>(slot.remaining_weight_g)) + "g";
+        // Lane presentation classification, mirroring sync_from_backend(). This is
+        // the single-slot fast path, so a backend that reports per-slot updates
+        // reaches here and nowhere else; deriving status without re-deriving the
+        // lane state leaves every lane surface bound to a stale classification.
+        int new_lane_state = static_cast<int>(
+            helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
+        if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
+            changed = true;
         }
+
+        // Update remaining filament string (length when measured, weight as
+        // the fallback, "" when neither).
+        std::string remaining = slot.remaining_display();
         if (strcmp(lv_subject_get_string(&slot_remaining_[slot_index]), remaining.c_str()) != 0) {
             lv_subject_copy_string(&slot_remaining_[slot_index], remaining.c_str());
         }
@@ -2667,8 +2722,7 @@ void AmsState::recompute_action_detail() {
         // is no such translation key yet and this is the lowest-priority
         // fallback in the chain - the AmsAction string wins whenever the AMS is
         // doing anything at all.
-        auto print_state = static_cast<PrintJobState>(
-            lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
+        auto print_state = get_printer_state().get_print_job_state();
         switch (print_state) {
         case PrintJobState::PRINTING:
             new_detail = lv_tr("Printing");

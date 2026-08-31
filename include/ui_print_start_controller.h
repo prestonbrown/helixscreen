@@ -24,6 +24,7 @@ namespace helix {
 class PrinterState;
 }
 class IMoonrakerAPI;
+class AmsBackend;
 struct PrintFileData;
 class PrintStartControllerTestAccess; // test-only friend (global scope)
 
@@ -220,8 +221,6 @@ class PrintStartController {
 
     void on_gate_proceed();
     void on_gate_cancel();
-    static void on_gate_proceed_static(lv_event_t* e);
-    static void on_gate_cancel_static(lv_event_t* e);
 
     // === Dependencies ===
     PrinterState& printer_state_;
@@ -261,6 +260,12 @@ class PrintStartController {
     // Observer for print state changes (to restore mapping on print end)
     ObserverGuard print_state_observer_;
 
+    // True once the restore observer has seen THIS print live (Preparing/
+    // Printing/Paused). Registration can land while the wire still reports the
+    // PREVIOUS job's terminal state, so terminal values are ignored until the
+    // latch arms (prestonbrown/helixscreen#1386).
+    bool print_active_since_remap_ = false;
+
     // Observer for klippy state, armed only while a restore is deferred waiting
     // for Klipper to come back (see observe_klippy_state_for_restore).
     ObserverGuard klippy_state_observer_;
@@ -278,26 +283,26 @@ class PrintStartController {
      * @brief Whether to warn the user that their explicit remap can't be honored.
      *
      * Pure decision helper for apply_filament_remaps(). A backend that applies
-     * the remap via its firmware-native pre-print path (requires_preprint_send,
-     * e.g. Snapmaker U1) honors the user's choice through build_preprint_gcode()
-     * even though its tool-mapping capabilities report editable=false — so the
-     * "remap not supported" toast is a STALE false alarm and must be suppressed.
-     * Only warn when the backend can NEITHER edit its mapping NOR apply it via a
-     * pre-print send (a backend that genuinely cannot honor the remap at all).
+     * the remap via its firmware-native pre-print path (Snapmaker U1) honors the
+     * user's choice through build_preprint_gcode() even though it writes no
+     * persistent table — so the "remap not supported" toast is a STALE false
+     * alarm and must be suppressed. Only warn when the backend has no route at
+     * all, or has one it cannot use yet.
      *
-     * @param caps              backend->get_tool_mapping_capabilities()
-     * @param applies_via_preprint backend->requires_preprint_send()
+     * Takes the backend rather than a pair of extracted flags: the two-value form
+     * let a caller pass a capability from one backend and a pre-send flag from
+     * another, and it is how the question came to have four spellings.
+     *
+     * @param backend the active AMS backend
      * @return true if the unsupported-remap warning toast should be shown
      */
-    [[nodiscard]] static bool
-    should_warn_remap_unsupported(const helix::printer::ToolMappingCapabilities& caps,
-                                  bool applies_via_preprint);
+    [[nodiscard]] static bool should_warn_remap_unsupported(const AmsBackend& backend);
 
     /// Restore original firmware mapping (called on print end)
     void restore_filament_mapping();
 
     /// Set up observer for print state to auto-restore mapping
-    void observe_print_state_for_restore();
+    void observe_lifecycle_for_restore();
 
     /**
      * @brief Wait for Klipper to become READY, then retry a deferred restore.

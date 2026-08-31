@@ -268,3 +268,238 @@ assert_consults_flag() {
     assert_consults_flag unpatch_forgex_screen_sh
     assert_consults_flag unpatch_forgex_screen_drawing
 }
+
+# --- Boot splash ownership: ForgeX splash daemon vs helix-splash ---
+#
+# ForgeX's splash daemon owns /dev/fb0 from S00init until S99root stops it at
+# the end of boot. S90helixscreen starts helix-splash before forking its wait
+# subshell, so without this default two processes draw to the framebuffer for
+# the whole S90->S99 window.
+
+splash_probe_fixture() {
+    unset HELIX_NO_SPLASH
+    export FORGEX_SPLASH_BIN="$BATS_TEST_TMPDIR/splash"
+}
+
+@test "ForgeX 1.4.2 (splash daemon present) suppresses the HelixScreen splash" {
+    # The daemon owns /dev/fb0 from S00init until S99root; running ours beside
+    # it puts two writers on the framebuffer for the whole S90->S99 window.
+    splash_probe_fixture
+    printf '#!/bin/sh\n' > "$FORGEX_SPLASH_BIN"
+    chmod +x "$FORGEX_SPLASH_BIN"
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+    [ "$HELIX_NO_SPLASH" = "1" ]
+}
+
+@test "ForgeX <=1.4.1 (no splash daemon) keeps the HelixScreen splash" {
+    # Those releases blit a static load.img/splash.img and never repaint, so
+    # nothing competes for the framebuffer and ours is the only boot progress.
+    splash_probe_fixture
+    rm -f "$FORGEX_SPLASH_BIN"
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+    [ "$HELIX_NO_SPLASH" = "0" ]
+}
+
+@test "ForgeX hook lets an explicit HELIX_NO_SPLASH override win" {
+    # Dev deploys and debugging must still be able to force our splash back on
+    # even on a release that ships the daemon.
+    export FORGEX_SPLASH_BIN="$BATS_TEST_TMPDIR/splash"
+    printf '#!/bin/sh\n' > "$FORGEX_SPLASH_BIN"
+    chmod +x "$FORGEX_SPLASH_BIN"
+    HELIX_NO_SPLASH=0
+    export HELIX_NO_SPLASH
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+    [ "$HELIX_NO_SPLASH" = "0" ]
+}
+
+@test "ForgeX hook probes for the daemon instead of parsing version.txt" {
+    # version.txt is not trustworthy: no 1.4.2 tag exists, main still reports
+    # 1.4.1, and tag 1.3.1 ships a version.txt reading 1.3.0.
+    hook="$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+    grep -q 'FORGEX_SPLASH_BIN' "$hook"
+    # Comments may discuss version.txt; no CODE line may read it.
+    run sh -c "grep -v '^[[:space:]]*#' '$hook' | grep -c 'version\.txt'"
+    [ "$(last_line)" = "0" ]
+}
+
+@test "ForgeX hook resolves HELIX_NO_SPLASH at file scope, not inside a function" {
+    # helixscreen.init sources hooks at file scope and reads HELIX_NO_SPLASH in
+    # start(); an assignment buried in a hook function would never be seen.
+    awk '/^[a-zA-Z_]+\(\)/ { in_fn = 1 }
+         in_fn && /^}/     { in_fn = 0; next }
+         !in_fn && /HELIX_NO_SPLASH=1/ { found = 1 }
+         END { exit found ? 0 : 1 }' \
+        "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
+
+@test "helixscreen.init guards the early splash on HELIX_NO_SPLASH" {
+    grep -qE 'HELIX_NO_SPLASH:-0.*!=.*"1"' "$WORKTREE_ROOT/config/helixscreen.init"
+}
+
+@test "helix-launcher.sh guards its splash on HELIX_NO_SPLASH" {
+    grep -qE 'HELIX_NO_SPLASH:-0' "$WORKTREE_ROOT/scripts/helix-launcher.sh"
+}
+
+# --- Feather display offer pre-dismissal ---
+#
+# ForgeX's display_offer.cfg raises an action:prompt a few seconds after every
+# Klipper start offering to switch the display to Feather, which would take the
+# screen away from HelixScreen. Its "Never show again" button only sets the
+# mod_params variable show_feather_promo to 0, so seeding that variable at
+# install time suppresses the prompt entirely.
+
+promo_fixture() {
+    export FORGEX_VAR_FILE="$BATS_TEST_TMPDIR/variables.cfg"
+    export FORGEX_OFFER_CFG="$BATS_TEST_TMPDIR/display_offer.cfg"
+    touch "$FORGEX_OFFER_CFG"
+    SUDO=""
+    log_info() { :; }
+    log_success() { :; }
+    log_warn() { :; }
+    . "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh"
+}
+
+@test "feather promo: a pending value is rewritten to 0" {
+    promo_fixture
+    printf "[Variables]\ndisplay = 'GUPPY'\nshow_feather_promo = 1\n" > "$FORGEX_VAR_FILE"
+    run dismiss_forgex_feather_promo
+    [ "$status" -eq 0 ]
+    grep -qE "^show_feather_promo = 0$" "$FORGEX_VAR_FILE"
+    # Unrelated keys must survive untouched.
+    grep -qE "^display = 'GUPPY'$" "$FORGEX_VAR_FILE"
+    [ "$(grep -c show_feather_promo "$FORGEX_VAR_FILE")" -eq 1 ]
+}
+
+@test "feather promo: an absent key is added inside [Variables]" {
+    promo_fixture
+    printf "[Variables]\ndisplay = 'GUPPY'\n" > "$FORGEX_VAR_FILE"
+    run dismiss_forgex_feather_promo
+    [ "$status" -eq 0 ]
+    # Must land after the section header, not orphaned before it.
+    [ "$(head -1 "$FORGEX_VAR_FILE")" = "[Variables]" ]
+    [ "$(sed -n '2p' "$FORGEX_VAR_FILE")" = "show_feather_promo = 0" ]
+    grep -qE "^display = 'GUPPY'$" "$FORGEX_VAR_FILE"
+}
+
+@test "feather promo: an already-dismissed value is left alone" {
+    promo_fixture
+    printf "[Variables]\nshow_feather_promo = 0\n" > "$FORGEX_VAR_FILE"
+    cp "$FORGEX_VAR_FILE" "$BATS_TEST_TMPDIR/before"
+    run dismiss_forgex_feather_promo
+    [ "$status" -eq 0 ]
+    diff "$BATS_TEST_TMPDIR/before" "$FORGEX_VAR_FILE"
+}
+
+@test "feather promo: older ForgeX without the offer is not touched" {
+    promo_fixture
+    rm -f "$FORGEX_OFFER_CFG"
+    printf "[Variables]\ndisplay = 'GUPPY'\n" > "$FORGEX_VAR_FILE"
+    run dismiss_forgex_feather_promo
+    [ "$status" -eq 0 ]
+    # No variable may be invented on a release whose mod_params never defines it.
+    ! grep -q show_feather_promo "$FORGEX_VAR_FILE"
+}
+
+@test "feather promo: missing variables.cfg reports failure, creates nothing" {
+    promo_fixture
+    rm -f "$FORGEX_VAR_FILE"
+    run dismiss_forgex_feather_promo
+    [ "$status" -ne 0 ]
+    [ ! -f "$FORGEX_VAR_FILE" ]
+}
+
+@test "installer wires dismiss_forgex_feather_promo into configure_platform" {
+    grep -q 'dismiss_forgex_feather_promo' "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+    grep -q 'dismiss_forgex_feather_promo' "$WORKTREE_ROOT/scripts/install.sh"
+}
+
+# --- GuppyScreen launcher must be disabled, not just its init script ---
+
+@test "configure_forgex_display disables the .root/guppyscreen launcher" {
+    # zdisplay.sh apply_display_off() calls .root/guppyscreen directly, so
+    # disabling only S80guppyscreen leaves the collision reachable on any
+    # SET_MOD display change.
+    body=$(sed -n '/^configure_forgex_display()/,/^}/p' \
+        "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    echo "$body" | grep -q 'guppy_bin="/opt/config/mod/.root/guppyscreen"'
+    echo "$body" | grep -q 'chmod a-x "\$guppy_bin"'
+}
+
+# --- netd owns networking on ForgeX 1.4.2+ ---
+#
+# netd loads the Wi-Fi driver, runs its own wpa_supplicant, and enforces a
+# single transport. It does that teardown in S55boot; our hooks run in S90, so
+# anything we start here survives as a stray process on an interface netd
+# believes it removed.
+
+netd_fixture() {
+    export FORGEX_NETD_BIN="$BATS_TEST_TMPDIR/netd"
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
+
+@test "netd probe: true when the daemon ships, false when it does not" {
+    netd_fixture
+    rm -f "$FORGEX_NETD_BIN"
+    run forgex_netd_owns_network
+    [ "$status" -ne 0 ]
+    printf '#!/bin/sh\n' > "$FORGEX_NETD_BIN"
+    chmod +x "$FORGEX_NETD_BIN"
+    run forgex_netd_owns_network
+    [ "$status" -eq 0 ]
+}
+
+# Build an environment in which platform_start_wpa_supplicant WOULD act:
+# a wlan interface, a wpa_supplicant binary, and its config all present.
+wpa_fixture() {
+    export FORGEX_NETD_BIN="$BATS_TEST_TMPDIR/netd"
+    export FORGEX_NET_SYSFS="$BATS_TEST_TMPDIR/net"
+    export FORGEX_WPA_BIN="$BATS_TEST_TMPDIR/wpa_supplicant"
+    export FORGEX_WPA_CONF="$BATS_TEST_TMPDIR/wpa_supplicant.conf"
+    mkdir -p "$FORGEX_NET_SYSFS/wlan0"
+    printf '#!/bin/sh\necho FAKE_WPA_RAN\n' > "$FORGEX_WPA_BIN"
+    chmod +x "$FORGEX_WPA_BIN"
+    touch "$FORGEX_WPA_CONF"
+    . "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
+
+@test "wpa_supplicant DOES start when no netd is present (positive control)" {
+    # Without this the suppression test below is vacuous: the function has a
+    # later guard that also returns 0 silently when no wlan* exists.
+    wpa_fixture
+    rm -f "$FORGEX_NETD_BIN"
+    run platform_start_wpa_supplicant
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Starting wpa_supplicant"* ]]
+    [[ "$output" == *"FAKE_WPA_RAN"* ]]
+}
+
+@test "wpa_supplicant is NOT started when netd owns the radio" {
+    wpa_fixture
+    printf '#!/bin/sh\n' > "$FORGEX_NETD_BIN"
+    chmod +x "$FORGEX_NETD_BIN"
+    run platform_start_wpa_supplicant
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Starting wpa_supplicant"* ]]
+    [[ "$output" != *"FAKE_WPA_RAN"* ]]
+}
+
+@test "wifi driver load returns early when netd owns the radio" {
+    # The netd guard must be the first statement, ahead of the interface probe.
+    body=$(sed -n '/^platform_load_wifi_driver()/,/^}/p' \
+        "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh")
+    [ "$(echo "$body" | sed -n '2p')" = "    if forgex_netd_owns_network; then" ]
+    netd_fixture
+    printf '#!/bin/sh\n' > "$FORGEX_NETD_BIN"
+    chmod +x "$FORGEX_NETD_BIN"
+    run platform_load_wifi_driver
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Loading WiFi driver"* ]]
+}
+
+@test "netd probe is defined at file scope so both hook consumers see it" {
+    awk '/^[a-zA-Z_]+\(\)/ { in_fn = 1 }
+         in_fn && /^}/     { in_fn = 0; next }
+         !in_fn && /FORGEX_NETD_BIN=/ { found = 1 }
+         END { exit found ? 0 : 1 }' \
+        "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}

@@ -3,6 +3,7 @@
 
 #include "job_queue_state.h"
 
+#include "connection_staleness.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "static_subject_registry.h"
@@ -20,11 +21,29 @@ JobQueueState::JobQueueState(IMoonrakerAPI* api, helix::IMoonrakerClient* client
     std::memset(summary_buffer_, 0, sizeof(summary_buffer_));
 
     subscribe_to_notifications();
+    watch_connection_state();
     spdlog::debug("[JobQueueState] Created");
 }
 
+void JobQueueState::invalidate() {
+    is_loaded_ = false;
+}
+
+void JobQueueState::watch_connection_state() {
+    if (!api_) {
+        return;
+    }
+    // api_->printer_state() rather than the global accessor: it is the state
+    // this owner's API already reads and writes, which keeps the wiring honest
+    // under test.
+    connection_observer_ =
+        helix::observe_connection_staleness(api_->printer_state(), this, "JobQueueState");
+}
+
 JobQueueState::~JobQueueState() {
-    // lifetime_ destructor calls invalidate() automatically
+    connection_observer_.reset();
+
+    // lifetime_'s destructor invalidates its own tokens automatically
 
     if (client_) {
         client_->unregister_method_callback("notify_job_queue_changed", "JobQueueState");

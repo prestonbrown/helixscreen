@@ -1696,6 +1696,44 @@ void MoonrakerSpoolmanAPIMock::init_mock_spools() {
     spool19.is_active = false;
     mock_spools_.push_back(spool19);
 
+    // HELIX_MOCK_SPOOLMAN_SPOOLS: pad the inventory with deterministic
+    // synthetic spools so search/filter cost can be measured at realistic
+    // sizes -- real Spoolman databases run to hundreds of spools, while the
+    // hand-written inventory above tops out at 19. Padding only extends: the
+    // curated spools the mock backends link against keep their ids
+    // (test_mock_spool_consistency pins those).
+    if (const char* pad_env = std::getenv("HELIX_MOCK_SPOOLMAN_SPOOLS")) {
+        const long target = atol(pad_env);
+        static constexpr int kMaxPadded = 5000;
+        static constexpr const char* kVendors[] = {"Polymaker", "eSUN",     "Prusament",
+                                                   "Bambu Lab", "Elegoo",   "Overture",
+                                                   "Sunlu",     "Hatchbox", "Kexcelled"};
+        static constexpr const char* kMaterials[] = {"PLA", "PETG", "ASA", "ABS", "TPU", "PA-CF"};
+        static constexpr const char* kColors[] = {"1A1A2E", "2E6F40", "6F2E2E", "2E406F",
+                                                  "6F6F2E", "402E6F", "2E6F6F", "6F402E"};
+        const size_t limit = std::min<size_t>(std::max<long>(target, 0), kMaxPadded);
+        for (size_t i = mock_spools_.size(); i < limit; ++i) {
+            SpoolInfo spool;
+            spool.id = 1000 + static_cast<int>(i);
+            spool.vendor = kVendors[i % std::size(kVendors)];
+            spool.material = kMaterials[i % std::size(kMaterials)];
+            spool.filament_name = "Synthetic " + spool.material + " " + std::to_string(i);
+            spool.color_hex = kColors[i % std::size(kColors)];
+            spool.remaining_weight_g = 100.0 + (i % 9) * 100.0;
+            spool.initial_weight_g = 1000.0;
+            spool.remaining_length_m = 40.0 + (i % 7) * 40.0;
+            spool.spool_weight_g = 140.0;
+            spool.nozzle_temp_recommended = 220;
+            spool.bed_temp_recommended = 60;
+            mock_spools_.push_back(spool);
+        }
+        if (mock_spools_.size() > 19) {
+            spdlog::info("[MoonrakerAPIMock] Padded mock spool inventory to {} via "
+                         "HELIX_MOCK_SPOOLMAN_SPOOLS",
+                         mock_spools_.size());
+        }
+    }
+
     spdlog::debug("[MoonrakerAPIMock] Initialized {} mock spools", mock_spools_.size());
 }
 
@@ -1730,7 +1768,15 @@ void MoonrakerSpoolmanAPIMock::get_spoolman_spools(SpoolListCallback on_success,
     spdlog::debug("[MoonrakerAPIMock] get_spoolman_spools() -> {} spools", mock_spools_.size());
 
     if (on_success) {
-        std::vector<SpoolInfo> sorted = mock_spools_;
+        // List GETs exclude archived spools (see update_spoolman_spool); the
+        // single-spool GET below deliberately still serves them.
+        std::vector<SpoolInfo> sorted;
+        sorted.reserve(mock_spools_.size());
+        for (const auto& spool : mock_spools_) {
+            if (archived_spool_ids_.count(spool.id) == 0) {
+                sorted.push_back(spool);
+            }
+        }
         sort_spools_by_recency(sorted);
         on_success(sorted);
     }
@@ -1823,6 +1869,19 @@ void MoonrakerSpoolmanAPIMock::update_spoolman_spool(int spool_id, const nlohman
     spdlog::info("[MoonrakerAPIMock] update_spoolman_spool({}, {} fields)", spool_id,
                  spool_data.size());
     spool_updates.push_back({spool_id, spool_data});
+
+    // Real Spoolman keeps an archived spool and only filters it from LIST GETs
+    // (the single-spool GET still returns it, which is how its web UI offers
+    // the un-archive toggle). Track the flag in a side set; other fields in the
+    // same PATCH still apply to the retained spool below.
+    if (spool_data.contains("archived")) {
+        const bool archived = spool_data["archived"].get<bool>();
+        if (archived) {
+            archived_spool_ids_.insert(spool_id);
+        } else {
+            archived_spool_ids_.erase(spool_id);
+        }
+    }
 
     for (auto& spool : mock_spools_) {
         if (spool.id == spool_id) {

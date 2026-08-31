@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Pre-push: the full, ungated quality sweep.
+# Pre-push: the full, ungated quality sweep - run against THE COMMITS BEING
+# PUSHED, not against whatever happens to be sitting in the working tree.
 #
 # pre-commit runs --staged-only, which skips any gate that inspects nothing you
 # staged (see qc_trigger_re in scripts/quality-checks.sh). That keeps a one-file
@@ -9,9 +10,23 @@
 # invariant it never ran is broken. This hook is where that gets caught, before
 # anything leaves the machine.
 #
-# Runs the same command CI does, so a green push should mean a green Code
-# Quality job. Skip in an emergency with `git push --no-verify`, and expect CI
-# to find whatever you skipped.
+# Why it does not just sweep the working tree: quality-checks.sh reads file
+# CONTENT off disk (CI mode walks src/ and include/ with find). A dirty tree
+# therefore makes the answer wrong in both directions - in-flight edits fail a
+# push whose commits are fine, and an uncommitted fix turns the sweep green over
+# committed code that CI will reject. Parallel sessions and worktrees sharing one
+# checkout make a dirty tree the normal case, not the exception. Gating the
+# publishable commit is the only reading that matches this hook's promise: a
+# green push should mean a green Code Quality job.
+#
+# Fast path: when the tree already matches the commit being pushed there is
+# nothing to isolate, so the sweep runs in place exactly as it always did.
+# Otherwise the commit is checked out into a throwaway worktree, with the heavy
+# build inputs shared by symlink rather than rebuilt.
+#
+# Escape hatches: HELIX_PREPUSH_IN_PLACE=1 forces the old in-place behaviour,
+# and `git push --no-verify` skips the hook entirely. Expect CI to find whatever
+# you skipped.
 set -e
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -19,5 +34,79 @@ cd "$REPO_ROOT"
 
 [ -x ./scripts/quality-checks.sh ] || exit 0
 
-echo "🚦 pre-push: full quality sweep (pre-commit only checked what you staged)"
-exec ./scripts/quality-checks.sh
+# stdin is "<local ref> <local sha> <remote ref> <remote sha>" per ref. An
+# all-zero local sha is a branch deletion, which publishes no content to gate.
+TARGET=""
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+    # All zeros is a branch deletion: it publishes no content to gate.
+    case "$local_sha" in
+        "" | *[!0]*) TARGET="$local_sha" ;;
+    esac
+done
+[ -n "$TARGET" ] || exit 0
+
+# Paths excluded from the comparison are ones no gate reads: agent bookkeeping
+# that every session rewrites. Without this the tree is permanently "dirty" and
+# the fast path could never be taken.
+TREE_DIFFERS="$(git diff --name-only "$TARGET" -- . ':(exclude).claude-recall' | head -1)"
+
+if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
+    echo "🚦 pre-push: full quality sweep (pre-commit only checked what you staged)"
+    exec ./scripts/quality-checks.sh
+fi
+
+echo "🚦 pre-push: working tree differs from the commit being pushed"
+echo "   Sweeping ${TARGET:0:9} in a throwaway checkout so in-flight work neither"
+echo "   blocks this push nor hides a problem in it."
+
+ISOLATED="$(mktemp -d "${TMPDIR:-/tmp}/helix-prepush-XXXXXX")"
+# shellcheck disable=SC2317  # invoked via trap, not inline
+cleanup() {
+    git worktree remove --force "$ISOLATED/tree" >/dev/null 2>&1 || true
+    rm -rf "$ISOLATED"
+}
+trap cleanup EXIT
+
+git worktree add --detach "$ISOLATED/tree" "$TARGET" >/dev/null
+
+# Share what is expensive and not part of what we are gating. Both are
+# git-ignored, so the fresh checkout has no entry to collide with.
+for shared in .venv node_modules; do
+    [ -e "$REPO_ROOT/$shared" ] || continue
+    ln -s "$REPO_ROOT/$shared" "$ISOLATED/tree/$shared"
+done
+
+# build/bin only, never build/ wholesale. The XML validators there are executed
+# read-only, but build/helix-xml-tests holds a cmake cache that records its
+# source directory as an absolute path: sweeping with all of build/ shared bakes
+# THIS throwaway path into the real tree's cache, and every later run then fails
+# against a directory that no longer exists. Consequence of the narrower link is
+# that the helix-xml submodule-test gate finds no configured build tree and skips
+# itself - which is its designed behaviour, and deliberate here, because its
+# first configure clones LVGL over the network and is far too slow for a hook.
+if [ -d "$REPO_ROOT/build/bin" ]; then
+    mkdir -p "$ISOLATED/tree/build"
+    ln -s "$REPO_ROOT/build/bin" "$ISOLATED/tree/build/bin"
+fi
+
+# Submodules come out of `worktree add` as empty gitlink directories. Point each
+# at the primary checkout: patch-drift and the doc-reference gate resolve against
+# the filesystem, and an empty lib/ reads to them as mass breakage.
+for submodule_path in "$REPO_ROOT"/lib/*/; do
+    [ -d "$submodule_path" ] || continue
+    submodule_name="$(basename "$submodule_path")"
+    rmdir "$ISOLATED/tree/lib/$submodule_name" 2>/dev/null || true
+    [ -e "$ISOLATED/tree/lib/$submodule_name" ] && continue
+    ln -s "${submodule_path%/}" "$ISOLATED/tree/lib/$submodule_name"
+done
+
+STATUS=0
+( cd "$ISOLATED/tree" && ./scripts/quality-checks.sh ) || STATUS=$?
+
+if [ "$STATUS" -ne 0 ]; then
+    echo ""
+    echo "❌ The sweep failed against the commit you are pushing, not against your"
+    echo "   working tree - so this is a real finding in ${TARGET:0:9}."
+fi
+
+exit "$STATUS"

@@ -1,0 +1,242 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "gcode_raster.h"
+
+#include <algorithm>
+#include <cstdlib>
+#include <utility>
+
+namespace helix::gcode {
+
+namespace {
+
+/// Bresenham's line algorithm. Uses no LVGL APIs, so it is safe on the
+/// background ghost render thread.
+void line_bresenham(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t argb) {
+    int dx = std::abs(x1 - x0);
+    int dy = -std::abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+
+    while (true) {
+        blend(t, x0, y0, argb);
+
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+
+        int e2 = 2 * err;
+        if (e2 >= dy) {
+            if (x0 == x1) {
+                break;
+            }
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 <= dx) {
+            if (y0 == y1) {
+                break;
+            }
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+
+/// Xiaolin Wu's anti-aliased line algorithm.
+void line_wu(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t argb) {
+    bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
+    if (steep) {
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+    }
+    if (x0 > x1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+
+    float dx = static_cast<float>(x1 - x0);
+    float dy = static_cast<float>(y1 - y0);
+    float gradient = (dx < 0.001f) ? 1.0f : dy / dx;
+
+    // Strip alpha from the color — it is set per-pixel from coverage instead.
+    uint32_t base_color = argb & 0x00FFFFFF;
+
+    // First endpoint
+    float yend = static_cast<float>(y0);
+    float intery = yend + gradient;
+
+    if (steep) {
+        blend_coverage(t, static_cast<int>(yend), x0, base_color, 255);
+    } else {
+        blend_coverage(t, x0, static_cast<int>(yend), base_color, 255);
+    }
+
+    // Second endpoint
+    if (steep) {
+        blend_coverage(t, y1, x1, base_color, 255);
+    } else {
+        blend_coverage(t, x1, y1, base_color, 255);
+    }
+
+    // Main loop — draw pixels with fractional coverage for AA
+    for (int x = x0 + 1; x < x1; x++) {
+        // Floor, not truncate. static_cast rounds toward zero, so an intery in
+        // (-1, 0) would give iy == 0 and a NEGATIVE frac, making (1 - frac) * 255
+        // exceed 255 while frac * 255 goes below 0 — both undefined converting to
+        // uint8_t. Whatever the conversion yields then lands on the wrong rows:
+        // the pair is written at 0 and 1 instead of -1 and 0, so the row above the
+        // canvas is drawn on row 0 and a row the line never touches is drawn at
+        // all. Screen coordinates reach here unclipped, so any model taller than
+        // the canvas produces them. The correction is a sign test rather than
+        // std::floor: this is the rasterizer's per-pixel inner loop, and the
+        // branch predicts away everywhere the line is on-canvas.
+        int iy = static_cast<int>(intery);
+        if (intery < static_cast<float>(iy)) {
+            --iy;
+        }
+        float frac = intery - static_cast<float>(iy);
+        uint8_t coverage_lo = static_cast<uint8_t>((1.0f - frac) * 255);
+        uint8_t coverage_hi = static_cast<uint8_t>(frac * 255);
+
+        if (steep) {
+            blend_coverage(t, iy, x, base_color, coverage_lo);
+            blend_coverage(t, iy + 1, x, base_color, coverage_hi);
+        } else {
+            blend_coverage(t, x, iy, base_color, coverage_lo);
+            blend_coverage(t, x, iy + 1, base_color, coverage_hi);
+        }
+        intery += gradient;
+    }
+}
+
+} // namespace
+
+int thick_line_offsets(int width, float* out) {
+    // Clamped rather than trusted: the caller's array is kMaxThickLineOffsets
+    // long. Extrusion widths are clamped to 8 upstream so this never bites.
+    const int count = std::clamp(width, 1, kMaxThickLineOffsets);
+
+    // Symmetric about 0, `count` of them: offsets run -(count-1)/2 .. +(count-1)/2
+    // in unit steps. An even count therefore lands on half-integers, which is
+    // what round_offset()'s floor(v + 0.5f) is there to map without a gap.
+    const float half = static_cast<float>(count - 1) * 0.5f;
+    for (int i = 0; i < count; ++i) {
+        out[i] = static_cast<float>(i) - half;
+    }
+    return count;
+}
+
+void line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t argb, Aa aa) {
+    if (aa == Aa::On) {
+        line_wu(t, x0, y0, x1, y1, argb);
+    } else {
+        line_bresenham(t, x0, y0, x1, y1, argb);
+    }
+}
+
+void thick_line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t argb, int width,
+                Aa aa) {
+    if (width <= 1) {
+        line(t, x0, y0, x1, y1, argb, aa);
+        return;
+    }
+
+    const float dx = static_cast<float>(x1 - x0);
+    const float dy = static_cast<float>(y1 - y0);
+    const float len = std::sqrt(dx * dx + dy * dy);
+
+    if (len < kMinLineLength) {
+        line(t, x0, y0, x1, y1, argb, aa);
+        return;
+    }
+
+    // Perpendicular unit vector (the segment direction rotated 90 degrees)
+    const float px = -dy / len;
+    const float py = dx / len;
+
+    float offsets[kMaxThickLineOffsets];
+    const int count = thick_line_offsets(width, offsets);
+    for (int i = 0; i < count; ++i) {
+        const int ox = round_offset(px * offsets[i]);
+        const int oy = round_offset(py * offsets[i]);
+        line(t, x0 + ox, y0 + oy, x1 + ox, y1 + oy, argb, aa);
+    }
+}
+
+void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb,
+                          ChannelOrder order) {
+    if (t.data == nullptr || rim_px < 1 || gap_px < 1) {
+        return;
+    }
+
+    const uint8_t rim_b = static_cast<uint8_t>(rgb & 0xFF);
+    const uint8_t rim_g = static_cast<uint8_t>((rgb >> 8) & 0xFF);
+    const uint8_t rim_r = static_cast<uint8_t>((rgb >> 16) & 0xFF);
+
+    // Green is byte 1 in both layouts; only red and blue trade places. Alpha is
+    // byte 3 either way, so the tag scan below reads the same offset regardless.
+    const size_t r_byte = (order == ChannelOrder::Bgra) ? 2 : 0;
+    const size_t b_byte = (order == ChannelOrder::Bgra) ? 0 : 2;
+
+    // Four axis directions. Diagonals are deliberately left out: they cost 8
+    // probes per pixel instead of 4 and the extra rim they find is a single
+    // corner pixel, which the 4-connected sweep of the neighbouring rows picks
+    // up anyway.
+    static constexpr int DX[4] = {0, 0, -1, 1};
+    static constexpr int DY[4] = {-1, 1, 0, 0};
+
+    auto tagged = [&t](int x, int y) -> bool {
+        // Off-canvas counts as untagged, so an object running off the edge of
+        // the viewport gets a rim along the edge rather than silently losing it.
+        if (x < 0 || x >= t.w || y < 0 || y >= t.h) {
+            return false;
+        }
+        return t.data[static_cast<size_t>(y) * t.stride + static_cast<size_t>(x) * 4 + 3] ==
+               kSelectedAlpha;
+    };
+
+    for (int y = 0; y < t.h; ++y) {
+        uint8_t* row = t.data + static_cast<size_t>(y) * t.stride;
+        for (int x = 0; x < t.w; ++x) {
+            uint8_t* pixel = row + static_cast<size_t>(x) * 4;
+            if (pixel[3] != kSelectedAlpha) {
+                continue;
+            }
+
+            bool on_rim = false;
+            for (int d = 0; d < 4 && !on_rim; ++d) {
+                // Walk outward until the tag stops. Give up past rim_px: any
+                // boundary further away than that leaves this pixel interior.
+                int k = 1;
+                while (k <= rim_px && tagged(x + DX[d] * k, y + DY[d] * k)) {
+                    ++k;
+                }
+                if (k > rim_px) {
+                    continue;
+                }
+                // The tag stopped at k. It is only the outside if it stays
+                // stopped for gap_px pixels; a shorter break is a seam between
+                // two strokes of the same object.
+                bool deep_enough = true;
+                for (int j = 0; j < gap_px && deep_enough; ++j) {
+                    if (tagged(x + DX[d] * (k + j), y + DY[d] * (k + j))) {
+                        deep_enough = false;
+                    }
+                }
+                on_rim = deep_enough;
+            }
+
+            if (on_rim) {
+                // RGB only. Alpha keeps the tag, which is what makes this pass
+                // safe to run twice on the same buffer.
+                pixel[b_byte] = rim_b;
+                pixel[1] = rim_g;
+                pixel[r_byte] = rim_r;
+            }
+        }
+    }
+}
+
+} // namespace helix::gcode

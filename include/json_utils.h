@@ -16,14 +16,25 @@ namespace helix::json_util {
 
 /// Safely extract a string from a JSON field that may be null.
 /// nlohmann .value("key", "") throws type_error.302 when the field is JSON null.
+///
+/// @param accept_number  Also accept a JSON integer, returned as its decimal
+///        text. Off by default because a number arriving where a string was
+///        declared is usually a bug worth defaulting away. Some firmwares do
+///        send one anyway - a field they format back unquoted makes the round
+///        trip as a number even though their own schema calls it a string -
+///        and a reader that has confirmed that is the case opts in here rather
+///        than hand-rolling the widened copy.
 inline std::string safe_string(const nlohmann::json& j, const char* key,
-                               const std::string& def = "") {
+                               const std::string& def = "", bool accept_number = false) {
     if (!j.contains(key) || j[key].is_null()) {
         return def;
     }
     const auto& v = j[key];
     if (v.is_string()) {
         return v.get<std::string>();
+    }
+    if (accept_number && v.is_number_integer()) {
+        return std::to_string(v.get<long long>());
     }
     return def;
 }
@@ -263,12 +274,16 @@ inline std::size_t safe_size_t(const nlohmann::json& j, const char* key, std::si
     if (!detail::to_u64(j[key], out)) {
         return def;
     }
-    if constexpr (sizeof(std::size_t) < sizeof(std::uint64_t)) {
-        if (out > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
-            return def;
-        }
+    // Round-trip rather than compare against size_t's max. Where the two types
+    // are the same width that comparison is tautologically false, and clang
+    // diagnoses it under -Werror even though the if-constexpr discards the
+    // branch — the body of a discarded branch is still analysed outside a
+    // template. Narrow-then-widen is correct at every width and needs no guard.
+    const std::size_t narrowed = static_cast<std::size_t>(out);
+    if (static_cast<std::uint64_t>(narrowed) != out) {
+        return def;
     }
-    return static_cast<std::size_t>(out);
+    return narrowed;
 }
 
 } // namespace helix::json_util

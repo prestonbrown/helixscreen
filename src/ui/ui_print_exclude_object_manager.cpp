@@ -402,12 +402,11 @@ void PrintExcludeObjectManager::on_excluded_objects_changed() {
 }
 
 void PrintExcludeObjectManager::on_print_state_changed(helix::PrintJobState state) {
-    // RAW_PRINT_STATE_OK: asks whether a live gcode queue exists for a pending
-    // EXCLUDE_OBJECT to land on. During a host-side block the printer holds no
-    // job, so there is none - and during a firmware-side PRINT_START the wire
-    // already reads printing, which is the correct answer.
-    const bool print_active =
-        (state == helix::PrintJobState::PRINTING) || (state == helix::PrintJobState::PAUSED);
+    // Asks whether a live gcode queue exists for a pending EXCLUDE_OBJECT to
+    // land on. During a host-side block the printer holds no job, so there is
+    // none - and during a firmware-side PRINT_START the wire already reads
+    // printing, which is the correct answer.
+    const bool print_active = helix::printer_has_job(state);
     if (print_active) {
         return;
     }

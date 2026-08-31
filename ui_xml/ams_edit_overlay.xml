@@ -186,23 +186,34 @@
           <event_cb trigger="value_changed" callback="ams_edit_picker_search_cb"/>
         </text_input>
 
-        <!-- Loading state -->
-        <lv_obj name="picker_loading"
-                width="100%" height="120" flex_flow="column" style_flex_main_place="center"
-                style_flex_cross_place="center" style_pad_all="0" scrollable="false">
+        <!-- Loading state: the canonical centered loading pattern (cf.
+             spoolman_panel.xml loading_state). The old hand-rolled flex block
+             centered its children against a content-width track laid out
+             before the overlay's push-time width resolved, leaving the spinner
+             and label left-packed. -->
+        <centered_column name="picker_loading" width="100%" height="120" hidden="true">
           <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="0"/>
-          <lv_spinner width="32"
-                      height="32" style_arc_width-indicator="2" style_arc_color="#primary" style_arc_opa-main="0"/>
-          <text_body text="Loading spools..." translation_tag="Loading spools..." style_pad_top="#space_sm"/>
-        </lv_obj>
+          <spinner size="md"/>
+          <text_body text="Loading spools..." translation_tag="Loading spools..." style_text_align="center"/>
+        </centered_column>
 
-        <!-- Empty state -->
+        <!-- Empty state: the FETCH failed - tap retries the fetch -->
         <lv_obj name="picker_empty" width="100%" height="120" scrollable="false" hidden="true" clickable="true">
           <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="1"/>
           <event_cb trigger="clicked" callback="ams_edit_picker_retry_cb"/>
           <empty_state icon="spoolman"
                        text="No spools found — tap to retry" translation_tag="No spools found — tap to retry"
                        clickable="false" event_bubble="true"/>
+        </lv_obj>
+
+        <!-- No-match state: the fetch succeeded, the term just matches nothing
+             (edit_picker_state=3). Informational, not clickable - distinct from
+             the retry card above so a narrowing search never reads as an error. -->
+        <lv_obj name="picker_no_match" width="100%" height="120" scrollable="false" hidden="true">
+          <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="3"/>
+          <empty_state icon="magnify"
+                       text="No spools match your search" translation_tag="No spools match your search"
+                       clickable="false"/>
         </lv_obj>
 
         <!-- Spool list (populated dynamically by C++) -->

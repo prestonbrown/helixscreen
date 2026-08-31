@@ -210,7 +210,7 @@ chapters 03 and 04 own.
 UI: `navigate`, `click`, `ls`/`describe_screen`, `text`, `geom`, `set_value`, `scroll`, `long_press`,
 `screenshot`, `demo`, `scenario`, and more, registered in `register_builtin_handlers()`
 ([`remote_control_server.cpp:286`](../../../src/remote/remote_control_server.cpp#L286)). It auto-starts at boot phase 14c under `--test` (opt-in with `--remote`
-elsewhere; [`application.cpp:1012`](../../../src/application/application.cpp#L1012)), is compiled in only when `ENABLE_REMOTE_CONTROL=yes` — default ON for every
+elsewhere; [`application.cpp:1020`](../../../src/application/application.cpp#L1020)), is compiled in only when `ENABLE_REMOTE_CONTROL=yes` — default ON for every
 developer build, native and cross, OFF only for production packaging builds (`Makefile:465`) — and a failed start is non-fatal. The default
 transport is a Unix socket; `RemoteConfig::Transport::Http` switches to a TCP listener bound loopback by default
 (port 7130) for LAN control. The accept loop runs on its own thread; every UI-affecting handler posts a lambda

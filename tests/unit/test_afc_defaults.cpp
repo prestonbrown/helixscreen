@@ -250,7 +250,6 @@ TEST_CASE("AFC speed sliders have correct range", "[defaults][afc]") {
 TEST_CASE("AFC default capabilities are correct", "[defaults][afc]") {
     auto caps = afc_default_capabilities();
     REQUIRE(caps.supports_endless_spool);
-    REQUIRE(caps.supports_tool_mapping);
     REQUIRE(caps.supports_bypass);
     REQUIRE(caps.supports_purge);
     REQUIRE(caps.tip_method == TipMethod::CUT);

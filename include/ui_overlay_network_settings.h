@@ -296,6 +296,17 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Applies an EthernetInfo to the overlay subjects. UI-thread only.
     void apply_ethernet_status(const EthernetInfo& info);
     void update_any_network_connected();
+    // Refresh BOTH transport rows after a WiFi transition (connect, forget).
+    // On single-transport platforms (netd enforces this) a join or leave
+    // downs/ups the OTHER transport too, so the ethernet row is as stale as
+    // the wifi one until re-queried (prestonbrown/helixscreen#1398).
+    void refresh_transport_status();
+
+    /// Ethernet refresh coalescing: at most one daemon probe in flight, with
+    /// one trailing refresh armed while one runs (a flapping link or a
+    /// failed-join retry burst collapses to one round trip, not N).
+    bool eth_refresh_in_flight_ = false;
+    bool eth_refresh_trailing_ = false;
     void update_test_state(NetworkTester::TestState state, const NetworkTester::TestResult& result);
     void populate_network_list(const std::vector<WiFiNetwork>& networks);
     void clear_network_list();
@@ -311,10 +322,6 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Scoped per [L039] to avoid colliding with other overlays' forget flows
     // (barcode scanner, label printer) in the flat XML callback namespace.
     static void on_network_settings_forget(lv_event_t* e);
-    static void on_network_forget_confirm(lv_event_t* e);
-    static void on_network_forget_cancel(lv_event_t* e);
-    static void on_wlan_toggle_off_confirm(lv_event_t* e);
-    static void on_wlan_toggle_off_cancel(lv_event_t* e);
 
     // Network test modal callbacks
     static void on_network_test_close(lv_event_t* e);

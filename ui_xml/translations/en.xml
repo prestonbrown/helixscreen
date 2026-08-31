@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="en">
   <translation tag=" (timed out)" en=" (timed out)"/>
-  <translation tag=" elapsed · " en=" elapsed · "/>
   <translation tag=" frames" en=" frames"/>
   <translation tag=" left" en=" left"/>
   <translation tag="&quot;%s&quot; failed to load" en="&quot;%s&quot; failed to load"/>
@@ -160,6 +159,7 @@
   <translation tag="All extruder temperatures with progress bars" en="All extruder temperatures with progress bars"/>
   <translation tag="All fields are required" en="All fields are required"/>
   <translation tag="All plugins loaded successfully" en="All plugins loaded successfully"/>
+  <translation tag="Allow" en="Allow"/>
   <translation tag="Allow Home Screen Editing" en="Allow Home Screen Editing"/>
   <translation tag="Allow cold load/unload" en="Allow cold load/unload"/>
   <translation tag="Allow display to sleep during active prints" en="Allow display to sleep during active prints"/>
@@ -170,6 +170,7 @@
   <translation tag="Ambient Transfer" en="Ambient Transfer"/>
   <translation tag="AmsIdentify" en="AmsIdentify"/>
   <translation tag="An accelerometer was detected on your printer." en="An accelerometer was detected on your printer."/>
+  <translation tag="An app on your network is asking to connect to this printer." en="An app on your network is asking to connect to this printer."/>
   <translation tag="An error occurred during calibration." en="An error occurred during calibration."/>
   <translation tag="An error occurred during filament loading." en="An error occurred during filament loading."/>
   <translation tag="An error occurred during measurement." en="An error occurred during measurement."/>
@@ -194,6 +195,8 @@
   <translation tag="Apply Changes" en="Apply Changes"/>
   <translation tag="Applying Changes" en="Applying Changes"/>
   <translation tag="Applying..." en="Applying..."/>
+  <translation tag="Archive" en="Archive"/>
+  <translation tag="Archive Spool?" en="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." en="Are you sure you want to cancel this print? All progress will be lost."/>
   <translation tag="Are you sure? This will power off or restart this device." en="Are you sure? This will power off or restart this device."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" en="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
@@ -211,6 +214,7 @@
   <translation tag="Auto-lock" en="Auto-lock"/>
   <translation tag="Auto-poll for weight updates" en="Auto-poll for weight updates"/>
   <translation tag="Auto-probe or manually check screw heights" en="Auto-probe or manually check screw heights"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout" en="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" en="Auto-render video"/>
   <translation tag="Auto-tuning Shapers..." en="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" en="Auto-uninstall only works on local Moonraker"/>
@@ -539,6 +543,7 @@
   <translation tag="Connecting..." en="Connecting..."/>
   <translation tag="Connection" en="Connection"/>
   <translation tag="Connection Failed" en="Connection Failed"/>
+  <translation tag="Connection Request" en="Connection Request"/>
   <translation tag="Connection Stability" en="Connection Stability"/>
   <translation tag="Connection failed" en="Connection failed"/>
   <translation tag="Connection failed to {}:{}" en="Connection failed to {}:{}"/>
@@ -571,6 +576,7 @@
   <translation tag="Corner roundness" en="Corner roundness"/>
   <translation tag="Correction (Ki)" en="Correction (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." en="Could not analyze PRINT_START macro. Some print options may be unavailable."/>
+  <translation tag="Could not answer the connection request" en="Could not answer the connection request"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." en="Could not check webcam status.&#10;Check printer connection."/>
   <translation tag="Could not forget device" en="Could not forget device"/>
   <translation tag="Could not load printer database" en="Could not load printer database"/>
@@ -653,6 +659,7 @@
   <translation tag="Delete {}?" en="Delete {}?"/>
   <translation tag="Delta:" en="Delta:"/>
   <translation tag="Density" en="Density"/>
+  <translation tag="Deny" en="Deny"/>
   <translation tag="Deploy" en="Deploy"/>
   <translation tag="Describe the issue (optional)" en="Describe the issue (optional)"/>
   <translation tag="Detailed" en="Detailed"/>
@@ -664,6 +671,7 @@
   <translation tag="Dev" en="Dev"/>
   <translation tag="Dev channel requires dev_url in config" en="Dev channel requires dev_url in config"/>
   <translation tag="Device" en="Device"/>
+  <translation tag="Device connected" en="Device connected"/>
   <translation tag="Device name" en="Device name"/>
   <translation tag="Device name is required" en="Device name is required"/>
   <translation tag="Device: " en="Device: "/>
@@ -852,6 +860,7 @@
   <translation tag="Failed to analyze PRINT_START macro" en="Failed to analyze PRINT_START macro"/>
   <translation tag="Failed to apply limits" en="Failed to apply limits"/>
   <translation tag="Failed to apply settings" en="Failed to apply settings"/>
+  <translation tag="Failed to archive spool" en="Failed to archive spool"/>
   <translation tag="Failed to build raster data" en="Failed to build raster data"/>
   <translation tag="Failed to cancel: {}" en="Failed to cancel: {}"/>
   <translation tag="Failed to clear print state: {}" en="Failed to clear print state: {}"/>
@@ -1218,6 +1227,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" en="Invalid sheet template index: {} (have {})"/>
   <translation tag="Invalid status response from printer" en="Invalid status response from printer"/>
   <translation tag="Issue description" en="Issue description"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
   <translation tag="Jammed at the Toolhead" en="Jammed at the Toolhead"/>
   <translation tag="Job Queue" en="Job Queue"/>
@@ -1343,7 +1353,6 @@
   <translation tag="MACRO DEVICES" en="MACRO DEVICES"/>
   <translation tag="MAIN POWER BUTTON" en="MAIN POWER BUTTON"/>
   <translation tag="MANUAL" en="MANUAL"/>
-  <translation tag="MAPPING" en="MAPPING"/>
   <translation tag="MB RAM" en="MB RAM"/>
   <translation tag="MCU" en="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" en="MCU, host, and auxiliary temperature monitoring"/>
@@ -1564,6 +1573,7 @@
   <translation tag="No slot currently matches." en="No slot currently matches."/>
   <translation tag="No spool assigned" en="No spool assigned"/>
   <translation tag="No spools found — tap to retry" en="No spools found — tap to retry"/>
+  <translation tag="No spools match your search" en="No spools match your search"/>
   <translation tag="No tape detected in printer" en="No tape detected in printer"/>
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
@@ -2297,6 +2307,7 @@
   <translation tag="Spool #{}" en="Spool #{}"/>
   <translation tag="Spool Info" en="Spool Info"/>
   <translation tag="Spool Weight (g)" en="Spool Weight (g)"/>
+  <translation tag="Spool archived" en="Spool archived"/>
   <translation tag="Spool created successfully" en="Spool created successfully"/>
   <translation tag="Spool deleted" en="Spool deleted"/>
   <translation tag="Spool motor" en="Spool motor"/>
@@ -2828,6 +2839,7 @@
   <translation tag="{} filament sensors available" en="{} filament sensors available"/>
   <translation tag="{} filament • {}" en="{} filament • {}"/>
   <translation tag="{} heater turned off" en="{} heater turned off"/>
+  <translation tag="{} is asking to connect to this printer." en="{} is asking to connect to this printer."/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." en="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." en="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap."/>
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>

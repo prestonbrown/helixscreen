@@ -30,6 +30,40 @@
 #      so it cannot link a single line we ship. Include form does not matter;
 #      "foo.h", "../../include/foo.h" and "system/foo.h" all resolve.
 #
+#   3. redefined-symbol -- a test file DEFINES a function at file scope whose
+#      name is also a function we ship. This is the honest form of the mirror:
+#      no comment admits to it, and the file does include production headers, so
+#      neither signal above sees it. Both known instances were found this way:
+#
+#        test_update_checker.cpp:80   defines its own is_update_available() and
+#                                     asserts against it ~30 times. Production's
+#                                     is_update_available() is in an anonymous
+#                                     namespace with zero call sites, so those
+#                                     assertions validate a test-local copy of
+#                                     dead code.
+#        test_snapmaker_preprint_gcode.cpp:143,206
+#                                     hardcodes fixed_heads(4, 0) instead of
+#                                     asking the AmsBackendSnapmaker it builds
+#                                     two lines later. Change
+#                                     firmware_default_routing() and both stay
+#                                     green.
+#
+#      File scope is the discriminator: a helper indented inside a fixture or a
+#      TEST_CASE is local scaffolding, while a definition at column 0 that
+#      shadows a shipped name is the shape that drifts.
+#
+#      Name collision alone is far too loose -- on this tree it yields 109
+#      findings, mostly a generic test helper (push, contains, index_of, token,
+#      name_of) sharing a name with an unrelated class METHOD. Two further
+#      conditions carry the precision:
+#
+#        - the shipped symbol must be a FREE function defined at file scope
+#          too. A method named push() is not something a test helper shadows.
+#        - the test must ASSERT against the redefined name. That is what makes
+#          it a mirror rather than a stub: a fake lv_xml_init() called only from
+#          setup is scaffolding, while ~30 REQUIREs against a local
+#          is_update_available() are a test of the copy.
+#
 #   2. mirror-comment -- a comment naming a production symbol as being mirrored,
 #      copied, replicated or simulated, where that symbol really exists in
 #      include/ or src/. A comment that names nothing real is not flagged (it is
@@ -72,6 +106,19 @@ SYMBOL_IN_COMMENT = re.compile(r'\b(?:(\w+)::)?(\w+)\s*\(\s*\)')
 
 INCLUDE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[">]', re.M)
 
+# A function definition at column 0: a return type, then the name, then a body.
+# Anchored to the line start with no leading whitespace, which is what keeps
+# fixture methods, lambdas and in-TEST_CASE helpers out.
+FILE_SCOPE_DEF = re.compile(
+    r'^(?:static\s+|inline\s+|constexpr\s+|const\s+)*'
+    r'(?:[A-Za-z_]\w*(?:::\w+)*(?:\s*<[^>;{]*>)?[\s*&]+)+'
+    r'(?P<name>[A-Za-z_]\w*)\s*\([^;{)]*\)\s*(?:const\s+)?(?:noexcept\s*)?\{',
+    re.M)
+
+# Names that are test scaffolding by convention rather than shadows of shipped
+# code. Kept deliberately short -- every entry here is a hole in the signal.
+SCAFFOLD_NAMES = {'main', 'SetUp', 'TearDown'}
+
 
 def production_headers(root: Path):
     """Basenames of every header we ship, plus every .cpp (for src/-relative includes)."""
@@ -83,6 +130,27 @@ def production_headers(root: Path):
         for p in d.rglob('*'):
             if p.suffix in ('.h', '.hpp', '.cpp'):
                 names.add(p.name)
+    return names
+
+
+def production_free_functions(root: Path):
+    """Names defined as free functions at file scope in shipped code.
+
+    Deliberately NOT methods: a test helper named push() shadows nothing.
+    """
+    names = set()
+    for sub in ('include', 'src'):
+        d = root / sub
+        if not d.is_dir():
+            continue
+        for p in d.rglob('*'):
+            if p.suffix not in ('.h', '.hpp', '.cpp'):
+                continue
+            try:
+                for m in FILE_SCOPE_DEF.finditer(p.read_text(errors='replace')):
+                    names.add(m.group('name'))
+            except OSError:
+                pass
     return names
 
 
@@ -117,6 +185,7 @@ def test_local_headers(root: Path):
 def scan(root: Path):
     prod_hdrs = production_headers(root)
     prod_syms = production_symbols(root)
+    prod_free = production_free_functions(root)
     local_hdrs = test_local_headers(root)
     findings = []
 
@@ -177,6 +246,26 @@ def scan(root: Path):
                     findings.append((str(rel), i, 'mirror-comment',
                                      f'claims to mirror {named}, which exists in production'))
                     break
+
+        # Signal 3: a file-scope definition shadowing a name we ship.
+        asserted = set(re.findall(
+            r'\b(?:REQUIRE|CHECK)[A-Z_]*\s*\([^;]*?\b(\w+)\s*\(', text))
+        for m in FILE_SCOPE_DEF.finditer(text):
+            name = m.group('name')
+            if name in SCAFFOLD_NAMES or name not in prod_free:
+                continue
+            if name not in asserted:
+                continue   # a stub called from setup, not a mirror under test
+            i = text[:m.start()].count('\n') + 1
+            lo = i
+            while lo > 1 and lines[lo - 2].lstrip().startswith('//'):
+                lo -= 1
+            if any(lo <= j <= i + 1 for j in opt_out_lines):
+                continue
+            findings.append((str(rel), i, 'redefined-symbol',
+                             f'defines {name}() at file scope, shadowing the '
+                             f'{name}() we ship - assertions against this copy '
+                             f'cannot fail when production changes'))
     return findings
 
 
@@ -203,10 +292,11 @@ def main():
         if len(findings) > 40:
             print(f'... and {len(findings) - 40} more (use --list)')
 
-    shadow = sum(1 for f in findings if f[2] == 'shadow-include')
-    mirror = len(findings) - shadow
+    kinds = {}
+    for _, _, k, _ in findings:
+        kinds[k] = kinds.get(k, 0) + 1
     print(f'test-mirror findings: {len(findings)} '
-          f'({shadow} shadow-include, {mirror} mirror-comment)')
+          f'({", ".join(f"{k}={v}" for k, v in sorted(kinds.items())) or "none"})')
 
     if args.max_allowed is not None and len(findings) > args.max_allowed:
         print(f'FAIL: {len(findings)} exceeds --max-allowed {args.max_allowed}')

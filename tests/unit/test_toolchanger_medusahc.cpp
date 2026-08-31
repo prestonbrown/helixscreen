@@ -692,6 +692,32 @@ TEST_CASE("A fresh dispatch gets its own hold even after a stale confirmation",
     CHECK(tc.get_current_action() != AmsAction::IDLE);
 }
 
+TEST_CASE("A tool changer tracks the sidebar's optimistic heat marker",
+          "[ams][toolchanger][steps]") {
+    // HEATING is a lie about the MACHINE and the truth about the SIDEBAR, which
+    // is why it belongs here and why it keeps looking like a mistake to remove.
+    // AmsOperationSidebar::start_operation() stamps HEATING the instant a user
+    // starts an operation, before any frame has arrived. If the changer answers
+    // "not an operation I follow" to it, update_step_progress() takes its
+    // not-active branch on our OWN dispatch: it hides the bar and clears
+    // target_load_slot_, after which the rest of a user-initiated swap reads as
+    // externally started and the bar restarts from step 0.
+    //
+    // A changer genuinely never heats, so the honest-looking edit is to drop
+    // HEATING from this list. That is the regression this test exists to catch.
+    ToolChangerHelper tc(4);
+
+    CHECK(tc.action_tracks_step_operation(AmsAction::HEATING));
+    CHECK(tc.action_tracks_step_operation(AmsAction::SELECTING));
+    CHECK(tc.action_tracks_step_operation(AmsAction::UNLOADING));
+
+    // Everything else stays untracked: a changer moves hot ends, so the
+    // filament vocabulary describes nothing it does.
+    CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::IDLE));
+    CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::LOADING));
+    CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::PURGING));
+}
+
 TEST_CASE("A fresh dispatch does not inherit the previous swap's gripper latch",
           "[ams][toolchanger][steps]") {
     // feeder_opened_this_operation_ is what tells the grip that ENDS a swap
@@ -770,4 +796,35 @@ TEST_CASE("Sensors losing track of a MOUNTED tool withdraws Unmount",
     tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
     CHECK(tc.unload_blocked_reason(1).empty());
     CHECK(tc.can_unload_from_toolhead(1));
+}
+
+TEST_CASE("A dock-sensor fault reaches the LIVE half of the loaded signal too",
+          "[ams][toolchanger][labels]") {
+    // can_unload_from_toolhead() is only the snapshot half. AmsContextMenu ORs
+    // it with the live pair — slot_is_actively_loaded() ||
+    // slot_has_filament_at_toolhead() — so a withdrawal that lives in the
+    // snapshot alone is handed straight back by the live one and the button
+    // never greys. The base slot_is_actively_loaded() rule cannot see the fault:
+    // it reads current_slot + filament_loaded, and the sensor-error path holds
+    // both on purpose.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    REQUIRE(tc.slot_is_actively_loaded(1));
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
+
+    // The held state the base rule would answer from, asserted so this case
+    // fails for the right reason if the hold is ever dropped instead.
+    REQUIRE(tc.get_current_slot() == 1);
+    REQUIRE(tc.is_filament_loaded());
+
+    CHECK_FALSE(tc.slot_is_actively_loaded(1));
+    CHECK_FALSE(tc.slot_has_filament_at_toolhead(1));
+    CHECK_FALSE(tc.can_unload_from_toolhead(1));
+
+    // Withdrawn, not blanked: the tool comes back when the sensors do.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    CHECK(tc.slot_is_actively_loaded(1));
 }

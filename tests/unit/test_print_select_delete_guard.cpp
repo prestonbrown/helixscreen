@@ -33,6 +33,7 @@
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "thumbnail_processor.h"
 
 #include <cstdio>
 #include <ctime>
@@ -136,9 +137,23 @@ class PrintSelectDeleteFixture : public LVGLUITestFixture {
 
     /// Every hop in the delete chain crosses the UpdateQueue (token.defer,
     /// queue_update, go_back's own queue_update, the refresh's on_files_ready);
-    /// drain until fully empty like OverlayActivationFixture does.
+    /// drain until fully empty like OverlayActivationFixture does. The delete
+    /// chain's metadata refresh also lands work on the ThumbnailProcessor
+    /// pool, which the queue-only drain never waits for — the worker would
+    /// outlive the test holding callbacks into its state (ISOLATION-LEAK,
+    /// then a UAF crash in a later test). Join the pool between queue passes
+    /// the way ActivePrintMediaAsyncFixture::drain() does.
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        auto& processor = helix::ThumbnailProcessor::instance();
+        auto& queue = helix::ui::UpdateQueue::instance();
+        for (int pass = 0; pass < 4; ++pass) {
+            processor.wait_for_completion();
+            if (processor.pending_tasks() == 0 &&
+                helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
+                break;
+            }
+            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+        }
     }
 
     MoonrakerClientMock mock_client_;

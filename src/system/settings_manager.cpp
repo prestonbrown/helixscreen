@@ -33,7 +33,11 @@ using namespace helix;
 
 // Aftermarket toolhead styles shown in dropdown (Auto + user overrides only)
 // Native styles (DEFAULT, CREALITY_K1, CREALITY_K2) are auto-detected and not shown.
-static const char* TOOLHEAD_STYLE_OPTIONS_TEXT = "Auto\nStealthburner\nA4T\nAntHead\nJabberWocky";
+// The full style list: the dropdown and the enum carry the same eight
+// entries in the same order, so a style the DB auto-detects (K1/K2) or
+// pins (Default) is also selectable by hand.
+static const char* TOOLHEAD_STYLE_OPTIONS_TEXT =
+    "Auto\nDefault\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2";
 
 // In test mode, show all styles for debugging
 static const char* TOOLHEAD_STYLE_OPTIONS_TEXT_DEBUG =
@@ -42,10 +46,13 @@ static const char* TOOLHEAD_STYLE_OPTIONS_TEXT_DEBUG =
 // Map dropdown index → ToolheadStyle enum value (production dropdown)
 static constexpr helix::ToolheadStyle DROPDOWN_TO_STYLE[] = {
     helix::ToolheadStyle::AUTO,          // 0: Auto
-    helix::ToolheadStyle::STEALTHBURNER, // 1: Stealthburner
+    helix::ToolheadStyle::DEFAULT,       // 1: Default (Bambu-like)
     helix::ToolheadStyle::A4T,           // 2: A4T
     helix::ToolheadStyle::ANTHEAD,       // 3: AntHead
     helix::ToolheadStyle::JABBERWOCKY,   // 4: JabberWocky
+    helix::ToolheadStyle::STEALTHBURNER, // 5: Stealthburner
+    helix::ToolheadStyle::CREALITY_K1,   // 6: Creality K1
+    helix::ToolheadStyle::CREALITY_K2,   // 7: Creality K2
 };
 static constexpr int DROPDOWN_COUNT =
     static_cast<int>(sizeof(DROPDOWN_TO_STYLE) / sizeof(DROPDOWN_TO_STYLE[0]));
@@ -374,6 +381,10 @@ ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
                 return ToolheadStyle::CREALITY_K1;
             if (db_style == "creality_k2")
                 return ToolheadStyle::CREALITY_K2;
+            // An explicit "default" pins the printer to the Bambu-like glyph
+            // regardless of what a migrated config's type string says.
+            if (db_style == "default")
+                return ToolheadStyle::DEFAULT;
         }
     }
 

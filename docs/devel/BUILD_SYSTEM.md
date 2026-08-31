@@ -73,6 +73,23 @@ Docker images are **automatically built** on first use - no manual setup require
 
 3. **Volume Mounting**: Your source code is mounted into the container, so compiled binaries appear directly in your `build/` directory.
 
+   The mount is `-v "$(CURDIR)":/src`, and it must stay `$(CURDIR)` — never `$(PWD)`.
+   `$(PWD)` is inherited from the invoking *shell*; `$(CURDIR)` is make's own working
+   directory and is the one that follows `-C`. They agree for a plain `make`, so the
+   difference is invisible until someone runs a cross build with `-C`:
+
+   ```bash
+   cd /anywhere
+   make -C .worktrees/my-branch snapmaker-u1-docker   # with $(PWD): mounts /anywhere
+   ```
+
+   With `$(PWD)` that bind-mounted whatever directory the shell happened to be in, compiled
+   *that* tree, and left the worktree's artifact untouched — while exiting 0 and printing
+   "✓ Build complete!". The binary you then deployed was built from the wrong commit, and
+   nothing in the log said so; the failure mode is a stale artifact, so neither mtime nor
+   size changes to give it away. `tests/shell/test_build_provenance.bats` now fails the
+   build if any `docker run` mounts `$(PWD)`.
+
    Everything else the container needs from the host rides on `$(DOCKER_HOST_CONTEXT)`
    (`mk/cross.mk`), which every `docker run` that mounts the tree must pass —
    `tests/shell/test_build_provenance.bats` fails the build if one does not. It carries two
@@ -80,7 +97,7 @@ Docker images are **automatically built** on first use - no manual setup require
 
    - `DOCKER_WORKTREE_MOUNT` — `scripts/setup-worktree.sh` symlinks `lib/<submodule>` to the
      main checkout by absolute path, so those links dangle inside a container that mounts only
-     `$(PWD)`. The real submodule tree is bind-mounted at its own absolute path so every
+     `$(CURDIR)`. The real submodule tree is bind-mounted at its own absolute path so every
      `lib/*` link resolves identically inside and out.
    - `DOCKER_GIT_HASH_ENV` — a worktree's `.git` is a *file* reading
      `gitdir: $(MAIN)/.git/worktrees/<name>`, a path outside the mount, so git cannot resolve
@@ -911,6 +928,35 @@ To bypass (not recommended):
 git commit --no-verify
 ```
 
+### Pre-push Integration
+
+`.githooks/pre-push` runs the **full, ungated** sweep - every gate, not just the
+ones whose inputs you staged - because a commit can pass `--staged-only` while
+breaking a repo-wide invariant that mode never ran.
+
+It sweeps **the commit being pushed, not the working tree.** `quality-checks.sh`
+reads file content off disk (CI mode walks `src/` and `include/` with `find`), so
+sweeping a dirty tree gives the wrong answer in both directions: in-flight edits
+fail a push whose commits are fine, and an uncommitted fix turns the sweep green
+over committed code that CI will then reject. With parallel sessions and
+worktrees sharing one checkout, a dirty tree is the normal case.
+
+- **Tree matches the pushed commit** - the sweep runs in place, as it always did.
+- **Tree differs** - the commit is checked out into a throwaway worktree and swept
+  there. `.venv`, `node_modules` and `build/bin` are shared by symlink, as are the
+  `lib/` submodules (patch-drift and the doc-reference gate resolve against the
+  filesystem, so an empty `lib/` reads as mass breakage).
+
+`build/` is deliberately **not** shared wholesale: `build/helix-xml-tests` holds a
+cmake cache recording an absolute source path, and sharing it bakes the throwaway
+path into the real tree's cache, breaking that gate for every later run. The
+consequence is that the helix-xml submodule-test gate finds no configured build
+tree on the isolated path and skips - its designed behaviour, since its first
+configure clones LVGL over the network.
+
+Escape hatches: `HELIX_PREPUSH_IN_PLACE=1` forces the old in-place sweep, and
+`git push --no-verify` skips the hook. Expect CI to find whatever you skipped.
+
 ### Quality Checks
 
 The `scripts/quality-checks.sh` script runs multiple checks:
@@ -922,8 +968,9 @@ The `scripts/quality-checks.sh` script runs multiple checks:
 - **Trailing whitespace**
 - **Build verification** (pre-commit only)
 
-Used by both:
-- **Pre-commit hook** (staged files only)
+Used by all three:
+- **Pre-commit hook** (staged files only, working tree)
+- **Pre-push hook** (all gates, against the commit being pushed)
 - **CI/CD** (all files)
 
 ## Automatic Patch Application
@@ -1776,7 +1823,7 @@ target in `mk/cross.mk`:
 | `snapmaker-u1` | `tiny small` |
 | `cc1`, `yocto` | `micro tiny` |
 
-`HELIX_MAX_FONT_TIER` is derived from this (`mk/cross.mk:728-750`; `micro=0` …
+`HELIX_MAX_FONT_TIER` is derived from this (`mk/cross.mk:765-787`; `micro=0` …
 `xxlarge=6`). Two consumers read it: `theme_manager` uses it to distinguish an
 expected-missing font (pruned by tier) from an unexpected-missing one (a build bug),
 and `cjk_font_manager` uses it to pick its CJK face.
@@ -1799,6 +1846,9 @@ tier list of the smallest device that will run it.
 | `HELIX_HAS_LABEL_PRINTER` | 1 | Label printer feature |
 | `HELIX_HAS_CFS` | 1 | CFS feature |
 | `HELIX_HAS_IFS` | 1 | IFS feature |
+| `HELIX_HAS_ACE` | 1 | ACE vendor backend (0 on non-Anker cross targets) |
+| `HELIX_HAS_QIDI` | 1 | QIDI Box vendor backend (0 on non-QIDI cross targets) |
+| `HELIX_HAS_SNAPMAKER` | 1 | SnapSwap vendor backend (0 except `snapmaker-u1`) |
 
 ### Linker flags by platform
 

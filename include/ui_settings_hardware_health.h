@@ -213,9 +213,6 @@ class HardwareHealthOverlay : public OverlayBase {
     //
     // === Static Callbacks ===
     //
-
-    static void on_hardware_save_confirm(lv_event_t* e);
-    static void on_hardware_save_cancel(lv_event_t* e);
 };
 
 /**

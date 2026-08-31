@@ -4,7 +4,9 @@
 #include "ams_backend_mock.h"
 
 #include "afc_defaults.h"
+#if HELIX_HAS_SNAPMAKER
 #include "ams_backend_snapmaker.h"
+#endif
 #include "ams_bypass_policy.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
@@ -77,7 +79,6 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
     // Use shared AFC defaults for capabilities
     auto caps = helix::printer::afc_default_capabilities();
     system_info_.endless_spool_enabled = caps.supports_endless_spool;
-    system_info_.supports_tool_mapping = caps.supports_tool_mapping;
     system_info_.supports_bypass = caps.supports_bypass;
     system_info_.supports_purge = caps.supports_purge;
     system_info_.tip_method = caps.tip_method;
@@ -407,7 +408,6 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     info.number_of_toolchanges = system_info_.number_of_toolchanges;
     info.filament_loaded = system_info_.filament_loaded;
     info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_tool_mapping = system_info_.supports_tool_mapping;
     info.supports_bypass = system_info_.supports_bypass;
     info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
     info.tip_method = system_info_.tip_method;
@@ -1225,6 +1225,17 @@ void AmsBackendMock::force_slot_status(int slot_index, SlotStatus status) {
     }
 }
 
+void AmsBackendMock::force_slot_remaining(int slot_index, float remaining_m) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto* entry = slots_.get_mut(slot_index);
+    if (entry) {
+        entry->info.remaining_length_m = remaining_m;
+        spdlog::debug("[AmsBackendMock] Forced slot {} remaining length to {}", slot_index,
+                      remaining_m);
+    }
+}
+
 void AmsBackendMock::set_slot_error(int slot_index, std::optional<SlotError> error) {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -1661,7 +1672,6 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -1861,7 +1871,6 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
         system_info_.endless_spool_enabled = true;
         endless_spool_supported_ = true;
         endless_spool_editable_ = true;
-        system_info_.supports_tool_mapping = true;
         system_info_.has_hardware_bypass_sensor = false;
         system_info_.tip_method = TipMethod::CUT;
         system_info_.supports_purge = true;
@@ -2031,7 +2040,6 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -2224,7 +2232,6 @@ void AmsBackendMock::set_vivid_mixed_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -2402,7 +2409,6 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
         system_info_.type_name = "AD5X IFS";
         system_info_.total_slots = 4;
         system_info_.supports_bypass = true;
-        system_info_.supports_tool_mapping = true;
         system_info_.endless_spool_enabled = false;
         // Must clear the CAPABILITY flag too, not just this bit: the flag is what
         // get_endless_spool_capabilities() reads, and leaving it at its default
@@ -2462,6 +2468,18 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
 
 void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     std::lock_guard<std::mutex> lock(mutex_);
+#if !HELIX_HAS_SNAPMAKER
+    // Backend compiled out (device targets set HELIX_HAS_SNAPMAKER=0): snapmaker
+    // emulation delegates to the real backend's statics for command fidelity,
+    // so it cannot run here. Refuse the mode rather than emulate a shape the
+    // real firmware would not produce.
+    if (enabled) {
+        spdlog::warn(
+            "[AMS Mock] Snapmaker mode refused: backend not compiled in (HELIX_HAS_SNAPMAKER=0)");
+    }
+    snapmaker_mode_ = false;
+    return;
+#endif
     snapmaker_mode_ = enabled;
     if (!enabled) {
         return;
@@ -2486,7 +2504,6 @@ void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     system_info_.endless_spool_enabled = false;
     endless_spool_supported_ = false;
     endless_spool_editable_ = false;
-    system_info_.supports_tool_mapping = false;
     system_info_.supports_bypass = false;
     system_info_.has_hardware_bypass_sensor = false;
     system_info_.tip_method = TipMethod::NONE;
@@ -2535,6 +2552,11 @@ void AmsBackendMock::set_snapmaker_mode(bool enabled) {
         system_info_.units[0].name = "SnapSwap";
         system_info_.units[0].display_name = "SnapSwap";
     }
+
+    // An idle U1 has no task, so it publishes no routing at all — only the
+    // firmware's default table, which says nothing about any particular file.
+    // set_snapmaker_print_task() (or HELIX_MOCK_REMAP below) stages one.
+    set_snapmaker_task_locked({});
 
     system_info_.current_tool = 0;
     system_info_.current_slot = 0;
@@ -2598,6 +2620,16 @@ void AmsBackendMock::apply_remap_overrides(const std::string& csv) {
     }
 
     slots_.set_tool_map(forward);
+
+    // On a U1 a remap does not move the lanes: it becomes the print task's
+    // extruder_map_table, which is what get_tool_mapping() answers from. Staging
+    // it as a task is what keeps this knob's purpose — showing a non-identity
+    // routing in the swatches — working now that the attachment map no longer
+    // stands in for the routing. Head N owns lane N there, so the CSV's slot
+    // numbers are already head numbers.
+    if (snapmaker_mode_) {
+        set_snapmaker_task_locked(forward);
+    }
 }
 
 void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
@@ -2624,7 +2656,6 @@ void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
         // same instance clears them, and an AFC scenario has AFC's per-slot edits.
         endless_spool_supported_ = afc_caps.supports_endless_spool;
         endless_spool_editable_ = afc_caps.supports_endless_spool;
-        system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
         system_info_.tip_method = afc_caps.tip_method;
@@ -2853,7 +2884,6 @@ void AmsBackendMock::set_torture_mode(bool enabled) {
     system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
     endless_spool_supported_ = afc_caps.supports_endless_spool;
     endless_spool_editable_ = afc_caps.supports_endless_spool;
-    system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
     system_info_.supports_bypass = afc_caps.supports_bypass;
     system_info_.supports_purge = afc_caps.supports_purge;
     system_info_.tip_method = afc_caps.tip_method;
@@ -3333,32 +3363,35 @@ AmsError AmsBackendMock::apply_endless_spool_backup(int slot_index, int backup_s
 // Tool mapping implementation
 // ============================================================================
 
-helix::printer::ToolMappingCapabilities AmsBackendMock::get_tool_mapping_capabilities() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    // Tool changers don't support tool mapping (tools ARE slots)
-    if (tool_changer_mode_) {
-        return {false, false, ""};
-    }
-
-    // Snapmaker U1: mapping is SUPPORTED (1:1 lanes) but NOT editable from the
-    // UI — the firmware owns it. This hides the inline FilamentMappingCard so the
-    // print-detail color_swatches_row renders the two-tone chips (mirrors the
-    // real AmsBackendSnapmaker, which reports supports_tool_mapping=false).
-    if (snapmaker_mode_) {
-        return {true, false, "Snapmaker native lane mapping (read-only)"};
-    }
-
-    // Filament systems support editable tool mapping
-    return {true, true, "Mock tool-to-slot mapping"};
-}
-
 AmsBackendMock::RemapStrategy AmsBackendMock::get_remap_strategy() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (snapmaker_mode_) {
         return RemapStrategy::SnapmakerNative;
     }
-    return RemapStrategy::None;
+    return remap_strategy_;
+}
+
+bool AmsBackendMock::remap_ready() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return remap_ready_;
+}
+
+bool AmsBackendMock::owns_tool_mapping_table() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // The U1 owns none — its extruders are independent. Every other mode stands
+    // in for a backend that does, including the tool changer, whose table is
+    // identity but real and rewritten by ASSIGN_TOOL.
+    return !snapmaker_mode_;
+}
+
+void AmsBackendMock::set_remap_strategy(RemapStrategy strategy) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    remap_strategy_ = strategy;
+}
+
+void AmsBackendMock::set_remap_ready(bool ready) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    remap_ready_ = ready;
 }
 
 bool AmsBackendMock::requires_preprint_send() const {
@@ -3376,10 +3409,14 @@ std::string AmsBackendMock::build_preprint_gcode(const std::set<int>& tools_used
     if (!snapmaker) {
         return "";
     }
+#if HELIX_HAS_SNAPMAKER
     // The real builder, not a re-implementation of it: the mock exists to
     // rehearse what the printer will be sent, so a divergence here would be a
     // test rig teaching the wrong command format.
     return AmsBackendSnapmaker::preprint_gcode(tools_used, remap);
+#else
+    return ""; // Unreachable: set_snapmaker_mode() refuses the mode when gated out.
+#endif
 }
 
 std::vector<int> AmsBackendMock::get_tool_mapping() const {
@@ -3390,7 +3427,55 @@ std::vector<int> AmsBackendMock::get_tool_mapping() const {
         return {};
     }
 
+    if (snapmaker_mode_) {
+#if HELIX_HAS_SNAPMAKER
+        // The real gate, not a re-implementation of it — same reason
+        // build_preprint_gcode() delegates to the real builder. Without it the
+        // mock published the attachment map as this print's routing, and
+        // FilamentMapper::effective_routing() believes any non-empty answer.
+        return AmsBackendSnapmaker::task_routing(snapmaker_extruders_used_,
+                                                 snapmaker_extruder_map_);
+#else
+        return {}; // Unreachable: set_snapmaker_mode() refuses the mode when gated out.
+#endif
+    }
+
     return slots_.build_system_info().tool_to_slot_map;
+}
+
+helix::FirmwareRouting AmsBackendMock::firmware_default_routing() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (snapmaker_mode_) {
+#if HELIX_HAS_SNAPMAKER
+        return AmsBackendSnapmaker::default_routing();
+#endif
+        // Unreachable: set_snapmaker_mode() refuses the mode when the backend
+        // is compiled out, so fall through to the lane-per-tool answer.
+    }
+    // Every other mode this mock emulates is lane-per-tool.
+    return AmsBackend::firmware_default_routing();
+}
+
+void AmsBackendMock::set_snapmaker_print_task(std::vector<int> routing) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    set_snapmaker_task_locked(std::move(routing));
+}
+
+void AmsBackendMock::set_snapmaker_task_locked(std::vector<int> routing) {
+    snapmaker_extruder_map_ = std::move(routing);
+    snapmaker_extruders_used_.assign(
+        static_cast<size_t>(system_info_.total_slots > 0 ? system_info_.total_slots : 0), false);
+    for (int head : snapmaker_extruder_map_) {
+        if (head >= 0 && head < static_cast<int>(snapmaker_extruders_used_.size())) {
+            snapmaker_extruders_used_[static_cast<size_t>(head)] = true;
+        }
+    }
+    if (snapmaker_extruder_map_.empty()) {
+        spdlog::debug("[AmsBackendMock] Snapmaker print task cleared - no routing published");
+    } else {
+        spdlog::info("[AmsBackendMock] Snapmaker print task: {} tool(s) routed",
+                     snapmaker_extruder_map_.size());
+    }
 }
 
 // ============================================================================

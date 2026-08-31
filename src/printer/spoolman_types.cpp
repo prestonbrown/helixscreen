@@ -3,6 +3,8 @@
 
 #include "spoolman_types.h"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <cctype>
 #include <ctime>
@@ -94,8 +96,18 @@ bool fuzzy_match_any_word(const std::string& term, const std::string& searchable
 // Spool Filtering
 // ============================================================================
 
-std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools,
-                                     const std::string& query) {
+std::string build_searchable_text(const SpoolInfo& spool) {
+    // "#ID vendor material filament_name location", lowercased. filter_spools
+    // matches its terms against exactly this blob.
+    std::string searchable = "#" + std::to_string(spool.id) + " " + spool.vendor + " " +
+                             spool.material + " " + spool.filament_name + " " + spool.location;
+    std::transform(searchable.begin(), searchable.end(), searchable.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return searchable;
+}
+
+std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools, const std::string& query,
+                                     const std::vector<std::string>& searchables) {
     // Empty or whitespace-only query returns all spools.
     // The stream >> term loop skips whitespace, so terms will be empty for whitespace-only input.
     if (query.empty()) {
@@ -116,19 +128,33 @@ std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools,
         return spools;
     }
 
+    // A stale cache (inventory changed after precompute) must not mis-filter:
+    // the prebuilt strings are used only when they parallel the spool list.
+    // A non-empty mismatch is a caller bug - logged, not silent, or a real
+    // coherence problem reads as an untraceable perf regression. An empty
+    // vector is the plain no-precompute path (2-arg overload) and stays quiet.
+    std::vector<std::string> rebuilt;
+    if (searchables.size() != spools.size()) {
+        if (!searchables.empty()) {
+            spdlog::warn("[Spoolman] searchables size {} does not parallel {} spools - "
+                         "rebuilding inline",
+                         searchables.size(), spools.size());
+        }
+        rebuilt.reserve(spools.size());
+        for (const auto& spool : spools) {
+            rebuilt.push_back(build_searchable_text(spool));
+        }
+    }
+    const std::vector<std::string>& texts =
+        searchables.size() == spools.size() ? searchables : rebuilt;
+
     std::vector<SpoolInfo> result;
     result.reserve(spools.size());
 
-    for (const auto& spool : spools) {
-        // Build searchable text: "#ID vendor material filament_name location"
-        std::string searchable = "#" + std::to_string(spool.id) + " " + spool.vendor + " " +
-                                 spool.material + " " + spool.filament_name + " " + spool.location;
-
-        // Lowercase the searchable text
-        std::transform(searchable.begin(), searchable.end(), searchable.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-
+    for (size_t i = 0; i < spools.size(); ++i) {
         // All terms must match (AND logic): exact substring first, fuzzy fallback
+        const std::string& searchable = texts[i];
+
         bool all_match =
             std::all_of(terms.begin(), terms.end(), [&searchable](const std::string& t) {
                 // Fast path: exact substring match
@@ -140,11 +166,17 @@ std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools,
             });
 
         if (all_match) {
-            result.push_back(spool);
+            result.push_back(spools[i]);
         }
     }
 
     return result;
+}
+
+std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools,
+                                     const std::string& query) {
+    // No prebuilt strings: the searchables overload builds them inline.
+    return filter_spools(spools, query, {});
 }
 
 #if defined(ESP_PLATFORM)

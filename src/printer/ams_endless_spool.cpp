@@ -82,6 +82,15 @@ EndlessSpoolStatus endless_spool_status(const EndlessSpoolCapabilities& caps) {
         out.kind = EndlessSpoolStatusKind::Unknown;
         out.text = lv_tr("Backup spool switching state unknown");
         break;
+    case EndlessSpoolEnabled::OnWithoutBackup:
+        // The setting is on, so this is not Off - but as loaded right now the
+        // runout would still stop the print, and saying "it will switch"
+        // (the On sentence) is the false promise this state exists to retract.
+        out.kind = EndlessSpoolStatusKind::OnWithoutBackup;
+        out.text =
+            lv_tr("Auto-refill is on but no two lanes hold matching filament, so nothing will "
+                  "switch on runout");
+        break;
     }
 
     // A proper noun needs no translation, so attributing the behaviour costs no

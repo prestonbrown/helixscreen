@@ -587,12 +587,13 @@ lv_obj_t* dialog = Modal::show("print_cancel_confirm_modal");
 Modal::hide(dialog);
 
 // Confirmation dialog helper (helix::ui):
-modal_show_confirmation("Delete?", "Cannot undo.",
-    ModalSeverity::Warning, "Delete",
-    on_confirm_cb, on_cancel_cb, this);
+helix::ui::ConfirmOptions opts;   // on_cancel, cancel_text, on_dismiss, owner_token
+opts.on_cancel = on_cancel_cb;
+modal_confirm("Delete?", "Cannot undo.",
+    ModalSeverity::Warning, "Delete", on_confirm_cb, opts);
 
 // Alert (single OK button):
-modal_show_alert("Done", "Operation complete.");
+modal_alert("Done", "Operation complete.");
 
 // Subclassed modal:
 class MyModal : public Modal {

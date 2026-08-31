@@ -1,0 +1,14 @@
+# Test cases exempted from check_vacuous_tests.py's no-assertion signal.
+#
+# A case belongs here ONLY when it genuinely asserts through a channel Catch2
+# cannot count -- a sanitizer, or a crash that would abort the run. "I could not
+# think of an assertion" is not a reason; add the assertion instead.
+#
+# Format:  <exact test case name>  # why
+#
+# Nothing is exempted yet. The 50 no-assertion cases in the tree are real
+# findings, mostly "X does not crash" / "X is safe" tests that call a function
+# and assert nothing. Each should either grow a REQUIRE_NOTHROW (which Catch2
+# does count) or an assertion on the state the call was supposed to leave
+# behind. The VACUOUS_MAX ratchet in mk/tests.mk is what holds the line
+# meanwhile.

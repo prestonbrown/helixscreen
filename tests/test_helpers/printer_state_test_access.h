@@ -3,6 +3,7 @@
 
 #include "ui_update_queue.h"
 
+#include "capability_overrides.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "update_queue_test_access.h"
@@ -243,6 +244,9 @@ class PrinterStateTestAccess {
         ps.printer_type_.clear();
         ps.pre_print_option_set_ = PrePrintOptionSet();
         ps.z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+        // A latched external-persistence flag would hold FIRMWARE_MANAGED
+        // across every later test in the binary after a mid-test failure.
+        ps.z_offset_external_persistence_ = false;
         ps.auto_detected_bed_moves_ = false;
         ps.is_paused_ = false;
         ps.last_kinematics_.clear();
@@ -278,6 +282,14 @@ class PrinterStateTestAccess {
     /// e.g. a bed_mesh option with a custom adaptive_param name.
     static void set_option_set(PrinterState& ps, PrePrintOptionSet set) {
         ps.pre_print_option_set_ = std::move(set);
+    }
+
+    /// Pin a capability override without going through settings.json, for tests
+    /// that need one specific override arm. The config-load path has its own
+    /// coverage in test_capability_overrides.cpp; this is the wiring-level lever.
+    static void set_capability_override(PrinterState& ps, const std::string& name,
+                                        OverrideState state) {
+        ps.capability_overrides_.set_override(name, state);
     }
 
     /**

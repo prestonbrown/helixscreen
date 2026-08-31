@@ -1118,6 +1118,42 @@ void PrinterState::set_printer_type_sync(const std::string& type) {
     set_printer_type_internal(type);
 }
 
+void PrinterState::set_z_offset_external_persistence(const std::string& provider_name) {
+    // Discovery calls this from the WebSocket thread; the body touches
+    // subjects, so it runs on the main thread like every other setter here.
+    helix::async::call_method_ref(this, &PrinterState::set_z_offset_external_persistence_internal,
+                                  provider_name);
+}
+
+void PrinterState::clear_z_offset_external_persistence() {
+    helix::async::call_method(this, &PrinterState::clear_z_offset_external_persistence_internal);
+}
+
+void PrinterState::clear_z_offset_external_persistence_internal() {
+    if (!z_offset_external_persistence_) {
+        return;
+    }
+    z_offset_external_persistence_ = false;
+    spdlog::info("[PrinterState] No external z-offset persistence provider on rediscovery");
+    if (!printer_type_.empty()) {
+        set_printer_type_internal(printer_type_);
+    }
+}
+
+void PrinterState::set_z_offset_external_persistence_internal(const std::string& provider_name) {
+    if (z_offset_external_persistence_) {
+        return;
+    }
+    z_offset_external_persistence_ = true;
+    spdlog::info("[PrinterState] {} persists the z-offset externally - Save Z Offset stands down",
+                 provider_name.empty() ? std::string("An installed module") : provider_name);
+    // Re-resolve now; set_printer_type_internal also honors the flag on every
+    // later type change.
+    if (!printer_type_.empty()) {
+        set_printer_type_internal(printer_type_);
+    }
+}
+
 void PrinterState::set_printer_type_internal(const std::string& type) {
     // Determine what the z-cal strategy would be for this type so we can
     // skip redundant updates (auto-detect often confirms the saved type).
@@ -1133,6 +1169,14 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     } else {
         new_strategy = capabilities_state_.has_probe() ? ZOffsetCalibrationStrategy::PROBE_CALIBRATE
                                                        : ZOffsetCalibrationStrategy::ENDSTOP;
+    }
+
+    // An installed SET_GCODE_OFFSET wrapper persists the offset itself; the
+    // type-derived strategy would fold the gcode offset into the probe and the
+    // wrapper's boot gcode would re-apply it - runaway stacking
+    // (prestonbrown/helixscreen#1401).
+    if (z_offset_external_persistence_) {
+        new_strategy = ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
     }
 
     if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_) {

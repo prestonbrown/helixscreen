@@ -117,7 +117,6 @@ fi
 
 echo ""
 
-
 # Every staged path, including deletions - a removed .cpp can invalidate a doc
 # that cites it, so the doc gate has to see D as well as ACMR.
 QC_STAGED_ALL=""
@@ -132,7 +131,6 @@ fi
 VENV_PYTHON=".venv/bin/python"
 TRANS_FMT_PY="${VENV_PYTHON:-python3}"
 [ -x "$TRANS_FMT_PY" ] || TRANS_FMT_PY=python3
-
 
 # ====================================================================
 # Phase 1: Critical Checks
@@ -741,7 +739,7 @@ if [ -f "scripts/check_hardcoded_pixels.py" ]; then
     PIXELS_ARGS=""
   fi
   # shellcheck disable=SC2086
-  if python3 scripts/check_hardcoded_pixels.py --max-allowed 155 --summary $PIXELS_ARGS \
+  if python3 scripts/check_hardcoded_pixels.py --max-allowed 154 --summary $PIXELS_ARGS \
       >/tmp/hardcoded_pixels.out 2>&1; then
     tail -1 /tmp/hardcoded_pixels.out
   else
@@ -1263,6 +1261,26 @@ if [ "$STAGED_ONLY" = true ]; then
       EXIT_CODE=1
     fi
   fi
+
+  # Say what was actually verified. The build above compiles the WORKING TREE,
+  # which in --staged-only mode is not necessarily what is being committed: a
+  # rename touching five files and staged for four builds clean here and breaks
+  # in CI, because the fifth file is on disk but not in the commit. pre-push
+  # gates the real thing (it sweeps an isolated checkout of the pushed commit),
+  # so this is a warning rather than a failure - but an unqualified
+  # "Build successful" over unverified content is how the wrong thing gets
+  # trusted.
+  if [ "$STAGED_ONLY" = true ]; then
+    UNSTAGED_SRC="$(git diff --name-only --diff-filter=ACM -- \
+      '*.cpp' '*.cc' '*.c' '*.h' '*.hpp' '*.mm' 2>/dev/null || true)"
+    if [ -n "$UNSTAGED_SRC" ]; then
+      echo "⚠️  Build verified the WORKING TREE, not the staged commit"
+      echo "   These source files are modified but NOT staged:"
+      echo "$UNSTAGED_SRC" | sed 's/^/     /'
+      echo "   If the commit depends on them it will fail in CI. pre-push checks"
+      echo "   the pushed commit in isolation and will catch it before it leaves."
+    fi
+  fi
   echo ""
 fi
 
@@ -1580,7 +1598,7 @@ if [ -f "scripts/check_imperative_ui.py" ]; then
   # as deliberate pragmatism (the XML engine couldn't express it at the time), some
   # are plain mistakes — both are debt. The number may go DOWN (port a site, then
   # lower this baseline) but must never go up.
-  if python3 scripts/check_imperative_ui.py --max-allowed 379 --summary >/tmp/imperative_ui.out 2>&1; then
+  if python3 scripts/check_imperative_ui.py --max-allowed 367 --summary >/tmp/imperative_ui.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/imperative_ui.out
@@ -1721,6 +1739,73 @@ else
   section_time $SECTION_START
   echo ""
   echo "⚠️  check_timer_destructor_cancel.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🪟 Checking X11 macro collisions..."
+
+if [ -f "scripts/check_x11_macro_collisions.py" ]; then
+  # X11's <X.h> defines None, Success, Above and friends as bare macros. SDL's
+  # Linux headers reach X.h through GL, so an identifier sharing one of those
+  # names preprocesses into a numeric constant in any TU that reaches SDL - and
+  # only there. Our own SDL is built without X11, so no local build reproduces
+  # it; for v0.99.118 it surfaced only after the tag was cut, on the x86_64
+  # Debian and Raspberry Pi jobs (InvalidationScope::None, fixed in 3ec0c17be).
+  # Annotate a deliberate one `// X11_MACRO_OK: <reason>`.
+  if python3 scripts/check_x11_macro_collisions.py --max-allowed 0 >/tmp/x11_macros.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/x11_macros.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/x11_macros.out
+    echo "   Rename the identifier; X11's macro always wins."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_x11_macro_collisions.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🐉 Checking clang/GCC divergence..."
+
+# Deliberately NOT in --staged-only: this is seconds per TU, and a changed header
+# fans out to every TU that includes it (json_utils.h reaches 29), which is too
+# slow to sit on every commit. pre-push runs this file in full mode inside an
+# isolated checkout of the pushed commit, so the class is still caught before
+# anything leaves the machine - just not on each commit.
+#
+# The class: CI's Ubuntu job compiles with clang and -Werror while every build
+# here uses g++. v0.99.118 shipped a red build because GCC accepts a comparison
+# clang rejects (-Wtautological-type-limit-compare in json_utils.h, fixed in
+# 5d3ea331c). Nothing local could see it.
+if [ "$STAGED_ONLY" = false ] && [ -f "scripts/check_clang_diagnostics.py" ]; then
+  if python3 scripts/check_clang_diagnostics.py >/tmp/clang_diag.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/clang_diag.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/clang_diag.out
+    echo "   These are errors on CI's Ubuntu job even though g++ accepts them."
+    EXIT_CODE=1
+  fi
+elif [ "$STAGED_ONLY" = true ]; then
+  section_time $SECTION_START
+  echo ""
+  echo "⏭️  clang divergence: skipped in pre-commit (runs on push and in CI)"
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_clang_diagnostics.py not found — skipping"
 fi
 
 echo ""
@@ -2030,6 +2115,41 @@ echo ""
 }
 
 # ====================================================================
+# Assertions must be able to fail
+# ====================================================================
+qc_test_tautology() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🎯 Checking for assertions that cannot fail..."
+
+if [ -f "scripts/check_test_tautology.py" ]; then
+  # Ratchet, read from mk/tests.mk for the reason above. All findings are a
+  # set_X(literal) round-trip through an accessor pair that only stores and
+  # loads. May fall, never rise.
+  TAUTOLOGY_MAX=$(sed -n 's/^TAUTOLOGY_MAX ?= *\([0-9][0-9]*\).*/\1/p' mk/tests.mk | head -1)
+  if python3 scripts/check_test_tautology.py --summary --max-allowed "${TAUTOLOGY_MAX:-0}" >/tmp/test_tautology.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_tautology.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_tautology.out
+    echo "   Run: python3 scripts/check_test_tautology.py --list"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_test_tautology.py not found — skipping"
+fi
+
+echo ""
+
+return $EXIT_CODE
+}
+
+# ====================================================================
 # Tests must exercise shipped code, not a copy of it
 # ====================================================================
 qc_test_mirrors() {
@@ -2038,7 +2158,16 @@ SECTION_START=$(date +%s)
 echo -n "🪞 Checking for mirror tests..."
 
 if [ -f "scripts/check_test_mirrors.py" ]; then
-  if python3 scripts/check_test_mirrors.py --max-allowed 0 >/tmp/test_mirrors.out 2>&1; then
+  # Ratchet, not a clean-tree assertion. Signals 1 and 2 (shadow-include,
+  # mirror-comment) are at 0 and must stay there. Signal 3 (redefined-symbol)
+  # arrived with pre-existing findings; the number may fall, never rise.
+  #
+  # Read from mk/tests.mk rather than repeated here. A second hand-written copy
+  # of the same threshold is how it goes stale: main rewrote
+  # test_update_checker.cpp, the real count fell 18 -> 17, and a duplicated
+  # constant would have kept passing at 18 with a regression's worth of slack.
+  MIRROR_MAX=$(sed -n 's/^MIRROR_MAX ?= *\([0-9][0-9]*\).*/\1/p' mk/tests.mk | head -1)
+  if python3 scripts/check_test_mirrors.py --summary --max-allowed "${MIRROR_MAX:-0}" >/tmp/test_mirrors.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/test_mirrors.out
@@ -2124,7 +2253,11 @@ if [ -f "scripts/check_doc_refs.py" ]; then
     # Deliberately not auto-fixed: a "gone" or "blank" anchor, which
     # check_doc_refs.py reports without the regen hint. There the cited line's
     # own text changed, and no generator can decide whether the sentence around
-    # it is still true.
+    # it is still true. Nor are the two integrity failures — a committed
+    # doc_cite_anchors.tsv missing from the working tree, and the
+    # unresolved-path count over its `max-unresolved:` ceiling. Neither emits
+    # the hint, so neither reaches the regen below: one wants the file
+    # restored, the other wants a citation whose path actually resolves.
     if [ "$AUTO_FIX" = true ] && grep -q "Run: make regen-doc-links" /tmp/doc_refs.out; then
       python3 scripts/doc_cite_anchors.py >>/tmp/doc_refs.out 2>&1
       python3 scripts/gen_doc_links.py >>/tmp/doc_refs.out 2>&1
@@ -2431,22 +2564,40 @@ if [ -n "$SHELL_FILES" ]; then
     SHELL_ERRORS=0
     SHELL_BASELINED=0
     SHELL_FAILED_FILES=""
+    # This was the longest section of a full run at ~8s. The cost is the
+    # analysis itself, not process startup - one large script takes ~0.9s on
+    # its own, and batching every file into a single invocation only saved 8%
+    # because the analyser is single-threaded either way. Fanning the files out
+    # across $QC_JOBS takes the section to ~1.6s. Findings are written per file
+    # and replayed in list order, so the transcript stays deterministic.
+    #
+    # Keep comment lines in here from beginning with the word the linter
+    # reserves for its own directives - one that does is parsed as a malformed
+    # directive and fails the file.
+    SC_DIR="$QC_TMP/shellcheck"
+    mkdir -p "$SC_DIR"
+    printf '%s\n' $SHELL_FILES > "$SC_DIR/files"
+    # scripts/ is linted at warning severity minus the two excluded codes;
+    # config/ keeps the stricter default.
+    xargs -a "$SC_DIR/files" -P "${QC_JOBS:-4}" -I{} sh -c '
+      f="$1"
+      [ -f "$f" ] || exit 0
+      case "$f" in
+        scripts/*) flags="-S warning -e $3" ;;
+        *)         flags="" ;;
+      esac
+      out="$2/$(printf "%s" "$f" | tr "/" "_")"
+      shellcheck $flags "$f" > "$out.out" 2>/dev/null || : > "$out.bad"
+    ' _ {} "$SC_DIR" "$SHELLCHECK_SCRIPTS_EXCLUDE"
     for script in $SHELL_FILES; do
-      if [ -f "$script" ]; then
-        # scripts/ is linted at warning severity minus the two excluded
-        # codes; config/ keeps the stricter default.
-        case "$script" in
-          scripts/*) SC_FLAGS="-S warning -e $SHELLCHECK_SCRIPTS_EXCLUDE" ;;
-          *)         SC_FLAGS="" ;;
-        esac
-        if ! shellcheck $SC_FLAGS "$script" 2>/dev/null; then
-          if printf '%s\n' "$SHELLCHECK_BASELINE" | grep -Fxq "$script"; then
-            SHELL_BASELINED=$((SHELL_BASELINED + 1))
-          else
-            SHELL_ERRORS=$((SHELL_ERRORS + 1))
-            SHELL_FAILED_FILES="$SHELL_FAILED_FILES $script"
-          fi
-        fi
+      sc_stem="$SC_DIR/$(printf '%s' "$script" | tr '/' '_')"
+      [ -f "$sc_stem.bad" ] || continue
+      cat "$sc_stem.out"
+      if printf '%s\n' "$SHELLCHECK_BASELINE" | grep -Fxq "$script"; then
+        SHELL_BASELINED=$((SHELL_BASELINED + 1))
+      else
+        SHELL_ERRORS=$((SHELL_ERRORS + 1))
+        SHELL_FAILED_FILES="$SHELL_FAILED_FILES $script"
       fi
     done
     section_time $SECTION_START
@@ -2582,11 +2733,22 @@ echo ""
 # The checks are independent greps and linters and the script ran strictly
 # serially: 67s wall for 54s user + 15s sys, i.e. one core of 32.
 #
-# Only two sections write to the tree, and only under --auto-fix:
+# Four sections write to the tree; all but one only under --auto-fix:
 #   qc_phase2     clang-format -i + git add   (checks only, without --auto-fix)
 #   qc_xml_linter make regen-xml-schema       (always regenerates schema.json)
+#   qc_doc_refs   doc_cite_anchors.py + gen_doc_links.py
+#   qc_doc_links  gen_doc_links.py
 # Those run alone, first - a formatter rewriting a file while another check
 # greps it is a race. Everything else fans out over $QC_JOBS workers.
+#
+# The two doc sections have a second reason to be serial, and to be serial IN
+# THIS ORDER: they repair the SAME .md files, and mk/tools.mk calls the ordering
+# load-bearing - anchors rewrite the line number INSIDE the link text, so the
+# link generator must run after, or it derives a URL from a number that is about
+# to change. Fanned out they also raced at the byte level: gen_doc_links.py reads
+# a doc, then reopens it with open(doc,'w'), which truncates. A sibling reading
+# or writing the same file across that window loses the other's repair, or in the
+# worst case commits a truncated doc.
 #
 # Output is buffered per section and replayed in declaration order, so the
 # transcript matches the serial one apart from timings.
@@ -2637,7 +2799,7 @@ qc_run_buffered() {
 # qc_xml_linter always regenerates the schema; qc_phase2 only rewrites files
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
-if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
+if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2 qc_doc_refs qc_doc_links"; fi
 qc_workflow_submodules() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)
@@ -2664,7 +2826,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2693,6 +2855,7 @@ qc_trigger_re() {
                         echo '\.(cpp|c|h|mm)$' ;;
     qc_design_tokens)   echo '\.(cpp|h|xml)$' ;;
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
+    qc_test_tautology)  echo '^tests/|^include/|^src/|^scripts/check_test_tautology\.py$' ;;
     qc_test_widget_registry)
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
     qc_doc_refs)        echo '\.md$|^scripts/(check_doc_refs|doc_cite_anchors)\.py$|^scripts/doc_cite_anchors\.tsv$|^scripts/doc_cite_anchor_baseline\.txt$' ;;

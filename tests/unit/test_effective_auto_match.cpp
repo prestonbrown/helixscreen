@@ -49,6 +49,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "ams_backend_mock.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "settings_manager.h"
@@ -90,9 +91,9 @@ struct AutoMatchFixture : public LVGLTestFixture {
     /// The three shapes the rule has to tell apart. The mock models all three,
     /// so no case here is a re-implementation of the predicate.
     enum class Shape {
-        Editable,     ///< AFC / CFS / Happy Hare / QIDI: {true,true}, no pre-send
-        PreprintOnly, ///< Snapmaker U1: {true,false} + requires_preprint_send()
-        NeitherRoute, ///< ACE: {false,false}, no pre-send — no picker exists
+        Persistent,   ///< AFC / CFS / Happy Hare / QIDI: Native, writes a table
+        PreprintOnly, ///< Snapmaker U1: SnapmakerNative + requires_preprint_send()
+        NeitherRoute, ///< ACE: RemapStrategy::None — no picker exists
     };
 
     static AmsBackendMock* install_backend(Shape shape) {
@@ -100,27 +101,32 @@ struct AutoMatchFixture : public LVGLTestFixture {
         if (shape == Shape::PreprintOnly) {
             mock->set_snapmaker_mode(true);
         } else if (shape == Shape::NeitherRoute) {
-            mock->set_tool_changer_mode(true);
+            // Declared explicitly rather than borrowed from tool-changer mode,
+            // which used to answer "no route" only because the mock contradicted
+            // the real AmsBackendToolChanger. That mode now declares Native, as
+            // the backend it emulates always did.
+            mock->set_remap_strategy(AmsBackend::RemapStrategy::None);
         }
         auto* raw = mock.get();
         AmsState::instance().set_backend(std::move(mock));
 
         // Load-bearing: if the mock ever stopped modelling a shape, every
         // assertion below would still pass while testing only one branch. Pin
-        // BOTH inputs to the rule, not just editability — the whole point of
-        // these cases is that editability alone no longer decides.
-        const auto caps = raw->get_tool_mapping_capabilities();
+        // BOTH inputs to the rule — whether the pick can be carried out at all,
+        // and whether the route writes a table — because the second alone is
+        // what used to decide, wrongly.
         switch (shape) {
-        case Shape::Editable:
-            REQUIRE(caps.editable);
-            REQUIRE_FALSE(raw->requires_preprint_send());
+        case Shape::Persistent:
+            REQUIRE(helix::printer::can_remap(*raw));
+            REQUIRE(helix::printer::remap_is_persistent(raw->get_remap_strategy()));
             break;
         case Shape::PreprintOnly:
-            REQUIRE_FALSE(caps.editable);
+            REQUIRE(helix::printer::can_remap(*raw));
+            REQUIRE_FALSE(helix::printer::remap_is_persistent(raw->get_remap_strategy()));
             REQUIRE(raw->requires_preprint_send());
             break;
         case Shape::NeitherRoute:
-            REQUIRE_FALSE(caps.editable);
+            REQUIRE_FALSE(helix::printer::can_remap(*raw));
             REQUIRE_FALSE(raw->requires_preprint_send());
             break;
         }
@@ -165,7 +171,7 @@ TEST_CASE_METHOD(AutoMatchFixture,
                  "PrintSelectDetailView::effective_auto_match: editable backend honors the setting",
                  "[auto_match][print_select][detail_view][ams]") {
     helix::ui::PrintSelectDetailView view;
-    install_backend(Shape::Editable);
+    install_backend(Shape::Persistent);
 
     set_auto_color_map(false);
     CHECK_FALSE(view.effective_auto_match());
@@ -174,26 +180,28 @@ TEST_CASE_METHOD(AutoMatchFixture,
     CHECK(view.effective_auto_match());
 }
 
-TEST_CASE_METHOD(AutoMatchFixture,
-                 "AmsBackend::honors_user_tool_mapping: the pre-print route counts",
+TEST_CASE_METHOD(AutoMatchFixture, "can_remap: the pre-print route counts",
                  "[auto_match][ams][snapmaker]") {
     // The machinery, asserted where it is NOT held (see the seed case below).
     // The Snapmaker U1's mapping card really is non-editable — its remap goes out
     // through build_preprint_gcode(), not set_tool_mapping() — and it honors
-    // every pick the user makes anyway. A predicate that reads caps.editable and
-    // stops says the opposite of the truth about it, which is what produced a
-    // stale "remap not supported" toast on a printer that was honoring the remap.
+    // every pick the user makes anyway. A predicate that reads only the
+    // table-writing route says the opposite of the truth about it, which is what
+    // produced a stale "remap not supported" toast on a printer that was
+    // honoring the remap.
     //
     // Stated as the discrimination the rule has to make: two backends that BOTH
-    // report editable=false must answer DIFFERENTLY.
+    // write no persistent table must answer DIFFERENTLY.
     auto* preprint = install_backend(Shape::PreprintOnly);
-    REQUIRE(preprint->honors_user_tool_mapping());
+    REQUIRE_FALSE(helix::printer::remap_is_persistent(preprint->get_remap_strategy()));
+    REQUIRE(helix::printer::can_remap(*preprint));
 
     auto* neither = install_backend(Shape::NeitherRoute);
-    REQUIRE_FALSE(neither->honors_user_tool_mapping());
+    REQUIRE_FALSE(helix::printer::remap_is_persistent(neither->get_remap_strategy()));
+    REQUIRE_FALSE(helix::printer::can_remap(*neither));
 
-    auto* editable = install_backend(Shape::Editable);
-    REQUIRE(editable->honors_user_tool_mapping());
+    auto* persistent = install_backend(Shape::Persistent);
+    REQUIRE(helix::printer::can_remap(*persistent));
 }
 
 TEST_CASE_METHOD(AutoMatchFixture,
@@ -228,12 +236,12 @@ TEST_CASE_METHOD(AutoMatchFixture,
                  "PrintSelectDetailView::effective_auto_match: the hold is scoped to the "
                  "pre-print route only",
                  "[auto_match][print_select][detail_view][ams]") {
-    // The hold must not spill onto editable backends — they have followed the
-    // setting all along and nothing about this branch may change that. A hold
-    // written one level up (inside honors_user_tool_mapping, or as a blanket
-    // pin) would fail here.
+    // The hold must not spill onto table-writing backends — they have followed
+    // the setting all along and nothing about this branch may change that. A
+    // hold written one level up (inside can_remap, or as a blanket pin) would
+    // fail here.
     helix::ui::PrintSelectDetailView view;
-    install_backend(Shape::Editable);
+    install_backend(Shape::Persistent);
 
     set_auto_color_map(false);
     CHECK_FALSE(view.effective_auto_match());
@@ -266,3 +274,66 @@ TEST_CASE_METHOD(AutoMatchFixture,
 // (AmsState::routed_tool_colors -> AmsBackend::get_tool_mapping). The match
 // survives only where it answers the right question — pre-print, in the detail
 // view above, deciding what mapping to SEND. Its coverage there is what remains.
+
+// ---------------------------------------------------------------------------
+// AmsState::seed_tool_mappings — the ONE place the seeding rule lives.
+//
+// Three surfaces resolve the tool->slot seed: the mapping card, the mapping
+// modal, and the print-select detail view. Each used to re-assemble the rule by
+// hand from three AmsState inputs (slots, routing, "is auto-match on?"), and
+// they had already drifted - two cleared firmware mappings before colour
+// matching and one did not, and two read the RAW auto-colour setting where the
+// third read the effective, backend-aware predicate.
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(AutoMatchFixture,
+                 "AmsState::seed_tool_mappings uses the EFFECTIVE predicate, not the raw setting",
+                 "[ams][auto_match][seed]") {
+    // A pre-print-send backend pins auto-match on regardless of the stored
+    // preference (see kPreprintSeedFollowsUserSetting). A caller reading
+    // SettingsManager directly would seed positionally here and disagree with
+    // every other surface for the same print.
+    install_backend(Shape::PreprintOnly);
+    set_auto_color_map(false);
+    REQUIRE(AmsState::instance().effective_auto_match()); // pinned on despite the setting
+
+    // Colours chosen so positional and colour-matched answers differ.
+    std::vector<helix::GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {1, 0x0000FF, "PLA"}};
+    std::vector<helix::AvailableSlot> slots = {
+        {0, 0, 0x0000FF, "PLA", false, -1}, // blue
+        {1, 0, 0xFF0000, "PLA", false, -1}, // red
+    };
+
+    auto seeded = AmsState::instance().seed_tool_mappings(tools, slots);
+    REQUIRE(seeded.size() == 2);
+
+    // Colour match: T0 (red) -> slot 1 (red), T1 (blue) -> slot 0 (blue).
+    // Positional would have given 0 and 1, which is what reading the raw
+    // setting produces and is the bug this pins.
+    CHECK(seeded[0].mapped_slot == 1);
+    CHECK(seeded[1].mapped_slot == 0);
+}
+
+TEST_CASE_METHOD(AutoMatchFixture,
+                 "AmsState::seed_tool_mappings honours an explicit toggle for the modal",
+                 "[ams][auto_match][seed]") {
+    // The mapping modal lets the user flip auto-colour live before committing,
+    // so it supplies its own value rather than the persisted one.
+    install_backend(Shape::Persistent);
+    set_auto_color_map(true);
+
+    std::vector<helix::GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {1, 0x0000FF, "PLA"}};
+    std::vector<helix::AvailableSlot> slots = {
+        {0, 0, 0x0000FF, "PLA", false, -1},
+        {1, 0, 0xFF0000, "PLA", false, -1},
+    };
+
+    auto matched = AmsState::instance().seed_tool_mappings(tools, slots, true);
+    REQUIRE(matched.size() == 2);
+    CHECK(matched[0].mapped_slot == 1); // colour matched
+
+    auto positional = AmsState::instance().seed_tool_mappings(tools, slots, false);
+    REQUIRE(positional.size() == 2);
+    CHECK(positional[0].mapped_slot == 0); // tool 0 keeps its own head
+    CHECK(positional[1].mapped_slot == 1);
+}

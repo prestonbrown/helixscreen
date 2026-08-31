@@ -17,6 +17,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "error_event.h"
+#include "firmware_routing.h"
 #include "toolchanger_addon.h"
 
 class IMoonrakerAPI;
@@ -241,6 +242,26 @@ class AmsBackend {
     [[nodiscard]] virtual std::optional<int> slot_for_extruder(int extruder_idx) const {
         (void)extruder_idx;
         return std::nullopt;
+    }
+
+    /**
+     * @brief The firmware's DEFAULT tool -> physical head map.
+     *
+     * What the printer would do with a file if nobody remapped anything. NOT the
+     * live map (AmsSystemInfo::tool_to_slot_map carries that, and it is not even
+     * uniformly available - an AFC tracks it, a U1 freezes it at 1:1 while its
+     * real map lives in print_task_config.extruder_map_table).
+     *
+     * The default is lane-per-tool, which is every backend except two: tool N
+     * owns lane N, with no upper bound. Override only when the hardware genuinely
+     * disagrees - a bounded-head machine (Snapmaker U1) or one that publishes an
+     * arbitrary table (FlashForge AD5X IFS).
+     *
+     * Adding a third shape must touch only the new backend. A constant in shared
+     * code instead of this question is what sent every AFC tool above 3 to lane 0.
+     */
+    [[nodiscard]] virtual helix::FirmwareRouting firmware_default_routing() const {
+        return helix::FirmwareRouting::identity();
     }
 
     /**
@@ -527,6 +548,21 @@ class AmsBackend {
      * @return PathTopology enum value
      */
     [[nodiscard]] virtual PathTopology get_topology() const = 0;
+
+    /**
+     * @brief Whether per-lane tubes converge at a combiner on the print head.
+     *
+     * True for passthrough-selector systems: a linear selector routes each
+     * lane's OWN tube (unlike ERCF/Tradrack, whose selector is the
+     * convergence), so the merge is delegated to a combiner bolted just
+     * above the toolhead and the shared path below it is centimetres. The
+     * path canvas composes this with the topology: each lane tube is drawn
+     * the full height into a hub box hugging the toolhead, instead of a
+     * selector's single output line or a mid-machine merge unit.
+     */
+    [[nodiscard]] virtual bool hub_on_toolhead() const {
+        return false;
+    }
 
     /**
      * @brief Get the path topology for a specific unit
@@ -1780,39 +1816,6 @@ class AmsBackend {
     // ========================================================================
 
     /**
-     * @brief Get tool mapping capabilities for this backend
-     *
-     * Returns information about whether tool mapping is supported and
-     * whether the configuration can be modified via the UI.
-     *
-     * @return Capabilities struct with supported/editable flags
-     */
-    [[nodiscard]] virtual helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const {
-        return {false, false, ""}; // Default: not supported
-    }
-
-    /**
-     * @brief Can this backend carry out an explicit user tool->lane choice?
-     *
-     * The capability question generic code should ask instead of reading
-     * get_tool_mapping_capabilities().editable, which answers only the
-     * set_tool_mapping() half. A backend whose remap goes out through its
-     * firmware-native pre-print send (requires_preprint_send) reports
-     * editable=false and honors every pick the user makes — so editability alone
-     * says the opposite of the truth about it.
-     *
-     * Non-virtual on purpose: it is derived from two virtuals a backend already
-     * answers, so there is nothing for a subclass to get wrong or forget.
-     *
-     * @note Reaches through both virtuals; do not hold a backend lock.
-     */
-    [[nodiscard]] bool honors_user_tool_mapping() const {
-        return helix::printer::honors_user_tool_mapping(get_tool_mapping_capabilities(),
-                                                        requires_preprint_send());
-    }
-
-    /**
      * @brief Get current tool-to-slot mapping
      *
      * Returns the mapping from tool number to slot index.
@@ -1953,6 +1956,46 @@ class AmsBackend {
      */
     [[nodiscard]] virtual RemapStrategy get_remap_strategy() const {
         return RemapStrategy::None;
+    }
+
+    /**
+     * @brief Is the declared remap strategy usable RIGHT NOW?
+     *
+     * The axis get_remap_strategy() cannot express: a backend can be BUILT to
+     * remap and not be able to yet, because the firmware object it writes
+     * through has not been discovered. This is THE place readiness lives — a
+     * second gate elsewhere is precisely how two answers to one question drifted
+     * apart before, with get_remap_strategy() saying Native unconditionally
+     * while a separate capability query said "not supported".
+     *
+     * Default true: a backend with no discovery step is ready on construction.
+     * Override only where a real gate exists (AD5X IFS: `_IFS_VARS`).
+     *
+     * Ask it through helix::printer::can_remap(), not directly — readiness on
+     * its own is true for every backend that never had a route to begin with.
+     *
+     * @note Backends whose gate lives under a mutex must take it here.
+     */
+    [[nodiscard]] virtual bool remap_ready() const {
+        return true;
+    }
+
+    /**
+     * @brief Does this backend own a tool->slot table worth building a
+     *        ToolTopology from?
+     *
+     * A DIFFERENT question from remap capability, and the two part company on
+     * shipped hardware. The Snapmaker U1 carries out every remap the user picks,
+     * through its pre-print send, and owns no such table: its extruders are
+     * independent, so ToolState's extruder enumeration is the correct model and
+     * an AMS topology would be a fiction. Answer this only about the table.
+     *
+     * Default false. Override true where get_tool_mapping() returns a real
+     * per-tool table — the lane-multiplexing backends, and the tool changer
+     * whose table is identity but real.
+     */
+    [[nodiscard]] virtual bool owns_tool_mapping_table() const {
+        return false;
     }
 
     /**

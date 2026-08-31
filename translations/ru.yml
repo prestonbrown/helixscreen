@@ -1,7 +1,6 @@
 locale: ru
 translations:
   ' (timed out)': ' (время ожидания истекло)'
-  ' elapsed · ': ' истёк · '
   ' frames': ' кадров'
   ' left': ' осталось'
   '"%s" failed to load': Не удалось загрузить «%s»
@@ -168,6 +167,7 @@ translations:
   All extruder temperatures with progress bars: 'Температуры всех экструдеров с индикаторами'
   All fields are required: Все поля обязательны для заполнения
   All plugins loaded successfully: Все плагины успешно загружены
+  Allow: 'Разрешить'
   Allow Home Screen Editing: 'Разрешить редактирование главного экрана'
   Allow cold load/unload: Разрешить загрузку/выгрузку без нагрева
   Allow display to sleep during active prints: Разрешить спящий режим дисплея во время
@@ -181,6 +181,7 @@ translations:
   Ambient Transfer: Теплообмен с окружающей средой
   AmsIdentify: Определить AMS
   An accelerometer was detected on your printer.: На вашем принтере обнаружен акселерометр.
+  An app on your network is asking to connect to this printer.: 'Приложение в вашей сети запрашивает подключение к этому принтеру.'
   An error occurred during calibration.: Во время калибровки произошла ошибка.
   An error occurred during filament loading.: Произошла ошибка при загрузке филамента.
   An error occurred during measurement.: Произошла ошибка при измерении.
@@ -211,6 +212,8 @@ translations:
   Apply Changes: Применить изменения
   Applying Changes: Применение изменений
   Applying...: Применение...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Вы уверены,
     что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит
@@ -233,6 +236,7 @@ translations:
   Auto-poll for weight updates: Автоопрос обновлений веса
   Auto-probe or manually check screw heights: Автозондирование или ручная проверка
     высоты винтов
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Автоматический рендер видео
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: Автоудаление работает только с локальным
@@ -606,6 +610,7 @@ translations:
   Connecting...: Подключение...
   Connection: Соединение
   Connection Failed: Ошибка подключения
+  Connection Request: 'Запрос на подключение'
   Connection Stability: Стабильность подключения
   Connection failed: Ошибка подключения
   Connection failed to {}:{}: Не удалось подключиться к {}:{}
@@ -642,6 +647,7 @@ translations:
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Не
     удалось проанализировать макрос PRINT_START. Некоторые параметры печати могут
     быть недоступны.
+  Could not answer the connection request: 'Не удалось ответить на запрос подключения'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Не удалось проверить статус веб-камеры.\nПроверьте подключение принтера."
   Could not forget device: Не удалось забыть устройство
@@ -726,6 +732,7 @@ translations:
   Delete {}?: Удалить {}?
   'Delta:': 'Дельта:'
   Density: Плотность
+  Deny: 'Отклонить'
   Deploy: Развернуть
   Describe the issue (optional): Опишите проблему (необязательно)
   Detailed: Подробно
@@ -737,6 +744,7 @@ translations:
   Dev: Разработка
   Dev channel requires dev_url in config: Dev-канал требует dev_url в конфиге
   Device: Устройство
+  Device connected: 'Устройство подключено'
   Device name: Имя устройства
   Device name is required: Требуется название устройства
   'Device: ': 'Устройство: '
@@ -939,6 +947,7 @@ translations:
   Failed to analyze PRINT_START macro: Не удалось проанализировать макрос PRINT_START
   Failed to apply limits: Не удалось применить ограничения
   Failed to apply settings: Не удалось применить настройки
+  Failed to archive spool: ''
   Failed to build raster data: Не удалось построить растровые данные
   'Failed to cancel: {}': 'Не удалось отменить: {}'
   'Failed to clear print state: {}': 'Не удалось очистить состояние печати: {}'
@@ -1352,6 +1361,7 @@ translations:
     {} (имеется {})'
   Invalid status response from printer: Недопустимый ответ статуса от принтера
   Issue description: Описание проблемы
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: Это новая катушка
   Jammed at the Toolhead: Замятие в печатающей головке
   Job Queue: Очередь заданий
@@ -1494,7 +1504,6 @@ translations:
   MACRO DEVICES: МАКРО-УСТРОЙСТВА
   MAIN POWER BUTTON: ГЛАВНАЯ КНОПКА ПИТАНИЯ
   MANUAL: ВРУЧНУЮ
-  MAPPING: СОПОСТАВЛЕНИЕ
   MB RAM: МБ ОЗУ
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Мониторинг температуры MCU, хоста
@@ -1730,6 +1739,7 @@ translations:
   No slot currently matches.: 'Сейчас нет подходящего слота.'
   No spool assigned: Катушка не назначена
   No spools found — tap to retry: Катушки не найдены — нажмите для повтора
+  No spools match your search: ''
   No tape detected in printer: В принтере не обнаружена лента
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
@@ -2543,6 +2553,7 @@ translations:
   'Spool #{}': 'Катушка #{}'
   Spool Info: Информация о катушке
   Spool Weight (g): Вес катушки (г)
+  Spool archived: ''
   Spool created successfully: Катушка успешно создана
   Spool deleted: Катушка удалена
   Spool motor: Мотор катушки
@@ -3185,6 +3196,7 @@ translations:
   '{} filament sensors available': 'Доступно датчиков филамента: {}'
   '{} filament • {}': '{} филамента • {}'
   '{} heater turned off': Нагреватель {} выключен
+  '{} is asking to connect to this printer.': '{} запрашивает подключение к этому принтеру.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену.'
   '{} is not set up on this printer': ''

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if HELIX_HAS_QIDI
 
 #include "ams_backend_qidi.h"
 
@@ -191,7 +192,6 @@ AmsBackendQidi::AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* clie
     system_info_.type_name = "QIDI Box"; // i18n: do not translate - product name
     system_info_.total_slots = NUM_SLOTS;
     system_info_.supports_bypass = false;
-    system_info_.supports_tool_mapping = true;
     system_info_.supports_purge = false;
     system_info_.tip_method = TipMethod::CUT;
 
@@ -964,11 +964,6 @@ AmsSystemInfo AmsBackendQidi::get_system_info() const {
     return system_info_;
 }
 
-helix::printer::ToolMappingCapabilities AmsBackendQidi::get_tool_mapping_capabilities() const {
-    // QIDI Box maps tools to slots via save_variables value_t<N> assignment.
-    return {true, true, "Tool-to-slot mapping via save_variables"};
-}
-
 std::vector<int> AmsBackendQidi::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return system_info_.tool_to_slot_map;
@@ -1555,3 +1550,5 @@ AmsError AmsBackendQidi::stop_drying(int unit) {
     return execute_gcode("SET_HEATER_TEMPERATURE HEATER=heater_box" + std::to_string(box) +
                          " TARGET=0");
 }
+
+#endif // HELIX_HAS_QIDI

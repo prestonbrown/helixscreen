@@ -3,6 +3,7 @@
 
 #include "gcode_geometry_builder.h"
 #include "gcode_parser.h"
+#include "gcode_selection_style.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -1275,6 +1276,8 @@ TEST_CASE("Geometry Builder: moving RibbonGeometry preserves every member",
     src.strip_layer_index = {0, 1};
     src.color_palette = {0x111111, 0x222222, 0x333333, 0x444444, 0x555555,
                          0x666666, 0x777777, 0x888888, 0x999999, 0xAAAAAA};
+    src.object_runs = {ObjectRun{0, 12, 3}, ObjectRun{12, 6, 5}};
+    src.layer_object_run_ranges = {{0, 1}, {1, 1}};
 
     SECTION("move construction") {
         RibbonGeometry dst(std::move(src));
@@ -1291,6 +1294,12 @@ TEST_CASE("Geometry Builder: moving RibbonGeometry preserves every member",
         CHECK(dst.strip_color_index[1] == 9);
         CHECK(dst.strip_color(1) == 0xAAAAAA);
         CHECK(dst.strip_layer_index.size() == 2);
+        // Dropping the run tables on a move would leave the GLES shell pass with
+        // nothing to draw, which looks exactly like the feature not existing.
+        REQUIRE(dst.object_runs.size() == 2);
+        CHECK(dst.object_runs[1].object_index == 5);
+        REQUIRE(dst.layer_object_runs(1).count == 1);
+        CHECK(dst.layer_object_runs(1).first->vertex_offset == 12);
     }
 
     SECTION("move assignment") {
@@ -1306,5 +1315,319 @@ TEST_CASE("Geometry Builder: moving RibbonGeometry preserves every member",
         CHECK(dst.strip_color_index[1] == 9);
         CHECK(dst.strip_color(1) == 0xAAAAAA);
         CHECK(dst.strip_layer_index.size() == 2);
+        REQUIRE(dst.object_runs.size() == 2);
+        CHECK(dst.object_runs[1].object_index == 5);
+        REQUIRE(dst.layer_object_runs(1).count == 1);
+        CHECK(dst.layer_object_runs(1).first->vertex_offset == 12);
     }
+}
+
+// ============================================================================
+// Per-object vertex runs (GLES selection silhouette)
+// ============================================================================
+//
+// The 3D shell pass needs to draw one object's triangles out of a VBO that is
+// grouped per LAYER and carries no object identity. RibbonGeometry::object_runs is
+// that indirection, and it is only correct if every run indexes its own layer's
+// VBO exactly. A run that is off by one strip draws part of the neighbouring
+// object's silhouette; a run past the end reads past the buffer.
+
+namespace {
+
+/// One extrusion segment, deliberately placed 5mm from the previous segment's end
+/// so the builder never shares vertices between them. Sharing changes how many
+/// strips a segment emits (the start cap is skipped), which would make the
+/// per-object strip proportions below untestable.
+ToolpathSegment run_test_segment(int slot, float z, int16_t object_index,
+                                 FeatureType feature = FeatureType::Unknown) {
+    ToolpathSegment seg;
+    const float x = static_cast<float>(slot % 40) * 4.0f;
+    const float y = static_cast<float>(slot / 40) * 4.0f;
+    seg.start = glm::vec3(x, y, z);
+    seg.end = glm::vec3(x + 1.0f, y, z);
+    seg.is_extrusion = true;
+    seg.extrusion_amount = 1.0f;
+    seg.width = 0.4f;
+    seg.object_name_index = object_index;
+    seg.feature_type = feature;
+    return seg;
+}
+
+SimplificationOptions no_merge_options() {
+    SimplificationOptions opts;
+    // Merging is object-aware, but leaving it on makes the strip count per object
+    // depend on collinearity rather than on the run bookkeeping under test.
+    opts.enable_merging = false;
+    return opts;
+}
+
+ParsedGCodeFile make_run_fixture(const std::vector<std::vector<int16_t>>& layers_objects,
+                                 const std::vector<std::string>& object_names) {
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(200, 200, 20);
+    gcode.object_name_table = object_names;
+
+    int slot = 0;
+    float z = 0.2f;
+    for (const auto& objects : layers_objects) {
+        Layer layer;
+        layer.z_height = z;
+        for (int16_t obj : objects) {
+            layer.segments.push_back(run_test_segment(slot++, z, obj));
+        }
+        gcode.layers.push_back(layer);
+        gcode.total_segments += objects.size();
+        z += 0.2f;
+    }
+    return gcode;
+}
+
+} // namespace
+
+TEST_CASE("Geometry Builder: object runs cover each object's vertices with no gaps or overlap",
+          "[gcode][geometry][objectruns]") {
+    // Interleaved EXCLUDE_OBJECT blocks within a layer: A A B B A. That must
+    // produce three runs per layer, not two, because the trailing A is not
+    // adjacent to the leading A in the VBO.
+    const std::vector<int16_t> pattern{0, 0, 1, 1, 0};
+    ParsedGCodeFile gcode = make_run_fixture({pattern, pattern}, {"objA", "objB"});
+
+    GeometryBuilder builder;
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    REQUIRE(geometry.layer_object_run_ranges.size() == 2);
+    REQUIRE_FALSE(geometry.object_runs.empty());
+
+    for (size_t layer = 0; layer < 2; ++layer) {
+        auto runs = geometry.layer_object_runs(layer);
+        REQUIRE(runs.count == 3);
+
+        const size_t layer_vertices = geometry.layer_strip_ranges[layer].second * 6;
+        REQUIRE(layer_vertices > 0);
+
+        // Object identity, in file order.
+        CHECK(runs.first[0].object_index == 0);
+        CHECK(runs.first[1].object_index == 1);
+        CHECK(runs.first[2].object_index == 0);
+
+        // No gaps, no overlap, and the whole layer is covered: every segment in
+        // this fixture belongs to an object, so the runs must partition the VBO.
+        size_t expected_offset = 0;
+        for (const auto& run : runs) {
+            CHECK(run.vertex_offset == expected_offset);
+            CHECK(run.vertex_count % 6 == 0); // strip-aligned
+            // Offsets stay inside THIS layer's VBO — they are not indices into
+            // the global vertex array.
+            CHECK(static_cast<size_t>(run.vertex_offset) + run.vertex_count <= layer_vertices);
+            expected_offset += run.vertex_count;
+        }
+        CHECK(expected_offset == layer_vertices);
+
+        // Two segments of A, two of B, one of A — identical segments, so the first
+        // two runs must be exactly twice the third.
+        CHECK(runs.first[0].vertex_count == runs.first[1].vertex_count);
+        CHECK(runs.first[0].vertex_count == 2 * runs.first[2].vertex_count);
+    }
+}
+
+TEST_CASE("Geometry Builder: an object run longer than uint16 splits at a strip boundary",
+          "[gcode][geometry][objectruns]") {
+    // One object, one layer, enough contiguous segments that its vertex stretch
+    // cannot fit in ObjectRun::vertex_count. Truncating instead of splitting would
+    // silently drop most of the silhouette.
+    std::vector<int16_t> single_object(400, int16_t{0});
+    ParsedGCodeFile gcode = make_run_fixture({single_object}, {"objA"});
+
+    GeometryBuilder builder;
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    const size_t layer_vertices = geometry.layer_strip_ranges[0].second * 6;
+    REQUIRE(layer_vertices > MAX_RUN_VERTICES);
+
+    auto runs = geometry.layer_object_runs(0);
+    REQUIRE(runs.count >= 2);
+
+    size_t expected_offset = 0;
+    for (const auto& run : runs) {
+        CHECK(run.object_index == 0);
+        CHECK(run.vertex_count <= MAX_RUN_VERTICES);
+        CHECK(run.vertex_count % 6 == 0);
+        CHECK(run.vertex_offset == expected_offset);
+        expected_offset += run.vertex_count;
+    }
+    // Split, not truncated: the pieces still cover the whole stretch.
+    CHECK(expected_offset == layer_vertices);
+}
+
+TEST_CASE("Geometry Builder: the run-count guard leaves the run table empty",
+          "[gcode][geometry][objectruns][slow]") {
+    // Alternating objects every segment defeats run coalescing entirely, so the
+    // run count tracks the segment count. Past MAX_OBJECT_RUNS the side table
+    // stops being cheap relative to the geometry it indexes, and collection is
+    // abandoned so the renderer behaves exactly as it did before runs existed.
+    std::vector<int16_t> alternating(MAX_OBJECT_RUNS + 64, int16_t{0});
+    for (size_t i = 0; i < alternating.size(); ++i) {
+        alternating[i] = static_cast<int16_t>(i % 2);
+    }
+    ParsedGCodeFile gcode = make_run_fixture({alternating}, {"objA", "objB"});
+
+    GeometryBuilder builder;
+    builder.set_budget_tube_sides(4); // smallest tube: keeps this fixture's mesh affordable
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    // The geometry itself is still built and still renders.
+    REQUIRE_FALSE(geometry.vertices.empty());
+    REQUIRE_FALSE(geometry.strips.empty());
+
+    // But no runs at all — not a truncated table, which would silhouette an
+    // arbitrary prefix of the plate.
+    CHECK(geometry.object_runs.empty());
+    CHECK(geometry.layer_object_run_ranges.empty());
+    CHECK(geometry.layer_object_runs(0).empty());
+}
+
+TEST_CASE("Geometry Builder: a file with no exclude-object metadata allocates no run table",
+          "[gcode][geometry][objectruns]") {
+    // Most files have no EXCLUDE_OBJECT_DEFINE at all. They must not pay a byte
+    // for the silhouette they can never show.
+    std::vector<int16_t> unowned(8, int16_t{-1});
+    ParsedGCodeFile gcode = make_run_fixture({unowned, unowned}, {});
+    REQUIRE(gcode.object_name_table.empty());
+
+    GeometryBuilder builder;
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    REQUIRE_FALSE(geometry.vertices.empty());
+    CHECK(geometry.object_runs.empty());
+    CHECK(geometry.object_runs.capacity() == 0);
+    CHECK(geometry.layer_object_run_ranges.empty());
+    CHECK(geometry.layer_object_run_ranges.capacity() == 0);
+    CHECK(geometry.layer_object_runs(0).empty());
+}
+
+TEST_CASE("Geometry Builder: every feature type of a selected object joins a run",
+          "[gcode][geometry][objectruns]") {
+    // The runs are what render_selection_tag() draws, and the rim is derived from
+    // the boundary of the tagged region. Restricting collection to walls (the
+    // selection::halo_feature() set — OuterWall, OverhangWall, Unknown) leaves the
+    // interior untagged on any ;TYPE-annotated file, which is most of them: the
+    // top face reads as a hole, every real hole gets its own ring, and the
+    // silhouette fragments when the object is viewed from above.
+    const std::vector<FeatureType> features{FeatureType::OuterWall,   FeatureType::InnerWall,
+                                            FeatureType::SolidInfill, FeatureType::TopSurface,
+                                            FeatureType::Bridge,      FeatureType::SparseInfill,
+                                            FeatureType::Support,     FeatureType::BottomSurface};
+
+    ParsedGCodeFile gcode;
+    gcode.global_bounding_box.min = glm::vec3(0, 0, 0);
+    gcode.global_bounding_box.max = glm::vec3(200, 200, 20);
+    gcode.object_name_table = {"objA"};
+
+    Layer layer;
+    layer.z_height = 0.2f;
+    int slot = 0;
+    for (FeatureType f : features) {
+        layer.segments.push_back(run_test_segment(slot++, 0.2f, 0, f));
+    }
+    gcode.layers.push_back(layer);
+    gcode.total_segments = features.size();
+
+    GeometryBuilder builder;
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    // One object, one layer, every segment adjacent in the VBO: the runs must
+    // coalesce into a single run spanning the whole layer.
+    auto runs = geometry.layer_object_runs(0);
+    REQUIRE(runs.count == 1);
+    CHECK(runs.first[0].object_index == 0);
+    CHECK(runs.first[0].vertex_offset == 0);
+
+    const size_t layer_vertices = geometry.layer_strip_ranges[0].second * 6;
+    REQUIRE(layer_vertices > 0);
+    CHECK(runs.first[0].vertex_count == layer_vertices);
+
+    // Non-wall features carry almost all of those vertices: seven of the eight
+    // segments above are outside halo_feature(), only OuterWall inside it.
+    // Restoring the filter still yields runs.count == 1, so vertex_count against
+    // the layer total is the assertion that bites — it drops to an eighth of it.
+    size_t wall_only_segments = 0;
+    for (FeatureType f : features) {
+        if (selection::halo_feature(f)) {
+            ++wall_only_segments;
+        }
+    }
+    REQUIRE(wall_only_segments < features.size());
+}
+
+TEST_CASE("Geometry Builder: segments outside any object do not join a run",
+          "[gcode][geometry][objectruns]") {
+    // Purge lines, prime blobs and wipe towers carry object_name_index == -1.
+    // Folding them into the neighbouring run would paint them white along with
+    // the selected object.
+    ParsedGCodeFile gcode = make_run_fixture({{0, -1, 0}}, {"objA"});
+
+    GeometryBuilder builder;
+    SimplificationOptions opts = no_merge_options();
+    RibbonGeometry geometry = builder.build(gcode, opts);
+
+    auto runs = geometry.layer_object_runs(0);
+    REQUIRE(runs.count == 2);
+    CHECK(runs.first[0].object_index == 0);
+    CHECK(runs.first[1].object_index == 0);
+    // A gap where the unowned segment sits — the second run does not start where
+    // the first one ended.
+    CHECK(runs.first[1].vertex_offset >
+          static_cast<uint32_t>(runs.first[0].vertex_offset + runs.first[0].vertex_count));
+    const size_t layer_vertices = geometry.layer_strip_ranges[0].second * 6;
+    CHECK(static_cast<size_t>(runs.first[1].vertex_offset) + runs.first[1].vertex_count <=
+          layer_vertices);
+}
+
+// ===========================================================================
+// AABB helpers + the tube-expansion constants (DRY-6)
+// ===========================================================================
+
+TEST_CASE("default_plate_bbox is the 200x200 fallback for an empty box", "[gcode][aabb]") {
+    // Callers substitute this when a box is empty, because the +/-inf sentinels
+    // of an empty AABB turn into NaN offsets in compute_auto_fit() and every
+    // projected point becomes garbage.
+    const auto bb = helix::gcode::AABB::default_plate_bbox();
+    CHECK_FALSE(bb.is_empty());
+    CHECK(bb.min == glm::vec3(0.0f, 0.0f, 0.0f));
+    CHECK(bb.max == glm::vec3(200.0f, 200.0f, 0.0f));
+}
+
+TEST_CASE("expand_by grows both directions on every axis", "[gcode][aabb]") {
+    helix::gcode::AABB bb;
+    bb.min = glm::vec3(10.0f, 20.0f, 30.0f);
+    bb.max = glm::vec3(11.0f, 21.0f, 31.0f);
+    bb.expand_by(2.0f);
+    CHECK(bb.min == glm::vec3(8.0f, 18.0f, 28.0f));
+    CHECK(bb.max == glm::vec3(13.0f, 23.0f, 33.0f));
+}
+
+TEST_CASE("tube_half_diagonal is the exact worst-case reach off the centre line",
+          "[gcode][geometry_builder]") {
+    // A 0.4mm tube reaches 0.2mm off the centre line, and on a diagonal that
+    // lands in two axes at once: 0.2 * sqrt(2).
+    CHECK(helix::gcode::tube_half_diagonal(0.4f) == Catch::Approx(0.4f * 0.5f * 1.41421356f));
+    CHECK(helix::gcode::tube_half_diagonal(0.0f) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("quantization slack preserves the historical 1.5x margin", "[gcode][geometry_builder]") {
+    // The bounds used to be expanded by max_tube_width * 1.5f under a comment
+    // claiming sqrt(2). Naming the geometry must not quietly re-tune the number
+    // that has been protecting every build: the product still has to be 1.5x.
+    const float width = 0.4f;
+    const float margin = helix::gcode::tube_half_diagonal(width) * helix::gcode::kQuantBoundsSlack;
+    CHECK(margin == Catch::Approx(width * 1.5f).epsilon(1e-5));
+    // And it must stay strictly larger than the exact reach, or the bounds stop
+    // being conservative and vertices can quantize out of range.
+    CHECK(margin > helix::gcode::tube_half_diagonal(width));
 }

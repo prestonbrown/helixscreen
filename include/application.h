@@ -30,6 +30,7 @@ class ActionPromptManager;
 class AmsErrorBridge;
 class GcodeErrorRouter;
 class GcodeNarrationRouter;
+class LanClientAuthRouter;
 class PrinterDiscovery;
 } // namespace helix
 namespace helix::ui {
@@ -203,6 +204,12 @@ class Application {
     // owns a SEPARATE notify_gcode_response handler key. Does NOT surface errors.
     std::unique_ptr<helix::GcodeNarrationRouter> m_gcode_narration_router;
 
+    // Answers the firmware's LAN pairing prompt with the touchscreen, on
+    // printers whose firmware brokers pairing that way (Snapmaker U1 and
+    // siblings). Owns the authorization-notification registrations, so like
+    // its sibling routers it must be reset before the MoonrakerClient.
+    std::unique_ptr<helix::LanClientAuthRouter> m_lan_client_auth_router;
+
     // Observes AmsState's action subject and routes AmsAction::ERROR edges to
     // m_recovery_presenter. Holds a reference INTO the presenter, so the
     // presenter must outlive it — declared after m_recovery_presenter (destructs
@@ -273,7 +280,8 @@ class Application {
     // reconnect.
     bool m_type_mismatch_shown = false;
     // Steps the deferred hardware-setup offer will run if accepted. Held here
-    // because modal_show_confirmation() carries a single void* user_data.
+    // for launch_deferred_hardware_setup()'s timer to consume from the
+    // instance when the user accepts.
     std::vector<helix::wizard::StepId> m_pending_hardware_setup_steps;
     // Guards the firmware z-offset persistence enablement (see
     // include/z_offset_persistence.h) so it is sent at most once per app session.

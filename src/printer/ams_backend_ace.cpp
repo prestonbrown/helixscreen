@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if HELIX_HAS_ACE
 
 /**
  * @file ams_backend_ace.cpp
@@ -559,10 +560,6 @@ AmsError AmsBackendAce::set_tool_mapping(int tool_number, int slot_index) {
     (void)tool_number;
     (void)slot_index;
     return AmsErrorHelper::not_supported("Tool mapping");
-}
-
-helix::printer::ToolMappingCapabilities AmsBackendAce::get_tool_mapping_capabilities() const {
-    return {false, false, ""};
 }
 
 std::vector<int> AmsBackendAce::get_tool_mapping() const {
@@ -1753,3 +1750,5 @@ void AmsBackendAce::clear_slot_override(int slot_index) {
 
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
 }
+
+#endif // HELIX_HAS_ACE

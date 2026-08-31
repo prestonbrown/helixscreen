@@ -988,15 +988,23 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     // Reset counter
     total_notifications.store(0);
 
-    // Wait for more notifications from simulation
-    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    // Wait for more notifications from simulation. The mock dispatches every
+    // NOTIFICATION_INTERVAL_TICKS physics ticks (~1s), so the window has to
+    // span at least one full dispatch interval — a fixed sub-second sleep
+    // always lands in the gap between two of them and observes nothing.
+    REQUIRE(wait_for_count(total_notifications, 1, 3000));
 
     mock.stop_temperature_simulation();
 
     int final_count = total_notifications.load();
-    // Should have received notifications, but from only 3 active subscriptions
-    // The exact count depends on simulation timing, but should be > 0
-    REQUIRE(final_count >= 0);
+    // Should have received notifications, but from only 3 active subscriptions.
+    // The exact count depends on simulation timing; that it is non-zero does
+    // not. The assertion was `>= 0`, which an int can never fail.
+    //
+    // This is now a real ordering assertion where it used to be decoration. If
+    // it ever flakes, that is a finding about subscription-cancel timing - do
+    // not weaken it back to `>= 0`.
+    REQUIRE(final_count > 0);
 
     // Force reconnect - note: mock doesn't store callbacks, so reconnect won't
     // re-invoke on_connected or re-dispatch initial state. This is a mock limitation.

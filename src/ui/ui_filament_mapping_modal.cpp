@@ -6,6 +6,7 @@
 #include "ui_swatch.h"
 #include "ui_utils.h"
 
+#include "ams_state.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -269,7 +270,7 @@ void FilamentMappingModal::on_row_tapped(int tool_index) {
     const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
     const auto& mapping = mappings_[static_cast<size_t>(tool_index)];
 
-    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool_index);
+    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool.tool_index);
 
     FilamentSlotPicker::Selection current{mapping.mapped_slot, mapping.mapped_backend,
                                           mapping.is_auto};
@@ -293,20 +294,22 @@ void FilamentMappingModal::on_slot_selected(int tool_index,
     mapping.mapped_backend = selection.backend_index;
     mapping.is_auto = selection.is_auto;
 
-    mapping.material_mismatch = false;
+    // A hand-picked lane is a new pairing, so the old warnings are stale. Clear
+    // them first: "auto", and a lane that is no longer present, both leave no
+    // pairing to classify at all.
+    mapping.set_mismatches({});
     if (selection.is_auto) {
         mapping.reason = helix::ToolMapping::MatchReason::AUTO;
     } else {
         const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
-        const auto* slot = find_mapped_slot(mapping);
-        if (slot && !tool.material.empty() && !slot->material.empty() &&
-            !helix::FilamentMapper::materials_match(tool.material, slot->material)) {
-            mapping.material_mismatch = true;
+        if (const auto* slot = find_mapped_slot(mapping)) {
+            mapping.set_mismatches(helix::FilamentMapper::classify_mismatches(tool, *slot));
         }
     }
 
-    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}", tool_index,
-                 selection.is_auto, selection.slot_index, selection.backend_index);
+    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}",
+                 tool_info_[static_cast<size_t>(tool_index)].tool_index, selection.is_auto,
+                 selection.slot_index, selection.backend_index);
 
     // Rebuild UI to reflect changes
     rebuild_rows();
@@ -365,17 +368,10 @@ void FilamentMappingModal::on_toggle_changed(bool auto_color) {
 }
 
 void FilamentMappingModal::recalculate_mappings() {
-    if (auto_color_map_) {
-        // Color matching: clear firmware mappings so they don't override color matches
-        auto slots_for_matching = available_slots_;
-        for (auto& s : slots_for_matching) {
-            s.current_tool_mapping = -1;
-        }
-        mappings_ = helix::FilamentMapper::compute_defaults(tool_info_, slots_for_matching);
-    } else {
-        // Positional assignment (T0→slot 0, T1→slot 1, etc.)
-        mappings_ = helix::FilamentMapper::use_current_assignments(tool_info_, available_slots_);
-    }
+    // The modal owns a live toggle the user can flip before committing, so it
+    // supplies its own answer rather than the persisted one.
+    mappings_ =
+        AmsState::instance().seed_tool_mappings(tool_info_, available_slots_, auto_color_map_);
 }
 
 } // namespace helix::ui

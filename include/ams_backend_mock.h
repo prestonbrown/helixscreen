@@ -204,10 +204,50 @@ class AmsBackendMock : public AmsBackend {
     [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
 
     // Tool mapping
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
+    /// The APPLIED routing, gated the way the emulated firmware gates it.
+    ///
+    /// In Snapmaker mode that gate is AmsBackendSnapmaker::task_routing(): empty
+    /// until a task is configured, because the U1's idle table is a firmware
+    /// default and not a statement about any file. Returning the attachment map
+    /// there published a confident [0,1,2,3] the real machine never publishes,
+    /// and FilamentMapper::effective_routing() takes any non-empty answer as the
+    /// truth - so every --test run resolved each tool to its own head index and
+    /// rehearsed a branch the hardware does not take.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
+    /// Four fixed heads in Snapmaker mode, lane-per-tool otherwise. The
+    /// inherited identity agrees for T0-T3 and diverges from T4 up, which is
+    /// exactly where a U1 file with extended tools lands.
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
+    /// SnapmakerNative in Snapmaker mode, otherwise whatever
+    /// set_remap_strategy() was given — Native by default, because every other
+    /// mode stands in for a backend that owns its tool->slot table and writes it
+    /// directly (AFC, CFS, Happy Hare, QIDI, the tool changer).
+    ///
+    /// It used to answer None for all of those while its retired capability
+    /// query answered "editable", which is the contradiction this pair of knobs
+    /// exists to stop. The cost was not cosmetic: every `can this backend remap`
+    /// gate was dead under --test, so the remap picker those five backends reach
+    /// could not be opened in a mock run at all.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override;
+    [[nodiscard]] bool remap_ready() const override;
+    [[nodiscard]] bool owns_tool_mapping_table() const override;
+
+    /// Emulate a backend that declares a different route. The shape worth
+    /// reaching for is RemapStrategy::None — ACE, or a single-extruder printer
+    /// with no AMS — which no mock MODE produces, and which several tests need
+    /// in order to cover the "card shown, nothing to tap" branch.
+    void set_remap_strategy(RemapStrategy strategy);
+
+    /// Emulate a backend built to remap through a firmware object it has not
+    /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.
+    /// Reached in a mock run with HELIX_MOCK_REMAP_READY=0.
+    ///
+    /// Note that ifs_mode_ does NOT set this — the mock AD5X declares itself
+    /// ready, where the real AmsBackendAd5xIfs answers has_ifs_vars_. That is
+    /// deliberate (a mock that starts unusable makes a poor demo) and it is why
+    /// the knob exists: the pre-discovery shape has to be asked for.
+    void set_remap_ready(bool ready);
+
     // Mirrors get_remap_strategy(): when emulating Snapmaker U1 the controller
     // must run the pre-print send path.
     [[nodiscard]] bool requires_preprint_send() const override;
@@ -285,6 +325,19 @@ class AmsBackendMock : public AmsBackend {
      * @param status New status
      */
     void force_slot_status(int slot_index, SlotStatus status);
+
+    /**
+     * @brief Force a slot's remaining filament length in metres (for testing)
+     *
+     * remaining_length_m is firmware-derived (the CFS insert probe produces it),
+     * so set_slot_info deliberately does not copy it - the same discipline as
+     * status. Stage it here instead when a test needs a measured or sentinel
+     * length (100 = never measured, 255 = failed probe).
+     *
+     * @param slot_index Slot to modify
+     * @param remaining_m Remaining length in metres
+     */
+    void force_slot_remaining(int slot_index, float remaining_m);
 
     /**
      * @brief Set per-slot error state (for testing error visualization)
@@ -513,11 +566,25 @@ class AmsBackendMock : public AmsBackend {
      * @brief Set Snapmaker U1 SnapSwap mode (4 slots, PARALLEL, NON-editable
      *        tool mapping, SnapmakerNative remap strategy).
      *
-     * Mirrors AmsBackendSnapmaker so the editable FilamentMappingCard hides and
-     * the print-detail color_swatches_row renders the two-tone chips, exactly as
-     * on the device. Test/dev only (gated by HELIX_MOCK_AMS=snapmaker).
+     * Mirrors AmsBackendSnapmaker: the FilamentMappingCard still renders its
+     * two-tone chips, but the mapping is not editable inline and a tap opens
+     * the native remap picker, exactly as on the device. Test/dev only (gated
+     * by HELIX_MOCK_AMS=snapmaker).
      */
     void set_snapmaker_mode(bool enabled);
+
+    /**
+     * @brief Configure (or clear) the simulated Snapmaker print task.
+     *
+     * The U1 publishes a routing only while a task is set up; idle it holds a
+     * default table nobody may act on. Enabling Snapmaker mode starts with no
+     * task, which is the idle machine.
+     *
+     * @param routing Index = logical tool, value = physical head. EMPTY clears
+     *        the task. On a U1 head N owns lane N, so these are also the slot
+     *        indices HELIX_MOCK_REMAP names.
+     */
+    void set_snapmaker_print_task(std::vector<int> routing);
 
     /**
      * @brief Seed per-tool→slot firmware mappings from a "tool:slot" CSV.
@@ -625,6 +692,15 @@ class AmsBackendMock : public AmsBackend {
      * @brief Initialize mock state with sample data
      */
     void init_mock_data();
+
+    /**
+     * @brief set_snapmaker_print_task() for callers already holding mutex_.
+     *
+     * Derives extruders_used from the routing, because that is what it means on
+     * the printer: a head is "used" when some tool in the task prints from it,
+     * and all-false is the firmware's own "no task configured" signal.
+     */
+    void set_snapmaker_task_locked(std::vector<int> routing);
 
     /**
      * @brief Emit event to registered callback
@@ -789,6 +865,15 @@ class AmsBackendMock : public AmsBackend {
     bool htlf_toolchanger_mode_ = false; ///< Simulate HTLF + Toolchanger mixed topology
     bool torture_mode_ = false;          ///< Simulate 5 units / 16 lanes / 4 shared extruders
     bool snapmaker_mode_ = false; ///< Simulate Snapmaker U1 (4 slots, PARALLEL, non-editable)
+    /// Declared remap route outside Snapmaker mode. Native by default: every
+    /// non-Snapmaker mode stands in for a table-owning backend.
+    RemapStrategy remap_strategy_ = RemapStrategy::Native;
+    bool remap_ready_ = true; ///< Cleared to emulate AD5X IFS before `_IFS_VARS`
+    /// The emulated print_task_config, in the firmware's own two fields so
+    /// AmsBackendSnapmaker::task_routing() can gate on them unchanged. Both
+    /// empty = no task, which is how Snapmaker mode starts.
+    std::vector<bool> snapmaker_extruders_used_;
+    std::vector<int> snapmaker_extruder_map_;
     std::vector<PathTopology> unit_topologies_; ///< Per-unit topology storage
 
     // Endless spool simulation state

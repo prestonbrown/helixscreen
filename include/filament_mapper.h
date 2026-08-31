@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "firmware_routing.h"
+
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -40,19 +42,25 @@ struct GcodeToolInfo {
 /// This is an intentional abstraction boundary — callers convert from
 /// ams_types.h SlotInfo to keep FilamentMapper free of LVGL dependency.
 struct AvailableSlot {
-    int slot_index;                ///< Global slot index (unique within backend, used for mapping)
-    int backend_index;             ///< Which AMS backend (0 = primary)
-    uint32_t color_rgb;            ///< Loaded filament color (0xRRGGBB)
-    std::string material;          ///< Loaded material type
-    bool is_empty;                 ///< True if slot has no filament
-    int current_tool_mapping;      ///< What tool this slot is currently mapped to (-1 = none)
-    int unit_index = 0;            ///< Unit index within the backend
-    int local_slot_index = 0;      ///< Slot index within its unit (for display labels)
-    std::string unit_display_name; ///< Unit name for display (empty = single-unit backend)
+    int slot_index;           ///< Global slot index (unique within backend, used for mapping)
+    int backend_index;        ///< Which AMS backend (0 = primary)
+    uint32_t color_rgb;       ///< Loaded filament color (0xRRGGBB)
+    std::string material;     ///< Loaded material type
+    bool is_empty;            ///< True if slot has no filament
+    int current_tool_mapping; ///< What tool this slot is currently mapped to (-1 = none)
+    int unit_index = 0;       ///< Unit index within the backend
+    int local_slot_index = 0; ///< Slot index within its unit (for display labels)
+    /// Unit name for display (empty = single-unit backend).
+    /// Default-initialised, like every field added after this struct's original
+    /// positional initializers: an aggregate initializer that stops short of a
+    /// member with no default warns under -Wmissing-field-initializers, and
+    /// there are 200-odd such call sites in the mapper tests alone. The value
+    /// is the same one aggregate initialisation already gave it.
+    std::string unit_display_name = {};
     /// Comma-separated hex codes for multi-color spools (companion to color_rgb;
     /// empty = single-color). Mirrors SlotInfo::multi_color_hexes. Kept last so
     /// existing positional aggregate initializers stay valid.
-    std::string multi_color_hexes;
+    std::string multi_color_hexes = {};
 
     /// Remaining filament on this lane in grams, or -1 when unknown.
     /// Mirrors SlotInfo's sentinel: -1 means NO OPINION, never zero. Only a
@@ -68,6 +76,17 @@ struct AvailableSlot {
     }
 };
 
+/// What is wrong with pairing one tool with one lane.
+///
+/// Produced by FilamentMapper::classify_mismatches() and adopted whole, so a
+/// seeding path cannot pick up one warning and quietly miss the other - which
+/// is exactly how the six hand-written copies of the material rule would have
+/// drifted the moment a second flag was added beside it.
+struct MismatchFlags {
+    bool material_mismatch = false;
+    bool color_mismatch = false;
+};
+
 /// Result of mapping a single tool
 struct ToolMapping {
     int tool_index = -1;            ///< G-code tool number
@@ -76,12 +95,42 @@ struct ToolMapping {
     bool material_mismatch = false; ///< True if slot material != expected material
     bool is_auto = false;           ///< True if using "auto" (no explicit mapping)
 
+    /// Adopt a classified pairing's warnings. Both flags or neither.
+    void set_mismatches(const MismatchFlags& flags) {
+        material_mismatch = flags.material_mismatch;
+        color_mismatch = flags.color_mismatch;
+    }
+
     enum class MatchReason {
         FIRMWARE_MAPPING, ///< Matched via current firmware tool-to-slot mapping
         COLOR_MATCH,      ///< Matched by closest color
         AUTO,             ///< No explicit mapping, let firmware decide
     };
     MatchReason reason = MatchReason::AUTO;
+
+    /// True when the lane will print in a colour the file did not ask for.
+    ///
+    /// NOTHING READS THIS TODAY. The chip's surround derives the same answer at
+    /// render time from the lane it just resolved, deliberately: a verdict stored
+    /// here outlives the lane it judged, because refresh_slot_data() replaces the
+    /// slot vector and rebuilds with the mappings untouched. So this field is
+    /// written for symmetry with material_mismatch and nothing else - the pair is
+    /// adopted or not as a unit, which is what makes "take material, forget
+    /// colour" unexpressible at a call site (see set_mismatches()).
+    ///
+    /// Whoever folds preflight_validator.cpp's near-twin onto classify_mismatches()
+    /// will want it. Until then, do not add a consumer that reads it instead of
+    /// classifying: that is the staleness above, reintroduced.
+    ///
+    /// Advisory either way, and deliberately NOT part of the card's warning
+    /// triangle: the stacked chip already shows both colours side by side, so an
+    /// alarm there would fire on most prints and devalue the triangle that flags
+    /// what the user cannot see.
+    ///
+    /// Kept last rather than beside material_mismatch for the reason every other
+    /// late field in this header is: the tests positionally aggregate-initialise
+    /// this struct, and a bool inserted mid-struct silently rebinds them.
+    bool color_mismatch = false;
 };
 
 /// Pure logic class for computing filament-to-tool mappings.
@@ -95,8 +144,25 @@ class FilamentMapper {
                                                      const std::vector<AvailableSlot>& slots);
 
     /// Check if two colors are within matching tolerance.
-    /// Uses weighted RGB distance (luminance-weighted) with tolerance of 40 units.
+    /// Uses weighted RGB distance (luminance-weighted) with tolerance of
+    /// COLOR_MATCH_TOLERANCE (50) units.
     static bool colors_match(uint32_t color_a, uint32_t color_b);
+
+    /// The warnings that apply to pairing @p tool with the lane it resolved to.
+    ///
+    /// ONE rule for every seeding path. Callers keep their own policy - which
+    /// lane to assign, and whether to refuse it - and ask this only what is
+    /// wrong with a pairing they have already made. A tool with no resolved
+    /// lane never reaches here, which is how "no lane chosen yet" stays out of
+    /// the warning set without a guard at each call site.
+    ///
+    /// Colour is the stricter of the two about what it will claim: it needs the
+    /// file to have stated a colour (GcodeToolInfo::color_known) and the lane to
+    /// hold filament, because an empty lane's reported colour is stale and its
+    /// own empty marker already names the real problem. It uses colors_match(),
+    /// the same predicate auto-matching uses, so a lane the matcher would have
+    /// picked never draws a warning.
+    static MismatchFlags classify_mismatches(const GcodeToolInfo& tool, const AvailableSlot& slot);
 
     /// Find the best matching slot for a given color and material.
     /// Skips non-empty slots with incompatible materials.
@@ -105,12 +171,18 @@ class FilamentMapper {
                                            const std::string& target_material,
                                            const std::vector<AvailableSlot>& slots);
 
-    /// Map tools using only current firmware assignments.
-    /// Tools with no firmware assignment become AUTO (unmapped).
-    /// Used when "keep current assignments" setting is enabled.
-    static std::vector<ToolMapping>
-    use_current_assignments(const std::vector<GcodeToolInfo>& tools,
-                            const std::vector<AvailableSlot>& slots);
+    /// Seed each tool to the head the firmware would route it to anyway, i.e.
+    /// @p routing.head(tool). A tool whose head is not among @p slots, or which
+    /// the routing leaves unmapped, becomes AUTO. Used when auto-color-map is OFF.
+    ///
+    /// Pairs on the tool's own head, NOT its position in @p tools. The two agree
+    /// only for a dense tool set; a sparse one (T0 and T2, no T1) walks the slot
+    /// list densely under index pairing and lands T2 on lane 1, which
+    /// identity_filtered_remap() then emits as a real remap because it is not
+    /// the firmware identity.
+    static std::vector<ToolMapping> use_current_assignments(const std::vector<GcodeToolInfo>& tools,
+                                                            const std::vector<AvailableSlot>& slots,
+                                                            const FirmwareRouting& routing = {});
 
     /// Find tool indices that have no resolved mapping (auto with no match).
     /// These are the tools that would trigger a color mismatch warning.
@@ -133,7 +205,8 @@ class FilamentMapper {
     /// passes the resolved bool).
     static std::vector<ToolMapping> effective_mappings(const std::vector<GcodeToolInfo>& tools,
                                                        const std::vector<AvailableSlot>& slots,
-                                                       bool auto_color_map);
+                                                       bool auto_color_map,
+                                                       const FirmwareRouting& routing = {});
 
     /// Render convenience: effective_mappings + resolve_display_colors, scattered
     /// into a DENSE vector indexed by logical tool number (size = max
@@ -235,22 +308,19 @@ class FilamentMapper {
     /// Case-insensitive material comparison
     static bool materials_match(const std::string& a, const std::string& b);
 
-    /// Firmware-default physical head a logical tool routes to with no remap.
-    ///
-    /// Tools 0..3 map to their identity head; anything else (extended tools on a
-    /// toolchanger, 4..31 on the Snapmaker U1) falls back to head 0, matching the
-    /// firmware default map [0,1,2,3,0,0,...].
-    static int default_head_for_tool(int tool);
-
     /// The genuine remaps in @p mappings, keyed tool -> physical head.
     ///
     /// Identity mappings are omitted: the firmware already routes a tool to
-    /// default_head_for_tool(tool), so emitting them would be noise. Entries with
-    /// no real slot assignment (mapped_slot < 0) are skipped.
+    /// @p routing.head(tool), so emitting them would be noise. Entries with no
+    /// real slot assignment (mapped_slot < 0) are skipped.
+    ///
+    /// @p routing MUST be the same map the seed used, or a lane-per-tool
+    /// identity reads as a genuine remap and gets emitted.
     ///
     /// Single source of truth for PrintSelectDetailView::get_effective_remap()
     /// and the preprint-gcode builders, which used to each carry their own copy.
-    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings);
+    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings,
+                                                      const FirmwareRouting& routing = {});
 
     /// Format a slot label: "Turtle 1 · Slot 2: PLA" or "Slot 2: PLA"
     static std::string format_slot_label(const AvailableSlot& slot);
@@ -269,6 +339,15 @@ class FilamentMapper {
     /// not, calling the second unit's first bay "Slot 5".
     static int mapped_lane_display_number(const ToolMapping& mapping,
                                           const std::vector<AvailableSlot>& slots);
+
+    /// Resolve a mapping to the AvailableSlot it points at, or nullptr.
+    /// nullptr covers all three "no lane to name" cases: an explicit "auto"
+    /// (the firmware picks at print time), an unmapped tool, and a mapping that
+    /// outlived its lane (unit unplugged between the mapping and the render).
+    /// The returned pointer aliases `slots` and is invalidated by any mutation
+    /// of that vector.
+    [[nodiscard]] static const AvailableSlot*
+    resolve_mapped_slot(const ToolMapping& mapping, const std::vector<AvailableSlot>& slots);
 
     static constexpr int COLOR_MATCH_TOLERANCE = 50;
 };

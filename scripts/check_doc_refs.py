@@ -139,6 +139,10 @@ def prune_dirs(root, dirs, extra=()):
 # reproducing it. Add to this list rather than rewording a doc: the citations
 # are correct, the files simply do not exist yet at check time.
 EXEMPT_SUBSTRINGS = (
+    # Metasyntactic. scripts/CLAUDE.md documents the citation format itself
+    # and has to show the shape; 'path/to/' cannot collide with a real file
+    # the way a bare 'file.cpp' would (src/system/config_storage_file.cpp).
+    'path/to/',
     'superpowers/',        # docs/superpowers/ is local-only working space; nothing
                            # there is tracked; refs to it are not resolvable on a
                            # fresh clone
@@ -666,7 +670,7 @@ def check_anchors(targets, devel=True):
     scanned = set(anchors.default_targets())
     scoped = [t for t in targets if t in scanned]
     if not scoped:
-        return [], {'in_place': 0}
+        return [], anchors.new_stats()
     findings, _fresh, _blanks, _rewrites, stats = anchors.run(
         scoped, stored, devel=devel, write=False)
     return findings, stats
@@ -931,13 +935,18 @@ def main():
         # `make regen-doc-links` re-derives the number. What lands here is
         # either auto-repairable (stale/unanchored/orphan) or a line whose text
         # genuinely changed, which no generator can decide for a human.
+        # Same lazy import as check_anchors, for the same cycle reason.
+        import doc_cite_anchors as anchors
         anchor_findings, anchor_stats = check_anchors(targets, devel=devel)
         if anchor_findings is None:
-            print('⚠️  Citation anchors: %s absent — line numbers unverified'
-                  % 'scripts/doc_cite_anchors.tsv')
+            # A tree that never adopted the anchors is inert; a tree that
+            # COMMITS the sidecar and does not have it on disk is a hole, and
+            # this branch used to print a ⚠️ and pass either way. `rm
+            # scripts/doc_cite_anchors.tsv` turned the whole check green.
+            code, message = anchors.missing_sidecar_report()
+            print(message)
+            exit_code = exit_code or code
         elif anchor_findings:
-            # Same lazy import as check_anchors, for the same cycle reason.
-            import doc_cite_anchors as anchors
             hard = [f for f in anchor_findings if f.kind in anchors.HARD_KINDS]
             print('❌ Citation anchors out of sync (%d):' % len(anchor_findings))
             for f in sorted(anchor_findings):
@@ -953,6 +962,20 @@ def main():
         else:
             print('✅ Citation anchors: %d cited lines still resolve'
                   % anchor_stats['in_place'])
+
+        # The unresolved-PATH ratchet. A citation whose path resolves to
+        # nothing is skipped by every anchor check and deferred to check_refs
+        # above — which passes a bare basename the moment ANY file in the tree
+        # shares it, submodules included. So the class is both unanchorable and
+        # unreported, and only the count holds it. It was enforced solely
+        # inside doc_cite_anchors.py's own --check, whose one caller (`make
+        # check-doc-anchors`) nothing invokes, so on the path CI actually takes
+        # a new dead-path citation produced no finding at all.
+        if anchor_findings is not None:
+            over = anchors.ceiling_breach(anchor_stats)
+            if over:
+                anchors.report_over_ceiling(*over)
+                exit_code = 1
 
     if do_index:
         unindexed, present = check_index()

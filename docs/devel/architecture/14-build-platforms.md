@@ -67,7 +67,7 @@ actually trips on.
 `make -j`, `make test`, and `make test-run` build disjoint artifacts. `make -j` (the default `all`
 target, [`mk/rules.mk:123`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
 splash, watchdog, the binary, stripping, and the optional Bluetooth plugin. `make test`
-([`mk/tests.mk:397`](../../../mk/tests.mk#L397)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk:400`](../../../mk/tests.mk#L400)) builds it and
+([`mk/tests.mk:408`](../../../mk/tests.mk#L408)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk:411`](../../../mk/tests.mk#L411)) builds it and
 runs it as Catch2 shards across 3×cores processes with the `~[.] ~[slow]` filter. The split is a
 speed feature and a trap: after a C++ change, rebuild the artifact you are about to use — running a
 stale `helix-tests` against new code, or a stale `helix-screen` against new XML, silently verifies
@@ -88,7 +88,7 @@ itself with bounded `-j$(NPROC)` when it detects unlimited `-j`, so parallelism 
 machine. And a `build/.build-target` marker auto-cleans when the architecture changes
 ([`mk/rules.mk:49`](../../../mk/rules.mk#L49)), so you cannot mix ARM and x86 objects in the one shared native `build/` dir —
 cross builds are already isolated (`build/pi/`, `build/ad5m/`, ... via `BUILD_SUBDIR`,
-[`mk/cross.mk:704`](../../../mk/cross.mk#L704)). `make help` prints the target menu; `make help-all` adds the test, cross, and
+[`mk/cross.mk:741`](../../../mk/cross.mk#L741)). `make help` prints the target menu; `make help-all` adds the test, cross, and
 remote groups.
 
 ### The platform matrix
@@ -99,7 +99,7 @@ font tiers, and `-DHELIX_HAS_*` / `-DHELIX_PLATFORM_*` gates that code checks at
 
 | `PLATFORM_TARGET` | Device / arch | Backend | Notes |
 |-------------------|---------------|---------|-------|
-| `native` (default) | Desktop, macOS/Linux | SDL | Dev panels default ON (`Makefile:486`); `ENABLE_REMOTE_CONTROL` defaults ON everywhere except a packaging build (`Makefile:463`) |
+| `native` (default) | Desktop, macOS/Linux | SDL | Dev panels default ON (`Makefile:498`); `ENABLE_REMOTE_CONTROL` defaults ON everywhere except a packaging build (`Makefile:463`) |
 | `pi`, `pi-fbdev`, `pi-both` | Raspberry Pi aarch64 | DRM+GLES / fbdev | `-both` compiles once, links DRM + fbdev ([`mk/pi-dual-link.mk`](../../../mk/pi-dual-link.mk)) |
 | `pi32` (+`-fbdev`/`-both`) | Pi armhf, **Sonic Pad** | DRM / fbdev | Same binary serves any armhf Debian-ish box |
 | `x86`, `x86-fbdev`, `x86-both` | x86_64 Debian SBCs | DRM+GLES / fbdev | Built in a Bullseye container for glibc 2.31 compat |
@@ -190,13 +190,13 @@ Read in this order; about 25 minutes total.
 1. `Makefile:1` — the header contract: always `make`, never invoke the compiler directly, and what the build system handles for you.
 2. [`mk/rules.mk:78`](../../../mk/rules.mk#L78) — the two-phase `all` target: unlimited-`-j` detection and re-invocation; then `:123` for what a build actually gates on (`apply-patches` first).
 3. [`mk/rules.mk:49`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
-4. [`mk/tests.mk:397`](../../../mk/tests.mk#L397) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
+4. [`mk/tests.mk:408`](../../../mk/tests.mk#L408) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
 5. [`mk/cross.mk:8`](../../../mk/cross.mk#L8) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
-6. [`mk/cross.mk:644`](../../../mk/cross.mk#L644) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
-7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:486` shows the simpler native-only shape for dev panels.
+6. [`mk/cross.mk:681`](../../../mk/cross.mk#L681) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
+7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:498` shows the simpler native-only shape for dev panels.
 8. [`mk/display-lib.mk:23`](../../../mk/display-lib.mk#L23) — compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
 9. [`src/api/display_backend.cpp:199`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk:187`](../../../mk/patches.mk#L187) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk:914`](../../../mk/cross.mk#L914) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
+12. [`mk/cross.mk:951`](../../../mk/cross.mk#L951) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
 13. [`scripts/setup-worktree.sh:1`](../../../scripts/setup-worktree.sh#L1) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.

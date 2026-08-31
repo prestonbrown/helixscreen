@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  G-code viewer feature tokens.
+
+  Following the convention of fan_tokens.xml and ams_tokens.xml: feature-scoped
+  tokens live in their own file rather than bloating globals.xml. theme_manager
+  scans every file in ui_xml/ for <color> elements and registers each one into
+  the globals scope, so these resolve through theme_manager_get_color() from C++
+  exactly as if they had been declared in globals.xml.
+
+  These are deliberately STATIC colors - a bare name with no _light/_dark pair.
+  theme_manager_get_color() looks for the variants first and only falls back to
+  the bare name, so a token declared this way reads identically in both themes.
+  That is what the selection cues need: they have to stay legible against
+  arbitrary filament colors, which do not follow the UI theme.
+-->
+<component>
+  <consts>
+    <!-- Selection silhouette. White, matching OrcaSlicer's selection treatment.
+         The rim is derived from where the object actually landed on screen, so
+         this is the color of the traced contour, not of the object itself. -->
+    <color name="gcode_selection_outline" value="#FFFFFF"/>
+
+    <!-- Excluded (cancelled) object. Orange-red. This is what the isometric
+         view - the path users actually see - has always drawn; the CPU
+         wireframe used theme "danger", a different hue, and lost. -->
+    <color name="gcode_selection_excluded" value="#FF6B35"/>
+
+    <!-- 24-arm corner bracket wireframe around a selected object. Light grey.
+         Was 0xC0C0C0 in 2D and a hand-written 0.75f in 3D, under a comment in
+         each claiming the two matched; they did not. -->
+    <color name="gcode_selection_bracket" value="#C0C0C0"/>
+  </consts>
+</component>

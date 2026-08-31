@@ -37,6 +37,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/temperature_controller_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
@@ -252,13 +253,28 @@ struct KeypadCeilingFixture {
         // on the UpdateQueue; a fixture that returns with them still queued
         // hands them to whichever test drains next, which then notifies the
         // subjects that died here (#1166, #1146). Drain before each owner dies.
-        helix::ui::UpdateQueue::instance().drain();
+        drain_update_queue();
         // The panel goes first, while the subjects it observes are still alive:
         // an ObserverGuard whose subject already died skips lv_observer_remove().
         panel.reset();
         helix::PanelWidgetManager::instance().clear_shared_resources();
-        helix::ui::UpdateQueue::instance().drain();
+        drain_update_queue();
         state.deinit_subjects();
+    }
+
+    /// Drain to empty, not one batch: a drained apply can enqueue follow-on
+    /// work, and an apply still queued at test end gets discarded by the
+    /// isolation listener — leaking the observer guard its closure captured
+    /// (the FilamentPanel observe_int_* origins that red the 08-27 nightly's
+    /// ASan leak gate as new).
+    static void drain_update_queue() {
+        auto& queue = helix::ui::UpdateQueue::instance();
+        for (int pass = 0; pass < 4; ++pass) {
+            if (helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
+                break;
+            }
+            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+        }
     }
 
     float ceiling(helix::HeaterType type, int fallback) {
@@ -388,4 +404,28 @@ TEST_CASE("A parsed hotend ceiling bounds what set_temperature will send",
     // ...while the bed keeps its own, much lower, bound.
     REQUIRE_FALSE(is_safe_temperature(150.0, limits, "heater_bed"));
     REQUIRE(is_safe_temperature(100.0, limits, "heater_bed"));
+}
+
+// ============================================================================
+// Queued op-button updates before init_subjects (prestonbrown/helixscreen#1393)
+// ============================================================================
+
+TEST_CASE_METHOD(KeypadCeilingFixture,
+                 "A queued op-button update before init_subjects touches nothing",
+                 "[safety_limits][1393]") {
+    // The shard-crash shape: the panel is constructed (observers installed,
+    // updates queueable) but its subjects were never initialized, and a
+    // subject change queues update_filament_op_buttons() onto the UpdateQueue.
+    // The guard makes that a no-op instead of a walk over indeterminate
+    // lv_subject_t memory (0xbe-filled load_disabled_subject_ in the crash
+    // dumps). Driving it through the queue is the point - the direct call is
+    // synchronous and cannot express the race.
+    REQUIRE(panel != nullptr);
+    REQUIRE_FALSE(panel->are_subjects_initialized());
+
+    lv_subject_set_int(helix::ToolState::instance().get_active_tool_subject(), 1);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Still un-initialized, still intact: the update never ran.
+    REQUIRE_FALSE(panel->are_subjects_initialized());
 }

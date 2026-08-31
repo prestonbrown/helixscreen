@@ -6,6 +6,7 @@
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
 
+#include <cerrno>
 #include <cstdlib>
 #include <fstream>
 #include <string>
@@ -273,6 +274,62 @@ bool is_gcode_2d_streaming_safe(size_t file_size_bytes) {
 
     return is_gcode_2d_streaming_safe_impl(file_size_bytes, mem.available_kb, display_width,
                                            display_height);
+}
+
+// ============================================================================
+// OOM priority
+// ============================================================================
+
+bool parse_oom_score_adj(const char* value, int& out) {
+    if (value == nullptr || *value == '\0')
+        return false;
+
+    errno = 0;
+    char* end = nullptr;
+    long parsed = std::strtol(value, &end, 10);
+
+    // Reject trailing garbage ("300x") and overflow outright rather than
+    // silently applying a half-understood number to the OOM killer.
+    if (errno != 0 || end == value || *end != '\0')
+        return false;
+
+    if (parsed == 0)
+        return false; // documented "leave this process alone"
+
+    if (parsed > 1000)
+        parsed = 1000;
+    if (parsed < -1000)
+        parsed = -1000;
+
+    out = static_cast<int>(parsed);
+    return true;
+}
+
+bool write_oom_score_adj(int adj, const char* path) {
+    std::ofstream f(path);
+    if (!f.is_open())
+        return false;
+    f << adj;
+    f.flush();
+    return f.good();
+}
+
+bool apply_oom_score_adj_from_env() {
+    int adj = 0;
+    if (!parse_oom_score_adj(std::getenv("HELIX_OOM_SCORE_ADJ"), adj))
+        return false;
+
+    if (!write_oom_score_adj(adj, "/proc/self/oom_score_adj")) {
+        // Never fatal. A kiosk on a non-Linux host has no /proc, and lowering
+        // the value without CAP_SYS_RESOURCE is refused.
+        spdlog::debug("[Memory] Could not set oom_score_adj to {}", adj);
+        return false;
+    }
+
+    spdlog::info("[Memory] oom_score_adj set to {} — helix-screen volunteers as "
+                 "the first OOM victim so Klipper survives",
+                 adj);
+    return true;
 }
 
 } // namespace helix

@@ -53,6 +53,12 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_HAS_LABEL_PRINTER=1
     HELIX_HAS_CFS=1
     HELIX_HAS_IFS=1
+    # Set explicitly, never left undefined: an undefined macro makes
+    # `#if HELIX_HAS_X` evaluate to 0 and the gated backend compiles to an
+    # empty TU that silently vanishes from the audit.
+    HELIX_HAS_ACE=1
+    HELIX_HAS_QIDI=1
+    HELIX_HAS_SNAPMAKER=1
     # Renderers compiled out on ESP32: 2D gcode preview allocates 3x
     # widget-size ARGB8888 buffers, bed-mesh 3D 2x render-size + a thread —
     # both untenable in 8MB PSRAM next to the framebuffer.

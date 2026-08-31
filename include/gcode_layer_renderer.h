@@ -6,6 +6,10 @@
 #include "gcode_color_palette.h"
 #include "gcode_parser.h"
 #include "gcode_projection.h"
+#include "gcode_raster.h"
+#include "gcode_render_memory.h"
+#include "gcode_selection_state.h"
+#include "gcode_selection_style.h"
 #include "gcode_streaming_controller.h"
 
 #include <lvgl/lvgl.h>
@@ -246,18 +250,46 @@ class GCodeLayerRenderer {
      *
      * Toggle via HELIX_SSAO=1 environment variable for testing.
      */
+    /// Enable/disable antialiased strokes, independently of the outline pass.
+    /// Invalidates the cache: the geometry has to be redrawn to change.
+    void set_antialias_enabled(bool enable) {
+        if (antialias_enabled_.load(std::memory_order_relaxed) == enable) {
+            return;
+        }
+        antialias_enabled_.store(enable, std::memory_order_relaxed);
+        invalidate_solid_cache();
+    }
+
+    /// Whether strokes are antialiased.
+    bool get_antialias_enabled() const {
+        return antialias_enabled_.load(std::memory_order_relaxed);
+    }
+
     void set_ssao_enabled(bool enable) {
         ssao_enabled_.store(enable, std::memory_order_relaxed);
+        // Undo the shading before dropping the record of it, or the darkened
+        // pixels stay dark forever with nothing left that knows how to restore
+        // them. Main-thread only, like every caller of this setter.
+        restore_ssao_shading();
         ssao_cache_valid_ = false;
-        if (!enable) {
-            // Release the full-canvas ARGB8888 scratch buffer; ensure_ssao_cache()
-            // recreates it if SSAO is switched back on. Main-thread only (waits for
-            // in-flight LVGL draw tasks) — all callers are widget/UI-thread code.
-            destroy_ssao_cache();
-        }
     }
 
     /** @brief Check if SSAO is enabled */
+    /**
+     * @brief Itemized heap this renderer holds, for A/B measurement.
+     *
+     * Four full-canvas buffers, which is one more than the count quoted in
+     * gcode_ssao_policy.h when it decided constrained devices could not afford
+     * enhanced shading. Sizes come from each buffer's real stride, not w*4:
+     * LV_STRIDE_AUTO aligns rows, so the naive product understates what was
+     * actually allocated.
+     */
+    helix::gcode::RenderMemoryReport memory_report() const;
+
+    /// Emit memory_report() at debug level, tagged with what just happened.
+    /// `when` is a short static label, e.g. "cache_created".
+    void log_memory_report(const char* when) const;
+
     bool get_ssao_enabled() const {
         return ssao_enabled_.load(std::memory_order_relaxed);
     }
@@ -440,6 +472,18 @@ class GCodeLayerRenderer {
      */
     bool has_support_detection() const;
 
+    /**
+     * @brief Colour one segment would draw in, given the current selection state.
+     *
+     * Public because it is the only observable that exercises the selection index
+     * map end to end: source swap -> rebuild_index_map -> classify. The setters
+     * alone can be asserted with REQUIRE_NOTHROW while the wiring is completely
+     * broken, which is exactly the failure this guards.
+     *
+     * Pure query; does not touch cache or draw state.
+     */
+    lv_color_t get_segment_color(const ToolpathSegment& seg) const;
+
   private:
     // =========================================================================
     // Internal Rendering
@@ -521,12 +565,20 @@ class GCodeLayerRenderer {
      */
     bool should_render_segment(const ToolpathSegment& seg) const;
 
+    /// Panels at or below this width get the narrower selection halo. A 2px-per-side
+    /// halo swallows small objects whole at 480x272, so the delta halves there.
+    static constexpr int SMALL_PANEL_WIDTH_PX = 320;
+
+    /// True when the render target is small enough to need the narrow halo.
+    bool is_small_panel() const {
+        return canvas_width_ <= SMALL_PANEL_WIDTH_PX;
+    }
+
     /**
      * @brief Get line color for a segment
      * @param seg Segment to get color for
      * @return LVGL color
      */
-    lv_color_t get_segment_color(const ToolpathSegment& seg) const;
 
     /**
      * @brief Resolve object name index to string via current data source
@@ -534,6 +586,21 @@ class GCodeLayerRenderer {
      * @return Resolved object name, or empty string if invalid
      */
     std::string resolve_object_name(int16_t index) const;
+
+    /**
+     * @brief Re-snapshot the active data source's object-name table into selection_
+     *
+     * classify() answers nothing for an index the map has not seen, so this must
+     * run before any classify() call on freshly loaded geometry. Cheap when
+     * nothing changed: one size comparison (a mutex lock plus a size read in
+     * streaming mode). Main thread only — the background ghost worker gets its
+     * own by-value copy of the state.
+     *
+     * @param force Rebuild even when the table size is unchanged. Required when
+     *              the data source itself was swapped, since a different file
+     *              can have the same number of objects.
+     */
+    void refresh_selection_index_map(bool force = false);
 
     // Data source (exactly one should be non-null)
     const ParsedGCodeFile* gcode_ = nullptr;
@@ -557,21 +624,40 @@ class GCodeLayerRenderer {
     std::atomic<bool> show_extrusions_{true};
     std::atomic<bool> show_supports_{true};
     std::atomic<bool> depth_shading_{true}; // Enabled by default for 3D-like appearance
-    std::atomic<bool> ssao_enabled_{true};  // Enhanced shading (normals, AA, outline)
+    /// The silhouette outline pass and the cheap normal-based shading that goes
+    /// with it. Measured at ~2ms per cache revalidation on an AD5M.
+    std::atomic<bool> ssao_enabled_{true};
+
+    /// Antialiased strokes. Separate from ssao_enabled_ because it is the
+    /// expensive half: ~6x the aliased rasterization cost, which is what makes a
+    /// preview take about 2.2x as long to appear. A constrained device can
+    /// afford the outline and not this.
+    std::atomic<bool> antialias_enabled_{true};
     std::atomic<int> view_mode_{static_cast<int>(ViewMode::FRONT)}; // Default to front view
 
     // Colors
     lv_color_t color_extrusion_;
     lv_color_t color_travel_;
     lv_color_t color_support_;
+
+    /// Selection colors, resolved from ui_xml/gcode_tokens.xml in reset_colors().
+    /// Held rather than looked up per use: the values are read in rasterizer
+    /// inner loops and are copied into the ghost worker's snapshot, and reading a
+    /// token walks LVGL's const registry, which is main-thread only.
+    selection::Palette sel_palette_;
     bool use_custom_extrusion_color_ = false;
     bool use_custom_travel_color_ = false;
     bool use_custom_support_color_ = false;
     GCodeColorPalette tool_palette_; ///< Per-tool colors for multi-color prints
 
-    // Object exclusion/highlight state
-    std::unordered_set<std::string> excluded_objects_;
-    std::unordered_set<std::string> highlighted_objects_;
+    // Object exclusion/highlight state, plus the interned-index map it classifies
+    // segments through. See gcode_selection_state.h.
+    SelectionState selection_;
+
+    /// Size of the name table the index map was last built from. Streaming mode
+    /// grows the merged table as layers load, so this is polled per frame /
+    /// per layer batch to decide whether a rebuild is due.
+    size_t selection_index_map_size_ = 0;
 
     // Cached bounds
     float bounds_min_x_ = 0.0f;
@@ -599,11 +685,44 @@ class GCodeLayerRenderer {
     int cached_width_ = 0;        // Dimensions cache was built for
     int cached_height_ = 0;
 
-    // SSAO post-processing buffer - copy of cache with ambient occlusion applied
-    lv_draw_buf_t* ssao_buf_ = nullptr;
-    int ssao_cached_width_ = 0;
-    int ssao_cached_height_ = 0;
+    /// One pixel apply_ssao() darkened, and what it held first.
+    struct SsaoUndoEntry {
+        uint32_t offset_px; ///< index into cache_buf_, in pixels not bytes
+        uint32_t original;  ///< the ARGB word before darkening
+    };
+
+    /// What the SSAO pass changed, so it can be taken back.
+    ///
+    /// This replaced a full-canvas ARGB8888 second buffer whose only job was to
+    /// keep an untouched copy of the source. The pass darkens the silhouette
+    /// edge, and the edge is a perimeter: measured across a whole 218-layer
+    /// three-object print it peaked at 713 pixels, 4.3% of the filled pixels and
+    /// falling as the model densified. 713 entries is 6KB against the buffer's
+    /// 427KB.
+    ///
+    /// An undo log rather than simply running in place, because the darkening is
+    /// a MULTIPLY. Re-running it over its own output compounds (0.3 * 0.3), and
+    /// a progressive append leaves pixels darkened that are no longer edges. The
+    /// pass restores before it re-scans, which makes both cases exact.
+    std::vector<SsaoUndoEntry> ssao_undo_;
     bool ssao_cache_valid_ = false;
+
+    /// Wall time the current progressive cache build started, and whether its
+    /// completion has been reported yet.
+    ///
+    /// The build is spread over frames by adapt_layers_per_frame(), so per-frame
+    /// timing says nothing about how long a preview takes to actually appear.
+    /// That total is the number that matters on a constrained device, and it is
+    /// what decides whether enabling enhanced shading there is affordable:
+    /// ssao_enabled_ also selects Aa::On for every stroke, and antialiased
+    /// rasterization measures about 6x the cost of aliased.
+    uint32_t cache_build_start_ms_ = 0;
+    bool cache_build_reported_ = false;
+
+    /// True once stroke_selection_rim() has written the white silhouette into
+    /// cache_buf_. The rim is pixels, not an overlay, so this is what stops a
+    /// progressive append from building on top of a boundary that has moved.
+    bool selection_rim_stamped_ = false;
 
     // Ghost cache - all layers rendered once at reduced opacity
     // Note: We only use draw buffers (no canvas widgets) to avoid clip area
@@ -646,6 +765,18 @@ class GCodeLayerRenderer {
     /// Adjust layers_per_frame based on last render time (when config_layers_per_frame_ == 0)
     void adapt_layers_per_frame();
 
+    /// Clear the solid layer cache (and its SSAO derivative) only. Leaves the
+    /// ghost cache and the background ghost worker alone — the ghost pass does
+    /// not render highlight, so a highlight change must not restart it.
+    ///
+    /// This is also the reset render() uses in both scrub directions. Everything
+    /// stamped INTO the cache pixels — the SSAO shading and the selection rim —
+    /// has a flag saying it is already there, so a hand-rolled clear that forgets
+    /// one of them leaves a blank buffer marked as decorated.
+    void invalidate_solid_cache();
+    /// Act on the scope a SelectionState setter returned.
+    void apply_selection_scope(InvalidationScope scope);
+    /// Clear both caches and cancel the background ghost worker.
     void invalidate_cache();
     void ensure_cache(int width, int height);
     /// Render [from_layer, to_layer] into cache_buf_. Returns the highest layer
@@ -657,11 +788,14 @@ class GCodeLayerRenderer {
     void blit_cache(lv_layer_t* target);
     void destroy_cache();
 
-    // SSAO post-processing
-    void ensure_ssao_cache(int width, int height);
+    // SSAO post-processing, applied to cache_buf_ in place.
     void apply_ssao();
-    void blit_ssao_cache(lv_layer_t* target);
-    void destroy_ssao_cache();
+
+    /// Put every pixel apply_ssao() darkened back the way it was, and forget
+    /// them. Safe to call when nothing is recorded. Must run before anything
+    /// draws into cache_buf_ again, or the log points at pixels that have moved
+    /// on and restoring would paint stale colour over new geometry.
+    void restore_ssao_shading();
 
     // Ghost cache methods (LVGL-based, for main thread progressive rendering)
     void ensure_ghost_cache(int width, int height);
@@ -694,8 +828,57 @@ class GCodeLayerRenderer {
     /// Cancel any in-progress background ghost render
     void cancel_background_ghost_render();
 
-    /// Background thread entry point (renders all layers to raw buffer)
-    void background_ghost_render_thread();
+    /**
+     * @brief Everything the ghost worker is allowed to read from the renderer.
+     *
+     * The worker runs on a background thread while the main thread keeps using
+     * the renderer, so every non-atomic member it touches has to be captured
+     * before it starts. It used to capture them ITSELF, in a block headed
+     * "capture ALL shared state at thread start" - but "thread start" is on the
+     * worker, which is exactly the window in which the main thread is free to be
+     * writing. `selection_` was the one field already handled correctly, copied
+     * at std::thread construction; its neighbours were not.
+     *
+     * Unsynchronized against the worker's capture, before this struct existed:
+     * set_extrusion_color(), set_scale(), set_offset(), set_content_offset_y()
+     * and set_canvas_size(). set_tool_color_palette() had already been hardened
+     * by joining the worker first, and its comment names this exact hazard.
+     *
+     * Building the snapshot on the SPAWNING thread fixes the whole family at
+     * once, and passing it by value means the worker body has nothing to read a
+     * member through even by accident.
+     */
+    struct GhostSnapshot {
+        TransformParams transform{};
+        SelectionState selection{};
+        GCodeColorPalette tool_palette{};
+        lv_color_t color_extrusion{};
+        bool use_custom_extrusion = false;
+        bool show_travels = false;
+        bool show_extrusions = true;
+        bool show_supports = true;
+        int line_width = 1;
+        int layer_count = 0;
+
+        /// Selection colors. Captured like everything else here because reading
+        /// the tokens walks LVGL's const registry, which the worker must not do.
+        selection::Palette palette{};
+
+        /// Data sources, captured so the body never reads the members. They are
+        /// only ever nulled after cancel_background_ghost_render() has joined.
+        const ParsedGCodeFile* gcode = nullptr;
+        GCodeStreamingController* streaming = nullptr;
+    };
+
+    /// Build the snapshot. MUST be called on the main thread, before the worker
+    /// is spawned.
+    GhostSnapshot capture_ghost_snapshot() const;
+
+    /// Background thread entry point (renders all layers to raw buffer).
+    /// Takes the snapshot BY VALUE: std::thread copies the argument on the
+    /// spawning (main) thread, so the worker never reads a renderer member that
+    /// the main thread might be writing.
+    void background_ghost_render_thread(GhostSnapshot snap);
 
     /// Drives one complete ghost pass so a test can measure what it costs.
     friend class GCodeLayerRendererTestAccess;
@@ -703,33 +886,15 @@ class GCodeLayerRenderer {
     /// Copy completed raw buffer to LVGL ghost_buf_ (called on main thread)
     void copy_raw_to_ghost_buf();
 
-    /// Software Bresenham line drawing to raw ARGB8888 buffer (ghost)
-    void draw_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color);
+    /// Rasterizer surface over the solid layer cache (main thread only —
+    /// cache_buf_ is reallocated there). Null-data when no cache is allocated,
+    /// which makes every write against it a no-op.
+    helix::gcode::RasterTarget cache_target() const;
 
-    /// Thick line drawing using parallel Bresenham lines (ghost buffer)
-    void draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color, int width);
-
-    /// Blend a pixel with alpha into the ghost raw buffer
-    void blend_pixel(int x, int y, uint32_t color);
-
-    /// Software Bresenham line drawing to solid cache buffer
-    /// Used for solid layer rendering, bypassing LVGL draw API for AD5M compatibility
-    void draw_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color);
-
-    /// Thick line drawing using parallel Bresenham lines (solid cache)
-    void draw_thick_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color, int width);
-
-    /// Blend a pixel directly into the solid LVGL cache buffer
-    void blend_pixel_solid(int x, int y, uint32_t color);
-
-    /// Blend a pixel with coverage (0-255) into solid cache buffer (for AA)
-    void blend_pixel_solid_alpha(int x, int y, uint32_t color, uint8_t coverage);
-
-    /// Anti-aliased line drawing (Wu's algorithm) to solid cache buffer
-    void draw_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color);
-
-    /// Thick anti-aliased line drawing (parallel Wu's lines) to solid cache
-    void draw_thick_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color, int width);
+    /// Rasterizer surface over the raw ghost buffer. Reads only the ghost_raw_*
+    /// fields, which the background ghost render thread owns for the duration of
+    /// its run, so it is safe to call from there.
+    helix::gcode::RasterTarget ghost_target() const;
 
     /// Compute line width in pixels from extrusion width metadata and current scale
     int get_extrusion_pixel_width() const;

@@ -29,9 +29,13 @@ class InfoQrModal : public Modal {
 
     bool show_modal(lv_obj_t* parent);
 
+    /// One-shot owned show: create, show on the active screen, and hand the
+    /// instance to ModalStack, which frees it when its entry goes (#1382).
+    /// Returns false if the XML failed to create; the instance is not leaked.
+    static bool show_owned(Config config);
+
   protected:
     void on_show() override;
-    void on_hide() override;
 
   private:
     Config config_;

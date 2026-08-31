@@ -27,6 +27,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -131,8 +132,9 @@ AmsBackendAd5xIfs::AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient
     system_info_.type = AmsType::AD5X_IFS;
     system_info_.type_name = "AD5X IFS";
     system_info_.total_slots = NUM_PORTS;
-    system_info_.supports_bypass = true;
-    system_info_.supports_tool_mapping = true;
+    // No bypass on this machine: every path into the hub runs through a lane
+    // of the IFS, and there is no external direct-feed spool entry.
+    system_info_.supports_bypass = false;
     // The ENABLE bit only; AVAILABILITY comes from
     // get_endless_spool_capabilities(), which reads the _IFS_VARS latch. False
     // until a plugin's variable_backup is actually seen.
@@ -163,8 +165,34 @@ bool AmsBackendAd5xIfs::owns_filament_sensor(const std::string& bare_name,
     }
     // lessWaste per-port HUB sensors (_ifs_port_sensor_{1..4}) and older ZMOD
     // per-port motion sensors (_ifs_motion_sensor_N).
-    return bare_name.rfind("_ifs_port_sensor_", 0) == 0 ||
-           bare_name.rfind("_ifs_motion_sensor_", 0) == 0;
+    if (bare_name.rfind("_ifs_port_sensor_", 0) == 0 ||
+        bare_name.rfind("_ifs_motion_sensor_", 0) == 0) {
+        return true;
+    }
+    // Standalone IFS module: its sensors register as STOCK
+    // filament_switch_sensor objects ("lane1".."lane4" per-channel presence,
+    // "toolhead" for the ADC-classified toolhead switch), so nothing about the
+    // name itself marks them. Claimed by exact shape only - and this predicate
+    // only ever runs for a printer already detected as AD5X IFS
+    // (AmsBackend::sensor_belongs_to_backend routes on mmu_type), so a
+    // differently-firmwareed printer's sensor that happens to be named
+    // "toolhead" never reaches this branch.
+    if (bare_name == "toolhead") {
+        return true;
+    }
+    if (bare_name.rfind("lane", 0) == 0 && bare_name.size() > 4) {
+        bool all_digits = true;
+        for (size_t i = 4; i < bare_name.size(); ++i) {
+            if (!std::isdigit(static_cast<unsigned char>(bare_name[i]))) {
+                all_digits = false;
+                break;
+            }
+        }
+        if (all_digits) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<std::string>
@@ -177,6 +205,15 @@ AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
     // that implement get_status(), so listing them IS the capability check.
     const auto& available = hw.printer_objects();
     for (const char* name : {"zmod_ifs", "zmod_color"}) {
+        if (std::find(available.begin(), available.end(), name) != available.end()) {
+            objects.emplace_back(name);
+        }
+    }
+    // The standalone IFS module publishes its own pair: `ifs` (board state,
+    // presence, activity) and `ifs_materials` (slot registry view onto
+    // Adventurer5M.json). Same capability rule - presence in objects/list is
+    // the whole probe. On that firmware the zmod pair above is simply absent.
+    for (const char* name : {"ifs", "ifs_materials"}) {
         if (std::find(available.begin(), available.end(), name) != available.end()) {
             objects.emplace_back(name);
         }
@@ -272,6 +309,14 @@ void AmsBackendAd5xIfs::on_started() {
                    // mutually-exclusive pair in this list already works.
                    {"zmod_ifs", nullptr},
                    {"zmod_color", nullptr},
+                   // Standalone IFS module's objects - same drop-if-absent
+                   // rule, so one query serves either firmware.
+                   {"ifs", nullptr},
+                   {"ifs_materials", nullptr},
+                   // The module's toolhead sensor registers under this stock
+                   // name ([ifs_toolhead_sensor toolhead]); its frames are the
+                   // head-presence authority on that firmware.
+                   {"filament_switch_sensor toolhead", nullptr},
                    // Klippy state — GET_ZCOLOR SILENT=1 only works once zmod is
                    // initialised, so we gate the initial query on webhooks.state == "ready".
                    {"webhooks", nullptr}}}},
@@ -410,6 +455,16 @@ void AmsBackendAd5xIfs::on_stopping() {
 }
 
 void AmsBackendAd5xIfs::request_resync() {
+    // Standalone module: state arrives by subscription (the module re-reads
+    // Adventurer5M.json on mtime change and publishes the diff through
+    // ifs_materials), so a manual resync has nothing to fetch — the standing
+    // subscription is the refresh.
+    if (ifs_module_live_.load()) {
+        spdlog::info("{} request_resync(): standalone module live — subscription is the truth, "
+                     "nothing to re-read",
+                     backend_log_tag());
+        return;
+    }
     spdlog::info("{} request_resync(): re-reading Adventurer5M.json + GET_ZCOLOR",
                  backend_log_tag());
     read_adventurer_json();
@@ -535,11 +590,15 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     // Parse head sensor. The live AD5X publishes this under the
     // zmod_ifs_switch_sensor namespace rather than the stock
     // filament_switch_sensor section, so accept either key (switch semantics).
+    // The standalone module registers its toolhead sensor under the stock
+    // section with its own name ("toolhead"), so accept that too.
     const char* head_key = has_reading("filament_switch_sensor head_switch_sensor")
                                ? "filament_switch_sensor head_switch_sensor"
                                : (has_reading("zmod_ifs_switch_sensor head_switch_sensor")
                                       ? "zmod_ifs_switch_sensor head_switch_sensor"
-                                      : nullptr);
+                                      : (has_reading("filament_switch_sensor toolhead")
+                                             ? "filament_switch_sensor toolhead"
+                                             : nullptr));
     if (head_key) {
         const auto& head = (*status)[head_key];
         if (head.contains("filament_detected") && head["filament_detected"].is_boolean()) {
@@ -636,6 +695,13 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     // polls is prestonbrown/helixscreen#1344's second half, and wants a rig
     // running the released firmware to prove equivalence first.
     apply_zmod_status_objects(*status);
+
+    // The standalone IFS module's pushed state (`ifs` / `ifs_materials`), on
+    // firmware that has it. Same readers, same apply path as the zmod objects
+    // above; additionally the module's own `ifs_loaded` save_variable and the
+    // board's `activity` are applied, which is what lets both ZMOD polls stand
+    // down (see apply_ifs_module_objects).
+    apply_ifs_module_objects(*status);
 
     // No AD5X-specific plugin subjects to publish: the auto-switchover state is
     // now carried by the backend-neutral `ams_endless_state` / `ams_endless_text`
@@ -867,6 +933,30 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
             int tool = find_first_tool_for_port(i + 1); // port is 1-based
             slots_.set_tool_mapping(i, tool);
         }
+    } else if (ifs_module_live_.load() && vars.contains("ifs_loaded") &&
+               vars["ifs_loaded"].is_number_integer()) {
+        // Standalone IFS module: `ifs_loaded` is the module's own
+        // success-confirmed record of the lane in the nozzle (SAVE_VARIABLE at
+        // the end of IFS_LOAD / IFS_UNLOAD, cleared on eject), and it survives
+        // restarts - the client just reads it. The board's `active_channel`
+        // (applied in apply_ifs_module_objects as the Chan equivalent) tracks
+        // the last channel the switching mechanism ENGAGED, which includes a
+        // cold eject; ifs_loaded only moves on a completed load/unload, so it
+        // is the stronger seated authority and overwrites seated_chan_ whenever
+        // the module is live. Gated on the latch because save_variables rows
+        // persist after a firmware change, same lesson as the plugin rows
+        // above.
+        const int loaded = vars["ifs_loaded"].get<int>(); // 1-based; 0 = none
+        if (loaded != seated_chan_) {
+            spdlog::debug("{} module ifs_loaded={} (was Chan {}) — adopting as seated channel",
+                          backend_log_tag(), loaded, seated_chan_);
+            seated_chan_ = loaded;
+        }
+        // Keep current_tool in step too — handle_status_update snapshots
+        // active_tool_ into system_info_ on this same frame, and the identity
+        // tool map the latch installed makes tool == channel - 1.
+        active_tool_ = (loaded >= 1 && loaded <= NUM_PORTS) ? loaded - 1 : -1;
+        module_last_chan_ = loaded;
     }
 
     // Sync all slots from cached state
@@ -1443,6 +1533,25 @@ void AmsBackendAd5xIfs::publish_external_spool_lane(const SlotInfo* spool) {
     helix::ams::publish_external_lane(override_store_.get(), NUM_PORTS, spool, backend_log_tag());
 }
 
+helix::FirmwareRouting AmsBackendAd5xIfs::firmware_default_routing() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Native zMod publishes no table at all. Reporting one full of -1 would
+    // strand every tool unresolved, so answer the majority shape instead.
+    if (!has_ifs_vars_) {
+        return helix::FirmwareRouting::identity();
+    }
+
+    helix::FirmwareRouting routing;
+    routing.head_for_tool.reserve(static_cast<size_t>(TOOL_MAP_SIZE));
+    for (int t = 0; t < TOOL_MAP_SIZE; ++t) {
+        const int port = tool_map_[static_cast<size_t>(t)]; // 1-based; 5 = unmapped
+        routing.head_for_tool.push_back(port >= 1 && port <= NUM_PORTS ? port - 1 : -1);
+    }
+    routing.fallback_head = -1; // tools past the table have no port
+    return routing;
+}
+
 AmsSystemInfo AmsBackendAd5xIfs::get_system_info() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -1469,7 +1578,6 @@ AmsSystemInfo AmsBackendAd5xIfs::get_system_info() const {
     info.operation_phase = system_info_.operation_phase;
     info.operation_indeterminate = system_info_.operation_indeterminate;
     info.supports_bypass = system_info_.supports_bypass;
-    info.supports_tool_mapping = system_info_.supports_tool_mapping;
     info.endless_spool_enabled = system_info_.endless_spool_enabled;
     info.supports_purge = system_info_.supports_purge;
 
@@ -1647,6 +1755,17 @@ AmsError AmsBackendAd5xIfs::do_load_filament(int slot_index) {
     // moves. Unlike the unload above, which the user reaches only from an
     // already-loaded head, Load is the entry point from a cold idle printer.
     auto token = lifetime_.token();
+    if (ifs_module_live_.load()) {
+        // Standalone module: IFS_LOAD SLOT=n is the whole choreography - heat
+        // to the slot material's own handling temperature (no TEMP= needed),
+        // unload whichever lane is seated, feed to the toolhead sensor, then
+        // the colour-distance-scaled purge. Same ack-finalize contract as the
+        // zmod macro below: the ack fires only after the purge fully ran.
+        return ensure_homed_then("IFS_LOAD SLOT=" + std::to_string(port), [this, token]() {
+            token.defer("Ad5xIfsBackend::load_macro_complete",
+                        [this]() { finalize_op_after_macro(/*is_unload=*/false); });
+        });
+    }
     return ensure_homed_then("INSERT_PRUTOK_IFS PRUTOK=" + std::to_string(port), [this, token]() {
         token.defer("Ad5xIfsBackend::load_macro_complete",
                     [this]() { finalize_op_after_macro(/*is_unload=*/false); });
@@ -1787,10 +1906,27 @@ AmsError AmsBackendAd5xIfs::do_unload_filament(int slot_index) {
     // macro ack is the reliable "unload fully ran" signal. on_complete fires on a
     // bg thread, so hop to the main thread before touching state.
     auto token = lifetime_.token();
-    auto result = execute_gcode("_IFS_REMOVE_CURRENT_PRUTOK", [this, token]() {
-        token.defer("Ad5xIfsBackend::unload_macro_complete",
-                    [this]() { finalize_op_after_macro(/*is_unload=*/true); });
-    });
+    AmsError result;
+    if (ifs_module_live_.load()) {
+        // Standalone module: IFS_UNLOAD takes the nozzle contents back into the
+        // lane and leaves it threaded (70 mm), resolving the heat from the
+        // slot's material. slot_index < 0 ("unload whatever is active") sends
+        // it bare - the macro defaults SLOT= from its own ifs_loaded record,
+        // exactly the "current channel" the zmod macro resolves internally.
+        std::string cmd = "IFS_UNLOAD";
+        if (slot_index >= 0) {
+            cmd += " SLOT=" + std::to_string(slot_index + 1);
+        }
+        result = execute_gcode(std::move(cmd), [this, token]() {
+            token.defer("Ad5xIfsBackend::unload_macro_complete",
+                        [this]() { finalize_op_after_macro(/*is_unload=*/true); });
+        });
+    } else {
+        result = execute_gcode("_IFS_REMOVE_CURRENT_PRUTOK", [this, token]() {
+            token.defer("Ad5xIfsBackend::unload_macro_complete",
+                        [this]() { finalize_op_after_macro(/*is_unload=*/true); });
+        });
+    }
     // Backup re-query: for inactive-slot unloads on native ZMOD the head
     // sensor never changes, so detect_load_unload_completion() won't fire.
     // schedule_zcolor_query() coalesces with any trigger from the gcode
@@ -1864,6 +2000,17 @@ AmsError AmsBackendAd5xIfs::do_select_slot(int slot_index) {
         return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
     }
 
+    // Standalone module: it has no point-without-load command — selection IS a
+    // load there (T<n> / IFS_SELECT wrap IFS_LOAD). SET_EXTRUDER_SLOT is zmod
+    // vocabulary and would draw "Unknown command" from the console, so decline
+    // rather than silently doing nothing (or worse, feeding filament from a
+    // tap that promised not to).
+    if (ifs_module_live_.load()) {
+        return AmsError(AmsResult::NOT_SUPPORTED,
+                        "select_slot: the standalone IFS module has no load-free selection",
+                        "This firmware can only switch slots by loading them");
+    }
+
     int port = slot_index + 1;
     spdlog::info("{} Selecting port {}", backend_log_tag(), port);
     return execute_gcode("SET_EXTRUDER_SLOT SLOT=" + std::to_string(port));
@@ -1906,6 +2053,14 @@ AmsError AmsBackendAd5xIfs::do_change_tool(int tool_number) {
     // LOADING action above is what the runout gate keys on instead.
     emit_event(EVENT_STATE_CHANGED);
     spdlog::info("{} Changing to tool T{} (port {})", backend_log_tag(), tool_number, port);
+    if (ifs_module_live_.load()) {
+        // Standalone module: T<n> IS the tool change (T0..T3 -> IFS_SELECT
+        // SLOT=1..4, with the mid-print save/restore IFS_SELECT wraps around
+        // IFS_LOAD). The mapping lives in the module's macros, so send the
+        // slicer spelling rather than re-deriving the slot here; the identity
+        // tool_map_ the latch installs keeps port == tool_number + 1 anyway.
+        return ensure_homed_then("T" + std::to_string(tool_number));
+    }
     // ensure_homed_then() without skip_homing, and NOT because A_CHANGE_FILAMENT
     // is known to need it. Unlike INSERT_PRUTOK_IFS / _IFS_REMOVE_CURRENT_PRUTOK,
     // this macro is not in the ZMOD tree at all: ZMOD ships CHANGE_FILAMENT and
@@ -1973,28 +2128,39 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
     }
 
     int port = slot_index + 1;
-    spdlog::info("{} Cold eject lane {} (port {}, material '{}') -> IFS_F24 / IFS_F11 LEN={} "
-                 "SPEED={} / IFS_F39",
-                 backend_log_tag(), slot_index, port, material, len, speed);
-
-    // Full per-lane eject mirroring zmod's _REMOVE_PRUTOK_IFS macro: clamp the
-    // lane (F24) so the gear actually grips, cold-retract the full tube length
-    // at the configured speed (F11 — no heat, no homing), then unclamp (F39) so
-    // the filament is free to pull out by hand. Three separate execute_gcode()
-    // calls in order, propagating the first error. Use the plain
-    // execute_gcode() helper (NOT ensure_homed_then(), which is for toolhead
-    // moves like load/unload).
     const std::string port_str = std::to_string(port);
-    AmsError err = execute_gcode("IFS_F24 PRUTOK=" + port_str);
-    if (!err.success()) {
-        return err;
+    AmsError err39;
+    if (ifs_module_live_.load()) {
+        // Standalone module: IFS_EJECT SLOT=n is the full per-lane eject
+        // (clamp, retract the whole tube at the module's own speed, release),
+        // clearing the extruder itself when - and only when - the ejected lane
+        // is the loaded one. One command, one ack.
+        spdlog::info("{} Eject lane {} (port {}) -> IFS_EJECT", backend_log_tag(), slot_index,
+                     port);
+        err39 = execute_gcode("IFS_EJECT SLOT=" + port_str);
+    } else {
+        spdlog::info("{} Cold eject lane {} (port {}, material '{}') -> IFS_F24 / IFS_F11 LEN={} "
+                     "SPEED={} / IFS_F39",
+                     backend_log_tag(), slot_index, port, material, len, speed);
+
+        // Full per-lane eject mirroring zmod's _REMOVE_PRUTOK_IFS macro: clamp
+        // the lane (F24) so the gear actually grips, cold-retract the full tube
+        // length at the configured speed (F11 — no heat, no homing), then
+        // unclamp (F39) so the filament is free to pull out by hand. Three
+        // separate execute_gcode() calls in order, propagating the first error.
+        // Use the plain execute_gcode() helper (NOT ensure_homed_then(), which
+        // is for toolhead moves like load/unload).
+        AmsError err = execute_gcode("IFS_F24 PRUTOK=" + port_str);
+        if (!err.success()) {
+            return err;
+        }
+        err = execute_gcode("IFS_F11 PRUTOK=" + port_str + " LEN=" + std::to_string(len) +
+                            " SPEED=" + std::to_string(speed));
+        if (!err.success()) {
+            return err;
+        }
+        err39 = execute_gcode("IFS_F39 PRUTOK=" + port_str);
     }
-    err = execute_gcode("IFS_F11 PRUTOK=" + port_str + " LEN=" + std::to_string(len) +
-                        " SPEED=" + std::to_string(speed));
-    if (!err.success()) {
-        return err;
-    }
-    AmsError err39 = execute_gcode("IFS_F39 PRUTOK=" + port_str);
     if (err39.success()) {
         // Optimistically reflect the eject locally so the menu updates at once,
         // even if the confirming GET_ZCOLOR/IFS_STATUS poll starves behind the
@@ -2054,9 +2220,12 @@ AmsError AmsBackendAd5xIfs::recover() {
     if (!err.success())
         return err;
 
-    // IFS_UNLOCK resets the IFS driver state machine — safest recovery command
-    spdlog::info("{} Recovery: IFS_UNLOCK", backend_log_tag());
-    return execute_gcode("IFS_UNLOCK");
+    // IFS_UNLOCK resets the IFS driver state machine — safest recovery command.
+    // The standalone module's equivalent is IFS_RESET_DRIVER (stepper-driver
+    // fault reset).
+    const char* recover_cmd = ifs_module_live_.load() ? "IFS_RESET_DRIVER" : "IFS_UNLOCK";
+    spdlog::info("{} Recovery: {}", backend_log_tag(), recover_cmd);
+    return execute_gcode(recover_cmd);
 }
 
 AmsError AmsBackendAd5xIfs::reset() {
@@ -2076,9 +2245,11 @@ AmsError AmsBackendAd5xIfs::reset() {
     if (!err.success())
         return err;
 
-    // IFS_UNLOCK resets the IFS driver — F15 (hard reset) is not exposed as a safe macro
-    spdlog::info("{} Reset: IFS_UNLOCK", backend_log_tag());
-    return execute_gcode("IFS_UNLOCK");
+    // IFS_UNLOCK resets the IFS driver — F15 (hard reset) is not exposed as a safe macro.
+    // Same module mapping as recover(): IFS_RESET_DRIVER there.
+    const char* reset_cmd = ifs_module_live_.load() ? "IFS_RESET_DRIVER" : "IFS_UNLOCK";
+    spdlog::info("{} Reset: {}", backend_log_tag(), reset_cmd);
+    return execute_gcode(reset_cmd);
 }
 
 AmsError AmsBackendAd5xIfs::cancel() {
@@ -2086,8 +2257,10 @@ AmsError AmsBackendAd5xIfs::cancel() {
     if (!err.success())
         return err;
 
-    // IFS_UNLOCK to abort current operation
-    spdlog::info("{} Cancel: IFS_UNLOCK", backend_log_tag());
+    // IFS_UNLOCK to abort current operation; the module's abort is IFS_STOP
+    // (stop the board feeding mid-move).
+    const char* cancel_cmd = ifs_module_live_.load() ? "IFS_STOP" : "IFS_UNLOCK";
+    spdlog::info("{} Cancel: {}", backend_log_tag(), cancel_cmd);
     {
         std::lock_guard<std::mutex> lock(mutex_);
         system_info_.action = AmsAction::IDLE;
@@ -2101,18 +2274,19 @@ AmsError AmsBackendAd5xIfs::cancel() {
             system_info_.operation_phase = -1;
         }
     }
-    return execute_gcode("IFS_UNLOCK");
+    return execute_gcode(cancel_cmd);
 }
 
 // --- Error-center bridge ---
 
 std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() const {
-    // Caller holds mutex_.
+    // Caller holds mutex_. Atomic read is safe under the lock.
+    const char* unlock_cmd = ifs_module_live_.load() ? "IFS_RESET_DRIVER" : "IFS_UNLOCK";
     if (!runout_active_) {
-        // Operation-timeout fault. IFS_UNLOCK releases the firmware's operation
-        // lock; it moves no filament, so it stays tappable on a cold nozzle
-        // (needs_hot_nozzle defaults false).
-        return {{lv_tr("Recover"), "IFS_UNLOCK", "ifs::unlock", "primary"}};
+        // Operation-timeout fault. The unlock command releases the firmware's
+        // operation lock; it moves no filament, so it stays tappable on a cold
+        // nozzle (needs_hot_nozzle defaults false).
+        return {{lv_tr("Recover"), unlock_cmd, "ifs::unlock", "primary"}};
     }
 
     // Unattended runout. The print is paused with an empty toolhead and the user
@@ -2152,7 +2326,7 @@ std::vector<helix::RecoveryAction> AmsBackendAd5xIfs::build_recovery_actions() c
     // is cancelled or the print is resumed.
 
     // Last resort: release the firmware's clamps if the IFS wedged. State only.
-    actions.push_back({lv_tr("Recover"), "IFS_UNLOCK", "ifs::unlock", "danger"});
+    actions.push_back({lv_tr("Recover"), unlock_cmd, "ifs::unlock", "danger"});
     return actions;
 }
 
@@ -2370,6 +2544,11 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
 
     auto idx = static_cast<size_t>(slot_index);
 
+    // Assigned inside the locked block below; hoisted here so the standalone
+    // module's write path (outside the lock, further down) reuses the exact
+    // normalized value the cached arrays got.
+    std::string normalized_material;
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2391,7 +2570,7 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
         // Empty input stays empty (an empty slot has no material), but any
         // non-empty input is coerced to the firmware whitelist so we never
         // send "PLA+" or "Silk PLA" and hit "Invalid material type".
-        std::string normalized_material =
+        normalized_material =
             info.material.empty() ? std::string{} : normalize_material(info.material);
         materials_[idx] = normalized_material;
 
@@ -2556,45 +2735,68 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
                 });
         }
 
-        // Write directly to Adventurer5M.json — zmod's authoritative store.
-        // CHANGE_ZCOLOR is the macro-level equivalent but always emits the
-        // Mainsail "Select print materials" prompt and (on display=True
-        // setups) a native AD5X-screen popup, both of which the user must
-        // dismiss manually. zmod re-reads Adventurer5M.json on every
-        // GET_ZCOLOR call (no in-memory cache), so direct file writes are
-        // picked up without ceremony.
-        auto err = write_adventurer_json(slot_index);
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            dirty_[idx] = false;
-        }
-        if (!err.success())
-            return err;
-
-        // lessWaste/bambufy users: also persist to the plugin's save_variables
-        // store so its purge-skip logic sees consistent colors. zmod does not
-        // read these — both writes are required for fully-synchronized state.
-        // Best-effort: a failure here doesn't fail the operation because zmod's
-        // truth (Adventurer5M.json) is already current.
-        if (has_ifs_vars_) {
-            std::string colors_val;
-            std::string types_val;
+        if (ifs_module_live_.load()) {
+            // Standalone module: IFS_SET_MATERIAL is the writer. The module
+            // owns Adventurer5M.json itself ("a stock UI that writes it stays
+            // in agreement" is its design rule), so writing the file directly
+            // from here would race the module's own mtime-cached view — and
+            // the _IFS_VARS mirror below has no plugin to talk to. TYPE=/
+            // COLOR= absent means leave-alone and empty means clear; we hold
+            // the full post-edit state, so always send both. COLOR is bare
+            // hex because klipper's parser eats '#' as a comment start — the
+            // module re-prefixes it on its side.
+            char color_hex[7];
+            snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
+            auto err = execute_gcode("IFS_SET_MATERIAL SLOT=" + std::to_string(slot_index + 1) +
+                                     " TYPE=" + normalized_material + " COLOR=" + color_hex);
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                colors_val = build_color_list_value();
-                types_val = build_type_list_value();
+                dirty_[idx] = false;
             }
-            auto colors_err = write_ifs_var("colors", colors_val);
-            if (!colors_err.success()) {
-                spdlog::warn("{} _IFS_VARS colors write failed for slot {}: {}", backend_log_tag(),
-                             slot_index, colors_err.technical_msg);
+            if (!err.success()) {
+                return err;
             }
-            auto types_err = write_ifs_var("types", types_val);
-            if (!types_err.success()) {
-                spdlog::warn("{} _IFS_VARS types write failed for slot {}: {}", backend_log_tag(),
-                             slot_index, types_err.technical_msg);
+        } else {
+            // Write directly to Adventurer5M.json — zmod's authoritative store.
+            // CHANGE_ZCOLOR is the macro-level equivalent but always emits the
+            // Mainsail "Select print materials" prompt and (on display=True
+            // setups) a native AD5X-screen popup, both of which the user must
+            // dismiss manually. zmod re-reads Adventurer5M.json on every
+            // GET_ZCOLOR call (no in-memory cache), so direct file writes are
+            // picked up without ceremony.
+            auto err = write_adventurer_json(slot_index);
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                dirty_[idx] = false;
             }
-        }
+            if (!err.success())
+                return err;
+
+            // lessWaste/bambufy users: also persist to the plugin's save_variables
+            // store so its purge-skip logic sees consistent colors. zmod does not
+            // read these — both writes are required for fully-synchronized state.
+            // Best-effort: a failure here doesn't fail the operation because zmod's
+            // truth (Adventurer5M.json) is already current.
+            if (has_ifs_vars_) {
+                std::string colors_val;
+                std::string types_val;
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    colors_val = build_color_list_value();
+                    types_val = build_type_list_value();
+                }
+                auto colors_err = write_ifs_var("colors", colors_val);
+                if (!colors_err.success()) {
+                    spdlog::warn("{} _IFS_VARS colors write failed for slot {}: {}",
+                                 backend_log_tag(), slot_index, colors_err.technical_msg);
+                }
+                auto types_err = write_ifs_var("types", types_val);
+                if (!types_err.success()) {
+                    spdlog::warn("{} _IFS_VARS types write failed for slot {}: {}",
+                                 backend_log_tag(), slot_index, types_err.technical_msg);
+                }
+            }
+        } // zmod/plugin write path (module path dispatched above)
     }
 
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
@@ -2647,14 +2849,20 @@ void AmsBackendAd5xIfs::update_slot_weight(int slot_index, float remaining_weigh
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
 }
 
-helix::printer::ToolMappingCapabilities AmsBackendAd5xIfs::get_tool_mapping_capabilities() const {
+bool AmsBackendAd5xIfs::remap_ready() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!has_ifs_vars_) {
-        return {false, false, ""};
-    }
-    return {.supported = true,
-            .editable = true,
-            .description = "Tool reassignment via _IFS_VARS"}; // i18n: do not translate
+    // Native is declared unconditionally because that is what this backend is
+    // built to do. Whether the write can LAND is this question: without the
+    // `_IFS_VARS` macro, set_tool_mapping() mutates local state the firmware
+    // replays nothing from, so a user's pick is silently dropped at print start.
+    return has_ifs_vars_;
+}
+
+bool AmsBackendAd5xIfs::owns_tool_mapping_table() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Same gate, different question: get_tool_mapping() returns {} without the
+    // macro, so there is no table for a ToolTopology to be built from.
+    return has_ifs_vars_;
 }
 
 std::vector<int> AmsBackendAd5xIfs::get_tool_mapping() const {
@@ -3368,6 +3576,14 @@ bool AmsBackendAd5xIfs::note_json_content(const std::string& content) {
 }
 
 void AmsBackendAd5xIfs::poll_adventurer_json() {
+    // Standalone module: ifs_materials re-reads Adventurer5M.json when its
+    // mtime changes and pushes the diff by subscription, so the loopback HTTP
+    // poll buys nothing on a 2-core board that is also feeding the MCU step
+    // queue. This is the stand-down #1344 wanted for zmod's objects, shipped
+    // here because the module also carries the seated lane (ifs_loaded), which
+    // was the zmod blocker (FFMInfo.channel had no object equivalent).
+    if (ifs_module_live_.load())
+        return;
     if (!api_ || !json_poll_supported_.load())
         return;
     if (json_poll_in_flight_.exchange(true)) {
@@ -4086,6 +4302,12 @@ void AmsBackendAd5xIfs::schedule_json_reread() {
 }
 
 void AmsBackendAd5xIfs::schedule_zcolor_query(const char* reason) {
+    // Standalone module: GET_ZCOLOR / IFS_STATUS do not exist as commands on
+    // that firmware, and presence/seated state arrive by subscription. Sending
+    // the query would just draw an "Unknown command" from the console.
+    if (ifs_module_live_.load()) {
+        return;
+    }
     if (!zcolor_silent_supported_.load() && !ifs_status_ports_seen_.load()) {
         // GET_ZCOLOR SILENT is unsupported AND we have never seen IFS_STATUS
         // Ports — nothing clean to query, fall to JSON polling. Once IFS_STATUS
@@ -4135,6 +4357,11 @@ void AmsBackendAd5xIfs::schedule_zcolor_query(const char* reason) {
 }
 
 void AmsBackendAd5xIfs::query_zcolor_silent() {
+    // Standalone module: same stand-down as schedule_zcolor_query() — the
+    // commands do not exist on that firmware. Belt-and-braces for any caller
+    // that reaches here without going through the scheduler.
+    if (ifs_module_live_.load())
+        return;
     if (!api_)
         return;
     const bool silent = zcolor_silent_supported_.load();
@@ -4394,6 +4621,240 @@ bool AmsBackendAd5xIfs::apply_zmod_status_objects(const json& status) {
     // to re-run the whole apply path.
     if (result.saw_valid_response) {
         apply_zcolor_result(result);
+    }
+    return true;
+}
+
+std::string AmsBackendAd5xIfs::normalize_module_color_hex(const std::string& value) {
+    // The module stores and reports colours '#'-prefixed ("#A03CF7", or the
+    // "#RGB" short form the stock UI writes); colors_[] holds bare upper-case
+    // 6-digit hex. Empty return = "not a colour" (null / empty / malformed),
+    // which the apply path treats as no reading rather than as black.
+    std::string digits = value;
+    if (!digits.empty() && digits.front() == '#') {
+        digits.erase(0, 1);
+    }
+    if (digits.size() == 3) {
+        std::string expanded;
+        expanded.reserve(6);
+        for (char c : digits) {
+            expanded.push_back(c);
+            expanded.push_back(c);
+        }
+        digits = std::move(expanded);
+    }
+    if (digits.size() != 6) {
+        return {};
+    }
+    for (char c : digits) {
+        if (!std::isxdigit(static_cast<unsigned char>(c))) {
+            return {};
+        }
+    }
+    std::transform(digits.begin(), digits.end(), digits.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return digits;
+}
+
+bool AmsBackendAd5xIfs::read_ifs_materials_object(const json& obj, ZColorSilentResult& result) {
+    auto slots_it = obj.find("slots");
+    if (slots_it == obj.end() || !slots_it->is_object()) {
+        return false;
+    }
+    bool saw_slot = false;
+    for (auto slot_it = slots_it->begin(); slot_it != slots_it->end(); ++slot_it) {
+        // Moonraker serialises dict keys as strings, so "1".."4" - but accept
+        // an integer key too, same tolerance read_zmod_color_object gives the
+        // ID field (it is somebody else's serializer either way).
+        int id = 0;
+        try {
+            id = std::stoi(slot_it.key());
+        } catch (...) {
+            continue;
+        }
+        if (id < 1 || id > NUM_PORTS || !slot_it.value().is_object()) {
+            continue;
+        }
+        const auto& entry = slot_it.value();
+        ZColorSlot slot;
+        if (auto type = entry.find("type"); type != entry.end() && type->is_string()) {
+            slot.material = type->get<std::string>();
+            // The stock-UI unset sentinel, same one the zmod_color reader and
+            // parse_adventurer_json normalise - a live "?" must never render.
+            if (slot.material == "?") {
+                slot.material.clear();
+            }
+        }
+        if (auto color = entry.find("color"); color != entry.end() && color->is_string()) {
+            slot.hex = normalize_module_color_hex(color->get<std::string>());
+        }
+        result.slots[static_cast<size_t>(id - 1)] = std::move(slot);
+        saw_slot = true;
+    }
+    if (saw_slot) {
+        result.saw_valid_response = true;
+        // Same reasoning as the zmod_color reader: a firmware publishing these
+        // objects has no prompt-only degradation path to protect against.
+        result.saw_silent_content = true;
+    }
+    return saw_slot;
+}
+
+bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
+    ZColorSilentResult result;
+    // "Carried the object" is not enough to count as evidence the module is
+    // there: on_started()'s objects.query lists `ifs` / `ifs_materials`
+    // unconditionally, and Klipper echoes a requested-but-missing object as an
+    // EMPTY dict (the key stays present — same trap the _ifs_vars probe
+    // documents). A {} echo on ZMOD firmware must not latch the module path,
+    // or every ZMOD poll and macro stands down. Only a frame carrying an
+    // actual module FIELD counts.
+    bool saw_module_content = false;
+    std::string activity;
+    std::string error_text;
+
+    if (auto it = status.find("ifs"); it != status.end() && it->is_object()) {
+        const auto& obj = *it;
+
+        // loaded_channels: 1-based channel ints decoded from the same RS-485
+        // silk bitmask the per-lane sensors and zmod's Ports array carry. All
+        // or nothing across the array - one non-integer entry discards the
+        // presence view rather than inventing values. Out-of-range channel
+        // numbers are ignored (this printer has four lanes).
+        if (auto lc = obj.find("loaded_channels"); lc != obj.end() && lc->is_array()) {
+            std::array<bool, NUM_PORTS> ports{};
+            bool usable = true;
+            for (const auto& ch : *lc) {
+                if (!ch.is_number_integer()) {
+                    usable = false;
+                    break;
+                }
+                const int c = ch.get<int>();
+                if (c >= 1 && c <= NUM_PORTS) {
+                    ports[static_cast<size_t>(c - 1)] = true;
+                }
+            }
+            if (usable) {
+                result.ifs_ports = ports;
+                result.saw_valid_response = true;
+                saw_module_content = true;
+            }
+        }
+        // active_channel is the F13 `chan` - the same field zmod's Chan is,
+        // with the same "last channel the mechanism engaged" stickiness, so it
+        // rides the same guarded seated-adoption path in apply_zcolor_result.
+        if (auto ac = obj.find("active_channel"); ac != obj.end() && ac->is_number_integer()) {
+            result.ifs_chan = ac->get<int>();
+            result.saw_valid_response = true;
+            saw_module_content = true;
+        }
+        if (auto a = obj.find("activity"); a != obj.end() && a->is_string()) {
+            activity = a->get<std::string>();
+            saw_module_content = true;
+        }
+        if (auto e = obj.find("error"); e != obj.end() && e->is_string()) {
+            error_text = e->get<std::string>();
+            saw_module_content = true;
+        }
+    }
+    if (auto it = status.find("ifs_materials"); it != status.end() && it->is_object()) {
+        if (read_ifs_materials_object(*it, result)) {
+            saw_module_content = true;
+        }
+    }
+    if (!saw_module_content) {
+        return false;
+    }
+
+    if (!ifs_module_live_.exchange(true)) {
+        spdlog::info("{} Standalone IFS module objects are live — IFS state arrives by "
+                     "subscription; the Adventurer5M.json poll and GET_ZCOLOR stand down",
+                     backend_log_tag());
+        // The module's own macros map T0..T3 to slots 1..4, so the identity
+        // tool map is firmware truth here. Without it every slot's mapped_tool
+        // stays -1 (plugin-less ZMOD never populates the table) and the op
+        // dispatch's change_tool rewrite has no tool to name. Refresh the
+        // registry + slot view immediately — the latch can fire on a frame
+        // that carries neither Chan nor slots, and mapped_tool would otherwise
+        // wait for the next slot-bearing frame (same loop pair the
+        // both-plugins-conflict fallback in parse_save_variables runs).
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (int t = 0; t < NUM_PORTS; ++t) {
+            tool_map_[static_cast<size_t>(t)] = t + 1;
+        }
+        for (int i = 0; i < NUM_PORTS; ++i) {
+            slots_.set_tool_mapping(i, i);
+        }
+        for (int i = 0; i < NUM_PORTS; ++i) {
+            update_slot_from_state(i);
+        }
+    }
+
+    // Re-supply an omitted active_channel from the last frame that carried one
+    // (or from ifs_loaded) - mirrors zmod_last_chan_: a diff frame that moved
+    // only a silk sensor omits the channel, and every presence update in
+    // apply_zcolor_result() lives inside its Chan block.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (result.ifs_chan.has_value()) {
+            module_last_chan_ = result.ifs_chan;
+        } else if (result.ifs_ports.has_value() && module_last_chan_.has_value()) {
+            result.ifs_chan = *module_last_chan_;
+        }
+    }
+
+    if (result.saw_valid_response) {
+        apply_zcolor_result(result);
+    }
+
+    // Board activity -> UI action. Ops WE dispatch are finalized by their macro
+    // ack (finalize_op_after_macro) and driven by the phase tracker, which owns
+    // system_info_.action while active - so the tracker gate below keeps this
+    // mapping off our own ops entirely. What it covers is everything else: a
+    // slicer's T1 mid-print, a console IFS_LOAD, an autoinsert threading a
+    // freshly pushed-in lane. Those set no tracker and install no ack callback;
+    // the board's activity is the only Moonraker-visible signal they produce.
+    // Transitions are deliberately one-directional per frame (busy only from
+    // IDLE, idle only from a busy the board itself reported): a polling "ready"
+    // frame must never erase the HEATING a tracked op just published.
+    bool action_changed = false;
+    if (!activity.empty()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const AmsAction before = system_info_.action;
+        if (activity == "loading") {
+            if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
+                system_info_.action = AmsAction::LOADING;
+                action_start_time_ = std::chrono::steady_clock::now();
+                set_operation_detail_locked("IFS: loading");
+            }
+        } else if (activity == "unloading") {
+            if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
+                system_info_.action = AmsAction::UNLOADING;
+                action_start_time_ = std::chrono::steady_clock::now();
+                set_operation_detail_locked("IFS: unloading");
+            }
+        } else if (activity == "ready" || activity == "polling") {
+            if (!phase_tracker_.active && (system_info_.action == AmsAction::LOADING ||
+                                           system_info_.action == AmsAction::UNLOADING)) {
+                system_info_.action = AmsAction::IDLE;
+                set_operation_detail_locked("");
+            }
+        } else if (activity == "driver_error") {
+            // The board's stepper driver faulted. Report it unless a fault with
+            // richer state (the runout detector) already holds ERROR - and
+            // never clear it from here; the module's IFS_RESET_DRIVER recovery
+            // path owns that.
+            if (system_info_.action != AmsAction::ERROR && !runout_active_) {
+                system_info_.action = AmsAction::ERROR;
+                set_operation_detail_locked(error_text.empty() ? "IFS driver error" : error_text);
+            }
+        }
+        // clamped / unclamping are sub-second transitional states of a load or
+        // unload already covered above; mapping them would guess a direction.
+        action_changed = system_info_.action != before;
+    }
+    if (action_changed) {
+        emit_event(EVENT_STATE_CHANGED);
     }
     return true;
 }

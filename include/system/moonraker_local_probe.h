@@ -115,7 +115,7 @@ std::vector<std::string> listeners_on_port(uint16_t port);
  * "a cmdline naming both a daemon and helix-screen is ours, not a daemon" gets
  * exercised at all depends on what else happens to be running. A HelixScreen
  * checkout makes that cmdline shape ordinary — a grep, a compile of this very
- * file, or the app started with --moonraker-url all name both at once.
+ * file, or the app started with --moonraker all name both at once.
  */
 std::vector<ProcMatch> select_moonraker_processes(const std::vector<ProcMatch>& candidates);
 

@@ -315,6 +315,13 @@ endif
 ifeq ($(SANITIZE),thread)
     OBJ_DIR ?= $(BUILD_DIR)/obj-tsan
 endif
+# Coverage builds need their own object tree for exactly the reason above: an
+# uninstrumented object that is already up to date would be relinked, not
+# recompiled, and it emits no .gcda at all. The resulting report reads as "these
+# lines were never executed" for every file make decided to skip.
+ifeq ($(COVERAGE),1)
+    OBJ_DIR ?= $(BUILD_DIR)/obj-cov
+endif
 
 BIN_DIR ?= $(BUILD_DIR)/bin
 OBJ_DIR ?= $(BUILD_DIR)/obj
@@ -446,6 +453,13 @@ ENABLE_MOCKS ?= yes
 # a silent no-op that still compiles and still links the backend.
 ifneq (,$(filter ad5m ad5m-br ad5x,$(PLATFORM_TARGET)))
     PWM_SOUND_CXXFLAGS := -DHELIX_HAS_PWM_SOUND
+    # Auto-export: the stock AD5M kernel ships the beeper channel unexported
+    # and nothing materializes pwm6, so initialize() writes the channel to
+    # pwmchip0/export first. ad5x is excluded: pwm6 unverified there, no test
+    # rig, large installed base - behavior must not change silently.
+    ifneq (,$(filter ad5m ad5m-br,$(PLATFORM_TARGET)))
+        PWM_AUTO_EXPORT_CXXFLAGS := -DHELIX_PWM_AUTO_EXPORT
+    endif
 else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/pwm_sound_backend.cpp,$(APP_SRCS))
 endif
@@ -732,6 +746,8 @@ ifeq ($(SANITIZE),address)
 PCH := $(BUILD_DIR)/asan-lvgl_pch.h.gch
 else ifeq ($(SANITIZE),thread)
 PCH := $(BUILD_DIR)/tsan-lvgl_pch.h.gch
+else ifeq ($(COVERAGE),1)
+PCH := $(BUILD_DIR)/cov-lvgl_pch.h.gch
 else
 PCH := $(BUILD_DIR)/lvgl_pch.h.gch
 endif
@@ -945,36 +961,67 @@ ifeq ($(SANITIZE),thread)
     endif
 endif
 
+# Line coverage, for `make cov-diff` -- which changed lines does the suite
+# actually execute? Deliberately applied to CFLAGS/CXXFLAGS only and NOT to
+# SUBMODULE_CFLAGS/SUBMODULE_CXXFLAGS: instrumenting LVGL, libhv and helix-xml
+# would multiply build time and disk for lines no diff of ours ever touches.
+# -fprofile-abs-path puts absolute source paths in the .gcno, so gcov resolves
+# them no matter which directory the report is generated from.
+#
+# Appended here, after the per-platform `LDFLAGS :=` composition above, for the
+# same reason the sanitizer flags are.
+ifeq ($(COVERAGE),1)
+    COVERAGE_FLAGS := --coverage -fprofile-abs-path
+    CFLAGS += $(COVERAGE_FLAGS)
+    CXXFLAGS += $(COVERAGE_FLAGS)
+    LDFLAGS += --coverage
+endif
+
 # Sound system — synth, sequencer, backends (PWM/M300/SDL/ALSA), themes
 # Tracker player — MOD/MED file playback with PCM samples (requires HELIX_HAS_SOUND)
 #
-# HELIX_HAS_SOUND:   Pi, x86, AD5M, native — any platform with audio output
-# HELIX_HAS_TRACKER: Pi, x86, native — platforms with multi-core CPU + audio
-# AD5M/AD5X: sound only (no tracker — single-core busy-wait kills prints)
-# Disabled entirely: K1, K2, MIPS — no audio hardware at all
+# HELIX_HAS_SOUND:   Pi, x86, AD5M family, native — any platform with audio output
+# HELIX_HAS_TRACKER: Pi, x86, native, ad5m — platforms cleared for tracker PCM
+# ad5m: tracker playback re-enabled (b8c141b4a) — the PWM PCM render loop is now
+#   SCHED_IDLE with absolute pacing, bounded catch-up, and silence auto-park, so
+#   it can no longer starve the CPU that runs a print. Originally disabled
+#   2026-04 (003c195ac) for exactly that starvation at normal priority.
+# ad5m-br/ad5x: tone-only — the SCHED_IDLE render loop has not been re-validated
+#   on their hardware, so tracker stays off there.
+# K1/K2/MIPS: no audio hardware at all
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=
 ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
-else ifneq (,$(filter ad5m ad5m-br ad5x,$(PLATFORM_TARGET)))
-    # AD5M/AD5X: PWM buzzer for tone-mode SFX only.
-    # Tracker (MOD/MED) DISABLED — the PCM render thread's busy-wait loop
-    # starves the single-core CPU, killing active prints and blocking
-    # Moonraker commands (including firmware_restart).
+else ifeq ($(PLATFORM_TARGET),ad5m)
+    SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
+    TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
+else ifneq (,$(filter ad5m-br ad5x,$(PLATFORM_TARGET)))
+    # PWM buzzer for tone-mode SFX only — the printer-safe render loop behind
+    # the ad5m branch has not been re-validated on this hardware.
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
 else ifeq ($(PLATFORM_TARGET),native)
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
 # K1, K2, MIPS — no sound at all
-CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS)
+CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS)
 
 # Feature gates — default ON for all platforms.
 # Disabled per-platform in mk/cross.mk for memory-constrained targets.
 HELIX_HAS_LABEL_PRINTER ?= 1
 HELIX_HAS_CFS ?= 1
 HELIX_HAS_IFS ?= 1
+# Vendor filament systems that are physically tied to one printer family. A
+# device build for printer X cannot meet vendor Y's hardware, so Y is dead
+# weight there. Kept ON for the generic hosts (pi/x86/native), which drive an
+# arbitrary printer over the network. AFC and Happy Hare are deliberately NOT
+# gated: both are user-installable Klipper add-ons that can appear on any
+# printer, so no platform can rule them out.
+HELIX_HAS_ACE ?= 1
+HELIX_HAS_QIDI ?= 1
+HELIX_HAS_SNAPMAKER ?= 1
 # Compile-out gates for the 2D gcode renderer and the bed-mesh 3D renderer —
 # code AND their big runtime buffers (ESP32-class targets set these to 0).
 HELIX_HAS_GCODE_VIEWER ?= 1
@@ -989,6 +1036,9 @@ HELIX_HAS_TIMELAPSE_VIEWER ?= 1
 CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_CFS=$(HELIX_HAS_CFS) \
             -DHELIX_HAS_IFS=$(HELIX_HAS_IFS) \
+            -DHELIX_HAS_ACE=$(HELIX_HAS_ACE) \
+            -DHELIX_HAS_QIDI=$(HELIX_HAS_QIDI) \
+            -DHELIX_HAS_SNAPMAKER=$(HELIX_HAS_SNAPMAKER) \
             -DHELIX_HAS_GCODE_VIEWER=$(HELIX_HAS_GCODE_VIEWER) \
             -DHELIX_HAS_BED_MESH_3D=$(HELIX_HAS_BED_MESH_3D) \
             -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \

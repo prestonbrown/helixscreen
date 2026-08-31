@@ -417,6 +417,91 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot fill subject on s
 }
 
 // ============================================================================
+// Per-slot REMAINING subject: same canonical-shape rule as the fill subject,
+// with one twist: the CFS box reports two sentinel lengths that are NOT
+// measurements and must never render as one (100 = never measured, the
+// pre-probe default; 255 = failed probe, prestonbrown/helixscreen#1387).
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "SlotInfo remaining-length display hides sentinel values",
+                 "[ams][ams_state][1387]") {
+    SlotInfo s;
+    s.remaining_length_m = 42.0f;
+    CHECK(s.remaining_length_display() == "42m");
+    // CFS "never measured" default (see the BOX_INFO_REFRESH probe notes in
+    // ams_backend_cfs.cpp).
+    s.remaining_length_m = 100.0f;
+    CHECK(s.remaining_length_display().empty());
+    // What a probe against a busy box leaves behind (#1387).
+    s.remaining_length_m = 255.0f;
+    CHECK(s.remaining_length_display().empty());
+    s.remaining_length_m = 0.0f;
+    CHECK(s.remaining_length_display().empty());
+    s.remaining_length_m = -1.0f;
+    CHECK(s.remaining_length_display().empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "SlotInfo remaining display falls back to weight",
+                 "[ams][ams_state][1387]") {
+    SlotInfo s;
+    // Length wins when it is a real measurement.
+    s.remaining_length_m = 42.0f;
+    s.remaining_weight_g = 750.0f;
+    CHECK(s.remaining_display() == "42m");
+    // Sentinel and non-measurement lengths fall to the weight.
+    s.remaining_length_m = 100.0f;
+    CHECK(s.remaining_display() == "750g");
+    s.remaining_length_m = -1.0f;
+    CHECK(s.remaining_display() == "750g");
+    // No measurable length and no positive weight: nothing to show.
+    s.remaining_weight_g = -1.0f;
+    CHECK(s.remaining_display().empty());
+    s.remaining_weight_g = 0.0f;
+    CHECK(s.remaining_display().empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState remaining subject falls back to weight on sentinels",
+                 "[ams][ams_state][1387]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    auto mock = AmsBackend::create_mock(2);
+    auto* mock_ptr = static_cast<AmsBackendMock*>(mock.get());
+
+    // slot 0: real measured length. The length is firmware-derived state, so
+    // it is staged through force_slot_remaining - set_slot_info does not copy
+    // it (same discipline as status).
+    mock_ptr->force_slot_status(0, SlotStatus::AVAILABLE);
+    mock_ptr->force_slot_remaining(0, 42.0f);
+    SlotInfo s0;
+    s0.slot_index = 0;
+    s0.material = "PLA";
+    s0.color_rgb = 0x00FF00;
+    mock_ptr->set_slot_info(0, s0);
+
+    // slot 1: the failed-probe sentinel is not a measurement, so the weight
+    // carries the display instead.
+    mock_ptr->force_slot_status(1, SlotStatus::AVAILABLE);
+    mock_ptr->force_slot_remaining(1, 255.0f);
+    SlotInfo s1;
+    s1.slot_index = 1;
+    s1.material = "PLA";
+    s1.color_rgb = 0xFF0000;
+    s1.remaining_weight_g = 250.0f;
+    mock_ptr->set_slot_info(1, s1);
+
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+    drain();
+
+    CHECK(std::string(lv_subject_get_string(ams.get_slot_remaining_subject(0))) == "42m");
+    CHECK(std::string(lv_subject_get_string(ams.get_slot_remaining_subject(1))) == "250g");
+
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+// ============================================================================
 // Part 3a — Op-card current-loaded color matches the loaded slot (not slot+1)
 // ============================================================================
 

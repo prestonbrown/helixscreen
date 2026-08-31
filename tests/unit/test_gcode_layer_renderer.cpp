@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../ui_test_utils.h"
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 #include "gcode_projection.h"
+#include "gcode_selection_style.h"
 #include "gcode_streaming_controller.h"
 #include "system/crash_handler.h"
 
@@ -935,4 +937,397 @@ TEST_CASE("pick_object_at honors the support visibility toggle",
         REQUIRE(widget_hit.has_value());
         CHECK(widget_hit.value() == "widget");
     }
+}
+
+// ===========================================================================
+// Selection index-map wiring.
+//
+// Selection is classified by interned object index through SelectionState, which
+// only answers correctly once rebuild_index_map() has been fed the object-name
+// table. Miss a wiring site and selection silently stops working while every
+// unit test above stays green -- the pre-existing exclude tests assert only
+// REQUIRE_NOTHROW on the setters, so they cannot catch it.
+//
+// These assert the rendered colour, which is the end of the chain.
+// ===========================================================================
+
+namespace {
+
+bool is_excluded_colour(lv_color_t c) {
+    // The renderer resolves its palette from the tokens; with no ui_xml loaded
+    // in this fixture that is the compiled default, which is the same hue.
+    const lv_color_t want = lv_color_hex(helix::gcode::selection::Palette{}.excluded);
+    return c.red == want.red && c.green == want.green && c.blue == want.blue;
+}
+
+} // namespace
+
+TEST_CASE("an excluded object renders in the excluded colour", "[layer_renderer][exclude]") {
+    ParsedGCodeFile gcode = make_test_gcode();
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_excluded_objects({"cube1"});
+
+    const auto& segs = gcode.layers[0].segments;
+    REQUIRE(is_excluded_colour(renderer.get_segment_color(segs[0])));       // cube1
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(segs[1]))); // cube2
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(segs[2]))); // unnamed
+}
+
+TEST_CASE("an exclusion set before the gcode source still classifies",
+          "[layer_renderer][exclude]") {
+    // Ordering matters in practice: PrinterState can deliver excluded_objects from
+    // a Moonraker status update before the viewer has finished parsing the file.
+    ParsedGCodeFile gcode = make_test_gcode();
+    GCodeLayerRenderer renderer;
+    renderer.set_excluded_objects({"cube1"});
+    renderer.set_gcode(&gcode);
+
+    REQUIRE(is_excluded_colour(renderer.get_segment_color(gcode.layers[0].segments[0])));
+}
+
+TEST_CASE("swapping to a different file with the same object count re-maps",
+          "[layer_renderer][exclude]") {
+    // The index map is refreshed on a size heuristic plus a force flag at source
+    // swap. Without the force, two files with equal object counts would keep the
+    // first file's name-to-index mapping, and index 0 would still read as
+    // excluded even though this file has no object by that name.
+    ParsedGCodeFile first = make_test_gcode();
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&first);
+    renderer.set_excluded_objects({"cube1"});
+    REQUIRE(is_excluded_colour(renderer.get_segment_color(first.layers[0].segments[0])));
+
+    ParsedGCodeFile second;
+    {
+        Layer layer;
+        layer.z_height = 0.2f;
+        layer.bounding_box.expand(glm::vec3(10.0f, 20.0f, 0.2f));
+        layer.bounding_box.expand(glm::vec3(50.0f, 80.0f, 0.2f));
+        ToolpathSegment a;
+        a.start = glm::vec3(10.0f, 20.0f, 0.2f);
+        a.end = glm::vec3(50.0f, 20.0f, 0.2f);
+        a.is_extrusion = true;
+        a.object_name_index = second.intern_object_name("cubeA");
+        layer.segments.push_back(a);
+        ToolpathSegment b;
+        b.start = glm::vec3(10.0f, 80.0f, 0.2f);
+        b.end = glm::vec3(50.0f, 80.0f, 0.2f);
+        b.is_extrusion = true;
+        b.object_name_index = second.intern_object_name("cubeB");
+        layer.segments.push_back(b);
+        second.layers.push_back(layer);
+    }
+
+    renderer.set_gcode(&second);
+    // "cube1" is not in this file at all, so nothing here is excluded.
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(second.layers[0].segments[0])));
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(second.layers[0].segments[1])));
+}
+
+// ===========================================================================
+// Selection halo (the white silhouette outline).
+//
+// A selected object keeps its filament colour and is marked by a white halo
+// drawn beneath its strokes: the halo pass runs first at a wider width, then the
+// normal pass paints over it, so only the object's outer boundary stays white.
+// That is what traces the real toolpath contour rather than the convex hull the
+// slicer's EXCLUDE_OBJECT_DEFINE POLYGON gives us.
+//
+// Asserted by counting white pixels rather than probing coordinates: FRONT view
+// is isometric, so where a segment lands is a projection detail, but "white
+// appears only when something is selected" is the actual contract.
+// ===========================================================================
+
+namespace {
+
+// Drive enough frames to get past WARMUP_FRAMES and run the solid cache path,
+// then report how many canvas pixels are near-white and how many are painted.
+// Drive frames until the progressive solid cache reports it is complete.
+//
+// A fixed frame count is NOT deterministic here: layers_per_frame_ is adaptive
+// when config_layers_per_frame_ is 0, so under machine load a frame can advance
+// the cache by zero layers and a "render 6 frames" harness silently measures a
+// half-built cache. That produced painted=0 for one render and painted=141 for
+// an identical one. needs_more_frames() is the renderer's own completion signal.
+void drive_until_cached(GCodeLayerRenderer& renderer, lv_obj_t* canvas) {
+    // The canvas must have a resolved size/position before init_layer, or the
+    // first layer of a test gets an unusable clip area and the blit lands
+    // nowhere -- which showed up as the FIRST drive in each test case painting
+    // zero pixels while later ones in the same case worked.
+    lv_obj_update_layout(canvas);
+
+    auto frame = [&]() {
+        lv_layer_t layer;
+        lv_area_t clip = {0, 0, 199, 199};
+        lv_canvas_init_layer(canvas, &layer);
+        renderer.render(&layer, &clip);
+        lv_canvas_finish_layer(canvas, &layer);
+        lv_timer_handler_safe();
+    };
+    // WARMUP_FRAMES deliberately skips heavy caching; get past it first.
+    for (int i = 0; i < 3; ++i) {
+        frame();
+    }
+    int guard = 0;
+    while (renderer.needs_more_frames() && guard++ < 500) {
+        frame();
+    }
+    REQUIRE(guard < 500); // cache never completed: harness bug, not a halo bug
+    frame();              // final frame blits the completed cache to the canvas
+}
+
+struct RenderCounts {
+    int white = 0;
+    int painted = 0;
+};
+
+RenderCounts render_and_count(const std::unordered_set<std::string>& highlighted,
+                              ParsedGCodeFile& gcode, uint8_t* buf, lv_obj_t* canvas) {
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_ghost_mode(false);   // no background thread: deterministic
+    renderer.set_ssao_enabled(false); // the outline pass would add white of its own
+    // Antialiasing is a separate flag now, and it has to be pinned too. A tagged
+    // (selected) stroke is always drawn aliased so the alpha tag survives, so
+    // leaving AA on here would give the unselected render an AA fringe the
+    // selected one does not have, and the footprint comparison below would be
+    // measuring that rather than the rim.
+    renderer.set_antialias_enabled(false);
+    renderer.set_canvas_size(200, 200);
+    renderer.set_current_layer(0);
+    if (!highlighted.empty()) {
+        renderer.set_highlighted_objects(highlighted);
+    }
+
+    std::fill(buf, buf + 200 * 200 * 4, uint8_t{0});
+    drive_until_cached(renderer, canvas);
+
+    RenderCounts c;
+    for (int i = 0; i < 200 * 200; ++i) {
+        const uint8_t b = buf[i * 4 + 0];
+        const uint8_t g = buf[i * 4 + 1];
+        const uint8_t r = buf[i * 4 + 2];
+        const uint8_t a = buf[i * 4 + 3];
+        if (a == 0) {
+            continue;
+        }
+        // Alpha, not colour: the fixture sets no filament colour, so ordinary
+        // segments draw black and an r|g|b test would score them as unpainted.
+        ++c.painted;
+        if (r >= 240 && g >= 240 && b >= 240) {
+            ++c.white;
+        }
+    }
+    return c;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "an unselected plate draws no white pixels",
+                 "[layer_renderer][halo]") {
+    // Baseline. The default filament colour is teal (0x26A69A) and depth shading
+    // only darkens it, so nothing should read as white without a selection. If
+    // this fails the white-detection threshold is wrong, not the halo.
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    const auto counts = render_and_count({}, gcode, buf, canvas);
+    INFO("painted=" << counts.painted << " white=" << counts.white);
+    REQUIRE(counts.painted > 0); // the plate did render
+    REQUIRE(counts.white == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white rim without growing it",
+                 "[layer_renderer][halo]") {
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    const auto plain = render_and_count({}, gcode, buf, canvas);
+    const auto selected = render_and_count({"cube1"}, gcode, buf, canvas);
+
+    INFO("plain: painted=" << plain.painted << " white=" << plain.white);
+    INFO("selected: painted=" << selected.painted << " white=" << selected.white);
+
+    // The rim is the only source of white.
+    REQUIRE(selected.white > 0);
+
+    // And the object occupies exactly the same pixels it did unselected. This
+    // assertion used to be the other way round - the halo was painted wider than
+    // the object and the footprint grew - which is precisely why it flooded: the
+    // white it laid down outside the object had to be covered by something, and
+    // on a sloped wall nothing ever covered it.
+    REQUIRE(selected.painted == plain.painted);
+
+    // A rim is a boundary, so it is a minority of the object's pixels. A flood
+    // still satisfies "white > 0".
+    REQUIRE(selected.white * 2 < selected.painted);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the halo covers only the selected object",
+                 "[layer_renderer][halo]") {
+    // Selecting both objects must produce strictly more halo than selecting one.
+    // A halo keyed on the wrong thing (say, drawn for every segment whenever any
+    // selection exists) would give identical counts.
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    const auto one = render_and_count({"cube1"}, gcode, buf, canvas);
+    const auto both = render_and_count({"cube1", "cube2"}, gcode, buf, canvas);
+
+    INFO("one=" << one.white << " both=" << both.white);
+    REQUIRE(one.white > 0);
+    REQUIRE(both.white > one.white);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "clearing the selection removes the halo",
+                 "[layer_renderer][halo]") {
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_ghost_mode(false);
+    renderer.set_ssao_enabled(false);
+    renderer.set_canvas_size(200, 200);
+    renderer.set_current_layer(0);
+    renderer.set_highlighted_objects({"cube1"});
+
+    auto draw = [&]() {
+        std::fill(buf, buf + 200 * 200 * 4, uint8_t{0});
+        drive_until_cached(renderer, canvas);
+        int white = 0;
+        for (int i = 0; i < 200 * 200; ++i) {
+            if (buf[i * 4 + 3] && buf[i * 4 + 0] >= 240 && buf[i * 4 + 1] >= 240 &&
+                buf[i * 4 + 2] >= 240) {
+                ++white;
+            }
+        }
+        return white;
+    };
+
+    REQUIRE(draw() > 0);
+    // Deselecting must invalidate the solid cache, or the halo would persist as a
+    // stale cached image -- the exact bug the InvalidationScope split could cause
+    // if SolidCache were mishandled.
+    renderer.set_highlighted_objects({});
+    REQUIRE(draw() == 0);
+}
+
+// ===========================================================================
+// Scrubbing the layer slider backwards.
+//
+// The rim is not re-derived per frame: it is stamped into the solid cache as
+// pixels, and selection_rim_stamped_ says it is already there. Every path that
+// throws those pixels away therefore has to drop the flag with them, which is
+// what makes the cache reset one shared operation rather than a rule each branch
+// spells out for itself.
+// ===========================================================================
+
+namespace {
+
+/// A stack of identical layers, each carrying both named objects, so a scrub in
+/// either direction always has the selected object on screen. make_test_gcode()
+/// is one layer, which cannot go backwards at all.
+ParsedGCodeFile make_stacked_gcode(int layer_count) {
+    ParsedGCodeFile gcode;
+    const auto cube1 = gcode.intern_object_name("cube1");
+    const auto cube2 = gcode.intern_object_name("cube2");
+
+    for (int i = 0; i < layer_count; ++i) {
+        Layer layer;
+        const float z = 0.2f * static_cast<float>(i + 1);
+        layer.z_height = z;
+
+        auto add = [&](float y, auto name_index) {
+            ToolpathSegment seg;
+            seg.start = glm::vec3(10.0f, y, z);
+            seg.end = glm::vec3(50.0f, y, z);
+            seg.is_extrusion = true;
+            seg.object_name_index = name_index;
+            layer.bounding_box.expand(seg.start);
+            layer.bounding_box.expand(seg.end);
+            gcode.global_bounding_box.expand(seg.start);
+            gcode.global_bounding_box.expand(seg.end);
+            layer.segments.push_back(seg);
+        };
+        add(20.0f, cube1);
+        add(80.0f, cube2);
+
+        layer.segment_count_extrusion = 2;
+        layer.segment_count_travel = 0;
+        gcode.layers.push_back(std::move(layer));
+    }
+
+    gcode.total_segments = static_cast<size_t>(layer_count) * 2;
+    return gcode;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "scrubbing back down the stack keeps the selection rim",
+                 "[layer_renderer][halo]") {
+    // Layer 0 is the destination that makes the loss permanent rather than
+    // self-healing. The rebuild finishes inside a single frame there, so no later
+    // frame takes the forward-growth branch — which has its own copy of the reset
+    // and would clear a stale flag on the way past. Scrub to the middle of the
+    // stack instead and the rim comes back a frame or two later, which is why
+    // this went unnoticed.
+    auto gcode = make_stacked_gcode(8);
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_ghost_mode(false);   // no background thread: deterministic
+    renderer.set_ssao_enabled(false); // the shading pass would add white of its own
+    renderer.set_antialias_enabled(false);
+    renderer.set_canvas_size(200, 200);
+    renderer.set_highlighted_objects({"cube1"});
+
+    auto render_at = [&](int layer) {
+        renderer.set_current_layer(layer);
+        std::fill(buf, buf + 200 * 200 * 4, uint8_t{0});
+        drive_until_cached(renderer, canvas);
+        RenderCounts c;
+        for (int i = 0; i < 200 * 200; ++i) {
+            if (buf[i * 4 + 3] == 0) {
+                continue;
+            }
+            ++c.painted;
+            if (buf[i * 4 + 0] >= 240 && buf[i * 4 + 1] >= 240 && buf[i * 4 + 2] >= 240) {
+                ++c.white;
+            }
+        }
+        return c;
+    };
+
+    const auto top = render_at(7);
+    INFO("top: painted=" << top.painted << " white=" << top.white);
+    REQUIRE(top.painted > 0);
+    REQUIRE(top.white > 0);
+
+    const auto bottom = render_at(0);
+    INFO("bottom: painted=" << bottom.painted << " white=" << bottom.white);
+    // The plate still drew, so a white count of 0 below means the rim is missing
+    // rather than the whole render having gone away.
+    REQUIRE(bottom.painted > 0);
+    REQUIRE(bottom.white > 0);
 }

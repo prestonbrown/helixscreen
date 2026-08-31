@@ -112,6 +112,28 @@ struct AABB {
     }
 
   public:
+    /**
+     * @brief The fallback plate when a box is empty: 0,0,0 .. 200,200,0.
+     *
+     * An empty AABB carries +/-inf sentinels. Feeding those to compute_auto_fit()
+     * produces NaN offsets and every projected point becomes garbage, so callers
+     * substitute a nominal 200x200 bed instead. That substitution existed in
+     * several places with the numbers written out each time.
+     */
+    static AABB default_plate_bbox() {
+        AABB bb;
+        bb.min = {0.0f, 0.0f, 0.0f};
+        bb.max = {200.0f, 200.0f, 0.0f};
+        return bb;
+    }
+
+    /// Grow the box by `margin` on every axis, both directions.
+    void expand_by(float margin) {
+        const glm::vec3 m(margin, margin, margin);
+        min -= m;
+        max += m;
+    }
+
     /// 8 corners of the box. Order: bits 0/1/2 of the index select max for x/y/z.
     std::array<glm::vec3, 8> corners() const {
         return {{

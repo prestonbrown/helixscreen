@@ -177,26 +177,18 @@ std::string make_ap_ssid() {
 // ---------------------------------------------------------------------------
 // UI (R1) — a plain info modal via the existing Modal system. No new XML,
 // subjects, or panel: the instructions are two lines of interpolated text
-// (SSID + IP), which modal_show_alert()'s title/message args already cover
+// (SSID + IP), which modal_alert()'s title/message args already cover
 // (same shape as show_low_ram_resonance_warning's fmt::format(lv_tr(...))
 // pattern) — translated static copy, interpolated dynamic values.
 // ---------------------------------------------------------------------------
 
-// Fires on ANY dismissal path (OK button, backdrop click, ESC) — the modal
-// system routes backdrop-click/ESC straight to Modal::hide() without calling
-// a static modal's on-click callback, so LV_EVENT_DELETE is the one hook that
-// reliably covers every path. Idempotent: harmless if the OK-button callback
-// already set the flag.
+// Fires on ANY close path (button press, backdrop tap, ESC) - every one of
+// them ends in the stack entry's teardown, so LV_EVENT_DELETE reliably covers
+// all of them for nulling the handle. The requested-flag half of the job runs
+// in the alert's own callback; this hook is idempotent about it.
 void on_modal_deleted(lv_event_t*) {
     s_dismiss_requested.store(true);
     s_alert_dialog = nullptr;
-}
-
-void on_dismiss_clicked(lv_event_t*) {
-    s_dismiss_requested.store(true);
-    if (s_alert_dialog) {
-        Modal::hide(s_alert_dialog);
-    }
 }
 
 void show_instructions_modal(std::string ssid, std::string ip) {
@@ -206,9 +198,11 @@ void show_instructions_modal(std::string ssid, std::string ip) {
             fmt::format(lv_tr("On your phone or computer, join the WiFi network \"{}\", then "
                               "open http://{} in a browser to finish setup."),
                         ssid, ip);
-        lv_obj_t* dialog =
-            helix::ui::modal_show_alert(title.c_str(), message.c_str(), ModalSeverity::Info,
-                                        lv_tr("Use Settings Instead"), on_dismiss_clicked, nullptr);
+        // modal_alert closes itself on the button press; the callback carries
+        // the flag, the DELETE hook below carries the handle.
+        lv_obj_t* dialog = helix::ui::modal_alert(
+            title.c_str(), message.c_str(), ModalSeverity::Info, lv_tr("Use Settings Instead"),
+            []() { s_dismiss_requested.store(true); });
         if (dialog) {
             s_alert_dialog = dialog;
             lv_obj_add_event_cb(dialog, on_modal_deleted, LV_EVENT_DELETE, nullptr);

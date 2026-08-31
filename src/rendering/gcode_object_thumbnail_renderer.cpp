@@ -165,10 +165,11 @@ GCodeObjectThumbnailRenderer::render_impl(const ParsedGCodeFile* gcode, int thum
             float brightness =
                 compute_depth_brightness(avg_z, ctx.z_min, ctx.z_max, avg_y, ctx.y_min, ctx.y_max);
 
-            // Apply brightness to ARGB8888 color
-            uint8_t b = static_cast<uint8_t>((color & 0xFF) * brightness);
-            uint8_t g = static_cast<uint8_t>(((color >> 8) & 0xFF) * brightness);
-            uint8_t r = static_cast<uint8_t>(((color >> 16) & 0xFF) * brightness);
+            // Apply brightness to ARGB8888 color. Two-sided: a plain multiply
+            // renders a black filament as a single flat tone. See apply_shading().
+            uint8_t b = apply_shading(color & 0xFF, brightness);
+            uint8_t g = apply_shading((color >> 8) & 0xFF, brightness);
+            uint8_t r = apply_shading((color >> 16) & 0xFF, brightness);
             uint8_t a = (color >> 24) & 0xFF;
             uint32_t shaded = b | (g << 8) | (r << 16) | (a << 24);
 

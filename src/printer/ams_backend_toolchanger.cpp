@@ -31,8 +31,7 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
     system_info_.type_name = "Tool Changer";
 
     // Tool changer capabilities
-    system_info_.supports_tool_mapping = true; // Via klipper-toolchanger ASSIGN_TOOL
-    system_info_.supports_bypass = false;      // No bypass on tool changers
+    system_info_.supports_bypass = false; // No bypass on tool changers
     system_info_.has_hardware_bypass_sensor = false;
 
     spdlog::debug("[AMS ToolChanger] Backend created");
@@ -170,9 +169,7 @@ SlotInfo AmsBackendToolChanger::get_slot_info(int slot_index) const {
 // get_current_action(), get_current_tool(), get_current_slot(), is_filament_loaded()
 // provided by AmsSubscriptionBackend
 
-bool AmsBackendToolChanger::can_unload_from_toolhead(int slot_index) const {
-    std::lock_guard<std::mutex> lock(mutex_);
-
+bool AmsBackendToolChanger::slot_is_mounted_locked(int slot_index) const {
     // One tool on the carriage at a time, and "unload" here means UNSELECT_TOOL —
     // an unmount, not a filament retraction. Unmounting a docked tool is
     // meaningless, so only the carriage tool qualifies. See the header note for
@@ -180,10 +177,11 @@ bool AmsBackendToolChanger::can_unload_from_toolhead(int slot_index) const {
     if (slot_index < 0 || slot_index >= system_info_.total_slots) {
         return false;
     }
-    // Sensors that cannot identify the mounted tool withdraw the offer entirely.
-    // current_slot still names the last known tool, so without this the button
-    // stays ENABLED and unmounts against a carriage state nobody can vouch for -
-    // exactly what holding the last known tool was meant to prevent.
+    // Sensors that cannot identify the mounted tool answer NO for every slot.
+    // current_slot still names the last known tool, so without this the carriage
+    // slot reads mounted and the menu unmounts against a carriage state nobody
+    // can vouch for - exactly what holding the last known tool was meant to
+    // prevent.
     if (sensor_error_) {
         return false;
     }
@@ -193,6 +191,20 @@ bool AmsBackendToolChanger::can_unload_from_toolhead(int slot_index) const {
     // ASSIGNED number in toolchanger.tool_number. Comparing a slot index to it
     // offered Unload on the wrong toolhead whenever a remap was in effect.
     return system_info_.current_slot >= 0 && slot_index == system_info_.current_slot;
+}
+
+bool AmsBackendToolChanger::can_unload_from_toolhead(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return slot_is_mounted_locked(slot_index);
+}
+
+bool AmsBackendToolChanger::slot_is_actively_loaded(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // The same fact, asked by the live half of the affordance gate rather than
+    // by the snapshot half. Sharing the rule is what makes the withdrawal hold:
+    // the two are combined with OR, so an answer computed independently here
+    // would put the Unmount button back the moment it disagreed. See the header.
+    return slot_is_mounted_locked(slot_index);
 }
 
 std::string AmsBackendToolChanger::unload_blocked_reason(int slot_index) const {
@@ -1319,12 +1331,6 @@ AmsError AmsBackendToolChanger::set_tool_mapping(int tool_number, int slot_index
     spdlog::info("[AMS ToolChanger] Remapping T{} -> physical {} (slot {})", tool_number,
                  physical_tool_name, slot_index);
     return execute_gcode(cmd.str());
-}
-
-helix::printer::ToolMappingCapabilities
-AmsBackendToolChanger::get_tool_mapping_capabilities() const {
-    // klipper-toolchanger supports ASSIGN_TOOL for tool remapping
-    return {true, true, "Tool reassignment via ASSIGN_TOOL"}; // i18n: do not translate
 }
 
 std::vector<int> AmsBackendToolChanger::get_tool_mapping() const {

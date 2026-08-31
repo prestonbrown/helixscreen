@@ -69,13 +69,13 @@ class ColorPicker : public Modal {
     ColorPicker();
     ~ColorPicker() override;
 
-    // Non-copyable
+    // Non-copyable, non-movable (Modal's move operations are deleted, and a
+    // moved ColorPicker would have left its subjects behind anyway - nothing
+    // ever moved one by value)
     ColorPicker(const ColorPicker&) = delete;
     ColorPicker& operator=(const ColorPicker&) = delete;
-
-    // Movable
-    ColorPicker(ColorPicker&& other) noexcept;
-    ColorPicker& operator=(ColorPicker&& other) noexcept;
+    ColorPicker(ColorPicker&&) = delete;
+    ColorPicker& operator=(ColorPicker&&) = delete;
 
     /**
      * @brief Show color picker with initial color

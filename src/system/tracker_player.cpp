@@ -83,6 +83,12 @@ void TrackerPlayer::tick(float dt_ms) {
             if (!playing_.load(std::memory_order_relaxed))
                 break;
             process_row();
+            // process_row's bounds checks can stop the player (an order entry
+            // past the clamped pattern list). stop() has already silenced the
+            // backend; falling through would re-emit still-armed channels with
+            // playing_ false, and the next tick's early return silences nothing.
+            if (!playing_.load(std::memory_order_relaxed))
+                break;
         }
 
         process_tick_effects();
@@ -117,20 +123,20 @@ void TrackerPlayer::set_volume_override(int vol) {
 
 void TrackerPlayer::process_row() {
     if (order_idx_ >= static_cast<int>(module_.num_orders)) {
-        playing_.store(false, std::memory_order_release);
+        stop();
         return;
     }
 
     const uint8_t pat_idx = module_.order[static_cast<size_t>(order_idx_)];
     if (pat_idx >= module_.patterns.size()) {
-        playing_.store(false, std::memory_order_release);
+        stop();
         return;
     }
 
     const auto& pattern = module_.patterns[pat_idx];
     const int rows_in_pattern = static_cast<int>(module_.rows_per_pattern);
     if (row_ >= rows_in_pattern) {
-        playing_.store(false, std::memory_order_release);
+        stop();
         return;
     }
 
@@ -542,20 +548,55 @@ void TrackerPlayer::apply_to_backend() {
                                  ? (static_cast<float>(volume_override_) / 100.0f)
                                  : helix::AudioSettingsManager::instance().get_volume_scaled();
 
-    for (int ch = 0; ch < 4; ++ch) {
-        const auto& cs = channels_[static_cast<size_t>(ch)];
-        // Use period-derived freq for accuracy when period is available
+    // Note frequency, not sample rate: AMIGA_CLOCK/period is the Paula
+    // playback rate (8-14 kHz for typical notes) — the AD5M piezo cannot
+    // reproduce it. cs.freq carries the equal-tempered note, updated per
+    // tick by arpeggio/portamento/vibrato; the period ratio only covers
+    // period-only rows where no note frequency is known.
+    auto emit_freq = [](const auto& cs) {
         float freq = cs.freq;
-        if (cs.period > 0) {
+        if (freq <= 0.0f && cs.period > 0) {
             freq = static_cast<float>(AMIGA_CLOCK / static_cast<double>(cs.period));
         }
-        if (cs.active && freq > 0 && cs.volume > 0) {
-            backend_->set_voice(ch, freq, cs.volume * master_vol, cs.duty);
+        return freq;
+    };
+
+    if (backend_->voice_count() == 1) {
+        // Mono backend: emit the lead line, not whatever sits on channel 0
+        // (crocketts_theme parks the bass there). Highest active voice wins;
+        // the earlier channel takes ties, nothing active falls back to
+        // silence on slot 0.
+        int best = -1;
+        float best_freq = 0.0f;
+        for (int ch = 0; ch < 4; ++ch) {
+            const auto& cs = channels_[static_cast<size_t>(ch)];
+            const float freq = emit_freq(cs);
+            if (cs.active && freq > 0.0f && cs.volume > 0.0f && freq > best_freq) {
+                best = ch;
+                best_freq = freq;
+            }
+        }
+        if (best >= 0) {
+            const auto& cs = channels_[static_cast<size_t>(best)];
+            backend_->set_voice(0, best_freq, cs.volume * master_vol, cs.duty);
             if (backend_->supports_waveforms()) {
-                backend_->set_voice_waveform(ch, cs.waveform);
+                backend_->set_voice_waveform(0, cs.waveform);
             }
         } else {
-            backend_->silence_voice(ch);
+            backend_->silence_voice(0);
+        }
+    } else {
+        for (int ch = 0; ch < 4; ++ch) {
+            const auto& cs = channels_[static_cast<size_t>(ch)];
+            const float freq = emit_freq(cs);
+            if (cs.active && freq > 0 && cs.volume > 0) {
+                backend_->set_voice(ch, freq, cs.volume * master_vol, cs.duty);
+                if (backend_->supports_waveforms()) {
+                    backend_->set_voice_waveform(ch, cs.waveform);
+                }
+            } else {
+                backend_->silence_voice(ch);
+            }
         }
     }
 
@@ -574,7 +615,7 @@ void TrackerPlayer::advance_row() {
         next_row_ = -1;
 
         if (order_idx_ >= static_cast<int>(module_.num_orders)) {
-            playing_.store(false, std::memory_order_release);
+            stop();
         }
         return;
     }
@@ -584,7 +625,7 @@ void TrackerPlayer::advance_row() {
         row_ = 0;
         order_idx_++;
         if (order_idx_ >= static_cast<int>(module_.num_orders)) {
-            playing_.store(false, std::memory_order_release);
+            stop();
         }
     }
 }

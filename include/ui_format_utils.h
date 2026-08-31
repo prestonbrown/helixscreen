@@ -59,6 +59,23 @@ std::string format_layer_count(uint32_t layer_count);
 std::string format_layer_progress(int current, int total, bool accurate, int z_centimm);
 
 /**
+ * @brief Format layer progress for the metadata strip's icon cluster
+ *
+ * Same inputs and semantics as format_layer_progress(), without the prose:
+ * a layers icon carries the "Layer" word, so the string is bare counts and a
+ * " · " separated Z height. Translation-neutral — the width of this string
+ * does not change with the UI language.
+ * Examples: "42 / 213 · 24.0mm", "~42 / 213", "7"
+ *
+ * @param current Current layer number
+ * @param total Total layers, or 0/negative when unknown
+ * @param accurate False when the layer was estimated from the progress fraction
+ * @param z_centimm Commanded Z in centimillimeters, or 0/negative to omit
+ * @return Formatted layer string
+ */
+std::string format_layer_progress_compact(int current, int total, bool accurate, int z_centimm);
+
+/**
  * @brief Format print height in millimeters
  *
  * Formats object height with appropriate precision.

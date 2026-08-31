@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_cfs.h"
+#include "ams_remap.h"
 #include "ams_types.h"
 #include "config.h"
 #include "filament_catalog.h"
@@ -15,6 +18,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "test_helpers/cfs_test_access.h"
+#include "test_helpers/print_state_test_drivers.h"
 
 #include <filesystem>
 #include <memory>
@@ -110,6 +114,25 @@ class CfsK1RemapHelper : public CfsRemapHelper {
   public:
     CfsK1RemapHelper() {
         CfsTestAccess::set_macro_variant_k1(*this);
+    }
+};
+
+// CfsRemapHelper's gcode capture plus a REAL PrinterState wired behind a mock
+// api, so tests can drive the print lifecycle the insert-probe gate reads. The
+// plain helper passes a null api, where the lifecycle reads as unknown and
+// never holds the machine (mirroring the production null-api path).
+// api_ is patched after the base ctor because PrinterState must outlive the
+// backend and a base-class init list has nowhere to declare it.
+class CfsLifecycleHelper : public CfsRemapHelper {
+  public:
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    std::unique_ptr<MoonrakerAPIMock> api;
+
+    CfsLifecycleHelper() {
+        state.init_subjects(false);
+        api = std::make_unique<MoonrakerAPIMock>(client, state);
+        api_ = api.get();
     }
 };
 } // namespace
@@ -574,6 +597,36 @@ TEST_CASE("CFS error message+values decoding", "[ams][cfs]") {
         json values = json::array({1, "A"});
         auto out = CfsErrorDecoder::lookup_message_with_values("key999", values);
         REQUIRE_FALSE(out.has_value());
+    }
+
+    SECTION("key843 prefers the firmware's own msg when present") {
+        // key843's causes vary (a busy box, an unreadable tag) and the
+        // firmware's msg names which one fired (#1387). The table text would
+        // assert one cause for all of them.
+        json values = json::array({1, "B"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key843", values,
+                                                               "read rfid failed, box is busy");
+        REQUIRE(out.has_value());
+        CHECK(out->first.find("box is busy") != std::string::npos);
+        CHECK(out->first.find("Can't read filament RFID tag") == std::string::npos);
+        // The unit/slot locator is still spliced onto the firmware's wording.
+        CHECK(out->first.find("unit 1 slot B") != std::string::npos);
+    }
+
+    SECTION("key843 without a firmware msg keeps the table text") {
+        json values = json::array({1, "B"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key843", values);
+        REQUIRE(out.has_value());
+        CHECK(out->first.find("Can't read filament RFID tag") != std::string::npos);
+    }
+
+    SECTION("non-preferring codes ignore the firmware msg") {
+        // key849's table text is right for every cause; the firmware wording
+        // ("retrude error...") must not displace it.
+        json values = json::array({1, "B"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key849", values, "retrude error");
+        REQUIRE(out.has_value());
+        CHECK(out->first.find("Retract failed") != std::string::npos);
     }
 }
 
@@ -1785,13 +1838,11 @@ TEST_CASE("CFS set_tool_mapping updates local tool_to_slot_map", "[ams][cfs][rem
     }
 }
 
-TEST_CASE("CFS get_tool_mapping_capabilities advertises editable", "[ams][cfs][remap]") {
+TEST_CASE("CFS declares a persistent remap route and owns its table", "[ams][cfs][remap]") {
     CfsRemapHelper helper;
-    auto caps = helper.get_tool_mapping_capabilities();
-    REQUIRE(caps.supported);
-    REQUIRE(caps.editable);
-    // Description is informational; non-empty so UI can show backend-specific copy
-    REQUIRE_FALSE(caps.description.empty());
+    REQUIRE(helper.owns_tool_mapping_table());
+    REQUIRE(helix::printer::can_remap(helper));
+    REQUIRE(helix::printer::remap_is_persistent(helper.get_remap_strategy()));
 }
 
 // =============================================================================
@@ -2448,16 +2499,24 @@ namespace {
 // make_single_unit_box() synthesizes those from material/color presence, which
 // is exactly the coupling these tests need to break: a REMOVED tagged spool has
 // sentinel vender alongside latched material/color/remain_len.
+//
+// filament_useup_value / active_filament drive the runout-episode inputs:
+// the latch (top-level box field) and the feeding lane (T1.filament letter).
+// filament_useup_value defaults to 0 so the fixture is an idle box (the old
+// hardcoded 1 described a runout state, wrong for an idle-box default; the
+// #1387 gate tests and the #1390 runout-episode tests pass it explicitly).
 json make_unit_box_explicit(const std::vector<std::string>& material_types,
                             const std::vector<std::string>& color_values,
                             const std::vector<std::string>& venders,
-                            const std::vector<std::string>& remain_lens) {
+                            const std::vector<std::string>& remain_lens,
+                            int filament_useup_value = 0,
+                            const std::string& active_filament = "None") {
     json box = json::parse(R"({
         "state": "connect",
         "filament": 0,
         "auto_refill": 1,
         "enable": 1,
-        "filament_useup": 1,
+        "filament_useup": 0,
         "map": {"T1A": "T1A", "T1B": "T1B", "T1C": "T1C", "T1D": "T1D"},
         "T1": {
             "state": "connect",
@@ -2473,6 +2532,8 @@ json make_unit_box_explicit(const std::vector<std::string>& material_types,
     box["T1"]["color_value"] = color_values;
     box["T1"]["vender"] = venders;
     box["T1"]["remain_len"] = remain_lens;
+    box["filament_useup"] = filament_useup_value;
+    box["T1"]["filament"] = active_filament;
     return box;
 }
 
@@ -2785,6 +2846,182 @@ TEST_CASE("CFS removal keeps a user-locked assignment for an unloaded slot",
     CHECK(stored["material"] == "ASA-CF");
 }
 
+// =============================================================================
+// Runout vs the remembered Spoolman link (#1390).
+//
+// filament_runout (box.filament_useup) is box-wide and STICKY: set by "spool
+// used up", cleared only by a successful extrude. clear_stale_override_on_
+// removal_locked deliberately retains any override carrying identity, so an
+// override's Spoolman id survived the exhausted spool being pulled - and was
+// re-asserted onto whatever fresh spool the user loaded next. The lane that
+// ran out must be captured at the runout edge (current_slot is gone by the
+// time the bay reads EMPTY) and exactly that lane's id drops, once.
+// =============================================================================
+
+namespace {
+
+// Seat all four bays, bay D (global slot 3 / lane 4) feeding, no runout.
+json make_runout_seated_box(int useup, const std::string& active) {
+    return make_unit_box_explicit(
+        /*material_types=*/{"unknown", "unknown", "101001", "101001"},
+        /*color_values=*/{"0FFFFFF", "01A1A1A", "01A1A1A", "0C12E1F"},
+        /*venders=*/{"unknown", "unknown", "unknown", "unknown"},
+        /*remain_lens=*/{"100", "0", "46", "50"}, useup, active);
+}
+
+// Bay D emptied: vender drops to the sentinel, RFID payload stays latched (so
+// no fingerprint change ever fires check_hardware_event_clear - the removal
+// path these tests exercise is exactly the one that must NOT clear identity).
+json make_runout_removed_box(int useup, const std::string& active) {
+    json box = make_runout_seated_box(useup, active);
+    box["T1"]["vender"] = json::array({"unknown", "unknown", "unknown", "none"});
+    return box;
+}
+
+// Link bay D's lane to Spoolman spool 137 through the real persist path, so
+// both the in-memory override and the lane_data record carry the id.
+void link_lane_four_to_spool_137(AmsBackendCfs& backend) {
+    SlotInfo edit;
+    edit.material = "ASA-CF";
+    edit.brand = "Elegoo";
+    edit.spool_name = "Black ASA";
+    edit.color_rgb = 0x1A1A1A;
+    edit.spoolman_id = 137;
+    edit.spoolman_vendor_id = 21;
+    REQUIRE(backend.set_slot_info(3, edit, /*persist=*/true).success());
+}
+
+} // namespace
+
+TEST_CASE("CFS runout invalidates the exhausted lane's remembered Spoolman link",
+          "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_runout_strips_link");
+
+    // Lane 4 feeding on a healthy spool: the latch is observed CLEAR (0).
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+
+    link_lane_four_to_spool_137(*rig.backend);
+    REQUIRE(rig.api->mock_get_db_value("lane_data", "lane4").value("spool_id", 0) == 137);
+
+    // The spool runs out mid-print: latch rises 0 -> 1 while bay D is still
+    // the seated, active lane. This edge is what captures the lane.
+    rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"D"));
+
+    // The user pulls the exhausted spool. Bay D reads EMPTY.
+    rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+
+    auto ovr = CfsTestAccess::get_override(*rig.backend, 3);
+    REQUIRE(ovr.has_value());
+    SECTION("the Spoolman handle is dropped from the override") {
+        CHECK(ovr->spoolman_id == 0);
+        CHECK(ovr->spoolman_vendor_id == 0);
+    }
+    SECTION("identity survives: only the handle is gone") {
+        CHECK(ovr->material == "ASA-CF");
+        CHECK(ovr->brand == "Elegoo");
+        CHECK(ovr->spool_name == "Black ASA");
+        CHECK(ovr->user_locked_color);
+        CHECK(ovr->user_locked_material);
+    }
+    SECTION("the live slot shows the drop immediately") {
+        auto info = rig.backend->get_slot_info(3);
+        CHECK(info.spoolman_id == 0);
+        CHECK(info.spoolman_vendor_id == 0);
+        CHECK(info.material == "ASA-CF");
+        CHECK(info.status == SlotStatus::EMPTY);
+    }
+    SECTION("the persisted lane_data record keeps identity, loses the id") {
+        auto stored = rig.api->mock_get_db_value("lane_data", "lane4");
+        REQUIRE(!stored.is_null());
+        CHECK(stored.value("spool_id", 0) == 0);
+        CHECK(stored.value("spoolman_vendor_id", 0) == 0);
+        CHECK(stored["vendor_name"] == "Elegoo");
+        CHECK(stored["helix_material"] == "ASA-CF");
+        CHECK(stored["spool_name"] == "Black ASA");
+    }
+}
+
+TEST_CASE("CFS empty bay without a runout edge keeps the Spoolman link",
+          "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_no_edge_keeps_link");
+
+    // The transient-unreadable-tag protection from clear_stale_override_on_
+    // removal_locked must keep working: an EMPTY poll alone, with no captured
+    // runout episode, never strips a link.
+    SECTION("no runout observed at all (latch 0 throughout)") {
+        rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+        link_lane_four_to_spool_137(*rig.backend);
+
+        for (int i = 0; i < 2; ++i) {
+            rig.poll(make_runout_removed_box(/*useup=*/0, /*active=*/"None"));
+            CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+        }
+    }
+
+    SECTION("sticky latch with no observed edge (first sighting already 1)") {
+        // App started while the latch was already tripped, or the rise was
+        // never observed: there is no 0 -> 1 transition, so no episode.
+        rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"D"));
+        link_lane_four_to_spool_137(*rig.backend);
+        rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+
+        CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+    }
+}
+
+TEST_CASE("CFS runout on one lane does not strip another lane's link",
+          "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_wrong_lane_keeps_link");
+
+    // Lane 2 (bay B) is the feeding lane this print.
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"B"));
+
+    // Lane 4 (bay D) idles with its own link.
+    link_lane_four_to_spool_137(*rig.backend);
+
+    // Lane 2 runs out; the edge captures slot 1 (bay B), not slot 3 (bay D).
+    rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"B"));
+
+    // The user empties lane 4 for an unrelated reason while lane 2's episode
+    // is armed: lane 4's link must survive.
+    rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"B"));
+
+    auto ovr = CfsTestAccess::get_override(*rig.backend, 3);
+    REQUIRE(ovr.has_value());
+    CHECK(ovr->spoolman_id == 137);
+    CHECK(ovr->spoolman_vendor_id == 21);
+    CHECK(rig.backend->get_slot_info(3).spoolman_id == 137);
+    CHECK(rig.api->mock_get_db_value("lane_data", "lane4").value("spool_id", 0) == 137);
+}
+
+TEST_CASE("CFS runout strip fires once per episode", "[ams][cfs][filament_slot_override][1390]") {
+    CfsOverrideRig rig("cfs_runout_strip_one_shot");
+
+    // Full episode: edge while lane 4 feeds, bay D then reads EMPTY.
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+    link_lane_four_to_spool_137(*rig.backend);
+    rig.poll(make_runout_seated_box(/*useup=*/1, /*active=*/"D"));
+    rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 0);
+
+    // The user links the fresh spool by hand while the sticky latch is still
+    // tripped. A later transient EMPTY read of the same bay must not strip
+    // the new link: the episode was consumed by the first strip.
+    link_lane_four_to_spool_137(*rig.backend);
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+
+    for (int i = 0; i < 2; ++i) {
+        rig.poll(make_runout_removed_box(/*useup=*/1, /*active=*/"None"));
+        CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+    }
+
+    // The latch finally clears (fresh spool feeding) and the bay goes empty
+    // again - a deliberate unload, not a runout: still no strip.
+    rig.poll(make_runout_seated_box(/*useup=*/0, /*active=*/"D"));
+    rig.poll(make_runout_removed_box(/*useup=*/0, /*active=*/"None"));
+    CHECK(CfsTestAccess::get_override(*rig.backend, 3)->spoolman_id == 137);
+}
+
 TEST_CASE("CFS: a labeled untagged spool stays AVAILABLE while it is seated",
           "[ams][cfs][presence][filament_slot_override]") {
     // The other half of the ghost rule. A user-labeled spool must render solid
@@ -2828,6 +3065,113 @@ TEST_CASE("CFS: a labeled untagged spool stays AVAILABLE while it is seated",
         auto ovr = CfsTestAccess::get_override(*rig.backend, 0);
         REQUIRE(ovr.has_value());
         CHECK(ovr->material == "ASA-GF");
+    }
+}
+
+TEST_CASE("CFS: labeling an untagged bay does not blank it on vender-sentinel firmware",
+          "[ams][cfs][presence][filament_slot_override]") {
+    // The sibling of "a labeled untagged spool stays AVAILABLE while it is
+    // seated", for the firmware that case does NOT cover.
+    //
+    // There, `vender` reports occupancy for any seated spool, so presence never
+    // consults the untagged remain_len fallback. On firmware where `vender`
+    // stays sentinel for an untagged spool — the #1077 population the fallback
+    // was written for — that fallback is the ONLY thing keeping the bay
+    // visible, and labeling used to switch it off: the label is written to
+    // `material_type` (#968), firmware echoes it back, and a non-sentinel
+    // material_type reads as tag payload. Naming your spool made it vanish.
+    CfsOverrideRig rig("cfs_label_untagged_vender_sentinel");
+
+    // Untagged 3rd-party spool in bay A: no vendor, no RFID payload, real
+    // length off the measuring wheel. `same_material` supplies a code the
+    // firmware itself reported, which is the only vocabulary the identity push
+    // is allowed to write back.
+    auto box_with_group = [](const std::vector<std::string>& materials) {
+        json box =
+            make_unit_box_explicit(materials, {"-1", "-1", "-1", "-1"},
+                                   {"none", "none", "none", "none"}, {"46", "-1", "-1", "-1"});
+        box["same_material"] =
+            json::array({json::array({"101001", "0FF0000", json::array({"T1A"}), "ASA-GF"})});
+        return box;
+    };
+
+    const json box_before = box_with_group({"-1", "-1", "-1", "-1"});
+    rig.poll(box_before);
+
+    // Precondition: the fallback is what makes this bay visible at all.
+    REQUIRE(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+
+    SlotInfo edit;
+    edit.material = "ASA-GF";
+    edit.spool_name = "Black ASA-GF";
+    edit.color_rgb = 0x000000;
+    REQUIRE(rig.backend->set_slot_info(0, edit, /*persist=*/true).success());
+
+    // Firmware now echoes our own code back on every frame, byte-identical to
+    // a tag read. Nothing about the physical bay changed.
+    const json box_after = box_with_group({"101001", "-1", "-1", "-1"});
+    rig.poll(box_after);
+
+    SECTION("the seated spool is still present after being named") {
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+    }
+
+    SECTION("it stays present across repeated polls of the echo") {
+        for (int i = 0; i < 3; ++i) {
+            rig.poll(box_after);
+            CHECK(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+        }
+    }
+
+    SECTION("the bay still empties when the spool is actually pulled") {
+        // remain_len is the only live signal on this firmware, so it is what
+        // has to fall. The discount must not pin the bay AVAILABLE.
+        json box_pulled = box_with_group({"101001", "-1", "-1", "-1"});
+        box_pulled["T1"]["remain_len"] = std::vector<std::string>{"-1", "-1", "-1", "-1"};
+        rig.poll(box_pulled);
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::EMPTY);
+    }
+
+    SECTION("neighbouring untouched bays are unaffected") {
+        CHECK(rig.backend->get_slot_info(1).status == SlotStatus::EMPTY);
+        CHECK(rig.backend->get_slot_info(2).status == SlotStatus::EMPTY);
+    }
+}
+
+TEST_CASE("CFS: relabeling a TAGGED bay still suppresses the untagged fallback",
+          "[ams][cfs][presence][filament_slot_override]") {
+    // The guard that keeps the discount above from re-opening the ghost bug.
+    //
+    // A bay already reporting a real material code is genuinely tagged. Its
+    // remain_len LATCHES after the spool is pulled, so the untagged fallback
+    // must stay suppressed there — otherwise a removed spool reads AVAILABLE
+    // forever. The push therefore records a code as "ours" only when the bay's
+    // PRE-push reading was a sentinel, which a tagged bay's never is.
+    CfsOverrideRig rig("cfs_relabel_tagged_bay");
+
+    const json box_seated =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    rig.poll(box_seated);
+    REQUIRE(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+
+    SlotInfo edit;
+    edit.material = "ASA-CF";
+    edit.color_name = "Dark Gray";
+    edit.color_rgb = 0x1A1A1A;
+    REQUIRE(rig.backend->set_slot_info(0, edit, /*persist=*/true).success());
+    rig.poll(box_seated);
+
+    SECTION("still AVAILABLE while seated") {
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
+    }
+
+    SECTION("pulling it reads EMPTY, not a latched-length ghost") {
+        json box_pulled =
+            make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                                   {"none", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+        rig.poll(box_pulled);
+        CHECK(rig.backend->get_slot_info(0).status == SlotStatus::EMPTY);
     }
 }
 
@@ -2924,6 +3268,127 @@ TEST_CASE("CFS probes RFID on a bay insert, without feeding filament",
         REQUIRE(backend.captured.size() == 1);
         CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
     }
+}
+
+TEST_CASE("CFS defers the insert probe while the box latched runout",
+          "[ams][cfs][presence][probe_on_insert][1387]") {
+    // The #1387 shape: the box is mid-operation (runout pause, filament_useup
+    // latched at 1) when the user seats a fresh spool. Probing a busy box makes
+    // it answer busy, firmware raises key843, and the failed probe pins the
+    // bay's remain_len at 255. The probe must wait for an idle poll and fire
+    // exactly once when it comes.
+    CfsRemapHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(empty_bcd); // seeds bay_occupied_ without probing
+    backend.captured.clear();
+
+    // Spool into bay B on the same frame the box reports runout.
+    json busy = make_unit_box_explicit(
+        {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+        {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+    busy["filament_useup"] = 1;
+    poll(busy);
+    CHECK(backend.captured.empty()); // deferred, not dropped
+
+    // The reload lands: useup clears, and exactly one deferred re-attempt
+    // fires on that poll.
+    json idle = busy;
+    idle["filament_useup"] = 0;
+    poll(idle);
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
+
+    // And only once: a further idle poll must not re-probe.
+    backend.captured.clear();
+    poll(idle);
+    CHECK(backend.captured.empty());
+}
+
+TEST_CASE("CFS drops a deferred insert probe when the bay empties first",
+          "[ams][cfs][presence][probe_on_insert][1387]") {
+    // A spool inserted into a busy box defers its probe; if the user pulls it
+    // back out before the box goes idle, there is nothing left to probe and
+    // the deferred mask must not fire.
+    CfsRemapHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(empty_bcd); // seeds bay_occupied_ without probing
+    backend.captured.clear();
+
+    json busy = make_unit_box_explicit(
+        {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+        {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+    busy["filament_useup"] = 1;
+    poll(busy);
+    CHECK(backend.captured.empty()); // deferred
+
+    // Bay B emptied again while the deferral was pending; the idle poll must
+    // release nothing.
+    json idle_and_empty =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    idle_and_empty["filament_useup"] = 0;
+    poll(idle_and_empty);
+    CHECK(backend.captured.empty());
+
+    // The deferred set is consumed: re-seating the spool starts a fresh edge
+    // and probes normally on the idle box.
+    json reseat = busy;
+    reseat["filament_useup"] = 0;
+    poll(reseat);
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
+}
+
+TEST_CASE("CFS defers the insert probe while a print holds the machine",
+          "[ams][cfs][presence][probe_on_insert][1387]") {
+    // The other busy signal from #1387: the job owns the toolhead. A runout
+    // pause leaves CFS's own system_info_.action IDLE (it is only synthesized
+    // around OUR dispatched scripts), so the pause has to be read from the
+    // print lifecycle.
+    CfsLifecycleHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(empty_bcd); // seeds bay_occupied_ without probing
+    backend.captured.clear();
+
+    // publish_lifecycle_state() runs synchronously inside update_from_status,
+    // so the subject the gate reads is current without draining the queue. The
+    // drain is only hygiene: update_from_status queues unrelated work (the
+    // filament-sensor manager) that must not leak past this test.
+    helix::test::set_wire_state(backend.state, helix::PrintJobState::PAUSED);
+    helix::ui::UpdateQueue::instance().drain();
+
+    const json b_in = make_unit_box_explicit(
+        {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+        {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+    poll(b_in);
+    CHECK(backend.captured.empty()); // deferred while the print holds the machine
+
+    // Job ends: the deferred probe fires once on the next poll. This poll has
+    // NO new insert edge (bay_occupied_ already latched), so the dispatch can
+    // only come from the deferred set.
+    helix::test::set_wire_state(backend.state, helix::PrintJobState::STANDBY);
+    helix::ui::UpdateQueue::instance().drain();
+    poll(b_in);
+    REQUIRE(backend.captured.size() == 1);
+    CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
 }
 
 TEST_CASE("FillUnsetOnly mirror does not overwrite user-locked fields",
@@ -3582,18 +4047,161 @@ TEST_CASE("CFS runout: ordinary console chatter is ignored", "[ams][cfs][1250]")
 // the real state lived was an untranslated English string.
 
 TEST_CASE("CFS endless spool: auto-refill on and off are distinguishable",
-          "[ams][cfs][endless_spool]") {
-    SECTION("auto_refill=1 reads as available and ON") {
+          "[ams][cfs][endless_spool][1391]") {
+    SECTION("auto_refill=1 with a two-lane same_material group reads as available and ON") {
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        // make_runout_box colors: T1A=0FFFFFF, T1B/T1C/T1D=01A1A1A, all
+        // material 101001. T1B+T1C form one real pairing; the live-K2 shape
+        // from CREALITY_K2_SUPPORT.md § "Top-Level Fields".
+        box["same_material"] =
+            json::array({json::array({"101001", "01A1A1A", json::array({"T1B", "T1C"}), "PLA"}),
+                         json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.availability == EndlessSpoolAvailability::Available);
+        CHECK(caps.enabled == EndlessSpoolEnabled::On);
+        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
+        CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
+        CHECK_FALSE(caps.editable());
+    }
+
+    SECTION("auto_refill=1 with same_material present but no pairing reads as ON WITHOUT "
+            "BACKUP") {
+        // The honest negative (#1391): the setting is on, but the firmware's
+        // own grouping says every group is a singleton, so a runout would stop
+        // the print anyway. Advertising plain On here is the false promise the
+        // issue exists to remove.
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        box["same_material"] =
+            json::array({json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1B"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1C"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.availability == EndlessSpoolAvailability::Available);
+        CHECK(caps.enabled == EndlessSpoolEnabled::OnWithoutBackup);
+        // Still firmware-managed: the honest state changes WHAT WE SAY, not
+        // what we claim to control.
+        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
+        CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
+    }
+
+    SECTION("auto_refill=1 with no same_material key stays ON (no data is not a negative)") {
+        // The flat dialect never sends same_material, and a stock delta frame
+        // may omit it; "we did not read the grouping" must not be reported as
+        // "nothing groups". Only a parsed list with no pairing justifies the
+        // degraded answer.
         CfsRemapHelper backend;
         CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
 
         auto caps = backend.get_endless_spool_capabilities();
         CHECK(caps.availability == EndlessSpoolAvailability::Available);
         CHECK(caps.enabled == EndlessSpoolEnabled::On);
-        // The box picks the refill spool from its own same_material groups.
-        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
         CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
-        CHECK_FALSE(caps.editable());
+    }
+
+    SECTION("same_material lane lists parse into per-slot group ordinals") {
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        box["same_material"] =
+            json::array({json::array({"101001", "01A1A1A", json::array({"T1B", "T1C"}), "PLA"}),
+                         json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        const auto info = backend.get_system_info();
+        CHECK(info.endless_spool_groups_reported);
+        // TNN address space: one entry per addressable bay T1A..T4D.
+        REQUIRE(info.endless_spool_group_ids.size() == 16);
+        CHECK(info.endless_spool_group_ids[0] == 1); // T1A: singleton group
+        CHECK(info.endless_spool_group_ids[1] == 0); // T1B: paired with T1C
+        CHECK(info.endless_spool_group_ids[2] == 0);
+        CHECK(info.endless_spool_group_ids[3] == -1); // T1D: not grouped
+        for (int i = 4; i < 16; ++i) {
+            CHECK(info.endless_spool_group_ids[i] == -1); // unaddressed bays
+        }
+    }
+
+    SECTION("no same_material key leaves the grouping data empty and unreported") {
+        CfsRemapHelper backend;
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
+
+        const auto info = backend.get_system_info();
+        CHECK_FALSE(info.endless_spool_groups_reported);
+        CHECK(info.endless_spool_group_ids.empty());
+    }
+
+    SECTION("a stock delta frame without same_material retains the known grouping") {
+        // A stock delta carries a changed T1 subtree but omits same_material
+        // (the field rides full frames). The honest warning must survive that
+        // frame rather than reverting to plain On until the firmware next
+        // re-sends the list - the same presence-gating rule filament_runout
+        // already follows.
+        CfsRemapHelper backend;
+        json grouped = make_runout_box(0);
+        grouped["same_material"] =
+            json::array({json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1B"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1C"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(grouped));
+        REQUIRE(backend.get_endless_spool_capabilities().enabled ==
+                EndlessSpoolEnabled::OnWithoutBackup);
+
+        // Delta: units present, no same_material key at all.
+        json delta = make_runout_box(0);
+        delta["T1"]["remain_len"] = std::vector<std::string>{"40", "0", "46", "50"};
+        CfsTestAccess::handle_status(backend, make_cfs_notification(delta));
+
+        CHECK(backend.get_endless_spool_capabilities().enabled ==
+              EndlessSpoolEnabled::OnWithoutBackup);
+        const auto info = backend.get_system_info();
+        CHECK(info.endless_spool_groups_reported);
+        CHECK(info.endless_spool_group_ids.size() == 16);
+    }
+
+    SECTION("a flat frame drops stock-era grouping (schema transition, not a delta)") {
+        // The flat dialect never sends same_material, so the presence gate
+        // alone would keep answering from the stock frame's grouping forever
+        // after a mid-session firmware swap. A schema change is a real
+        // transition: the grouping is cleared, and the capability falls back
+        // to the plain On answer (unknown, not a negative).
+        CfsRemapHelper backend;
+        json grouped = make_runout_box(0);
+        grouped["same_material"] =
+            json::array({json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1B"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1C"}), "PLA"}),
+                         json::array({"101001", "01A1A1A", json::array({"T1D"}), "PLA"})});
+        CfsTestAccess::handle_status(backend, make_cfs_notification(grouped));
+        REQUIRE(backend.get_endless_spool_capabilities().enabled ==
+                EndlessSpoolEnabled::OnWithoutBackup);
+
+        json flat = json::parse(R"({
+            "driver_ready": true, "api_version": 1, "state": "IDLE",
+            "runout": null, "runout_swap_enabled": true,
+            "slots": [
+                {"index": 0, "present": true, "loaded": false,
+                 "material": "PLA", "color": "#111111"},
+                {"index": 1, "present": true, "loaded": false,
+                 "material": "PC", "color": "#F2F2F2"},
+                {"index": 2, "present": true, "loaded": false,
+                 "material": "PLA", "color": "#111111"},
+                {"index": 3, "present": false, "loaded": false,
+                 "material": "", "color": ""}
+            ]
+        })");
+        CfsTestAccess::handle_status(backend, make_cfs_notification(flat));
+
+        CHECK(backend.get_endless_spool_capabilities().enabled == EndlessSpoolEnabled::On);
+        const auto info = backend.get_system_info();
+        CHECK_FALSE(info.endless_spool_groups_reported);
+        CHECK(info.endless_spool_group_ids.empty());
     }
 
     SECTION("auto_refill=0 reads as available and OFF") {

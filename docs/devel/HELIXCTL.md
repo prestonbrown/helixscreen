@@ -61,6 +61,16 @@ helix-screen ctl                      # no command → also drops into the REPL
 > binary whose `.build-features` stamp says the server is in it. Opt out of a
 > dev build with `make PLATFORM_TARGET=<t> ENABLE_REMOTE_CONTROL=no`.
 >
+> **`--help` lists the `--remote*` flags either way, so it cannot tell you which
+> build you have.** The CLI parser is compiled in unconditionally: a packaged
+> binary advertises `--remote`, `--remote-socket`, `--remote-transport` and the
+> HTTP pair, accepts them without complaint, and starts no server — while `ctl`
+> and `repl` are rejected as unknown arguments and the app tries to boot a second
+> instance instead. Interrogate the binary, not the help text:
+> `strings -a <bin> | grep -c list_callbacks` is `0` when the subsystem was
+> filtered out. Confirmed 2026-08-27 on a CB1 running packaged 0.99.116 (`0`,
+> `ctl` refused) against a K2 Plus running dev 0.99.117 (`2`, `ctl ping` → `pong`).
+>
 > **The matching deploy turns it on for you.** The build flag alone is only half
 > the story: the server still listens only under `--remote`, and the init scripts
 > exec the launcher with no arguments. The link rule records the choice in
@@ -375,7 +385,7 @@ connection, so the hold elapses with no client attached, and the command that fo
 re-samples the device in a way that restarts the press. `long_press` exists because the
 hold has to happen server-side. It latches the press, holds without touching the pointer
 while LVGL keeps sampling it on its own timer - exactly as under a resting finger - and
-then releases (`src/remote/remote_control_server.cpp:2004-2041`).
+then releases (`src/remote/remote_control_server.cpp:1971-2008`).
 
 `hold_ms` is optional. Omitted, the server derives the hold from the **configured**
 long-press time (`InputSettingsManager::get_long_press_time()`, the Touch & Input
@@ -405,7 +415,7 @@ helix-screen ctl release
 
 Separate commands are right for those last two: what matters is where the pointer goes,
 not how long it rests, and the press stays latched between connections. `long_press`
-always ends in its own release (`src/remote/remote_control_server.cpp:2037`), so a
+always ends in its own release (`src/remote/remote_control_server.cpp:2004`), so a
 hold-then-slide gesture - long-press to raise a popover, then slide onto it - has no
 single-command form.
 
@@ -436,7 +446,7 @@ not necessary to hit the gutter between tiles.
 
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** Entering Edit
 Mode already selects whatever widget was under the press and starts dragging it
-(`src/ui/ui_panel_home.cpp:954-958`), and `GridEditMode::handle_long_press` opens the
+(`src/ui/ui_panel_home.cpp:951-955`), and `GridEditMode::handle_long_press` opens the
 catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp:1012-1046`) - so a
 second long press on a tile starts a drag instead. The nav bar's `+`
 (`ui_xml/navigation_bar.xml:22-28`) goes straight to `HomePanel::open_widget_catalog()`
@@ -445,7 +455,7 @@ grid selects nothing, and *then* a second long press does open the catalog - but
 button is the case that always works.
 
 **When the long press appears to do nothing**, check the suppressors before suspecting the
-pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:854-889`) drops it when:
+pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:851-886`) drops it when:
 
 | Condition | How to check |
 |-----------|--------------|
@@ -455,7 +465,7 @@ pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:854-889`) drop
 | The press target is an arc or slider | those consume drags for value adjustment - aim at a different part of the tile |
 
 Drift is not a factor with `long_press`: entering Edit Mode also requires a stationary
-hold (`src/ui/ui_panel_home.cpp:927`), and the synthetic pointer never moves during it.
+hold (`src/ui/ui_panel_home.cpp:924`), and the synthetic pointer never moves during it.
 
 **`home_edit_mode` is a read-only reflection - do not `set` it.** `ctl set home_edit_mode 1`
 returns success and does not enter Edit Mode. The subject is written by
@@ -463,7 +473,7 @@ returns success and does not enter Edit Mode. The subject is written by
 hand only unhides the nav bar's edit buttons, which bind to it
 (`ui_xml/navigation_bar.xml:25`). Clicking the `+` then still does nothing, because
 `HomePanel::open_widget_catalog()` no-ops unless `grid_edit_mode_.is_active()`
-(`src/ui/ui_panel_home.cpp:1020-1024`). `long_press` is the only way in.
+(`src/ui/ui_panel_home.cpp:1017-1021`). `long_press` is the only way in.
 
 A **target** is one of:
 

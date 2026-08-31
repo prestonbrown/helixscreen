@@ -247,7 +247,7 @@ void AmsPanel::init_subjects() {
     // dialog up for the rest of the job (#1185).
     //
     // Edge INTO PRINTING, never a level: an error raised while the print is
-    // already running must stay on screen. helix::is_active_print_state() and
+    // already running must stay on screen. helix::printer_has_job() and
     // print_start_nav_should_navigate() are deliberately not used here — they
     // count PAUSED as active, so a PAUSED -> PRINTING resume is not an edge
     // under them, and an AFC fault normally pauses the print, which makes that
@@ -1277,22 +1277,17 @@ void AmsPanel::dispatch_selector_action(helix::ui::AmsSelectorMenu::SelectorActi
         err = backend->execute_device_action("gear_sync", std::any(false));
         break;
     case SA::RECOVER:
-        helix::ui::modal_show_confirmation(
-            lv_tr("Recover MMU state?"),
-            lv_tr("Re-syncs Happy Hare's tracked state with the hardware."), ModalSeverity::Warning,
-            lv_tr("Recover"),
-            // A custom on_confirm REPLACES the dialog's default close handler, so
-            // it must dismiss the dialog itself. Re-fetch the backend inside the
-            // callback so it cannot dangle if the panel/backend changed while the
-            // dialog was open. Feedback comes from the backend action state.
-            +[](lv_event_t* /*e*/) {
-                AmsBackend* b = AmsState::instance().get_backend();
-                if (b) {
-                    b->recover();
-                }
-                helix::ui::modal_hide(helix::ui::modal_get_top());
-            },
-            /*on_cancel*/ nullptr, /*user_data*/ nullptr);
+        // Re-fetch the backend inside the callback so it cannot dangle if the
+        // panel/backend changed while the dialog was open. Feedback comes from
+        // the backend action state.
+        helix::ui::modal_confirm(lv_tr("Recover MMU state?"),
+                                 lv_tr("Re-syncs Happy Hare's tracked state with the hardware."),
+                                 ModalSeverity::Warning, lv_tr("Recover"), [] {
+                                     AmsBackend* b = AmsState::instance().get_backend();
+                                     if (b) {
+                                         b->recover();
+                                     }
+                                 });
         return;
     case SA::CANCELLED:
         return;

@@ -1449,16 +1449,118 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
     auto& settings = LabelPrinterSettingsManager::instance();
     bool is_saved = (device.mac == settings.get_bt_address());
     if (!device.paired && !is_saved) {
-        // Allocate a copy of the MAC for the modal callback user_data
-        auto* mac_copy = new std::string(device.mac);
-
         auto msg = fmt::format("{} {}?", lv_tr("Pair with"), device.name);
-        auto* dialog = helix::ui::modal_show_confirmation(
+        // The MAC rides in the capture; the old lv_event_cb_t form kept it in a
+        // heap std::string that only the button callbacks freed, so a dismissal
+        // leaked it (#1380).
+        helix::ui::ConfirmOptions opts;
+        opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
+        auto* dialog = helix::ui::modal_confirm(
             lv_tr("Pair Bluetooth Printer"), msg.c_str(), ModalSeverity::Info, lv_tr("Pair"),
-            on_pair_confirm, on_pair_cancel, mac_copy);
+            [this, mac = device.mac] {
+                auto& loader = helix::bluetooth::BluetoothLoader::instance();
+                if (!loader.is_available() || !loader.pair) {
+                    ToastManager::instance().show(ToastSeverity::ERROR,
+                                                  lv_tr("Bluetooth not available"));
+                    return;
+                }
+
+                if (!bt_ctx_) {
+                    ToastManager::instance().show(ToastSeverity::ERROR,
+                                                  lv_tr("Bluetooth not initialized"));
+                    return;
+                }
+
+                ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Pairing..."), 5000);
+
+                auto token = lifetime_.token();
+                auto* bt_ctx = bt_ctx_;
+
+                // Pair on a detached thread
+                // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+                try {
+                    std::thread([mac, bt_ctx, token]() {
+                        auto& ldr = helix::bluetooth::BluetoothLoader::instance();
+                        int ret = ldr.pair(bt_ctx, mac.c_str());
+
+                        // Check paired/connected state on this worker thread (D-Bus
+                        // calls can take seconds - must not block the UI thread)
+                        int paired_r = -1;
+                        bool connected = false;
+                        if (ret == 0) {
+                            paired_r = ldr.is_paired ? ldr.is_paired(bt_ctx, mac.c_str()) : -1;
+                            connected = check_bt_connected(bt_ctx, mac);
+                            spdlog::info("[LabelPrinterSettings] Post-pair: is_paired={} "
+                                         "connected={}",
+                                         paired_r, connected);
+                        }
+
+                        helix::ui::queue_update([ret, mac, token, bt_ctx, paired_r, connected]() {
+                            if (token.expired())
+                                return;
+
+                            if (ret == 0) {
+                                ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                              lv_tr("Paired successfully"), 2000);
+
+                                // Update device info and save settings
+                                auto& ov = get_label_printer_settings_overlay();
+                                for (auto& dev : ov.bt_devices_) {
+                                    if (dev.mac == mac) {
+                                        dev.paired = (paired_r == 1);
+                                        dev.connected = connected;
+                                        auto& settings = LabelPrinterSettingsManager::instance();
+                                        settings.set_bt_address(mac);
+                                        settings.set_bt_name(dev.name);
+                                        settings.set_bt_transport(dev.is_ble ? "ble" : "spp");
+                                        ov.init_label_size_dropdown();
+                                        break;
+                                    }
+                                }
+
+                                // Refresh dropdown to show paired checkmark
+                                if (ov.overlay_root_) {
+                                    lv_obj_t* row =
+                                        lv_obj_find_by_name(ov.overlay_root_, "row_bt_printers");
+                                    if (row) {
+                                        lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+                                        if (dropdown) {
+                                            lv_dropdown_close(dropdown);
+                                            std::string options;
+                                            for (const auto& d : ov.bt_devices_) {
+                                                if (!options.empty())
+                                                    options += "\n";
+                                                options += bt_device_label(
+                                                    d.name, d.paired,
+                                                    d.mac == LabelPrinterSettingsManager::instance()
+                                                                 .get_bt_address(),
+                                                    d.connected);
+                                            }
+                                            lv_dropdown_set_options(dropdown, options.c_str());
+                                        }
+                                    }
+                                }
+                            } else {
+                                auto& ldr = helix::bluetooth::BluetoothLoader::instance();
+                                const char* err =
+                                    ldr.last_error ? ldr.last_error(bt_ctx) : "Unknown error";
+                                spdlog::error("[LabelPrinterSettings] Pairing failed: {}", err);
+                                ToastManager::instance().show(ToastSeverity::ERROR,
+                                                              lv_tr("Pairing failed"), 3000);
+                            }
+                        });
+                    }).detach();
+                } catch (const std::system_error& e) {
+                    spdlog::error("[LabelPrinterSettings] Failed to spawn pair thread: {}",
+                                  e.what());
+                    ToastManager::instance().hide();
+                    ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Pairing failed"),
+                                                  3000);
+                }
+            },
+            opts);
 
         if (!dialog) {
-            delete mac_copy;
             spdlog::warn("[{}] Failed to show pairing modal", get_name());
         }
         return;
@@ -1821,130 +1923,6 @@ void LabelPrinterSettingsOverlay::handle_bt_forget() {
 void LabelPrinterSettingsOverlay::on_bt_forget(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[LabelPrinterSettings] on_bt_forget");
     get_label_printer_settings_overlay().handle_bt_forget();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void LabelPrinterSettingsOverlay::on_pair_confirm(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[LabelPrinterSettings] on_pair_confirm");
-
-    auto* mac_copy = static_cast<std::string*>(lv_event_get_user_data(e));
-    std::string mac = *mac_copy;
-    delete mac_copy;
-
-    // Close the modal via the Modal system
-    auto* top = Modal::get_top();
-    if (top)
-        Modal::hide(top);
-
-    auto& loader = helix::bluetooth::BluetoothLoader::instance();
-    if (!loader.is_available() || !loader.pair) {
-        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Bluetooth not available"));
-        return;
-    }
-
-    auto& overlay = get_label_printer_settings_overlay();
-    auto* bt_ctx = overlay.bt_ctx_;
-
-    if (!bt_ctx) {
-        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Bluetooth not initialized"));
-        return;
-    }
-
-    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Pairing..."), 5000);
-
-    auto token = overlay.lifetime_.token();
-
-    // Pair on a detached thread
-    // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
-    try {
-        std::thread([mac, bt_ctx, token, &overlay]() {
-            auto& ldr = helix::bluetooth::BluetoothLoader::instance();
-            int ret = ldr.pair(bt_ctx, mac.c_str());
-
-            // Check paired/connected state on this worker thread (D-Bus calls can
-            // take seconds — must not block the UI thread)
-            int paired_r = -1;
-            bool connected = false;
-            if (ret == 0) {
-                paired_r = ldr.is_paired ? ldr.is_paired(bt_ctx, mac.c_str()) : -1;
-                connected = check_bt_connected(bt_ctx, mac);
-                spdlog::info("[LabelPrinterSettings] Post-pair: is_paired={} connected={}",
-                             paired_r, connected);
-            }
-
-            helix::ui::queue_update([ret, mac, token, bt_ctx, paired_r, connected]() {
-                if (token.expired())
-                    return;
-
-                if (ret == 0) {
-                    ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                                  lv_tr("Paired successfully"), 2000);
-
-                    // Update device info and save settings
-                    auto& ov = get_label_printer_settings_overlay();
-                    for (auto& dev : ov.bt_devices_) {
-                        if (dev.mac == mac) {
-                            dev.paired = (paired_r == 1);
-                            dev.connected = connected;
-                            auto& settings = LabelPrinterSettingsManager::instance();
-                            settings.set_bt_address(mac);
-                            settings.set_bt_name(dev.name);
-                            settings.set_bt_transport(dev.is_ble ? "ble" : "spp");
-                            ov.init_label_size_dropdown();
-                            break;
-                        }
-                    }
-
-                    // Refresh dropdown to show paired checkmark
-                    if (ov.overlay_root_) {
-                        lv_obj_t* row = lv_obj_find_by_name(ov.overlay_root_, "row_bt_printers");
-                        if (row) {
-                            lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
-                            if (dropdown) {
-                                lv_dropdown_close(dropdown);
-                                std::string options;
-                                for (const auto& d : ov.bt_devices_) {
-                                    if (!options.empty())
-                                        options += "\n";
-                                    options += bt_device_label(
-                                        d.name, d.paired,
-                                        d.mac == LabelPrinterSettingsManager::instance()
-                                                     .get_bt_address(),
-                                        d.connected);
-                                }
-                                lv_dropdown_set_options(dropdown, options.c_str());
-                            }
-                        }
-                    }
-                } else {
-                    auto& ldr = helix::bluetooth::BluetoothLoader::instance();
-                    const char* err = ldr.last_error ? ldr.last_error(bt_ctx) : "Unknown error";
-                    spdlog::error("[LabelPrinterSettings] Pairing failed: {}", err);
-                    ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Pairing failed"),
-                                                  3000);
-                }
-            });
-        }).detach();
-    } catch (const std::system_error& e) {
-        spdlog::error("[LabelPrinterSettings] Failed to spawn pair thread: {}", e.what());
-        ToastManager::instance().hide();
-        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Pairing failed"), 3000);
-    }
-
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void LabelPrinterSettingsOverlay::on_pair_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[LabelPrinterSettings] on_pair_cancel");
-
-    auto* mac_copy = static_cast<std::string*>(lv_event_get_user_data(e));
-    delete mac_copy;
-
-    // Close the modal via the Modal system
-    auto* top = Modal::get_top();
-    if (top)
-        Modal::hide(top);
-
     LVGL_SAFE_EVENT_CB_END();
 }
 

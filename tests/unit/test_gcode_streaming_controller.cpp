@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <string>
 #include <thread>
 #include <unistd.h>
 
@@ -80,6 +81,23 @@ G1 Z0.4
 G1 X50 Y100 E3
 G1 X100 Y100 E4
 )";
+
+// Build a file with `layers` layers of `moves_per_layer` extrusion moves each.
+// Cache behaviour is only observable once the cached layer data is large
+// relative to the cache budget: at 40 bytes per ToolpathSegment the fixtures
+// above amount to a few hundred bytes, three orders of magnitude below the 1MB
+// minimum budget, so nothing is ever evicted.
+std::string make_dense_gcode(int layers, int moves_per_layer) {
+    std::string gcode = "; dense test file\nG28\n";
+    for (int layer = 0; layer < layers; ++layer) {
+        gcode += "G1 Z" + std::to_string(0.2 * (layer + 1)) + " F1000\n";
+        for (int i = 0; i < moves_per_layer; ++i) {
+            gcode += "G1 X" + std::to_string(10 + i % 100) + " Y" +
+                     std::to_string(10 + (i / 100) % 100) + " E" + std::to_string(i + 1) + "\n";
+        }
+    }
+    return gcode;
+}
 
 } // namespace
 
@@ -363,27 +381,38 @@ TEST_CASE("GCodeStreamingController memory pressure", "[gcode][streaming]") {
     GCodeStreamingController controller;
     controller.open_file(temp_file.path());
 
-    SECTION("respond_to_memory_pressure reduces cache") {
-        // Fill cache
-        controller.get_layer_segments(0);
-        controller.get_layer_segments(1);
-        controller.get_layer_segments(2);
+    SECTION("respond_to_memory_pressure evicts down to the emergency budget") {
+        // The explicit-budget constructor leaves adaptive mode off, so the
+        // emergency budget is exactly half the cache budget rather than being
+        // floored at adaptive_min_budget. Three dense layers overshoot that
+        // half, which is what makes the eviction observable.
+        TempGCodeFile dense_file(make_dense_gcode(3, 6000));
+        GCodeStreamingController dense(GCodeStreamingController::MIN_CACHE_BUDGET);
+        REQUIRE(dense.open_file(dense_file.path()));
+        REQUIRE(dense.get_layer_count() == 3);
 
-        size_t before = controller.get_cache_memory_usage();
-        REQUIRE(before > 0);
+        // no_prefetch keeps the background warmer out of the cache, so what is
+        // resident is exactly what this section loaded.
+        for (size_t i = 0; i < 3; ++i) {
+            REQUIRE(dense.load_layer_segments_no_prefetch(i) != nullptr);
+        }
 
-        controller.respond_to_memory_pressure();
+        const size_t emergency_budget = dense.get_cache_budget() / 2;
+        const size_t before = dense.get_cache_memory_usage();
+        REQUIRE(before > emergency_budget);
 
-        // Cache should be reduced (though may still have some entries)
-        // Just verify it doesn't crash
-        REQUIRE(controller.get_cache_memory_usage() >= 0);
+        dense.respond_to_memory_pressure();
+
+        const size_t after = dense.get_cache_memory_usage();
+        CHECK(after < before);
+        CHECK(after <= emergency_budget);
     }
 
-    SECTION("adaptive cache can be enabled") {
+    SECTION("adaptive cache keeps the cache usable and within budget") {
         controller.set_adaptive_cache(true);
-        // Just verify it doesn't crash
-        controller.get_layer_segments(0);
-        REQUIRE(controller.is_open());
+        REQUIRE(controller.get_layer_segments(0) != nullptr);
+        CHECK(controller.get_cache_memory_usage() > 0);
+        CHECK(controller.get_cache_memory_usage() <= controller.get_cache_budget());
     }
 }
 

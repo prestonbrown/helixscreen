@@ -364,31 +364,27 @@ void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
     if (dangerous) {
         spdlog::warn("[{}] Dangerous macro requested: {}", get_name(), macro_name);
 
-        // Store pending macro name for the confirmation callback
+        // Store pending macro name for the confirmation callbacks; on_dismiss
+        // clears it too, so a backdrop tap or ESC cannot strand it.
         pending_dangerous_macro_ = macro_name;
 
         std::string msg = fmt::format(lv_tr("{} may cause unintended changes. Are you sure?"),
                                       prettify_macro_name(macro_name));
-        helix::ui::modal_show_confirmation(
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [this] {
+            pending_dangerous_macro_.clear();
+            spdlog::debug("[MacrosPanel] Dangerous macro cancelled");
+        };
+        opts.on_dismiss = [this] { pending_dangerous_macro_.clear(); };
+        opts.owner_token = lifetime_.token();
+        helix::ui::modal_confirm(
             lv_tr("Run Dangerous Macro?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Run"),
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[MacrosPanel] dangerous_confirm_cb");
-                auto* self = static_cast<MacrosPanel*>(lv_event_get_user_data(e));
-                std::string macro = self->pending_dangerous_macro_;
-                self->pending_dangerous_macro_.clear();
-                Modal::hide(Modal::get_top());
-                self->fetch_params_and_run(macro);
-                LVGL_SAFE_EVENT_CB_END();
+            [this] {
+                std::string macro = pending_dangerous_macro_;
+                pending_dangerous_macro_.clear();
+                fetch_params_and_run(macro);
             },
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[MacrosPanel] dangerous_cancel_cb");
-                auto* self = static_cast<MacrosPanel*>(lv_event_get_user_data(e));
-                self->pending_dangerous_macro_.clear();
-                Modal::hide(Modal::get_top());
-                spdlog::debug("[MacrosPanel] Dangerous macro cancelled");
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            this);
+            opts);
         return;
     }
 
@@ -407,25 +403,18 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
         if (needs_confirm) {
             pending_run_macro_ = macro_name;
             std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));
-            helix::ui::modal_show_confirmation(
+            helix::ui::ConfirmOptions opts;
+            opts.on_cancel = [this] { pending_run_macro_.clear(); };
+            opts.on_dismiss = [this] { pending_run_macro_.clear(); };
+            opts.owner_token = lifetime_.token();
+            helix::ui::modal_confirm(
                 lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-                [](lv_event_t* e) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[MacrosPanel] run_confirm_cb");
-                    auto* self = static_cast<MacrosPanel*>(lv_event_get_user_data(e));
-                    std::string macro = self->pending_run_macro_;
-                    self->pending_run_macro_.clear();
-                    Modal::hide(Modal::get_top());
-                    self->execute_macro(macro);
-                    LVGL_SAFE_EVENT_CB_END();
+                [this] {
+                    std::string macro = pending_run_macro_;
+                    pending_run_macro_.clear();
+                    execute_macro(macro);
                 },
-                [](lv_event_t* e) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[MacrosPanel] run_cancel_cb");
-                    auto* self = static_cast<MacrosPanel*>(lv_event_get_user_data(e));
-                    self->pending_run_macro_.clear();
-                    Modal::hide(Modal::get_top());
-                    LVGL_SAFE_EVENT_CB_END();
-                },
-                this);
+                opts);
             return;
         }
         execute_macro(macro_name);

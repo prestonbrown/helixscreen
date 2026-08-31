@@ -73,10 +73,6 @@ class SpaghettiDetectionModal : public Modal {
 
   protected:
     void on_show() override;
-    // Self-delete the C++ object when hidden. ModalStack/LVGL cleanup tears down
-    // the dialog widget tree but never calls Modal::~Modal, so without this the
-    // heap object leaks on every detection. Mirrors BufferStatusModal::on_hide().
-    void on_hide() override;
     void on_ok() override { // Resume
         if (on_resume_)
             on_resume_();

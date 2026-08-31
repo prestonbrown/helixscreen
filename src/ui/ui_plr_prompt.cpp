@@ -4,7 +4,6 @@
 #include "ui_plr_prompt.h"
 
 #include "ui_error_reporting.h"
-#include "ui_event_safety.h"
 #include "ui_filename_utils.h"
 #include "ui_modal.h"
 #include "ui_update_queue.h"
@@ -28,16 +27,16 @@ namespace {
 
 /// The plan the currently-visible prompt will execute.
 ///
-/// Module state rather than heap user_data on purpose: the modal is one-shot and
-/// exclusive (only one recovery prompt can exist), the two buttons already carry
-/// the borrowed IMoonrakerAPI* as their user_data, and a backdrop/ESC dismissal
-/// fires NEITHER handler — so any per-show heap context would leak on that path.
+/// Module state rather than heap context on purpose: the modal is one-shot and
+/// exclusive (only one recovery prompt can exist), the two button callbacks
+/// capture only the borrowed IMoonrakerAPI*, and a backdrop/ESC dismissal fires
+/// neither callback - so any per-show heap context would leak on that path.
 /// A by-value plan whose std::strings own their storage sidesteps both problems
 /// and keeps the resume authorization frozen at offer time.
 // DECLARATIVE_OK: modal action payload, not UI state — nothing to bind a subject to.
 PlrRecoveryPlan g_active_plan;
 
-// Both button handlers receive the borrowed IMoonrakerAPI* via user_data. The
+// Both button callbacks capture the borrowed IMoonrakerAPI* by pointer. The
 // gcode error callback may arrive on the libhv WebSocket thread, so the coded
 // message is extracted on that thread (pure string work) and the toast is
 // bounced onto the main thread via queue_update — never capture widgets or
@@ -80,10 +79,7 @@ void report_action_error(const MoonrakerError& err, const char* fail_fmt_tr, con
                             });
 }
 
-void on_plr_resume(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PLR] on_plr_resume");
-    auto* api = static_cast<IMoonrakerAPI*>(lv_event_get_user_data(e));
-    Modal::hide(Modal::get_top());
+void run_plr_resume(IMoonrakerAPI* api) {
     if (!api) {
         spdlog::error("[PLR] resume: api is null");
         return;
@@ -100,13 +96,9 @@ void on_plr_resume(lv_event_t* e) {
     }
     spdlog::info("[PLR] User chose Resume — running '{}'", g_active_plan.resume_gcode);
     run_recovery_gcode(api, g_active_plan.resume_gcode, lv_tr("Recovery failed: {}"), "Resume");
-    LVGL_SAFE_EVENT_CB_END();
 }
 
-void on_plr_discard(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PLR] on_plr_discard");
-    auto* api = static_cast<IMoonrakerAPI*>(lv_event_get_user_data(e));
-    Modal::hide(Modal::get_top());
+void run_plr_discard(IMoonrakerAPI* api) {
     if (!api) {
         spdlog::error("[PLR] discard: api is null");
         return;
@@ -125,7 +117,6 @@ void on_plr_discard(lv_event_t* e) {
     } else {
         spdlog::warn("[PLR] discard: plan carries no discard action");
     }
-    LVGL_SAFE_EVENT_CB_END();
 }
 
 } // namespace
@@ -184,14 +175,18 @@ void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& 
     const PlrPromptStrings chosen = plr_prompt_strings(plan.backend, creality, standard);
     std::string body = plr_prompt_body(plan.recovery_file, chosen.with_file, chosen.generic);
 
-    // Resume = primary/confirm, Discard = secondary/cancel. modal_show_confirmation
-    // wires both non-null handlers directly (no auto-close wrapper), passing
-    // `api` as borrowed user_data — the handlers keep their own Modal::hide +
-    // null-check. lv_tr(...) returns static-lifetime strings, which the modal
-    // stores by pointer, so they must outlive the modal (they do).
-    lv_obj_t* dialog = modal_show_confirmation(lv_tr("Resume interrupted print?"), body.c_str(),
-                                               ModalSeverity::Info, lv_tr("Resume"), on_plr_resume,
-                                               on_plr_discard, api, lv_tr("Discard"));
+    ConfirmOptions opts;
+    opts.on_cancel = [api] { run_plr_discard(api); };
+    opts.cancel_text = lv_tr("Discard");
+
+    // Resume = primary/confirm, Discard = secondary/cancel. modal_confirm closes
+    // its own dialog on either button, and the callbacks capture the borrowed
+    // `api` directly - no user_data to outlive anything. lv_tr(...) returns
+    // static-lifetime strings, which the modal stores by pointer, so they must
+    // outlive the modal (they do).
+    lv_obj_t* dialog = modal_confirm(
+        lv_tr("Resume interrupted print?"), body.c_str(), ModalSeverity::Info, lv_tr("Resume"),
+        [api] { run_plr_resume(api); }, opts);
     if (!dialog) {
         spdlog::error("[PLR] Failed to create recovery prompt modal");
         return;

@@ -5,6 +5,148 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.118] - 2026-08-30
+
+<!-- whatsnew
+The fifth 1.0 release candidate. Highlights:
+
+- Tapping an object in the preview outlines it in white instead of recolouring it
+- A filament remap chosen before printing now sticks
+- Dismissing a confirmation no longer strands the screen behind it
+- One filament runout no longer stacks six notifications
+- Dark filaments show real form instead of reading as a flat cut-out
+- Installing an update no longer locks up the touchscreen
+- AD5M printers on the Forge-X 1.4.2 mod keep working
+-->
+
+The fifth 1.0 release candidate. Half the cycle went into the G-code preview - object
+selection, filament colour and shading were all reworked, and the whole path is faster.
+The other half went to the filament mapping flow - one card on the file screen, remaps
+that survive print start, an honest auto-refill status - and to confirmation dialogs,
+which now clean up after every way they can be closed.
+
+### Added
+
+- **Pairing prompts** - when a slicer or phone app asks to pair over the network, the
+  printer shows an Allow/Deny prompt instead of leaving the request unanswered.
+- **RFID read on insert** - putting a spool into a CFS bay reads its tag straight away,
+  rather than waiting for something else to trigger a scan.
+- **Unmount is refused when the dock sensors cannot tell which tool is mounted** - on a
+  tool changer, the panel now blocks the unmount and says why, rather than acting on a
+  guess about which toolhead is on the carriage.
+- **A hot-end tool changer gets its own progress bar** - grip, move, grip, matching what
+  the machine actually does, instead of the filament Heat/Cut/Feed steps. The bar hides
+  itself on machines that report no phases, and the actions read Mount and Unmount.
+- **Archive a spool in Spoolman** - tapping a spool in the Spoolman list now offers
+  Archive in its menu, hidden for the spool currently feeding the printer. It asks
+  first, then archives; Spoolman's own web page can undo it.
+- **Forge-X 1.4.2 on the AD5M** - HelixScreen now defers to Forge-X's own boot splash
+  and network daemon on 1.4.2, and no longer triggers its offer to switch the display
+  to Feather. Earlier Forge-X releases are unaffected and keep the HelixScreen splash
+  and networking.
+
+### Fixed
+
+**G-code preview**
+
+- **Selecting an object** - tapping an object in the preview now outlines it in white
+  instead of recolouring it blue, so you can still see its filament colour. The outline
+  traces the whole object rather than only its outer walls. Works in the print-status
+  preview and in the file browser's detail view, on files sliced with object labels.
+- **Dark filaments** - black and near-black spools show real form and depth instead of
+  reading as a flat cut-out.
+- **Filament colours without an AMS** - on a printer with no AMS and no Spoolman, the 2D
+  preview drew every tool in the same placeholder grey. It now uses the real colours.
+- **Tool changer previews** - each tool's paths are drawn in the colour of the filament
+  actually routed to it, instead of painting the whole model in T0's colour.
+- **Files that skip a tool number** - a file using T0 and T2 but not T1 now routes T2 to
+  its own lane, instead of sliding it onto the next lane in the list. Verified on a
+  Snapmaker U1.
+
+**Multi-tool and filament**
+
+- **Reprinting on a Snapmaker U1** now follows the tool routing the original print ran
+  with, instead of resetting it to the firmware default.
+- **CFS bays** - naming a bay no longer blanks an untagged one, and a manual assignment
+  no longer makes an empty bay look loaded. Note that bay labels are remembered only
+  until the panel restarts.
+- **Cancelling filament mapping** puts the auto-colour preference back the way it was.
+- **A remap chosen before printing now sticks** - on tool-changing printers, the mapping
+  picked on the file screen was sent to the printer at print start and silently undone a
+  fraction of a second later, so the print ran on the original lanes. Any print started
+  after a finished, cancelled or failed one was affected.
+- **The remap button no longer appears where the printer would ignore it** - on filament
+  systems that cannot accept a remap, the pre-flight check and the file screen no longer
+  offer the option.
+- **A confirmed runout unties the lane from its dead spool** - after a lane runs out and
+  is emptied, it forgets which Spoolman spool was in it (brand, material and colour stay),
+  so the fresh roll is not silently recorded against the exhausted one. Previously you
+  had to relink it by hand.
+- **Auto-refill no longer over-promises** - with Creality auto-refill on but no two lanes
+  holding matching filament, the status now says plainly that nothing will switch on
+  runout, instead of showing backup arrows and then pausing the print to ask for a spool.
+- **Inserting a spool into a busy CFS bay** no longer pops a blocking dialog telling you
+  to re-seat the spool. The tag read waits for the box to be idle, and if the reader
+  reports a problem you see the printer's own message as a toast.
+- **One runout, one prompt** - a single filament runout could raise six notifications,
+  including two stacked dialogs about the same slot. The filament system's own prompt
+  now wins; sensor toasts remain only on systems that have no prompt of their own.
+- **Tool spool records survive a reconnect** - remapping or the filament system
+  reconnecting no longer wipes which spool is mounted on each tool, and a tool that
+  gives up its lane stops claiming - and saving - a spool now feeding another head.
+
+**Dialogs**
+
+- **Dismissing a confirmation no longer strands the screen behind it** - tapping the
+  backdrop or pressing ESC used to fire none of the dialog's handlers: Resume could spin
+  until a false timeout notice, the Print button could stay disabled, and a half-answered
+  delete could remove the wrong saved page. A dismissal now cleans up the same way a
+  cancel would.
+- **Holding a dialog button no longer fires it after the dialog closed** - if the printer
+  closed a confirmation while your finger was still on its button, lifting the finger
+  confirmed the already-closed dialog anyway. A quick second tap during the close
+  animation can no longer re-run the action either.
+- **Recovering from a stop clears leftover fault dialogs** - when the printer comes back
+  after an emergency stop, dialogs the fault raised are swept away, so the Print button
+  no longer stays disabled behind a stale gate.
+
+**Recovery and stability**
+
+- **A macro that stops the printer** no longer claims the firmware is restarting. The
+  recovery dialog comes up instead.
+- **A shutdown during an intentional restart** now reaches the recovery dialog rather
+  than being silently swallowed - including when an MCU comes back up already halted,
+  which previously left the printer looking idle for the rest of the session.
+- **Installing an update** no longer locks up the touchscreen. Install, Cancel, then
+  Install again could freeze the interface for up to an hour.
+- **LED presets** - the preset buttons no longer vanish when a macro light is selected,
+  and a macro light that only supports on and off now actually turns off.
+- **Long setting labels and descriptions wrap** instead of being cut off. Most visible
+  in German, French and Spanish, and on small screens.
+- **Memory pressure takes the interface first, not the print** - on printers where the
+  touchscreen shares the machine with Klipper and Moonraker, the kernel used to kill the
+  print host before the screen, ending the print. The interface now volunteers to be
+  taken down first, and its watchdog brings it straight back.
+- **During bed tramming or probing**, the position card no longer resizes on every
+  actual-Z update. Each 0.01 mm change used to nudge the jog controls out from under
+  your finger.
+- **Dialogs left open when switching printers** are now freed instead of leaking.
+
+### Changed
+
+- **Preview performance** - object tapping, antialiasing and the shading pass were all
+  reworked. Large models load and redraw faster and use less memory.
+- **The file screen's filament card was redone** - one card now shows one chip per tool
+  the print actually uses, tool number over lane number, instead of separate cards. Chips
+  that do not fit become a "+N" count rather than overflowing, accepting a remap updates
+  the chips on the spot, a chip whose lane holds a colour the file did not ask for is
+  outlined, and an amber triangle and a red X tell "wrong colour" from "needed lane
+  empty" at a glance. The sliced-colours switch moved to its own row and appears only
+  while the live 3D viewer is on screen.
+- **The strip under the preview during a print** now groups its numbers under icons -
+  layers, material used, time - and yields space instead of overlapping on narrow
+  panels.
+
 ## [0.99.117] - 2026-08-26
 
 <!-- whatsnew
@@ -5799,6 +5941,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.99.118]: https://github.com/prestonbrown/helixscreen/compare/v0.99.117...v0.99.118
 [0.99.117]: https://github.com/prestonbrown/helixscreen/compare/v0.99.116...v0.99.117
 [0.99.116]: https://github.com/prestonbrown/helixscreen/compare/v0.99.115...v0.99.116
 [0.99.115]: https://github.com/prestonbrown/helixscreen/compare/v0.99.114...v0.99.115

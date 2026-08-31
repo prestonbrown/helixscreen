@@ -131,6 +131,20 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
 
     // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
     if (lv_is_initialized()) {
+        // StaticPanelRegistry::destroy_all() runs before lv_deinit(), and
+        // modal_hide() below only starts an exit ANIMATION - the modal tree is
+        // deleted after this destructor has returned and freed `this`. Uninstall
+        // the DELETE hooks while the object is still valid; on_modal_deleted()
+        // writes through the pointer it is handed. A cached pointer the hook has
+        // already nulled means that tree died first, so nothing is left to
+        // uninstall.
+        for (lv_obj_t* watched :
+             {password_modal_, hidden_network_modal_, test_modal_, step_widget_}) {
+            if (watched) {
+                lv_obj_remove_event_cb_with_user_data(watched, on_modal_deleted, this);
+            }
+        }
+
         if (hidden_network_modal_) {
             helix::ui::modal_hide(hidden_network_modal_);
             hidden_network_modal_ = nullptr;
@@ -374,6 +388,18 @@ void NetworkSettingsOverlay::on_activate() {
     update_ethernet_status();
     update_any_network_connected();
 
+    // Subscribe to backend state changes so an open overlay refreshes its
+    // transport rows when the backend flips transports underneath it: on a
+    // single-transport platform (netd enforces this) a join or leave downs
+    // and re-ups the OTHER transport too, and nothing here re-queries it
+    // until the user taps something (prestonbrown/helixscreen#1398).
+    // Registered per activation — on_deactivate() invalidates lifetime_, so
+    // a create()-time token would die at the first close and never return.
+    if (wifi_manager_) {
+        wifi_manager_->add_state_observer(lifetime_.token(),
+                                          [this]() { refresh_transport_status(); });
+    }
+
     // Update band capability indicator (show "Only 2.4GHz" if 5GHz not supported)
     if (wifi_manager_) {
         bool only_24ghz = !wifi_manager_->supports_5ghz();
@@ -464,6 +490,12 @@ void NetworkSettingsOverlay::cleanup() {
 // Helper Functions
 // ============================================================================
 
+void NetworkSettingsOverlay::refresh_transport_status() {
+    update_wifi_status();
+    update_ethernet_status();
+    update_any_network_connected();
+}
+
 void NetworkSettingsOverlay::update_wifi_status() {
     if (!wifi_manager_) {
         spdlog::debug("[NetworkSettingsOverlay] Cannot update WiFi status: no WiFiManager");
@@ -511,6 +543,16 @@ void NetworkSettingsOverlay::update_ethernet_status() {
         return;
     }
 
+    // Coalesce: each state-observer tick while a probe is already in flight
+    // just marks one trailing refresh — a flapping link or a failed-join
+    // retry burst must not queue N sequential daemon round trips on the
+    // shared fast lane (and mid-join the daemon is one-op-at-a-time anyway).
+    if (eth_refresh_in_flight_) {
+        eth_refresh_trailing_ = true;
+        return;
+    }
+    eth_refresh_in_flight_ = true;
+
     // Kick off an async probe — the callback fires on the UI thread via
     // tok.defer() so it's safe to touch subjects there. No bare expired()
     // check on the bg thread: defer's own guard skips when the owner is
@@ -524,6 +566,14 @@ void NetworkSettingsOverlay::update_ethernet_status() {
 }
 
 void NetworkSettingsOverlay::apply_ethernet_status(const EthernetInfo& info) {
+    eth_refresh_in_flight_ = false;
+    if (eth_refresh_trailing_) {
+        // A refresh was requested while this probe ran — run it now that the
+        // lane is free (this pass's data is about to be superseded anyway).
+        eth_refresh_trailing_ = false;
+        update_ethernet_status();
+    }
+
     lv_subject_set_int(&eth_connected_, info.connected ? 1 : 0);
 
     if (info.connected) {
@@ -831,9 +881,15 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
         std::string msg =
             lv_tr("This device has no wired network connection. If you turn WiFi off, it can "
                   "only be turned back on from this screen.");
-        helix::ui::modal_show_confirmation(
+        // Cancel and a dismissal undo the same pending switch state.
+        auto undo = [this] { handle_wlan_toggle_off_cancel(); };
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = undo;
+        opts.on_dismiss = undo;
+        opts.owner_token = lifetime_.token();
+        helix::ui::modal_confirm(
             lv_tr("Turn Off WiFi?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Turn Off"),
-            on_wlan_toggle_off_confirm, on_wlan_toggle_off_cancel, nullptr);
+            [this] { handle_wlan_toggle_off_confirm(); }, opts);
         return;
     }
 
@@ -841,8 +897,6 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
 }
 
 void NetworkSettingsOverlay::handle_wlan_toggle_off_confirm() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
-
     lv_obj_t* sw = pending_wlan_toggle_switch_;
     pending_wlan_toggle_switch_ = nullptr;
     if (!sw)
@@ -853,8 +907,6 @@ void NetworkSettingsOverlay::handle_wlan_toggle_off_confirm() {
 }
 
 void NetworkSettingsOverlay::handle_wlan_toggle_off_cancel() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
-
     lv_obj_t* sw = pending_wlan_toggle_switch_;
     pending_wlan_toggle_switch_ = nullptr;
     if (sw) {
@@ -1293,8 +1345,7 @@ void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
                     spdlog::info("[NetworkSettingsOverlay] Connected to hidden network: {}",
                                  helix::redact::ssid(ssid_str));
                     handle_hidden_cancel_clicked();
-                    update_wifi_status();
-                    update_any_network_connected();
+                    refresh_transport_status();
 
                     if (wifi_manager_) {
                         auto scan_token = lifetime_.token();
@@ -1378,8 +1429,7 @@ void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
                     if (success) {
                         spdlog::info("[NetworkSettingsOverlay] Connected to {}",
                                      helix::redact::ssid(current_ssid_));
-                        update_wifi_status();
-                        update_any_network_connected();
+                        refresh_transport_status();
                     } else {
                         spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}", error);
                     }
@@ -1408,14 +1458,18 @@ void NetworkSettingsOverlay::handle_network_settings_forget() {
 
     std::string msg =
         fmt::format(lv_tr("Forget network '{}'? You will need the password to reconnect."), ssid);
-    helix::ui::modal_show_confirmation(
+    // Cancel and a dismissal clear the same pending SSID.
+    auto undo = [this] { handle_network_forget_cancel(); };
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = undo;
+    opts.on_dismiss = undo;
+    opts.owner_token = lifetime_.token();
+    helix::ui::modal_confirm(
         lv_tr("Forget Network?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Forget"),
-        on_network_forget_confirm, on_network_forget_cancel, nullptr);
+        [this] { handle_network_forget_confirm(); }, opts);
 }
 
 void NetworkSettingsOverlay::handle_network_forget_confirm() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
-
     std::string ssid = pending_forget_ssid_;
     pending_forget_ssid_.clear();
 
@@ -1435,8 +1489,7 @@ void NetworkSettingsOverlay::handle_network_forget_confirm() {
                              helix::redact::ssid(ssid));
                 ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Network forgotten"),
                                               2000);
-                update_wifi_status();
-                update_any_network_connected();
+                refresh_transport_status();
 
                 // Refresh the scan list so a stale "connected" checkmark clears.
                 if (wifi_manager_ && wifi_manager_->is_enabled()) {
@@ -1461,7 +1514,6 @@ void NetworkSettingsOverlay::handle_network_forget_confirm() {
 }
 
 void NetworkSettingsOverlay::handle_network_forget_cancel() {
-    helix::ui::modal_hide(helix::ui::modal_get_top());
     pending_forget_ssid_.clear();
 }
 
@@ -1501,30 +1553,6 @@ void NetworkSettingsOverlay::on_network_settings_forget(lv_event_t* e) {
     (void)e;
     auto& self = get_network_settings_overlay();
     self.handle_network_settings_forget();
-}
-
-void NetworkSettingsOverlay::on_network_forget_confirm(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_network_forget_confirm();
-}
-
-void NetworkSettingsOverlay::on_network_forget_cancel(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_network_forget_cancel();
-}
-
-void NetworkSettingsOverlay::on_wlan_toggle_off_confirm(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_wlan_toggle_off_confirm();
-}
-
-void NetworkSettingsOverlay::on_wlan_toggle_off_cancel(lv_event_t* e) {
-    (void)e;
-    auto& self = get_network_settings_overlay();
-    self.handle_wlan_toggle_off_cancel();
 }
 
 void NetworkSettingsOverlay::on_network_test_close(lv_event_t* e) {
@@ -1702,8 +1730,7 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
             if (success) {
                 spdlog::info("[NetworkSettingsOverlay] Connected to {}", helix::redact::ssid(ssid));
                 hide_password_modal();
-                update_wifi_status();
-                update_any_network_connected();
+                refresh_transport_status();
 
                 // Refresh network list to show checkmark on connected network
                 if (wifi_manager_) {

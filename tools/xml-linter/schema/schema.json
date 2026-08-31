@@ -1873,6 +1873,14 @@
     "setting_group": {
       "attributes": {},
       "inherits": "lv_obj"
+    },
+    "ams_lane_bar": {
+      "attributes": {
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
     }
   },
   "enums": {
@@ -2815,7 +2823,8 @@
     "ui_split_button",
     "z_offset_indicator",
     "helix_sparkline",
-    "setting_group"
+    "setting_group",
+    "ams_lane_bar"
   ],
   "runtime_constants": [
     "accent_bar_gap",
@@ -3162,6 +3171,10 @@
     "font_xs_tiny",
     "font_xs_xlarge",
     "font_xs_xxlarge",
+    "gcode_selection_bracket",
+    "gcode_selection_excluded",
+    "gcode_selection_outline",
+    "ghost_opacity",
     "grid_gap",
     "grid_swatch_size",
     "grid_width",
@@ -3305,6 +3318,22 @@
     "metadata_row_height",
     "metadata_top_pad",
     "modal_backdrop_opacity",
+    "motion_card_min_h",
+    "motion_card_min_h_large",
+    "motion_card_min_h_medium",
+    "motion_card_min_h_micro",
+    "motion_card_min_h_small",
+    "motion_card_min_h_tiny",
+    "motion_card_min_h_xlarge",
+    "motion_card_min_h_xxlarge",
+    "motion_card_min_w",
+    "motion_card_min_w_large",
+    "motion_card_min_w_medium",
+    "motion_card_min_w_micro",
+    "motion_card_min_w_small",
+    "motion_card_min_w_tiny",
+    "motion_card_min_w_xlarge",
+    "motion_card_min_w_xxlarge",
     "nav_padding",
     "nav_width",
     "nav_width_large",
@@ -3333,7 +3362,6 @@
     "overlay_width_destination",
     "overlay_width_transient",
     "panel_button_width",
-    "pill_dot_sz",
     "pin_btn_height",
     "pin_dot_size",
     "play_icon_size",

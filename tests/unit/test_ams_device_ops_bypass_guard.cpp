@@ -130,15 +130,24 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
         settle();
     }
 
-    /// Drain until `pred` holds, bounded. The unload->enable chain crosses the
-    /// mock's operation thread, an AmsState event sync and a deferred observer,
-    /// so the number of drains it needs is an implementation detail, not
-    /// something a test should hard-code.
+    /// Wait until `pred` holds. The unload->enable chain crosses the mock's
+    /// operation thread (AmsBackendMock::operation_thread_), an AmsState event
+    /// sync and a deferred observer, so the number of drains it needs is an
+    /// implementation detail, not something a test should hard-code.
+    ///
+    /// Must yield REAL time, not just drain. An earlier version spun 20 rounds
+    /// of settle(), and settle()'s process_lvgl(10) never sleeps - the sleep in
+    /// process_lvgl is gated on ms > 50. So the whole wait completed in
+    /// microseconds without ever descheduling us, and whether the operation
+    /// thread had run was pure luck. It held on an idle box and failed under a
+    /// loaded one, which is how it read as a flake. wait_until() drains and
+    /// pumps exactly the same way but sleeps between passes, and returns as soon
+    /// as the predicate holds, so the happy path costs no more than before.
     template <typename Pred> bool settle_until(Pred pred) {
-        for (int i = 0; i < 20 && !pred(); ++i) {
-            settle();
-        }
-        return pred();
+        return wait_until([&] {
+            helix::ui::UpdateQueue::instance().drain();
+            return pred();
+        });
     }
 
     void set_printing() {

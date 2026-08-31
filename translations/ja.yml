@@ -1,7 +1,6 @@
 locale: ja
 translations:
   ' (timed out)': （タイムアウト）
-  ' elapsed · ': ' 経過 · '
   ' frames': ' フレーム'
   ' left': ' 残り'
   '"%s" failed to load': '"%s" の読み込みに失敗しました'
@@ -158,6 +157,7 @@ translations:
   All extruder temperatures with progress bars: '全エクストルーダー温度とプログレスバー'
   All fields are required: すべての項目が必須です
   All plugins loaded successfully: すべてのプラグインを正常に読み込みました
+  Allow: '許可'
   Allow Home Screen Editing: 'ホーム画面の編集を許可'
   Allow cold load/unload: コールド時の装填/取り出しを許可
   Allow display to sleep during active prints: 印刷中のスリープを許可
@@ -168,6 +168,7 @@ translations:
   Ambient Transfer: 環境熱伝達
   AmsIdentify: AMSを識別
   An accelerometer was detected on your printer.: プリンターで加速度センサーが検出されました。
+  An app on your network is asking to connect to this printer.: 'ネットワーク上のアプリがこのプリンターへの接続を求めています。'
   An error occurred during calibration.: キャリブレーション中にエラーが発生しました。
   An error occurred during filament loading.: フィラメントの読み込み中にエラーが発生しました。
   An error occurred during measurement.: 測定中にエラーが発生しました。
@@ -194,6 +195,8 @@ translations:
   Apply Changes: 変更を適用
   Applying Changes: 変更を適用中
   Applying...: 適用中...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: この印刷をキャンセルしますか？すべての進行状況が失われます。
   Are you sure? This will power off or restart this device.: よろしいですか？このデバイスの電源がオフまたは再起動されます。
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで
@@ -212,6 +215,7 @@ translations:
   Auto-lock: 自動ロック
   Auto-poll for weight updates: 重量更新の自動ポーリング
   Auto-probe or manually check screw heights: 自動プローブまたは手動でネジの高さを確認
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: 動画を自動レンダリング
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: 自動アンインストールはローカルの Moonraker でのみ動作します
@@ -548,6 +552,7 @@ translations:
   Connecting...: 接続中...
   Connection: 接続
   Connection Failed: 接続に失敗しました
+  Connection Request: '接続リクエスト'
   Connection Stability: 接続の安定性
   Connection failed: 接続に失敗しました
   Connection failed to {}:{}: '{}:{} への接続に失敗しました'
@@ -580,6 +585,7 @@ translations:
   Correction (Ki): 補正 (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START
     マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
+  Could not answer the connection request: '接続リクエストに応答できませんでした'
   ? "Could not check webcam status.\nCheck printer connection."
   : "ウェブカメラの状態を確認できませんでした。\nプリンター接続を確認してください。"
   Could not forget device: デバイスの登録を解除できませんでした
@@ -663,6 +669,7 @@ translations:
   Delete {}?: '{} を削除しますか?'
   'Delta:': '差分:'
   Density: 密度
+  Deny: '拒否'
   Deploy: 展開
   Describe the issue (optional): 問題の詳細（任意）
   Detailed: 詳細
@@ -674,6 +681,7 @@ translations:
   Dev: 開発版
   Dev channel requires dev_url in config: 開発チャンネルには設定にdev_urlが必要です
   Device: デバイス
+  Device connected: 'デバイスが接続されました'
   Device name: デバイス名
   Device name is required: デバイス名は必須です
   'Device: ': 'デバイス: '
@@ -866,6 +874,7 @@ translations:
   Failed to analyze PRINT_START macro: PRINT_START マクロの解析に失敗しました
   Failed to apply limits: 制限の適用に失敗しました
   Failed to apply settings: 設定の適用に失敗しました
+  Failed to archive spool: ''
   Failed to build raster data: ラスターデータの構築に失敗しました
   'Failed to cancel: {}': 'キャンセルに失敗しました: {}'
   'Failed to clear print state: {}': '印刷状態をクリアできませんでした: {}'
@@ -1249,6 +1258,7 @@ translations:
   'Invalid sheet template index: {} (have {})': '無効なシートテンプレートインデックス: {} (現在 {})'
   Invalid status response from printer: プリンターからの無効なステータス応答
   Issue description: 問題の説明
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: 新しいスプールです
   Jammed at the Toolhead: ツールヘッドで詰まり
   Job Queue: ジョブキュー
@@ -1378,7 +1388,6 @@ translations:
   MACRO DEVICES: マクロデバイス
   MAIN POWER BUTTON: メイン電源ボタン
   MANUAL: 手動
-  MAPPING: マッピング
   MB RAM: MB RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: MCU、ホスト、補助温度の監視
@@ -1602,6 +1611,7 @@ translations:
   No slot currently matches.: '現在、一致するスロットはありません。'
   No spool assigned: スプール未割当
   No spools found — tap to retry: スプールが見つかりません — タップして再試行
+  No spools match your search: ''
   No tape detected in printer: プリンターにテープが検出されません
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
@@ -2358,6 +2368,7 @@ translations:
   'Spool #{}': 'スプール #{}'
   Spool Info: スプール情報
   Spool Weight (g): スプール重量（g）
+  Spool archived: ''
   Spool created successfully: スプールを作成しました
   Spool deleted: スプールを削除しました
   Spool motor: スプールモーター
@@ -2947,6 +2958,7 @@ translations:
   '{} filament sensors available': '{} 個のフィラメントセンサーが利用可能です'
   '{} filament • {}': 'フィラメント {} • {}'
   '{} heater turned off': '{} ヒーターをオフにしました'
+  '{} is asking to connect to this printer.': '{} がこのプリンターへの接続を求めています。'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} はインストールされていますが、予備スプールへの切り替えがオフになっているため、自動切り替えは行われません。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} はインストールされていますが、予備スプールの設定を読み取れませんでした - 自動切り替えを当てにしないでください。'
   '{} is not set up on this printer': ''

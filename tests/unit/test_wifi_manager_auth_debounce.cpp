@@ -21,6 +21,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/scoped_runtime_config.h"
+#include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"
@@ -34,31 +35,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-
-namespace helix {
-// Friend accessor — drives the private connection handlers and inspects the
-// grace-timer state without going through the threaded mock backend.
-class WiFiManagerTestAccess {
-  public:
-    static void begin_connect(WiFiManager& wm, std::function<void(bool, const std::string&)> cb) {
-        // Simulate an in-flight connect() without invoking the backend.
-        wm.connect_callback_ = std::move(cb);
-        wm.connecting_in_progress_ = true;
-    }
-    static void fire_auth_failed(WiFiManager& wm, const std::string& data) {
-        wm.handle_auth_failed(data);
-    }
-    static void fire_connected(WiFiManager& wm, const std::string& data) {
-        wm.handle_connected(data);
-    }
-    static bool grace_pending(WiFiManager& wm) {
-        return wm.auth_fail_grace_timer_ != nullptr;
-    }
-    static bool connecting(WiFiManager& wm) {
-        return wm.connecting_in_progress_;
-    }
-};
-} // namespace helix
 
 namespace {
 
