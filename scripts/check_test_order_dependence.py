@@ -39,6 +39,7 @@
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -104,7 +105,34 @@ def escape_spec(name):
     return SPEC_META.sub(r'\\\1', name)
 
 
-def run_isolated(binary, names, workdir, timeout):
+def evidence_root_for(report_path):
+    """Directory beside the suite report that holds all retained evidence."""
+    return Path(report_path).resolve().parent / 'order-dependence-evidence'
+
+
+def evidence_dir_for(report_path, source_file):
+    """Per-file directory a non-green isolated run's artifacts are kept in.
+
+    Lives under the evidence root beside the suite report so every entry point
+    (make target, CI job) finds it without a new flag, and is resolved absolute
+    so a finding printed into a log can be pasted without reconstructing the
+    working directory. The source path flattened to one name keeps each file's
+    evidence self-describing: the finding names the file, the directory names
+    it identically.
+    """
+    return evidence_root_for(report_path) / source_file.replace('/', '_')
+
+
+def _retain_evidence(dest, tmp):
+    """Copy an isolated run's artifacts out of the tempdir before it evaporates."""
+    dest.mkdir(parents=True, exist_ok=True)
+    for name in ('r.xml', 'output.txt', 'names.txt'):
+        src = Path(tmp) / name
+        if src.is_file():
+            shutil.copy2(src, dest / name)
+
+
+def run_isolated(binary, names, workdir, timeout, evidence=None, suite_failed=()):
     """Run exactly these cases in one fresh process; {name: passed}.
 
     A timeout is not optional. Some files deadlock when run as an isolated set
@@ -112,23 +140,49 @@ def run_isolated(binary, names, workdir, timeout):
     futex_do_wait for 30 minutes and blocked the entire scan, because one stuck
     worker starves the pool and nothing else ever reports. A file that times out
     is un-judgeable, which is a finding to surface, not a reason to hang.
+
+    Evidence retention: a run that is not green for every requested case copies
+    its XML report, captured stdout/stderr, and the escaped spec into
+    @p evidence before the tempdir is deleted. The verdict names the case, but
+    the only artifacts that could say WHY it failed -- the expanded assertion in
+    the report, the child's last words on stderr -- were discarded with the
+    tempdir, and DEVNULL meant there were no last words at all. The 2026-08-31
+    nightly fired a finding that three environments of local reruns could not
+    reproduce because of exactly that gap. @p suite_failed (the names this
+    file's report shows failing in the suite) widens the trigger to cover
+    pollution too: that finding's isolated run is GREEN, and its report is the
+    proof the case passes alone. The caller drops the copy again when the run
+    turns out to agree with the suite (a consistently red file is test-all's
+    story to tell, not evidence of ordering), so a red suite does not
+    accumulate directories.
     """
     with tempfile.TemporaryDirectory() as tmp:
         spec = Path(tmp) / 'names.txt'
         spec.write_text('\n'.join(escape_spec(n) for n in names) + '\n')
         report = Path(tmp) / 'r.xml'
-        try:
-            subprocess.run(
-                [str(binary), '-f', str(spec), '--reporter', 'xml',
-                 '--success', '--out', str(report)],
-                cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return {}
-        if not report.is_file():
-            return {}
-        return {n: ok for n, (_, ok)
-                in parse_report(report, strict=False).items()}
+        output = Path(tmp) / 'output.txt'
+        timed_out = False
+        with output.open('wb') as sink:
+            try:
+                subprocess.run(
+                    [str(binary), '-f', str(spec), '--reporter', 'xml',
+                     '--success', '--out', str(report)],
+                    cwd=workdir, stdout=sink, stderr=subprocess.STDOUT,
+                    timeout=timeout)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+        results = {}
+        if not timed_out and report.is_file():
+            results = {n: ok for n, (_, ok)
+                       in parse_report(report, strict=False).items()}
+        green = (not timed_out and report.is_file()
+                 and all(results.get(n) for n in names))
+        # A suite failure that passed alone is a pollution finding in the
+        # making: retain even a green run when one of those is in play.
+        pollution_candidate = any(results.get(n) for n in suite_failed)
+        if (not green or pollution_candidate) and evidence is not None:
+            _retain_evidence(evidence, tmp)
+        return results
 
 
 def report_ran_nothing(names, alone):
@@ -187,14 +241,18 @@ def main():
     findings = []
     def check(item):
         f, names = item
-        return f, names, run_isolated(binary, names, root, args.timeout)
+        ev = evidence_dir_for(args.report, f)
+        failed_in_suite = {n for n in names if not full[n][1]}
+        alone = run_isolated(binary, names, root, args.timeout, ev, failed_in_suite)
+        return f, names, alone, ev
 
     skipped = []
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-        for f, names, alone in ex.map(check, sorted(by_file.items())):
+        for f, names, alone, ev in ex.map(check, sorted(by_file.items())):
             if report_ran_nothing(names, alone):
                 skipped.append(f)
-                continue
+                continue  # un-judgeable: keep the evidence, it is all we have
+            fired = 0
             for n in names:
                 in_suite = full[n][1]
                 # A case absent from the isolated report did not run (a name
@@ -203,8 +261,14 @@ def main():
                     continue
                 if in_suite and not alone[n]:
                     findings.append(('order-dependent', f, n))
+                    fired += 1
                 elif not in_suite and alone[n]:
                     findings.append(('pollution', f, n))
+                    fired += 1
+            if not fired:
+                # Agrees with the suite: nothing here is about ordering, and
+                # the suite log already tells this file's story.
+                shutil.rmtree(ev, ignore_errors=True)
 
     for kind, f, n in (findings if args.list else findings[:40]):
         why = ('passes in the suite, FAILS alone - it reads state another '
@@ -212,11 +276,23 @@ def main():
                'fails in the suite, passes alone - an earlier test leaves '
                'state that breaks it')
         print(f'{f}: [{kind}] {n}\n    {why}')
+        print(f'    evidence: {evidence_dir_for(args.report, f)} '
+              f'(report + captured output + escaped spec)')
 
     for f in skipped:
         print(f'{f}: [not-run] isolated run produced no results (hung past '
               f'--timeout {args.timeout}s, crashed, or wrote an unreadable '
               f'report) - the gate could not judge this file', file=sys.stderr)
+        print(f'evidence retained at {evidence_dir_for(args.report, f)}',
+              file=sys.stderr)
+
+    # A file whose evidence was kept and then dropped leaves an empty root.
+    # Prune it here, after the pool has joined: doing it per file would race a
+    # sibling worker that is mid-mkdir of its own evidence directory.
+    try:
+        evidence_root_for(args.report).rmdir()
+    except OSError:
+        pass
 
     kinds = {}
     for k, _, _ in findings:
