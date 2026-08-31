@@ -193,6 +193,20 @@ std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
 }
 
 std::optional<int> read_persisted_offset_microns(const nlohmann::json& status) {
+    // Fast path for the overwhelming majority: the subscription builder only
+    // subscribes save_variables / mod_params when a provider matched, so a
+    // frame carrying NEITHER object belongs to a printer with no persistence
+    // firmware and the per-frame schema probes below are pure waste. (A frame
+    // that DOES carry one of them for unrelated reasons simply falls through
+    // to the probes and misses — the gate is a skip, never an answer.)
+    if (!status.is_object()) {
+        return std::nullopt;
+    }
+    const bool carries_schema_object =
+        status.contains("save_variables") || status.contains("mod_params");
+    if (!carries_schema_object) {
+        return std::nullopt;
+    }
     // Read by schema rather than by detected firmware: this runs on the status
     // path, which has no PrinterDiscovery to hand, and the schemas are distinct
     // enough to identify themselves. A printer without the firmware never
