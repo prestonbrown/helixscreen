@@ -874,6 +874,25 @@ The WiFi backend normally finds the control socket automatically: it auto-detect
 HELIX_WPA_SOCKET_DIR=/data/misc/wifi/sockets ./build/bin/helix-screen
 ```
 
+### `HELIX_WPA_NET_SYSFS`
+
+Override the sysfs directory the WiFi hardware probe scans for radio
+interfaces.
+
+The wpa backend's pre-flight check reads `/sys/class/net` looking for
+`wlan*`/`wlp*`/`wlx*`/`wifi*` interfaces with a `wireless` subdirectory, and
+refuses to start when none exist. This variable points that probe at a
+different tree. It exists for the fake-supplicant unit tests
+(`tests/test_helpers/wpa_fake_supplicant.h`), which provide a hermetic
+`wlan0` so the suite runs on machines without a radio (CI runners); no
+device deployment should ever need it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute directory path to use in place of `/sys/class/net` |
+| **Default** | Unset — the real `/sys/class/net` |
+| **File** | `src/api/wifi_backend_wpa_supplicant.cpp` |
+
 ### `HELIX_NETD_SOCKET`
 
 Override the control socket of the printer's network daemon (`netd`, the

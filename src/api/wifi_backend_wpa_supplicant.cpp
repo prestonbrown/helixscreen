@@ -750,7 +750,13 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
     std::vector<std::string> wifi_ifaces;
 
     try {
-        const std::string net_path = "/sys/class/net";
+        // Test seam mirroring HELIX_WPA_SOCKET_DIR: the fake-supplicant tests
+        // pin this to a hermetic tree, because CI runners have no wlan-named
+        // interface in the real /sys/class/net.
+        const char* net_sysfs = std::getenv("HELIX_WPA_NET_SYSFS");
+        const std::string net_path = (net_sysfs != nullptr && net_sysfs[0] != '\0')
+                                         ? std::string(net_sysfs)
+                                         : "/sys/class/net";
         if (fs::exists(net_path)) {
             for (const auto& entry : fs::directory_iterator(net_path)) {
                 std::string iface = entry.path().filename().string();
