@@ -92,7 +92,10 @@ class NetdBackendFixture {
         return counts_[name];
     }
 
-    bool wait_for_event(const std::string& name, int target, int timeout_ms = 5000) {
+    // 15s, not 5s: a full-suite shard run on a heavily loaded runner can starve
+    // the backend dispatch thread past 5s (observed once at load ~16); the cost
+    // of the extra headroom is paid only on already-failing runs.
+    bool wait_for_event(const std::string& name, int target, int timeout_ms = 15000) {
         std::unique_lock<std::mutex> lock(event_mutex_);
         return event_cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
                                   [this, &name, target] { return counts_[name] >= target; });
