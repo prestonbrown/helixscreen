@@ -61,6 +61,23 @@ ObserverGuard init_preparing_exit_observer();
 bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome outcome);
 
 /**
+ * @brief Has a new job started, such that the last one's result is stale?
+ *
+ * The completion modal is a statement about the job that ended. Committing to
+ * another job makes that statement false, so the dialog has outlived its
+ * condition and belongs off the screen — the user should not have to dismiss
+ * the previous print's result to watch the next one begin.
+ *
+ * Preparing is the earliest edge the lifecycle offers and is what the user
+ * sees the moment they press print; Printing covers a job that reached the
+ * plate without the observer seeing Preparing (a resume, or a start observed
+ * late). Paused is deliberately absent: pausing does not start a new job, and
+ * neither do the terminal states or Idle — dismissing on those would take the
+ * result away before it had been read.
+ */
+[[nodiscard]] bool started_new_job(PrintState lifecycle);
+
+/**
  * @brief What to do when a job stops being prepared
  *
  * A start can die before the printer ever reports a print, so nothing

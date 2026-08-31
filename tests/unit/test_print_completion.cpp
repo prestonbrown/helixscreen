@@ -664,3 +664,35 @@ TEST_CASE("should_notify_print_ended fires only when an active print reaches a t
                                                 PrintOutcome::CANCELLED));
     }
 }
+
+TEST_CASE("started_new_job decides when the last print's result is stale",
+          "[printcompletion][regression]") {
+    // Field report: a "Print Failed" dialog was still on screen after the user
+    // started a new print, sitting over the job that was already running. The
+    // modal describes the job that ended, so committing to another one makes
+    // it false and it belongs off the screen.
+
+    SECTION("committing to a job dismisses the previous result") {
+        // Preparing is what the user sees the moment they press print.
+        // Printing covers a job that reached the plate without the observer
+        // seeing Preparing - a resume, or a start observed late.
+        REQUIRE(started_new_job(PrintState::Preparing));
+        REQUIRE(started_new_job(PrintState::Printing));
+    }
+
+    SECTION("nothing else takes the result away before it is read") {
+        // Pausing does not start a new job, and neither does settling to Idle
+        // after a print ends - Moonraker reports standby right after every
+        // terminal state, so dismissing on Idle would erase the result almost
+        // immediately.
+        REQUIRE_FALSE(started_new_job(PrintState::Idle));
+        REQUIRE_FALSE(started_new_job(PrintState::Paused));
+    }
+
+    SECTION("a terminal state never dismisses itself") {
+        // The transition that raises the modal must not also take it down.
+        REQUIRE_FALSE(started_new_job(PrintState::Complete));
+        REQUIRE_FALSE(started_new_job(PrintState::Cancelled));
+        REQUIRE_FALSE(started_new_job(PrintState::Error));
+    }
+}

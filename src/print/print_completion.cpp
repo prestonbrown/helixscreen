@@ -137,6 +137,10 @@ static void cleanup_helix_temp_file(const std::string& filename) {
         });
 }
 
+bool started_new_job(PrintState lifecycle) {
+    return lifecycle == PrintState::Preparing || lifecycle == PrintState::Printing;
+}
+
 // Helper to show the rich print completion modal
 bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome outcome) {
     const bool is_terminal = (current == PrintState::Complete || current == PrintState::Cancelled ||
@@ -200,6 +204,42 @@ CompletionStats build_completion_stats(int duration_secs, int estimated_secs, in
             format::format_filament_length(static_cast<double>(filament_mm)) + " " + lv_tr("used");
     }
     return out;
+}
+
+// The completion modal currently on screen, if any. Only one can be up: all
+// three outcomes share print_completion_modal and it is shown from one place,
+// so a single handle is enough where the fault registry needs a vector.
+static lv_obj_t* s_completion_modal = nullptr;
+
+// Drop the handle whenever the dialog dies by ANY route — the user's OK, a
+// backdrop tap, ESC, our own dismissal, teardown. A freed address can be
+// reused by a later allocation, so a stale handle could eventually name an
+// unrelated live widget and we would "dismiss" that instead.
+static void forget_completion_modal(lv_event_t* e) {
+    if (static_cast<lv_obj_t*>(lv_event_get_target(e)) == s_completion_modal) {
+        s_completion_modal = nullptr;
+    }
+}
+
+// A completion modal is a statement about the job that just ended. Starting
+// another job makes that statement false, so the dialog has outlived its
+// condition and belongs off the screen — the user should not have to dismiss
+// the last print's result to watch the next one begin.
+static void dismiss_completion_modal_for_new_print() {
+    lv_obj_t* dialog = s_completion_modal;
+    if (!dialog) {
+        return;
+    }
+    auto& stack = ::ModalStack::instance();
+    lv_obj_t* backdrop = stack.backdrop_for(dialog);
+    // No backdrop = already acknowledged and gone. Exiting = acknowledged a
+    // frame ago and still animating out. Neither needs dismissing again.
+    if (!backdrop || stack.is_exiting(backdrop)) {
+        return;
+    }
+    // External, not Programmatic: this is not the dialog's caller closing it.
+    ::Modal::hide(dialog, ::ModalCloseReason::External);
+    spdlog::info("[PrintComplete] New print started - dismissed stale completion modal");
 }
 
 static void show_rich_completion_modal(PrintJobState state, const char* filename) {
@@ -269,6 +309,10 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
         return;
     }
 
+    s_completion_modal = dialog;
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+    lv_obj_add_event_cb(dialog, forget_completion_modal, LV_EVENT_DELETE, nullptr);
+
     // Icon src/variant must be set imperatively (no XML binding support for icon properties)
     lv_obj_t* icon_widget = lv_obj_find_by_name(dialog, "status_icon");
     if (icon_widget) {
@@ -311,6 +355,13 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
 
     const auto outcome = static_cast<PrintOutcome>(
         lv_subject_get_int(get_printer_state().get_print_outcome_subject()));
+
+    // Take the previous job's result down as soon as a new one is committed.
+    // Level, not edge, is deliberate: the handle is cleared on the dialog's
+    // death, so once it has been taken down these calls are no-ops.
+    if (started_new_job(lifecycle)) {
+        dismiss_completion_modal_for_new_print();
+    }
 
     if (should_notify_print_ended(prev_lifecycle, lifecycle, outcome)) {
         // The terminal job state still drives which message and sound are used.

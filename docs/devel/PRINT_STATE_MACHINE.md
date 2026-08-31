@@ -220,7 +220,7 @@ Eight private previous-state variables existed before this subject, and they
 disagreed at the edges.
 
 The edge consumer is `should_notify_print_ended(prev, current, outcome)`
-(`include/print_completion.h:61`, `src/print/print_completion.cpp:141`), which
+(`include/print_completion.h:61`, `src/print/print_completion.cpp:145`), which
 decides whether a lifecycle transition means *a print the user was watching
 ended*. `Printing`/`Paused` -> terminal notifies. `Preparing` -> terminal is the
 interesting arm, and it gates on `outcome` in both directions:
@@ -239,7 +239,7 @@ interesting arm, and it gates on `outcome` in both directions:
   silent - otherwise abandoning a start would announce the last print's
   completion.
 
-The completion observer (`print_completion.cpp:315`) reads both halves of the
+The completion observer (`print_completion.cpp:366`) reads both halves of the
 transition from `PrinterPrintState`; it no longer owns a latch of its own.
 
 ---

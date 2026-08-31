@@ -113,8 +113,8 @@ docs/devel/PAGE_SCROLL_BUTTONS.md	src/xml_registration.cpp	319	src/xml_registrat
 docs/devel/POWER_LOSS_RECOVERY.md	src/ui/ui_plr_offer_controller.cpp	88	src/ui/ui_plr_offer_controller.cpp	ab2aee14c85d	f2eeb1e3afe8
 docs/devel/PREPRINT_PREDICTION.md	src/print/preprint_predictor.cpp	40	src/print/preprint_predictor.cpp	d30a389bbb93	e3266bc7e8fc
 docs/devel/PRINT_STATE_MACHINE.md	include/print_completion.h	61	include/print_completion.h	8c36b5a6e7f4	2812c77c4313
-docs/devel/PRINT_STATE_MACHINE.md	print_completion.cpp	315	src/print/print_completion.cpp	07db8b15d313	3a0cea3755c7
-docs/devel/PRINT_STATE_MACHINE.md	src/print/print_completion.cpp	141	src/print/print_completion.cpp	85cadc1ef66a	0b34194ef8c8
+docs/devel/PRINT_STATE_MACHINE.md	print_completion.cpp	366	src/print/print_completion.cpp	07db8b15d313	2b6207d84fd6
+docs/devel/PRINT_STATE_MACHINE.md	src/print/print_completion.cpp	145	src/print/print_completion.cpp	85cadc1ef66a	0b34194ef8c8
 docs/devel/PRINT_STATE_MACHINE.md	src/printer/print_lifecycle_state.cpp	96	src/printer/print_lifecycle_state.cpp	d62ca1f7629b	d0dc2cfddb1b
 docs/devel/PRINT_STATE_MACHINE.md	src/printer/printer_print_state.cpp	1526	src/printer/printer_print_state.cpp	a4ebc5aac956	403018efe7d6
 docs/devel/QIDI_BOX_HEATER.md	include/ams_backend_qidi.h	289	include/ams_backend_qidi.h	de744ac21fbf	b810e13e2a7b
