@@ -765,6 +765,7 @@ TEST_CASE("gate material_compatibility: warns with verbatim title",
 // Runner mechanics (toy gates — no printer state needed)
 // ---------------------------------------------------------------------------
 
+#include "ui_modal.h"
 #include "ui_print_start_controller.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -777,13 +778,13 @@ namespace {
 
 using namespace helix::ui;
 
-CheckResult warn_result(const char* title) {
+CheckResult warn_result(const char* title, const char* proceed_label = "Start Anyway") {
     CheckResult r;
     r.verdict = CheckResult::Verdict::Warn;
     r.title = title;
     r.body = "body";
     r.severity = GateSeverity::Warning;
-    r.proceed_label = "Start Anyway";
+    r.proceed_label = proceed_label;
     return r;
 }
 CheckResult pass_result() {
@@ -804,6 +805,9 @@ class GateRunnerFixture : public LVGLUITestFixture {
 
     GateRunnerFixture() {
         state.init_subjects(false);
+        // modal_configure() silently no-ops without these, leaving the button
+        // captions at their defaults - the app does this at startup.
+        helix::ui::modal_init_subjects();
         api = std::make_unique<MoonrakerAPIMock>(client, state);
         controller.set_api(api.get());
         controller.set_update_print_button([this]() { ++button_updates; });
@@ -847,6 +851,36 @@ TEST_CASE("gate runner: proceed resumes at NEXT gate", "[print-start][gate-pipel
     CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) == nullptr);
     CHECK(fx.button_updates == 1);
     CHECK(fx.cancelled == 0);
+}
+
+// Two Warn gates in a row is the chain that shipped the v0.99.118 ASan
+// overflow: gate N's modal_confirm parks result.proceed_label.c_str() - a
+// loop-local - in the shared caption subject, and gate N+1's modal_confirm
+// builds ModalConfigRollback, whose ctor snapshots that subject AFTER gate
+// N's iteration frame is gone. The suites only ever warned once per chain,
+// so nothing exercised the read. modal_configure() must copy captions into
+// storage the modal layer owns; the caption check below pins the visible
+// contract on top (the second dialog carries gate B's label, and a
+// same-address republish still notifies - LVGL skips nothing).
+TEST_CASE("gate runner: two chained warns - captions outlive the first gate's frame",
+          "[print-start][gate-pipeline]") {
+    GateRunnerFixture fx;
+    std::vector<PrintStartGate> gates;
+    gates.push_back({"toy_warn_a",
+                     +[](const PrintStartContext&) { return warn_result("Toy A", "Proceed A"); }});
+    gates.push_back({"toy_warn_b",
+                     +[](const PrintStartContext&) { return warn_result("Toy B", "Proceed B"); }});
+    PrintStartControllerTestAccess::set_gates(fx.controller, std::move(gates));
+
+    PrintStartControllerTestAccess::run_gates(fx.controller);    // gate 0 warns
+    PrintStartControllerTestAccess::gate_proceed(fx.controller); // gate 1 warns again
+    REQUIRE(PrintStartControllerTestAccess::print_gate_modal(fx.controller) != nullptr);
+    CHECK(PrintStartControllerTestAccess::gate_resume_index(fx.controller) == 1);
+
+    const char* primary = static_cast<const char*>(
+        lv_subject_get_pointer(helix::ui::modal_get_primary_text_subject()));
+    REQUIRE(primary != nullptr);
+    CHECK(std::string(primary) == "Proceed B");
 }
 
 TEST_CASE("gate runner: cancel re-enables button and fires on_print_cancelled",
