@@ -18,6 +18,9 @@ using namespace helix::audio;
 
 class TrackerMockBackend : public SoundBackend {
   public:
+    /// voices=4 mimics SDL/ALSA; voices=1 mimics the mono PWM/M300 path
+    explicit TrackerMockBackend(int voices = 4) : voice_slots_(voices) {}
+
     struct VoiceState {
         float freq = 0;
         float amplitude = 0;
@@ -58,13 +61,16 @@ class TrackerMockBackend : public SoundBackend {
     }
 
     int voice_count() const override {
-        return 4;
+        return voice_slots_;
     }
     bool supports_waveforms() const override {
         return true;
     }
 
     VoiceState voices[4]{};
+
+  private:
+    int voice_slots_ = 4;
 };
 
 // ---------------------------------------------------------------------------
@@ -166,6 +172,83 @@ TEST_CASE("TrackerPlayer fallback emits note frequency, not sample rate", "[trac
 
         player->stop();
     }
+}
+
+TEST_CASE("TrackerPlayer mono backend follows the highest voice, not channel 0",
+          "[tracker][player]") {
+    // crocketts_theme parks the bass on channel 0; a mono backend pinned to
+    // slot 0 would play the bass and drop the melody.
+    const uint8_t bass = 34; // A-2, 110 Hz — the on-device bass register
+    const uint8_t lead = 58; // A-4, 440 Hz
+    REQUIRE(TrackerModule::note_to_freq(lead) > 2.0f * TrackerModule::note_to_freq(bass));
+
+    {
+        // Bass on ch0, lead on ch1: mono must emit the LEAD on slot 0
+        auto backend = std::make_shared<TrackerMockBackend>(/*voices=*/1);
+        auto player = make_player(backend);
+
+        auto pat = empty_pattern(2);
+        pat[0] = {bass, 1, 0x00, 0x00};
+        pat[1] = {lead, 1, 0x00, 0x00};
+
+        player->load(make_module({0}, {pat}, 2));
+        player->play();
+
+        REQUIRE(backend->voices[0].active);
+        REQUIRE(backend->voices[0].freq ==
+                Catch::Approx(TrackerModule::note_to_freq(lead)).margin(0.1f));
+        // Mono path must not touch the other slots
+        REQUIRE_FALSE(backend->voices[1].active);
+        player->stop();
+    }
+
+    {
+        // Only the bass active: mono still emits it (falls back, not silent)
+        auto backend = std::make_shared<TrackerMockBackend>(/*voices=*/1);
+        auto player = make_player(backend);
+
+        auto pat = empty_pattern(2);
+        pat[0] = {bass, 1, 0x00, 0x00};
+
+        player->load(make_module({0}, {pat}, 2));
+        player->play();
+
+        REQUIRE(backend->voices[0].active);
+        REQUIRE(backend->voices[0].freq ==
+                Catch::Approx(TrackerModule::note_to_freq(bass)).margin(0.1f));
+        player->stop();
+    }
+}
+
+TEST_CASE("TrackerPlayer silences the backend when the module ends", "[tracker][player]") {
+    // A tone-mode backend holds whatever the last set_voice left it emitting;
+    // without an explicit silence at module end the final note sticks on
+    // forever (Preston heard exactly that: one solid pitch after the song).
+    auto backend = std::make_shared<TrackerMockBackend>(/*voices=*/1);
+    auto player = make_player(backend);
+
+    auto pat = empty_pattern(2);
+    pat[0] = {58, 1, 0x00, 0x00}; // A-4 on row 0
+    // Fresh note on the FINAL row: the channel is attacked and loud right up
+    // to the module end, so only an explicit end-of-module silence can turn
+    // it off (a hold-decay or empty-row path must not be what silences it).
+    pat[4] = {46, 1, 0x00, 0x00}; // A-3 on row 1 (index 4 = row 1, channel 0)
+
+    // speed=1: one tick per row; two ticks exhaust both rows
+    player->load(make_module({0}, {pat}, 2, /*speed=*/1));
+    player->play();
+    REQUIRE(backend->voices[0].active); // setup reached: a note is sounding
+
+    fire_one_tick(*player);             // advance to row 1 (fresh A-3 applied)
+    REQUIRE(backend->voices[0].active); // probe: the final row's note is on
+    fire_one_tick(*player);             // wrap past the final row -> module end
+
+    REQUIRE_FALSE(player->is_playing());      // the module really ended
+    REQUIRE_FALSE(backend->voices[0].active); // ... and the channel went off
+
+    // And it stays off — no resurrection on a stray late tick
+    fire_one_tick(*player);
+    REQUIRE_FALSE(backend->voices[0].active);
 }
 
 TEST_CASE("TrackerPlayer row advances after speed ticks", "[tracker][player]") {

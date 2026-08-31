@@ -78,6 +78,19 @@ uint32_t PWMSoundBackend::freq_to_period_ns(float freq_hz) {
     return static_cast<uint32_t>(1e9f / freq_hz);
 }
 
+float PWMSoundBackend::shift_to_piezo_band(float freq_hz) {
+    if (freq_hz <= 0.0f) {
+        return 0.0f;
+    }
+    while (freq_hz < 500.0f) {
+        freq_hz *= 2.0f;
+    }
+    while (freq_hz > 2500.0f) {
+        freq_hz *= 0.5f;
+    }
+    return freq_hz;
+}
+
 float PWMSoundBackend::waveform_duty_ratio(Waveform w) {
     switch (w) {
     case Waveform::SQUARE:
@@ -236,6 +249,11 @@ void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cyc
     if (render_running_.load()) {
         return;
     }
+
+    // Emitted pitch lives in the piezo's loud band: whole-octave shifts keep
+    // the pitch class while escaping the transducer's weak low end and
+    // ultrasonic top end.
+    freq_hz = shift_to_piezo_band(freq_hz);
 
     amplitude = std::clamp(amplitude, 0.0f, 1.0f);
 

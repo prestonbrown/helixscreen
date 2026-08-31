@@ -69,6 +69,14 @@ class PWMSoundBackend : public SoundBackend {
     /// @return period_ns = 1e9 / freq_hz, or 0 if freq_hz <= 0
     static uint32_t freq_to_period_ns(float freq_hz);
 
+    /// Shift a frequency into the piezo's loud band [500, 2500] Hz by whole
+    /// octaves (preserves pitch class). Below 500 doubles, above 2500 halves,
+    /// in-band and <= 0 pass through unchanged. The band was measured on the
+    /// AD5M Pro 2026-08-30/31: the transducer is weak under ~300 Hz and
+    /// effectively ultrasonic past ~4 kHz. SFX theme tones are in-band and
+    /// unaffected.
+    static float shift_to_piezo_band(float freq_hz);
+
     /// Get the base duty cycle ratio for a given waveform type
     /// Square=0.50, Saw=0.25, Triangle=0.35, Sine=0.40
     static float waveform_duty_ratio(Waveform w);

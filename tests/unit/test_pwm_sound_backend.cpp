@@ -584,12 +584,13 @@ TEST_CASE("set_tone dedups identical consecutive tones", "[sound][pwm]") {
     backend.set_tone(440.0f, 0.8f, 0.5f);
     REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first);
 
-    // Changed frequency writes again
-    backend.set_tone(880.0f, 0.8f, 0.5f);
+    // Changed frequency writes again (1000 Hz: in-band, distinct from the
+    // 880 Hz that 440 shifts to — 440 vs 880 would collapse onto one tone)
+    backend.set_tone(1000.0f, 0.8f, 0.5f);
     REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 1);
 
     // Same frequency, different amplitude -> different duty -> writes again
-    backend.set_tone(880.0f, 0.4f, 0.5f);
+    backend.set_tone(1000.0f, 0.4f, 0.5f);
     REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 2);
 
     cleanup_mock_sysfs(base);
@@ -619,6 +620,59 @@ TEST_CASE("set_tone re-emits after silence resets dedup", "[sound][pwm]") {
 }
 
 // ============================================================================
+// Piezo-band octave shift
+// ============================================================================
+
+TEST_CASE("shift_to_piezo_band clamps into the piezo loud band by octaves", "[sound][pwm]") {
+    // The transducer is weak below ~300 Hz and ultrasonic past ~4 kHz; the
+    // loud band is [500, 2500] Hz, reached only by whole octaves so pitch
+    // class survives.
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(0.0f) == 0.0f);
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(-5.0f) == 0.0f);
+
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(500.0f) == Catch::Approx(500.0f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(2500.0f) == Catch::Approx(2500.0f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(1000.0f) == Catch::Approx(1000.0f));
+
+    // 110 Hz bass -> three octaves up; 87 Hz floor -> 696 Hz
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(110.0f) == Catch::Approx(880.0f).margin(0.001f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(87.0f) == Catch::Approx(696.0f).margin(0.001f));
+    // 3 kHz -> one octave down; 20 kHz -> three octaves down to the ceiling
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(3000.0f) == Catch::Approx(1500.0f).margin(0.001f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(20000.0f) ==
+            Catch::Approx(2500.0f).margin(0.001f));
+
+    // Octave equivalence: the same pitch class lands on the same emission
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(110.0f) ==
+            Catch::Approx(PWMSoundBackend::shift_to_piezo_band(220.0f)).margin(0.001f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(3000.0f) ==
+            Catch::Approx(PWMSoundBackend::shift_to_piezo_band(6000.0f)).margin(0.001f));
+}
+
+TEST_CASE("set_tone shifts out-of-band notes into the piezo band", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    std::string pwm_dir = base + "/pwmchip0/pwm6";
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    // 110 Hz is near-inaudible on the piezo; it emits at 880 Hz
+    backend.set_tone(110.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") ==
+            std::to_string(PWMSoundBackend::freq_to_period_ns(880.0f)));
+
+    // 3 kHz is past the transducer's response; it emits at 1500 Hz
+    backend.set_tone(3000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") ==
+            std::to_string(PWMSoundBackend::freq_to_period_ns(1500.0f)));
+
+    // In-band passes through unchanged
+    backend.set_tone(1000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1000000");
+
+    cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
 // Frequency changes update period correctly
 // ============================================================================
 
@@ -629,11 +683,12 @@ TEST_CASE("Changing frequency updates period in sysfs", "[sound][pwm]") {
     PWMSoundBackend backend(base, 0, 6);
     backend.initialize();
 
-    backend.set_tone(440.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "2272727");
+    // Both in the piezo band, so they pass through the octave shift as-is
+    backend.set_tone(1000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1000000");
 
-    backend.set_tone(880.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1136363");
+    backend.set_tone(2000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "500000");
 
     cleanup_mock_sysfs(base);
 }
@@ -659,9 +714,10 @@ TEST_CASE("PWM backend handles very high frequency", "[sound][pwm]") {
     PWMSoundBackend backend(base, 0, 6);
     backend.initialize();
 
-    // 20 kHz → period = 50000 ns
+    // 20 kHz shifts down three octaves to the 2.5 kHz piezo ceiling
+    // → period = 400000 ns
     backend.set_tone(20000.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "50000");
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "400000");
 
     cleanup_mock_sysfs(base);
 }
@@ -673,9 +729,10 @@ TEST_CASE("PWM backend handles very low frequency", "[sound][pwm]") {
     PWMSoundBackend backend(base, 0, 6);
     backend.initialize();
 
-    // 20 Hz → period = 50000000 ns
+    // 20 Hz shifts up five octaves to 640 Hz (the piezo's weak low end is
+    // inaudible) → period = 1562500 ns
     backend.set_tone(20.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "50000000");
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1562500");
 
     cleanup_mock_sysfs(base);
 }
