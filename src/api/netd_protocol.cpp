@@ -9,6 +9,8 @@
 #include <cerrno>
 #include <chrono>
 #include <cstring>
+#include <fcntl.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -38,6 +40,17 @@ std::string ascii_lower(const std::string& s) {
         out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
     }
     return out;
+}
+
+/// Lowercased key of a snapshot line ("MODE=ETHERNET" -> "mode"), or empty
+/// when the line carries no '='. Internal: only the snapshot parser needs
+/// the key spelling now that query_snapshot() derives authority from the
+/// merged mode field itself.
+std::string snapshot_line_key(const std::string& line) {
+    const size_t eq = line.find('=');
+    if (eq == std::string::npos)
+        return {};
+    return ascii_lower(trim_copy(line.substr(0, eq)));
 }
 
 // Strict full-string integer parse: optional sign, digits only, no whitespace,
@@ -122,7 +135,7 @@ bool parse_snapshot_line(const std::string& line, NetdSnapshot& out) {
     if (eq == std::string::npos)
         return false;
 
-    const std::string key = ascii_lower(trim_copy(line.substr(0, eq)));
+    const std::string key = snapshot_line_key(line);
     const std::string value = trim_copy(line.substr(eq + 1));
 
     // Known keys only; everything else is a newer daemon's addition and is
@@ -280,25 +293,63 @@ bool available() {
     return ::access(binary_path().c_str(), X_OK) == 0;
 }
 
-QueryResult query_snapshot(int timeout_ms) {
-    QueryResult result;
-
-    const std::string path = socket_path();
-    const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0)
-        return result;
-
+int connect_unix(const std::string& path, int timeout_ms, std::string* error_out) {
+    const int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    if (fd < 0) {
+        if (error_out)
+            *error_out = std::string("socket(): ") + std::strerror(errno);
+        return -1;
+    }
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     if (path.size() >= sizeof(addr.sun_path)) {
+        if (error_out)
+            *error_out = "socket path too long (" + std::to_string(path.size()) + " bytes)";
         ::close(fd);
-        return result;
+        return -1;
     }
     std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
-    if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+
+    const int rc = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    if (rc != 0 && errno != EINPROGRESS) {
+        if (error_out)
+            *error_out = "connect(\"" + path + "\"): " + std::strerror(errno);
         ::close(fd);
-        return result;
+        return -1;
     }
+    if (rc != 0) {
+        pollfd pfd{fd, POLLOUT, 0};
+        const int ready = ::poll(&pfd, 1, timeout_ms);
+        int so_error = 0;
+        socklen_t optlen = sizeof(so_error);
+        if (ready <= 0 || ::getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_error, &optlen) != 0 ||
+            so_error != 0) {
+            if (error_out) {
+                *error_out = ready <= 0
+                                 ? "connect(\"" + path + "\"): timed out after " +
+                                       std::to_string(timeout_ms) + " ms"
+                                 : "connect(\"" + path +
+                                       "\"): " + std::strerror(so_error != 0 ? so_error : errno);
+            }
+            ::close(fd);
+            return -1;
+        }
+    }
+    return fd;
+}
+
+QueryResult query_snapshot(int timeout_ms) {
+    QueryResult result;
+
+    const int fd = connect_unix(socket_path(), timeout_ms);
+    if (fd < 0)
+        return result;
+
+    // Back to blocking mode so the SO_RCVTIMEO read loop below keeps its
+    // per-read timeout semantics.
+    const int flags = ::fcntl(fd, F_GETFL, 0);
+    if (flags >= 0)
+        (void)::fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 
     struct timeval tv {};
     tv.tv_sec = timeout_ms / 1000;
@@ -340,14 +391,21 @@ QueryResult query_snapshot(int timeout_ms) {
                 ack_seen = true;
                 break;
             }
-            if (parse_snapshot_line(line, result.snapshot))
+            if (parse_snapshot_line(line, result.snapshot)) {
                 continue;
+            }
             (void)parse_scan_row(line); // rows are not part of a GET reply; tolerated
         }
     }
 
     ::close(fd);
     result.reached = got_any_bytes;
+    // The snapshot starts empty and only a merged MODE= line assigns mode, so
+    // a non-empty mode IS "the daemon said something authoritative about the
+    // transport". An explicit MODE= with an empty value stays NOT
+    // authoritative — treating it as authoritative is the exact kernel-truth
+    // blanking the flag exists to prevent.
+    result.saw_mode = !result.snapshot.mode.empty();
     return result;
 }
 
