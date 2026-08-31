@@ -32,22 +32,26 @@ struct RecoveryContent {
     const char* message;
 };
 
+// Returns untranslated tag strings. update_recovery_dialog_content() owns the
+// single lv_tr() pass for both fields; pre-translating here as well would send
+// the already-localized text through a second lookup that only renders
+// correctly by fallback.
 RecoveryContent get_recovery_content(RecoveryReason reason) {
     switch (reason) {
     case RecoveryReason::SHUTDOWN:
-        return {lv_tr("Printer Shutdown"),
-                lv_tr("Klipper has entered shutdown state. This may be due to an emergency stop, "
-                      "thermal runaway, or configuration error.")};
+        return {"Printer Shutdown",
+                "Klipper has entered shutdown state. This may be due to an emergency stop, "
+                "thermal runaway, or configuration error."};
     case RecoveryReason::ERROR:
-        return {lv_tr("Printer Error"),
-                lv_tr("Klipper has entered an error state. This is typically caused by an MCU "
-                      "connection failure or configuration error. Try a firmware restart.")};
+        return {"Printer Error",
+                "Klipper has entered an error state. This is typically caused by an MCU "
+                "connection failure or configuration error. Try a firmware restart."};
     case RecoveryReason::DISCONNECTED:
-        return {lv_tr("Printer Firmware Disconnected"),
-                lv_tr("Klipper firmware has disconnected from the host. "
-                      "Try restarting Klipper or performing a firmware restart.")};
+        return {"Printer Firmware Disconnected",
+                "Klipper firmware has disconnected from the host. "
+                "Try restarting Klipper or performing a firmware restart."};
     default:
-        return {lv_tr("Printer Error"), lv_tr("An unexpected printer error occurred.")};
+        return {"Printer Error", "An unexpected printer error occurred."};
     }
 }
 const char* recovery_reason_str(RecoveryReason reason) {

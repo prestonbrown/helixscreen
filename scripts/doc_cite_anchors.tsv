@@ -289,7 +289,7 @@ docs/devel/architecture/04-moonraker.md	src/application/moonraker_manager.cpp	51
 docs/devel/architecture/04-moonraker.md	src/application/moonraker_manager.cpp	572	src/application/moonraker_manager.cpp	85b4448cacf5	625245044b3a
 docs/devel/architecture/04-moonraker.md	src/application/moonraker_manager.cpp	626	src/application/moonraker_manager.cpp	9b11e4ee63f7	0ab6a8582a3b
 docs/devel/architecture/04-moonraker.md	src/system/update_checker.cpp	73	src/system/update_checker.cpp	89a9e3eab964	a4a19834561e
-docs/devel/architecture/04-moonraker.md	src/ui/ui_emergency_stop.cpp	334	src/ui/ui_emergency_stop.cpp	025e21f7527a	a1b80fb502b3
+docs/devel/architecture/04-moonraker.md	src/ui/ui_emergency_stop.cpp	338	src/ui/ui_emergency_stop.cpp	025e21f7527a	a1b80fb502b3
 docs/devel/architecture/04-moonraker.md	tests/shell/test_code_lint.bats	136	tests/shell/test_code_lint.bats	7df78acdeda5	ba342bca724e
 docs/devel/architecture/04-moonraker.md	tests/shell/test_code_lint.bats	176	tests/shell/test_code_lint.bats	f532a0032cb6	6e4618845efa
 docs/devel/architecture/04-moonraker.md	tests/unit/test_interface_drift_moonraker_api.cpp	23	tests/unit/test_interface_drift_moonraker_api.cpp	31d771f2fa4c	6bd20d50222b
