@@ -194,6 +194,12 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     // 3. Initialize theme (uses globals constants, registers responsive values)
     theme_manager_init(lv_display_get_default(), false); // light mode for tests
 
+    // 3.5 Shared cross-file styles (ui_xml/styles.xml), same as production's
+    // register_xml_components(): must run after theme init so #token values in
+    // the styles resolve, and before any component that borrows a
+    // styles.<name> reference - otherwise those references fail silently.
+    lv_xml_register_component_from_file("A:ui_xml/styles.xml");
+
     // 4. Register custom widgets (must be done before loading components that use them)
     ui_icon_register_widget(); // icon component
     ui_text_init();            // text_heading, text_body, text_small, text_xs
@@ -219,6 +225,13 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     // as nullptr and every binding test against them fails on a bare nullptr.
     lv_xml_register_component_from_file("A:ui_xml/overlay_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/nozzle_icon.xml");
+
+    // Dependencies of print_status_preview_card. An unregistered component
+    // name inside a parsed file makes that element (and only it) vanish from
+    // the built tree - the card's two progress bars were silently absent from
+    // every test that instantiated it until these were registered.
+    lv_xml_register_component_from_file("A:ui_xml/components/preview_stack.xml");
+    lv_xml_register_component_from_file("A:ui_xml/components/progress_bar.xml");
 
     // Register widgets needed by favorite_macro_config_modal
     ui_dialog_register();
