@@ -67,6 +67,7 @@ bool ToolSwitcherWidget::is_narrow_tall_size() const {
 void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
+    install_delete_hook(widget_obj);
     s_active_instance = this;
 
     // SIZE_CHANGED is a layout event — cannot be registered via XML
@@ -149,20 +150,36 @@ void ToolSwitcherWidget::detach() {
     active_tool_observer_.reset();
     tool_count_observer_.reset();
     print_state_observer_.reset();
-    pill_buttons_.clear();
-    compact_label_ = nullptr;
+    uninstall_delete_hook();
+    forget_tile_widgets();
     if (s_active_instance == this) {
         s_active_instance = nullptr;
     }
+    grid_settled_w_px_ = -1;
+    grid_settled_h_px_ = -1;
+    in_grid_size_refresh_ = false;
+}
+
+void ToolSwitcherWidget::on_hooked_root_deleted() {
+    // Runs inside LVGL's delete event: expire the pending deferred observer
+    // callbacks and drop the cached pointers only. The observers themselves
+    // stay registered on their (still live) subjects until detach() or the
+    // destructor resets them — every callback checks its token first, so a
+    // drained refresh_print_gating() or rebuild no-ops instead of running
+    // lv_obj_add_state()/lv_obj_find_by_name() over the freed tree.
+    lifetime_.invalidate();
+    forget_tile_widgets();
+}
+
+void ToolSwitcherWidget::forget_tile_widgets() {
+    pill_buttons_.clear();
+    compact_label_ = nullptr;
     if (size_watch_container_) {
         lv_obj_remove_event_cb_with_user_data(size_watch_container_, on_widget_size_changed, this);
     }
     size_watch_container_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
-    grid_settled_w_px_ = -1;
-    grid_settled_h_px_ = -1;
-    in_grid_size_refresh_ = false;
 }
 
 void ToolSwitcherWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_px,
