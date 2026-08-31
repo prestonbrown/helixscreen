@@ -26,6 +26,7 @@ SoundManager (singleton, public API)
         +-> SDLSoundBackend   (desktop, per-sample envelope + biquad filter)
         +-> ALSASoundBackend  (Linux SBCs, per-sample envelope + biquad filter)
         +-> PWMSoundBackend   (AD5M hardware buzzer, sysfs /sys/class/pwm)
+        +-> JzPwmSoundBackend (AD5X piezo, jz_pwm DMA one-shot buffers via fx-pwm)
         +-> M300SoundBackend  (Klipper printers, G-code via Moonraker)
 ```
 
@@ -78,9 +79,17 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 |-------|---------|-----------|-----------------|
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
 | 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
-| 3 | PWM | `/sys/class/pwm/pwmchip0` exists (channel auto-exported by `initialize()` on ad5m/ad5m-br) | AD5M hardware buzzer |
-| 4 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
-| 5 | None | All above failed | Sounds silently disabled |
+| 3 | JzPwm | `#ifdef HELIX_HAS_JZ_PWM` (ad5x builds) + `/dev/jz_pwm` exists and fx-pwm is executable | AD5X piezo (on-rig install) |
+| 4 | PWM | `/sys/class/pwm/pwmchip0` exists (channel auto-exported by `initialize()` on ad5m/ad5m-br) | AD5M hardware buzzer |
+| 5 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
+| 6 | None | All above failed | Sounds silently disabled |
+
+On the AD5X rig both JzPwm and M300 can reach the same transducer; JzPwm wins
+the eager ladder (its probe succeeds first), which is the desired shape: the
+native backend renders full chords as duty-encoded buffers with no protocol
+bottleneck, while the M300 path — capped at one frequency per 50 ms command —
+remains the answer for remote-UI installs where HelixScreen runs off the
+printer and the buzzer must be driven over the network.
 
 M300 is not probed at `initialize()`; it is installed lazily from
 `PrinterCapabilitiesState::set_hardware()` once hardware discovery has seen the
@@ -102,8 +111,39 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 | ALSA    | yes       | yes       | yes    | yes       | 1.0         | Same synthesis as SDL, hardware-negotiated buffer size |
 | PWM     | no*       | yes       | no     | no        | 2.0         | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. Tracker playback on ad5m rides the same tone path (PC-speaker mode, below) |
 | M300    | no        | no        | no     | no        | 50.0        | Frequency only, 100-10000 Hz, deduplicates commands; sequencer drives per-tick |
+| JzPwm   | yes       | yes       | no     | yes       | 60.0        | AD5X piezo: full per-sample synthesis (ADSR/sweep/LFO/waveforms via VoiceSlot), 4-voice chords, one duty-encoded buffer per theme step |
 
 *PWM `supports_waveforms()` returns `false`, but `set_waveform()` stores the waveform internally to adjust the duty cycle ratio: Square=50%, Saw=25%, Triangle=35%, Sine=40%. This gives perceptually different timbres even on a single-pin buzzer.
+
+### JzPwm one-shot buffer model (ad5x)
+
+The AD5X piezo hangs off the Ingenic X2600 PWM2 DMA engine (`/dev/jz_pwm`,
+driven by the `fx-pwm` tool in the Forge-X rootfs). The engine replays a
+buffer of period words — each word one PWM cycle whose 16-bit halves set
+inactive/active counts — and refuses buffer updates while a loop runs, so
+there is no sample streaming: **audio is one complete buffer per theme
+step**. The backend renders each step in-process with the full
+`VoiceSlot` synthesis (ADSR, sweep, LFO, four waveforms, up to four chord
+voices), duty-encodes the mix around a 32 kHz carrier, and hands the words
+to `fx-pwm words` via `/tmp/helixscreen-jz-pwm.words`.
+
+Two rig-measured properties shape the design:
+
+- **Calibration**: the DMA waveform steps at 385 MHz regardless of the
+  channel's prescale register (two-point phone-tuner measurement), so the
+  encoder computes against a 385 MHz clock — the same calibration
+  tone_player uses (`base 770 MHz / prescale 2`).
+- **Wedge discipline**: the vendor driver's teardown path can wedge after
+  long cumulative loop times, and a wedged channel only recovers on
+  reboot. Buffers are capped at 2.5 s; the previous step's child is
+  SIGTERMed (fx-pwm's signal handler releases the channel cleanly); and
+  the ioctl lifecycle lives in the child process precisely so a wedge
+  costs one sound, never the UI — a rig session once accumulated thirteen
+  wedged fx-pwm children with zero printer impact.
+
+The piezo demodulates duty encoding (verified by ear and tuner: chords
+rendered this way are recognizable), with its ~5 kHz mechanical resonance
+coloring the timbre bright.
 
 ### PWM tracker playback: PC-speaker mode (ad5m)
 
@@ -485,6 +525,7 @@ if (SoundManager::instance().is_available()) {
 | `include/sdl_sound_backend.h` | SDL2 audio backend; owns `VoiceSlot voice_slots_[MAX_VOICES]` (desktop, `#ifdef HELIX_DISPLAY_SDL`) |
 | `include/alsa_sound_backend.h` | ALSA PCM audio backend; owns `VoiceSlot voice_slots_[MAX_VOICES]` (Linux SBCs, `#ifdef HELIX_HAS_ALSA`) |
 | `include/sound_synthesis.h` | Shared synthesis: waveform generation, biquad filter, `BiquadFilter` struct |
+| `include/jz_pwm_sound_backend.h` | AD5X jz_pwm DMA backend (one-shot duty-encoded buffers) |
 | `include/pwm_sound_backend.h` | PWM sysfs backend (AD5M buzzer) |
 | `include/m300_sound_backend.h` | M300 G-code backend (Klipper via Moonraker) |
 | `src/system/sound_theme.cpp` | Theme JSON parsing, note-to-freq, musical duration conversion |
@@ -493,6 +534,7 @@ if (SoundManager::instance().is_available()) {
 | `src/system/sound_manager.cpp` | Manager singleton, backend auto-detection, theme loading |
 | `src/system/sdl_sound_backend.cpp` | SDL audio callback, per-sample envelope, biquad filter |
 | `src/system/alsa_sound_backend.cpp` | ALSA render thread, per-sample envelope, biquad filter |
+| `src/system/jz_pwm_sound_backend.cpp` | AD5X piezo backend: NoteEvent render → duty-encoded words → `fx-pwm words` child |
 | `src/system/pwm_sound_backend.cpp` | PWM sysfs writes (period, duty_cycle, enable) + PCM render thread (SCHED_IDLE pacing, silence auto-park, channel auto-export) |
 | `src/system/m300_sound_backend.cpp` | M300 G-code formatting, frequency deduplication |
 | `config/sounds/default.json` | Default theme (13 sounds, balanced) |

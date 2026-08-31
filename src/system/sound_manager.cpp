@@ -7,6 +7,7 @@
 #include "config.h"
 #include "data_root_resolver.h"
 #include "i_moonraker_client.h"
+#include "jz_pwm_sound_backend.h"
 #include "m300_sound_backend.h"
 #include "pwm_sound_backend.h"
 #include "runtime_config.h"
@@ -409,6 +410,21 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
         }
         spdlog::debug("[SoundManager] ALSA not available, falling back");
     }
+#endif
+
+#ifdef HELIX_HAS_JZ_PWM
+    // AD5X piezo via the jz_pwm DMA engine, exec'd through fx-pwm. Probed
+    // at runtime, not just gated: /dev/jz_pwm and the fx-pwm binary are
+    // both present only on the AD5X rig install, so other machines fall
+    // through and remote-UI installs keep the M300 path below.
+    if (JzPwmSoundBackend::available()) {
+        auto jz_backend = std::make_shared<JzPwmSoundBackend>();
+        if (jz_backend->initialize()) {
+            spdlog::info("[SoundManager] Using JzPwm DMA backend (fx-pwm)");
+            return jz_backend;
+        }
+    }
+    spdlog::debug("[SoundManager] JzPwm DMA not available, falling back");
 #endif
 
 #ifdef HELIX_HAS_PWM_SOUND
