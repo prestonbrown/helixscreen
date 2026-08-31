@@ -948,12 +948,16 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan keeps the previous rows"
 }
 
 // ============================================================================
-// stop() with a scan outstanding honors the trigger_scan contract (#1398):
-// an accepted scan owes the manager a SCAN_COMPLETE even when the backend is
-// torn down mid-scan, or the scheduler latches forever on the reuse path.
+// stop() with a scan outstanding honors the trigger_scan contract as divided
+// by #1405: the manager owns the scheduler latch at the stop boundary, so the
+// backend stays SILENT — it clears its internal single-flight flag (a
+// stop-then-start reuse begins clean) and keeps serving the last completed
+// scan's rows. The #1398-era interim had cleanup_netd() dispatch a synthetic
+// SCAN_COMPLETE here; with WiFiManager unlatching on the swap itself
+// (test_wifi_manager_scan_unlatch.cpp) that would double-resolve.
 // ============================================================================
-TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan still completes the scan",
-                 "[netd][wifi][1398]") {
+TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan stays silent and reusable",
+                 "[netd][wifi][1398][1405]") {
     register_standard_events();
     REQUIRE(backend_->start().success());
 
@@ -975,12 +979,29 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan still comple
     REQUIRE(scan.success());
 
     backend_->stop();
-    REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
-    // The rows survive the stop: a consumer answering that completion with a
-    // fetch must not be fed NOT_INITIALIZED plus a blanked list.
+    // No completion for the abandoned scan — the owner resolves the scheduler
+    // when IT stops the backend. Past the watchdog bound so the absence is
+    // meaningful rather than a race.
+    std::this_thread::sleep_for(std::chrono::milliseconds(2 * kWatchdogMs));
+    REQUIRE(event_count("SCAN_COMPLETE") == 1); // only the seed's
+
+    // The rows survive the stop: a consumer fetching after the swap answers
+    // from the cache, not NOT_INITIALIZED plus a blanked list.
     std::vector<WiFiNetwork> rows;
     REQUIRE(backend_->get_scan_results(rows).success());
     REQUIRE_FALSE(rows.empty());
+
+    // The internal single-flight flag was cleared: after start() reuse, a new
+    // scan is accepted (a phantom in-flight scan would refuse it).
+    REQUIRE(backend_->start().success());
+    REQUIRE(backend_->is_running());
+    WiFiError again{WiFiResult::UNKNOWN_ERROR};
+    std::thread retry([&] { again = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_count("SCAN") >= 3; }));
+    retry.join();
+    REQUIRE(again.success());
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
 }
 
 // ============================================================================

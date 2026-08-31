@@ -384,6 +384,15 @@ class WifiBackend {
      * Initiates scan for available WiFi networks. Results delivered via
      * "SCAN_COMPLETE" event. Use get_scan_results() to retrieve networks.
      *
+     * CONTRACT: a success return OBLIGATES an eventual "SCAN_COMPLETE" — the
+     * caller's scan scheduler latches on the promise (WiFiManager gates every
+     * periodic tick on it). A backend that abandons the in-flight scan itself
+     * (e.g. the underlying daemon connection dropped and was re-established)
+     * must dispatch the completion from whatever state it retained. The one
+     * exception is stop(): a stopped backend sends nothing further, and the
+     * OWNER resolves the latch when it stops or swaps the backend
+     * (WiFiManager's NM->wpa fallback swap does exactly that).
+     *
      * @return WiFiError with detailed status information
      */
     virtual WiFiError trigger_scan() = 0;

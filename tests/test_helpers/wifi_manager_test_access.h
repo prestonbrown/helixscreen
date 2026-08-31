@@ -56,6 +56,19 @@ class WiFiManagerTestAccess {
         wm.handle_auth_failed(data);
     }
 
+    /// Drive handle_init_failed() exactly as the backend's INIT_FAILED event
+    /// would. The NM->wpa fallback it schedules runs on the next queue drain.
+    static void fire_init_failed(WiFiManager& wm, bool silent, const std::string& msg) {
+        wm.handle_init_failed(silent, msg);
+    }
+
+    /// Whether the scan scheduler would allow another periodic scan — the
+    /// latch prestonbrown/helixscreen#1405 is about. False while a scan is
+    /// outstanding; permanently false once a backend swap strands one.
+    static bool scan_should_trigger(const WiFiManager& wm) {
+        return wm.scan_scheduler_.should_trigger();
+    }
+
     static bool grace_pending(WiFiManager& wm) {
         return wm.auth_fail_grace_timer_ != nullptr;
     }
