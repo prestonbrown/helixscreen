@@ -316,6 +316,47 @@ create_payload_tarball() {
     refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
 }
 
+@test "payload uninstall: honors the run's --mod-payload-root, not the probed mod root" {
+    # The uninstall sweep list must carry the run's ACTUAL INSTALL_DIR. A
+    # custom root outside the fixed HELIX_INSTALL_DIRS six must be removed by
+    # the run that targeted it, and a stale in-tree root that this run did NOT
+    # target must survive (the mod's, not ours to take).
+    local custom_root="$SANDBOX/payload-root/helixscreen"
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT="$custom_root"
+
+    # The payload this run owns: seeded at the custom root.
+    INSTALL_DIR="$custom_root"
+    seed_payload_root
+    # A stale payload at the probed in-tree root from an older layout.
+    mkdir -p "$HOST_INSTALL_ROOT/stale-bin"
+    printf 'STALE\n' > "$HOST_INSTALL_ROOT/stale-bin/helix-screen"
+
+    # What set_install_paths left behind before the mode block ran.
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+
+    AD5M_FIRMWARE="forge_x"
+    HELIX_INIT_SCRIPTS="$SANDBOX/nonexistent/helixscreen-init"
+    detect_init_system() { INIT_SYSTEM="sysv"; }
+    export -f detect_init_system
+    kill_process_by_name() { return 1; }
+    export -f kill_process_by_name
+
+    # Apply the root override the way main() does (direct call: the override
+    # must land in THIS shell's INSTALL_DIR).
+    mod_payload_mode_block > /dev/null 2>&1
+    [ "$INSTALL_DIR" = "$custom_root" ] \
+        || fail "setup: INSTALL_DIR='$INSTALL_DIR' (the override did not land)"
+
+    run uninstall "ad5x"
+    [ "$status" -eq 0 ]
+
+    [ ! -d "$custom_root" ] \
+        || fail "the run's --mod-payload-root payload was not removed (false uninstalled)"
+    [ -f "$HOST_INSTALL_ROOT/stale-bin/helix-screen" ] \
+        || fail "a stale in-tree root this run did not target was removed"
+}
+
 @test "payload uninstall: the display-mode restore runs before the payload removal" {
     # Ordering pin, scoped to uninstall()'s own body so a file-wide grep cannot
     # be satisfied by restore_previous_ui_platform's separate call.

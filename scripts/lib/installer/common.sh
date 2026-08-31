@@ -24,13 +24,17 @@ _HELIX_COMMON_SOURCED=1
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
-# HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the mod's
-# payload root joins the list - it is the run's one install target - and the
-# sweeps' mod-owned skip (host_mod_destruct_blocked) exempts exactly the
-# flag-armed run, so a plain uninstall still leaves the mod's tree alone.
+# HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the run's
+# ACTUAL payload root (INSTALL_DIR after the mode block: --mod-payload-root, an
+# env override, or the probed mod root) joins the list - the sweep must remove
+# what THIS run targeted, not whatever the probe last found, or a custom-root
+# payload survives a "successful" uninstall while a stale in-tree root is
+# removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
+# exempts exactly the flag-armed run, so a plain uninstall still leaves the
+# mod's tree alone.
 helix_install_dirs_for_run() {
-    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_INSTALL_ROOT:-}" ]; then
-        echo "$HELIX_INSTALL_DIRS $HOST_INSTALL_ROOT"
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
+        echo "$HELIX_INSTALL_DIRS $INSTALL_DIR"
     else
         echo "$HELIX_INSTALL_DIRS"
     fi
