@@ -632,6 +632,28 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_speaker")) == 1);
     }
 
+    SECTION("speaker detected from gcode_macro M300") {
+        // Z-Mod's AD5X config implements the beeper as an M300 macro that
+        // shells out to a buzzer helper — no output_pin object exists at all.
+        PrinterDiscovery hardware;
+        nlohmann::json objects = {"gcode_macro M300"};
+        hardware.parse_objects(objects);
+        state.set_hardware(hardware);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+        REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_speaker")) == 1);
+    }
+
+    SECTION("speaker NOT detected from an unrelated gcode macro") {
+        PrinterDiscovery hardware;
+        nlohmann::json objects = {"gcode_macro M356"};
+        hardware.parse_objects(objects);
+        state.set_hardware(hardware);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+        REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_speaker")) == 0);
+    }
+
     SECTION("accelerometer detected from resonance_tester in config") {
         PrinterDiscovery hardware;
         nlohmann::json config = {{"resonance_tester", nlohmann::json::object()}};

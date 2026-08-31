@@ -63,7 +63,7 @@ docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	259	
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	394	include/ams_backend_snapmaker.h	cc3adf6ce1d2	71a1b1199f6d
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	423	include/ams_backend_snapmaker.h	998af9261219	56532ada7eaa
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	414	include/printer_discovery.h	326effbda208	3524ca83cf02
-docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	552	include/printer_discovery.h	7b7faefb4711	bea8ec43ccc5
+docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	565	include/printer_discovery.h	7b7faefb4711	bea8ec43ccc5
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/snapmaker_resume.h	11	include/snapmaker_resume.h	bdcf8bc246e8	4b07cd470f5d
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/api/moonraker_api_controls.cpp	426	src/api/moonraker_api_controls.cpp	3984c90ef18a	b8c2ceb467a1
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/printer/ams_subscription_backend.cpp	57	src/printer/ams_subscription_backend.cpp	589878aa5e77	b3b61b755723
@@ -388,7 +388,7 @@ docs/devel/architecture/07-filament-ams.md	include/ams_subscription_backend.h	53
 docs/devel/architecture/07-filament-ams.md	include/ams_types.h	42	include/ams_types.h	d1bfafcdd4d4	76265fa04d05
 docs/devel/architecture/07-filament-ams.md	include/filament_op_dispatch.h	9	include/filament_op_dispatch.h	858270cf3bf2	a52ac2b92d10
 docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	52	include/printer_discovery.h	ed815f1532ea	265d63c39d5c
-docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	593	include/printer_discovery.h	20cf4848a033	fe2de00854c0
+docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	606	include/printer_discovery.h	20cf4848a033	fe2de00854c0
 docs/devel/architecture/07-filament-ams.md	include/spoolman_manager.h	22	include/spoolman_manager.h	298affdb4fbe	a5ad15d44e07
 docs/devel/architecture/07-filament-ams.md	include/spoolman_manager.h	64	include/spoolman_manager.h	eb957c78bce2	38d2063bb343
 docs/devel/architecture/07-filament-ams.md	include/tool_state.h	172	include/tool_state.h	83c3144cff9b	3ede4bbdf97c

@@ -479,6 +479,19 @@ class PrinterDiscovery {
                     has_klippain_shaketune_ = true;
                 }
 
+                // An M300 macro is the printer's tone command and the direct
+                // proof it answers M300 gcode. Some buzzer setups have no
+                // output_pin object at all (Z-Mod's AD5X config shells out to
+                // a buzzer helper from an M300 macro), so the output_pin-based
+                // speaker detection in the branch above never fires there.
+                // Stronger signal than a beeper-named pin, too: a printer
+                // defining the macro cannot answer M300 with
+                // "Unknown command", which is the feedback loop the M300
+                // backend's lazy install guards against.
+                if (upper_macro == "M300") {
+                    has_speaker_ = true;
+                }
+
                 // Check for common macro patterns and cache them
                 if (nozzle_clean_macro_.empty()) {
                     // Shared with StandardMacros' CleanNozzle slot — see

@@ -79,8 +79,18 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
 | 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
 | 3 | PWM | `/sys/class/pwm/pwmchip0/pwm6` exists | AD5M hardware buzzer |
-| 4 | M300 | `MoonrakerClient` pointer set via `set_moonraker_client()` | Klipper printers with `output_pin beeper` |
+| 4 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
 | 5 | None | All above failed | Sounds silently disabled |
+
+M300 is not probed at `initialize()`; it is installed lazily from
+`PrinterCapabilitiesState::set_hardware()` once hardware discovery has seen the
+beeper signal, so the M300 commands cannot fire on a printer that would answer
+them with `!! Unknown command:M300` (which surfaces as an error toast, plays
+`error_tone`, and sends more M300 — the loop the lazy gate exists to prevent).
+Two signals open the gate: an `output_pin` whose name contains
+BEEPER/BUZZER/SPEAKER, and a `gcode_macro M300` (Z-Mod's AD5X buzzer config has
+only the macro). A `speaker` capability override of `enable` opens it without
+either signal; `disable` keeps it closed even when one fires.
 
 ### Backend Capabilities
 
@@ -569,13 +579,13 @@ When a step completes, `advance_step()` increments the step index. If past the e
 
 The M300 backend sends G-code commands through Moonraker's `gcode_script` API. Key behaviors:
 
-- **Frequency deduplication**: If `set_tone()` is called with the same frequency as the last call (and amplitude > 0), it's a no-op. This prevents spamming Moonraker with redundant commands.
+- **Frequency deduplication**: If `set_tone()` is called with the same frequency as the last call (and amplitude > 0), it's a no-op. This prevents spamming Moonraker with redundant commands. Consequence: a held note emits ONE `M300 P50`, so notes longer than 50ms sound as a 50ms beep — themes render staccato on this backend.
 - **Frequency clamping**: Hz values are clamped to 100-10000 (M300 safe range).
-- **Duration in commands**: Each `M300 S{freq} P{dur}` uses `min_tick_ms()` (50ms) as the duration. The sequencer re-sends at each tick interval for continuing tones.
+- **Duration in commands**: Each `M300 S{freq} P{dur}` uses `min_tick_ms()` (50ms) as the duration, bounding how long a stale command can ring if the sequencer is preempted mid-note.
 - **Silence**: `M300 S0 P1` stops the beeper. Only sent if not already silent.
 - **No amplitude or waveform control**: M300 is frequency-only. The printer firmware controls volume.
 
-The M300 backend requires Klipper to have `[output_pin beeper]` configured. Without it, M300 commands are silently ignored by the firmware.
+The M300 backend requires the printer to answer M300: a beeper `output_pin`, an M300 macro in the Klipper config, or a forced-on `speaker` capability override (see Backend Auto-Detection above).
 
 ---
 
