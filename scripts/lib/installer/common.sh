@@ -332,6 +332,11 @@ validate_tmp_dir() {
 # /usr/data/helixscreen, /srv/helixscreen, /user-resource/helixscreen, ...).
 validate_install_dir() {
     local d="$1"
+    # A mod-owned path is refused even when its name passes below: the mod's
+    # .bin/helixscreen payload root names itself after us and is NOT ours to
+    # mv/rm. Runs before the name check because that check's success branch
+    # returns early.
+    host_refuse_mod_owned "install into" "$d"
     if _user_dir_name_ok "$d" '*helixscreen*'; then
         return 0
     fi

@@ -453,6 +453,13 @@ uninstall() {
     local removed_dir=""
     for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ]; then
+            # A mod-owned entry belongs to the firmware mod, not to this
+            # uninstall — skip it (a hard exit here would strand the rest of
+            # the uninstall on one unremovable directory).
+            if host_mod_destruct_blocked "$install_dir"; then
+                log_warn "Skipping mod-owned ${install_dir} (managed by the firmware mod)"
+                continue
+            fi
             $SUDO rm -rf "$install_dir"
             log_success "Removed ${install_dir}"
             removed_dir="$install_dir"
@@ -593,6 +600,12 @@ clean_old_installation() {
     # Remove installation directories (check all possible locations)
     for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ]; then
+            # Same ownership rule as uninstall()'s sweep: never rm -rf a
+            # mod-owned directory out from under the firmware mod.
+            if host_mod_destruct_blocked "$install_dir"; then
+                log_warn "Skipping mod-owned ${install_dir} (managed by the firmware mod)"
+                continue
+            fi
             log_info "Removing $install_dir..."
             $SUDO rm -rf "$install_dir"
         fi

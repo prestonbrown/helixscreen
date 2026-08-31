@@ -1369,6 +1369,34 @@ detect_rollback_dir() {
     return 1
 }
 
+# Roomy-partition half of the update swap: pick the backup name, clear a stale
+# one, and mv the old install aside so the new tree can take its place.
+# One caller — extract_release()'s same-filesystem swap branch. The mod-owned
+# guard runs first: an INSTALL_DIR under the firmware mod's tree is the mod's
+# payload root, and moving it aside (then rm -rf'ing the .old on the NEXT
+# update) is exactly the destructive step --mod-payload exists to replace.
+# Sets INSTALL_BACKUP on success; returns 1 when the mv fails.
+backup_install_dir_for_update() {
+    host_refuse_mod_owned "update backup" "$INSTALL_DIR"
+
+    # Prefer INSTALL_DIR.old; if it exists and can't be removed (e.g. root-owned
+    # under NoNewPrivileges), fall back to a timestamped name so the swap succeeds.
+    INSTALL_BACKUP="${INSTALL_DIR}.old"
+    if [ -d "$INSTALL_BACKUP" ]; then
+        log_info "Removing stale backup from previous install..."
+        if ! rm -rf "$INSTALL_BACKUP" 2>/dev/null && ! $SUDO rm -rf "$INSTALL_BACKUP" 2>/dev/null; then
+            INSTALL_BACKUP="${INSTALL_DIR}.old.$(date +%s)"
+            log_warn "Could not remove stale .old dir (root-owned?); using $INSTALL_BACKUP instead"
+        fi
+    fi
+
+    # Atomic swap: move old install to backup
+    if ! $(path_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "$INSTALL_BACKUP"; then
+        return 1
+    fi
+    return 0
+}
+
 # Extract archive with atomic swap and rollback protection.
 # Dispatches on _ARCHIVE_FORMAT for zip vs tar.gz. Expects the archive already
 # staged at _archive_tmp_path() by download_release() or use_local_tarball().
@@ -1552,6 +1580,10 @@ extract_release() {
             else
                 log_info "Self-update: replacing install contents in-place (parent read-only)..."
 
+                # The loops below rm -rf every child of INSTALL_DIR — refuse
+                # before the first one touches a mod-owned payload root.
+                host_refuse_mod_owned "in-place update of" "$INSTALL_DIR"
+
                 # Remove old contents (except config/).
                 # Don't use || true — if rm fails, we must not proceed to mv
                 # because mv can't overwrite a non-empty directory.
@@ -1667,6 +1699,9 @@ extract_release() {
                 log_info "Install partition tight (${install_free_mb}MB free, need ~${new_install_mb}MB); staging rollback backup off-partition at ${HELIX_OFFSITE_ROLLBACK_DIR}"
 
                 # Cross-fs move (copy to roomy + delete) frees the install fs.
+                # Same ownership rule as the same-fs swap: a mod-owned
+                # INSTALL_DIR is not ours to relocate.
+                host_refuse_mod_owned "update backup" "$INSTALL_DIR"
                 if ! $(path_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "$INSTALL_BACKUP"; then
                     log_error "Failed to relocate existing installation off-partition."
                     rm -rf "$extract_dir"
@@ -1682,19 +1717,7 @@ extract_release() {
             fi
         else
             # Roomy: keep the existing same-fs atomic swap behavior.
-            # Prefer INSTALL_DIR.old; if it exists and can't be removed (e.g. root-owned
-            # under NoNewPrivileges), fall back to a timestamped name so the swap succeeds.
-            INSTALL_BACKUP="${INSTALL_DIR}.old"
-            if [ -d "$INSTALL_BACKUP" ]; then
-                log_info "Removing stale backup from previous install..."
-                if ! rm -rf "$INSTALL_BACKUP" 2>/dev/null && ! $SUDO rm -rf "$INSTALL_BACKUP" 2>/dev/null; then
-                    INSTALL_BACKUP="${INSTALL_DIR}.old.$(date +%s)"
-                    log_warn "Could not remove stale .old dir (root-owned?); using $INSTALL_BACKUP instead"
-                fi
-            fi
-
-            # Atomic swap: move old install to backup
-            if ! $(path_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "$INSTALL_BACKUP"; then
+            if ! backup_install_dir_for_update; then
                 log_error "Failed to backup existing installation."
                 rm -rf "$extract_dir"
                 exit 1

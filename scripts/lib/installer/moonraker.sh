@@ -195,6 +195,13 @@ EOF
 add_update_manager_section() {
     local conf="$1"
     local fs
+
+    # The stanza's `path:` hands INSTALL_DIR to Moonraker's NetDeploy, whose
+    # update flow rmtree()s the path before extracting. Every writer funnels
+    # through here (fresh add + migrate_to_web_type), so this one guard covers
+    # the whole stanza — and never arms it at the mod's payload root.
+    host_refuse_mod_owned "arming the Moonraker updater against" "$INSTALL_DIR"
+
     fs=$(file_sudo "$conf")
 
     # Create backup

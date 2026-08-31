@@ -73,7 +73,10 @@ HEADER
     # Include each module (only those needed for uninstall).
     # service.sh provides stop_service, called by uninstall.sh's clean_old_installation.
     # camera.sh provides uninstall_camera_k2, called by uninstall.sh (K2 ustreamer teardown).
-    for module in common.sh platform.sh permissions.sh requirements.sh forgex.sh service.sh moonraker.sh camera.sh uninstall.sh; do
+    # host_profile.sh provides the mod-ownership guard behind uninstall.sh's
+    # HELIX_INSTALL_DIRS sweeps and moonraker.sh's stanza writer; main() below
+    # probes it before set_install_paths runs validate_install_dir.
+    for module in common.sh host_profile.sh platform.sh permissions.sh requirements.sh forgex.sh service.sh moonraker.sh camera.sh uninstall.sh; do
         module_path="$LIB_DIR/$module"
         if [ ! -f "$module_path" ]; then
             echo "ERROR: Module not found: $module_path" >&2
@@ -301,6 +304,10 @@ remove_installation() {
 
     # Remove from configured location
     if [ -d "$INSTALL_DIR" ]; then
+        # The configured install is refused wholesale when the mod owns it —
+        # that path is the mod's payload root, and the standalone uninstaller
+        # has no business deleting it (same rule as install.sh's entry gate).
+        host_refuse_mod_owned "uninstall of" "$INSTALL_DIR"
         $SUDO rm -rf "$INSTALL_DIR"
         log_success "Removed $INSTALL_DIR"
         removed_any=true
@@ -314,6 +321,12 @@ remove_installation() {
     # Also check and remove from all possible locations
     for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ] && [ "$install_dir" != "$INSTALL_DIR" ]; then
+            # Sweep entries the mod owns are skipped, not removed — same rule
+            # as uninstall.sh's own sweeps.
+            if host_mod_destruct_blocked "$install_dir"; then
+                log_warn "Skipping mod-owned $install_dir (managed by the firmware mod)"
+                continue
+            fi
             $SUDO rm -rf "$install_dir"
             log_success "Removed $install_dir"
             removed_any=true
@@ -413,6 +426,10 @@ main() {
     echo "${CYAN}     HelixScreen Uninstaller${NC}"
     echo "${CYAN}========================================${NC}"
     echo ""
+
+    # Probe the host before set_install_paths runs validate_install_dir —
+    # its mod-ownership guard needs HOST_MOD_ROOT already probed.
+    host_profile_probe
 
     # Detect platform and firmware to set correct paths
     platform=$(detect_platform)

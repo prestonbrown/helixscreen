@@ -208,6 +208,11 @@ _refuse_if_firmware_managed() {
 
 # Main installation flow
 main() {
+    # Probe the host once, before anything consults it: the mod-ownership
+    # guard backs validate_install_dir (called from set_install_paths below),
+    # so HOST_MOD_ROOT must already be probed by then.
+    host_profile_probe
+
     update_mode=false
     uninstall_mode=false
     clean_mode=false
