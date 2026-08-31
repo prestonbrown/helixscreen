@@ -405,3 +405,27 @@ TEST_CASE("A parsed hotend ceiling bounds what set_temperature will send",
     REQUIRE_FALSE(is_safe_temperature(150.0, limits, "heater_bed"));
     REQUIRE(is_safe_temperature(100.0, limits, "heater_bed"));
 }
+
+// ============================================================================
+// Queued op-button updates before init_subjects (prestonbrown/helixscreen#1393)
+// ============================================================================
+
+TEST_CASE_METHOD(KeypadCeilingFixture,
+                 "A queued op-button update before init_subjects touches nothing",
+                 "[safety_limits][1393]") {
+    // The shard-crash shape: the panel is constructed (observers installed,
+    // updates queueable) but its subjects were never initialized, and a
+    // subject change queues update_filament_op_buttons() onto the UpdateQueue.
+    // The guard makes that a no-op instead of a walk over indeterminate
+    // lv_subject_t memory (0xbe-filled load_disabled_subject_ in the crash
+    // dumps). Driving it through the queue is the point - the direct call is
+    // synchronous and cannot express the race.
+    REQUIRE(panel != nullptr);
+    REQUIRE_FALSE(panel->are_subjects_initialized());
+
+    lv_subject_set_int(helix::ToolState::instance().get_active_tool_subject(), 1);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Still un-initialized, still intact: the update never ran.
+    REQUIRE_FALSE(panel->are_subjects_initialized());
+}

@@ -168,8 +168,23 @@ bool available();
 
 // --- one-shot query. ----------------------------------------------------------
 
+/**
+ * @brief Connect to the daemon's socket with a bounded, non-blocking wait.
+ *
+ * A daemon wedged with a full accept backlog would park a BLOCKING connect
+ * indefinitely — hanging the subscriber path's event loop, or pinning a
+ * shared worker on the one-shot query path. Returns a CONNECTED,
+ * still-nonblocking fd (the CALLER decides its final blocking mode), or -1
+ * with @p error_out (when non-null) carrying the reason.
+ */
+int connect_unix(const std::string& path, int timeout_ms, std::string* error_out = nullptr);
+
 struct QueryResult {
     bool reached{};        ///< False on any connect/write/read failure or timeout with no reply.
+    bool saw_mode{};       ///< True when a reply line carried MODE=: only that answer is
+                           ///< authoritative about which transport owns the link. A daemon
+                           ///< that replied without it (an ERR verdict) said nothing
+                           ///< authoritative, and its empty snapshot must not blank a row.
     NetdSnapshot snapshot; ///< Every snapshot line the daemon sent, merged.
 };
 

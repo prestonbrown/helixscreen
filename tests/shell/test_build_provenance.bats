@@ -34,7 +34,13 @@ setup() {
     tmp="$BATS_TEST_TMPDIR/nogit2"
     mkdir -p "$tmp"
     cp scripts/gen-git-hash.sh "$tmp/"
-    run env -u HELIX_GIT_HASH -u GIT_DIR BUILD_DIR="$tmp/build" \
+    # The sandbox must genuinely be outside every repo: this machine's /tmp
+    # hosts a foreign checkout (the zmod/Forge-X source tree), and git's
+    # upward walk from any /tmp-based temp dir would find it - with the
+    # script's own safe.directory bypass, even "dubious ownership" stops
+    # protecting the sandbox. A ceiling at the bats root ends the walk.
+    run env -u HELIX_GIT_HASH -u GIT_DIR \
+        GIT_CEILING_DIRECTORIES="$BATS_TEST_TMPDIR" BUILD_DIR="$tmp/build" \
         sh -c "cd '$tmp' && ./gen-git-hash.sh"
     [ "$status" -eq 0 ]
     run cat "$tmp/build/generated/helix_git_hash.h"
