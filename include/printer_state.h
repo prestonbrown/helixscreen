@@ -2256,6 +2256,27 @@ class PrinterState {
     void set_printer_type_sync(const std::string& type);
 
     /**
+     * @brief Record that an installed SET_GCODE_OFFSET wrapper owns z-offset
+     *        persistence (zoffset:: matched a provider in discovery)
+     *
+     * Re-resolves the calibration strategy: with the offset persisted by the
+     * wrapper, the probe fold in "Save Z Offset" would double-apply it on
+     * every Klipper restart (prestonbrown/helixscreen#1401), so the strategy
+     * becomes FIRMWARE_MANAGED and the save path stands down. Sticky across
+     * printer-type re-resolution. Thread-safe: defers to the main thread.
+     * @param provider_name for the log line only
+     */
+    void set_z_offset_external_persistence(const std::string& provider_name);
+
+    /// Rediscovery found no provider (module uninstalled): restore the
+    /// type-derived strategy. Thread-safe like the setter.
+    void clear_z_offset_external_persistence();
+
+    /// Main-thread bodies; tests reach these directly.
+    void set_z_offset_external_persistence_internal(const std::string& provider_name);
+    void clear_z_offset_external_persistence_internal();
+
+    /**
      * @brief Get the current printer type name
      *
      * @return Const reference to the stored printer type string
@@ -2479,6 +2500,14 @@ class PrinterState {
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     lv_subject_t z_offset_can_save_{}; ///< 1 when manual save needed, 0 when auto-saved
+
+    /// An installed SET_GCODE_OFFSET wrapper (Helper-Script save-zoffset,
+    /// ZMOD, Forge-X) persists the z-offset itself. Folding the gcode offset
+    /// into the probe on top of that double-applies it on every restart
+    /// (prestonbrown/helixscreen#1401), so the strategy resolves to
+    /// FIRMWARE_MANAGED regardless of printer type. Set by discovery via
+    /// set_z_offset_external_persistence() when zoffset:: matches a provider.
+    bool z_offset_external_persistence_ = false;
 
     /// Last kinematics string (to skip redundant recomputation)
     std::string last_kinematics_;

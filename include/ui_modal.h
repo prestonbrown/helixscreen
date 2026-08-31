@@ -16,7 +16,9 @@
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,6 +32,28 @@ enum class ModalSeverity {
     Info = 0,
     Warning = 1,
     Error = 2,
+};
+
+/**
+ * @brief What closed a modal, for hooks that must tell caller closes from
+ *        user/environment ones.
+ *
+ * Both hide() entry points default to Programmatic: the caller closed its own
+ * dialog and already knows. The paths a caller does not control - backdrop tap,
+ * ESC, a dialog button, an XML hot-reload rebuild - pass their own value, so
+ * on_dismiss can mean exactly "closed by something other than you" instead of
+ * "closed without a button callback", which also fired for the caller's own
+ * teardown close (deferred one tick past a destructor - the UAF shape behind
+ * the #1380 revert).
+ */
+enum class ModalCloseReason {
+    Programmatic, ///< The caller's own code closed the dialog (hide() default)
+    BackdropTap,  ///< User tapped the backdrop
+    EscKey,       ///< User pressed ESC
+    ButtonPress,  ///< A dialog button was pressed
+    HotReload,    ///< XML hot reload replaced the dialog (dev builds)
+    External,     ///< A system sweep closed it (ctl reset, fault-modal
+                  ///< dismissal) - not the caller, so a dismissal reports
 };
 
 // ============================================================================
@@ -47,7 +71,6 @@ enum class ModalSeverity {
  * - Modal stacking with proper z-order
  * - Backdrop click-to-close and ESC handling
  * - Standard Ok/Cancel button wiring
- * - Move semantics support
  *
  * ## Usage - Simple Modals (no subclass):
  * @code
@@ -76,13 +99,14 @@ class Modal {
     Modal();
     virtual ~Modal();
 
-    // Non-copyable
+    // Non-copyable, non-movable. A moved Modal's wired buttons still carry the
+    // moved-from pointer as per-callback user_data, so the move operations were
+    // a latent hazard with zero production callers - only the two tests written
+    // to test them ever exercised the retargeting.
     Modal(const Modal&) = delete;
     Modal& operator=(const Modal&) = delete;
-
-    // Movable
-    Modal(Modal&& other) noexcept;
-    Modal& operator=(Modal&& other) noexcept;
+    Modal(Modal&&) = delete;
+    Modal& operator=(Modal&&) = delete;
 
     // ========================================================================
     // STATIC FACTORY API (for simple modals)
@@ -101,10 +125,42 @@ class Modal {
     static lv_obj_t* show(const char* component_name, const char** attrs = nullptr);
 
     /**
+     * @brief Show a heap modal and hand its lifetime to ModalStack
+     *
+     * The stack frees the instance when its entry leaves - exit-animation
+     * completion after any close, or clear() at teardown. This replaces the
+     * self-delete-from-on_hide() idiom, whose only free path was on_hide():
+     * any teardown that bypassed hide() (ModalStack::clear() at soft restart,
+     * hide()'s untracked-backdrop early return) leaked the object (#1382).
+     *
+     * One-shot modals only: an instance owned by the stack must never be
+     * reshown, because its entry - and with it the instance - is destroyed
+     * at the first close. Modals that are reshown stay owned by their member
+     * or unique_ptr holder and use show().
+     *
+     * @param modal The instance to show; freed here on either outcome
+     * @param parent Passed through to show() (ignored; always the active screen)
+     * @param attrs Optional XML attributes
+     * @return true if shown; on failure @p modal is destroyed, not leaked
+     */
+    static bool show_owned(std::unique_ptr<Modal> modal, lv_obj_t* parent,
+                           const char** attrs = nullptr);
+
+    /**
      * @brief Hide a modal by its dialog pointer
      * @param dialog Dialog object returned by show()
+     * @param reason What closed it; Programmatic (the default) means the caller
+     *        closed its own dialog, which does not fire a confirmation's
+     *        on_dismiss. Modal's own input paths pass their reason so a
+     *        dismissal is still reported.
+     *
+     * Delegates to the owning instance's hide() when the dialog has one, so
+     * on_hide() and lifetime_ invalidation still run. The confirmation/alert
+     * helpers are owned (see ConfirmationModal). A dialog from the bare static
+     * Modal::show() factory has no owner and therefore no on_hide(): nothing
+     * observes that close.
      */
-    static void hide(lv_obj_t* dialog);
+    static void hide(lv_obj_t* dialog, ModalCloseReason reason = ModalCloseReason::Programmatic);
 
     /**
      * @brief Get the topmost modal's dialog
@@ -148,11 +204,15 @@ class Modal {
 
     /**
      * @brief Hide this modal instance
+     * @param reason What closed it. Defaults to Programmatic - a caller closing
+     *        its own modal. Modal's backdrop/ESC/hot-reload handlers pass their
+     *        reason; a subclass that cares (ConfirmationModal) reads it from
+     *        close_reason_ inside on_hide().
      *
      * Note: This overloads the static hide() - use modal.hide() for instances,
      * Modal::hide(dialog) for simple modals.
      */
-    void hide();
+    void hide(ModalCloseReason reason = ModalCloseReason::Programmatic);
 
     /**
      * @brief Check if this modal is currently visible
@@ -255,6 +315,11 @@ class Modal {
     lv_obj_t* dialog_ = nullptr;
     lv_obj_t* parent_ = nullptr;
 
+    /// Why the in-progress (or most recent) hide() was initiated. Set on every
+    /// hide() entry, before on_hide() runs; read it there to distinguish a
+    /// caller's own close (Programmatic) from everything else.
+    ModalCloseReason close_reason_ = ModalCloseReason::Programmatic;
+
     /// Async callback safety. Automatically invalidated on hide().
     /// Subclasses use lifetime_.defer(...) or lifetime_.token() for
     /// bg-thread callbacks that need to touch UI.
@@ -262,6 +327,22 @@ class Modal {
 
     // Helpers
     lv_obj_t* find_widget(const char* name);
+
+    /// Attach @p cb to the named button with `this` as per-callback user_data,
+    /// which is what the on_ok()/on_cancel() hooks read back.
+    void wire_button(const char* name, const char* role_name, lv_event_cb_t cb);
+
+    /// Same, but with caller-supplied user_data passed through VERBATIM.
+    ///
+    /// Deliberately a separate entry point rather than a defaulted parameter: a
+    /// `user_data ? user_data : this` fallback would substitute the owner
+    /// whenever a caller's value is legitimately null, and callers do encode
+    /// small integers in that pointer (tool_switcher_widget.cpp passes a tool
+    /// index, so tool 0 IS nullptr). Modal::disarm_tree() only strips callbacks
+    /// carrying the owner, so one wired here outlives the instance and must not
+    /// dereference it.
+    void wire_button_with(const char* name, const char* role_name, lv_event_cb_t cb,
+                          void* user_data);
     void wire_ok_button(const char* name = "btn_primary");
     void wire_cancel_button(const char* name = "btn_secondary");
     void wire_tertiary_button(const char* name = "btn_tertiary");
@@ -273,7 +354,17 @@ class Modal {
     // Internal implementation
     bool create_and_show(lv_obj_t* parent, const char* comp_name, const char** attrs);
     void destroy();
-    void wire_button(const char* name, const char* role_name, lv_event_cb_t cb);
+
+    /// Make a closing dialog inert: clear stale user_data, stop new presses,
+    /// drop any press already in flight, and unwire the backdrop handlers.
+    /// Shared by all three teardown paths (static hide, instance hide, ~Modal)
+    /// so they cannot drift apart. Either argument may be null.
+    /// @param owner When given, every event callback in the tree carrying this
+    ///        pointer as per-callback user_data is removed. A stack-owned
+    ///        instance is freed only when its entry goes, while its widgets
+    ///        live out the exit animation first, and wire_button() parks `this`
+    ///        on every button it wires - without this strip those are dangling.
+    static void disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner = nullptr);
 
     // Static event handlers
     static void backdrop_click_cb(lv_event_t* e);
@@ -305,8 +396,12 @@ class ModalStack {
     void push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& component_name,
               Modal* owner = nullptr);
 
-    // Untrack a modal (called by Modal::destroy)
-    void remove(lv_obj_t* backdrop);
+    // Untrack a modal (called by Modal::destroy, animate_exit's no-animation
+    // branch, and exit_animation_done). An entry that owns its instance frees
+    // it here: synchronously when free_owned_now (timer context, preserves
+    // instance-before-widget-tree order), else deferred one tick (hide()'s
+    // frame is still on the stack).
+    void remove(lv_obj_t* backdrop, bool free_owned_now = false);
 
     /// Return the Modal instance that owns this dialog, or nullptr when the
     /// dialog is untracked or was created through the static factory.
@@ -336,31 +431,20 @@ class ModalStack {
         return stack_.empty();
     }
 
-    // Delete modal widgets and clear tracking (used during teardown after lv_anim_delete_all)
-    void clear() {
-        for (auto& entry : stack_) {
-            // Skip backdrops that LVGL already freed. A modal whose exit
-            // animation never completed stays in the stack as exiting=true with
-            // its remove() still owed to exit_animation_done(). If the backdrop's
-            // ancestor (e.g. the screen it was created on) is deleted first, LVGL
-            // frees the backdrop as part of that subtree — leaving a stale stack
-            // entry that points at freed memory. Deleting it again walks a
-            // poisoned object (obj->class_p) and crashes. Guard the same way
-            // exit_animation_done() and ~Modal already do (lv_obj_is_valid).
-            if (!entry.backdrop || !lv_obj_is_valid(entry.backdrop)) {
-                continue;
-            }
-            // Cancel animations before deletion — exit animation exec callbacks
-            // trigger lv_obj_set_style_*() which crashes on freed objects
-            lv_anim_delete(entry.backdrop, nullptr);
-            lv_obj_t* dialog = lv_obj_get_child(entry.backdrop, 0);
-            if (dialog) {
-                lv_anim_delete(dialog, nullptr);
-            }
-            lv_obj_delete(entry.backdrop);
-        }
-        stack_.clear();
-    }
+    /// Take ownership of a shown modal's instance. The entry must exist (its
+    /// show() succeeded); the instance is then freed when the entry leaves the
+    /// stack - at exit-animation completion after a hide(), or in clear().
+    /// This is the replacement for the self-delete-from-on_hide() idiom, which
+    /// leaked whenever teardown bypassed hide() (ModalStack::clear() at soft
+    /// restart, hide()'s untracked-backdrop early return) because nothing but
+    /// on_hide() ever freed the object (#1382).
+    void assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> instance);
+
+    // Delete modal widgets, free owned instances, and clear tracking (used
+    // during teardown after lv_anim_delete_all). Does NOT run on_hide(): a
+    // subclass hook that queues work during final teardown has nothing left
+    // to receive it.
+    void clear();
 
     // Mark a modal as exiting (animation in progress, ignore further hide() calls)
     // Returns true if found and marked, false if not found or already exiting
@@ -382,6 +466,10 @@ class ModalStack {
         std::string component_name;
         bool exiting; /**< true = exit animation in progress, ignore hide() calls */
         Modal* owner; /**< owning instance, or nullptr for static Modal::show() modals */
+        /// Set when this entry owns the instance (Modal::show_owned). Erasing
+        /// the entry frees it, so every path that empties the stack also frees
+        /// the modals it owns.
+        std::unique_ptr<Modal> owned_instance;
     };
 
     std::vector<ModalEntry> stack_;
@@ -394,6 +482,15 @@ class ModalStack {
 // ============================================================================
 
 namespace helix::ui {
+
+// Canonical widget name carrying a modal's title text. Every C++ site that
+// reads or writes a modal title by name (duplicate-title suppression in
+// ui_notification, the reconnect auto-close in moonraker_manager,
+// ActionPromptModal's title population) uses this constant; the XML side
+// names the widget with the same literal, which is the one remaining copy.
+// A modal whose title is not reachable under this name is invisible to those
+// behaviors (issue #1389).
+inline constexpr const char* kModalTitleWidgetName = "dialog_title";
 
 /**
  * @brief Initialize subjects for modal_dialog.xml bindings
@@ -443,54 +540,91 @@ inline lv_obj_t* modal_get_top() {
 void modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea);
 
 /**
- * @brief Show a confirmation dialog with callbacks
+ * @brief The optional tail of modal_confirm(), gathered into one struct
  *
- * Consolidates the common pattern of:
- * 1. Configure modal severity and button text
- * 2. Show modal_dialog with title/message
- * 3. Wire up confirm/cancel button callbacks
- *
- * @param title Dialog title text
- * @param message Dialog message text
- * @param severity Visual severity (Info, Warning, Error)
- * @param confirm_text Primary button text (e.g., "Delete", "Proceed")
- * @param on_confirm Callback for confirm button (receives user_data)
- * @param on_cancel Callback for cancel button (receives user_data), or nullptr for no callback
- * @param user_data User data passed to callbacks
- * @param cancel_text Secondary button text, or nullptr to default to "Cancel"
- * @return The created dialog widget, or nullptr on failure
+ * C++17 has no designated initializers, so as positional parameters this tail
+ * forced every caller that wanted only a dismissal or only a token to thread
+ * nullptrs through the parameters in between - and each future parameter
+ * would have re-multiplied them. As a struct, a caller sets exactly the
+ * fields it means and leaves the rest defaulted.
  */
-lv_obj_t* modal_show_confirmation(const char* title, const char* message, ModalSeverity severity,
-                                  const char* confirm_text, lv_event_cb_t on_confirm,
-                                  lv_event_cb_t on_cancel, void* user_data,
-                                  const char* cancel_text = nullptr);
+struct ConfirmOptions {
+    /// Cancel-button callback; unset for a close-only cancel
+    std::function<void()> on_cancel;
+
+    /// Cancel-button text; nullptr defaults to "Cancel"
+    const char* cancel_text = nullptr;
+
+    /// Fired when the dialog is closed by something other than the caller -
+    /// a backdrop tap, ESC, a hot-reload rebuild, or a button press whose
+    /// side carries no callback. The caller's own Modal::hide(dialog) does
+    /// NOT fire it: the caller already knows. Pass it whenever the caller
+    /// holds state the buttons are meant to resolve (a re-entry guard, a
+    /// pending flag, a stored handle); without it that state leaks on a
+    /// dismissal.
+    std::function<void()> on_dismiss;
+
+    /// Gates ALL THREE callbacks, not just the dismissal: none of them runs
+    /// once the token has expired. Pass it whenever a callback captures
+    /// something that can die before the dialog does - which is the usual
+    /// case, since the dialog outlives its exit animation.
+    std::optional<helix::LifetimeToken> owner_token;
+};
 
 /**
- * @brief Show an info/alert dialog with single "OK" button
+ * @brief The optional tail of modal_alert() - see ConfirmOptions for why a
+ *        struct. An alert has no cancel side, so only the dismissal report
+ *        and the token remain.
+ */
+struct AlertOptions {
+    /// See ConfirmOptions::on_dismiss
+    std::function<void()> on_dismiss;
+
+    /// See ConfirmOptions::owner_token
+    std::optional<helix::LifetimeToken> owner_token;
+};
+
+/**
+ * @brief Confirmation dialog whose callbacks never touch a widget
  *
- * Simplified version for informational dialogs with no cancel button.
+ * The callbacks are std::function, invoked from the modal's own button
+ * handlers, so nothing of the caller's is attached to a widget and there is
+ * no user_data to outlive the dialog (prestonbrown/helixscreen#1383). The
+ * dialog closes itself when a button is pressed.
  *
- * @param title Dialog title text
- * @param message Dialog message text
- * @param severity Visual severity (default: Info)
- * @param ok_text Button text (default: "OK")
- * @param on_ok Callback for OK button (receives user_data), or nullptr
- * @param user_data User data passed to callback
+ * @param options The optional tail - cancel callback/text, dismissal report,
+ *        owner token - one field per concern, nothing threaded positionally.
  * @return The created dialog widget, or nullptr on failure
  */
-lv_obj_t* modal_show_alert(const char* title, const char* message,
-                           ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
-                           lv_event_cb_t on_ok = nullptr, void* user_data = nullptr);
+lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity severity,
+                        const char* confirm_text, std::function<void()> on_confirm,
+                        const ConfirmOptions& options = {});
+
+/**
+ * @brief Single-button alert whose callback never touches a widget
+ *
+ * Single-button form of modal_confirm() - see there for the contract.
+ */
+lv_obj_t* modal_alert(const char* title, const char* message,
+                      ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
+                      std::function<void()> on_ok = nullptr, const AlertOptions& options = {});
 
 /**
  * @brief Show the "low RAM before resonance calibration" warning modal.
  *
- * Centralizes the (translated) copy and severity so the two calibration entry
- * points (input-shaper panel + wizard) can't diverge. Caller has already
- * decided RAM is below helix::RESONANCE_LOW_RAM_WARN_MB. Returns the dialog
- * handle (store it to dismiss on teardown) or nullptr on failure.
+ * Centralizes the (translated) copy, severity, AND the re-entry scaffold so
+ * the two calibration entry points (input-shaper panel + wizard) can't
+ * diverge: pass the address of the stored handle and this helper clears it on
+ * every close path - button press, backdrop/ESC dismissal, teardown - and
+ * falls back to acting on a failed build only through the caller's own
+ * null-handle check. @p options carries the decline callback and the owner
+ * token (its on_dismiss slot belongs to the helper: clearing the handle IS
+ * the dismissal report). Do NOT hand-roll an LV_EVENT_DELETE hook for this:
+ * one that outlives its owner is the use-after-free that got
+ * prestonbrown/helixscreen#1380 reverted.
  */
-lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_event_cb_t on_confirm,
-                                         lv_event_cb_t on_cancel, void* user_data);
+lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
+                                         std::function<void()> on_confirm,
+                                         const ConfirmOptions& options = {});
 
 } // namespace helix::ui

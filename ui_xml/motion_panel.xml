@@ -6,6 +6,31 @@
   <!-- Simplified button grid design (vs circular jog pad) -->
   <!-- Jog pad colors are loaded from semantic theme tokens in C++ (ui_jog_pad.cpp) -->
   <!-- Uses shared backdrop from navigation system -->
+  <consts>
+    <!-- Position-card size floors. The card is size-to-content, and its "Act:"
+         Z sub-line appears/disappears live during Z-Tilt and probing; without
+         a floor sized for the WORST case (7-char values like "400.00 mm" on
+         every axis, homed dots shown, Act row present) each flip resized the
+         card and slid the jog pad with it. Values are measured per tier
+         (en and ja measured identical - the value digits dominate the row
+         width, not the translated "Act:" label), worst case +3px. Re-measure
+         via `ctl geom position_card` with position_x/position_z = 40000 and
+         the row visible if the card's content or fonts change. -->
+    <px name="motion_card_min_w_micro" value="118"/>
+    <px name="motion_card_min_w_tiny" value="118"/>
+    <px name="motion_card_min_w_small" value="118"/>
+    <px name="motion_card_min_w_medium" value="140"/>
+    <px name="motion_card_min_w_large" value="158"/>
+    <px name="motion_card_min_w_xlarge" value="182"/>
+    <px name="motion_card_min_w_xxlarge" value="234"/>
+    <px name="motion_card_min_h_micro" value="72"/>
+    <px name="motion_card_min_h_tiny" value="72"/>
+    <px name="motion_card_min_h_small" value="92"/>
+    <px name="motion_card_min_h_medium" value="112"/>
+    <px name="motion_card_min_h_large" value="124"/>
+    <px name="motion_card_min_h_xlarge" value="144"/>
+    <px name="motion_card_min_h_xxlarge" value="180"/>
+  </consts>
   <styles>
     <!-- Jog mode toggle button styles -->
     <style name="filter_btn_selected" bg_color="#primary" bg_opa="255"/>
@@ -54,7 +79,9 @@
             <!-- Circular Jog Pad: Custom-Drawn Two-Zone Design (Bambu Lab Style).
                  In a column, flex_grow drives HEIGHT, so height="0" is the basis
                  here and width="100%" claims the full stacked width instead of
-                 collapsing to zero (see brief: the flex-axis trap). -->
+                 collapsing to zero (see brief: the flex-axis trap). The card
+                 above holds a fixed height (see the motion_card_min_* consts),
+                 so the Act line toggling cannot move this wrapper. -->
             <lv_obj name="jog_pad_wrapper"
                     width="100%" height="0" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false">
               <lv_obj name="jog_pad_container"
@@ -69,8 +96,11 @@
             <!-- Position Display - vertical stack left of jog pad.
                  Shared card content lives in components/motion_position_card.xml;
                  width/style_min_width are the only attributes that differ from
-                 the portrait instantiation above. -->
-            <motion_position_card name="position_card" width="content" style_min_width="115"/>
+                 the portrait instantiation above. The min-width token is sized
+                 for the card's WORST content (see the motion_card_min_* consts
+                 above), so the "Act:" sub-line appearing never widens the card
+                 and never shifts the pad. -->
+            <motion_position_card name="position_card" width="content" style_min_width="#motion_card_min_w"/>
             <!-- Circular Jog Pad: Custom-Drawn Two-Zone Design (Bambu Lab Style) -->
             <lv_obj name="jog_pad_wrapper"
                     width="0" height="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false">

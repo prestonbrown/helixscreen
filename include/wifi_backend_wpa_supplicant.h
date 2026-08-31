@@ -165,8 +165,15 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
      * @brief Construct WiFi backend
      *
      * Does NOT connect to wpa_supplicant. Call start() to initialize.
+     *
+     * @param scan_watchdog_ms Upper bound from an accepted SCAN to the
+     *                         SCAN_COMPLETE event (default 15 s) — enforcing
+     *                         the completion obligation every backend owes on
+     *                         a successful trigger_scan() (the contract is
+     *                         stated on WifiBackend::trigger_scan). Injectable
+     *                         so tests can shrink the bound.
      */
-    WifiBackendWpaSupplicant();
+    explicit WifiBackendWpaSupplicant(int scan_watchdog_ms = 15000);
 
     /**
      * @brief Destructor - ensures clean shutdown
@@ -427,6 +434,29 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     // init_complete_: an init *attempt* finished (success OR failure). Used only
     // to wake start()'s condition-variable wait — NOT a "backend is usable" flag.
     std::atomic<bool> init_complete_{false};
+
+    // Scan-completion obligation (prestonbrown/helixscreen#1407): a success
+    // return from trigger_scan() owes the manager an eventual SCAN_COMPLETE
+    // (the contract on WifiBackend::trigger_scan). wpa_supplicant delivers it
+    // as an unsolicited CTRL-EVENT-SCAN-RESULTS on the monitor connection —
+    // but a ctrl/monitor socket death mid-scan (or a FAIL-BUSY reply riding
+    // an in-flight scan that never completes) strands the promise with
+    // nothing left that can deliver it, and the manager's scan scheduler
+    // latches for the rest of the session. The watchdog bounds the wait and
+    // resolves the obligation from whatever results the daemon still holds.
+    static constexpr hv::TimerID kNoTimer{0};
+    hv::TimerID scan_watchdog_timer_{kNoTimer}; ///< loop-thread only
+    std::atomic<bool> scan_pending_{false};
+    const int scan_watchdog_ms_;
+
+    /// LOOP THREAD. Arms the one-shot watchdog for an outstanding scan.
+    void arm_scan_watchdog();
+
+    /// LOOP THREAD. Disarms the watchdog and clears the pending flag WITHOUT
+    /// dispatching — callers that owe an event dispatch it themselves, and on
+    /// teardown nothing is dispatched (the manager owns the latch at the stop
+    /// boundary; see WifiBackend::trigger_scan's contract, #1405).
+    void resolve_scan();
     // init_succeeded_: init_wpa() ran to completion with live control + monitor
     // connections. This is the real "backend is up" signal — is_running(),
     // is_enabled(), and the start()/start_async() retry guards key off it so a

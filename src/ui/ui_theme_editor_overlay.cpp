@@ -467,46 +467,6 @@ void ThemeEditorOverlay::on_back_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void ThemeEditorOverlay::on_discard_confirm(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ThemeEditorOverlay] on_discard_confirm");
-    static_cast<void>(lv_event_get_current_target(e));
-
-    auto& overlay = get_theme_editor_overlay();
-
-    // Hide the dialog first
-    if (overlay.discard_dialog_) {
-        Modal::hide(overlay.discard_dialog_);
-        overlay.discard_dialog_ = nullptr;
-    }
-
-    // Execute the pending discard action
-    if (overlay.pending_discard_action_) {
-        auto action = std::move(overlay.pending_discard_action_);
-        overlay.pending_discard_action_ = nullptr;
-        action();
-    }
-
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void ThemeEditorOverlay::on_discard_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ThemeEditorOverlay] on_discard_cancel");
-    static_cast<void>(lv_event_get_current_target(e));
-
-    auto& overlay = get_theme_editor_overlay();
-
-    // Just hide the dialog, don't execute the discard action
-    if (overlay.discard_dialog_) {
-        Modal::hide(overlay.discard_dialog_);
-        overlay.discard_dialog_ = nullptr;
-    }
-
-    overlay.pending_discard_action_ = nullptr;
-    spdlog::debug("[ThemeEditorOverlay] Discard cancelled by user");
-
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void ThemeEditorOverlay::handle_back_clicked() {
     if (dirty_) {
         // Show confirmation before closing
@@ -786,10 +746,35 @@ void ThemeEditorOverlay::show_discard_confirmation(std::function<void()> on_disc
     // Store the action to execute if user confirms discard
     pending_discard_action_ = std::move(on_discard);
 
-    // Show confirmation dialog using modal system
-    discard_dialog_ = helix::ui::modal_show_confirmation(
+    // The dialog closes itself on either button, so discard_dialog_ exists only
+    // for the force-close path that runs when the overlay deactivates.
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [] {
+        auto& overlay = get_theme_editor_overlay();
+        overlay.discard_dialog_ = nullptr;
+        overlay.pending_discard_action_ = nullptr;
+        spdlog::debug("[ThemeEditorOverlay] Discard cancelled by user");
+    };
+    opts.on_dismiss = [] {
+        // Backdrop tap / ESC resolves the pending action the same way cancel
+        // does - without this the stored action would leak.
+        auto& overlay = get_theme_editor_overlay();
+        overlay.discard_dialog_ = nullptr;
+        overlay.pending_discard_action_ = nullptr;
+    };
+    discard_dialog_ = helix::ui::modal_confirm(
         lv_tr("Discard Changes?"), lv_tr("You have unsaved changes. Discard them?"),
-        ModalSeverity::Warning, lv_tr("Discard"), on_discard_confirm, on_discard_cancel, nullptr);
+        ModalSeverity::Warning, lv_tr("Discard"),
+        [] {
+            auto& overlay = get_theme_editor_overlay();
+            overlay.discard_dialog_ = nullptr;
+            if (overlay.pending_discard_action_) {
+                auto action = std::move(overlay.pending_discard_action_);
+                overlay.pending_discard_action_ = nullptr;
+                action();
+            }
+        },
+        opts);
 
     if (!discard_dialog_) {
         spdlog::error("[{}] Failed to show discard confirmation dialog", get_name());

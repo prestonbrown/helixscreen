@@ -46,23 +46,29 @@ std::string FilamentMapper::format_slot_label(const AvailableSlot& slot) {
     return buf;
 }
 
-int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
-                                               const std::vector<AvailableSlot>& slots) {
+const AvailableSlot* FilamentMapper::resolve_mapped_slot(const ToolMapping& mapping,
+                                                         const std::vector<AvailableSlot>& slots) {
     // "Auto" is a deliberate absence of a mapping - the firmware picks at print
     // time - so there is no lane to name yet.
     if (mapping.is_auto || mapping.mapped_slot < 0) {
-        return -1;
+        return nullptr;
     }
 
     for (const auto& s : slots) {
         if (s.slot_index == mapping.mapped_slot && s.backend_index == mapping.mapped_backend) {
-            return s.local_slot_index + 1;
+            return &s;
         }
     }
 
     // A mapping that outlived its lane (unit unplugged between the mapping and
-    // the render). Better to show no number than a stale one.
-    return -1;
+    // the render). Better to show nothing than a stale lane.
+    return nullptr;
+}
+
+int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
+                                               const std::vector<AvailableSlot>& slots) {
+    const AvailableSlot* const s = resolve_mapped_slot(mapping, slots);
+    return s ? s->local_slot_index + 1 : -1;
 }
 
 int FilamentMapper::color_distance(uint32_t a, uint32_t b) {
@@ -94,6 +100,31 @@ bool FilamentMapper::materials_match(const std::string& a, const std::string& b)
     // depends on rather than here, so a backend can ask the question without
     // depending on the mapper.
     return filament::materials_compatible(a, b);
+}
+
+MismatchFlags FilamentMapper::classify_mismatches(const GcodeToolInfo& tool,
+                                                  const AvailableSlot& slot) {
+    MismatchFlags flags;
+
+    // Either side silent means nothing can be proven incompatible: plenty of
+    // backends never publish a material, and plenty of files never state one.
+    flags.material_mismatch = !tool.material.empty() && !slot.material.empty() &&
+                              !materials_match(tool.material, slot.material);
+
+    // Colour has to earn each claim, because the chip shows a surround for it
+    // and a surround on most prints is a surround nobody reads:
+    //   - color_known false: nothing has yet said what this tool prints in, so
+    //     there is no claim to contradict. The chip's top band draws no fill
+    //     there either.
+    //   - an empty lane has no colour at all. What it reports is left over from
+    //     the last spool, and the lane's own empty marker already states the
+    //     real problem; warning twice for one cause reads as two faults.
+    // colors_match() is the predicate auto-matching uses, so a lane the matcher
+    // would have chosen never draws a warning.
+    flags.color_mismatch =
+        tool.color_known && !slot.is_empty && !colors_match(tool.color_rgb, slot.color_rgb);
+
+    return flags;
 }
 
 std::map<int, int> FilamentMapper::identity_filtered_remap(const std::vector<ToolMapping>& mappings,
@@ -148,18 +179,6 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
     // Color matching allows slot re-use, but positional fallback avoids it.
     std::vector<SlotKey> used_slots;
 
-    // A fallback must never auto-assign a lane whose material is KNOWN to be
-    // incompatible with the tool (e.g. a PLA tool into a PETG or TPU lane) — that
-    // misroutes the print on every backend. Unknown/empty materials can't be
-    // proven incompatible, so they stay eligible (backends that don't publish
-    // material keep the positional fallback). Explicit firmware mappings
-    // (Priority 1) are still honored with a mismatch warning; only the guesses
-    // here are gated.
-    auto material_blocked = [](const GcodeToolInfo& tool, const AvailableSlot& slot) {
-        return !tool.material.empty() && !slot.material.empty() &&
-               !materials_match(tool.material, slot.material);
-    };
-
     for (const auto& tool : tools) {
         ToolMapping mapping;
         mapping.tool_index = tool.tool_index;
@@ -174,11 +193,7 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
                 mapping.mapped_slot = slot.slot_index;
                 mapping.mapped_backend = slot.backend_index;
                 mapping.reason = ToolMapping::MatchReason::FIRMWARE_MAPPING;
-
-                if (!tool.material.empty() && !slot.material.empty() &&
-                    !materials_match(tool.material, slot.material)) {
-                    mapping.material_mismatch = true;
-                }
+                mapping.set_mismatches(classify_mismatches(tool, slot));
 
                 used_slots.push_back(slot.key());
                 firmware_matched = true;
@@ -213,13 +228,13 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
             mapping.mapped_backend = backend_idx;
             mapping.reason = ToolMapping::MatchReason::COLOR_MATCH;
 
-            // Find the slot to check material compatibility
+            // Find the lane the match landed on and classify the pairing. The
+            // colour half can only come back clear here - this lane is within
+            // COLOR_MATCH_TOLERANCE by construction - which is the point: a lane
+            // the matcher chose never draws a warning.
             for (const auto& slot : slots) {
                 if (slot.slot_index == slot_idx && slot.backend_index == backend_idx) {
-                    if (!tool.material.empty() && !slot.material.empty() &&
-                        !materials_match(tool.material, slot.material)) {
-                        mapping.material_mismatch = true;
-                    }
+                    mapping.set_mismatches(classify_mismatches(tool, slot));
                     break;
                 }
             }
@@ -242,13 +257,10 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
                         mapping.mapped_backend = slot.backend_index;
                         mapping.reason = ToolMapping::MatchReason::COLOR_MATCH;
                         // The tool's own positional lane is a deliberate default:
-                        // assign it but flag a material mismatch so PrintStartController
-                        // can warn. (Only the material-blind "any unclaimed lane"
-                        // fallback below refuses incompatible lanes.)
-                        if (!tool.material.empty() && !slot.material.empty() &&
-                            !materials_match(tool.material, slot.material)) {
-                            mapping.material_mismatch = true;
-                        }
+                        // assign it but flag what is wrong with it so
+                        // PrintStartController can warn. (Only the fallback below
+                        // refuses incompatible lanes outright.)
+                        mapping.set_mismatches(classify_mismatches(tool, slot));
                         used_slots.push_back(key);
                     }
                     break;
@@ -257,19 +269,31 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
             // No positional lane: rather than grab an arbitrary unclaimed lane (the
             // old material-blind behavior that misrouted prints — a PLA tool into a
             // PETG/TPU lane), take the first unclaimed lane that is not known to be
-            // incompatible. If none qualifies the tool stays unmatched for preflight.
+            // incompatible. Unknown/empty materials can't be proven incompatible, so
+            // they stay eligible (backends that don't publish material keep this
+            // fallback). If none qualifies the tool stays unmatched for preflight.
             if (mapping.mapped_slot < 0) {
                 for (const auto& slot : slots) {
                     auto key = slot.key();
-                    if (!slot.is_empty &&
-                        std::find(used_slots.begin(), used_slots.end(), key) == used_slots.end() &&
-                        !material_blocked(tool, slot)) {
-                        mapping.mapped_slot = slot.slot_index;
-                        mapping.mapped_backend = slot.backend_index;
-                        mapping.reason = ToolMapping::MatchReason::COLOR_MATCH;
-                        used_slots.push_back(key);
-                        break;
+                    if (slot.is_empty ||
+                        std::find(used_slots.begin(), used_slots.end(), key) != used_slots.end()) {
+                        continue;
                     }
+                    // One classification answers both questions: a lane whose
+                    // material is KNOWN incompatible is refused outright, and the
+                    // lane we do settle for still carries what is wrong with it.
+                    // Explicit firmware mappings (Priority 1) are honored with a
+                    // warning instead; only the guesses here are gated.
+                    const MismatchFlags flags = classify_mismatches(tool, slot);
+                    if (flags.material_mismatch) {
+                        continue;
+                    }
+                    mapping.mapped_slot = slot.slot_index;
+                    mapping.mapped_backend = slot.backend_index;
+                    mapping.reason = ToolMapping::MatchReason::COLOR_MATCH;
+                    mapping.set_mismatches(flags);
+                    used_slots.push_back(key);
+                    break;
                 }
             }
         }
@@ -526,11 +550,7 @@ FilamentMapper::use_current_assignments(const std::vector<GcodeToolInfo>& tools,
             mapping.mapped_slot = slot->slot_index;
             mapping.mapped_backend = slot->backend_index;
             mapping.reason = ToolMapping::MatchReason::FIRMWARE_MAPPING;
-
-            if (!tool.material.empty() && !slot->material.empty() &&
-                !materials_match(tool.material, slot->material)) {
-                mapping.material_mismatch = true;
-            }
+            mapping.set_mismatches(classify_mismatches(tool, *slot));
         } else {
             mapping.is_auto = true;
             mapping.reason = ToolMapping::MatchReason::AUTO;

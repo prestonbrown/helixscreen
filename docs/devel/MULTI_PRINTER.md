@@ -348,7 +348,7 @@ At startup (Phase 11b in `application.cpp`), the app detects stale incomplete pr
 ```
 PrinterListOverlay → user taps delete icon on a row
   → handle_delete_printer()
-  → modal_show_confirmation("Remove Printer", ..., ModalSeverity::Error)
+  → modal_confirm("Remove Printer", ..., ModalSeverity::Error)
   → User confirms
   → on_delete_confirm_cb()
     1. Close the confirmation modal

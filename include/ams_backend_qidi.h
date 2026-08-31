@@ -71,8 +71,6 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] PathSegment infer_error_segment() const override;
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
 
     /// Forward map (index = tool, value = global slot), derived from the
     /// per-slot mapped_tool the save_variables read-path writes. The base
@@ -89,6 +87,11 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     // None default and the unified apply_remap would no-op for QIDI.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
+    }
+
+    /// The QIDI box owns its own tool->slot table, same shape as CFS.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
     }
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
     [[nodiscard]] bool is_bypass_active() const override;

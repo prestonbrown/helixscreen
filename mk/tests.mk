@@ -329,6 +329,17 @@ TEST_APP_OBJS := $(filter-out \
 # APP_OBJS already contains it.
 TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pwm_sound_backend.o)
 
+# The channel auto-export step inside initialize() is ifdef'd
+# (HELIX_PWM_AUTO_EXPORT) so production platform builds opt in deliberately.
+# Host test builds DO opt in: the export tests in test_pwm_sound_backend.cpp
+# exercise the real call site. Guarded by "backend not in APP_SRCS" because a
+# bare target-specific flag would also reach the ad5m/ad5x app build, where the
+# same object file IS the production one — silently switching auto-export on
+# for shipping devices.
+ifeq (,$(filter $(SRC_DIR)/system/pwm_sound_backend.cpp,$(APP_SRCS)))
+$(OBJ_DIR)/system/pwm_sound_backend.o: CXXFLAGS += -DHELIX_PWM_AUTO_EXPORT
+endif
+
 # ============================================================================
 # Test Targets
 # ============================================================================

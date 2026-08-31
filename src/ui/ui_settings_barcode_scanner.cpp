@@ -38,12 +38,6 @@ struct RowData {
     std::string device_name;
     std::string bt_mac; // empty for USB rows
 };
-
-// Heap-allocated user_data for the BT pairing confirmation modal callbacks.
-struct PairData {
-    std::string mac;
-    std::string name;
-};
 } // namespace
 
 BarcodeScannerSettingsOverlay& get_barcode_scanner_settings_overlay() {
@@ -134,8 +128,6 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
         {"on_bs_bt_scanner_selected", on_bs_bt_scanner_selected},
         {"on_bs_bt_pair", on_bs_bt_pair},
         {"on_bs_bt_forget", on_bs_bt_forget},
-        {"on_bs_pair_confirm", on_bs_pair_confirm},
-        {"on_bs_pair_cancel", on_bs_pair_cancel},
     });
 
     spdlog::debug("[{}] Callbacks registered", get_name());
@@ -616,25 +608,169 @@ void BarcodeScannerSettingsOverlay::stop_bt_discovery() {
 
 void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
                                                    const std::string& name) {
-    auto* pair_data = new PairData{mac, name};
-
     auto msg = fmt::format("{} {}?", lv_tr("Pair with"), name);
-    auto* dialog = helix::ui::modal_show_confirmation(
+    // mac/name ride in the capture; the old lv_event_cb_t form carried them in
+    // a heap PairData that needed an LV_EVENT_DELETE net to free.
+    helix::ui::ConfirmOptions opts;
+    opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
+    auto* dialog = helix::ui::modal_confirm(
         lv_tr("Pair Bluetooth Scanner"), msg.c_str(), ModalSeverity::Info, lv_tr("Pair"),
-        on_bs_pair_confirm, on_bs_pair_cancel, pair_data);
-    if (!dialog) {
-        delete pair_data;
-        spdlog::warn("[{}] Failed to show pairing confirmation modal", get_name());
-        return;
-    }
+        [mac, name] {
+            auto& loader = helix::bluetooth::BluetoothLoader::instance();
+            if (!loader.is_available() || !loader.pair) {
+                ToastManager::instance().show(ToastSeverity::ERROR,
+                                              lv_tr("Bluetooth not available"));
+            } else if (!s_active_instance_ || !s_active_instance_->bt_ctx_) {
+                ToastManager::instance().show(ToastSeverity::ERROR,
+                                              lv_tr("Bluetooth not initialized"));
+            } else {
+                ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Pairing..."), 5000);
 
-    // Safety net: attach a DELETE handler on the dialog so PairData is freed
-    // regardless of how the modal is dismissed (Ok, Cancel, backdrop click, ESC).
-    // The Ok/Cancel handlers below read pair_data but do NOT delete — this
-    // handler owns the cleanup.
-    lv_obj_add_event_cb(
-        dialog, [](lv_event_t* e) { delete static_cast<PairData*>(lv_event_get_user_data(e)); },
-        LV_EVENT_DELETE, pair_data);
+                auto* bt_ctx = s_active_instance_->bt_ctx_;
+                auto token = s_active_instance_->lifetime_.token();
+
+                // Wrap spawn in try/catch per feedback_no_bare_threads_arm.md (#724).
+                try {
+                    std::thread([mac, name, bt_ctx, token]() {
+                        auto& ldr = helix::bluetooth::BluetoothLoader::instance();
+                        int ret = ldr.pair(bt_ctx, mac.c_str());
+                        int paired_r = -1;
+                        int bonded_r = -1;
+                        // sd_bus_call_method returns any non-negative integer on success.
+                        if (ret >= 0) {
+                            paired_r = ldr.is_paired ? ldr.is_paired(bt_ctx, mac.c_str()) : -1;
+                            bonded_r = ldr.is_bonded ? ldr.is_bonded(bt_ctx, mac.c_str()) : -1;
+                            spdlog::info("[BarcodeScannerSettings] Post-pair: ret={} is_paired={} "
+                                         "is_bonded={}",
+                                         ret, paired_r, bonded_r);
+                        }
+
+                        // After BlueZ reports Pair success, the kernel still has to
+                        // bring up the HID profile and create /dev/input/eventN.
+                        // Always poll - even when Bonded=false, operators who set
+                        // ClassicBondedOnly=false in /etc/bluetooth/input.conf can
+                        // still get HID to attach, and we don't want to falsely
+                        // report failure in that case. bonded_r is used below only
+                        // to pick the right toast wording when HID does not appear.
+                        bool hid_ok = false;
+                        if (ret >= 0) {
+                            for (int i = 0; i < 25; ++i) {
+                                if (helix::input::find_bt_hid_device_by_mac(mac)) {
+                                    hid_ok = true;
+                                    break;
+                                }
+                                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                            }
+                            spdlog::info("[BarcodeScannerSettings] Post-pair HID probe: hid_ok={}",
+                                         hid_ok);
+                        }
+
+                        // Clean up broken pairing: if we paired but didn't bond,
+                        // the device is stuck in a "paired" state that will cause
+                        // AlreadyExists on the next attempt and still won't work.
+                        // Remove it so the user gets a clean slate on retry.
+                        if (ret >= 0 && !hid_ok && bonded_r != 1) {
+                            spdlog::info("[BarcodeScannerSettings] Removing unbonded device {} "
+                                         "to allow clean re-pair",
+                                         helix::redact::mac(mac));
+                            if (ldr.remove_device) {
+                                ldr.remove_device(bt_ctx, mac.c_str());
+                            }
+                        }
+
+                        helix::ui::queue_update([ret, mac, name, token, bt_ctx, paired_r, bonded_r,
+                                                 hid_ok]() {
+                            if (token.expired())
+                                return;
+
+                            if (ret >= 0 && hid_ok) {
+                                ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                              lv_tr("Paired successfully"), 2000);
+                            } else if (ret >= 0 && bonded_r != 1) {
+                                // Paired but not bonded - Just-Works SSP left no
+                                // persistent key, so BlueZ's input plugin will
+                                // refuse HID. Almost always means the scanner
+                                // wasn't in pairing mode when Pair ran.
+                                spdlog::warn("[BarcodeScannerSettings] Paired but not bonded - "
+                                             "scanner needs to be in pairing mode");
+                                ToastManager::instance().show(
+                                    ToastSeverity::WARNING,
+                                    lv_tr("Pairing did not complete — the scanner did not bond. "
+                                          "Try turning it off and on, then tap Pair again."),
+                                    10000);
+                            } else if (ret >= 0) {
+                                // Bonded but HID profile still never came up.
+                                // Rarer - device-specific firmware quirk or HID
+                                // descriptor rejected by the kernel. Keep the
+                                // technical escape hatch here for operators who
+                                // can edit system config.
+                                spdlog::warn("[BarcodeScannerSettings] Bonded but HID profile "
+                                             "did not connect within 5s - scanner will not be "
+                                             "usable");
+                                ToastManager::instance().show(
+                                    ToastSeverity::WARNING,
+                                    lv_tr("Scanner bonded but didn't attach as a keyboard. Try "
+                                          "turning the scanner off and on, then tap Pair again. "
+                                          "If that fails, add ClassicBondedOnly=false to "
+                                          "/etc/bluetooth/input.conf."),
+                                    10000);
+                            }
+
+                            if (ret >= 0) {
+                                if (s_active_instance_) {
+                                    for (auto& dev : s_active_instance_->bt_devices_) {
+                                        if (dev.mac == mac) {
+                                            dev.paired = (paired_r == 1);
+                                            break;
+                                        }
+                                    }
+
+                                    // Only adopt this scanner as the active one when
+                                    // the HID link actually came up. Persisting a
+                                    // broken bond means the app would keep "using" a
+                                    // scanner that can't send any input.
+                                    if (hid_ok) {
+                                        helix::SettingsManager::instance().set_scanner_bt_address(
+                                            mac);
+                                        helix::SettingsManager::instance().set_scanner_device_name(
+                                            name);
+                                        s_active_instance_->refresh_current_selection_label();
+                                    }
+                                    s_active_instance_->populate_device_list();
+                                    s_active_instance_->populate_bt_dropdown();
+                                }
+                            } else {
+                                auto& ldr2 = helix::bluetooth::BluetoothLoader::instance();
+                                const char* err =
+                                    ldr2.last_error ? ldr2.last_error(bt_ctx) : "Unknown error";
+                                spdlog::error("[BarcodeScannerSettings] Pairing failed: {}", err);
+                                ToastManager::instance().show(ToastSeverity::ERROR,
+                                                              lv_tr("Pairing failed"), 3000);
+                            }
+                        });
+                    }).detach();
+                } catch (const std::system_error& ex) {
+                    spdlog::error("[BarcodeScannerSettings] Failed to spawn BT pair thread: {}",
+                                  ex.what());
+                    // Dismiss the "Pairing..." progress toast shown above so the user
+                    // doesn't see a stale "in progress" message alongside the error.
+                    ToastManager::instance().hide();
+                    ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Pairing failed"),
+                                                  3000);
+                    // Re-sync Pair/Forget button enable state. Selection + paired
+                    // flags are unchanged by the spawn failure, but call this so
+                    // any ambient state (e.g. selection updated while the modal
+                    // was open) is reflected - matches what the normal failure
+                    // path achieves implicitly via populate_bt_dropdown().
+                    if (s_active_instance_)
+                        s_active_instance_->update_bt_action_buttons();
+                }
+            }
+        },
+        opts);
+    if (!dialog) {
+        spdlog::warn("[{}] Failed to show pairing confirmation modal", get_name());
+    }
 }
 
 void BarcodeScannerSettingsOverlay::handle_bt_forget(const std::string& mac) {
@@ -811,184 +947,6 @@ void BarcodeScannerSettingsOverlay::on_bs_bt_forget(lv_event_t*) {
     if (dev.mac.empty())
         return;
     s_active_instance_->handle_bt_forget(dev.mac);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void BarcodeScannerSettingsOverlay::on_bs_pair_confirm(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[BarcodeScannerSettings] on_bs_pair_confirm");
-
-    auto* pair_data = static_cast<PairData*>(lv_event_get_user_data(e));
-    if (!pair_data) {
-        spdlog::warn("[BarcodeScannerSettings] on_bs_pair_confirm: null pair_data");
-    } else {
-        std::string mac = pair_data->mac;
-        std::string name = pair_data->name;
-        // PairData is freed by the dialog's LV_EVENT_DELETE handler (see pair_bt_device).
-
-        // Close the confirmation modal
-        auto* top = Modal::get_top();
-        if (top)
-            Modal::hide(top);
-
-        auto& loader = helix::bluetooth::BluetoothLoader::instance();
-        if (!loader.is_available() || !loader.pair) {
-            ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Bluetooth not available"));
-        } else if (!s_active_instance_ || !s_active_instance_->bt_ctx_) {
-            ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Bluetooth not initialized"));
-        } else {
-            ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Pairing..."), 5000);
-
-            auto* bt_ctx = s_active_instance_->bt_ctx_;
-            auto token = s_active_instance_->lifetime_.token();
-
-            // Wrap spawn in try/catch per feedback_no_bare_threads_arm.md (#724).
-            try {
-                std::thread([mac, name, bt_ctx, token]() {
-                    auto& ldr = helix::bluetooth::BluetoothLoader::instance();
-                    int ret = ldr.pair(bt_ctx, mac.c_str());
-                    int paired_r = -1;
-                    int bonded_r = -1;
-                    // sd_bus_call_method returns any non-negative integer on success.
-                    if (ret >= 0) {
-                        paired_r = ldr.is_paired ? ldr.is_paired(bt_ctx, mac.c_str()) : -1;
-                        bonded_r = ldr.is_bonded ? ldr.is_bonded(bt_ctx, mac.c_str()) : -1;
-                        spdlog::info(
-                            "[BarcodeScannerSettings] Post-pair: ret={} is_paired={} is_bonded={}",
-                            ret, paired_r, bonded_r);
-                    }
-
-                    // After BlueZ reports Pair success, the kernel still has to
-                    // bring up the HID profile and create /dev/input/eventN.
-                    // Always poll — even when Bonded=false, operators who set
-                    // ClassicBondedOnly=false in /etc/bluetooth/input.conf can
-                    // still get HID to attach, and we don't want to falsely
-                    // report failure in that case. bonded_r is used below only
-                    // to pick the right toast wording when HID does not appear.
-                    bool hid_ok = false;
-                    if (ret >= 0) {
-                        for (int i = 0; i < 25; ++i) {
-                            if (helix::input::find_bt_hid_device_by_mac(mac)) {
-                                hid_ok = true;
-                                break;
-                            }
-                            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        }
-                        spdlog::info("[BarcodeScannerSettings] Post-pair HID probe: hid_ok={}",
-                                     hid_ok);
-                    }
-
-                    // Clean up broken pairing: if we paired but didn't bond,
-                    // the device is stuck in a "paired" state that will cause
-                    // AlreadyExists on the next attempt and still won't work.
-                    // Remove it so the user gets a clean slate on retry.
-                    if (ret >= 0 && !hid_ok && bonded_r != 1) {
-                        spdlog::info("[BarcodeScannerSettings] Removing unbonded device {} "
-                                     "to allow clean re-pair",
-                                     helix::redact::mac(mac));
-                        if (ldr.remove_device) {
-                            ldr.remove_device(bt_ctx, mac.c_str());
-                        }
-                    }
-
-                    helix::ui::queue_update([ret, mac, name, token, bt_ctx, paired_r, bonded_r,
-                                             hid_ok]() {
-                        if (token.expired())
-                            return;
-
-                        if (ret >= 0 && hid_ok) {
-                            ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                                          lv_tr("Paired successfully"), 2000);
-                        } else if (ret >= 0 && bonded_r != 1) {
-                            // Paired but not bonded — Just-Works SSP left no
-                            // persistent key, so BlueZ's input plugin will
-                            // refuse HID. Almost always means the scanner
-                            // wasn't in pairing mode when Pair ran.
-                            spdlog::warn("[BarcodeScannerSettings] Paired but not bonded — "
-                                         "scanner needs to be in pairing mode");
-                            ToastManager::instance().show(
-                                ToastSeverity::WARNING,
-                                lv_tr("Pairing did not complete — the scanner did not bond. "
-                                      "Try turning it off and on, then tap Pair again."),
-                                10000);
-                        } else if (ret >= 0) {
-                            // Bonded but HID profile still never came up.
-                            // Rarer — device-specific firmware quirk or HID
-                            // descriptor rejected by the kernel. Keep the
-                            // technical escape hatch here for operators who
-                            // can edit system config.
-                            spdlog::warn("[BarcodeScannerSettings] Bonded but HID profile did not "
-                                         "connect within 5s — scanner will not be usable");
-                            ToastManager::instance().show(
-                                ToastSeverity::WARNING,
-                                lv_tr("Scanner bonded but didn't attach as a keyboard. Try turning "
-                                      "the scanner off and on, then tap Pair again. If that fails, "
-                                      "add ClassicBondedOnly=false to /etc/bluetooth/input.conf."),
-                                10000);
-                        }
-
-                        if (ret >= 0) {
-                            if (s_active_instance_) {
-                                for (auto& dev : s_active_instance_->bt_devices_) {
-                                    if (dev.mac == mac) {
-                                        dev.paired = (paired_r == 1);
-                                        break;
-                                    }
-                                }
-
-                                // Only adopt this scanner as the active one when
-                                // the HID link actually came up. Persisting a
-                                // broken bond means the app would keep "using" a
-                                // scanner that can't send any input.
-                                if (hid_ok) {
-                                    helix::SettingsManager::instance().set_scanner_bt_address(mac);
-                                    helix::SettingsManager::instance().set_scanner_device_name(
-                                        name);
-                                    s_active_instance_->refresh_current_selection_label();
-                                }
-                                s_active_instance_->populate_device_list();
-                                s_active_instance_->populate_bt_dropdown();
-                            }
-                        } else {
-                            auto& ldr2 = helix::bluetooth::BluetoothLoader::instance();
-                            const char* err =
-                                ldr2.last_error ? ldr2.last_error(bt_ctx) : "Unknown error";
-                            spdlog::error("[BarcodeScannerSettings] Pairing failed: {}", err);
-                            ToastManager::instance().show(ToastSeverity::ERROR,
-                                                          lv_tr("Pairing failed"), 3000);
-                        }
-                    });
-                }).detach();
-            } catch (const std::system_error& ex) {
-                spdlog::error("[BarcodeScannerSettings] Failed to spawn BT pair thread: {}",
-                              ex.what());
-                // Dismiss the "Pairing..." progress toast shown above so the user
-                // doesn't see a stale "in progress" message alongside the error.
-                ToastManager::instance().hide();
-                ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Pairing failed"), 3000);
-                // Re-sync Pair/Forget button enable state. Selection + paired
-                // flags are unchanged by the spawn failure, but call this so
-                // any ambient state (e.g. selection updated while the modal
-                // was open) is reflected — matches what the normal failure
-                // path achieves implicitly via populate_bt_dropdown().
-                if (s_active_instance_)
-                    s_active_instance_->update_bt_action_buttons();
-            }
-        }
-    }
-
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void BarcodeScannerSettingsOverlay::on_bs_pair_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[BarcodeScannerSettings] on_bs_pair_cancel");
-
-    // PairData is freed by the dialog's LV_EVENT_DELETE handler (see pair_bt_device).
-    (void)e;
-
-    auto* top = Modal::get_top();
-    if (top)
-        Modal::hide(top);
-
     LVGL_SAFE_EVENT_CB_END();
 }
 

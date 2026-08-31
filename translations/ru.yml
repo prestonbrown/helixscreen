@@ -1,7 +1,6 @@
 locale: ru
 translations:
   ' (timed out)': ' (время ожидания истекло)'
-  ' elapsed · ': ' истёк · '
   ' frames': ' кадров'
   ' left': ' осталось'
   '"%s" failed to load': Не удалось загрузить «%s»
@@ -213,6 +212,8 @@ translations:
   Apply Changes: Применить изменения
   Applying Changes: Применение изменений
   Applying...: Применение...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Вы уверены,
     что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит
@@ -235,6 +236,7 @@ translations:
   Auto-poll for weight updates: Автоопрос обновлений веса
   Auto-probe or manually check screw heights: Автозондирование или ручная проверка
     высоты винтов
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Автоматический рендер видео
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: Автоудаление работает только с локальным
@@ -961,6 +963,7 @@ translations:
   Failed to analyze PRINT_START macro: Не удалось проанализировать макрос PRINT_START
   Failed to apply limits: Не удалось применить ограничения
   Failed to apply settings: Не удалось применить настройки
+  Failed to archive spool: ''
   Failed to build raster data: Не удалось построить растровые данные
   'Failed to cancel: {}': 'Не удалось отменить: {}'
   'Failed to clear print state: {}': 'Не удалось очистить состояние печати: {}'
@@ -1381,6 +1384,7 @@ translations:
     {} (имеется {})'
   Invalid status response from printer: Недопустимый ответ статуса от принтера
   Issue description: Описание проблемы
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: Это новая катушка
   Jammed at the Toolhead: Замятие в печатающей головке
   Job Queue: Очередь заданий
@@ -1526,7 +1530,6 @@ translations:
   MACRO DEVICES: МАКРО-УСТРОЙСТВА
   MAIN POWER BUTTON: ГЛАВНАЯ КНОПКА ПИТАНИЯ
   MANUAL: ВРУЧНУЮ
-  MAPPING: СОПОСТАВЛЕНИЕ
   MB RAM: МБ ОЗУ
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Мониторинг температуры MCU, хоста
@@ -1768,6 +1771,7 @@ translations:
   No slot currently matches.: 'Сейчас нет подходящего слота.'
   No spool assigned: Катушка не назначена
   No spools found — tap to retry: Катушки не найдены — нажмите для повтора
+  No spools match your search: ''
   No tape detected in printer: В принтере не обнаружена лента
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
@@ -2582,6 +2586,7 @@ translations:
   'Spool #{}': 'Катушка #{}'
   Spool Info: Информация о катушке
   Spool Weight (g): Вес катушки (г)
+  Spool archived: ''
   Spool created successfully: Катушка успешно создана
   Spool deleted: Катушка удалена
   Spool motor: Мотор катушки

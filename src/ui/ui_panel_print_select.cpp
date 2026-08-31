@@ -31,6 +31,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_backend.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
@@ -2730,8 +2731,7 @@ void PrintSelectPanel::on_file_long_pressed(size_t file_index) {
     apply_file_selection(file);
 
     // Reuse the existing confirmation modal. The detail view's
-    // show_delete_confirmation() is a thin wrapper around modal_show_confirmation()
-    // and does not require the detail view to be visible.
+    // show_delete_confirmation() does not require the detail view to be visible.
     show_delete_confirmation();
 }
 
@@ -2783,14 +2783,13 @@ void PrintSelectPanel::start_print(bool force) {
 }
 
 void PrintSelectPanel::show_preflight_modal(const helix::PreflightResult& pf) {
-    // Heap-allocated; self-deletes in PreflightCheckModal::on_hide() (LVGL /
-    // ModalStack cleanup never calls Modal::~Modal). Mirrors the spaghetti
-    // detection modal's lifecycle.
-    auto* modal = new helix::ui::PreflightCheckModal();
+    // Stack-owned one-shot: Modal::show_owned() hands the instance to
+    // ModalStack, which frees it when its entry goes (#1382).
+    auto modal = std::make_unique<helix::ui::PreflightCheckModal>();
     modal->set_checks(pf);
     modal->set_on_force([]() { get_global_print_select_panel().start_print(true); });
     modal->set_on_remap([]() { get_global_print_select_panel().on_preflight_remap(); });
-    modal->show(lv_screen_active());
+    Modal::show_owned(std::move(modal), lv_screen_active());
 }
 
 void PrintSelectPanel::on_preflight_remap() {
@@ -2825,7 +2824,7 @@ void PrintSelectPanel::open_remap_modal() {
         return;
     }
     const auto strategy = backend->get_remap_strategy();
-    if (strategy == AmsBackend::RemapStrategy::None) {
+    if (!helix::printer::can_remap(*backend)) {
         return;
     }
 
@@ -2837,11 +2836,10 @@ void PrintSelectPanel::open_remap_modal() {
     // of a picker whose Done would silently fail.
     if (strategy == AmsBackend::RemapStrategy::GcodeRewrite &&
         !printer_state_.service_has_helix_plugin()) {
-        helix::ui::modal_show_alert(
-            lv_tr("Remap needs the HelixPrint plugin"),
-            lv_tr("Install the HelixPrint plugin in Advanced settings to remap "
-                  "filament without affecting print history."),
-            ModalSeverity::Info, lv_tr("OK"), nullptr, nullptr);
+        helix::ui::modal_alert(lv_tr("Remap needs the HelixPrint plugin"),
+                               lv_tr("Install the HelixPrint plugin in Advanced settings to remap "
+                                     "filament without affecting print history."),
+                               ModalSeverity::Info, lv_tr("OK"));
         return;
     }
 

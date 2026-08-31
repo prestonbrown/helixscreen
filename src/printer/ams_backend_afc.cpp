@@ -197,7 +197,6 @@ AmsBackendAfc::AmsBackendAfc(IMoonrakerAPI* api, IMoonrakerClient* client)
     // AFC has no on/off switch for endless spool: present means on. Sourced
     // from the shared defaults so the mock's AFC scenario cannot drift.
     system_info_.endless_spool_enabled = caps.supports_endless_spool;
-    system_info_.supports_tool_mapping = caps.supports_tool_mapping;
     system_info_.supports_bypass = caps.supports_bypass;
     system_info_.supports_purge = caps.supports_purge;
     system_info_.tip_method = caps.tip_method;
@@ -404,7 +403,6 @@ AmsSystemInfo AmsBackendAfc::get_system_info() const {
     info.spoolman_url = system_info_.spoolman_url;
     info.filament_loaded = system_info_.filament_loaded;
     info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_tool_mapping = system_info_.supports_tool_mapping;
     info.supports_bypass = system_info_.supports_bypass;
     info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
     info.tip_method = system_info_.tip_method;
@@ -5564,11 +5562,6 @@ helix::printer::EndlessSpoolCapabilities AmsBackendAfc::get_endless_spool_capabi
 // ============================================================================
 // Tool Mapping Operations
 // ============================================================================
-
-helix::printer::ToolMappingCapabilities AmsBackendAfc::get_tool_mapping_capabilities() const {
-    // AFC supports per-lane tool assignment via SET_MAP G-code
-    return {true, true, "Per-lane tool assignment via SET_MAP"};
-}
 
 std::vector<int> AmsBackendAfc::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);

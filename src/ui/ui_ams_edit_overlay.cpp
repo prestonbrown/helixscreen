@@ -12,6 +12,7 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
@@ -84,7 +85,9 @@ AmsEditOverlay& get_ams_edit_overlay() {
     return *g_ams_edit_overlay;
 }
 
-AmsEditOverlay::AmsEditOverlay() {
+AmsEditOverlay::AmsEditOverlay()
+    : picker_search_debounce_(
+          [this](const std::string& query) { handle_picker_search(query.c_str()); }) {
     spdlog::debug("[AmsEditOverlay] Constructed");
 }
 
@@ -127,6 +130,8 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
     cached_spools_.clear();
+    cached_searchables_.clear();
+    picker_search_debounce_.cancel();
 
     // Always prefer the active screen so the overlay renders above everything
     lv_obj_t* screen = lv_screen_active();
@@ -332,6 +337,10 @@ void AmsEditOverlay::on_deactivate() {
     // resets happen in show_for_slot(). Base invalidates lifetime_ (pending
     // Spoolman fetches for this activation are dropped; token() re-arms).
     OverlayBase::on_deactivate();
+    // A pending debounced search belongs to the session being left; firing it
+    // into a covered or popped picker is wasted work at best. show_for_slot()
+    // re-arms state on the next open.
+    picker_search_debounce_.cancel();
     spdlog::debug("[AmsEditOverlay] on_deactivate()");
 }
 
@@ -421,6 +430,12 @@ void AmsEditOverlay::deinit_subjects() {
 // ============================================================================
 
 void AmsEditOverlay::set_view(int view) {
+    // Leaving the picker with a search still settling: the debounced rebuild
+    // would re-render the now-hidden spool list mid-transition. It belongs to
+    // the view being left.
+    if (lv_subject_get_int(&view_mode_subject_) == VIEW_SPOOL_PICKER && view != VIEW_SPOOL_PICKER) {
+        picker_search_debounce_.cancel();
+    }
     lv_subject_set_int(&view_mode_subject_, view);
     // Header Save is visible on the overview AND the spool-edit view (where it
     // finishes the whole edit and closes). The picker and color views hide it.
@@ -468,6 +483,17 @@ void AmsEditOverlay::populate_picker() {
         return;
     }
 
+    // A query typed into the just-cleared box must not fire after the
+    // refetch lands and re-renders the full list.
+    picker_search_debounce_.cancel();
+
+    // Drop the previous session's inventory: the programmatic clear of the
+    // search box below fires value_changed, whose immediate empty-filter
+    // render against a stale cache would flash the old list behind the
+    // spinner. The fetch callback repopulates both.
+    cached_spools_.clear();
+    cached_searchables_.clear();
+
     // Show loading state
     lv_subject_set_int(&picker_state_subject_, 0);
 
@@ -509,6 +535,11 @@ void AmsEditOverlay::populate_picker() {
                 // is applied once in the API layer on fetch (#1071). filter_spools()
                 // preserves order, so filtering doesn't need to re-sort.
                 cached_spools_ = spools;
+                cached_searchables_.clear();
+                cached_searchables_.reserve(cached_spools_.size());
+                for (const auto& spool : cached_spools_) {
+                    cached_searchables_.push_back(build_searchable_text(spool));
+                }
                 render_spool_list("");
             });
         },
@@ -537,8 +568,9 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     // lv_obj_clean in that context corrupts LVGL's event linked list (#776).
     helix::ui::safe_clean_children(spool_list);
 
-    // Reuse shared filter_spools() from spoolman_types
-    auto filtered = filter_spools(cached_spools_, filter);
+    // Reuse shared filter_spools() from spoolman_types, over the searchable
+    // text prebuilt at fetch time (cached_searchables_ parallels the spools).
+    auto filtered = filter_spools(cached_spools_, filter, cached_searchables_);
 
     // Get spool IDs assigned to other tools (exclude current slot's tool)
     auto in_use = ToolState::instance().assigned_spool_ids(slot_index_);
@@ -628,7 +660,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
     }
 
-    lv_subject_set_int(&picker_state_subject_, filtered.empty() ? 1 : 2);
+    // 3 = the term matched nothing (informational); 1 stays reserved for the
+    // fetch-failed retry card.
+    // 3 = the term matched nothing (informational); 1 stays reserved for the
+    // fetch-failed retry card.
+    lv_subject_set_int(&picker_state_subject_, filtered.empty() ? 3 : 2);
     spdlog::debug("[AmsEditOverlay] Rendered {} spool items (filter='{}')", filtered.size(),
                   filter);
 }
@@ -1467,17 +1503,27 @@ void AmsEditOverlay::update_ui() {
     lv_obj_t* tool_remap_row = find_widget("tool_remap_row");
     lv_obj_t* tool_dropdown = find_widget("tool_dropdown");
     auto* backend = AmsState::instance().get_backend();
-    bool can_remap = backend && backend->get_system_info().supports_tool_mapping;
+    // This dropdown EDITS the backend's table through set_tool_mapping(), so the
+    // question is whether such a write lands — not the broader "can the user's
+    // pick be honored somehow", which the U1 answers yes to via its pre-print
+    // send while refusing set_tool_mapping outright. Same rule the print-start
+    // generic apply path gates on, called rather than restated.
+    //
+    // Was AmsSystemInfo::supports_tool_mapping, a second copy of the answer that
+    // AD5X IFS set true unconditionally: before `_IFS_VARS` discovery the
+    // dropdown was offered and its write went into local state the firmware
+    // replays nothing from.
+    const bool can_edit_mapping = backend && helix::printer::can_write_mapping_table(*backend);
 
     if (tool_remap_row) {
-        if (can_remap) {
+        if (can_edit_mapping) {
             lv_obj_remove_flag(tool_remap_row, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(tool_remap_row, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
-    if (tool_dropdown && can_remap) {
+    if (tool_dropdown && can_edit_mapping) {
         int tool_count = static_cast<int>(backend->get_system_info().tool_to_slot_map.size());
         std::string tool_options;
         for (int i = 0; i < tool_count; i++) {
@@ -1914,49 +1960,47 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
     // to match" is deliberately NOT offered here — correcting a mislabelled
     // spool belongs in the Spoolman panel's own edit, where it is not one
     // mis-tap away from overwriting a different spool's identity.
-    lv_obj_t* dlg = modal_show_confirmation(
+    // TRUE ABORT for Cancel and for any dismissal (backdrop tap, ESC): do
+    // NOTHING else - no close_editor(), no completion. The staged edits
+    // (working_info_, details_color_, ...) stay exactly as they were so the
+    // user can tweak and re-Save (the dialog reappears - same diff) or Back out
+    // (Back already discards via working_info_ = original_info_). Committing
+    // the slot locally here would leak the unconfirmed "different filament"
+    // identity into the AMS panel while Spoolman still shows the old one -
+    // exactly the outcome this confirmation exists to gate.
+    auto true_abort = [] {
+        auto& overlay = get_ams_edit_overlay();
+        // handle_spool_edit_save()'s header-Save "finish" path unconditionally
+        // detaches + clears the catalog selector before reaching here (see
+        // reattach_details_selector()'s doc comment for why). Abort leaves the
+        // user ON the spool-edit view, so revive the selector or the vendor/
+        // type/product picker goes dead.
+        if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
+            overlay.reattach_details_selector();
+        }
+    };
+
+    ConfirmOptions opts;
+    opts.on_cancel = true_abort;
+    opts.on_dismiss = true_abort;
+    lv_obj_t* dlg = modal_confirm(
         lv_tr("Different filament?"),
         lv_tr("This doesn't match the linked Spoolman spool. Add it as a new spool, or update "
               "the linked one to match?"),
-        ModalSeverity::Warning, lv_tr("It's a new spool"), on_identity_confirm_cb,
-        on_identity_cancel_cb, nullptr);
+        ModalSeverity::Warning, lv_tr("It's a new spool"),
+        // "It's a new spool" - create and rebind; the previously linked spool
+        // is left exactly as it was.
+        [] {
+            get_ams_edit_overlay().do_spoolman_save(
+                helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
+        },
+        opts);
     if (!dlg) {
-        // Couldn't show the dialog — abort rather than guess. Falling through to
+        // Couldn't show the dialog - abort rather than guess. Falling through to
         // a write here would pick one of two destructive outcomes on the user's
         // behalf, which is exactly what this gate exists to prevent.
         spdlog::warn("[AmsEditOverlay] identity confirmation failed to show; aborting save");
         close_editor(false);
-    }
-}
-
-void AmsEditOverlay::on_identity_confirm_cb(lv_event_t* /*e*/) {
-    // Dismiss the confirmation FIRST — modal_dialog has no auto-close, and
-    // leaving it up would keep the buttons re-tappable, double-firing the
-    // Spoolman write. Confirmation modals still stack above the overlay (§13.6).
-    Modal::hide(Modal::get_top());
-    // "It's a new spool" — create and rebind; the previously linked spool is
-    // left exactly as it was.
-    get_ams_edit_overlay().do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
-}
-
-void AmsEditOverlay::on_identity_cancel_cb(lv_event_t* /*e*/) {
-    // TRUE ABORT: dismiss the confirmation and do NOTHING else — no
-    // close_editor(), no completion. The staged edits (working_info_,
-    // details_color_, ...) stay exactly as they were so the user can tweak
-    // and re-Save (the dialog reappears — same diff) or Back out (Back
-    // already discards via working_info_ = original_info_). Committing the
-    // slot locally here would leak the unconfirmed "different filament"
-    // identity into the AMS panel while Spoolman still shows the old one —
-    // exactly the outcome this confirmation exists to gate.
-    Modal::hide(Modal::get_top());
-    auto& overlay = get_ams_edit_overlay();
-    // handle_spool_edit_save()'s header-Save "finish" path unconditionally
-    // detaches + clears the catalog selector before reaching here (see
-    // reattach_details_selector()'s doc comment for why). Abort leaves the
-    // user ON the spool-edit view, so revive the selector or the vendor/
-    // type/product picker goes dead.
-    if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
-        overlay.reattach_details_selector();
     }
 }
 
@@ -2180,7 +2224,9 @@ void AmsEditOverlay::on_picker_search_cb(lv_event_t* e) {
     if (self) {
         auto* ta = static_cast<lv_obj_t*>(lv_event_get_target(e));
         const char* text = lv_textarea_get_text(ta);
-        self->handle_picker_search(text);
+        // Debounced: a burst of keystrokes re-renders the list once, after the
+        // user pauses. Empty text fires immediately (shows all spools again).
+        self->picker_search_debounce_.schedule(text ? text : "");
     }
 }
 

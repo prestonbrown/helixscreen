@@ -10,6 +10,7 @@
 #include "ui_panel_base.h"
 
 #include "active_material_provider.h"
+#include "async_lifetime_guard.h"
 #include "config.h"
 #include "filament_op_dispatch.h"
 #include "macro_param_modal.h"
@@ -472,6 +473,11 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* load_warning_dialog_ = nullptr;
     lv_obj_t* unload_warning_dialog_ = nullptr;
 
+    /// Expires the load/unload warning dialogs' callbacks when this panel is
+    /// destroyed via StaticPanelRegistry (soft restart, printer switch,
+    /// shutdown). Panels are not OverlayBase, so the guard lives here.
+    helix::AsyncLifetimeGuard lifetime_;
+
     // Temperature graph (managed by TemperatureService)
     TemperatureService* temp_control_panel_ = nullptr;
 
@@ -657,12 +663,6 @@ class FilamentPanel : public PanelBase {
     // Keypad callback bridges (different signature - not LVGL events)
     static void custom_nozzle_keypad_cb(float value, void* user_data);
     static void custom_bed_keypad_cb(float value, void* user_data);
-
-    // Filament sensor warning dialog callbacks
-    static void on_load_warning_proceed(lv_event_t* e);
-    static void on_load_warning_cancel(lv_event_t* e);
-    static void on_unload_warning_proceed(lv_event_t* e);
-    static void on_unload_warning_cancel(lv_event_t* e);
 };
 
 // Global instance accessor (needed by main.cpp)

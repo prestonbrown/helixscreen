@@ -1129,6 +1129,18 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
 
 } // namespace
 
+// Exported for teardown paths that null user_data across a widget tree (see
+// Modal::disarm_tree): they must leave ui_button's own allocation in place so
+// button_delete_cb can still find and free it.
+bool ui_button_owns_user_data(const lv_obj_t* obj) {
+    if (!obj || live_ui_buttons().count(obj) == 0) {
+        return false;
+    }
+    const auto* data =
+        static_cast<const UiButtonData*>(lv_obj_get_user_data(const_cast<lv_obj_t*>(obj)));
+    return data && data->magic == UiButtonData::MAGIC;
+}
+
 void ui_button_init() {
     lv_xml_register_widget("ui_button", ui_button_create, ui_button_apply);
     spdlog::trace("[ui_button] Registered semantic button widget");

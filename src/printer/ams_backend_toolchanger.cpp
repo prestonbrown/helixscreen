@@ -31,8 +31,7 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
     system_info_.type_name = "Tool Changer";
 
     // Tool changer capabilities
-    system_info_.supports_tool_mapping = true; // Via klipper-toolchanger ASSIGN_TOOL
-    system_info_.supports_bypass = false;      // No bypass on tool changers
+    system_info_.supports_bypass = false; // No bypass on tool changers
     system_info_.has_hardware_bypass_sensor = false;
 
     spdlog::debug("[AMS ToolChanger] Backend created");
@@ -1326,12 +1325,6 @@ AmsError AmsBackendToolChanger::set_tool_mapping(int tool_number, int slot_index
     spdlog::info("[AMS ToolChanger] Remapping T{} -> physical {} (slot {})", tool_number,
                  physical_tool_name, slot_index);
     return execute_gcode(cmd.str());
-}
-
-helix::printer::ToolMappingCapabilities
-AmsBackendToolChanger::get_tool_mapping_capabilities() const {
-    // klipper-toolchanger supports ASSIGN_TOOL for tool remapping
-    return {true, true, "Tool reassignment via ASSIGN_TOOL"}; // i18n: do not translate
 }
 
 std::vector<int> AmsBackendToolChanger::get_tool_mapping() const {

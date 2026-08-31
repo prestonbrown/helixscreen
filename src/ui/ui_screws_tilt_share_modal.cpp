@@ -3,8 +3,6 @@
 
 #include "ui_screws_tilt_share_modal.h"
 
-#include "ui_update_queue.h"
-
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "screws_tilt_share_text.h"
 #include "static_subject_registry.h"
@@ -29,9 +27,9 @@ constexpr size_t ADJ_BUF_SIZE = 24;
  * @brief Row subjects backing the modal's <repeat> expansion
  *
  * Deliberately process-wide rather than per-instance. Modal teardown deletes
- * the widget tree asynchronously (exit animation + deferred delete) while
- * on_hide() schedules the C++ object's own deletion on the next tick — so
- * instance-owned subjects would be deinit'd while bound labels still exist.
+ * the widget tree asynchronously (exit animation + deferred delete) while the
+ * owning instance's deletion is itself deferred a tick - so instance-owned
+ * subjects would be deinit'd while bound labels still exist.
  * Registering once and tearing down via StaticSubjectRegistry (which runs
  * before lv_deinit()) removes that ordering hazard entirely.
  */
@@ -142,14 +140,6 @@ bool ScrewsTiltShareModal::show_modal(lv_obj_t* parent) {
 void ScrewsTiltShareModal::on_show() {
     wire_ok_button("btn_ok");
     create_qr_code();
-}
-
-void ScrewsTiltShareModal::on_hide() {
-    // Self-delete: heap-allocated with no other owner. Deferred so hide()
-    // finishes before destruction.
-    auto* self = this;
-    helix::ui::async_call([](void* data) { delete static_cast<ScrewsTiltShareModal*>(data); },
-                          self);
 }
 
 void ScrewsTiltShareModal::create_qr_code() {

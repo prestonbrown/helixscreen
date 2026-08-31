@@ -6,18 +6,59 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <pthread.h>
+#include <sched.h>
 #include <string>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+#include <time.h>
 #include <unistd.h>
 
-// Buffer size for render loop (frames per render call)
-// Larger = fewer source callbacks + better amortization of nanosleep overhead
-// 512 frames @ 16kHz = 32ms per buffer (good balance of latency vs efficiency)
-static constexpr size_t RENDER_BUFFER_FRAMES = 512;
+// Floor division for signed int64. C++ '/' truncates toward zero, but sample
+// arithmetic needs floor so a partial-sample deficit counts as a full sample
+// late (and a partial lead as a full sample early).
+static int64_t floor_div_i64(int64_t n, int64_t d) {
+    int64_t q = n / d;
+    int64_t r = n % d;
+    return (r != 0 && ((r < 0) != (d < 0))) ? q - 1 : q;
+}
+
+static struct timespec to_timespec_ns(int64_t ns) {
+    struct timespec ts;
+    ts.tv_sec = static_cast<time_t>(ns / 1000000000LL);
+    ts.tv_nsec = static_cast<long>(ns % 1000000000LL);
+    return ts;
+}
+
+static int64_t monotonic_now_ns() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+/// Default sleep seam: TIMER_ABSTIME sleep to deadline minus the spin
+/// budget, then spin the final stretch — absorbs hrtimer wake lateness
+/// without burning real CPU across the whole sample interval. CLOCK_MONOTONIC
+/// is used directly here; the now seam WRAPS this whole function (virtual
+/// clock tests replace wait_until_fn_ entirely, so this never runs there).
+static void default_wait_until(int64_t deadline_ns, const std::function<int64_t()>& now) {
+    const int64_t sleep_target = deadline_ns - PWMSoundBackend::PCM_SPIN_BUDGET_NS;
+    if (now() < sleep_target) {
+        struct timespec ts = to_timespec_ns(sleep_target);
+        while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) == EINTR) {
+            // retry on signal
+        }
+    }
+    while (now() < deadline_ns) {
+        // spin — at SCHED_IDLE the scheduler preempts this against any real work
+    }
+}
 
 PWMSoundBackend::PWMSoundBackend(const std::string& base_path, int chip, int channel)
     : base_path_(base_path), chip_(chip), channel_(channel) {}
@@ -37,6 +78,19 @@ uint32_t PWMSoundBackend::freq_to_period_ns(float freq_hz) {
     return static_cast<uint32_t>(1e9f / freq_hz);
 }
 
+float PWMSoundBackend::shift_to_piezo_band(float freq_hz) {
+    if (freq_hz <= 0.0f) {
+        return 0.0f;
+    }
+    while (freq_hz < 500.0f) {
+        freq_hz *= 2.0f;
+    }
+    while (freq_hz > 2500.0f) {
+        freq_hz *= 0.5f;
+    }
+    return freq_hz;
+}
+
 float PWMSoundBackend::waveform_duty_ratio(Waveform w) {
     switch (w) {
     case Waveform::SQUARE:
@@ -49,6 +103,20 @@ float PWMSoundBackend::waveform_duty_ratio(Waveform w) {
         return 0.40f;
     }
     return 0.50f;
+}
+
+int64_t PWMSoundBackend::park_probe_frames() {
+    return PCM_PARK_POLL_NS * PCM_SAMPLE_RATE / 1000000000LL;
+}
+
+int64_t PWMSoundBackend::samples_behind(int64_t now_ns, int64_t base_ns, int64_t sample_index,
+                                        int64_t interval_ns) {
+    return floor_div_i64(now_ns - (base_ns + sample_index * interval_ns), interval_ns);
+}
+
+int64_t PWMSoundBackend::resync_sample_index(int64_t now_ns, int64_t base_ns, int64_t interval_ns) {
+    int64_t index = floor_div_i64(now_ns - base_ns, interval_ns);
+    return index < 0 ? 0 : index;
 }
 
 bool PWMSoundBackend::supports_waveforms() const {
@@ -71,10 +139,45 @@ bool PWMSoundBackend::is_enabled() const {
     return enabled_;
 }
 
+bool PWMSoundBackend::try_export_channel() {
+    std::string chip_dir = base_path_ + "/pwmchip" + std::to_string(chip_);
+    if (!std::filesystem::exists(chip_dir)) {
+        return false;
+    }
+
+    std::string export_path = chip_dir + "/export";
+    int fd = ::open(export_path.c_str(), O_WRONLY);
+    if (fd < 0) {
+        spdlog::warn("[PWMSoundBackend] Cannot open {} for export (errno {})", export_path, errno);
+        return true;
+    }
+
+    std::string channel = std::to_string(channel_);
+    ssize_t written = ::write(fd, channel.c_str(), channel.size());
+    int write_errno = errno; // captured before close() can touch it
+    ::close(fd);
+
+    // EBUSY means the kernel already has this channel exported. Any other
+    // failure is worth a log line, but the caller's re-check of the channel
+    // directory decides the outcome.
+    if (written < 0 && write_errno != EBUSY) {
+        spdlog::warn("[PWMSoundBackend] Export write to {} failed (errno {})", export_path,
+                     write_errno);
+    }
+    return true;
+}
+
 bool PWMSoundBackend::initialize() {
     std::string path = channel_path();
     if (!std::filesystem::exists(path)) {
-        return false;
+#ifdef HELIX_PWM_AUTO_EXPORT
+        // The stock AD5M kernel ships the beeper channel unexported: nothing
+        // materializes pwm6 until its number is written to pwmchip0/export.
+        try_export_channel();
+#endif
+        if (!std::filesystem::exists(path)) {
+            return false;
+        }
     }
 
     // Pre-open file descriptors for fast writes in render loop
@@ -93,7 +196,8 @@ bool PWMSoundBackend::initialize() {
         fd_duty_ = fd_period_ = fd_enable_ = -1;
     }
 
-    render_buf_.resize(RENDER_BUFFER_FRAMES);
+    render_buf_.resize(PCM_RENDER_BUFFER_FRAMES);
+    park_probe_buf_.resize(static_cast<size_t>(park_probe_frames()));
 
     initialized_ = true;
     return true;
@@ -127,6 +231,11 @@ static void sysfs_write_fd(int fd, int value) {
     int len = snprintf(buf, sizeof(buf), "%d", value);
     ::lseek(fd, 0, SEEK_SET);
     ::write(fd, buf, len);
+    // sysfs writes replace the file's content; a plain file (test mock, or a
+    // tmpfs stand-in) keeps the stale tail past the new length. Truncating
+    // makes both behave the same. On real sysfs ftruncate just fails, ignored
+    // like the write result above.
+    ::ftruncate(fd, len);
 }
 
 void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cycle */) {
@@ -140,6 +249,11 @@ void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cyc
     if (render_running_.load()) {
         return;
     }
+
+    // Emitted pitch lives in the piezo's loud band: whole-octave shifts keep
+    // the pitch class while escaping the transducer's weak low end and
+    // ultrasonic top end.
+    freq_hz = shift_to_piezo_band(freq_hz);
 
     amplitude = std::clamp(amplitude, 0.0f, 1.0f);
 
@@ -161,6 +275,14 @@ void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cyc
 
     float ratio = waveform_duty_ratio(current_wave_);
     uint32_t duty_ns = static_cast<uint32_t>(static_cast<float>(period_ns) * ratio * amplitude);
+
+    // Dedup: the sequencer re-sends the same note every tick, so a held
+    // tone would otherwise rewrite sysfs hundreds of times per second
+    // (mirrors M300SoundBackend::last_freq_). Keyed on the written values
+    // and only while the channel is already emitting; silence() clears it.
+    if (enabled_ && period_ns == last_tone_period_ns_ && duty_ns == last_tone_duty_ns_) {
+        return;
+    }
 
     if (fd_duty_ >= 0) {
         if (!enabled_) {
@@ -189,6 +311,10 @@ void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cyc
             enabled_ = true;
         }
     }
+
+    last_tone_period_ns_ = period_ns;
+    last_tone_duty_ns_ = duty_ns;
+    tone_write_count_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void PWMSoundBackend::silence() {
@@ -201,6 +327,13 @@ void PWMSoundBackend::silence() {
         return;
     }
 
+    // Already off: the tracker fallback calls silence_voice(0) every tick
+    // through rests, so without this guard a rest rewrites enable ~500x/s
+    // (M300SoundBackend guards its silence the same way).
+    if (!enabled_) {
+        return;
+    }
+
     if (fd_enable_ >= 0) {
         sysfs_write_fd(fd_enable_, 0);
     } else {
@@ -208,6 +341,10 @@ void PWMSoundBackend::silence() {
         std::ofstream(path + "/enable") << "0";
     }
     enabled_ = false;
+
+    // Channel is off — the next set_tone must emit, even for the same tone
+    last_tone_period_ns_ = 0;
+    last_tone_duty_ns_ = 0;
 }
 
 void PWMSoundBackend::set_waveform(Waveform w) {
@@ -222,6 +359,14 @@ void PWMSoundBackend::set_waveform(Waveform w) {
 // ============================================================================
 
 void PWMSoundBackend::set_render_source(std::function<void(float*, size_t, int)> fn) {
+    if (!initialized_) {
+        // The render buffers are sized in initialize(); a thread started
+        // without them would park into a memset on an empty probe buffer,
+        // and shutdown()'s !initialized_ early-return would leave that
+        // thread joinable at destruction. Refuse instead.
+        spdlog::warn("[PWMSoundBackend] set_render_source before initialize() - ignoring");
+        return;
+    }
     {
         std::lock_guard<std::mutex> lock(render_source_mutex_);
         render_source_ = std::move(fn);
@@ -273,6 +418,49 @@ void PWMSoundBackend::exit_pcm_mode() {
     spdlog::debug("[PWMSoundBackend] Exited PCM mode");
 }
 
+void PWMSoundBackend::apply_render_thread_priority() {
+    // SCHED_IDLE: this thread runs only when nothing else wants the CPU, so
+    // its pacing can never starve klippy — the failure that got PCM playback
+    // pulled from ad5m in the first place. Setting it needs no privileges.
+    struct sched_param sp = {};
+    if (pthread_setschedparam(pthread_self(), SCHED_IDLE, &sp) == 0) {
+        // sched_getscheduler takes a kernel TID, not a pthread_t (opaque) —
+        // passing pthread_self() there always fails ESRCH.
+        applied_sched_policy_ = sched_getscheduler(static_cast<pid_t>(::syscall(SYS_gettid)));
+    } else {
+        spdlog::debug("[PWMSoundBackend] SCHED_IDLE refused (errno {}) - staying SCHED_OTHER",
+                      errno);
+    }
+    // Timerslack only affects relative sleeps (the 1 ms no-source poll); the
+    // render loop paces with TIMER_ABSTIME, so this is belt-and-suspenders.
+    prctl(PR_SET_TIMERSLACK, 1UL);
+}
+
+void PWMSoundBackend::park_output() {
+    // Duty first, then disable: the channel must rest low before enable drops.
+    if (fd_duty_ >= 0) {
+        sysfs_write_fd(fd_duty_, 0);
+        sysfs_write_fd(fd_enable_, 0);
+    } else {
+        std::string path = channel_path();
+        std::ofstream(path + "/duty_cycle") << "0";
+        std::ofstream(path + "/enable") << "0";
+    }
+    // enabled_/in_pcm_mode_ stay as they are: silence()'s render_running_
+    // guard and set_tone's first-tone branch depend on them.
+}
+
+void PWMSoundBackend::resume_output() {
+    if (fd_duty_ >= 0) {
+        sysfs_write_fd(fd_duty_, 0);
+        sysfs_write_fd(fd_enable_, 1);
+    } else {
+        std::string path = channel_path();
+        std::ofstream(path + "/duty_cycle") << "0";
+        std::ofstream(path + "/enable") << "1";
+    }
+}
+
 void PWMSoundBackend::start_render_thread() {
     if (render_running_.load())
         return;
@@ -299,10 +487,28 @@ void PWMSoundBackend::stop_render_thread() {
 }
 
 void PWMSoundBackend::render_loop() {
+    // Printer safety before anything else: demote this thread so that no
+    // matter how the pacing below goes wrong, it outranks nobody.
+    apply_render_thread_priority();
+
+    // Default the clock/sleep seams (tests inject virtual ones before this
+    // thread starts).
+    if (!now_fn_) {
+        now_fn_ = [] { return monotonic_now_ns(); };
+    }
+    if (!wait_until_fn_) {
+        std::function<int64_t()> now = now_fn_;
+        wait_until_fn_ = [now](int64_t deadline_ns) { default_wait_until(deadline_ns, now); };
+    }
+
+    // A previous playback on this backend may have left the loop parked.
+    parked_.store(false);
+    silent_buffer_run_.store(0);
+
     enter_pcm_mode();
 
     const uint32_t carrier_period = static_cast<uint32_t>(1e9 / PCM_CARRIER_HZ);
-    const long sample_interval_ns = 1000000000L / PCM_SAMPLE_RATE;
+    const int64_t sample_interval_ns = 1000000000LL / PCM_SAMPLE_RATE;
 
     // Duty range: 0.5% to 99.5% for maximum buzzer deflection
     static constexpr float DUTY_MIN = 0.005f;
@@ -322,10 +528,8 @@ void PWMSoundBackend::render_loop() {
     static constexpr float AGC_ATTACK = 0.001f;   // fast attack (reduce gain on peaks)
     static constexpr float AGC_RELEASE = 0.0001f; // slow release (increase gain gradually)
 
-    struct timespec start_ts;
-    clock_gettime(CLOCK_MONOTONIC, &start_ts);
-    long base_ns = start_ts.tv_sec * 1000000000L + start_ts.tv_nsec;
-    long sample_index = 0;
+    int64_t base_ns = now_fn_();
+    int64_t sample_index = 0;
 
     while (render_running_.load()) {
         // Get render source under lock
@@ -338,9 +542,33 @@ void PWMSoundBackend::render_loop() {
         if (!source) {
             struct timespec sl = {0, 1000000}; // 1ms
             nanosleep(&sl, nullptr);
-            clock_gettime(CLOCK_MONOTONIC, &start_ts);
-            base_ns = start_ts.tv_sec * 1000000000L + start_ts.tv_nsec;
+            base_ns = now_fn_();
             sample_index = 0;
+            silent_buffer_run_.store(0);
+            continue;
+        }
+
+        if (parked_.load()) {
+            // Parked: channel is off and no duty writes happen. Poll a small
+            // probe buffer and resume the moment real audio shows up.
+            const size_t probe_frames = static_cast<size_t>(park_probe_frames());
+            std::memset(park_probe_buf_.data(), 0, probe_frames * sizeof(float));
+            source(park_probe_buf_.data(), probe_frames, PCM_SAMPLE_RATE);
+            bool any_nonzero = false;
+            for (size_t i = 0; i < probe_frames && !any_nonzero; i++) {
+                any_nonzero = park_probe_buf_[i] != 0.0f;
+            }
+            if (any_nonzero) {
+                // Re-enable BEFORE publishing the flag: a reader that sees
+                // parked_ == false must find the channel already on.
+                resume_output();
+                parked_.store(false);
+                silent_buffer_run_.store(0);
+                base_ns = now_fn_();
+                sample_index = 0;
+            } else {
+                wait_until_fn_(now_fn_() + PCM_PARK_POLL_NS);
+            }
             continue;
         }
 
@@ -349,7 +577,7 @@ void PWMSoundBackend::render_loop() {
         std::memset(render_buf_.data(), 0, frames * sizeof(float));
         source(render_buf_.data(), frames, PCM_SAMPLE_RATE);
 
-        // Find peak in this buffer for AGC
+        // Find peak in this buffer for AGC (and the park detector)
         float peak = 0.0f;
         for (size_t i = 0; i < frames; i++) {
             float abs_val = std::abs(render_buf_[i]);
@@ -371,6 +599,15 @@ void PWMSoundBackend::render_loop() {
             }
         }
 
+        // Consecutive exactly-silent buffers mean playback is over, not a
+        // quiet passage — park the channel and drop to the cheap poll.
+        silent_buffer_run_.store(peak == 0.0f ? silent_buffer_run_.load() + 1 : 0);
+        if (silent_buffer_run_.load() >= park_silent_buffers_) {
+            park_output();
+            parked_.store(true);
+            continue;
+        }
+
         // Pre-convert entire buffer to duty cycle strings (batch, no per-sample overhead)
         int str_offset = 0;
         for (size_t i = 0; i < frames; i++) {
@@ -385,37 +622,29 @@ void PWMSoundBackend::render_loop() {
             str_offset += len + 1; // +1 for null terminator
         }
 
-        // Output samples with tight timing
-        // Use nanosleep for coarse timing (>10us), busy-wait for fine timing (<10us)
+        // Output samples with absolute-deadline pacing and bounded catch-up
         for (size_t i = 0; i < frames && render_running_.load(); i++) {
             // Write pre-formatted duty cycle string
             if (fd_duty_ >= 0) {
                 ::lseek(fd_duty_, 0, SEEK_SET);
                 ::write(fd_duty_, duty_strs.data() + duty_offsets[i], duty_lengths[i]);
+                duty_write_count_.fetch_add(1, std::memory_order_relaxed);
             }
 
             sample_index++;
 
-            // Hybrid timing: nanosleep for bulk, busy-wait for precision
-            long target_ns = base_ns + sample_index * sample_interval_ns;
-            struct timespec now_ts;
-            clock_gettime(CLOCK_MONOTONIC, &now_ts);
-            long now_ns = now_ts.tv_sec * 1000000000L + now_ts.tv_nsec;
-            long remaining = target_ns - now_ns;
-
-            // Sleep for the bulk of the wait (leave 15us for busy-wait)
-            if (remaining > 15000) {
-                struct timespec sl = {0, remaining - 10000};
-                nanosleep(&sl, nullptr);
+            if (samples_behind(now_fn_(), base_ns, sample_index, sample_interval_ns) >
+                PCM_CATCHUP_MAX_SAMPLES) {
+                // Scheduling stall: skip to the sample due now instead of
+                // bursting the missed writes — the burst is what starved
+                // klippy under the old loop.
+                const int64_t snap = resync_sample_index(now_fn_(), base_ns, sample_interval_ns);
+                i += static_cast<size_t>(snap - sample_index); // may overshoot: loop exits
+                sample_index = snap;
+                continue; // already late — no wait
             }
 
-            // Busy-wait for final microseconds (precision timing)
-            for (;;) {
-                clock_gettime(CLOCK_MONOTONIC, &now_ts);
-                now_ns = now_ts.tv_sec * 1000000000L + now_ts.tv_nsec;
-                if (now_ns >= target_ns)
-                    break;
-            }
+            wait_until_fn_(base_ns + sample_index * sample_interval_ns);
         }
     }
 
@@ -423,4 +652,6 @@ void PWMSoundBackend::render_loop() {
     if (fd_duty_ >= 0) {
         sysfs_write_fd(fd_duty_, 0);
     }
+    spdlog::debug("[PWMSoundBackend] render loop done after {} duty writes",
+                  duty_write_count_.load());
 }

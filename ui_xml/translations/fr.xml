@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="fr">
   <translation tag=" (timed out)" fr=" (délai dépassé)"/>
-  <translation tag=" elapsed · " fr=" écoulé · "/>
   <translation tag=" frames" fr=" images"/>
   <translation tag=" left" fr=" restant"/>
   <translation tag="&quot;%s&quot; failed to load" fr="&quot;%s&quot; na pas pu se charger"/>
@@ -194,6 +193,8 @@
   <translation tag="Apply Changes" fr="Appliquer les modifications"/>
   <translation tag="Applying Changes" fr="Application des modifications"/>
   <translation tag="Applying..." fr="Application..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." fr="Êtes-vous sûr de vouloir annuler cette impression ? Toute la progression sera perdue."/>
   <translation tag="Are you sure? This will power off or restart this device." fr="Êtes-vous sûr ? Cela va éteindre ou redémarrer cet appareil."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" fr="Assigner des macros Klipper pour contrôler les LED via on/off, bascule ou préréglages"/>
@@ -211,6 +212,7 @@
   <translation tag="Auto-lock" fr="Verrouillage auto"/>
   <translation tag="Auto-poll for weight updates" fr="Interrogation auto des mises à jour de poids"/>
   <translation tag="Auto-probe or manually check screw heights" fr="Palpage auto ou vérification manuelle des hauteurs de vis"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" fr="Rendu vidéo automatique"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" fr="La désinstallation automatique ne fonctionne que sur Moonraker local"/>
@@ -869,6 +871,7 @@
   <translation tag="Failed to analyze PRINT_START macro" fr="Échec de l&apos;analyse de la macro PRINT_START"/>
   <translation tag="Failed to apply limits" fr="Échec de l&apos;application des limites"/>
   <translation tag="Failed to apply settings" fr="Échec de l&apos;application des paramètres"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" fr="Échec de la construction des données raster"/>
   <translation tag="Failed to cancel: {}" fr="Échec de l&apos;annulation : {}"/>
   <translation tag="Failed to clear print state: {}" fr="Échec de l&apos;effacement de l&apos;état d&apos;impression : {}"/>
@@ -1241,6 +1244,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" fr="Index de modèle de feuille invalide : {} (sur {})"/>
   <translation tag="Invalid status response from printer" fr="Réponse détat invalide de limprimante"/>
   <translation tag="Issue description" fr="Description du problème"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" fr="C&apos;est une nouvelle bobine"/>
   <translation tag="Jammed at the Toolhead" fr="Bourrage à la tête d&apos;outil"/>
   <translation tag="Job Queue" fr="File d&apos;impression"/>
@@ -1366,7 +1370,6 @@
   <translation tag="MACRO DEVICES" fr="APPAREILS MACRO"/>
   <translation tag="MAIN POWER BUTTON" fr="BOUTON D&apos;ALIMENTATION PRINCIPAL"/>
   <translation tag="MANUAL" fr="MANUEL"/>
-  <translation tag="MAPPING" fr="AFFECTATION"/>
   <translation tag="MB RAM" fr="Mo de RAM"/>
   <translation tag="MCU" fr="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" fr="Surveillance des températures MCU, hôte et auxiliaires"/>
@@ -1588,6 +1591,7 @@
   <translation tag="No slot currently matches." fr="Aucun slot ne correspond actuellement."/>
   <translation tag="No spool assigned" fr="Aucune bobine assignée"/>
   <translation tag="No spools found — tap to retry" fr="Aucune bobine trouvée — appuyez pour réessayer"/>
+  <translation tag="No spools match your search"/>
   <translation tag="No tape detected in printer" fr="Aucun ruban détecté dans limprimante"/>
   <translation tag="No target printer configured" fr="Aucune imprimante cible configurée"/>
   <translation tag="No temperature sensors detected" fr="Aucun capteur de température détecté"/>
@@ -2323,6 +2327,7 @@
   <translation tag="Spool #{}" fr="Bobine #{}"/>
   <translation tag="Spool Info" fr="Info bobine"/>
   <translation tag="Spool Weight (g)" fr="Poids de la bobine (g)"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" fr="Bobine créée avec succès"/>
   <translation tag="Spool deleted" fr="Bobine supprimée"/>
   <translation tag="Spool motor" fr="Moteur de bobine"/>

@@ -163,35 +163,57 @@
         <progress_bar name="print_progress" bind_value="print_progress_display">
           <bind_style name="invisible" subject="preparing_visible" ref_value="1"/>
         </progress_bar>
-        <!-- Layer Progress (Layer X / Y) + Objects Count -->
+        <!-- Layer / objects / filament as icon clusters, not prose. The prose
+             row ("Layer 474 / 1334 (55.4mm)" + "12 of 12 objects" + "92.6m
+             used") measured 393px in the 363px strip an 800x480 panel
+             produces, and its width changes with every translation of
+             Layer/of/objects/used; icons carry the words and the bound
+             strings are bare numbers, so the row is language-neutral and
+             fits every tier. The layer cluster grows and dots as the floor:
+             a pathological count degrades instead of overlapping
+             (space_between derives its gap as (row - content) / (n-1) with
+             no floor at zero - lv_flex.c place_content). -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
-                style_flex_cross_place="center" scrollable="false">
-          <text_small name="layer_progress_label"
-                      text="Layer 0 / 0" bind_text="print_layer_text" style_text_align="left"/>
-          <text_small name="objects_count_label" text="" bind_text="print_objects_text">
+                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="start"
+                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+          <lv_obj name="layer_cluster"
+                  height="content" flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" scrollable="false">
+            <icon name="layer_icon" src="layers" size="xs" variant="secondary" clickable="false"/>
+            <text_small name="layer_progress_label"
+                        text="0 / 0" bind_text="print_layer_text" style_text_align="left" flex_grow="1" long_mode="dots"/>
+          </lv_obj>
+          <lv_obj name="objects_cluster"
+                  height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" scrollable="false">
             <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
-          </text_small>
-          <text_small name="filament_used_label" text="" bind_text="print_filament_used_text"/>
+            <icon name="objects_icon" src="cube_outline" size="xs" variant="secondary" clickable="false"/>
+            <text_small name="objects_count_label" text="" bind_text="print_objects_text"/>
+          </lv_obj>
+          <lv_obj name="filament_cluster"
+                  height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" scrollable="false">
+            <icon name="filament_icon" src="filament" size="xs" variant="secondary" clickable="false"/>
+            <text_small name="filament_used_label" text="" bind_text="print_filament_used_text"/>
+          </lv_obj>
         </lv_obj>
         <!-- File Name (shared subject from ActivePrintMediaManager) -->
         <text_body name="file_name"
                    width="100%" text="benchy.gcode" bind_text="print_display_filename" style_text_align="left"
                    long_mode="scroll_circular"/>
-        <!-- Status Row: Time/Progress -->
+        <!-- Status Row: elapsed / remaining as icon clusters (language-neutral
+             like the row above). The eta grows and dots so a long pair shrinks
+             it instead of running under the percent on its right. -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
-                style_flex_cross_place="center" scrollable="false">
-          <!-- Time display: elapsed / remaining with labels -->
-          <lv_obj height="content"
-                  flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_main_place="start"
-                  style_flex_cross_place="center" scrollable="false">
-            <text_small name="print_elapsed" text="0m" bind_text="print_elapsed"/>
-            <text_small text=" elapsed · " translation_tag=" elapsed · "/>
-            <text_small name="print_remaining" text="0m" bind_text="print_remaining"/>
-            <text_small text=" left" translation_tag=" left"/>
-            <text_small name="print_eta" text="" bind_text="print_eta" style_pad_left="#space_xs"/>
-          </lv_obj>
+                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="start"
+                style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+          <icon name="elapsed_icon" src="hourglass" size="xs" variant="secondary" clickable="false"/>
+          <text_small name="print_elapsed" text="0m" bind_text="print_elapsed"/>
+          <text_small text="·"/>
+          <icon name="remaining_icon" src="clock" size="xs" variant="secondary" clickable="false"/>
+          <text_small name="print_remaining" text="0m" bind_text="print_remaining"/>
+          <text_small name="print_eta"
+                      text="" bind_text="print_eta" style_pad_left="#space_xs" flex_grow="1" long_mode="dots"/>
           <text_small name="print_percent" text="0%" bind_text="print_progress_text"/>
         </lv_obj>
         <!-- Klipper display_status.message (M117) — collapses to zero height -->

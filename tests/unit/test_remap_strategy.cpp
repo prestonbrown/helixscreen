@@ -11,11 +11,15 @@
 //   Native       — backend owns the T0..Tn slot mapping internally (HH, AFC,
 //                  CFS, AD5X IFS, ToolChanger); helix does NOT rewrite gcode
 //   GcodeRewrite — helix must rewrite T-commands in the gcode file because the
-//                  backend has no internal tool-routing (Snapmaker U1)
+//                  backend has no internal tool-routing. No backend declares it
+//                  today: it was written for ACE, which declares None until the
+//                  ACE_CHANGE_TOOL family is handled
+//   SnapmakerNative — firmware pre-print send, no gcode rewrite (Snapmaker U1)
 //
-// Backends that need nullptr-constructible probes follow the pattern established
-// in test_ams_backend_afc_capabilities.cpp.
+// The per-backend probes come from tests/test_helpers/ams_backend_probes.h.
 
+#include "../test_helpers/ad5x_ifs_test_access.h"
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -26,54 +30,11 @@
 #include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_remap.h"
 
 #include "../catch_amalgamated.hpp"
 
 namespace {
-
-// Minimal probes — constructed with nullptr api/client so no Moonraker
-// connection is required.  These mirror the pattern in
-// test_ams_backend_afc_capabilities.cpp.
-
-class AfcProbe : public AmsBackendAfc {
-  public:
-    AfcProbe() : AmsBackendAfc(nullptr, nullptr) {}
-};
-
-class HappyHareProbe : public AmsBackendHappyHare {
-  public:
-    HappyHareProbe() : AmsBackendHappyHare(nullptr, nullptr) {}
-};
-
-class CfsProbe : public helix::printer::AmsBackendCfs {
-  public:
-    CfsProbe() : helix::printer::AmsBackendCfs(nullptr, nullptr) {}
-};
-
-class Ad5xIfsProbe : public AmsBackendAd5xIfs {
-  public:
-    Ad5xIfsProbe() : AmsBackendAd5xIfs(nullptr, nullptr) {}
-};
-
-class ToolChangerProbe : public AmsBackendToolChanger {
-  public:
-    ToolChangerProbe() : AmsBackendToolChanger(nullptr, nullptr) {}
-};
-
-class SnapmakerProbe : public AmsBackendSnapmaker {
-  public:
-    SnapmakerProbe() : AmsBackendSnapmaker(nullptr, nullptr) {}
-};
-
-class AceProbe : public AmsBackendAce {
-  public:
-    AceProbe() : AmsBackendAce(nullptr, nullptr) {}
-};
-
-class QidiProbe : public AmsBackendQidi {
-  public:
-    QidiProbe() : AmsBackendQidi(nullptr, nullptr) {}
-};
 
 // Minimal concrete subclass of the base to test the default.
 class BaseProbe : public AmsBackend {
@@ -158,6 +119,27 @@ class BaseProbe : public AmsBackend {
     }
 };
 
+/// Declares a caller-chosen strategy and readiness, so can_remap() can be
+/// covered over combinations no shipped backend produces — GcodeRewrite, and
+/// None-but-not-ready. Without it those rows would be unreachable and the
+/// function would only ever be tested on the diagonal.
+class StubBackend : public BaseProbe {
+  public:
+    StubBackend(AmsBackend::RemapStrategy strategy, bool ready)
+        : strategy_(strategy), ready_(ready) {}
+
+    [[nodiscard]] RemapStrategy get_remap_strategy() const override {
+        return strategy_;
+    }
+    [[nodiscard]] bool remap_ready() const override {
+        return ready_;
+    }
+
+  private:
+    RemapStrategy strategy_;
+    bool ready_;
+};
+
 } // namespace
 
 TEST_CASE("Native-strategy backends return RemapStrategy::Native", "[ams][strategy]") {
@@ -205,6 +187,150 @@ TEST_CASE("ACE returns RemapStrategy::None (GcodeRewrite unimplemented)", "[ams]
     // is implemented and validated on a real ACE file.
     AceProbe ace;
     REQUIRE(ace.get_remap_strategy() == AmsBackend::RemapStrategy::None);
+}
+
+// ---------------------------------------------------------------------------
+// remap_ready(): the axis the retired ToolMappingCapabilities hid.
+//
+// A backend can be BUILT to remap and not be able to yet, because the firmware
+// object it writes through has not been discovered. Only AD5X IFS has such a
+// gate, and it is exactly where the old model contradicted itself:
+// get_remap_strategy() answered Native unconditionally while
+// get_tool_mapping_capabilities() answered {false,false} until _IFS_VARS was
+// found. Two spellings, opposite answers, no compile error and no test.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Backends declare remap readiness, defaulting to ready", "[ams][strategy]") {
+    SECTION("A backend with no discovery gate is ready on construction") {
+        AfcProbe afc;
+        REQUIRE(afc.remap_ready());
+        SnapmakerProbe sm;
+        REQUIRE(sm.remap_ready());
+        // Ready, and still cannot remap: readiness says the declared route is
+        // usable, not that one was declared.
+        AceProbe ace;
+        REQUIRE(ace.remap_ready());
+        REQUIRE_FALSE(helix::printer::can_remap(ace));
+    }
+
+    SECTION("AD5X IFS is not ready until _IFS_VARS is discovered") {
+        Ad5xIfsProbe ad5x;
+        REQUIRE(ad5x.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+        REQUIRE_FALSE(ad5x.remap_ready());
+        REQUIRE_FALSE(helix::printer::can_remap(ad5x));
+
+        Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+
+        REQUIRE(ad5x.remap_ready());
+        REQUIRE(helix::printer::can_remap(ad5x));
+        // The strategy is a static declaration and must NOT move with the gate.
+        REQUIRE(ad5x.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    }
+}
+
+TEST_CASE("can_remap needs both a declared route and readiness", "[ams][strategy]") {
+    using RS = AmsBackend::RemapStrategy;
+    struct Case {
+        const char* name;
+        RS strategy;
+        bool ready;
+        bool expected;
+    };
+    const Case cases[] = {
+        {"Native and ready", RS::Native, true, true},
+        {"Native, not ready", RS::Native, false, false},
+        {"SnapmakerNative and ready", RS::SnapmakerNative, true, true},
+        {"SnapmakerNative, not ready", RS::SnapmakerNative, false, false},
+        {"GcodeRewrite and ready", RS::GcodeRewrite, true, true},
+        {"None but ready", RS::None, true, false},
+        {"None and not ready", RS::None, false, false},
+    };
+    for (const auto& c : cases) {
+        INFO(c.name);
+        StubBackend stub(c.strategy, c.ready);
+        CHECK(helix::printer::can_remap(stub) == c.expected);
+    }
+}
+
+TEST_CASE("can_write_mapping_table needs a table-writing route AND readiness", "[ams][strategy]") {
+    using RS = AmsBackend::RemapStrategy;
+    struct Case {
+        const char* name;
+        RS strategy;
+        bool ready;
+        bool expected;
+    };
+    const Case cases[] = {
+        {"Native and ready", RS::Native, true, true},
+        // The two rows that make this a different question from can_remap():
+        // the U1 can remap and writes no table, and a Native backend that has
+        // not discovered its firmware object yet writes nothing that lands.
+        {"SnapmakerNative and ready", RS::SnapmakerNative, true, false},
+        {"Native, not ready", RS::Native, false, false},
+        {"GcodeRewrite and ready", RS::GcodeRewrite, true, true},
+        {"GcodeRewrite, not ready", RS::GcodeRewrite, false, false},
+        {"None but ready", RS::None, true, false},
+    };
+    for (const auto& c : cases) {
+        INFO(c.name);
+        StubBackend stub(c.strategy, c.ready);
+        CHECK(helix::printer::can_write_mapping_table(stub) == c.expected);
+    }
+}
+
+TEST_CASE("remap_is_persistent separates the table-writing routes from the pre-send",
+          "[ams][strategy]") {
+    using RS = AmsBackend::RemapStrategy;
+    // Native writes the machine's own table; GcodeRewrite writes the job file.
+    CHECK(helix::printer::remap_is_persistent(RS::Native));
+    CHECK(helix::printer::remap_is_persistent(RS::GcodeRewrite));
+    // SnapmakerNative tells the firmware once, before PRINT_START. Nothing keeps it.
+    CHECK_FALSE(helix::printer::remap_is_persistent(RS::SnapmakerNative));
+    CHECK_FALSE(helix::printer::remap_is_persistent(RS::None));
+}
+
+// ---------------------------------------------------------------------------
+// owns_tool_mapping_table(): a DIFFERENT question, and the U1 is where the two
+// part company. It decides whether AmsState hands ToolState an AMS tool->slot
+// topology or leaves it enumerating extruders. Routing it through remap
+// capability would give the U1 — four independent extruders, remapped through a
+// pre-print send, owning no table — a topology it has never had.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("owns_tool_mapping_table is answered independently of remap capability",
+          "[ams][strategy]") {
+    SECTION("Snapmaker can remap and owns no table") {
+        SnapmakerProbe sm;
+        CHECK(helix::printer::can_remap(sm));
+        CHECK_FALSE(sm.owns_tool_mapping_table());
+    }
+
+    SECTION("Lane-multiplexing backends own one") {
+        AfcProbe afc;
+        CHECK(afc.owns_tool_mapping_table());
+        HappyHareProbe hh;
+        CHECK(hh.owns_tool_mapping_table());
+        CfsProbe cfs;
+        CHECK(cfs.owns_tool_mapping_table());
+        QidiProbe qidi;
+        CHECK(qidi.owns_tool_mapping_table());
+        ToolChangerProbe tc;
+        CHECK(tc.owns_tool_mapping_table());
+    }
+
+    SECTION("ACE and the base default own none") {
+        AceProbe ace;
+        CHECK_FALSE(ace.owns_tool_mapping_table());
+        BaseProbe base;
+        CHECK_FALSE(base.owns_tool_mapping_table());
+    }
+
+    SECTION("AD5X IFS owns one only once _IFS_VARS is discovered") {
+        Ad5xIfsProbe ad5x;
+        CHECK_FALSE(ad5x.owns_tool_mapping_table());
+        Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+        CHECK(ad5x.owns_tool_mapping_table());
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -347,10 +347,11 @@ TEST_CASE("declining before a dispatch never arms anything for a later one",
 // whose AmsAction starts and stays IDLE -- ensure_homed_then() itself never
 // touches system_info_.action except on its own cancel/failure branches, so
 // none of them can express the bug a reviewer found in the first cut of the
-// real prompter (src/application/subject_initializer.cpp): it wired
-// modal_show_confirmation() through the STATIC Modal::show() path, and on
-// that path backdrop-tap and ESC call Modal::hide(dialog) directly --
-// bypassing the confirm/cancel lv_event_cb_t entirely. Neither callback ever
+// real prompter (src/application/subject_initializer.cpp): it wired the
+// legacy lv_event_cb_t form, modal_show_confirmation(), through the STATIC
+// Modal::show() path, and on that path backdrop-tap and ESC call
+// Modal::hide(dialog) directly -- bypassing the confirm/cancel callbacks
+// entirely. Neither callback ever
 // fired, so a dismissal by anything other than the two dialog buttons left
 // whichever AmsBackend that had called dispatch_operation() stuck: its
 // begin_dispatch_locked() sets the AmsAction optimistically *before*

@@ -493,6 +493,13 @@ void SoundManager::play_file(const std::string& path, SoundPriority priority) {
 
     // IMPORTANT: Clear external tick FIRST to prevent use-after-free on old tracker
     sequencer_->set_external_tick(nullptr);
+    // Same treatment for the backend render source: it still captures the OLD
+    // tracker, which the assignment below destroys. A null source parks the
+    // PWM render thread in its no-source poll and makes the ALSA/SDL audio
+    // callbacks skip tracker PCM — both safe states for the swap.
+    if (backend_->supports_render_source()) {
+        backend_->clear_render_source();
+    }
     if (tracker_) {
         tracker_->stop();
     }

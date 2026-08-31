@@ -5,6 +5,7 @@
 
 #include "ui_history_list_view.h"
 #include "ui_observer_guard.h"
+#include "ui_search_debounce.h"
 
 #include "in_flight_guard.h"
 #include "overlay_base.h"
@@ -255,8 +256,8 @@ class HistoryListPanel : public OverlayBase {
     HistorySortColumn sort_column_ = HistorySortColumn::DATE;          ///< Current sort column
     HistorySortDirection sort_direction_ = HistorySortDirection::DESC; ///< Current sort direction
 
-    // Search debounce timer
-    lv_timer_t* search_timer_ = nullptr; ///< Timer for debounced search (300ms)
+    // Search debounce (shared SearchDebounce, default delay)
+    helix::ui::SearchDebounce search_debounce_;
 
     //
     // === Subject Manager for RAII cleanup ===
@@ -501,9 +502,6 @@ class HistoryListPanel : public OverlayBase {
 
     /** @brief Accent the funnel icon when a status/search filter is active. */
     void refresh_filter_indicator();
-
-    // Search timer callback (private - not used for XML registration)
-    static void on_search_timer_static(lv_timer_t* timer);
 
     //
     // === Infinite Scroll ===

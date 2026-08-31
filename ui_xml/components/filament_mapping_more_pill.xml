@@ -3,9 +3,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- Overflow indicator pill used when a file has more tools than fit on
-       screen (e.g. "+3" for three hidden tools). Matches the visual weight
-       and padding of filament_mapping_pill.xml so the 2-column grid stays
-       aligned. Count text is set from C++. -->
+       one row of the FILAMENTS card (e.g. "+3" for three hidden tools). The
+       card caps the chips at what the fixed-height row fits and appends this;
+       without it the extra chips would simply run off the edge with nothing
+       saying so. Count text is set from C++. -->
   <view name="more_pill"
         extends="lv_obj" height="content" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
         style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_sm" style_pad_bottom="#space_sm"

@@ -142,7 +142,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
 
   (verbatim from [`src/system/preset_materials.cpp:115`](../../../src/system/preset_materials.cpp#L115); the null scope means globals). When preset names load from settings, C++ writes the subject once and every bound button across every panel updates.
 
-- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations — here the startup table in [`src/xml_registration.cpp:590`](../../../src/xml_registration.cpp#L590):
+- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations — here the startup table in [`src/xml_registration.cpp:589`](../../../src/xml_registration.cpp#L589):
 
   ```cpp
   lv_xml_register_event_cb(nullptr, "on_temp_graph_preset_clicked",
@@ -199,7 +199,7 @@ Read in this order; about 25 minutes total.
 1. [`ui_xml/temp_graph_overlay.xml:54`](../../../ui_xml/temp_graph_overlay.xml#L54) — a whole live overlay in ~450 lines. Notice the orthogonal `<styles>` pairs driven by `bind_style_if cond=`, the structural `<if>` branches for portrait/landscape and the chamber-diagnostics card, `bind_text` on preset buttons (line 170), and the shared component instantiation (`<chamber_diagnostics_card/>`).
 2. [`ui_xml/overlay_panel.xml:7`](../../../ui_xml/overlay_panel.xml#L7) — the wrapper component those panels extend: positioning, header, and the content slot convention.
 3. [`src/xml_registration.cpp:287`](../../../src/xml_registration.cpp#L287) — the `register_xml()` helper: path resolution, the LVGL drive-letter prefix, and the ESP boot-yield. Then skim `register_xml_components()` at [`src/xml_registration.cpp:303`](../../../src/xml_registration.cpp#L303) to feel the size of the sweep.
-4. [`src/application/application.cpp:1803`](../../../src/application/application.cpp#L1803) — `register_widgets()` (the first wave of C++ widget registrations), then `:1790` `register_xml_components()` and its hot-reloader wiring, and finally `:1973` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
+4. [`src/application/application.cpp:1810`](../../../src/application/application.cpp#L1810) — `register_widgets()` (the first wave of C++ widget registrations), then `:1790` `register_xml_components()` and its hot-reloader wiring, and finally `:1973` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
 5. `lib/helix-xml/src/xml/lv_xml.c:438` — `lv_xml_create`: widget-processor table first, component scope second. Then `:514` — the name-precedence rules and the default `<component>_#` fallback.
 6. `lib/helix-xml/src/xml/lv_xml.c:759` — `lv_xml_get_subject`: the component-scope-then-globals walk, and the WARN on miss you will grep for.
 7. `lib/helix-xml/src/xml/lv_xml.c:281` — the `bind_*` pseudo-widget registrations; the entire binding-element vocabulary in ~25 lines.

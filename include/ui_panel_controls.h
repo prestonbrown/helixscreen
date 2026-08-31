@@ -318,8 +318,6 @@ class ControlsPanel : public PanelBase {
     /// CFS writes CFS Tn_data via CXSAVE_CONFIG ~50s later).
     static constexpr uint32_t SAVE_Z_OFFSET_TIMEOUT_MS = 90000;
 
-    size_t pending_macro_run_index_ = 0; ///< Slot index awaiting run confirmation
-
     //
     // === Dynamic UI Containers ===
     //
@@ -570,11 +568,6 @@ class ControlsPanel : public PanelBase {
     static void on_nozzle_target_edit(lv_event_t* e);
     static void on_bed_target_edit(lv_event_t* e);
     static void on_chamber_target_edit(lv_event_t* e);
-    static void on_motors_confirm(lv_event_t* e);
-    static void on_motors_cancel(lv_event_t* e);
-    static void on_save_z_offset_confirm(lv_event_t* e);
-    static void on_save_z_offset_cancel(lv_event_t* e);
-
     //
     // === Calibration Button Trampolines (XML event_cb - global accessor) ===
     //

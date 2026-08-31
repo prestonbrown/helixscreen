@@ -58,15 +58,24 @@ bool SpoolmanListView::setup(lv_obj_t* container) {
         return false;
     }
 
+    if (container_ == container) {
+        return true; // same tree still alive; pool stays valid
+    }
+    // A different container means the tree the pool was built under is gone
+    // (hot-reload rebuild deletes and re-creates the widget tree on the same
+    // surviving panel). Cached pointers would dangle. The net unhooks the old
+    // container itself and runs the destroyed hook (the pool wipe) before
+    // this view adopts the new tree.
+    retarget_container_net(container);
+
     container_ = container;
     spdlog::trace("[SpoolmanListView] Setup complete");
     return true;
 }
 
-void SpoolmanListView::cleanup() {
+void SpoolmanListView::clear_cached_state() {
     pool_.clear();
     pool_indices_.clear();
-    container_ = nullptr;
     leading_spacer_ = nullptr;
     trailing_spacer_ = nullptr;
     visible_start_ = -1;
@@ -76,6 +85,19 @@ void SpoolmanListView::cleanup() {
     cached_row_gap_ = 0;
     last_leading_height_ = -1;
     last_trailing_height_ = -1;
+}
+
+void SpoolmanListView::on_netted_container_destroyed() {
+    container_ = nullptr;
+    clear_cached_state();
+}
+
+void SpoolmanListView::cleanup() {
+    // Remove the delete net first when the container still outlives this view,
+    // so it can never fire into a destroyed owner.
+    detach_container_net();
+    clear_cached_state();
+    container_ = nullptr;
     spdlog::debug("[SpoolmanListView] cleanup()");
 }
 

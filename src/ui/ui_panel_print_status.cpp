@@ -1724,7 +1724,7 @@ void PrintStatusPanel::load_gcode_file(const char* file_path) {
 }
 
 void PrintStatusPanel::update_layer_text() {
-    std::string text = helix::ui::format_layer_progress(
+    std::string text = helix::ui::format_layer_progress_compact(
         lifecycle_.current_layer(), lifecycle_.total_layers(), printer_state_.layer_is_accurate(),
         lv_subject_get_int(printer_state_.get_gcode_position_z_subject()));
     std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
@@ -1735,8 +1735,7 @@ void PrintStatusPanel::update_filament_used_text() {
     int filament_mm = lv_subject_get_int(get_printer_state().get_print_filament_used_subject());
     if (filament_mm > 0) {
         std::string fil_str =
-            helix::format::format_filament_length(static_cast<double>(filament_mm)) + " " +
-            lv_tr("used");
+            helix::format::format_filament_length(static_cast<double>(filament_mm));
         std::strncpy(filament_used_text_buf_, fil_str.c_str(), sizeof(filament_used_text_buf_) - 1);
         filament_used_text_buf_[sizeof(filament_used_text_buf_) - 1] = '\0';
     } else {
@@ -1903,8 +1902,7 @@ void PrintStatusPanel::recompute_scoped_runout() {
     // previous job, so widening this would scope the badge to the wrong file
     // instead of hiding it — which is why print_scopes_runout_badge() is
     // narrower than PrintLifecycleState::is_active().
-    auto state = static_cast<PrintJobState>(
-        lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
+    auto state = printer_state_.get_print_job_state();
     if (!helix::print_scopes_runout_badge(state)) {
         fsm.set_scoped_runout(-1);
         return;
@@ -2684,9 +2682,8 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
     // driving the optimistic Pause/Resume overlay. (PAUSED outranks a live phase
     // in derive_print_state(), so the lifecycle would answer identically; the
     // wire is simply the more direct statement of what is being asked.)
-    auto state = static_cast<PrintJobState>(
-        // RAW_PRINT_STATE_OK: see the optimistic-overlay note below.
-        lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
+    // RAW_PRINT_STATE_OK: see the optimistic-overlay note below.
+    auto state = printer_state_.get_print_job_state();
     // RAW_PRINT_STATE_OK: is the printer REPORTING paused - the optimistic
     // Pause/Resume overlay tracks the printer, not our intent.
     bool paused = (state == PrintJobState::PAUSED);
@@ -3145,8 +3142,7 @@ void PrintStatusPanel::on_print_start_phase_changed(int phase) {
     // Delegate state transition to lifecycle. RAW_PRINT_STATE_OK: the panel's
     // PrintLifecycleState derives its own PrintState from (wire, phase) via
     // derive_print_state(), so this feeds it the wire half deliberately.
-    auto current_job_state = static_cast<PrintJobState>(
-        lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
+    auto current_job_state = printer_state_.get_print_job_state();
     bool state_changed = lifecycle_.on_start_phase_changed(phase, current_job_state);
 
     // Update preparing visibility, debounced on the way UP only. Hiding is
@@ -3330,8 +3326,7 @@ void PrintStatusPanel::update_objects_text() {
     int total = static_cast<int>(defined.size());
     int active = std::max(0, total - static_cast<int>(excluded.size()));
     if (total >= 2) {
-        std::snprintf(objects_text_buf_, sizeof(objects_text_buf_), "%d of %d objects", active,
-                      total);
+        std::snprintf(objects_text_buf_, sizeof(objects_text_buf_), "%d/%d", active, total);
     } else {
         objects_text_buf_[0] = '\0';
     }

@@ -447,10 +447,12 @@ void show_connection_failed_modal(const std::string& title, const std::string& m
         // and a full teardown/rebuild re-resolves the host — the one thing the
         // auto-retry loop cannot do for a changed IP. The prompt's job is to
         // offer that action; address surgery stays one tap away but secondary.
-        auto reconnect_and_dismiss = [](lv_event_t*) {
-            if (lv_obj_t* top = Modal::get_top()) {
-                Modal::hide(top);
-            }
+        //
+        // The declarative helpers close their own dialog once the callback
+        // returns, so this only has to do the work. The Modal::get_top() guess
+        // it replaces named whatever happened to be on top rather than this
+        // prompt, which is only ever correct by luck of ordering.
+        auto reconnect = [] {
             if (auto* client = get_moonraker_client()) {
                 client->force_reconnect();
             } else {
@@ -477,24 +479,22 @@ void show_connection_failed_modal(const std::string& title, const std::string& m
             host = cfg->get<std::string>(cfg->df() + "moonraker_host", "");
         }
         if (!host.empty() && helix::is_moonraker_on_same_host(host)) {
-            helix::ui::modal_show_alert(title.c_str(), message.c_str(), ModalSeverity::Error,
-                                        lv_tr("Reconnect"), reconnect_and_dismiss);
+            helix::ui::modal_alert(title.c_str(), message.c_str(), ModalSeverity::Error,
+                                   lv_tr("Reconnect"), reconnect);
             return;
         }
 
-        helix::ui::modal_show_confirmation(
-            title.c_str(), message.c_str(), ModalSeverity::Error, lv_tr("Reconnect"),
-            reconnect_and_dismiss,
-            [](lv_event_t*) {
-                // Dismiss this prompt before opening the next dialog. Stacking
-                // works, but leaving a live error modal underneath means its
-                // buttons stay pressable behind the host form.
-                if (lv_obj_t* top = Modal::get_top()) {
-                    Modal::hide(top);
-                }
-                show_change_host_modal();
-            },
-            nullptr, lv_tr("Change Address"));
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [] {
+            // This prompt closes itself the moment this returns, so the host
+            // form is never left stacked over a live error modal whose
+            // buttons stay pressable behind it.
+            show_change_host_modal();
+        };
+        opts.cancel_text = lv_tr("Change Address");
+
+        helix::ui::modal_confirm(title.c_str(), message.c_str(), ModalSeverity::Error,
+                                 lv_tr("Reconnect"), reconnect, opts);
     });
 }
 

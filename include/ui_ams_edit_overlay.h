@@ -6,6 +6,7 @@
 #include "ui_color_picker.h"
 #include "ui_filament_catalog_selector.h"
 #include "ui_modal.h"
+#include "ui_search_debounce.h"
 
 #include "ams_types.h"
 #include "overlay_base.h"
@@ -170,8 +171,8 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t temp_nozzle_subject_;
     lv_subject_t temp_bed_subject_;
     lv_subject_t remaining_pct_subject_;
-    lv_subject_t view_mode_subject_;     ///< kView* ("ams_edit_view")
-    lv_subject_t picker_state_subject_;  ///< 0=loading, 1=empty, 2=content
+    lv_subject_t view_mode_subject_;    ///< kView* ("ams_edit_view")
+    lv_subject_t picker_state_subject_; ///< 0=loading, 1=fetch error (retry), 2=content, 3=no match
     lv_subject_t save_disabled_subject_; ///< 1=Save disabled ("ams_edit_save_disabled")
     lv_subject_t save_hidden_subject_;   ///< 1=header Save hidden ("ams_edit_save_hidden")
     lv_subject_t is_managed_subject_;    ///< 1=linked Spoolman spool ("ams_edit_is_managed")
@@ -187,6 +188,13 @@ class AmsEditOverlay : public OverlayBase {
 
     // === Picker state (Spoolman spool selection) ===
     std::vector<SpoolInfo> cached_spools_;
+    /// cached_spools_' searchable text, built once per fetch so a debounced
+    /// re-filter does not rebuild+lowercase every spool's string again
+    /// (parallels cached_spools_; see filter_spools' searchables overload).
+    std::vector<std::string> cached_searchables_;
+    /// Debounce for the picker's search input: typing a burst of characters
+    /// re-renders the spool list once, after the user pauses.
+    helix::ui::SearchDebounce picker_search_debounce_;
 
     // === Internal Methods ===
     void deinit_subjects();
@@ -286,9 +294,6 @@ class AmsEditOverlay : public OverlayBase {
     void do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent intent =
                               helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
     void prompt_identity_change_then_save();
-    /// Primary action: "It's a new spool" — create + rebind, old spool untouched.
-    static void on_identity_confirm_cb(lv_event_t* e);
-    static void on_identity_cancel_cb(lv_event_t* e);
     // Re-bind + repopulate details_selector_ against the still-open spool-edit
     // view's fragment. handle_spool_edit_save() unconditionally detaches +
     // clears the selector before reaching commit_and_close() (needed so the

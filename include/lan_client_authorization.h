@@ -27,8 +27,10 @@
 // and costs a map entry. That keeps discovery, PrinterState and the
 // subscription builder free of any knowledge that this feature exists.
 
+#include <chrono>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "hv/json.hpp"
@@ -77,5 +79,23 @@ std::optional<PendingRequest> parse_request(const std::string& method, const nlo
 /// next connection attempt. That is why neither this module nor its router
 /// expires a pending request.
 std::optional<Decision> build_decision(const PendingRequest& req, bool approve);
+
+/// How long a denial suppresses re-prompting for that client. A denied client
+/// never enters the firmware's registry, so every reconnect files a fresh
+/// request and the screen would re-prompt forever; the window bounds a
+/// mistaken Deny to one minute of quiet instead of a restart's worth.
+constexpr auto denial_suppression_window = std::chrono::seconds(60);
+
+/// True when a request from @p client_id arrives inside the suppression window
+/// for a client the user denied. Pure in @p now so tests can walk the window
+/// edge to edge. A client with no entry — never denied, approved since, or
+/// beyond the window — is never suppressed: only an explicit Deny records an
+/// entry, so a dismissal answered nothing and leaves the gate open
+/// (prestonbrown/helixscreen#1376). Per-client so denying one client never
+/// re-arms another's prompts.
+bool suppressed_by_denial(
+    const std::string& client_id,
+    const std::unordered_map<std::string, std::chrono::steady_clock::time_point>& denied_clients,
+    std::chrono::steady_clock::time_point now);
 
 } // namespace helix::lan_auth

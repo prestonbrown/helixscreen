@@ -307,7 +307,7 @@ void GCodeLayerRenderer::set_excluded_objects(const std::unordered_set<std::stri
 
 void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
     const InvalidationScope scope = selection_.set_highlighted(names);
-    if (scope == InvalidationScope::None) {
+    if (scope == InvalidationScope::Nothing) {
         return;
     }
     if (names.empty()) {
@@ -322,7 +322,7 @@ void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::s
 
 void GCodeLayerRenderer::apply_selection_scope(InvalidationScope scope) {
     switch (scope) {
-    case InvalidationScope::None:
+    case InvalidationScope::Nothing:
         return;
     case InvalidationScope::SolidCache:
         // Highlight only. The ghost pass never draws highlight, so leaving its cache
@@ -1881,15 +1881,27 @@ void GCodeLayerRenderer::start_background_ghost_render() {
     ghost_thread_cancel_.store(false);
     ghost_thread_ready_.store(false);
 
-    // Launch background thread - only set running flag after successful creation
+    // Claim the running flag BEFORE the worker can exist, never after. The
+    // worker clears this same flag when it finishes, and std::thread's
+    // constructor is free to run the whole body while this thread is still
+    // descheduled — so a store(true) placed after the constructor can land
+    // after the worker's store(false) and strand the flag set forever.
+    // Nothing recovers from that: render() gates the respawn on the flag
+    // being clear, so the ghost never rebuilds, the viewer's "Building
+    // preview: N%" label never clears, and frame_complete never fires.
+    // Ordering it before the constructor makes the store happen-before the
+    // worker by the thread's own guarantee, so the worker's clear always wins.
+    ghost_thread_running_.store(true);
+
     try {
         // Snapshot on THIS thread, then hand it over. std::thread copies the
         // argument on the spawning side, so everything the worker reads was
         // sampled while the main thread still owned it.
         ghost_thread_ = std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this,
                                     capture_ghost_snapshot());
-        ghost_thread_running_.store(true);
     } catch (const std::system_error& e) {
+        // No worker exists to clear the claim above, so unwind it here.
+        ghost_thread_running_.store(false);
         spdlog::error("[GCodeLayerRenderer] Failed to start ghost render thread: {}", e.what());
         return;
     }

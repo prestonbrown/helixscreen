@@ -27,4 +27,13 @@ class FilamentMappingModalTestAccess {
     static void ok(helix::ui::FilamentMappingModal& modal) {
         modal.on_ok();
     }
+
+    /// Deliver a slot-picker result the way the picker's own callback does.
+    /// Production reaches this only from an LVGL context menu, and the unit
+    /// under test is what a hand-picked lane does to the mapping - not how the
+    /// menu was dismissed.
+    static void select_slot(helix::ui::FilamentMappingModal& modal, int tool_index,
+                            const helix::ui::FilamentSlotPicker::Selection& selection) {
+        modal.on_slot_selected(tool_index, selection);
+    }
 };

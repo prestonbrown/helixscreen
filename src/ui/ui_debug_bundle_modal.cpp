@@ -4,7 +4,6 @@
 #include "ui_debug_bundle_modal.h"
 
 #include "ui_keyboard_manager.h"
-#include "ui_update_queue.h"
 
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "system/debug_bundle_collector.h"
@@ -12,6 +11,7 @@
 #include <spdlog/spdlog.h>
 
 #include <lvgl.h>
+#include <memory>
 
 // =============================================================================
 // Static Members
@@ -60,6 +60,19 @@ bool DebugBundleModal::show_modal(lv_obj_t* parent) {
     return result;
 }
 
+bool DebugBundleModal::show_owned() {
+    auto modal = std::make_unique<DebugBundleModal>();
+    if (!modal->show_modal(lv_screen_active())) {
+        // show_modal() already registered the XML-named subjects; the global
+        // subject map must not outlive the instance the unique_ptr frees here.
+        modal->deinit_subjects();
+        return false;
+    }
+    lv_obj_t* backdrop = modal->backdrop();
+    ModalStack::instance().assume_ownership(backdrop, std::move(modal));
+    return true;
+}
+
 // =============================================================================
 // Lifecycle Hooks
 // =============================================================================
@@ -78,11 +91,8 @@ void DebugBundleModal::on_show() {
 void DebugBundleModal::on_hide() {
     spdlog::debug("[DebugBundleModal] on_hide");
     active_instance_ = nullptr;
-
-    // Self-delete: this modal is heap-allocated and has no other owner.
-    // Deferred so hide() finishes before destruction.
-    auto* self = this;
-    helix::ui::async_call([](void* data) { delete static_cast<DebugBundleModal*>(data); }, self);
+    // No self-delete: the ModalStack owns this instance and frees it when its
+    // entry goes (#1382).
 }
 
 // =============================================================================

@@ -163,19 +163,17 @@ void close_catalog() {
 void on_catalog_reset(lv_event_t* /*e*/) {
     spdlog::info("[WidgetCatalog] Reset to defaults requested");
 
-    ui::modal_show_confirmation(
+    ui::modal_confirm(
         lv_tr("Reset Home Screen?"),
         lv_tr("This will remove all custom pages and restore the default widget layout."),
-        ModalSeverity::Warning, lv_tr("Reset"),
-        [](lv_event_t* /*confirm_e*/) {
-            spdlog::info("[WidgetCatalog] Reset confirmed — resetting to defaults");
+        ModalSeverity::Warning, lv_tr("Reset"), [] {
+            spdlog::info("[WidgetCatalog] Reset confirmed - resetting to defaults");
             auto& config = PanelWidgetManager::instance().get_widget_config("home");
             config.reset_to_defaults();
             config.save();
             close_catalog();
             PanelWidgetManager::instance().notify_config_changed("home");
-        },
-        nullptr, nullptr);
+        });
 }
 
 /// Renders a registry span for the size badge.

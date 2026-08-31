@@ -62,8 +62,6 @@ class TimelapseVideosOverlay : public OverlayBase {
     static void on_render_now(lv_event_t* e);
     static void on_card_clicked(lv_event_t* e);
     static void on_card_long_pressed(lv_event_t* e);
-    static void on_delete_confirmed(lv_event_t* e);
-    static void on_delete_cancelled(lv_event_t* e);
 
     IMoonrakerAPI* api_;
     std::vector<VideoEntry> videos_;

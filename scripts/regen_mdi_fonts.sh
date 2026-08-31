@@ -59,6 +59,7 @@ MDI_ICONS+=",0xF093A"    # animation-play (framerate/playback speed)
 MDI_ICONS+=",0xF009A"    # bell (notifications)
 MDI_ICONS+=",0xF00AD"    # block-helper (prohibited)
 MDI_ICONS+=",0xF00E4"    # bug (debug bundle)
+MDI_ICONS+=",0xF1259"    # archive-arrow-down (spoolman spool archive)
 MDI_ICONS+=",0xF0232"    # filter (funnel)
 MDI_ICONS+=",0xF029A"    # gauge (clog/flow meter tile)
 MDI_ICONS+=",0xF00AF"    # bluetooth

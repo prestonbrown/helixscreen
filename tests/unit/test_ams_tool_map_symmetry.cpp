@@ -28,6 +28,7 @@
 
 #include "ams_backend_ace.h"
 #include "ams_backend_qidi.h"
+#include "ams_remap.h"
 #include "ams_types.h"
 #include "filament_op_slot_resolver.h"
 #include "test_helpers/qidi_box_test_access.h"
@@ -109,7 +110,7 @@ TEST_CASE("QIDI Box exposes the mapping through get_tool_mapping()",
     AmsBackendQidi backend(nullptr, nullptr);
     QidiBoxTestAccess::parse_vars(backend, json{{"value_t0", "slot2"}});
 
-    REQUIRE(backend.get_tool_mapping_capabilities().supported);
+    REQUIRE(backend.owns_tool_mapping_table());
     auto mapping = backend.get_tool_mapping();
     REQUIRE(mapping.size() > 0);
     CHECK(mapping[0] == 2);
@@ -220,9 +221,8 @@ TEST_CASE("ACE publishes no tool mapping in either direction", "[ams][ace][tool_
                           {{"index", 2}, {"color", "#0000FF"}, {"material", "ABS"}},
                           {{"index", 3}, {"color", "#FFFFFF"}, {"material", ""}}}}});
 
-    auto caps = ace.get_tool_mapping_capabilities();
-    CHECK_FALSE(caps.supported);
-    CHECK_FALSE(caps.editable);
+    CHECK_FALSE(ace.owns_tool_mapping_table());
+    CHECK_FALSE(helix::printer::can_remap(ace));
     CHECK(ace.get_tool_mapping().empty());
     CHECK(ace.set_tool_mapping(0, 2).result == AmsResult::NOT_SUPPORTED);
 

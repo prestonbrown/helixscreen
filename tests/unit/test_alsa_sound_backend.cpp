@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <thread>
 #include <vector>
 
@@ -131,6 +132,47 @@ class RenderProbe {
     std::atomic<bool> rendered_{false};
 };
 
+/// The resume() contract is a BOUNDED synchronous handoff: production waits up
+/// to 100ms for the render thread to ack one full pass, then deliberately
+/// degrades to the old asynchronous resume rather than stall the sequencer on
+/// a wedged render thread (ALSASoundBackend::resume()). Asserting that the
+/// handoff always landed over-asserts — under a starved runner (96 shards) a
+/// render pass can legitimately outlast the bound. What distinguishes the
+/// fire-and-forget bug this pins (v0.99.114, 08f49c420) is resume() returning
+/// with neither the ack nor the bound spent.
+bool handoff_satisfied(const RenderProbe& probe, std::chrono::steady_clock::time_point t0) {
+    if (probe.rendered())
+        return true;
+    // 80ms floor under the 100ms bound: wait_for never wakes before its
+    // deadline without the predicate holding, and caller-side wake latency
+    // only adds to the measured elapsed.
+    return std::chrono::steady_clock::now() - t0 >= std::chrono::milliseconds(80);
+}
+
+/// Wait for the render thread to actually stop calling the render source.
+///
+/// suspend() only sets a flag; the render thread drops the device when it next
+/// observes it, so parking is asynchronous and no fixed sleep is ever correct.
+/// A 50ms nap was close enough to right that it passed in isolation and failed
+/// intermittently under 96-shard parallelism, where the thread could still land
+/// one pass after the snapshot (the assertion read `4 == 3`).
+///
+/// Returns the settled pass count, or std::nullopt if the thread never went
+/// quiet inside the timeout — which is the real regression this guards.
+std::optional<uint32_t>
+wait_until_parked(const RenderProbe& probe,
+                  std::chrono::milliseconds quiet_window = std::chrono::milliseconds(50),
+                  std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+        const uint32_t before = probe.passes();
+        std::this_thread::sleep_for(quiet_window);
+        if (probe.passes() == before)
+            return before;
+    }
+    return std::nullopt;
+}
+
 } // namespace
 
 TEST_CASE("ALSASoundBackend::resume() blocks until a render pass completed", "[sound][alsa]") {
@@ -143,15 +185,21 @@ TEST_CASE("ALSASoundBackend::resume() blocks until a render pass completed", "[s
     // Let the render thread run, then park it as the sequencer does when idle.
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
     backend.suspend();
-    std::this_thread::sleep_for(std::chrono::milliseconds(30)); // parked by now
+
+    // Must be genuinely parked before probe.reset(), or a still-in-flight pass
+    // sets rendered_ after the reset and the assertion below passes for the
+    // wrong reason.
+    REQUIRE(wait_until_parked(probe).has_value());
 
     probe.reset();
+    const auto handoff_t0 = std::chrono::steady_clock::now();
     backend.resume();
 
     // The whole regression: the sequencer starts its step clock the instant
     // resume() returns. If the render thread is still parked at that moment,
-    // notes published meanwhile are overwritten un-rendered.
-    REQUIRE(probe.rendered());
+    // notes published meanwhile are overwritten un-rendered — unless the
+    // bound expired, which is the documented degrade, not the bug.
+    REQUIRE(handoff_satisfied(probe, handoff_t0));
 
     backend.clear_render_source();
     backend.shutdown();
@@ -166,15 +214,19 @@ TEST_CASE("ALSASoundBackend::suspend() parks the render thread", "[sound][alsa]"
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
     backend.suspend();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    const uint32_t after_park = probe.passes();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    REQUIRE(probe.passes() == after_park); // no passes while parked
+
+    const auto after_park = wait_until_parked(probe);
+    REQUIRE(after_park.has_value()); // suspend() never quiesced the render thread
+
+    // And it must STAY parked, not merely pause between periods.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    REQUIRE(probe.passes() == *after_park);
 
     // And the park must not strand the device: the handoff still works.
     probe.reset();
+    const auto handoff_t0 = std::chrono::steady_clock::now();
     backend.resume();
-    REQUIRE(probe.rendered());
+    REQUIRE(handoff_satisfied(probe, handoff_t0));
 
     backend.clear_render_source();
     backend.shutdown();
@@ -193,8 +245,9 @@ TEST_CASE("ALSASoundBackend::resume() handoff survives repeated suspend/resume c
         backend.suspend();
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         probe.reset();
+        const auto handoff_t0 = std::chrono::steady_clock::now();
         backend.resume();
-        REQUIRE(probe.rendered());
+        REQUIRE(handoff_satisfied(probe, handoff_t0));
     }
 
     backend.clear_render_source();

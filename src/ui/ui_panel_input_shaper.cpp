@@ -628,33 +628,18 @@ void InputShaperPanel::start_with_preflight(char axis) {
         if (low_ram_warn_dialog_)
             return;
         pending_calib_axis_ = axis;
-        low_ram_warn_dialog_ = helix::ui::show_low_ram_resonance_warning(
-            mem.total_mb(),
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[InputShaper] low_ram_confirm");
-                auto* self = static_cast<InputShaperPanel*>(lv_event_get_user_data(e));
-                if (!self)
-                    return;
-                if (self->low_ram_warn_dialog_) {
-                    helix::ui::modal_hide(self->low_ram_warn_dialog_);
-                    self->low_ram_warn_dialog_ = nullptr;
-                }
-                self->proceed_with_preflight(self->pending_calib_axis_);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[InputShaper] low_ram_cancel");
-                auto* self = static_cast<InputShaperPanel*>(lv_event_get_user_data(e));
-                if (!self)
-                    return;
-                if (self->low_ram_warn_dialog_) {
-                    helix::ui::modal_hide(self->low_ram_warn_dialog_);
-                    self->low_ram_warn_dialog_ = nullptr;
-                }
-                self->calibrate_all_mode_ = false; // user backed out before anything started
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            this);
+        // The helper owns the re-entry scaffold: it clears
+        // low_ram_warn_dialog_ on every close path. The token ties all three
+        // callbacks to the panel so one torn down while the dialog is up is
+        // not called back.
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [this]() {
+            calibrate_all_mode_ = false; // user backed out before anything started
+        };
+        opts.owner_token = lifetime_.token();
+        helix::ui::show_low_ram_resonance_warning(
+            mem.total_mb(), &low_ram_warn_dialog_,
+            [this]() { proceed_with_preflight(pending_calib_axis_); }, opts);
         if (!low_ram_warn_dialog_) {
             // Modal failed to build — don't silently block calibration.
             proceed_with_preflight(axis);
@@ -2289,6 +2274,6 @@ void InputShaperPanel::handle_help_clicked() {
 
         "Lower vibration % is better. Lower smoothing preserves detail.";
 
-    helix::ui::modal_show_alert(lv_tr("Input Shaper Help"), help_message, ModalSeverity::Info,
-                                lv_tr("Got it"));
+    helix::ui::modal_alert(lv_tr("Input Shaper Help"), help_message, ModalSeverity::Info,
+                           lv_tr("Got it"));
 }

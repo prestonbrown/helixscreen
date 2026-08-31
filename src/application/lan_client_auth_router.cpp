@@ -11,6 +11,8 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <chrono>
+
 namespace helix {
 namespace {
 
@@ -111,6 +113,16 @@ void LanClientAuthRouter::on_request(const std::string& method, const nlohmann::
         return;
     }
 
+    if (lan_auth::suppressed_by_denial(req->client_id, denied_clients_,
+                                       std::chrono::steady_clock::now())) {
+        // A denied client never enters the firmware's registry, so each of its
+        // reconnects files a fresh request. Dropping it here is the whole fix;
+        // the log line is the only trace the client ever see from us.
+        spdlog::info("[LanAuth] dropping request from {} - denied within the suppression window",
+                     req->client_id);
+        return;
+    }
+
     spdlog::info("[LanAuth] {} authorization request from {} ({})", req->provider,
                  req->requester.empty() ? "unidentified client" : req->requester, req->client_id);
 
@@ -147,6 +159,24 @@ void LanClientAuthRouter::decide(bool approve) {
     }
     lan_auth::PendingRequest req = std::move(*pending_);
     pending_.reset();
+
+    // Suppression keys on an actual denial only (prestonbrown/helixscreen#1376):
+    // an approval clears that client's record, a dismissal never writes one.
+    if (approve) {
+        denied_clients_.erase(req.client_id);
+    } else {
+        // Prune expired entries so the map stays bounded by clients denied
+        // within the window, not by every client ever denied.
+        const auto now = std::chrono::steady_clock::now();
+        for (auto it = denied_clients_.begin(); it != denied_clients_.end();) {
+            if (now - it->second >= lan_auth::denial_suppression_window) {
+                it = denied_clients_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        denied_clients_[req.client_id] = now;
+    }
 
     std::optional<lan_auth::Decision> decision = lan_auth::build_decision(req, approve);
     if (!decision || !client_) {

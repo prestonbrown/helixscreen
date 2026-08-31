@@ -700,6 +700,7 @@
     <str name="icon_alpha_a_circle" value="󰯬"/>
     <str name="icon_animation" value="󰗘"/>
     <str name="icon_animation_play" value="󰤺"/>
+    <str name="icon_archive_arrow_down" value="󱉙"/>
     <str name="icon_arrow_down" value="󰁅"/>
     <str name="icon_arrow_down_bold" value="󰜮"/>
     <str name="icon_arrow_expand_down" value="󰞖"/>

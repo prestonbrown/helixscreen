@@ -1325,12 +1325,12 @@ void DisplaySoundSettingsOverlay::on_preview_open_modal(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[DisplaySoundSettingsOverlay] on_preview_open_modal");
     LV_UNUSED(e);
 
-    helix::ui::modal_show_confirmation(
+    helix::ui::modal_confirm(
         lv_tr("Sample Dialog"),
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod "
         "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim "
         "veniam, quis nostrud exercitation ullamco laboris.",
-        ModalSeverity::Info, "OK", nullptr, nullptr, nullptr); // i18n: universal
+        ModalSeverity::Info, "OK", nullptr); // i18n: universal
 
     auto& overlay = get_display_sound_settings_overlay();
     overlay.apply_preview_palette_to_screen_popups();

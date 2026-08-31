@@ -43,6 +43,22 @@ TEST_CASE_METHOD(GcodeErrorRouterTest, "clean_error_text extracts pure JSON shap
     REQUIRE(text.find("unit 1 slot A") != std::string::npos);
 }
 
+TEST_CASE_METHOD(GcodeErrorRouterTest, "clean_error_text passes the firmware msg to key843",
+                 "[gcode_error_router][1387]") {
+    // key843's table text asserts one cause ("can't read the tag") for a code
+    // whose causes vary; most often the box answering busy while
+    // mid-operation (#1387). The firmware's own msg carries the real cause, so
+    // the decoder must receive it instead of dropping it on the table hit.
+    std::string text =
+        R"({"code":"key843","msg":"read rfid failed, box is busy","values":[1,"B"]})";
+    std::string code;
+    GcodeErrorRouter::clean_error_text(text, code);
+
+    REQUIRE(code == "key843");
+    REQUIRE(text.find("box is busy") != std::string::npos);
+    REQUIRE(text.find("Can't read filament RFID tag") == std::string::npos);
+}
+
 TEST_CASE_METHOD(GcodeErrorRouterTest, "clean_error_text extracts embedded JSON after prefix",
                  "[gcode_error_router]") {
     // Exact shape observed on K2 Plus 2026-05-24 when klipper_mcu was

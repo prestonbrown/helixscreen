@@ -4,13 +4,13 @@
 
 #include "ui_buffer_meter.h"
 #include "ui_clog_bar.h"
-#include "ui_update_queue.h"
 
 #include "theme_manager.h"
 
 #include <spdlog/fmt/fmt.h>
 
 #include <cmath>
+#include <memory>
 
 // Static member definitions
 bool BufferStatusModal::subjects_initialized_ = false;
@@ -239,14 +239,11 @@ void BufferStatusModal::on_show() {
     }
 }
 
-void BufferStatusModal::on_hide() {
-    auto* self = this;
-    helix::ui::async_call([](void* data) { delete static_cast<BufferStatusModal*>(data); }, self);
-}
-
 void BufferStatusModal::show_for(const AmsSystemInfo& info, int effective_unit) {
-    auto* modal = new BufferStatusModal();
+    auto modal = std::make_unique<BufferStatusModal>();
     modal->info_ = info;
     modal->effective_unit_ = effective_unit;
-    modal->show(lv_screen_active());
+    // Stack-owned one-shot: ModalStack frees the instance when its entry goes
+    // (#1382); a failed show leaves the unique_ptr to free it.
+    Modal::show_owned(std::move(modal), lv_screen_active());
 }

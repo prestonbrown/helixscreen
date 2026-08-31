@@ -153,36 +153,39 @@ class PrintSelectDetailView : public OverlayBase {
     }
 
     /**
-     * @brief Set callback fired when the color-requirements swatch card is tapped.
+     * @brief Set callback fired when the filament card is tapped.
      *
-     * Mirrors the AFC/CFS mapping-card UX: the panel wires this to open the
-     * native (Snapmaker) remap modal. The click is only made active for backends
-     * whose remap strategy is SnapmakerNative (see create()).
+     * The panel wires this to the one remap opener every entry point shares.
+     * The tap is only offered on backends that can actually remap - see
+     * color_card_opens_remap(), which drives both the chevron and the card's
+     * clickable flag.
      */
     void set_on_remap_requested(std::function<void()> callback) {
         on_remap_requested_ = std::move(callback);
     }
 
     /**
-     * @brief Handle a tap on the color-requirements swatch card.
+     * @brief Handle a tap on the filament card.
      *
-     * Gates on the active backend's remap strategy (SnapmakerNative only) and,
-     * when applicable, fires on_remap_requested_. Public so the LVGL click
-     * trampoline in create() can dispatch to it. No-op on non-Snapmaker backends.
+     * Gates on the active backend's remap strategy and, when applicable, fires
+     * on_remap_requested_. The view's single tap entry point for the card,
+     * reached through FilamentMappingCard::set_on_tap() — the card installs
+     * exactly one CLICKED handler of its own, so this must NOT also be wired as
+     * a second lv_obj_add_event_cb on the same widget: LVGL would fire both and
+     * one tap would open the picker twice.
      */
     void on_color_card_clicked();
 
     /**
-     * @brief Does a tap on the color-requirements card open the remap picker?
+     * @brief Does a tap on the filament card open the remap picker?
      *
      * The single predicate behind both the chevron and the card's clickable
      * flag, and the same one on_color_card_clicked() guards on. Split out
-     * because the card is the ONLY way into the picker on a backend whose
-     * inline mapping card is hidden (Snapmaker U1): before this it was a bare
-     * "FILAMENTS" strip of swatches with nothing saying it could be tapped, so
-     * the picker existed and worked and no user could find it. On a backend
-     * that cannot remap, the same predicate stops the card claiming a tap it
-     * would silently drop.
+     * because the card is the only way into the picker from this screen, and it
+     * used to be a bare "FILAMENTS" strip of chips with nothing saying it could
+     * be tapped — the picker existed and worked and no user could find it. On a
+     * backend that cannot remap, the same predicate stops the card claiming a
+     * tap it would silently drop.
      */
     [[nodiscard]] static bool color_card_opens_remap();
 
@@ -351,13 +354,13 @@ class PrintSelectDetailView : public OverlayBase {
     /**
      * @brief The mapping the print will actually use — display + gate source.
      *
-     * Editable backends (AFC / Happy Hare / CFS / AD5X-IFS / toolchanger): the
-     * card seeds and owns mappings_, and user edits win, so this returns
-     * get_mappings() unchanged. Non-editable backends (Snapmaker U1 / ACE): the
-     * card is hidden and get_mappings() is empty, so we compute the effective
-     * mapping via FilamentMapper::effective_mappings() using
-     * effective_auto_match(). This is the single helper both the color swatches
-     * and the pre-flight gate consult so they resolve identically.
+     * Whenever the card is showing it has seeded mappings_ — on every backend,
+     * editable or not — and any edit made through the remap picker landed
+     * there, so this returns get_mappings() unchanged. When the card is not
+     * showing get_mappings() is empty, so we compute the effective mapping via
+     * FilamentMapper::effective_mappings() using effective_auto_match(). This
+     * is the single helper the chips, the 3D preview and the pre-flight gate
+     * consult, so they resolve identically.
      */
     [[nodiscard]] std::vector<helix::ToolMapping> effective_mappings() const;
 
@@ -553,14 +556,6 @@ class PrintSelectDetailView : public OverlayBase {
     lv_obj_t* purge_line_checkbox_ = nullptr;
     lv_obj_t* timelapse_checkbox_ = nullptr;
 
-    // Color swatches container (parent card visibility driven by the
-    // color_swatches_visible subject — bound in print_file_detail.xml).
-    lv_obj_t* color_swatches_row_ = nullptr;
-    // The legacy color-requirements card (parent of color_swatches_row_). Made
-    // tappable on Snapmaker (SnapmakerNative remap strategy) to open the remap
-    // modal, mirroring the AFC/CFS FilamentMappingCard whole-card click.
-    lv_obj_t* color_requirements_card_ = nullptr;
-
     // History status display
     lv_obj_t* history_status_row_ = nullptr;
     lv_obj_t* history_status_icon_ = nullptr;
@@ -678,11 +673,11 @@ class PrintSelectDetailView : public OverlayBase {
     // heap-allocated subject per option) — the legacy fixed six subjects
     // (preprint_bed_mesh_, preprint_qgl_, etc.) were retired in Phase 3.5.
     lv_subject_t filament_mismatch_{};        // 1 = material mismatch warning visible
-    lv_subject_t filament_mapping_visible_{}; // 1 = filament mapping card visible (AMS+tools)
-    lv_subject_t color_swatches_visible_{};   // 1 = legacy color swatches card visible
-    // 1 = tapping the color-requirements card opens the remap picker. Drives BOTH
-    // the chevron that advertises the tap and the card's own clickable flag, so a
+    lv_subject_t filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
+    // 1 = tapping the filament card opens the remap picker. Drives BOTH the
+    // chevron that advertises the tap and the card's own clickable flag, so a
     // card that cues a tap and a card that answers one can never disagree.
+    // Published with filament_mapping_visible_ by publish_card_visibility().
     lv_subject_t color_card_remappable_{};
     lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // Cached backend-agnostic pre-flight validation result for the current file.
@@ -704,7 +699,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Print preparation manager (owns it)
     std::unique_ptr<PrintPreparationManager> prep_manager_;
 
-    // Filament mapping card (replaces color swatches when AMS available)
+    // The one filament card: renders the chips and owns the mapping state.
     FilamentMappingCard filament_mapping_card_;
 
     // Dynamically-built option toggle rows for the active printer's
@@ -739,10 +734,10 @@ class PrintSelectDetailView : public OverlayBase {
     // === Callbacks ===
     DeleteConfirmedCallback on_delete_confirmed_;
 
-    // Fired when the user taps the (Snapmaker) color-requirements swatch card.
-    // Set by PrintSelectPanel to open the native remap modal — the same entry
-    // point the preflight-check modal's "Remap…" button uses. Empty on backends
-    // where the swatch card is purely informational.
+    // Fired when the user taps the filament card. Set by PrintSelectPanel to
+    // open the remap modal — the same entry point the preflight-check modal's
+    // "Remap…" button uses. Empty on backends where the card is purely
+    // informational.
     std::function<void()> on_remap_requested_;
 
     // === Internal Methods ===
@@ -955,8 +950,8 @@ class PrintSelectDetailView : public OverlayBase {
      *
      * Called from every site that flips readiness (show() reset + cache seed,
      * scan finish, viewer load callback, on_deactivate). The XML skeleton
-     * bindings inside the mapping/swatch cards ride this subject — it must
-     * always equal is_preflight_ready() ? 1 : 0.
+     * bindings inside the filament card ride this subject — it must always
+     * equal is_preflight_ready() ? 1 : 0.
      */
     void publish_mapping_ready();
 
@@ -996,32 +991,17 @@ class PrintSelectDetailView : public OverlayBase {
     static void on_cancel_delete_static(lv_event_t* e);
 
     /**
-     * @brief Update color swatches display.
+     * @brief Publish the filament card's visibility and its tap affordance.
      *
-     * Renders one swatch per entry in `tool_indices`, sourcing each swatch's
-     * color from the live AMS backend slot when available (slot index = tool
-     * index), falling back to `palette_colors[tool]` when no backend exists.
-     * Also publishes `empty_tools_warning_` (1 if any used tool's slot is
-     * empty, 0 otherwise).
-     *
-     * @param tool_indices Tool indices to render (from
-     *                     ParsedGCodeFile::tools_used_indices)
-     * @param palette_colors Slicer-provided palette (fallback when no AMS
-     *                       backend; indexed by tool)
+     * The single writer of `filament_mapping_visible_` and
+     * `color_card_remappable_`. Both come from one call to the card's cached
+     * `should_show()`, so the card, the chevron that advertises its tap and the
+     * clickable flag that answers one can never describe different states — the
+     * disagreement that let a hidden card still draw chips through a second
+     * surface. Callers that changed anything the card decides on (a palette
+     * backfill, a fresh used-tool set) must run `update()` BEFORE this.
      */
-    void update_color_swatches(const std::set<int>& tool_indices,
-                               const std::vector<std::string>& palette_colors);
-
-    /**
-     * @brief Whether the FILAMENTS card should be visible for `tool_count` tools.
-     *
-     * Multi-tool printers (toolchanger / multi-extruder / multi-slot AMS) show
-     * the card whenever at least one tool is referenced — lane identity matters
-     * even for single-tool prints. Single-extruder printers only show it for
-     * 2+ tools (manual-swap multi-color files). Caller is responsible for
-     * AND-ing with `!filament_mapping_card_.should_show()`.
-     */
-    [[nodiscard]] bool swatches_card_visible_for(size_t tool_count) const;
+    void publish_card_visibility();
 
     /**
      * @brief Render the authoritative chip state for a known used-tool set.
@@ -1029,10 +1009,10 @@ class PrintSelectDetailView : public OverlayBase {
      * The single implementation of the "we now know which tools this file
      * really uses" render, shared by the three sites that learn that set:
      * show()'s tools-used cache seed, the viewer parse
-     * (try_extract_gcode_colors) and the headless scan (finish_scan). Decides
-     * swatch-card visibility from @p tools_used (never the slicer palette
-     * size, which over-counts), renders the swatches, re-runs the pre-flight
-     * gate, and restricts the mapping card to @p tools_used.
+     * (try_extract_gcode_colors) and the headless scan (finish_scan).
+     * Re-publishes the card's visibility now that the precise set is known
+     * (never the slicer palette size, which over-counts), re-runs the
+     * pre-flight gate, and restricts the card to @p tools_used.
      *
      * @param tools_used              The precise tool indices the file uses,
      *                                normally tools_used_effective().

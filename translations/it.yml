@@ -1,7 +1,6 @@
 locale: it
 translations:
   ' (timed out)': ' (tempo scaduto)'
-  ' elapsed · ': ' trascorso · '
   ' frames': ' fotogrammi'
   ' left': ' rimanente'
   '"%s" failed to load': Caricamento di "%s" non riuscito
@@ -217,6 +216,8 @@ translations:
   Apply Changes: Applica modifiche
   Applying Changes: Applicazione modifiche in corso
   Applying...: Applicazione in corso...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Sei sicuro
     di voler annullare questa stampa? Tutto il progresso verrà perso.
   Are you sure? This will power off or restart this device.: Sei sicuro? Questo spegnerà
@@ -240,6 +241,7 @@ translations:
   Auto-poll for weight updates: Aggiornamento peso automatico
   Auto-probe or manually check screw heights: Sondaggio automatico o controllo manuale
     dell'altezza delle viti
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Rendering video automatico
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: La disinstallazione automatica funziona
@@ -972,6 +974,7 @@ translations:
   Failed to analyze PRINT_START macro: Analisi macro PRINT_START fallita
   Failed to apply limits: Applicazione limiti fallita
   Failed to apply settings: Applicazione impostazioni fallita
+  Failed to archive spool: ''
   Failed to build raster data: Costruzione dei dati raster non riuscita
   'Failed to cancel: {}': 'Impossibile annullare: {}'
   'Failed to clear print state: {}': 'Impossibile cancellare lo stato di stampa: {}'
@@ -1396,6 +1399,7 @@ translations:
     {} (disponibili {})'
   Invalid status response from printer: Risposta di stato non valida dalla stampante
   Issue description: Descrizione problema
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: È una nuova bobina
   Jammed at the Toolhead: Inceppato nella testina
   Job Queue: Coda lavori
@@ -1543,7 +1547,6 @@ translations:
   MACRO DEVICES: DISPOSITIVI MACRO
   MAIN POWER BUTTON: PULSANTE DI ACCENSIONE PRINCIPALE
   MANUAL: MANUALE
-  MAPPING: MAPPATURA
   MB RAM: MB RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Monitoraggio temperature MCU, host
@@ -1788,6 +1791,7 @@ translations:
   No slot currently matches.: 'Attualmente nessuno slot corrisponde.'
   No spool assigned: Nessuna bobina assegnata
   No spools found — tap to retry: Nessuna bobina trovata — tocca per riprovare
+  No spools match your search: ''
   No tape detected in printer: Nessun nastro rilevato nella stampante
   No target printer configured: Nessuna stampante di destinazione configurata
   No temperature sensors detected: 'Nessun sensore di temperatura rilevato'
@@ -2608,6 +2612,7 @@ translations:
   'Spool #{}': 'Bobina #{}'
   Spool Info: Info bobina
   Spool Weight (g): Peso bobina (g)
+  Spool archived: ''
   Spool created successfully: Bobina creata con successo
   Spool deleted: Bobina eliminata
   Spool motor: Motore bobina

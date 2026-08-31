@@ -4,6 +4,7 @@
 // Tests for AmsBackend::classify_error virtual hook.
 // Default returns nullopt; derived backends can override to return a domain ErrorEvent.
 
+#include "../test_helpers/ams_backend_probes.h"
 #include "ams_backend_afc.h"
 #include "error_event.h"
 
@@ -11,14 +12,6 @@
 #include <string>
 
 #include "../catch_amalgamated.hpp"
-
-// Reuse the existing AfcCharHelper pattern from test_ams_backend_base_char.cpp.
-// AfcCharHelper : public AmsBackendAfc — constructed with (nullptr, nullptr) — does
-// NOT override classify_error, so it exercises the base-class default.
-class AfcCharHelperForClassify : public AmsBackendAfc {
-  public:
-    AfcCharHelperForClassify() : AmsBackendAfc(nullptr, nullptr) {}
-};
 
 // Minimal fake that overrides classify_error to recognize "FAKE-JAM" lines.
 class FakeJamBackend : public AmsBackendAfc {
@@ -41,7 +34,7 @@ class FakeJamBackend : public AmsBackendAfc {
 };
 
 TEST_CASE("AmsBackend::classify_error default returns nullopt", "[ams][error-center]") {
-    AfcCharHelperForClassify backend;
+    AfcProbe backend;
     helix::ClassifyContext ctx;
     auto result = backend.classify_error("!! Error: something happened", ctx);
     REQUIRE_FALSE(result.has_value());

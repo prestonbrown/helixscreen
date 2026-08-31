@@ -270,7 +270,7 @@ void FilamentMappingModal::on_row_tapped(int tool_index) {
     const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
     const auto& mapping = mappings_[static_cast<size_t>(tool_index)];
 
-    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool_index);
+    spdlog::debug("[FilamentMappingModal] Row tapped: T{}", tool.tool_index);
 
     FilamentSlotPicker::Selection current{mapping.mapped_slot, mapping.mapped_backend,
                                           mapping.is_auto};
@@ -294,20 +294,22 @@ void FilamentMappingModal::on_slot_selected(int tool_index,
     mapping.mapped_backend = selection.backend_index;
     mapping.is_auto = selection.is_auto;
 
-    mapping.material_mismatch = false;
+    // A hand-picked lane is a new pairing, so the old warnings are stale. Clear
+    // them first: "auto", and a lane that is no longer present, both leave no
+    // pairing to classify at all.
+    mapping.set_mismatches({});
     if (selection.is_auto) {
         mapping.reason = helix::ToolMapping::MatchReason::AUTO;
     } else {
         const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
-        const auto* slot = find_mapped_slot(mapping);
-        if (slot && !tool.material.empty() && !slot->material.empty() &&
-            !helix::FilamentMapper::materials_match(tool.material, slot->material)) {
-            mapping.material_mismatch = true;
+        if (const auto* slot = find_mapped_slot(mapping)) {
+            mapping.set_mismatches(helix::FilamentMapper::classify_mismatches(tool, *slot));
         }
     }
 
-    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}", tool_index,
-                 selection.is_auto, selection.slot_index, selection.backend_index);
+    spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}",
+                 tool_info_[static_cast<size_t>(tool_index)].tool_index, selection.is_auto,
+                 selection.slot_index, selection.backend_index);
 
     // Rebuild UI to reflect changes
     rebuild_rows();

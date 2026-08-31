@@ -988,8 +988,11 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     // Reset counter
     total_notifications.store(0);
 
-    // Wait for more notifications from simulation
-    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    // Wait for more notifications from simulation. The mock dispatches every
+    // NOTIFICATION_INTERVAL_TICKS physics ticks (~1s), so the window has to
+    // span at least one full dispatch interval — a fixed sub-second sleep
+    // always lands in the gap between two of them and observes nothing.
+    REQUIRE(wait_for_count(total_notifications, 1, 3000));
 
     mock.stop_temperature_simulation();
 

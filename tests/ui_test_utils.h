@@ -129,6 +129,20 @@ bool click(lv_obj_t* widget);
 bool click_at(int32_t x, int32_t y);
 
 /**
+ * @brief Press and HOLD at specific coordinates (no release)
+ *
+ * Split out of click_at() so a test can do work while the press is still down -
+ * e.g. tear a dialog down mid-press and then release, which is how LVGL delivers
+ * LV_EVENT_CLICKED to an object captured before the teardown. Pair with release().
+ */
+bool press_at(int32_t x, int32_t y);
+
+/**
+ * @brief Release the current press started by press_at()
+ */
+bool release();
+
+/**
  * @brief Type text into focused textarea character by character
  * @param text Text to type
  * @return true if text was sent successfully

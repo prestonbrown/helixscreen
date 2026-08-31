@@ -30,12 +30,12 @@ class BufferStatusModal : public Modal {
         return "buffer_status_modal";
     }
 
-    /// Convenience: create modal, populate from info, and show
+    /// Convenience: create modal, populate from info, and show. One-shot and
+    /// stack-owned - ModalStack frees the instance when its entry goes (#1382).
     static void show_for(const AmsSystemInfo& info, int effective_unit);
 
   protected:
     void on_show() override;
-    void on_hide() override;
 
   private:
     friend class TestableBufferStatusModal;

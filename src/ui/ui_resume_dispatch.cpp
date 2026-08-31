@@ -25,51 +25,13 @@ namespace helix::ui {
 
 namespace {
 
-/// Context for the "Restart from beginning?" modal shown when
-/// virtual_sdcard.is_active=false makes RESUME a silent no-op. Heap-allocated
-/// per show, freed in exactly one of on_restart_confirm / on_restart_cancel.
-struct RestartCtx {
-    lv_obj_t* modal = nullptr;
-    IMoonrakerAPI* api = nullptr;
-    std::string filename;
-    std::string log_prefix;
-    std::function<void()> on_failure;
-};
-
-void on_restart_cancel(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ResumeDispatch] on_restart_cancel");
-    auto* ctx = static_cast<RestartCtx*>(lv_event_get_user_data(e));
-    if (!ctx) {
-        return;
-    }
-    spdlog::info("{} Restart-from-beginning modal cancelled by user", ctx->log_prefix);
-    if (ctx->modal) {
-        modal_hide(ctx->modal);
-    }
-    auto on_failure = std::move(ctx->on_failure);
-    delete ctx;
-    if (on_failure) {
-        on_failure();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void on_restart_confirm(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ResumeDispatch] on_restart_confirm");
-    auto* ctx = static_cast<RestartCtx*>(lv_event_get_user_data(e));
-    if (!ctx) {
-        return;
-    }
-    if (ctx->modal) {
-        modal_hide(ctx->modal);
-        ctx->modal = nullptr;
-    }
-    IMoonrakerAPI* api = ctx->api;
-    std::string filename = std::move(ctx->filename);
-    std::string log_prefix = std::move(ctx->log_prefix);
-    std::function<void()> on_failure = std::move(ctx->on_failure);
-    delete ctx;
-
+/// Restart-from-beginning dispatch for the modal shown when
+/// virtual_sdcard.is_active=false makes RESUME a silent no-op. Invoked from the
+/// modal's confirm callback with captured copies, so nothing here can dangle
+/// with the dialog or leak on a dismissal.
+void restart_from_beginning(IMoonrakerAPI* api, const std::string& filename,
+                            const std::string& log_prefix,
+                            const std::function<void()>& on_failure) {
     if (!api) {
         spdlog::error("{} restart_confirm: api is null", log_prefix);
         if (on_failure)
@@ -124,37 +86,6 @@ void on_restart_confirm(lv_event_t* e) {
                                  on_failure();
                          });
         });
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-/// Context for the cancel confirmation. Heap-allocated per show; freed by the
-/// dialog's own LV_EVENT_DELETE, NOT by the button callbacks.
-///
-/// The button callbacks are not the only way this dialog closes: a backdrop
-/// click and ESC both go straight to Modal::hide(top_dialog)
-/// (Modal::backdrop_click_cb / Modal::esc_key_cb in ui_modal.cpp) and run
-/// neither. Freeing in the callbacks leaks on those two paths — and deleting
-/// there is worse than a leak besides, since the dialog stays clickable through
-/// its exit animation, so a second press on the same button re-enters the
-/// callback with a dangling user_data. Anchoring the free to the destruction of
-/// the object that owns the pointer is the only path every dismissal shares.
-///
-/// RestartCtx above still uses the delete-in-callback shape and has both
-/// problems; left alone deliberately rather than widening this change.
-struct CancelCtx {
-    lv_obj_t* modal = nullptr;
-    IMoonrakerAPI* api = nullptr;
-    std::string log_prefix;
-    std::function<void()> on_confirmed;
-    /// Set once the send has been committed. A press lands again if the user
-    /// double-taps before the exit animation finishes, and cancelling a print
-    /// twice is worth one bool to prevent.
-    bool consumed = false;
-};
-
-/// DECLARATIVE_OK: LV_EVENT_DELETE ownership hook — no declarative equivalent.
-void free_cancel_ctx(lv_event_t* e) {
-    delete static_cast<CancelCtx*>(lv_event_get_user_data(e));
 }
 
 /// The actual send, reached only after the user confirms.
@@ -175,68 +106,10 @@ void send_cancel_macro(IMoonrakerAPI* api, const std::string& log_prefix) {
         });
 }
 
-void on_cancel_dismissed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[CancelDispatch] on_cancel_dismissed");
-    auto* ctx = static_cast<CancelCtx*>(lv_event_get_user_data(e));
-    if (!ctx || ctx->consumed) {
-        return;
-    }
-    // Only the confirmation closes. The dialog underneath — the runout guidance
-    // modal this was pressed in — is deliberately still up, and the user lands
-    // back on it with every button working.
-    spdlog::info("{} Cancel declined — print continues", ctx->log_prefix);
-    if (ctx->modal) {
-        modal_hide(ctx->modal);
-        ctx->modal = nullptr;
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void on_cancel_confirmed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[CancelDispatch] on_cancel_confirmed");
-    auto* ctx = static_cast<CancelCtx*>(lv_event_get_user_data(e));
-    if (!ctx || ctx->consumed) {
-        return;
-    }
-    ctx->consumed = true;
-
-    // Copy out before hiding: modal_hide() only starts the exit animation, but
-    // LV_EVENT_DELETE frees ctx when it lands, and the send's own callbacks
-    // outlive this function.
-    IMoonrakerAPI* api = ctx->api;
-    const std::string log_prefix = ctx->log_prefix;
-    std::function<void()> on_confirmed = ctx->on_confirmed;
-
-    if (ctx->modal) {
-        modal_hide(ctx->modal);
-        ctx->modal = nullptr;
-    }
-
-    // Close the dialog the button was pressed in, now that the cancel is real.
-    // on_tertiary() deliberately does not, so that declining returns to it.
-    if (on_confirmed) {
-        on_confirmed();
-    }
-
-    if (!api) {
-        spdlog::error("{} cancel_confirm: api is null", log_prefix);
-        return;
-    }
-    spdlog::info("{} User confirmed cancel", log_prefix);
-    send_cancel_macro(api, log_prefix);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 } // namespace
 
 void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
                                  std::string log_prefix, std::function<void()> on_failure) {
-    auto* ctx = new RestartCtx{};
-    ctx->api = api;
-    ctx->filename = filename;
-    ctx->log_prefix = std::move(log_prefix);
-    ctx->on_failure = std::move(on_failure);
-
     // Klipper's print_stats.message describes the cause of the abort
     // (Snapmaker firmware writes e.g. "Dirty bed detected" / "Filament Sensor:
     // Runout Detected"). When present, surface it so the user knows why
@@ -250,15 +123,30 @@ void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename
             : std::string(lv_tr("The printer halted this print and cannot resume it. "
                                 "Restart from the beginning?"));
 
-    ctx->modal =
-        modal_show_confirmation(lv_tr("Print Was Terminated"), body.c_str(), ModalSeverity::Warning,
-                                lv_tr("Restart"), on_restart_confirm, on_restart_cancel, ctx);
-    if (!ctx->modal) {
-        spdlog::error("{} Failed to create restart-from-beginning modal", ctx->log_prefix);
-        auto fail = std::move(ctx->on_failure);
-        delete ctx;
-        if (fail)
-            fail();
+    // Cancel and dismissal answer the question the same way: the user chose not
+    // to restart, which the caller learns through on_failure.
+    auto declined = [log_prefix, on_failure]() {
+        spdlog::info("{} Restart-from-beginning modal cancelled by user", log_prefix);
+        if (on_failure) {
+            on_failure();
+        }
+    };
+
+    ConfirmOptions opts;
+    opts.on_cancel = declined;
+    opts.on_dismiss = declined;
+
+    lv_obj_t* modal = modal_confirm(
+        lv_tr("Print Was Terminated"), body.c_str(), ModalSeverity::Warning, lv_tr("Restart"),
+        [api, filename, log_prefix, on_failure]() {
+            restart_from_beginning(api, filename, log_prefix, on_failure);
+        },
+        opts);
+    if (!modal) {
+        spdlog::error("{} Failed to create restart-from-beginning modal", log_prefix);
+        if (on_failure) {
+            on_failure();
+        }
     }
 }
 
@@ -349,11 +237,6 @@ void dispatch_cancel_print(IMoonrakerAPI* api, std::string log_prefix,
         return;
     }
 
-    auto* ctx = new CancelCtx{};
-    ctx->api = api;
-    ctx->log_prefix = log_prefix;
-    ctx->on_confirmed = std::move(on_confirmed);
-
     // Copy and severity deliberately identical to print_cancel_confirm_modal.xml,
     // the confirmation the print-status panel's Stop button already raises: the
     // two dialogs cancel the same print, so they must read the same. Severity
@@ -361,26 +244,40 @@ void dispatch_cancel_print(IMoonrakerAPI* api, std::string log_prefix,
     // icon that component uses. (The primary button there carries an explicit
     // danger variant that modal_dialog's severity binding does not drive — the
     // one cosmetic difference between the two.)
-    ctx->modal = modal_show_confirmation(
+    //
+    // Cancel and dismissal answer the question the same way: the print keeps
+    // running, and the caller holds nothing the buttons were meant to resolve.
+    auto declined = [log_prefix]() {
+        spdlog::info("{} Cancel declined — print continues", log_prefix);
+    };
+    ConfirmOptions opts;
+    opts.on_cancel = declined;
+    opts.on_dismiss = declined;
+    opts.cancel_text = lv_tr("Keep Printing");
+
+    lv_obj_t* modal = modal_confirm(
         lv_tr("Stop Print?"),
         lv_tr("Are you sure you want to cancel this print? All progress will be lost."),
-        ModalSeverity::Error, lv_tr("Stop"), on_cancel_confirmed, on_cancel_dismissed, ctx,
-        lv_tr("Keep Printing"));
+        ModalSeverity::Error, lv_tr("Stop"),
+        [api, log_prefix, on_confirmed = std::move(on_confirmed)]() {
+            spdlog::info("{} User confirmed cancel", log_prefix);
+            // Report the confirmed intent first, then send: the caller closes
+            // the dialog this button was pressed in, and on_tertiary()
+            // deliberately does not, so declining returns to it.
+            if (on_confirmed) {
+                on_confirmed();
+            }
+            send_cancel_macro(api, log_prefix);
+        },
+        opts);
 
-    if (!ctx->modal) {
+    if (!modal) {
         // Never silently swallow the intent: if the dialog cannot be built there
         // is nothing to confirm against, so refuse loudly rather than cancelling
         // a print the user was never actually asked about.
         spdlog::error("{} Failed to create cancel confirmation modal — not cancelling", log_prefix);
         NOTIFY_ERROR(lv_tr("Could not confirm cancel"));
-        delete ctx; // no dialog was created, so no LV_EVENT_DELETE will ever fire
-        return;
     }
-
-    // Hand ownership to the dialog. Every dismissal path — both buttons, a
-    // backdrop click, ESC — ends in this object being destroyed, and none of the
-    // others reliably runs a callback of ours.
-    lv_obj_add_event_cb(ctx->modal, free_cancel_ctx, LV_EVENT_DELETE, ctx);
 }
 
 } // namespace helix::ui

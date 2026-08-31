@@ -156,7 +156,7 @@ void ui_panel_belt_tension_register_callbacks() {
          [](lv_event_t* /*e*/) { get_global_belt_tension_panel().handle_advance_clicked(); }},
         {"belt_tension_help_cb",
          [](lv_event_t* /*e*/) {
-             helix::ui::modal_show_alert(
+             helix::ui::modal_alert(
                  lv_tr("Belt Tension Check"),
                  lv_tr("Uneven belt tension causes print artifacts like layer shifts, "
                        "VFAs (vertical fine artifacts), and ringing.\n\n"
@@ -167,15 +167,14 @@ void ui_panel_belt_tension_register_callbacks() {
          }},
         {"belt_tension_results_help_cb",
          [](lv_event_t* /*e*/) {
-             helix::ui::modal_show_alert(
-                 lv_tr("Understanding Results"),
-                 lv_tr("Frequency Delta: Difference between Path A and B. "
-                       "Anything under 2 Hz is below what this measurement can "
-                       "resolve, so it counts as matched.\n\n"
-                       "Match: How close the two belts are, as a percentage of "
-                       "belt A's frequency. Above 95% is excellent; below 90% "
-                       "is worth adjusting."),
-                 ModalSeverity::Info, lv_tr("Got it"));
+             helix::ui::modal_alert(lv_tr("Understanding Results"),
+                                    lv_tr("Frequency Delta: Difference between Path A and B. "
+                                          "Anything under 2 Hz is below what this measurement can "
+                                          "resolve, so it counts as matched.\n\n"
+                                          "Match: How close the two belts are, as a percentage of "
+                                          "belt A's frequency. Above 95% is excellent; below 90% "
+                                          "is worth adjusting."),
+                                    ModalSeverity::Info, lv_tr("Got it"));
          }},
     });
 

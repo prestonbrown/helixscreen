@@ -123,11 +123,20 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability_int(printer_has_accelerometer_, hardware.has_accelerometer() ? 1 : 0);
 
     // Install M300 (Klipper gcode beeper) backend now that we know whether
-    // the printer's Klipper config actually has a beeper output_pin. This
-    // MUST happen before flipping printer_has_speaker_ so any UI/handlers
+    // the printer answers M300 — a beeper output_pin or an M300 macro in the
+    // Klipper config (has_speaker covers both) — or the user forced the
+    // speaker capability on for a buzzer neither signal detects (e.g. firmware
+    // with native M300 handling and no Klipper object at all). Without the
+    // override arm, that forced-on setting silently no-ops: the sound settings
+    // appear, but nothing ever installs a backend.
+    // This MUST happen before flipping printer_has_speaker_ so any UI/handlers
     // observing the subject see a working backend. SoundManager no-ops if
-    // a real audio backend (SDL/ALSA/PWM) is already installed.
-    if (hardware.has_speaker()) {
+    // a real audio backend (SDL/ALSA/PWM) is already installed. A DISABLE
+    // override means "this printer has no speaker", so it keeps the M300
+    // backend out too rather than installing a beeper the user disowned.
+    const OverrideState speaker_override = overrides.get_override(capability::SPEAKER);
+    if (speaker_override != OverrideState::DISABLE &&
+        (hardware.has_speaker() || speaker_override == OverrideState::ENABLE)) {
         SoundManager::instance().try_install_m300_backend();
     }
 

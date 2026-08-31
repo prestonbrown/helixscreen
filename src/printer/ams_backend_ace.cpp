@@ -561,10 +561,6 @@ AmsError AmsBackendAce::set_tool_mapping(int tool_number, int slot_index) {
     return AmsErrorHelper::not_supported("Tool mapping");
 }
 
-helix::printer::ToolMappingCapabilities AmsBackendAce::get_tool_mapping_capabilities() const {
-    return {false, false, ""};
-}
-
 std::vector<int> AmsBackendAce::get_tool_mapping() const {
     return {};
 }

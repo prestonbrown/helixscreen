@@ -19,23 +19,37 @@
        via flex_grow. width="40" is tunable — the snug size that fits the widest
        label ("T31").
 
-       C++ (update_color_swatches) owns only the dynamic data:
+       C++ (FilamentMappingCard::rebuild_compact_view) owns only the dynamic data:
          - top_band bg = gcode/palette intended color
          - bottom_band bg = mapped slot present color (or empty variant)
          - tool_label text + contrast color (against top band bg)
          - slot_label text + contrast color (against bottom band bg)
          - divider bg color (contrast against a blend of both bands)
-         - LV_STATE_USER_1 on bottom_band for the empty-slot variant -->
+         - LV_STATE_USER_1 on bottom_band for the empty-slot variant
+         - LV_STATE_USER_2 on the chip ROOT for the colour mismatch surround -->
   <styles>
     <!-- Empty-slot variant on the BOTTOM band when the tool's mapped slot is
          empty: warning border + reduced bg opacity. Toggled by C++ via
          lv_obj_add_state(bottom_band, LV_STATE_USER_1). -->
     <style name="empty_slot" bg_opa="60" border_width="2" border_color="#warning" border_opa="255"/>
+    <!-- Colour mismatch variant on the chip ROOT: the mapped lane will print in
+         a colour the file did not ask for. Scoped to the whole chip because
+         that is a fact about the PAIRING the two bands represent, not about
+         either band, which is also what keeps it legible beside empty_slot's
+         band border. #warning is shared with that border on purpose: same
+         severity, told apart by scope. The root's own radius rounds it, so the
+         surround follows the chip's corners. border_post draws it AFTER the
+         children, without which the full bleed bands paint straight over it.
+         Belt and braces: lv_theme_default's card style already sets it on every
+         lv_obj, so this states the intent and survives a theme that stops.
+         Toggled by C++ via lv_obj_add_state(chip, LV_STATE_USER_2). -->
+    <style name="color_mismatch" border_width="2" border_color="#warning" border_opa="255" border_post="true"/>
   </styles>
   <view name="swatch"
         extends="lv_obj" width="40" height="100%" flex_flow="column" style_flex_main_place="center"
         style_flex_cross_place="stretch" style_pad_all="0" style_pad_row="0" style_radius="4" style_bg_opa="0"
         style_border_width="0" style_clip_corner="true" scrollable="false" clickable="false" event_bubble="true">
+    <style name="color_mismatch" selector="user_2"/>
     <!-- TOP band: gcode intended color. width="100%" makes it span the full
          chip width (the parent's style_flex_cross_place="stretch" alone does NOT
          widen a flex child whose default width is content-sized — without an

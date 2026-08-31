@@ -125,8 +125,9 @@ class SoundBackend {
     virtual void resume() {}
 
     /// Whether this backend supports direct audio rendering via set_render_source.
-    /// Backends with real audio output (SDL, ALSA) return true.
-    /// Frequency-only backends (PWM, M300) return false.
+    /// Backends with real audio output (SDL, ALSA) return true. PWM is
+    /// tone-only (its piezo cannot demodulate duty-cycle PCM); M300 is
+    /// frequency-only.
     virtual bool supports_render_source() const {
         return false;
     }

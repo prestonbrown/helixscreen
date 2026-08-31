@@ -1,7 +1,6 @@
 locale: fr
 translations:
   ' (timed out)': ' (délai dépassé)'
-  ' elapsed · ': ' écoulé · '
   ' frames': ' images'
   ' left': ' restant'
   '"%s" failed to load': '"%s" na pas pu se charger'
@@ -222,6 +221,8 @@ translations:
   Apply Changes: Appliquer les modifications
   Applying Changes: Application des modifications
   Applying...: Application...
+  Archive: ''
+  Archive Spool?: ''
   Are you sure you want to cancel this print? All progress will be lost.: Êtes-vous
     sûr de vouloir annuler cette impression ? Toute la progression sera perdue.
   Are you sure? This will power off or restart this device.: Êtes-vous sûr ? Cela
@@ -245,6 +246,7 @@ translations:
   Auto-poll for weight updates: Interrogation auto des mises à jour de poids
   Auto-probe or manually check screw heights: Palpage auto ou vérification manuelle
     des hauteurs de vis
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
   Auto-render video: Rendu vidéo automatique
   'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: La désinstallation automatique ne
@@ -986,6 +988,7 @@ translations:
   Failed to analyze PRINT_START macro: Échec de l'analyse de la macro PRINT_START
   Failed to apply limits: Échec de l'application des limites
   Failed to apply settings: Échec de l'application des paramètres
+  Failed to archive spool: ''
   Failed to build raster data: Échec de la construction des données raster
   'Failed to cancel: {}': 'Échec de l''annulation : {}'
   'Failed to clear print state: {}': 'Échec de l''effacement de l''état d''impression
@@ -1414,6 +1417,7 @@ translations:
     : {} (sur {})'
   Invalid status response from printer: Réponse détat invalide de limprimante
   Issue description: Description du problème
+  It can be un-archived in Spoolman's web UI.: ''
   It's a new spool: C'est une nouvelle bobine
   Jammed at the Toolhead: Bourrage à la tête d'outil
   Job Queue: File d'impression
@@ -1559,7 +1563,6 @@ translations:
   MACRO DEVICES: APPAREILS MACRO
   MAIN POWER BUTTON: BOUTON D'ALIMENTATION PRINCIPAL
   MANUAL: MANUEL
-  MAPPING: AFFECTATION
   MB RAM: Mo de RAM
   MCU: MCU
   MCU, host, and auxiliary temperature monitoring: Surveillance des températures MCU,
@@ -1805,6 +1808,7 @@ translations:
   No slot currently matches.: 'Aucun slot ne correspond actuellement.'
   No spool assigned: Aucune bobine assignée
   No spools found — tap to retry: Aucune bobine trouvée — appuyez pour réessayer
+  No spools match your search: ''
   No tape detected in printer: Aucun ruban détecté dans limprimante
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
@@ -2637,6 +2641,7 @@ translations:
   'Spool #{}': 'Bobine #{}'
   Spool Info: Info bobine
   Spool Weight (g): Poids de la bobine (g)
+  Spool archived: ''
   Spool created successfully: Bobine créée avec succès
   Spool deleted: Bobine supprimée
   Spool motor: Moteur de bobine

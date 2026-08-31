@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="ja">
   <translation tag=" (timed out)" ja="（タイムアウト）"/>
-  <translation tag=" elapsed · " ja=" 経過 · "/>
   <translation tag=" frames" ja=" フレーム"/>
   <translation tag=" left" ja=" 残り"/>
   <translation tag="&quot;%s&quot; failed to load" ja="&quot;%s&quot; の読み込みに失敗しました"/>
@@ -194,6 +193,8 @@
   <translation tag="Apply Changes" ja="変更を適用"/>
   <translation tag="Applying Changes" ja="変更を適用中"/>
   <translation tag="Applying..." ja="適用中..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ja="この印刷をキャンセルしますか？すべての進行状況が失われます。"/>
   <translation tag="Are you sure? This will power off or restart this device." ja="よろしいですか？このデバイスの電源がオフまたは再起動されます。"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ja="Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御"/>
@@ -211,6 +212,7 @@
   <translation tag="Auto-lock" ja="自動ロック"/>
   <translation tag="Auto-poll for weight updates" ja="重量更新の自動ポーリング"/>
   <translation tag="Auto-probe or manually check screw heights" ja="自動プローブまたは手動でネジの高さを確認"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" ja="動画を自動レンダリング"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" ja="自動アンインストールはローカルの Moonraker でのみ動作します"/>
@@ -869,6 +871,7 @@
   <translation tag="Failed to analyze PRINT_START macro" ja="PRINT_START マクロの解析に失敗しました"/>
   <translation tag="Failed to apply limits" ja="制限の適用に失敗しました"/>
   <translation tag="Failed to apply settings" ja="設定の適用に失敗しました"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" ja="ラスターデータの構築に失敗しました"/>
   <translation tag="Failed to cancel: {}" ja="キャンセルに失敗しました: {}"/>
   <translation tag="Failed to clear print state: {}" ja="印刷状態をクリアできませんでした: {}"/>
@@ -1241,6 +1244,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" ja="無効なシートテンプレートインデックス: {} (現在 {})"/>
   <translation tag="Invalid status response from printer" ja="プリンターからの無効なステータス応答"/>
   <translation tag="Issue description" ja="問題の説明"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" ja="新しいスプールです"/>
   <translation tag="Jammed at the Toolhead" ja="ツールヘッドで詰まり"/>
   <translation tag="Job Queue" ja="ジョブキュー"/>
@@ -1366,7 +1370,6 @@
   <translation tag="MACRO DEVICES" ja="マクロデバイス"/>
   <translation tag="MAIN POWER BUTTON" ja="メイン電源ボタン"/>
   <translation tag="MANUAL" ja="手動"/>
-  <translation tag="MAPPING" ja="マッピング"/>
   <translation tag="MB RAM" ja="MB RAM"/>
   <translation tag="MCU" ja="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" ja="MCU、ホスト、補助温度の監視"/>
@@ -1588,6 +1591,7 @@
   <translation tag="No slot currently matches." ja="現在、一致するスロットはありません。"/>
   <translation tag="No spool assigned" ja="スプール未割当"/>
   <translation tag="No spools found — tap to retry" ja="スプールが見つかりません — タップして再試行"/>
+  <translation tag="No spools match your search"/>
   <translation tag="No tape detected in printer" ja="プリンターにテープが検出されません"/>
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
@@ -2323,6 +2327,7 @@
   <translation tag="Spool #{}" ja="スプール #{}"/>
   <translation tag="Spool Info" ja="スプール情報"/>
   <translation tag="Spool Weight (g)" ja="スプール重量（g）"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" ja="スプールを作成しました"/>
   <translation tag="Spool deleted" ja="スプールを削除しました"/>
   <translation tag="Spool motor" ja="スプールモーター"/>

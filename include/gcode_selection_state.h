@@ -43,7 +43,12 @@ namespace helix::gcode {
 
 /// How much cached work a selection change invalidates.
 enum class InvalidationScope {
-    None,          ///< contents unchanged; do not touch either cache
+    /// Not `None`: X11 defines that as a macro (`#define None 0L`), so any build
+    /// that reaches an X11 header - the Debian and Raspberry Pi desktop targets -
+    /// preprocesses `InvalidationScope::None` into a numeric constant and fails to
+    /// compile. The printer targets never include X11, which is why this only ever
+    /// broke on those three platforms.
+    Nothing,       ///< contents unchanged; do not touch either cache
     SolidCache,    ///< solid layer cache only (highlight: ghost never draws it)
     SolidAndGhost, ///< both (exclusion: the ghost pass dims excluded objects)
 };

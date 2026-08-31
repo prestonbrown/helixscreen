@@ -175,68 +175,30 @@
           <icon name="history_status_icon" src="check" size="sm" variant="success"/>
           <text_body name="history_status_label" text=""/>
         </lv_obj>
-        <!-- Filaments card (legacy multi-color swatch fallback).
-             Visibility driven by the C++-owned color_swatches_visible
-             subject — shown only when the mapping card is hidden AND the
-             file declares more than one tool color. The empty-filament
-             warning icon next to the header is bound to the
-             empty_tools_warning subject (published from update_color_swatches
-             whenever any used tool's AMS slot is empty). -->
-        <ui_card name="color_requirements_card" width="100%" style_pad_all="0" style_border_width="0" flex_flow="column">
-          <bind_flag_if_eq subject="color_swatches_visible" flag="hidden" ref_value="0"/>
-          <!-- Tapping this card is the ONLY way into the remap picker on a
-               backend whose inline filament_mapping_card is hidden (Snapmaker
-               U1). Clickable only when that tap actually opens something, so the
-               card never swallows a tap it would silently drop. -->
-          <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
-            <text_small text="FILAMENTS" translation_tag="FILAMENTS" clickable="false" event_bubble="true"/>
-            <icon name="empty_tools_warning_icon"
-                  src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
-              <bind_flag_if_eq subject="empty_tools_warning" flag="hidden" ref_value="0"/>
-            </icon>
-            <!-- Spacer: pushes the tap cue to the trailing edge without giving
-                 the label a width that would fight the warning icon. -->
-            <lv_obj name="color_card_header_spacer"
-                    width="content" height="1" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                    scrollable="false" clickable="false" event_bubble="true"/>
-            <!-- The tap cue. Same chevron every tappable row in the app uses
-                 (setting_action_row.xml, ams_edit_overlay.xml), so it reads as
-                 "this opens something" without a label to translate. -->
-            <icon name="color_card_remap_chevron"
-                  src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true">
-              <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
-            </icon>
-          </lv_obj>
-          <lv_obj name="color_swatches_row"
-                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_pad_top="#space_xs" scrollable="false" clickable="false" event_bubble="true">
-            <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
-            <!-- Color swatches added dynamically in C++ (clickable=false +
-                 event_bubble=true on the swatch component) so a tap reaches the
-                 parent color_requirements_card → opens the remap modal on U1. -->
-          </lv_obj>
-          <!-- Skeleton: two chip-sized placeholders (filament_swatch chips are
-               40 wide, full height of the 32px row) shown only until the
-               authoritative tool set exists — a cache hit never shows this.
-               Sizes mirror the swatch chip / row they stand in for. -->
-          <!-- SIZE_OK: skeleton row height mirrors color_swatches_row's literal 32 -->
-          <lv_obj name="color_swatches_skeleton"
-                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_pad_top="#space_xs" scrollable="false" clickable="false" event_bubble="true">
-            <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
-            <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
-            <lv_obj width="40"
-                    height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
-                    event_bubble="true"/>
-            <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
-            <lv_obj width="40"
-                    height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
-                    event_bubble="true"/>
-          </lv_obj>
-        </ui_card>
+        <!-- Sliced colors toggle. Belongs to the 3D PREVIEW, not the chips:
+             apply_preview_colors() uses detail_prefer_sliced_colors to pick
+             which mappings feed the viewer (sliced = each tool's own slicer
+             color; actual = the matched-lane colors). It sits at the top of the
+             right column because the preview owns the left column and is
+             flex_grow=1 there — a row under it would steal render height. -->
+        <lv_obj name="sliced_colors_row"
+                width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_bottom="#space_sm"
+                scrollable="false">
+          <!-- Offered only while the LIVE viewer is what is on screen, because
+               that is the only thing the toggle recolours. Two ways to be inert,
+               so ONE expression rather than two stacked bindings: mode 0 means
+               the viewer is not the active preview (viewer_hidden above), and no
+               first frame means the slicer thumbnail is still drawn over it
+               (thumbnail_hidden above). invert="true" reads as "show when". -->
+          <bind_flag_if cond="detail_gcode_viewer_mode eq 1 and detail_viewer_first_frame eq 1"
+                        flag="hidden" invert="true"/>
+          <text_small name="sliced_colors_label" text="Sliced colors" translation_tag="Sliced colors"/>
+          <ui_switch name="sliced_colors_toggle" size="small">
+            <bind_state_if_eq subject="detail_prefer_sliced_colors" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="on_toggle_sliced_colors"/>
+          </ui_switch>
+        </lv_obj>
 
         <!-- Bypass notice: when bypass is engaged the print runs on the
              external spool. The mapping card below hides itself for a
@@ -256,61 +218,91 @@
                       flex_grow="1"/>
         </ui_card>
 
-        <!-- Filament mapping card (shown when AMS/toolchanger detected).
-             Visibility driven by the C++-owned filament_mapping_visible
-             subject. PrintSelectDetailView publishes 1/0 after each
-             FilamentMappingCard::update(). -->
+        <!-- Filament card. ONE chip surface for every AMS backend: the card
+             renders stacked filament_swatch chips from its own mappings store.
+             Visibility is the C++-owned filament_mapping_visible subject,
+             published after each FilamentMappingCard::update(). Tapping opens
+             the remap picker, and the chevron says so.
+
+             The clickable binding below is NOT the only writer of that flag:
+             FilamentMappingCard::create() also adds CLICKABLE unconditionally,
+             and lv_subject_set_int only notifies on a CHANGE, so publishing
+             color_card_remappable=0 over an already-0 subject never fires this
+             binding and the C++ flag survives. A tap on a non-remappable
+             backend is stopped by on_color_card_clicked()'s own guard, not by
+             the flag. Tracked; do not read this binding as authoritative. -->
         <ui_card name="filament_mapping_card"
                  width="100%" style_pad_hor="0" style_pad_ver="#space_md" style_pad_gap="#space_xs"
                  style_border_width="0" flex_flow="column">
           <bind_flag_if_eq subject="filament_mapping_visible" flag="hidden" ref_value="0"/>
-          <!-- Header row: section title left, sliced-colors toggle right. The
-               toggle belongs to this card because it only has meaning relative
-               to the mapping shown below it. -->
+          <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false"
-                  clickable="false" event_bubble="true">
-            <lv_obj width="content"
-                    height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                    style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
-              <text_small text="MAPPING" translation_tag="MAPPING" clickable="false" event_bubble="true"/>
-              <icon name="filament_mismatch_icon"
-                    src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
-                <bind_flag_if_eq subject="filament_mismatch" flag="hidden" ref_value="0"/>
-              </icon>
-            </lv_obj>
-            <!-- Switch stays clickable (it is the control); the wrapper passes
-                 taps through so the rest of the header still reaches the card. -->
-            <lv_obj width="content"
-                    height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                    style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
-              <text_small name="sliced_colors_label"
-                          text="Sliced colors" translation_tag="Sliced colors" clickable="false" event_bubble="true"/>
-              <ui_switch name="sliced_colors_toggle" size="small">
-                <bind_state_if_eq subject="detail_prefer_sliced_colors" state="checked" ref_value="1"/>
-                <event_cb trigger="value_changed" callback="on_toggle_sliced_colors"/>
-              </ui_switch>
-            </lv_obj>
+                  style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
+            <text_small text="FILAMENTS" translation_tag="FILAMENTS" clickable="false" event_bubble="true"/>
+            <icon name="filament_mismatch_icon"
+                  src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="filament_mismatch" flag="hidden" ref_value="0"/>
+            </icon>
+            <!-- DANGER, and a different glyph from the mismatch triangle beside
+                 it. These two lamps were never visible at once while they lived
+                 in mutually exclusive cards; one card puts them side by side, and
+                 two identical amber triangles say "something is wrong" twice
+                 without saying which thing. Severity matches the canonical
+                 mapping in ui_preflight_check_modal.cpp's severity_visual():
+                 EmptySlot is close/danger, a material mismatch is alert/warning.
+                 An empty lane BLOCKS the print; a mismatch only advises. -->
+            <icon name="empty_tools_warning_icon"
+                  src="close" size="sm" variant="danger" clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="empty_tools_warning" flag="hidden" ref_value="0"/>
+            </icon>
+            <!-- Spacer: pushes the tap cue to the trailing edge without giving
+                 the label a width that would fight the icons. -->
+            <lv_obj name="color_card_header_spacer"
+                    width="content" height="1" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false" clickable="false" event_bubble="true"/>
+            <!-- The tap cue. Same chevron every tappable row in the app uses
+                 (setting_action_row.xml, ams_edit_overlay.xml), so it reads as
+                 "this opens something" without a label to translate. -->
+            <icon name="color_card_remap_chevron"
+                  src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
+            </icon>
           </lv_obj>
+          <!-- height is FIXED, not "content": the filament_swatch chips inside are
+               height="100%" and collapse to zero in a content-height parent. And
+               flex_flow is "row", not "row_wrap": at a fixed height a wrapped
+               second row is clipped, and options_section is height="100%"
+               scrollable="false" so the card cannot grow either. The card caps
+               the chips at what fits and renders a "+N" pill for the rest (see
+               rebuild_compact_view). -->
+          <!-- SIZE_OK: 32 IS the chip height. filament_swatch is height="100%" and
+               resolves against this row's CONTENT box, so padding here shortens
+               the chips instead of growing the row - the card is flex column
+               with style_pad_gap, which is what spaces this from the header. -->
           <lv_obj name="filament_mapping_rows"
-                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row_wrap"
-                  scrollable="false" clickable="false" event_bubble="true">
+                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
-            <!-- Rows added dynamically in C++ -->
+            <!-- Chips added dynamically in C++ (clickable=false + event_bubble=true
+                 on filament_swatch) so a tap reaches this card. -->
           </lv_obj>
-          <!-- Skeleton: two pill-shaped placeholders sized like real pills
-               (48% width pairs wrap like the pill row). Shown only until the
-               authoritative tool set exists — a cache hit never shows this. -->
+          <!-- Skeleton: two chip-sized placeholders shown only until the
+               authoritative tool set exists — a cache hit never shows this.
+               Height, flow and alignment all mirror filament_mapping_rows above,
+               so nothing moves when detail_mapping_ready flips. -->
+          <!-- SIZE_OK: skeleton row height mirrors filament_mapping_rows' literal 32 -->
           <lv_obj name="mapping_skeleton"
-                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row_wrap"
-                  scrollable="false" clickable="false" event_bubble="true">
+                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
-            <lv_obj width="48%"
-                    height="44" style_radius="#space_lg" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
+            <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
+            <lv_obj width="40"
+                    height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
                     event_bubble="true"/>
-            <lv_obj width="48%"
-                    height="44" style_radius="#space_lg" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
+            <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
+            <lv_obj width="40"
+                    height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
                     event_bubble="true"/>
           </lv_obj>
         </ui_card>

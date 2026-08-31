@@ -358,6 +358,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return RemapStrategy::Native;
     }
 
+    /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
+    [[nodiscard]] bool owns_tool_mapping_table() const override {
+        return true;
+    }
+
     [[nodiscard]] bool has_firmware_spool_persistence() const override {
         return true; // AFC uses SET_SPOOL_ID gcode for persistence
     }
@@ -426,16 +431,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     AmsError reset_tool_mappings() override;
 
     // Tool Mapping support
-    /**
-     * @brief Get tool mapping capabilities for AFC
-     *
-     * AFC supports per-lane tool assignment via SET_MAP G-code.
-     *
-     * @return Capabilities with supported=true, editable=true
-     */
-    [[nodiscard]] helix::printer::ToolMappingCapabilities
-    get_tool_mapping_capabilities() const override;
-
     /**
      * @brief Get current tool-to-slot mapping
      *

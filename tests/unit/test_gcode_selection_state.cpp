@@ -102,9 +102,9 @@ TEST_CASE("selection applied after the index map is built still classifies",
 TEST_CASE("an unchanged selection requires no invalidation", "[gcode_selection_state]") {
     SelectionState s;
     s.set_highlighted({"cube_1"});
-    REQUIRE(s.set_highlighted({"cube_1"}) == InvalidationScope::None);
+    REQUIRE(s.set_highlighted({"cube_1"}) == InvalidationScope::Nothing);
     s.set_excluded({"cube_2"});
-    REQUIRE(s.set_excluded({"cube_2"}) == InvalidationScope::None);
+    REQUIRE(s.set_excluded({"cube_2"}) == InvalidationScope::Nothing);
 }
 
 // This used to be SolidCache, on the reasoning that the ghost pass never drew

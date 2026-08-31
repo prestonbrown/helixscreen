@@ -678,22 +678,14 @@ void ToolSwitcherWidget::handle_tool_selected(int tool_index) {
     if (lifecycle == PrintState::Paused) {
         spdlog::info("[ToolSwitcher] Print paused, showing confirmation for T{}", tool_index);
 
-        helix::ui::modal_show_confirmation(
+        helix::ui::modal_confirm(
             lv_tr("Change Tool While Paused"),
             lv_tr("The print is paused. Changing tools now moves the toolhead and swaps the "
                   "filament at the nozzle. Resume the print once the change finishes."),
             ::ModalSeverity::Warning, lv_tr("Change Tool"),
-            // on_confirm
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] confirm_tool_change");
-                int idx = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
-                dispatch_tool_change(idx);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            // on_cancel (nullptr = just dismiss)
-            nullptr,
-            // user_data = tool_index
-            reinterpret_cast<void*>(static_cast<intptr_t>(tool_index)));
+            // dispatch_tool_change() is static, so the capture is the tool index
+            // by value - nothing here touches the widget instance.
+            [tool_index] { dispatch_tool_change(tool_index); });
         return;
     }
 

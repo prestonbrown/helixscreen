@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="ru">
   <translation tag=" (timed out)" ru=" (время ожидания истекло)"/>
-  <translation tag=" elapsed · " ru=" истёк · "/>
   <translation tag=" frames" ru=" кадров"/>
   <translation tag=" left" ru=" осталось"/>
   <translation tag="&quot;%s&quot; failed to load" ru="Не удалось загрузить «%s»"/>
@@ -194,6 +193,8 @@
   <translation tag="Apply Changes" ru="Применить изменения"/>
   <translation tag="Applying Changes" ru="Применение изменений"/>
   <translation tag="Applying..." ru="Применение..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ru="Вы уверены, что хотите отменить печать? Весь прогресс будет потерян."/>
   <translation tag="Are you sure? This will power off or restart this device." ru="Вы уверены? Это выключит или перезагрузит данное устройство."/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ru="Назначьте макросы Klipper для управления LED через вкл/выкл, переключение или пресеты"/>
@@ -211,6 +212,7 @@
   <translation tag="Auto-lock" ru="Автоблокировка"/>
   <translation tag="Auto-poll for weight updates" ru="Автоопрос обновлений веса"/>
   <translation tag="Auto-probe or manually check screw heights" ru="Автозондирование или ручная проверка высоты винтов"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" ru="Автоматический рендер видео"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" ru="Автоудаление работает только с локальным Moonraker"/>
@@ -869,6 +871,7 @@
   <translation tag="Failed to analyze PRINT_START macro" ru="Не удалось проанализировать макрос PRINT_START"/>
   <translation tag="Failed to apply limits" ru="Не удалось применить ограничения"/>
   <translation tag="Failed to apply settings" ru="Не удалось применить настройки"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" ru="Не удалось построить растровые данные"/>
   <translation tag="Failed to cancel: {}" ru="Не удалось отменить: {}"/>
   <translation tag="Failed to clear print state: {}" ru="Не удалось очистить состояние печати: {}"/>
@@ -1241,6 +1244,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" ru="Недопустимый индекс шаблона листа: {} (имеется {})"/>
   <translation tag="Invalid status response from printer" ru="Недопустимый ответ статуса от принтера"/>
   <translation tag="Issue description" ru="Описание проблемы"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" ru="Это новая катушка"/>
   <translation tag="Jammed at the Toolhead" ru="Замятие в печатающей головке"/>
   <translation tag="Job Queue" ru="Очередь заданий"/>
@@ -1366,7 +1370,6 @@
   <translation tag="MACRO DEVICES" ru="МАКРО-УСТРОЙСТВА"/>
   <translation tag="MAIN POWER BUTTON" ru="ГЛАВНАЯ КНОПКА ПИТАНИЯ"/>
   <translation tag="MANUAL" ru="ВРУЧНУЮ"/>
-  <translation tag="MAPPING" ru="СОПОСТАВЛЕНИЕ"/>
   <translation tag="MB RAM" ru="МБ ОЗУ"/>
   <translation tag="MCU" ru="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" ru="Мониторинг температуры MCU, хоста и вспомогательных датчиков"/>
@@ -1588,6 +1591,7 @@
   <translation tag="No slot currently matches." ru="Сейчас нет подходящего слота."/>
   <translation tag="No spool assigned" ru="Катушка не назначена"/>
   <translation tag="No spools found — tap to retry" ru="Катушки не найдены — нажмите для повтора"/>
+  <translation tag="No spools match your search"/>
   <translation tag="No tape detected in printer" ru="В принтере не обнаружена лента"/>
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
@@ -2323,6 +2327,7 @@
   <translation tag="Spool #{}" ru="Катушка #{}"/>
   <translation tag="Spool Info" ru="Информация о катушке"/>
   <translation tag="Spool Weight (g)" ru="Вес катушки (г)"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" ru="Катушка успешно создана"/>
   <translation tag="Spool deleted" ru="Катушка удалена"/>
   <translation tag="Spool motor" ru="Мотор катушки"/>

@@ -102,9 +102,11 @@ TEST_CASE_METHOD(ToolStateFixture,
 
     auto mock = AmsBackend::create_mock(4);
     REQUIRE(mock != nullptr);
-    auto caps = mock->get_tool_mapping_capabilities();
-    if (!caps.supported)
-        return; // Mock lacks tool multiplexing; skipped.
+    // A REQUIRE, not a silent skip: the plain mock stands in for a lane
+    // multiplexer and owns a table by construction. Returning early here would
+    // make the whole case vanish if that ever stopped being true, which is
+    // exactly the regression the case exists to catch.
+    REQUIRE(mock->owns_tool_mapping_table());
 
     ams.set_backend(std::move(mock));
     ams.sync_from_backend();
@@ -173,7 +175,7 @@ TEST_CASE_METHOD(ToolStateFixture,
                  "across rebuild (regression for ToolChanger backend)",
                  "[tool-state][ams][ams-topology][regression]") {
     // Production sequence for a ToolChanger printer that also advertises
-    // supports_tool_mapping=true (AmsBackendToolChanger does):
+    // owns_tool_mapping_table() true (AmsBackendToolChanger does):
     //   1. init_tools(discovery) → tools_[i].extruder_name = "extruder", "extruder1", ...
     //   2. sync_from_backend() → build_ams_topology() → set_ams_topology() rebuilds tools_
     //
@@ -585,4 +587,93 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Same contract on the way back out: nothing to clear, nothing published.
     ts.clear_ams_topology();
     REQUIRE_FALSE(ts.ams_topology_active());
+}
+
+// A topology rebuild fires whenever the tool count, the tool->slot table or the
+// name prefix moves. Which spool is mounted is durable user data (see "Spool
+// assignment: identity is durable, weight is cache" in the architecture guide),
+// so it has to survive that rebuild the way the per-tool hardware mappings
+// already do — but only for a tool that still sources the same lane, because it
+// is a fact about the lane and not about the tool index.
+//
+// It survived nothing at all: every assignment was zeroed the first time a
+// table-owning backend published its topology. Nothing caught it because the
+// only backend these tests reached through was the mock in tool-changer mode,
+// which declared it owned no tool table while the real AmsBackendToolChanger
+// declares it does — so the rebuild never ran here.
+TEST_CASE_METHOD(ToolStateFixture,
+                 "[ToolState][ams-topology] first topology keeps a spool assigned to the tool",
+                 "[tool-state][ams][ams-topology][spool]") {
+    auto& ts = ToolState::instance();
+
+    // No topology yet, so backend_slot is -1: the user assigned this against the
+    // TOOL, before any lane was known. That record is the tool's own.
+    ToolTopology topo;
+    topo.tool_count = 2;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    REQUIRE(ts.tools().size() == 2);
+    REQUIRE(ts.tools()[0].backend_slot == 0);
+
+    ts.assign_spool(0, 42, "Red PLA", 750.0f, 1000.0f);
+
+    // A rebuild that does not move this tool's lane — the tool count grows.
+    topo.tool_count = 3;
+    topo.tool_to_slot = {0, 1, 2};
+    ts.set_ams_topology(topo);
+
+    REQUIRE(ts.tools().size() == 3);
+    CHECK(ts.tools()[0].spoolman_id == 42);
+    CHECK(ts.tools()[0].spool_name == "Red PLA");
+    CHECK(ts.tools()[0].remaining_weight_g == Catch::Approx(750.0f));
+    CHECK(ts.tools()[0].total_weight_g == Catch::Approx(1000.0f));
+
+    ts.clear_ams_topology();
+}
+
+// The other half, and the one that makes carrying by tool index wrong. A remap
+// evicts both losing sides (assign_tool_slot in ams_tool_map_sync.h), so it
+// routinely leaves a tool mapped to no lane — and sync_from_backend()'s
+// slot->tool bridge skips slots whose mapped_tool is < 0. A record carried onto
+// such a tool is never corrected by anything: it claims a spool that is now
+// driving a different head, and on a backend without firmware spool persistence
+// it is written to tool_spools.json and survives a restart.
+TEST_CASE_METHOD(ToolStateFixture,
+                 "[ToolState][ams-topology] a rebuild drops the spool of a tool that lost its lane",
+                 "[tool-state][ams][ams-topology][spool]") {
+    auto& ts = ToolState::instance();
+
+    ToolTopology topo;
+    topo.tool_count = 2;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    REQUIRE(ts.tools().size() == 2);
+
+    ts.assign_spool(0, 42, "Red PLA", 750.0f, 1000.0f);
+    ts.assign_spool(1, 99, "Blue PETG", 500.0f, 1000.0f);
+
+    // The user remaps T0 onto lane 1. The eviction leaves T1 pointing at nothing.
+    topo.tool_to_slot = {1, -1};
+    ts.set_ams_topology(topo);
+
+    // T0 moved lanes, so its old record is not its own any more; the bridge in
+    // sync_from_backend() re-derives it from lane 1.
+    CHECK(ts.tools()[0].spoolman_id == 0);
+    CHECK(ts.tools()[0].spool_name.empty());
+
+    // T1 sources no lane at all. Nothing will ever correct it, so it must not
+    // be left holding the spool that is now driving T0.
+    CHECK(ts.tools()[1].spoolman_id == 0);
+    CHECK(ts.tools()[1].spool_name.empty());
+
+    // The rebuild really did happen — otherwise both checks pass for the wrong
+    // reason, because nothing moved.
+    CHECK(ts.tools()[0].backend_slot == 1);
+    CHECK(ts.tools()[1].backend_slot == -1);
+
+    ts.clear_ams_topology();
 }

@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "z_offset_utils.h"
-#include "ui_modal.h"
-#include <optional>
-#include "static_subject_registry.h"
-#include "app_globals.h"
-#include "tool_state.h"
-#include "tool_offsets.h"
 
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
+#include "ui_modal.h"
 #include "ui_toast_manager.h"
 
+#include "app_globals.h"
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "save_config_restart.h"
+#include "static_subject_registry.h"
+#include "tool_offsets.h"
+#include "tool_state.h"
 #include "toolhead_homing.h"
 #include "z_offset_persistence.h"
 
@@ -26,6 +25,7 @@
 #include <cmath>
 #include <cstdio>
 #include <lvgl.h>
+#include <optional>
 
 namespace helix::zoffset {
 
@@ -365,12 +365,11 @@ void save_dirty_offsets_shared() {
 
     // Same warning the Controls button gives. A one-tap header button that
     // silently restarts Klipper mid-session is the worse failure.
-    helix::ui::modal_show_confirmation(
+    helix::ui::modal_confirm(
         lv_tr("Save Z-Offset?"),
         lv_tr("This will save the Z-offset and restart Klipper to write the configuration. The "
               "printer will briefly disconnect."),
-        ModalSeverity::Warning, lv_tr("Save"),
-        [](lv_event_t*) { run_shared_save(); }, nullptr, nullptr);
+        ModalSeverity::Warning, lv_tr("Save"), []() { run_shared_save(); });
 }
 
 void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
@@ -392,8 +391,7 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
     // the same restart. Sending them after it would leave them staged until
     // some later save happened to flush them.
     for (int tool : dirty_tools) {
-        const int microns =
-            static_cast<int>(std::lround(ts.tool_z_offset_mm(tool) * 1000.0));
+        const int microns = static_cast<int>(std::lround(ts.tool_z_offset_mm(tool) * 1000.0));
         const std::string gcode = helix::tool_offsets::save_tool_z_gcode(hw, tool, microns);
         if (gcode.empty()) {
             continue;

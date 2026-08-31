@@ -1639,16 +1639,12 @@ void SpoolmanOverlay::on_cancel_setup_clicked(lv_event_t* /*e*/) {
 void SpoolmanOverlay::on_remove_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[SpoolmanOverlay] on_remove_clicked");
 
-    modal_show_confirmation(
+    helix::ui::modal_confirm(
         lv_tr("Remove Spoolman?"),
         lv_tr(
             "This will remove the Spoolman configuration from Moonraker and restart the service."),
         ModalSeverity::Warning, lv_tr("Remove"),
-        [](lv_event_t*) {
-            auto& overlay = get_spoolman_overlay();
-            overlay.remove_spoolman_config();
-        },
-        nullptr, nullptr);
+        [] { get_spoolman_overlay().remove_spoolman_config(); });
 
     LVGL_SAFE_EVENT_CB_END();
 }

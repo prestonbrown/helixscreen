@@ -406,6 +406,25 @@ Enable or disable mock Spoolman integration. When disabled, `get_spoolman_status
 HELIX_MOCK_SPOOLMAN=0 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_SPOOLMAN_SPOOLS`
+
+Pad the mock Spoolman inventory with deterministic synthetic spools, so search/filter
+cost in the spool pickers can be measured at realistic inventory sizes. The hand-written
+inventory tops out at 19 spools; real Spoolman databases run to hundreds. Padding only
+extends the inventory - the curated spools the mock backends link against keep their ids
+(`tests/unit/test_mock_spool_consistency.cpp` pins those).
+
+| Property | Value |
+|----------|-------|
+| **Values** | integer target count (clamped to 5000) |
+| **Default** | 19 (unset - no padding) |
+| **File** | `src/api/moonraker_api_mock.cpp` (`init_mock_spools`) |
+
+```bash
+# Measure picker search cost against a 300-spool inventory
+HELIX_MOCK_SPOOLMAN_SPOOLS=300 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_FILAMENT_SENSORS`
 
 Configure custom filament sensor configurations for testing.

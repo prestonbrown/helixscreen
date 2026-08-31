@@ -509,7 +509,6 @@ void register_xml_components() {
     // Print file components
     register_xml("print_file_card.xml");
     register_xml("print_file_list_row.xml");
-    register_xml("components/filament_mapping_pill.xml");
     register_xml("components/filament_mapping_more_pill.xml");
     register_xml("components/filament_swatch.xml");
     register_xml("components/filament_slot_picker_row.xml");

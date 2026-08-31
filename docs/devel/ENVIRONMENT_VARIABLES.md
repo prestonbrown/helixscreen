@@ -911,6 +911,58 @@ The WiFi backend normally finds the control socket automatically: it auto-detect
 HELIX_WPA_SOCKET_DIR=/data/misc/wifi/sockets ./build/bin/helix-screen
 ```
 
+### `HELIX_NETD_SOCKET`
+
+Override the control socket of the printer's network daemon (`netd`, the
+exclusive owner of WiFi/ethernet on the firmwares that ship it).
+
+Both the WiFi and Ethernet backends speak to the daemon over this AF_UNIX
+socket, and backend selection itself probes it. The daemon is detected by
+socket presence OR the on-disk binary — never by a version string, which is
+untrustworthy across these firmware releases. Set this only to repoint at a
+non-standard deployment or at a test double.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute path to an AF_UNIX SOCK_STREAM socket |
+| **Default** | `/run/netd.sock` |
+| **File** | `src/api/netd_protocol.cpp` |
+
+```bash
+# Run the app against a fake daemon on a dev box
+HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
+```
+
+Also the seam the netd unit tests use to drive the real backends against an
+in-test listener (`tests/unit/netd_test_server.h`).
+
+### `HELIX_NETD_BIN`
+
+Override the on-disk daemon binary path used as the second half of the
+presence probe when the socket is down (the daemon exists on disk even
+before it has created its socket at boot). When neither the socket nor an
+executable at this path exists, the netd backends stand down entirely and
+the factory falls through to NetworkManager/wpa_supplicant.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute path to an executable file |
+| **Default** | `/opt/config/mod/.bin/exec/netd` |
+| **File** | `src/api/netd_protocol.cpp` |
+
+```bash
+# Force the netd backends active on a dev box by naming any executable
+HELIX_NETD_BIN=/bin/true HELIX_NETD_SOCKET=/tmp/fake-netd.sock ./build/bin/helix-screen
+```
+
+Recovery-boot note: a boot that ships the daemon but runs the stock stack
+(the firmware's own netd-failure fallback, or a `SKIP_MOD_SOFT` boot) still
+selects the netd backends — the binary is present, so the probe commits.
+WiFi then reads unavailable until the daemon returns; Ethernet still shows
+kernel state (the netd ethernet backend falls back to the kernel reading
+when the daemon is unreachable). Point `HELIX_NETD_BIN` at a nonexistent
+path in `helixscreen.env` to make such a boot use the stock backends.
+
 ---
 
 ## UI Automation
@@ -1966,12 +2018,17 @@ Launcher-only knobs for splash handling, scheduling priority, and boot-time resp
 |----------|-------------|---------|
 | `HELIX_NO_SPLASH` | `1` disables the splash entirely — no `--splash-pid`, no `--splash-bin`, no heartbeat write. For debugging. | `0` |
 | `HELIX_NICE` | Nice value applied to the launcher (children inherit it) when co-hosted with Klipper/Moonraker. `0` disables the renice. | `10` |
+| `HELIX_OOM_SCORE_ADJ` | `oom_score_adj` that `helix-screen` applies to itself when co-hosted with Klipper/Moonraker, so the OOM killer takes the UI instead of Klipper. `0` disables. Clamped to the kernel's `[-1000, 1000]`. | `300` |
 | `HELIX_BOOT_RESPAWN_MAX` | Max boot-time respawns after an early death. `0` disables the self-heal. | `0` (disabled) |
 | `HELIX_BOOT_RESPAWN_WINDOW` | Seconds after launch within which a death counts as "lost the boot race" rather than a deliberate quit. | `25` |
 | `HELIX_BOOT_RESPAWN_DELAY` | Seconds to wait before each respawn. | `3` |
 
 **Usage Notes:**
 - The renice only happens when `helix_klipper_co_hosted` is true — a standalone display (remote Sonic Pad, dev workstation, kiosk pointed at a network printer) is never deprioritized. Raising nice is unprivileged, so it works as the non-root service user.
+- `helix_klipper_co_hosted` reads `/proc/<pid>/cmdline` directly rather than calling `pgrep`. `pgrep` is absent entirely on some BusyBox rootfs — Forge-X on the AD5M ships none — and the old socket fallback checked only `/tmp/klippy_uds` and `/tmp/moonraker.sock`, which Forge-X does not use (its klippy socket is `/tmp/uds`). Both probes missed there, so the UI ran at nice 0 against Klipper on exactly the boards this protects. `HELIX_PROC_ROOT` overrides the scan root for tests.
+- The co-host patterns match the klippy.py and moonraker.py script names, plus `moonraker-env` and `-m moonraker`. They are deliberately narrow: a bare `moonraker` would also match a standalone kiosk started as `helix-screen --moonraker ws://host:7125`, which must stay at nice 0.
+- `HELIX_OOM_SCORE_ADJ` is **exported** by the launcher, not applied by it. `oom_score_adj` is inherited across `fork` and preserved across `exec`, so setting it in the launcher would mark the launcher shell and `helix-watchdog` too — and killing the watchdog is what stops `helix-screen` from coming back. `helix-screen` writes it to `/proc/self/oom_score_adj` instead. Raising the value is unprivileged; only lowering it below 0 needs `CAP_SYS_RESOURCE`.
+- Measured on an AD5M (110 MB total, Forge-X 1.4.0): every process sat at `oom_score_adj` 0, leaving the OOM kill order Moonraker (score 156), Klipper (92), `helix-screen` (69) — exactly backwards, since `helix-screen` is the only one with a supervisor behind it.
 - The boot-respawn self-heal exists for firmwares that send `helix-screen` a single SIGTERM during a busy boot. `helix-screen` handles SIGTERM with a fast `_exit(0)` expecting a supervisor to restart it — on an unsupervised SysV boot (no `helix-watchdog`; BusyBox init does not respawn S99 children) that one signal is permanent. On the Snapmaker U1 that also strands the device off-network, since `helix-screen` owns the WiFi association.
 - A boot-time SIGTERM and a deliberate user quit both exit 0, so they are told apart by **uptime**: a process that dies inside `HELIX_BOOT_RESPAWN_WINDOW` seconds of launch is presumed to have lost the boot race. Opted into by the Snapmaker U1 platform hook.
 - A real `init stop` kills the launcher itself (its cleanup trap sets `HELIX_SHUTTING_DOWN`), so the respawn loop never fires for an intentional stop.

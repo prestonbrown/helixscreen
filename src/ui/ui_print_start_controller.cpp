@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "active_print_media_manager.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
@@ -183,7 +184,7 @@ void PrintStartController::execute_print_start() {
     // Apply filament remaps if user changed any mappings
     bool remaps_applied = apply_filament_remaps();
     if (remaps_applied) {
-        observe_print_state_for_restore();
+        observe_lifecycle_for_restore();
     }
 
     // Timelapse application now lives SOLELY in
@@ -576,12 +577,22 @@ void PrintStartController::run_gates_from(size_t index) {
             print_gate_modal_ = nullptr;
         }
         gate_resume_index_ = i;
-        print_gate_modal_ = helix::ui::modal_show_confirmation(
+        // The modal closes itself on a button press and deletes itself after
+        // any close. A dismissal resolves like Cancel: the user walked away
+        // from the gate chain, and every other terminal path re-enables the
+        // print button - leaving that to the buttons alone stranded it disabled
+        // on a backdrop tap or ESC, with the handle stale on top.
+        auto cancel = [this] { on_gate_cancel(); };
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = cancel;
+        opts.on_dismiss = cancel;
+        opts.owner_token = lifetime_.token();
+        print_gate_modal_ = helix::ui::modal_confirm(
             result.title.c_str(), result.body.c_str(),
             result.severity == helix::GateSeverity::Error  ? ModalSeverity::Error
             : result.severity == helix::GateSeverity::Info ? ModalSeverity::Info
                                                            : ModalSeverity::Warning,
-            result.proceed_label.c_str(), on_gate_proceed_static, on_gate_cancel_static, this);
+            result.proceed_label.c_str(), [this] { on_gate_proceed(); }, opts);
         if (!print_gate_modal_) {
             spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                           gate_list_[i].name);
@@ -597,35 +608,13 @@ void PrintStartController::run_gates_from(size_t index) {
     execute_print_start();
 }
 
-void PrintStartController::on_gate_proceed_static(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStartController] on_gate_proceed_static");
-    if (auto* self = static_cast<PrintStartController*>(lv_event_get_user_data(e))) {
-        self->on_gate_proceed();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void PrintStartController::on_gate_proceed() {
-    if (print_gate_modal_) {
-        helix::ui::modal_hide(print_gate_modal_);
-        print_gate_modal_ = nullptr;
-    }
+    print_gate_modal_ = nullptr;
     run_gates_from(gate_resume_index_ + 1);
 }
 
-void PrintStartController::on_gate_cancel_static(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStartController] on_gate_cancel_static");
-    if (auto* self = static_cast<PrintStartController*>(lv_event_get_user_data(e))) {
-        self->on_gate_cancel();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void PrintStartController::on_gate_cancel() {
-    if (print_gate_modal_) {
-        helix::ui::modal_hide(print_gate_modal_);
-        print_gate_modal_ = nullptr;
-    }
+    print_gate_modal_ = nullptr;
     if (update_print_button_) {
         update_print_button_();
     }
@@ -640,20 +629,19 @@ void PrintStartController::on_gate_cancel() {
 // Filament Remap Lifecycle
 // ============================================================================
 
-bool PrintStartController::should_warn_remap_unsupported(
-    const helix::printer::ToolMappingCapabilities& caps, bool applies_via_preprint) {
+bool PrintStartController::should_warn_remap_unsupported(const AmsBackend& backend) {
     // A backend that applies the remap via its firmware-native pre-print path
     // (Snapmaker U1) honors the user's choice through build_preprint_gcode()
-    // even though caps.editable is false — so the toast would be a stale false
-    // alarm. Only warn when the backend can neither edit its mapping nor apply
-    // it via a pre-print send.
+    // even though it writes no persistent table — so the toast would be a stale
+    // false alarm. Only warn when the backend has no route at all, or has one it
+    // cannot use yet.
     //
     // Which is exactly the shared rule, called rather than restated:
     // AmsState::effective_auto_match() asks the same question to decide whether
-    // the auto-color toggle is a live control, and a second copy of the two-route
-    // test would drift into a printer that warns the remap is unsupported while
-    // still honoring it (or the reverse).
-    return !helix::printer::honors_user_tool_mapping(caps, applies_via_preprint);
+    // the auto-color toggle is a live control, and a second copy of the test
+    // would drift into a printer that warns the remap is unsupported while still
+    // honoring it (or the reverse).
+    return !helix::printer::can_remap(backend);
 }
 
 bool PrintStartController::apply_filament_remaps() {
@@ -718,9 +706,8 @@ bool PrintStartController::apply_filament_remaps() {
     // those, skip the generic set_tool_mapping() path SILENTLY — the pre-print
     // send (fired later from execute_print_start) does the work. Only warn when
     // the backend can NEITHER edit its mapping NOR apply it via a pre-print send.
-    auto caps = backend->get_tool_mapping_capabilities();
-    if (!caps.editable) {
-        if (should_warn_remap_unsupported(caps, backend->requires_preprint_send())) {
+    if (!helix::printer::can_write_mapping_table(*backend)) {
+        if (should_warn_remap_unsupported(*backend)) {
             spdlog::warn("[PrintStartController] Backend (idx={}) does not support editable tool "
                          "mapping — {} explicit remap(s) will be ignored",
                          backend_idx, mappings.size());
@@ -789,29 +776,38 @@ bool PrintStartController::apply_filament_remaps() {
     return false;
 }
 
-void PrintStartController::observe_print_state_for_restore() {
-    // RAW_PRINT_STATE_OK: restores the filament mapping on a TERMINAL state,
-    // which the wire reports directly.
-    auto* subject = printer_state_.get_print_state_enum_subject();
+void PrintStartController::observe_lifecycle_for_restore() {
+    auto* subject = printer_state_.get_print_lifecycle_subject();
     if (!subject) {
-        spdlog::warn("[PrintStartController] No print state subject — cannot auto-restore mapping");
+        spdlog::warn("[PrintStartController] No print lifecycle subject, cannot auto-restore "
+                     "mapping");
         return;
     }
 
-    // Note: observe_int_sync fires immediately with the current value.
-    // At registration time, state is typically STANDBY (print hasn't started yet).
-    // We only trigger restore on terminal states (COMPLETE/CANCELLED/ERROR),
-    // NOT STANDBY — otherwise the immediate fire would undo our remaps.
-    print_state_observer_ = observe_print_state<PrintStartController>(
-        subject, this, [](PrintStartController* self, PrintJobState state) {
-            if (state == PrintJobState::COMPLETE || state == PrintJobState::CANCELLED ||
-                state == PrintJobState::ERROR) {
+    // The observer fires on attach, and registration happens BEFORE start_now
+    // calls begin_preparing(), so even the derived lifecycle can still hold
+    // the PREVIOUS job's terminal value (Moonraker leaves print_stats.state
+    // terminal for the whole preparing window). Terminal states are ignored
+    // until THIS print has been observed live: the latch arms on Preparing/
+    // Printing/Paused, and the terminal value that follows can only be this
+    // job's end (#1386).
+    print_active_since_remap_ = false;
+    print_state_observer_ = observe_print_lifecycle<PrintStartController>(
+        subject, this, [](PrintStartController* self, PrintState state) {
+            if (job_holds_machine(state)) {
+                self->print_active_since_remap_ = true;
+                return;
+            }
+            if (self->print_active_since_remap_ &&
+                (state == PrintState::Complete || state == PrintState::Cancelled ||
+                 state == PrintState::Error)) {
+                self->print_active_since_remap_ = false;
                 self->restore_filament_mapping();
                 self->print_state_observer_.reset();
             }
         });
 
-    spdlog::debug("[PrintStartController] Observing print state for mapping restore");
+    spdlog::debug("[PrintStartController] Observing print lifecycle for mapping restore");
 }
 
 void PrintStartController::observe_klippy_state_for_restore() {
@@ -1074,13 +1070,13 @@ void PrintStartController::recover_pending_remap() {
         // If a print is still active, the user's remap is still LOAD-BEARING —
         // reverting now would silently swap filament routing under a running
         // print. Defer the restore until the print reaches a terminal state.
-        // observe_print_state_for_restore registers an observer that fires
-        // restore_filament_mapping on COMPLETE/CANCELLED/ERROR; the immediate-
-        // fire on the current PRINTING/PAUSED value is a no-op there.
-        auto current_state = static_cast<PrintJobState>(
-            // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
-            // while a job runs; a preparing job has no mapping to restore.
-            lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
+        // observe_lifecycle_for_restore registers an observer that arms on
+        // the first live lifecycle value and fires restore_filament_mapping on
+        // the terminal value that follows, so the attach-fire on the current
+        // PRINTING/PAUSED value arms it rather than firing early.
+        // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
+        // while a job runs; a preparing job has no mapping to restore.
+        auto current_state = printer_state_.get_print_job_state();
         // The mapping is restored on a TERMINAL state; this only suppresses the
         // observer's immediate registration-fire while a job is running. The wire
         // question is the right one: a preparing job has no mapping to restore.
@@ -1092,7 +1088,7 @@ void PrintStartController::recover_pending_remap() {
                          "deferring restore until print ends",
                          saved_tool_mapping_.size(), saved_backend_index_,
                          static_cast<int>(current_state));
-            observe_print_state_for_restore();
+            observe_lifecycle_for_restore();
         } else {
             spdlog::info("[PrintStartController] Crash recovery: found pending remap "
                          "({} tools, backend {}) — restoring",

@@ -316,6 +316,10 @@ class MoonrakerSpoolmanAPIMock : public MoonrakerSpoolmanAPI {
     bool mock_spoolman_enabled_ = true;
     int mock_active_spool_id_ = 1;
     std::vector<SpoolInfo> mock_spools_;
+    /// Spools PATCHed to archived=true. They stay in mock_spools_ (the
+    /// single-spool GET still serves them) but are filtered from list GETs,
+    /// mirroring real Spoolman.
+    std::set<int> archived_spool_ids_;
     std::vector<FilamentInfo> mock_filaments_;
     std::vector<VendorInfo> mock_vendors_;
     int next_filament_id_ = 300;

@@ -18,7 +18,9 @@
 #include "moonraker_error.h"
 #include "operation_patterns.h" // helix::contains_ci
 #include "post_op_cooldown_manager.h"
+#include "print_lifecycle_state.h" // PrintState, job_holds_machine
 #include "printer_detector.h"
+#include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
 #include "settings_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -241,6 +243,11 @@ struct CfsErrorEntry {
     /// result to the friendly message. nullptr = no per-error format
     /// known yet (no regression — message displays unchanged).
     std::string (*format_values)(const nlohmann::json&) = nullptr;
+    /// True when the firmware's own `msg` names the real cause and the table
+    /// text cannot (one code, several causes: key843 fires for a busy box AND
+    /// an unreadable tag). lookup_message_with_values then uses the firmware's
+    /// wording as the message whenever the caller has one (#1387).
+    bool prefer_fw_msg = false;
 };
 
 // Format-callback aliases keep the table tidy. Only key849 has been
@@ -322,8 +329,12 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
       AmsAlertLevel::SYSTEM, nullptr}},
     {"key843",
      {"Can't read filament RFID tag",
-      "Re-seat the spool in the slot, ensure the RFID label faces the reader", AmsAlertLevel::SLOT,
-      fmt_unit_slot}},
+      // The busy-box case (#1387) needs no spool handling at all, so the
+      // re-seat remedy is conditional, not asserted: the firmware msg names
+      // the actual cause.
+      "If it keeps failing once the box is idle, re-seat the spool with the RFID label "
+      "facing the reader",
+      AmsAlertLevel::SLOT, fmt_unit_slot, /*prefer_fw_msg=*/true}},
     {"key844",
      {"PTFE tube connection loose", "Re-seat the Bowden tube connector on the CFS unit",
       AmsAlertLevel::UNIT, fmt_unit_only}},
@@ -414,14 +425,15 @@ CfsErrorDecoder::lookup_message(const std::string& key_code) {
     return std::make_pair(it->second.message, it->second.hint);
 }
 
-std::optional<std::pair<std::string, std::string>>
-CfsErrorDecoder::lookup_message_with_values(const std::string& key_code,
-                                            const nlohmann::json& values) {
+std::optional<std::pair<std::string, std::string>> CfsErrorDecoder::lookup_message_with_values(
+    const std::string& key_code, const nlohmann::json& values, const std::string& fw_msg) {
     auto it = CFS_ERROR_TABLE.find(key_code);
     if (it == CFS_ERROR_TABLE.end())
         return std::nullopt;
     const auto& entry = it->second;
-    std::string message = entry.message;
+    // A preferring entry's table text asserts one cause for a code with
+    // several; the firmware's msg says which one actually fired (#1387).
+    std::string message = (entry.prefer_fw_msg && !fw_msg.empty()) ? fw_msg : entry.message;
     if (entry.format_values) {
         std::string locator = entry.format_values(values);
         if (!locator.empty()) {
@@ -571,14 +583,20 @@ void AmsBackendCfs::on_started() {
     if (client_) {
         client_->send_jsonrpc(
             "printer.objects.query", params,
-            [this](const nlohmann::json& response) {
+            [this, token = lifetime_.token()](const nlohmann::json& response) {
                 if (response.contains("result") && response["result"].contains("status") &&
                     response["result"]["status"].is_object()) {
                     // Wrap in notify_status_update format for handle_status_update
                     nlohmann::json notification = {
                         {"params", nlohmann::json::array({response["result"]["status"]})}};
-                    handle_status_update(notification);
-                    spdlog::info("[AMS CFS] Initial state loaded");
+                    // The response callback runs on the libhv WS thread; the
+                    // notify subscription defers handle_status_update to main,
+                    // and this entry point must match it (handle_status_update
+                    // reads LVGL subjects for the insert-probe gate).
+                    token.defer("AmsBackendCfs::initial_state", [this, notification]() {
+                        handle_status_update(notification);
+                        spdlog::info("[AMS CFS] Initial state loaded");
+                    });
                 } else {
                     spdlog::warn("[AMS CFS] Initial state query returned unexpected format");
                 }
@@ -664,7 +682,6 @@ AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json,
     // strings: were the box to ever report the "-1" sentinel here (the documented
     // absence marker everywhere else in this object), != 0 would read it as TRUE.
     info.endless_spool_enabled = helix::json_util::safe_int(box_json, "auto_refill", 0) == 1;
-    info.supports_tool_mapping = true;
 
     // box.filament is a stale active-lane SELECTION index, NOT a "filament
     // loaded" truth — it retains a lane number even when nothing is loaded,
@@ -713,14 +730,40 @@ AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json,
 
     // Build same_material lookup: material_type code -> material name string
     // "same_material" contains groups like ["101001", "0000000", ["T1A"], "PLA"]
-    // where the last element is a human-readable material name
+    // where the last element is a human-readable material name. group[2] (the
+    // lane list) feeds the auto-refill capability: get_endless_spool_
+    // capabilities() answers from these ordinals whether any two lanes
+    // actually group (#1391). Presence of the array is recorded separately
+    // because "no data" (the flat dialect never sends the field) must stay
+    // distinguishable from "parsed and nothing groups".
     std::unordered_map<std::string, std::string> same_material_names;
     if (box_json.contains("same_material") && box_json["same_material"].is_array()) {
+        info.endless_spool_groups_reported = true;
+        // One entry per addressable bay (T1A..T4D, tnn_to_slot's domain), not
+        // one per CONNECTED unit: a box whose T1 dropped must not lose T2's
+        // groups to a shorter vector.
+        info.endless_spool_group_ids.assign(16, -1);
+        int group_ordinal = 0;
         for (const auto& group : box_json["same_material"]) {
             if (group.is_array() && group.size() >= 4 && group[0].is_string() &&
                 group[3].is_string()) {
                 same_material_names[group[0].get<std::string>()] = group[3].get<std::string>();
             }
+            // Lane list, with the same per-entry is_string discipline as every
+            // other index into this array: one malformed group must skip its
+            // entry, not throw the whole box frame away.
+            if (group.is_array() && group.size() >= 3 && group[2].is_array()) {
+                for (const auto& lane : group[2]) {
+                    if (!lane.is_string()) {
+                        continue;
+                    }
+                    int slot = CfsMaterialDb::tnn_to_slot(lane.get<std::string>());
+                    if (slot >= 0 && slot < static_cast<int>(info.endless_spool_group_ids.size())) {
+                        info.endless_spool_group_ids[static_cast<size_t>(slot)] = group_ordinal;
+                    }
+                }
+            }
+            ++group_ordinal;
         }
     }
 
@@ -1081,7 +1124,6 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // ships as JSON null when idle).
     info.endless_spool_enabled =
         helix::json_util::safe_bool(box_json, "runout_swap_enabled", false);
-    info.supports_tool_mapping = true;
 
     // `runout` is null while idle and carries a slot descriptor once tripped;
     // presence of any non-null value is the runout signal. filament_loaded is
@@ -1326,6 +1368,17 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
     // unit number -> bay bitmask, filled under mutex_ and dispatched after it.
     std::map<int, int> insert_probes;
 
+    // Print-lifecycle input for the insert-probe gate below. handle_status_update
+    // runs on the main thread (the subscription defers every notify there, and
+    // on_started's initial-state query response defers through the same token), so a
+    // synchronous subject read is safe. A null api_ (unit-test rigs, cold boot)
+    // means the lifecycle is unknown, treated as not holding the machine,
+    // mirroring the filament-op guard's null path in ams_subscription_backend.
+    bool print_holds_machine = false;
+    if (api_) {
+        print_holds_machine = job_holds_machine(api_->printer_state().get_print_lifecycle());
+    }
+
     // Drop the previous frame's derived LOADED stamp before anything below
     // reads or rebuilds the slot vector, so the override/clear/mirror pass sees
     // firmware truth. apply_seated_slot_stamp_locked() at the bottom re-derives
@@ -1463,6 +1516,24 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                 system_info_.total_slots = new_info.total_slots;
                 system_info_.endless_spool_enabled = new_info.endless_spool_enabled;
                 system_info_.tool_to_slot_map = std::move(new_info.tool_to_slot_map);
+                // Presence-gated like filament_runout below: a stock delta
+                // frame carries a changed T1 subtree but no same_material key
+                // (the field rides full frames), and copying the parse's empty
+                // defaults would silently revert OnWithoutBackup to plain On
+                // until the firmware re-sends the list. Copy the grouping only
+                // when this frame actually carried the field. A flat frame is
+                // the one deliberate exception: it is a schema transition, not
+                // a delta omission, and the flat dialect never sends
+                // same_material - retaining stock-era grouping would answer
+                // from a dead schema forever, so it is cleared.
+                if (is_flat) {
+                    system_info_.endless_spool_group_ids.clear();
+                    system_info_.endless_spool_groups_reported = false;
+                } else if (new_info.endless_spool_groups_reported) {
+                    system_info_.endless_spool_group_ids =
+                        std::move(new_info.endless_spool_group_ids);
+                    system_info_.endless_spool_groups_reported = true;
+                }
             }
 
             // Bays that just went from empty to occupied and still carry no
@@ -1540,8 +1611,64 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             // Update runout flag only when the field was actually present.
             // Stock spells it filament_useup; the flat schema spells it runout
             // (JSON null while idle, a descriptor once tripped).
-            if (box.contains("filament_useup") || (is_flat && box.contains("runout"))) {
+            const bool runout_field_present =
+                box.contains("filament_useup") || (is_flat && box.contains("runout"));
+            if (runout_field_present) {
                 system_info_.filament_runout = new_info.filament_runout;
+            }
+
+            // Insert-probe gate (#1387): a box mid-operation answers an RFID
+            // refresh with busy, firmware raises key843, and the failed probe
+            // pins the bay's remain_len at 255, so a probe caught on an insert
+            // edge must wait for an idle box. Two busy signals cover the
+            // observed case:
+            //  - filament_runout, the box-wide filament_useup latch above
+            //  - print_holds_machine, read from the print lifecycle at the top
+            //    of this function (NOT system_info_.action: CFS only sets that
+            //    around our own dispatched scripts, so a runout pause leaves it
+            //    IDLE)
+            // Deferred, not dropped. Blocked probes park in deferred_probes_
+            // and re-dispatch on the first later poll that reads idle, which
+            // is also the settle the issue asked for: the deferral spans at
+            // least one full status-poll cycle between the busy observation and
+            // the probe, so no timer is needed. Entries leave the set on that
+            // dispatch, giving each probe exactly one deferred retry and never
+            // a loop; a bay probed again needs a fresh insert edge.
+            if (!insert_probes.empty() || !deferred_probes_.empty()) {
+                if (system_info_.filament_runout || print_holds_machine) {
+                    if (!insert_probes.empty()) {
+                        for (const auto& [unit, mask] : insert_probes)
+                            deferred_probes_[unit] |= mask;
+                        spdlog::debug("{} Box busy (runout={} print_holds={}) - deferring "
+                                      "RFID insert probe",
+                                      backend_log_tag(), system_info_.filament_runout,
+                                      print_holds_machine);
+                        insert_probes.clear();
+                    }
+                } else {
+                    // Idle again: release the deferred probes into this frame's
+                    // dispatch set. insert_probes from this frame's own edges
+                    // (if any) merge in by OR. A bay the user emptied while the
+                    // deferral was pending is dropped: its occupied edge is
+                    // long consumed and the spool is gone, so there is nothing
+                    // to probe.
+                    for (const auto& [unit, mask] : deferred_probes_) {
+                        int live_mask = 0;
+                        for (int bay = 0; bay < 4; ++bay) {
+                            if ((mask & (1 << bay)) == 0) {
+                                continue;
+                            }
+                            auto occupied = bay_occupied_.find((unit - 1) * 4 + bay);
+                            if (occupied != bay_occupied_.end() && occupied->second) {
+                                live_mask |= (1 << bay);
+                            }
+                        }
+                        if (live_mask != 0) {
+                            insert_probes[unit] |= live_mask;
+                        }
+                    }
+                    deferred_probes_.clear();
+                }
             }
 
             // Active slot from T{n}.filament field ("A"/"B"/"C"/"D"). When the
@@ -1561,6 +1688,14 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             } else if ((has_unit_data || is_flat) && system_info_.action != AmsAction::LOADING) {
                 system_info_.current_slot = -1;
                 system_info_.current_tool = -1;
+            }
+
+            // Runout-episode bookkeeping (#1390). Runs after the current_slot
+            // update above so the edge capture reads this frame's settled
+            // active lane, and before the convergence loop below so the strip
+            // sees the captured lane.
+            if (runout_field_present) {
+                update_runout_episode_locked();
             }
 
             // Override integration convergence point. Firmware-sourced fields
@@ -1587,17 +1722,23 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                     // BEFORE apply_overrides so the values reflect firmware,
                     // not the override-masked view. FillUnsetOnly: CFS user
                     // edits don't reach firmware, so we must not let firmware
-                    // overwrite them — see mirror_firmware_to_lane_data docs.
+                    // overwrite them - see mirror_firmware_to_lane_data docs.
+                    //
+                    // The runout strip (#1390) runs inside the same !cleared
+                    // gate and before the mirror: it POSTs the stripped record,
+                    // which must not race a clear's DELETE, and the mirror must
+                    // read the already-stripped override.
                     //
                     // Skipped on a parse that cleared: a clear fires clear_async
                     // (DELETE) and the mirror fires save_async (POST) against
                     // the SAME lane_data key. Both are async and independently
                     // ordered, so issuing them together is a write race whose
-                    // outcome depends on which reply Moonraker processes last —
+                    // outcome depends on which reply Moonraker processes last -
                     // a DELETE landing second silently drops the record we just
                     // published. The next poll republishes from firmware truth
                     // with the delete already settled.
                     if (!cleared) {
+                        strip_spoolman_link_on_runout_locked(slot, global_idx);
                         helix::ams::mirror_firmware_to_lane_data(
                             override_store_.get(), overrides_, global_idx, slot.color_rgb,
                             slot.material, slot.status == SlotStatus::AVAILABLE,
@@ -3515,17 +3656,26 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
 helix::printer::EndlessSpoolCapabilities AmsBackendCfs::get_endless_spool_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);
     using namespace helix::printer;
+
+    // Honest enablement (#1391): auto_refill on promises a refill ATTEMPT, but
+    // the box only swaps between same_material-identical spools, so when every
+    // group is a singleton a runout stops the print despite the setting being
+    // on. Say so. Only when the frame actually carried the grouping, though:
+    // the flat dialect never sends same_material, and no data is not a
+    // negative. endless_spool_config_from_groups() already encodes "a group of
+    // one backs nothing up" (and drops singletons), so this reads that rule
+    // instead of restating it.
+    EndlessSpoolEnabled enabled =
+        system_info_.endless_spool_enabled ? EndlessSpoolEnabled::On : EndlessSpoolEnabled::Off;
+    if (enabled == EndlessSpoolEnabled::On && system_info_.endless_spool_groups_reported &&
+        endless_spool_config_from_groups(system_info_.endless_spool_group_ids).empty()) {
+        enabled = EndlessSpoolEnabled::OnWithoutBackup;
+    }
+
     return {.availability = EndlessSpoolAvailability::Available,
-            .enabled = system_info_.endless_spool_enabled ? EndlessSpoolEnabled::On
-                                                          : EndlessSpoolEnabled::Off,
+            .enabled = enabled,
             .editability = EndlessSpoolEditability::ReadOnly,
             .restriction = EndlessSpoolRestriction::FirmwareManaged};
-}
-
-helix::printer::ToolMappingCapabilities AmsBackendCfs::get_tool_mapping_capabilities() const {
-    return {.supported = true,
-            .editable = true,
-            .description = "Tool reassignment via BOX_MODIFY_TN"}; // i18n: do not translate
 }
 
 std::vector<int> AmsBackendCfs::get_tool_mapping() const {
@@ -3923,6 +4073,101 @@ void AmsBackendCfs::clear_override_locked(int slot_index, SlotInfo& slot) {
             }
         });
     }
+}
+
+void AmsBackendCfs::update_runout_episode_locked() {
+    const bool tripped = system_info_.filament_runout;
+    const int previous = runout_latch_seen_;
+    runout_latch_seen_ = tripped ? 1 : 0;
+
+    if (!tripped) {
+        // The latch cleared: a successful extrude re-established filament at
+        // the gate, so this episode is over. Whatever empties the lane next
+        // is a deliberate unload, not the runout this capture described.
+        if (runout_lane_ >= 0) {
+            spdlog::debug("{} runout latch cleared - episode for slot {} ended without a strip",
+                          backend_log_tag(), runout_lane_);
+            runout_lane_ = -1;
+        }
+        return;
+    }
+
+    // Only a 0 -> 1 rise this session actually witnessed is a runout edge. A
+    // first sighting already at 1 (previous == -1, session started mid-runout)
+    // has no before-state to rise from, and a latch still 1 from an earlier
+    // observation must not arm a second episode.
+    if (previous != 0) {
+        return;
+    }
+
+    // Capture the feeding lane NOW. filament_runout is box-wide and sticky,
+    // and current_slot drops to -1 once no unit reports an active lane - by
+    // the time the exhausted spool is pulled, the active-lane signal is gone.
+    // -2 is the bypass sentinel, not a bay; treat it as no capture rather
+    // than storing an unmatchable lane.
+    runout_lane_ = system_info_.current_slot;
+    if (runout_lane_ >= 0) {
+        spdlog::info("{} runout observed on slot {} - its Spoolman link will be dropped once "
+                     "the bay reads empty",
+                     backend_log_tag(), runout_lane_);
+    } else {
+        spdlog::debug("{} runout observed with no active lane reported - no episode captured",
+                      backend_log_tag());
+        runout_lane_ = -1;
+    }
+}
+
+void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slot_index) {
+    if (runout_lane_ != slot_index || slot.status != SlotStatus::EMPTY) {
+        return;
+    }
+    auto it = overrides_.find(slot_index);
+    if (it == overrides_.end()) {
+        return;
+    }
+    auto& o = it->second;
+    if (o.spoolman_id == 0 && o.spoolman_vendor_id == 0) {
+        // No remembered link on this lane; the episode stays armed in case a
+        // link appears before the latch clears.
+        return;
+    }
+
+    const int old_id = o.spoolman_id;
+    // Drop ONLY the Spoolman handle. Brand, material, color, catalog pick,
+    // lock flags and temperatures describe the lane's contents and survive -
+    // the fresh spool the user loads keeps inheriting a correctly-labeled
+    // lane while the exhausted spool's id stops being re-asserted onto it.
+    o.spoolman_id = 0;
+    o.spoolman_vendor_id = 0;
+    o.updated_at = std::chrono::system_clock::now();
+
+    // Immediate visibility on the live SlotInfo, same pattern as
+    // clear_override_locked: apply_overrides runs after this and its sentinel
+    // rule (id 0 falls through to firmware truth) keeps the zero in place.
+    slot.spoolman_id = 0;
+    slot.spoolman_vendor_id = 0;
+
+    spdlog::info("{} slot {} reads empty after a confirmed runout - dropping the remembered "
+                 "Spoolman link (spool {}), keeping identity",
+                 backend_log_tag(), slot_index, old_id);
+
+    if (override_store_) {
+        // POST the whole stripped record - clear_async would DELETE the
+        // lane_data entry the identity fields must keep. Callback captures
+        // by value only: the store may outlive this backend (same discipline
+        // as every other save_async in this file).
+        const std::string tag = backend_log_tag();
+        override_store_->save_async(slot_index, o, [tag, slot_index](bool ok, std::string err) {
+            if (!ok) {
+                spdlog::warn("{} save_async failed for slot {}: {}", tag, slot_index, err);
+            }
+        });
+    }
+
+    // One episode, one lane, one strip: consumed here so a later transient
+    // EMPTY read while the sticky latch never cleared cannot strip a
+    // freshly relinked spool.
+    runout_lane_ = -1;
 }
 
 void AmsBackendCfs::clear_slot_override(int slot_index) {

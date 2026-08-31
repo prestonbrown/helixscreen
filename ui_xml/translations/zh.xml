@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="zh">
   <translation tag=" (timed out)" zh="（超时）"/>
-  <translation tag=" elapsed · " zh=" 已用 · "/>
   <translation tag=" frames" zh=" 帧"/>
   <translation tag=" left" zh=" 剩余"/>
   <translation tag="&quot;%s&quot; failed to load" zh="&quot;%s&quot; 加载失败"/>
@@ -194,6 +193,8 @@
   <translation tag="Apply Changes" zh="应用更改"/>
   <translation tag="Applying Changes" zh="正在应用更改"/>
   <translation tag="Applying..." zh="正在应用..."/>
+  <translation tag="Archive"/>
+  <translation tag="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." zh="确定要取消此打印吗？所有进度将丢失。"/>
   <translation tag="Are you sure? This will power off or restart this device." zh="确定吗？这将关闭或重启此设备。"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" zh="分配 Klipper 宏通过开/关、切换或预设控制 LED"/>
@@ -211,6 +212,7 @@
   <translation tag="Auto-lock" zh="自动锁定"/>
   <translation tag="Auto-poll for weight updates" zh="自动轮询重量更新"/>
   <translation tag="Auto-probe or manually check screw heights" zh="自动探测或手动检查螺丝高度"/>
+  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" zh="自动渲染视频"/>
   <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" zh="自动卸载仅适用于本地 Moonraker"/>
@@ -869,6 +871,7 @@
   <translation tag="Failed to analyze PRINT_START macro" zh="分析 PRINT_START 宏失败"/>
   <translation tag="Failed to apply limits" zh="应用限制失败"/>
   <translation tag="Failed to apply settings" zh="应用设置失败"/>
+  <translation tag="Failed to archive spool"/>
   <translation tag="Failed to build raster data" zh="构建栅格数据失败"/>
   <translation tag="Failed to cancel: {}" zh="取消失败: {}"/>
   <translation tag="Failed to clear print state: {}" zh="无法清除打印状态：{}"/>
@@ -1241,6 +1244,7 @@
   <translation tag="Invalid sheet template index: {} (have {})" zh="标签纸模板索引无效: {} (实际有 {})"/>
   <translation tag="Invalid status response from printer" zh="打印机返回的状态响应无效"/>
   <translation tag="Issue description" zh="问题描述"/>
+  <translation tag="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" zh="这是新料盘"/>
   <translation tag="Jammed at the Toolhead" zh="工具头处堵塞"/>
   <translation tag="Job Queue" zh="任务队列"/>
@@ -1366,7 +1370,6 @@
   <translation tag="MACRO DEVICES" zh="宏设备"/>
   <translation tag="MAIN POWER BUTTON" zh="主电源按钮"/>
   <translation tag="MANUAL" zh="手动"/>
-  <translation tag="MAPPING" zh="映射"/>
   <translation tag="MB RAM" zh="MB 内存"/>
   <translation tag="MCU" zh="MCU"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" zh="MCU、主机及辅助温度监控"/>
@@ -1588,6 +1591,7 @@
   <translation tag="No slot currently matches." zh="当前没有匹配的料仓。"/>
   <translation tag="No spool assigned" zh="未分配料盘"/>
   <translation tag="No spools found — tap to retry" zh="未找到料盘 - 点击重试"/>
+  <translation tag="No spools match your search"/>
   <translation tag="No tape detected in printer" zh="打印机中未检测到标签带"/>
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
@@ -2323,6 +2327,7 @@
   <translation tag="Spool #{}" zh="线轴 #{}"/>
   <translation tag="Spool Info" zh="料盘信息"/>
   <translation tag="Spool Weight (g)" zh="料盘重量（克）"/>
+  <translation tag="Spool archived"/>
   <translation tag="Spool created successfully" zh="料盘创建成功"/>
   <translation tag="Spool deleted" zh="料盘已删除"/>
   <translation tag="Spool motor" zh="料盘电机"/>

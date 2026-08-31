@@ -17,7 +17,7 @@
 
   hide_when_healthy (0/1): the AMS panel passes 1 so the healthy sentence is
   not permanently on screen — there the line surfaces only for attention kinds
-  (Off, Unknown, NeedsPlugin). The context menu leaves it off: its job is
+  (Off, Unknown, NeedsPlugin, OnWithoutBackup). The context menu leaves it off: its job is
   explaining the greyed backup dropdown, including when it is greyed because
   everything already works. The value is spliced into the cond expression as
   an int literal, so it must stay numeric.
