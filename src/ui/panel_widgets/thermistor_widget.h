@@ -15,6 +15,8 @@
 
 namespace helix {
 
+class ThermistorTestAccess;
+
 /// Home widget displaying a user-selected temperature sensor reading.
 /// Click opens a context menu to choose which sensor to monitor.
 /// Selection persists via PanelWidgetConfig per-widget config.
@@ -48,6 +50,8 @@ class ThermistorWidget : public PanelWidget {
     static void thermistor_clicked_cb(lv_event_t* e);
 
   private:
+    friend class ThermistorTestAccess;
+
     /// Single-select list of the printer's temperature sensors, raised by a tap on
     /// a single-sensor widget. Picking a row binds the widget to that sensor and
     /// closes the card; a tap outside it chooses nothing.
@@ -169,6 +173,14 @@ class ThermistorWidget : public PanelWidget {
     void attach_single();
     void attach_carousel();
     void bind_carousel_sensors();
+
+    /// Null every cached widget pointer (single-mode labels, carousel page
+    /// labels, tile root) without touching observers or the widget tree.
+    /// Shared by detach() and the raw-delete hook.
+    void forget_tile_widgets();
+
+    void on_hooked_root_deleted() override;
+
     void show_configure_picker();
     void apply_sensor_selection(const std::vector<std::string>& selected);
     void resolve_display_name();

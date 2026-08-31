@@ -460,9 +460,9 @@ docs/devel/architecture/09-home-widgets.md	fan_stack_widget.cpp	376	src/ui/panel
 docs/devel/architecture/09-home-widgets.md	fan_stack_widget.cpp	704	src/ui/panel_widgets/fan_stack_widget.cpp	991d6ef1e32c	e9ab72367e7c
 docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	14	include/panel_widget.h	6e9e621397a5	705f724409a9
 docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	28	include/panel_widget.h	1159ed372e10	723f5c3f67f7
-docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	32	include/panel_widget.h	d16d3995fdb5	9fcd53901df5
+docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	32	include/panel_widget.h	d16d3995fdb5	256937323ea7
 docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	87	include/panel_widget.h	63c11ba9e944	2e892d3eecf8
-docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	134	include/panel_widget.h	5c1cd4d928a4	4991936710c1
+docs/devel/architecture/09-home-widgets.md	include/panel_widget.h	180	include/panel_widget.h	5c1cd4d928a4	4991936710c1
 docs/devel/architecture/09-home-widgets.md	include/panel_widget_config.h	15	include/panel_widget_config.h	1f2b9e5a6d91	3f61519601cf
 docs/devel/architecture/09-home-widgets.md	include/panel_widget_registry.h	20	include/panel_widget_registry.h	67a371805fbc	a66b68d68056
 docs/devel/architecture/09-home-widgets.md	led_widget.cpp	55	src/ui/panel_widgets/led_widget.cpp	64ac81bc958c	51eded48bc86

@@ -35,6 +35,12 @@ class ToolSwitcherTestAccess {
     static std::vector<lv_obj_t*>& pills(ToolSwitcherWidget& widget) {
         return widget.pill_buttons_;
     }
+
+    /// Compact-mode label refresh_print_gating() greys. Nullable read so a
+    /// teardown test can assert it was dropped alongside the pills.
+    static lv_obj_t* compact_label(const ToolSwitcherWidget& widget) {
+        return widget.compact_label_;
+    }
 };
 
 } // namespace helix

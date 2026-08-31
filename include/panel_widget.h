@@ -31,7 +31,7 @@ constexpr lv_obj_flag_t PANEL_WIDGET_TILE_FLAG = LV_OBJ_FLAG_USER_3;
 /// Widgets that are pure XML binding (filament, probe, humidity, etc.) don't need this.
 class PanelWidget {
   public:
-    virtual ~PanelWidget() = default;
+    virtual ~PanelWidget();
 
     /// Called BEFORE lv_xml_create() — create and register any LVGL subjects
     /// that XML bindings depend on. Default is no-op.
@@ -124,6 +124,52 @@ class PanelWidget {
   protected:
     /// Call from widget event callbacks to track user interactions for telemetry
     void record_interaction();
+
+    /**
+     * @brief Install the raw-delete hook on this widget's tile root.
+     *
+     * Call from attach() once the root object is known. detach() is called by
+     * every CURRENT deletion path before the tree is condemned, but a raw
+     * lv_obj_delete() of the home page container (screen teardown) gives the
+     * widget no call: the async-guard tokens stay live and the cached child
+     * pointers dangle, so the next UpdateQueue drain writes into freed widgets
+     * (#776 family — the PowerPanel/PrintStatusPanel LV_EVENT_DELETE hook,
+     * lifted into the base so every PanelWidget gets it once).
+     *
+     * Safe across rebuilds: removes the hook from a previously hooked root
+     * first, so a recycled instance never leaves one behind on the tree it was
+     * detached from (or re-attached away from).
+     */
+    void install_delete_hook(lv_obj_t* root);
+
+    /**
+     * @brief Remove the hook installed by install_delete_hook().
+     *
+     * Call from detach(). The destructor calls it too, so a tile tree that
+     * outlives the widget (manager dropping a non-reused instance, app
+     * shutdown destroying panels before lv_deinit()) can never fire the hook
+     * on freed memory.
+     */
+    void uninstall_delete_hook();
+
+    /**
+     * @brief Override to drop cached child pointers when the tile tree dies
+     *        by anything other than detach().
+     *
+     * Runs inside LVGL's delete event, mid-teardown of the tree: pointer drops
+     * and async-guard expiry ONLY. Never reset observers or reparent/clean
+     * widgets from here — those need a live tree and a non-delete context
+     * (detach() and the destructor still run later on the normal paths).
+     */
+    virtual void on_hooked_root_deleted() {}
+
+  private:
+    static void on_root_deleted_event(lv_event_t* e);
+
+    /// Where the delete hook is currently installed. Kept separately from any
+    /// widget-owned root pointer because those are cleared by paths that
+    /// detach the tree before its deferred deletion runs.
+    lv_obj_t* delete_hook_root_ = nullptr;
 
   private:
     std::string panel_id_;

@@ -59,6 +59,7 @@ NozzleTempsWidget::~NozzleTempsWidget() {
 void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
+    install_delete_hook(widget_obj);
 
     rebuild_rows();
 
@@ -91,8 +92,34 @@ void NozzleTempsWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
     clear_rows();
+    uninstall_delete_hook();
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
+}
+
+void NozzleTempsWidget::on_hooked_root_deleted() {
+    // Runs inside LVGL's delete event: expire the pending deferred observer
+    // callbacks and drop the cached pointers only. The observers themselves
+    // stay registered on their (still live) subjects until detach() or the
+    // destructor resets them — every callback checks its token first, so a
+    // drained apply no-ops instead of writing to the freed row labels.
+    lifetime_.invalidate();
+    forget_row_widgets();
+    widget_obj_ = nullptr;
+    parent_screen_ = nullptr;
+}
+
+void NozzleTempsWidget::forget_row_widgets() {
+    for (auto& row : extruder_rows_) {
+        row.row_obj = nullptr;
+        row.tool_label = nullptr;
+        row.temp_label = nullptr;
+        row.target_label = nullptr;
+    }
+    bed_row_ = nullptr;
+    bed_icon_ = nullptr;
+    bed_temp_label_ = nullptr;
+    bed_target_label_ = nullptr;
 }
 
 void NozzleTempsWidget::clear_rows() {
@@ -131,10 +158,7 @@ void NozzleTempsWidget::clear_rows() {
     if (container)
         helix::ui::safe_clean_children(container);
 
-    bed_row_ = nullptr;
-    bed_icon_ = nullptr;
-    bed_temp_label_ = nullptr;
-    bed_target_label_ = nullptr;
+    forget_row_widgets();
     cached_bed_temp_ = 0;
     cached_bed_target_ = 0;
 }

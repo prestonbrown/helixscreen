@@ -1243,8 +1243,64 @@ PanelWidgetConfig& PanelWidgetManager::get_widget_config(const std::string& pane
 
 // -- PanelWidget base class --
 
+PanelWidget::~PanelWidget() {
+    // The tile tree can outlive this widget: the manager drops non-reused
+    // instances after a rebuild, and app shutdown destroys panels before
+    // lv_deinit(). Uninstall the delete hook while the object is still valid,
+    // or the tree's eventual teardown would call on_root_deleted_event() on
+    // freed memory. A null delete_hook_root_ means the tree already died (the
+    // hook fired) or detach() removed it — nothing left to uninstall.
+    uninstall_delete_hook();
+}
+
 void PanelWidget::record_interaction() {
     TelemetryManager::instance().notify_widget_interaction(id());
+}
+
+void PanelWidget::install_delete_hook(lv_obj_t* root) {
+    if (!root || delete_hook_root_ == root) {
+        return;
+    }
+    // A recycled instance may still hold the hook on the tree it was detached
+    // (or re-attached away) from. Take it off there before hooking the new
+    // root, or that tree's late deletion would fire into this widget while its
+    // pointers name the successor.
+    uninstall_delete_hook();
+
+    // The home panel owns this tree; a raw lv_obj_delete() gives the widget no
+    // other notice, and the queued observer handlers would run against the
+    // freed child pointers on the next drain.
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+    lv_obj_add_event_cb(root, on_root_deleted_event, LV_EVENT_DELETE, this);
+    delete_hook_root_ = root;
+}
+
+void PanelWidget::uninstall_delete_hook() {
+    if (delete_hook_root_ && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(delete_hook_root_, on_root_deleted_event, this);
+    }
+    delete_hook_root_ = nullptr;
+}
+
+void PanelWidget::on_root_deleted_event(lv_event_t* e) {
+    auto* self = static_cast<PanelWidget*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    auto* dying = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+
+    // Only the tree the hook was installed for matters. install_delete_hook()
+    // moves the hook at attach() time, but a tree condemned without a detach
+    // (or any future path that swaps roots without going through attach) can
+    // still land its late delete event here while the successor's pointers are
+    // live — clearing those would blank a live tree. Same staleness skip as
+    // PowerPanel's and PrintStatusPanel's hooks.
+    if (dying != self->delete_hook_root_) {
+        return;
+    }
+
+    self->delete_hook_root_ = nullptr;
+    self->on_hooked_root_deleted();
 }
 
 void PanelWidget::save_widget_config(const nlohmann::json& config) {

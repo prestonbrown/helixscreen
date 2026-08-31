@@ -13,6 +13,7 @@
 namespace helix {
 
 class PrinterState;
+class NozzleTempsTestAccess;
 struct ToolInfo;
 
 /// Collapse a tool list to the distinct physical extruders feeding it, preserving
@@ -40,6 +41,8 @@ class NozzleTempsWidget : public PanelWidget {
     }
 
   private:
+    friend class NozzleTempsTestAccess;
+
     PrinterState& printer_state_;
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
@@ -104,6 +107,14 @@ class NozzleTempsWidget : public PanelWidget {
 
     void rebuild_rows();
     void clear_rows();
+
+    /// Null every cached widget pointer (row objects/labels, bed row/labels)
+    /// without touching observers or the widget tree. Shared by clear_rows()
+    /// and the raw-delete hook.
+    void forget_row_widgets();
+
+    void on_hooked_root_deleted() override;
+
     void create_extruder_row(lv_obj_t* container, ExtruderRow& row);
     void create_bed_row(lv_obj_t* container);
     void update_row_display(lv_obj_t* temp_label, lv_obj_t* target_label, int temp_deci,
