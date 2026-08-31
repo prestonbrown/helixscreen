@@ -315,12 +315,16 @@ void WifiBackendNetd::cleanup_netd() {
         scan_watchdog_timer_ = kNoTimer;
     }
     cancel_liveness_probe();
-    // trigger_scan() returning success OBLIGATES an eventual SCAN_COMPLETE;
-    // tearing down with a scan outstanding would latch the manager's
-    // scheduler forever (stop-then-start is a supported reuse path). Resolve
-    // from the cached rows — a listener still registered gets its event; a
-    // torn-down manager unregistered first and this is a no-op.
-    finish_scan();
+    // trigger_scan() returning success OBLIGATES an eventual SCAN_COMPLETE —
+    // but stop() is the one boundary where the OWNER resolves that obligation
+    // instead: WiFiManager unlatches its scheduler when it stops or swaps the
+    // backend (prestonbrown/helixscreen#1405), so dispatching a completion
+    // here would double-resolve. Clear the internal single-flight flag only,
+    // so a stop-then-start reuse begins with no phantom scan in flight; the
+    // pending scan died with this connection. A backend that re-establishes
+    // its own connection mid-scan (open_connection, below) still dispatches —
+    // there the owner never stopped it and cannot know.
+    scan_pending_.store(false);
     connect_in_flight_.store(false);
 
     close_connection();
@@ -878,11 +882,10 @@ void WifiBackendNetd::flush_deferred_scan() {
 }
 
 WiFiError WifiBackendNetd::get_scan_results(std::vector<WiFiNetwork>& networks) {
-    // A STOPPED backend still serves its last completed scan: teardown
-    // dispatches SCAN_COMPLETE after stop(), and a consumer answering that
-    // event with a fetch must not be fed NOT_INITIALIZED plus an empty list —
-    // that blanks the network list the surviving rows exist to hold. Only
-    // the never-ran/empty state reports NOT_INITIALIZED.
+    // A STOPPED backend still serves its last completed scan: a consumer that
+    // fetches after a stop/swap must not be fed NOT_INITIALIZED plus an empty
+    // list — that blanks the network list the surviving rows exist to hold.
+    // Only the never-ran/empty state reports NOT_INITIALIZED.
     {
         std::lock_guard<std::mutex> lock(scan_mutex_);
         if (!is_running() && scan_rows_.empty()) {

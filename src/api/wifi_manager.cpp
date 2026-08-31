@@ -228,6 +228,14 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
                 return;
             }
             backend_->stop();
+            // The stopped backend can never deliver the SCAN_COMPLETE a
+            // successful trigger_scan() owed, so resolve the scheduler now —
+            // the same resolution the synchronous-failure paths in start_scan()
+            // and scan_timer_callback() use. Without it, a scan outstanding at
+            // the swap latches should_trigger() false for the rest of this
+            // scan session (prestonbrown/helixscreen#1405). The contract and
+            // its one exception (stop) are stated on WifiBackend::trigger_scan.
+            scan_scheduler_.on_scan_failed();
             backend_.reset();
             backend_ = std::make_unique<WifiBackendWpaSupplicant>();
             backend_->set_silent(silent);

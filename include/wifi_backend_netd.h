@@ -67,10 +67,10 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
      * @param reconnect_ms      Delay before re-establishing a dropped daemon
      *                         connection (default 5 s).
      * @param scan_watchdog_ms  Upper bound from an accepted SCAN to the
-     *                         SCAN_COMPLETE event (default 15 s). A success
-     *                         return from trigger_scan() OBLIGATES an
-     *                         eventual SCAN_COMPLETE, or WiFiManager's scan
-     *                         scheduler latches forever.
+     *                         SCAN_COMPLETE event (default 15 s) — enforcing
+     *                         the completion obligation every backend owes on
+     *                         a successful trigger_scan() (the contract is
+     *                         stated on WifiBackend::trigger_scan).
      * @param mac_reader        Station-MAC source (default: sysfs probe via
      *                         probe_os_wifi_link + wifi_get_device_mac).
      * @param liveness_probe_ms Silence from the daemon that triggers a GET
