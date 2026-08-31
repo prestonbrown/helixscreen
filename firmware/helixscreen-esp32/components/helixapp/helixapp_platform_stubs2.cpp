@@ -179,7 +179,10 @@ SpoolmanOverlay& get_spoolman_overlay() {
 // here — so the no-op body leaves no binding unsatisfied.
 
 // src/ui/ui_panel_spoolman.cpp (DEFINE_GLOBAL_PANEL)
-SpoolmanPanel::SpoolmanPanel() = default;
+// The panel's SearchDebounce member has no default ctor (a search callback is
+// mandatory), so the stub constructs it with a null one - never fired, because
+// this target never creates the panel (create() below returns nullptr).
+SpoolmanPanel::SpoolmanPanel() : search_debounce_(nullptr) {}
 SpoolmanPanel::~SpoolmanPanel() = default;
 void SpoolmanPanel::init_subjects() {}
 void SpoolmanPanel::register_callbacks() {}
