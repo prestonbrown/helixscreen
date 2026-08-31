@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_container_delete_net.h"
 #include "ui_observer_guard.h"
 
 #if defined(HELIX_PLATFORM_ESP32)
@@ -114,7 +115,7 @@ using MetadataFetchCallback = std::function<void(size_t start, size_t end)>;
 /**
  * @brief Virtualized card grid view with widget pooling
  */
-class PrintSelectCardView {
+class PrintSelectCardView : public ContainerDeleteNet {
   public:
     PrintSelectCardView();
     ~PrintSelectCardView();
@@ -330,10 +331,13 @@ class PrintSelectCardView {
     /// run while the tree those pointers refer to is mid-deletion.
     void clear_cached_state();
 
+    /// ContainerDeleteNet: the watched tree died — drop the pool
+    /// before its pointers dangle.
+    void on_netted_container_destroyed() override;
+
     /// LV_EVENT_DELETE net on the container: the tree the pool was built under
     /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
     /// outlive it (prestonbrown/helixscreen#1396).
-    static void on_container_delete(lv_event_t* e);
 };
 
 } // namespace helix::ui
