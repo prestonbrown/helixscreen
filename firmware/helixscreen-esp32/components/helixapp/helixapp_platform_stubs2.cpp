@@ -204,6 +204,10 @@ SpoolmanPanel& get_global_spoolman_panel() {
 // src/ui/ui_spoolman_list_view.cpp
 namespace helix::ui {
 SpoolmanListView::~SpoolmanListView() = default;
+// ContainerDeleteNet override (declared out-of-line in the header): without a
+// definition here the class's vtable never emits on this target and the
+// firmware link fails with an undefined _ZTV reference.
+void SpoolmanListView::on_netted_container_destroyed() {}
 
 // src/ui/ui_spoolman_context_menu.cpp
 SpoolmanContextMenu::SpoolmanContextMenu() = default;
