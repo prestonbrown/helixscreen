@@ -34,7 +34,6 @@ setup() {
     # then host_profile.sh, then the consumers under test.
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
-    # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/release.sh"
@@ -185,6 +184,23 @@ sandbox_candidates() {
     HELIX_MOD_PAYLOAD=1
     run validate_install_dir "$SANDBOX/usr/data/config/mod/.bin/helixscreen"
     [ "$status" -eq 0 ] || fail "refused a --mod-payload install: $output"
+}
+
+@test "validate_tmp_dir refuses a mod-owned TMP_DIR outside --mod-payload" {
+    # TMP_DIR is rm -rf'd on both the success and the failure path. Its name
+    # guard ('*helixscreen-install*') is satisfied by a scratch dir INSIDE the
+    # mod's git tree too, so ownership -- not just the name -- must gate it:
+    # staging inside their repo leaves untracked files their OTA's git clean
+    # then removes, and the rm -rf tears through the mod's namespace.
+    HOST_MOD_ROOT="$SANDBOX/usr/data/config/mod"
+    HELIX_MOD_PAYLOAD=""
+    run validate_tmp_dir "$SANDBOX/usr/data/config/mod/helixscreen-install"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"refusing"* ]]
+
+    HELIX_MOD_PAYLOAD=1
+    run validate_tmp_dir "$SANDBOX/usr/data/config/mod/helixscreen-install"
+    [ "$status" -eq 0 ] || fail "refused a --mod-payload scratch dir: $output"
 }
 
 # ===========================================================================

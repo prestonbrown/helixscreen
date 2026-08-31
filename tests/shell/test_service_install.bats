@@ -10,8 +10,9 @@ setup() {
     load helpers
 
     # Source modules (reset source guards so each test gets a fresh load)
-    unset _HELIX_COMMON_SOURCED _HELIX_SERVICE_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_SERVICE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/service.sh"
 
     # Set required globals

@@ -19,11 +19,13 @@ setup() {
     INSTALL_DIR="/opt/helixscreen"
     TMP_DIR=""
 
-    # Source common.sh + platform.sh (skip source guards by unsetting them).
-    # platform.sh calls common.sh's validate_install_dir/validate_tmp_dir; the
-    # bundled installer always carries both.
-    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED
+    # Source common.sh + host_profile.sh + platform.sh (skip source guards by
+    # unsetting them), in the bundle's module order. platform.sh calls
+    # common.sh's validate_install_dir/validate_tmp_dir, whose mod-owned guard
+    # lives in host_profile.sh; the bundled installer always carries all three.
+    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     # common.sh defines the real log_* (they print to stderr, which bats folds
     # into $output). Restore helpers.bash's silent stubs.
@@ -264,6 +266,65 @@ _setup_zmod_ad5x_sandbox() {
     _setup_forgex_ad5x_sandbox
     run ad5x_check_chroot_context
     [ "$status" -eq 0 ]
+}
+
+# --- Mod-host install root ---------------------------------------------------
+#
+# On a probed mod host the install IS the mod's payload tree: the mod owns the
+# service and its OTA, so the per-platform roots (/srv on a stock AD5X) are
+# not where a standalone install may write. A plain run is then refused by
+# the mod-owned guard in validate_install_dir -- only --mod-payload, whose
+# contract is an in-place update of that tree, proceeds.
+
+@test "mod host: set_install_paths targets the mod's payload root under --mod-payload" {
+    _setup_forgex_ad5x_sandbox
+    HELIX_MOD_PAYLOAD=1
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+
+    set_install_paths "ad5x" "forge_x"
+
+    [ "$INSTALL_DIR" = "$SANDBOX/usr/data/config/mod/.bin/helixscreen" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR'"
+}
+
+@test "mod host: a plain (non-payload) run is refused at the install-dir gate" {
+    _setup_forgex_ad5x_sandbox
+    HELIX_MOD_PAYLOAD=""
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+    log_error() { echo "ERROR: $*"; }
+
+    run set_install_paths "ad5x" "forge_x"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"refusing"* ]]
+    [[ "$output" == *"--mod-payload"* ]]
+}
+
+@test "mod host: an explicit user INSTALL_DIR still wins over the mod root" {
+    # platform.sh captures a user-provided INSTALL_DIR before auto-detection;
+    # the mod root IS auto-detection, so an operator pointing elsewhere keeps
+    # their choice (and owns the resulting layout).
+    _setup_forgex_ad5x_sandbox
+    HELIX_MOD_PAYLOAD=1
+    INSTALL_DIR="$SANDBOX/usr/data/helixscreen"
+    _USER_INSTALL_DIR="$SANDBOX/usr/data/helixscreen"
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+
+    set_install_paths "ad5x" "forge_x"
+
+    [ "$INSTALL_DIR" = "$SANDBOX/usr/data/helixscreen" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR'"
+}
+
+@test "plain host: set_install_paths keeps the per-platform root (no probe)" {
+    # Control: without the probe's answer the ad5x path is unchanged, so the
+    # mod-host branch cannot have swallowed the stock layout.
+    HOST_INSTALL_ROOT=""
+    HELIX_MOD_PAYLOAD=""
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+
+    set_install_paths "ad5x"
+
+    [ "$INSTALL_DIR" = "/srv/helixscreen" ]
 }
 
 @test "detect_mod_flavor defaults to stock when no mod evidence exists" {

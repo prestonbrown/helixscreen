@@ -11,9 +11,10 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
-    unset _HELIX_COMMON_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     export SUDO=""
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
 
     log_info()    { echo "INFO: $*"; }
     log_warn()    { echo "WARN: $*"; }

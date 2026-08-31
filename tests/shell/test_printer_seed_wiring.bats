@@ -36,6 +36,7 @@ setup() {
     unset _HELIX_PRINTER_SEED_SOURCED _HELIX_KLIPPER_INCLUDE_SOURCED
 
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/printer_seed.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/klipper_include.sh"
 }

@@ -316,6 +316,12 @@ _user_dir_name_ok() {
 # in-app updater hands over via TMP_DIR (update_checker.cpp STAGING_NAME).
 validate_tmp_dir() {
     local d="$1"
+    # A mod-owned path is refused even when its name passes below: the scratch
+    # dir is rm -rf'd on cleanup, and its name guard is satisfied just as well
+    # by a directory INSIDE the mod's git tree, which would leave untracked
+    # files for the mod's OTA to clean and tear through the mod's namespace.
+    # Before the name check for the same reason as validate_install_dir.
+    host_refuse_mod_owned "stage the download in" "$d"
     if _user_dir_name_ok "$d" '*helixscreen-install*' '.helix-update-staging'; then
         return 0
     fi

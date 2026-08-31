@@ -17,9 +17,10 @@ RELEASE_SH="$WORKTREE_ROOT/scripts/lib/installer/release.sh"
 setup() {
     load helpers
 
-    unset _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED
     export SUDO=""
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     . "$RELEASE_SH"
 
     log_info()    { echo "INFO: $*"; }

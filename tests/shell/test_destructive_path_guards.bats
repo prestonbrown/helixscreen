@@ -17,7 +17,7 @@ setup() {
     # _safe_remove_tmp_dir's mountpoint probe uses `stat -c '%d'`.
     install_gnu_stat_shim
 
-    unset _HELIX_COMMON_SOURCED _HELIX_PLATFORM_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_PLATFORM_SOURCED
     export SUDO=""
     export TMP_DIR=""
     export INSTALL_DIR=""
@@ -27,6 +27,7 @@ setup() {
     # must load both or they exercise a shape that never ships.
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
 

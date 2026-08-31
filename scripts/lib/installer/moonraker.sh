@@ -142,14 +142,28 @@ moonraker_asset_name_support() {
 
 # Find moonraker.conf
 # Returns: path to moonraker.conf or empty string
+#
+# NEVER returns a mod-owned path (host_path_is_mod_owned): the firmware mods
+# keep their moonraker.conf git-tracked in their own repo, so a stanza written
+# there dirties their checkout and their OTA drops it again. On a mod host the
+# sanctioned include point is the mod's user.moonraker.conf (included by the
+# mod's conf), which the host profile recorded in HOST_MOONRAKER_USER_CONF.
 find_moonraker_conf() {
+    # Mod host: answer before any filesystem discovery can find the mod's own
+    # conf (or a symlink to it). The user conf may not exist yet; the stanza
+    # writer creates it there.
+    if [ -n "${HOST_MOONRAKER_USER_CONF:-}" ]; then
+        echo "$HOST_MOONRAKER_USER_CONF"
+        return 0
+    fi
+
     # Dynamic: the platform's own config dir first -- KLIPPER_CONFIG_DIR when a
     # firmware declared one (COSMOS), else <KLIPPER_HOME>/printer_data/config.
     local config_dir
     config_dir="$(klipper_config_dir)"
     if [ -n "$config_dir" ]; then
         local user_conf="${config_dir}/moonraker.conf"
-        if [ -f "$user_conf" ]; then
+        if [ -f "$user_conf" ] && ! host_path_is_mod_owned "$user_conf"; then
             echo "$user_conf"
             return 0
         fi
@@ -157,7 +171,7 @@ find_moonraker_conf() {
 
     # Static fallback
     for conf in $MOONRAKER_CONF_PATHS; do
-        if [ -f "$conf" ]; then
+        if [ -f "$conf" ] && ! host_path_is_mod_owned "$conf"; then
             echo "$conf"
             return 0
         fi

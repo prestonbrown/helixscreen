@@ -10,13 +10,14 @@ setup() {
     load helpers
 
     # Reset source guards and globals
-    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED
+    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     export SUDO=""
     export TMP_DIR=""
 
     # common.sh owns validate_tmp_dir, which detect_tmp_dir calls on a user
     # override; the bundled installer always carries both modules.
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
 
     # Override log stubs to capture output (after common.sh, which defines the

@@ -19,6 +19,15 @@ _HELIX_HOST_PROFILE_SOURCED=1
 # Candidate roots are env-overridable so the BATS suite can point the probe at
 # a sandbox tree instead of the real /usr/data (same convention as
 # HELIX_STATE_VAR_LIB in common.sh). Production leaves them unset.
+#
+# THE BOTH-PLACES RULE: a mod tree location appears in this file TWICE, in the
+# probe candidate lists right here (env-overridable, marker-gated) AND in the
+# hard-coded canonical literals inside host_path_is_mod_owned below (not
+# overridable, marker-free). The two shapes are deliberate: the probe may be
+# redirected or miss a half-uninstalled marker, while ownership of the
+# namespace must not depend on either. Adding a new mod location means adding
+# it to BOTH lists -- one without the other is either a path the guard does
+# not recognize or a path the probe can never find.
 HELIX_MOD_PAYLOAD="${HELIX_MOD_PAYLOAD:-}"
 
 HOST_MOD_ROOT=""

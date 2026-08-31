@@ -6,6 +6,7 @@
 
 RELEASE_SH="scripts/lib/installer/release.sh"
 COMMON_SH="scripts/lib/installer/common.sh"
+HOST_PROFILE_SH="scripts/lib/installer/host_profile.sh"
 
 # release.sh depends on helpers that live in common.sh (_has_python, _PY_BIN,
 # ...). The bundled install.sh always carries both, so sourcing release.sh
@@ -13,9 +14,12 @@ COMMON_SH="scripts/lib/installer/common.sh"
 # `elif _has_python` branch down its else path — the tests then pass while
 # exercising code production never runs. Always load both, and clear the python
 # probe cache so each test re-resolves the interpreter for its own PATH.
+# host_profile.sh rides between them in the bundle's module order: common.sh's
+# guards call into it, and a missing module is a 127 behind a later `|| true`.
 source_installer_modules() {
-    unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+    unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
     source "$COMMON_SH"
+    source "$HOST_PROFILE_SH"
     source "$RELEASE_SH"
 }
 
@@ -88,8 +92,9 @@ MOCK
     # On macOS /usr/bin/curl exists so this test skips there.
     run env PATH="$bin:/usr/bin" /bin/bash -c '
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         fetch_url "http://example.com/test"
     '
@@ -109,8 +114,9 @@ MOCK
     # Symlink only the essentials we need (command is a shell built-in)
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         fetch_url "http://example.com/test"
     '
@@ -215,8 +221,9 @@ MOCK
 
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         download_file "http://example.com/test" "/tmp/test.tar.gz"
     '
@@ -267,8 +274,9 @@ MOCK
 
     run env PATH="$bin:/usr/bin:/bin" /bin/bash -c "
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         download_file 'http://example.com/test' '$TMP_DIR/wget_test.tar.gz'
     "
@@ -462,8 +470,9 @@ PY
     run env PATH="$bin:$PATH" /bin/bash -c '
         source tests/shell/helpers.bash
         log_error() { echo "ERROR: $*"; }
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         validate_archive "$1" "Test "
     ' _ "$TMP_DIR/good.zip"
@@ -481,8 +490,9 @@ PY
     run env PATH="$bin:$PATH" /bin/bash -c '
         source tests/shell/helpers.bash
         log_error() { echo "ERROR: $*"; }
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         validate_archive "$1" "Downloaded "
     ' _ "$TMP_DIR/crc.zip"
@@ -506,8 +516,9 @@ PY
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
         log_error() { echo "ERROR: $*"; }
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         validate_archive "$1" "Test "
     ' _ "$TMP_DIR/good.zip"
@@ -516,8 +527,9 @@ PY
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
         log_error() { echo "ERROR: $*"; }
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         validate_archive "$1" "Test "
     ' _ "$TMP_DIR/garbage.zip"
@@ -563,8 +575,9 @@ MOCK
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
         log_error() { echo "ERROR: $*"; }
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         validate_archive "$1" "Test "
     ' _ "$TMP_DIR/good.zip"
@@ -584,8 +597,9 @@ MOCK
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
         log_error() { echo "ERROR: $*"; }
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         validate_archive "$1" "Test "
     ' _ "$TMP_DIR/good.zip"
@@ -603,8 +617,9 @@ MOCK
 
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         check_https_capability
     '
@@ -634,8 +649,9 @@ MOCK
 
     run env PATH="$bin" /bin/bash -c '
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         check_https_capability
     '
@@ -655,8 +671,9 @@ MOCK
 
     run env PATH="$pybin" /bin/bash -c "
         source tests/shell/helpers.bash
-        unset _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED _REAL_CURL
+        unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED _REAL_CURL
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         _has_no_new_privs() { return 1; }
         source scripts/lib/installer/release.sh
         fetch_url 'file://$f'
@@ -675,8 +692,9 @@ MOCK
 
     run env PATH="$pybin" /bin/bash -c "
         source tests/shell/helpers.bash
-        unset _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED _REAL_CURL
+        unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED _REAL_CURL
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         _has_no_new_privs() { return 1; }
         source scripts/lib/installer/release.sh
         download_file 'file://$src' '$dest'
@@ -692,8 +710,9 @@ MOCK
 
     run env PATH="$pybin" /bin/bash -c "
         source tests/shell/helpers.bash
-        unset _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED _REAL_CURL
+        unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED _REAL_CURL
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         _has_no_new_privs() { return 1; }
         source scripts/lib/installer/release.sh
         check_https_capability
@@ -943,8 +962,9 @@ MANIFEST_WITH_HASHES='{
     # Absolute /bin/bash so the restricted PATH doesn't have to carry a shell.
     run env PATH="$bin" /bin/bash -c "
         source tests/shell/helpers.bash
-        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         source scripts/lib/installer/release.sh
         _sha256_file '$TMP_DIR/hashme'
     "

@@ -10,6 +10,7 @@
 # but ship python3 (e.g. recent Creality K2 Tina/OpenWrt firmware).
 
 COMMON_SH="scripts/lib/installer/common.sh"
+HOST_PROFILE_SH="scripts/lib/installer/host_profile.sh"
 RELEASE_SH="scripts/lib/installer/release.sh"
 
 setup() {
@@ -17,8 +18,11 @@ setup() {
     export GITHUB_REPO="prestonbrown/helixscreen"
 
     # Source common.sh (provides _has_python) then release.sh (provides _py_*).
-    unset _HELIX_COMMON_SOURCED
+    # host_profile.sh sits between them in the bundle's module order: common.sh's
+    # guards call into it, and a missing module is a 127 behind a later `|| true`.
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     source "$COMMON_SH"
+    source "$HOST_PROFILE_SH"
 
     # release.sh references _has_no_new_privs (defined in service.sh); stub it.
     _has_no_new_privs() { return 1; }
@@ -78,6 +82,7 @@ PY
     run env PATH="$empty" /bin/bash -c '
         unset _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         _has_python
     '
     [ "$status" -ne 0 ]

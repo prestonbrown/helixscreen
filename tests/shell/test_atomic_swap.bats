@@ -264,6 +264,7 @@ mock_has_privs() {
     unset _HELIX_COMMON_SOURCED _HELIX_SERVICE_SOURCED
     WORKTREE_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")/.." && pwd)"
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/service.sh"
 
     export INIT_SYSTEM="systemd"

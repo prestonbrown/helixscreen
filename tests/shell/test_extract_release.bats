@@ -10,8 +10,9 @@ setup() {
     export GITHUB_REPO="prestonbrown/helixscreen"
 
     # Source common.sh for file_sudo() which release.sh calls
-    unset _HELIX_COMMON_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     source scripts/lib/installer/common.sh
+    source scripts/lib/installer/host_profile.sh
 
     # Stub _has_no_new_privs (defined in service.sh) — tests never run under
     # systemd's NoNewPrivileges, so always return false
@@ -727,8 +728,9 @@ create_preset_tarball() {
         log_info()    { echo \"INFO: \$*\"; }
         log_success() { echo \"OK: \$*\"; }
         log_warn()    { echo \"WARN: \$*\"; }
-        unset _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         _has_no_new_privs() { return 1; }
         source scripts/lib/installer/release.sh
         export TMP_DIR='$TMP_DIR'

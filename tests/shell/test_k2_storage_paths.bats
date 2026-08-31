@@ -17,9 +17,10 @@ CACHE_DIR_CPP="$WORKTREE_ROOT/src/system/helix_cache_dir.cpp"
 setup() {
     load helpers
 
-    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED
+    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED
     export SUDO=""
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/release.sh"
 
