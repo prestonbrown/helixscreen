@@ -45,16 +45,13 @@ DEFINE_GLOBAL_PANEL(SpoolmanPanel, g_spoolman_panel, get_global_spoolman_panel)
 // Constructor
 // ============================================================================
 
-SpoolmanPanel::SpoolmanPanel() {
+SpoolmanPanel::SpoolmanPanel()
+    : search_debounce_([this](const std::string&) { populate_spool_list(); }) {
     spdlog::trace("[{}] Constructor", get_name());
     std::memset(header_title_buf_, 0, sizeof(header_title_buf_));
 }
 
 SpoolmanPanel::~SpoolmanPanel() {
-    if (search_debounce_timer_) {
-        lv_timer_delete(search_debounce_timer_);
-        search_debounce_timer_ = nullptr;
-    }
     deinit_subjects();
 }
 
@@ -179,10 +176,7 @@ void SpoolmanPanel::on_deactivate() {
     SpoolmanManager::instance().stop_spoolman_polling();
 
     // Clean up debounce timer
-    if (search_debounce_timer_) {
-        lv_timer_delete(search_debounce_timer_);
-        search_debounce_timer_ = nullptr;
-    }
+    search_debounce_.cancel();
 
     // Reset visible state but keep pool intact for reactivation
     list_view_.reset();
@@ -777,26 +771,15 @@ void SpoolmanPanel::on_search_changed(lv_event_t* e) {
     const char* text = lv_textarea_get_text(textarea);
     panel.search_query_ = text ? text : "";
 
-    // Debounce: cancel existing timer, start new one
-    if (panel.search_debounce_timer_) {
-        lv_timer_delete(panel.search_debounce_timer_);
-        panel.search_debounce_timer_ = nullptr;
-    }
-
-    panel.search_debounce_timer_ = lv_timer_create(on_search_timer, SEARCH_DEBOUNCE_MS, &panel);
-    lv_timer_set_repeat_count(panel.search_debounce_timer_, 1);
+    // Debounced: empty applies immediately, anything else waits out the delay.
+    panel.search_debounce_.schedule(panel.search_query_);
 }
 
 void SpoolmanPanel::on_search_clear(lv_event_t* /*e*/) {
-    // Text is already cleared by text_input's internal clear button handler.
-    // We just need to update the search state and repopulate immediately.
-    auto& panel = get_global_spoolman_panel();
-    panel.search_query_.clear();
-    if (panel.search_debounce_timer_) {
-        lv_timer_delete(panel.search_debounce_timer_);
-        panel.search_debounce_timer_ = nullptr;
-    }
-    panel.populate_spool_list();
+    // The clear button's lv_textarea_set_text("") already fired value_changed,
+    // whose immediate empty-filter apply repopulated once. Applying again here
+    // would double the rebuild, so this only drops a straggling trigger.
+    get_global_spoolman_panel().search_debounce_.cancel();
 }
 
 void SpoolmanPanel::on_location_filter_changed(lv_event_t* e) {
@@ -824,20 +807,6 @@ void SpoolmanPanel::on_location_filter_changed(lv_event_t* e) {
 
     spdlog::debug("[Spoolman] Location filter: '{}'", panel.selected_location_);
     panel.populate_spool_list();
-}
-
-void SpoolmanPanel::on_search_timer(lv_timer_t* timer) {
-    auto* self = static_cast<SpoolmanPanel*>(lv_timer_get_user_data(timer));
-    if (!self) {
-        return;
-    }
-
-    self->search_debounce_timer_ = nullptr;
-
-    spdlog::debug("[Spoolman] Search query: '{}'", self->search_query_);
-
-    // Re-filter and repopulate (populate_spool_list handles empty/non-empty states)
-    self->populate_spool_list();
 }
 
 #if HELIX_HAS_LABEL_PRINTER

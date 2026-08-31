@@ -1430,6 +1430,51 @@ TEST_CASE("filter_spools - exact substring still preferred over fuzzy", "[filame
     REQUIRE(result[1].id == 3);
 }
 
+TEST_CASE("build_searchable_text - id vendor material name location, lowercased",
+          "[filament][filter]") {
+    SpoolInfo s;
+    s.id = 42;
+    s.vendor = "Hatchbox";
+    s.material = "PLA";
+    s.filament_name = "White";
+    s.location = "Shelf A";
+    CHECK(build_searchable_text(s) == "#42 hatchbox pla white shelf a");
+}
+
+TEST_CASE("filter_spools - prebuilt searchables match inline results", "[filament][filter]") {
+    auto spools = make_filter_test_spools();
+    std::vector<std::string> searchables;
+    searchables.reserve(spools.size());
+    for (const auto& s : spools) {
+        searchables.push_back(build_searchable_text(s));
+    }
+
+    // Covers substring, fuzzy-typo, ID, multi-term AND and no-match paths.
+    for (const char* q : {"", "  ", "poly", "polymeker", "#42", "42", "hatch", "polymaker shelf",
+                          "PLA", "zzz nothing"}) {
+        auto via_prebuilt = filter_spools(spools, q, searchables);
+        auto inline_built = filter_spools(spools, q);
+        INFO("query: " << q);
+        REQUIRE(via_prebuilt.size() == inline_built.size());
+        for (size_t i = 0; i < via_prebuilt.size(); ++i) {
+            REQUIRE(via_prebuilt[i].id == inline_built[i].id);
+        }
+    }
+}
+
+TEST_CASE("filter_spools - stale searchables fall back to inline matching", "[filament][filter]") {
+    auto spools = make_filter_test_spools();
+    // Wrong-size cache (inventory changed after precompute): must still
+    // filter correctly by building the strings inline, not mis-filter.
+    std::vector<std::string> stale(2, "#1 whatever");
+    auto via_stale = filter_spools(spools, "poly", stale);
+    auto inline_built = filter_spools(spools, "poly");
+    REQUIRE(via_stale.size() == inline_built.size());
+    for (size_t i = 0; i < via_stale.size(); ++i) {
+        REQUIRE(via_stale[i].id == inline_built[i].id);
+    }
+}
+
 TEST_CASE("SpoolInfo - location field parsed from JSON", "[filament][parsing]") {
     // This test uses the mock API which internally calls parse_spool_info()
     PrinterState state;

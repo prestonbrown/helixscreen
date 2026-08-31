@@ -55,9 +55,26 @@ class AmsEditOverlayViewTestAccess {
     }
     void set_cached_spools(std::vector<SpoolInfo> spools) {
         overlay_.cached_spools_ = std::move(spools);
+        // Mirror populate_picker's precompute so direct-drive tests exercise
+        // the same filter path as production.
+        overlay_.cached_searchables_.clear();
+        overlay_.cached_searchables_.reserve(overlay_.cached_spools_.size());
+        for (const auto& spool : overlay_.cached_spools_) {
+            overlay_.cached_searchables_.push_back(build_searchable_text(spool));
+        }
     }
     void call_render_spool_list(const std::string& filter) {
         overlay_.render_spool_list(filter);
+    }
+    int picker_state() {
+        return lv_subject_get_int(&overlay_.picker_state_subject_);
+    }
+    /// What the XML value_changed callback does for each keystroke.
+    void type_picker_search(const std::string& text) {
+        overlay_.picker_search_debounce_.schedule(text);
+    }
+    bool picker_search_pending() {
+        return overlay_.picker_search_debounce_.pending();
     }
     void call_enter_spool_edit() {
         overlay_.enter_spool_edit();
@@ -1129,6 +1146,89 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker pre-selects the first row for unlink
     REQUIRE(lv_obj_get_child_count(list) == 2);
     CHECK(lv_obj_has_state(lv_obj_get_child(list, 0), LV_STATE_CHECKED));
     CHECK_FALSE(lv_obj_has_state(lv_obj_get_child(list, 1), LV_STATE_CHECKED));
+
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "picker search burst renders once, after the pause",
+                 "[ams_edit_overlay][picker][search]") {
+    // Regression: every value_changed used to rebuild the whole spool list
+    // synchronously - at a few hundred spools that froze the keyboard for the
+    // length of the rebuild, per keystroke (K2 Plus report 2026-08-30).
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 2);
+
+    // Type a burst. Nothing may render synchronously or mid-burst: the list
+    // keeps the previous content and the debounce stays armed.
+    access.type_picker_search("e");
+    access.type_picker_search("es");
+    access.type_picker_search("esu");
+    access.type_picker_search("esun");
+    UpdateQueue::instance().drain();
+    process_lvgl(10); // well under the 300ms delay
+    CHECK(access.picker_search_pending());
+    CHECK(lv_obj_get_child_count(list) == 2);
+
+    // After the pause: ONE render with the final query ("esun" -> eSUN only).
+    process_lvgl(320);
+    UpdateQueue::instance().drain();
+    CHECK_FALSE(access.picker_search_pending());
+    CHECK(lv_obj_get_child_count(list) == 1);
+    CHECK(access.picker_state() == 2);
+
+    // Clearing applies immediately - no debounce wait, no timer.
+    access.type_picker_search("");
+    UpdateQueue::instance().drain();
+    CHECK_FALSE(access.picker_search_pending());
+    CHECK(lv_obj_get_child_count(list) == 2);
+
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "picker zero-match shows no-match state, not fetch-error retry",
+                 "[ams_edit_overlay][picker][search]") {
+    // The empty-filter result and the failed fetch used to share state 1, so
+    // a term that matches nothing flashed "No spools found - tap to retry"
+    // mid-word. A successful fetch with no matches is state 3: informational,
+    // not an error, and not clickable.
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("zzzz nothing matches this");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.picker_state() == 3);
+    lv_obj_t* no_match = access.widget("picker_no_match");
+    REQUIRE(no_match != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(no_match, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* retry = access.widget("picker_empty");
+    REQUIRE(retry != nullptr);
+    CHECK(lv_obj_has_flag(retry, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    CHECK(lv_obj_get_child_count(list) == 0);
 
     close_editor_overlay();
 }

@@ -1603,6 +1603,7 @@ translations:
   No slot currently matches.: '当前没有匹配的料仓。'
   No spool assigned: 未分配料盘
   No spools found — tap to retry: 未找到料盘 - 点击重试
+  No spools match your search: ''
   No tape detected in printer: 打印机中未检测到标签带
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'

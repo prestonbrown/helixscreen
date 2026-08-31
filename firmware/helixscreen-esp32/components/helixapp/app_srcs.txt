@@ -459,6 +459,8 @@ src/ui/ui_spool_wizard.cpp
 src/ui/ui_status_pill.cpp
 src/ui/ui_step_progress.cpp
 src/ui/ui_subscription_guard.cpp
+src/ui/ui_search_debounce.cpp
+src/ui/ui_coalesced_timer.cpp
 src/ui/ui_swatch.cpp
 src/ui/ui_switch.cpp
 src/ui/ui_system_path_canvas.cpp
