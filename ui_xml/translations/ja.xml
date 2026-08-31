@@ -124,6 +124,7 @@
   <translation tag="Acceleration to deceleration limit (mm/s²)" ja="加速から減速の制限値 (mm/s²)"/>
   <translation tag="Accelerometer" ja="加速度センサー"/>
   <translation tag="Accelerometer communication failed. Try again." ja="加速度センサーとの通信に失敗しました。再試行してください。"/>
+  <translation tag="Accelerometers" ja="加速度センサー"/>
   <translation tag="Accept" ja="承認"/>
   <translation tag="Accepted Z Position: 0.000" ja="確定Z位置: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ja="確定したZ位置: {:.3f}"/>
@@ -207,6 +208,7 @@
   <translation tag="Auto" ja="自動"/>
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
   <translation tag="Auto Cal" ja="自動キャリブレーション"/>
+  <translation tag="Auto Fans" ja="自動ファン"/>
   <translation tag="Auto-Detect" ja="自動検出"/>
   <translation tag="Auto-Heat on Load" ja="装填時に自動加熱"/>
   <translation tag="Auto-detect" ja="自動検出"/>
@@ -483,6 +485,7 @@
   <translation tag="Collecting debug info..." ja="デバッグ情報を収集中..."/>
   <translation tag="Color" ja="色"/>
   <translation tag="Color Mismatch" ja="色の不一致"/>
+  <translation tag="Color Sensors" ja="カラーセンサー"/>
   <translation tag="Communication Test" ja="通信テスト"/>
   <translation tag="Compact" ja="コンパクト"/>
   <translation tag="Comparison" ja="比較"/>
@@ -561,6 +564,7 @@
   <translation tag="Continue" ja="続行"/>
   <translation tag="Control optional print start features" ja="オプションの印刷開始機能を制御"/>
   <translation tag="Control power relays and smart outlets" ja="電源リレーとスマートコンセントを制御"/>
+  <translation tag="Controllable Fans" ja="制御可能なファン"/>
   <translation tag="Controlled by hardware sensor" ja="ハードウェアセンサーで制御"/>
   <translation tag="Controller" ja="コントローラー"/>
   <translation tag="Controls" ja="コントロール"/>
@@ -671,6 +675,7 @@
   <translation tag="Dev" ja="開発版"/>
   <translation tag="Dev channel requires dev_url in config" ja="開発チャンネルには設定にdev_urlが必要です"/>
   <translation tag="Device" ja="デバイス"/>
+  <translation tag="Device Section" ja="デバイスセクション"/>
   <translation tag="Device connected" ja="デバイスが接続されました"/>
   <translation tag="Device name" ja="デバイス名"/>
   <translation tag="Device name is required" ja="デバイス名は必須です"/>
@@ -1159,6 +1164,7 @@
   <translation tag="Hub &amp; Cutter" ja="ハブとカッター"/>
   <translation tag="Hub Bowden Length" ja="ハブのボーデン長"/>
   <translation tag="Humidity" ja="湿度"/>
+  <translation tag="Humidity Sensors" ja="湿度センサー"/>
   <translation tag="Hyperlapse" ja="ハイパーラプス"/>
   <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." ja="ハイパーラプスは一定の時間間隔でフレームを撮影します。非常に長い印刷に適しています。"/>
   <translation tag="ID (optional)" ja="ID（任意）"/>
@@ -1498,6 +1504,7 @@
   <translation tag="Network name cannot be empty" ja="ネットワーク名は空にできません"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." ja="ネットワーク、ディスプレイ、サウンド、プリンター設定など。このツアーは「ヘルプと情報」からいつでも再生できます。"/>
   <translation tag="Never" ja="なし"/>
+  <translation tag="New Spool" ja="新規スプール"/>
   <translation tag="New Spool: Step 1 of 3" ja="新しいスプール: ステップ 1 / 3"/>
   <translation tag="New Spool: Step {} of {}" ja="新規スプール: ステップ {} / {}"/>
   <translation tag="New Version Available" ja="新バージョンあり"/>
@@ -1645,7 +1652,7 @@
   <translation tag="On/Off" ja="オン/オフ"/>
   <translation tag="On/Off (state-aware)" ja="オン/オフ（状態追跡）"/>
   <translation tag="On:" ja="オン:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." ja="ワンタップでこのマクロをパラメータなしで実行します。危険なマクロは確認を求めます。"/>
   <translation tag="Ooze Reduction" ja="にじみ低減"/>
   <translation tag="Open" ja="開く"/>
   <translation tag="Open G-code command console" ja="Gコードコマンドコンソールを開く"/>
@@ -1880,6 +1887,7 @@
   <translation tag="Probe Accuracy Failed" ja="プローブ精度テスト失敗"/>
   <translation tag="Probe Accuracy Test" ja="プローブ精度テスト"/>
   <translation tag="Probe Management" ja="プローブ管理"/>
+  <translation tag="Probe Sensors" ja="プローブセンサー"/>
   <translation tag="Probe Speed" ja="プローブ速度"/>
   <translation tag="Probe controls, accuracy test, and settings" ja="プローブコントロール、精度テスト、設定"/>
   <translation tag="Probing Bed Mesh" ja="ベッドメッシュをプローブ中"/>
@@ -1896,7 +1904,7 @@
   <translation tag="Profile name (e.g., default)" ja="プロファイル名（例: default）"/>
   <translation tag="Profile renamed" ja="プロファイル名を変更しました"/>
   <translation tag="Profiles" ja="プロファイル"/>
-  <translation tag="Prompt before running this macro"/>
+  <translation tag="Prompt before running this macro" ja="このマクロの実行前に確認する"/>
   <translation tag="Pulling filament back" ja="フィラメントを引き戻し中"/>
   <translation tag="Purge" ja="パージ"/>
   <translation tag="Purge &amp; Wipe" ja="パージとワイプ"/>
@@ -2007,7 +2015,7 @@
   <translation tag="Reprint" ja="再印刷"/>
   <translation tag="Reprint Last" ja="前回を再印刷"/>
   <translation tag="Request Failed" ja="要求に失敗しました"/>
-  <translation tag="Require Confirmation?"/>
+  <translation tag="Require Confirmation?" ja="確認が必要ですか？"/>
   <translation tag="Require confirmation before emergency stop" ja="緊急停止前に確認を求める"/>
   <translation tag="Requires Moonraker power device" ja="Moonraker電源デバイスが必要です"/>
   <translation tag="Requires Moonraker-Timelapse plugin" ja="Moonraker-Timelapse プラグインが必要です"/>
@@ -2377,6 +2385,7 @@
   <translation tag="Suppress raw debug output from printer firmware modules" ja="プリンターファームウェアモジュールからの生のデバッグ出力を抑制"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ja="サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。"/>
   <translation tag="Switch Printer" ja="プリンターを切り替え"/>
+  <translation tag="Switch Sensors" ja="スイッチセンサー"/>
   <translation tag="Switch between light and dark themes" ja="ライトテーマとダークテーマを切り替え"/>
   <translation tag="Switch to v%s" ja="v%s に切り替え"/>
   <translation tag="Switched to T{}" ja="T{} に切替えました"/>
@@ -2723,6 +2732,7 @@
   <translation tag="Widget Labels" ja="ウィジェットラベル"/>
   <translation tag="Width" ja="幅"/>
   <translation tag="Width Sensor" ja="幅センサー"/>
+  <translation tag="Width Sensors" ja="幅センサー"/>
   <translation tag="Wifi" ja="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" ja="フィラメント切れ時にスプールを切り替えません"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" ja="シリコン清掃ストリップでノズルを拭く"/>

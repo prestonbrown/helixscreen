@@ -161,7 +161,7 @@
         <style name="styles.metadata_strip"/>
         <!-- Print Progress Bar (invisible during pre-print operations, but keeps layout space) -->
         <progress_bar name="print_progress" bind_value="print_progress_display">
-          <bind_style name="invisible" subject="preparing_visible" ref_value="1"/>
+          <bind_style name="styles.invisible" subject="preparing_visible" ref_value="1"/>
         </progress_bar>
         <!-- Layer / objects / filament as icon clusters, not prose. The prose
              row ("Layer 474 / 1334 (55.4mm)" + "12 of 12 objects" + "92.6m

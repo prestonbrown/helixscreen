@@ -27,6 +27,13 @@
          filename is cut off) and space_sm at the bottom. -->
     <style name="metadata_strip"
            bg_opa="160" radius="#border_radius" pad_left="#space_sm" pad_right="#space_sm" pad_gap="#space_xs"/>
+    <!-- Fully transparent but still takes up layout space - unlike the hidden
+         flag, siblings keep their positions. Lives here rather than in a
+         borrowing panel's own <styles> block because components parsed in
+         their own scope (e.g. the print status preview card) cannot see a
+         panel-local style; the dotted styles.invisible form crosses that
+         boundary. -->
+    <style name="invisible" opa="0"/>
   </styles>
   <!-- Registration requires a <view>; nothing ever instantiates this
        component, so an empty lv_obj keeps it harmless. -->

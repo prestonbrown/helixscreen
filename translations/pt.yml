@@ -132,6 +132,7 @@ translations:
   Accelerometer: Acelerômetro
   Accelerometer communication failed. Try again.: Falha na comunicação com o acelerômetro.
     Tente novamente.
+  Accelerometers: Acelerômetros
   Accept: Aceitar
   'Accepted Z Position: 0.000': 'Posição Z Aceita: 0.000'
   'Accepted Z Position: {:.3f}': 'Posição Z aceita: {:.3f}'
@@ -232,6 +233,7 @@ translations:
   Auto: Automático
   Auto Bed Mesh: Malha da Mesa Automática
   Auto Cal: Auto Cal
+  Auto Fans: Ventiladores automáticos
   Auto-Detect: Auto-Detectar
   Auto-Heat on Load: Aquecer Automaticamente ao Carregar
   Auto-detect: Auto-detectar
@@ -552,6 +554,7 @@ translations:
   Collecting debug info...: Coletando informações de depuração...
   Color: Cor
   Color Mismatch: Cor Incompatível
+  Color Sensors: Sensores de cor
   Communication Test: 'Teste de comunicação'
   Compact: Compacto
   Comparison: Comparação
@@ -643,6 +646,7 @@ translations:
   Control optional print start features: Controlar recursos opcionais de início de
     impressão
   Control power relays and smart outlets: Controlar relés e tomadas inteligentes
+  Controllable Fans: Ventiladores controláveis
   Controlled by hardware sensor: Controlado por sensor de hardware
   Controller: Controlador
   Cool Down: Resfriar
@@ -757,6 +761,7 @@ translations:
   Dev: Dev
   Dev channel requires dev_url in config: Canal dev requer dev_url na configuração
   Device: Dispositivo
+  Device Section: Seção de dispositivo
   Device connected: 'Dispositivo conectado'
   Device name: Nome do dispositivo
   Device name is required: Nome do dispositivo é obrigatório
@@ -1295,6 +1300,7 @@ translations:
   Hub & Cutter: 'Hub e cortador'
   Hub Bowden Length: 'Comprimento do bowden do hub'
   Humidity: Umidade
+  Humidity Sensors: Sensores de umidade
   Hyperlapse: Hyperlapse
   Hyperlapse captures frames at fixed time intervals. Good for very long prints.: O
     Hyperlapse captura quadros em intervalos de tempo fixos. Bom para impressões muito
@@ -1679,6 +1685,7 @@ translations:
   Network forgotten: Rede esquecida
   Network name cannot be empty: O nome da rede não pode estar vazio
   Never: Nunca
+  New Spool: Novo carretel
   'New Spool: Step 1 of 3': 'Nova Bobina: Etapa 1 de 3'
   'New Spool: Step {} of {}': 'Nova Bobina: Passo {} de {}'
   New Version Available: Nova Versão Disponível
@@ -1836,7 +1843,7 @@ translations:
   On/Off: Liga/Desliga
   On/Off (state-aware): Ligar/Desligar (com estado)
   'On:': 'Ligado:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
+  One tap runs this macro with no parameters. Dangerous macros still ask.: Um toque executa esta macro sem parâmetros. Macros perigosas ainda pedem confirmação.
   Ooze Reduction: 'Redução de escorrimento'
   Open: Abrir
   Open G-code command console: 'Abrir o console de comandos G-code'
@@ -2098,6 +2105,7 @@ translations:
   Probe Accuracy Failed: Precisão da Sonda Falhou
   Probe Accuracy Test: Teste de Precisão da Sonda
   Probe Management: Gerenciamento de Sonda
+  Probe Sensors: Sensores de sonda
   Probe Speed: Velocidade da Sonda
   Probe controls, accuracy test, and settings: Controles de sonda, teste de precisão
     e configurações
@@ -2117,7 +2125,7 @@ translations:
   Profile name (e.g., default): 'Nome do perfil (ex.: padrão)'
   Profile renamed: Perfil renomeado
   Profiles: Perfis
-  Prompt before running this macro: ''
+  Prompt before running this macro: Perguntar antes de executar esta macro
   Pulling filament back: Retraindo filamento
   Purge: Purgar
   Purge & Wipe: 'Purgar e limpar'
@@ -2237,7 +2245,7 @@ translations:
   Reprint: Reimprimir
   Reprint Last: Reimprimir última
   Request Failed: Solicitação Falhou
-  Require Confirmation?: ''
+  Require Confirmation?: Exigir confirmação?
   Require confirmation before emergency stop: Exigir confirmação antes da parada de
     emergência
   Requires Moonraker power device: 'Requer um dispositivo de energia do Moonraker'
@@ -2667,6 +2675,7 @@ translations:
   Surfaces inherit app background tokens for light and dark modes.: Superfícies herdam
     tokens de fundo do aplicativo para modos claro e escuro.
   Switch Printer: Trocar Impressora
+  Switch Sensors: Sensores de interruptor
   Switch between light and dark themes: Alternar entre temas claro e escuro
   Switch to v%s: 'Mudar para a v%s'
   Switched to T{}: Alterado para T{}
@@ -3104,6 +3113,7 @@ translations:
   Widget Labels: Rótulos de Widgets
   Width: Largura
   Width Sensor: 'Sensor de largura'
+  Width Sensors: Sensores de largura
   Wifi: Wi-Fi
   Will not switch spools on runout: Não trocará de carretel ao acabar
   Wipe nozzle on silicone cleaning strip: 'Limpar o bico na tira de limpeza de silicone'

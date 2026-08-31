@@ -9,6 +9,7 @@
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "app_globals.h"
 #include "printer_state.h"
+#include "translation_loader.h"
 
 #include <spdlog/spdlog.h>
 
@@ -784,6 +785,57 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - truncated JSON falls back
 
     REQUIRE(displayed.find("No active exception to reraise") != std::string::npos);
     REQUIRE(code.empty());
+}
+
+namespace {
+// Packs cannot be unregistered (LVGL has no remove API), so the probe locale
+// below outlives this case - but nothing else ever selects it, and restoring
+// the identity locale keeps the rest of the shard on English lookups.
+class ScopedIdentityLanguage {
+  public:
+    ~ScopedIdentityLanguage() {
+        lv_translation_set_language(helix::ui::kIdentityLocale);
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog translates its content exactly once",
+                 "[recovery][integration][i18n]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    ScopedIdentityLanguage restore_lang;
+
+    // A probe locale whose DISCONNECTED-title translation is itself another
+    // real tag. Wrapping the recovery strings in lv_tr() twice sends the
+    // already-translated text into the second lookup, and when that text
+    // happens to be a tag in its own right the dialog shows the WRONG string
+    // instead of merely falling back to the right one (bundle CSLYH92R showed
+    // the harmless half: every refresh logged "tag is not found" for strings
+    // that were already French).
+    lv_translation_pack_t* pack = lv_translation_add_dynamic();
+    REQUIRE(lv_translation_add_language(pack, "zz-once") == LV_RESULT_OK);
+    int32_t lang_idx = lv_translation_get_language_index(pack, "zz-once");
+    REQUIRE(lang_idx >= 0);
+    lv_translation_tag_dsc_t* title_tag =
+        lv_translation_add_tag(pack, "Printer Firmware Disconnected");
+    REQUIRE(title_tag != nullptr);
+    REQUIRE(lv_translation_set_tag_translation(pack, title_tag, lang_idx, "Printer Shutdown") ==
+            LV_RESULT_OK);
+    lv_translation_tag_dsc_t* chained_tag = lv_translation_add_tag(pack, "Printer Shutdown");
+    REQUIRE(chained_tag != nullptr);
+    REQUIRE(lv_translation_set_tag_translation(pack, chained_tag, lang_idx, "SECOND PASS") ==
+            LV_RESULT_OK);
+
+    lv_translation_set_language("zz-once");
+
+    estop.show_recovery_for(RecoveryReason::DISCONNECTED);
+    process_lvgl(50);
+
+    lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* title = lv_obj_find_by_name(dialog, "recovery_title");
+    REQUIRE(title != nullptr);
+    // One translation lands on the title's own string; two land on "SECOND PASS".
+    REQUIRE(std::string(lv_label_get_text(title)) == "Printer Shutdown");
 }
 
 #endif // __APPLE__

@@ -42,7 +42,7 @@
       <lv_obj name="no_fans_placeholder"
               width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false" hidden="true">
-        <lv_image src="fan" style_opa="80"/>
+        <icon name="no_fans_icon" src="fan" size="xl" variant="secondary" style_opa="80"/>
         <text_body text="No fans detected" style_text_color="#text_muted"/>
       </lv_obj>
     </lv_obj>

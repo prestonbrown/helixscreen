@@ -123,3 +123,19 @@ def test_inline_mixed_content_leading_text(tmp_path):
     # closing tag or a child element's opening tag.
     xml = '<view><text_muted name="m">Leading text<lv_obj name="child"/></text_muted></view>'
     assert "Leading text" in _extract(tmp_path, xml)
+
+
+def test_title_tag_extracted(tmp_path):
+    # title_tag names a section-header key (setting_group_header and friends)
+    # and pairs with title= exactly the way label_tag pairs with label=. A
+    # header carrying title= for the design-time fallback plus title_tag= for
+    # the runtime lookup is asking for the tag to be synced.
+    xml = '<setting_group_header title="CONTROLLABLE FANS" title_tag="Controllable Fans"/>'
+    assert "Controllable Fans" in _extract(tmp_path, xml)
+
+
+def test_title_tag_param_reference_skipped(tmp_path):
+    # A $param is a component parameter forwarded at instantiation time, not a
+    # literal key - harvesting it would sync a "$title_tag" key.
+    xml = '<setting_group_header title="X" title_tag="$title_tag"/>'
+    assert "$title_tag" not in _extract(tmp_path, xml)

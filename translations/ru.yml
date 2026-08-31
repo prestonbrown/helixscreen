@@ -129,6 +129,7 @@ translations:
   Accelerometer: Акселерометр
   Accelerometer communication failed. Try again.: Связь с акселерометром потеряна.
     Попробуйте снова.
+  Accelerometers: Акселерометры
   Accept: Принять
   'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
   'Accepted Z Position: {:.3f}': 'Принятая позиция Z: {:.3f}'
@@ -227,6 +228,7 @@ translations:
   Auto: Авто
   Auto Bed Mesh: Авто сетка стола
   Auto Cal: Авто кал.
+  Auto Fans: Автоматические вентиляторы
   Auto-Detect: Автоопределение
   Auto-Heat on Load: Автонагрев при загрузке
   Auto-detect: Автоопределение
@@ -544,6 +546,7 @@ translations:
   Collecting debug info...: Сбор отладочной информации...
   Color: Цвет
   Color Mismatch: Несоответствие цвета
+  Color Sensors: Датчики цвета
   Communication Test: 'Проверка связи'
   Compact: Компактный
   Comparison: Сравнение
@@ -631,6 +634,7 @@ translations:
   Control optional print start features: Управление дополнительными функциями начала
     печати
   Control power relays and smart outlets: Управление реле и умными розетками
+  Controllable Fans: Управляемые вентиляторы
   Controlled by hardware sensor: Управляется аппаратным датчиком
   Controller: Контроллер
   Cool Down: Охладить
@@ -744,6 +748,7 @@ translations:
   Dev: Разработка
   Dev channel requires dev_url in config: Dev-канал требует dev_url в конфиге
   Device: Устройство
+  Device Section: Раздел устройств
   Device connected: 'Устройство подключено'
   Device name: Имя устройства
   Device name is required: Требуется название устройства
@@ -1275,6 +1280,7 @@ translations:
   Hub & Cutter: 'Хаб и резак'
   Hub Bowden Length: 'Длина боудена хаба'
   Humidity: Влажность
+  Humidity Sensors: Датчики влажности
   Hyperlapse: Гиперлапс
   Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Гиперлапс
     захватывает кадры через фиксированные интервалы времени. Подходит для очень долгих
@@ -1656,6 +1662,7 @@ translations:
   Network forgotten: Сеть забыта
   Network name cannot be empty: Имя сети не может быть пустым
   Never: Никогда
+  New Spool: Новая катушка
   'New Spool: Step 1 of 3': 'Новая катушка: Шаг 1 из 3'
   'New Spool: Step {} of {}': 'Новая катушка: шаг {} из {}'
   New Version Available: Доступна новая версия
@@ -1812,7 +1819,7 @@ translations:
   On/Off: Вкл/Выкл
   On/Off (state-aware): Вкл/Выкл (с отслеживанием)
   'On:': 'Вкл:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
+  One tap runs this macro with no parameters. Dangerous macros still ask.: Один тап запускает этот макрос без параметров. Опасные макросы всё равно запрашивают подтверждение.
   Ooze Reduction: 'Снижение подтекания'
   Open: Открыть
   Open G-code command console: 'Открыть консоль команд G-code'
@@ -2071,6 +2078,7 @@ translations:
   Probe Accuracy Failed: Ошибка теста точности зонда
   Probe Accuracy Test: Тест точности датчика
   Probe Management: Управление датчиком
+  Probe Sensors: Датчики-зонды
   Probe Speed: Скорость зонда
   Probe controls, accuracy test, and settings: Управление датчиком, тест точности
     и настройки
@@ -2090,7 +2098,7 @@ translations:
   Profile name (e.g., default): Имя профиля (например, default)
   Profile renamed: Профиль переименован
   Profiles: Профили
-  Prompt before running this macro: ''
+  Prompt before running this macro: Спрашивать перед запуском этого макроса
   Pulling filament back: Откат филамента
   Purge: Продуть
   Purge & Wipe: 'Продувка и очистка'
@@ -2209,7 +2217,7 @@ translations:
   Reprint: Повторить печать
   Reprint Last: Перепечатать последнюю
   Request Failed: Запрос не выполнен
-  Require Confirmation?: ''
+  Require Confirmation?: Запрашивать подтверждение?
   Require confirmation before emergency stop: Требовать подтверждение перед аварийной
     остановкой
   Requires Moonraker power device: 'Требуется устройство питания Moonraker'
@@ -2630,6 +2638,7 @@ translations:
   Surfaces inherit app background tokens for light and dark modes.: Поверхности наследуют
     токены фона приложения для светлого и тёмного режимов.
   Switch Printer: Переключить принтер
+  Switch Sensors: Датчики-переключатели
   Switch between light and dark themes: Переключение между светлой и тёмной темами
   Switch to v%s: 'Перейти на v%s'
   Switched to T{}: Переключено на T{}
@@ -3055,6 +3064,7 @@ translations:
   Widget Labels: Подписи виджетов
   Width: Ширина
   Width Sensor: 'Датчик диаметра'
+  Width Sensors: Датчики ширины
   Wifi: Wi-Fi
   Will not switch spools on runout: При обрыве катушка не переключится
   Wipe nozzle on silicone cleaning strip: 'Очистить сопло о силиконовую полоску'

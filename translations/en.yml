@@ -125,6 +125,7 @@ translations:
   Accelerometer: Accelerometer
   Accelerometer communication failed. Try again.: Accelerometer communication failed.
     Try again.
+  Accelerometers: Accelerometers
   Accept: Accept
   'Accepted Z Position: 0.000': 'Accepted Z Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Accepted Z Position: {:.3f}'
@@ -222,6 +223,7 @@ translations:
   Auto: Auto
   Auto Bed Mesh: Auto Bed Mesh
   Auto Cal: Auto Cal
+  Auto Fans: Auto Fans
   Auto-Detect: Auto-Detect
   Auto-Heat on Load: Auto-Heat on Load
   Auto-detect: Auto-detect
@@ -530,6 +532,7 @@ translations:
   Collecting debug info...: Collecting debug info...
   Color: Color
   Color Mismatch: Color Mismatch
+  Color Sensors: Color Sensors
   Communication Test: Communication Test
   Compact: Compact
   Comparison: Comparison
@@ -617,6 +620,7 @@ translations:
   Continue: Continue
   Control optional print start features: Control optional print start features
   Control power relays and smart outlets: Control power relays and smart outlets
+  Controllable Fans: Controllable Fans
   Controlled by hardware sensor: Controlled by hardware sensor
   Controller: Controller
   Cool Down: Cool Down
@@ -728,6 +732,7 @@ translations:
   Dev: Dev
   Dev channel requires dev_url in config: Dev channel requires dev_url in config
   Device: Device
+  Device Section: Device Section
   Device connected: Device connected
   Device name: Device name
   Device name is required: Device name is required
@@ -1256,6 +1261,7 @@ translations:
   Hub & Cutter: Hub & Cutter
   Hub Bowden Length: Hub Bowden Length
   Humidity: Humidity
+  Humidity Sensors: Humidity Sensors
   Hyperlapse: Hyperlapse
   Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse
     captures frames at fixed time intervals. Good for very long prints.
@@ -1632,6 +1638,7 @@ translations:
   Network forgotten: Network forgotten
   Network name cannot be empty: Network name cannot be empty
   Never: Never
+  New Spool: New Spool
   'New Spool: Step 1 of 3': 'New Spool: Step 1 of 3'
   'New Spool: Step {} of {}': 'New Spool: Step {} of {}'
   New Version Available: New Version Available
@@ -2043,6 +2050,7 @@ translations:
   Probe Accuracy Failed: Probe Accuracy Failed
   Probe Accuracy Test: Probe Accuracy Test
   Probe Management: Probe Management
+  Probe Sensors: Probe Sensors
   Probe Speed: Probe Speed
   Probe controls, accuracy test, and settings: Probe controls, accuracy test, and
     settings
@@ -2596,6 +2604,7 @@ translations:
   Surfaces inherit app background tokens for light and dark modes.: Surfaces inherit
     app background tokens for light and dark modes.
   Switch Printer: Switch Printer
+  Switch Sensors: Switch Sensors
   Switch between light and dark themes: Switch between light and dark themes
   Switch to v%s: Switch to v%s
   Switched to T{}: Switched to T{}
@@ -3021,6 +3030,7 @@ translations:
   Widget Labels: Widget Labels
   Width: Width
   Width Sensor: Width Sensor
+  Width Sensors: Width Sensors
   Wifi: Wifi
   Will not switch spools on runout: Will not switch spools on runout
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip

@@ -122,6 +122,7 @@ translations:
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
   Accelerometer: 加速度传感器
   Accelerometer communication failed. Try again.: 加速度计通信失败，请重试。
+  Accelerometers: 加速度传感器
   Accept: 接受
   'Accepted Z Position: 0.000': '已接受 Z 位置: 0.000'
   'Accepted Z Position: {:.3f}': '已确认 Z 位置：{:.3f}'
@@ -207,6 +208,7 @@ translations:
   Auto: 自动
   Auto Bed Mesh: 自动热床网格
   Auto Cal: 自动校准
+  Auto Fans: 自动风扇
   Auto-Detect: 自动检测
   Auto-Heat on Load: 加载时自动加热
   Auto-detect: 自动检测
@@ -486,6 +488,7 @@ translations:
   Collecting debug info...: 正在收集调试信息...
   Color: 颜色
   Color Mismatch: 颜色不匹配
+  Color Sensors: 颜色传感器
   Communication Test: '通信测试'
   Compact: 紧凑
   Comparison: 比较
@@ -566,6 +569,7 @@ translations:
   Continue: 继续
   Control optional print start features: 控制可选的打印启动功能
   Control power relays and smart outlets: 控制电源继电器和智能插座
+  Controllable Fans: 可控风扇
   Controlled by hardware sensor: 由硬件传感器控制
   Controller: 控制器
   Cool Down: 冷却
@@ -677,6 +681,7 @@ translations:
   Dev: 开发版
   Dev channel requires dev_url in config: 开发频道需要在配置中设置 dev_url
   Device: 设备
+  Device Section: 设备区域
   Device connected: '设备已连接'
   Device name: 设备名称
   Device name is required: 设备名称为必填项
@@ -1180,6 +1185,7 @@ translations:
   Hub & Cutter: '集线器与切刀'
   Hub Bowden Length: '集线器波顿管长度'
   Humidity: 湿度
+  Humidity Sensors: 湿度传感器
   Hyperlapse: 延时摄影
   Hyperlapse captures frames at fixed time intervals. Good for very long prints.: 延时拍摄以固定时间间隔捕获帧。适合超长时间打印。
   ID (optional): ID（可选）
@@ -1526,6 +1532,7 @@ translations:
   Network forgotten: 已忘记网络
   Network name cannot be empty: 网络名称不能为空
   Never: 从不
+  New Spool: 新料盘
   'New Spool: Step 1 of 3': 新料盘：步骤 1 / 3
   'New Spool: Step {} of {}': '新线轴: 第 {} 步,共 {} 步'
   New Version Available: 发现新版本
@@ -1676,7 +1683,7 @@ translations:
   On/Off: 开/关
   On/Off (state-aware): 开/关（状态跟踪）
   'On:': '开:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
+  One tap runs this macro with no parameters. Dangerous macros still ask.: 单击即可无参数运行此宏。危险宏仍会询问。
   Ooze Reduction: '减少渗漏'
   Open: 打开
   Open G-code command console: '打开 G-code 命令控制台'
@@ -1919,6 +1926,7 @@ translations:
   Probe Accuracy Failed: 探针精度测试失败
   Probe Accuracy Test: 探针精度测试
   Probe Management: 探针管理
+  Probe Sensors: 探针传感器
   Probe Speed: 探针速度
   Probe controls, accuracy test, and settings: 探针控制、精度测试和设置
   Probing Bed Mesh: 正在探测热床网格
@@ -1937,7 +1945,7 @@ translations:
   Profile name (e.g., default): 配置名称（例如：default）
   Profile renamed: 配置文件已重命名
   Profiles: 配置
-  Prompt before running this macro: ''
+  Prompt before running this macro: 运行此宏前询问
   Pulling filament back: 正在回抽耗材
   Purge: 排料
   Purge & Wipe: '排料与擦拭'
@@ -2049,7 +2057,7 @@ translations:
   Reprint: 重新打印
   Reprint Last: 重印上次
   Request Failed: 请求失败
-  Require Confirmation?: ''
+  Require Confirmation?: 需要确认？
   Require confirmation before emergency stop: 紧急停止前需要确认
   Requires Moonraker power device: '需要 Moonraker 电源设备'
   Requires Moonraker-Timelapse plugin: 需要 Moonraker-Timelapse 插件
@@ -2430,6 +2438,7 @@ translations:
   Suppress raw debug output from printer firmware modules: 抑制打印机固件模块的原始调试输出
   Surfaces inherit app background tokens for light and dark modes.: 表面继承应用背景色用于浅色和深色模式。
   Switch Printer: 切换打印机
+  Switch Sensors: 开关传感器
   Switch between light and dark themes: 切换浅色和深色主题
   Switch to v%s: '切换到 v%s'
   Switched to T{}: 已切换到 T{}
@@ -2812,6 +2821,7 @@ translations:
   Widget Labels: 小组件标签
   Width: 宽度
   Width Sensor: '宽度传感器'
+  Width Sensors: 宽度传感器
   Wifi: Wi-Fi
   Will not switch spools on runout: 耗材用尽时不会切换料盘
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
