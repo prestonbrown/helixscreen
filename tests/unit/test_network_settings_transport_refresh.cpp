@@ -21,6 +21,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
+#include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
@@ -31,24 +32,6 @@
 #include "../catch_amalgamated.hpp"
 
 using Access = NetworkSettingsOverlayTestAccess;
-
-namespace helix {
-// Friend accessor, same shape as test_wifi_observer_notification.cpp: drives
-// the manager's private connection handler so the event fires from the test
-// thread deterministically.
-class WiFiManagerTestAccess {
-  public:
-    static void fire_connected(WiFiManager& wm, const std::string& data = "") {
-        // Match production ordering: the backend updates its state BEFORE
-        // firing CONNECTED, so is_connected() is already true when the state
-        // observer's refresh runs (prestonbrown/helixscreen#1059).
-        if (auto* mock = dynamic_cast<WifiBackendMock*>(wm.backend_.get())) {
-            mock->set_connected_state(true, "Studio 5G", "10.0.0.4", 70);
-        }
-        wm.handle_connected(data);
-    }
-};
-} // namespace helix
 
 namespace {
 

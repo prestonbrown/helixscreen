@@ -167,9 +167,19 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// State-diff event logic over the just-merged snapshot.
     void handle_snapshot_diff(const helix::netd::NetdSnapshot& after);
 
-    /// End the in-progress scan: kill the watchdog, fire SCAN_COMPLETE from
-    /// the row cache. Loop thread.
-    void finish_scan();
+    /// End the in-progress scan: kill the watchdog, resolve the row cache
+    /// (publish incoming rows; keep the previous list on an ERR/abandoned
+    /// end; clear it on an OK that produced nothing - those rows are
+    /// ghosts), fire SCAN_COMPLETE. Loop thread. @p completing carries the
+    /// ack kind that ended the scan, if one did.
+    void finish_scan(helix::netd::Ack::Kind completing = helix::netd::Ack::Kind::None);
+
+    /// Arm the scan-completion watchdog for a just-sent scan. Loop thread.
+    void arm_scan_watchdog();
+
+    /// Send a scan deferred behind a join, once the join has resolved.
+    /// Safe from any thread (hops to the loop).
+    void flush_deferred_scan();
 
     /// Fire a registered callback by name (copy under the map mutex, invoke
     /// outside it — same deadlock-avoidance shape as the wpa backend).
@@ -259,12 +269,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     std::mutex scan_mutex_;
     std::vector<helix::netd::ScanRow> scan_rows_; ///< Rows of the current/last scan.
-    /// False from the moment a scan is requested (caller thread) until its
-    /// first row arrives (loop thread) — the previous scan's rows stay cached
-    /// until the new one demonstrably has results, so a refused scan (ERR
-    /// BUSY mid-join) never blanks the list on screen. Atomic: two threads
-    /// touch it.
-    std::atomic<bool> scan_rows_reset_{false};
+    /// Loop thread only: rows of the scan currently streaming in. Published
+    /// to scan_rows_ by swap in finish_scan() when the scan produced any; an
+    /// ERR or abandoned completion keeps the previous list (a scan that never
+    /// ran says nothing); an OK completion with no rows clears it (the scan
+    /// RAN and found nothing - serving the previous list would offer ghost
+    /// networks).
+    std::vector<helix::netd::ScanRow> incoming_rows_;
 
     /// Station MAC. Written at init and on the CONNECTED retry (loop thread),
     /// read by get_status() from any thread — guard with snapshot_mutex_.
@@ -287,6 +298,12 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// fire while it is set. Socket loss alone never clears it.
     std::atomic<bool> want_connection_{false};
     std::atomic<bool> scan_pending_{false};
+    /// A scan requested while a join held the daemon: sent on the loop thread
+    /// the moment the join resolves (CONNECTED, DISCONNECTED, or an ERR
+    /// verdict clears connect_in_flight_). The manager's spinner waits
+    /// honestly instead of eating a spurious failure toast for an action the
+    /// UI itself initiated.
+    std::atomic<bool> scan_deferred_{false};
     std::atomic<bool> connect_in_flight_{false};
     /// Auth failures fire AUTH_FAILED once per failure, never per RETRYING
     /// push; cleared when a new join is accepted or a CONNECTED lands.

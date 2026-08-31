@@ -766,30 +766,36 @@ TEST_CASE("netd auth failure reasons classify exactly", "[netd][protocol]") {
     REQUIRE_FALSE(helix::netd::is_auth_failure_reason(""));
 }
 
-TEST_CASE("netd scan failure reasons classify exactly, BUSY excluded", "[netd][protocol]") {
-    REQUIRE(helix::netd::is_scan_failure_reason("SCAN_FAILED"));
-    REQUIRE(helix::netd::is_scan_failure_reason("SCAN_IN_PROGRESS"));
-    // BUSY can deny a join too: the caller weighs it by outstanding work.
-    REQUIRE_FALSE(helix::netd::is_scan_failure_reason("BUSY"));
-    REQUIRE_FALSE(helix::netd::is_scan_failure_reason("WRONG_KEY"));
-    REQUIRE_FALSE(helix::netd::is_scan_failure_reason(""));
-}
-
-TEST_CASE("netd busy reason classifies exactly", "[netd][protocol]") {
-    REQUIRE(helix::netd::is_busy_reason("BUSY"));
-    REQUIRE_FALSE(helix::netd::is_busy_reason("SCAN_FAILED"));
-    REQUIRE_FALSE(helix::netd::is_busy_reason(""));
-}
-
 // ============================================================================
-// snapshot_line_key — which field a line carried
+// Authority edge — an explicit MODE= with an EMPTY value is the daemon
+// answering, but saying nothing about the transport. Treating it as
+// authoritative would blank a live kernel ethernet row (the exact blanking
+// the saw_mode flag exists to prevent).
 // ============================================================================
 
-TEST_CASE("netd snapshot_line_key lowercases and trims the key", "[netd][protocol]") {
-    REQUIRE(helix::netd::snapshot_line_key("MODE=ETHERNET") == "mode");
-    REQUIRE(helix::netd::snapshot_line_key(" State\t=RETRYING") == "state");
-    // The FIRST '=' splits; a value's '=' stays in the value.
-    REQUIRE(helix::netd::snapshot_line_key("REASON=a=b") == "reason");
-    REQUIRE(helix::netd::snapshot_line_key("OK").empty());
-    REQUIRE(helix::netd::snapshot_line_key("").empty());
+TEST_CASE("netd query_snapshot treats an empty MODE= value as not authoritative",
+          "[netd][protocol]") {
+    char dir_template[] = "/tmp/helix_netd_emptymode_XXXXXX";
+    char* dir = ::mkdtemp(dir_template);
+    REQUIRE(dir != nullptr);
+    const std::string dir_s(dir);
+    EnvVarGuard sock("HELIX_NETD_SOCKET");
+    EnvVarGuard bin("HELIX_NETD_BIN");
+
+    FakeNetd server;
+    server.path = dir_s + "/netd.sock";
+    server.reply = "MODE=\nSTATE=ONLINE\nOK\n";
+    REQUIRE(server.start());
+    std::thread worker([&server] { server.serve(); });
+
+    sock.set(server.path);
+    bin.unset();
+    const helix::netd::QueryResult result = helix::netd::query_snapshot(1000);
+    worker.join();
+    server.teardown();
+
+    REQUIRE(result.reached);
+    REQUIRE(result.snapshot.state == "ONLINE"); // the other fields still merge
+    REQUIRE_FALSE(result.saw_mode);             // empty mode decides nothing
+    ::rmdir(dir_s.c_str());
 }

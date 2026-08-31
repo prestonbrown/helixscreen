@@ -42,6 +42,17 @@ std::string ascii_lower(const std::string& s) {
     return out;
 }
 
+/// Lowercased key of a snapshot line ("MODE=ETHERNET" -> "mode"), or empty
+/// when the line carries no '='. Internal: only the snapshot parser needs
+/// the key spelling now that query_snapshot() derives authority from the
+/// merged mode field itself.
+std::string snapshot_line_key(const std::string& line) {
+    const size_t eq = line.find('=');
+    if (eq == std::string::npos)
+        return {};
+    return ascii_lower(trim_copy(line.substr(0, eq)));
+}
+
 // Strict full-string integer parse: optional sign, digits only, no whitespace,
 // bounded magnitude (frequencies and dBm values are small).
 std::optional<int> parse_int(const std::string& s) {
@@ -151,13 +162,6 @@ bool parse_snapshot_line(const std::string& line, NetdSnapshot& out) {
     return true;
 }
 
-std::string snapshot_line_key(const std::string& line) {
-    const size_t eq = line.find('=');
-    if (eq == std::string::npos)
-        return {};
-    return ascii_lower(trim_copy(line.substr(0, eq)));
-}
-
 std::optional<ScanRow> parse_scan_row(const std::string& line) {
     if (line.rfind("FREQUENCY=", 0) != 0)
         return std::nullopt;
@@ -257,14 +261,6 @@ bool is_auth_failure_reason(const std::string& reason) {
     return reason == "WRONG_KEY" || reason == "AUTH_FAILED" || reason == "INVALID_PSK";
 }
 
-bool is_scan_failure_reason(const std::string& reason) {
-    return reason == "SCAN_FAILED" || reason == "SCAN_IN_PROGRESS";
-}
-
-bool is_busy_reason(const std::string& reason) {
-    return reason == "BUSY";
-}
-
 std::string encode_connect_wifi(const std::string& ssid, const std::string& psk) {
     std::string command = "CONNECT_WIFI ssid=" + encode_b64_field(ssid);
     if (!psk.empty()) {
@@ -297,30 +293,29 @@ bool available() {
     return ::access(binary_path().c_str(), X_OK) == 0;
 }
 
-QueryResult query_snapshot(int timeout_ms) {
-    QueryResult result;
-
-    const std::string path = socket_path();
+int connect_unix(const std::string& path, int timeout_ms, std::string* error_out) {
     const int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (fd < 0)
-        return result;
-
+    if (fd < 0) {
+        if (error_out)
+            *error_out = std::string("socket(): ") + std::strerror(errno);
+        return -1;
+    }
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     if (path.size() >= sizeof(addr.sun_path)) {
+        if (error_out)
+            *error_out = "socket path too long (" + std::to_string(path.size()) + " bytes)";
         ::close(fd);
-        return result;
+        return -1;
     }
     std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
 
-    // Non-blocking connect with a bounded wait: a daemon wedged with a full
-    // accept backlog would otherwise park a blocking connect (and this
-    // function's callers are shared HttpExecutor workers). EINPROGRESS +
-    // POLLOUT + SO_ERROR is the usual dance.
     const int rc = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
     if (rc != 0 && errno != EINPROGRESS) {
+        if (error_out)
+            *error_out = "connect(\"" + path + "\"): " + std::strerror(errno);
         ::close(fd);
-        return result;
+        return -1;
     }
     if (rc != 0) {
         pollfd pfd{fd, POLLOUT, 0};
@@ -329,10 +324,27 @@ QueryResult query_snapshot(int timeout_ms) {
         socklen_t optlen = sizeof(so_error);
         if (ready <= 0 || ::getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_error, &optlen) != 0 ||
             so_error != 0) {
+            if (error_out) {
+                *error_out = ready <= 0
+                                 ? "connect(\"" + path + "\"): timed out after " +
+                                       std::to_string(timeout_ms) + " ms"
+                                 : "connect(\"" + path +
+                                       "\"): " + std::strerror(so_error != 0 ? so_error : errno);
+            }
             ::close(fd);
-            return result;
+            return -1;
         }
     }
+    return fd;
+}
+
+QueryResult query_snapshot(int timeout_ms) {
+    QueryResult result;
+
+    const int fd = connect_unix(socket_path(), timeout_ms);
+    if (fd < 0)
+        return result;
+
     // Back to blocking mode so the SO_RCVTIMEO read loop below keeps its
     // per-read timeout semantics.
     const int flags = ::fcntl(fd, F_GETFL, 0);
@@ -380,8 +392,6 @@ QueryResult query_snapshot(int timeout_ms) {
                 break;
             }
             if (parse_snapshot_line(line, result.snapshot)) {
-                if (snapshot_line_key(line) == "mode")
-                    result.saw_mode = true;
                 continue;
             }
             (void)parse_scan_row(line); // rows are not part of a GET reply; tolerated
@@ -390,6 +400,12 @@ QueryResult query_snapshot(int timeout_ms) {
 
     ::close(fd);
     result.reached = got_any_bytes;
+    // The snapshot starts empty and only a merged MODE= line assigns mode, so
+    // a non-empty mode IS "the daemon said something authoritative about the
+    // transport". An explicit MODE= with an empty value stays NOT
+    // authoritative — treating it as authoritative is the exact kernel-truth
+    // blanking the flag exists to prevent.
+    result.saw_mode = !result.snapshot.mode.empty();
     return result;
 }
 

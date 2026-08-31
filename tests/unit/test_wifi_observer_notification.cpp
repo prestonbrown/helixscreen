@@ -17,6 +17,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/scoped_runtime_config.h"
+#include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
@@ -29,46 +30,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-
-namespace helix {
-// Friend accessor — drives the private connection/disconnection handlers
-// and state observers without going through the threaded mock backend.
-class WiFiManagerTestAccess {
-  public:
-    static void fire_connected(WiFiManager& wm, const std::string& data = "") {
-        // TEST_MIRROR_OK: the handlers under test are production's own —
-        // wm.handle_connected() / wm.handle_disconnected() below. All this shim
-        // reimplements is the BACKEND-side state write that a real nmcli or
-        // wpa_supplicant poll would have made before the event fired; the mock
-        // backend is the legitimate OS test double, and getting the ordering wrong
-        // is what #1059 was about.
-        //
-        // Match production: backend updates its state before firing CONNECTED.
-        // The mock's connect_thread_func() sets connected_=true before
-        // fire_event("CONNECTED"); the NM backend's status_thread_func()
-        // updates cached_status_ before fire_event().  Our test helper must
-        // mirror this ordering so is_connected() returns true when the state
-        // observer runs (prestonbrown/helixscreen#1059).
-        if (auto* mock = dynamic_cast<WifiBackendMock*>(wm.backend_.get())) {
-            mock->set_connected_state(true, "TestSSID", "192.168.1.100", 75);
-        }
-        wm.handle_connected(data);
-    }
-    static void fire_disconnected(WiFiManager& wm, const std::string& data = "") {
-        // Match production: backend updates its state before firing DISCONNECTED.
-        // The mock's disconnect_network() sets connected_=false before
-        // fire_event("DISCONNECTED").
-        if (auto* mock = dynamic_cast<WifiBackendMock*>(wm.backend_.get())) {
-            mock->set_connected_state(false);
-        }
-        wm.handle_disconnected(data);
-    }
-    static void add_observer(WiFiManager& wm, helix::LifetimeToken token,
-                             std::function<void()> cb) {
-        wm.add_state_observer(std::move(token), std::move(cb));
-    }
-};
-} // namespace helix
 
 namespace {
 

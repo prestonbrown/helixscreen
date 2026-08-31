@@ -543,6 +543,16 @@ void NetworkSettingsOverlay::update_ethernet_status() {
         return;
     }
 
+    // Coalesce: each state-observer tick while a probe is already in flight
+    // just marks one trailing refresh — a flapping link or a failed-join
+    // retry burst must not queue N sequential daemon round trips on the
+    // shared fast lane (and mid-join the daemon is one-op-at-a-time anyway).
+    if (eth_refresh_in_flight_) {
+        eth_refresh_trailing_ = true;
+        return;
+    }
+    eth_refresh_in_flight_ = true;
+
     // Kick off an async probe — the callback fires on the UI thread via
     // tok.defer() so it's safe to touch subjects there. No bare expired()
     // check on the bg thread: defer's own guard skips when the owner is
@@ -556,6 +566,14 @@ void NetworkSettingsOverlay::update_ethernet_status() {
 }
 
 void NetworkSettingsOverlay::apply_ethernet_status(const EthernetInfo& info) {
+    eth_refresh_in_flight_ = false;
+    if (eth_refresh_trailing_) {
+        // A refresh was requested while this probe ran — run it now that the
+        // lane is free (this pass's data is about to be superseded anyway).
+        eth_refresh_trailing_ = false;
+        update_ethernet_status();
+    }
+
     lv_subject_set_int(&eth_connected_, info.connected ? 1 : 0);
 
     if (info.connected) {

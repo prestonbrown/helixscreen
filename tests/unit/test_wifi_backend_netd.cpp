@@ -324,22 +324,25 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd late scan error does not fail a parke
     scan_caller.join();
     REQUIRE(scan.success());
 
-    // A join goes out behind the outstanding scan.
+    // A join goes out behind the outstanding scan: single-flight resolves the
+    // scan FIRST (the join outranks it), so the join is the only outstanding
+    // op by the time its bytes leave.
     WiFiError join{WiFiResult::UNKNOWN_ERROR};
     std::thread join_caller([&] { join = backend_->connect_network("Cafe 5G", "pw"); });
     REQUIRE(wait_until([&] {
         return line_recorded("CONNECT_WIFI ssid=" + b64("Cafe 5G") + " psk=" + b64("pw"));
     }));
-
-    // The daemon finally answers — with the SCAN's failure.
-    server_->push_line("ERR SCAN_FAILED");
     join_caller.join();
+    REQUIRE(join.success());
 
-    REQUIRE(join.success());                     // the join was never rejected
-    REQUIRE(wait_for_event("SCAN_COMPLETE", 1)); // the scan still completed
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    // The scan was resolved by the join's dispatch, not by its own timer —
+    // no scan ack can exist anymore to be misread against the join.
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+
+    // A late ERR is now unambiguously the JOIN's verdict.
+    server_->push_line("ERR TIMEOUT");
+    REQUIRE(wait_for_event("DISCONNECTED", 1));
     REQUIRE(event_count("AUTH_FAILED") == 0);
-    REQUIRE(event_count("DISCONNECTED") == 0);
 }
 
 // ============================================================================
@@ -658,26 +661,27 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd auth ERR with a scan pending resolves
     join_caller.join();
     REQUIRE(join.success());
 
-    // The join's verdict arrives while the scan is still pending.
+    // Single-flight: the join's dispatch resolved the outstanding scan
+    // BEFORE its own bytes left, so by verdict time only the join is
+    // outstanding and the auth ERR can only mean the join.
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1)); // the resolved scan
+
     server_->push_line("ERR WRONG_KEY");
     REQUIRE(wait_for_event("AUTH_FAILED", 1));
     REQUIRE(event_count("DISCONNECTED") == 0);
-
-    // The ERR was a join verdict, not a scan completion: only the 10 s
-    // watchdog could complete the scan now, and it has not fired.
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    REQUIRE(event_count("SCAN_COMPLETE") == 0);
+    REQUIRE(event_count("SCAN_COMPLETE") == 1); // no second, misread completion
 }
 
 // ============================================================================
-// 14b. The daemon runs one op at a time and its startScan SETS the op flag
-//      (disassembly): a scan requested while a join is outstanding would be
-//      rejected ERR BUSY on the wire AND collide with the join's ack
-//      attribution. The backend refuses the scan synchronously instead —
-//      nothing on the wire, the manager's on_scan_failed() path keeps the
-//      current list, and the scheduler retries after the join resolves.
+// 14b. The daemon runs one op at a time: a scan requested while a join is
+//      outstanding is DEFERRED, not refused. A synchronous refusal would
+//      toast "scan failed" for an action the UI itself initiated (the
+//      manager's association grace is shorter than a netd join's retry
+//      ladder) and latch the scanning spinner. The deferred scan goes out
+//      the moment the join resolves, and its completion satisfies the
+//      trigger_scan obligation.
 // ============================================================================
-TEST_CASE_METHOD(NetdBackendFixture, "netd scan during a join is refused without touching the wire",
+TEST_CASE_METHOD(NetdBackendFixture, "netd scan during a join defers until the join resolves",
                  "[netd][wifi][1398]") {
     backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
     register_standard_events();
@@ -691,31 +695,40 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan during a join is refused without
     join_caller.join();
     REQUIRE(join.success());
 
-    const size_t wire_before = server_->recorded_line_count();
+    // Requested mid-join: accepted, nothing on the wire yet, nothing done.
     const WiFiError scan = backend_->trigger_scan();
-    REQUIRE_FALSE(scan.success());
-    // Nothing was sent, nothing is pending, no event fired.
-    REQUIRE(server_->recorded_line_count() == wire_before);
+    REQUIRE(scan.success());
     std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    REQUIRE_FALSE(line_recorded("SCAN"));
     REQUIRE(event_count("SCAN_COMPLETE") == 0);
+
+    // The join's verdict releases the deferred scan.
+    server_->push_line("ERR WRONG_KEY");
+    REQUIRE(wait_for_event("AUTH_FAILED", 1));
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+
+    server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=PSK NETWORK=" + b64("Post"));
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+    {
+        std::vector<WiFiNetwork> rows;
+        REQUIRE(backend_->get_scan_results(rows).success());
+        REQUIRE(rows.size() == 1);
+        REQUIRE(rows[0].ssid == "Post");
+    }
 }
 
 // ============================================================================
-// 14c. ERR BUSY with a join in flight is the JOIN's rejection (the daemon
-//      denies CONNECT_WIFI when an op flag is active): it must resolve the
-//      join as a disconnect, not complete a co-pending scan.
+// 14c. ERR BUSY reaching a backend with a join in flight is the JOIN's
+//      rejection (the daemon denies CONNECT_WIFI while an op flag is
+//      active). Single-flight guarantees no scan can be co-pending, so the
+//      verdict resolves the join as a disconnect.
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd ERR BUSY during a join resolves the join not the scan",
                  "[netd][wifi][1398]") {
     backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
     register_standard_events();
     REQUIRE(backend_->start().success());
-
-    WiFiError scan{WiFiResult::UNKNOWN_ERROR};
-    std::thread scan_caller([&] { scan = backend_->trigger_scan(); });
-    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
-    scan_caller.join();
-    REQUIRE(scan.success());
 
     WiFiError join{WiFiResult::UNKNOWN_ERROR};
     std::thread join_caller([&] { join = backend_->connect_network("Cafe 5G", "pw"); });
@@ -727,7 +740,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd ERR BUSY during a join resolves the j
 
     server_->push_line("ERR BUSY");
     REQUIRE(wait_for_event("DISCONNECTED", 1));
-    // The scan is still the scan's: only its watchdog completes it.
+    REQUIRE(event_count("AUTH_FAILED") == 0);
     std::this_thread::sleep_for(std::chrono::milliseconds(150));
     REQUIRE(event_count("SCAN_COMPLETE") == 0);
 }
@@ -764,14 +777,30 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd reconnect handshake does not complete
     REQUIRE(wait_until([&] { return line_count("GET") >= 2 && line_count("SUBSCRIBE") >= 2; },
                        10 * (120 + 150 + kReconnectMs)));
 
-    // The daemon answers the new connection's GET: a snapshot plus its ack.
+    // The orphaned scan was COMPLETED by the reconnect itself (trigger_scan
+    // owes the manager exactly one SCAN_COMPLETE; a bare flag clear latches
+    // the scheduler), from whatever rows existed before the drop — none here.
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+
+    // The handshake's own traffic stays the handshake's: the new connection's
+    // GET is answered with a snapshot plus its ack, and nothing about that
+    // produces a SECOND completion.
     server_->push_line("MODE=WIFI");
     server_->push_line("STATE=CONNECTED");
     server_->push_line("OK");
-
-    // That OK is the handshake's, not the orphaned scan's completion.
+    REQUIRE(wait_for_event("CONNECTED", 1));
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    REQUIRE(event_count("SCAN_COMPLETE") == 0);
+    REQUIRE(event_count("SCAN_COMPLETE") == 1);
+
+    // And the new connection scans normally afterwards.
+    WiFiError again{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { again = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_count("SCAN") >= 2; }));
+    caller.join();
+    REQUIRE(again.success());
+    server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=PSK NETWORK=" + b64("Fresh"));
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
 }
 
 // ============================================================================
@@ -843,16 +872,26 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd joining the current network resolves 
     REQUIRE(backend_->get_status().connected);
     REQUIRE(backend_->get_status().ssid == "Already");
 
+    // Credential-free reselect of the connected network: resolved from the
+    // snapshot, nothing on the wire.
     WiFiError result{WiFiResult::UNKNOWN_ERROR};
-    std::thread caller([&] { result = backend_->connect_network("Already", "psk"); });
+    std::thread caller([&] { result = backend_->connect_network("Already", ""); });
     caller.join();
     REQUIRE(result.success());
-    // The synthetic CONNECTED dispatched synchronously with the call (the
-    // transition edge itself was the first).
-    REQUIRE(event_count("CONNECTED") == 2);
+    REQUIRE(wait_for_event("CONNECTED", 2));
     REQUIRE(event_count("DISCONNECTED") == 0);
     for (const auto& line : server_->recorded_lines())
         REQUIRE(line.rfind("CONNECT_WIFI", 0) != 0);
+
+    // A TYPED password is newer information than the snapshot (rotated PSK):
+    // it always takes the wire, never a silent snapshot resolution.
+    WiFiError rekey{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller1([&] { rekey = backend_->connect_network("Already", "newpw"); });
+    REQUIRE(wait_until([&] {
+        return line_recorded("CONNECT_WIFI ssid=" + b64("Already") + " psk=" + b64("newpw"));
+    }));
+    caller1.join();
+    REQUIRE(rekey.success());
 
     // A different network still goes out on the wire.
     WiFiError other{WiFiResult::UNKNOWN_ERROR};
@@ -918,13 +957,131 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan still comple
     register_standard_events();
     REQUIRE(backend_->start().success());
 
+    // Seed one completed scan so the surviving cache holds a row.
+    WiFiError seed{WiFiResult::UNKNOWN_ERROR};
+    std::thread seeder([&] { seed = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    seeder.join();
+    REQUIRE(seed.success());
+    server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=PSK NETWORK=" + b64("Kept"));
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+
+    // A second scan goes out and the daemon holds its ack through the stop.
+    WiFiError scan{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { scan = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_count("SCAN") == 2; }));
+    caller.join();
+    REQUIRE(scan.success());
+
+    backend_->stop();
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
+    // The rows survive the stop: a consumer answering that completion with a
+    // fetch must not be fed NOT_INITIALIZED plus a blanked list.
+    std::vector<WiFiNetwork> rows;
+    REQUIRE(backend_->get_scan_results(rows).success());
+    REQUIRE_FALSE(rows.empty());
+}
+
+// ============================================================================
+// A scan that RAN and found nothing clears the list honestly: AP turned off,
+// out of range - the daemon answers OK with no rows, and serving the
+// previous SSIDs would offer ghost networks a user can tap into a full join
+// timeout. (An ERR'd scan keeps them: it never ran.)
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd completed-empty scan clears ghost rows",
+                 "[netd][wifi][1398]") {
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    // Seed the cache with one network.
+    WiFiError first{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { first = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    caller.join();
+    REQUIRE(first.success());
+    server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=PSK NETWORK=" + b64("Ghost"));
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+    {
+        std::vector<WiFiNetwork> rows;
+        REQUIRE(backend_->get_scan_results(rows).success());
+        REQUIRE(rows.size() == 1);
+    }
+
+    // The world went empty: OK with no rows.
+    WiFiError second{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller2([&] { second = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_count("SCAN") == 2; }));
+    caller2.join();
+    REQUIRE(second.success());
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
+    {
+        std::vector<WiFiNetwork> rows;
+        REQUIRE(backend_->get_scan_results(rows).success());
+        REQUIRE(rows.empty()); // the ghost is gone
+    }
+}
+
+// ============================================================================
+// An unknown ERR reason still completes a pending scan immediately (no
+// closed reason table): a future daemon's new vocabulary must not hang the
+// scan to the watchdog. With single-flight, no join can be co-pending, so
+// the scan owns whatever ack arrives.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd unknown ERR completes the pending scan",
+                 "[netd][wifi][1398]") {
+    backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
     WiFiError scan{WiFiResult::UNKNOWN_ERROR};
     std::thread caller([&] { scan = backend_->trigger_scan(); });
     REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
     caller.join();
     REQUIRE(scan.success());
 
-    backend_->stop();
+    // A reason no client has ever heard of.
+    server_->push_line("ERR SOME_FUTURE_REASON");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+    REQUIRE(event_count("DISCONNECTED") == 0);
+    REQUIRE(event_count("AUTH_FAILED") == 0);
+}
+
+// ============================================================================
+// A join that ends via the DISCONNECTED state edge (no ERR ack, no CONNECTED)
+// must clear the in-flight latch: a stuck flag blocks every later scan - the
+// single-flight gate turns it from inert bookkeeping into a scan killer.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd drop-edge join end reopens scanning",
+                 "[netd][wifi][1398]") {
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    server_->push_line("MODE=WIFI");
+    server_->push_line("STATE=CONNECTED");
+    REQUIRE(wait_for_event("CONNECTED", 1));
+
+    // A join goes out (a different network), then the link drops via state,
+    // not via any ack.
+    WiFiError join{WiFiResult::UNKNOWN_ERROR};
+    std::thread join_caller([&] { join = backend_->connect_network("Other", "pw"); });
+    REQUIRE(wait_until(
+        [&] { return line_recorded("CONNECT_WIFI ssid=" + b64("Other") + " psk=" + b64("pw")); }));
+    join_caller.join();
+    REQUIRE(join.success());
+
+    server_->push_line("STATE=DISCONNECTED");
+    REQUIRE(wait_for_event("DISCONNECTED", 1));
+
+    // Scanning must work again immediately.
+    WiFiError scan{WiFiResult::UNKNOWN_ERROR};
+    std::thread scan_caller([&] { scan = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    scan_caller.join();
+    REQUIRE(scan.success());
+    server_->push_line("OK");
     REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
 }
 
