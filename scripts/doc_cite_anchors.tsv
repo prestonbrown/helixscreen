@@ -63,7 +63,7 @@ docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	259	
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	394	include/ams_backend_snapmaker.h	cc3adf6ce1d2	71a1b1199f6d
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/ams_backend_snapmaker.h	423	include/ams_backend_snapmaker.h	998af9261219	56532ada7eaa
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	414	include/printer_discovery.h	326effbda208	3524ca83cf02
-docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	552	include/printer_discovery.h	7b7faefb4711	bea8ec43ccc5
+docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/printer_discovery.h	565	include/printer_discovery.h	7b7faefb4711	bea8ec43ccc5
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	include/snapmaker_resume.h	11	include/snapmaker_resume.h	bdcf8bc246e8	4b07cd470f5d
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/api/moonraker_api_controls.cpp	426	src/api/moonraker_api_controls.cpp	3984c90ef18a	b8c2ceb467a1
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	src/printer/ams_subscription_backend.cpp	57	src/printer/ams_subscription_backend.cpp	589878aa5e77	b3b61b755723
@@ -152,6 +152,8 @@ docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	445	s
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	480	src/printer/ams_subscription_backend.cpp	8d6a1131138d	3cdd3709bc93
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/ams_subscription_backend.cpp	545	src/printer/ams_subscription_backend.cpp	359b20bf7fb8	acb8114396cc
 docs/devel/RPC_ERROR_OWNERSHIP.md	src/printer/toolhead_homing.cpp	60	src/printer/toolhead_homing.cpp	06f16f5e4b64	adcc7a362fa0
+docs/devel/SOUND_SYSTEM.md	include/pwm_sound_backend.h	90	include/pwm_sound_backend.h	516bc4eaf8f0	0bc7cf86c297
+docs/devel/SOUND_SYSTEM.md	src/system/pwm_sound_backend.cpp	489	src/system/pwm_sound_backend.cpp	065f9e8afc6d	30af171b990d
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	281	lib/helix-xml/src/xml/lv_xml.c	088d8240b210	33197fcbf9b6
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	438	lib/helix-xml/src/xml/lv_xml.c	daa12916c9dd	5547864e6a2e
 docs/devel/architecture/01-declarative-ui.md	lib/helix-xml/src/xml/lv_xml.c	473	lib/helix-xml/src/xml/lv_xml.c	b5a36c449474	fc0dbfc9b693
@@ -388,7 +390,7 @@ docs/devel/architecture/07-filament-ams.md	include/ams_subscription_backend.h	53
 docs/devel/architecture/07-filament-ams.md	include/ams_types.h	42	include/ams_types.h	d1bfafcdd4d4	76265fa04d05
 docs/devel/architecture/07-filament-ams.md	include/filament_op_dispatch.h	9	include/filament_op_dispatch.h	858270cf3bf2	a52ac2b92d10
 docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	52	include/printer_discovery.h	ed815f1532ea	265d63c39d5c
-docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	593	include/printer_discovery.h	20cf4848a033	fe2de00854c0
+docs/devel/architecture/07-filament-ams.md	include/printer_discovery.h	606	include/printer_discovery.h	20cf4848a033	fe2de00854c0
 docs/devel/architecture/07-filament-ams.md	include/spoolman_manager.h	22	include/spoolman_manager.h	298affdb4fbe	a5ad15d44e07
 docs/devel/architecture/07-filament-ams.md	include/spoolman_manager.h	64	include/spoolman_manager.h	eb957c78bce2	38d2063bb343
 docs/devel/architecture/07-filament-ams.md	include/tool_state.h	172	include/tool_state.h	83c3144cff9b	3ede4bbdf97c
@@ -660,8 +662,8 @@ docs/devel/architecture/14-build-platforms.md	mk/patches.mk	195	mk/patches.mk	1c
 docs/devel/architecture/14-build-platforms.md	mk/rules.mk	49	mk/rules.mk	ba63303391aa	95be71b076aa
 docs/devel/architecture/14-build-platforms.md	mk/rules.mk	123	mk/rules.mk	4ec48888fdc8	fe5f79475bd7
 docs/devel/architecture/14-build-platforms.md	mk/rules.mk	214	mk/rules.mk	677db6a5c24f	4aa693708d6e
-docs/devel/architecture/14-build-platforms.md	mk/tests.mk	397	mk/tests.mk	b76685ffd007	3dce62fd7aa3
-docs/devel/architecture/14-build-platforms.md	mk/tests.mk	400	mk/tests.mk	9717c7c7c221	bf7d67c957b0
+docs/devel/architecture/14-build-platforms.md	mk/tests.mk	408	mk/tests.mk	b76685ffd007	3dce62fd7aa3
+docs/devel/architecture/14-build-platforms.md	mk/tests.mk	411	mk/tests.mk	9717c7c7c221	bf7d67c957b0
 docs/devel/architecture/14-build-platforms.md	mk/translations.mk	84	mk/translations.mk	efc1f91df530	9f97ce07c4fc
 docs/devel/architecture/14-build-platforms.md	scripts/setup-worktree.sh	1	scripts/setup-worktree.sh	540d4428a52d	3de4973e80d9
 docs/devel/architecture/14-build-platforms.md	src/api/display_backend.cpp	199	src/api/display_backend.cpp	c89b2971ded9	01837564c908

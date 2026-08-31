@@ -64,7 +64,7 @@ LVGL thread (main)                  Sequencer thread              Audio render t
     |                    end_playback() when sequence completes      |
 ```
 
-**NoteEvent publishing**: At step boundaries the sequencer calls `publish_note()`, which writes a complete `NoteEvent` (frequency, amplitude, duty, waveform, ADSR, LFO, sweep, filter) into a `VoiceSlot` and bumps a generation counter. The audio callback detects the new generation, snapshots all parameters at once, and `VoiceSlot::render_sample()` computes envelope + modulation + waveform per-sample. This eliminates timing-dependent pitch variation from independent atomic writes. Non-PCM backends (PWM, M300) do not use `publish_note()`; the sequencer continues to drive per-tick computation for them.
+**NoteEvent publishing**: At step boundaries the sequencer calls `publish_note()`, which writes a complete `NoteEvent` (frequency, amplitude, duty, waveform, ADSR, LFO, sweep, filter) into a `VoiceSlot` and bumps a generation counter. The audio callback detects the new generation, snapshots all parameters at once, and `VoiceSlot::render_sample()` computes envelope + modulation + waveform per-sample. This eliminates timing-dependent pitch variation from independent atomic writes. Backends without note-event rendering (PWM, M300) do not use `publish_note()`; the sequencer continues to drive per-tick computation for them. (PWM's PCM path is a separate render-source mechanism -- see [PWM PCM mode (ad5m)](#pwm-pcm-mode-ad5m) below.)
 
 The sequencer thread sleeps on a condition variable when idle (no sound playing, queue empty). When a sound is queued, it wakes and ticks at the backend's `min_tick_ms()` interval until playback completes.
 
@@ -78,9 +78,19 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 |-------|---------|-----------|-----------------|
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
 | 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
-| 3 | PWM | `/sys/class/pwm/pwmchip0/pwm6` exists | AD5M hardware buzzer |
-| 4 | M300 | `MoonrakerClient` pointer set via `set_moonraker_client()` | Klipper printers with `output_pin beeper` |
+| 3 | PWM | `/sys/class/pwm/pwmchip0` exists (channel auto-exported by `initialize()` on ad5m/ad5m-br) | AD5M hardware buzzer |
+| 4 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
 | 5 | None | All above failed | Sounds silently disabled |
+
+M300 is not probed at `initialize()`; it is installed lazily from
+`PrinterCapabilitiesState::set_hardware()` once hardware discovery has seen the
+beeper signal, so the M300 commands cannot fire on a printer that would answer
+them with `!! Unknown command:M300` (which surfaces as an error toast, plays
+`error_tone`, and sends more M300 — the loop the lazy gate exists to prevent).
+Two signals open the gate: an `output_pin` whose name contains
+BEEPER/BUZZER/SPEAKER, and a `gcode_macro M300` (Z-Mod's AD5X buzzer config has
+only the macro). A `speaker` capability override of `enable` opens it without
+either signal; `disable` keeps it closed even when one fires.
 
 ### Backend Capabilities
 
@@ -90,10 +100,34 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 |---------|-----------|-----------|--------|-----------|-------------|-------|
 | SDL     | yes       | yes       | yes    | yes       | 1.0         | Full synthesis: 4 waveforms, biquad filter, 64-sample buffer (~1.5ms) |
 | ALSA    | yes       | yes       | yes    | yes       | 1.0         | Same synthesis as SDL, hardware-negotiated buffer size |
-| PWM     | no*       | yes       | no     | no        | 2.0         | Approximates waveforms via duty cycle ratios; sequencer drives per-tick |
+| PWM     | no*       | yes       | no     | no        | 2.0         | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. Tracker playback on ad5m rides the same tone path (PC-speaker mode, below) |
 | M300    | no        | no        | no     | no        | 50.0        | Frequency only, 100-10000 Hz, deduplicates commands; sequencer drives per-tick |
 
 *PWM `supports_waveforms()` returns `false`, but `set_waveform()` stores the waveform internally to adjust the duty cycle ratio: Square=50%, Saw=25%, Triangle=35%, Sine=40%. This gives perceptually different timbres even on a single-pin buzzer.
+
+### PWM tracker playback: PC-speaker mode (ad5m)
+
+`supports_render_source()` returns **false** on PWM, so tracker playback (MOD/MED music) routes through the note fallback: `TrackerPlayer::apply_to_backend()` computes each channel's note frequency (`3546895 / period`) and calls `set_voice()`, whose base implementation forwards slot 0 to `set_tone()` -- the channel-0 lead line as note-frequency square waves, PC-speaker style. Channels 1-3 are dropped (single sysfs channel), and instrument samples are not reproduced (their note pitches are).
+
+This is a hardware verdict, not a preference: verified on an AD5M Pro 2026-08-30, the buzzer is a resonant piezo with no reconstruction filter, so a duty-modulated carrier demodulates as static -- an audible beat, not music. Note-frequency square waves are what the transducer is built for.
+
+**Known limitation**: while a tracker melody plays, tone SFX are dropped (the sound manager only layers SFX under a tracker on render-source backends); ALARM-priority sounds still stop the tracker and reclaim the channel.
+
+Tone efficiency: the fallback re-sends the same note every tracker tick, so `set_tone()` deduplicates held tones (keyed on the written period/duty values, mirroring `M300SoundBackend::last_freq_`), and `silence()` guards against the per-tick rest spam (the fallback calls `silence_voice(0)` every ~2 ms through rests). The Makefile gates tracker to `PLATFORM_TARGET=ad5m` (`HELIX_HAS_TRACKER` + `HELIX_PWM_AUTO_EXPORT`; ad5m-br and ad5x stay tone-SFX-only pending hardware validation).
+
+### PWM PCM machinery (dormant)
+
+The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:489`):
+
+- **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h:90`).
+- **62.5 kHz carrier**, above the audible range; each sample becomes a duty-cycle value within that period (`PCM_CARRIER_HZ`).
+- **Render thread at SCHED_IDLE + 1 ns timerslack** (`apply_render_thread_priority()`). SCHED_IDLE means the thread runs only when nothing else wants the CPU, so its pacing can never starve klippy, and setting it needs no privileges. Timerslack affects the relative polls only (the 1 ms no-source poll, the 10 ms park poll) -- the sample loop paces with `TIMER_ABSTIME`, which timerslack does not touch.
+- **Absolute pacing with a 20 µs spin budget** -- sleep (`TIMER_ABSTIME`) to each sample deadline minus 20 µs, then spin the final stretch. This absorbs hrtimer wake lateness without burning real CPU (`PCM_SPIN_BUDGET_NS`).
+- **Bounded catch-up** -- more than 2 samples late snaps the sample clock forward (resync) instead of bursting the missed writes. The burst is what starved klippy under the old loop (`PCM_CATCHUP_MAX_SAMPLES`).
+- **Silence auto-park** -- 8 consecutive exactly-silent buffers (~512 ms at 64 ms/buffer) park the channel (duty 0, enable 0) and drop to a 10 ms poll. Each poll pulls an 80-frame probe (10 ms @ 8 kHz) from the render source at 1x real time and resumes the moment real audio shows up (`PCM_PARK_SILENT_BUFFERS`, `park_probe_frames()`).
+- **Channel auto-export** -- the stock AD5M kernel ships the beeper channel unexported; nothing materializes pwm6 until `initialize()` writes the channel number to `pwmchip0/export` (`HELIX_PWM_AUTO_EXPORT`, ad5m/ad5m-br only). This one is live for tone mode too: without it the backend never initializes and the AD5M has no audio at all after boot.
+
+History: PCM playback was disabled 2026-04 (003c195ac) because the render loop's busy-wait at normal priority starved the single-core CPU; rewritten printer-safe (b8c141b4a) and verified harmless on-device 2026-08-30 -- then retired from active use the same day by the transducer verdict above.
 
 ---
 
@@ -459,7 +493,7 @@ if (SoundManager::instance().is_available()) {
 | `src/system/sound_manager.cpp` | Manager singleton, backend auto-detection, theme loading |
 | `src/system/sdl_sound_backend.cpp` | SDL audio callback, per-sample envelope, biquad filter |
 | `src/system/alsa_sound_backend.cpp` | ALSA render thread, per-sample envelope, biquad filter |
-| `src/system/pwm_sound_backend.cpp` | PWM sysfs writes (period, duty_cycle, enable) |
+| `src/system/pwm_sound_backend.cpp` | PWM sysfs writes (period, duty_cycle, enable) + PCM render thread (SCHED_IDLE pacing, silence auto-park, channel auto-export) |
 | `src/system/m300_sound_backend.cpp` | M300 G-code formatting, frequency deduplication |
 | `config/sounds/default.json` | Default theme (13 sounds, balanced) |
 | `config/sounds/minimal.json` | Minimal theme (7 sounds, event/alarm only) |
@@ -493,11 +527,11 @@ if (SoundManager::instance().is_available()) {
 ./build/bin/helix-tests "[sound]"
 
 # Specific component tests
-./build/bin/helix-tests "[sound_theme]"     # Theme parser
-./build/bin/helix-tests "[sound_seq]"       # Sequencer
-./build/bin/helix-tests "[sdl_sound]"       # SDL backend
-./build/bin/helix-tests "[pwm_sound]"       # PWM backend
-./build/bin/helix-tests "[m300]"            # M300 backend
+./build/bin/helix-tests "[sound][theme]"     # Theme parser
+./build/bin/helix-tests "[sound][sequencer]" # Sequencer
+./build/bin/helix-tests "[sound][sdl]"       # SDL backend
+./build/bin/helix-tests "[sound][pwm]"       # PWM backend
+./build/bin/helix-tests "[sound][m300]"      # M300 backend
 
 # Full suite with sharding (recommended)
 make test-run
@@ -507,7 +541,7 @@ make test-run
 
 ### Testing Backends Without Hardware
 
-- **PWM backend**: Constructor accepts a custom `base_path` parameter. Tests create a temp directory tree mimicking `/sys/class/pwm/pwmchip0/pwm6/` and verify file writes.
+- **PWM backend**: Constructor accepts a custom `base_path` parameter. Tests create a temp directory tree mimicking `/sys/class/pwm/pwmchip0/pwm6/` and verify file writes. Render-loop tests inject virtual clock/sleep seams so parking, catch-up, and pacing run without real time.
 - **M300 backend**: Constructor accepts a `GcodeSender` callback (lambda). Tests capture sent G-code strings.
 - **SDL backend**: Static helper methods (`generate_samples`, `compute_biquad_coeffs`, `apply_filter`) are public for direct unit testing without SDL audio hardware.
 
@@ -569,13 +603,13 @@ When a step completes, `advance_step()` increments the step index. If past the e
 
 The M300 backend sends G-code commands through Moonraker's `gcode_script` API. Key behaviors:
 
-- **Frequency deduplication**: If `set_tone()` is called with the same frequency as the last call (and amplitude > 0), it's a no-op. This prevents spamming Moonraker with redundant commands.
+- **Frequency deduplication**: If `set_tone()` is called with the same frequency as the last call (and amplitude > 0), it's a no-op. This prevents spamming Moonraker with redundant commands. Consequence: a held note emits ONE `M300 P50`, so notes longer than 50ms sound as a 50ms beep — themes render staccato on this backend.
 - **Frequency clamping**: Hz values are clamped to 100-10000 (M300 safe range).
-- **Duration in commands**: Each `M300 S{freq} P{dur}` uses `min_tick_ms()` (50ms) as the duration. The sequencer re-sends at each tick interval for continuing tones.
+- **Duration in commands**: Each `M300 S{freq} P{dur}` uses `min_tick_ms()` (50ms) as the duration, bounding how long a stale command can ring if the sequencer is preempted mid-note.
 - **Silence**: `M300 S0 P1` stops the beeper. Only sent if not already silent.
 - **No amplitude or waveform control**: M300 is frequency-only. The printer firmware controls volume.
 
-The M300 backend requires Klipper to have `[output_pin beeper]` configured. Without it, M300 commands are silently ignored by the firmware.
+The M300 backend requires the printer to answer M300: a beeper `output_pin`, an M300 macro in the Klipper config, or a forced-on `speaker` capability override (see Backend Auto-Detection above).
 
 ---
 

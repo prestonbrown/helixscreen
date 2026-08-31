@@ -1,13 +1,22 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/pwm_sound_backend_test_access.h"
 #include "pwm_sound_backend.h"
 
+#include <atomic>
+#include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <memory>
+#include <sched.h>
 #include <string>
+#include <thread>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -159,8 +168,101 @@ TEST_CASE("PWM backend reports correct capabilities", "[sound][pwm]") {
 }
 
 // ============================================================================
+// PCM constants
+// ============================================================================
+
+TEST_CASE("PCM sample rate is 8 kHz", "[sound][pwm]") {
+    // Piezo roll-off is ~3-4 kHz; rendering faster buys no audible content
+    // while halving the time each duty-cycle write gets.
+    REQUIRE(PWMSoundBackend::PCM_SAMPLE_RATE == 8000);
+}
+
+TEST_CASE("PCM carrier frequency stays at 62.5 kHz", "[sound][pwm]") {
+    REQUIRE(PWMSoundBackend::PCM_CARRIER_HZ == 62500);
+}
+
+TEST_CASE("PCM pacing constants are pinned", "[sound][pwm]") {
+    REQUIRE(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES == 512);
+    REQUIRE(PWMSoundBackend::PCM_PARK_SILENT_BUFFERS == 8);
+    REQUIRE(PWMSoundBackend::PCM_PARK_POLL_NS == 10000000LL);
+    REQUIRE(PWMSoundBackend::PCM_CATCHUP_MAX_SAMPLES == 2);
+    REQUIRE(PWMSoundBackend::PCM_SPIN_BUDGET_NS == 20000LL);
+}
+
+TEST_CASE("park_probe_frames derives frames from poll interval and rate", "[sound][pwm]") {
+    // PCM_PARK_POLL_NS * PCM_SAMPLE_RATE / 1e9 = 10000000 * 8000 / 1e9 = 80
+    REQUIRE(PWMSoundBackend::park_probe_frames() == 80);
+}
+
+// ============================================================================
+// PCM pacing statics
+// ============================================================================
+
+TEST_CASE("samples_behind measures whole-sample lateness", "[sound][pwm]") {
+    const int64_t base = 1000000000000LL;
+    const int64_t interval = 125000LL; // 8 kHz
+    const int64_t deadline = base + 40 * interval;
+
+    REQUIRE(PWMSoundBackend::samples_behind(deadline, base, 40, interval) == 0);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + 1, base, 40, interval) == 0);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + interval - 1, base, 40, interval) == 0);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + interval, base, 40, interval) == 1);
+    REQUIRE(PWMSoundBackend::samples_behind(deadline + 3 * interval, base, 40, interval) == 3);
+}
+
+TEST_CASE("samples_behind floors rather than truncates when ahead of schedule", "[sound][pwm]") {
+    const int64_t base = 1000000000000LL;
+    const int64_t interval = 125000LL; // 8 kHz
+    const int64_t deadline = base + 40 * interval;
+
+    // 2.5 intervals ahead: floor(-2.5) = -3 (truncation would say -2)
+    REQUIRE(PWMSoundBackend::samples_behind(deadline - 2 * interval - interval / 2, base, 40,
+                                            interval) == -3);
+    // One ns past a whole two intervals ahead: floor(-(2i+1)/i) = -3
+    REQUIRE(PWMSoundBackend::samples_behind(base - 2 * interval - 1, base, 0, interval) == -3);
+}
+
+TEST_CASE("resync_sample_index clamps to zero and floors", "[sound][pwm]") {
+    const int64_t base = 1000000000000LL;
+    const int64_t interval = 125000LL; // 8 kHz
+
+    REQUIRE(PWMSoundBackend::resync_sample_index(base - 1, base, interval) == 0);
+    REQUIRE(PWMSoundBackend::resync_sample_index(base, base, interval) == 0);
+    REQUIRE(PWMSoundBackend::resync_sample_index(base + 7 * interval, base, interval) == 7);
+    REQUIRE(PWMSoundBackend::resync_sample_index(base + 8 * interval - 1, base, interval) == 7);
+}
+
+// ============================================================================
 // initialize() / shutdown() lifecycle
 // ============================================================================
+
+/// Create a fake sysfs pwmchip directory whose channel is NOT exported.
+/// Returns the base_path (caller must clean up).
+///
+/// Creates: <base>/pwmchip<chip>/{export,npwm} — no pwm<channel> directory.
+///
+/// A plain-file mock cannot reproduce the kernel materializing pwm<channel>
+/// in response to the export write, so initialize() still fails on this mock.
+/// Tests against it pin the export write itself, not the materialization.
+///
+/// `export` is seeded with "0" so an assertion of a written channel number
+/// distinguishes "backend wrote it" from "file was never touched".
+static std::string create_mock_sysfs_unexported(int chip = 0) {
+    std::string tmpl = "/tmp/pwm_test_XXXXXX";
+    char* dir = mkdtemp(tmpl.data());
+    REQUIRE(dir != nullptr);
+
+    std::string base(dir);
+    std::string chip_dir = base + "/pwmchip" + std::to_string(chip);
+
+    std::string mkdir_cmd = "mkdir -p " + chip_dir;
+    REQUIRE(system(mkdir_cmd.c_str()) == 0);
+
+    std::ofstream(chip_dir + "/export") << "0";
+    std::ofstream(chip_dir + "/npwm") << "16";
+
+    return base;
+}
 
 TEST_CASE("PWM backend initializes with valid sysfs paths", "[sound][pwm]") {
     auto base = create_mock_sysfs(0, 6);
@@ -171,9 +273,79 @@ TEST_CASE("PWM backend initializes with valid sysfs paths", "[sound][pwm]") {
     cleanup_mock_sysfs(base);
 }
 
+TEST_CASE("set_render_source is refused before initialize", "[sound][pwm]") {
+    // Starting the render thread without initialize() would park into a
+    // memset on an empty probe buffer and leave a joinable thread behind
+    // shutdown()'s !initialized_ early return (std::terminate in the
+    // destructor). The call must refuse instead.
+    PWMSoundBackend backend("/nonexistent-sysfs", 0, 6);
+    REQUIRE_FALSE(backend.initialize());
+
+    std::atomic<int> calls{0};
+    backend.set_render_source([&](float*, size_t, int) { calls.fetch_add(1); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    REQUIRE(calls.load() == 0);    // no render thread ever started
+    backend.clear_render_source(); // safe no-op, joins nothing
+}
+
 TEST_CASE("PWM backend fails to initialize with missing sysfs paths", "[sound][pwm]") {
     PWMSoundBackend backend("/tmp/nonexistent_pwm_path_12345", 0, 6);
     REQUIRE_FALSE(backend.initialize());
+}
+
+// ============================================================================
+// Channel auto-export on initialize()
+// ============================================================================
+
+TEST_CASE("initialize writes channel number to export when channel missing", "[sound][pwm]") {
+    auto base = create_mock_sysfs_unexported(0);
+
+    PWMSoundBackend backend(base, 0, 6);
+    // The mock never materializes pwm6, so the outcome stays failure — but the
+    // export write must have happened.
+    REQUIRE_FALSE(backend.initialize());
+    REQUIRE(read_sysfs_file(base + "/pwmchip0/export") == "6");
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("initialize does not touch export when channel exists", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+
+    // Sentinel: if initialize() writes to export, this gets clobbered
+    std::ofstream(base + "/pwmchip0/export") << "42";
+
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+    REQUIRE(read_sysfs_file(base + "/pwmchip0/export") == "42");
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("initialize tolerates unwritable export when channel already present", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+
+    // A directory at the export path makes any open-for-write fail EISDIR
+    // deterministically, even running as root.
+    std::string mkdir_cmd = "mkdir -p " + base + "/pwmchip0/export";
+    REQUIRE(system(mkdir_cmd.c_str()) == 0);
+
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("initialize returns false when no pwmchip exists", "[sound][pwm]") {
+    std::string tmpl = "/tmp/pwm_test_XXXXXX";
+    char* dir = mkdtemp(tmpl.data());
+    REQUIRE(dir != nullptr);
+    std::string base(dir);
+
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE_FALSE(backend.initialize());
+
+    cleanup_mock_sysfs(base);
 }
 
 TEST_CASE("PWM backend shutdown disables PWM output", "[sound][pwm]") {
@@ -397,6 +569,125 @@ TEST_CASE("Repeated set_tone does not re-write enable if already enabled", "[sou
 }
 
 // ============================================================================
+// Tone-mode only (PC-speaker mode)
+// ============================================================================
+
+TEST_CASE("PWM backend does not advertise a PCM render source", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    // Hardware-verified on the AD5M Pro: the resonant piezo cannot demodulate
+    // duty-modulated PCM — PWM is tone-only and tracker melodies use the
+    // set_voice note fallback.
+    REQUIRE(backend.supports_render_source() == false);
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("set_tone dedups identical consecutive tones", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    uint64_t after_first = PWMSoundBackendTestAccess::tone_writes(backend);
+    REQUIRE(after_first >= 1);
+
+    // Identical re-emit — the sequencer does this every tick on a held
+    // note; the sysfs writes must be skipped.
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first);
+
+    // Changed frequency writes again (1000 Hz: in-band, distinct from the
+    // 880 Hz that 440 shifts to — 440 vs 880 would collapse onto one tone)
+    backend.set_tone(1000.0f, 0.8f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 1);
+
+    // Same frequency, different amplitude -> different duty -> writes again
+    backend.set_tone(1000.0f, 0.4f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 2);
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("set_tone re-emits after silence resets dedup", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    std::string pwm_dir = base + "/pwmchip0/pwm6";
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    uint64_t after_first = PWMSoundBackendTestAccess::tone_writes(backend);
+    REQUIRE(after_first >= 1);
+
+    // Channel off — the dedup key must clear with it
+    backend.silence();
+    REQUIRE(read_sysfs_file(pwm_dir + "/enable") == "0");
+
+    // The same tone has to emit again (first-tone path, enable re-write)
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 1);
+    REQUIRE(backend.is_enabled());
+    REQUIRE(read_sysfs_file(pwm_dir + "/enable") == "1");
+
+    cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
+// Piezo-band octave shift
+// ============================================================================
+
+TEST_CASE("shift_to_piezo_band clamps into the piezo loud band by octaves", "[sound][pwm]") {
+    // The transducer is weak below ~300 Hz and ultrasonic past ~4 kHz; the
+    // loud band is [500, 2500] Hz, reached only by whole octaves so pitch
+    // class survives.
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(0.0f) == 0.0f);
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(-5.0f) == 0.0f);
+
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(500.0f) == Catch::Approx(500.0f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(2500.0f) == Catch::Approx(2500.0f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(1000.0f) == Catch::Approx(1000.0f));
+
+    // 110 Hz bass -> three octaves up; 87 Hz floor -> 696 Hz
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(110.0f) == Catch::Approx(880.0f).margin(0.001f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(87.0f) == Catch::Approx(696.0f).margin(0.001f));
+    // 3 kHz -> one octave down; 20 kHz -> three octaves down to the ceiling
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(3000.0f) == Catch::Approx(1500.0f).margin(0.001f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(20000.0f) ==
+            Catch::Approx(2500.0f).margin(0.001f));
+
+    // Octave equivalence: the same pitch class lands on the same emission
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(110.0f) ==
+            Catch::Approx(PWMSoundBackend::shift_to_piezo_band(220.0f)).margin(0.001f));
+    REQUIRE(PWMSoundBackend::shift_to_piezo_band(3000.0f) ==
+            Catch::Approx(PWMSoundBackend::shift_to_piezo_band(6000.0f)).margin(0.001f));
+}
+
+TEST_CASE("set_tone shifts out-of-band notes into the piezo band", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    std::string pwm_dir = base + "/pwmchip0/pwm6";
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    // 110 Hz is near-inaudible on the piezo; it emits at 880 Hz
+    backend.set_tone(110.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") ==
+            std::to_string(PWMSoundBackend::freq_to_period_ns(880.0f)));
+
+    // 3 kHz is past the transducer's response; it emits at 1500 Hz
+    backend.set_tone(3000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") ==
+            std::to_string(PWMSoundBackend::freq_to_period_ns(1500.0f)));
+
+    // In-band passes through unchanged
+    backend.set_tone(1000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1000000");
+
+    cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
 // Frequency changes update period correctly
 // ============================================================================
 
@@ -407,11 +698,12 @@ TEST_CASE("Changing frequency updates period in sysfs", "[sound][pwm]") {
     PWMSoundBackend backend(base, 0, 6);
     backend.initialize();
 
-    backend.set_tone(440.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "2272727");
+    // Both in the piezo band, so they pass through the octave shift as-is
+    backend.set_tone(1000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1000000");
 
-    backend.set_tone(880.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1136363");
+    backend.set_tone(2000.0f, 1.0f, 0.5f);
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "500000");
 
     cleanup_mock_sysfs(base);
 }
@@ -437,9 +729,10 @@ TEST_CASE("PWM backend handles very high frequency", "[sound][pwm]") {
     PWMSoundBackend backend(base, 0, 6);
     backend.initialize();
 
-    // 20 kHz → period = 50000 ns
+    // 20 kHz shifts down three octaves to the 2.5 kHz piezo ceiling
+    // → period = 400000 ns
     backend.set_tone(20000.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "50000");
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "400000");
 
     cleanup_mock_sysfs(base);
 }
@@ -451,9 +744,10 @@ TEST_CASE("PWM backend handles very low frequency", "[sound][pwm]") {
     PWMSoundBackend backend(base, 0, 6);
     backend.initialize();
 
-    // 20 Hz → period = 50000000 ns
+    // 20 Hz shifts up five octaves to 640 Hz (the piezo's weak low end is
+    // inaudible) → period = 1562500 ns
     backend.set_tone(20.0f, 1.0f, 0.5f);
-    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "50000000");
+    REQUIRE(read_sysfs_file(pwm_dir + "/period") == "1562500");
 
     cleanup_mock_sysfs(base);
 }
@@ -469,6 +763,354 @@ TEST_CASE("PWM backend amplitude clamped to 0-1 range", "[sound][pwm]") {
     // Square wave at 1000 Hz: period=1000000, duty = 1000000 * 0.5 * clamp(1.5,0,1) = 500000
     backend.set_tone(1000.0f, 1.5f, 0.5f);
     REQUIRE(read_sysfs_file(pwm_dir + "/duty_cycle") == "500000");
+
+    cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
+// PCM render loop (virtual clock)
+// ============================================================================
+
+namespace {
+
+/// Virtual monotonic clock. wait_until() jumps `now` to the deadline instead
+/// of sleeping, so a whole park/resume cycle runs in milliseconds of real
+/// time. arm_jump() schedules a one-shot forward jump that fires inside the
+/// next read() — the catch-up test uses it to simulate a scheduling stall.
+/// wait_until() also records every deadline it receives; the pacing test
+/// asserts on them after the render thread is joined.
+class VirtualClock {
+  public:
+    /// Virtual time starts here — far from machine-uptime-scale CLOCK_MONOTONIC
+    /// values, so a schedule base wrongly derived from the real clock is
+    /// trivially distinguishable.
+    static constexpr int64_t START_NS = 1000000000LL;
+
+    int64_t read() {
+        if (jump_armed_.exchange(false)) {
+            now_ += jump_ns_;
+        }
+        return now_;
+    }
+
+    void wait_until(int64_t deadline) {
+        if (deadline > now_) {
+            now_ = deadline;
+        }
+        deadlines_.push_back(deadline);
+        deadline_count_.fetch_add(1, std::memory_order_release);
+    }
+
+    void arm_jump(int64_t ns) {
+        jump_ns_ = ns;
+        jump_armed_.store(true);
+    }
+
+    /// Deadlines received so far (safe to poll from the test thread).
+    int64_t deadline_count() const {
+        return deadline_count_.load(std::memory_order_acquire);
+    }
+
+    /// Full deadline log — only valid after the render thread is joined.
+    const std::vector<int64_t>& deadlines() const {
+        return deadlines_;
+    }
+
+  private:
+    // now_/deadlines_ are only touched from the render thread (both seams run
+    // there); the test thread only arms the jump and reads the counters.
+    int64_t now_ = START_NS;
+    int64_t jump_ns_ = 0;
+    std::atomic<bool> jump_armed_{false};
+    std::vector<int64_t> deadlines_;
+    std::atomic<int64_t> deadline_count_{0};
+};
+
+/// Mock sysfs + initialized backend with the virtual clock and a shrunken
+/// park threshold installed BEFORE the render thread starts.
+///
+/// Any shared state a source lambda captures by reference must be declared
+/// BEFORE the harness: the destructor clears the render source (joining the
+/// render thread) and runs before those locals die.
+struct PwmVirtualRun {
+    std::string base;
+    std::unique_ptr<PWMSoundBackend> backend;
+    VirtualClock clock;
+
+    explicit PwmVirtualRun(int park_threshold) : base(create_mock_sysfs(0, 6)) {
+        backend = std::make_unique<PWMSoundBackend>(base, 0, 6);
+        REQUIRE(backend->initialize());
+        PWMSoundBackendTestAccess::set_park_silent_buffers(*backend, park_threshold);
+        PWMSoundBackendTestAccess::set_now_fn(*backend, [this] { return clock.read(); });
+        PWMSoundBackendTestAccess::set_wait_until_fn(
+            *backend, [this](int64_t deadline) { clock.wait_until(deadline); });
+    }
+
+    ~PwmVirtualRun() {
+        backend->clear_render_source();
+        cleanup_mock_sysfs(base);
+    }
+};
+
+/// Poll pred() every 1 ms of real time until true or timeout.
+bool wait_for(const std::function<bool()>& pred, int timeout_ms = 2000) {
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (pred()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return pred();
+}
+
+} // namespace
+
+TEST_CASE("render loop parks after sustained silence", "[sound][pwm]") {
+    PwmVirtualRun run(2);
+    run.backend->set_render_source(
+        [](float* buf, size_t frames, int) { std::memset(buf, 0, frames * sizeof(float)); });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    // Park drops both duty and enable: the channel is fully off, not held
+    // at a mid-scale duty.
+    REQUIRE(read_sysfs_file(run.base + "/pwmchip0/pwm6/enable") == "0");
+    REQUIRE(read_sysfs_file(run.base + "/pwmchip0/pwm6/duty_cycle") == "0");
+}
+
+TEST_CASE("parked loop stops writing duty", "[sound][pwm]") {
+    PwmVirtualRun run(2);
+    run.backend->set_render_source(
+        [](float* buf, size_t frames, int) { std::memset(buf, 0, frames * sizeof(float)); });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    // 20 ms of real time is thousands of virtual park polls; the probe path
+    // must not touch duty_cycle.
+    uint64_t w1 = PWMSoundBackendTestAccess::duty_writes(*run.backend);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    uint64_t w2 = PWMSoundBackendTestAccess::duty_writes(*run.backend);
+    REQUIRE(w2 == w1);
+}
+
+TEST_CASE("parked loop resumes on non-silent buffer", "[sound][pwm]") {
+    std::atomic<bool> silent{true}; // declared before run: outlives the join
+    PwmVirtualRun run(2);
+    run.backend->set_render_source([&silent](float* buf, size_t frames, int) {
+        float v = silent.load() ? 0.0f : 0.5f;
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = v;
+        }
+    });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    silent.store(false);
+    REQUIRE(wait_for([&] { return !PWMSoundBackendTestAccess::parked(*run.backend); }));
+
+    // Resume re-enables the channel and duty writes continue.
+    REQUIRE(read_sysfs_file(run.base + "/pwmchip0/pwm6/enable") == "1");
+    uint64_t w1 = PWMSoundBackendTestAccess::duty_writes(*run.backend);
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::duty_writes(*run.backend) > w1; }));
+}
+
+TEST_CASE("non-zero buffer resets the silence run", "[sound][pwm]") {
+    std::atomic<int> full_buffers{0}; // 512-frame source calls (probes excluded)
+    std::atomic<bool> gate_open{false};
+    PwmVirtualRun run(3);
+    run.backend->set_render_source([&](float* buf, size_t frames, int) {
+        if (frames != static_cast<size_t>(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES)) {
+            std::memset(buf, 0, frames * sizeof(float)); // probes stay silent
+            return;
+        }
+        // Pattern: z, z, NON-ZERO, z, z, z... The non-zero buffer must
+        // restart the run, so parking needs 3 zeros AFTER it, not 3 total.
+        int n = full_buffers.fetch_add(1);
+        float v = (n == 2) ? 0.5f : 0.0f;
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = v;
+        }
+        if (n == 5) {
+            // Hold inside the 6th buffer's render call: buffers 0-4 are fully
+            // processed (run == 2), and buffer 5 cannot complete or park
+            // while gated, so the mid-run assertions below are deterministic.
+            // The wait is bounded so that if a REQUIRE below fails on a
+            // starved runner, unwinding joins a render call that completes,
+            // instead of hanging the shard forever.
+            int spins = 0;
+            while (!gate_open.load() && ++spins < 30000) { // ~3 s at 100 us
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+            }
+        }
+    });
+
+    REQUIRE(wait_for([&] { return full_buffers.load() >= 6; }));
+    // z, z, nz, z, z: the run restarted at the non-zero buffer and now
+    // stands at 2 — no park, even though 4 of the last 5 buffers were silent.
+    REQUIRE(PWMSoundBackendTestAccess::silent_buffer_run(*run.backend) == 2);
+    REQUIRE_FALSE(PWMSoundBackendTestAccess::parked(*run.backend));
+
+    gate_open.store(true);
+    // The 6th buffer completes a fresh run of 3 consecutive zeros.
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+}
+
+TEST_CASE("catch-up drops samples instead of bursting", "[sound][pwm]") {
+    std::atomic<int> full_buffers{0};
+    // Duty writes per full buffer. Element k is finalized by source call k+1;
+    // only the render thread touches the vector until the test joins it.
+    std::vector<uint64_t> buffer_writes;
+    uint64_t writes_at_start = 0;
+    PwmVirtualRun run(8); // non-zero content never parks
+    PWMSoundBackend* backend = run.backend.get();
+    run.backend->set_render_source([&](float* buf, size_t frames, int) {
+        if (frames != static_cast<size_t>(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES)) {
+            return;
+        }
+        int n = full_buffers.fetch_add(1);
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.5f;
+        }
+        if (n > 0) {
+            buffer_writes.push_back(PWMSoundBackendTestAccess::duty_writes(*backend) -
+                                    writes_at_start);
+        }
+        writes_at_start = PWMSoundBackendTestAccess::duty_writes(*backend);
+        if (n == 2) {
+            // Arm a +10-sample-interval jump: it fires on the render thread's
+            // next now_fn() call, mid-buffer — a scheduling stall.
+            run.clock.arm_jump(10 * (1000000000LL / PWMSoundBackend::PCM_SAMPLE_RATE));
+        }
+    });
+
+    REQUIRE(wait_for([&] { return full_buffers.load() >= 5; }));
+    run.backend->clear_render_source();
+    // Finalize the last buffer's delta now that the loop is joined.
+    buffer_writes.push_back(PWMSoundBackendTestAccess::duty_writes(*run.backend) - writes_at_start);
+
+    REQUIRE(buffer_writes.size() >= 4);
+    // Normal pacing writes every sample of the buffer.
+    REQUIRE(buffer_writes[0] == 512);
+    REQUIRE(buffer_writes[1] == 512);
+    // The stalled buffer drops the missed samples instead of bursting them.
+    REQUIRE(buffer_writes[2] < 512);
+    REQUIRE(buffer_writes[2] > 480); // bounded drop: ~10 samples, not the buffer
+    // And the loop keeps running normally afterwards.
+    REQUIRE(buffer_writes[3] == 512);
+}
+
+TEST_CASE("steady playback paces from the virtual clock's base", "[sound][pwm]") {
+    PwmVirtualRun run(8); // non-silent content never parks
+    run.backend->set_render_source([](float* buf, size_t frames, int) {
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.5f;
+        }
+    });
+
+    const int64_t interval = 1000000000LL / PWMSoundBackend::PCM_SAMPLE_RATE;
+    REQUIRE(wait_for([&] { return run.clock.deadline_count() >= 24; }));
+    run.backend->clear_render_source();
+
+    const std::vector<int64_t>& deadlines = run.clock.deadlines();
+    REQUIRE(deadlines.size() >= 24);
+    // The schedule base must come from the injected clock (virtual start +
+    // one sample interval for the first deadline). A CLOCK_MONOTONIC base
+    // sits at machine-uptime scale — far outside this window.
+    REQUIRE(deadlines[0] - VirtualClock::START_NS <= 2 * interval);
+    // Steady pacing: every consecutive deadline is exactly one sample
+    // interval after the previous one.
+    for (size_t i = 1; i < deadlines.size(); i++) {
+        REQUIRE(deadlines[i] - deadlines[i - 1] == interval);
+    }
+}
+
+TEST_CASE("a render source that fills nothing parks - stale buffer content is not audio",
+          "[sound][pwm]") {
+    std::atomic<int> full_buffers{0};
+    PwmVirtualRun run(2);
+    run.backend->set_render_source([&full_buffers](float* buf, size_t frames, int) {
+        if (frames != static_cast<size_t>(PWMSoundBackend::PCM_RENDER_BUFFER_FRAMES)) {
+            return; // probe calls: write nothing
+        }
+        // First buffer: real audio. Every later buffer: return without
+        // touching the buffer — only the loop's pre-clear makes those silent;
+        // without it the stale non-zero content would play (and never park).
+        if (full_buffers.fetch_add(1) == 0) {
+            for (size_t i = 0; i < frames; i++) {
+                buf[i] = 0.5f;
+            }
+        }
+    });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
+}
+
+TEST_CASE("render thread applies SCHED_IDLE", "[sound][pwm]") {
+    PwmVirtualRun run(8);
+    run.backend->set_render_source([](float* buf, size_t frames, int) {
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.25f;
+        }
+    });
+
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::duty_writes(*run.backend) > 0; }));
+
+    // CHECK, not REQUIRE: an unprivileged sandbox may refuse SCHED_IDLE; the
+    // loop logs that and continues at SCHED_OTHER (policy stays -1).
+    CHECK(PWMSoundBackendTestAccess::applied_sched_policy(*run.backend) == SCHED_IDLE);
+}
+
+// ============================================================================
+// PCM render loop (real clock) — [slow], excluded from make test-run
+// ============================================================================
+
+TEST_CASE("render loop paces near 8 kHz with real clock", "[sound][pwm][slow]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    backend.set_render_source([](float* buf, size_t frames, int sr) {
+        for (size_t i = 0; i < frames; i++) {
+            buf[i] = 0.4f * std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) /
+                                     static_cast<float>(sr));
+        }
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    uint64_t writes = PWMSoundBackendTestAccess::duty_writes(backend);
+    backend.clear_render_source();
+
+    // 0.5 s at 8 kHz = 4000 writes. Far undershooting means over-sleeping;
+    // overshooting means the deadline pacing broke and the loop bursts. The
+    // generous lower bound: the thread is SCHED_IDLE, so a heavily loaded
+    // host legitimately starves it well below real time (observed once under
+    // 19 concurrent compiles); 1500 still proves pacing vs an unpaced burst.
+    REQUIRE(writes >= 1500);
+    REQUIRE(writes <= 9000);
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("clear_render_source joins promptly while parked", "[sound][pwm][slow]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+    PWMSoundBackendTestAccess::set_park_silent_buffers(backend, 2);
+
+    backend.set_render_source(
+        [](float* buf, size_t frames, int) { std::memset(buf, 0, frames * sizeof(float)); });
+
+    // Real clock: 2 silent buffers of 64 ms each before the park lands.
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(backend); }, 5000));
+
+    auto t0 = std::chrono::steady_clock::now();
+    backend.clear_render_source();
+    auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0)
+            .count();
+    // Parked polls sleep 10 ms per cycle; the join must not wait out a buffer.
+    REQUIRE(elapsed_ms < 250);
 
     cleanup_mock_sysfs(base);
 }
