@@ -56,17 +56,26 @@ std::vector<uint32_t> jz_pwm_render_step(const NoteEvent* events, int n_events,
     if (active == 0 || total_ms <= 0)
         return words;
 
-    total_ms = std::min(total_ms, static_cast<float>(p.max_note_ms));
-    size_t n = static_cast<size_t>(total_ms * p.carrier_hz / 1000.0);
-    n = std::max(n, p.word_align);
+    /* Render the step at its TRUE duration, then tile that content out
+     * to the audible floor - a 6 ms theme tick cannot be reproduced
+     * duty-encoded (rig-measured), but its tone repeated for the floor
+     * is both audible and honest to the note's content. */
+    long floor_ms = p.min_note_ms;
+    long cap_ms = p.max_note_ms;
+    long play_ms = std::clamp((long)total_ms, floor_ms, cap_ms);
+    size_t n_true = static_cast<size_t>(total_ms * p.carrier_hz / 1000.0);
+    n_true = std::max(n_true, p.word_align);
+    n_true -= n_true % p.word_align;
+    size_t n = static_cast<size_t>(play_ms * p.carrier_hz / 1000.0);
     n -= n % p.word_align;
 
     const long period = static_cast<long>(p.clock_hz / p.carrier_hz);
     if (period < 4)
         return words;
 
-    words.reserve(n);
-    for (size_t i = 0; i < n; ++i) {
+    std::vector<uint32_t> rendered;
+    rendered.reserve(std::min(n, n_true));
+    for (size_t i = 0; i < n_true; ++i) {
         float mix = 0;
 
         for (int v = 0; v < n_events && v < kVoices; ++v)
@@ -77,7 +86,30 @@ std::vector<uint32_t> jz_pwm_render_step(const NoteEvent* events, int n_events,
         long on = static_cast<long>(period * (0.5 + p.duty_swing * mix));
         on = std::clamp(on, 1L, period - 1L);
         /* upper 16 bits: inactive counts; lower 16: active counts */
-        words.push_back(static_cast<uint32_t>(((period - on) << 16) | on));
+        rendered.push_back(static_cast<uint32_t>(((period - on) << 16) | on));
+    }
+
+    words.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+        words.push_back(rendered[i % n_true]);
+
+    /* Peak-normalize to the full duty swing. Theme velocities and sustain
+     * levels leave the effective modulation far under this transducer's
+     * audible floor - every rig-verified sound used the full +-40% swing.
+     * A one-shot UI sound has no dynamic-range budget worth preserving. */
+    const long half = period / 2;
+    const long full = (long)(period * p.duty_swing);
+    long peak = 0;
+    for (uint32_t w : words)
+        peak = std::max(peak, std::abs((long)(w & 0xffff) - half));
+    if (peak > 0 && peak < full) {
+        double gain = (double)full / peak;
+        for (auto& w : words) {
+            long on = (long)(w & 0xffff);
+            long dev = (long)std::lround((on - half) * gain);
+            on = std::clamp(half + dev, 1L, period - 1L);
+            w = (uint32_t)(((period - on) << 16) | on);
+        }
     }
     return words;
 }
@@ -154,7 +186,9 @@ void JzPwmSoundBackend::flush_step() {
     float ms = 0;
     for (const NoteEvent& e : pending_)
         ms = std::max(ms, e.duration_ms);
-    ms = std::min(ms, static_cast<float>(params_.max_note_ms));
+    /* match the renderer's floor/cap so --ms equals the buffer's length */
+    ms = std::clamp(ms, static_cast<float>(params_.min_note_ms),
+                    static_cast<float>(params_.max_note_ms));
 
     std::string ms_flag = "--ms=" + std::to_string(static_cast<long>(ms));
     std::string prescale_flag = "--prescale=" + std::to_string(kPrescale);
@@ -167,10 +201,13 @@ void JzPwmSoundBackend::flush_step() {
 
     pid_t pid = fork();
     if (pid == 0) {
-        int devnull = open("/dev/null", O_WRONLY);
-        if (devnull >= 0) {
-            dup2(devnull, STDOUT_FILENO);
-            dup2(devnull, STDERR_FILENO);
+        /* Child diagnostics land in a log, not /dev/null: a silently
+         * dying child is indistinguishable from an inaudible one, and
+         * the rig proved that difference matters. */
+        int log = open("/tmp/jz-child.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (log >= 0) {
+            dup2(log, STDOUT_FILENO);
+            dup2(log, STDERR_FILENO);
         }
         execv(fx_pwm_.c_str(), argv.data());
         _exit(127);

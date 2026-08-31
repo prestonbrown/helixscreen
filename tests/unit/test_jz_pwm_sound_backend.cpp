@@ -38,12 +38,41 @@ static long inactive_of(uint32_t w) {
 
 TEST_CASE("render: word count tracks duration at the carrier rate", "[sound][jz]") {
     JzPwmRenderParams p;
-    NoteEvent e = plain_note(1000, 100);
+    NoteEvent e = plain_note(1000, 500); // above the floor: true length
 
     auto words = jz_pwm_render_step(&e, 1, p);
-    // 100 ms at 32768 Hz = 3276.8 words, rounded down to a multiple of 4
-    REQUIRE(words.size() == 3276);
+    // 500 ms at 32768 Hz = 16384 words, already a multiple of 4
+    REQUIRE(words.size() == 16384);
     REQUIRE(words.size() % p.word_align == 0);
+}
+
+TEST_CASE("render: short steps tile out to the audible floor", "[sound][jz]") {
+    JzPwmRenderParams p;
+    NoteEvent e = plain_note(4000, 6); // the theme's 6 ms button_tap tick
+
+    auto words = jz_pwm_render_step(&e, 1, p);
+    size_t floor_words = (size_t)(p.min_note_ms * p.carrier_hz / 1000.0);
+    floor_words -= floor_words % p.word_align;
+    REQUIRE(words.size() == floor_words);
+    // the content is the 6 ms render REPEATED, not a stretched envelope
+    size_t period_words = (size_t)(6 * p.carrier_hz / 1000.0);
+    period_words -= period_words % p.word_align;
+    REQUIRE(period_words > 0);
+    REQUIRE(words[0] == words[period_words]);
+}
+
+TEST_CASE("render: quiet notes are peak-normalized to full swing", "[sound][jz]") {
+    JzPwmRenderParams p;
+    NoteEvent e = plain_note(1000, 100, 0.15f); // whisper velocity
+
+    auto words = jz_pwm_render_step(&e, 1, p);
+    const long period = (long)(p.clock_hz / p.carrier_hz);
+    const long half = period / 2;
+    long peak = 0;
+    for (uint32_t w : words)
+        peak = std::max(peak, std::abs((long)(w & 0xffff) - half));
+    // within 1 count of the full +-40% target once normalized
+    REQUIRE(peak >= (long)(period * p.duty_swing) - 1);
 }
 
 TEST_CASE("render: duration is capped at the wedge-safe maximum", "[sound][jz]") {
