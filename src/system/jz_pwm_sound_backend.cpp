@@ -215,6 +215,17 @@ void JzPwmSoundBackend::flush_step() {
 
     pid_t pid = fork();
     if (pid == 0) {
+        /* Child hygiene before exec: dispositions set to SIG_IGN and
+         * blocked signals both SURVIVE execv. An ignored SIGALRM would
+         * neuter fx-pwm's watchdog and a blocked mask would make a hung
+         * child unkillable - reset both so the child sees the defaults
+         * tone_player's children always had. */
+        sigset_t empty;
+        sigemptyset(&empty);
+        sigprocmask(SIG_SETMASK, &empty, nullptr);
+        signal(SIGALRM, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+        signal(SIGINT, SIG_DFL);
         /* Child diagnostics land in a log, not /dev/null: a silently
          * dying child is indistinguishable from an inaudible one, and
          * the rig proved that difference matters. */
