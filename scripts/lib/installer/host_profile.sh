@@ -28,7 +28,13 @@ _HELIX_HOST_PROFILE_SOURCED=1
 # namespace must not depend on either. Adding a new mod location means adding
 # it to BOTH lists -- one without the other is either a path the guard does
 # not recognize or a path the probe can never find.
-HELIX_MOD_PAYLOAD="${HELIX_MOD_PAYLOAD:-}"
+# Blank at source time on purpose: this variable is the ONE switch that arms
+# the mod-owned destruct exemption (host_mod_destruct_blocked below), so it
+# must never be inherited from the environment - a stale HELIX_MOD_PAYLOAD=1
+# exported by an old self-update or a user shell would silently license every
+# destructive step against the mod's tree. parse_installer_args in main.sh,
+# reached only via the --mod-payload argument, is the sole legitimate setter.
+HELIX_MOD_PAYLOAD=""
 
 HOST_MOD_ROOT=""
 HOST_MOD_CHROOT=""

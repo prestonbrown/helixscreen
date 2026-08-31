@@ -449,9 +449,19 @@ uninstall() {
     # is removed.
     undo_seeded_settings
 
+    # --mod-payload: this uninstall's one install target is the mod's payload
+    # root (HELIX_INSTALL_DIRS gains it via helix_install_dirs_for_run below).
+    # Restore the mod's display mode FIRST - while the payload is still in
+    # place, the rig is never left with neither UI nor a restore record.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        if type uninstall_forgex >/dev/null 2>&1; then
+            uninstall_forgex || true
+        fi
+    fi
+
     # Remove installation (check all possible locations)
     local removed_dir=""
-    for install_dir in $HELIX_INSTALL_DIRS; do
+    for install_dir in $(helix_install_dirs_for_run); do
         if [ -d "$install_dir" ]; then
             # A mod-owned entry belongs to the firmware mod, not to this
             # uninstall — skip it (a hard exit here would strand the rest of
@@ -597,8 +607,11 @@ clean_old_installation() {
     # Stop any running services
     stop_service
 
-    # Remove installation directories (check all possible locations)
-    for install_dir in $HELIX_INSTALL_DIRS; do
+    # Remove installation directories (check all possible locations). The
+    # payload-mode list adds the mod's payload root via
+    # helix_install_dirs_for_run; the mod-owned skip below exempts only the
+    # flag-armed run, so --clean without --mod-payload cannot touch it.
+    for install_dir in $(helix_install_dirs_for_run); do
         if [ -d "$install_dir" ]; then
             # Same ownership rule as uninstall()'s sweep: never rm -rf a
             # mod-owned directory out from under the firmware mod.

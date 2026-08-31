@@ -24,6 +24,18 @@ _HELIX_COMMON_SOURCED=1
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
+# HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the mod's
+# payload root joins the list - it is the run's one install target - and the
+# sweeps' mod-owned skip (host_mod_destruct_blocked) exempts exactly the
+# flag-armed run, so a plain uninstall still leaves the mod's tree alone.
+helix_install_dirs_for_run() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_INSTALL_ROOT:-}" ]; then
+        echo "$HELIX_INSTALL_DIRS $HOST_INSTALL_ROOT"
+    else
+        echo "$HELIX_INSTALL_DIRS"
+    fi
+}
+
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
 # shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh

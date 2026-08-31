@@ -46,6 +46,18 @@ PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen 
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
+# HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the mod's
+# payload root joins the list - it is the run's one install target - and the
+# sweeps' mod-owned skip (host_mod_destruct_blocked) exempts exactly the
+# flag-armed run, so a plain uninstall still leaves the mod's tree alone.
+helix_install_dirs_for_run() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_INSTALL_ROOT:-}" ]; then
+        echo "$HELIX_INSTALL_DIRS $HOST_INSTALL_ROOT"
+    else
+        echo "$HELIX_INSTALL_DIRS"
+    fi
+}
+
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
 # shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh
@@ -607,7 +619,13 @@ print_post_install_commands() {
 # namespace must not depend on either. Adding a new mod location means adding
 # it to BOTH lists -- one without the other is either a path the guard does
 # not recognize or a path the probe can never find.
-HELIX_MOD_PAYLOAD="${HELIX_MOD_PAYLOAD:-}"
+# Blank at source time on purpose: this variable is the ONE switch that arms
+# the mod-owned destruct exemption (host_mod_destruct_blocked below), so it
+# must never be inherited from the environment - a stale HELIX_MOD_PAYLOAD=1
+# exported by an old self-update or a user shell would silently license every
+# destructive step against the mod's tree. parse_installer_args in main.sh,
+# reached only via the --mod-payload argument, is the sole legitimate setter.
+HELIX_MOD_PAYLOAD=""
 
 HOST_MOD_ROOT=""
 HOST_MOD_CHROOT=""
@@ -1481,11 +1499,14 @@ detect_tmp_dir() {
     if [ -n "${TMP_DIR_PREFERRED:-}" ]; then
         # Name-guard it like any other TMP_DIR: whatever wins here is rm -rf'd
         # on exit, so a declared root that is a bare mountpoint (the /mnt/UDISK
-        # incident shape) must be dropped rather than staged into.
-        if _user_dir_name_ok "$TMP_DIR_PREFERRED" '*helixscreen-install*' '.helix-update-staging'; then
-            candidates="$TMP_DIR_PREFERRED"
-        else
+        # incident shape) must be dropped rather than staged into. Mod-owned is
+        # dropped for the same reason as the candidate loop below.
+        if ! _user_dir_name_ok "$TMP_DIR_PREFERRED" '*helixscreen-install*' '.helix-update-staging'; then
             log_warn "Ignoring TMP_DIR_PREFERRED='$TMP_DIR_PREFERRED' (not an installer scratch dir name)"
+        elif host_path_is_mod_owned "$TMP_DIR_PREFERRED"; then
+            log_warn "Ignoring TMP_DIR_PREFERRED='$TMP_DIR_PREFERRED' (inside the firmware mod's tree)"
+        else
+            candidates="$TMP_DIR_PREFERRED"
         fi
     fi
     if [ -n "${INSTALL_DIR:-}" ]; then
@@ -1503,6 +1524,14 @@ detect_tmp_dir() {
     candidates="$candidates /user-resource/helixscreen-install /data/helixscreen-install /mnt/data/helixscreen-install /usr/data/helixscreen-install /var/tmp/helixscreen-install /tmp/helixscreen-install"
 
     for candidate in $candidates; do
+        # Never AUTO-stage inside the mod's tree, in any mode: the scratch dir
+        # is untracked in their git repo, so their OTA's git clean removes it
+        # mid-run, and the installer's own cleanup rm -rf's it later. This is
+        # our choice, not the operator's, so the next candidate simply wins -
+        # a user-set TMP_DIR keeps its explicit --mod-payload exemption in
+        # validate_tmp_dir instead.
+        host_path_is_mod_owned "$candidate" && continue
+
         local check_dir
         check_dir=$(dirname "$candidate")
 
@@ -3958,6 +3987,17 @@ install_service_sysv() {
 start_service() {
     local platform=${1:-}
 
+    # Keyed on the HOST CAPABILITY, not on --mod-payload: a plain install at
+    # an operator-chosen INSTALL_DIR on a mod host runs the whole install and
+    # would otherwise die here at start_service_sysv's missing-init-script
+    # exit - after which the error names a script this host never had and the
+    # .old backups sit uncollected. The mod owns the UI service; there is
+    # nothing for us to start, in either mode.
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        log_info "mod manages the UI service (forge-x); skipping service start"
+        return 0
+    fi
+
     if [ "$platform" = "snapmaker-u1" ]; then
         start_service_snapmaker_u1
         return
@@ -4837,6 +4877,19 @@ configure_moonraker_updates() {
     # ZMOD chroot, which ships Mainsail/Fluidd.
     if [ "$platform" = "ad5m" ]; then
         log_info "Skipping Moonraker update_manager on AD5M (typically no web UI)"
+        return 0
+    fi
+
+    # --mod-payload writes NOTHING to any Moonraker conf unless the operator
+    # opted in with --mod-payload-updates. The stanza arms Moonraker's
+    # NetDeploy against `path:` (its update flow rmtree()s the path), and on a
+    # mod host the payload's lifecycle belongs to the mod's OTA, not to a
+    # second updater. With the opt-in the stanza lands in the mod's
+    # user.moonraker.conf - find_moonraker_conf's mod-host answer - never in
+    # the mod's git-tracked conf.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" != "1" ]; then
+        log_info "--mod-payload: skipping Moonraker update_manager"
+        log_info "(pass --mod-payload-updates to write the stanza into the mod's user.moonraker.conf)"
         return 0
     fi
 
@@ -6328,9 +6381,19 @@ uninstall() {
     # is removed.
     undo_seeded_settings
 
+    # --mod-payload: this uninstall's one install target is the mod's payload
+    # root (HELIX_INSTALL_DIRS gains it via helix_install_dirs_for_run below).
+    # Restore the mod's display mode FIRST - while the payload is still in
+    # place, the rig is never left with neither UI nor a restore record.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        if type uninstall_forgex >/dev/null 2>&1; then
+            uninstall_forgex || true
+        fi
+    fi
+
     # Remove installation (check all possible locations)
     local removed_dir=""
-    for install_dir in $HELIX_INSTALL_DIRS; do
+    for install_dir in $(helix_install_dirs_for_run); do
         if [ -d "$install_dir" ]; then
             # A mod-owned entry belongs to the firmware mod, not to this
             # uninstall — skip it (a hard exit here would strand the rest of
@@ -6476,8 +6539,11 @@ clean_old_installation() {
     # Stop any running services
     stop_service
 
-    # Remove installation directories (check all possible locations)
-    for install_dir in $HELIX_INSTALL_DIRS; do
+    # Remove installation directories (check all possible locations). The
+    # payload-mode list adds the mod's payload root via
+    # helix_install_dirs_for_run; the mod-owned skip below exempts only the
+    # flag-armed run, so --clean without --mod-payload cannot touch it.
+    for install_dir in $(helix_install_dirs_for_run); do
         if [ -d "$install_dir" ]; then
             # Same ownership rule as uninstall()'s sweep: never rm -rf a
             # mod-owned directory out from under the firmware mod.

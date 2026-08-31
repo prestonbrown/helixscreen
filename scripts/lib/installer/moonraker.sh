@@ -616,6 +616,19 @@ configure_moonraker_updates() {
         return 0
     fi
 
+    # --mod-payload writes NOTHING to any Moonraker conf unless the operator
+    # opted in with --mod-payload-updates. The stanza arms Moonraker's
+    # NetDeploy against `path:` (its update flow rmtree()s the path), and on a
+    # mod host the payload's lifecycle belongs to the mod's OTA, not to a
+    # second updater. With the opt-in the stanza lands in the mod's
+    # user.moonraker.conf - find_moonraker_conf's mod-host answer - never in
+    # the mod's git-tracked conf.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" != "1" ]; then
+        log_info "--mod-payload: skipping Moonraker update_manager"
+        log_info "(pass --mod-payload-updates to write the stanza into the mod's user.moonraker.conf)"
+        return 0
+    fi
+
     log_info "Configuring Moonraker update_manager..."
 
     # Write release_info.json if not already present (fallback for older tarballs)

@@ -772,11 +772,14 @@ detect_tmp_dir() {
     if [ -n "${TMP_DIR_PREFERRED:-}" ]; then
         # Name-guard it like any other TMP_DIR: whatever wins here is rm -rf'd
         # on exit, so a declared root that is a bare mountpoint (the /mnt/UDISK
-        # incident shape) must be dropped rather than staged into.
-        if _user_dir_name_ok "$TMP_DIR_PREFERRED" '*helixscreen-install*' '.helix-update-staging'; then
-            candidates="$TMP_DIR_PREFERRED"
-        else
+        # incident shape) must be dropped rather than staged into. Mod-owned is
+        # dropped for the same reason as the candidate loop below.
+        if ! _user_dir_name_ok "$TMP_DIR_PREFERRED" '*helixscreen-install*' '.helix-update-staging'; then
             log_warn "Ignoring TMP_DIR_PREFERRED='$TMP_DIR_PREFERRED' (not an installer scratch dir name)"
+        elif host_path_is_mod_owned "$TMP_DIR_PREFERRED"; then
+            log_warn "Ignoring TMP_DIR_PREFERRED='$TMP_DIR_PREFERRED' (inside the firmware mod's tree)"
+        else
+            candidates="$TMP_DIR_PREFERRED"
         fi
     fi
     if [ -n "${INSTALL_DIR:-}" ]; then
@@ -794,6 +797,14 @@ detect_tmp_dir() {
     candidates="$candidates /user-resource/helixscreen-install /data/helixscreen-install /mnt/data/helixscreen-install /usr/data/helixscreen-install /var/tmp/helixscreen-install /tmp/helixscreen-install"
 
     for candidate in $candidates; do
+        # Never AUTO-stage inside the mod's tree, in any mode: the scratch dir
+        # is untracked in their git repo, so their OTA's git clean removes it
+        # mid-run, and the installer's own cleanup rm -rf's it later. This is
+        # our choice, not the operator's, so the next candidate simply wins -
+        # a user-set TMP_DIR keeps its explicit --mod-payload exemption in
+        # validate_tmp_dir instead.
+        host_path_is_mod_owned "$candidate" && continue
+
         local check_dir
         check_dir=$(dirname "$candidate")
 

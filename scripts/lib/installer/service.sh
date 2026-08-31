@@ -387,6 +387,17 @@ install_service_sysv() {
 start_service() {
     local platform=${1:-}
 
+    # Keyed on the HOST CAPABILITY, not on --mod-payload: a plain install at
+    # an operator-chosen INSTALL_DIR on a mod host runs the whole install and
+    # would otherwise die here at start_service_sysv's missing-init-script
+    # exit - after which the error names a script this host never had and the
+    # .old backups sit uncollected. The mod owns the UI service; there is
+    # nothing for us to start, in either mode.
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        log_info "mod manages the UI service (forge-x); skipping service start"
+        return 0
+    fi
+
     if [ "$platform" = "snapmaker-u1" ]; then
         start_service_snapmaker_u1
         return

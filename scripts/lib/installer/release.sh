@@ -1426,6 +1426,78 @@ preserve_payload_env() {
     return 0
 }
 
+# --mod-payload's in-place content replacement.
+#
+# The payload root itself is never moved or removed: inside the mod's tree it
+# is untracked-but-theirs (their OTA and their bootstrap both know the path),
+# and under --mod-payload-root it is the operator's chosen root. Only the
+# root's CHILDREN are replaced, and config/ and platform/ survive wholesale -
+# config/ holds the operator's runtime configuration (preserve_payload_env's
+# byte-identical contract) and platform/ holds the deployed hooks the mod's
+# launcher sources; both are re-merged, never swapped.
+#
+# Args: NEW_ROOT (the extracted tree) DEST_ROOT (the live payload root).
+# Returns 0 on success; 1 aborts the install (the caller exits).
+payload_replace_contents() {
+    local new_root="$1" dest_root="$2"
+    local item base
+
+    mkdir -p "$dest_root"
+
+    # Out with the old payload's children, config/ and platform/ excepted.
+    # A failed rm must abort: mv below cannot overwrite a non-empty dir.
+    for item in "$dest_root"/* "$dest_root"/.*; do
+        [ -e "$item" ] || continue
+        base=$(basename "$item")
+        case "$base" in
+            .|..|config|platform) continue ;;
+        esac
+        if ! rm -rf "$item"; then
+            log_error "Failed to remove old payload entry: $base"
+            return 1
+        fi
+    done
+
+    # In with the new, same two exceptions.
+    for item in "$new_root"/* "$new_root"/.*; do
+        [ -e "$item" ] || continue
+        base=$(basename "$item")
+        case "$base" in
+            .|..|config|platform) continue ;;
+        esac
+        if ! mv "$item" "$dest_root/$base"; then
+            log_error "Failed to install payload entry: $base"
+            return 1
+        fi
+    done
+
+    # Merge the incoming config/ defaults without overwriting operator files
+    # - the same rule the read-only-parent in-place update applies: only
+    # entries the payload does not already have land, and directories present
+    # on both sides merge at file level.
+    if [ -d "$new_root/config" ]; then
+        local subitem subbase
+        mkdir -p "$dest_root/config"
+        for item in "$new_root/config"/*; do
+            [ -e "$item" ] || continue
+            base=$(basename "$item")
+            if [ ! -e "$dest_root/config/$base" ]; then
+                mv "$item" "$dest_root/config/$base" 2>/dev/null || true
+                log_info "Added new payload config default: $base"
+            elif [ -d "$item" ] && [ -d "$dest_root/config/$base" ]; then
+                for subitem in "$item"/*; do
+                    [ -e "$subitem" ] || continue
+                    subbase=$(basename "$subitem")
+                    if [ ! -e "$dest_root/config/$base/$subbase" ]; then
+                        mv "$subitem" "$dest_root/config/$base/$subbase" 2>/dev/null || true
+                    fi
+                done
+            fi
+        done
+    fi
+    return 0
+}
+
 # Extract archive with atomic swap and rollback protection.
 # Dispatches on _ARCHIVE_FORMAT for zip vs tar.gz. Expects the archive already
 # staged at _archive_tmp_path() by download_release() or use_local_tarball().
@@ -1554,6 +1626,24 @@ extract_release() {
     PAYLOAD_ENV_PRESERVED=0
     if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
         preserve_payload_env "$new_install" "$INSTALL_DIR"
+    fi
+
+    # --mod-payload: replace the payload root's contents in place and stop
+    # here. Everything below (backup/swap, config restore, legacy-file prune)
+    # is the standalone-install contract; the payload root must never be mv'd
+    # aside or rm -rf'd as a whole, so none of it may run in this mode.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        [ -d "${INSTALL_DIR}" ] && ORIGINAL_INSTALL_EXISTS=true
+        if ! payload_replace_contents "$new_install" "${INSTALL_DIR}"; then
+            log_error "Payload update failed at ${INSTALL_DIR}; entries already replaced are gone."
+            cd / 2>/dev/null || true
+            rm -rf "$extract_dir"
+            exit 1
+        fi
+        cd / 2>/dev/null || true
+        rm -rf "$extract_dir"
+        log_success "Payload contents replaced in place at ${INSTALL_DIR}"
+        return 0
     fi
 
     # Phase 4: Backup existing installation (if present)
@@ -1894,9 +1984,14 @@ extract_release() {
     # exact old default, so users who deliberately set a different value keep
     # their customization.
     #
-    # A payload-preserved env (mod host) is exempt: it is the operator's own
-    # file, kept byte-identical by contract — see preserve_payload_env.
+    # A mod-managed host never runs it: the env there is the rig's own runtime
+    # configuration regardless of what this payload shipped, so the HOST
+    # CAPABILITY is the gate. Keying on PAYLOAD_ENV_PRESERVED alone left a
+    # payload whose archive shipped no env (preserve_payload_env returns
+    # before setting it) letting the migration rewrite the operator's
+    # restored env.
     if [ "${PAYLOAD_ENV_PRESERVED:-0}" != "1" ] \
+        && [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ] \
         && [ -f "$_env_dest" ] \
         && grep -q '^HELIX_LOG_LEVEL=info[[:space:]]*$' "$_env_dest"; then
         $(file_sudo "$_env_dest") sed -i 's/^HELIX_LOG_LEVEL=info[[:space:]]*$/#HELIX_LOG_LEVEL=info/' "$_env_dest" 2>/dev/null && \
