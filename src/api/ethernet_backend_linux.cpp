@@ -1,7 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#if !defined(__ANDROID__)
+// Linux-only backend: the shared ethernet:: classifiers it calls are compiled
+// out on non-Linux targets (see ethernet_backend.cpp), so this TU must be too.
+#if !defined(__ANDROID__) && !defined(__APPLE__)
 
 #include "ethernet_backend_linux.h"
 
@@ -189,4 +191,4 @@ EthernetInfo EthernetBackendLinux::get_info() {
     return info;
 }
 
-#endif // !__ANDROID__
+#endif // !__ANDROID__ && !__APPLE__

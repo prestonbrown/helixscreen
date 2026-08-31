@@ -7,7 +7,9 @@
 #include "netd_protocol.h"
 #include "spdlog/spdlog.h"
 
-#if !defined(__ANDROID__)
+// Linux-only backend: falls back to an EthernetBackendLinux instance and the
+// ethernet:: sysfs classifiers, both compiled out on non-Linux targets.
+#if !defined(__ANDROID__) && !defined(__APPLE__)
 
 namespace {
 
@@ -123,4 +125,4 @@ EthernetInfo EthernetBackendNetd::get_info() {
     return info;
 }
 
-#endif // !__ANDROID__
+#endif // !__ANDROID__ && !__APPLE__

@@ -30,7 +30,8 @@
 
 #include "../catch_amalgamated.hpp"
 
-#if !defined(__ANDROID__)
+// Subject TU is Linux-only (ethernet_backend_netd.cpp guards __APPLE__ too).
+#if !defined(__ANDROID__) && !defined(__APPLE__)
 
 namespace {
 namespace fs = std::filesystem;
@@ -363,4 +364,4 @@ TEST_CASE_METHOD(EthernetNetdFixture, "netd ethernet factory selects the netd ba
     REQUIRE(info.ip_address == "10.0.0.7");
 }
 
-#endif // !__ANDROID__
+#endif // !__ANDROID__ && !__APPLE__
