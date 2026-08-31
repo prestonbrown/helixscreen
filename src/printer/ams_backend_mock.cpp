@@ -4,7 +4,9 @@
 #include "ams_backend_mock.h"
 
 #include "afc_defaults.h"
+#if HELIX_HAS_SNAPMAKER
 #include "ams_backend_snapmaker.h"
+#endif
 #include "ams_bypass_policy.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
@@ -2466,6 +2468,18 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
 
 void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     std::lock_guard<std::mutex> lock(mutex_);
+#if !HELIX_HAS_SNAPMAKER
+    // Backend compiled out (device targets set HELIX_HAS_SNAPMAKER=0): snapmaker
+    // emulation delegates to the real backend's statics for command fidelity,
+    // so it cannot run here. Refuse the mode rather than emulate a shape the
+    // real firmware would not produce.
+    if (enabled) {
+        spdlog::warn(
+            "[AMS Mock] Snapmaker mode refused: backend not compiled in (HELIX_HAS_SNAPMAKER=0)");
+    }
+    snapmaker_mode_ = false;
+    return;
+#endif
     snapmaker_mode_ = enabled;
     if (!enabled) {
         return;
@@ -3395,10 +3409,14 @@ std::string AmsBackendMock::build_preprint_gcode(const std::set<int>& tools_used
     if (!snapmaker) {
         return "";
     }
+#if HELIX_HAS_SNAPMAKER
     // The real builder, not a re-implementation of it: the mock exists to
     // rehearse what the printer will be sent, so a divergence here would be a
     // test rig teaching the wrong command format.
     return AmsBackendSnapmaker::preprint_gcode(tools_used, remap);
+#else
+    return ""; // Unreachable: set_snapmaker_mode() refuses the mode when gated out.
+#endif
 }
 
 std::vector<int> AmsBackendMock::get_tool_mapping() const {
@@ -3410,12 +3428,16 @@ std::vector<int> AmsBackendMock::get_tool_mapping() const {
     }
 
     if (snapmaker_mode_) {
+#if HELIX_HAS_SNAPMAKER
         // The real gate, not a re-implementation of it — same reason
         // build_preprint_gcode() delegates to the real builder. Without it the
         // mock published the attachment map as this print's routing, and
         // FilamentMapper::effective_routing() believes any non-empty answer.
         return AmsBackendSnapmaker::task_routing(snapmaker_extruders_used_,
                                                  snapmaker_extruder_map_);
+#else
+        return {}; // Unreachable: set_snapmaker_mode() refuses the mode when gated out.
+#endif
     }
 
     return slots_.build_system_info().tool_to_slot_map;
@@ -3424,7 +3446,11 @@ std::vector<int> AmsBackendMock::get_tool_mapping() const {
 helix::FirmwareRouting AmsBackendMock::firmware_default_routing() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (snapmaker_mode_) {
+#if HELIX_HAS_SNAPMAKER
         return AmsBackendSnapmaker::default_routing();
+#endif
+        // Unreachable: set_snapmaker_mode() refuses the mode when the backend
+        // is compiled out, so fall through to the lane-per-tool answer.
     }
     // Every other mode this mock emulates is lane-per-tool.
     return AmsBackend::firmware_default_routing();

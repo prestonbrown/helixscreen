@@ -1849,8 +1849,8 @@ Where the override lands, by backend:
 | AD5X IFS | Hardcoded `false` (`ams_backend_ad5x_ifs.cpp:137`) - no bypass is fitted | yes | Writes `external=1`, but the false capability keeps every caller from offering it |
 | Happy Hare | Runtime from `[mmu_machine] has_bypass`; `false` until first status | Only when `has_bypass: 0` | Consults `bypass_available_for()`; `MMU_SELECT_BYPASS` runs |
 | CFS | Converges on first full box frame: true (Fork: + payload `external` entry) | no | Consults `bypass_available_for()` — real `T<external>` on Fork, sensor-derived declaration on stock |
-| ACE | Hardcoded `false` (`ams_backend_ace.cpp:44`) | yes | `not_supported` |
-| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:240`) | yes | `not_supported` |
+| ACE | Hardcoded `false` (`ams_backend_ace.cpp:45`) | yes | `not_supported` |
+| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:241`) | yes | `not_supported` |
 | Tool Changer | Hardcoded `false` (`:31`) | yes | `not_supported` |
 | QIDI Box | Hardcoded `false` (`:193`) | yes | `not_supported` |
 

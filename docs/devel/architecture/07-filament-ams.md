@@ -74,14 +74,14 @@ The eight concrete classes, one file each:
 |---------|------|--------|
 | `AmsBackendHappyHare` | [`include/ams_backend_happy_hare.h:43`](../../../include/ams_backend_happy_hare.h#L43) | Happy Hare MMU (mmu object, MMU_GATE_MAP) |
 | `AmsBackendAfc` | [`include/ams_backend_afc.h:143`](../../../include/ams_backend_afc.h#L143) | AFC-Klipper-Add-On (lanes, hubs, `lane_data`) |
-| `AmsBackendAce` | [`include/ams_backend_ace.h:46`](../../../include/ams_backend_ace.h#L46) | Anycubic ACE Pro (ValgACE/BunnyACE/DuckACE) |
+| `AmsBackendAce` | [`include/ams_backend_ace.h:47`](../../../include/ams_backend_ace.h#L47) | Anycubic ACE Pro (ValgACE/BunnyACE/DuckACE) |
 | `AmsBackendCfs` | [`include/ams_backend_cfs.h:127`](../../../include/ams_backend_cfs.h#L127) | Creality Filament System (K2, RS-485 boxes) |
 | `AmsBackendAd5xIfs` | [`include/ams_backend_ad5x_ifs.h:101`](../../../include/ams_backend_ad5x_ifs.h#L101) | FlashForge AD5X Intelligent Filament Switching |
-| `AmsBackendSnapmaker` | [`include/ams_backend_snapmaker.h:68`](../../../include/ams_backend_snapmaker.h#L68) | Snapmaker U1 native SnapSwap |
-| `AmsBackendQidi` | [`include/ams_backend_qidi.h:48`](../../../include/ams_backend_qidi.h#L48) | QIDI Box (PLUS4/Q2/MAX4) — a stub, per its own header |
+| `AmsBackendSnapmaker` | [`include/ams_backend_snapmaker.h:69`](../../../include/ams_backend_snapmaker.h#L69) | Snapmaker U1 native SnapSwap |
+| `AmsBackendQidi` | [`include/ams_backend_qidi.h:49`](../../../include/ams_backend_qidi.h#L49) | QIDI Box (PLUS4/Q2/MAX4) — a stub, per its own header |
 | `AmsBackendToolChanger` | [`include/ams_backend_toolchanger.h:50`](../../../include/ams_backend_toolchanger.h#L50) | viesturz/klipper-toolchanger |
 
-`AmsType` ([`include/ams_types.h:42`](../../../include/ams_types.h#L42)) enumerates them plus `NONE`. The single place an `AmsType` becomes a class is `AmsBackend::create(AmsType, api, client)` ([`src/printer/ams_backend.cpp:625`](../../../src/printer/ams_backend.cpp#L625)); mock mode (`RuntimeConfig::should_mock_ams()`) short-circuits to `AmsBackendMock`. This is the vendor rule from chapter 06 working as dispatch: `AmsState`'s header contains vendor names *only in comments*, and a ninth system means one new subclass plus one enum value, factory case, and detection entry — no edits to generic code.
+`AmsType` ([`include/ams_types.h:42`](../../../include/ams_types.h#L42)) enumerates them plus `NONE`. The single place an `AmsType` becomes a class is `AmsBackend::create(AmsType, api, client)` ([`src/printer/ams_backend.cpp:631`](../../../src/printer/ams_backend.cpp#L631)); mock mode (`RuntimeConfig::should_mock_ams()`) short-circuits to `AmsBackendMock`. This is the vendor rule from chapter 06 working as dispatch: `AmsState`'s header contains vendor names *only in comments*, and a ninth system means one new subclass plus one enum value, factory case, and detection entry — no edits to generic code.
 
 Detection feeding that factory is a priority ladder in `PrinterDiscovery::parse_objects()` ([`include/printer_discovery.h:52`](../../../include/printer_discovery.h#L52)): a real MMU (Happy Hare, AFC, AD5X IFS, CFS, ACE, QIDI Box) always wins, then native Snapmaker hardware, then a standalone tool changer. `parse_objects()` ends by calling `AmsState::instance().init_backend_from_hardware()` directly ([`src/printer/printer_discovery.cpp:101`](../../../src/printer/printer_discovery.cpp#L101)); `init_backends_from_hardware()` ([`src/printer/ams_state.cpp:721`](../../../src/printer/ams_state.cpp#L721)) skips mock mode, skips if backends already exist, creates and `start()`s one backend per detected system, then syncs immediately so the `ams_slot_count` gate lights up without waiting for the first async event (`:762`).
 

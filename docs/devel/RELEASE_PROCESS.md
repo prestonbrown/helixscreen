@@ -137,7 +137,7 @@ git push origin v1.2.0
 
 2. **Bump `VERSION.txt` and add the CHANGELOG entry, in one `chore(release):` commit.**
    `VERSION.txt` is the source of truth for the built binary (`Makefile:195`,
-   `mk/cross.mk:2452`) - the version does **not** come from the git tag. Tagging
+   `mk/cross.mk:2489`) - the version does **not** come from the git tag. Tagging
    without bumping the file ships a binary that reports the previous version.
    - `echo "X.Y.Z" > VERSION.txt`
    - Add the release section to `CHANGELOG.md` above the previous one
