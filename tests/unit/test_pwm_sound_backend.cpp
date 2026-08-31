@@ -273,6 +273,21 @@ TEST_CASE("PWM backend initializes with valid sysfs paths", "[sound][pwm]") {
     cleanup_mock_sysfs(base);
 }
 
+TEST_CASE("set_render_source is refused before initialize", "[sound][pwm]") {
+    // Starting the render thread without initialize() would park into a
+    // memset on an empty probe buffer and leave a joinable thread behind
+    // shutdown()'s !initialized_ early return (std::terminate in the
+    // destructor). The call must refuse instead.
+    PWMSoundBackend backend("/nonexistent-sysfs", 0, 6);
+    REQUIRE_FALSE(backend.initialize());
+
+    std::atomic<int> calls{0};
+    backend.set_render_source([&](float*, size_t, int) { calls.fetch_add(1); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    REQUIRE(calls.load() == 0);    // no render thread ever started
+    backend.clear_render_source(); // safe no-op, joins nothing
+}
+
 TEST_CASE("PWM backend fails to initialize with missing sysfs paths", "[sound][pwm]") {
     PWMSoundBackend backend("/tmp/nonexistent_pwm_path_12345", 0, 6);
     REQUIRE_FALSE(backend.initialize());
@@ -920,7 +935,11 @@ TEST_CASE("non-zero buffer resets the silence run", "[sound][pwm]") {
             // Hold inside the 6th buffer's render call: buffers 0-4 are fully
             // processed (run == 2), and buffer 5 cannot complete or park
             // while gated, so the mid-run assertions below are deterministic.
-            while (!gate_open.load()) {
+            // The wait is bounded so that if a REQUIRE below fails on a
+            // starved runner, unwinding joins a render call that completes,
+            // instead of hanging the shard forever.
+            int spins = 0;
+            while (!gate_open.load() && ++spins < 30000) { // ~3 s at 100 us
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
         }

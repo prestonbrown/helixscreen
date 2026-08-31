@@ -359,6 +359,14 @@ void PWMSoundBackend::set_waveform(Waveform w) {
 // ============================================================================
 
 void PWMSoundBackend::set_render_source(std::function<void(float*, size_t, int)> fn) {
+    if (!initialized_) {
+        // The render buffers are sized in initialize(); a thread started
+        // without them would park into a memset on an empty probe buffer,
+        // and shutdown()'s !initialized_ early-return would leave that
+        // thread joinable at destruction. Refuse instead.
+        spdlog::warn("[PWMSoundBackend] set_render_source before initialize() - ignoring");
+        return;
+    }
     {
         std::lock_guard<std::mutex> lock(render_source_mutex_);
         render_source_ = std::move(fn);

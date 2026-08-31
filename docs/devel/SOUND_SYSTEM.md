@@ -117,7 +117,7 @@ Tone efficiency: the fallback re-sends the same note every tracker tick, so `set
 
 ### PWM PCM machinery (dormant)
 
-The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:481`):
+The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:489`):
 
 - **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h:90`).
 - **62.5 kHz carrier**, above the audible range; each sample becomes a duty-cycle value within that period (`PCM_CARRIER_HZ`).

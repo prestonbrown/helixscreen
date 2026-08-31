@@ -251,6 +251,30 @@ TEST_CASE("TrackerPlayer silences the backend when the module ends", "[tracker][
     REQUIRE_FALSE(backend->voices[0].active);
 }
 
+TEST_CASE("TrackerPlayer silences the backend when an order entry is invalid",
+          "[tracker][player]") {
+    // A truncated/corrupt module can carry an order entry past the pattern
+    // list (the loader clamps num_patterns without rewriting the order
+    // table). process_row stops the player on that bounds check; this pins
+    // that the stop's silence survives the rest of the tick - the old fall-
+    // through re-emitted the still-armed channel with playing_ false.
+    auto backend = std::make_shared<TrackerMockBackend>(/*voices=*/1);
+    auto player = make_player(backend);
+
+    auto pat = empty_pattern(1);
+    pat[0] = {58, 1, 0x00, 0x00}; // A-4 on the only row of pattern 0
+
+    // order: pattern 0, then pattern 99 (does not exist)
+    player->load(make_module({0, 99}, {pat}, 1, /*speed=*/1));
+    player->play();
+    REQUIRE(backend->voices[0].active);
+
+    fire_one_tick(*player); // row 0 wraps -> order 1 -> invalid pattern
+
+    REQUIRE_FALSE(player->is_playing());
+    REQUIRE_FALSE(backend->voices[0].active);
+}
+
 TEST_CASE("TrackerPlayer row advances after speed ticks", "[tracker][player]") {
     auto backend = std::make_shared<TrackerMockBackend>();
     auto player = make_player(backend);

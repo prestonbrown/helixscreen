@@ -83,6 +83,12 @@ void TrackerPlayer::tick(float dt_ms) {
             if (!playing_.load(std::memory_order_relaxed))
                 break;
             process_row();
+            // process_row's bounds checks can stop the player (an order entry
+            // past the clamped pattern list). stop() has already silenced the
+            // backend; falling through would re-emit still-armed channels with
+            // playing_ false, and the next tick's early return silences nothing.
+            if (!playing_.load(std::memory_order_relaxed))
+                break;
         }
 
         process_tick_effects();
