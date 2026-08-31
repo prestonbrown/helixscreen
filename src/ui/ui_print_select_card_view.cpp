@@ -68,17 +68,12 @@ bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_c
     }
 
     if (container_ != container) {
-        if (container_) {
-            // A different container means the tree the pool was built under is
-            // gone (hot-reload rebuild deletes and re-creates the widget tree
-            // on the same surviving panel). Cached pointers would dangle. Unhook
-            // the old net: rebuild deletes the old subtree on the DEFERRED
-            // path, so it may still fire one tick from now — after this view
-            // has already moved on — and must not wipe the fresh pool.
-            lv_obj_remove_event_cb_with_user_data(container_, on_container_delete, this);
-            clear_cached_state();
-        }
-        lv_obj_add_event_cb(container, on_container_delete, LV_EVENT_DELETE, this);
+        // A different container means the tree the pool was built under is
+        // gone (hot-reload rebuild deletes and re-creates the widget tree on
+        // the same surviving panel). Cached pointers would dangle. The net
+        // unhooks the old container itself and runs the destroyed hook (the
+        // pool wipe) before this view adopts the new tree.
+        retarget_container_net(container);
     }
 
     container_ = container;
@@ -132,29 +127,15 @@ void PrintSelectCardView::clear_cached_state() {
     last_trailing_height_ = -1;
 }
 
-void PrintSelectCardView::on_container_delete(lv_event_t* e) {
-    auto* self = static_cast<PrintSelectCardView*>(lv_event_get_user_data(e));
-    if (!self) {
-        return;
-    }
-    // The callback dies with the container, so nothing to remove here — just
-    // drop the cached pointers before they dangle (prestonbrown/helixscreen#1396).
-    // Guarded: a deferred subtree deletion can land after setup() already
-    // re-pointed this view at a replacement tree, and that late fire must not
-    // wipe the new pool.
-    if (self->container_ != lv_event_get_target(e)) {
-        return;
-    }
-    self->container_ = nullptr;
-    self->clear_cached_state();
+void PrintSelectCardView::on_netted_container_destroyed() {
+    container_ = nullptr;
+    clear_cached_state();
 }
 
 void PrintSelectCardView::cleanup() {
     // Remove the delete net first when the container still outlives this view,
     // so it can never fire into a destroyed owner.
-    if (container_) {
-        lv_obj_remove_event_cb_with_user_data(container_, on_container_delete, this);
-    }
+    detach_container_net();
     clear_cached_state();
     container_ = nullptr;
     spdlog::debug("[PrintSelectCardView] cleanup()");
