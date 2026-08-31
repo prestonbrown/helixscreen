@@ -192,6 +192,19 @@ void SpoolmanPanel::on_deactivate() {
 // ============================================================================
 
 void SpoolmanPanel::refresh_spools() {
+    // A queued archive/delete/duplicate completion refetches the GLOBAL panel
+    // and calls this; when that drain lands after fixture teardown ran
+    // StaticPanelRegistry::destroy_all(), the getter has lazily resurrected a
+    // shell whose init_subjects() never ran. Writing panel_state_subject_ on
+    // that shell walks whatever recycled bytes the heap returned — in the
+    // #1402 crashes they passed the INT type check and lv_subject_notify
+    // segfaulted on an ASCII "pointer". Same guard shape as #1393: no-op
+    // until the panel is live. Production never tears panels down mid-process,
+    // so the shell only exists in tests.
+    if (!are_subjects_initialized()) {
+        return;
+    }
+
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::warn("[{}] No API available, cannot refresh", get_name());

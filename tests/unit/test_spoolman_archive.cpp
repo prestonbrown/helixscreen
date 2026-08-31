@@ -24,6 +24,7 @@
 #include "spoolman_types.h"
 
 #include <algorithm>
+#include <cstring>
 #include <optional>
 #include <vector>
 
@@ -213,4 +214,28 @@ TEST_CASE("context menu offers Archive for a non-active spool", "[spoolman][arch
     SpoolmanPanelTestAccess::hide_context_menu(panel);
     f.process_lvgl(50);
     lv_obj_delete(row);
+}
+
+TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolman][1402]") {
+    SpoolmanArchiveFixture f;
+
+    // A shell exactly like the one get_global_spoolman_panel() resurrects
+    // after StaticPanelRegistry::destroy_all() freed the previous test's
+    // panel: constructed, but init_subjects() never ran.
+    SpoolmanPanel shell;
+
+    // The recycled-heap bytes its uninitialized subject carries in the crash:
+    // the type field reads as INT (ASCII '2' landed on it) while the
+    // observer-list head is a pointer made of name-string bytes.
+    SpoolmanPanelTestAccess::poison_state_subject_as_uninitialized(shell);
+    const lv_subject_t before = SpoolmanPanelTestAccess::state_subject(shell);
+
+    // The queued archive callback's refetch path: refresh_spools() on the
+    // shell. Before the guard this wrote the uninitialized subject and
+    // segfaulted inside lv_subject_notify (~5/16 [spoolman] runs under load);
+    // it must refuse the work instead.
+    SpoolmanPanelTestAccess::refresh_spools(shell);
+
+    REQUIRE(0 == std::memcmp(&before, &SpoolmanPanelTestAccess::state_subject(shell),
+                             sizeof(lv_subject_t)));
 }
