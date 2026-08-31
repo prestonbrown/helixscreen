@@ -294,12 +294,17 @@ bool available() {
 }
 
 int connect_unix(const std::string& path, int timeout_ms, std::string* error_out) {
-    const int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
         if (error_out)
             *error_out = std::string("socket(): ") + std::strerror(errno);
         return -1;
     }
+    // SOCK_NONBLOCK as a socket() flag is a Linux-only extension; fcntl is
+    // the portable form of the same state.
+    const int flags = ::fcntl(fd, F_GETFL, 0);
+    if (flags >= 0)
+        (void)::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     if (path.size() >= sizeof(addr.sun_path)) {
