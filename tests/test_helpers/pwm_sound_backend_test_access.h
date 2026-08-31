@@ -59,6 +59,12 @@ class PWMSoundBackendTestAccess {
         return b.duty_write_count_.load();
     }
 
+    /// Tone sysfs write batches emitted by set_tone() — one per call that
+    /// actually writes (deduped re-emits are not counted).
+    static uint64_t tone_writes(const PWMSoundBackend& b) {
+        return b.tone_write_count_.load();
+    }
+
     /// Policy the render thread managed to apply (SCHED_IDLE on success,
     /// -1 when the kernel refused). Unprivileged sandboxes may refuse.
     static int applied_sched_policy(const PWMSoundBackend& b) {

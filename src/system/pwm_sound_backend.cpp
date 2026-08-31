@@ -258,6 +258,14 @@ void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cyc
     float ratio = waveform_duty_ratio(current_wave_);
     uint32_t duty_ns = static_cast<uint32_t>(static_cast<float>(period_ns) * ratio * amplitude);
 
+    // Dedup: the sequencer re-sends the same note every tick, so a held
+    // tone would otherwise rewrite sysfs hundreds of times per second
+    // (mirrors M300SoundBackend::last_freq_). Keyed on the written values
+    // and only while the channel is already emitting; silence() clears it.
+    if (enabled_ && period_ns == last_tone_period_ns_ && duty_ns == last_tone_duty_ns_) {
+        return;
+    }
+
     if (fd_duty_ >= 0) {
         if (!enabled_) {
             // First tone: set up from scratch
@@ -285,6 +293,10 @@ void PWMSoundBackend::set_tone(float freq_hz, float amplitude, float /* duty_cyc
             enabled_ = true;
         }
     }
+
+    last_tone_period_ns_ = period_ns;
+    last_tone_duty_ns_ = duty_ns;
+    tone_write_count_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void PWMSoundBackend::silence() {
@@ -297,6 +309,13 @@ void PWMSoundBackend::silence() {
         return;
     }
 
+    // Already off: the tracker fallback calls silence_voice(0) every tick
+    // through rests, so without this guard a rest rewrites enable ~500x/s
+    // (M300SoundBackend guards its silence the same way).
+    if (!enabled_) {
+        return;
+    }
+
     if (fd_enable_ >= 0) {
         sysfs_write_fd(fd_enable_, 0);
     } else {
@@ -304,6 +323,10 @@ void PWMSoundBackend::silence() {
         std::ofstream(path + "/enable") << "0";
     }
     enabled_ = false;
+
+    // Channel is off — the next set_tone must emit, even for the same tone
+    last_tone_period_ns_ = 0;
+    last_tone_duty_ns_ = 0;
 }
 
 void PWMSoundBackend::set_waveform(Waveform w) {

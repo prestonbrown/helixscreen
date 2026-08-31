@@ -90,28 +90,34 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 |---------|-----------|-----------|--------|-----------|-------------|-------|
 | SDL     | yes       | yes       | yes    | yes       | 1.0         | Full synthesis: 4 waveforms, biquad filter, 64-sample buffer (~1.5ms) |
 | ALSA    | yes       | yes       | yes    | yes       | 1.0         | Same synthesis as SDL, hardware-negotiated buffer size |
-| PWM     | no*       | yes       | no     | no        | 2.0         | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. Also a PCM render source for tracker playback on ad5m -- see below |
+| PWM     | no*       | yes       | no     | no        | 2.0         | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. Tracker playback on ad5m rides the same tone path (PC-speaker mode, below) |
 | M300    | no        | no        | no     | no        | 50.0        | Frequency only, 100-10000 Hz, deduplicates commands; sequencer drives per-tick |
 
 *PWM `supports_waveforms()` returns `false`, but `set_waveform()` stores the waveform internally to adjust the duty cycle ratio: Square=50%, Saw=25%, Triangle=35%, Sine=40%. This gives perceptually different timbres even on a single-pin buzzer.
 
-### PWM PCM mode (ad5m)
+### PWM tracker playback: PC-speaker mode (ad5m)
 
-The PWM backend is not limited to tone mode: `supports_render_source()` returns true once `initialize()` succeeds (`include/pwm_sound_backend.h:45`), so the tracker player streams its mixed samples through the same single sysfs channel by modulating the duty cycle of a fixed carrier. That is how tracker playback (MOD/MED music) reaches the AD5M's buzzer. The Makefile gates this to `PLATFORM_TARGET=ad5m` (`HELIX_HAS_TRACKER` + `HELIX_PWM_AUTO_EXPORT`; ad5m-br and ad5x stay tone-only pending hardware validation).
+`supports_render_source()` returns **false** on PWM, so tracker playback (MOD/MED music) routes through the note fallback: `TrackerPlayer::apply_to_backend()` computes each channel's note frequency (`3546895 / period`) and calls `set_voice()`, whose base implementation forwards slot 0 to `set_tone()` -- the channel-0 lead line as note-frequency square waves, PC-speaker style. Channels 1-3 are dropped (single sysfs channel), and instrument samples are not reproduced (their note pitches are).
 
-The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:440`):
+This is a hardware verdict, not a preference: verified on an AD5M Pro 2026-08-30, the buzzer is a resonant piezo with no reconstruction filter, so a duty-modulated carrier demodulates as static -- an audible beat, not music. Note-frequency square waves are what the transducer is built for.
 
-- **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h:76`).
+**Known limitation**: while a tracker melody plays, tone SFX are dropped (the sound manager only layers SFX under a tracker on render-source backends); ALARM-priority sounds still stop the tracker and reclaim the channel.
+
+Tone efficiency: the fallback re-sends the same note every tracker tick, so `set_tone()` deduplicates held tones (keyed on the written period/duty values, mirroring `M300SoundBackend::last_freq_`), and `silence()` guards against the per-tick rest spam (the fallback calls `silence_voice(0)` every ~2 ms through rests). The Makefile gates tracker to `PLATFORM_TARGET=ad5m` (`HELIX_HAS_TRACKER` + `HELIX_PWM_AUTO_EXPORT`; ad5m-br and ad5x stay tone-SFX-only pending hardware validation).
+
+### PWM PCM machinery (dormant)
+
+The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:463`):
+
+- **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h:82`).
 - **62.5 kHz carrier**, above the audible range; each sample becomes a duty-cycle value within that period (`PCM_CARRIER_HZ`).
 - **Render thread at SCHED_IDLE + 1 ns timerslack** (`apply_render_thread_priority()`). SCHED_IDLE means the thread runs only when nothing else wants the CPU, so its pacing can never starve klippy, and setting it needs no privileges. Timerslack affects the relative polls only (the 1 ms no-source poll, the 10 ms park poll) -- the sample loop paces with `TIMER_ABSTIME`, which timerslack does not touch.
 - **Absolute pacing with a 20 µs spin budget** -- sleep (`TIMER_ABSTIME`) to each sample deadline minus 20 µs, then spin the final stretch. This absorbs hrtimer wake lateness without burning real CPU (`PCM_SPIN_BUDGET_NS`).
 - **Bounded catch-up** -- more than 2 samples late snaps the sample clock forward (resync) instead of bursting the missed writes. The burst is what starved klippy under the old loop (`PCM_CATCHUP_MAX_SAMPLES`).
 - **Silence auto-park** -- 8 consecutive exactly-silent buffers (~512 ms at 64 ms/buffer) park the channel (duty 0, enable 0) and drop to a 10 ms poll. Each poll pulls an 80-frame probe (10 ms @ 8 kHz) from the render source at 1x real time and resumes the moment real audio shows up (`PCM_PARK_SILENT_BUFFERS`, `park_probe_frames()`).
-- **Channel auto-export** -- the stock AD5M kernel ships the beeper channel unexported; nothing materializes pwm6 until `initialize()` writes the channel number to `pwmchip0/export` (`HELIX_PWM_AUTO_EXPORT`, ad5m/ad5m-br only).
+- **Channel auto-export** -- the stock AD5M kernel ships the beeper channel unexported; nothing materializes pwm6 until `initialize()` writes the channel number to `pwmchip0/export` (`HELIX_PWM_AUTO_EXPORT`, ad5m/ad5m-br only). This one is live for tone mode too: without it the backend never initializes and the AD5M has no audio at all after boot.
 
-History: PCM playback was disabled 2026-04 (003c195ac) because the render loop's busy-wait at normal priority starved the single-core CPU; re-enabled ad5m-only after the SCHED_IDLE rewrite (b8c141b4a).
-
-**Known limitation**: while the PCM render thread runs, tone SFX are dropped -- the single channel cannot do both (`set_tone()` returns early while `render_running_`, `src/system/pwm_sound_backend.cpp:236`). ALARM-priority sounds stop the tracker and reclaim the channel.
+History: PCM playback was disabled 2026-04 (003c195ac) because the render loop's busy-wait at normal priority starved the single-core CPU; rewritten printer-safe (b8c141b4a) and verified harmless on-device 2026-08-30 -- then retired from active use the same day by the transducer verdict above.
 
 ---
 

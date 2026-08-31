@@ -554,6 +554,71 @@ TEST_CASE("Repeated set_tone does not re-write enable if already enabled", "[sou
 }
 
 // ============================================================================
+// Tone-mode only (PC-speaker mode)
+// ============================================================================
+
+TEST_CASE("PWM backend does not advertise a PCM render source", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    // Hardware-verified on the AD5M Pro: the resonant piezo cannot demodulate
+    // duty-modulated PCM — PWM is tone-only and tracker melodies use the
+    // set_voice note fallback.
+    REQUIRE(backend.supports_render_source() == false);
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("set_tone dedups identical consecutive tones", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    uint64_t after_first = PWMSoundBackendTestAccess::tone_writes(backend);
+    REQUIRE(after_first >= 1);
+
+    // Identical re-emit — the sequencer does this every tick on a held
+    // note; the sysfs writes must be skipped.
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first);
+
+    // Changed frequency writes again
+    backend.set_tone(880.0f, 0.8f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 1);
+
+    // Same frequency, different amplitude -> different duty -> writes again
+    backend.set_tone(880.0f, 0.4f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 2);
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("set_tone re-emits after silence resets dedup", "[sound][pwm]") {
+    auto base = create_mock_sysfs(0, 6);
+    std::string pwm_dir = base + "/pwmchip0/pwm6";
+    PWMSoundBackend backend(base, 0, 6);
+    REQUIRE(backend.initialize());
+
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    uint64_t after_first = PWMSoundBackendTestAccess::tone_writes(backend);
+    REQUIRE(after_first >= 1);
+
+    // Channel off — the dedup key must clear with it
+    backend.silence();
+    REQUIRE(read_sysfs_file(pwm_dir + "/enable") == "0");
+
+    // The same tone has to emit again (first-tone path, enable re-write)
+    backend.set_tone(440.0f, 0.8f, 0.5f);
+    REQUIRE(PWMSoundBackendTestAccess::tone_writes(backend) == after_first + 1);
+    REQUIRE(backend.is_enabled());
+    REQUIRE(read_sysfs_file(pwm_dir + "/enable") == "1");
+
+    cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
 // Frequency changes update period correctly
 // ============================================================================
 
@@ -941,8 +1006,11 @@ TEST_CASE("render loop paces near 8 kHz with real clock", "[sound][pwm][slow]") 
     backend.clear_render_source();
 
     // 0.5 s at 8 kHz = 4000 writes. Far undershooting means over-sleeping;
-    // overshooting means the deadline pacing broke and the loop bursts.
-    REQUIRE(writes >= 2500);
+    // overshooting means the deadline pacing broke and the loop bursts. The
+    // generous lower bound: the thread is SCHED_IDLE, so a heavily loaded
+    // host legitimately starves it well below real time (observed once under
+    // 19 concurrent compiles); 1500 still proves pacing vs an unpaced burst.
+    REQUIRE(writes >= 1500);
     REQUIRE(writes <= 9000);
 
     cleanup_mock_sysfs(base);

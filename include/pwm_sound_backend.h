@@ -42,8 +42,14 @@ class PWMSoundBackend : public SoundBackend {
     float min_tick_ms() const override;
 
     // PCM render source support (tracker playback via duty cycle modulation)
+    //
+    // Hardware-verified 2026-08-30 on the AD5M Pro: the buzzer is a resonant
+    // piezo with no reconstruction filter, so a duty-modulated carrier
+    // demodulates as static, not audio. PWM is tone-only; tracker playback
+    // uses the set_voice note fallback. The PCM render machinery below stays
+    // for hardware that can demodulate it (documented, tested, dormant here).
     bool supports_render_source() const override {
-        return initialized_;
+        return false;
     }
     void set_render_source(std::function<void(float*, size_t, int)> fn) override;
     void clear_render_source() override;
@@ -154,6 +160,17 @@ class PWMSoundBackend : public SoundBackend {
     bool enabled_ = false;
     bool initialized_ = false;
     Waveform current_wave_ = Waveform::SQUARE;
+
+    // Tone dedup (mirrors M300SoundBackend::last_freq_): the sequencer
+    // re-sends the same note every tick, so a held tone would otherwise
+    // rewrite sysfs hundreds of times per second. Keyed on the values that
+    // are actually written (period + duty); cleared whenever the channel
+    // goes disabled.
+    uint32_t last_tone_period_ns_ = 0;
+    uint32_t last_tone_duty_ns_ = 0;
+
+    // Tone sysfs write batches emitted by set_tone (tests)
+    std::atomic<uint64_t> tone_write_count_{0};
 
     // PCM render state
     std::function<void(float*, size_t, int)> render_source_;
