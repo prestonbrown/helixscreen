@@ -452,3 +452,62 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     CHECK(ThermistorTestAccess::carousel_name_label(*widget, 0) == nullptr);
     CHECK(ThermistorTestAccess::carousel_name_label(*widget, 1) == nullptr);
 }
+
+// ============================================================================
+// Rebuild early-returns must drop the cached pill/label containers first
+// ============================================================================
+
+// rebuild_pills() early-returns on "container not found" BEFORE clearing
+// pill_buttons_. If the lookup fails while widget_obj_ is still non-null, the
+// list keeps pointers to widgets a previous rebuild already condemned, and
+// refresh_print_gating() runs unchecked lv_obj_add_state()/lv_obj_remove_state()
+// over them — same freed-heap write the field crash bracketed, reached without
+// a tree deletion at all.
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "tool_switcher rebuild_pills with an unresolvable container leaves pill_buttons_ "
+                 "empty",
+                 "[tool_switcher][teardown]") {
+    configure_tools(3);
+    AttachedToolSwitcher attached(*this);
+    REQUIRE(ToolSwitcherTestAccess::pills(*attached.widget).size() == 3);
+
+    // Break the container lookup while widget_obj_ stays non-null.
+    lv_obj_t* container = lv_obj_find_by_name(attached.tile, "tool_switcher_container");
+    REQUIRE(container != nullptr);
+    lv_obj_delete(container);
+
+    attached.widget->on_size_changed(2, 2, 400, 400); // -> rebuild_pills()
+
+    CHECK(ToolSwitcherTestAccess::pills(*attached.widget).empty());
+}
+
+// rebuild_compact() has the same early return and left compact_label_ pointing
+// at the previous build's label, which refresh_print_gating() then restyles.
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "tool_switcher rebuild_compact with an unresolvable container drops the compact "
+                 "label",
+                 "[tool_switcher][teardown]") {
+    configure_tools(3);
+    auto widget = std::make_unique<ToolSwitcherWidget>(state());
+    lv_obj_t* page = make_page();
+    lv_obj_t* tile = make_tile(page, "panel_widget_tool_switcher");
+    widget->attach(tile, test_screen());
+    UpdateQueue::instance().drain();
+
+    // Compact mode (both axes under the W_NORMAL/H_TALL floors) caches the
+    // label rebuild_compact() goes on to restyle.
+    lv_obj_set_size(tile, 100, 100);
+    lv_obj_update_layout(tile);
+    widget->on_size_changed(1, 1, 100, 100);
+    UpdateQueue::instance().drain();
+    REQUIRE(ToolSwitcherTestAccess::compact_label(*widget) != nullptr);
+
+    lv_obj_t* container = lv_obj_find_by_name(tile, "tool_switcher_container");
+    REQUIRE(container != nullptr);
+    lv_obj_delete(container);
+
+    widget->on_size_changed(1, 1, 100, 100); // -> rebuild_compact()
+
+    CHECK(ToolSwitcherTestAccess::compact_label(*widget) == nullptr);
+    CHECK(ToolSwitcherTestAccess::pills(*widget).empty());
+}

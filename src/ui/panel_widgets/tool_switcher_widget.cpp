@@ -243,6 +243,14 @@ void ToolSwitcherWidget::rebuild_for_settled_grid_size() {
 // ============================================================================
 
 void ToolSwitcherWidget::rebuild_pills() {
+    // Drop the cached pills before anything below can early-return. If the
+    // container lookup fails while widget_obj_ is still set, the list would
+    // keep pointers to widgets a previous rebuild already condemned, and
+    // refresh_print_gating() would run unchecked lv_obj_add_state()/
+    // lv_obj_remove_state() over them.
+    pill_buttons_.clear();
+    compact_label_ = nullptr;
+
     if (!widget_obj_)
         return;
 
@@ -252,8 +260,6 @@ void ToolSwitcherWidget::rebuild_pills() {
         return;
     }
 
-    pill_buttons_.clear();
-    compact_label_ = nullptr;
     helix::ui::safe_clean_children(container);
 
     // Neutralize any grid layout left active by a previous rebuild before we
@@ -421,6 +427,13 @@ void ToolSwitcherWidget::on_active_tool_changed(int tool_index) {
 // ============================================================================
 
 void ToolSwitcherWidget::rebuild_compact() {
+    // Drop the cached pills/label before anything below can early-return, for
+    // the same reason as rebuild_pills(): a failed container lookup must not
+    // leave compact_label_ pointing at the previous build's (condemned) label,
+    // which refresh_print_gating() would then restyle.
+    pill_buttons_.clear();
+    compact_label_ = nullptr;
+
     if (!widget_obj_)
         return;
 
@@ -430,7 +443,6 @@ void ToolSwitcherWidget::rebuild_compact() {
         return;
     }
 
-    pill_buttons_.clear();
     helix::ui::safe_clean_children(container);
 
     auto& tool_state = ToolState::instance();
