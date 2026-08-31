@@ -511,3 +511,35 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     CHECK(ToolSwitcherTestAccess::compact_label(*widget) == nullptr);
     CHECK(ToolSwitcherTestAccess::pills(*widget).empty());
 }
+
+// ============================================================================
+// Grid descriptors must not outlive the container that reads them
+// ============================================================================
+
+// lv_obj_set_grid_dsc_array() stores the descriptor pointers WITHOUT copying,
+// so the container keeps reading grid_col_dsc_/grid_row_dsc_ out of the widget.
+// rebuild_pills() .assign()s those vectors, freeing the old buffer — which a
+// CONDEMNED container from a previous attach (reparented to lv_layer_top by
+// safe_clean_children, deleted async) still holds in LV_LAYOUT_GRID. The
+// in-rebuild LV_LAYOUT_NONE mitigation does not cover that cross-attach window;
+// stripping the layout in detach() — which every reachable condemnation
+// precedes — makes a condemned container structurally unable to read the
+// descriptors again (the #983 mitigation PanelWidgetManager applies to the page
+// container).
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "tool_switcher detaches its container from the grid before it is condemned",
+                 "[tool_switcher][teardown]") {
+    configure_tools(3);
+    AttachedToolSwitcher attached(*this);
+
+    lv_obj_t* container = lv_obj_find_by_name(attached.tile, "tool_switcher_container");
+    REQUIRE(container != nullptr);
+    // Two pill rows for three tools at 400px: the rebuild must have left the
+    // container in LV_LAYOUT_GRID holding the widget's descriptor buffers, or
+    // the detach check below would pass for the wrong reason.
+    REQUIRE(lv_obj_get_style_layout(container, LV_PART_MAIN) == LV_LAYOUT_GRID);
+
+    attached.widget->detach();
+
+    CHECK(lv_obj_get_style_layout(container, LV_PART_MAIN) == LV_LAYOUT_NONE);
+}

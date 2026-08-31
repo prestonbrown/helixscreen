@@ -151,6 +151,21 @@ void ToolSwitcherWidget::detach() {
     tool_count_observer_.reset();
     print_state_observer_.reset();
     uninstall_delete_hook();
+
+    // #983 shape: lv_obj_set_grid_dsc_array() stores the descriptor pointers
+    // without copying, so a condemned container still in LV_LAYOUT_GRID keeps
+    // reading grid_col_dsc_/grid_row_dsc_ after a recycled instance's next
+    // rebuild_pills() .assign() frees the old buffer (safe_clean_children
+    // reparents the tile to lv_layer_top and deletes it async, leaving exactly
+    // that cross-attach window). detach() precedes every reachable
+    // condemnation, so stripping the layout here makes a condemned container
+    // structurally unable to read the descriptors again — the same mitigation
+    // PanelWidgetManager applies to the page container. rebuild_pills()
+    // re-establishes the grid when it rebuilds one.
+    if (size_watch_container_ && lv_is_initialized()) {
+        lv_obj_set_layout(size_watch_container_, LV_LAYOUT_NONE);
+    }
+
     forget_tile_widgets();
     if (s_active_instance == this) {
         s_active_instance = nullptr;
