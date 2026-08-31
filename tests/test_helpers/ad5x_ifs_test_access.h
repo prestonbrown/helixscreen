@@ -33,6 +33,13 @@ class Ad5xIfsTestAccess {
     static void handle_status(AmsBackendAd5xIfs& b, const json& n) {
         b.handle_status_update(n);
     }
+    // Standalone IFS module surface (ifs / ifs_materials objects).
+    static bool module_live(const AmsBackendAd5xIfs& b) {
+        return b.ifs_module_live_.load();
+    }
+    static std::string normalize_module_color(const std::string& value) {
+        return AmsBackendAd5xIfs::normalize_module_color_hex(value);
+    }
     static void parse_vars(AmsBackendAd5xIfs& b, const json& v) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.parse_save_variables(v);

@@ -1,7 +1,9 @@
 # AD5X IFS (FlashForge Adventurer 5X) Filament Backend
 
 The FlashForge Adventurer 5X 4-lane Intelligent Filament Switching (IFS) system runs on
-a separate STM32 MCU and is supported through ZMOD firmware (v1.7.0+). Topology is
+a separate STM32 MCU and is supported on two firmwares: ZMOD (v1.7.0+) and the
+standalone IFS module extracted from it (ships in Forge-X — see "The standalone IFS
+module" below). Topology is
 `PathTopology::LINEAR` - the four ports merge at a single combiner before the toolhead.
 
 ## AD5X IFS (FlashForge Adventurer 5X)
@@ -19,6 +21,49 @@ The AD5X has a 4-lane Intelligent Filament Switching (IFS) system controlled by 
 IFS is detected via `filament_switch_sensor _ifs_port_sensor_{1-4}` or `filament_motion_sensor _ifs_motion_sensor_{1-4}` in `printer.objects.list`. The leading space in sensor names is intentional — it's a Klipper object naming convention.
 
 Detection is gated by `!has_mmu_` — if Happy Hare or AFC is already detected, IFS sensors are ignored (priority: HH > AFC > IFS).
+
+### The standalone IFS module (Forge-X)
+
+The IFS logic was extracted from zmod into a drop-in module (Python plugins plus
+one gcode file; ships in Forge-X, runs on any klipper host). It speaks a
+first-class Moonraker surface, and the backend switches to it wholesale the
+moment a status frame carries either object (`ifs_module_live_`):
+
+| Source | Data |
+|--------|------|
+| `ifs` object | `connected` / `error` / `activity` (`polling`/`ready`/`clamped`/`loading`/`unclamping`/`unloading`/`driver_error`) / `active_channel` (the F13 chan — same stickiness as zmod's Chan) / `loaded_channels` (silk bitmask decoded; the presence authority) / `pending_insert_channels` / `params` |
+| `ifs_materials` object | `slots` dict — STRING keys, `#RRGGBB`/`#RGB` colours, per-material handling `temp` — a view onto the same Adventurer5M.json `zmod_color` reads, re-read on mtime change and pushed as a diff |
+| `save_variables.ifs_loaded` | The module's own success-confirmed lane-in-nozzle record (written at the end of `IFS_LOAD`/`IFS_UNLOAD`, survives restarts). Stronger than `active_channel`, which also tracks cold ejects — the client just reads it |
+| `filament_switch_sensor toolhead` | The module's ADC-classified toolhead switch, registered under a stock name — the head-presence authority (feeds the same `parse_head_sensor` path as zmod's `head_switch_sensor`) |
+
+`loaded_channels` and `active_channel` are folded into the same
+`ZColorSilentResult` the zmod objects and macro responses use, so every seated-
+channel guard, presence corroboration, and external-edit baseline applies
+unchanged. `ifs_loaded` overwrites `seated_chan_` directly.
+
+**Ops and writes route to the module's macros** once live:
+
+| Action | Command |
+|--------|---------|
+| Load | `IFS_LOAD SLOT={n}` (resolves its own heat from the slot's material; self-unloads the outgoing lane) |
+| Toolhead unload | `IFS_UNLOAD SLOT={n}` (bare for "whatever is active" — it defaults from `ifs_loaded`) |
+| Lane eject | `IFS_EJECT SLOT={n}` (replaces the zmod `IFS_F24`/`F11`/`F39` sequence) |
+| Tool change | `T{n}` — the module maps T0..T3 to slots 1..4 itself, so the identity tool map is firmware truth |
+| Material/colour edit | `IFS_SET_MATERIAL SLOT={n} TYPE=… COLOR=7EC8E3` (bare hex — klipper's parser eats `#`; the module re-prefixes) |
+| Fault recovery / abort | `IFS_RESET_DRIVER` / `IFS_STOP` |
+
+**Both ZMOD polls stand down** on the module (this is the #1344 stand-down,
+shipped here because `ifs_loaded` carries what `FFMInfo.channel` was missing on
+the zmod object path): no `Adventurer5M.json` HTTP poll, no `GET_ZCOLOR` /
+`IFS_STATUS` round trips — neither command exists on that firmware, and
+`ifs_materials` pushes file changes by subscription.
+
+The board's `activity` refines `system_info_.action` for ops HelixScreen did
+NOT start (a slicer's `T1`, a console `IFS_LOAD`): `loading`/`unloading` map
+up from IDLE, `ready` settles an untracked busy op back to IDLE, and
+`driver_error` raises ERROR with the module's own error text. Ops we DID start
+are excluded (`phase_tracker_` gate) — the macro-ack finalize and the tracker
+own those, and a polling `ready` frame must never erase a tracked op's HEATING.
 
 ### State Sources
 

@@ -244,11 +244,22 @@ MixedFrame compute_mixed_frame(const RenderCtx& ctx) {
 
     f.entry_y = g.y_off + (int32_t)(g.height * ENTRY_Y);
     f.sensor_y = g.y_off + (int32_t)(g.height * SENSOR_Y);
-    f.hub_cy = g.y_off + (int32_t)(g.height * HUB_Y);
     f.hub_h = LV_MAX(16, (int32_t)(g.height * HUB_H));
-    f.hub_bottom = f.hub_cy + f.hub_h / 2;
     f.toolhead_y = g.y_off + (int32_t)(g.height * TOOLHEAD_Y);
     f.tool_scale = LV_MAX(6, data->theme.extruder_scale * 2 / 3);
+    if (data->hub_on_toolhead) {
+        // Combiner mounted on the print head: the box hugs the toolhead with
+        // only a stub of shared tube below it (a few percent of canvas), and
+        // the merge fan runs the full height to reach it. The stub is measured
+        // from the nozzle glyph's top so the two can never overlap.
+        const int32_t nozzle_top = f.toolhead_y - f.tool_scale * 2;
+        const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
+        f.hub_bottom = nozzle_top - stub;
+        f.hub_cy = f.hub_bottom - f.hub_h / 2;
+    } else {
+        f.hub_cy = g.y_off + (int32_t)(g.height * HUB_Y);
+        f.hub_bottom = f.hub_cy + f.hub_h / 2;
+    }
 
     f.states = compute_slot_render_states(data);
 
@@ -497,6 +508,9 @@ struct LinearHubFrame {
     pg::MergeLaneOut hub_fan[FilamentPathData::MAX_SLOTS];
     int32_t hub_dot_xs[FilamentPathData::MAX_SLOTS] = {};
     int32_t hub_box_w = 0; // widened entry-spread width (HUB box drawn at this)
+    // On-toolhead mode only: the passthrough selector sits where the unit's
+    // box always sat, while the hub box moves down to hug the toolhead.
+    int32_t selector_y = 0;
 
     // Per-slot derived state + the recorded active filament path
     SlotRenderStates states;
@@ -516,9 +530,22 @@ LinearHubFrame compute_linear_hub_frame(const RenderCtx& ctx) {
     f.merge_y = g.y_off + (int32_t)(g.height * MERGE_Y_RATIO);
     f.hub_y = g.y_off + (int32_t)(g.height * HUB_Y_RATIO);
     f.hub_h = (int32_t)(g.height * HUB_HEIGHT_RATIO);
+    f.toolhead_y = g.y_off + (int32_t)(g.height * TOOLHEAD_Y_RATIO);
+    if (data->hub_on_toolhead) {
+        // Passthrough selector + on-head combiner: the selector keeps the
+        // unit's classic position under the lanes, and the hub moves down to
+        // the print head. Below the hub only the short shared stub and the
+        // toolhead sensor remain; every lane tube spans selector->hub.
+        // The selector is part of the unit: butted against the prep sensors,
+        // just under the spools - not floating mid-canvas. Every tube then
+        // spans nearly the whole canvas down to the head.
+        f.selector_y = f.prep_y + (int32_t)(g.height * (HUB_HEIGHT_RATIO / 2 + 0.02f));
+        const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
+        const int32_t hub_bottom = f.toolhead_y - stub;
+        f.hub_y = hub_bottom - f.hub_h / 2;
+    }
     // Output sensor butted directly against hub bottom (mirrors input sensors at hub top)
     f.output_y = f.hub_y + f.hub_h / 2;
-    f.toolhead_y = g.y_off + (int32_t)(g.height * TOOLHEAD_Y_RATIO);
     f.nozzle_y = g.y_off + (int32_t)(g.height * NOZZLE_Y_RATIO);
     f.bypass_merge_y = g.y_off + (int32_t)(g.height * BYPASS_MERGE_Y_RATIO);
     f.center_x = g.center_x;
@@ -650,6 +677,11 @@ void build_linear_hub_merge_fan(const RenderCtx& ctx, LinearHubFrame& f) {
     int fan_n = LV_MIN(data->slot_count, FilamentPathData::MAX_SLOTS);
     for (int i = 0; i < fan_n; i++) {
         int32_t start_y = data->slot_has_prep_sensor[i] ? (f.prep_y + f.sensor_r) : f.prep_y;
+        if (data->hub_on_toolhead) {
+            // The tubes emerge from the selector box's bottom edge, not from
+            // the prep sensors: the selector sits between them and the hub.
+            start_y = f.selector_y + f.hub_h / 2;
+        }
         fan_in[i] = {(float)g.slot_x[i], (float)start_y};
     }
     constexpr int32_t TARGET_ENTRY_SPACING = 22;
@@ -785,6 +817,16 @@ void draw_hub_lane_merge(const RenderCtx& ctx, LinearHubFrame& f, int i, const L
 // sensors); other topologies converge to the center merge point.
 void draw_lane_merge_segment(const RenderCtx& ctx, LinearHubFrame& f, int i, const LaneState& ls) {
     if (ctx.data->topology == 1) {
+        if (ctx.data->hub_on_toolhead) {
+            // Each lane drops straight into the selector's top edge at its
+            // own x - the passthrough: one tube in, the same tube out.
+            LaneStyle st =
+                lane_style(ls.has_filament, ls.lane_color, f.idle_color, f.bg_color, ls.lane_width);
+            int32_t start_y =
+                ctx.data->slot_has_prep_sensor[i] ? (f.prep_y + f.sensor_r) : f.prep_y;
+            draw_lane_vline(ctx.layer, ls.slot_x, start_y, f.selector_y - f.hub_h / 2, st,
+                            (ls.has_filament && ls.is_active_slot) ? &f.active_path : nullptr);
+        }
         draw_hub_lane_merge(ctx, f, i, ls);
     } else if (ctx.data->topology == 0) {
         // LINEAR topology: SELECTOR is butted against prep sensors — no lines between
@@ -993,6 +1035,30 @@ void draw_hub_section(const RenderCtx& ctx, LinearHubFrame& f) {
     }
 
     lv_opa_t hub_opa = (data->topology == 0) ? LV_OPA_60 : LV_OPA_COVER;
+
+    // On-toolhead mode draws the passthrough selector first, in its classic
+    // spot under the lanes, full slot width like LINEAR's selector.
+    int32_t selector_gear_overflow = 0;
+    if (data->hub_on_toolhead) {
+        int32_t sel_w = data->theme.hub_width;
+        if (data->slot_count > 1) {
+            int32_t first_slot_x = g.slot_x[0];
+            int32_t last_slot_x = g.slot_x[data->slot_count - 1];
+            int32_t slot_pad = LV_MAX(data->slot_width, f.sensor_r * 4);
+            sel_w = (last_slot_x - first_slot_x) + slot_pad;
+        }
+        selector_gear_overflow =
+            draw_hub_box(ctx, f.center_x, f.selector_y, sel_w, f.hub_h, hub_bg_tinted,
+                         hub_border_final, "SELECTOR", LV_OPA_60,
+                         /*interactive=*/data->hub_callback != nullptr);
+        // The unit's own box is the management target; the hub on the head is
+        // not a separate control.
+        data->hits.hub = {f.center_x - sel_w / 2, f.selector_y - f.hub_h / 2,
+                          f.center_x + sel_w / 2 + selector_gear_overflow,
+                          f.selector_y + f.hub_h / 2};
+        data->hits.hub_valid = true;
+    }
+
     int32_t gear_overflow =
         draw_hub_box(ctx, f.center_x, f.hub_y, hub_w, f.hub_h, hub_bg_tinted, hub_border_final,
                      hub_label, hub_opa, /*interactive=*/data->hub_callback != nullptr);
@@ -1002,9 +1068,13 @@ void draw_hub_section(const RenderCtx& ctx, LinearHubFrame& f) {
     // this instead of re-deriving geometry that drifts from the render. When
     // the gear is drawn OUTSIDE the box's right edge (label too wide to fit
     // it inside), extend the hit rect rightward so the gear stays tappable.
-    data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
-                      f.center_x + hub_w / 2 + gear_overflow, f.hub_y + f.hub_h / 2};
-    data->hits.hub_valid = true;
+    // On-toolhead mode recorded the SELECTOR box above; the head hub is not a
+    // control, so the last write wins only in the classic single-box layout.
+    if (!data->hub_on_toolhead) {
+        data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
+                          f.center_x + hub_w / 2 + gear_overflow, f.hub_y + f.hub_h / 2};
+        data->hits.hub_valid = true;
+    }
 
     draw_selector_tube(ctx, f);
 }
@@ -1085,11 +1155,19 @@ void draw_output_section(const RenderCtx& ctx, LinearHubFrame& f) {
         output_dot_color = f.error_color;
         output_dot_filled = true;
     }
-    draw_sensor_dot(ctx.layer, f.output_x, f.output_y, output_dot_color, output_dot_filled,
-                    f.sensor_r);
+    if (!data->hub_on_toolhead) {
+        draw_sensor_dot(ctx.layer, f.output_x, f.output_y, output_dot_color, output_dot_filled,
+                        f.sensor_r);
+    }
 
     // When bypass is hidden, output connects directly to toolhead (no merge point gap)
     int32_t output_end_y = data->show_bypass ? f.bypass_merge_y : f.toolhead_y;
+    // On-toolhead the shared stub is one continuous tube: hub bottom, through
+    // the toolhead sensor dot, into the nozzle glyph's inlet. Stopping at the
+    // dot's edge leaves the dot's own diameter - and the undrawn span to the
+    // glyph - reading as a gap in the tube.
+    if (data->hub_on_toolhead)
+        output_end_y = f.nozzle_y;
 
     // No-cap endpoints where buffer segments meet
     int32_t seg_end_y = f.has_buffer ? f.buf_fil_top : (output_end_y - f.sensor_r);
@@ -1101,9 +1179,13 @@ void draw_output_section(const RenderCtx& ctx, LinearHubFrame& f) {
     if (ams_output_active && f.has_error && f.error_seg == PathSegment::OUTPUT) {
         seg_color = f.error_color;
     }
+    // On-toolhead: no output sensor dot sits between hub and toolhead (the
+    // toolhead filament sensor below IS that sensor), so the shared stub is
+    // one tube from the hub's bottom edge straight into the toolhead dot.
+    int32_t seg_start_y = data->hub_on_toolhead ? f.output_y : (f.output_y + f.sensor_r);
     if (data->topology == 0 && f.output_x != f.center_x) {
         // LINEAR with off-center output: orthogonal route from output_x to center_x.
-        int32_t oc_start_y = f.output_y + f.sensor_r;
+        int32_t oc_start_y = seg_start_y;
         LaneStyle st =
             lane_style(ams_output_active, seg_color, f.idle_color, f.bg_color, f.line_active);
         draw_lane_route(ctx.layer, f.output_x, oc_start_y, f.center_x, seg_end_y, FILLET_RADIUS, st,
@@ -1112,7 +1194,7 @@ void draw_output_section(const RenderCtx& ctx, LinearHubFrame& f) {
         // HUB or LINEAR with output at center: straight vertical.
         LaneStyle st =
             lane_style(ams_output_active, seg_color, f.idle_color, f.bg_color, f.line_active);
-        draw_lane_vline(ctx.layer, f.center_x, f.output_y + f.sensor_r, seg_end_y, st,
+        draw_lane_vline(ctx.layer, f.center_x, seg_start_y, seg_end_y, st,
                         ams_output_active ? &f.active_path : nullptr);
     }
 

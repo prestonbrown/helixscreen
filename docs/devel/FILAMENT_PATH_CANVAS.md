@@ -299,7 +299,7 @@ devices without the caller branching.
 ## RenderCtx & Phase Decomposition
 
 The render pass threads a small context through every phase
-(`ui_filament_path_internal.h:383`):
+(`ui_filament_path_internal.h:387`):
 
 ```cpp
 struct RenderCtx {

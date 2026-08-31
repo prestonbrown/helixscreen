@@ -1,0 +1,397 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// The standalone IFS module (the drop-in extracted from zmod; ships in
+// Forge-X) publishes first-class `ifs` / `ifs_materials` get_status() objects
+// and maintains the `ifs_loaded` save_variable its own macros write. These
+// tests pin that the module's frames land through the SAME apply path the
+// zmod objects and macro responses use, that its own macro family
+// (IFS_LOAD / IFS_UNLOAD / IFS_EJECT / IFS_SET_MATERIAL / T<n>) is what the
+// ops dispatch once those objects are live, and that the ZMOD-era polls stand
+// down. Frame shapes are taken from the module's get_status() implementations
+// (ifs.py / ifs_materials.py on feat/ad5x-142).
+
+#include "../lvgl_test_fixture.h"
+#include "ams_backend_ad5x_ifs.h"
+#include "ams_types.h"
+#include "printer_discovery.h"
+#include "test_helpers/ad5x_ifs_test_access.h"
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "../catch_amalgamated.hpp"
+
+using json = nlohmann::json;
+
+namespace {
+
+/// One `ifs` frame. `loaded` is 1-based channel numbers (the module decodes
+/// the silk bitmask to a list); `active` is the F13 chan (1-based, 0 = none).
+json module_ifs_frame(int active, std::vector<int> loaded, const char* activity = "ready") {
+    return json{{"ifs",
+                 {{"connected", true},
+                  {"error", nullptr},
+                  {"channel_count", 4},
+                  {"state", 5},
+                  {"activity", activity},
+                  {"activity_channel", 0},
+                  {"active_channel", active},
+                  {"loaded_channels", loaded},
+                  {"moving_channels", json::array()},
+                  {"pending_insert_channels", json::array()},
+                  {"params", json::object()}}}};
+}
+
+/// One `ifs_materials` frame: STRING slot keys (Moonraker serialises dict
+/// keys that way), '#'-prefixed colours including a 3-digit form, null for an
+/// unlabelled slot, and the purge table the colour-distance scaling emits.
+json module_materials_frame() {
+    return json{{"ifs_materials",
+                 {{"available", true},
+                  {"channel_count", 4},
+                  {"enabled", true},
+                  {"slots",
+                   {{"1", {{"type", "PLA"}, {"color", "#A03CF7"}, {"temp", 220.0}}},
+                    {"2", {{"type", "PETG"}, {"color", "#F80"}, {"temp", 250.0}}},
+                    {"3", {{"type", nullptr}, {"color", nullptr}, {"temp", nullptr}}},
+                    {"4", {{"type", "ABS"}, {"color", "#FFFFFF"}, {"temp", 250.0}}}}},
+                  {"loaded", {{"type", "PLA"}, {"color", "#A03CF7"}, {"temp", 220.0}}},
+                  {"purge_first_mm", {{"1>2", 61.5}, {"2>1", 61.5}}},
+                  {"temperatures", {{"PLA", 220.0}, {"PETG", 250.0}, {"ABS", 250.0}}}}}};
+}
+
+/// Captures issued G-code without a live Moonraker connection, mirroring the
+/// TestableAd5xIfsBackend pattern in test_ams_backend_ad5x_ifs.cpp: the ops
+/// route through the virtual execute_gcode() (or ensure_homed_then() with
+/// toolhead_homed() true, which lands in execute_gcode() all the same).
+class TestableModuleBackend : public AmsBackendAd5xIfs {
+  public:
+    TestableModuleBackend() : AmsBackendAd5xIfs(nullptr, nullptr) {}
+
+    std::vector<std::string> captured_gcodes;
+
+    AmsError execute_gcode(const std::string& gcode) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+    AmsError execute_gcode(const std::string& gcode, std::function<void()>) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+    bool toolhead_homed() const override {
+        return homed;
+    }
+
+    bool homed = true;
+
+    bool has_gcode(const std::string& expected) const {
+        return std::find(captured_gcodes.begin(), captured_gcodes.end(), expected) !=
+               captured_gcodes.end();
+    }
+    bool has_gcode_containing(const std::string& needle) const {
+        for (const auto& g : captured_gcodes) {
+            if (g.find(needle) != std::string::npos)
+                return true;
+        }
+        return false;
+    }
+};
+
+} // namespace
+
+TEST_CASE("AD5X IFS subscribes to the module objects only where they exist",
+          "[ams][ad5x_ifs][ifs_module]") {
+    helix::PrinterDiscovery hw;
+
+    // ZMOD firmware: the module pair is absent and the ask is unchanged.
+    hw.set_printer_objects({"toolhead", "extruder", "save_variables", "zmod_ifs", "zmod_color"});
+    auto zmod = AmsBackendAd5xIfs::required_status_objects(hw);
+    REQUIRE(zmod.size() == 3);
+    CHECK(std::find(zmod.begin(), zmod.end(), "ifs") == zmod.end());
+
+    // Module firmware: zmod's pair is absent, the module's is asked for.
+    hw.set_printer_objects({"toolhead", "extruder", "save_variables", "ifs", "ifs_materials"});
+    auto module = AmsBackendAd5xIfs::required_status_objects(hw);
+    REQUIRE(module.size() == 3);
+    CHECK(std::find(module.begin(), module.end(), "ifs") != module.end());
+    CHECK(std::find(module.begin(), module.end(), "ifs_materials") != module.end());
+}
+
+TEST_CASE("PrinterDiscovery detects the standalone IFS module objects",
+          "[ams][ad5x_ifs][ifs_module]") {
+    SECTION("both objects") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(
+            json::array({"toolhead", "extruder", "save_variables", "ifs", "ifs_materials",
+                         "filament_switch_sensor toolhead", "filament_switch_sensor lane1",
+                         "filament_switch_sensor lane2"}));
+        CHECK(hw.mmu_type() == AmsType::AD5X_IFS);
+        // The objects are state, not sensors — they must not land in the
+        // sensor list FilamentSensorManager reads.
+        const auto& sensors = hw.filament_sensor_names();
+        CHECK(std::find(sensors.begin(), sensors.end(), "ifs") == sensors.end());
+        CHECK(std::find(sensors.begin(), sensors.end(), "ifs_materials") == sensors.end());
+    }
+    SECTION("ifs_materials alone — IFS board unplugged but registry readable") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(json::array({"toolhead", "save_variables", "ifs_materials"}));
+        CHECK(hw.mmu_type() == AmsType::AD5X_IFS);
+    }
+    SECTION("a real MMU outranks the module objects") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(
+            json::array({"toolhead", "save_variables", "mmu", "ifs", "ifs_materials"}));
+        CHECK(hw.mmu_type() == AmsType::HAPPY_HARE);
+    }
+    SECTION("no module objects, no detection") {
+        helix::PrinterDiscovery hw;
+        // A stock-named sensor alone must NOT read as an IFS printer.
+        hw.parse_objects(json::array({"toolhead", "extruder", "filament_switch_sensor toolhead"}));
+        CHECK(hw.mmu_type() == AmsType::NONE);
+    }
+}
+
+TEST_CASE("AD5X IFS owns the module's stock-named sensors", "[ams][ad5x_ifs][ifs_module]") {
+    helix::PrinterDiscovery hw;
+    CHECK(AmsBackendAd5xIfs::owns_filament_sensor("toolhead", hw));
+    CHECK(AmsBackendAd5xIfs::owns_filament_sensor("lane1", hw));
+    CHECK(AmsBackendAd5xIfs::owns_filament_sensor("lane4", hw));
+    // Not every bare name: the claim is shape-exact, and the caller routes on
+    // the detected printer type, so these negatives pin the predicate itself.
+    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("runout_sensor", hw));
+    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("toolhead2", hw));
+    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("lane", hw));
+    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("lanes", hw));
+}
+
+TEST_CASE("AD5X IFS does not latch on a requested-but-missing object echo",
+          "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    // on_started()'s objects.query lists `ifs` / `ifs_materials`
+    // unconditionally, and Klipper echoes a requested-but-missing object as an
+    // EMPTY dict (the key stays present — the same shape the _ifs_vars probe
+    // guards against). On ZMOD firmware that echo must not stand the module
+    // path up: it would retire every ZMOD poll and reroute every op to macros
+    // that firmware does not have.
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"ifs", json::object()}, {"ifs_materials", json::object()}});
+    CHECK_FALSE(Ad5xIfsTestAccess::module_live(backend));
+
+    // A frame with real fields still latches afterwards.
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+    CHECK(Ad5xIfsTestAccess::module_live(backend));
+}
+
+TEST_CASE("AD5X IFS applies a pushed module frame", "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    REQUIRE_FALSE(Ad5xIfsTestAccess::module_live(backend));
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(2, {1, 2}));
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+
+    CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
+    CHECK(Ad5xIfsTestAccess::port_presence(backend, 1));
+    CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 2));
+    CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
+
+    // active_channel is the F13 chan — same seated authority zmod's Chan is.
+    CHECK(backend.get_current_slot() == 1);
+}
+
+TEST_CASE("AD5X IFS installs the identity tool map when the module goes live",
+          "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    REQUIRE(backend.get_slot_info(2).mapped_tool < 0); // plugin-less: unmapped
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+
+    // T0..T3 map to slots 1..4 in the module's own macros.
+    CHECK(backend.get_slot_info(0).mapped_tool == 0);
+    CHECK(backend.get_slot_info(2).mapped_tool == 2);
+    CHECK(backend.get_slot_info(3).mapped_tool == 3);
+}
+
+TEST_CASE("AD5X IFS honors a loaded-only module diff frame", "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(1, {1}));
+    REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
+    REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
+
+    // THE GATE. Moonraker sends only what changed, so a spool going into lane
+    // 4 arrives as loaded_channels alone with no active_channel. Presence
+    // updates must not live inside the channel block's entry condition.
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     json{{"ifs", {{"loaded_channels", json::array({1, 4})}}}});
+
+    CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
+    CHECK(Ad5xIfsTestAccess::port_presence(backend, 3));
+}
+
+TEST_CASE("AD5X IFS applies pushed module materials slots", "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    // Presence first: colours are only trusted for lanes the silk sensors see.
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(1, {1, 2, 3, 4}));
+    Ad5xIfsTestAccess::handle_status(backend, module_materials_frame());
+
+    CHECK(backend.get_slot_info(0).material == "PLA");
+    CHECK(backend.get_slot_info(0).color_rgb == 0xA03CF7);
+    // "#F80" is the 3-digit form the stock UI writes — expanded, not dropped.
+    CHECK(backend.get_slot_info(1).material == "PETG");
+    CHECK(backend.get_slot_info(1).color_rgb == 0xFF8800);
+    // An unlabelled slot is null on the wire, not "?" — either way, no
+    // material renders where the UI should show "--".
+    CHECK(backend.get_slot_info(2).material.empty());
+    CHECK(backend.get_slot_info(3).material == "ABS");
+    CHECK(backend.get_slot_info(3).color_rgb == 0xFFFFFF);
+}
+
+TEST_CASE("AD5X IFS module ifs_loaded is the seated authority", "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    // Latch the module, then deliver the module's own success-confirmed lane
+    // record (SAVE_VARIABLE at the end of IFS_LOAD; survives restarts).
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {3}));
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"save_variables", {{"variables", {{"ifs_loaded", 3}}}}}});
+
+    CHECK(backend.get_current_slot() == 2);
+
+    // Unload clears it back to 0 — nothing seated.
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"save_variables", {{"variables", {{"ifs_loaded", 0}}}}}});
+    CHECK(backend.get_current_slot() < 0);
+}
+
+TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+
+    Ad5xIfsTestAccess::handle_status(backend, json{{"ifs",
+                                                    {{"activity", "driver_error"},
+                                                     {"error", "stepper driver fault: overcurrent"},
+                                                     {"active_channel", 0},
+                                                     {"loaded_channels", json::array()}}}});
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    CHECK(backend.get_system_info().operation_detail.find("overcurrent") != std::string::npos);
+}
+
+TEST_CASE("AD5X IFS module activity tracks an externally-started op",
+          "[ams][ad5x_ifs][ifs_module]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    // A slicer's T1 or a console IFS_LOAD sets no tracker and installs no ack
+    // callback here — the board's activity is the only signal it produces.
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "loading"));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "unloading"));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+}
+
+TEST_CASE("AD5X IFS module ops dispatch the module's macros", "[ams][ad5x_ifs][ifs_module]") {
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    // Seat lane 2 so the unload routes to the toolhead, not a cold eject.
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(2, {1, 2}));
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    REQUIRE(backend.get_current_slot() == 1);
+    backend.captured_gcodes.clear();
+
+    SECTION("load") {
+        REQUIRE(backend.load_filament(2).success());
+        CHECK(backend.has_gcode("IFS_LOAD SLOT=3"));
+        CHECK_FALSE(backend.has_gcode_containing("INSERT_PRUTOK_IFS"));
+    }
+    SECTION("toolhead unload") {
+        REQUIRE(backend.unload_filament(1).success());
+        CHECK(backend.has_gcode("IFS_UNLOAD SLOT=2"));
+        CHECK_FALSE(backend.has_gcode_containing("_IFS_REMOVE_CURRENT_PRUTOK"));
+    }
+    SECTION("unload whatever is active sends it bare") {
+        REQUIRE(backend.unload_filament(-1).success());
+        CHECK(backend.has_gcode("IFS_UNLOAD"));
+    }
+    SECTION("cold lane eject") {
+        REQUIRE(backend.eject_lane(0).success());
+        CHECK(backend.has_gcode("IFS_EJECT SLOT=1"));
+        CHECK_FALSE(backend.has_gcode_containing("IFS_F11"));
+    }
+    SECTION("tool change uses the slicer spelling") {
+        REQUIRE(backend.change_tool(1).success());
+        CHECK(backend.has_gcode("T1"));
+        CHECK_FALSE(backend.has_gcode_containing("A_CHANGE_FILAMENT"));
+    }
+    SECTION("fault recovery and abort use the module's commands") {
+        REQUIRE(backend.recover().success());
+        CHECK(backend.has_gcode("IFS_RESET_DRIVER"));
+        REQUIRE(backend.cancel().success());
+        CHECK(backend.has_gcode("IFS_STOP"));
+        CHECK_FALSE(backend.has_gcode_containing("IFS_UNLOCK"));
+    }
+    SECTION("load-free slot selection is declined, not fed") {
+        const auto err = backend.select_slot(0);
+        REQUIRE_FALSE(err.success());
+        CHECK(err.result == AmsResult::NOT_SUPPORTED);
+        CHECK(backend.captured_gcodes.empty());
+    }
+}
+
+TEST_CASE("AD5X IFS set_slot_info writes through IFS_SET_MATERIAL on the module",
+          "[ams][ad5x_ifs][ifs_module]") {
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3, 4}));
+
+    SlotInfo info;
+    info.color_rgb = 0x7EC8E3;
+    info.material = "PLA";
+
+    REQUIRE(backend.set_slot_info(1, info, /*persist=*/true).success());
+
+    // Bare hex — klipper's parser eats '#' as a comment start, and the module
+    // re-prefixes on its side. SLOT is 1-based.
+    CHECK(backend.has_gcode("IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3"));
+    // The zmod write path (Adventurer5M.json via Moonraker upload) must not
+    // also have run — with a null api it would have failed the call above.
+}
+
+TEST_CASE("AD5X IFS module poll stand-down", "[ams][ad5x_ifs][ifs_module]") {
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    // Seat lane 2 so an unload takes the toolhead route, whose dispatch calls
+    // schedule_zcolor_query("toolhead_unload") unconditionally — the path the
+    // gate has to swallow. (request_resync() proves nothing here: it has its
+    // own module early-return, so the schedule gate could vanish and that
+    // call would still schedule nothing.)
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(2, {1, 2}));
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+    REQUIRE(backend.get_current_slot() == 1);
+
+    const auto before = Ad5xIfsTestAccess::zcolor_schedule_count(backend);
+    REQUIRE(backend.unload_filament(1).success());
+    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
+
+    // And a manual resync is a no-op rather than a re-read.
+    backend.request_resync();
+    CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
+}
+
+TEST_CASE("AD5X IFS module colour normalisation", "[ams][ad5x_ifs][ifs_module]") {
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("#A03CF7") == "A03CF7");
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("A03CF7") == "A03CF7");
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("#F80") == "FF8800");
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("#ff8800") == "FF8800");
+    // Not-a-colour returns empty, which the apply path reads as "no reading"
+    // — never as black.
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("").empty());
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("#12345").empty());
+    CHECK(Ad5xIfsTestAccess::normalize_module_color("#GGGGGG").empty());
+    CHECK(Ad5xIfsTestAccess::normalize_module_color(std::string()).empty());
+}

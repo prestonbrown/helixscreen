@@ -76,7 +76,7 @@ The eight concrete classes, one file each:
 | `AmsBackendAfc` | [`include/ams_backend_afc.h:143`](../../../include/ams_backend_afc.h#L143) | AFC-Klipper-Add-On (lanes, hubs, `lane_data`) |
 | `AmsBackendAce` | [`include/ams_backend_ace.h:46`](../../../include/ams_backend_ace.h#L46) | Anycubic ACE Pro (ValgACE/BunnyACE/DuckACE) |
 | `AmsBackendCfs` | [`include/ams_backend_cfs.h:127`](../../../include/ams_backend_cfs.h#L127) | Creality Filament System (K2, RS-485 boxes) |
-| `AmsBackendAd5xIfs` | [`include/ams_backend_ad5x_ifs.h:88`](../../../include/ams_backend_ad5x_ifs.h#L88) | FlashForge AD5X Intelligent Filament Switching |
+| `AmsBackendAd5xIfs` | [`include/ams_backend_ad5x_ifs.h:101`](../../../include/ams_backend_ad5x_ifs.h#L101) | FlashForge AD5X Intelligent Filament Switching |
 | `AmsBackendSnapmaker` | [`include/ams_backend_snapmaker.h:68`](../../../include/ams_backend_snapmaker.h#L68) | Snapmaker U1 native SnapSwap |
 | `AmsBackendQidi` | [`include/ams_backend_qidi.h:48`](../../../include/ams_backend_qidi.h#L48) | QIDI Box (PLUS4/Q2/MAX4) — a stub, per its own header |
 | `AmsBackendToolChanger` | [`include/ams_backend_toolchanger.h:50`](../../../include/ams_backend_toolchanger.h#L50) | viesturz/klipper-toolchanger |
@@ -270,7 +270,7 @@ Read in this order; about 30 minutes total.
 2. [`include/ams_backend.h:59`](../../../include/ams_backend.h#L59) — the interface: the event constants at `:72`-80, then the capability defaults `manages_active_spool()` at `:191`, `tracks_weight_locally()` at `:205`, and `has_firmware_spool_persistence()` at `:2004`; finish with the factory declarations at `:2210`-2239.
 3. [`include/ams_subscription_backend.h:33`](../../../include/ams_subscription_backend.h#L33) — the NVI base: read the class doc's must-override/may-override contract, then the filament-op entry points (`:63`-70) whose comment explains the in-flight claim and the gate a backend once shipped without.
 4. [`include/ams_backend_afc.h:143`](../../../include/ams_backend_afc.h#L143) — one real backend: skim its section layout (SlotRegistry state, `do_*` overrides, capability answers) as the shape all eight share; note `manages_active_spool()` at `:184` and `has_firmware_spool_persistence()` at `:351`.
-5. [`include/printer_discovery.h:606`](../../../include/printer_discovery.h#L606) — the detection-priority ladder that fills `detected_ams_systems_`, then [`src/printer/printer_discovery.cpp:101`](../../../src/printer/printer_discovery.cpp#L101) where parse_objects hands off to AmsState.
+5. [`include/printer_discovery.h:623`](../../../include/printer_discovery.h#L623) — the detection-priority ladder that fills `detected_ams_systems_`, then [`src/printer/printer_discovery.cpp:101`](../../../src/printer/printer_discovery.cpp#L101) where parse_objects hands off to AmsState.
 6. [`src/printer/ams_state.cpp:721`](../../../src/printer/ams_state.cpp#L721) — `init_backends_from_hardware()`: mock skip, double-init guard, the create-start loop, the immediate sync at `:769`.
 7. [`src/printer/ams_state.cpp:786`](../../../src/printer/ams_state.cpp#L786) — `add_backend()`: the captured-index event lambda at `:784`, secondary-subject allocation at `:797`, consumption-sink registration at `:802`.
 8. [`src/printer/ams_state.cpp:2233`](../../../src/printer/ams_state.cpp#L2233) — `on_backend_event()`: queue-only body, shutdown-flag guard, the SLOT_CHANGED parse-or-full-sync fallback; then follow one queued call into `sync_backend()` at `:1284`.

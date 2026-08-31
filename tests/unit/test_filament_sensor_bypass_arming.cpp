@@ -444,7 +444,8 @@ TEST_CASE("AFC external spool lane: publishes T{N} one past the last lane",
     }
 }
 
-TEST_CASE("IFS external spool lane: publishes one past NUM_PORTS", "[ams][ifs][bypass-arming]") {
+TEST_CASE("IFS external spool lane: no bypass fitted, so nothing publishes",
+          "[ams][ifs][bypass-arming]") {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     PrinterState state;
     state.init_subjects(false);
@@ -455,8 +456,9 @@ TEST_CASE("IFS external spool lane: publishes one past NUM_PORTS", "[ams][ifs][b
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
     FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     Ad5xIfsTestAccess::inject_override_store(*backend, std::move(store));
-    // IFS claims bypass statically; total_slots is NUM_PORTS (4).
-    REQUIRE(backend->get_system_info().supports_bypass);
+    // The AD5X has no bypass: every path into the hub runs through an IFS
+    // lane, and there is no external direct-feed spool entry.
+    REQUIRE_FALSE(backend->get_system_info().supports_bypass);
     REQUIRE(backend->get_system_info().total_slots == 4);
 
     SlotInfo spool;
@@ -465,9 +467,7 @@ TEST_CASE("IFS external spool lane: publishes one past NUM_PORTS", "[ams][ifs][b
     backend->publish_external_spool_lane(&spool);
     helix::ui::UpdateQueue::instance().drain();
 
-    // IFS store uses the Lane style: slot 4 -> outer "lane5", inner "4".
-    auto rec = api.mock_get_db_value("lane_data", "lane5");
-    REQUIRE_FALSE(rec.is_null());
-    CHECK(rec["lane"] == "4");
-    CHECK(rec["helix_material"] == "PETG");
+    // The publish path is gated on the capability, so no lane record appears.
+    CHECK(api.mock_get_db_value("lane_data", "lane5").is_null());
+    CHECK(api.mock_get_db_value("lane_data", "T4").is_null());
 }
