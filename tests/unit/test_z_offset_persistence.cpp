@@ -190,6 +190,29 @@ TEST_CASE("z-offset persistence: tolerates sibling axes", "[zoffset][persistence
     CHECK(*result == -75);
 }
 
+TEST_CASE("z-offset persistence: read priority puts ZMOD above Helper-Script",
+          "[zoffset][persistence]") {
+    // Table order is load-bearing: ZMOD also wraps SET_GCODE_OFFSET, so a box
+    // carrying BOTH schemas must resolve to ZMOD's value. The detection test
+    // pins this order for match(); this pins it for the read path — a
+    // reordering would return 9999 instead of -200.
+    json frame =
+        json{{"save_variables", json{{"variables", json{{"gcode_offsets", json{{"z", -0.20}}},
+                                                        {"zoffset", json{{"z", 9.99}}}}}}}};
+    auto result = helix::zoffset::read_persisted_offset_microns(frame);
+    REQUIRE(result.has_value());
+    CHECK(*result == -200);
+}
+
+TEST_CASE("z-offset persistence: a frame without the schema objects reads nothing",
+          "[zoffset][persistence]") {
+    // The subscription builder only subscribes save_variables / mod_params
+    // when a provider matched, so this is the frame shape of the overwhelming
+    // majority of printers — the fast path must answer nullopt, not probe.
+    json frame = json{{"gcode_move", json{{"z_offset", -0.15}}}, {"toolhead", json{{"x", 1.0}}}};
+    CHECK_FALSE(helix::zoffset::read_persisted_offset_microns(frame).has_value());
+}
+
 TEST_CASE("z-offset persistence: absent reads mean no news, in every shape",
           "[zoffset][persistence]") {
     using helix::zoffset::read_persisted_offset_microns;
