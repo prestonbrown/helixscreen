@@ -10,12 +10,14 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <sys/utsname.h>
 #include <unistd.h>
 #include <vector>
 
@@ -79,8 +81,29 @@ std::string normalize_hex_id(const std::string& s) {
 
 namespace helix::input {
 
-bool check_capability_bit(const std::string& hex_bitmask, int bit) {
-    if (bit < 0 || hex_bitmask.empty()) {
+int sysfs_bitmap_word_bits_for_machine(const std::string& machine) {
+    // x86_64, aarch64, mips64, riscv64, loongarch64, ppc64/ppc64le, sparc64
+    if (machine.find("64") != std::string::npos)
+        return 64;
+    // A 32-bit process on an aarch64 kernel sees COMPAT_UTS_MACHINE "armv8l";
+    // the kernel that printed the bitmap is still 64-bit.
+    if (machine.rfind("armv8", 0) == 0)
+        return 64;
+    if (machine == "s390x")
+        return 64;
+    // i386..i686, armv6l, armv7l, mips, ppc, ...
+    return 32;
+}
+
+int sysfs_bitmap_word_bits() {
+    struct utsname uts;
+    if (uname(&uts) != 0)
+        return static_cast<int>(sizeof(unsigned long) * 8);
+    return sysfs_bitmap_word_bits_for_machine(uts.machine);
+}
+
+bool check_capability_bit_at_width(const std::string& hex_bitmask, int bit, int word_bits) {
+    if (bit < 0 || hex_bitmask.empty() || word_bits <= 0) {
         return false;
     }
 
@@ -96,23 +119,9 @@ bool check_capability_bit(const std::string& hex_bitmask, int bit) {
         return false;
     }
 
-    // Each word is an unsigned long printed in hex. The kernel strips leading
-    // zeros, so "0" could be 32-bit or 64-bit. Infer arch word width from the
-    // longest word's digit count and apply uniformly. This ensures short words
-    // like "1" are treated as 32-bit (not 4-bit), making all 32 bit positions
-    // addressable.
-    size_t max_digits = 0;
-    for (const auto& w : words) {
-        if (w.size() > max_digits) {
-            max_digits = w.size();
-        }
-    }
-    // Round up to 32-bit (8 digits) or 64-bit (16 digits) boundary
-    int bits_per_word = (max_digits <= 8) ? 32 : 64;
-
     // Determine which word contains our bit (right-to-left, 0-indexed)
-    int word_index_from_right = bit / bits_per_word;
-    int bit_in_word = bit % bits_per_word;
+    int word_index_from_right = bit / word_bits;
+    int bit_in_word = bit % word_bits;
 
     // Convert to array index (words[0] = leftmost = highest bits)
     int array_index = static_cast<int>(words.size()) - 1 - word_index_from_right;
@@ -120,8 +129,15 @@ bool check_capability_bit(const std::string& hex_bitmask, int bit) {
         return false;
     }
 
-    unsigned long val = std::strtoul(words[array_index].c_str(), nullptr, 16);
-    return (val & (1UL << bit_in_word)) != 0;
+    // uint64_t holds a full 64-bit word even when built for a 32-bit host
+    // (armv8l userland on an aarch64 kernel), where the plain 1UL shift and
+    // strtoul would overflow on bit 63 / 16-digit words.
+    uint64_t val = std::strtoull(words[array_index].c_str(), nullptr, 16);
+    return (val & (uint64_t(1) << bit_in_word)) != 0;
+}
+
+bool check_capability_bit(const std::string& hex_bitmask, int bit) {
+    return check_capability_bit_at_width(hex_bitmask, bit, sysfs_bitmap_word_bits());
 }
 
 bool is_vid_pid_blacklisted(const std::string& vendor, const std::string& product,

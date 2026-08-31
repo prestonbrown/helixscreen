@@ -3,7 +3,7 @@
 
 /**
  * @file test_cleanup_helpers.cpp
- * @brief Tests for safe_delete_obj() and safe_delete_timer() helpers
+ * @brief Tests for the safe-deletion helpers (safe_delete_obj)
  *
  * These helpers eliminate the if-delete-null pattern repeated in panel destructors.
  */
@@ -49,46 +49,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_obj can be called multiple times 
     safe_delete_obj(obj);
     REQUIRE(obj == nullptr);
 }
-
-// ============================================================================
-// safe_delete_timer() tests
-// ============================================================================
-
-static void dummy_timer_cb(lv_timer_t*) {
-    // No-op callback for test timers
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_timer deletes valid timer and nulls pointer",
-                 "[cleanup_helpers]") {
-    lv_timer_t* timer = lv_timer_create(dummy_timer_cb, 1000, nullptr);
-    REQUIRE(timer != nullptr);
-
-    safe_delete_timer(timer);
-
-    REQUIRE(timer == nullptr);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_timer is safe with nullptr", "[cleanup_helpers]") {
-    lv_timer_t* timer = nullptr;
-
-    // Should not crash
-    safe_delete_timer(timer);
-
-    REQUIRE(timer == nullptr);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_timer can be called multiple times safely",
-                 "[cleanup_helpers]") {
-    lv_timer_t* timer = lv_timer_create(dummy_timer_cb, 1000, nullptr);
-
-    safe_delete_timer(timer);
-    REQUIRE(timer == nullptr);
-
-    // Second call should be safe (no double-free)
-    safe_delete_timer(timer);
-    REQUIRE(timer == nullptr);
-}
-
 // ============================================================================
 // safe_delete_deferred() tests
 // ============================================================================

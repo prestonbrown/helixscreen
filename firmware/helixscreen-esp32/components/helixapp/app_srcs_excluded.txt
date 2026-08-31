@@ -212,7 +212,6 @@ src/ui/screensaver_pipes.cpp  # not in the v1 Core+AMS cut
 src/ui/screensaver_starfield.cpp  # not in the v1 Core+AMS cut
 src/ui/splash_screen.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_ams_tool_text.cpp  # not in the v1 Core+AMS cut
-src/ui/ui_coalesced_timer.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut

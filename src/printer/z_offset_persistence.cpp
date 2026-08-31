@@ -155,11 +155,17 @@ const std::vector<Provider>& providers() {
          "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
          nullptr,
          &read_forge_x},
-        // Keyed on the RENAMED original: stock Klipper has no
-        // `gcode_macro _SET_GCODE_OFFSET` object, so this exists only where a
-        // wrapper does. Must stay below ZMOD, which also wraps the command.
+        // Keyed on the WRAPPER object. Klipper exposes a builtin command as a
+        // printer object ONLY when a [gcode_macro] shadows it (and shadowing a
+        // builtin requires rename_existing), so `gcode_macro
+        // SET_GCODE_OFFSET` in objects/list is exactly "a renaming wrapper
+        // exists" - stock Klipper never lists it. The renamed original the
+        // wrapper creates is a bare command, not an object; verified against
+        // debug bundle 5J49T5RU: 83 macro objects including
+        // SET_GCODE_OFFSET, none named _SET_GCODE_OFFSET. Must stay below
+        // ZMOD, which also wraps the command.
         {"Helper-Script",
-         "_SET_GCODE_OFFSET",
+         "SET_GCODE_OFFSET",
          {"save_variables"},
          nullptr,
          nullptr,
@@ -187,6 +193,20 @@ std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
 }
 
 std::optional<int> read_persisted_offset_microns(const nlohmann::json& status) {
+    // Fast path for the overwhelming majority: the subscription builder only
+    // subscribes save_variables / mod_params when a provider matched, so a
+    // frame carrying NEITHER object belongs to a printer with no persistence
+    // firmware and the per-frame schema probes below are pure waste. (A frame
+    // that DOES carry one of them for unrelated reasons simply falls through
+    // to the probes and misses — the gate is a skip, never an answer.)
+    if (!status.is_object()) {
+        return std::nullopt;
+    }
+    const bool carries_schema_object =
+        status.contains("save_variables") || status.contains("mod_params");
+    if (!carries_schema_object) {
+        return std::nullopt;
+    }
     // Read by schema rather than by detected firmware: this runs on the status
     // path, which has no PrinterDiscovery to hand, and the schemas are distinct
     // enough to identify themselves. A printer without the firmware never

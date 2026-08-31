@@ -58,16 +58,29 @@
  */
 class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
   public:
+    /// Station-MAC source: the wlan address, or empty while the netdev can't
+    /// be resolved yet. Injectable so tests can simulate wlan0 appearing late
+    /// (prestonbrown/helixscreen#1399); production probes sysfs.
+    using MacReader = std::function<std::string()>;
+
     /**
      * @param reconnect_ms      Delay before re-establishing a dropped daemon
      *                         connection (default 5 s).
      * @param scan_watchdog_ms  Upper bound from an accepted SCAN to the
-     *                         SCAN_COMPLETE event (default 15 s). A success
-     *                         return from trigger_scan() OBLIGATES an
-     *                         eventual SCAN_COMPLETE, or WiFiManager's scan
-     *                         scheduler latches forever.
+     *                         SCAN_COMPLETE event (default 15 s) — enforcing
+     *                         the completion obligation every backend owes on
+     *                         a successful trigger_scan() (the contract is
+     *                         stated on WifiBackend::trigger_scan).
+     * @param mac_reader        Station-MAC source (default: sysfs probe via
+     *                         probe_os_wifi_link + wifi_get_device_mac).
+     * @param liveness_probe_ms Silence from the daemon that triggers a GET
+     *                         probe while an op is outstanding (default 20 s).
+     * @param liveness_giveup_ms Silence past the probe that means the daemon
+     *                         is wedged and the connection is forced (5 s).
      */
-    explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000);
+    explicit WifiBackendNetd(int reconnect_ms = 5000, int scan_watchdog_ms = 15000,
+                             MacReader mac_reader = {}, int liveness_probe_ms = 20000,
+                             int liveness_giveup_ms = 5000);
 
     /**
      * @brief Destructor - full teardown (stop loop, join threads, close socket)
@@ -154,9 +167,19 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// State-diff event logic over the just-merged snapshot.
     void handle_snapshot_diff(const helix::netd::NetdSnapshot& after);
 
-    /// End the in-progress scan: kill the watchdog, fire SCAN_COMPLETE from
-    /// the row cache. Loop thread.
-    void finish_scan();
+    /// End the in-progress scan: kill the watchdog, resolve the row cache
+    /// (publish incoming rows; keep the previous list on an ERR/abandoned
+    /// end; clear it on an OK that produced nothing - those rows are
+    /// ghosts), fire SCAN_COMPLETE. Loop thread. @p completing carries the
+    /// ack kind that ended the scan, if one did.
+    void finish_scan(helix::netd::Ack::Kind completing = helix::netd::Ack::Kind::None);
+
+    /// Arm the scan-completion watchdog for a just-sent scan. Loop thread.
+    void arm_scan_watchdog();
+
+    /// Send a scan deferred behind a join, once the join has resolved.
+    /// Safe from any thread (hops to the loop).
+    void flush_deferred_scan();
 
     /// Fire a registered callback by name (copy under the map mutex, invoke
     /// outside it — same deadlock-avoidance shape as the wpa backend).
@@ -184,17 +207,23 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     /// If nothing arrives from the daemon while an op is outstanding, probe
     /// with GET, then force a reconnect — the first-party client's watchdog.
+    /// One chain at a time (a pending chain already covers the question) and
+    /// OWNED: the ids are cancelled wherever the other timers are, so a
+    /// stopped backend cannot be probed by a stale chain.
     void arm_liveness_probe();
+
+    /// Kill a pending probe/give-up chain. Loop thread.
+    void cancel_liveness_probe();
 
     // ========================================================================
     // Helpers
     // ========================================================================
 
-    /// Read the station MAC from sysfs via the interface probe (never a
-    /// hardcoded netdev name); no-op once non-empty. Called at init AND on a
-    /// CONNECTED transition: a box booted in ETHERNET mode has no wlan0 up
-    /// when init runs, so the first read legitimately finds nothing and the
-    /// MAC would stay blank for the whole session without the retry
+    /// Read the station MAC through mac_reader_ (sysfs probe in production,
+    /// never a hardcoded netdev name); no-op once non-empty. Called at init
+    /// AND on a CONNECTED transition: a box booted in ETHERNET mode has no
+    /// wlan0 up when init runs, so the first read legitimately finds nothing
+    /// and the MAC would stay blank for the whole session without the retry
     /// (prestonbrown/helixscreen#1399). Empty when unresolvable.
     void read_mac_address_if_empty();
 
@@ -222,6 +251,8 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     const int reconnect_ms_;
     const int scan_watchdog_ms_;
+    const int liveness_probe_ms_;
+    const int liveness_giveup_ms_;
 
     // Connection. io_ / fd_ are written under cmd_mutex_; fd_ is owned by
     // io_ once registered (hio_close closes it — never ::close(fd_) too).
@@ -238,10 +269,22 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     std::mutex scan_mutex_;
     std::vector<helix::netd::ScanRow> scan_rows_; ///< Rows of the current/last scan.
+    /// Loop thread only: rows of the scan currently streaming in. Published
+    /// to scan_rows_ by swap in finish_scan() when the scan produced any; an
+    /// ERR or abandoned completion keeps the previous list (a scan that never
+    /// ran says nothing); an OK completion with no rows clears it (the scan
+    /// RAN and found nothing - serving the previous list would offer ghost
+    /// networks).
+    std::vector<helix::netd::ScanRow> incoming_rows_;
 
     /// Station MAC. Written at init and on the CONNECTED retry (loop thread),
     /// read by get_status() from any thread — guard with snapshot_mutex_.
     std::string mac_address_;
+
+    /// The injected MAC source; never null (the ctor falls back to the sysfs
+    /// probe). Called without snapshot_mutex_ held — only the assignment
+    /// under it takes the lock.
+    const MacReader mac_reader_;
 
     // start()/start_async() synchronization (same shape as the wpa backend).
     std::mutex init_mutex_;
@@ -255,6 +298,12 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     /// fire while it is set. Socket loss alone never clears it.
     std::atomic<bool> want_connection_{false};
     std::atomic<bool> scan_pending_{false};
+    /// A scan requested while a join held the daemon: sent on the loop thread
+    /// the moment the join resolves (CONNECTED, DISCONNECTED, or an ERR
+    /// verdict clears connect_in_flight_). The manager's spinner waits
+    /// honestly instead of eating a spurious failure toast for an action the
+    /// UI itself initiated.
+    std::atomic<bool> scan_deferred_{false};
     std::atomic<bool> connect_in_flight_{false};
     /// Auth failures fire AUTH_FAILED once per failure, never per RETRYING
     /// push; cleared when a new join is accepted or a CONNECTED lands.
@@ -270,6 +319,8 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     static constexpr hv::TimerID kNoTimer{0};
     hv::TimerID reconnect_timer_{kNoTimer};
     hv::TimerID scan_watchdog_timer_{kNoTimer};
+    hv::TimerID liveness_probe_timer_{kNoTimer};
+    hv::TimerID liveness_giveup_timer_{kNoTimer};
     std::chrono::steady_clock::time_point last_line_at_;
 
     // Async init worker (start_async()); joined in stop() and the dtor.

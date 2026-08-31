@@ -85,7 +85,9 @@ AmsEditOverlay& get_ams_edit_overlay() {
     return *g_ams_edit_overlay;
 }
 
-AmsEditOverlay::AmsEditOverlay() {
+AmsEditOverlay::AmsEditOverlay()
+    : picker_search_debounce_(
+          [this](const std::string& query) { handle_picker_search(query.c_str()); }) {
     spdlog::debug("[AmsEditOverlay] Constructed");
 }
 
@@ -128,6 +130,8 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
     cached_spools_.clear();
+    cached_searchables_.clear();
+    picker_search_debounce_.cancel();
 
     // Always prefer the active screen so the overlay renders above everything
     lv_obj_t* screen = lv_screen_active();
@@ -333,6 +337,10 @@ void AmsEditOverlay::on_deactivate() {
     // resets happen in show_for_slot(). Base invalidates lifetime_ (pending
     // Spoolman fetches for this activation are dropped; token() re-arms).
     OverlayBase::on_deactivate();
+    // A pending debounced search belongs to the session being left; firing it
+    // into a covered or popped picker is wasted work at best. show_for_slot()
+    // re-arms state on the next open.
+    picker_search_debounce_.cancel();
     spdlog::debug("[AmsEditOverlay] on_deactivate()");
 }
 
@@ -422,6 +430,12 @@ void AmsEditOverlay::deinit_subjects() {
 // ============================================================================
 
 void AmsEditOverlay::set_view(int view) {
+    // Leaving the picker with a search still settling: the debounced rebuild
+    // would re-render the now-hidden spool list mid-transition. It belongs to
+    // the view being left.
+    if (lv_subject_get_int(&view_mode_subject_) == VIEW_SPOOL_PICKER && view != VIEW_SPOOL_PICKER) {
+        picker_search_debounce_.cancel();
+    }
     lv_subject_set_int(&view_mode_subject_, view);
     // Header Save is visible on the overview AND the spool-edit view (where it
     // finishes the whole edit and closes). The picker and color views hide it.
@@ -469,6 +483,17 @@ void AmsEditOverlay::populate_picker() {
         return;
     }
 
+    // A query typed into the just-cleared box must not fire after the
+    // refetch lands and re-renders the full list.
+    picker_search_debounce_.cancel();
+
+    // Drop the previous session's inventory: the programmatic clear of the
+    // search box below fires value_changed, whose immediate empty-filter
+    // render against a stale cache would flash the old list behind the
+    // spinner. The fetch callback repopulates both.
+    cached_spools_.clear();
+    cached_searchables_.clear();
+
     // Show loading state
     lv_subject_set_int(&picker_state_subject_, 0);
 
@@ -510,6 +535,11 @@ void AmsEditOverlay::populate_picker() {
                 // is applied once in the API layer on fetch (#1071). filter_spools()
                 // preserves order, so filtering doesn't need to re-sort.
                 cached_spools_ = spools;
+                cached_searchables_.clear();
+                cached_searchables_.reserve(cached_spools_.size());
+                for (const auto& spool : cached_spools_) {
+                    cached_searchables_.push_back(build_searchable_text(spool));
+                }
                 render_spool_list("");
             });
         },
@@ -538,8 +568,9 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     // lv_obj_clean in that context corrupts LVGL's event linked list (#776).
     helix::ui::safe_clean_children(spool_list);
 
-    // Reuse shared filter_spools() from spoolman_types
-    auto filtered = filter_spools(cached_spools_, filter);
+    // Reuse shared filter_spools() from spoolman_types, over the searchable
+    // text prebuilt at fetch time (cached_searchables_ parallels the spools).
+    auto filtered = filter_spools(cached_spools_, filter, cached_searchables_);
 
     // Get spool IDs assigned to other tools (exclude current slot's tool)
     auto in_use = ToolState::instance().assigned_spool_ids(slot_index_);
@@ -629,7 +660,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
     }
 
-    lv_subject_set_int(&picker_state_subject_, filtered.empty() ? 1 : 2);
+    // 3 = the term matched nothing (informational); 1 stays reserved for the
+    // fetch-failed retry card.
+    // 3 = the term matched nothing (informational); 1 stays reserved for the
+    // fetch-failed retry card.
+    lv_subject_set_int(&picker_state_subject_, filtered.empty() ? 3 : 2);
     spdlog::debug("[AmsEditOverlay] Rendered {} spool items (filter='{}')", filtered.size(),
                   filter);
 }
@@ -2189,7 +2224,9 @@ void AmsEditOverlay::on_picker_search_cb(lv_event_t* e) {
     if (self) {
         auto* ta = static_cast<lv_obj_t*>(lv_event_get_target(e));
         const char* text = lv_textarea_get_text(ta);
-        self->handle_picker_search(text);
+        // Debounced: a burst of keystrokes re-renders the list once, after the
+        // user pauses. Empty text fires immediately (shows all spools again).
+        self->picker_search_debounce_.schedule(text ? text : "");
     }
 }
 

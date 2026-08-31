@@ -398,10 +398,10 @@ static std::string resolve_wpa_ctrl_directory() {
     return {};
 }
 
-WifiBackendWpaSupplicant::WifiBackendWpaSupplicant()
+WifiBackendWpaSupplicant::WifiBackendWpaSupplicant(int scan_watchdog_ms)
     : hv::EventLoopThread(nullptr), conn(nullptr),
-      mon_conn(nullptr) // Initialize monitor connection
-{
+      mon_conn(nullptr), // Initialize monitor connection
+      scan_watchdog_ms_(scan_watchdog_ms) {
     spdlog::debug("[WifiBackend] Initialized (wpa_supplicant mode)");
 }
 
@@ -1120,6 +1120,15 @@ std::optional<helix::wifi::WifiInterface> WifiBackendWpaSupplicant::resolved_int
 }
 
 void WifiBackendWpaSupplicant::cleanup_wpa() {
+    // A scan outstanding at teardown dies with the connections: clear the
+    // obligation's internal state (so a start() reuse begins clean) but
+    // dispatch nothing — the manager resolves its scheduler when IT stops the
+    // backend (WifiBackend::trigger_scan's contract, prestonbrown/helixscreen
+    // #1405). This runs on the loop thread from stop()'s scheduled cleanup,
+    // or after the loop's death from the destructor (resolve_scan guards the
+    // killTimer for that path).
+    resolve_scan();
+
     spdlog::trace("[WifiBackend] Cleaning up wpa_supplicant connections");
 
     // Stop libhv I/O monitoring BEFORE closing the socket
@@ -1197,6 +1206,14 @@ void WifiBackendWpaSupplicant::handle_wpa_events(void* data, int len) {
         // Informational event - no callback needed
         spdlog::trace("[WifiBackend] Ignoring informational event (no matching callback)");
         return;
+    }
+
+    if (callback_name == "SCAN_COMPLETE") {
+        // The scan obligation's normal resolution: the real event arrived, so
+        // the watchdog is no longer owed (#1407). This runs on the loop
+        // thread (the monitor connection's read callback), the watchdog's
+        // home turf.
+        resolve_scan();
     }
 
     // THREAD SAFETY: Copy callback out under the mutex, then release BEFORE
@@ -1336,22 +1353,71 @@ WiFiError WifiBackendWpaSupplicant::trigger_scan() {
     }
 
     const std::string result = send_command("SCAN");
-    switch (helix::wifi::detail::classify_scan_reply(result)) {
-    case helix::wifi::detail::ScanTrigger::Started:
-        spdlog::debug("[WifiBackend] Scan triggered successfully");
+    const auto trigger = helix::wifi::detail::classify_scan_reply(result);
+    if (trigger == helix::wifi::detail::ScanTrigger::Started ||
+        trigger == helix::wifi::detail::ScanTrigger::AlreadyBusy) {
+        if (trigger == helix::wifi::detail::ScanTrigger::Started) {
+            spdlog::debug("[WifiBackend] Scan triggered successfully");
+        } else {
+            spdlog::debug("[WifiBackend] SCAN already in progress (reply '{}') — results will "
+                          "arrive on the in-flight scan",
+                          result);
+        }
+        // Both replies create the completion obligation: a started scan
+        // delivers CTRL-EVENT-SCAN-RESULTS, and a busy refusal rides the
+        // in-flight scan's event. Either way nothing else in this backend can
+        // release the manager's scheduler latch if the event never comes, so
+        // arm the watchdog that bounds the promise (#1407). The timer itself
+        // is armed on the loop thread — timer ids are loop-thread state.
+        scan_pending_.store(true);
+        if (event_loop_active() && loop()) {
+            loop()->runInLoop([this]() { arm_scan_watchdog(); });
+        }
         return WiFiErrorHelper::success();
-    case helix::wifi::detail::ScanTrigger::AlreadyBusy:
-        spdlog::debug("[WifiBackend] SCAN already in progress (reply '{}') — results will arrive "
-                      "on the in-flight scan",
-                      result);
-        return WiFiErrorHelper::success();
-    case helix::wifi::detail::ScanTrigger::NoReply:
+    }
+    if (trigger == helix::wifi::detail::ScanTrigger::NoReply) {
         return WiFiErrorHelper::connection_failed("No response from wpa_supplicant SCAN command");
-    case helix::wifi::detail::ScanTrigger::Failed:
-        break;
     }
     return WiFiError(WiFiResult::BACKEND_ERROR, "wpa_supplicant SCAN command failed: " + result,
                      "Failed to start network scan", "Check WiFi interface status");
+}
+
+void WifiBackendWpaSupplicant::arm_scan_watchdog() {
+    // LOOP THREAD. The scan obligation: trigger_scan() returning SUCCESS
+    // obligates an eventual SCAN_COMPLETE, or WiFiManager's scan scheduler
+    // latches for the rest of the session. Normally the monitor connection's
+    // CTRL-EVENT-SCAN-RESULTS resolves it; the watchdog covers every path
+    // where that event can no longer arrive (socket death mid-scan, a busy
+    // reply whose in-flight scan never finished).
+    if (!scan_pending_.load() || scan_watchdog_timer_ != kNoTimer) {
+        return;
+    }
+    scan_watchdog_timer_ = loop()->setTimeout(scan_watchdog_ms_, [this](hv::TimerID) {
+        scan_watchdog_timer_ = kNoTimer;
+        if (!scan_pending_.exchange(false)) {
+            return;
+        }
+        spdlog::warn("[WifiBackend] Scan watchdog fired after {} ms with no CTRL-EVENT-SCAN-"
+                     "RESULTS — resolving the completion obligation from the daemon's last "
+                     "results",
+                     scan_watchdog_ms_);
+        dispatch_event("SCAN_COMPLETE", "");
+    });
+}
+
+void WifiBackendWpaSupplicant::resolve_scan() {
+    // LOOP THREAD (monitor event path, cleanup). Disarm + clear only; the
+    // event path dispatches through the same generic mechanism that delivered
+    // the real event, and teardown dispatches nothing — the manager owns the
+    // latch at the stop boundary (WifiBackend::trigger_scan's contract).
+    if (scan_watchdog_timer_ != kNoTimer) {
+        if (event_loop_active() && loop()) {
+            loop()->killTimer(scan_watchdog_timer_);
+        }
+        // A dead loop's timers died with it; the id just stops meaning anything.
+        scan_watchdog_timer_ = kNoTimer;
+    }
+    scan_pending_.store(false);
 }
 
 // Count SSIDs that were observed on more than one band. Logged (as a count, never

@@ -90,6 +90,14 @@ that says who is asking, which is why the prompt names the product from it.
   non-rebuildable dialog on a breakpoint or theme change, so the router tracks
   `LV_EVENT_DELETE` rather than assuming a button caused the teardown. Without
   that, one dismissal would wedge the gate shut against every later request.
+- **A Deny suppresses re-prompting for one minute — deliberately.** A denied
+  client never enters the firmware's registry, so every reconnect of the
+  running slicer files a fresh request and the screen would re-prompt forever.
+  `decide(false)` records the client for
+  `lan_auth::denial_suppression_window` (60s); repeats within the window are
+  dropped with a log line. This is NOT the wedge above: it keys on an explicit
+  Deny only (a dismissal answered nothing and leaves the gate open), it is
+  per-client, and it expires. An approval clears that client's entry.
 
 ## Threading
 

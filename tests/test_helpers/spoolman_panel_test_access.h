@@ -4,6 +4,8 @@
 
 #include "ui_panel_spoolman.h"
 
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 // Test-only access to SpoolmanPanel's private spool-assignment path. Lets a
@@ -41,5 +43,35 @@ class SpoolmanPanelTestAccess {
 
     static int active_spool_id(const SpoolmanPanel& panel) {
         return panel.active_spool_id_;
+    }
+
+    /// Drives the private refresh the queued archive/delete/duplicate
+    /// callbacks refetch through (prestonbrown/helixscreen#1402).
+    static void refresh_spools(SpoolmanPanel& panel) {
+        panel.refresh_spools();
+    }
+
+    /// Overwrites the panel-state subject with the recycled-heap shape the
+    /// #1402 core dump showed: an uninitialized lv_subject_t whose bytes
+    /// happen to pass the INT type check while its observer-list head is a
+    /// garbage pointer. This is what a lazily-resurrected shell panel (the
+    /// global getter constructed it after StaticPanelRegistry::destroy_all()
+    /// freed the previous one) carries when a queued callback drives it
+    /// before init_subjects().
+    static void poison_state_subject_as_uninitialized(SpoolmanPanel& panel) {
+        lv_subject_t& s = panel.panel_state_subject_;
+        std::memset(&s, 0xA5, sizeof(s));
+        s.type = LV_SUBJECT_TYPE_INT;
+        // Non-degenerate bounds so the write passes lv_subject_set_int's
+        // clamp and reaches notify (a uniform 0xA5 fill collapses min=max
+        // and notify_if_changed skips the walk).
+        s.min_value.num = INT32_MIN;
+        s.max_value.num = INT32_MAX;
+        s.subs_ll.head = reinterpret_cast<lv_ll_node_t*>(0x1);
+        s.subs_ll.tail = reinterpret_cast<lv_ll_node_t*>(0x1);
+    }
+
+    static const lv_subject_t& state_subject(const SpoolmanPanel& panel) {
+        return panel.panel_state_subject_;
     }
 };

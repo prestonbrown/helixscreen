@@ -189,6 +189,29 @@ struct FilamentUsageRecord {
 std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools,
                                      const std::string& query);
 
+/**
+ * @brief The lowercase searchable blob filter_spools matches terms against
+ *
+ * Concatenates "#id vendor material filament_name location" and lowercases it.
+ * Precompute it once per spool (see the searchables overload below) instead of
+ * rebuilding it on every keystroke.
+ */
+std::string build_searchable_text(const SpoolInfo& spool);
+
+/**
+ * @brief filter_spools over prebuilt searchable text
+ *
+ * Same matching as the 2-arg form, but each spool's searchable string comes
+ * from @p searchables (built once per inventory via build_searchable_text)
+ * rather than being rebuilt per call. A @p searchables vector whose size does
+ * not parallel @p spools is ignored (strings rebuilt inline, mismatch logged)
+ * - so a stale cache degrades to the slow path, never to wrong results.
+ * Equal-size-but-stale caches are not detectable here: keeping the two
+ * vectors in step is the caller's coherence to maintain.
+ */
+std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools, const std::string& query,
+                                     const std::vector<std::string>& searchables);
+
 /// Sentinel recency key for a spool carrying no parseable timestamp at all.
 /// Sorts below every dated spool.
 constexpr int64_t SPOOL_RECENCY_NONE = INT64_MIN;

@@ -244,6 +244,9 @@ class PrinterStateTestAccess {
         ps.printer_type_.clear();
         ps.pre_print_option_set_ = PrePrintOptionSet();
         ps.z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+        // A latched external-persistence flag would hold FIRMWARE_MANAGED
+        // across every later test in the binary after a mid-test failure.
+        ps.z_offset_external_persistence_ = false;
         ps.auto_detected_bed_moves_ = false;
         ps.is_paused_ = false;
         ps.last_kinematics_.clear();

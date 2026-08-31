@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_search_debounce.h"
 #include "ui_spool_wizard.h"
 #include "ui_spoolman_context_menu.h"
 #include "ui_spoolman_edit_modal.h"
@@ -88,8 +89,7 @@ class SpoolmanPanel : public OverlayBase {
     std::string search_query_;
     std::string selected_location_;           ///< Currently selected location filter ("" = All)
     bool updating_location_dropdown_ = false; ///< Guard against dropdown event feedback loop
-    lv_timer_t* search_debounce_timer_ = nullptr;
-    static constexpr uint32_t SEARCH_DEBOUNCE_MS = 300;
+    helix::ui::SearchDebounce search_debounce_;
 
     // ========== Virtualized List View ==========
     helix::ui::SpoolmanListView list_view_;
@@ -148,7 +148,6 @@ class SpoolmanPanel : public OverlayBase {
     static void on_scroll(lv_event_t* e);
     static void on_search_changed(lv_event_t* e);
     static void on_search_clear(lv_event_t* e);
-    static void on_search_timer(lv_timer_t* timer);
     static void on_location_filter_changed(lv_event_t* e);
 };
 
