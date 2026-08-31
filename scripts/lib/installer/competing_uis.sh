@@ -389,7 +389,6 @@ stop_competing_uis() {
 
     # Platform-specific competing UI handling
     case "${AD5M_FIRMWARE:-}" in
-        forge_x)    stop_forgex_competing_uis ;;
         klipper_mod) stop_kmod_competing_uis ;;
         zmod)
             # ZMOD manages its own init scripts (S80guppyscreen etc.)
@@ -398,6 +397,12 @@ stop_competing_uis() {
             return 0
             ;;
     esac
+
+    # Stock FlashForge UI kill — keyed on the stock UI's own startup manager
+    # (/opt/PROGRAM/ffstartup-arm), not the mod flavor: a mod-less AD5M
+    # (flavor stock) ships it too, and the file guard makes every other host
+    # a no-op. Unprobed ZMOD hosts still return at the arm above.
+    stop_forgex_competing_uis
 
     # K1 platform: stop stock Creality UI
     case "${K1_FIRMWARE:-}" in

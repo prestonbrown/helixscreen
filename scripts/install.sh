@@ -3827,7 +3827,6 @@ stop_competing_uis() {
 
     # Platform-specific competing UI handling
     case "${AD5M_FIRMWARE:-}" in
-        forge_x)    stop_forgex_competing_uis ;;
         klipper_mod) stop_kmod_competing_uis ;;
         zmod)
             # ZMOD manages its own init scripts (S80guppyscreen etc.)
@@ -3836,6 +3835,12 @@ stop_competing_uis() {
             return 0
             ;;
     esac
+
+    # Stock FlashForge UI kill — keyed on the stock UI's own startup manager
+    # (/opt/PROGRAM/ffstartup-arm), not the mod flavor: a mod-less AD5M
+    # (flavor stock) ships it too, and the file guard makes every other host
+    # a no-op. Unprobed ZMOD hosts still return at the arm above.
+    stop_forgex_competing_uis
 
     # K1 platform: stop stock Creality UI
     case "${K1_FIRMWARE:-}" in
@@ -10016,11 +10021,17 @@ usage() {
 # Configure platform-specific settings before stopping competing UIs
 # (ForgeX display mode, stock UI disable, screen.sh patching)
 configure_platform() {
+    # The stock FlashForge UI's own files gate this, not the mod flavor: a
+    # mod-less AD5M (flavor stock) still ships /opt/auto_run.sh starting
+    # ffstartup-arm, and that UI fights us for the framebuffer whatever
+    # firmware is on the box. disable_stock_firmware_ui no-ops wherever those
+    # files are absent.
+    disable_stock_firmware_ui || true
+
     case "${AD5M_FIRMWARE:-}" in
         forge_x)
             configure_forgex_display || true
             dismiss_forgex_feather_promo || true
-            disable_stock_firmware_ui || true
             patch_forgex_screen_sh || true
             patch_forgex_screen_drawing || true
             install_forgex_logged_wrapper || true

@@ -60,11 +60,17 @@ usage() {
 # Configure platform-specific settings before stopping competing UIs
 # (ForgeX display mode, stock UI disable, screen.sh patching)
 configure_platform() {
+    # The stock FlashForge UI's own files gate this, not the mod flavor: a
+    # mod-less AD5M (flavor stock) still ships /opt/auto_run.sh starting
+    # ffstartup-arm, and that UI fights us for the framebuffer whatever
+    # firmware is on the box. disable_stock_firmware_ui no-ops wherever those
+    # files are absent.
+    disable_stock_firmware_ui || true
+
     case "${AD5M_FIRMWARE:-}" in
         forge_x)
             configure_forgex_display || true
             dismiss_forgex_feather_promo || true
-            disable_stock_firmware_ui || true
             patch_forgex_screen_sh || true
             patch_forgex_screen_drawing || true
             install_forgex_logged_wrapper || true
