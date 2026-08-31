@@ -6083,6 +6083,35 @@ backup_install_dir_for_update() {
     return 0
 }
 
+# Payload-root env preservation (mod hosts): keep an operator-authored
+# config/helixscreen.env byte-identical across a payload update by renaming
+# the incoming archive's copy to helixscreen.env.new inside the staged tree,
+# before any swap or in-place merge can land it on top of the live file.
+#
+# The env on a mod host is the rig's own runtime configuration
+# (HELIX_CONFIG_DIR, log routing the mod's bootstrap reads); silently swapping
+# in the bundled default would reroute the install, and the generic
+# backup/restore round-trip is not byte-stable — extract_release's one-time
+# LOG_LEVEL migration rewrites the restored file. The .new copy keeps new
+# template keys visible to the operator without touching the live file.
+#
+# Sets PAYLOAD_ENV_PRESERVED=1 when it renamed the incoming copy; extract_release
+# reads that to skip the env migration. Always returns 0 — a payload with no
+# existing env, or an archive shipping none, is not an error.
+preserve_payload_env() {
+    local new_root="$1" dest_root="$2"
+    [ -f "${dest_root}/config/helixscreen.env" ] || return 0
+    [ -f "${new_root}/config/helixscreen.env" ] || return 0
+    if mv "${new_root}/config/helixscreen.env" \
+          "${new_root}/config/helixscreen.env.new"; then
+        PAYLOAD_ENV_PRESERVED=1
+        log_info "Preserved existing helixscreen.env (incoming copy kept as helixscreen.env.new)"
+    else
+        log_warn "Could not set the incoming helixscreen.env aside; restoring the existing one from backup instead"
+    fi
+    return 0
+}
+
 # Extract archive with atomic swap and rollback protection.
 # Dispatches on _ARCHIVE_FORMAT for zip vs tar.gz. Expects the archive already
 # staged at _archive_tmp_path() by download_release() or use_local_tarball().
@@ -6203,6 +6232,14 @@ extract_release() {
         log_error "Aborting installation due to architecture mismatch."
         rm -rf "$extract_dir"
         exit 1
+    fi
+
+    # Payload roots (mod-managed hosts) preserve an existing env file exactly:
+    # the incoming copy is set aside as .new here, before any Phase 4 swap or
+    # in-place merge can land it on top of the operator's file.
+    PAYLOAD_ENV_PRESERVED=0
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        preserve_payload_env "$new_install" "$INSTALL_DIR"
     fi
 
     # Phase 4: Backup existing installation (if present)
@@ -6542,7 +6579,12 @@ extract_release() {
     # Level setting on every restart. Comment it out IFF it still matches the
     # exact old default, so users who deliberately set a different value keep
     # their customization.
-    if [ -f "$_env_dest" ] && grep -q '^HELIX_LOG_LEVEL=info[[:space:]]*$' "$_env_dest"; then
+    #
+    # A payload-preserved env (mod host) is exempt: it is the operator's own
+    # file, kept byte-identical by contract — see preserve_payload_env.
+    if [ "${PAYLOAD_ENV_PRESERVED:-0}" != "1" ] \
+        && [ -f "$_env_dest" ] \
+        && grep -q '^HELIX_LOG_LEVEL=info[[:space:]]*$' "$_env_dest"; then
         $(file_sudo "$_env_dest") sed -i 's/^HELIX_LOG_LEVEL=info[[:space:]]*$/#HELIX_LOG_LEVEL=info/' "$_env_dest" 2>/dev/null && \
             log_info "Migrated helixscreen.env: commented out default HELIX_LOG_LEVEL=info (in-app Log Level setting now applies)"
     fi
@@ -6767,6 +6809,16 @@ _migrate_init_script_hooks_path() {
 # Calls install_service_systemd or install_service_sysv based on INIT_SYSTEM
 install_service() {
     local platform=$1
+
+    # A mod-managed host runs the UI from the mod's own bootstrap
+    # (.shell/helixscreen.sh), not from any init file this installer writes:
+    # the host-side SysV script never ran on the rig (its chroot has no
+    # populated /etc/init.d) and the mod's OTA owns the payload tree. Writing
+    # service files there would only leave dead files in the mod's namespace.
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        log_info "mod manages the UI service (forge-x); skipping service install"
+        return 0
+    fi
 
     if [ "$platform" = "snapmaker-u1" ]; then
         install_service_snapmaker_u1
@@ -10230,6 +10282,16 @@ install_platform_hooks() {
         ad5x)          platform_hook="ad5x" ;;
         snapmaker-u1)  platform_hook="snapmaker-u1" ;;
     esac
+
+    # A probed mod host outranks both dispatches above. HOST_PLATFORM_HOOK_KEY
+    # is set only when the mod's own tree layout was found, and names the
+    # payload layout that rig actually runs. Without this a Forge-X AD5X
+    # reports platform=ad5x AND flavor=forge_x — the flavor case picks
+    # ad5m-forgex, the platform case overrides to ad5x (the Z-Mod hook) — and
+    # neither dispatch knows the forge-x payload layout exists.
+    if [ -n "${HOST_PLATFORM_HOOK_KEY:-}" ]; then
+        platform_hook="$HOST_PLATFORM_HOOK_KEY"
+    fi
 
     if [ -n "$platform_hook" ]; then
         deploy_platform_hooks "$INSTALL_DIR" "$platform_hook"

@@ -3635,6 +3635,16 @@ _migrate_init_script_hooks_path() {
 install_service() {
     local platform=$1
 
+    # A mod-managed host runs the UI from the mod's own bootstrap
+    # (.shell/helixscreen.sh), not from any init file this installer writes:
+    # the host-side SysV script never ran on the rig (its chroot has no
+    # populated /etc/init.d) and the mod's OTA owns the payload tree. Writing
+    # service files there would only leave dead files in the mod's namespace.
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        log_info "mod manages the UI service (forge-x); skipping service install"
+        return 0
+    fi
+
     if [ "$platform" = "snapmaker-u1" ]; then
         install_service_snapmaker_u1
         return

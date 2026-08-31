@@ -106,6 +106,16 @@ install_platform_hooks() {
         snapmaker-u1)  platform_hook="snapmaker-u1" ;;
     esac
 
+    # A probed mod host outranks both dispatches above. HOST_PLATFORM_HOOK_KEY
+    # is set only when the mod's own tree layout was found, and names the
+    # payload layout that rig actually runs. Without this a Forge-X AD5X
+    # reports platform=ad5x AND flavor=forge_x — the flavor case picks
+    # ad5m-forgex, the platform case overrides to ad5x (the Z-Mod hook) — and
+    # neither dispatch knows the forge-x payload layout exists.
+    if [ -n "${HOST_PLATFORM_HOOK_KEY:-}" ]; then
+        platform_hook="$HOST_PLATFORM_HOOK_KEY"
+    fi
+
     if [ -n "$platform_hook" ]; then
         deploy_platform_hooks "$INSTALL_DIR" "$platform_hook"
     fi

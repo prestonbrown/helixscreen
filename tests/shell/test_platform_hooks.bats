@@ -501,3 +501,43 @@ INIT_SCRIPT="config/helixscreen.init"
     [ "$status" -eq 0 ]
     [[ "$output" == *"FB0=UNSET"* ]]
 }
+
+# --- Forge-X AD5X rig hooks (vendored from the rig's live payload) ---
+#
+# hooks-ad5x-forgex.sh is a byte-for-byte capture of the platform/hooks.sh the
+# rig's payload actually runs (its header records the derivation from
+# hooks-ad5x.sh). The installer selects it via HOST_PLATFORM_HOOK_KEY=ad5x-forgex
+# (see test_forgex_boot.bats); these tests pin the file itself to the hook
+# contract every other hooks file in this directory satisfies.
+
+@test "ad5x-forgex hooks define all required functions" {
+    ( . "$HOOKS_DIR/hooks-ad5x-forgex.sh"
+      for func in $REQUIRED_FUNCTIONS; do
+          type "$func" >/dev/null 2>&1
+      done )
+}
+
+@test "ad5x-forgex hooks pass shellcheck" {
+    shellcheck -s sh "$HOOKS_DIR/hooks-ad5x-forgex.sh"
+}
+
+@test "ad5x-forgex hooks have valid sh syntax" {
+    sh -n "$HOOKS_DIR/hooks-ad5x-forgex.sh"
+}
+
+@test "ad5x-forgex hooks keep durable state out of the synced payload tree" {
+    # The payload root is replaceable on every update (and their OTA git-cleans
+    # it), so runtime caches must live in mod_data beside the mod's own state.
+    run sh -c '
+        HOOKS_DIR="'"$HOOKS_DIR"'"
+        . "$HOOKS_DIR/hooks-ad5x-forgex.sh"
+        mkdir() { :; }
+        touch() { :; }
+        platform_pre_start >/dev/null 2>&1
+        echo "cache=$HELIX_CACHE_DIR"
+        echo "file=$HELIX_LOG_FILE"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"cache=/opt/config/mod_data/helixscreen/cache"* ]]
+    [[ "$output" == *"file=/opt/config/mod_data/log/helix.log"* ]]
+}

@@ -305,6 +305,49 @@ OKEOF
 }
 
 # =============================================================================
+# install_service: mod-managed host (the firmware mod owns the UI service)
+#
+# On a Forge-X rig the mod starts the UI itself from its own bootstrap
+# (.shell/helixscreen.sh); the host-side SysV script this installer writes
+# never ran there (the rig's chroot has no populated /etc/init.d), and the
+# mod's OTA manages the payload tree. install_service must write NOTHING:
+# no init script, no systemd unit, nothing inside the mod's chroot.
+# =============================================================================
+
+@test "install_service: mod-managed host writes no service files anywhere" {
+    HOST_SERVICE_MECHANISM="mod-managed"
+    INIT_SYSTEM="sysv"
+    # Both templates exist in the extracted payload — the skip must happen
+    # before either install path consults them.
+    create_init_template
+    create_service_template
+    setup_sudo_redirect
+    # The chroot is part of "anywhere": nothing may land under it either.
+    HOST_MOD_CHROOT="$BATS_TEST_TMPDIR/usr/data/.mod/.forge-x"
+    mkdir -p "$HOST_MOD_CHROOT"
+
+    run install_service "ad5x"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"mod manages the UI service"* ]]
+    [ ! -f "$INIT_SCRIPT_DEST" ]
+    [ ! -f "$FAKE_SYSTEMD_DIR/helixscreen.service" ]
+    [ -z "$(find "$HOST_MOD_CHROOT" -type f -print -quit)" ]
+}
+
+@test "install_service: a plain host still installs the init script (control)" {
+    # host_profile.sh initializes the mechanism to "systemd" at source time;
+    # only a probed mod host flips it to mod-managed. The dispatcher must
+    # still reach the sysv path for everyone else.
+    HOST_SERVICE_MECHANISM="systemd"
+    INIT_SYSTEM="sysv"
+    create_init_template
+
+    install_service "ad5m"
+
+    [ -f "$INIT_SCRIPT_DEST" ]
+}
+
+# =============================================================================
 # stop_service
 # =============================================================================
 
