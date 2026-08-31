@@ -426,7 +426,7 @@ void PWMSoundBackend::apply_render_thread_priority() {
     if (pthread_setschedparam(pthread_self(), SCHED_IDLE, &sp) == 0) {
         // sched_getscheduler takes a kernel TID, not a pthread_t (opaque) —
         // passing pthread_self() there always fails ESRCH.
-        applied_sched_policy_ = sched_getscheduler(static_cast<pid_t>(::syscall(SYS_gettid)));
+        applied_sched_policy_.store(sched_getscheduler(static_cast<pid_t>(::syscall(SYS_gettid))));
     } else {
         spdlog::debug("[PWMSoundBackend] SCHED_IDLE refused (errno {}) - staying SCHED_OTHER",
                       errno);
