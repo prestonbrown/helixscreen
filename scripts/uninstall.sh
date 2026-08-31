@@ -648,9 +648,9 @@ host_profile_probe() {
     fi
 }
 
-# True when path (symlinks resolved) is managed by the mod: its git tree, the
-# detected chroot, or the canonical /usr/data/.mod chroot root. Never mv, rm,
-# or chmod these outside --mod-payload's in-place contract.
+# True when path (symlinks resolved) is managed by the mod: the probed tree,
+# the probed chroot, or one of the canonical mod roots. Never mv, rm, or chmod
+# these outside --mod-payload's in-place contract.
 host_path_is_mod_owned() {
     [ -n "$1" ] || return 1
     local p
@@ -668,10 +668,15 @@ host_path_is_mod_owned() {
             "$HOST_MOD_CHROOT"|"$HOST_MOD_CHROOT"/*) return 0 ;;
         esac
     fi
-    # The chroot root is canonical and hard-coded, like HELIX_INSTALL_DIRS:
-    # that namespace is the mod's whether or not the tree probe found it.
+    # The canonical roots are hard-coded, like HELIX_INSTALL_DIRS: those
+    # namespaces are the mod's whether or not a probe found them. The probe's
+    # marker (.shell/platform.sh) is refactorable, and a half-uninstall can
+    # remove it while the payload still sits in the tree — recognition must
+    # not depend on it.
     case "$p" in
-        /usr/data/.mod|/usr/data/.mod/*) return 0 ;;
+        /usr/data/.mod|/usr/data/.mod/*)                 return 0 ;;
+        /usr/data/config/mod|/usr/data/config/mod/*)     return 0 ;;
+        /opt/config/mod|/opt/config/mod/*)               return 0 ;;
     esac
     return 1
 }

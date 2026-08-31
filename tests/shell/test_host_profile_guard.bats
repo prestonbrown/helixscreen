@@ -143,6 +143,31 @@ sandbox_candidates() {
     [ "$status" -eq 0 ] || fail "canonical .mod root must still count without a probe"
 }
 
+@test "canonical mod trees are owned even when the probe found no marker" {
+    # Half-uninstall / mod-refactor scenario: .shell/platform.sh is gone, the
+    # probe leaves HOST_MOD_ROOT empty, and the payload still sits in the
+    # tree. The git trees are the mod's namespace whether or not a marker
+    # vouched for them — an INSTALL_DIR pointed there must still be refused.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+
+    run host_path_is_mod_owned "/usr/data/config/mod/.bin/helixscreen"
+    [ "$status" -eq 0 ] || fail "/usr/data/config/mod not owned without marker: $output"
+    run host_path_is_mod_owned "/opt/config/mod/.bin/exec/logged-real"
+    [ "$status" -eq 0 ] || fail "/opt/config/mod not owned without marker: $output"
+
+    # The refusal must reach the entry gate, not just the predicate.
+    run validate_install_dir "/usr/data/config/mod/.bin/helixscreen"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"refusing"* ]]
+
+    # Same shape, different tree: not the mod's namespace, not owned.
+    run host_path_is_mod_owned "/usr/data/config/other-mod/.bin/helixscreen"
+    [ "$status" -ne 0 ] || fail "unrelated /usr/data/config path reported owned"
+    run host_path_is_mod_owned "/opt/config/not-a-mod/.bin/helixscreen"
+    [ "$status" -ne 0 ] || fail "unrelated /opt/config path reported owned"
+}
+
 # ===========================================================================
 # validate_install_dir (common.sh) — the install/update entry gate
 # ===========================================================================
