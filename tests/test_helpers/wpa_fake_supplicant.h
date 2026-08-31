@@ -21,11 +21,14 @@
  */
 
 #include <atomic>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <system_error>
 #include <thread>
 #include <unistd.h>
 #include <vector>
@@ -154,6 +157,28 @@ struct WpaSocketDirGuard {
     ~WpaSocketDirGuard() {
         ::unsetenv("HELIX_WPA_SOCKET_DIR");
     }
+};
+
+/// Hermetic /sys/class/net for the same tests: creates
+/// <base>/sys/class/net/wlan0/wireless (wlan0 to match the fake control
+/// socket's name) and pins HELIX_WPA_NET_SYSFS to the net dir, so the
+/// backend's hardware probe finds a radio on machines without one (CI
+/// runners). The dtor unpins and removes only the subtree it created.
+struct WpaNetSysfsGuard {
+    explicit WpaNetSysfsGuard(const std::string& base_dir) {
+        net_dir_ = base_dir + "/sys/class/net";
+        std::error_code ec;
+        std::filesystem::create_directories(net_dir_ + "/wlan0/wireless", ec);
+        ::setenv("HELIX_WPA_NET_SYSFS", net_dir_.c_str(), 1);
+    }
+    ~WpaNetSysfsGuard() {
+        ::unsetenv("HELIX_WPA_NET_SYSFS");
+        std::error_code ec;
+        std::filesystem::remove_all(net_dir_, ec);
+    }
+
+  private:
+    std::string net_dir_;
 };
 
 } // namespace helix_test
