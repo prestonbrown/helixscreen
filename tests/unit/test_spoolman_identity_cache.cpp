@@ -135,6 +135,18 @@ class IdentityCacheFixture : public LVGLTestFixture {
   public:
     IdentityCacheFixture() {
         get_printer_state().init_subjects(false);
+        // AmsState's subjects too: the identity tests assert on
+        // slots_version, and bump_slots_version()'s get+set on a
+        // never-initialized lv_subject_t warns and DROPS both writes — the
+        // counter stays 0 while the cache still fills, and the test fails as
+        // 0 > 0. In-family an earlier case's ams.init_subjects(false) hides
+        // this (shard composition, not scheduling, is the flake); run alone
+        // at case granularity nothing initializes the subject. Production
+        // cannot hit this (subject_initializer brings AmsState up before
+        // SpoolmanManager can poll), so this is test self-sufficiency, not a
+        // product fix — the file asserts on AmsState state, so the file owns
+        // initializing it.
+        AmsState::instance().init_subjects(false);
         IdTA::reset(SpoolmanManager::instance());
         AmsState::instance().clear_external_spool_info();
         helix::ui::UpdateQueue::instance().drain();
