@@ -307,9 +307,11 @@ main() {
     print_platform_banner "$platform"
 
     # AD5X: refuse to run outside the ZMOD chroot — applies to fresh install,
-    # --update, --uninstall, and --local. Inside the chroot the check is a no-op.
+    # --update, --uninstall, and --local. Inside the chroot the check is a
+    # no-op, and a Forge-X host never trips it (its install is host-side into
+    # the mod's git tree, so the guard is inert there).
     if [ "$platform" = "ad5x" ]; then
-        ad5x_check_chroot_context
+        mod_check_chroot_context
     fi
 
     if [ "$platform" = "unsupported" ]; then
@@ -323,11 +325,16 @@ main() {
         exit 1
     fi
 
-    # For AD5M/K1, detect firmware variant and set appropriate paths
+    # For AD5M/AD5X/K1, detect the firmware/mod flavor and set appropriate paths.
+    # The FlashForge mods ship for both Adventurer platforms, so ad5x runs the
+    # same detector ad5m always has — a Forge-X AD5X is no longer misread as
+    # the ZMOD layout the ad5x paths assumed. AD5M_FIRMWARE is the compat
+    # alias for consumers predating that.
     local firmware=""
-    if [ "$platform" = "ad5m" ]; then
-        AD5M_FIRMWARE=$(detect_ad5m_firmware)
-        firmware="$AD5M_FIRMWARE"
+    if [ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ]; then
+        MOD_FLAVOR=$(detect_mod_flavor)
+        AD5M_FIRMWARE="$MOD_FLAVOR"
+        firmware="$MOD_FLAVOR"
     elif [ "$platform" = "k1" ]; then
         K1_FIRMWARE=$(detect_k1_firmware)
         firmware="$K1_FIRMWARE"

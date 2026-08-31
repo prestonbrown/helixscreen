@@ -715,6 +715,13 @@ _USER_INSTALL_DIR="${INSTALL_DIR}"
 [ "$_USER_INSTALL_DIR" = "/opt/helixscreen" ] && _USER_INSTALL_DIR=""
 INIT_SCRIPT_DEST=""
 PREVIOUS_UI_SCRIPT=""
+# The firmware-mod flavor (forge_x | zmod | klipper_mod | stock), detected for
+# BOTH ad5m and ad5x. AD5M_FIRMWARE stays as a compat alias: consumers
+# written before the ad5x rework (uninstall restore paths, forgex.sh) still
+# read it, so main() assigns both from one detect_mod_flavor call.
+# shellcheck disable=SC2034  # consumed by main.sh (set_install_paths dispatch)
+MOD_FLAVOR=""
+# shellcheck disable=SC2034  # compat alias, consumed by main.sh consumers
 AD5M_FIRMWARE=""
 # shellcheck disable=SC2034  # consumed by main.sh and competing_uis.sh
 K1_FIRMWARE=""
@@ -877,9 +884,14 @@ detect_platform() {
     fi
 
     # Check for FlashForge AD5X (MIPS with /usr/data and FlashForge indicators)
-    # AD5X uses Ingenic X2600 (MIPS); identified by /usr/prog/ dir or /ZMOD file alongside /usr/data/
+    # AD5X uses Ingenic X2600 (MIPS); identified by /usr/prog/ dir or /ZMOD file
+    # alongside /usr/data/. A Forge-X host carries neither marker: there the
+    # host profile's probe (mod git tree or chroot) is the evidence, so the
+    # probe globals qualify on their own — which also keeps this clause
+    # testable through the probe's env-overridable candidate roots.
     if [ "$arch" = "mips" ]; then
-        if [ -d "/usr/data" ] && { [ -d "/usr/prog" ] || [ -f "/ZMOD" ]; }; then
+        if { [ -d "/usr/data" ] && { [ -d "/usr/prog" ] || [ -f "/ZMOD" ]; }; } \
+           || [ -n "${HOST_MOD_ROOT:-}" ] || [ -n "${HOST_MOD_CHROOT:-}" ]; then
             echo "ad5x"
             return
         fi
@@ -1092,19 +1104,30 @@ helix_self_update_asset() {
     esac
 }
 
-# AD5X (FlashForge / ZMOD) preflight: refuse to run outside the chroot.
+# Mod-host (FlashForge AD5X) preflight: refuse to run outside the ZMOD chroot.
 #
-# ZMOD installs HelixScreen into an overlay rooted at /usr/data/.mod/.zmod/.
-# Inside the chroot the rootfs is the overlay (/, /etc, /opt, /srv all live
-# under that overlay). Outside, those same paths point at the squashfs base
-# view that helix-screen never sees — so a curl|sh, --local, --update, or
-# --uninstall run from a fresh SSH session writes to the wrong filesystem
-# entirely. The `/usr/data/.mod/.zmod` directory is only visible from outside
-# the chroot, so its presence is the reliable "you forgot to chroot" tell.
+# The FlashForge mods run out of chroots under /usr/data/.mod — ZMOD's overlay
+# at .zmod, Forge-X's environment at .forge-x — and only ZMOD's layout needs
+# the installer INSIDE it. ZMOD installs HelixScreen into an overlay rooted at
+# /usr/data/.mod/.zmod/: inside the chroot the rootfs is the overlay (/, /etc,
+# /opt, /srv all live under it), while outside those same paths point at the
+# squashfs base view that helix-screen never sees — so a curl|sh, --local,
+# --update, or --uninstall run from a fresh SSH session writes to the wrong
+# filesystem entirely. The chroot root is only visible from outside it, so its
+# presence is the reliable "you forgot to chroot" tell.
 #
-# Aborts with an actionable message when called outside the chroot.
-ad5x_check_chroot_context() {
-    [ -d "/usr/data/.mod/.zmod" ] || return 0
+# A Forge-X host never trips this: its install is host-side into the mod's git
+# tree, and it has no .zmod root — hence the mod-generic name.
+#
+# Aborts with an actionable message when called outside the ZMOD chroot.
+mod_check_chroot_context() {
+    local zmod_root="/usr/data/.mod/.zmod"
+    # The probe's candidate roots are env-overridable (sandboxed tests); honour
+    # a probed ZMOD chroot so the refusal is exercisable without a real device.
+    case "${HOST_MOD_CHROOT:-}" in
+        */.zmod) zmod_root="$HOST_MOD_CHROOT" ;;
+    esac
+    [ -d "$zmod_root" ] || return 0
 
     log_error ""
     log_error "=========================================================="
@@ -1112,7 +1135,7 @@ ad5x_check_chroot_context() {
     log_error "=========================================================="
     log_error ""
     log_error "ZMOD installs HelixScreen into an overlay at:"
-    log_error "  /usr/data/.mod/.zmod/"
+    log_error "  $zmod_root/"
     log_error ""
     log_error "Running this installer from your default SSH shell writes"
     log_error "into the squashfs base view, not the overlay HelixScreen"
@@ -1122,7 +1145,7 @@ ad5x_check_chroot_context() {
     log_error ""
     log_error "Enter the chroot first, then re-run your command:"
     log_error ""
-    log_error "  chroot /usr/data/.mod/.zmod"
+    log_error "  chroot $zmod_root"
     log_error "  # then re-run: curl ... | sh   OR   sh install.sh --local <zip>"
     log_error "  # OR:          sh install.sh --update / --uninstall"
     log_error ""
@@ -1131,6 +1154,12 @@ ad5x_check_chroot_context() {
     log_error "specific versions, or troubleshooting."
     log_error ""
     exit 1
+}
+
+# Compat wrapper for the pre-rework name. The uninstaller bundle's main()
+# still calls this; it delegates rather than forking the guard.
+ad5x_check_chroot_context() {
+    mod_check_chroot_context "$@"
 }
 
 # Detect the Klipper ecosystem user (who runs klipper/moonraker services)
@@ -1201,10 +1230,25 @@ detect_klipper_user() {
     return 0
 }
 
-# Detect AD5M firmware variant (Klipper Mod vs Forge-X vs ZMOD)
-# Only called when platform is "ad5m"
-# Returns: "klipper_mod", "forge_x", or "zmod"
-detect_ad5m_firmware() {
+# Detect the firmware-mod flavor (Forge-X vs ZMOD vs Klipper Mod vs stock).
+# Called for BOTH "ad5m" and "ad5x" — the mods ship for the whole FlashForge
+# Adventurer line and share their markers across the two platforms.
+# Returns: "forge_x", "zmod", "klipper_mod", or "stock"
+detect_mod_flavor() {
+    # Forge-X indicators — the host profile's probe. The mod's git tree is the
+    # primary evidence and its chroot root the fallback (matched by basename so
+    # a sandboxed probe qualifies); both are checked BEFORE the /ZMOD test so
+    # a Forge-X AD5X — no /ZMOD, no /usr/prog — is not misread as stock.
+    # The ZMOD chroot deliberately does not match here: it owns the branch
+    # below.
+    if [ -n "${HOST_MOD_ROOT:-}" ]; then
+        echo "forge_x"
+        return
+    fi
+    case "${HOST_MOD_CHROOT:-}" in
+        */.forge-x) echo "forge_x"; return ;;
+    esac
+
     # ZMOD indicator - check for /ZMOD marker file
     # ZMOD is used on AD5M, AD5M Pro, and AD5X (FlashForge series)
     if [ -f "/ZMOD" ]; then
@@ -1221,14 +1265,21 @@ detect_ad5m_firmware() {
         return
     fi
 
-    # Forge-X indicators - check for its mod overlay structure
+    # Forge-X on the AD5M: the mod overlay structure marker, for hosts the
+    # probe did not recognize (its .shell/platform.sh marker is refactorable)
     if [ -d "/opt/config/mod/.root" ]; then
         echo "forge_x"
         return
     fi
 
-    # Default to forge_x (original behavior, most common)
-    echo "forge_x"
+    # No mod evidence at all: stock FlashForge firmware
+    echo "stock"
+}
+
+# Compat wrapper for the pre-rework name. The uninstaller bundle's main()
+# still calls this; it delegates rather than forking the detector.
+detect_ad5m_firmware() {
+    detect_mod_flavor "$@"
 }
 
 # Detect K1 firmware variant (Simple AF, Guilouz helper-script, or stock)

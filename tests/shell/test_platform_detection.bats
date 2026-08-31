@@ -188,6 +188,100 @@ _mock_ad5x_detect_platform() {
     [ "$PREVIOUS_UI_SCRIPT" = "" ]
 }
 
+# --- AD5X Forge-X (mod-probed) detection tests ---
+#
+# A Forge-X AD5X carries none of the stock markers: no /ZMOD, no /usr/prog.
+# The host profile's probe (env-overridable candidate roots, same convention
+# as test_host_profile_guard.bats) is the evidence there, so these tests run
+# the REAL detect_platform / detect_mod_flavor / mod_check_chroot_context
+# against a sandboxed rig-shaped tree rather than mirroring their logic.
+
+# Sandbox a Forge-X AD5X the way the rig looks from the host side: the mod's
+# git tree plus the forge-x chroot, nothing else.
+_setup_forgex_ad5x_sandbox() {
+    install_gnu_stat_shim
+    SANDBOX="$BATS_TEST_TMPDIR/forgex-root"
+    mkdir -p "$SANDBOX/usr/data/config/mod/.shell" \
+             "$SANDBOX/usr/data/.mod/.forge-x/usr/bin"
+    touch "$SANDBOX/usr/data/config/mod/.shell/platform.sh"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/usr/data/config/mod"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/usr/data/.mod/.forge-x"
+    unset _HELIX_HOST_PROFILE_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+    host_profile_probe
+}
+
+# Sandbox a Z-Mod AD5X: chroot only, no forge-x tree, no /ZMOD (an absolute
+# path the sandbox cannot fake — the probed chroot stands in for it).
+_setup_zmod_ad5x_sandbox() {
+    install_gnu_stat_shim
+    SANDBOX="$BATS_TEST_TMPDIR/zmod-root"
+    mkdir -p "$SANDBOX/usr/data/.mod/.zmod/usr/bin"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/no/mod/tree"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/usr/data/.mod/.zmod"
+    unset _HELIX_HOST_PROFILE_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+    host_profile_probe
+}
+
+@test "AD5X Forge-X: probe evidence alone returns ad5x from detect_platform" {
+    _setup_forgex_ad5x_sandbox
+    [ -n "$HOST_MOD_ROOT" ] || fail "probe did not find the sandbox tree"
+    mock_command "uname" "mips"
+    run detect_platform
+    [ "$status" -eq 0 ]
+    [ "$output" = "ad5x" ]
+}
+
+@test "AD5X Forge-X: detect_mod_flavor returns forge_x from the probed tree" {
+    _setup_forgex_ad5x_sandbox
+    run detect_mod_flavor
+    [ "$status" -eq 0 ]
+    [ "$output" = "forge_x" ]
+}
+
+@test "AD5X Forge-X: mod_check_chroot_context passes (host-side install is the Forge-X design)" {
+    _setup_forgex_ad5x_sandbox
+    [ "$HOST_CHROOT_STATE" = "outside:$SANDBOX/usr/data/.mod/.forge-x" ] \
+        || fail "probe did not see the forge-x chroot: $HOST_CHROOT_STATE"
+    run mod_check_chroot_context
+    [ "$status" -eq 0 ]
+}
+
+@test "ZMOD: mod_check_chroot_context refuses an install run outside the chroot" {
+    _setup_zmod_ad5x_sandbox
+    [ -n "$HOST_MOD_CHROOT" ] || fail "probe did not find the zmod chroot"
+    # setup() silences the log_* stubs; make the refusal message assertable.
+    log_error() { echo "ERROR: $*"; }
+    run mod_check_chroot_context
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"must run inside"* ]]
+}
+
+@test "AD5X Forge-X: the ad5x_check_chroot_context compat wrapper still answers" {
+    _setup_forgex_ad5x_sandbox
+    run ad5x_check_chroot_context
+    [ "$status" -eq 0 ]
+}
+
+@test "detect_mod_flavor defaults to stock when no mod evidence exists" {
+    # A bare host: no probed tree/chroot, no /ZMOD, no klipper_mod markers.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    run detect_mod_flavor
+    [ "$status" -eq 0 ]
+    [ "$output" = "stock" ]
+}
+
+@test "detect_ad5m_firmware compat wrapper returns the mod flavor" {
+    _setup_forgex_ad5x_sandbox
+    run detect_ad5m_firmware
+    [ "$status" -eq 0 ]
+    [ "$output" = "forge_x" ]
+}
+
 @test "AD5X: detect_platform checks AD5X before K1 (ordering)" {
     # Verify the source code has AD5X check before K1 check
     # AD5X must be checked first because both have /usr/data, but only AD5X has /usr/prog
@@ -281,6 +375,38 @@ _mock_detect_ad5m_firmware() {
     [ -n "$zmod_line" ]
     [ -n "$forge_x_line" ]
     [ "$zmod_line" -lt "$forge_x_line" ]
+}
+
+# --- One mod-flavor detector, called for ad5x too ---
+
+@test "main.sh runs the mod-flavor detector for ad5m AND ad5x" {
+    local main_sh="$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+    grep -qF 'MOD_FLAVOR=$(detect_mod_flavor)' "$main_sh"
+    grep -qF '[ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ]' "$main_sh"
+}
+
+@test "main.sh calls mod_check_chroot_context for ad5x" {
+    grep -q 'mod_check_chroot_context' "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+}
+
+@test "platform.sh keeps the compat wrappers for the renamed mod functions" {
+    local platform_sh="$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
+    grep -q '^detect_ad5m_firmware()' "$platform_sh"
+    grep -q '^ad5x_check_chroot_context()' "$platform_sh"
+    # The wrappers delegate rather than fork the logic.
+    grep -A1 '^detect_ad5m_firmware()' "$platform_sh" | grep -q 'detect_mod_flavor'
+    grep -A1 '^ad5x_check_chroot_context()' "$platform_sh" | grep -q 'mod_check_chroot_context'
+}
+
+@test "install.sh (bundled) runs the mod-flavor detector for ad5x" {
+    grep -q 'MOD_FLAVOR=$(detect_mod_flavor)' "$WORKTREE_ROOT/scripts/install.sh"
+    grep -q 'mod_check_chroot_context' "$WORKTREE_ROOT/scripts/install.sh"
+}
+
+@test "uninstall.sh (bundled) still defines the compat wrappers" {
+    local uninst="$WORKTREE_ROOT/scripts/uninstall.sh"
+    grep -q '^detect_ad5m_firmware()' "$uninst"
+    grep -q '^ad5x_check_chroot_context()' "$uninst"
 }
 
 # --- Creality K2 platform detection tests ---
