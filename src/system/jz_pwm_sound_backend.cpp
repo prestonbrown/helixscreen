@@ -169,6 +169,16 @@ void JzPwmSoundBackend::flush_step() {
     if (words.empty())
         return;
 
+    /* One buffer at a time, no exceptions: a previous child still holding
+     * the channel means this sound is dropped, not raced (see
+     * stop_child). */
+    if (child_ > 0) {
+        int status = 0;
+        if (waitpid(child_, &status, WNOHANG) == 0) {
+            spdlog::debug("[JzPwmBackend] previous step still playing; dropping");
+            return;
+        }
+    }
     stop_child();
 
     FILE* f = fopen(kWordsFile, "wb");
@@ -192,12 +202,16 @@ void JzPwmSoundBackend::flush_step() {
 
     std::string ms_flag = "--ms=" + std::to_string(static_cast<long>(ms));
     std::string prescale_flag = "--prescale=" + std::to_string(kPrescale);
-    std::array<char*, 6> argv = {const_cast<char*>(fx_pwm_.c_str()),
+    /* argv MUST be NULL-terminated: execv walks it until the sentinel,
+     * and a missing one reads past the array into garbage - EFAULT, the
+     * child dies before a single byte of output. Measured on the rig. */
+    std::array<char*, 7> argv = {const_cast<char*>(fx_pwm_.c_str()),
                                  const_cast<char*>("words"),
                                  const_cast<char*>(kGpio),
                                  const_cast<char*>(kWordsFile),
                                  ms_flag.data(),
-                                 prescale_flag.data()};
+                                 prescale_flag.data(),
+                                 nullptr};
 
     pid_t pid = fork();
     if (pid == 0) {
@@ -209,7 +223,18 @@ void JzPwmSoundBackend::flush_step() {
             dup2(log, STDOUT_FILENO);
             dup2(log, STDERR_FILENO);
         }
+        {
+            const char pre[] = "child: pre-exec\n";
+            if (write(STDERR_FILENO, pre, sizeof(pre) - 1)) {
+            }
+        }
         execv(fx_pwm_.c_str(), argv.data());
+        {
+            char buf[128];
+            int n = snprintf(buf, sizeof(buf), "child: execv failed: %s\n", std::strerror(errno));
+            if (write(STDERR_FILENO, buf, n)) {
+            }
+        }
         _exit(127);
     }
     if (pid > 0)
@@ -219,18 +244,17 @@ void JzPwmSoundBackend::flush_step() {
 }
 
 void JzPwmSoundBackend::stop_child() {
+    /* Reap only - NEVER signal a running child. Killing fx-pwm between
+     * REQUEST and RELEASE orphans the channel claim, and the driver's
+     * next REQUEST on an orphaned claim can D-wedge until reboot: a
+     * disconnect-driven error-sound storm SIGTERMing its way through
+     * children wedged the channel eight deep on the rig. A live child
+     * simply outlives the dropped sound; buffers are capped at 2.5 s so
+     * the wait is bounded. */
     if (child_ <= 0)
         return;
     int status = 0;
-    if (waitpid(child_, &status, WNOHANG) == 0) {
-        // fx-pwm's signal handler releases the channel before exiting -
-        // arming it is why the tool exists in this shape. If the child
-        // is wedged in the driver (D-state) the signal is a no-op: the
-        // next spawn will wedge too and sound is lost until reboot, but
-        // the printer is never affected.
-        kill(child_, SIGTERM);
-        waitpid(child_, &status, WNOHANG);
-    }
+    waitpid(child_, &status, WNOHANG);
     child_ = -1;
 }
 
