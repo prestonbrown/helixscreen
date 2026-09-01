@@ -171,11 +171,13 @@ AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
     // Colors, types and the tool mapping. Present on every AD5X.
     std::vector<std::string> objects{"save_variables"};
 
-    // ZMOD publishes the IFS state as real Klipper objects from
-    // ghzserg/z_ad5x#12 onward. Klipper's objects/list only carries objects
-    // that implement get_status(), so listing them IS the capability check.
+    // "ifs" is the standalone [ifs] module — the live tool_map the remap gate
+    // reads. zmod_ifs / zmod_color are ZMOD's own IFS objects, published as
+    // real Klipper objects from ghzserg/z_ad5x#12 onward. Klipper's
+    // objects/list only carries objects that implement get_status(), so
+    // listing them IS the capability check.
     const auto& available = hw.printer_objects();
-    for (const char* name : {"zmod_ifs", "zmod_color"}) {
+    for (const char* name : {"ifs", "zmod_ifs", "zmod_color"}) {
         if (std::find(available.begin(), available.end(), name) != available.end()) {
             objects.emplace_back(name);
         }
@@ -271,6 +273,10 @@ void AmsBackendAd5xIfs::on_started() {
                    // mutually-exclusive pair in this list already works.
                    {"zmod_ifs", nullptr},
                    {"zmod_color", nullptr},
+                   // The standalone [ifs] module. Its tool_map is the remap
+                   // capability gate; a frame without it leaves the gate
+                   // closed, same as a printer without the module.
+                   {"ifs", nullptr},
                    // Klippy state — GET_ZCOLOR SILENT=1 only works once zmod is
                    // initialised, so we gate the initial query on webhooks.state == "ready".
                    {"webhooks", nullptr}}}},
@@ -452,6 +458,14 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     // itself?" (#1250, reported as #1247).
     if (status->contains("gcode_macro _ifs_vars")) {
         if (parse_ifs_vars_macro_locked((*status)["gcode_macro _ifs_vars"])) {
+            state_changed = true;
+        }
+    }
+
+    // The standalone [ifs] module's status. Its tool_map is the remap
+    // capability gate AND the table itself — see parse_ifs_tool_map_locked.
+    if (status->contains("ifs")) {
+        if (parse_ifs_tool_map_locked((*status)["ifs"])) {
             state_changed = true;
         }
     }
@@ -802,10 +816,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
             for (int t = 0; t < NUM_PORTS; ++t) {
                 tool_map_[static_cast<size_t>(t)] = t + 1;
             }
-            for (int i = 0; i < NUM_PORTS; ++i) {
-                int tool = find_first_tool_for_port(i + 1);
-                slots_.set_tool_mapping(i, tool);
-            }
+            rebuild_slot_tool_mapping_locked();
             for (int i = 0; i < NUM_PORTS; ++i) {
                 update_slot_from_state(i);
             }
@@ -862,16 +873,99 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // is whatever default values the registry was constructed with, and
         // running this loop would lock those defaults in over real data that
         // might arrive later via apply_zcolor_result's extruder_slot path.
-        for (int i = 0; i < NUM_PORTS; ++i) {
-            int tool = find_first_tool_for_port(i + 1); // port is 1-based
-            slots_.set_tool_mapping(i, tool);
-        }
+        rebuild_slot_tool_mapping_locked();
     }
 
     // Sync all slots from cached state
     for (int i = 0; i < NUM_PORTS; ++i) {
         update_slot_from_state(i);
     }
+}
+
+void AmsBackendAd5xIfs::rebuild_slot_tool_mapping_locked() {
+    // Re-derive each lane's SlotInfo::mapped_tool from tool_map_. tool_map_ is
+    // the register every adapter fills at its own edge (the ZMOD plugin path
+    // from save_variables, the Forge-X module from printer.ifs frames); this
+    // is the one place the reverse direction is projected onto the slot model
+    // the UI reads. Caller holds mutex_.
+    for (int i = 0; i < NUM_PORTS; ++i) {
+        slots_.set_tool_mapping(i, find_first_tool_for_port(i + 1)); // port is 1-based
+    }
+}
+
+bool AmsBackendAd5xIfs::parse_ifs_tool_map_locked(const nlohmann::json& ifs_object) {
+    // The standalone [ifs] module ([ifs] in printer.cfg) echoes its live
+    // slicer-tool -> lane table in `tool_map`, and publishes it from
+    // construction — even before its first board poll — so the field's
+    // presence is both the table and the remap capability. Wire shape,
+    // exactly as the module serialises it:
+    //   "tool_map": {"0": 1, "1": 2, "2": 3, "3": 4}
+    // Keys are STRING tool numbers (0-based, the T<n> a slicer writes; a JSON
+    // object's keys are strings whatever Python held). Values are INT lanes,
+    // 1-BASED — the numbering IFS_LOAD SLOT= and loaded_channels speak — and
+    // 1-based is also this backend's own tool_map_ convention
+    // (tool_map_[tool] = port), so no conversion happens here. A frame
+    // carries the COMPLETE table; entries it omits unmap.
+    const auto it = ifs_object.find("tool_map");
+    if (it == ifs_object.end() || !it->is_object()) {
+        return false;
+    }
+
+    if (!ifs_tool_map_live_) {
+        ifs_tool_map_live_ = true;
+        if (has_ifs_vars_) {
+            // Both contracts detected. The wire table wins (live firmware
+            // state; save_variables rows survive a firmware swap), but the
+            // plugin signal is recorded rather than silently dropped.
+            spdlog::info("{} printer.ifs tool_map is live and takes precedence over the "
+                         "_IFS_VARS tool mapping (both signals present) — IFS_MAP_TOOL "
+                         "remapping available",
+                         backend_log_tag());
+        } else {
+            spdlog::info("{} printer.ifs tool_map is live — IFS_MAP_TOOL remapping available",
+                         backend_log_tag());
+        }
+    }
+
+    std::array<int, TOOL_MAP_SIZE> parsed{};
+    parsed.fill(UNMAPPED_PORT);
+    for (auto entry = it->begin(); entry != it->end(); ++entry) {
+        int tool = 0;
+        try {
+            tool = std::stoi(entry.key());
+        } catch (...) {
+            continue; // not a tool number
+        }
+        if (tool < 0 || tool >= TOOL_MAP_SIZE) {
+            continue;
+        }
+        const json& lane = entry.value();
+        if (lane.is_number_integer()) {
+            const int port = lane.get<int>();
+            if (port >= 1 && port <= NUM_PORTS) {
+                parsed[static_cast<size_t>(tool)] = port;
+            }
+        }
+    }
+
+    bool changed = false;
+    for (size_t t = 0; t < TOOL_MAP_SIZE; ++t) {
+        if (tool_map_[t] != parsed[t]) {
+            tool_map_[t] = parsed[t];
+            changed = true;
+        }
+    }
+    if (!changed) {
+        return false;
+    }
+
+    // Rebuild the per-lane reverse mapping so SlotInfo::mapped_tool badges
+    // follow the wire table (mirrors the parse_save_variables tail).
+    rebuild_slot_tool_mapping_locked();
+    for (int i = 0; i < NUM_PORTS; ++i) {
+        update_slot_from_state(i);
+    }
+    return true;
 }
 
 void AmsBackendAd5xIfs::parse_port_sensor(int port_1based, bool detected) {
@@ -1445,8 +1539,12 @@ void AmsBackendAd5xIfs::publish_external_spool_lane(const SlotInfo* spool) {
 helix::FirmwareRouting AmsBackendAd5xIfs::firmware_default_routing() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // Native zMod publishes no table at all. Reporting one full of -1 would
-    // strand every tool unresolved, so answer the majority shape instead.
+    // A DEFAULT is what the firmware routes with no help. The lessWaste/bambufy
+    // plugin's table persists, so it is a standing default and the branch below
+    // reports it. The [ifs] module's tool_map is per-print state (identity
+    // until IFS_MAP_TOOL, cleared at print end), so a wire-table rig has no
+    // standing table either — and reporting one full of -1 would strand every
+    // tool unresolved, so answer the majority shape instead.
     if (!has_ifs_vars_) {
         return helix::FirmwareRouting::identity();
     }
@@ -2667,22 +2765,23 @@ void AmsBackendAd5xIfs::update_slot_weight(int slot_index, float remaining_weigh
 bool AmsBackendAd5xIfs::remap_ready() const {
     std::lock_guard<std::mutex> lock(mutex_);
     // Native is declared unconditionally because that is what this backend is
-    // built to do. Whether the write can LAND is this question: without the
-    // `_IFS_VARS` macro, set_tool_mapping() mutates local state the firmware
-    // replays nothing from, so a user's pick is silently dropped at print start.
-    return has_ifs_vars_;
+    // built to do. Whether the write can LAND is this question, and two
+    // firmware stacks answer it: the Forge-X [ifs] module echoing its
+    // tool_map, or ZMOD with the lessWaste/bambufy plugin's _IFS_VARS macro.
+    // Either one alone enables remapping for its population.
+    return ifs_tool_map_live_ || has_ifs_vars_;
 }
 
 bool AmsBackendAd5xIfs::owns_tool_mapping_table() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    // Same gate, different question: get_tool_mapping() returns {} without the
-    // macro, so there is no table for a ToolTopology to be built from.
-    return has_ifs_vars_;
+    // Same gate, different question: get_tool_mapping() returns {} without a
+    // contract, so there is no table for a ToolTopology to be built from.
+    return ifs_tool_map_live_ || has_ifs_vars_;
 }
 
 std::vector<int> AmsBackendAd5xIfs::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!has_ifs_vars_) {
+    if (!ifs_tool_map_live_ && !has_ifs_vars_) {
         return {};
     }
     std::vector<int> result(TOOL_MAP_SIZE, -1);
@@ -2700,9 +2799,10 @@ std::vector<int> AmsBackendAd5xIfs::get_tool_mapping() const {
     // single-hotend AD5X advertise a 16-tool machine. Trailing -1 padding is the
     // only thing dropped: entries below the cut keep their index, so an unmapped
     // T1 stays a -1 hole rather than sliding T2 down into its place. An entirely
-    // unmapped register yields an empty vector, which is what the !has_ifs_vars_
-    // path above already returns and what build_ams_topology() reads as "fall
-    // back to a 1:1 map from the slot count".
+    // unmapped register yields an empty vector, which is what the
+    // !ifs_tool_map_live_ path above already returns and what
+    // build_ams_topology() reads as "fall back to a 1:1 map from the slot
+    // count".
     result.resize(static_cast<size_t>(highest_mapped + 1));
     return result;
 }
@@ -2712,32 +2812,67 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping(int tool_number, int slot_index) {
         return AmsErrorHelper::invalid_parameter("Invalid tool number");
     }
 
-    int port = (slot_index >= 0 && slot_index < NUM_PORTS) ? (slot_index + 1) : UNMAPPED_PORT;
-
+    bool wire_backed = false;
+    bool plugin_backed = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        tool_map_[static_cast<size_t>(tool_number)] = port;
+        wire_backed = ifs_tool_map_live_;
+        plugin_backed = has_ifs_vars_;
+    }
 
-        // Update SlotRegistry reverse mapping
-        for (int i = 0; i < NUM_PORTS; ++i) {
-            int tool = find_first_tool_for_port(i + 1);
-            slots_.set_tool_mapping(i, tool);
+    // Forge-X [ifs] module: the wire owns the table. The module applies the
+    // verb and echoes the new tool_map by subscription, so there is no
+    // optimistic local write — a firmware refusal (aiming a tool at a lane
+    // with no filament) leaves get_tool_mapping() reporting what the printer
+    // actually has, and the gcode error path reports the refusal itself.
+    // slot_index is the AmsBackend contract's 0-based slot; SLOT= is the
+    // 1-based lane the module speaks. The module has no "unmapped" state
+    // (every tool always aims at a lane), so an out-of-range slot is a
+    // structural error, not a verb to send. Takes precedence when both
+    // contracts are detected (parse_ifs_tool_map_locked logs that case).
+    if (wire_backed) {
+        if (slot_index < 0 || slot_index >= NUM_PORTS) {
+            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
         }
+        std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) +
+                           " SLOT=" + std::to_string(slot_index + 1);
+        return execute_gcode(verb);
     }
 
-    // Persist tool mapping (only for lessWaste/bambufy — native ZMOD manages
-    // tool mapping internally via the COLOR/SET_ZCOLOR dialog)
-    if (!has_ifs_vars_) {
-        return AmsErrorHelper::success();
-    }
-
+    // ZMOD + lessWaste/bambufy: the plugin's save_variables table. Applied
+    // locally (the read-back is polled, not pushed) and persisted through the
+    // _IFS_VARS macro the plugin replays at print start.
+    int port = (slot_index >= 0 && slot_index < NUM_PORTS) ? (slot_index + 1) : UNMAPPED_PORT;
     std::string tools_val;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        tools_val = build_tool_map_value();
+        tool_map_[static_cast<size_t>(tool_number)] = port;
+        rebuild_slot_tool_mapping_locked();
+        if (plugin_backed) {
+            tools_val = build_tool_map_value();
+        }
     }
-
+    if (!plugin_backed) {
+        // No contract detected: nothing echoes or replays a mapping — the
+        // answer remap_ready() already gives before a caller gets here.
+        return AmsErrorHelper::success();
+    }
     return write_ifs_var("tools", tools_val);
+}
+
+AmsError AmsBackendAd5xIfs::reset_tool_mappings() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!ifs_tool_map_live_) {
+            // Only the [ifs] module has a reset verb; the plugin contract has
+            // none (its table is 16 independently-written entries), so the
+            // base's not_supported answer stands for the ZMOD path.
+            return AmsErrorHelper::not_supported("IFS tool map not available");
+        }
+    }
+    // The module restores the identity itself and the echo frame rewrites our
+    // copy, so no local state is touched here.
+    return execute_gcode("IFS_MAP_TOOL RESET=1");
 }
 
 // --- Bypass ---

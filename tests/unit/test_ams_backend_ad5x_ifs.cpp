@@ -16,10 +16,12 @@
 #include "filament_variants.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/scoped_home_confirm_prompter.h"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -62,6 +64,30 @@ struct Ad5xIfsTmpCacheDir {
         std::filesystem::remove_all(path, ec);
     }
 };
+
+// Backend subclass that records every dispatched gcode instead of reaching a
+// printer. Used by the _IFS_VARS mirror tests and the IFS_MAP_TOOL verb tests.
+class GcodeCapturingBackend : public AmsBackendAd5xIfs {
+  public:
+    using AmsBackendAd5xIfs::AmsBackendAd5xIfs;
+    std::vector<std::string> captured_gcodes;
+    AmsError execute_gcode(const std::string& gcode) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+    AmsError execute_gcode(const std::string& gcode,
+                           std::function<void()> /*on_complete*/) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+    bool any_gcode_starts_with(const std::string& prefix) const {
+        for (const auto& g : captured_gcodes) {
+            if (g.rfind(prefix, 0) == 0)
+                return true;
+        }
+        return false;
+    }
+};
 } // namespace
 
 using json = nlohmann::json;
@@ -78,6 +104,24 @@ static json make_extruder(double temperature, double target) {
 // Helper to build a full save_variables JSON payload
 static json make_save_variables(const json& variables) {
     return json{{"save_variables", json{{"variables", variables}}}};
+}
+
+// Helper to build a printer.ifs status frame — the standalone [ifs] module's
+// get_status() as a Moonraker notify_status_update delivers it. tool_map keys
+// are STRING tool numbers (0-based, the T<n> a slicer writes) and values are
+// 1-based lane numbers, exactly as the module serialises them; passing an
+// empty json::object() omits tool_map entirely (module predating the field).
+static json make_ifs_frame(const json& tool_map) {
+    json ifs = json{{"connected", true}, {"channel_count", 4}};
+    if (!tool_map.is_null()) {
+        ifs["tool_map"] = tool_map;
+    }
+    return json{{"ifs", ifs}};
+}
+
+// The identity table a fresh module publishes: T0->lane 1 .. T3->lane 4.
+static json identity_tool_map() {
+    return json{{"0", 1}, {"1", 2}, {"2", 3}, {"3", 4}};
 }
 
 // Helper to build a port sensor notification
@@ -443,58 +487,178 @@ TEST_CASE("AD5X IFS get_system_info", "[ams][ad5x_ifs]") {
 }
 
 // ==========================================================================
-// 9b. get_tool_mapping() advertises only the tools the firmware actually maps
+// 9b. Tool remapping — two firmware stacks, two adapters
 //
-// build_ams_topology() (ams_state.cpp) takes ToolTopology::tool_count straight
-// from this vector's length, and ToolState turns that into the tool list every
-// tool-count consumer reads. A 4-port AD5X with one hotend must therefore not
-// hand back all 16 addressable T-numbers.
+// Forge-X port: the standalone [ifs] module owns the slicer-tool -> lane
+// table and echoes it live in printer.ifs.tool_map. Every frame carries the
+// COMPLETE table; keys are string tool numbers (0-based, the T<n> a slicer
+// writes) and values are 1-based lanes (the number IFS_LOAD SLOT= speaks).
+// Writes are IFS_MAP_TOOL verbs; the echo promotes them.
+//
+// ZMOD: the lessWaste/bambufy plugins expose their table through
+// save_variables <prefix>_tools and persist writes with the _IFS_VARS macro
+// (the legacy contract, kept byte-for-byte). A machine on either stack can
+// remap: remap_ready()/owns_tool_mapping_table() answer whether EITHER signal
+// has been seen, and the wire table wins when both are. build_ams_topology()
+// (ams_state.cpp) takes ToolTopology::tool_count from get_tool_mapping()'s
+// length, so the advertised table also decides the tool list every
+// tool-count consumer reads.
 // ==========================================================================
+
+TEST_CASE("AD5X IFS printer.ifs tool_map makes remap ready", "[ams][ad5x_ifs]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    // Before any printer.ifs frame there is no evidence the firmware can
+    // remap, and no table to build a topology from.
+    REQUIRE_FALSE(backend.remap_ready());
+    REQUIRE_FALSE(backend.owns_tool_mapping_table());
+    REQUIRE(backend.get_tool_mapping().empty());
+
+    // A frame carrying tool_map is the capability.
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+    REQUIRE(backend.remap_ready());
+    REQUIRE(backend.owns_tool_mapping_table());
+
+    // An older module publishing printer.ifs without tool_map never arms the
+    // gate — the field is the contract, not the object.
+    AmsBackendAd5xIfs old_module(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(old_module, make_ifs_frame(json()));
+    REQUIRE_FALSE(old_module.remap_ready());
+    REQUIRE(old_module.get_tool_mapping().empty());
+}
+
+TEST_CASE("AD5X IFS get_tool_mapping translates 1-based wire lanes to 0-based slots",
+          "[ams][ad5x_ifs]") {
+    // The AmsBackend contract is 0-based slot indices in both directions,
+    // while the wire speaks 1-based lanes. An off-by-one here aims T0 at the
+    // wrong lane on real hardware.
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     make_ifs_frame(json{{"0", 4}, {"1", 1}, {"2", 3}, {"3", 2}}));
+
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{3, 0, 2, 1});
+}
 
 TEST_CASE("AD5X IFS get_tool_mapping drops the trailing unmapped tools", "[ams][ad5x_ifs]") {
     AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
 
     auto mapping = backend.get_tool_mapping();
     REQUIRE(mapping.size() == 4);
     REQUIRE(mapping == std::vector<int>{0, 1, 2, 3});
 
-    // The firmware register itself is untouched — only the advertised topology
-    // shrinks, so the 16-wide system_info view still reports every T-number.
+    // The addressable register itself is untouched — only the advertised
+    // topology shrinks, so the 16-wide system_info view still reports every
+    // T-number.
     REQUIRE(backend.get_system_info().tool_to_slot_map.size() == 16);
 }
 
 TEST_CASE("AD5X IFS get_tool_mapping keeps a mid-range hole", "[ams][ad5x_ifs]") {
-    // tool_to_slot[i] is indexed BY tool number, so an unmapped T1 has to stay
-    // a -1 hole rather than collapsing T2 down into its place.
+    // tool_to_slot[i] is indexed BY tool number, so a lane this backend cannot
+    // address (a wider module publishing lane 6) stays a -1 hole rather than
+    // collapsing T2 down into its place.
     AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    auto vars = standard_variables();
-    // T0 -> port 1, T1 unmapped, T2 -> port 3, everything above unmapped.
-    vars["less_waste_tools"] = json::array({1, 5, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(vars));
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     make_ifs_frame(json{{"0", 1}, {"1", 6}, {"2", 3}, {"3", 4}}));
 
-    auto mapping = backend.get_tool_mapping();
-    REQUIRE(mapping == std::vector<int>{0, -1, 2});
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{0, -1, 2, 3});
 }
 
-TEST_CASE("AD5X IFS get_tool_mapping is empty when nothing is mapped", "[ams][ad5x_ifs]") {
-    // Same answer the !has_ifs_vars_ path already gives, which build_ams_topology
-    // reads as "fall back to a 1:1 map from the slot count".
+TEST_CASE("AD5X IFS tool_map replaces wholesale and ignores keys that name no tool",
+          "[ams][ad5x_ifs]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+
+    // JSON object keys are strings whatever Python held; a non-numeric key or
+    // one past the addressable register cannot name a tool, and the frame is
+    // the COMPLETE table — absent entries unmap.
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     make_ifs_frame(json{{"0", 2}, {"not-a-tool", 3}, {"16", 1}}));
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{1});
+}
+
+TEST_CASE("AD5X IFS set_tool_mapping emits IFS_MAP_TOOL", "[ams][ad5x_ifs]") {
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+
+    // slot_index is 0-based (AmsBackend contract); the verb's SLOT= is the
+    // 1-based lane. T2 -> lane 4.
+    REQUIRE(backend.set_tool_mapping(2, 3).success());
+    REQUIRE(backend.captured_gcodes.size() == 1);
+    REQUIRE(backend.captured_gcodes[0] == "IFS_MAP_TOOL TOOL=2 SLOT=4");
+
+    // The wire owns the table: no optimistic local write, so a firmware
+    // refusal (a lane with no filament) leaves get_tool_mapping() reporting
+    // what the printer actually has until an echo frame lands.
+    REQUIRE(Ad5xIfsTestAccess::tool_map(backend)[2] == 3);
+
+    // The echo frame is what promotes the new mapping.
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     make_ifs_frame(json{{"0", 1}, {"1", 2}, {"2", 4}, {"3", 4}}));
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{0, 1, 3, 3});
+}
+
+TEST_CASE("AD5X IFS set_tool_mapping rejects a slot the wire cannot address", "[ams][ad5x_ifs]") {
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+
+    // The wire has no "unmapped" state — every tool always aims at a lane —
+    // so an out-of-range slot is a structural error, not a verb to send.
+    REQUIRE_FALSE(backend.set_tool_mapping(0, 4).success());
+    REQUIRE_FALSE(backend.set_tool_mapping(0, -1).success());
+    REQUIRE(backend.captured_gcodes.empty());
+
+    // The tool bound is the backend's addressable register. A tool beyond the
+    // firmware's own lane count is the FIRMWARE's refusal to make (surfaced
+    // by the gcode error path), so the verb goes out rather than being
+    // pre-validated here.
+    REQUIRE_FALSE(backend.set_tool_mapping(AmsBackendAd5xIfs::TOOL_MAP_SIZE, 0).success());
+    REQUIRE(backend.captured_gcodes.empty());
+    REQUIRE(backend.set_tool_mapping(15, 0).success());
+    REQUIRE(backend.captured_gcodes.size() == 1);
+    REQUIRE(backend.captured_gcodes[0] == "IFS_MAP_TOOL TOOL=15 SLOT=1");
+}
+
+TEST_CASE("AD5X IFS set_tool_mapping propagates the dispatch error", "[ams][ad5x_ifs]") {
+    // A null api_ makes execute_gcode refuse before dispatch; the refusal must
+    // reach the caller rather than report success for a verb that never left.
+    // (A FIRMWARE refusal — aiming at an empty lane — arrives asynchronously
+    // on notify_gcode_response and surfaces through the gcode error router.)
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+
+    REQUIRE_FALSE(backend.set_tool_mapping(0, 0).success());
+}
+
+TEST_CASE("AD5X IFS set_tool_mapping without either contract stays a local write",
+          "[ams][ad5x_ifs]") {
+    // Firmware publishing no tool_map and no _IFS_VARS macro: nothing echoes
+    // or replays a mapping; a caller that ignores remap_ready() gets the
+    // historical local-only behavior instead of a verb aimed at a module that
+    // is not there.
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    REQUIRE(backend.set_tool_mapping(15, 0).success());
+    REQUIRE(Ad5xIfsTestAccess::tool_map(backend)[15] == 1); // port = slot + 1
+}
+
+TEST_CASE("AD5X IFS ZMOD plugin contract remaps without printer.ifs", "[ams][ad5x_ifs]") {
+    // Regression guard for the ZMOD + lessWaste/bambufy population: the
+    // plugin's save_variables table alone must keep remapping working, the
+    // way it did before the printer.ifs adapter existed.
     AmsBackendAd5xIfs backend(nullptr, nullptr);
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    auto vars = standard_variables();
-    vars["less_waste_tools"] = json::array({5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(vars));
+    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
 
-    REQUIRE(backend.get_tool_mapping().empty());
+    REQUIRE(backend.remap_ready());
+    REQUIRE(backend.owns_tool_mapping_table());
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{0, 1, 2, 3});
 }
 
 TEST_CASE("AD5X IFS set_tool_mapping still addresses the full 0..15 tool range",
           "[ams][ad5x_ifs]") {
-    // Trimming is a topology decision, not a firmware one: zmod's _IFS_VARS tool
-    // map is 16 wide and the user can still pin a lane to T15.
+    // The ZMOD plugin's _IFS_VARS tool map is 16 wide and the user can still
+    // pin a lane to T15.
     AmsBackendAd5xIfs backend(nullptr, nullptr);
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
     Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
@@ -515,6 +679,76 @@ TEST_CASE("AD5X IFS set_tool_mapping still addresses the full 0..15 tool range",
     auto before = Ad5xIfsTestAccess::tool_map(backend);
     REQUIRE_FALSE(backend.set_tool_mapping(AmsBackendAd5xIfs::TOOL_MAP_SIZE, 0).success());
     REQUIRE(Ad5xIfsTestAccess::tool_map(backend) == before);
+}
+
+TEST_CASE("AD5X IFS the wire tool_map takes precedence over the plugin contract",
+          "[ams][ad5x_ifs]") {
+    // Both signals at once: live firmware state wins over save_variables
+    // rows (which survive a firmware swap), and the write path follows the
+    // wire — IFS_MAP_TOOL, never the _IFS_VARS mirror.
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
+
+    // The plugin's table, reversed so the two contracts are distinguishable.
+    auto vars = standard_variables();
+    vars["less_waste_tools"] = json::array({4, 3, 2, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
+    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(vars));
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{3, 2, 1, 0});
+
+    // The wire frame replaces the plugin's table wholesale.
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{0, 1, 2, 3});
+
+    // The save_variables frame above also staged the plugin's colors/types
+    // repair mirror (4-entry lessWaste arrays); drop it so the capture below
+    // holds only the mapping write under test.
+    backend.captured_gcodes.clear();
+    REQUIRE(backend.set_tool_mapping(1, 0).success());
+    REQUIRE(backend.captured_gcodes.size() == 1);
+    REQUIRE(backend.captured_gcodes[0] == "IFS_MAP_TOOL TOOL=1 SLOT=1");
+    REQUIRE_FALSE(backend.any_gcode_starts_with("_IFS_VARS"));
+}
+
+TEST_CASE("AD5X IFS reset_tool_mappings emits the firmware reset verb", "[ams][ad5x_ifs]") {
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+
+    REQUIRE(backend.reset_tool_mappings().success());
+    REQUIRE(backend.captured_gcodes.size() == 1);
+    REQUIRE(backend.captured_gcodes[0] == "IFS_MAP_TOOL RESET=1");
+
+    // Without the wire table there is nothing to reset — not_supported, the
+    // base contract's answer, stands.
+    GcodeCapturingBackend ungated(nullptr, nullptr);
+    REQUIRE_FALSE(ungated.reset_tool_mappings().success());
+    REQUIRE(ungated.captured_gcodes.empty());
+}
+
+TEST_CASE("AD5X IFS tool_map echo refreshes the per-lane mapped tool", "[ams][ad5x_ifs]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, make_ifs_frame(identity_tool_map()));
+    REQUIRE(backend.get_slot_info(1).mapped_tool == 1); // lane 2 carries T1
+
+    // T0 re-aimed at lane 2: the per-lane badge follows the wire.
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     make_ifs_frame(json{{"0", 2}, {"1", 1}, {"2", 3}, {"3", 4}}));
+    REQUIRE(backend.get_slot_info(1).mapped_tool == 0);
+    REQUIRE(backend.get_slot_info(0).mapped_tool == 1);
+}
+
+TEST_CASE("AD5X IFS required_status_objects asks for the module when present", "[ams][ad5x_ifs]") {
+    // Klipper's objects/list only carries objects that implement get_status(),
+    // so listing [ifs] there is the capability check.
+    helix::PrinterDiscovery with_module;
+    with_module.parse_objects(json::array({"save_variables", "webhooks", "ifs"}));
+    const auto requested = AmsBackendAd5xIfs::required_status_objects(with_module);
+    REQUIRE(std::find(requested.begin(), requested.end(), "ifs") != requested.end());
+
+    helix::PrinterDiscovery bare;
+    bare.parse_objects(json::array({"save_variables", "webhooks"}));
+    for (const auto& object : AmsBackendAd5xIfs::required_status_objects(bare)) {
+        REQUIRE(object != "ifs");
+    }
 }
 
 // ==========================================================================
@@ -607,7 +841,7 @@ TEST_CASE("AD5X IFS bambufy list payload stays port-indexed 4-entry", "[ams][ad5
 }
 
 // ==========================================================================
-// 12. build_tool_map_value format
+// 12. build_tool_map_value format (the ZMOD plugin's _IFS_VARS tools= payload)
 // ==========================================================================
 
 TEST_CASE("AD5X IFS build_tool_map_value format", "[ams][ad5x_ifs]") {
@@ -5181,30 +5415,6 @@ TEST_CASE("AD5X IFS GET_ZCOLOR eject keeps the override and lane_data (#1071)",
 // _IFS_COLORS_ASSIGN dialog all run against stale color data and silently
 // print the wrong color or skip the wrong purge.
 // ==========================================================================
-
-namespace {
-class GcodeCapturingBackend : public AmsBackendAd5xIfs {
-  public:
-    using AmsBackendAd5xIfs::AmsBackendAd5xIfs;
-    std::vector<std::string> captured_gcodes;
-    AmsError execute_gcode(const std::string& gcode) override {
-        captured_gcodes.push_back(gcode);
-        return AmsErrorHelper::success();
-    }
-    AmsError execute_gcode(const std::string& gcode,
-                           std::function<void()> /*on_complete*/) override {
-        captured_gcodes.push_back(gcode);
-        return AmsErrorHelper::success();
-    }
-    bool any_gcode_starts_with(const std::string& prefix) const {
-        for (const auto& g : captured_gcodes) {
-            if (g.rfind(prefix, 0) == 0)
-                return true;
-        }
-        return false;
-    }
-};
-} // namespace
 
 TEST_CASE("AD5X IFS external color change mirrors colors+types into _IFS_VARS",
           "[ams][ad5x_ifs][filament_slot_override]") {

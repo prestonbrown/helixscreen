@@ -420,12 +420,19 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
                             bool persist) override;
     AmsError set_tool_mapping(int tool_number, int slot_index) override;
 
-    // Tool reassignment is only persistable when the lessWaste/bambufy plugin
-    // is loaded: `_IFS_VARS tools=...` writes save_variables that the plugin
-    // replays at print start. On native ZMOD the macro is absent and
-    // set_tool_mapping() can only mutate local state the firmware ignores —
-    // which is what remap_ready() above reports, so the print-start path does
-    // not silently drop a user-supplied remap.
+    // Restore the module's identity tool map (T<n> -> lane n+1). The wire
+    // table is the only mapping state, so resetting is one verb — no local
+    // table to unwind.
+    AmsError reset_tool_mappings() override;
+
+    // Answers from the tool_map_ register whichever adapter filled it: the
+    // Forge-X module's printer.ifs.tool_map echo, or the ZMOD plugin's
+    // save_variables table. set_tool_mapping() dispatches the same way —
+    // IFS_MAP_TOOL for the module, the _IFS_VARS tools= write for the plugin,
+    // with the wire table taking precedence when both signals exist. With
+    // neither there is no table to read and no verb to reach, which is what
+    // remap_ready() below reports, so the print-start path does not silently
+    // drop a user-supplied remap.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
@@ -466,11 +473,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         return RemapStrategy::Native;
     }
 
-    // Both gated on the SAME discovery: the `_IFS_VARS` macro. Native is what
-    // this backend is BUILT to do; until the macro is found, set_tool_mapping()
-    // can only mutate local state the firmware ignores, and get_tool_mapping()
-    // returns nothing to build a topology from. Defined out-of-line because
-    // has_ifs_vars_ lives under mutex_.
+    // Both gated on the SAME question: did one of the two firmware stacks
+    // that can carry a remap identify itself? Either the Forge-X [ifs] module
+    // publishing its live tool_map, or ZMOD with the lessWaste/bambufy
+    // plugin's _IFS_VARS macro (has_ifs_vars_). Native is what this backend
+    // is BUILT to do; with neither signal, set_tool_mapping() can only mutate
+    // local state the firmware ignores, and get_tool_mapping() returns
+    // nothing to build a topology from. Defined out-of-line because both
+    // latches live under mutex_.
     [[nodiscard]] bool remap_ready() const override;
     [[nodiscard]] bool owns_tool_mapping_table() const override;
 
@@ -561,6 +571,17 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     friend class Ad5xPerSlotLoadedHelper;
 
     void parse_save_variables(const nlohmann::json& vars);
+    /// Fold a `printer.ifs` status object into the tool map. The module's
+    /// `tool_map` key is both the remap capability gate and the table itself
+    /// (string 0-based tool keys, 1-based lane values, complete table per
+    /// frame). Returns true when something we publish changed. Caller must
+    /// hold mutex_.
+    bool parse_ifs_tool_map_locked(const nlohmann::json& ifs_object);
+    /// Re-derive each lane's SlotInfo::mapped_tool from tool_map_ — the one
+    /// place the reverse direction is projected onto the slot model the UI
+    /// reads. Shared by both adapters' edges and set_tool_mapping(). Caller
+    /// must hold mutex_.
+    void rebuild_slot_tool_mapping_locked();
     void parse_port_sensor(int port_1based, bool detected);
     void parse_head_sensor(bool detected);
     // Belt-and-suspenders head-loaded derivation from GET_ZCOLOR's "Extruder:"
@@ -808,6 +829,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// port-indexed 4-entry payload truncates the arrays wholesale, #1247).
     /// `colors` selects which per-port array supplies each entry.
     std::string build_ifs_list_value(bool colors) const;
+    /// The `_IFS_VARS tools=` payload: the ZMOD plugin contract's whole-table
+    /// write (the macro replaces the array, not individual entries).
     std::string build_tool_map_value() const;
     /// Push a correctly-shaped `colors=`/`types=` pair into `_IFS_VARS` after
     /// parse_save_variables() observed a truncated lessWaste array (the
@@ -1154,6 +1177,15 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // False for native ZMOD, which stores color/type in Adventurer5M.json
     // (read/written via Moonraker HTTP file API).
     bool has_ifs_vars_ = false;
+
+    // True once a printer.ifs status frame carried the tool_map key — the
+    // Forge-X [ifs] module's live slicer-tool -> lane table. That field is
+    // one of the two remap signals (the other is has_ifs_vars_) and, when
+    // live, the writer of tool_map_ and the path set_tool_mapping() takes:
+    // it emits IFS_MAP_TOOL and the echo frame promotes the mapping. The
+    // module publishes tool_map from construction, so a module that is
+    // present but predates the field never arms this. Guarded by mutex_.
+    bool ifs_tool_map_live_ = false;
 
     // Latch: starts TRUE (pessimistic) — cleared when a `gcode_macro
     // _ifs_vars` query returns a non-empty variables dict (real macro

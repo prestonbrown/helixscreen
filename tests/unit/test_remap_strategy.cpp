@@ -213,13 +213,14 @@ TEST_CASE("Backends declare remap readiness, defaulting to ready", "[ams][strate
         REQUIRE_FALSE(helix::printer::can_remap(ace));
     }
 
-    SECTION("AD5X IFS is not ready until _IFS_VARS is discovered") {
+    SECTION("AD5X IFS is not ready until the wire tool_map is discovered") {
         Ad5xIfsProbe ad5x;
         REQUIRE(ad5x.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
         REQUIRE_FALSE(ad5x.remap_ready());
         REQUIRE_FALSE(helix::printer::can_remap(ad5x));
 
-        Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+        // A printer.ifs frame carrying tool_map arms the gate.
+        Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
 
         REQUIRE(ad5x.remap_ready());
         REQUIRE(helix::printer::can_remap(ad5x));
@@ -325,10 +326,10 @@ TEST_CASE("owns_tool_mapping_table is answered independently of remap capability
         CHECK_FALSE(base.owns_tool_mapping_table());
     }
 
-    SECTION("AD5X IFS owns one only once _IFS_VARS is discovered") {
+    SECTION("AD5X IFS owns one only once the wire tool_map is discovered") {
         Ad5xIfsProbe ad5x;
         CHECK_FALSE(ad5x.owns_tool_mapping_table());
-        Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+        Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
         CHECK(ad5x.owns_tool_mapping_table());
     }
 }

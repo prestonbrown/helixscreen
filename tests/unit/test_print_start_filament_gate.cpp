@@ -77,13 +77,15 @@ TEST_CASE("remap warning: a table-writing backend never warns",
 TEST_CASE("remap warning: a declared route that is not READY still warns",
           "[print-start][filament-gate][remap]") {
     // The case the retired predicate could not see. AD5X IFS declares Native
-    // unconditionally, but before `_IFS_VARS` is discovered set_tool_mapping()
-    // writes local state the firmware replays nothing from — the user's pick is
-    // dropped in silence. Warning is correct here, and was correct before only
-    // because a SECOND capability query happened to answer "not supported".
+    // unconditionally, but before the printer.ifs tool_map is discovered
+    // set_tool_mapping() writes local state the firmware replays nothing from —
+    // the user's pick is dropped in silence. Warning is correct here, and was
+    // correct before only because a SECOND capability query happened to answer
+    // "not supported".
     Ad5xIfsProbe ad5x;
     CHECK(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
 
-    Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+    // A printer.ifs frame carrying tool_map arms the gate.
+    Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
     CHECK_FALSE(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
 }

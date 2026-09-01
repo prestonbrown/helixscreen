@@ -45,6 +45,14 @@ Stock zMod owns two Klipper objects — `zmod_ifs` and `zmod_color` — that hol
 
 Prefix is `less_waste` (the lessWaste plugin) or `bambufy` (the bambufy plugin); the schema is identical. Auto-detected from whichever keys are present. **Neither prefix comes from stock zMod** — the table above is the plugin-only column, and the `less_waste_*` plumbing first appeared in zMod v1.6.2 *via* the bambufy plugin framework, not in the firmware itself. A stock-zMod machine has no `save_variables` rows under either prefix.
 
+**Forge-X port (`[ifs]` module):** the second firmware stack this backend serves. Machines on our Forge-X port carry a first-class Klipper module (`[ifs]` in printer.cfg, `printer.ifs` over Moonraker) that owns the slicer-tool → lane table and echoes it live:
+
+| Source | Data | Notes |
+|--------|------|-------|
+| `printer.ifs.tool_map` | The live tool→lane table | `{"0": 1, "1": 2, "2": 3, "3": 4}` — keys are STRING 0-based tool numbers (the `T<n>` a slicer writes; a JSON object's keys are strings whatever Python held), values are INT 1-based lanes (the number `IFS_LOAD SLOT=` speaks). Published from construction, complete table per frame; entries a frame omits unmap. Presence of this field is one of the two remap signals — see "Tool remapping" under G-code Commands |
+
+The module's map is **per-print state**: identity until `IFS_MAP_TOOL` rewrites an entry, kept across pause/resume, cleared when the print ends, never persisted (a klippy restart loses it). `firmware_default_routing()` therefore answers identity on a wire-table rig — a per-print table is not a standing default. ZMOD machines never publish this object; their remap path is the `_IFS_VARS` contract in the tables above.
+
 > **Upstream wishlist:** add `get_status()` to `zmod_ifs` and `zmod_color` in stock zMod. That would close the plugin gap entirely and let HelixScreen drop the `Adventurer5M.json` polling path. Until then, users without a plugin see a degraded UI (no per-port HUB presence, no live tool map, no bypass flag, no atomic color updates).
 
 > **Sensor-location correction:** the `ifs_motion_sensor` sits **inside the IFS immediately after the hub**, not at the toolhead. The current backend routes it through `parse_head_sensor()` as a simplification; a proper fix would map it to `PathSegment::OUTPUT` and require the toolhead switch for `filament_loaded` / load-complete detection.
@@ -219,7 +227,16 @@ wording, the runout-warning log, and the longer confirm delay.
 | `A_CHANGE_FILAMENT CHANNEL={port}` | Full tool change |
 | `SET_EXTRUDER_SLOT SLOT={port}` | Select slot without loading |
 | `IFS_UNLOCK` | Reset IFS driver state machine |
-| `_IFS_VARS key=value SHOW=0` | Persist color/type/tool/external changes |
+| `IFS_MAP_TOOL TOOL={n} SLOT={m}` | Aim slicer tool T`n` at lane `m` for this print only — `n` 0-based, `m` 1-based. Refused for a lane with no filament; the refusal surfaces as a normal gcode error (HelixScreen does not pre-validate). A hand-typed `IFS_SELECT SLOT=` is never remapped |
+| `IFS_MAP_TOOL RESET=1` | Restore the identity tool map |
+| `_IFS_VARS key=value SHOW=0` | Persist color/type/external/tool changes (the ZMOD plugin contract; on a Forge-X port machine tool mapping goes through `IFS_MAP_TOOL` instead) |
+
+**Tool remapping** is served by two adapters, one per firmware stack, each keeping its own contract end to end — they share only the slot model the UI reads. `remap_ready()` / `owns_tool_mapping_table()` answer whether EITHER signal was detected; with neither, the UI shows remapping as unsupported and a caller that writes anyway gets a local-only write the firmware ignores.
+
+- **Forge-X port:** the `[ifs]` module's wire table (see State Sources). `set_tool_mapping()` validates the parameters and emits `IFS_MAP_TOOL`; it does **not** write the map locally — the module owns the table and the `printer.ifs.tool_map` echo is what promotes a mapping, so a refused write (a lane with no filament) leaves `get_tool_mapping()` reporting what the printer actually has. `reset_tool_mappings()` emits `IFS_MAP_TOOL RESET=1` the same way.
+- **ZMOD + lessWaste/bambufy:** the plugin's `save_variables.<prefix>_tools` table. `set_tool_mapping()` applies the mapping locally and persists it with `_IFS_VARS tools=…` (`build_tool_map_value()` emits the whole 16-entry array — the macro replaces, not merges). This is the long-standing path, unchanged. The plugin contract has no reset verb; `reset_tool_mappings()` answers not supported there.
+
+When both signals exist (stale plugin rows surviving a firmware swap), the wire table wins — it is live firmware state — and the detection logs that precedence rather than silently dropping the plugin signal.
 
 **Variable persistence**: Use `_IFS_VARS` macro (not raw `SAVE_VARIABLE`) to persist slot data. `_IFS_VARS` updates both in-memory gcode variables AND `save_variables` with the correct prefix (`less_waste_*` for lessWaste, `bambufy_*` for bambufy). `SHOW=0` suppresses the interactive dialog. Example: `_IFS_VARS colors="['FF0000', '00FF00']" SHOW=0`. **The macro ships with those two plugins only** — stock zMod does not define `_IFS_VARS` at all, which is why HelixScreen cannot persist UI-side slot edits there (see the "Stock lacks this" row above).
 
@@ -322,7 +339,7 @@ The raw IFS commands (zmod_ifs.py registrations + docs/en/AD5X.md). `F##` number
 | Feature | Supported | Editable |
 |---------|-----------|----------|
 | Endless Spool | `Available` in every mode (stock zMod `FirmwareManaged` / plugin `PluginReadOnly`) | `ReadOnly` always - see below |
-| Tool Mapping | Yes | Yes (16 tools → 4 ports) |
+| Tool Mapping | Yes — `printer.ifs.tool_map` (Forge-X port) or `_IFS_VARS` (ZMOD + lessWaste/bambufy) | Forge-X: `IFS_MAP_TOOL` (one entry per module channel; AD5X: T0–T3 → 4 lanes). ZMOD: `_IFS_VARS tools=` (16-entry table). Neither signal: unsupported |
 | Bypass Mode | Yes | Via `less_waste_external` |
 | Spoolman | Optional | Works if configured |
 | Auto-Heat on Load | No | -- |
@@ -382,7 +399,7 @@ To actually crack it, capture — **while stuck**:
 |------|---------|
 | `include/ams_backend_ad5x_ifs.h` | Backend class declaration |
 | `src/printer/ams_backend_ad5x_ifs.cpp` | Full implementation |
-| `tests/unit/test_ams_backend_ad5x_ifs.cpp` | Unit tests (16 cases, 100+ assertions) |
+| `tests/unit/test_ams_backend_ad5x_ifs.cpp` | Unit tests |
 | `docs/devel/printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md` | Protocol research |
 
 ### Automatic Setup
