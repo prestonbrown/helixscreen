@@ -734,9 +734,7 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::build_default_grid() {
         auto it = std::find_if(result.begin(), result.end(),
                                [](const PanelWidgetEntry& e) { return e.id == "tips"; });
         if (it != result.end() && it->enabled) {
-            it->enabled = false;
-            it->col = -1;
-            it->row = -1;
+            it->disable_and_unplace();
             spdlog::debug("[PanelWidgetConfig] Portrait layout — 'tips' off by default");
         }
     }
@@ -806,9 +804,7 @@ bool PanelWidgetConfig::migrate_stuck_ams_filament_swap() {
                      page.id, fil->col, fil->row, fil->col, fil->row);
         ams->col = fil->col;
         ams->row = fil->row;
-        fil->enabled = false;
-        fil->col = -1;
-        fil->row = -1;
+        fil->disable_and_unplace();
         mutated = true;
     }
     return mutated;

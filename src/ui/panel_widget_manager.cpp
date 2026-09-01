@@ -305,7 +305,16 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
             std::find_if(entries.begin(), entries.end(),
                          [&](const PanelWidgetEntry& e) { return e.id == slot.widget_id; });
 
-        if (entry_it != entries.end() && entry_it->has_grid_position()) {
+        // entry_it->enabled matters here even though enabled_widgets was built
+        // from enabled entries only: the temporary firmware_restart tile is
+        // SYNTHESIZED into that list, so its config entry can be disabled while
+        // still carrying a stale col/row from a previous placement. Front-
+        // inserted, it is the first widget this pass examines - so without this
+        // check it re-anchors on that stale cell and a user-anchored widget
+        // whose saved rectangle overlaps it collides and falls to auto-place.
+        // Every GridEditMode occupancy loop already filters on enabled; this
+        // pass was the one that did not.
+        if (entry_it != entries.end() && entry_it->enabled && entry_it->has_grid_position()) {
             int col = entry_it->col;
             int row = entry_it->row;
             // Clamp the SPAN to the grid before clamping the position. A span
@@ -373,9 +382,7 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         auto cfg_it = std::find_if(mut_entries.begin(), mut_entries.end(),
                                    [&](const PanelWidgetEntry& e) { return e.id == widget_id; });
         if (cfg_it != mut_entries.end()) {
-            cfg_it->enabled = false;
-            cfg_it->col = -1;
-            cfg_it->row = -1;
+            cfg_it->disable_and_unplace();
         }
         const char* why = GridLayout::failure_text(reason);
         spdlog::info("[PanelWidgetManager] Disabled widget '{}' — {}", widget_id, why);

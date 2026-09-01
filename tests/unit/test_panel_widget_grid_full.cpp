@@ -28,6 +28,7 @@
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "connection_state.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -36,6 +37,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -126,6 +128,43 @@ void register_spy_component() {
     lv_xml_register_component_from_data(
         "panel_widget_firmware_restart",
         "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
+}
+
+/// The grid cell a widget actually landed in. populate_widgets() names every
+/// tile with its config id (lv_obj_set_name) and places it with
+/// lv_obj_set_grid_cell, so this reads back the real placement rather than
+/// inferring it. Asserting on "did it get attached" cannot see this bug: an
+/// anchored widget and an auto-placed one are both attached, just in different
+/// cells at different spans.
+struct PlacedCell {
+    int col = -1, row = -1, colspan = -1, rowspan = -1;
+    bool found = false;
+    bool operator==(const PlacedCell& o) const {
+        return found && o.found && col == o.col && row == o.row && colspan == o.colspan &&
+               rowspan == o.rowspan;
+    }
+};
+
+PlacedCell placed_cell(lv_obj_t* container, const char* widget_id) {
+    PlacedCell out;
+    if (!container) {
+        return out;
+    }
+    uint32_t n = lv_obj_get_child_count(container);
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_obj_t* child = lv_obj_get_child(container, i);
+        const char* nm = child ? lv_obj_get_name(child) : nullptr;
+        if (!nm || std::string(nm) != widget_id) {
+            continue;
+        }
+        out.col = static_cast<int>(lv_obj_get_style_grid_cell_column_pos(child, LV_PART_MAIN));
+        out.row = static_cast<int>(lv_obj_get_style_grid_cell_row_pos(child, LV_PART_MAIN));
+        out.colspan = static_cast<int>(lv_obj_get_style_grid_cell_column_span(child, LV_PART_MAIN));
+        out.rowspan = static_cast<int>(lv_obj_get_style_grid_cell_row_span(child, LV_PART_MAIN));
+        out.found = true;
+        return out;
+    }
+    return out;
 }
 
 /// Two-page layout whose page 1 (a secondary page — no registry-default append)
@@ -256,8 +295,115 @@ class GridFullFixture : public XMLTestFixture {
         process_lvgl(10);
         auto widgets = mgr.populate_widgets(panel_id, container, /*page_index=*/1);
         (void)widgets;
+        last_container = container; // for placed_cell() — see #1414
     }
+
+    /// The container the most recent relaunch() laid out, so a test can read
+    /// back where widgets actually landed rather than only whether they exist.
+    lv_obj_t* last_container = nullptr;
 };
+
+/// Page 1 holding a user-anchored `printer_image` at (3,0) 3x3 - the shape the
+/// bundle's home screen had for print_status - plus a DISABLED `firmware_restart`
+/// that still carries the cell (4,1) it was placed at before the user removed it.
+/// (4,1) sits inside (3,0)..(5,2), so the two collide if the disabled entry is
+/// allowed to anchor.
+nlohmann::json make_stale_disabled_injection_layout() {
+    nlohmann::json widgets = nlohmann::json::array();
+    widgets.push_back({{"id", "printer_image"},
+                       {"enabled", true},
+                       {"col", 3},
+                       {"row", 0},
+                       {"colspan", 3},
+                       {"rowspan", 3}});
+    // Removed in grid edit mode: enabled false, but col/row survived in the
+    // saved layout because save() writes coordinates for every entry.
+    widgets.push_back({{"id", "firmware_restart"},
+                       {"enabled", false},
+                       {"col", 4},
+                       {"row", 1},
+                       {"colspan", 1},
+                       {"rowspan", 1}});
+    return nlohmann::json{{"main_page_index", 0},
+                          {"next_page_id", 2},
+                          {"pages",
+                           {{{"id", "main"}, {"widgets", nlohmann::json::array()}},
+                            {{"id", "spy"}, {"widgets", std::move(widgets)}}}}};
+}
+
+// #1414. When Klipper leaves READY unexpectedly the manager SYNTHESIZES a
+// firmware_restart tile and front-inserts it, so it is the first widget the
+// anchored pass examines. The anchored pass looked entries up by ID alone and
+// never checked `enabled`, so the synthesized tile re-anchored on the stale cell
+// left behind by the user's removal - claiming (4,1) before the user's own
+// anchored widget was considered, and knocking it off its saved rectangle onto
+// auto-place at a smaller span. Visible as the home screen rearranging itself at
+// exactly the moment a firmware crash is being reported.
+TEST_CASE_METHOD(GridFullFixture,
+                 "A disabled entry's stale cell does not outrank a user-anchored widget",
+                 "[panel_widget][manager][regression][grid_full]") {
+    ScopedSpyFactories factories({"printer_image"});
+
+    // Connected but not READY -> populate_widgets injects firmware_restart.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_connection_state"),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "klippy_state"),
+                       static_cast<int>(KlippyState::SHUTDOWN));
+
+    const std::string panel_id = "test_stale_disabled_injection";
+    auto* cfg = Config::get_instance();
+    const std::string panel_path = cfg->df() + "panel_widgets/" + panel_id;
+    cfg->set<nlohmann::json>(panel_path, make_stale_disabled_injection_layout());
+
+    relaunch(panel_id);
+
+    // Sanity: the injection actually happened, otherwise this test proves
+    // nothing about the injected-tile path at all.
+    const PlacedCell fw = placed_cell(last_container, "firmware_restart");
+    REQUIRE(fw.found);
+
+    // THE ASSERTION. The user's widget must occupy the rectangle they saved.
+    // "Was it attached?" cannot see this bug - it is attached either way, just
+    // auto-placed at its authored 2x2 somewhere else when the anchor collides.
+    const PlacedCell img = placed_cell(last_container, "printer_image");
+    REQUIRE(img.found);
+    INFO("printer_image landed at (" << img.col << "," << img.row << " " << img.colspan << "x"
+                                     << img.rowspan << "); firmware_restart at (" << fw.col << ","
+                                     << fw.row << ")");
+    CHECK(img.col == 3);
+    CHECK(img.row == 0);
+    CHECK(img.colspan == 3);
+    CHECK(img.rowspan == 3);
+
+    // And the injected tile went somewhere that does NOT overlap it, rather
+    // than claiming the stale (4,1) inside the user's rectangle.
+    const bool overlaps = fw.col >= img.col && fw.col < img.col + img.colspan &&
+                          fw.row >= img.row && fw.row < img.row + img.rowspan;
+    CHECK_FALSE(overlaps);
+
+    // The saved layout is untouched by an injected populate, so the anchor
+    // survives for the next launch too.
+    nlohmann::json after = cfg->get<nlohmann::json>(panel_path, nlohmann::json());
+    REQUIRE(after.contains("pages"));
+    const auto& saved = find_persisted(after, "printer_image");
+    CHECK(saved["col"] == 3);
+    CHECK(saved["row"] == 0);
+    CHECK(saved["colspan"] == 3);
+    CHECK(saved["rowspan"] == 3);
+
+    // Back to READY: no injection, and the widget is still where the user put it.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "klippy_state"),
+                       static_cast<int>(KlippyState::READY));
+    relaunch(panel_id);
+    const PlacedCell ready = placed_cell(last_container, "printer_image");
+    REQUIRE(ready.found);
+    CHECK(ready.col == 3);
+    CHECK(ready.row == 0);
+    CHECK(ready.colspan == 3);
+    CHECK(ready.rowspan == 3);
+
+    PanelWidgetManager::instance().clear_panel_config(panel_id);
+}
 
 // The reported symptom: a widget that has NEVER held a grid cell must not be
 // announced as "removed", and must not be disabled — on every launch the grid
