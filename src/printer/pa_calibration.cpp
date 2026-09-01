@@ -7,6 +7,8 @@
 
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
+
 namespace helix::pacal {
 namespace {
 
@@ -18,7 +20,14 @@ struct Provider {
     /// Macro whose presence identifies the firmware. This is evidence, not a
     /// guess: a printer that does not define it cannot run the procedure, and
     /// the capability is reported absent rather than attempted and refused.
+    /// Null when the firmware is detected by object instead.
     const char* detect_macro;
+
+    /// Printer object whose presence identifies the firmware, for commands
+    /// registered by a klippy Python extra — those never appear in the object
+    /// list as "gcode_macro X", only as the extra's own config-section object.
+    /// Null when the firmware is detected by macro.
+    const char* detect_object;
 
     /// printf-style command template. Takes the tool index when per_tool,
     /// otherwise used verbatim.
@@ -70,6 +79,7 @@ constexpr SaneRange DIRECT_DRIVE{0.02f, 0.08f, "direct drive"};
 constexpr Provider SNAPMAKER_U1{
     "Snapmaker U1 flow calibrator",
     "SM_PRINT_FLOW_CALIBRATE",
+    /*detect_object=*/nullptr,
     "SM_PRINT_FLOW_CALIBRATE EXTRUDER={}",
     /*per_tool=*/true,
     KLIPPER_PA_ECHO,
@@ -79,13 +89,54 @@ constexpr Provider SNAPMAKER_U1{
     /*timeout_ms=*/600000, // 10 min: several purge cycles plus the heat-up
 };
 
+// --- FlashForge eBoard PA calibrator -----------------------------------------
+//
+// The Creator 5 Pro's closed eBoard MCU scores each candidate K live from a
+// transducer stream while FF_PA_CALIBRATE (klippy/extras/ff_pa.py in our
+// firmware repo) replays the stock app's sweep: seven scrambled candidates per
+// pass, smallest passing verdict wins, mean of three pass winners. The command
+// reports, it does not apply:
+//   ff_pa: T0 pressure_advance = 0.021667   (mean of 3 sweep winners: ...)
+//
+// The '=' result shape is deliberate. The sweep installs every candidate via
+// SET_PRESSURE_ADVANCE, whose "pressure_advance: <k>" echo would satisfy the
+// ':' shape on the FIRST candidate, minutes before the real result. Matching
+// '=' skips those echoes — and they double as the per-candidate progress
+// lines, each carrying the K just tried.
+//
+// FF_PA_CALIBRATE is registered by the [ff_pa] Python extra, so it appears in
+// the object list as "ff_pa", never as a gcode_macro — hence detect_object.
+//
+// The sweep structurally cannot report outside its candidate table, so the
+// plausibility band is that table's span (defaults 0.0100..0.0400).
+constexpr SaneRange FF_CANDIDATE_SPAN{0.01f, 0.04f, "direct drive"};
+
+constexpr Provider FLASHFORGE_EBOARD{
+    "FlashForge eBoard PA calibrator",
+    /*detect_macro=*/nullptr,
+    "ff_pa",
+    "FF_PA_CALIBRATE TOOL={}",
+    /*per_tool=*/true,
+    R"(pressure_advance\s*=\s*([0-9]*\.?[0-9]+))",
+    KLIPPER_PA_ECHO,
+    /*expected_attempts=*/21, // 3 winning sweeps x 7 candidates, typically
+    FF_CANDIDATE_SPAN,
+    /*timeout_ms=*/600000, // 10 min: up to 5 sweeps (~1 min each) plus heat-up
+};
+
 /// The table. One entry per firmware that can do this.
-constexpr const Provider* PROVIDERS[] = {&SNAPMAKER_U1};
+constexpr const Provider* PROVIDERS[] = {&SNAPMAKER_U1, &FLASHFORGE_EBOARD};
 
 const Provider* match(const PrinterDiscovery& hw) {
     for (const Provider* p : PROVIDERS) {
-        if (hw.has_macro(p->detect_macro)) {
+        if (p->detect_macro && hw.has_macro(p->detect_macro)) {
             return p;
+        }
+        if (p->detect_object) {
+            const auto& objects = hw.printer_objects();
+            if (std::find(objects.begin(), objects.end(), p->detect_object) != objects.end()) {
+                return p;
+            }
         }
     }
     return nullptr;

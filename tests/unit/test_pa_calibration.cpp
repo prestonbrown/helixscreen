@@ -28,6 +28,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <regex>
 #include <thread>
 
 #include "../catch_amalgamated.hpp"
@@ -102,6 +103,48 @@ TEST_CASE("PA procedure addresses the requested tool", "[pa_calibration]") {
     REQUIRE(p0->command_word.find(' ') == std::string::npos);
     REQUIRE(p0->start_gcode.rfind(p0->command_word, 0) == 0);
     REQUIRE_FALSE(p0->result_pattern.empty());
+}
+
+TEST_CASE("PA calibration detects a firmware advertised by printer object", "[pa_calibration]") {
+    // FF_PA_CALIBRATE is registered by the [ff_pa] klippy extra, so it never
+    // appears as a gcode_macro — only as the extra's config-section object.
+    PrinterDiscovery hw = with_objects({"extruder", "toolchanger"});
+    REQUIRE_FALSE(pacal::is_supported(hw));
+
+    hw.set_printer_objects({"extruder", "toolchanger", "ff_pa"});
+    REQUIRE(pacal::is_supported(hw));
+    REQUIRE(pacal::is_per_tool(hw));
+
+    auto p2 = pacal::procedure_for(hw, 2);
+    REQUIRE(p2.has_value());
+    REQUIRE(p2->start_gcode == "FF_PA_CALIBRATE TOOL=2");
+    REQUIRE(p2->command_word == "FF_PA_CALIBRATE");
+}
+
+TEST_CASE("FlashForge result pattern skips the sweep's candidate echoes", "[pa_calibration]") {
+    PrinterDiscovery hw = with_objects({"extruder"});
+    hw.set_printer_objects({"extruder", "ff_pa"});
+    const auto proc = pacal::procedure_for(hw, 0).value();
+
+    const std::regex result_re(proc.result_pattern);
+    const std::regex attempt_re(proc.attempt_pattern);
+
+    // Every candidate the sweep tries is installed through Klipper's
+    // SET_PRESSURE_ADVANCE, which echoes this ':' shape. Reading it as the
+    // result would finish the run on the FIRST candidate — it must only ever
+    // count as progress.
+    const std::string echo = "// pressure_advance: 0.010000";
+    std::smatch m;
+    REQUIRE_FALSE(std::regex_search(echo, m, result_re));
+    REQUIRE(std::regex_search(echo, m, attempt_re));
+    REQUIRE(m[1].str() == "0.010000");
+
+    // The real result is the '=' line FF_PA_CALIBRATE prints once, at the end.
+    const std::string final_line =
+        "// ff_pa: T0 pressure_advance = 0.021667   (mean of 3 sweep winners:"
+        " 0.0200, 0.0250, 0.0200)";
+    REQUIRE(std::regex_search(final_line, m, result_re));
+    REQUIRE(m[1].str() == "0.021667");
 }
 
 TEST_CASE("PA plausibility band brackets a healthy direct-drive value", "[pa_calibration]") {
