@@ -734,6 +734,23 @@ EOF
     [ "$(current_display_mode)" = "GUPPY" ]
 }
 
+@test "uninstall_forgex restores the display once per run (stacked callers)" {
+    # The armed uninstall and both generic restore paths all call
+    # uninstall_forgex in one process. The second call used to find the record
+    # consumed, fall back to GUPPY, and rewrite a still-HEADLESS rig to a mode
+    # it never had -- the HEADLESS-arrival defect reintroduced by stacking.
+    write_variables_cfg HEADLESS
+    printf 'HEADLESS\n' > "$PREV_DISPLAY_F"
+
+    uninstall_forgex
+    uninstall_forgex
+    uninstall_forgex
+
+    [ "$(current_display_mode)" = "HEADLESS" ] \
+        || fail "a stacked second call rewrote HEADLESS to $(current_display_mode)"
+    [ ! -e "$PREV_DISPLAY_F" ]
+}
+
 # --- the restored-UI report must name what was actually restored ---
 
 @test "restored-ui report names Feather for a FEATHER printer, not GuppyScreen" {

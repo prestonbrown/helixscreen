@@ -269,6 +269,12 @@ mod_payload_mode_block() {
     fi
 
     if [ "$uninstall_mode" != true ]; then
+        # Record where this payload install actually landed, so a later armed
+        # uninstall removes THIS root (its own --payload-root, else this
+        # record, else the probed default). Install runs only: an uninstall
+        # must not re-point the record on its way out the door.
+        record_payload_root "$INSTALL_DIR"
+
         if [ "${MOD_PAYLOAD_FLAG_GIVEN:-}" = "1" ]; then
             log_info "--mod-payload: replacing payload contents in place at $INSTALL_DIR"
         else

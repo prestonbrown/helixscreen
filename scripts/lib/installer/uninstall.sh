@@ -353,13 +353,34 @@ uninstall_mod_payload() {
         return 0
     fi
 
-    if [ -z "${INSTALL_DIR:-}" ]; then
+    # Resolve THIS run's payload root: the --payload-root flag, else the root
+    # the install recorded in mod_data, else the probed default. An install
+    # can land outside the default (--payload-root, the OTA-durable seam), and
+    # without this resolution an armed uninstall removed the default while the
+    # real payload — and its updater clone — sat where the operator put it.
+    payload_root="${MOD_PAYLOAD_ROOT:-}"
+    if [ -z "$payload_root" ]; then
+        payload_root=$(read_payload_root_record 2>/dev/null || true)
+        payload_root="${payload_root:-${INSTALL_DIR:-}}"
+    fi
+
+    if [ -z "$payload_root" ]; then
         log_warn "--mod-payload: no payload root resolved; nothing to remove"
         return 0
     fi
 
-    # Restore the mod's display mode while the payload still exists.
-    if type uninstall_forgex >/dev/null 2>&1; then
+    # The resolved root is this run's one install target: repoint INSTALL_DIR
+    # so the generic sweeps that follow the arm agree with what it removed.
+    if [ "$payload_root" != "${INSTALL_DIR:-}" ]; then
+        log_info "Payload root: ${payload_root} (was ${INSTALL_DIR:-unset})"
+        INSTALL_DIR="$payload_root"
+    fi
+
+    # Restore the mod's display mode while the payload still exists. Gated on
+    # the flavor the takeover targeted (configure_platform runs the forgex
+    # display takeover only for forge_x), not on the module merely being
+    # present: a Z-Mod payload install never took the display over.
+    if [ "${AD5M_FIRMWARE:-}" = "forge_x" ] && type uninstall_forgex >/dev/null 2>&1; then
         uninstall_forgex || true
     fi
 
@@ -385,6 +406,10 @@ uninstall_mod_payload() {
     else
         log_info "Payload root ${INSTALL_DIR} already absent"
     fi
+
+    # Consume the record with the root it directed at, so a later plain run
+    # cannot chase a stale pointer.
+    $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
     return 0
 }
 

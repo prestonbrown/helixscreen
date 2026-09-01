@@ -582,8 +582,10 @@ detect_mod_flavor() {
     echo "stock"
 }
 
-# Compat wrapper for the pre-rework name. The uninstaller bundle's main()
-# still calls this; it delegates rather than forking the detector.
+# UNCALLED_OK: compat wrapper for the pre-rework name, kept for external
+# callers that source this module (its behavior is pinned by
+# test_platform_detection.bats); the installer and the uninstaller bundle both
+# call detect_mod_flavor directly now.
 detect_ad5m_firmware() {
     detect_mod_flavor "$@"
 }

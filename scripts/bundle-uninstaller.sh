@@ -50,6 +50,10 @@ generate_bundle() {
 # Usage:
 #   ./uninstall.sh              # Interactive uninstall
 #   ./uninstall.sh --force      # Skip confirmation prompt
+#   ./uninstall.sh --mod-payload [--payload-root DIR]
+#                              # Also remove a payload-contract install (the
+#                              # firmware mod's payload tree, display takeover
+#                              # and update stanza)
 #
 # This script:
 #   1. Stops HelixScreen
@@ -413,6 +417,17 @@ main() {
                 HELIX_MOD_PAYLOAD=1
                 shift
                 ;;
+            --payload-root)
+                # Where this run's payload uninstall points — the same flag
+                # the installer takes. Names the root ONLY: the removal itself
+                # still needs --mod-payload (an inert flag warns below).
+                if [ -z "${2:-}" ]; then
+                    log_error "--payload-root requires a path argument"
+                    exit 1
+                fi
+                MOD_PAYLOAD_ROOT="$2"
+                shift 2
+                ;;
             --help|-h)
                 echo "HelixScreen Uninstaller"
                 echo ""
@@ -423,6 +438,10 @@ main() {
                 echo "  --mod-payload Also remove a payload-contract install (the"
                 echo "                firmware mod's payload tree, display takeover"
                 echo "                and update stanza)"
+                echo "  --payload-root DIR"
+                echo "                The payload root to remove (default: the root"
+                echo "                the install recorded, else the probed default)"
+                echo "                Requires --mod-payload to do anything"
                 echo "  --help, -h    Show this help message"
                 exit 0
                 ;;
@@ -448,9 +467,13 @@ main() {
     if [ "$platform" = "ad5x" ]; then
         ad5x_check_chroot_context
     fi
-    if [ "$platform" = "ad5m" ]; then
-        AD5M_FIRMWARE=$(detect_ad5m_firmware)
-        log_info "Detected AD5M firmware: $AD5M_FIRMWARE"
+    # The FlashForge mods ship for both Adventurer platforms, so ad5x runs the
+    # same unified flavor detector ad5m always has (main.sh does the same): a
+    # Forge-X AD5X must light the forge_x branches below — the payload arm's
+    # display restore included — instead of leaving AD5M_FIRMWARE empty.
+    if [ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ]; then
+        AD5M_FIRMWARE=$(detect_mod_flavor)
+        log_info "Detected mod flavor: $AD5M_FIRMWARE"
     fi
     set_install_paths "$platform" "$AD5M_FIRMWARE"
 
@@ -502,6 +525,13 @@ main() {
     #      systemd path-unit defense (sentinel) covers the in-process side.
     #   3. Stop, remove, sweep — sweep also clears the sentinel via
     #      clean_helix_state_dirs.
+    # A --payload-root without the arm names a root nothing will touch — say
+    # so instead of letting the operator believe it directed the removal.
+    if [ -n "${MOD_PAYLOAD_ROOT:-}" ] && [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
+        log_warn "--payload-root ignored without --mod-payload: it names where"
+        log_warn "the armed payload uninstall removes, and this run is not armed."
+    fi
+
     trap '_sweep_uninstalling_sentinel' EXIT INT TERM
     _drop_uninstalling_sentinel
     remove_update_manager_section || true

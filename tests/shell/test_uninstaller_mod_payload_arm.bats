@@ -83,6 +83,9 @@ EOF
     HOST_MOONRAKER_USER_CONF="$USER_CONF"
     INSTALL_DIR="$PAYLOAD_ROOT"
     HELIX_MOD_PAYLOAD=""
+    # The fixture is a forge-x mod host: the takeover ran under that flavor,
+    # and the arm's display restore is flavor-gated to match.
+    AD5M_FIRMWARE=forge_x
 }
 
 @test "the uninstaller defines the payload uninstall" {
@@ -135,9 +138,157 @@ EOF
         || fail "user conf touched by an unarmed run"
 }
 
+# A $SUDO shim that records its arguments and runs the real command, so a
+# test can count how many times a privileged write actually ran.
+make_sudo_shim() {
+    SUDO="$BATS_TEST_TMPDIR/sudo-shim"
+    cat > "$SUDO" <<EOF
+#!/bin/sh
+echo "\$*" >> "$BATS_TEST_TMPDIR/sudo.log"
+exec "\$@"
+EOF
+    chmod +x "$SUDO"
+    export SUDO
+}
+
+# --- F1: the display restore runs exactly once across the stacked callers ---
+#
+# The armed uninstall stacks THREE uninstall_forgex callers on a forge_x host:
+# the payload arm, restore_previous_ui_platform, and reenable_previous_ui's
+# own forge_x branch. The second call used to find the restore record already
+# consumed, fall back to GUPPY, and rewrite a still-HEADLESS rig to GUPPY --
+# the HEADLESS-arrival defect reintroduced on the armed path.
+
+@test "an armed uninstall restores the display exactly once across the stacked callers" {
+    # HEADLESS arrival: record says HEADLESS, cfg says HEADLESS. The damaging
+    # shape -- run 1 "restores" HEADLESS->HEADLESS (cfg still reads HEADLESS),
+    # so run 2's GUPPY fallback fires and rewrites it.
+    printf 'HEADLESS\n' > "$MOD_DATA/helixscreen_prev_display"
+    HELIX_MOD_PAYLOAD=1
+    AD5M_FIRMWARE=forge_x
+    PREVIOUS_UI_SCRIPT=""
+    PREVIOUS_UIS=""
+    platform=ad5x
+    make_sudo_shim
+
+    uninstall_mod_payload
+    reenable_previous_ui
+
+    # The rig keeps the mode it arrived on...
+    grep -q "^display = 'HEADLESS'$" "$MOD_DATA/variables.cfg" \
+        || fail "stacked callers rewrote a HEADLESS rig to $(sed -n "s/^display = '\(.*\)'/\1/p" "$MOD_DATA/variables.cfg")"
+    # ...and the restore itself ran exactly once (one sed on variables.cfg).
+    [ "$(grep -c "sed -i .*variables.cfg" "$BATS_TEST_TMPDIR/sudo.log")" -eq 1 ] \
+        || fail "display restore ran $(grep -c "sed -i .*variables.cfg" "$BATS_TEST_TMPDIR/sudo.log") times"
+    [ ! -d "$PAYLOAD_ROOT" ] || fail "payload root survived the armed run"
+    case "${restored_ui:-}" in
+        *GuppyScreen*) fail "a HEADLESS arrival was reported as GuppyScreen restored";;
+    esac
+}
+
+@test "an armed uninstall honors the recorded mode across the stacked callers" {
+    # STOCK arrival: run 1 restores STOCK; the stacked runs 2 and 3 must not
+    # touch it again (they cannot turn it into GUPPY today, but the honor the
+    # record invariant is the contract this pins).
+    grep -q "^display = 'HEADLESS'$" "$MOD_DATA/variables.cfg" \
+        || fail "fixture setup failed: cfg should still be HEADLESS"
+    HELIX_MOD_PAYLOAD=1
+    AD5M_FIRMWARE=forge_x
+    PREVIOUS_UI_SCRIPT=""
+    PREVIOUS_UIS=""
+    platform=ad5x
+    make_sudo_shim
+
+    uninstall_mod_payload
+    reenable_previous_ui
+
+    grep -q "^display = 'STOCK'$" "$MOD_DATA/variables.cfg" \
+        || fail "recorded STOCK was not honored across the stacked callers"
+    [ "$(grep -c "sed -i .*variables.cfg" "$BATS_TEST_TMPDIR/sudo.log")" -eq 1 ]
+}
+
+@test "the arm restores the display only for the flavor the takeover targeted" {
+    # Gating coherence: the takeover (configure_platform) runs the forgex
+    # display takeover only for forge_x, so the arm's restore must key on the
+    # same flavor -- not on the module merely being present. A Z-Mod payload
+    # install never took the display over.
+    printf 'STOCK\n' > "$MOD_DATA/helixscreen_prev_display"
+    HELIX_MOD_PAYLOAD=1
+    AD5M_FIRMWARE=zmod
+
+    run uninstall_mod_payload
+    [ "$status" -eq 0 ] || fail "arm failed: $output"
+
+    grep -q "^display = 'HEADLESS'$" "$MOD_DATA/variables.cfg" \
+        || fail "display mode touched on a non-forge_x flavor"
+    [ -e "$MOD_DATA/helixscreen_prev_display" ] \
+        || fail "restore record consumed on a non-forge_x flavor"
+    [ ! -d "$PAYLOAD_ROOT" ] || fail "payload root not removed"
+}
+
+# --- F2: the payload root is where the operator put it ---
+#
+# --payload-root lets an install land outside the probed default (the
+# OTA-durable seam), so an armed uninstall must remove THAT root: the flag on
+# this run, else the root the install recorded in mod_data, else the probed
+# default.
+
+make_custom_root() {
+    CUSTOM_ROOT="$SANDBOX/usr/data/helixscreen"
+    mkdir -p "$CUSTOM_ROOT/bin" "$CUSTOM_ROOT-repo"
+    printf '#!/bin/sh\n' > "$CUSTOM_ROOT/bin/helix-screen"
+    printf 'clone\n' > "$CUSTOM_ROOT-repo/HEAD"
+}
+
+@test "an armed uninstall with --payload-root removes exactly the custom root" {
+    make_custom_root
+    MOD_PAYLOAD_ROOT="$CUSTOM_ROOT"
+    HELIX_MOD_PAYLOAD=1
+    AD5M_FIRMWARE=forge_x
+
+    # Direct call: the arm repoints INSTALL_DIR at the resolved root, and a
+    # run-wrapped call would mutate only the subshell's copy.
+    uninstall_mod_payload
+
+    [ ! -d "$CUSTOM_ROOT" ] || fail "the named payload root survived"
+    [ ! -d "$CUSTOM_ROOT-repo" ] || fail "the named root's updater clone survived"
+    [ -d "$PAYLOAD_ROOT" ] || fail "the probed default root was removed instead"
+    # The resolved root becomes this run's one install target, so the generic
+    # sweeps that follow the arm agree with it.
+    [ "$INSTALL_DIR" = "$CUSTOM_ROOT" ]
+}
+
+@test "an armed uninstall without the flag removes the install-time recorded root" {
+    make_custom_root
+    printf '%s\n' "$CUSTOM_ROOT" > "$MOD_DATA/helixscreen_payload_root"
+    HELIX_MOD_PAYLOAD=1
+    AD5M_FIRMWARE=forge_x
+
+    run uninstall_mod_payload
+    [ "$status" -eq 0 ] || fail "armed run failed: $output"
+
+    [ ! -d "$CUSTOM_ROOT" ] || fail "the recorded payload root survived"
+    [ -d "$PAYLOAD_ROOT" ] || fail "the probed default root was removed instead"
+    # The record is consumed with the root it named.
+    [ ! -e "$MOD_DATA/helixscreen_payload_root" ] \
+        || fail "payload-root record survived the removal it directed"
+}
+
+@test "an armed uninstall with neither flag nor record falls back to the probed default" {
+    # The original contract, now the third tier of the resolution.
+    make_custom_root   # a decoy root nothing points at
+    HELIX_MOD_PAYLOAD=1
+    AD5M_FIRMWARE=forge_x
+
+    run uninstall_mod_payload
+    [ "$status" -eq 0 ] || fail "armed run failed: $output"
+
+    [ ! -d "$PAYLOAD_ROOT" ] || fail "probed default not removed"
+    [ -d "$CUSTOM_ROOT" ] || fail "an unrecorded decoy root was removed"
+}
+
 @test "the armed run restores the display mode before removing the payload" {
-    # Ordering contract: the restore reads the record and the mod's files
-    # while they still exist. A run that removed the payload first would find
+    # Ordering contract: the restore reads the record and the mod's files    # while they still exist. A run that removed the payload first would find
     # no record and strand the printer on HEADLESS -- no UI at all after an
     # uninstall. The record file is the witness: only a restore-first run can
     # consume it. Direct call (not run): the stub must set a variable in this
@@ -173,6 +324,29 @@ _bundle_main_body() {
     [ -n "$body" ] || fail "main() not found in the bundle"
     grep -q -- '--mod-payload' <<< "$body" \
         || fail "main() does not parse --mod-payload"
+}
+
+@test "bundle main() accepts a --payload-root path" {
+    # The uninstall-side half of the same flag the installer takes: an
+    # operator who installed to a custom root needs to name it again.
+    local body
+    body=$(_bundle_main_body)
+    [ -n "$body" ] || fail "main() not found in the bundle"
+    grep -q -- '--payload-root' <<< "$body" \
+        || fail "main() does not parse --payload-root"
+}
+
+@test "bundle main() detects the mod flavor for ad5x, like the installer does" {
+    # main.sh runs the unified flavor detector for BOTH Adventurer platforms
+    # (a Forge-X AD5X is no longer misread as the ZMOD layout). The bundle
+    # used to run it for ad5m only, which left AD5M_FIRMWARE empty on the
+    # AD5X rig -- every forge_x branch in the uninstaller, including the
+    # payload arm's display restore, was dead there.
+    local body
+    body=$(_bundle_main_body)
+    [ -n "$body" ] || fail "main() not found in the bundle"
+    grep -q 'detect_mod_flavor' <<< "$body" \
+        || fail "main() does not run the unified mod-flavor detector"
 }
 
 @test "bundle main() routes the arm through uninstall_mod_payload" {

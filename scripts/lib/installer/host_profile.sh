@@ -133,6 +133,40 @@ host_mod_destruct_blocked() {
     [ "$HELIX_MOD_PAYLOAD" != "1" ] && host_path_is_mod_owned "$1"
 }
 
+# mod_data as a sibling of the mod tree on every layout: /usr/data on the AD5X
+# (Z-Mod), /opt on the AD5M (Forge-X) — the same rule host_profile_probe
+# applies to HOST_CONFIG_DIR. Derived, never pinned; forgex.sh's
+# forgex_mod_data() delegates here so installer state files share one path.
+host_mod_data() {
+    printf '%s\n' "$(dirname "${HOST_MOD_ROOT:-/opt/config/mod}")/mod_data"
+}
+
+# Where the payload root of the LAST payload install is recorded, beside the
+# display-mode record. An install can land outside the probed default
+# (--payload-root, the OTA-durable seam); without this note a later armed
+# uninstall removes the default while the real payload sits where the
+# operator put it. Latest install wins — current state, not history.
+host_payload_root_record() {
+    printf '%s\n' "$(host_mod_data)/helixscreen_payload_root"
+}
+
+# Record the payload root this install actually used (payload contract only).
+record_payload_root() {
+    # mod_data exists on any host the probe recognized; mkdir -p covers a
+    # half-built sandbox and costs nothing where it already stands.
+    $SUDO mkdir -p "$(host_mod_data)" 2>/dev/null
+    printf '%s\n' "$1" | $SUDO tee "$(host_payload_root_record)" >/dev/null 2>/dev/null \
+        || log_warn "Could not record the payload root ($(host_payload_root_record))"
+}
+
+# The recorded payload root, or empty when no payload install left one. Never
+# fails: callers capture its output, and a failing command substitution aborts
+# them under the bundles' set -e.
+read_payload_root_record() {
+    [ -f "$(host_payload_root_record)" ] || return 0
+    cat "$(host_payload_root_record)" 2>/dev/null || true
+}
+
 # $1=what the caller was about to do, $2=path — call before any destructive
 # step. Exits 1 when the path is mod-owned and this is not a payload update.
 host_refuse_mod_owned() {

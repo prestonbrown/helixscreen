@@ -772,3 +772,37 @@ esac
     grep -q '^#HELIX_LOG_LEVEL=info' "$INSTALL_DIR/config/helixscreen.env" \
         || fail "the migration no longer applies on a plain host"
 }
+
+# --- the payload root is recorded for the uninstaller ---
+#
+# --payload-root can land the payload outside the probed default (the
+# OTA-durable seam), so the install must leave a note of where it actually
+# went -- otherwise an armed uninstall later removes the probed default while
+# the real payload sits where the operator put it.
+
+@test "payload install records its root beside the display-mode record" {
+    HELIX_MOD_PAYLOAD=1
+    INSTALL_DIR="$MOD_ROOT/.bin/helixscreen"
+    mkdir -p "$SANDBOX/usr/data/config/mod_data"   # the mod's data dir, present on any real host
+
+    mod_payload_mode_block >/dev/null 2>&1
+
+    local record="$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root"
+    [ -f "$record" ] || fail "no payload-root record was written"
+    [ "$(cat "$record")" = "$INSTALL_DIR" ] \
+        || fail "record says $(cat "$record"), install went to $INSTALL_DIR"
+}
+
+@test "a self-managed install writes no payload-root record" {
+    # Only the payload contract claims a payload root; a standalone install
+    # on the same host must not leave a stale pointer for a later armed
+    # uninstall to chase.
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL=1
+    INSTALL_DIR="$SANDBOX/opt/helixscreen"
+
+    mod_payload_mode_block >/dev/null 2>&1
+
+    [ ! -e "$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root" ] \
+        || fail "non-payload install wrote a payload-root record"
+}

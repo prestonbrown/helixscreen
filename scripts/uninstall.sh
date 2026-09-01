@@ -8,6 +8,10 @@
 # Usage:
 #   ./uninstall.sh              # Interactive uninstall
 #   ./uninstall.sh --force      # Skip confirmation prompt
+#   ./uninstall.sh --mod-payload [--payload-root DIR]
+#                              # Also remove a payload-contract install (the
+#                              # firmware mod's payload tree, display takeover
+#                              # and update stanza)
 #
 # This script:
 #   1. Stops HelixScreen
@@ -728,6 +732,40 @@ host_mod_destruct_blocked() {
     [ "$HELIX_MOD_PAYLOAD" != "1" ] && host_path_is_mod_owned "$1"
 }
 
+# mod_data as a sibling of the mod tree on every layout: /usr/data on the AD5X
+# (Z-Mod), /opt on the AD5M (Forge-X) — the same rule host_profile_probe
+# applies to HOST_CONFIG_DIR. Derived, never pinned; forgex.sh's
+# forgex_mod_data() delegates here so installer state files share one path.
+host_mod_data() {
+    printf '%s\n' "$(dirname "${HOST_MOD_ROOT:-/opt/config/mod}")/mod_data"
+}
+
+# Where the payload root of the LAST payload install is recorded, beside the
+# display-mode record. An install can land outside the probed default
+# (--payload-root, the OTA-durable seam); without this note a later armed
+# uninstall removes the default while the real payload sits where the
+# operator put it. Latest install wins — current state, not history.
+host_payload_root_record() {
+    printf '%s\n' "$(host_mod_data)/helixscreen_payload_root"
+}
+
+# Record the payload root this install actually used (payload contract only).
+record_payload_root() {
+    # mod_data exists on any host the probe recognized; mkdir -p covers a
+    # half-built sandbox and costs nothing where it already stands.
+    $SUDO mkdir -p "$(host_mod_data)" 2>/dev/null
+    printf '%s\n' "$1" | $SUDO tee "$(host_payload_root_record)" >/dev/null 2>/dev/null \
+        || log_warn "Could not record the payload root ($(host_payload_root_record))"
+}
+
+# The recorded payload root, or empty when no payload install left one. Never
+# fails: callers capture its output, and a failing command substitution aborts
+# them under the bundles' set -e.
+read_payload_root_record() {
+    [ -f "$(host_payload_root_record)" ] || return 0
+    cat "$(host_payload_root_record)" 2>/dev/null || true
+}
+
 # $1=what the caller was about to do, $2=path — call before any destructive
 # step. Exits 1 when the path is mod-owned and this is not a payload update.
 host_refuse_mod_owned() {
@@ -1315,8 +1353,10 @@ detect_mod_flavor() {
     echo "stock"
 }
 
-# Compat wrapper for the pre-rework name. The uninstaller bundle's main()
-# still calls this; it delegates rather than forking the detector.
+# UNCALLED_OK: compat wrapper for the pre-rework name, kept for external
+# callers that source this module (its behavior is pinned by
+# test_platform_detection.bats); the installer and the uninstaller bundle both
+# call detect_mod_flavor directly now.
 detect_ad5m_firmware() {
     detect_mod_flavor "$@"
 }
@@ -3030,10 +3070,10 @@ forgex_mod_root() {
     printf '%s\n' "${HOST_MOD_ROOT:-/opt/config/mod}"
 }
 
-# mod_data is a sibling of the mod tree on every layout (see host_profile.sh):
-# /usr/data on the AD5X, /opt on the AD5M. Derived, never pinned.
+# mod_data derivation lives in host_profile.sh (host_mod_data) -- the
+# payload-root record and the forgex state files share one path rule.
 forgex_mod_data() {
-    printf '%s\n' "$(dirname "$(forgex_mod_root)")/mod_data"
+    host_mod_data
 }
 
 # Where the pre-install display mode is recorded so uninstall can restore it
@@ -3274,6 +3314,9 @@ dismiss_forgex_feather_promo() {
 
     if [ -s "$tmp_file" ] && \
        grep -qE "^show_feather_promo = 0$" "$tmp_file" 2>/dev/null; then
+        # A deliberate non-site of forgex_apply_patch: variables.cfg is a
+        # Klipper config, not a shell script, so bash -n is the wrong
+        # validator here. The grep above IS this write's postcondition.
         $SUDO mv "$tmp_file" "$var_file"
         log_success "ForgeX Feather display offer dismissed"
         return 0
@@ -3643,7 +3686,10 @@ WRAPPER_EOF
 
     $SUDO chmod +x "$logged_wrapper"
 
-    # Move original to logged-real and symlink logged to wrapper (skip if already done)
+    # Move original to logged-real and symlink logged to wrapper (skip if
+    # already done). Deliberate non-sites of forgex_apply_patch: these move
+    # BINARIES, not rewritten scripts -- there is nothing to syntax-check, and
+    # the symlink/existence checks around the moves are the postcondition.
     if [ ! -L "$logged_bin" ]; then
         $SUDO mv "$logged_bin" "$logged_real"
         $SUDO ln -s "$logged_wrapper" "$logged_bin"
@@ -3673,6 +3719,8 @@ uninstall_forgex_logged_wrapper() {
 
     log_info "Removing ForgeX logged wrapper..."
 
+    # Binary moves, not text surgery -- same non-site reasoning as the install
+    # side above.
     $SUDO rm -f "$logged_bin"
     $SUDO mv "$logged_real" "$logged_bin"
     $SUDO rm -f "$logged_wrapper"
@@ -3686,6 +3734,20 @@ uninstall_forgex_logged_wrapper() {
 # and cleans up backup files from manual patches.
 # Note: Sets caller's `restored_ui` variable via dynamic scoping.
 uninstall_forgex() {
+    # Once per run. Callers stack -- the payload arm, then
+    # restore_previous_ui_platform, then the uninstaller's own forge_x branch
+    # -- and a second call used to find the restore record already consumed,
+    # fall back to GUPPY, and rewrite a still-HEADLESS rig to a mode it never
+    # had. The first call performs every effect (record consumption, display
+    # restore, stock-UI re-enable, unpatches, wrapper removal, re-execs) and
+    # caches its restored-ui claim; later calls in the same run touch nothing
+    # and hand their caller the same claim.
+    if [ "${_FORGEX_UNINSTALL_DONE:-}" = "1" ]; then
+        # shellcheck disable=SC2034  # consumed by uninstall.sh (dynamic scoping) and the uninstaller bundle
+        restored_ui="${_FORGEX_RESTORED_UI:-}"
+        return 0
+    fi
+
     var_file="$(forgex_mod_data)/variables.cfg"
 
     # Put the display mode back where install found it. 1.4.0/1.4.1 default to
@@ -3778,6 +3840,10 @@ uninstall_forgex() {
             $SUDO rm -f "$backup_file"
         fi
     done
+
+    # Run-once sentinel + the claim every later stacked caller re-receives.
+    _FORGEX_UNINSTALL_DONE=1
+    _FORGEX_RESTORED_UI="${restored_ui:-}"
 }
 
 # ============================================
@@ -6460,13 +6526,34 @@ uninstall_mod_payload() {
         return 0
     fi
 
-    if [ -z "${INSTALL_DIR:-}" ]; then
+    # Resolve THIS run's payload root: the --payload-root flag, else the root
+    # the install recorded in mod_data, else the probed default. An install
+    # can land outside the default (--payload-root, the OTA-durable seam), and
+    # without this resolution an armed uninstall removed the default while the
+    # real payload — and its updater clone — sat where the operator put it.
+    payload_root="${MOD_PAYLOAD_ROOT:-}"
+    if [ -z "$payload_root" ]; then
+        payload_root=$(read_payload_root_record 2>/dev/null || true)
+        payload_root="${payload_root:-${INSTALL_DIR:-}}"
+    fi
+
+    if [ -z "$payload_root" ]; then
         log_warn "--mod-payload: no payload root resolved; nothing to remove"
         return 0
     fi
 
-    # Restore the mod's display mode while the payload still exists.
-    if type uninstall_forgex >/dev/null 2>&1; then
+    # The resolved root is this run's one install target: repoint INSTALL_DIR
+    # so the generic sweeps that follow the arm agree with what it removed.
+    if [ "$payload_root" != "${INSTALL_DIR:-}" ]; then
+        log_info "Payload root: ${payload_root} (was ${INSTALL_DIR:-unset})"
+        INSTALL_DIR="$payload_root"
+    fi
+
+    # Restore the mod's display mode while the payload still exists. Gated on
+    # the flavor the takeover targeted (configure_platform runs the forgex
+    # display takeover only for forge_x), not on the module merely being
+    # present: a Z-Mod payload install never took the display over.
+    if [ "${AD5M_FIRMWARE:-}" = "forge_x" ] && type uninstall_forgex >/dev/null 2>&1; then
         uninstall_forgex || true
     fi
 
@@ -6492,6 +6579,10 @@ uninstall_mod_payload() {
     else
         log_info "Payload root ${INSTALL_DIR} already absent"
     fi
+
+    # Consume the record with the root it directed at, so a later plain run
+    # cannot chase a stale pointer.
+    $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
     return 0
 }
 
@@ -7152,6 +7243,17 @@ main() {
                 HELIX_MOD_PAYLOAD=1
                 shift
                 ;;
+            --payload-root)
+                # Where this run's payload uninstall points — the same flag
+                # the installer takes. Names the root ONLY: the removal itself
+                # still needs --mod-payload (an inert flag warns below).
+                if [ -z "${2:-}" ]; then
+                    log_error "--payload-root requires a path argument"
+                    exit 1
+                fi
+                MOD_PAYLOAD_ROOT="$2"
+                shift 2
+                ;;
             --help|-h)
                 echo "HelixScreen Uninstaller"
                 echo ""
@@ -7162,6 +7264,10 @@ main() {
                 echo "  --mod-payload Also remove a payload-contract install (the"
                 echo "                firmware mod's payload tree, display takeover"
                 echo "                and update stanza)"
+                echo "  --payload-root DIR"
+                echo "                The payload root to remove (default: the root"
+                echo "                the install recorded, else the probed default)"
+                echo "                Requires --mod-payload to do anything"
                 echo "  --help, -h    Show this help message"
                 exit 0
                 ;;
@@ -7187,9 +7293,13 @@ main() {
     if [ "$platform" = "ad5x" ]; then
         ad5x_check_chroot_context
     fi
-    if [ "$platform" = "ad5m" ]; then
-        AD5M_FIRMWARE=$(detect_ad5m_firmware)
-        log_info "Detected AD5M firmware: $AD5M_FIRMWARE"
+    # The FlashForge mods ship for both Adventurer platforms, so ad5x runs the
+    # same unified flavor detector ad5m always has (main.sh does the same): a
+    # Forge-X AD5X must light the forge_x branches below — the payload arm's
+    # display restore included — instead of leaving AD5M_FIRMWARE empty.
+    if [ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ]; then
+        AD5M_FIRMWARE=$(detect_mod_flavor)
+        log_info "Detected mod flavor: $AD5M_FIRMWARE"
     fi
     set_install_paths "$platform" "$AD5M_FIRMWARE"
 
@@ -7241,6 +7351,13 @@ main() {
     #      systemd path-unit defense (sentinel) covers the in-process side.
     #   3. Stop, remove, sweep — sweep also clears the sentinel via
     #      clean_helix_state_dirs.
+    # A --payload-root without the arm names a root nothing will touch — say
+    # so instead of letting the operator believe it directed the removal.
+    if [ -n "${MOD_PAYLOAD_ROOT:-}" ] && [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
+        log_warn "--payload-root ignored without --mod-payload: it names where"
+        log_warn "the armed payload uninstall removes, and this run is not armed."
+    fi
+
     trap '_sweep_uninstalling_sentinel' EXIT INT TERM
     _drop_uninstalling_sentinel
     remove_update_manager_section || true

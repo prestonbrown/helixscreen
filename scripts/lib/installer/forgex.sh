@@ -25,10 +25,10 @@ forgex_mod_root() {
     printf '%s\n' "${HOST_MOD_ROOT:-/opt/config/mod}"
 }
 
-# mod_data is a sibling of the mod tree on every layout (see host_profile.sh):
-# /usr/data on the AD5X, /opt on the AD5M. Derived, never pinned.
+# mod_data derivation lives in host_profile.sh (host_mod_data) -- the
+# payload-root record and the forgex state files share one path rule.
 forgex_mod_data() {
-    printf '%s\n' "$(dirname "$(forgex_mod_root)")/mod_data"
+    host_mod_data
 }
 
 # Where the pre-install display mode is recorded so uninstall can restore it
@@ -269,6 +269,9 @@ dismiss_forgex_feather_promo() {
 
     if [ -s "$tmp_file" ] && \
        grep -qE "^show_feather_promo = 0$" "$tmp_file" 2>/dev/null; then
+        # A deliberate non-site of forgex_apply_patch: variables.cfg is a
+        # Klipper config, not a shell script, so bash -n is the wrong
+        # validator here. The grep above IS this write's postcondition.
         $SUDO mv "$tmp_file" "$var_file"
         log_success "ForgeX Feather display offer dismissed"
         return 0
@@ -639,7 +642,10 @@ WRAPPER_EOF
 
     $SUDO chmod +x "$logged_wrapper"
 
-    # Move original to logged-real and symlink logged to wrapper (skip if already done)
+    # Move original to logged-real and symlink logged to wrapper (skip if
+    # already done). Deliberate non-sites of forgex_apply_patch: these move
+    # BINARIES, not rewritten scripts -- there is nothing to syntax-check, and
+    # the symlink/existence checks around the moves are the postcondition.
     if [ ! -L "$logged_bin" ]; then
         $SUDO mv "$logged_bin" "$logged_real"
         $SUDO ln -s "$logged_wrapper" "$logged_bin"
@@ -669,6 +675,8 @@ uninstall_forgex_logged_wrapper() {
 
     log_info "Removing ForgeX logged wrapper..."
 
+    # Binary moves, not text surgery -- same non-site reasoning as the install
+    # side above.
     $SUDO rm -f "$logged_bin"
     $SUDO mv "$logged_real" "$logged_bin"
     $SUDO rm -f "$logged_wrapper"
@@ -682,6 +690,20 @@ uninstall_forgex_logged_wrapper() {
 # and cleans up backup files from manual patches.
 # Note: Sets caller's `restored_ui` variable via dynamic scoping.
 uninstall_forgex() {
+    # Once per run. Callers stack -- the payload arm, then
+    # restore_previous_ui_platform, then the uninstaller's own forge_x branch
+    # -- and a second call used to find the restore record already consumed,
+    # fall back to GUPPY, and rewrite a still-HEADLESS rig to a mode it never
+    # had. The first call performs every effect (record consumption, display
+    # restore, stock-UI re-enable, unpatches, wrapper removal, re-execs) and
+    # caches its restored-ui claim; later calls in the same run touch nothing
+    # and hand their caller the same claim.
+    if [ "${_FORGEX_UNINSTALL_DONE:-}" = "1" ]; then
+        # shellcheck disable=SC2034  # consumed by uninstall.sh (dynamic scoping) and the uninstaller bundle
+        restored_ui="${_FORGEX_RESTORED_UI:-}"
+        return 0
+    fi
+
     var_file="$(forgex_mod_data)/variables.cfg"
 
     # Put the display mode back where install found it. 1.4.0/1.4.1 default to
@@ -774,4 +796,8 @@ uninstall_forgex() {
             $SUDO rm -f "$backup_file"
         fi
     done
+
+    # Run-once sentinel + the claim every later stacked caller re-receives.
+    _FORGEX_UNINSTALL_DONE=1
+    _FORGEX_RESTORED_UI="${restored_ui:-}"
 }
