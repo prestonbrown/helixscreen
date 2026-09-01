@@ -45,7 +45,7 @@ constexpr double kVoiceBurstGapMs = 4.0;
 
 /// The app builds at most one piezo backend; the lab modal addresses it
 /// through this pointer (null everywhere the backend doesn't compile).
-JzPwmSoundBackend* g_live_jz_pwm = nullptr;
+helix::JzPwmSoundBackend* g_live_jz_pwm = nullptr;
 
 Waveform jz_wave_for_int(int w) {
     switch (w) {
@@ -59,6 +59,8 @@ Waveform jz_wave_for_int(int w) {
 }
 
 } // namespace
+
+namespace helix {
 
 std::vector<uint32_t> jz_pwm_render_step(const NoteEvent* events, int n_events,
                                          const JzPwmRenderParams& p) {
@@ -824,3 +826,5 @@ void JzPwmSoundBackend::silence() {
         history_back_amp_[v] = -1;
     }
 }
+
+} // namespace helix

@@ -11,6 +11,16 @@
 
 #include "../catch_amalgamated.hpp"
 
+using helix::jz_phrase_clip;
+using helix::jz_pwm_render_phrase;
+using helix::jz_pwm_render_step;
+using helix::jz_pwm_voices_to_events;
+using helix::jz_voice_should_flush;
+using helix::JzPhraseRow;
+using helix::JzPwmRenderParams;
+using helix::JzPwmSoundBackend;
+using helix::JzPwmVoiceKnobs;
+
 // ============================================================================
 // jz_pwm_render_step - the pure duty-encoding renderer
 // ============================================================================

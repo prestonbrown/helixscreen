@@ -13,6 +13,8 @@
 #include <thread>
 #include <vector>
 
+namespace helix {
+
 /// Render parameters for duty-encoded one-shot buffers (rig-measured).
 struct JzPwmRenderParams {
     /// The DMA engine's step rate. Two-point tuner calibration on the rig
@@ -225,3 +227,5 @@ std::vector<uint32_t> jz_pwm_render_phrase(const JzPhraseRow* rows, int n_rows,
 /// row is clipped, later rows are dropped. Returns the row count kept.
 /// Pure, for unit tests.
 int jz_phrase_clip(JzPhraseRow* rows, int n_rows, float budget_ms);
+
+} // namespace helix
