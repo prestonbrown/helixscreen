@@ -535,8 +535,18 @@ clean_helix_state_dirs() {
 }
 
 # Print post-install commands for the user
-# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR
+# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR,
+#        HOST_SERVICE_MECHANISM
 print_post_install_commands() {
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        # Payload install: we wrote no service anywhere — the firmware mod
+        # owns the UI's lifecycle. Coaching a service command here would
+        # point at a script that does not exist.
+        echo "Useful commands:"
+        echo "  The firmware mod starts the UI (its .shell service control)."
+        echo "  tail -f ${INSTALL_DIR}/logs/launcher.log   # View logs"
+        return 0
+    fi
     echo "Useful commands:"
     if [ "$INIT_SYSTEM" = "systemd" ]; then
         # journalctl and restart need privilege: a service user outside adm/

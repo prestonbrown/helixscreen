@@ -1400,3 +1400,15 @@ SHIM
             fail "--help still claims the contract is not auto-detected on the AD5M";;
     esac
 }
+
+@test "payload-mode success epilogue does not coach a service we did not install" {
+    # Found on hardware (AD5X cycle 2026-09-01): the generic epilogue printed
+    # /etc/init.d/S80helixscreen restart on a payload install, where no service
+    # exists by design. The epilogue must name the mod's lifecycle instead.
+    seed_payload_root
+    run print_post_install_commands
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"firmware mod starts the UI"* ]]
+    [[ "$output" != *"/etc/init.d/"* ]]
+    [[ "$output" == *"${INSTALL_DIR}/logs/launcher.log"* ]]
+}
