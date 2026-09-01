@@ -627,8 +627,10 @@ print_post_install_commands() {
 # the mod-owned destruct exemption (host_mod_destruct_blocked below), so it
 # must never be inherited from the environment - a stale HELIX_MOD_PAYLOAD=1
 # exported by an old self-update or a user shell would silently license every
-# destructive step against the mod's tree. parse_installer_args in main.sh,
-# reached only via the --mod-payload argument, is the sole legitimate setter.
+# destructive step against the mod's tree. Only two legitimate setters exist,
+# both reached from an explicit command line: parse_installer_args /
+# mod_payload_autodetect in main.sh (install direction) and the uninstaller
+# bundle's --mod-payload parse (uninstall direction).
 HELIX_MOD_PAYLOAD=""
 
 HOST_MOD_ROOT=""
@@ -6436,6 +6438,63 @@ restore_previous_ui_platform() {
     HELIX_RESTORED_XORG="$restored_xorg"
 }
 
+# Undo a payload-contract install — the STANDALONE uninstaller's --mod-payload
+# arm. The generic sweeps refuse mod-owned paths by design, so before this arm
+# a payload install could only be removed by hand: the shipped uninstaller
+# refused at the mod-owned gate with the payload subtree, the display takeover
+# and the optional user.moonraker.conf stanza all still in place.
+#
+# Only a run that explicitly armed the payload contract may remove the mod's
+# tree: HELIX_MOD_PAYLOAD, set by the uninstaller's --mod-payload parse — the
+# same single switch install.sh's destruct exemption keys on. Uninstall cannot
+# auto-detect this the way install does: removing a mod-owned subtree on a
+# bare `uninstall.sh` run would be the destructive default those guards exist
+# to prevent.
+#
+# Ordering follows uninstall(): the display mode is restored FIRST, while the
+# payload is still in place — the rig is never left with neither UI nor a
+# restore record — then the optional stanza, then the payload subtree itself.
+uninstall_mod_payload() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
+        log_warn "--mod-payload not armed: leaving the firmware mod's tree untouched"
+        return 0
+    fi
+
+    if [ -z "${INSTALL_DIR:-}" ]; then
+        log_warn "--mod-payload: no payload root resolved; nothing to remove"
+        return 0
+    fi
+
+    # Restore the mod's display mode while the payload still exists.
+    if type uninstall_forgex >/dev/null 2>&1; then
+        uninstall_forgex || true
+    fi
+
+    # Drop the --auto-update stanza if this install wrote one. find_moonraker_conf
+    # answers the mod's user.moonraker.conf on mod hosts
+    # (HOST_MOONRAKER_USER_CONF), so this touches nothing of the mod's own.
+    if type remove_update_manager_section >/dev/null 2>&1; then
+        remove_update_manager_section || true
+    fi
+
+    if [ -d "$INSTALL_DIR" ]; then
+        # The armed flag is exactly what host_mod_destruct_blocked exempts, so
+        # this guard can only fire on a wiring mistake — and must, loudly.
+        if host_mod_destruct_blocked "$INSTALL_DIR"; then
+            log_warn "Refusing to remove mod-owned ${INSTALL_DIR}"
+            return 1
+        fi
+        $SUDO rm -rf "$INSTALL_DIR"
+        log_success "Removed payload root ${INSTALL_DIR}"
+        if [ -d "${INSTALL_DIR}-repo" ]; then
+            $SUDO rm -rf "${INSTALL_DIR}-repo"
+        fi
+    else
+        log_info "Payload root ${INSTALL_DIR} already absent"
+    fi
+    return 0
+}
+
 uninstall() {
     local platform=${1:-}
 
@@ -7084,6 +7143,15 @@ main() {
                 force=true
                 shift
                 ;;
+            --mod-payload)
+                # Arm the payload uninstall: the only run permitted to remove
+                # the firmware mod's payload tree (the same destruct exemption
+                # install.sh's payload contract arms). Uninstall deliberately
+                # does not auto-detect this the way install does — removing a
+                # mod-owned subtree must be an explicit opt-in.
+                HELIX_MOD_PAYLOAD=1
+                shift
+                ;;
             --help|-h)
                 echo "HelixScreen Uninstaller"
                 echo ""
@@ -7091,6 +7159,9 @@ main() {
                 echo ""
                 echo "Options:"
                 echo "  --force, -f   Skip confirmation prompt"
+                echo "  --mod-payload Also remove a payload-contract install (the"
+                echo "                firmware mod's payload tree, display takeover"
+                echo "                and update stanza)"
                 echo "  --help, -h    Show this help message"
                 exit 0
                 ;;
@@ -7140,7 +7211,10 @@ main() {
         echo "  - Remove rolling config backups (/var/lib/helixscreen + .helixscreen under the service user's home)"
         echo "  - Re-enable previous screen UI (if found)"
         if [ "$AD5M_FIRMWARE" = "forge_x" ]; then
-            echo "  - Restore ForgeX display configuration (GuppyScreen)"
+            echo "  - Restore ForgeX display configuration (the mode recorded at install)"
+        fi
+        if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+            echo "  - Remove the payload install at $INSTALL_DIR (mod-owned)"
         fi
         echo ""
         printf "Are you sure you want to continue? [y/N] "
@@ -7172,6 +7246,12 @@ main() {
     remove_update_manager_section || true
     stop_helixscreen
     remove_service
+    # The payload arm runs before the generic sweeps: it restores the mod's
+    # display mode while the payload is still in place, then removes the
+    # mod-owned payload root the sweeps below would otherwise skip (or refuse).
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        uninstall_mod_payload
+    fi
     remove_installation
     reenable_previous_ui
 

@@ -404,6 +404,15 @@ main() {
                 force=true
                 shift
                 ;;
+            --mod-payload)
+                # Arm the payload uninstall: the only run permitted to remove
+                # the firmware mod's payload tree (the same destruct exemption
+                # install.sh's payload contract arms). Uninstall deliberately
+                # does not auto-detect this the way install does — removing a
+                # mod-owned subtree must be an explicit opt-in.
+                HELIX_MOD_PAYLOAD=1
+                shift
+                ;;
             --help|-h)
                 echo "HelixScreen Uninstaller"
                 echo ""
@@ -411,6 +420,9 @@ main() {
                 echo ""
                 echo "Options:"
                 echo "  --force, -f   Skip confirmation prompt"
+                echo "  --mod-payload Also remove a payload-contract install (the"
+                echo "                firmware mod's payload tree, display takeover"
+                echo "                and update stanza)"
                 echo "  --help, -h    Show this help message"
                 exit 0
                 ;;
@@ -460,7 +472,10 @@ main() {
         echo "  - Remove rolling config backups (/var/lib/helixscreen + .helixscreen under the service user's home)"
         echo "  - Re-enable previous screen UI (if found)"
         if [ "$AD5M_FIRMWARE" = "forge_x" ]; then
-            echo "  - Restore ForgeX display configuration (GuppyScreen)"
+            echo "  - Restore ForgeX display configuration (the mode recorded at install)"
+        fi
+        if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+            echo "  - Remove the payload install at $INSTALL_DIR (mod-owned)"
         fi
         echo ""
         printf "Are you sure you want to continue? [y/N] "
@@ -492,6 +507,12 @@ main() {
     remove_update_manager_section || true
     stop_helixscreen
     remove_service
+    # The payload arm runs before the generic sweeps: it restores the mod's
+    # display mode while the payload is still in place, then removes the
+    # mod-owned payload root the sweeps below would otherwise skip (or refuse).
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        uninstall_mod_payload
+    fi
     remove_installation
     reenable_previous_ui
 

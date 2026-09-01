@@ -32,8 +32,10 @@ _HELIX_HOST_PROFILE_SOURCED=1
 # the mod-owned destruct exemption (host_mod_destruct_blocked below), so it
 # must never be inherited from the environment - a stale HELIX_MOD_PAYLOAD=1
 # exported by an old self-update or a user shell would silently license every
-# destructive step against the mod's tree. parse_installer_args in main.sh,
-# reached only via the --mod-payload argument, is the sole legitimate setter.
+# destructive step against the mod's tree. Only two legitimate setters exist,
+# both reached from an explicit command line: parse_installer_args /
+# mod_payload_autodetect in main.sh (install direction) and the uninstaller
+# bundle's --mod-payload parse (uninstall direction).
 HELIX_MOD_PAYLOAD=""
 
 HOST_MOD_ROOT=""

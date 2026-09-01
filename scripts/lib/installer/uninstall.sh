@@ -331,6 +331,63 @@ restore_previous_ui_platform() {
     HELIX_RESTORED_XORG="$restored_xorg"
 }
 
+# Undo a payload-contract install — the STANDALONE uninstaller's --mod-payload
+# arm. The generic sweeps refuse mod-owned paths by design, so before this arm
+# a payload install could only be removed by hand: the shipped uninstaller
+# refused at the mod-owned gate with the payload subtree, the display takeover
+# and the optional user.moonraker.conf stanza all still in place.
+#
+# Only a run that explicitly armed the payload contract may remove the mod's
+# tree: HELIX_MOD_PAYLOAD, set by the uninstaller's --mod-payload parse — the
+# same single switch install.sh's destruct exemption keys on. Uninstall cannot
+# auto-detect this the way install does: removing a mod-owned subtree on a
+# bare `uninstall.sh` run would be the destructive default those guards exist
+# to prevent.
+#
+# Ordering follows uninstall(): the display mode is restored FIRST, while the
+# payload is still in place — the rig is never left with neither UI nor a
+# restore record — then the optional stanza, then the payload subtree itself.
+uninstall_mod_payload() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
+        log_warn "--mod-payload not armed: leaving the firmware mod's tree untouched"
+        return 0
+    fi
+
+    if [ -z "${INSTALL_DIR:-}" ]; then
+        log_warn "--mod-payload: no payload root resolved; nothing to remove"
+        return 0
+    fi
+
+    # Restore the mod's display mode while the payload still exists.
+    if type uninstall_forgex >/dev/null 2>&1; then
+        uninstall_forgex || true
+    fi
+
+    # Drop the --auto-update stanza if this install wrote one. find_moonraker_conf
+    # answers the mod's user.moonraker.conf on mod hosts
+    # (HOST_MOONRAKER_USER_CONF), so this touches nothing of the mod's own.
+    if type remove_update_manager_section >/dev/null 2>&1; then
+        remove_update_manager_section || true
+    fi
+
+    if [ -d "$INSTALL_DIR" ]; then
+        # The armed flag is exactly what host_mod_destruct_blocked exempts, so
+        # this guard can only fire on a wiring mistake — and must, loudly.
+        if host_mod_destruct_blocked "$INSTALL_DIR"; then
+            log_warn "Refusing to remove mod-owned ${INSTALL_DIR}"
+            return 1
+        fi
+        $SUDO rm -rf "$INSTALL_DIR"
+        log_success "Removed payload root ${INSTALL_DIR}"
+        if [ -d "${INSTALL_DIR}-repo" ]; then
+            $SUDO rm -rf "${INSTALL_DIR}-repo"
+        fi
+    else
+        log_info "Payload root ${INSTALL_DIR} already absent"
+    fi
+    return 0
+}
+
 uninstall() {
     local platform=${1:-}
 
