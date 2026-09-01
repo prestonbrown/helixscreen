@@ -72,6 +72,46 @@ class PrintStartProfile {
     };
 
     /**
+     * @brief One predicate over a status object's field
+     *
+     * The left-hand side is a dot-path into the rule object's status frame,
+     * optionally selecting one array element (toolhead.position is [x,y,z]).
+     * The right-hand side is a literal `value`, or — when `ref_field` names a
+     * sibling field of the same object — that field's value; `offset` is added
+     * to either. `near` additionally requires a positive `tolerance`
+     * (|lhs - rhs| < tolerance).
+     */
+    struct StatusPredicate {
+        enum class Op { EQ, NE, GT, LT, NEAR };
+
+        std::string field; ///< Dot-path to the left-hand side
+        int index = -1;    ///< Array element selector; -1 = scalar field
+        Op op = Op::EQ;
+        double value = 0.0;     ///< Literal right-hand side
+        std::string ref_field;  ///< Same-object field as right-hand side (replaces value)
+        double offset = 0.0;    ///< Added to the right-hand side (literal or field)
+        double tolerance = 0.0; ///< NEAR only: |lhs - rhs| < tolerance
+    };
+
+    /**
+     * @brief A physical phase-inference rule over one status object
+     *
+     * `when` is an AND-list: the rule holds on a frame only while every
+     * predicate resolves and passes. phase/message/weight carry the identical
+     * contract a response_pattern entry does — a match feeds the collector's
+     * shared apply path, so weights arbitrate against console narration the
+     * same way (weight doubles as sequential-mode progress).
+     */
+    struct StatusSignalRule {
+        std::string name;   ///< Rule identity; doubles as the collector's latch key
+        std::string object; ///< Klipper status object the rule watches
+        std::vector<StatusPredicate> when;
+        helix::PrintStartPhase phase = helix::PrintStartPhase::IDLE;
+        std::string message;
+        int weight = 0;
+    };
+
+    /**
      * @brief Progress calculation mode
      */
     enum class ProgressMode {
@@ -253,6 +293,35 @@ class PrintStartProfile {
     /// subscribes whatever this returns.
     std::vector<std::string> required_status_objects() const;
 
+    // =========================================================================
+    // Status-Signal Rules (physical phase inference)
+    // =========================================================================
+
+    /// Rules declared under "status_signals", in file order. Empty for
+    /// profiles that declare none — which is exactly the pre-feature behavior.
+    const std::vector<StatusSignalRule>& status_signals() const {
+        return status_signals_;
+    }
+
+    /**
+     * @brief Evaluate one status-signal rule against its object's status frame
+     *
+     * Pure predicate check over the object node the collector hands in:
+     * resolves each predicate's fields, applies the op, and on a full
+     * AND-match fills `result` with the rule's phase/message/weight — the
+     * same shape try_match_pattern produces, so the collector's apply path is
+     * unchanged. A frame that does not carry a predicate's field (Klipper
+     * pushes deltas) reads as not-holding; the caller's edge latch decides
+     * whether that is a miss or a re-arm.
+     *
+     * @param object_status The rule object's node from a status frame
+     * @param rule The rule to evaluate
+     * @param[out] result Match result (phase, message, weight in progress)
+     * @return true when every predicate holds
+     */
+    bool evaluate_status_signal(const nlohmann::json& object_status, const StatusSignalRule& rule,
+                                MatchResult& result) const;
+
   private:
     std::string name_;
     std::string description_;
@@ -268,6 +337,7 @@ class PrintStartProfile {
     std::vector<SilentPhaseEntry> silent_progression_;
     std::string phase_object_name_;
     std::string phase_object_field_;
+    std::vector<StatusSignalRule> status_signals_;
 
     /**
      * @brief Parse a JSON object into this profile
@@ -284,6 +354,15 @@ class PrintStartProfile {
      */
     void parse_pattern_array(const nlohmann::json& array, std::vector<ResponsePattern>& out,
                              const char* kind, const std::string& source_path);
+
+    /**
+     * @brief Parse the "status_signals" array into status_signals_
+     *
+     * Tolerant of malformed entries like every other block: each bad entry
+     * warns and is skipped whole (a rule with one bad predicate must not
+     * survive as a narrower AND-list), and parsing continues to the next.
+     */
+    void parse_status_signals(const nlohmann::json& array, const std::string& source_path);
 
     /**
      * @brief Run the compiled-pattern matching loop over one pattern list

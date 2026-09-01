@@ -305,6 +305,22 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     void handle_phase_object_status(const nlohmann::json& status);
 
+    /**
+     * @brief Check a status frame against the profile's status-signal rules
+     *
+     * For every rule whose object the frame carries, evaluates the rule's
+     * predicates and applies the match on the false->true rising edge only —
+     * physical predicates hold for whole windows (the head sits at the cutter
+     * for seconds) while frames keep re-arriving, so each rule latches by name
+     * and re-arms once its predicate stops holding. Matches feed
+     * apply_profile_match(), the same path a console line takes. A profile
+     * without status_signals ignores every frame.
+     *
+     * Thread-safe: runs on the WebSocket background thread, like the other
+     * notify_status_update handling in start().
+     */
+    void handle_status_signals(const nlohmann::json& status);
+
     /// Record that the printer said something about its pre-print. Feeds the
     /// quiet gate on every timeout branch. Takes state_mutex_ itself, so do not
     /// call it while already holding the lock.
@@ -525,6 +541,13 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// notifies on every field change in the object, so the same state
     /// re-arrives; it must not re-fire the phase. Cleared in start()/reset().
     std::string last_phase_object_state_;
+
+    /// Status-signal rules whose predicate held on the last frame carrying
+    /// their object — the edge-trigger latch, keyed by rule name. A rule in
+    /// this set cannot re-fire until its predicate reads false on a later
+    /// frame (re-arm). Cleared in start()/reset(), like
+    /// last_phase_object_state_.
+    std::set<std::string> held_status_signal_rules_;
 
     /// Last bed-mesh presence reported via note_bed_mesh_presence(). The
     /// leveling trigger is the present→absent edge, so an unknown initial

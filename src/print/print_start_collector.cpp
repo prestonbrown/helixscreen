@@ -122,6 +122,7 @@ void PrintStartCollector::start() {
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
         last_phase_object_state_.clear();
+        held_status_signal_rules_.clear();
         bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
@@ -222,6 +223,10 @@ void PrintStartCollector::start() {
         // structured phase state, mapped through the profile's state patterns.
         // No-op unless the profile declares one.
         self->handle_phase_object_status(status);
+
+        // Profile-declared status-signal rules: physical phase inference over
+        // status frames, edge-triggered. No-op unless the profile declares any.
+        self->handle_status_signals(status);
 
         // Check _START_PRINT.print_started (AD5M KAMP macro)
         if (status.contains("gcode_macro _START_PRINT")) {
@@ -350,6 +355,7 @@ void PrintStartCollector::reset() {
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
         last_phase_object_state_.clear();
+        held_status_signal_rules_.clear();
         bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
@@ -1213,6 +1219,49 @@ void PrintStartCollector::handle_phase_object_status(const json& status) {
     spdlog::debug("[PrintStartCollector] Phase-object state '{}' -> phase {}", state,
                   static_cast<int>(match.phase));
     apply_profile_match(match);
+}
+
+void PrintStartCollector::handle_status_signals(const json& status) {
+    if (!profile_) {
+        return;
+    }
+    const auto& rules = profile_->status_signals();
+    if (rules.empty()) {
+        return;
+    }
+    if (!status.is_object()) {
+        return;
+    }
+
+    for (const auto& rule : rules) {
+        const auto object = status.find(rule.object);
+        if (object == status.end() || !object->is_object()) {
+            continue; // this frame does not carry the rule's object (delta-only update)
+        }
+
+        PrintStartProfile::MatchResult match;
+        const bool holds = profile_->evaluate_status_signal(*object, rule, match);
+
+        // EDGE-TRIGGERED per rule: fire only on the false->true transition.
+        // Physical predicates hold for whole windows while the frame keeps
+        // re-delivering them, so the latch turns the window into one event;
+        // a frame where the predicate reads false (or cannot resolve — Klipper
+        // pushes per-field deltas) re-arms it.
+        bool fire = false;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            if (holds) {
+                fire = held_status_signal_rules_.insert(rule.name).second;
+            } else {
+                held_status_signal_rules_.erase(rule.name);
+            }
+        }
+        if (fire) {
+            spdlog::debug("[PrintStartCollector] Status signal '{}' held -> phase {}", rule.name,
+                          static_cast<int>(match.phase));
+            apply_profile_match(match);
+        }
+    }
 }
 
 bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 
 #include "hv/json.hpp"
@@ -27,6 +28,72 @@ static std::string to_upper(const std::string& s) {
     std::transform(result.begin(), result.end(), result.begin(),
                    [](unsigned char c) { return std::toupper(c); });
     return result;
+}
+
+// ============================================================================
+// STATIC HELPERS: Status-signal predicate evaluation
+// ============================================================================
+
+/// Resolve a dot-path into an object's status frame as a double, optionally
+/// selecting one array element. False when any segment is missing, the path
+/// lands on a non-number, or the index is out of range — a rule watching a
+/// field the frame does not carry simply does not hold.
+static bool resolve_numeric_field(const json& object_status, const std::string& path, int index,
+                                  double& out) {
+    if (!object_status.is_object() || path.empty()) {
+        return false;
+    }
+
+    const json* node = &object_status;
+    size_t start = 0;
+    while (true) {
+        const size_t dot = path.find('.', start);
+        const std::string segment =
+            path.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+        if (segment.empty()) {
+            return false;
+        }
+        const auto child = node->find(segment);
+        if (child == node->end()) {
+            return false;
+        }
+        node = &*child;
+        if (dot == std::string::npos) {
+            break;
+        }
+        start = dot + 1;
+    }
+
+    if (index >= 0) {
+        if (!node->is_array() || static_cast<size_t>(index) >= node->size()) {
+            return false;
+        }
+        node = &(*node)[static_cast<size_t>(index)];
+    }
+
+    if (!node->is_number()) {
+        return false;
+    }
+    out = node->get<double>();
+    return true;
+}
+
+/// Apply one comparison op. `tolerance` is only read by NEAR.
+static bool compare_values(PrintStartProfile::StatusPredicate::Op op, double lhs, double rhs,
+                           double tolerance) {
+    switch (op) {
+    case PrintStartProfile::StatusPredicate::Op::EQ:
+        return lhs == rhs;
+    case PrintStartProfile::StatusPredicate::Op::NE:
+        return lhs != rhs;
+    case PrintStartProfile::StatusPredicate::Op::GT:
+        return lhs > rhs;
+    case PrintStartProfile::StatusPredicate::Op::LT:
+        return lhs < rhs;
+    case PrintStartProfile::StatusPredicate::Op::NEAR:
+        return std::fabs(lhs - rhs) < tolerance;
+    }
+    return false;
 }
 
 // ============================================================================
@@ -217,10 +284,44 @@ bool PrintStartProfile::match_pattern_list(const std::vector<ResponsePattern>& p
 }
 
 std::vector<std::string> PrintStartProfile::required_status_objects() const {
-    if (!has_phase_object()) {
-        return {};
+    std::vector<std::string> objects;
+    if (has_phase_object()) {
+        objects.push_back(phase_object_name_);
     }
-    return {phase_object_name_};
+    for (const auto& rule : status_signals_) {
+        if (std::find(objects.begin(), objects.end(), rule.object) == objects.end()) {
+            objects.push_back(rule.object);
+        }
+    }
+    return objects;
+}
+
+bool PrintStartProfile::evaluate_status_signal(const json& object_status,
+                                               const StatusSignalRule& rule,
+                                               MatchResult& result) const {
+    for (const auto& predicate : rule.when) {
+        double lhs = 0.0;
+        if (!resolve_numeric_field(object_status, predicate.field, predicate.index, lhs)) {
+            return false;
+        }
+        double rhs = predicate.value;
+        if (!predicate.ref_field.empty()) {
+            double referenced = 0.0;
+            if (!resolve_numeric_field(object_status, predicate.ref_field, -1, referenced)) {
+                return false;
+            }
+            rhs = referenced;
+        }
+        if (!compare_values(predicate.op, lhs, rhs + predicate.offset, predicate.tolerance)) {
+            return false;
+        }
+    }
+
+    result.phase = rule.phase;
+    // Translate the message like a pattern template (no capture groups here).
+    result.message = lv_tr(rule.message.c_str());
+    result.progress = rule.weight; // Caller interprets based on progress_mode
+    return true;
 }
 
 // ============================================================================
@@ -375,6 +476,13 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
         parse_pattern_array(j["state_patterns"], state_patterns_, "state_pattern", source_path);
     }
 
+    // Status signals (optional) — physical phase-inference rules over status
+    // objects. Malformed entries warn and are skipped whole, exactly like the
+    // other blocks.
+    if (j.contains("status_signals") && j["status_signals"].is_array()) {
+        parse_status_signals(j["status_signals"], source_path);
+    }
+
     // Silent-phase progression (optional) — time-based phase advancement
     // for firmwares that run cleaning/purge as silent macros (no gcode
     // response between heat-complete and first layer).
@@ -422,9 +530,9 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     }
 
     spdlog::debug("[PrintStartProfile] Parsed '{}': {} signal_formats, {} response_patterns, "
-                  "{} state_patterns, {} phase_weights, {} silent_progression",
+                  "{} state_patterns, {} phase_weights, {} silent_progression, {} status_signals",
                   name_, signal_formats_.size(), response_patterns_.size(), state_patterns_.size(),
-                  phase_weights_.size(), silent_progression_.size());
+                  phase_weights_.size(), silent_progression_.size(), status_signals_.size());
     return true;
 }
 
@@ -475,6 +583,168 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
         }
 
         out.push_back(std::move(rp));
+    }
+}
+
+void PrintStartProfile::parse_status_signals(const json& array, const std::string& source_path) {
+    auto op_from_name = [](const std::string& name, StatusPredicate::Op& op) -> bool {
+        if (name == "eq")
+            op = StatusPredicate::Op::EQ;
+        else if (name == "ne")
+            op = StatusPredicate::Op::NE;
+        else if (name == "gt")
+            op = StatusPredicate::Op::GT;
+        else if (name == "lt")
+            op = StatusPredicate::Op::LT;
+        else if (name == "near")
+            op = StatusPredicate::Op::NEAR;
+        else
+            return false;
+        return true;
+    };
+
+    for (const auto& rule_json : array) {
+        if (!rule_json.is_object()) {
+            spdlog::warn("[PrintStartProfile] Skipping non-object status_signal in {}",
+                         source_path);
+            continue;
+        }
+        if (!rule_json.contains("name") || !rule_json["name"].is_string() ||
+            rule_json["name"].get<std::string>().empty()) {
+            spdlog::warn("[PrintStartProfile] status_signal missing 'name' in {}", source_path);
+            continue;
+        }
+        const std::string name = rule_json["name"].get<std::string>();
+        const auto skip = [&](const char* why) {
+            spdlog::warn("[PrintStartProfile] Skipping status_signal '{}' - {} in {}", name, why,
+                         source_path);
+        };
+
+        if (!rule_json.contains("object") || !rule_json["object"].is_string() ||
+            rule_json["object"].get<std::string>().empty()) {
+            skip("missing 'object'");
+            continue;
+        }
+        if (!rule_json.contains("when") || !rule_json["when"].is_array() ||
+            rule_json["when"].empty()) {
+            skip("'when' must be a non-empty array");
+            continue;
+        }
+        if (!rule_json.contains("phase") || !rule_json["phase"].is_string()) {
+            skip("missing 'phase'");
+            continue;
+        }
+        // A rule targeting IDLE has nothing to say — the phase stream starts
+        // at INITIALIZING — so it is a malformed target, not a mapping.
+        const std::string phase_name = rule_json["phase"].get<std::string>();
+        if (to_upper(phase_name) == "IDLE") {
+            skip("phase may not be IDLE");
+            continue;
+        }
+        if (std::any_of(
+                status_signals_.begin(), status_signals_.end(),
+                [&name](const StatusSignalRule& existing) { return existing.name == name; })) {
+            skip("duplicate name (the name is the edge-trigger latch key)");
+            continue;
+        }
+
+        StatusSignalRule rule;
+        rule.name = name;
+        rule.object = rule_json["object"].get<std::string>();
+        rule.phase = parse_phase_name(phase_name);
+
+        bool predicates_ok = true;
+        for (const auto& predicate_json : rule_json["when"]) {
+            if (!predicate_json.is_object()) {
+                skip("'when' contains a non-object predicate");
+                predicates_ok = false;
+                break;
+            }
+            StatusPredicate predicate;
+            if (!predicate_json.contains("field") || !predicate_json["field"].is_string() ||
+                predicate_json["field"].get<std::string>().empty()) {
+                skip("predicate missing 'field'");
+                predicates_ok = false;
+                break;
+            }
+            predicate.field = predicate_json["field"].get<std::string>();
+
+            if (predicate_json.contains("index")) {
+                if (!predicate_json["index"].is_number_integer()) {
+                    skip("predicate 'index' must be an integer");
+                    predicates_ok = false;
+                    break;
+                }
+                predicate.index = predicate_json["index"].get<int>();
+                if (predicate.index < 0) {
+                    skip("predicate 'index' must be >= 0");
+                    predicates_ok = false;
+                    break;
+                }
+            }
+
+            if (!predicate_json.contains("op") || !predicate_json["op"].is_string() ||
+                !op_from_name(predicate_json["op"].get<std::string>(), predicate.op)) {
+                skip("predicate 'op' must be one of eq/ne/gt/lt/near");
+                predicates_ok = false;
+                break;
+            }
+
+            const bool has_value =
+                predicate_json.contains("value") && predicate_json["value"].is_number();
+            const bool has_ref = predicate_json.contains("ref_field") &&
+                                 predicate_json["ref_field"].is_string() &&
+                                 !predicate_json["ref_field"].get<std::string>().empty();
+            if (has_value && has_ref) {
+                skip("predicate has both 'value' and 'ref_field'");
+                predicates_ok = false;
+                break;
+            }
+            if (!has_value && !has_ref) {
+                skip("predicate needs a 'value' or a 'ref_field'");
+                predicates_ok = false;
+                break;
+            }
+            if (has_value) {
+                predicate.value = predicate_json["value"].get<double>();
+            } else {
+                predicate.ref_field = predicate_json["ref_field"].get<std::string>();
+            }
+
+            if (predicate_json.contains("offset")) {
+                if (!predicate_json["offset"].is_number()) {
+                    skip("predicate 'offset' must be a number");
+                    predicates_ok = false;
+                    break;
+                }
+                predicate.offset = predicate_json["offset"].get<double>();
+            }
+
+            if (predicate.op == StatusPredicate::Op::NEAR) {
+                if (!predicate_json.contains("tolerance") ||
+                    !predicate_json["tolerance"].is_number() ||
+                    predicate_json["tolerance"].get<double>() <= 0.0) {
+                    skip("'near' needs a positive 'tolerance'");
+                    predicates_ok = false;
+                    break;
+                }
+                predicate.tolerance = predicate_json["tolerance"].get<double>();
+            }
+
+            rule.when.push_back(std::move(predicate));
+        }
+        if (!predicates_ok || rule.when.empty()) {
+            continue;
+        }
+
+        if (rule_json.contains("message") && rule_json["message"].is_string()) {
+            rule.message = rule_json["message"].get<std::string>();
+        }
+        if (rule_json.contains("weight") && rule_json["weight"].is_number()) {
+            rule.weight = rule_json["weight"].get<int>();
+        }
+
+        status_signals_.push_back(std::move(rule));
     }
 }
 

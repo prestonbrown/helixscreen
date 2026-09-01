@@ -1268,7 +1268,9 @@ TEST_CASE("PrintStartProfile: forge_x declares its phase object",
     REQUIRE(profile->phase_object_field() == "current_state");
 
     const auto objects = profile->required_status_objects();
-    REQUIRE(objects.size() == 1);
+    // The phase object plus the status-signal rules' toolhead (pinned in the
+    // status-signal tests below).
+    REQUIRE(objects.size() == 2);
     REQUIRE(objects[0] == "operation_context");
 }
 
@@ -1276,15 +1278,15 @@ TEST_CASE("PrintStartProfile: profiles without phase_object declare no status ob
           "[profile][print][phase_object]") {
     // Absence must read as absence: no object name, no subscription request.
     // The K2 profile doubles as the regression guard that a printer-specific
-    // profile with no phase object stays exactly as it was.
-    for (const auto& profile : {get_default_profile(), PrintStartProfile::load("creality_k2")}) {
-        REQUIRE(profile != nullptr);
-        CAPTURE(profile->name());
-        REQUIRE_FALSE(profile->has_phase_object());
-        REQUIRE(profile->phase_object_name().empty());
-        REQUIRE(profile->phase_object_field().empty());
-        REQUIRE(profile->required_status_objects().empty());
-    }
+    // profile with no phase object stays exactly as it was. (default.json
+    // declares status_signals rules, so its objects are pinned separately in
+    // the status-signal tests below.)
+    const auto k2 = PrintStartProfile::load("creality_k2");
+    REQUIRE(k2 != nullptr);
+    REQUIRE_FALSE(k2->has_phase_object());
+    REQUIRE(k2->phase_object_name().empty());
+    REQUIRE(k2->phase_object_field().empty());
+    REQUIRE(k2->required_status_objects().empty());
 }
 
 TEST_CASE("PrintStartProfile: forge_x state patterns map the mod's state strings",
@@ -1413,4 +1415,237 @@ TEST_CASE("PrintStartProfile: malformed state_patterns entries are skipped",
     REQUIRE_FALSE(profile->try_match_state("CLEANING", result));
     REQUIRE(profile->has_phase_object() == false);
     REQUIRE(profile->required_status_objects().empty());
+}
+
+// ============================================================================
+// Status-Signal Rule Tests
+//
+// A profile may declare rules over status frames ("status_signals"): an
+// AND-list of predicates over one object's fields, mapping to the same
+// phase/message/weight contract response_patterns carry. Printers that cannot
+// narrate their pre-print get phase inference from physics instead of regexes.
+// ============================================================================
+
+TEST_CASE("PrintStartProfile: forge_x declares its status-signal rules",
+          "[profile][print][status_signals]") {
+    auto profile = get_forge_x_profile();
+    REQUIRE(profile != nullptr);
+    // Strict on purpose: the JSON ships with the repo, so missing rules here
+    // are a regression, not an environment gap.
+    REQUIRE(profile->name().find("Forge") != std::string::npos);
+
+    const auto& rules = profile->status_signals();
+    REQUIRE(rules.size() == 2);
+
+    // at_cutter: both axes negative means the head is at the filament cutter
+    // (the IFS tool-change window) - positionally unambiguous, so it carries a
+    // higher weight than any narration of the same phase.
+    const auto& cutter = rules[0];
+    REQUIRE(cutter.name == "at_cutter");
+    REQUIRE(cutter.object == "toolhead");
+    REQUIRE(cutter.phase == PrintStartPhase::PURGING);
+    REQUIRE(cutter.message == "Changing filament...");
+    REQUIRE(cutter.weight == 30);
+    REQUIRE(cutter.when.size() == 2);
+    REQUIRE(cutter.when[0].field == "position");
+    REQUIRE(cutter.when[0].index == 0);
+    REQUIRE(cutter.when[0].op == PrintStartProfile::StatusPredicate::Op::LT);
+    REQUIRE(cutter.when[0].value == 0.0);
+    REQUIRE(cutter.when[1].field == "position");
+    REQUIRE(cutter.when[1].index == 1);
+    REQUIRE(cutter.when[1].op == PrintStartProfile::StatusPredicate::Op::LT);
+    REQUIRE(cutter.when[1].value == 0.0);
+
+    // at_chute: the rear of the bed is the filament-handling zone - every back
+    // wall station means the same thing, so the weight stays moderate.
+    const auto& chute = rules[1];
+    REQUIRE(chute.name == "at_chute");
+    REQUIRE(chute.object == "toolhead");
+    REQUIRE(chute.phase == PrintStartPhase::PURGING);
+    REQUIRE(chute.message == "Purging...");
+    REQUIRE(chute.when.size() == 1);
+    REQUIRE(chute.when[0].field == "position");
+    REQUIRE(chute.when[0].index == 1);
+    REQUIRE(chute.when[0].op == PrintStartProfile::StatusPredicate::Op::GT);
+    REQUIRE(chute.when[0].value == 225.0);
+
+    // Both rules watch toolhead; the union with the phase object dedupes.
+    const auto objects = profile->required_status_objects();
+    REQUIRE(objects.size() == 2);
+    REQUIRE(objects[0] == "operation_context");
+    REQUIRE(objects[1] == "toolhead");
+}
+
+TEST_CASE("PrintStartProfile: default profile carries only the two heating rules",
+          "[profile][print][status_signals]") {
+    auto profile = get_default_profile();
+    REQUIRE(profile != nullptr);
+    // The built-in fallback (used only when default.json cannot be read)
+    // carries no status signals; the JSON variant is the one under test.
+    REQUIRE(profile->name() == "Generic");
+
+    const auto& rules = profile->status_signals();
+    // Deliberately conservative: static predicates only, no position guesses
+    // (ambiguous without narration). The count pins "no rules beyond these".
+    REQUIRE(rules.size() == 2);
+
+    using Op = PrintStartProfile::StatusPredicate::Op;
+
+    const auto& bed = rules[0];
+    REQUIRE(bed.name == "heating_bed");
+    REQUIRE(bed.object == "heater_bed");
+    REQUIRE(bed.phase == PrintStartPhase::HEATING_BED);
+    REQUIRE(bed.message == "Heating Bed...");
+    REQUIRE(bed.weight == 15);
+    REQUIRE(bed.when.size() == 2);
+    REQUIRE(bed.when[0].field == "target");
+    REQUIRE(bed.when[0].index == -1);
+    REQUIRE(bed.when[0].op == Op::GT);
+    REQUIRE(bed.when[0].value == 0.0);
+    // temperature < target - 2: the right-hand side is the sibling field.
+    REQUIRE(bed.when[1].field == "temperature");
+    REQUIRE(bed.when[1].op == Op::LT);
+    REQUIRE(bed.when[1].ref_field == "target");
+    REQUIRE(bed.when[1].offset == -2.0);
+
+    const auto& nozzle = rules[1];
+    REQUIRE(nozzle.name == "heating_nozzle");
+    REQUIRE(nozzle.object == "extruder");
+    REQUIRE(nozzle.phase == PrintStartPhase::HEATING_NOZZLE);
+    REQUIRE(nozzle.message == "Heating Nozzle...");
+    REQUIRE(nozzle.weight == 15);
+    REQUIRE(nozzle.when.size() == 2);
+    REQUIRE(nozzle.when[1].ref_field == "target");
+    REQUIRE(nozzle.when[1].offset == -2.0);
+
+    const auto objects = profile->required_status_objects();
+    REQUIRE(objects.size() == 2);
+    REQUIRE(objects[0] == "heater_bed");
+    REQUIRE(objects[1] == "extruder");
+}
+
+TEST_CASE("PrintStartProfile: profiles without status_signals declare none",
+          "[profile][print][status_signals]") {
+    // Absence must read as absence: no rules to evaluate, no objects
+    // subscribed - exactly the behavior before the feature existed.
+    const auto k2 = PrintStartProfile::load("creality_k2");
+    REQUIRE(k2 != nullptr);
+    REQUIRE(k2->status_signals().empty());
+    REQUIRE(k2->required_status_objects().empty());
+
+    auto inline_profile =
+        PrintStartProfileTestAccess::parse(nlohmann::json::parse(R"({"name":"t6"})"));
+    REQUIRE(inline_profile != nullptr);
+    REQUIRE(inline_profile->status_signals().empty());
+    REQUIRE(inline_profile->required_status_objects().empty());
+
+    // The key present but not an array is a malformed declaration, not a rule
+    // set: tolerated like any other parse error.
+    auto not_array = PrintStartProfileTestAccess::parse(
+        nlohmann::json::parse(R"({"name":"t6b","status_signals":{"name":"x"}})"));
+    REQUIRE(not_array != nullptr);
+    REQUIRE(not_array->status_signals().empty());
+}
+
+TEST_CASE("PrintStartProfile: malformed status_signals entries are skipped",
+          "[profile][print][status_signals]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"t7","status_signals":[)"
+        R"({"name":"good","object":"toolhead","when":[{"field":"position","index":0,"op":"lt","value":0}],"phase":"PURGING","message":"m","weight":7},)"
+        R"("not-an-object",)"
+        R"({"object":"toolhead","when":[{"field":"x","op":"lt","value":0}],"phase":"PURGING"},)"
+        R"({"name":"no_object","when":[{"field":"x","op":"lt","value":0}],"phase":"PURGING"},)"
+        R"({"name":"no_when","object":"toolhead","phase":"PURGING"},)"
+        R"({"name":"empty_when","object":"toolhead","when":[],"phase":"PURGING"},)"
+        R"({"name":"bad_op","object":"toolhead","when":[{"field":"x","op":"between","value":0}],"phase":"PURGING"},)"
+        R"({"name":"no_op","object":"toolhead","when":[{"field":"x","value":0}],"phase":"PURGING"},)"
+        R"({"name":"no_tolerance","object":"toolhead","when":[{"field":"x","op":"near","value":5}],"phase":"PURGING"},)"
+        R"({"name":"zero_tolerance","object":"toolhead","when":[{"field":"x","op":"near","value":5,"tolerance":0}],"phase":"PURGING"},)"
+        R"({"name":"no_rhs","object":"toolhead","when":[{"field":"x","op":"lt"}],"phase":"PURGING"},)"
+        R"({"name":"ambiguous_rhs","object":"toolhead","when":[{"field":"x","op":"lt","value":1,"ref_field":"y"}],"phase":"PURGING"},)"
+        R"({"name":"bad_index","object":"toolhead","when":[{"field":"x","index":-1,"op":"lt","value":0}],"phase":"PURGING"},)"
+        R"({"name":"fractional_index","object":"toolhead","when":[{"field":"x","index":1.5,"op":"lt","value":0}],"phase":"PURGING"},)"
+        R"({"name":"no_phase","object":"toolhead","when":[{"field":"x","op":"lt","value":0}]},)"
+        R"({"name":"idle_phase","object":"toolhead","when":[{"field":"x","op":"lt","value":0}],"phase":"IDLE"},)"
+        R"({"name":"good","object":"toolhead","when":[{"field":"x","op":"lt","value":0}],"phase":"HOMING"},)"
+        R"({"name":"late_good","object":"motion_report","when":[{"field":"live_extruder_velocity","op":"gt","value":0}],"phase":"HOMING","message":"m2","weight":9}]})"));
+    REQUIRE(profile != nullptr);
+
+    // Every malformed entry is dropped whole - a rule with one bad predicate
+    // is not a narrower AND-list. The well-formed first entry survives with
+    // its own phase (a duplicate name never overwrites it), and parsing
+    // continues past every failure to reach the last entry.
+    const auto& rules = profile->status_signals();
+    REQUIRE(rules.size() == 2);
+    REQUIRE(rules[0].name == "good");
+    REQUIRE(rules[0].phase == PrintStartPhase::PURGING);
+    REQUIRE(rules[0].weight == 7);
+    REQUIRE(rules[1].name == "late_good");
+    REQUIRE(rules[1].object == "motion_report");
+    REQUIRE(rules[1].when[0].op == PrintStartProfile::StatusPredicate::Op::GT);
+}
+
+TEST_CASE("PrintStartProfile: status-signal predicate ops table",
+          "[profile][print][status_signals]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"t8","status_signals":[)"
+        R"({"name":"eq","object":"o","when":[{"field":"scalar","op":"eq","value":9.5}],"phase":"HOMING","message":"eq holds","weight":1},)"
+        R"({"name":"ne","object":"o","when":[{"field":"scalar","op":"ne","value":9}],"phase":"HOMING","weight":2},)"
+        R"({"name":"gt","object":"o","when":[{"field":"target","op":"gt","value":50}],"phase":"HOMING","weight":3},)"
+        R"({"name":"lt_index","object":"o","when":[{"field":"a.list","index":1,"op":"lt","value":14.5}],"phase":"HOMING","weight":4},)"
+        R"({"name":"near_in","object":"o","when":[{"field":"scalar","op":"near","value":10,"tolerance":0.6}],"phase":"HOMING","weight":5},)"
+        R"({"name":"near_out","object":"o","when":[{"field":"scalar","op":"near","value":10,"tolerance":0.4}],"phase":"HOMING","weight":6},)"
+        R"({"name":"and_list","object":"o","when":[{"field":"target","op":"gt","value":0},{"field":"temperature","op":"lt","ref_field":"target","offset":-2}],"phase":"HEATING_BED","message":"and holds","weight":7},)"
+        R"({"name":"and_second_fails","object":"o","when":[{"field":"target","op":"gt","value":0},{"field":"temperature","op":"gt","ref_field":"target"}],"phase":"HOMING","weight":8},)"
+        R"({"name":"offset_literal","object":"o","when":[{"field":"scalar","op":"gt","value":5,"offset":3}],"phase":"HOMING","weight":9},)"
+        R"({"name":"missing_field","object":"o","when":[{"field":"absent","op":"gt","value":0}],"phase":"HOMING","weight":10},)"
+        R"({"name":"non_numeric","object":"o","when":[{"field":"text","op":"eq","value":1}],"phase":"HOMING","weight":11},)"
+        R"({"name":"index_range","object":"o","when":[{"field":"a.list","index":7,"op":"gt","value":0}],"phase":"HOMING","weight":12},)"
+        R"({"name":"ref_missing","object":"o","when":[{"field":"scalar","op":"lt","ref_field":"absent"}],"phase":"HOMING","weight":13}]})"));
+    REQUIRE(profile != nullptr);
+
+    const nlohmann::json status = nlohmann::json::parse(
+        R"({"scalar":9.5,"target":60,"temperature":25,"text":"abc","a":{"list":[3,14,15]}})");
+
+    const auto& rules = profile->status_signals();
+    REQUIRE(rules.size() == 13);
+
+    struct Row {
+        size_t rule;
+        bool expected;
+    };
+    const Row rows[] = {
+        {0, true},   // eq: 9.5 == 9.5
+        {1, true},   // ne: 9.5 != 9
+        {2, true},   // gt: 60 > 50
+        {3, true},   // lt with array index: list[1] = 14 < 14.5
+        {4, true},   // near: |9.5 - 10| = 0.5 < 0.6
+        {5, false},  // near: 0.5 !< 0.4
+        {6, true},   // AND of both, second against ref field: 25 < 60 - 2
+        {7, false},  // AND fails on the second predicate: 25 > 60 is false
+        {8, true},   // offset applies to a literal too: 9.5 > 5 + 3
+        {9, false},  // field the frame does not carry
+        {10, false}, // non-numeric field never satisfies a numeric op
+        {11, false}, // array index out of range
+        {12, false}, // ref field the frame does not carry
+    };
+
+    for (const auto& row : rows) {
+        CAPTURE(rules[row.rule].name);
+        PrintStartProfile::MatchResult result;
+        const bool held = profile->evaluate_status_signal(status, rules[row.rule], result);
+        CHECK(held == row.expected);
+    }
+
+    // A holding rule produces the same match shape a pattern match does.
+    PrintStartProfile::MatchResult result;
+    REQUIRE(profile->evaluate_status_signal(status, rules[0], result));
+    CHECK(result.phase == PrintStartPhase::HOMING);
+    CHECK(result.message == "eq holds");
+    CHECK(result.progress == 1);
+
+    REQUIRE(profile->evaluate_status_signal(status, rules[6], result));
+    CHECK(result.phase == PrintStartPhase::HEATING_BED);
+    CHECK(result.message == "and holds");
+    CHECK(result.progress == 7);
 }

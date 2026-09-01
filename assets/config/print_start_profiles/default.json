@@ -13,6 +13,30 @@
     { "pattern": "CLEAN_NOZZLE|NOZZLE_CLEAN|NOZZLE_CLEAR|WIPE_NOZZLE|nozzle.?wipe|clean.?nozzle|nozzle.?clear", "phase": "CLEANING", "message": "Cleaning Nozzle...", "weight": 5 },
     { "pattern": "VORON_PURGE|LINE_PURGE|PURGE_LINE|Prime.?Line|Priming|KAMP_.*PURGE|purge.?line|prime.?nozzle|PRIME_LINE", "phase": "PURGING", "message": "Purging...", "weight": 5 }
   ],
+  "status_signals": [
+    {
+      "name": "heating_bed",
+      "object": "heater_bed",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 15
+    },
+    {
+      "name": "heating_nozzle",
+      "object": "extruder",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating Nozzle...",
+      "weight": 15
+    }
+  ],
   "phase_weights": {
     "HOMING": 10,
     "HEATING_BED": 20,

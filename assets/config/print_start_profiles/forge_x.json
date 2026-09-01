@@ -103,6 +103,29 @@
       "weight": 100
     }
   ],
+  "status_signals": [
+    {
+      "name": "at_cutter",
+      "object": "toolhead",
+      "when": [
+        { "field": "position", "index": 0, "op": "lt", "value": 0.0 },
+        { "field": "position", "index": 1, "op": "lt", "value": 0.0 }
+      ],
+      "phase": "PURGING",
+      "message": "Changing filament...",
+      "weight": 30
+    },
+    {
+      "name": "at_chute",
+      "object": "toolhead",
+      "when": [
+        { "field": "position", "index": 1, "op": "gt", "value": 225.0 }
+      ],
+      "phase": "PURGING",
+      "message": "Purging...",
+      "weight": 20
+    }
+  ],
   "phase_weights": {
     "INITIALIZING": 5,
     "HOMING": 5,
