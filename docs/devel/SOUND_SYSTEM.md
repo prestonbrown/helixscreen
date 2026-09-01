@@ -133,16 +133,16 @@ chunks. Module playback happens as tone language, not audio.
 ### JzPwm one-shot buffer model (ad5x)
 
 The AD5X piezo hangs off the Ingenic X2600 PWM2 DMA engine (`/dev/jz_pwm`,
-driven by the `fx-pwm` tool in the Forge-X rootfs). The engine replays a
+driven by the `fx-pwm serve` daemon in the Forge-X rootfs). The engine replays a
 buffer of period words — each word one PWM cycle whose 16-bit halves set
 inactive/active counts — and refuses buffer updates while a loop runs, so
 there is no sample streaming: **audio is one complete buffer per theme
 step**. The backend renders each step in-process with the full
 `VoiceSlot` synthesis (ADSR, sweep, LFO, four waveforms, up to four chord
 voices), duty-encodes the mix around a 32 kHz carrier, and hands the words
-to `fx-pwm words` via `/tmp/helixscreen-jz-pwm.words`.
+to the daemon over `/tmp/fx-pwm.sock`.
 
-Two rig-measured properties shape the design:
+Rig-measured properties that shaped the design:
 
 - **Calibration**: the DMA waveform steps at 385 MHz regardless of the
   channel's prescale register (two-point phone-tuner measurement), so the
@@ -151,13 +151,48 @@ Two rig-measured properties shape the design:
 - **Audibility floor, MEASURED**: 10 ms — thirty 10 ms duty-encoded
   beeps were each clearly audible; 200 ms was an order-of-magnitude
   guess. Short theme steps tile their content to 10 ms.
-- **Wedge discipline**: the vendor driver's teardown path can wedge after
-  long cumulative loop times, and a wedged channel only recovers on
-  reboot. Buffers are capped at 2.5 s; a busy channel drops the new
-  sound (children are never signalled) (fx-pwm's signal handler releases the channel cleanly); and
-  the ioctl lifecycle lives in the child process precisely so a wedge
-  costs one sound, never the UI — a rig session once accumulated thirteen
-  wedged fx-pwm children with zero printer impact.
+- **Word-copy cost, MEASURED**: the driver's dma_update ioctl copies
+  buffer words at ~30 µs each (3,504 words → 106 ms, 14,024 → 429 ms,
+  dead linear). Upload time therefore scales with words-per-second of
+  audio: at the 32 kHz carrier, uploading one second of audio takes ~one
+  second. This is the hardware ceiling that settled the AD5X on
+  **UI sounds only** — continuous music needs a duty cycle no code on
+  this driver can reach (50% at an ultrasonic carrier; ~80% only by
+  dropping the carrier into the audible band, whine included). The
+  tracker phrase path (`jz_pwm_render_phrase`) remains in the tree,
+  tested but unused on ad5x: mods do not ship there.
+
+#### The sound daemon (`fx-pwm serve`)
+
+One long-lived `fx-pwm serve` process owns `/dev/jz_pwm` and the channel
+claim; the backend connects to its socket and sends frames
+(`magic + hold_ms + nwords + words`, one-byte ack: 0 played, 1 busy,
+protocol violations drop the connection). The backend spawns it on the
+first sound and respawns it if it dies; a dedicated sender worker is the
+only thread that touches the socket (a 250 KB phrase body can block for
+seconds and that must never stall the UI). The daemon idle-exits after
+30 s without traffic so its flock does not starve klippy's per-tone
+`fx-pwm` one-shots (M300/TONE).
+
+Four protocol lessons, all rig-measured:
+
+- **SIGPIPE kills daemons**: a client that times out and closes the
+  socket turns the daemon's next `send()` into a death; the daemon
+  ignores SIGPIPE and loses only the reply.
+- **Multi-shot needs the claim dance**: the driver refuses a second
+  `dma_init` while the channel reads "working" (EPERM), so every frame
+  re-runs the release → re-request → config → prescale sequence. That
+  dance is itself a wedge surface (`pwm2_release` → `disable_loop` can
+  D-wedge; recovery is a reboot) — accept it for short UI buffers and
+  never loop it hot.
+- **Holds need absolute deadlines**: the daemon's hold loop polls the
+  socket for cancels, and poll's timeout restarts on every readable
+  event — a client that resends instantly keeps the socket perpetually
+  readable and the hold (with `enable_loop`) replays one phrase forever.
+- **The per-buffer exec was never the cost**: the fork+exec+chroot hop
+  the original per-sound child paid was ~200 ms but the word copy inside
+  the driver was the same order; the daemon removed the exec and kept
+  the gap, which is how the copy rate got measured.
 
 The piezo demodulates duty encoding (verified by ear and tuner: chords
 rendered this way are recognizable), with its ~5 kHz mechanical resonance
@@ -552,7 +587,7 @@ if (SoundManager::instance().is_available()) {
 | `src/system/sound_manager.cpp` | Manager singleton, backend auto-detection, theme loading |
 | `src/system/sdl_sound_backend.cpp` | SDL audio callback, per-sample envelope, biquad filter |
 | `src/system/alsa_sound_backend.cpp` | ALSA render thread, per-sample envelope, biquad filter |
-| `src/system/jz_pwm_sound_backend.cpp` | AD5X piezo backend: NoteEvent render → duty-encoded words → `fx-pwm words` child |
+| `src/system/jz_pwm_sound_backend.cpp` | AD5X piezo backend: NoteEvent render → duty-encoded words → `fx-pwm serve` daemon socket |
 | `src/system/pwm_sound_backend.cpp` | PWM sysfs writes (period, duty_cycle, enable) + PCM render thread (SCHED_IDLE pacing, silence auto-park, channel auto-export) |
 | `src/system/m300_sound_backend.cpp` | M300 G-code formatting, frequency deduplication |
 | `config/sounds/default.json` | Default theme (13 sounds, balanced) |
