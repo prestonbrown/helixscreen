@@ -283,7 +283,7 @@ sandbox_candidates() {
     local profile="$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
 
     # Half 1: no host_* symbol of any kind (call, variable, or comment).
-    if grep -q 'host_' "$common"; then
+    if grep -qi 'host_' "$common"; then  # -i: HOST_* globals are the same edge as host_* calls
         grep -n 'host_' "$common"
         fail "common.sh references host_profile symbols; the bundle's first module must stay host-free"
     fi

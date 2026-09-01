@@ -38,21 +38,21 @@ struct TempDirGuard {
 
 } // namespace
 
-TEST_CASE("helix::ad5x_mod_layout_present detects ZMOD by marker file", "[device_layout]") {
+TEST_CASE("helix::ad5x_mod_layout_present detects ZMOD by marker file", "[platform_info]") {
     TempDirGuard tmp;
     REQUIRE(helix::ad5x_mod_layout_present(
         helix::test::make_ad5x_layout(tmp.path, "zmod-marker").string()));
 }
 
 TEST_CASE("helix::ad5x_mod_layout_present detects ZMOD by FlashForge /usr/prog dir",
-          "[device_layout]") {
+          "[platform_info]") {
     TempDirGuard tmp;
     REQUIRE(helix::ad5x_mod_layout_present(
         helix::test::make_ad5x_layout(tmp.path, "zmod-prog").string()));
 }
 
 TEST_CASE("helix::ad5x_mod_layout_present detects a Forge-X chroot via the mod tree",
-          "[device_layout]") {
+          "[platform_info]") {
     TempDirGuard tmp;
     // The rig's chroot binds /usr/data at /opt, so the mod tree is reachable
     // under exactly one of the two spellings depending on which side of the
@@ -63,14 +63,14 @@ TEST_CASE("helix::ad5x_mod_layout_present detects a Forge-X chroot via the mod t
         helix::test::make_ad5x_layout(tmp.path, "forgex-host").string()));
 }
 
-TEST_CASE("helix::ad5x_mod_layout_present rejects a plain host", "[device_layout]") {
+TEST_CASE("helix::ad5x_mod_layout_present rejects a plain host", "[platform_info]") {
     TempDirGuard tmp;
     REQUIRE_FALSE(
         helix::ad5x_mod_layout_present(helix::test::make_ad5x_layout(tmp.path, "plain").string()));
 }
 
 TEST_CASE("helix::ad5x_mod_layout_present requires the marker kinds, not just names",
-          "[device_layout]") {
+          "[platform_info]") {
     // /ZMOD as a DIRECTORY is not the Z-Mod marker file. The predicate checks
     // S_ISREG here and the launcher uses `-f` — the two must stay in step or
     // a stray directory arms AD5X handling on the wrong host.
