@@ -175,7 +175,7 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 ### Step-by-step
 
-1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `LONG_PRESS_THRESHOLD_MS` in `src/ui/ui_gcode_viewer.cpp:881`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
+1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `LONG_PRESS_THRESHOLD_MS` in `src/ui/ui_gcode_viewer.cpp:887`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 

@@ -1464,13 +1464,17 @@ uint32_t GeometryBuilder::compute_color_rgb(float z_height, float z_min, float z
 void GeometryBuilder::set_filament_color(const std::string& hex_color) {
     use_height_gradient_ = false; // Disable gradient
 
-    // Remove '#' prefix if present
-    const char* hex_str = hex_color.c_str();
-    if (hex_str[0] == '#')
-        hex_str++;
+    // Same parser as every other color decision: it owns the '#'/0x prefixes,
+    // the accepted digit counts, and the #RRGGBBAA alpha drop. The hand-rolled
+    // strtol this replaced read an 8-digit token one byte to the left, and
+    // turned any unparseable string into 0 - painting the model black rather
+    // than reporting a bad color. An unusable color now keeps the current one.
+    uint32_t rgb = 0;
+    if (!helix::parse_hex_color(hex_color.c_str(), rgb)) {
+        spdlog::warn("[GCode Geometry] Unusable filament color '{}' - keeping current", hex_color);
+        return;
+    }
 
-    // Parse RGB hex (e.g., "26A69A")
-    uint32_t rgb = static_cast<uint32_t>(std::strtol(hex_str, nullptr, 16));
     filament_r_ = (rgb >> 16) & 0xFF;
     filament_g_ = (rgb >> 8) & 0xFF;
     filament_b_ = rgb & 0xFF;

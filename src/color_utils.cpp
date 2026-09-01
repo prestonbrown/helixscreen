@@ -179,8 +179,8 @@ bool parse_hex_color(const char* input, uint32_t& out_rgb) {
         ++hex_len;
     }
 
-    // Must be exactly 3 or 6 hex digits
-    if (hex_len != 3 && hex_len != 6) {
+    // Must be exactly 3, 6, or 8 hex digits (8 = #RRGGBBAA)
+    if (hex_len != 3 && hex_len != 6 && hex_len != 8) {
         return false;
     }
 
@@ -216,6 +216,11 @@ bool parse_hex_color(const char* input, uint32_t& out_rgb) {
         uint32_t g = (value >> 4) & 0xF;
         uint32_t b = value & 0xF;
         value = (r << 20) | (r << 16) | (g << 12) | (g << 8) | (b << 4) | b;
+    } else if (hex_len == 8) {
+        // #RRGGBBAA. Alpha is meaningless to every consumer, so SHIFT it off.
+        // Masking (value & 0xFFFFFF) would keep GGBBAA and paint the wrong hue:
+        // #800080FF would become 0x0080FF, bright azure instead of purple.
+        value >>= 8;
     }
 
     out_rgb = value;

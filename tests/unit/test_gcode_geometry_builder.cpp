@@ -340,7 +340,7 @@ TEST_CASE("Geometry Builder: Color computation - hex parsing", "[gcode][geometry
         REQUIRE(found_expected);
     }
 
-    SECTION("Invalid color string defaults to black") {
+    SECTION("Invalid color string leaves the current color untouched") {
         GeometryBuilder builder;
         builder.set_filament_color("XYZ"); // Invalid hex
 
@@ -351,8 +351,11 @@ TEST_CASE("Geometry Builder: Color computation - hex parsing", "[gcode][geometry
         REQUIRE(geometry.vertices.size() > 0);
         REQUIRE(geometry.color_palette.size() >= 1);
 
-        // strtol("XYZ", nullptr, 16) returns 0, so expect black (0x000000)
-        uint32_t expected_color = 0x000000;
+        // A color the parser rejects is a no-op, so the builder keeps its
+        // default teal. The old strtol("XYZ", nullptr, 16) returned 0 and
+        // painted the model BLACK - a parse failure indistinguishable from a
+        // deliberate choice of black filament.
+        uint32_t expected_color = 0x26A69A;
         bool found_expected = false;
         for (uint32_t color : geometry.color_palette) {
             if (color == expected_color) {
@@ -361,6 +364,31 @@ TEST_CASE("Geometry Builder: Color computation - hex parsing", "[gcode][geometry
             }
         }
         REQUIRE(found_expected);
+    }
+
+    SECTION("8-digit #RRGGBBAA drops alpha instead of shifting channels") {
+        GeometryBuilder builder;
+        builder.set_filament_color("#800080FF"); // purple, explicit alpha
+
+        auto gcode = make_single_segment_gcode();
+        RibbonGeometry geometry = builder.build(gcode, options);
+
+        REQUIRE(geometry.color_palette.size() >= 1);
+
+        bool found_purple = false;
+        bool found_azure = false;
+        for (uint32_t color : geometry.color_palette) {
+            if (color == 0x800080) {
+                found_purple = true;
+            }
+            // What the old strtol + >>16/>>8/&0xFF split produced: every
+            // channel read one byte to the left of where it lives.
+            if (color == 0x0080FF) {
+                found_azure = true;
+            }
+        }
+        REQUIRE(found_purple);
+        REQUIRE_FALSE(found_azure);
     }
 }
 

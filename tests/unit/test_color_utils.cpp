@@ -156,6 +156,66 @@ TEST_CASE("parse_hex_color: invalid inputs", "[color][parse]") {
 }
 
 // ============================================================================
+// 8-digit #RRGGBBAA (prestonbrown/helixscreen#1419)
+// ============================================================================
+
+TEST_CASE("parse_hex_color: 8-digit #RRGGBBAA drops alpha", "[color][parse]") {
+    uint32_t rgb = 0;
+
+    SECTION("Alpha is shifted off, not masked off") {
+        // The whole bug in one assertion. Consumers spelled the conversion
+        // lv_color_hex(strtol(hex + 1, nullptr, 16)), handing lv_color_hex the
+        // full 0x800080FF so it read red from bits 16-23 - RGB(00,80,FF),
+        // bright azure, for a purple filament. Masking the alpha off with
+        // & 0xFFFFFF instead of shifting reproduces that exact wrong answer,
+        // so pin the value rather than just asserting "parsed".
+        REQUIRE(helix::parse_hex_color("#800080FF", rgb));
+        REQUIRE(rgb == 0x800080);
+        REQUIRE(rgb != 0x0080FF);
+    }
+
+    SECTION("The alpha value does not change the result") {
+        uint32_t opaque = 0;
+        uint32_t clear = 0;
+        REQUIRE(helix::parse_hex_color("#ED1C24FF", opaque));
+        REQUIRE(helix::parse_hex_color("#ED1C2400", clear));
+        REQUIRE(opaque == 0xED1C24);
+        REQUIRE(clear == 0xED1C24);
+    }
+
+    SECTION("A high red byte does not saturate") {
+        // strtol returns a signed long. On 32-bit ARM every 8-digit token with
+        // RR >= 0x80 exceeds LONG_MAX and clamps to 0x7FFFFFFF, which renders
+        // white - a failure no x86 dev host or x86 CI run can reproduce.
+        // parse_hex_color accumulates into a uint32_t, so this holds anywhere.
+        REQUIRE(helix::parse_hex_color("#FF0000FF", rgb));
+        REQUIRE(rgb == 0xFF0000);
+        REQUIRE(helix::parse_hex_color("#80000000", rgb));
+        REQUIRE(rgb == 0x800000);
+    }
+
+    SECTION("Accepted bare and with the 0x prefix") {
+        REQUIRE(helix::parse_hex_color("800080FF", rgb));
+        REQUIRE(rgb == 0x800080);
+        REQUIRE(helix::parse_hex_color("0x800080FF", rgb));
+        REQUIRE(rgb == 0x800080);
+    }
+
+    SECTION("The digit-count boundary still holds at 7 and 9") {
+        uint32_t sentinel = 0xDEADBEEF;
+        REQUIRE(helix::parse_hex_color("#FFFFFFF", sentinel) == false);
+        REQUIRE(helix::parse_hex_color("#800080FFA", sentinel) == false);
+        REQUIRE(sentinel == 0xDEADBEEF);
+    }
+}
+
+TEST_CASE("parse_hex_color: 8-digit through the optional overload", "[color][parse]") {
+    const auto purple = helix::parse_hex_color(std::string("#800080FF"));
+    REQUIRE(purple.has_value());
+    REQUIRE(*purple == 0x800080);
+}
+
+// ============================================================================
 // parse_hex_color optional overload Tests
 // ============================================================================
 
