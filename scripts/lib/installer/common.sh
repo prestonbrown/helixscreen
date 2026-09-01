@@ -535,10 +535,12 @@ clean_helix_state_dirs() {
 }
 
 # Print post-install commands for the user
-# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR,
-#        HOST_SERVICE_MECHANISM
+# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR
+# $1:   service mechanism, passed BY THE CALLER (the prober's answer;
+#       this module is bundle position 1 and must not reach forward for
+#       any later module's globals - the S2 pin enforces exactly that)
 print_post_install_commands() {
-    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+    if [ "${1:-}" = "mod-managed" ]; then
         # Payload install: we wrote no service anywhere — the firmware mod
         # owns the UI's lifecycle. Coaching a service command here would
         # point at a script that does not exist.

@@ -1406,7 +1406,7 @@ SHIM
     # /etc/init.d/S80helixscreen restart on a payload install, where no service
     # exists by design. The epilogue must name the mod's lifecycle instead.
     seed_payload_root
-    run print_post_install_commands
+    run print_post_install_commands "mod-managed"
     [ "$status" -eq 0 ]
     [[ "$output" == *"firmware mod starts the UI"* ]]
     [[ "$output" != *"/etc/init.d/"* ]]

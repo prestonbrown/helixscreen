@@ -518,3 +518,24 @@ ad5m_sandbox() {
     n=$(grep -c 'host_refuse_mod_owned' "$WORKTREE_ROOT/scripts/lib/installer/release.sh")
     [ "$n" -eq 3 ] || fail "release.sh carries $n guards (want 3)"
 }
+
+@test "upstream 1.4.2 AD5M tree (common.sh, no platform.sh) is probed and owned" {
+    # Found on the real AD5M rig: upstream ff5m 1.4.2 ships .shell/common.sh;
+    # platform.sh exists only on the AD5X port fork. Keying the probe on the
+    # fork's spelling left every upstream AD5M install unprobed - no payload
+    # contract, no guard, on a live mod host.
+    local sandbox="$BATS_TEST_TMPDIR/upstream-ad5m"
+    mkdir -p "$sandbox/opt/config/mod/.shell" "$sandbox/data/.mod/.forge-x/usr/bin"
+    touch "$sandbox/opt/config/mod/.shell/common.sh"   # upstream descriptor
+    export HELIX_MOD_TREE_CANDIDATES="$sandbox/opt/config/mod"
+    export HELIX_MOD_CHROOT_CANDIDATES="$sandbox/data/.mod/.forge-x"
+    unset _HELIX_HOST_PROFILE_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+    host_profile_probe
+    [ "$HOST_MOD_ROOT" = "$sandbox/opt/config/mod" ]
+    [ "$HOST_MOD_CHROOT" = "$sandbox/data/.mod/.forge-x" ]
+    [ "$HOST_SERVICE_MECHANISM" = "mod-managed" ]
+    run host_path_is_mod_owned "$sandbox/opt/config/mod/.bin/helixscreen"
+    [ "$status" -eq 0 ]
+}

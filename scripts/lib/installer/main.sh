@@ -841,7 +841,7 @@ main() {
     printf '\n'
     echo "HelixScreen ${version} installed to ${INSTALL_DIR}"
     echo ""
-    print_post_install_commands
+    print_post_install_commands "${HOST_SERVICE_MECHANISM:-}"
     echo ""
 
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ] || [ "$platform" = "k2" ]; then

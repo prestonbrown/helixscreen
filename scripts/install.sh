@@ -572,10 +572,12 @@ clean_helix_state_dirs() {
 }
 
 # Print post-install commands for the user
-# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR,
-#        HOST_SERVICE_MECHANISM
+# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR
+# $1:   service mechanism, passed BY THE CALLER (the prober's answer;
+#       this module is bundle position 1 and must not reach forward for
+#       any later module's globals - the S2 pin enforces exactly that)
 print_post_install_commands() {
-    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+    if [ "${1:-}" = "mod-managed" ]; then
         # Payload install: we wrote no service anywhere — the firmware mod
         # owns the UI's lifecycle. Coaching a service command here would
         # point at a script that does not exist.
@@ -677,7 +679,14 @@ host_profile_probe() {
 
     # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
     for cand in ${HELIX_MOD_TREE_CANDIDATES:-/usr/data/config/mod /opt/config/mod}; do
-        if [ -f "$cand/.shell/platform.sh" ]; then HOST_MOD_ROOT="$cand"; break; fi
+        # Two descriptor spellings exist: upstream 1.4.2 ships .shell/common.sh
+        # (a flat AD5M file - S99root sources it), while the AD5X port fork
+        # renamed/extended it into .shell/platform.sh (per-board blocks).
+        # Either marks a live mod tree; keying on one fork's spelling made the
+        # probe blind to every upstream AD5M install.
+        if [ -f "$cand/.shell/common.sh" ] || [ -f "$cand/.shell/platform.sh" ]; then
+            HOST_MOD_ROOT="$cand"; break
+        fi
     done
     # The chroot is the mod's Buildroot rootfs, one derivation off each
     # board's DATA_MNT in the mod's own descriptor (.shell/platform.sh):
@@ -11720,7 +11729,7 @@ main() {
     printf '\n'
     echo "HelixScreen ${version} installed to ${INSTALL_DIR}"
     echo ""
-    print_post_install_commands
+    print_post_install_commands "${HOST_SERVICE_MECHANISM:-}"
     echo ""
 
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ] || [ "$platform" = "k2" ]; then
