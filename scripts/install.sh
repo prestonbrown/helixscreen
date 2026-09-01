@@ -786,6 +786,17 @@ host_mod_data() {
     printf '%s\n' "$(dirname "${HOST_MOD_ROOT:-/opt/config/mod}")/mod_data"
 }
 
+# The mod's data mount (its descriptor's DATA_MNT): the parent of the .mod
+# namespace — /usr/data on the AD5X, /data on the AD5M. The one location per
+# board where a payload root outside the mod's git tree both exists and
+# survives an OTA, which is why the OD1 escape-hatch example derives from
+# here rather than a hard-coded AD5X path. Echoes nothing when the probe
+# found no chroot (callers keep their own fallback).
+host_mod_data_mount() {
+    [ -n "${HOST_MOD_CHROOT:-}" ] || return 0
+    printf '%s\n' "$(dirname "$(dirname "$HOST_MOD_CHROOT")")"
+}
+
 # Where the payload root of the LAST payload install is recorded, beside the
 # display-mode record. An install can land outside the probed default
 # (--payload-root, the OTA-durable seam); without this note a later armed
@@ -10444,6 +10455,18 @@ uninstall_mod_payload() {
         log_info "Payload root ${INSTALL_DIR} already absent"
     fi
 
+    # An ADOPTED root was booted by the legacy standalone service, not the
+    # mod's (their .shell/helixscreen.sh starts only its own tree), and the
+    # payload contract installed none — so with this root gone that service
+    # is stale at every boot. Name it for the operator; removal stays theirs,
+    # exactly as adoption kept the service theirs.
+    if [ -n "${HOST_LEGACY_INIT_SCRIPT:-}" ] \
+       && [ "$INSTALL_DIR" = "${HOST_LEGACY_INSTALL_ROOT:-}" ] \
+       && [ -e "$HOST_LEGACY_INIT_SCRIPT" ]; then
+        log_warn "The standalone service that booted this root is now stale;"
+        log_warn "remove it yourself: rm $HOST_LEGACY_INIT_SCRIPT"
+    fi
+
     # Consume the record with the root it directed at, so a later plain run
     # cannot chase a stale pointer.
     $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
@@ -11123,8 +11146,16 @@ payload_legacy_adopt_or_warn() {
         validate_install_dir "$INSTALL_DIR" || exit 1
         log_info "Adopted the existing install at $INSTALL_DIR as the payload root"
         log_info "(outside the mod's git tree, so a Forge-X OTA cannot remove it)"
-        log_warn "The standalone service there is now redundant; remove it yourself:"
-        log_warn "  rm $svc"
+        # The service STAYS: the mod's own service starts only the mod's tree
+        # (their .shell/helixscreen.sh: HELIX_ROOT=$MOD_ROOT/.bin/helixscreen)
+        # and the payload contract installs none, so this legacy script is the
+        # ONE boot path the adopted root has - the in-place update keeps the
+        # launcher it starts current. "Mod owns the service" describes a root
+        # inside its tree; this is the one payload install with OUR service.
+        # It is named for removal only at uninstall time, when it is stale.
+        log_info "Keeping the standalone service $svc - it is this payload's boot"
+        log_info "path (the mod's service starts only the mod's tree; the payload"
+        log_info "contract installs none of its own)."
         return 0
     fi
 
@@ -11200,7 +11231,15 @@ mod_payload_mode_block() {
         log_warn "This payload root lives inside the firmware mod's git tree."
         log_warn "A Forge-X OTA removes it: their updater cleans untracked files"
         log_warn "in the mod's repo. Prefer a root outside the tree:"
-        log_warn "  --payload-root /usr/data/helixscreen"
+        # The example must exist on THIS rig: the mod's data mount (/usr/data
+        # on the AD5X, /data on the AD5M), not the hard-coded AD5X path an
+        # AD5M operator would follow onto a partition their rig does not
+        # have. Unprobed corner (flag-armed, no chroot): keep the AD5X
+        # literal, the shape that path was written for.
+        local od1_mount
+        od1_mount="$(host_mod_data_mount)"
+        [ -n "$od1_mount" ] || od1_mount="/usr/data"
+        log_warn "  --payload-root $od1_mount/helixscreen"
     fi
 
     if [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then

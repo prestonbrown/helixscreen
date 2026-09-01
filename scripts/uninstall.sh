@@ -775,6 +775,17 @@ host_mod_data() {
     printf '%s\n' "$(dirname "${HOST_MOD_ROOT:-/opt/config/mod}")/mod_data"
 }
 
+# The mod's data mount (its descriptor's DATA_MNT): the parent of the .mod
+# namespace — /usr/data on the AD5X, /data on the AD5M. The one location per
+# board where a payload root outside the mod's git tree both exists and
+# survives an OTA, which is why the OD1 escape-hatch example derives from
+# here rather than a hard-coded AD5X path. Echoes nothing when the probe
+# found no chroot (callers keep their own fallback).
+host_mod_data_mount() {
+    [ -n "${HOST_MOD_CHROOT:-}" ] || return 0
+    printf '%s\n' "$(dirname "$(dirname "$HOST_MOD_CHROOT")")"
+}
+
 # Where the payload root of the LAST payload install is recorded, beside the
 # display-mode record. An install can land outside the probed default
 # (--payload-root, the OTA-durable seam); without this note a later armed
@@ -6720,6 +6731,18 @@ uninstall_mod_payload() {
         fi
     else
         log_info "Payload root ${INSTALL_DIR} already absent"
+    fi
+
+    # An ADOPTED root was booted by the legacy standalone service, not the
+    # mod's (their .shell/helixscreen.sh starts only its own tree), and the
+    # payload contract installed none — so with this root gone that service
+    # is stale at every boot. Name it for the operator; removal stays theirs,
+    # exactly as adoption kept the service theirs.
+    if [ -n "${HOST_LEGACY_INIT_SCRIPT:-}" ] \
+       && [ "$INSTALL_DIR" = "${HOST_LEGACY_INSTALL_ROOT:-}" ] \
+       && [ -e "$HOST_LEGACY_INIT_SCRIPT" ]; then
+        log_warn "The standalone service that booted this root is now stale;"
+        log_warn "remove it yourself: rm $HOST_LEGACY_INIT_SCRIPT"
     fi
 
     # Consume the record with the root it directed at, so a later plain run

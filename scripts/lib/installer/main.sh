@@ -277,8 +277,16 @@ payload_legacy_adopt_or_warn() {
         validate_install_dir "$INSTALL_DIR" || exit 1
         log_info "Adopted the existing install at $INSTALL_DIR as the payload root"
         log_info "(outside the mod's git tree, so a Forge-X OTA cannot remove it)"
-        log_warn "The standalone service there is now redundant; remove it yourself:"
-        log_warn "  rm $svc"
+        # The service STAYS: the mod's own service starts only the mod's tree
+        # (their .shell/helixscreen.sh: HELIX_ROOT=$MOD_ROOT/.bin/helixscreen)
+        # and the payload contract installs none, so this legacy script is the
+        # ONE boot path the adopted root has - the in-place update keeps the
+        # launcher it starts current. "Mod owns the service" describes a root
+        # inside its tree; this is the one payload install with OUR service.
+        # It is named for removal only at uninstall time, when it is stale.
+        log_info "Keeping the standalone service $svc - it is this payload's boot"
+        log_info "path (the mod's service starts only the mod's tree; the payload"
+        log_info "contract installs none of its own)."
         return 0
     fi
 
@@ -354,7 +362,15 @@ mod_payload_mode_block() {
         log_warn "This payload root lives inside the firmware mod's git tree."
         log_warn "A Forge-X OTA removes it: their updater cleans untracked files"
         log_warn "in the mod's repo. Prefer a root outside the tree:"
-        log_warn "  --payload-root /usr/data/helixscreen"
+        # The example must exist on THIS rig: the mod's data mount (/usr/data
+        # on the AD5X, /data on the AD5M), not the hard-coded AD5X path an
+        # AD5M operator would follow onto a partition their rig does not
+        # have. Unprobed corner (flag-armed, no chroot): keep the AD5X
+        # literal, the shape that path was written for.
+        local od1_mount
+        od1_mount="$(host_mod_data_mount)"
+        [ -n "$od1_mount" ] || od1_mount="/usr/data"
+        log_warn "  --payload-root $od1_mount/helixscreen"
     fi
 
     if [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then

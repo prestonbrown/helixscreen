@@ -465,7 +465,46 @@ esac
     [ "$INSTALL_DIR" = "$HOST_INSTALL_ROOT" ]
     [[ "$output" == *"inside the firmware mod's git tree"* ]]
     [[ "$output" == *"OTA"* ]]
-    [[ "$output" == *"--payload-root"* ]]
+    # The suggested durable root is derived from the rig's own data mount
+    # (M2): this fixture is the AD5X shape, whose mount is the sandbox's
+    # /usr/data - the parent of the probed .mod namespace.
+    [[ "$output" == *"--payload-root $SANDBOX/usr/data/helixscreen"* ]] \
+        || fail "the AD5X shape must suggest its own data mount, not a pinned literal"
+}
+
+@test "mode block: the OTA escape-hatch example is the rig's own data mount, per shape" {
+    # M2: the hard-coded /usr/data/helixscreen example sent AD5M operators at
+    # a partition their rig does not have (their DATA_MNT is /data), landing
+    # the payload on the root filesystem if followed. The example derives
+    # from the probe - the parent of the mod's .mod namespace, which is each
+    # board's data mount: /usr/data on the AD5X, /data on the AD5M.
+    mkdir -p "$SANDBOX/opt/config/mod/.shell" "$SANDBOX/data/.mod/.forge-x/usr/bin"
+    touch "$SANDBOX/opt/config/mod/.shell/platform.sh"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/opt/config/mod"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/data/.mod/.forge-x"
+    uname() { echo armv7l; }
+    export -f uname
+    # Keep this about the OD1 copy alone: no legacy root to adopt or warn
+    # about on this fixture.
+    export HELIX_LEGACY_INSTALL_ROOT="$SANDBOX/no-legacy-here"
+    unset HOST_MOD_ROOT HOST_MOD_CHROOT HOST_CHROOT_STATE HOST_SERVICE_MECHANISM \
+          HOST_INSTALL_ROOT HOST_CONFIG_DIR HOST_MOONRAKER_USER_CONF \
+          HOST_PLATFORM_HOOK_KEY HOST_OWNS_COMPETING_UIS \
+          HOST_LEGACY_INSTALL_ROOT HOST_LEGACY_INIT_SCRIPT
+    host_profile_probe
+    [ "$HOST_MOD_CHROOT" = "$SANDBOX/data/.mod/.forge-x" ] \
+        || fail "setup: the AD5M chroot was not probed"
+
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT=""
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+
+    run mod_payload_mode_block
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--payload-root $SANDBOX/data/helixscreen"* ]] \
+        || fail "the AD5M shape must suggest its own data mount (/data), not the AD5X's"
+    [[ "$output" != *"usr/data/helixscreen"* ]] \
+        || fail "suggested the AD5X-only path on an AD5M rig"
 }
 
 # ============================================================================
@@ -1125,8 +1164,15 @@ seed_legacy_install() {
     INSTALL_DIR="$HOST_INSTALL_ROOT"
     rm -f "$(host_payload_root_record)"
     run mod_payload_mode_block
-    grep -q "rm $HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
-        || fail "the adopt does not print the service-removal command"
+    # The service is KEPT: the mod's own service starts only the mod's tree
+    # (their .shell/helixscreen.sh: HELIX_ROOT=$MOD_ROOT/.bin/helixscreen)
+    # and the payload contract installs none, so the legacy S90 script is the
+    # ONE boot path an adopted root has (M1). Telling the operator to rm it
+    # here would kill the UI at the next boot.
+    grep -q "Keeping the standalone service $HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
+        || fail "the adopt does not say the service is kept"
+    ! grep -q "rm $HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
+        || fail "the adopt still tells the operator to remove the boot path"
 }
 
 @test "legacy decline: the payload stays at the mod default and the warning names both roots" {
@@ -1178,6 +1224,47 @@ seed_legacy_install() {
 
     [ "$INSTALL_DIR" = "$HOST_LEGACY_INSTALL_ROOT" ] \
         || fail "INSTALL_DIR='$INSTALL_DIR' - the recorded adopt was not resumed"
+}
+
+@test "legacy adopt: the armed uninstall names the now-stale standalone service" {
+    # Adoption KEEPS the legacy service because it is the adopted root's only
+    # boot path (M1) - so the armed uninstall that removes that root is where
+    # the service genuinely becomes stale, and the uninstall says so, naming
+    # the exact script. Removal stays the operator's: we never touch the
+    # service ourselves in either direction.
+    HELIX_MOD_PAYLOAD=1
+    seed_legacy_install
+    INSTALL_DIR="$HOST_LEGACY_INSTALL_ROOT"
+    mkdir -p "$INSTALL_DIR/bin" "$(host_mod_data)"
+    printf '%s\n' "$HOST_LEGACY_INSTALL_ROOT" > "$(host_payload_root_record)"
+
+    run uninstall_mod_payload
+
+    [ "$status" -eq 0 ] || fail "the armed uninstall failed: $output"
+    [ ! -d "$INSTALL_DIR" ] \
+        || fail "the adopted root survived its armed uninstall"
+    grep -q "rm $HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
+        || fail "the uninstall does not name the now-stale service for removal"
+    [ -x "$HOST_LEGACY_INIT_SCRIPT" ] \
+        || fail "the uninstall removed the service itself"
+}
+
+@test "legacy control: an armed uninstall at the mod default leaves the service unmentioned" {
+    # The mod's own service boots the mod-default payload root, and the legacy
+    # service still boots the legacy install - neither is stale, so neither is
+    # named. The note belongs to the adopted root's uninstall alone.
+    HELIX_MOD_PAYLOAD=1
+    seed_legacy_install
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+    mkdir -p "$INSTALL_DIR/bin" "$(host_mod_data)"
+    printf '%s\n' "$HOST_INSTALL_ROOT" > "$(host_payload_root_record)"
+
+    run uninstall_mod_payload
+
+    [ "$status" -eq 0 ] || fail "the armed uninstall failed: $output"
+    ! grep -q "$HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
+        || fail "named the legacy service where nothing made it stale"
+    [ -x "$HOST_LEGACY_INIT_SCRIPT" ]
 }
 
 @test "no legacy install: the payload run keeps today's behavior" {

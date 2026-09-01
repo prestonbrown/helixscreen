@@ -434,6 +434,18 @@ uninstall_mod_payload() {
         log_info "Payload root ${INSTALL_DIR} already absent"
     fi
 
+    # An ADOPTED root was booted by the legacy standalone service, not the
+    # mod's (their .shell/helixscreen.sh starts only its own tree), and the
+    # payload contract installed none — so with this root gone that service
+    # is stale at every boot. Name it for the operator; removal stays theirs,
+    # exactly as adoption kept the service theirs.
+    if [ -n "${HOST_LEGACY_INIT_SCRIPT:-}" ] \
+       && [ "$INSTALL_DIR" = "${HOST_LEGACY_INSTALL_ROOT:-}" ] \
+       && [ -e "$HOST_LEGACY_INIT_SCRIPT" ]; then
+        log_warn "The standalone service that booted this root is now stale;"
+        log_warn "remove it yourself: rm $HOST_LEGACY_INIT_SCRIPT"
+    fi
+
     # Consume the record with the root it directed at, so a later plain run
     # cannot chase a stale pointer.
     $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
