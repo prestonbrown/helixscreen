@@ -464,6 +464,17 @@ else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/pwm_sound_backend.cpp,$(APP_SRCS))
 endif
 
+# AD5X piezo via the jz_pwm DMA engine, exec'd through fx-pwm - there is no
+# sysfs pwmchip on the X2600, so the sysfs PWM backend above cannot drive it.
+# Gated to ad5x AND probed at runtime (/dev/jz_pwm + the fx-pwm binary): a
+# host build that happens to carry the binary simply falls through the
+# backend ladder, and remote-UI installs keep the M300 path.
+ifneq (,$(filter ad5x,$(PLATFORM_TARGET)))
+    JZ_PWM_CXXFLAGS := -DHELIX_HAS_JZ_PWM
+else
+    APP_SRCS := $(filter-out $(SRC_DIR)/system/jz_pwm_sound_backend.cpp,$(APP_SRCS))
+endif
+
 ifneq ($(ENABLE_MOCKS),yes)
     APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp),$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
@@ -1001,12 +1012,17 @@ else ifneq (,$(filter ad5m-br ad5x,$(PLATFORM_TARGET)))
     # PWM buzzer for tone-mode SFX only — the printer-safe render loop behind
     # the ad5m branch has not been re-validated on this hardware.
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
+    ifneq (,$(filter ad5x,$(PLATFORM_TARGET)))
+        # ad5x: the jz_pwm backend drives the tracker's PC-speaker (synth
+        # fallback) path — per-note buffers, no PCM render loop involved.
+        TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
+    endif
 else ifeq ($(PLATFORM_TARGET),native)
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
 # K1, K2, MIPS — no sound at all
-CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS)
+CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS)
 
 # Feature gates — default ON for all platforms.
 # Disabled per-platform in mk/cross.mk for memory-constrained targets.

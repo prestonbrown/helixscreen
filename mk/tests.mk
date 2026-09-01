@@ -328,6 +328,11 @@ TEST_APP_OBJS := $(filter-out \
 # back for the test link. $(sort) keeps this idempotent on the platforms where
 # APP_OBJS already contains it.
 TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pwm_sound_backend.o)
+# The jz_pwm backend is platform-gated out of APP_SRCS (ad5x ships it), but
+# tests/unit/test_jz_pwm_sound_backend.cpp exercises its pure renderer on
+# the host. The gate decides what SHIPS, not what is testable - same
+# treatment as the sysfs PWM backend above.
+TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/jz_pwm_sound_backend.o)
 
 # The channel auto-export step inside initialize() is ifdef'd
 # (HELIX_PWM_AUTO_EXPORT) so production platform builds opt in deliberately.
