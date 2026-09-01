@@ -30,6 +30,13 @@ setup() {
     install_gnu_sed_shim
     install_gnu_stat_shim
 
+    # The uninstall/clean paths below call systemctl whenever the HOST has
+    # systemd (detect_init_system), and the helixscreen-update.* sweep is not
+    # even gated on INIT_SYSTEM. Unstubbed, every such call raises a polkit
+    # prompt on a dev desktop - one per systemctl, since "|| true" swallows
+    # the error but not the auth dialog. Same pattern as test_uninstall.bats.
+    mock_command_script "systemctl" 'exit 0'
+
     SANDBOX="$BATS_TEST_TMPDIR/root"
     MOD_ROOT="$SANDBOX/usr/data/config/mod"
     mkdir -p "$MOD_ROOT/.shell"
