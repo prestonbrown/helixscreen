@@ -1012,6 +1012,11 @@ else ifneq (,$(filter ad5m-br ad5x,$(PLATFORM_TARGET)))
     # PWM buzzer for tone-mode SFX only — the printer-safe render loop behind
     # the ad5m branch has not been re-validated on this hardware.
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
+    ifneq (,$(filter ad5x,$(PLATFORM_TARGET)))
+        # ad5x: the jz_pwm backend drives the tracker's PC-speaker (synth
+        # fallback) path — per-note buffers, no PCM render loop involved.
+        TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
+    endif
 else ifeq ($(PLATFORM_TARGET),native)
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER

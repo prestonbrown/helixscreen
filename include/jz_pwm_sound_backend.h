@@ -3,6 +3,7 @@
 
 #include "sound_backend.h"
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -76,10 +77,17 @@ class JzPwmSoundBackend : public SoundBackend {
         return 4;
     }
     void publish_note(int slot, const NoteEvent& event) override;
+    /// Tick-path voices: the tracker's PC-speaker mode drives all four
+    /// channels per row through these. Each row's updates coalesce (time
+    /// debounce) into one chord buffer through the same renderer.
+    void set_voice(int slot, float freq_hz, float amplitude, float duty_cycle) override;
+    void silence_voice(int slot) override;
     float min_tick_ms() const override;
 
   private:
     void flush_step();
+    void flush_words(const std::vector<uint32_t>& words, float ms);
+    void maybe_flush_voices();
     void stop_child();
 
     std::string fx_pwm_;
@@ -87,4 +95,14 @@ class JzPwmSoundBackend : public SoundBackend {
     int received_ = 0;
     pid_t child_ = -1;
     JzPwmRenderParams params_;
+    float voice_freq_[4] = {0, 0, 0, 0};
+    float voice_amp_[4] = {0, 0, 0, 0};
+    bool voices_dirty_ = false;
+    std::chrono::steady_clock::time_point last_voice_flush_;
 };
+
+/// Build the render events for a tick-path voice snapshot: sounding
+/// voices become sustained notes of `dur_ms`, silent slots are dropped
+/// (the renderer normalizes by sounding count). Pure, for unit tests.
+std::vector<NoteEvent> jz_pwm_voices_to_events(const float* freq, const float* amp, int n_voices,
+                                               float dur_ms);

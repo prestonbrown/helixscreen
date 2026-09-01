@@ -158,6 +158,23 @@ TEST_CASE("render: opposite-phase voices cancel to center duty", "[sound][jz]") 
         REQUIRE(active_of(w) + inactive_of(w) == period);
 }
 
+TEST_CASE("voices_to_events: snapshot becomes sustained chord events", "[sound][jz]") {
+    float freq[4] = {440, 0, 656, 880};
+    float amp[4] = {0.8f, 0.5f, 0.6f, 0.0f};
+
+    auto events = jz_pwm_voices_to_events(freq, amp, 4, 150.0f);
+    // slot 1 has no freq, slot 3 no amplitude: two sounding voices
+    REQUIRE(events.size() == 2);
+    REQUIRE(events[0].freq_hz == 440.0f);
+    REQUIRE(events[0].velocity == 0.8f);
+    REQUIRE(events[1].freq_hz == 656.0f);
+    REQUIRE(events[1].duration_ms == 150.0f);
+    REQUIRE(events[0].sustain_level == 1.0f);
+
+    float silent[4] = {0, 0, 0, 0};
+    REQUIRE(jz_pwm_voices_to_events(silent, silent, 4, 150.0f).empty());
+}
+
 // ============================================================================
 // JzPwmSoundBackend - behavior without hardware
 // ============================================================================

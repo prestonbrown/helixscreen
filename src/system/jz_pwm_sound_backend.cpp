@@ -114,6 +114,26 @@ std::vector<uint32_t> jz_pwm_render_step(const NoteEvent* events, int n_events,
     return words;
 }
 
+std::vector<NoteEvent> jz_pwm_voices_to_events(const float* freq, const float* amp, int n_voices,
+                                               float dur_ms) {
+    std::vector<NoteEvent> events;
+    for (int v = 0; v < n_voices && v < kVoices; ++v) {
+        if (freq[v] <= 0 || amp[v] <= 0.001f)
+            continue;
+        NoteEvent e;
+        e.freq_hz = freq[v];
+        e.velocity = amp[v];
+        e.duration_ms = dur_ms;
+        e.wave = Waveform::TRIANGLE;
+        e.attack_ms = 2;
+        e.decay_ms = 0;
+        e.sustain_level = 1.0f;
+        e.release_ms = 10;
+        events.push_back(e);
+    }
+    return events;
+}
+
 bool JzPwmSoundBackend::available() {
     if (access(kDevice, F_OK) != 0)
         return false;
@@ -169,6 +189,16 @@ void JzPwmSoundBackend::flush_step() {
     if (words.empty())
         return;
 
+    float ms = 0;
+    for (const NoteEvent& e : pending_)
+        ms = std::max(ms, e.duration_ms);
+    /* match the renderer's floor/cap so --ms equals the buffer's length */
+    ms = std::clamp(ms, static_cast<float>(params_.min_note_ms),
+                    static_cast<float>(params_.max_note_ms));
+    flush_words(words, ms);
+}
+
+void JzPwmSoundBackend::flush_words(const std::vector<uint32_t>& words, float ms) {
     /* One buffer at a time, no exceptions: a previous child still holding
      * the channel means this sound is dropped, not raced (see
      * stop_child). */
@@ -192,13 +222,6 @@ void JzPwmSoundBackend::flush_step() {
         spdlog::warn("[JzPwmBackend] short write to {}", kWordsFile);
         return;
     }
-
-    float ms = 0;
-    for (const NoteEvent& e : pending_)
-        ms = std::max(ms, e.duration_ms);
-    /* match the renderer's floor/cap so --ms equals the buffer's length */
-    ms = std::clamp(ms, static_cast<float>(params_.min_note_ms),
-                    static_cast<float>(params_.max_note_ms));
 
     std::string ms_flag = "--ms=" + std::to_string(static_cast<long>(ms));
     std::string prescale_flag = "--prescale=" + std::to_string(kPrescale);
@@ -267,6 +290,51 @@ void JzPwmSoundBackend::stop_child() {
     int status = 0;
     waitpid(child_, &status, WNOHANG);
     child_ = -1;
+}
+
+void JzPwmSoundBackend::set_voice(int slot, float freq_hz, float amplitude, float duty_cycle) {
+    (void)duty_cycle; /* the triangle render carries the tone */
+    if (slot < 0 || slot >= kVoices)
+        return;
+    if (voice_freq_[slot] == freq_hz && voice_amp_[slot] == amplitude)
+        return;
+    voice_freq_[slot] = freq_hz;
+    voice_amp_[slot] = amplitude;
+    voices_dirty_ = true;
+    maybe_flush_voices();
+}
+
+void JzPwmSoundBackend::silence_voice(int slot) {
+    if (slot < 0 || slot >= kVoices)
+        return;
+    if (voice_freq_[slot] == 0)
+        return;
+    voice_freq_[slot] = 0;
+    voice_amp_[slot] = 0;
+    voices_dirty_ = true;
+    maybe_flush_voices();
+}
+
+void JzPwmSoundBackend::maybe_flush_voices() {
+    /* Coalesce one tracker row's set_voice burst (all four slots arrive
+     * back-to-back) into a single chord buffer. 40 ms is well under a
+     * typical row interval and well over the burst width. */
+    constexpr auto kDebounce = std::chrono::milliseconds(40);
+    auto now = std::chrono::steady_clock::now();
+    if (!voices_dirty_ || now - last_voice_flush_ < kDebounce)
+        return;
+    voices_dirty_ = false;
+    last_voice_flush_ = now;
+    if (fx_pwm_.empty())
+        return;
+    auto events = jz_pwm_voices_to_events(voice_freq_, voice_amp_, kVoices, 150.0f);
+    if (events.empty()) {
+        stop_child();
+        return;
+    }
+    auto words = jz_pwm_render_step(events.data(), (int)events.size(), params_);
+    if (!words.empty())
+        flush_words(words, 150.0f);
 }
 
 void JzPwmSoundBackend::silence() {
