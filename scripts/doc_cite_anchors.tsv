@@ -541,7 +541,7 @@ docs/devel/architecture/11-startup-shutdown.md	application.cpp	824	src/applicati
 docs/devel/architecture/11-startup-shutdown.md	helix_splash.cpp	83	src/helix_splash.cpp	967823feb11e	a3f4689a8490
 docs/devel/architecture/11-startup-shutdown.md	include/splash_screen_manager.h	32	include/splash_screen_manager.h	fc2d0d2c6e5d	fa667e93144f
 docs/devel/architecture/11-startup-shutdown.md	include/splash_status.h	22	include/splash_status.h	330a5ee75219	1292bd0cff49
-docs/devel/architecture/11-startup-shutdown.md	scripts/helix-launcher.sh	452	scripts/helix-launcher.sh	58e51b4f54eb	6b9876103ce1
+docs/devel/architecture/11-startup-shutdown.md	scripts/helix-launcher.sh	468	scripts/helix-launcher.sh	58e51b4f54eb	6b9876103ce1
 docs/devel/architecture/11-startup-shutdown.md	src/application/application.cpp	518	src/application/application.cpp	0680aaecc57f	3edcfefb9063
 docs/devel/architecture/11-startup-shutdown.md	src/application/application.cpp	777	src/application/application.cpp	b13b8a535566	cc71f1c4f52a
 docs/devel/architecture/11-startup-shutdown.md	src/application/application.cpp	807	src/application/application.cpp	7edb3179144e	8b41e34bfb80

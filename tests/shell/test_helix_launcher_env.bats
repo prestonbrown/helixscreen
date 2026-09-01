@@ -503,3 +503,100 @@ assert_extracted() {
     [ "$status" -eq 0 ]
     [ "$output" = "exit-ok:unset" ]
 }
+
+# =============================================================================
+# AD5X heap-diag predicate — ZMOD or Forge-X
+#
+# Same extraction discipline as the arena block: pull the real block out of
+# helix-launcher.sh so a copied snippet can't keep passing after the original
+# changes. The arch comes from a fake uname on PATH (the block calls uname
+# itself); the layout probes resolve under HELIX_AD5X_PROBE_ROOT pointing at a
+# sandbox fake root — these tests must never create /ZMOD or /usr/prog on the
+# build host. Pinned to the SAME truth table as the C++ predicate
+# helix::logs::ad5x_mod_layout_present() (tests/unit/test_log_collector.cpp).
+# =============================================================================
+
+# Echo the resulting MALLOC_CHECK_ (empty when the block left it unset) for a
+# given fake uname -m and sandbox rootfs layout.
+run_heap_block() {
+    local fake_arch="$1" root="$2"
+    local fakebin="$BATS_TEST_TMPDIR/fakebin"
+    mkdir -p "$fakebin"
+    printf '#!/bin/sh\ncase "$1" in -m) echo "%s";; -r) echo "5.10.99-helix";; *) echo Linux;; esac\n' \
+        "$fake_arch" > "$fakebin/uname"
+    chmod +x "$fakebin/uname"
+
+    awk '/^# Heap-corruption diagnostics/{f=1} f{print} f&&/^unset _arch _kernel _enable_heap_diag$/{exit}' \
+        "$LAUNCHER" > "$BATS_TEST_TMPDIR/heap_block.sh"
+
+    PATH="$fakebin:$PATH" HELIX_AD5X_PROBE_ROOT="$root" sh -c "
+        set -e
+        . '$BATS_TEST_TMPDIR/heap_block.sh'
+        echo \"\${MALLOC_CHECK_:-}\"
+    "
+}
+
+# Guard: if the block ever stops being extractable, every test below would
+# silently pass against an empty file. Fail instead.
+assert_heap_extracted() {
+    [ -s "$BATS_TEST_TMPDIR/heap_block.sh" ]
+    grep -q "MALLOC_CHECK_" "$BATS_TEST_TMPDIR/heap_block.sh"
+    grep -q "_arch" "$BATS_TEST_TMPDIR/heap_block.sh"
+}
+
+@test "heap diag: ZMOD layout (/usr/prog dir) enables on mips" {
+    local root="$BATS_TEST_TMPDIR/zmod-prog"
+    mkdir -p "$root/usr/prog"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ "$result" = "3" ]
+}
+
+@test "heap diag: ZMOD layout (/ZMOD marker file) enables on mips" {
+    local root="$BATS_TEST_TMPDIR/zmod-marker"
+    mkdir -p "$root"
+    touch "$root/ZMOD"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ "$result" = "3" ]
+}
+
+@test "heap diag: Forge-X chroot layout (mod tree reachable, no /ZMOD, no /usr/prog) enables on mips" {
+    # The rig: no /ZMOD, no /usr/prog, no /usr/data inside the chroot — only
+    # the mod's git tree, bind-mounted at /opt/config/mod. platform.sh
+    # reachability must carry the predicate on its own.
+    local root="$BATS_TEST_TMPDIR/forgex"
+    mkdir -p "$root/opt/config/mod/.shell"
+    touch "$root/opt/config/mod/.shell/platform.sh"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ "$result" = "3" ]
+}
+
+@test "heap diag: Forge-X host-side spelling (/usr/data/config/mod) enables on mips" {
+    local root="$BATS_TEST_TMPDIR/forgex-host"
+    mkdir -p "$root/usr/data/config/mod/.shell"
+    touch "$root/usr/data/config/mod/.shell/platform.sh"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ "$result" = "3" ]
+}
+
+@test "heap diag: plain layout leaves MALLOC_CHECK_ unset on mips" {
+    # K1 shares mips and carries none of the markers — the arch alone must
+    # never arm the diagnostics.
+    local root="$BATS_TEST_TMPDIR/plain"
+    mkdir -p "$root"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ -z "$result" ]
+}
+
+@test "heap diag: Forge-X layout does not enable on a non-mips host" {
+    local root="$BATS_TEST_TMPDIR/forgex-x86"
+    mkdir -p "$root/opt/config/mod/.shell"
+    touch "$root/opt/config/mod/.shell/platform.sh"
+    result=$(run_heap_block x86_64 "$root")
+    assert_heap_extracted
+    [ -z "$result" ]
+}
