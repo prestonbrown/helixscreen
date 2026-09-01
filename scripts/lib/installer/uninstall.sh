@@ -331,6 +331,36 @@ restore_previous_ui_platform() {
     HELIX_RESTORED_XORG="$restored_xorg"
 }
 
+# HELIX_INSTALL_DIRS (common.sh) as THIS run may sweep it. In --mod-payload
+# mode the run's ACTUAL payload root joins the list via resolve_payload_root
+# (flag > the root the install recorded > INSTALL_DIR) - the sweep must remove
+# what THIS run targeted, not whatever the probe last found, or a custom-root
+# payload survives a "successful" uninstall while a stale in-tree root is
+# removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
+# exempts exactly the flag-armed run, so a plain uninstall still leaves the
+# mod's tree alone.
+#
+# Lives here rather than beside HELIX_INSTALL_DIRS: it asks the payload-root
+# resolver (host_profile.sh, bundle position 2) and common.sh is position 1 -
+# the foundation module must not depend on a later one, so the list-for-run
+# stays with its only consumers, the two sweeps below.
+helix_install_dirs_for_run() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
+        # Same resolver the standalone arm uses. A root that fails the
+        # resolver's name gate never enters this list: the uninstall entry
+        # points resolve fatally BEFORE sweeping (see uninstall() and
+        # clean_old_installation below), so a refusal surfacing here means a
+        # caller skipped that - drop the entry rather than rm -rf an ungated
+        # path.
+        hpr=$(resolve_payload_root 2>/dev/null || true)
+        if [ -n "$hpr" ]; then
+            echo "$HELIX_INSTALL_DIRS $hpr"
+            return 0
+        fi
+    fi
+    echo "$HELIX_INSTALL_DIRS"
+}
+
 # Undo a payload-contract install — the STANDALONE uninstaller's --mod-payload
 # arm. The generic sweeps refuse mod-owned paths by design, so before this arm
 # a payload install could only be removed by hand: the shipped uninstaller

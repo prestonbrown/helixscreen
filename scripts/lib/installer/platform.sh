@@ -738,11 +738,16 @@ detect_pi_install_dir() {
 # User can override via TMP_DIR env var.
 # Sets: TMP_DIR
 detect_tmp_dir() {
-    # User already set TMP_DIR — respect it, but only after the name guard.
-    # TMP_DIR is rm -rf'd on both the success and the failure path, so an
-    # unvalidated override erases whatever it points at (validate_tmp_dir in
-    # common.sh; the /mnt/UDISK incident).
+    # User already set TMP_DIR — respect it, but only after the ownership and
+    # name guards. TMP_DIR is rm -rf'd on both the success and the failure
+    # path, so an unvalidated override erases whatever it points at
+    # (validate_tmp_dir in common.sh; the /mnt/UDISK incident). The mod-owned
+    # refusal rides HERE, one layer above the validator: common.sh is the
+    # bundle's first module and must stay free of later-module calls, so this
+    # module (which loads after the profile) owns the guard call. Before the
+    # name check, exactly where it sat inside the validator.
     if [ -n "${TMP_DIR:-}" ]; then
+        host_refuse_mod_owned "stage the download in" "$TMP_DIR"
         validate_tmp_dir "$TMP_DIR" || exit 1
         log_info "Temp directory (user override): $TMP_DIR"
         return 0
@@ -803,8 +808,8 @@ detect_tmp_dir() {
         # is untracked in their git repo, so their OTA's git clean removes it
         # mid-run, and the installer's own cleanup rm -rf's it later. This is
         # our choice, not the operator's, so the next candidate simply wins -
-        # a user-set TMP_DIR keeps its explicit --mod-payload exemption in
-        # validate_tmp_dir instead.
+        # a user-set TMP_DIR keeps its explicit --mod-payload exemption in the
+        # ownership guard on this function's override branch instead.
         host_path_is_mod_owned "$candidate" && continue
 
         local check_dir
@@ -1023,7 +1028,12 @@ set_install_paths() {
     # Final gate on whatever INSTALL_DIR we ended up with. Every hard-coded
     # platform path above already satisfies it; this catches a future branch
     # (or an override route added later) that would hand a bare data directory
-    # to the mv/rm -rf in release.sh and uninstall.sh.
+    # to the mv/rm -rf in release.sh and uninstall.sh. The mod-owned refusal
+    # rides HERE - one layer above the name validator, because common.sh is
+    # the bundle's first module and must not call into later ones (the arch
+    # review's S2 hoist); the guard runs before the name check exactly as it
+    # did when it lived inside validate_install_dir.
+    host_refuse_mod_owned "install into" "$INSTALL_DIR"
     validate_install_dir "$INSTALL_DIR" || exit 1
 
     # Auto-detect best temp directory (all platforms)

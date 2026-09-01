@@ -79,7 +79,7 @@ HEADER
     # camera.sh provides uninstall_camera_k2, called by uninstall.sh (K2 ustreamer teardown).
     # host_profile.sh provides the mod-ownership guard behind uninstall.sh's
     # HELIX_INSTALL_DIRS sweeps and moonraker.sh's stanza writer; main() below
-    # probes it before set_install_paths runs validate_install_dir.
+    # probes it before set_install_paths' install-dir gate calls it.
     for module in common.sh host_profile.sh platform.sh permissions.sh requirements.sh forgex.sh service.sh moonraker.sh camera.sh uninstall.sh; do
         module_path="$LIB_DIR/$module"
         if [ ! -f "$module_path" ]; then
@@ -458,7 +458,7 @@ main() {
     echo "${CYAN}========================================${NC}"
     echo ""
 
-    # Probe the host before set_install_paths runs validate_install_dir —
+    # Probe the host before set_install_paths' install-dir gate runs —
     # its mod-ownership guard needs HOST_MOD_ROOT already probed.
     host_profile_probe
 

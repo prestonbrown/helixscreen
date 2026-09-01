@@ -566,7 +566,15 @@ esac
     mod_payload_autodetect
     [ -z "$HELIX_MOD_PAYLOAD" ] || fail "armed the payload contract without a probed mod"
 
-    run validate_install_dir "/usr/data/.mod/.zmod/srv/helixscreen"
+    # The refusal rides set_install_paths' install-dir gate (the operator's
+    # INSTALL_DIR override takes the pi branch on an unprobed host); the
+    # canonical /usr/data/.mod root counts even without a probe.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    HOST_INSTALL_ROOT=""
+    _USER_INSTALL_DIR="/usr/data/.mod/.zmod/srv/helixscreen"
+    detect_tmp_dir() { TMP_DIR="$BATS_TEST_TMPDIR/tmp"; }
+    run set_install_paths "pi"
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
 }

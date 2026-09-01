@@ -24,30 +24,6 @@ _HELIX_COMMON_SOURCED=1
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
-# HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the run's
-# ACTUAL payload root joins the list via resolve_payload_root (flag > the root
-# the install recorded > INSTALL_DIR) - the sweep must remove what THIS run
-# targeted, not whatever the probe last found, or a custom-root payload
-# survives a "successful" uninstall while a stale in-tree root is removed
-# instead. The sweeps' mod-owned skip (host_mod_destruct_blocked) exempts
-# exactly the flag-armed run, so a plain uninstall still leaves the mod's tree
-# alone.
-helix_install_dirs_for_run() {
-    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
-        # Same resolver the standalone arm uses. A root that fails the
-        # resolver's name gate never enters this list: the uninstall entry
-        # points resolve fatally BEFORE sweeping (see uninstall() and
-        # clean_old_installation), so a refusal surfacing here means a caller
-        # skipped that - drop the entry rather than rm -rf an ungated path.
-        hpr=$(resolve_payload_root 2>/dev/null || true)
-        if [ -n "$hpr" ]; then
-            echo "$HELIX_INSTALL_DIRS $hpr"
-            return 0
-        fi
-    fi
-    echo "$HELIX_INSTALL_DIRS"
-}
-
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
 # shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh
@@ -338,14 +314,11 @@ _user_dir_name_ok() {
 
 # Accept only scratch directories the installer created, or the staging dir the
 # in-app updater hands over via TMP_DIR (update_checker.cpp STAGING_NAME).
+# Mod-owned refusal is NOT here: common.sh is the bundle's first module and
+# must not call into later ones, so that guard rides detect_tmp_dir's user
+# override branch in platform.sh (the arch review's S2 hoist).
 validate_tmp_dir() {
     local d="$1"
-    # A mod-owned path is refused even when its name passes below: the scratch
-    # dir is rm -rf'd on cleanup, and its name guard is satisfied just as well
-    # by a directory INSIDE the mod's git tree, which would leave untracked
-    # files for the mod's OTA to clean and tear through the mod's namespace.
-    # Before the name check for the same reason as validate_install_dir.
-    host_refuse_mod_owned "stage the download in" "$d"
     if _user_dir_name_ok "$d" '*helixscreen-install*' '.helix-update-staging'; then
         return 0
     fi
@@ -360,13 +333,10 @@ validate_tmp_dir() {
 # Accept only install directories that name themselves after us. Every
 # auto-detected value already does (/opt/helixscreen, $HOME/helixscreen,
 # /usr/data/helixscreen, /srv/helixscreen, /user-resource/helixscreen, ...).
+# Mod-owned refusal is NOT here (same S2 hoist note as validate_tmp_dir
+# above): it rides set_install_paths' final gate in platform.sh.
 validate_install_dir() {
     local d="$1"
-    # A mod-owned path is refused even when its name passes below: the mod's
-    # .bin/helixscreen payload root names itself after us and is NOT ours to
-    # mv/rm. Runs before the name check because that check's success branch
-    # returns early.
-    host_refuse_mod_owned "install into" "$d"
     if _user_dir_name_ok "$d" '*helixscreen*'; then
         return 0
     fi

@@ -20,9 +20,10 @@ setup() {
     TMP_DIR=""
 
     # Source common.sh + host_profile.sh + platform.sh (skip source guards by
-    # unsetting them), in the bundle's module order. platform.sh calls
-    # common.sh's validate_install_dir/validate_tmp_dir, whose mod-owned guard
-    # lives in host_profile.sh; the bundled installer always carries all three.
+    # unsetting them), in the bundle's module order. platform.sh's
+    # set_install_paths/detect_tmp_dir gates call common.sh's name validators
+    # AND host_profile.sh's mod-ownership guard; the bundled installer always
+    # carries all three.
     unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"

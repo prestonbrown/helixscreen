@@ -26,15 +26,18 @@ setup() {
     touch "$SANDBOX/usr/data/config/mod/.shell/platform.sh"
 
     unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED \
-          _HELIX_RELEASE_SOURCED _HELIX_MOONRAKER_SOURCED
+          _HELIX_PLATFORM_SOURCED _HELIX_RELEASE_SOURCED _HELIX_MOONRAKER_SOURCED
     export SUDO=""
     export HELIX_MOD_PAYLOAD=""
 
     # Production module order (bundle-installer.sh): common.sh first (logging),
-    # then host_profile.sh, then the consumers under test.
+    # then host_profile.sh, then the consumers under test. platform.sh carries
+    # set_install_paths/detect_tmp_dir, whose gates own the mod-owned refusal
+    # since it was hoisted out of common.sh's validators.
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/release.sh"
     # shellcheck disable=SC1090
@@ -155,10 +158,9 @@ sandbox_candidates() {
     run host_path_is_mod_owned "/opt/config/mod/.bin/exec/logged-real"
     [ "$status" -eq 0 ] || fail "/opt/config/mod not owned without marker: $output"
 
-    # The refusal must reach the entry gate, not just the predicate.
-    run validate_install_dir "/usr/data/config/mod/.bin/helixscreen"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
+    # The refusal must reach the gate too, not just the predicate - see
+    # "set_install_paths' gate refuses a canonical mod path even with no
+    # probe" below.
 
     # Same shape, different tree: not the mod's namespace, not owned.
     run host_path_is_mod_owned "/usr/data/config/other-mod/.bin/helixscreen"
@@ -168,13 +170,21 @@ sandbox_candidates() {
 }
 
 # ===========================================================================
-# validate_install_dir (common.sh) — the install/update entry gate
+# The install-dir gate - set_install_paths' final validate (platform.sh)
 # ===========================================================================
+#
+# The mod-owned refusal lives at set_install_paths' final gate, one layer
+# above common.sh's name validator: common.sh is the bundle's first module
+# and must stay free of later-module calls (the arch review's S2 hoist).
+# These tests drive the real flow, not the validator in isolation.
 
-@test "validate_install_dir refuses a mod-owned INSTALL_DIR outside --mod-payload" {
-    HOST_MOD_ROOT="$SANDBOX/usr/data/config/mod"
+@test "set_install_paths' gate refuses a mod-owned INSTALL_DIR outside --mod-payload" {
+    sandbox_candidates
+    host_profile_probe
     HELIX_MOD_PAYLOAD=""
-    run validate_install_dir "$SANDBOX/usr/data/config/mod/.bin/helixscreen"
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+
+    run set_install_paths "ad5x" "forge_x"
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
     [[ "$output" == *"--mod-payload"* ]]
@@ -182,25 +192,87 @@ sandbox_candidates() {
     # --mod-payload's contract is an in-place update inside the mod layout:
     # the guard must stand down for it.
     HELIX_MOD_PAYLOAD=1
-    run validate_install_dir "$SANDBOX/usr/data/config/mod/.bin/helixscreen"
-    [ "$status" -eq 0 ] || fail "refused a --mod-payload install: $output"
+    set_install_paths "ad5x" "forge_x"
+    [ "$INSTALL_DIR" = "$SANDBOX/usr/data/config/mod/.bin/helixscreen" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR'"
 }
 
-@test "validate_tmp_dir refuses a mod-owned TMP_DIR outside --mod-payload" {
+@test "set_install_paths' gate refuses a canonical mod path even with no probe" {
+    # Half-uninstall / mod-refactor scenario: the probe found no marker, so
+    # only the canonical mod roots vouch for the tree. The pi branch is the
+    # route an operator's INSTALL_DIR override takes on such a host - the
+    # refusal must still meet it at the gate.
+    mock_command_fail "systemctl"
+    mock_command "ps" ""
+    mock_command_fail "id"
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    HOST_INSTALL_ROOT=""
+    HELIX_MOD_PAYLOAD=""
+    _USER_INSTALL_DIR="/usr/data/config/mod/.bin/helixscreen"
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+
+    run set_install_paths "pi"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"refusing"* ]]
+    [[ "$output" == *"--mod-payload"* ]]
+}
+
+@test "detect_tmp_dir refuses a mod-owned user TMP_DIR outside --mod-payload" {
     # TMP_DIR is rm -rf'd on both the success and the failure path. Its name
     # guard ('*helixscreen-install*') is satisfied by a scratch dir INSIDE the
     # mod's git tree too, so ownership -- not just the name -- must gate it:
     # staging inside their repo leaves untracked files their OTA's git clean
-    # then removes, and the rm -rf tears through the mod's namespace.
+    # then removes, and the rm -rf tears through the mod's namespace. The
+    # refusal rides detect_tmp_dir's override branch (the only route a
+    # user-set TMP_DIR takes), not the name validator.
     HOST_MOD_ROOT="$SANDBOX/usr/data/config/mod"
     HELIX_MOD_PAYLOAD=""
-    run validate_tmp_dir "$SANDBOX/usr/data/config/mod/helixscreen-install"
+    TMP_DIR="$SANDBOX/usr/data/config/mod/helixscreen-install"
+    run detect_tmp_dir
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
+    [[ "$output" == *"--mod-payload"* ]]
 
     HELIX_MOD_PAYLOAD=1
-    run validate_tmp_dir "$SANDBOX/usr/data/config/mod/helixscreen-install"
-    [ "$status" -eq 0 ] || fail "refused a --mod-payload scratch dir: $output"
+    detect_tmp_dir
+    [ "$TMP_DIR" = "$SANDBOX/usr/data/config/mod/helixscreen-install" ] \
+        || fail "refused a --mod-payload scratch dir (TMP_DIR='$TMP_DIR')"
+}
+
+# ===========================================================================
+# Module separation - common.sh stays free of later-module calls (S2)
+# ===========================================================================
+
+@test "common.sh never reaches into host_profile.sh (bundle position 1 stays host-free)" {
+    # Structural pin (the arch review's S2, resolved by the guard hoist):
+    # common.sh is the bundle's FIRST module and host_profile.sh its second,
+    # so any common -> host_profile call is an earlier-to-later edge the
+    # bundle order forbids - and a cycle, since host_profile needs common's
+    # log_error. Grep IS the behavior here: the invariant is about source
+    # structure, and the two guards this file's earlier tests exercise must
+    # live one layer up (platform.sh) for it to hold.
+    local common="$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    local profile="$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+
+    # Half 1: no host_* symbol of any kind (call, variable, or comment).
+    if grep -q 'host_' "$common"; then
+        grep -n 'host_' "$common"
+        fail "common.sh references host_profile symbols; the bundle's first module must stay host-free"
+    fi
+
+    # Half 2: no reference to ANY function host_profile defines - the
+    # module's non-prefixed helpers (resolve_payload_root & co.) are the
+    # same edge the host_* names are. The list is derived from
+    # host_profile.sh itself so a new export cannot slip past the pin.
+    local fn
+    while IFS= read -r fn; do
+        [ -n "$fn" ] || continue
+        if grep -qw "$fn" "$common"; then
+            grep -nw "$fn" "$common"
+            fail "common.sh references '$fn', defined in host_profile.sh"
+        fi
+    done < <(sed -n 's/^\([a-z_][a-z0-9_]*\)().*/\1/p' "$profile")
 }
 
 # ===========================================================================

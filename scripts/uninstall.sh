@@ -50,30 +50,6 @@ PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen 
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
-# HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the run's
-# ACTUAL payload root joins the list via resolve_payload_root (flag > the root
-# the install recorded > INSTALL_DIR) - the sweep must remove what THIS run
-# targeted, not whatever the probe last found, or a custom-root payload
-# survives a "successful" uninstall while a stale in-tree root is removed
-# instead. The sweeps' mod-owned skip (host_mod_destruct_blocked) exempts
-# exactly the flag-armed run, so a plain uninstall still leaves the mod's tree
-# alone.
-helix_install_dirs_for_run() {
-    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
-        # Same resolver the standalone arm uses. A root that fails the
-        # resolver's name gate never enters this list: the uninstall entry
-        # points resolve fatally BEFORE sweeping (see uninstall() and
-        # clean_old_installation), so a refusal surfacing here means a caller
-        # skipped that - drop the entry rather than rm -rf an ungated path.
-        hpr=$(resolve_payload_root 2>/dev/null || true)
-        if [ -n "$hpr" ]; then
-            echo "$HELIX_INSTALL_DIRS $hpr"
-            return 0
-        fi
-    fi
-    echo "$HELIX_INSTALL_DIRS"
-}
-
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
 # shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh
@@ -364,14 +340,11 @@ _user_dir_name_ok() {
 
 # Accept only scratch directories the installer created, or the staging dir the
 # in-app updater hands over via TMP_DIR (update_checker.cpp STAGING_NAME).
+# Mod-owned refusal is NOT here: common.sh is the bundle's first module and
+# must not call into later ones, so that guard rides detect_tmp_dir's user
+# override branch in platform.sh (the arch review's S2 hoist).
 validate_tmp_dir() {
     local d="$1"
-    # A mod-owned path is refused even when its name passes below: the scratch
-    # dir is rm -rf'd on cleanup, and its name guard is satisfied just as well
-    # by a directory INSIDE the mod's git tree, which would leave untracked
-    # files for the mod's OTA to clean and tear through the mod's namespace.
-    # Before the name check for the same reason as validate_install_dir.
-    host_refuse_mod_owned "stage the download in" "$d"
     if _user_dir_name_ok "$d" '*helixscreen-install*' '.helix-update-staging'; then
         return 0
     fi
@@ -386,13 +359,10 @@ validate_tmp_dir() {
 # Accept only install directories that name themselves after us. Every
 # auto-detected value already does (/opt/helixscreen, $HOME/helixscreen,
 # /usr/data/helixscreen, /srv/helixscreen, /user-resource/helixscreen, ...).
+# Mod-owned refusal is NOT here (same S2 hoist note as validate_tmp_dir
+# above): it rides set_install_paths' final gate in platform.sh.
 validate_install_dir() {
     local d="$1"
-    # A mod-owned path is refused even when its name passes below: the mod's
-    # .bin/helixscreen payload root names itself after us and is NOT ours to
-    # mv/rm. Runs before the name check because that check's success branch
-    # returns early.
-    host_refuse_mod_owned "install into" "$d"
     if _user_dir_name_ok "$d" '*helixscreen*'; then
         return 0
     fi
@@ -1563,11 +1533,16 @@ detect_pi_install_dir() {
 # User can override via TMP_DIR env var.
 # Sets: TMP_DIR
 detect_tmp_dir() {
-    # User already set TMP_DIR — respect it, but only after the name guard.
-    # TMP_DIR is rm -rf'd on both the success and the failure path, so an
-    # unvalidated override erases whatever it points at (validate_tmp_dir in
-    # common.sh; the /mnt/UDISK incident).
+    # User already set TMP_DIR — respect it, but only after the ownership and
+    # name guards. TMP_DIR is rm -rf'd on both the success and the failure
+    # path, so an unvalidated override erases whatever it points at
+    # (validate_tmp_dir in common.sh; the /mnt/UDISK incident). The mod-owned
+    # refusal rides HERE, one layer above the validator: common.sh is the
+    # bundle's first module and must stay free of later-module calls, so this
+    # module (which loads after the profile) owns the guard call. Before the
+    # name check, exactly where it sat inside the validator.
     if [ -n "${TMP_DIR:-}" ]; then
+        host_refuse_mod_owned "stage the download in" "$TMP_DIR"
         validate_tmp_dir "$TMP_DIR" || exit 1
         log_info "Temp directory (user override): $TMP_DIR"
         return 0
@@ -1628,8 +1603,8 @@ detect_tmp_dir() {
         # is untracked in their git repo, so their OTA's git clean removes it
         # mid-run, and the installer's own cleanup rm -rf's it later. This is
         # our choice, not the operator's, so the next candidate simply wins -
-        # a user-set TMP_DIR keeps its explicit --mod-payload exemption in
-        # validate_tmp_dir instead.
+        # a user-set TMP_DIR keeps its explicit --mod-payload exemption in the
+        # ownership guard on this function's override branch instead.
         host_path_is_mod_owned "$candidate" && continue
 
         local check_dir
@@ -1848,7 +1823,12 @@ set_install_paths() {
     # Final gate on whatever INSTALL_DIR we ended up with. Every hard-coded
     # platform path above already satisfies it; this catches a future branch
     # (or an override route added later) that would hand a bare data directory
-    # to the mv/rm -rf in release.sh and uninstall.sh.
+    # to the mv/rm -rf in release.sh and uninstall.sh. The mod-owned refusal
+    # rides HERE - one layer above the name validator, because common.sh is
+    # the bundle's first module and must not call into later ones (the arch
+    # review's S2 hoist); the guard runs before the name check exactly as it
+    # did when it lived inside validate_install_dir.
+    host_refuse_mod_owned "install into" "$INSTALL_DIR"
     validate_install_dir "$INSTALL_DIR" || exit 1
 
     # Auto-detect best temp directory (all platforms)
@@ -6558,6 +6538,36 @@ restore_previous_ui_platform() {
     HELIX_RESTORED_XORG="$restored_xorg"
 }
 
+# HELIX_INSTALL_DIRS (common.sh) as THIS run may sweep it. In --mod-payload
+# mode the run's ACTUAL payload root joins the list via resolve_payload_root
+# (flag > the root the install recorded > INSTALL_DIR) - the sweep must remove
+# what THIS run targeted, not whatever the probe last found, or a custom-root
+# payload survives a "successful" uninstall while a stale in-tree root is
+# removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
+# exempts exactly the flag-armed run, so a plain uninstall still leaves the
+# mod's tree alone.
+#
+# Lives here rather than beside HELIX_INSTALL_DIRS: it asks the payload-root
+# resolver (host_profile.sh, bundle position 2) and common.sh is position 1 -
+# the foundation module must not depend on a later one, so the list-for-run
+# stays with its only consumers, the two sweeps below.
+helix_install_dirs_for_run() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
+        # Same resolver the standalone arm uses. A root that fails the
+        # resolver's name gate never enters this list: the uninstall entry
+        # points resolve fatally BEFORE sweeping (see uninstall() and
+        # clean_old_installation below), so a refusal surfacing here means a
+        # caller skipped that - drop the entry rather than rm -rf an ungated
+        # path.
+        hpr=$(resolve_payload_root 2>/dev/null || true)
+        if [ -n "$hpr" ]; then
+            echo "$HELIX_INSTALL_DIRS $hpr"
+            return 0
+        fi
+    fi
+    echo "$HELIX_INSTALL_DIRS"
+}
+
 # Undo a payload-contract install — the STANDALONE uninstaller's --mod-payload
 # arm. The generic sweeps refuse mod-owned paths by design, so before this arm
 # a payload install could only be removed by hand: the shipped uninstaller
@@ -7362,7 +7372,7 @@ main() {
     echo "${CYAN}========================================${NC}"
     echo ""
 
-    # Probe the host before set_install_paths runs validate_install_dir —
+    # Probe the host before set_install_paths' install-dir gate runs —
     # its mod-ownership guard needs HOST_MOD_ROOT already probed.
     host_profile_probe
 

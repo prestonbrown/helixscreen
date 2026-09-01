@@ -224,7 +224,11 @@ mod_payload_mode_block() {
         INSTALL_DIR="$MOD_PAYLOAD_ROOT"
         # The override gets the same gate every other INSTALL_DIR passes: it
         # must name helixscreen, and a mod-owned root needs the payload
-        # contract this run is already in.
+        # contract this run is already in (mod_payload_autodetect arms it on
+        # the flag, and --standalone + a payload root is refused at parse -
+        # so the guard below is the enforced form of that invariant, not an
+        # expectation about a caller elsewhere).
+        host_refuse_mod_owned "install into" "$INSTALL_DIR"
         validate_install_dir "$INSTALL_DIR" || exit 1
         log_info "Payload root (--payload-root): $INSTALL_DIR"
     fi
@@ -243,8 +247,8 @@ mod_payload_mode_block() {
     # survive a Forge-X OTA -- their update_manager is type: git_repo and
     # git clean -fd removes .bin/helixscreen, which is untracked there.
     # Only the payload contract can reach a mod-owned INSTALL_DIR
-    # (validate_install_dir refuses it otherwise), so this fires in payload
-    # mode and never else.
+    # (set_install_paths' install-dir gate refuses it otherwise), so this
+    # fires in payload mode and never else.
     if host_path_is_mod_owned "${INSTALL_DIR:-}"; then
         log_warn "This payload root lives inside the firmware mod's git tree."
         log_warn "A Forge-X OTA removes it: their updater cleans untracked files"
@@ -456,8 +460,8 @@ _refuse_if_firmware_managed() {
 # Main installation flow
 main() {
     # Probe the host once, before anything consults it: the mod-ownership
-    # guard backs validate_install_dir (called from set_install_paths below),
-    # so HOST_MOD_ROOT must already be probed by then.
+    # guard backs set_install_paths' install-dir gate (and detect_tmp_dir's
+    # override branch), so HOST_MOD_ROOT must already be probed by then.
     host_profile_probe
 
     # Parse arguments, then settle the payload contract BEFORE set_install_paths:
