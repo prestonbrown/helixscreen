@@ -126,6 +126,21 @@ The ZMOD init script sets up touch input via tslib environment variables, but He
 - Framebuffer: `/dev/fb0` (800x480, 32bpp)
 - Backlight: `FBIOBLANK` ioctl (standard Linux fbdev)
 
+## Sound (2026-08-31 rig session)
+
+The piezo is driven natively: `JzPwmSoundBackend` (behind
+`HELIX_HAS_JZ_PWM`, ad5x builds) renders theme steps in-process with the
+full NoteEvent synthesis - chords, ADSR, sweeps - duty-encodes them at
+the tuner-calibrated 385 MHz DMA rate, and plays them through the
+`fx-pwm words` verb in a child process (a driver wedge costs one sound,
+never the UI). Audibility floor measured at 10 ms; buffers capped at
+2.5 s; children never signalled (drop-until-done); fx-pwm serializes all
+spawners with a non-blocking flock. Tracker modules play in PC-speaker
+mode through `set_voice` - per-row four-voice chord buffers. The M300
+path remains for remote-UI installs. PCM streaming on this engine is
+impossible with numbers: buffer swaps are refused while a loop is armed
+and the legal chunk cycle costs a fixed ~500 ms of silence per chunk.
+
 ## Firmware Quirks and Operating Rules (verified 2026-08)
 
 Recorded during the 2026-08 research pass that accompanied commissioning our own AD5X
