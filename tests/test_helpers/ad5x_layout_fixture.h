@@ -7,7 +7,7 @@
  * @brief Fake-rootfs builders for the AD5X mod-layout predicate.
  *
  * make_ad5x_layout() builds, under a caller-supplied base dir, each filesystem
- * shape helix::platform::ad5x_mod_layout_present() (and the launcher's
+ * shape helix::ad5x_mod_layout_present() (and the launcher's
  * heap-diag gate) keys on. Every probe resolves under the returned root, so no
  * test ever creates /ZMOD or /usr/prog on the real build host.
  *

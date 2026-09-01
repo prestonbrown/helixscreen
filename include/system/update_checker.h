@@ -398,7 +398,7 @@ class UpdateChecker {
      * The mips binary ships for K1 and AD5X alike; get_platform_key() calls
      * this under HELIX_PLATFORM_MIPS. The AD5X side is the AD5X mod-tree
      * layout question (ZMOD markers or a reachable Forge-X mod tree) answered
-     * by helix::platform::ad5x_mod_layout_present() — the same rule the launcher
+     * by helix::ad5x_mod_layout_present() — the same rule the launcher
      * and log collector use. Returns a KNOWN platform key: "ad5x" or "k1".
      *
      * @param probe_root  root the layout probes resolve under (test seam;

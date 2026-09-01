@@ -43,6 +43,16 @@ bool platform_defaults_to_external_updates();
 /// Moonraker address is a real question or a wasted step.
 bool is_printer_embedded();
 
+/// True when the environment carries an AD5X mod tree: ZMOD (the /ZMOD marker
+/// file or FlashForge's /usr/prog dir) or Forge-X — whose chroot has neither,
+/// but whose mod git tree stays reachable (/opt/config/mod in-chroot,
+/// /usr/data/config/mod host-side, proven by .shell/platform.sh). Same rule as
+/// the launcher's heap-diag gate (scripts/helix-launcher.sh); the two test
+/// suites pin both to one truth table. All probes resolve under `probe_root`
+/// (default "/") so tests can feed a fake layout without touching the real
+/// root filesystem. stat-only; never opens anything.
+bool ad5x_mod_layout_present(const std::string& probe_root = "/");
+
 /// Test helper: override the platform check. Pass -1 to reset to compile-time default.
 void set_platform_override(int override_value);
 

@@ -23,7 +23,7 @@ namespace helix::logs {
 /// Default file-log search paths in resolution order, matching
 /// logging_init.cpp's `resolve_log_file_path()`. Includes env-dependent entries
 /// (XDG_DATA_HOME, HOME) resolved at call time. The AD5X mod_data entries are
-/// included only when helix::platform::ad5x_mod_layout_present(probe_root)
+/// included only when helix::ad5x_mod_layout_present(probe_root)
 /// detects the mod tree; `probe_root` (default "/") is a test seam for feeding
 /// a fake layout.
 std::vector<std::string> default_file_paths(const std::string& probe_root = "/");

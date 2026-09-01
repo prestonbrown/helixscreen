@@ -4,7 +4,7 @@
 #include "system/log_collector.h"
 
 #include "logging_init.h"
-#include "system/device_layout.h"
+#include "platform_info.h"
 
 #include <spdlog/spdlog.h>
 
@@ -154,7 +154,7 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
     // on the layout so a plain host's cascade carries only paths a helix
     // install could ever have written — on hosts without the mod tree these
     // were dead stat probes.
-    if (helix::platform::ad5x_mod_layout_present(probe_root)) {
+    if (helix::ad5x_mod_layout_present(probe_root)) {
         paths.emplace_back("/opt/config/mod_data/log/helix.log");
         paths.emplace_back("/usr/data/config/mod_data/log/helix.log");
         paths.emplace_back("/opt/config/mod_data/log/helixscreen.log");
