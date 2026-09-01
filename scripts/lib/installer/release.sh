@@ -1369,6 +1369,135 @@ detect_rollback_dir() {
     return 1
 }
 
+# Roomy-partition half of the update swap: pick the backup name, clear a stale
+# one, and mv the old install aside so the new tree can take its place.
+# One caller — extract_release()'s same-filesystem swap branch. The mod-owned
+# guard runs first: an INSTALL_DIR under the firmware mod's tree is the mod's
+# payload root, and moving it aside (then rm -rf'ing the .old on the NEXT
+# update) is exactly the destructive step --mod-payload exists to replace.
+# Sets INSTALL_BACKUP on success; returns 1 when the mv fails.
+backup_install_dir_for_update() {
+    host_refuse_mod_owned "update backup" "$INSTALL_DIR"
+
+    # Prefer INSTALL_DIR.old; if it exists and can't be removed (e.g. root-owned
+    # under NoNewPrivileges), fall back to a timestamped name so the swap succeeds.
+    INSTALL_BACKUP="${INSTALL_DIR}.old"
+    if [ -d "$INSTALL_BACKUP" ]; then
+        log_info "Removing stale backup from previous install..."
+        if ! rm -rf "$INSTALL_BACKUP" 2>/dev/null && ! $SUDO rm -rf "$INSTALL_BACKUP" 2>/dev/null; then
+            INSTALL_BACKUP="${INSTALL_DIR}.old.$(date +%s)"
+            log_warn "Could not remove stale .old dir (root-owned?); using $INSTALL_BACKUP instead"
+        fi
+    fi
+
+    # Atomic swap: move old install to backup
+    if ! $(path_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "$INSTALL_BACKUP"; then
+        return 1
+    fi
+    return 0
+}
+
+# Payload-root env preservation (mod hosts): keep an operator-authored
+# config/helixscreen.env byte-identical across a payload update by renaming
+# the incoming archive's copy to helixscreen.env.new inside the staged tree,
+# before any swap or in-place merge can land it on top of the live file.
+#
+# The env on a mod host is the rig's own runtime configuration
+# (HELIX_CONFIG_DIR, log routing the mod's bootstrap reads); silently swapping
+# in the bundled default would reroute the install, and the generic
+# backup/restore round-trip is not byte-stable — extract_release's one-time
+# LOG_LEVEL migration rewrites the restored file. The .new copy keeps new
+# template keys visible to the operator without touching the live file.
+#
+# Sets PAYLOAD_ENV_PRESERVED=1 when it renamed the incoming copy; extract_release
+# reads that to skip the env migration. Always returns 0 — a payload with no
+# existing env, or an archive shipping none, is not an error.
+preserve_payload_env() {
+    local new_root="$1" dest_root="$2"
+    [ -f "${dest_root}/config/helixscreen.env" ] || return 0
+    [ -f "${new_root}/config/helixscreen.env" ] || return 0
+    if mv "${new_root}/config/helixscreen.env" \
+          "${new_root}/config/helixscreen.env.new"; then
+        PAYLOAD_ENV_PRESERVED=1
+        log_info "Preserved existing helixscreen.env (incoming copy kept as helixscreen.env.new)"
+    else
+        log_warn "Could not set the incoming helixscreen.env aside; restoring the existing one from backup instead"
+    fi
+    return 0
+}
+
+# --mod-payload's in-place content replacement.
+#
+# The payload root itself is never moved or removed: inside the mod's tree it
+# is untracked-but-theirs (their OTA and their bootstrap both know the path),
+# and under --mod-payload-root it is the operator's chosen root. Only the
+# root's CHILDREN are replaced, and config/ and platform/ survive wholesale -
+# config/ holds the operator's runtime configuration (preserve_payload_env's
+# byte-identical contract) and platform/ holds the deployed hooks the mod's
+# launcher sources; both are re-merged, never swapped.
+#
+# Args: NEW_ROOT (the extracted tree) DEST_ROOT (the live payload root).
+# Returns 0 on success; 1 aborts the install (the caller exits).
+payload_replace_contents() {
+    local new_root="$1" dest_root="$2"
+    local item base
+
+    mkdir -p "$dest_root"
+
+    # Out with the old payload's children, config/ and platform/ excepted.
+    # A failed rm must abort: mv below cannot overwrite a non-empty dir.
+    for item in "$dest_root"/* "$dest_root"/.*; do
+        [ -e "$item" ] || continue
+        base=$(basename "$item")
+        case "$base" in
+            .|..|config|platform) continue ;;
+        esac
+        if ! rm -rf "$item"; then
+            log_error "Failed to remove old payload entry: $base"
+            return 1
+        fi
+    done
+
+    # In with the new, same two exceptions.
+    for item in "$new_root"/* "$new_root"/.*; do
+        [ -e "$item" ] || continue
+        base=$(basename "$item")
+        case "$base" in
+            .|..|config|platform) continue ;;
+        esac
+        if ! mv "$item" "$dest_root/$base"; then
+            log_error "Failed to install payload entry: $base"
+            return 1
+        fi
+    done
+
+    # Merge the incoming config/ defaults without overwriting operator files
+    # - the same rule the read-only-parent in-place update applies: only
+    # entries the payload does not already have land, and directories present
+    # on both sides merge at file level.
+    if [ -d "$new_root/config" ]; then
+        local subitem subbase
+        mkdir -p "$dest_root/config"
+        for item in "$new_root/config"/*; do
+            [ -e "$item" ] || continue
+            base=$(basename "$item")
+            if [ ! -e "$dest_root/config/$base" ]; then
+                mv "$item" "$dest_root/config/$base" 2>/dev/null || true
+                log_info "Added new payload config default: $base"
+            elif [ -d "$item" ] && [ -d "$dest_root/config/$base" ]; then
+                for subitem in "$item"/*; do
+                    [ -e "$subitem" ] || continue
+                    subbase=$(basename "$subitem")
+                    if [ ! -e "$dest_root/config/$base/$subbase" ]; then
+                        mv "$subitem" "$dest_root/config/$base/$subbase" 2>/dev/null || true
+                    fi
+                done
+            fi
+        done
+    fi
+    return 0
+}
+
 # Extract archive with atomic swap and rollback protection.
 # Dispatches on _ARCHIVE_FORMAT for zip vs tar.gz. Expects the archive already
 # staged at _archive_tmp_path() by download_release() or use_local_tarball().
@@ -1491,6 +1620,32 @@ extract_release() {
         exit 1
     fi
 
+    # Payload roots (mod-managed hosts) preserve an existing env file exactly:
+    # the incoming copy is set aside as .new here, before any Phase 4 swap or
+    # in-place merge can land it on top of the operator's file.
+    PAYLOAD_ENV_PRESERVED=0
+    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
+        preserve_payload_env "$new_install" "$INSTALL_DIR"
+    fi
+
+    # --mod-payload: replace the payload root's contents in place and stop
+    # here. Everything below (backup/swap, config restore, legacy-file prune)
+    # is the standalone-install contract; the payload root must never be mv'd
+    # aside or rm -rf'd as a whole, so none of it may run in this mode.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        [ -d "${INSTALL_DIR}" ] && ORIGINAL_INSTALL_EXISTS=true
+        if ! payload_replace_contents "$new_install" "${INSTALL_DIR}"; then
+            log_error "Payload update failed at ${INSTALL_DIR}; entries already replaced are gone."
+            cd / 2>/dev/null || true
+            rm -rf "$extract_dir"
+            exit 1
+        fi
+        cd / 2>/dev/null || true
+        rm -rf "$extract_dir"
+        log_success "Payload contents replaced in place at ${INSTALL_DIR}"
+        return 0
+    fi
+
     # Phase 4: Backup existing installation (if present)
     if [ -d "${INSTALL_DIR}" ]; then
         ORIGINAL_INSTALL_EXISTS=true
@@ -1551,6 +1706,10 @@ extract_release() {
                 # Fall through to the standard atomic swap path below
             else
                 log_info "Self-update: replacing install contents in-place (parent read-only)..."
+
+                # The loops below rm -rf every child of INSTALL_DIR — refuse
+                # before the first one touches a mod-owned payload root.
+                host_refuse_mod_owned "in-place update of" "$INSTALL_DIR"
 
                 # Remove old contents (except config/).
                 # Don't use || true — if rm fails, we must not proceed to mv
@@ -1667,6 +1826,9 @@ extract_release() {
                 log_info "Install partition tight (${install_free_mb}MB free, need ~${new_install_mb}MB); staging rollback backup off-partition at ${HELIX_OFFSITE_ROLLBACK_DIR}"
 
                 # Cross-fs move (copy to roomy + delete) frees the install fs.
+                # Same ownership rule as the same-fs swap: a mod-owned
+                # INSTALL_DIR is not ours to relocate.
+                host_refuse_mod_owned "update backup" "$INSTALL_DIR"
                 if ! $(path_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "$INSTALL_BACKUP"; then
                     log_error "Failed to relocate existing installation off-partition."
                     rm -rf "$extract_dir"
@@ -1682,19 +1844,7 @@ extract_release() {
             fi
         else
             # Roomy: keep the existing same-fs atomic swap behavior.
-            # Prefer INSTALL_DIR.old; if it exists and can't be removed (e.g. root-owned
-            # under NoNewPrivileges), fall back to a timestamped name so the swap succeeds.
-            INSTALL_BACKUP="${INSTALL_DIR}.old"
-            if [ -d "$INSTALL_BACKUP" ]; then
-                log_info "Removing stale backup from previous install..."
-                if ! rm -rf "$INSTALL_BACKUP" 2>/dev/null && ! $SUDO rm -rf "$INSTALL_BACKUP" 2>/dev/null; then
-                    INSTALL_BACKUP="${INSTALL_DIR}.old.$(date +%s)"
-                    log_warn "Could not remove stale .old dir (root-owned?); using $INSTALL_BACKUP instead"
-                fi
-            fi
-
-            # Atomic swap: move old install to backup
-            if ! $(path_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "$INSTALL_BACKUP"; then
+            if ! backup_install_dir_for_update; then
                 log_error "Failed to backup existing installation."
                 rm -rf "$extract_dir"
                 exit 1
@@ -1833,7 +1983,17 @@ extract_release() {
     # Level setting on every restart. Comment it out IFF it still matches the
     # exact old default, so users who deliberately set a different value keep
     # their customization.
-    if [ -f "$_env_dest" ] && grep -q '^HELIX_LOG_LEVEL=info[[:space:]]*$' "$_env_dest"; then
+    #
+    # A mod-managed host never runs it: the env there is the rig's own runtime
+    # configuration regardless of what this payload shipped, so the HOST
+    # CAPABILITY is the gate. Keying on PAYLOAD_ENV_PRESERVED alone left a
+    # payload whose archive shipped no env (preserve_payload_env returns
+    # before setting it) letting the migration rewrite the operator's
+    # restored env.
+    if [ "${PAYLOAD_ENV_PRESERVED:-0}" != "1" ] \
+        && [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ] \
+        && [ -f "$_env_dest" ] \
+        && grep -q '^HELIX_LOG_LEVEL=info[[:space:]]*$' "$_env_dest"; then
         $(file_sudo "$_env_dest") sed -i 's/^HELIX_LOG_LEVEL=info[[:space:]]*$/#HELIX_LOG_LEVEL=info/' "$_env_dest" 2>/dev/null && \
             log_info "Migrated helixscreen.env: commented out default HELIX_LOG_LEVEL=info (in-app Log Level setting now applies)"
     fi

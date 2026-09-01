@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if HELIX_HAS_QIDI
 
 #include "ams_backend_qidi.h"
 
@@ -1549,3 +1550,5 @@ AmsError AmsBackendQidi::stop_drying(int unit) {
     return execute_gcode("SET_HEATER_TEMPERATURE HEATER=heater_box" + std::to_string(box) +
                          " TARGET=0");
 }
+
+#endif // HELIX_HAS_QIDI

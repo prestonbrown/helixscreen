@@ -1618,7 +1618,7 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # and ContainerDeleteNet from the widget-pool fix,
   # wifi_signal_percent_from_dbm, and an AmsBackend forward declaration - each
   # beside global-scope siblings in its own file.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2325 --summary >/tmp/namespace_check.out 2>&1; then
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2326 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out

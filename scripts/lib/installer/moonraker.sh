@@ -142,14 +142,28 @@ moonraker_asset_name_support() {
 
 # Find moonraker.conf
 # Returns: path to moonraker.conf or empty string
+#
+# NEVER returns a mod-owned path (host_path_is_mod_owned): the firmware mods
+# keep their moonraker.conf git-tracked in their own repo, so a stanza written
+# there dirties their checkout and their OTA drops it again. On a mod host the
+# sanctioned include point is the mod's user.moonraker.conf (included by the
+# mod's conf), which the host profile recorded in HOST_MOONRAKER_USER_CONF.
 find_moonraker_conf() {
+    # Mod host: answer before any filesystem discovery can find the mod's own
+    # conf (or a symlink to it). The user conf may not exist yet; the stanza
+    # writer creates it there.
+    if [ -n "${HOST_MOONRAKER_USER_CONF:-}" ]; then
+        echo "$HOST_MOONRAKER_USER_CONF"
+        return 0
+    fi
+
     # Dynamic: the platform's own config dir first -- KLIPPER_CONFIG_DIR when a
     # firmware declared one (COSMOS), else <KLIPPER_HOME>/printer_data/config.
     local config_dir
     config_dir="$(klipper_config_dir)"
     if [ -n "$config_dir" ]; then
         local user_conf="${config_dir}/moonraker.conf"
-        if [ -f "$user_conf" ]; then
+        if [ -f "$user_conf" ] && ! host_path_is_mod_owned "$user_conf"; then
             echo "$user_conf"
             return 0
         fi
@@ -157,7 +171,7 @@ find_moonraker_conf() {
 
     # Static fallback
     for conf in $MOONRAKER_CONF_PATHS; do
-        if [ -f "$conf" ]; then
+        if [ -f "$conf" ] && ! host_path_is_mod_owned "$conf"; then
             echo "$conf"
             return 0
         fi
@@ -195,6 +209,16 @@ EOF
 add_update_manager_section() {
     local conf="$1"
     local fs
+
+    # The stanza's `path:` hands INSTALL_DIR to Moonraker's NetDeploy, whose
+    # update flow rmtree()s the path before extracting. Every writer funnels
+    # through here (fresh add + migrate_to_web_type), so this one guard covers
+    # every UNARMED stanza write. Armed payload runs are exempt BY DESIGN - the
+    # armed path is instead refused upstream in configure_moonraker_updates
+    # whenever INSTALL_DIR is mod-owned, so the exemption this guard grants can
+    # never put an updater against the mod's tree.
+    host_refuse_mod_owned "arming the Moonraker updater against" "$INSTALL_DIR"
+
     fs=$(file_sudo "$conf")
 
     # Create backup
@@ -592,6 +616,39 @@ configure_moonraker_updates() {
     # ZMOD chroot, which ships Mainsail/Fluidd.
     if [ "$platform" = "ad5m" ]; then
         log_info "Skipping Moonraker update_manager on AD5M (typically no web UI)"
+        return 0
+    fi
+
+    # A payload install writes NOTHING to any Moonraker conf unless the
+    # operator opted in with --auto-update. The stanza arms Moonraker's
+    # NetDeploy against `path:` (its update flow rmtree()s the path), and on a
+    # mod host the payload's lifecycle belongs to the mod's OTA, not to a
+    # second updater. With the opt-in the stanza lands in the mod's
+    # user.moonraker.conf - find_moonraker_conf's mod-host answer - never in
+    # the mod's git-tracked conf.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" != "1" ]; then
+        log_info "Payload install: skipping Moonraker update_manager"
+        log_info "(pass --auto-update to write the stanza into the mod's user.moonraker.conf)"
+        return 0
+    fi
+
+    # --auto-update is refused while the payload root sits INSIDE the mod's
+    # tree: the stanza's updater REPLACES the whole root on update, which
+    # would destroy the config/ and platform/ preservation the payload
+    # contract exists to provide. The option is refused, not the install -
+    # completing without the updater armed is the safe outcome (nothing
+    # remote-triggered can touch the root). The durable shape is a payload
+    # root outside the tree (--payload-root), which keeps the stanza.
+    if [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" = "1" ] \
+       && host_path_is_mod_owned "${INSTALL_DIR:-}" 2>/dev/null; then
+        log_error "--auto-update refused: the payload root is inside the firmware mod's tree:"
+        log_error "  ${INSTALL_DIR}"
+        log_error "Moonraker's type:web updater replaces the whole root on update, destroying"
+        log_error "the config/ and platform/ preservation the payload contract provides."
+        log_error "Re-run with --payload-root outside the mod's tree (e.g. /usr/data/helixscreen)."
+        # TODO(OD2): a persistent-files-aware stanza shape could make the
+        # mod-owned root safe for --auto-update - open decision 2 in
+        # docs/devel/plans/2026-08-31-forgex-ad5x-installer-rework.md.
         return 0
     fi
 

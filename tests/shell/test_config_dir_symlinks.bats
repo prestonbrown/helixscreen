@@ -34,9 +34,10 @@ setup() {
     _USER_INSTALL_DIR=""
     SUDO=""
 
-    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED
+    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     # common.sh defines the real log_* (stderr + ANSI). Restore the silent stubs.

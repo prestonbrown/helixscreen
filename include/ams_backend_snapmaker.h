@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+#if HELIX_HAS_SNAPMAKER
 
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
@@ -466,3 +467,5 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
 };
+
+#endif // HELIX_HAS_SNAPMAKER

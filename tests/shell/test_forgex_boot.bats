@@ -129,21 +129,42 @@ EOF
 
 # --- Patch content verification ---
 
-@test "patch_forgex_screen_drawing patches draw_splash case" {
-    grep -A30 'patch_forgex_screen_drawing' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'draw_splash'
+# The draw-command list lives in FORGEX_DRAW_COMMANDS rather than inline in the
+# patch function, because which commands exist is per-firmware: 1.4.0/1.4.1 have
+# draw_loading + draw_splash + boot_message, and 1.4.2 drops the first and third
+# and adds splash_start. Assert the declaration, not a fixed window after the
+# function - see the note above assert_consults_flag.
+forgex_draw_commands_decl() {
+    grep '^FORGEX_DRAW_COMMANDS=' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh"
 }
 
-@test "patch_forgex_screen_drawing patches draw_loading case" {
-    grep -A20 'patch_forgex_screen_drawing' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'draw_loading'
+@test "FORGEX_DRAW_COMMANDS covers the 1.4.0/1.4.1 draw commands" {
+    local decl
+    decl=$(forgex_draw_commands_decl)
+    [ -n "$decl" ] || fail "FORGEX_DRAW_COMMANDS is not declared"
+    printf '%s\n' "$decl" | grep -q 'draw_splash'  || fail "draw_splash missing"
+    printf '%s\n' "$decl" | grep -q 'draw_loading' || fail "draw_loading missing"
+    printf '%s\n' "$decl" | grep -q 'boot_message' || fail "boot_message missing"
 }
 
-@test "patch_forgex_screen_drawing patches boot_message case" {
-    grep -A20 'patch_forgex_screen_drawing' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'boot_message'
+@test "FORGEX_DRAW_COMMANDS covers the 1.4.2 splash entry point" {
+    # S00init runs `screen.sh splash_start`, which owns /dev/fb0 for the boot.
+    forgex_draw_commands_decl | grep -q 'splash_start' || fail "splash_start missing"
 }
 
-@test "patch_forgex_screen_drawing verifies output" {
-    # Must check that the patch was actually applied, not just that the file is non-empty
-    grep -A40 '^patch_forgex_screen_drawing()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q "grep.*helixscreen_active"
+@test "FORGEX_DRAW_COMMANDS does not block splash_stop" {
+    # Guarding splash_stop would strand the splash process on screen forever.
+    refute_sh "grep '^FORGEX_DRAW_COMMANDS=' '$WORKTREE_ROOT/scripts/lib/installer/forgex.sh' | grep -q splash_stop"
+}
+
+@test "patch_forgex_screen_drawing verifies every command it set out to guard" {
+    # A whole-file grep for helixscreen_active cannot do this: one successful
+    # insertion would vouch for every label that silently failed to match.
+    local body
+    body=$(awk '/^patch_forgex_screen_drawing\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    [ -n "$body" ] || fail "patch_forgex_screen_drawing() not found in forgex.sh"
+    printf '%s\n' "$body" | grep -q 'forgex_case_is_guarded' \
+        || fail "patch does not verify per-command; a partial application would report success"
 }
 
 @test "logged wrapper strips --send-to-screen when flag exists" {
@@ -163,7 +184,8 @@ EOF
 # --- Uninstall parity ---
 
 @test "uninstall_forgex calls unpatch_forgex_screen_drawing" {
-    grep -A25 'uninstall_forgex()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep -q 'unpatch_forgex_screen_drawing'
+    awk '/^uninstall_forgex\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" \
+        | grep -q 'unpatch_forgex_screen_drawing'
 }
 
 @test "unpatch_forgex_screen_drawing function exists" {
@@ -173,8 +195,8 @@ EOF
 @test "unpatch_forgex_screen_drawing matches patch comment string" {
     # The unpatch awk must match the EXACT comment string the patch inserts
     local patch_comment unpatch_comment
-    patch_comment=$(grep -A25 '^patch_forgex_screen_drawing()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
-    unpatch_comment=$(grep -A20 '^unpatch_forgex_screen_drawing()' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
+    patch_comment=$(awk '/^patch_forgex_screen_drawing\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
+    unpatch_comment=$(awk '/^unpatch_forgex_screen_drawing\(\)/,/^}/' "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" | grep '# Skip when')
     # Both must contain the same identifying string
     echo "$patch_comment" | grep -q 'Skip when HelixScreen'
     echo "$unpatch_comment" | grep -q 'Skip when HelixScreen'
@@ -187,7 +209,8 @@ EOF
 }
 
 @test "bundled install.sh uninstall_forgex calls unpatch_forgex_screen_drawing" {
-    grep -A25 'uninstall_forgex()' "$WORKTREE_ROOT/scripts/install.sh" | grep -q 'unpatch_forgex_screen_drawing'
+    awk '/^uninstall_forgex\(\)/,/^}/' "$WORKTREE_ROOT/scripts/install.sh" \
+        | grep -q 'unpatch_forgex_screen_drawing'
 }
 
 @test "bundled install.sh logged wrapper uses string accumulation for args" {
@@ -241,9 +264,22 @@ assert_consults_flag() {
 }
 
 @test "both unpatch functions still recognise the helixscreen_active marker" {
-    # An unpatch that stops matching the marker leaves the patch applied forever.
-    assert_consults_flag unpatch_forgex_screen_sh
-    assert_consults_flag unpatch_forgex_screen_drawing
+    # An unpatch that stops matching the marker leaves the patch applied
+    # forever. Recognition now lives in the shared strip helper (armed on the
+    # marker comment, confirmed by the flag's if-line) and in
+    # forgex_case_is_guarded, so each unpatch must route through the helper -
+    # a hand-rolled remover in a function body is how the cross-family
+    # corruption came back.
+    assert_consults_flag forgex_strip_guard_blocks
+    local body
+    body=$(awk '/^unpatch_forgex_screen_sh\(\)/,/^}/' \
+        "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    printf '%s\n' "$body" | grep -q 'forgex_strip_guard_blocks' \
+        || fail "unpatch_forgex_screen_sh does not route through the strip helper"
+    body=$(awk '/^unpatch_forgex_screen_drawing\(\)/,/^}/' \
+        "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    printf '%s\n' "$body" | grep -q 'forgex_strip_guard_blocks' \
+        || fail "unpatch_forgex_screen_drawing does not route through the strip helper"
 }
 
 # --- Boot splash ownership: ForgeX splash daemon vs helix-splash ---
@@ -395,11 +431,14 @@ promo_fixture() {
 @test "configure_forgex_display disables the .root/guppyscreen launcher" {
     # zdisplay.sh apply_display_off() calls .root/guppyscreen directly, so
     # disabling only S80guppyscreen leaves the collision reachable on any
-    # SET_MOD display change.
+    # SET_MOD display change. The path must derive from the probe
+    # (forgex_mod_root), never a pinned /opt/config literal - the AD5X's
+    # host-side mod tree is /usr/data/config/mod.
     body=$(sed -n '/^configure_forgex_display()/,/^}/p' \
         "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
-    echo "$body" | grep -q 'guppy_bin="/opt/config/mod/.root/guppyscreen"'
+    echo "$body" | grep -q 'guppy_bin="$(forgex_mod_root)/.root/guppyscreen"'
     echo "$body" | grep -q 'chmod a-x "\$guppy_bin"'
+    refute_sh "printf '%s\\n' \"\$body\" | grep -q '/opt/config/mod'"
 }
 
 # --- netd owns networking on ForgeX 1.4.2+ ---
@@ -479,4 +518,92 @@ wpa_fixture() {
          !in_fn && /FORGEX_NETD_BIN=/ { found = 1 }
          END { exit found ? 0 : 1 }' \
         "$WORKTREE_ROOT/assets/config/platform/hooks-ad5m-forgex.sh"
+}
+
+# --- Which hooks file a Forge-X AD5X gets ---
+#
+# A Forge-X AD5X reports BOTH platform=ad5x and flavor=forge_x, and the two
+# dispatch cases in install_platform_hooks pull opposite ways: the flavor case
+# says ad5m-forgex, the platform case overrides to ad5x (the Z-Mod hook). The
+# host profile's hook key exists precisely to break that tie: it is set only
+# when the mod's own tree layout was probed, and names the rig's actual
+# payload layout (ad5x-forgex). It must outrank both cases.
+#
+# The deployed file is compared by content, not by tracing which key string
+# won: deploy_platform_hooks copies hooks-<key>.sh onto platform/hooks.sh, so
+# the bytes at the destination are the behavior that ships.
+
+_load_install_platform_hooks() {
+    # main.sh's source-time traps (ERR/EXIT) are stripped from the copy: an
+    # ERR trap left armed inside a bats test fires on the first failing
+    # assertion into an undefined error_handler and swallows bats' result
+    # line for that test.
+    local main_patched="$BATS_TEST_TMPDIR/main.sh"
+    sed -e "/^trap /d" \
+        "$WORKTREE_ROOT/scripts/lib/installer/main.sh" > "$main_patched"
+    unset _HELIX_MAIN_SOURCED _HELIX_SERVICE_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/service.sh"
+    # shellcheck disable=SC1090
+    . "$main_patched"
+}
+
+# Stage every hooks file the dispatch could pick into a sandbox payload tree,
+# so the assertion reads the destination copy, exactly as a real install
+# would (the tarball ships assets/config/platform/ wholesale).
+stage_hook_candidates() {
+    INSTALL_DIR="$BATS_TEST_TMPDIR/payload/helixscreen"
+    mkdir -p "$INSTALL_DIR/assets/config/platform"
+    local f
+    for f in hooks-ad5x-forgex.sh hooks-ad5x.sh hooks-ad5m-forgex.sh; do
+        cp "$WORKTREE_ROOT/assets/config/platform/$f" \
+           "$INSTALL_DIR/assets/config/platform/$f"
+    done
+    platform="ad5x"
+    MOD_FLAVOR="forge_x"
+    AD5M_FIRMWARE="forge_x"
+}
+
+@test "install_platform_hooks: the probed rig key outranks the ad5x platform arm" {
+    _load_install_platform_hooks
+    stage_hook_candidates
+    HOST_PLATFORM_HOOK_KEY="ad5x-forgex"
+
+    install_platform_hooks
+
+    [ -f "$INSTALL_DIR/platform/hooks.sh" ] \
+        || fail "no hooks deployed at all"
+    cmp -s "$INSTALL_DIR/assets/config/platform/hooks-ad5x-forgex.sh" \
+           "$INSTALL_DIR/platform/hooks.sh" \
+        || fail "deployed hooks are not the forge-x rig file"
+}
+
+@test "install_platform_hooks: without the probe key ad5x keeps the Z-Mod hook" {
+    # Control: an AD5X the probe did not recognize as the Forge-X rig (e.g.
+    # Z-Mod) must keep getting the ad5x hook — flavor forge_x must not leak
+    # the AD5M's forge-x file onto a non-rig box.
+    _load_install_platform_hooks
+    stage_hook_candidates
+    HOST_PLATFORM_HOOK_KEY=""
+
+    install_platform_hooks
+
+    cmp -s "$INSTALL_DIR/assets/config/platform/hooks-ad5x.sh" \
+           "$INSTALL_DIR/platform/hooks.sh" \
+        || fail "ad5x without the probe key must deploy hooks-ad5x.sh"
+}
+
+@test "install_platform_hooks: an AD5M host still gets the ad5m-forgex hook" {
+    # Control: the flavor dispatch that every installed AD5M Forge-X box
+    # relies on is unchanged.
+    _load_install_platform_hooks
+    stage_hook_candidates
+    platform="ad5m"
+    HOST_PLATFORM_HOOK_KEY=""
+
+    install_platform_hooks
+
+    cmp -s "$INSTALL_DIR/assets/config/platform/hooks-ad5m-forgex.sh" \
+           "$INSTALL_DIR/platform/hooks.sh" \
+        || fail "ad5m + forge_x must deploy hooks-ad5m-forgex.sh"
 }

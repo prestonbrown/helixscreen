@@ -142,6 +142,24 @@ install_runtime_deps() {
     fi
 }
 
+# Real-write space probe: can <dir> take a <kb>-KB file? Leaves nothing
+# behind. Free-space numbers cannot see a read-only filesystem (df happily
+# reports room on a squashfs), so where a wrong answer costs a mid-install
+# ENOSPC the filesystem is asked directly instead. Shared by
+# check_service_dest_space and check_disk_space's no-df-target fallback so
+# both ask the same way.
+_fs_probe_write_kb() {
+    local dir="$1" kb="$2"
+    local probe="${dir%/}/.helixscreen-space-probe.$$"
+    if $SUDO dd if=/dev/zero of="$probe" bs=1024 count="$kb" \
+            >/dev/null 2>&1; then
+        $SUDO rm -f "$probe" 2>/dev/null || true
+        return 0
+    fi
+    $SUDO rm -f "$probe" 2>/dev/null || true
+    return 1
+}
+
 # Check available disk space
 # Requires at least 50MB free on the install directory's filesystem, then hands
 # off to check_service_dest_space for the filesystem that receives the service
@@ -158,24 +176,58 @@ check_disk_space() {
     while [ ! -d "$check_dir" ] && [ "$check_dir" != "/" ]; do
         check_dir=$(dirname "$check_dir")
     done
+
+    # The walk ran out at "/": no ancestor of INSTALL_DIR exists. Pointing df
+    # at "/" would measure the read-only squashfs the embedded hosts boot
+    # from -- on a stock AD5X "/" is a 12.5M squashfs with no /srv on it,
+    # while the install's bytes actually land on the writable data partition
+    # (4.7G free on the same box). Measure the first conventional data mount
+    # instead. With none present, leave check_dir at "/" and fall through to
+    # the real-write probe below, which also refuses a read-only root that df
+    # would report as roomy.
     if [ "$check_dir" = "/" ]; then
-        check_dir="/"
+        local cand data_mount=""
+        # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
+        for cand in ${HELIX_DATA_MOUNT_CANDIDATES:-/usr/data /mnt/UDISK /data}; do
+            if [ -d "$cand" ]; then
+                data_mount="$cand"
+                break
+            fi
+        done
+        [ -n "$data_mount" ] && check_dir="$data_mount"
     fi
 
-    # Get available space in MB
-    local available_mb
-    case "$platform" in
-        ad5m|ad5x|k1|k2)
-            # BusyBox df: blocks are in KB by default
-            available_mb=$(df "$check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
-            ;;
-        *)
-            # GNU df with -m flag outputs in MB
-            available_mb=$(df -m "$check_dir" 2>/dev/null | tail -1 | awk '{print $4}')
-            ;;
-    esac
+    # Get available space in MB (skipped when there is nothing trustworthy to
+    # point df at)
+    local available_mb=""
+    if [ "$check_dir" != "/" ]; then
+        case "$platform" in
+            ad5m|ad5x|k1|k2)
+                # BusyBox df: blocks are in KB by default
+                available_mb=$(df "$check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+                ;;
+            *)
+                # GNU df with -m flag outputs in MB
+                available_mb=$(df -m "$check_dir" 2>/dev/null | tail -1 | awk '{print $4}')
+                ;;
+        esac
+    fi
 
-    if [ -n "$available_mb" ] && [ "$available_mb" -lt "$required_mb" ]; then
+    if [ -z "$available_mb" ]; then
+        # df could not answer (no directory to point it at, or df itself
+        # failed). Ask the filesystem with a real write instead.
+        if _fs_probe_write_kb "$check_dir" "$SERVICE_DEST_PROBE_KB"; then
+            log_info "Disk space check: $check_dir accepts a real write"
+            # INSTALL_DIR is not the only filesystem this install writes to.
+            check_service_dest_space
+            return 0
+        fi
+        log_error "Cannot write to $check_dir -- full or read-only."
+        log_error "Install target: ${INSTALL_DIR:-/opt/helixscreen}"
+        exit 1
+    fi
+
+    if [ "$available_mb" -lt "$required_mb" ]; then
         log_error "Insufficient disk space on $check_dir"
         log_error "Required: ${required_mb}MB, Available: ${available_mb}MB"
         exit 1
@@ -257,14 +309,10 @@ check_service_dest_space() {
     done
     [ "$(_fs_id "$dest_dir")" != "$(_fs_id "$install_probe")" ] || return 0
 
-    local probe="${dest_dir}/.helixscreen-space-probe.$$"
-    if $SUDO dd if=/dev/zero of="$probe" bs=1024 count="$SERVICE_DEST_PROBE_KB" \
-            >/dev/null 2>&1; then
-        $SUDO rm -f "$probe" 2>/dev/null || true
+    if _fs_probe_write_kb "$dest_dir" "$SERVICE_DEST_PROBE_KB"; then
         log_info "Service directory check: $(_fs_free_mb "$dest_dir")MB available on $dest_dir"
         return 0
     fi
-    $SUDO rm -f "$probe" 2>/dev/null || true
 
     local upper
     upper=$(_overlay_upperdir)
@@ -400,6 +448,62 @@ Moonraker is running but not responding on http://127.0.0.1:7125."
     esac
 }
 
+# Verify a binary that was built for the mod's chroot, from outside it.
+#
+# The binary's interpreter and libraries live under the chroot rootfs, so a
+# host-side ldd resolves against the HOST's libc and reports the chroot's
+# glibc as "not found" -- false errors for a binary that runs fine where the
+# mod actually runs it (audit item 8). Ask the chroot's own ldd via chroot(1)
+# instead, trying the in-chroot spellings of the install tree the chroot can
+# expose: the same host path (the chroot may mount the data partition at the
+# same node), plus each host->chroot prefix bind (the Forge-X chroot binds
+# /usr/data at /opt). When no spelling exists there is no way to verify from
+# outside: say so and carry on. Never fails the install.
+#
+# The bind list is env-overridable so the BATS suite can point the mapping at
+# a sandbox tree (same convention as HELIX_MOD_TREE_CANDIDATES in
+# host_profile.sh). Production leaves it unset.
+_verify_binary_deps_via_chroot() {
+    local chroot_dir="$1"
+    local binary="$2"
+
+    local candidates="$binary"
+    local bind
+    # shellcheck disable=SC2086  # word splitting is the point: a bind list
+    for bind in ${HELIX_CHROOT_BINDS:-/usr/data=/opt}; do
+        candidates="$candidates ${bind#*=}${binary#"${bind%%=*}"}"
+    done
+
+    local ldd_out=""
+    local cand
+    # shellcheck disable=SC2086  # word splitting is the point: a candidate list
+    for cand in $candidates; do
+        [ -f "${chroot_dir}${cand}" ] || continue
+        ldd_out=$($SUDO chroot "$chroot_dir" ldd "$cand" 2>/dev/null || true)
+        [ -n "$ldd_out" ] && break
+    done
+
+    if [ -n "$ldd_out" ]; then
+        local missing
+        missing=$(echo "$ldd_out" | grep "not found" || true)
+        if [ -z "$missing" ]; then
+            log_success "All shared library dependencies satisfied (verified inside the mod chroot)"
+            return 0
+        fi
+        log_warn "Missing shared libraries inside the mod chroot:"
+        echo "$missing" | while IFS= read -r line; do
+            log_warn "  $line"
+        done
+        return 0
+    fi
+
+    log_warn "HelixScreen's binary is built for the firmware mod's chroot"
+    log_warn "($chroot_dir) and cannot be dependency-checked from the host rootfs."
+    log_warn "Host-side ldd would only report the chroot's libc as missing."
+    log_warn "To check it by hand, run inside the chroot:"
+    log_warn "  chroot $chroot_dir ldd <install root as seen inside the chroot>/bin/helix-screen"
+}
+
 # Verify the installed binary can find all shared libraries
 # Runs ldd on the binary and checks for "not found" entries.
 # If libssl.so.1.1 is missing (Bullseye→Bookworm upgrade), tries to install compat package.
@@ -409,14 +513,26 @@ verify_binary_deps() {
     local platform=$1
     local binary="${INSTALL_DIR}/bin/helix-screen"
 
-    # Only relevant for platforms with dynamic linking and ldd
-    if ! command -v ldd >/dev/null 2>&1; then
-        return 0
-    fi
-
     # Binary must exist
     if [ ! -f "$binary" ]; then
         log_warn "Binary not found at $binary, skipping dependency check"
+        return 0
+    fi
+
+    # Mod chroot host: the binary is linked against the chroot's libc, not
+    # the host's, so host-side ldd's answers there are false (see
+    # _verify_binary_deps_via_chroot). Verify against the chroot and only
+    # ever WARN. Inside the chroot ("/" IS the chroot root) the host-side
+    # check below is already the right environment.
+    case "${HOST_CHROOT_STATE:-}" in
+        outside:*)
+            _verify_binary_deps_via_chroot "${HOST_CHROOT_STATE#outside:}" "$binary"
+            return 0
+            ;;
+    esac
+
+    # Only relevant for platforms with dynamic linking and ldd
+    if ! command -v ldd >/dev/null 2>&1; then
         return 0
     fi
 

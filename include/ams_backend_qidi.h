@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+#if HELIX_HAS_QIDI
 
 #include "ams_subscription_backend.h"
 
@@ -316,3 +317,5 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     static int resolve_vendor_id(const std::map<int, std::string>& vendors,
                                  const std::string& brand);
 };
+
+#endif // HELIX_HAS_QIDI

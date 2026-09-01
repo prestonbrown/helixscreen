@@ -11,8 +11,9 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 setup() {
     load helpers
 
-    unset _HELIX_COMMON_SOURCED _HELIX_AUDIO_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_AUDIO_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/audio.sh"
 
     export SUDO=""

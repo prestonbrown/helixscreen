@@ -50,6 +50,10 @@ generate_bundle() {
 # Usage:
 #   ./uninstall.sh              # Interactive uninstall
 #   ./uninstall.sh --force      # Skip confirmation prompt
+#   ./uninstall.sh --mod-payload [--payload-root DIR]
+#                              # Also remove a payload-contract install (the
+#                              # firmware mod's payload tree, display takeover
+#                              # and update stanza)
 #
 # This script:
 #   1. Stops HelixScreen
@@ -73,7 +77,10 @@ HEADER
     # Include each module (only those needed for uninstall).
     # service.sh provides stop_service, called by uninstall.sh's clean_old_installation.
     # camera.sh provides uninstall_camera_k2, called by uninstall.sh (K2 ustreamer teardown).
-    for module in common.sh platform.sh permissions.sh requirements.sh forgex.sh service.sh moonraker.sh camera.sh uninstall.sh; do
+    # host_profile.sh provides the mod-ownership guard behind uninstall.sh's
+    # HELIX_INSTALL_DIRS sweeps and moonraker.sh's stanza writer; main() below
+    # probes it before set_install_paths' install-dir gate calls it.
+    for module in common.sh host_profile.sh platform.sh permissions.sh requirements.sh forgex.sh service.sh moonraker.sh camera.sh uninstall.sh; do
         module_path="$LIB_DIR/$module"
         if [ ! -f "$module_path" ]; then
             echo "ERROR: Module not found: $module_path" >&2
@@ -301,6 +308,10 @@ remove_installation() {
 
     # Remove from configured location
     if [ -d "$INSTALL_DIR" ]; then
+        # The configured install is refused wholesale when the mod owns it —
+        # that path is the mod's payload root, and the standalone uninstaller
+        # has no business deleting it (same rule as install.sh's entry gate).
+        host_refuse_mod_owned "uninstall of" "$INSTALL_DIR"
         $SUDO rm -rf "$INSTALL_DIR"
         log_success "Removed $INSTALL_DIR"
         removed_any=true
@@ -314,6 +325,12 @@ remove_installation() {
     # Also check and remove from all possible locations
     for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ] && [ "$install_dir" != "$INSTALL_DIR" ]; then
+            # Sweep entries the mod owns are skipped, not removed — same rule
+            # as uninstall.sh's own sweeps.
+            if host_mod_destruct_blocked "$install_dir"; then
+                log_warn "Skipping mod-owned $install_dir (managed by the firmware mod)"
+                continue
+            fi
             $SUDO rm -rf "$install_dir"
             log_success "Removed $install_dir"
             removed_any=true
@@ -391,6 +408,27 @@ main() {
                 force=true
                 shift
                 ;;
+            --mod-payload)
+                # Arm the payload uninstall: the only run of THIS standalone
+                # uninstaller permitted to remove the firmware mod's payload
+                # tree (the same destruct exemption install.sh's payload
+                # contract arms). install.sh --uninstall auto-arms the same
+                # exemption on a verified mod host; run bare, this script
+                # refuses instead of making removal the destructive default.
+                HELIX_MOD_PAYLOAD=1
+                shift
+                ;;
+            --payload-root)
+                # Where this run's payload uninstall points — the same flag
+                # the installer takes. Names the root ONLY: the removal itself
+                # still needs --mod-payload (an inert flag warns below).
+                if [ -z "${2:-}" ]; then
+                    log_error "--payload-root requires a path argument"
+                    exit 1
+                fi
+                MOD_PAYLOAD_ROOT="$2"
+                shift 2
+                ;;
             --help|-h)
                 echo "HelixScreen Uninstaller"
                 echo ""
@@ -398,6 +436,13 @@ main() {
                 echo ""
                 echo "Options:"
                 echo "  --force, -f   Skip confirmation prompt"
+                echo "  --mod-payload Also remove a payload-contract install (the"
+                echo "                firmware mod's payload tree, display takeover"
+                echo "                and update stanza)"
+                echo "  --payload-root DIR"
+                echo "                The payload root to remove (default: the root"
+                echo "                the install recorded, else the probed default)"
+                echo "                Requires --mod-payload to do anything"
                 echo "  --help, -h    Show this help message"
                 exit 0
                 ;;
@@ -414,14 +459,22 @@ main() {
     echo "${CYAN}========================================${NC}"
     echo ""
 
+    # Probe the host before set_install_paths' install-dir gate runs —
+    # its mod-ownership guard needs HOST_MOD_ROOT already probed.
+    host_profile_probe
+
     # Detect platform and firmware to set correct paths
     platform=$(detect_platform)
     if [ "$platform" = "ad5x" ]; then
         ad5x_check_chroot_context
     fi
-    if [ "$platform" = "ad5m" ]; then
-        AD5M_FIRMWARE=$(detect_ad5m_firmware)
-        log_info "Detected AD5M firmware: $AD5M_FIRMWARE"
+    # The FlashForge mods ship for both Adventurer platforms, so ad5x runs the
+    # same unified flavor detector ad5m always has (main.sh does the same): a
+    # Forge-X AD5X must light the forge_x branches below — the payload arm's
+    # display restore included — instead of leaving AD5M_FIRMWARE empty.
+    if [ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ]; then
+        AD5M_FIRMWARE=$(detect_mod_flavor)
+        log_info "Detected mod flavor: $AD5M_FIRMWARE"
     fi
     set_install_paths "$platform" "$AD5M_FIRMWARE"
 
@@ -443,7 +496,10 @@ main() {
         echo "  - Remove rolling config backups (/var/lib/helixscreen + .helixscreen under the service user's home)"
         echo "  - Re-enable previous screen UI (if found)"
         if [ "$AD5M_FIRMWARE" = "forge_x" ]; then
-            echo "  - Restore ForgeX display configuration (GuppyScreen)"
+            echo "  - Restore ForgeX display configuration (the mode recorded at install)"
+        fi
+        if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+            echo "  - Remove the payload install at $INSTALL_DIR (mod-owned)"
         fi
         echo ""
         printf "Are you sure you want to continue? [y/N] "
@@ -470,11 +526,24 @@ main() {
     #      systemd path-unit defense (sentinel) covers the in-process side.
     #   3. Stop, remove, sweep — sweep also clears the sentinel via
     #      clean_helix_state_dirs.
+    # A --payload-root without the arm names a root nothing will touch — say
+    # so instead of letting the operator believe it directed the removal.
+    if [ -n "${MOD_PAYLOAD_ROOT:-}" ] && [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
+        log_warn "--payload-root ignored without --mod-payload: it names where"
+        log_warn "the armed payload uninstall removes, and this run is not armed."
+    fi
+
     trap '_sweep_uninstalling_sentinel' EXIT INT TERM
     _drop_uninstalling_sentinel
     remove_update_manager_section || true
     stop_helixscreen
     remove_service
+    # The payload arm runs before the generic sweeps: it restores the mod's
+    # display mode while the payload is still in place, then removes the
+    # mod-owned payload root the sweeps below would otherwise skip (or refuse).
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        uninstall_mod_payload
+    fi
     remove_installation
     reenable_previous_ui
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+#if HELIX_HAS_ACE
 
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
@@ -409,3 +410,5 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // writer/reader).
     std::unordered_map<int, SlotStatus> prev_slot_status_;
 };
+
+#endif // HELIX_HAS_ACE

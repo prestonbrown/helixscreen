@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if HELIX_HAS_ACE
 
 /**
  * @file ams_backend_ace.cpp
@@ -1749,3 +1750,5 @@ void AmsBackendAce::clear_slot_override(int slot_index) {
 
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
 }
+
+#endif // HELIX_HAS_ACE

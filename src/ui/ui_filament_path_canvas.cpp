@@ -429,6 +429,14 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     layered_mark_dirty(obj, true, true);
 }
 
+void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead) {
+    auto* data = get_data(obj);
+    if (!data || data->hub_on_toolhead == on_toolhead)
+        return;
+    data->hub_on_toolhead = on_toolhead;
+    layered_mark_dirty(obj, true, true);
+}
+
 void ui_filament_path_canvas_set_slot_count(lv_obj_t* obj, int count) {
     auto* data = get_data(obj);
     if (!data)

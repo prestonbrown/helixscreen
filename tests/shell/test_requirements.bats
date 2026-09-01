@@ -18,8 +18,12 @@ setup() {
 
     # common.sh provides _has_python(), which check_requirements() now calls.
     # Must be sourced BEFORE requirements.sh or the call hits an undefined fn.
-    unset _HELIX_COMMON_SOURCED
+    # host_profile.sh rides along in the bundle's module order (common.sh,
+    # then host_profile.sh) and defaults the HOST_* globals the chroot-aware
+    # verify_binary_deps branch reads.
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
 
     # requirements.sh references _has_no_new_privs (defined in service.sh).
     _has_no_new_privs() { return 1; }
@@ -63,6 +67,7 @@ run_check_requirements_with_path() {
         export PATH='$restricted_path'
         unset _HELIX_COMMON_SOURCED _HELIX_REQUIREMENTS_SOURCED _PY_BIN _PY_PROBED
         . '$WORKTREE_ROOT/scripts/lib/installer/common.sh'
+        . '$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh'
         _has_no_new_privs() { return 1; }
         . '$WORKTREE_ROOT/scripts/lib/installer/requirements.sh'
         check_requirements
@@ -292,6 +297,84 @@ echo "/dev/sda1          1000   800       200  80% /"
 
     run check_disk_space "pi"
     [ "$status" -eq 0 ]
+}
+
+# --- The install path does not exist and its ancestors stop at "/" -----------
+#
+# A stock AD5X installs to /srv/helixscreen and /srv is not on the read-only
+# squashfs "/", so the dirname walk pins "/" as the df target. df "/" measures
+# that 12.5M squashfs -- effectively full -- while the bytes actually land on
+# the writable data partition (4.7G free on the same box). The check must
+# measure the data mount, never "/".
+
+@test "check_disk_space: install path under a missing top-level dir measures the data mount, not /" {
+    # No ancestor of INSTALL_DIR exists: the walk runs out at "/".
+    export INSTALL_DIR="/no-such-mount-point/helixscreen"
+    local data="$BATS_TEST_TMPDIR/usr/data"
+    mkdir -p "$data"
+    export HELIX_DATA_MOUNT_CANDIDATES="$data"
+
+    # df answers "full" for "/" and roomy for everything else: if the check
+    # df'd "/", it would refuse; measuring the data mount passes.
+    mock_command_script "df" '
+case "$*" in
+  */) echo "/dev/mmcblk0p5 12800 12800 0 100% /" ;;
+  *)  echo "/dev/mmcblk0p7 4831838 0 4831838 0% $*" ;;
+esac
+'
+
+    run check_disk_space "ad5x"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${data}"* ]]      # measured the data mount
+    [[ "$output" != *"Insufficient"* ]]
+}
+
+@test "check_disk_space: insufficient space on the data mount still refuses" {
+    export INSTALL_DIR="/no-such-mount-point/helixscreen"
+    local data="$BATS_TEST_TMPDIR/usr/data"
+    mkdir -p "$data"
+    export HELIX_DATA_MOUNT_CANDIDATES="$data"
+
+    mock_command_script "df" '
+echo "/dev/mmcblk0p7 4831838 4816000 10240 99% $2"
+'
+
+    run check_disk_space "ad5x"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Insufficient disk space"* ]]
+    [[ "$output" == *"${data}"* ]]      # names the partition that is full
+}
+
+@test "check_disk_space: with no data mount either, falls back to a real-write probe" {
+    export INSTALL_DIR="/no-such-mount-point/helixscreen"
+    export HELIX_DATA_MOUNT_CANDIDATES="/no/such/data/mount"
+
+    # Record what the probe targeted instead of writing anything.
+    dd() {
+        for arg in "$@"; do
+            case "$arg" in of=*) echo "${arg#of=}" > "$BATS_TEST_TMPDIR/probe-target" ;; esac
+        done
+        return 0
+    }
+    export -f dd
+
+    run check_disk_space "ad5x"
+    [ "$status" -eq 0 ]
+    # The deepest existing ancestor is "/" -- the probe must go there, not
+    # trust a df number for it.
+    grep -q "^/\.helixscreen-space-probe\." "$BATS_TEST_TMPDIR/probe-target" \
+        || fail "probe targeted $(cat "$BATS_TEST_TMPDIR/probe-target")"
+}
+
+@test "check_disk_space: the real-write probe refusal is fatal when / is unwritable" {
+    export INSTALL_DIR="/no-such-mount-point/helixscreen"
+    export HELIX_DATA_MOUNT_CANDIDATES="/no/such/data/mount"
+    dd() { return 1; }
+    export -f dd
+
+    run check_disk_space "ad5x"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Cannot write"* ]]
 }
 
 # ===========================================================================
@@ -534,4 +617,108 @@ echo "	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x7f1230000000)"
     [[ "$output" == *"Missing shared libraries"* ]]
     [[ "$output" == *"libssl.so.1.1"* ]]
     [[ "$output" == *"libcrypto.so.1.1"* ]]
+}
+
+# ===========================================================================
+# verify_binary_deps outside a mod chroot
+#
+# On a Forge-X AD5X the installer runs on the host rootfs while the binary is
+# built for the mod's chroot (a different Buildroot/glibc). Host-side ldd
+# resolves against the host's libc and reports the chroot's libraries as
+# "not found" -- false errors for a binary that runs fine where the mod runs
+# it. Outside such a chroot the check must verify against the chroot and only
+# ever WARN, never fail (audit item 8).
+# ===========================================================================
+
+# Sandbox a Forge-X host: chroot tree at $CHROOT, install root under a
+# usr/data-shaped sandbox path, and the host->chroot bind map pointed at the
+# sandbox (production default: /usr/data=/opt).
+setup_mod_chroot_host() {
+    SANDBOX="$BATS_TEST_TMPDIR/host"
+    CHROOT="$SANDBOX/usr/data/.mod/.forge-x"
+    INSTALL_DIR="$SANDBOX/usr/data/config/mod/.bin/helixscreen"
+    HOST_CHROOT_STATE="outside:$CHROOT"
+    export HELIX_CHROOT_BINDS="$SANDBOX/usr/data=/opt"
+    # The mod binds its data partition at /opt inside the chroot, so the
+    # host's <sandbox>/usr/data/... install root is /opt/... in there.
+    mkdir -p "$CHROOT/opt/config/mod/.bin/helixscreen/bin"
+    printf '\x7fELF-mips-fake\n' > "$CHROOT/opt/config/mod/.bin/helixscreen/bin/helix-screen"
+    setup_verify_binary
+}
+
+# chroot(1) stand-in: records the chroot dir and in-chroot path to a file
+# (its stdout is swallowed by the $(...) capture in the implementation), then
+# answers like a chroot-side ldd would. The answer rides in a global: a local
+# of this helper dies when it returns, and the mock's closure over it would
+# answer every call with an empty line.
+mock_chroot_ldd() {
+    _MOCK_CHROOT_LDD_ANSWER="$1"
+    export _MOCK_CHROOT_LDD_ANSWER
+    : > "$BATS_TEST_TMPDIR/chroot-calls"
+    chroot() {
+        echo "chroot $1 ldd $3" >> "$BATS_TEST_TMPDIR/chroot-calls"
+        printf '%s\n' "$_MOCK_CHROOT_LDD_ANSWER"
+    }
+    export -f chroot
+}
+
+@test "verify_binary_deps: outside a mod chroot, verifies inside the chroot, not host-side" {
+    setup_mod_chroot_host
+    mock_chroot_ldd '	libc.so.0 => /lib/libc.so.0 (0x40000000)'
+
+    # Host-side ldd reports the chroot's glibc as missing -- the false error
+    # this branch exists to ignore.
+    mock_command_script "ldd" '
+echo "	libc.so.0 => not found"
+'
+
+    run verify_binary_deps "ad5x"
+    [ "$status" -eq 0 ]
+    # The chroot-side ldd ran, against the chroot's /opt spelling of the
+    # host's /usr/data install root.
+    grep -q "chroot $CHROOT ldd /opt/config/mod/.bin/helixscreen/bin/helix-screen" \
+        "$BATS_TEST_TMPDIR/chroot-calls" \
+        || fail "chroot-side ldd not invoked: $(cat "$BATS_TEST_TMPDIR/chroot-calls")"
+    [[ "$output" == *"verified inside the mod chroot"* ]]
+    [[ "$output" != *"not found"* ]]
+}
+
+@test "verify_binary_deps: missing libs INSIDE the chroot warn but never fail" {
+    setup_mod_chroot_host
+    mock_chroot_ldd '	libc.so.0 => not found'
+
+    run verify_binary_deps "ad5x"
+    [ "$status" -eq 0 ]
+    grep -q "chroot $CHROOT ldd" "$BATS_TEST_TMPDIR/chroot-calls" \
+        || fail "chroot-side ldd not invoked"
+    [[ "$output" == *"libc.so.0"* ]]
+}
+
+@test "verify_binary_deps: no in-chroot spelling of the binary leaves a WARN with the hint" {
+    setup_mod_chroot_host
+    # The chroot does not expose the install tree at either spelling.
+    rm -rf "$CHROOT/opt"
+    mock_chroot_ldd 'unreachable'
+
+    # Host ldd's false "not found" must not surface; the WARN names the chroot.
+    mock_command_script "ldd" 'echo "libstdc++.so.6 => not found"'
+
+    run verify_binary_deps "ad5x"
+    [ "$status" -eq 0 ]
+    [ ! -s "$BATS_TEST_TMPDIR/chroot-calls" ]  # nothing to verify against
+    [[ "$output" != *"libstdc++.so.6"* ]]     # host-side false error suppressed
+    [[ "$output" == *"chroot"* ]]             # the hint names the chroot
+}
+
+@test "verify_binary_deps: a plain host still uses host-side ldd (control)" {
+    setup_verify_binary
+    HOST_CHROOT_STATE="none"
+    mock_command_script "ldd" '
+echo "	libdrm.so.2 => /usr/lib/aarch64-linux-gnu/libdrm.so.2 (0x7f1234000000)"
+'
+
+    run verify_binary_deps "pi"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"All shared library dependencies satisfied"* ]]
+    [[ "$output" != *"CHROOT-LDD"* ]]
 }

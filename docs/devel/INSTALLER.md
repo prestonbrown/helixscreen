@@ -8,7 +8,7 @@ Developer guide for the HelixScreen installer infrastructure: modular shell scri
 
 ## Architecture Overview
 
-The installer is a **modular POSIX shell system** with 17 library modules (in `scripts/lib/installer/`) that get bundled into monolithic scripts for end-user distribution. All shell code targets `/bin/sh` for maximum compatibility, including BusyBox on embedded platforms (AD5M, K1).
+The installer is a **modular POSIX shell system** with 18 library modules (in `scripts/lib/installer/`) that get bundled into monolithic scripts for end-user distribution. All shell code targets `/bin/sh` for maximum compatibility, including BusyBox on embedded platforms (AD5M, K1).
 
 ```
 scripts/
@@ -21,6 +21,7 @@ scripts/
   lib/installer/              # 17 modules (subset shown)
     main.sh                   # Orchestrator: arg parsing, install flow, KIAUH call
     common.sh                 # Logging, colors, error handler, process killing
+    host_profile.sh           # Mod-host probe + mod-owned path guard (see the payload-contract section)
     platform.sh               # Platform/firmware detection, install paths, tmp dir
     permissions.sh             # Root/sudo checks
     requirements.sh            # Pre-flight: commands, deps, disk space, init system
@@ -323,6 +324,96 @@ sudo rm -rf ~/helixscreen.old
 **Design principle:** Under `NoNewPrivileges`, the installer must complete the core swap (`mv old → .old`, `mv new → INSTALL_DIR`, restore config) without `sudo`. Anything that requires `sudo` must be either non-fatal or deferred to a manual step.
 
 ---
+
+## Mod-Managed Hosts: the Payload Contract (Forge-X)
+
+Some Adventurer hosts run a firmware **mod** - a git-managed tree that owns the machine's
+userland, its own service mechanism, and its own OTA. Forge-X (`DrA1ex/ff5m`) is the mod this
+contract supports, on both boards it selects between (`armv7l` AD5M, `mips` AD5X); Z-Mod hosts
+keep the standalone flow. On a mod host the roles invert: **the mod owns the UI service, the
+boot path, and the update cadence** - the installer's job is to place and refresh a payload,
+not to run a machine.
+
+### The probe and the guard
+
+`scripts/lib/installer/host_profile.sh` probes once, before any path is chosen, and answers
+capability questions (`HOST_MOD_ROOT`, `HOST_MOD_CHROOT`, `HOST_CHROOT_STATE`,
+`HOST_SERVICE_MECHANISM`, `HOST_PLATFORM_HOOK_KEY`, ...). The mod's own
+.shell/platform.sh presence is the marker - their source of truth, robust to their
+refactors - and the chroot each board carries (one derivation off its `DATA_MNT`: 
+`/usr/data/.mod/.forge-x` on AD5X, `/data/.mod/.forge-x` on AD5M) is what qualifies a host
+for the payload contract. A tree without a chroot is a half-installed mod: recognized,
+guarded, never auto-armed.
+
+No other module tests vendor markers. `host_path_is_mod_owned` recognizes the mod namespaces
+**canonically** - marker-independent - so a half-uninstalled mod is still protected, and the
+fatal guard (`host_refuse_mod_owned`) sits in front of every destructive step: update
+backups, `rm` loops, Moonraker NetDeploy arming, uninstall sweeps, scratch-dir selection.
+One exemption exists (`HELIX_MOD_PAYLOAD`, set only by the payload contract itself) and its
+blast radius is the payload root's contents - never a `mv` or wholesale `rm` of the root,
+never anything else under the mod's tree.
+
+### What a payload install is
+
+On a verified mod host a bare install is the payload contract, no flags:
+
+- Contents are replaced **in place** - the root's inode never changes; `config/` and
+  `platform/` survive every update; an existing `helixscreen.env` is preserved byte-identical
+  (the incoming one lands beside it as `.env.new`).
+- **No service is installed anywhere.** The mod's bootstrap (.shell/helixscreen.sh) starts
+  the UI; nothing on the host iterates an `/etc/init.d` we would write.
+- **Nothing is written to any mod-owned Moonraker conf.** The mod's `moonraker.conf` is
+  git-tracked - dirtying it breaks their OTA. The sanctioned include point is
+  `mod_data/user.moonraker.conf`, and even that only gains an `[update_manager helixscreen]`
+  stanza with `--auto-update` (refused while the root is mod-owned: a `type: web` updater
+  replaces the path wholesale, violating the preservation contract).
+- The binary is **linked against the mod chroot's glibc** and runs inside it; host-side
+  execution failing is the expected state, warned not errored.
+
+Flags are overrides, named for what they do: `--standalone` (self-managed install beside the
+mod, with a warning that the mod will not start it), `--payload-root PATH` (where), and
+`--auto-update` (the stanza opt-in). The uninstall direction mirrors this: `install.sh
+--uninstall` auto-arms; the standalone `uninstall.sh` run bare refuses removal and requires
+its explicit `--mod-payload` - removal must never be the destructive default of a bare
+uninstaller.
+
+Two lifecycle invariants hold across every entry point (one shared resolver,
+`flag > recorded root > probed default`, every tier passing the same
+last-component-`helixscreen` name gate that refuses `--payload-root /usr/data` outright):
+after any successful install that leaves a payload in place, the record in `mod_data` names
+that payload's root; and only terminating removals consume the record - `--clean` continues
+into a fresh install and must not orphan the record the fresh install relies on.
+
+### The scope boundary - and why it is safe everywhere else
+
+Every behavior above keys on probe answers that are only set when a mod tree or mod chroot
+exists. On any other host - Pi, CC1, Snapmaker U1, K1/K2, plain Linux - the probe answers
+"no mod": guards are inert (nothing mod-owned exists), the contract cannot arm, services and
+paths resolve exactly as before. The **architecture** layers are vendor-neutral on purpose -
+one flavor detector (`forge_x | zmod | stock`), one C++ platform predicate
+(`platform_info.h`'s `ad5x_mod_layout_present`, which also fixes Forge-X rigs'
+self-update classification), zero vendor literals in generic code - so the next mod flavor
+is one module touch, not a sweep. The **feature** activates only on the verified shape:
+both Forge-X boards today; Z-Mod and everything else keep their existing flows.
+
+### Legacy AD5M installs
+
+AD5M Forge-X hosts that installed HelixScreen before this contract run a standalone root
+(`/opt/helixscreen`) with an `S90helixscreen` service. The payload install detects that root
+and offers **adopt-or-warn**: adopting makes the legacy root the payload root (outside the
+mod's tree - also the OTA-durable answer - recorded like any payload root), and **keeps the
+S90 service, which is then the payload's only boot path** (the mod's bootstrap only starts
+its own tree; the payload contract installs no service; the S90 bakes `DAEMON_DIR` at
+install time so it boots the adopted root's refreshed `bin/`). Declining proceeds at the
+mod's default with the exact manual migration commands printed. Neither branch deletes or
+de-execs anything; the operator executes those steps.
+
+### Vendored-script edits are contained
+
+The display takeover edits the mod's screen.sh (backlight and drawing guards). Every
+rewrite is validated (`bash -n`) against a candidate before replacing the original, with
+restore-on-failure, and the uninstall restore runs exactly once per process - a consumed
+record never falls back to rewriting a display mode the rig did not have.
 
 ## Platform-Specific Installation
 

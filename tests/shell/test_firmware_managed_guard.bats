@@ -13,6 +13,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 setup() {
     unset _HELIX_MAIN_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
     export HELIX_FIRMWARE_MANAGED_MARKER="$BATS_TEST_TMPDIR/root"
     mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER"

@@ -299,7 +299,7 @@ devices without the caller branching.
 ## RenderCtx & Phase Decomposition
 
 The render pass threads a small context through every phase
-(`ui_filament_path_internal.h:391`):
+(`ui_filament_path_internal.h:395`):
 
 ```cpp
 struct RenderCtx {
@@ -421,21 +421,11 @@ void layered_mark_dirty(lv_obj_t* obj, bool static_dirty, bool overlay_dirty) {
         if (overlay_dirty) data->layers.overlay_dirty = true;
         if (overlay_dirty) data->path_cache.valid = false;  // force re-record
         if (data->layers.static_canvas)
-            data->layers.refresh_timer.schedule_once(       // one repaint per burst
-                [obj]() { layered_refresh(obj); });
+            lv_async_call(layered_refresh_async, obj);       // deduped repaint
     }
     lv_obj_invalidate(obj);  // schedule the cheap DRAW_POST pass
 }
 ```
-
-`refresh_timer` is a `helix::ui::CoalescedTimer` living in `LayerState`.
-`schedule_once()` is leading-edge: a request that arrives while a repaint is
-already pending is dropped, so the ten setters a state update pushes in one tick
-arm one timer and repaint once. `lv_async_call` cannot serve this role — it
-allocates an info struct and a one-shot timer per call and does not dedup on
-`(cb, user_data)`. Owning the timer in `LayerState` is also the lifetime
-guarantee: it dies with the widget's `FilamentPathData`, and `~CoalescedTimer`
-cancels it, so a scheduled repaint can never reach a freed widget.
 
 | Trigger | Marks dirty | Effect |
 |---------|-------------|--------|
@@ -443,7 +433,7 @@ cancels it, so a scheduled repaint can never reach a freed widget.
 | Filament color / segment / per-slot / active-slot / bypass / buffer change | overlay | Overlay canvas repaint; `path_cache` invalidated for re-record |
 | Animation tick (flow / heat / segment tip) | *(neither)* | `lv_obj_invalidate(obj)` only → DRAW_POST pass, no canvas work |
 
-`layered_refresh()` runs outside the render phase: it early-returns until
+`layered_refresh_async()` runs outside the render phase: it early-returns until
 the widget has a real size (`w>0 && h>0`), reallocates buffers on size change
 (`layered_ensure_buffers()`), repaints only the dirty layers, then clears the
 flags. A `SIZE_CHANGED` event (`layered_size_changed_cb()`) re-marks both layers

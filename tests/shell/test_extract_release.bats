@@ -10,8 +10,9 @@ setup() {
     export GITHUB_REPO="prestonbrown/helixscreen"
 
     # Source common.sh for file_sudo() which release.sh calls
-    unset _HELIX_COMMON_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     source scripts/lib/installer/common.sh
+    source scripts/lib/installer/host_profile.sh
 
     # Stub _has_no_new_privs (defined in service.sh) — tests never run under
     # systemd's NoNewPrivileges, so always return false
@@ -727,8 +728,9 @@ create_preset_tarball() {
         log_info()    { echo \"INFO: \$*\"; }
         log_success() { echo \"OK: \$*\"; }
         log_warn()    { echo \"WARN: \$*\"; }
-        unset _HELIX_COMMON_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED
+        unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
         _has_no_new_privs() { return 1; }
         source scripts/lib/installer/release.sh
         export TMP_DIR='$TMP_DIR'
@@ -740,4 +742,99 @@ create_preset_tarball() {
     [ "$status" -eq 0 ]
     [ -f "$INSTALL_DIR/bin/helix-screen" ]
     [ -x "$INSTALL_DIR/bin/helix-screen" ]
+}
+
+# --- Mod-host payload update preserves the operator's helixscreen.env ---
+#
+# On a mod-managed host the env file is the rig's own runtime configuration
+# (HELIX_CONFIG_DIR, HELIX_REMOTE_CONTROL, log routing the mod's bootstrap
+# depends on). A payload update must keep it byte-identical and land the
+# incoming archive's copy beside it as helixscreen.env.new, so new template
+# keys are visible without ever swapping the file under the running rig.
+#
+# The fixture env carries an uncommented HELIX_LOG_LEVEL=info on purpose: the
+# one-time migration in Phase 6 rewrites exactly that line, so byte-identity
+# is only provable with the migration's input present.
+
+# Tarball for an ad5x payload update: MIPS binary (ad5x validates mipsel) and
+# the archive's own config/helixscreen.env carrying the bundled default.
+create_ad5x_payload_tarball() {
+    local staging="$BATS_TEST_TMPDIR/staging"
+    rm -rf "$staging"
+    mkdir -p "$staging/helixscreen/bin" "$staging/helixscreen/config" \
+             "$staging/helixscreen/ui_xml" "$staging/helixscreen/assets"
+    create_fake_mips_elf "$staging/helixscreen/bin/helix-screen"
+    chmod +x "$staging/helixscreen/bin/helix-screen"
+    printf '# Bundled default\nHELIX_LOG_LEVEL=info\n' \
+        > "$staging/helixscreen/config/helixscreen.env"
+    tar -czf "$TMP_DIR/helixscreen.tar.gz" -C "$staging" helixscreen
+    rm -rf "$staging"
+}
+
+# Sandbox that looks like a probed Forge-X rig: mod tree with the marker, and
+# INSTALL_DIR at the mod's payload root.
+setup_mod_host() {
+    MOD_ROOT="$BATS_TEST_TMPDIR/usr/data/config/mod"
+    mkdir -p "$MOD_ROOT/.shell" "$MOD_ROOT/.bin/helixscreen/config"
+    touch "$MOD_ROOT/.shell/platform.sh"
+    HOST_MOD_ROOT="$MOD_ROOT"
+    HOST_MOD_CHROOT="$BATS_TEST_TMPDIR/usr/data/.mod/.forge-x"
+    HOST_SERVICE_MECHANISM="mod-managed"
+    INSTALL_DIR="$MOD_ROOT/.bin/helixscreen"
+    # The payload-update contract: the mod-owned guard stands down for it.
+    HELIX_MOD_PAYLOAD=1
+    printf 'HELIX_CONFIG_DIR=/opt/config/mod_data/helixscreen/config\nHELIX_LOG_LEVEL=info\n' \
+        > "$INSTALL_DIR/config/helixscreen.env"
+    cp "$INSTALL_DIR/config/helixscreen.env" "$BATS_TEST_TMPDIR/env.original"
+}
+
+@test "extract_release: mod-host payload update keeps helixscreen.env byte-identical" {
+    setup_mod_host
+    create_ad5x_payload_tarball
+
+    extract_release "ad5x"
+
+    # The operator's env survives untouched — including the LOG_LEVEL line the
+    # generic migration would rewrite.
+    cmp -s "$BATS_TEST_TMPDIR/env.original" "$INSTALL_DIR/config/helixscreen.env" \
+        || fail "helixscreen.env was modified by the payload update"
+    grep -q '^HELIX_LOG_LEVEL=info$' "$INSTALL_DIR/config/helixscreen.env" \
+        || fail "the LOG_LEVEL migration fired on a preserved payload env"
+    # The incoming copy lands beside it, so new template keys stay visible.
+    [ -f "$INSTALL_DIR/config/helixscreen.env.new" ]
+    grep -q '# Bundled default' "$INSTALL_DIR/config/helixscreen.env.new"
+}
+
+@test "extract_release: fresh mod-host payload install deploys the bundled env" {
+    # No existing payload: nothing to preserve, the archive's env deploys as
+    # the payload's own file, and no .new file appears.
+    setup_mod_host
+    rm -rf "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR"
+    create_ad5x_payload_tarball
+
+    extract_release "ad5x"
+
+    grep -q '# Bundled default' "$INSTALL_DIR/config/helixscreen.env"
+    [ ! -f "$INSTALL_DIR/config/helixscreen.env.new" ]
+}
+
+@test "extract_release: plain-host update keeps the backup/restore env flow" {
+    # Control: only mod-managed hosts get the .new contract. Everyone else
+    # keeps the long-standing behavior — the bundled default is replaced by
+    # the user's backup, then the one-time LOG_LEVEL migration applies to it.
+    # The tarball here carries a bundled env (like the payload one) so the
+    # overwrite, not an absent file, is what the assertions read.
+    HOST_SERVICE_MECHANISM="systemd"
+    mkdir -p "$INSTALL_DIR/config"
+    printf 'HELIX_CONFIG_DIR=/opt/config/mod_data/helixscreen/config\nHELIX_LOG_LEVEL=info\n' \
+        > "$INSTALL_DIR/config/helixscreen.env"
+    create_ad5x_payload_tarball
+
+    extract_release "ad5x"
+
+    [ ! -f "$INSTALL_DIR/config/helixscreen.env.new" ]
+    grep -q '^HELIX_CONFIG_DIR=/opt/config/mod_data/helixscreen/config$' \
+        "$INSTALL_DIR/config/helixscreen.env"
+    grep -q '^#HELIX_LOG_LEVEL=info' "$INSTALL_DIR/config/helixscreen.env"
 }

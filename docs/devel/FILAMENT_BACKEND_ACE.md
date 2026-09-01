@@ -76,7 +76,7 @@ component — so there is no `/server/ace/*` REST bridge on this path.
 **The detection collision — this is the part that matters to us.** A U1 running multiACE
 reports *both* marker objects, and our chain resolves them the wrong way round:
 
-1. `filament_detect` (stock U1) sets `has_snapmaker_` (`include/printer_discovery.h:422`).
+1. `filament_detect` (stock U1) sets `has_snapmaker_` (`include/printer_discovery.h:440`).
 2. `ace` (multiACE) sets `has_mmu_` + `mmu_type_ = ACE` (`include/printer_discovery.h:333`).
 3. `has_mmu_` is checked **first**, so `has_snapmaker_` never runs
    (`include/printer_discovery.h:642`) — by design, since a real aftermarket MMU should beat

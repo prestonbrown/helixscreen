@@ -88,7 +88,7 @@ itself with bounded `-j$(NPROC)` when it detects unlimited `-j`, so parallelism 
 machine. And a `build/.build-target` marker auto-cleans when the architecture changes
 ([`mk/rules.mk:49`](../../../mk/rules.mk#L49)), so you cannot mix ARM and x86 objects in the one shared native `build/` dir —
 cross builds are already isolated (`build/pi/`, `build/ad5m/`, ... via `BUILD_SUBDIR`,
-[`mk/cross.mk:704`](../../../mk/cross.mk#L704)). `make help` prints the target menu; `make help-all` adds the test, cross, and
+[`mk/cross.mk:741`](../../../mk/cross.mk#L741)). `make help` prints the target menu; `make help-all` adds the test, cross, and
 remote groups.
 
 ### The platform matrix
@@ -192,11 +192,11 @@ Read in this order; about 25 minutes total.
 3. [`mk/rules.mk:49`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
 4. [`mk/tests.mk:408`](../../../mk/tests.mk#L408) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
 5. [`mk/cross.mk:8`](../../../mk/cross.mk#L8) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
-6. [`mk/cross.mk:644`](../../../mk/cross.mk#L644) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
+6. [`mk/cross.mk:681`](../../../mk/cross.mk#L681) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
 7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:498` shows the simpler native-only shape for dev panels.
 8. [`mk/display-lib.mk:23`](../../../mk/display-lib.mk#L23) — compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
 9. [`src/api/display_backend.cpp:199`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk:194`](../../../mk/patches.mk#L194) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk:914`](../../../mk/cross.mk#L914) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
+12. [`mk/cross.mk:951`](../../../mk/cross.mk#L951) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
 13. [`scripts/setup-worktree.sh:1`](../../../scripts/setup-worktree.sh#L1) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.

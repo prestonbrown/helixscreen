@@ -40,6 +40,7 @@ if [ -z "${_HELIX_BUNDLED_INSTALLER:-}" ]; then
     LIB_DIR="$SCRIPT_DIR/lib/installer"
 
     . "$LIB_DIR/common.sh"
+    . "$LIB_DIR/host_profile.sh"
     . "$LIB_DIR/platform.sh"
     . "$LIB_DIR/permissions.sh"
     . "$LIB_DIR/requirements.sh"

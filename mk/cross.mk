@@ -245,6 +245,9 @@ else ifeq ($(PLATFORM_TARGET),ad5m)
     HELIX_HAS_LABEL_PRINTER := 0
     HELIX_HAS_CFS := 0
     HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     # -Wl,--gc-sections: Remove unused sections during linking (works with -ffunction-sections)
     # -flto: Must match compiler flag for LTO to work
     # -static: Fully static binary - no runtime dependencies on system libs
@@ -282,6 +285,9 @@ else ifeq ($(PLATFORM_TARGET),ad5m-br)
     HELIX_HAS_LABEL_PRINTER := 0
     HELIX_HAS_CFS := 0
     HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     # No -static — buildroot wants dynamic linking against its sysroot
     TARGET_LDFLAGS := -Wl,--gc-sections -flto -lstdc++fs
     ENABLE_SSL := yes
@@ -315,6 +321,11 @@ else ifeq ($(PLATFORM_TARGET),ad5x)
     TARGET_CFLAGS := -march=mips32r5 -mtune=mips32r5 -mabi=32 -mnan=2008 -mfp64 \
         -Os -flto -ffunction-sections -fdata-sections -fno-omit-frame-pointer -funwind-tables \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_AD5X
+    # AMS: IFS stays ON - the AD5X's own filament system. Do NOT copy ad5m's IFS=0 here.
+    HELIX_HAS_CFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     # -Wl,--gc-sections: Remove unused sections during linking (works with -ffunction-sections)
     # -flto: Must match compiler flag for LTO to work
     TARGET_LDFLAGS := -Wl,--gc-sections -flto
@@ -357,6 +368,12 @@ else ifeq ($(PLATFORM_TARGET),cc1)
     TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7 \
         -Os -flto -ffunction-sections -fdata-sections -funwind-tables \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_CC1
+    # AMS: Centauri Carbon has no vendor AMS. AFC/Happy Hare stay ON (user-installable).
+    HELIX_HAS_CFS := 0
+    HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     # -Wl,--gc-sections: Remove unused sections during linking (works with -ffunction-sections)
     # -flto: Must match compiler flag for LTO to work
     # -static: Fully static binary - no runtime dependencies on system libs
@@ -423,6 +440,11 @@ else ifneq ($(filter mips k1,$(PLATFORM_TARGET)),)
         -fno-omit-frame-pointer -funwind-tables \
         -fmerge-all-constants -fno-ident \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_MIPS
+    # AMS: CFS stays ON - K1/K1C/K1 Max all ship a 'with CFS' variant in the printer DB.
+    HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     # Linker flags:
     # -Wl,--gc-sections: Remove unused sections (works with -ffunction-sections)
     # -flto=auto: Match compiler LTO flag, uses all CPUs
@@ -465,6 +487,11 @@ else ifeq ($(PLATFORM_TARGET),k1-dynamic)
         -isystem include/compat \
         -Wno-error=conversion -Wno-error=sign-conversion \
         -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_K1
+    # AMS: CFS stays ON - see the mips block.
+    HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     # Dynamic linking with NaN2008 dynamic linker
     # NO -static flag! System libs resolved at runtime on the K1.
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed \
@@ -501,6 +528,11 @@ else ifeq ($(PLATFORM_TARGET),k2)
         -fno-omit-frame-pointer -funwind-tables \
         -fmerge-all-constants -fno-ident \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_K2
+    # AMS: CFS stays ON - the K2 series is the flagship CFS printer.
+    HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
+    HELIX_HAS_SNAPMAKER := 0
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed -flto=auto -static
     # HTTPS is required for the update check, R2 self-update download, telemetry,
     # and crash/debug-bundle upload. (Local Moonraker is plain HTTP and works
@@ -532,6 +564,11 @@ else ifeq ($(PLATFORM_TARGET),snapmaker-u1)
     TARGET_CFLAGS := -march=armv8-a -fno-omit-frame-pointer -funwind-tables -Os -flto -ffunction-sections -fdata-sections \
         -I/usr/include/libdrm \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_SNAPMAKER_U1
+    # AMS: SNAPMAKER stays ON - this build IS the U1 with SnapSwap.
+    HELIX_HAS_CFS := 0
+    HELIX_HAS_IFS := 0
+    HELIX_HAS_ACE := 0
+    HELIX_HAS_QIDI := 0
     TARGET_LDFLAGS := -Wl,--gc-sections -flto -static-libstdc++ -static-libgcc
     SNAPMAKER_SKIP_LIBINPUT := yes
     ENABLE_SSL := yes

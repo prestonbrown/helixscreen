@@ -16,10 +16,13 @@ setup() {
     SUDO=""
 
     # common.sh supplies klipper_config_dir() and file_sudo(), which
-    # find_moonraker_conf() and ensure_moonraker_asvc() call. The bundled
-    # installer always carries common.sh ahead of moonraker.sh.
-    unset _HELIX_MOONRAKER_SOURCED _HELIX_COMMON_SOURCED
+    # find_moonraker_conf() and ensure_moonraker_asvc() call. host_profile.sh
+    # rides along in the bundle's module order and carries the mod-ownership
+    # guard find_moonraker_conf() consults. The bundled installer always
+    # sources all three ahead of moonraker.sh.
+    unset _HELIX_MOONRAKER_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/moonraker.sh"
     # common.sh defines the real log_* (stderr); restore helpers.bash's stubs.
     load helpers
@@ -235,6 +238,83 @@ setup() {
 
     result=$(find_moonraker_conf)
     [ -z "$result" ]
+}
+
+# --- Mod hosts: the mod's own moonraker.conf is never ours to edit ----------
+#
+# On a Forge-X/Z-Mod host the mod's moonraker.conf is a git-tracked file in
+# the mod's repo: writing our stanza there dirties their checkout and their
+# OTA (git clean in Moonraker's git_repo flow) drops it again. The sanctioned
+# include point is user.moonraker.conf in the mod_data sibling, which the
+# mod's conf already includes. find_moonraker_conf must return that, and must
+# never return any path host_path_is_mod_owned accepts -- including a conf at
+# a plain location symlinked INTO the mod tree.
+
+@test "mod host: returns the mod's user conf even when the mod's own conf is discoverable" {
+    SANDBOX="$BATS_TEST_TMPDIR/modhost"
+    mkdir -p "$SANDBOX/config/mod" "$SANDBOX/config/mod_data"
+    touch "$SANDBOX/config/mod/moonraker.conf"
+
+    HOST_MOD_ROOT="$SANDBOX/config/mod"
+    HOST_MOONRAKER_USER_CONF="$SANDBOX/config/mod_data/user.moonraker.conf"
+    KLIPPER_HOME=""
+    # The mod's own conf is the one static discovery would find first.
+    MOONRAKER_CONF_PATHS="$SANDBOX/config/mod/moonraker.conf"
+
+    result=$(find_moonraker_conf)
+    [ "$result" = "$HOST_MOONRAKER_USER_CONF" ] || fail "returned '$result'"
+}
+
+@test "mod host: a moonraker.conf symlinked into the mod tree is never returned" {
+    # Probe found no tree (no marker), but the tree still counts as mod-owned
+    # and host_path_is_mod_owned resolves symlinks: a conf at a plain location
+    # pointing into the mod tree must be skipped, not handed to the stanza
+    # writer. With no user conf known either, the honest answer is empty.
+    SANDBOX="$BATS_TEST_TMPDIR/symlinkhost"
+    mkdir -p "$SANDBOX/config/mod" "$SANDBOX/plain/config"
+    touch "$SANDBOX/config/mod/moonraker.conf"
+    ln -s "$SANDBOX/config/mod/moonraker.conf" "$SANDBOX/plain/config/moonraker.conf"
+
+    HOST_MOD_ROOT="$SANDBOX/config/mod"
+    HOST_MOONRAKER_USER_CONF=""
+    KLIPPER_HOME=""
+    MOONRAKER_CONF_PATHS="$SANDBOX/plain/config/moonraker.conf"
+
+    result=$(find_moonraker_conf)
+    [ -z "$result" ] || fail "returned the symlinked mod-owned conf: '$result'"
+}
+
+@test "mod host: discovery falls past a mod-owned conf to a plain one" {
+    # Same shape as above, but a legitimate conf also exists: skipping the
+    # mod-owned candidate must not lose the real one.
+    SANDBOX="$BATS_TEST_TMPDIR/mixedhost"
+    mkdir -p "$SANDBOX/config/mod" "$SANDBOX/plain/config" "$SANDBOX/real/config"
+    touch "$SANDBOX/config/mod/moonraker.conf" "$SANDBOX/real/config/moonraker.conf"
+    ln -s "$SANDBOX/config/mod/moonraker.conf" "$SANDBOX/plain/config/moonraker.conf"
+
+    HOST_MOD_ROOT="$SANDBOX/config/mod"
+    HOST_MOONRAKER_USER_CONF=""
+    KLIPPER_HOME=""
+    MOONRAKER_CONF_PATHS="$SANDBOX/plain/config/moonraker.conf $SANDBOX/real/config/moonraker.conf"
+
+    result=$(find_moonraker_conf)
+    [ "$result" = "$SANDBOX/real/config/moonraker.conf" ] || fail "returned '$result'"
+}
+
+@test "mod host: the user conf wins over a KLIPPER_HOME-derived conf" {
+    # The dynamic probe runs before the static list; on a mod host even that
+    # must not beat the user conf.
+    SANDBOX="$BATS_TEST_TMPDIR/dynamichost"
+    mkdir -p "$SANDBOX/config/mod" "$SANDBOX/config/mod_data" "$SANDBOX/home/root/printer_data/config"
+    touch "$SANDBOX/config/mod/moonraker.conf" "$SANDBOX/home/root/printer_data/config/moonraker.conf"
+
+    HOST_MOD_ROOT="$SANDBOX/config/mod"
+    HOST_MOONRAKER_USER_CONF="$SANDBOX/config/mod_data/user.moonraker.conf"
+    KLIPPER_HOME="$SANDBOX/home/root"
+    MOONRAKER_CONF_PATHS="$SANDBOX/config/mod/moonraker.conf"
+
+    result=$(find_moonraker_conf)
+    [ "$result" = "$HOST_MOONRAKER_USER_CONF" ] || fail "returned '$result'"
 }
 
 # --- generate_update_manager_config (type: web) ---

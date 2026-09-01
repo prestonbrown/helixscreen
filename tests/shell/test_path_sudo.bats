@@ -22,8 +22,9 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 setup() {
     load helpers
 
-    unset _HELIX_COMMON_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     load helpers
     # AFTER the last `load helpers` — helpers.bash exports SUDO="" as a no-op
     # stub, so setting it any earlier is silently undone and every case below

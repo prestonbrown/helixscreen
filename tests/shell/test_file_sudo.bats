@@ -10,8 +10,10 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 setup() {
     load helpers
 
-    unset _HELIX_COMMON_SOURCED _HELIX_MOONRAKER_SOURCED _HELIX_PLATFORM_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_MOONRAKER_SOURCED _HELIX_PLATFORM_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    # host_profile.sh: the mod-ownership guard the moonraker.sh writers below call
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
 
     export SUDO="sudo"
     export INSTALL_DIR="$BATS_TEST_TMPDIR/opt/helixscreen"

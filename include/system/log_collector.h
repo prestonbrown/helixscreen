@@ -9,8 +9,9 @@
 /// Unified log-tail collection for crash reporter and debug bundle.
 ///
 /// Three sources, tried in order:
-///   1. File-based logs at /var/log, XDG, /opt/config/mod_data (ZMOD AD5X), /tmp
-///      (desktop + systems with file sink, plus stdout-redirected init scripts)
+///   1. File-based logs at /var/log, XDG, /opt/config/mod_data (AD5X mod tree),
+///      /tmp (desktop + systems with file sink, plus stdout-redirected init
+///      scripts)
 ///   2. Syslog at /var/log/messages or /var/log/syslog (embedded: AD5M, AD5X, K1)
 ///   3. systemd journal via `journalctl SYSLOG_IDENTIFIER=helix-screen` (pi, pi32)
 ///
@@ -21,8 +22,11 @@ namespace helix::logs {
 
 /// Default file-log search paths in resolution order, matching
 /// logging_init.cpp's `resolve_log_file_path()`. Includes env-dependent entries
-/// (XDG_DATA_HOME, HOME) resolved at call time.
-std::vector<std::string> default_file_paths();
+/// (XDG_DATA_HOME, HOME) resolved at call time. The AD5X mod_data entries are
+/// included only when helix::ad5x_mod_layout_present(probe_root)
+/// detects the mod tree; `probe_root` (default "/") is a test seam for feeding
+/// a fake layout.
+std::vector<std::string> default_file_paths(const std::string& probe_root = "/");
 
 /// Read the last `num_lines` lines from the most-recently-modified readable,
 /// non-empty path in `paths` (NOT first-in-list). The list is priority-ordered,

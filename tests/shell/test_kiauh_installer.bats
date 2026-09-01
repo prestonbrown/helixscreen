@@ -9,8 +9,9 @@ setup() {
     load helpers
 
     # Source modules (reset source guards so each test gets a fresh load)
-    unset _HELIX_COMMON_SOURCED _HELIX_KIAUH_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_KIAUH_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/kiauh.sh"
 
     # Stage KIAUH extension source files in a mock INSTALL_DIR

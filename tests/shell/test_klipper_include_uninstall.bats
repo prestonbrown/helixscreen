@@ -32,6 +32,7 @@ setup() {
 
     unset _HELIX_KLIPPER_INCLUDE_SOURCED _HELIX_UNINSTALL_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/klipper_include.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/uninstall.sh"
 }

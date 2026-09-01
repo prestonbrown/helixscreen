@@ -12,9 +12,13 @@ setup() {
     source tests/shell/helpers.bash
     export GITHUB_REPO="prestonbrown/helixscreen"
 
-    # Source common.sh for file_sudo() which release.sh calls
-    unset _HELIX_COMMON_SOURCED
+    # Source common.sh for file_sudo() which release.sh calls, and
+    # host_profile.sh for the mod-ownership guard its update paths call
+    # (production always ships both — bundle-installer.sh emits them in that
+    # order).
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     source scripts/lib/installer/common.sh
+    source scripts/lib/installer/host_profile.sh
 
     # Stub _has_no_new_privs (defined in service.sh) — tests never run under
     # systemd's NoNewPrivileges, so always return false
@@ -260,6 +264,7 @@ mock_has_privs() {
     unset _HELIX_COMMON_SOURCED _HELIX_SERVICE_SOURCED
     WORKTREE_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")/.." && pwd)"
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/service.sh"
 
     export INIT_SYSTEM="systemd"

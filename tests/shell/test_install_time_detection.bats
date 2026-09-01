@@ -13,6 +13,7 @@ setup() {
     export HELIX_PRESET_DIR="$WORKTREE_ROOT/assets/config/presets"
     unset _HELIX_PRINTER_SEED_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/printer_seed.sh"
     # Stub binary: echoes $FAKE_VERDICT, or exits non-zero if FAKE_UNREACHABLE=1.
     export FAKEBIN="$BATS_TEST_TMPDIR/helix-screen"

@@ -3,7 +3,7 @@
 # Module: competing_uis
 # Stop competing screen UIs (GuppyScreen, KlipperScreen, Xorg, stock Creality/FlashForge/Sovol UI)
 #
-# Reads: AD5M_FIRMWARE, K1_FIRMWARE, INIT_SYSTEM, PREVIOUS_UI_SCRIPT, SUDO, INSTALL_DIR
+# Reads: AD5M_FIRMWARE, K1_FIRMWARE, INIT_SYSTEM, PREVIOUS_UI_SCRIPT, SUDO, INSTALL_DIR, HOST_OWNS_COMPETING_UIS
 
 # Source guard
 [ -n "${_HELIX_COMPETING_UIS_SOURCED:-}" ] && return 0
@@ -364,6 +364,9 @@ stop_cc1_competing_uis() {
 
 # Stop competing screen UIs (GuppyScreen, KlipperScreen, Xorg, etc.)
 # Dispatches platform-specific logic, then runs generic UI stopping
+#
+# Reads: AD5M_FIRMWARE/MOD_FLAVOR, K1_FIRMWARE, HOST_OWNS_COMPETING_UIS,
+#        INIT_SYSTEM, PREVIOUS_UI_SCRIPT, SUDO, INSTALL_DIR
 stop_competing_uis() {
     # During self-update, competing UIs were already disabled during initial install.
     # Re-running this would chmod -x init scripts that may have been restored or
@@ -375,11 +378,17 @@ stop_competing_uis() {
 
     log_info "Checking for competing screen UIs..."
 
+    # Mod hosts the probe recognized: the mod owns its UI lifecycle. Stopping,
+    # killing, and de-execing its init scripts is its business, not the
+    # standalone installer's — the generic loop's chmod a-x on the mod's .root
+    # scripts is a footprint on firmware we do not manage. Our display
+    # takeover lives in configure_forgex_display instead.
+    [ "$HOST_OWNS_COMPETING_UIS" = "1" ] && return 0
+
     found_any=false
 
     # Platform-specific competing UI handling
     case "${AD5M_FIRMWARE:-}" in
-        forge_x)    stop_forgex_competing_uis ;;
         klipper_mod) stop_kmod_competing_uis ;;
         zmod)
             # ZMOD manages its own init scripts (S80guppyscreen etc.)
@@ -388,6 +397,12 @@ stop_competing_uis() {
             return 0
             ;;
     esac
+
+    # Stock FlashForge UI kill — keyed on the stock UI's own startup manager
+    # (/opt/PROGRAM/ffstartup-arm), not the mod flavor: a mod-less AD5M
+    # (flavor stock) ships it too, and the file guard makes every other host
+    # a no-op. Unprobed ZMOD hosts still return at the arm above.
+    stop_forgex_competing_uis
 
     # K1 platform: stop stock Creality UI
     case "${K1_FIRMWARE:-}" in

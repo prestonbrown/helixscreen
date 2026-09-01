@@ -77,6 +77,12 @@ APP_DEFINES = [
     "-DHELIX_HAS_LABEL_PRINTER=1",
     "-DHELIX_HAS_CFS=1",
     "-DHELIX_HAS_IFS=1",
+    # Vendor AMS gates: set explicitly to 1, never left undefined — an
+    # undefined macro makes `#if HELIX_HAS_X` evaluate to 0 and the gated
+    # backend compiles to an empty TU that silently vanishes from the audit.
+    "-DHELIX_HAS_ACE=1",
+    "-DHELIX_HAS_QIDI=1",
+    "-DHELIX_HAS_SNAPMAKER=1",
 ]
 
 APP_INCLUDES = [

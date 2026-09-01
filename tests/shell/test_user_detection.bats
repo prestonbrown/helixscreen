@@ -22,8 +22,9 @@ setup() {
     # Source common.sh + platform.sh (skip source guards by unsetting them).
     # platform.sh calls common.sh's validate_install_dir/validate_tmp_dir; the
     # bundled installer always carries both.
-    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED
+    unset _HELIX_PLATFORM_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     # common.sh defines the real log_* (they print to stderr, which bats folds
     # into $output). Restore helpers.bash's silent stubs.

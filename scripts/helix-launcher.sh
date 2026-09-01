@@ -321,10 +321,26 @@ if [ "$_arch" = "armv7l" ] && echo "$_kernel" | grep -q "ad5m\|5.4.61"; then
     fi
 fi
 
-# AD5X (MIPS, ZMOD on Flashforge AD5X — Ingenic X2600).
-if [ "$_arch" = "mips" ] && [ -d /usr/data ] && { [ -d /usr/prog ] || [ -f /ZMOD ]; }; then
+# AD5X (MIPS — ZMOD or Forge-X mod tree on FlashForge AD5X, Ingenic X2600).
+# ZMOD hosts carry the /ZMOD marker or FlashForge's own /usr/prog dir; a
+# Forge-X chroot has neither — and no /usr/data either, since the chroot binds
+# /usr/data at /opt — but the mod's git tree stays reachable and
+# .shell/platform.sh in it is the evidence. K1 shares mips and carries none of
+# the four markers, so the arch alone never arms this. Same rule as
+# helix::ad5x_mod_layout_present(). Probes resolve under
+# HELIX_AD5X_PROBE_ROOT (default /) so the bats suite can point the predicate
+# at a sandbox root instead of touching the real filesystem.
+_ad5x_root="${HELIX_AD5X_PROBE_ROOT:-/}"
+_ad5x_root="${_ad5x_root%/}"
+if [ "$_arch" = "mips" ] && {
+     [ -f "${_ad5x_root}/ZMOD" ] ||
+     [ -d "${_ad5x_root}/usr/prog" ] ||
+     [ -f "${_ad5x_root}/opt/config/mod/.shell/platform.sh" ] ||
+     [ -f "${_ad5x_root}/usr/data/config/mod/.shell/platform.sh" ]
+   }; then
     _enable_heap_diag=1
 fi
+unset _ad5x_root
 
 if [ "$_enable_heap_diag" = "1" ]; then
     [ -z "${MALLOC_CHECK_:-}" ] && export MALLOC_CHECK_=3

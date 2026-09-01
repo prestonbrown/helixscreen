@@ -4,6 +4,7 @@
 #include "system/log_collector.h"
 
 #include "logging_init.h"
+#include "platform_info.h"
 
 #include <spdlog/spdlog.h>
 
@@ -109,7 +110,7 @@ std::string run_capture_tail(const std::string& cmd, int max_lines, std::string_
 
 } // namespace
 
-std::vector<std::string> default_file_paths() {
+std::vector<std::string> default_file_paths(const std::string& probe_root) {
     // Every place an app log has ever been found, for the case where the live
     // process cannot tell us (crash-reporter-on-next-boot). NOT a resolution
     // order: tail_file() picks the most-recently-MODIFIED readable candidate,
@@ -131,9 +132,10 @@ std::vector<std::string> default_file_paths() {
     if (const char* home = std::getenv("HOME"); home && home[0] != '\0') {
         paths.push_back(std::string(home) + "/.local/share/helix-screen/helix.log");
     }
-    // ZMOD AD5X / AD5M. /opt/config is a bind-mount of the durable mod config
-    // dir, visible at /usr/data/config too, so each file has two path spellings.
-    // Two DIFFERENT streams live under mod_data/log:
+    // AD5X mod tree (ZMOD or Forge-X — see ad5x_mod_layout_present()). /opt/config
+    // is a bind-mount of the durable mod config dir, visible at /usr/data/config
+    // too, so each file has two path spellings. Two DIFFERENT streams live under
+    // mod_data/log:
     //
     //   helixscreen.log — ghzserg's S80helixscreen (their fork of our init
     //     script) hardcodes LOGFILE to it and redirects the launcher subshell
@@ -143,15 +145,21 @@ std::vector<std::string> default_file_paths() {
     //     file, should_add_console() deliberately skips the console sink
     //     (logging_init.h — a console sink there would double-log every line).
     //   helix.log — the app's own rotating file sink, pointed here by
-    //     hooks-ad5m-zmod.sh. This is the structured helix-screen log. It lives
-    //     under /opt/config precisely so ZMOD's TAR_CONFIG archiver captures it
-    //     (it collects /opt/config/, never /data/) — see issue #1249.
+    //     hooks-ad5m-zmod.sh / hooks-ad5x-forgex.sh. This is the structured
+    //     helix-screen log. It lives under /opt/config precisely so the mod's
+    //     config archiver captures it (ZMOD's TAR_CONFIG collects /opt/config/,
+    //     never /data/ — see issue #1249).
     //
-    // Both are worth collecting; tail_file() picks whichever is freshest.
-    paths.emplace_back("/opt/config/mod_data/log/helix.log");
-    paths.emplace_back("/usr/data/config/mod_data/log/helix.log");
-    paths.emplace_back("/opt/config/mod_data/log/helixscreen.log");
-    paths.emplace_back("/usr/data/config/mod_data/log/helixscreen.log");
+    // Both are worth collecting; tail_file() picks whichever is freshest. Gated
+    // on the layout so a plain host's cascade carries only paths a helix
+    // install could ever have written — on hosts without the mod tree these
+    // were dead stat probes.
+    if (helix::ad5x_mod_layout_present(probe_root)) {
+        paths.emplace_back("/opt/config/mod_data/log/helix.log");
+        paths.emplace_back("/usr/data/config/mod_data/log/helix.log");
+        paths.emplace_back("/opt/config/mod_data/log/helixscreen.log");
+        paths.emplace_back("/usr/data/config/mod_data/log/helixscreen.log");
+    }
 
     // helixscreen.init's launcher-subshell shell-stdout-redirect file.
     // Preferred FHS path (used when /var/log is persistent).

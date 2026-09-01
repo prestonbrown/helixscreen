@@ -426,7 +426,9 @@ TEST_CASE("AD5X IFS get_system_info", "[ams][ad5x_ifs]") {
     REQUIRE(sys.total_slots == 4);
     REQUIRE(sys.units.size() == 1);
     REQUIRE(sys.units[0].slots.size() == 4);
-    REQUIRE(sys.supports_bypass);
+    // No bypass on this machine: every path into the hub runs through an
+    // IFS lane; there is no external direct-feed spool entry.
+    REQUIRE_FALSE(sys.supports_bypass);
     // The ENABLE bit; AVAILABILITY lives in get_endless_spool_capabilities().
     REQUIRE_FALSE(sys.endless_spool_enabled);
     REQUIRE_FALSE(sys.supports_purge);

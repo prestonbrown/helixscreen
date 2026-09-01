@@ -396,6 +396,13 @@ class PrinterDiscovery {
             //   1. lessWaste plugin:  "filament_switch_sensor _ifs_port_sensor_N"
             //   2. Native ZMOD (old): "filament_motion_sensor _ifs_motion_sensor_N"
             //   3. Native ZMOD:       "filament_motion_sensor ifs_motion_sensor"
+            //   4. Standalone IFS module (the Forge-X drop-in): the `ifs` /
+            //      `ifs_materials` get_status objects themselves. Its sensors
+            //      register under stock filament_switch_sensor names the
+            //      client-side bucketing already subscribes ("lane1".."lane4",
+            //      "toolhead"), so no sensor pattern is needed for it - and
+            //      these two names must NOT go into filament_sensor_names_,
+            //      which FilamentSensorManager reads as sensors.
             else if (!has_mmu_ &&
                      (name.rfind("filament_switch_sensor _ifs_port_sensor_", 0) == 0 ||
                       name.rfind("filament_motion_sensor _ifs_motion_sensor_", 0) == 0 ||
@@ -403,6 +410,16 @@ class PrinterDiscovery {
                 has_mmu_ = true;
                 mmu_type_ = AmsType::AD5X_IFS;
                 filament_sensor_names_.push_back(name);
+            }
+            // The standalone module's objects, on their own: an [ifs] section
+            // with no sensors configured, or [ifs_materials] on a machine whose
+            // IFS board is unplugged (deliberately readable without the board -
+            // the UI should still show the slot registry and report
+            // not-connected). Either name alone is unambiguous: neither is a
+            // stock Klipper object and no other known firmware defines them.
+            else if (!has_mmu_ && (name == "ifs" || name == "ifs_materials")) {
+                has_mmu_ = true;
+                mmu_type_ = AmsType::AD5X_IFS;
             }
             // QIDI Box detection — custom Klipper extension on Plus 4 / Q2 / Max 4
             // registers `box_stepper slot<N>` per physical slot (4 per box,

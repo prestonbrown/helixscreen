@@ -550,7 +550,13 @@ CONF
 }
 
 @test "regression: uninstall.sh handles STOCK display mode" {
-    grep -q "'STOCK'" "$WORKTREE_ROOT/scripts/uninstall.sh"
+    # Uninstall no longer converts a STOCK printer to GUPPY. It restores the
+    # mode install recorded, so STOCK now appears as a mode we take over from
+    # and as a value the restore accepts, rather than as a quoted sed target.
+    grep -q 'FORGEX_DISPLAY_MODES=.*STOCK' "$WORKTREE_ROOT/scripts/uninstall.sh" \
+        || fail "STOCK is not among the modes install takes over from"
+    grep -qE '^\s*STOCK\|FEATHER\|GUPPY\|HEADLESS\)' "$WORKTREE_ROOT/scripts/uninstall.sh" \
+        || fail "STOCK is not an accepted restore target"
 }
 
 @test "regression: uninstall.sh cleans macOS resource forks" {

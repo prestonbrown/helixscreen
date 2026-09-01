@@ -1823,7 +1823,7 @@ target in `mk/cross.mk`:
 | `snapmaker-u1` | `tiny small` |
 | `cc1`, `yocto` | `micro tiny` |
 
-`HELIX_MAX_FONT_TIER` is derived from this (`mk/cross.mk:728-750`; `micro=0` …
+`HELIX_MAX_FONT_TIER` is derived from this (`mk/cross.mk:765-787`; `micro=0` …
 `xxlarge=6`). Two consumers read it: `theme_manager` uses it to distinguish an
 expected-missing font (pruned by tier) from an unexpected-missing one (a build bug),
 and `cjk_font_manager` uses it to pick its CJK face.
@@ -1853,6 +1853,9 @@ does not build through this Makefile at all: `android/app/jni/CMakeLists.txt` gl
 | `HELIX_HAS_LABEL_PRINTER` | 1 | Label printer feature |
 | `HELIX_HAS_CFS` | 1 | CFS feature |
 | `HELIX_HAS_IFS` | 1 | IFS feature |
+| `HELIX_HAS_ACE` | 1 | ACE vendor backend (0 on non-Anker cross targets) |
+| `HELIX_HAS_QIDI` | 1 | QIDI Box vendor backend (0 on non-QIDI cross targets) |
+| `HELIX_HAS_SNAPMAKER` | 1 | SnapSwap vendor backend (0 except `snapmaker-u1`) |
 
 ### Linker flags by platform
 
