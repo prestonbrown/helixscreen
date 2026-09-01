@@ -213,6 +213,27 @@ TEST_CASE("classify_file_colors - full-file answer", "[gcode][color_metadata]") 
     }
 }
 
+TEST_CASE("clean_color_hex - standalone value validation", "[gcode][color_metadata]") {
+    using helix::gcode::clean_color_hex;
+
+    SECTION("Valid tokens pass through cleaned") {
+        CHECK(clean_color_hex("#FF0000") == "#FF0000");
+        CHECK(clean_color_hex("  #00FF00  ") == "#00FF00");
+        CHECK(clean_color_hex("\"#0000FF\"") == "#0000FF");
+        CHECK(clean_color_hex("#11223344") == "#11223344");
+    }
+
+    SECTION("Everything else is rejected as empty") {
+        CHECK(clean_color_hex("").empty());
+        CHECK(clean_color_hex("FF0000").empty());          // no '#'
+        CHECK(clean_color_hex("#FF00").empty());           // too short
+        CHECK(clean_color_hex("#FF00000").empty());        // 7 digits
+        CHECK(clean_color_hex("#GGGGGG").empty());         // not hex
+        CHECK(clean_color_hex("red").empty());             // named color
+        CHECK(clean_color_hex("#800080,#63A5BB").empty()); // a list, not one token
+    }
+}
+
 TEST_CASE("parse_filament_color_palette - real-world OrcaSlicer output",
           "[gcode][color_metadata]") {
     std::vector<std::string> palette;

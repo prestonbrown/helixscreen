@@ -36,6 +36,20 @@ namespace helix::gcode {
 bool parse_filament_color_palette(std::string_view line, std::vector<std::string>& out_palette);
 
 /**
+ * @brief A standalone value cleaned into one "#RRGGBB" token, or an empty view.
+ *
+ * Surrounding whitespace and quotes are stripped (the same tolerance the
+ * palette splitter applies per entry); a result is returned only for '#' +
+ * 6 or 8 hex digits. For callers validating a value the list parser would
+ * reject - a colon-separated key form, say - so only a real color token is
+ * ever stored, never a raw blob.
+ *
+ * 8-digit RGBA tokens validate here but render channel-shifted through the
+ * strtol + lv_color_hex consumers (prestonbrown/helixscreen#1419).
+ */
+std::string_view clean_color_hex(std::string_view value);
+
+/**
  * @brief The first entry that actually holds a color, or nullptr.
  *
  * A palette's slot-0 entry can be an empty placeholder (unknown slot), and
@@ -62,8 +76,9 @@ inline const std::string* first_named_color(const std::vector<std::string>& pale
 struct FileColorDecision {
     /// Per-tool palette from slicer metadata. Empty = no per-tool answer.
     std::vector<std::string> palette;
-    /// Single hex color ("#RRGGBB[AA]") when the file carries one. Empty =
-    /// no single-color answer.
+    /// Single hex color ("#RRGGBB") when the file carries one. Empty =
+    /// no single-color answer. 8-digit RGBA tokens can reach this field but
+    /// render channel-shifted (prestonbrown/helixscreen#1419).
     std::string single_color;
     /// Tool index the file starts on; -1 when unknown.
     int initial_tool = -1;

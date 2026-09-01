@@ -274,6 +274,32 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ams.deinit_subjects();
 }
 
+TEST_CASE("AD5X IFS module identity installs when a latched plugin owns no tool map",
+          "[ams][ad5x_ifs][ifs_module][959]") {
+    // has_ifs_vars_ latches on the plugin's `_colors` rows alone; `_tools` is
+    // not required. A latched-but-mapless plugin must not block the identity
+    // install — every slot's mapped_tool would stay -1 and the op dispatch's
+    // change_tool rewrite would have no tool to name.
+    const json colors_only{
+        {"bambufy_colors", json::array({"#A03CF7", "#7EC8E3", "#101010", "#FFFFFF"})}};
+
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+    Ad5xIfsTestAccess::parse_vars(backend, colors_only);
+    REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+
+    const auto info = backend.get_system_info();
+    REQUIRE(info.tool_to_slot_map.size() >= 4);
+    CHECK(info.tool_to_slot_map[0] == 0);
+    CHECK(info.tool_to_slot_map[1] == 1);
+    CHECK(info.tool_to_slot_map[2] == 2);
+    CHECK(info.tool_to_slot_map[3] == 3);
+    CHECK(backend.get_slot_info(0).mapped_tool == 0);
+    CHECK(backend.get_slot_info(3).mapped_tool == 3);
+}
+
 TEST_CASE("AD5X IFS module identity yields to a parsed plugin tool map",
           "[ams][ad5x_ifs][ifs_module][959]") {
     // A plugin crossover: T0 -> port 2, T1 -> port 1, T2 -> port 4, T3 -> port 3.

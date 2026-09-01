@@ -4778,15 +4778,21 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
         // firmware actually replays, and installing identity over it would
         // reroute every tool. Arrival order must not decide precedence:
         // plugin-then-module is skipped here, module-then-plugin is
-        // overwritten by the parse. Without either, every slot's mapped_tool
-        // stays -1 (plugin-less ZMOD never populates the table) and the op
-        // dispatch's change_tool rewrite has no tool to name. Refresh the
-        // registry + slot view immediately — the latch can fire on a frame
-        // that carries neither Chan nor slots, and mapped_tool would otherwise
-        // wait for the next slot-bearing frame (same loop pair the
-        // both-plugins-conflict fallback in parse_save_variables runs).
+        // overwritten by the parse. Ownership is "a mapped port exists in
+        // tool_map_", not the latch alone: has_ifs_vars_ latches on the
+        // plugin's `_colors` rows with no `_tools` array required, and a
+        // latched-but-mapless plugin must not leave every slot's mapped_tool
+        // at -1 (the op dispatch's change_tool rewrite would have no tool to
+        // name). Refresh the registry + slot view immediately — the latch can
+        // fire on a frame that carries neither Chan nor slots, and
+        // mapped_tool would otherwise wait for the next slot-bearing frame
+        // (same loop pair the both-plugins-conflict fallback in
+        // parse_save_variables runs).
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!has_ifs_vars_) {
+        const bool plugin_owns_table =
+            std::any_of(tool_map_.begin(), tool_map_.end(),
+                        [](int port) { return port >= 1 && port <= NUM_PORTS; });
+        if (!plugin_owns_table) {
             for (int t = 0; t < NUM_PORTS; ++t) {
                 tool_map_[static_cast<size_t>(t)] = t + 1;
             }

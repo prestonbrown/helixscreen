@@ -764,14 +764,13 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             st->budget_forced_2d_ = true;
             // Seed the 2D renderer now so the next frame renders immediately.
             // (Lazy init in the 2D branch also covers this, but doing it here
-            // keeps colors/palette consistent with the loaded file.)
+            // keeps colors/palette consistent with the loaded file — the full
+            // chain, not just the palette: because this renderer now exists,
+            // the lazy-init path and its apply_2d_renderer_colors never run.)
             if (!st->layer_renderer_2d_ && st->gcode_file) {
                 st->layer_renderer_2d_ = std::make_unique<helix::gcode::GCodeLayerRenderer>();
                 st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-                if (!st->gcode_file->tool_color_palette.empty()) {
-                    st->layer_renderer_2d_->set_tool_color_palette(
-                        st->gcode_file->tool_color_palette);
-                }
+                apply_2d_renderer_colors(st);
                 st->layer_renderer_2d_->set_canvas_size(lv_area_get_width(&widget_coords),
                                                         lv_area_get_height(&widget_coords));
                 st->layer_renderer_2d_->set_framing(st->framing_);
@@ -1675,8 +1674,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                          "(size={}, initial_tool={})",
                                          file_colors.palette.size(), file_colors.initial_tool);
                         } else if (file_colors.has_single_color()) {
-                            lv_color_t color = lv_color_hex(
-                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16));
+                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(
+                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
                             st->layer_renderer_2d_->set_extrusion_color(color);
                             spdlog::info("[GCode Viewer] Using filament color from metadata: "
                                          "{} (tool={}, palette={})",
@@ -1900,13 +1899,14 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     // Store G-code data
                     st->gcode_file = std::move(r->gcode_file);
 
-                    // Update 2D renderer if it exists (prevents dangling pointer)
+                    // Update 2D renderer if it exists (prevents dangling pointer).
+                    // The whole colour chain runs here, not just the palette:
+                    // set_gcode() does not reset colours, so a renderer that
+                    // survived a mode flip would otherwise keep the PREVIOUS
+                    // file's single color.
                     if (st->layer_renderer_2d_) {
                         st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-                        if (!st->gcode_file->tool_color_palette.empty()) {
-                            st->layer_renderer_2d_->set_tool_color_palette(
-                                st->gcode_file->tool_color_palette);
-                        }
+                        apply_2d_renderer_colors(st);
                         st->layer_renderer_2d_->auto_fit();
                     }
 
@@ -2497,6 +2497,14 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
     // renderer's slicer palette alone rather than painting over it.
     const auto colors = AmsState::instance().routed_tool_colors();
     if (colors.empty()) {
+        // "Nothing knowable" must also RETRACT: a previous non-degenerate
+        // answer may still be applied as overrides, and returning false alone
+        // would leave those lane colors frozen on the renderer for the rest
+        // of the file instead of falling back to the slicer palette.
+        gcode_viewer_state_t* st = get_state(obj);
+        if (st && !st->tool_color_overrides.empty()) {
+            ui_gcode_viewer_set_tool_colors(obj, {});
+        }
         return false;
     }
     ui_gcode_viewer_set_tool_colors(obj, colors);

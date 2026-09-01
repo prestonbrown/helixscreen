@@ -505,17 +505,31 @@ std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>&
     const bool nothing_known =
         std::all_of(colors.begin(), colors.end(), [](uint32_t c) { return c == 0x808080; });
 
-    // An all-equal answer on a multi-tool routing carries no per-tool
-    // information either - a routing that sends every tool of a multi-tool
-    // file to one head would paint the whole model one solid color over the
-    // file's own palette. A single-tool print legitimately routes its only
-    // tool anywhere, so all-equal only means "nothing to tell apart" when
-    // there is more than one tool.
-    const bool one_color_for_every_tool =
-        tool_to_head.size() > 1 &&
-        std::adjacent_find(colors.begin(), colors.end(),
-                           [](uint32_t a, uint32_t b) { return a != b; }) == colors.end();
-    if (nothing_known || one_color_for_every_tool) {
+    // A routing that sends every ROUTED tool to ONE head carries no per-tool
+    // information - observed as a partially-published plugin table resolving a
+    // whole 4-tool print to head 0's color, painting the model one solid color
+    // over the file's own palette. The degenerate signal is the ROUTING
+    // collapsing, not the colors agreeing: distinct heads that happen to hold
+    // same-color spools (a runout backup pair) are a true uniform answer and
+    // must still be published, and a single routed tool legitimately goes
+    // wherever it goes. Unrouted tools (-1) count toward neither side.
+    int first_routed_head = -2;
+    int routed_count = 0;
+    bool heads_distinct = false;
+    for (const int head : tool_to_head) {
+        if (head < 0) {
+            continue;
+        }
+        ++routed_count;
+        if (first_routed_head == -2) {
+            first_routed_head = head;
+        } else if (head != first_routed_head) {
+            heads_distinct = true;
+            break;
+        }
+    }
+    const bool one_head_for_every_tool = routed_count > 1 && !heads_distinct;
+    if (nothing_known || one_head_for_every_tool) {
         return {};
     }
     return colors;

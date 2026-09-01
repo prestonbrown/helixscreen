@@ -602,6 +602,15 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
             metadata_filament_color_ = *single;
             spdlog::trace("[GCode Parser] Parsed single filament color: {}",
                           metadata_filament_color_);
+        } else if (std::string_view cleaned = helix::gcode::clean_color_hex(value);
+                   !cleaned.empty()) {
+            // The list parser rejects this line (a colon-separated key form,
+            // say) but the value is still one real color token. Store the
+            // validated token — never the raw value, which is how a comma
+            // blob used to land here and paint everything in its first field.
+            metadata_filament_color_ = std::string(cleaned);
+            spdlog::trace("[GCode Parser] Parsed single filament color: {}",
+                          metadata_filament_color_);
         }
     } else if (contains_all({"filament", "type"})) {
         metadata_filament_type_ = value;

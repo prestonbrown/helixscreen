@@ -96,6 +96,23 @@ bool parse_filament_color_palette(std::string_view line, std::vector<std::string
     return false;
 }
 
+std::string_view clean_color_hex(std::string_view value) {
+    value = trim(value);
+    if (value.empty() || value.front() != '#') {
+        return {};
+    }
+    const std::string_view body = value.substr(1);
+    if (body.size() != 6 && body.size() != 8) {
+        return {};
+    }
+    for (const char c : body) {
+        if (!is_hex_digit(c)) {
+            return {};
+        }
+    }
+    return value;
+}
+
 FileColorDecision classify_file_colors(const std::vector<std::string>& palette,
                                        const std::string& filament_color, int initial_tool_index) {
     FileColorDecision decision;
