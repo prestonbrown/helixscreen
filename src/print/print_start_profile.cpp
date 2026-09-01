@@ -187,9 +187,18 @@ bool PrintStartProfile::try_match_signal(const std::string& line, MatchResult& r
 }
 
 bool PrintStartProfile::try_match_pattern(const std::string& line, MatchResult& result) const {
-    for (const auto& rp : response_patterns_) {
+    return match_pattern_list(response_patterns_, line, result);
+}
+
+bool PrintStartProfile::try_match_state(const std::string& state, MatchResult& result) const {
+    return match_pattern_list(state_patterns_, state, result);
+}
+
+bool PrintStartProfile::match_pattern_list(const std::vector<ResponsePattern>& patterns,
+                                           const std::string& text, MatchResult& result) const {
+    for (const auto& rp : patterns) {
         std::smatch match;
-        if (std::regex_search(line, match, rp.pattern)) {
+        if (std::regex_search(text, match, rp.pattern)) {
             result.phase = rp.phase;
             // Translate the TEMPLATE, then substitute captures into the
             // translated text. Doing it the other way round looks up the
@@ -199,12 +208,19 @@ bool PrintStartProfile::try_match_pattern(const std::string& line, MatchResult& 
             result.message =
                 substitute_captures(std::string(lv_tr(rp.message_template.c_str())), match);
             result.progress = rp.weight; // Caller interprets based on progress_mode
-            spdlog::trace("[PrintStartProfile] Pattern match: '{}' -> phase={}, msg='{}'", line,
+            spdlog::trace("[PrintStartProfile] Pattern match: '{}' -> phase={}, msg='{}'", text,
                           static_cast<int>(result.phase), result.message);
             return true;
         }
     }
     return false;
+}
+
+std::vector<std::string> PrintStartProfile::required_status_objects() const {
+    if (!has_phase_object()) {
+        return {};
+    }
+    return {phase_object_name_};
 }
 
 // ============================================================================
@@ -323,54 +339,40 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
 
     // Response patterns (optional)
     if (j.contains("response_patterns") && j["response_patterns"].is_array()) {
-        for (const auto& rp_json : j["response_patterns"]) {
-            if (!rp_json.is_object()) {
-                spdlog::warn("[PrintStartProfile] Skipping non-object response_pattern in {}",
+        parse_pattern_array(j["response_patterns"], response_patterns_, "response_pattern",
+                            source_path);
+    }
+
+    // Phase object (optional) — a status object whose field carries structured
+    // phase state. Its state strings map to phases through state_patterns and
+    // feed the same matching pipeline console lines take. Malformed entries
+    // warn and leave the profile without a phase object, which is exactly the
+    // behavior of a profile that never declared one.
+    if (j.contains("phase_object") && j["phase_object"].is_object()) {
+        const auto& po = j["phase_object"];
+        const bool has_object = po.contains("object") && po["object"].is_string();
+        const bool has_field = po.contains("field") && po["field"].is_string();
+        if (has_object && has_field) {
+            phase_object_name_ = po["object"].get<std::string>();
+            phase_object_field_ = po["field"].get<std::string>();
+            if (phase_object_name_.empty() || phase_object_field_.empty()) {
+                spdlog::warn("[PrintStartProfile] Empty phase_object name/field in {} - ignored",
                              source_path);
-                continue;
+                phase_object_name_.clear();
+                phase_object_field_.clear();
             }
-
-            if (!rp_json.contains("pattern") || !rp_json["pattern"].is_string()) {
-                spdlog::warn("[PrintStartProfile] Response pattern missing 'pattern' in {}",
-                             source_path);
-                continue;
-            }
-
-            ResponsePattern rp;
-
-            // Compile regex with case-insensitive flag
-            std::string pattern_str = rp_json["pattern"].get<std::string>();
-            try {
-                rp.pattern = std::regex(pattern_str, std::regex::icase);
-            } catch (const std::regex_error& e) {
-                spdlog::warn("[PrintStartProfile] Invalid regex '{}' in {}: {}", pattern_str,
-                             source_path, e.what());
-                continue;
-            }
-
-            // Parse phase (required)
-            if (!rp_json.contains("phase") || !rp_json["phase"].is_string()) {
-                spdlog::warn(
-                    "[PrintStartProfile] Response pattern missing 'phase' for regex '{}' in {}",
-                    pattern_str, source_path);
-                continue;
-            }
-            rp.phase = parse_phase_name(rp_json["phase"].get<std::string>());
-
-            // Parse message template (optional)
-            if (rp_json.contains("message") && rp_json["message"].is_string()) {
-                rp.message_template = rp_json["message"].get<std::string>();
-            }
-
-            // Parse weight (optional, default 0)
-            if (rp_json.contains("weight") && rp_json["weight"].is_number()) {
-                rp.weight = rp_json["weight"].get<int>();
-            } else {
-                rp.weight = 0;
-            }
-
-            response_patterns_.push_back(std::move(rp));
+        } else {
+            spdlog::warn(
+                "[PrintStartProfile] phase_object needs 'object' and 'field' strings in {} - "
+                "ignored",
+                source_path);
         }
+    }
+
+    // State patterns (optional) — matched against the phase object's state
+    // string. Same entry shape as response_patterns.
+    if (j.contains("state_patterns") && j["state_patterns"].is_array()) {
+        parse_pattern_array(j["state_patterns"], state_patterns_, "state_pattern", source_path);
     }
 
     // Silent-phase progression (optional) — time-based phase advancement
@@ -420,10 +422,60 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     }
 
     spdlog::debug("[PrintStartProfile] Parsed '{}': {} signal_formats, {} response_patterns, "
-                  "{} phase_weights, {} silent_progression",
-                  name_, signal_formats_.size(), response_patterns_.size(), phase_weights_.size(),
-                  silent_progression_.size());
+                  "{} state_patterns, {} phase_weights, {} silent_progression",
+                  name_, signal_formats_.size(), response_patterns_.size(), state_patterns_.size(),
+                  phase_weights_.size(), silent_progression_.size());
     return true;
+}
+
+void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
+                                            std::vector<ResponsePattern>& out, const char* kind,
+                                            const std::string& source_path) {
+    for (const auto& rp_json : array) {
+        if (!rp_json.is_object()) {
+            spdlog::warn("[PrintStartProfile] Skipping non-object {} in {}", kind, source_path);
+            continue;
+        }
+
+        if (!rp_json.contains("pattern") || !rp_json["pattern"].is_string()) {
+            spdlog::warn("[PrintStartProfile] {} missing 'pattern' in {}", kind, source_path);
+            continue;
+        }
+
+        ResponsePattern rp;
+
+        // Compile regex with case-insensitive flag
+        std::string pattern_str = rp_json["pattern"].get<std::string>();
+        try {
+            rp.pattern = std::regex(pattern_str, std::regex::icase);
+        } catch (const std::regex_error& e) {
+            spdlog::warn("[PrintStartProfile] Invalid regex '{}' in {}: {}", pattern_str,
+                         source_path, e.what());
+            continue;
+        }
+
+        // Parse phase (required)
+        if (!rp_json.contains("phase") || !rp_json["phase"].is_string()) {
+            spdlog::warn("[PrintStartProfile] {} missing 'phase' for regex '{}' in {}", kind,
+                         pattern_str, source_path);
+            continue;
+        }
+        rp.phase = parse_phase_name(rp_json["phase"].get<std::string>());
+
+        // Parse message template (optional)
+        if (rp_json.contains("message") && rp_json["message"].is_string()) {
+            rp.message_template = rp_json["message"].get<std::string>();
+        }
+
+        // Parse weight (optional, default 0)
+        if (rp_json.contains("weight") && rp_json["weight"].is_number()) {
+            rp.weight = rp_json["weight"].get<int>();
+        } else {
+            rp.weight = 0;
+        }
+
+        out.push_back(std::move(rp));
+    }
 }
 
 PrintStartPhase PrintStartProfile::parse_phase_name(const std::string& name) {

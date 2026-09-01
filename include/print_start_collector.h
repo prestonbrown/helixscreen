@@ -282,6 +282,29 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     void check_phase_patterns(const std::string& line);
 
+    /**
+     * @brief Apply a profile match through the shared update path
+     *
+     * Every profile-driven phase match — console line or phase-object state —
+     * lands here, so phase weights, progress, ETA re-baselining, and the
+     * real-signal gate behave identically whichever feed produced the match.
+     */
+    void apply_profile_match(const PrintStartProfile::MatchResult& match);
+
+    /**
+     * @brief Check a status frame for the profile's phase object
+     *
+     * When the profile declares a phase object (PrintStartProfile::
+     * has_phase_object()) and the frame carries it, reads the declared field,
+     * matches the state string through the profile's state patterns, and feeds
+     * the match through apply_profile_match(). An unchanged state string does
+     * not re-fire; profiles without a phase object ignore every frame.
+     *
+     * Thread-safe: runs on the WebSocket background thread, like the other
+     * notify_status_update handling in start().
+     */
+    void handle_phase_object_status(const nlohmann::json& status);
+
     /// Record that the printer said something about its pre-print. Feeds the
     /// quiet gate on every timeout branch. Takes state_mutex_ itself, so do not
     /// call it while already holding the lock.
@@ -497,6 +520,11 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // as the human label when rendering "<sub-phase> (N/M)" so the user sees
     // which sub-phase they're in. Empty when not in BED_MESH.
     std::string current_mesh_message_;
+
+    /// Last state string MATCHED from the profile's phase object. Klipper
+    /// notifies on every field change in the object, so the same state
+    /// re-arrives; it must not re-fire the phase. Cleared in start()/reset().
+    std::string last_phase_object_state_;
 
     /// Last bed-mesh presence reported via note_bed_mesh_presence(). The
     /// leveling trigger is the present→absent edge, so an unknown initial

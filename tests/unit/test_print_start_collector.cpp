@@ -1793,6 +1793,18 @@ class PrintStartCollectorSequentialFixture : public LVGLTestFixture {
         drain_async_updates();
     }
 
+    /**
+     * @brief Feed a status frame through the real notify_status_update path
+     *
+     * dispatch_status_update wraps the object exactly as the live WebSocket
+     * does, so the collector's status subscription runs its phase-object
+     * handling on it.
+     */
+    void send_status_update(const json& object) {
+        client().dispatch_status_update(object);
+        drain_async_updates();
+    }
+
     void drain_async_updates() {
         UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
     }
@@ -3583,4 +3595,102 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
 
     CHECK(get_current_message() == before);
+}
+
+// ============================================================================
+// PHASE-OBJECT STATUS SOURCE TESTS
+//
+// A profile may declare a status object whose field carries structured phase
+// state. Those frames arrive on notify_status_update (not gcode_response) and
+// feed the same match/apply pipeline a console line takes, so weights and
+// progress behave identically. Console matching is untouched - both feeds
+// coexist and weights arbitrate.
+// ============================================================================
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Phase-object status frames drive phases like console lines",
+                 "[print][collector][phase_object]") {
+    collector().start();
+    drain_async_updates();
+
+    // A state the profile has no mapping for changes nothing.
+    send_status_update({{"operation_context", {{"current_state", "STANDBY"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // The mod publishes its state machine into the object; the profile maps
+    // the string through the same weights a console line takes.
+    send_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message() == "Homing...");
+    REQUIRE(get_current_progress() == 5);
+
+    // Next state advances through the mapping - sequential progress follows
+    // the state pattern's weight, exactly as a console match would.
+    send_status_update({{"operation_context", {{"current_state", "LEVELING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed Mesh...");
+    REQUIRE(get_current_progress() == 25);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Unchanged phase-object state does not re-fire",
+                 "[print][collector][phase_object]") {
+    collector().start();
+    drain_async_updates();
+
+    send_status_update({{"operation_context", {{"current_state", "MESHING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed Mesh...");
+
+    // A console signal relabels the same phase - a real sub-phase change that
+    // the status feed must not clobber when the object re-delivers its
+    // unchanged state (Klipper notifies on every field change in the object).
+    send_gcode_response("// State: KAMP LEVELING...");
+    REQUIRE(get_current_message() == "Creating bed mesh...");
+
+    send_status_update({{"operation_context", {{"current_state", "MESHING"}}}});
+    REQUIRE(get_current_message() == "Creating bed mesh...");
+
+    // A NEW state still applies after the suppressed repeat.
+    send_status_update({{"operation_context", {{"current_state", "PRINTING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+    REQUIRE(get_current_progress() == 100);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Phase-object match gates the proactive temperature detector",
+                 "[print][collector][phase_object]") {
+    // Bed heating below target: with no real firmware signal seen, the
+    // proactive detector would relabel the phase HEATING_BED on its next
+    // check. A phase-object state IS the firmware narrating, so it must latch
+    // the same real_signal_seen_ gate a console match latches.
+    lv_subject_set_int(state().get_bed_temp_subject(), 250);
+    lv_subject_set_int(state().get_bed_target_subject(), 600);
+    collector().start();
+    collector().enable_fallbacks();
+    drain_async_updates();
+
+    send_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+
+    collector().check_fallback_completion();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Profiles without a phase object ignore phase-object frames",
+                 "[print][collector][phase_object]") {
+    collector().set_profile(PrintStartProfile::load_default());
+    collector().start();
+    drain_async_updates();
+
+    // The default profile declares no status phase source: the identical
+    // frame must be ignored entirely - phase stays at the start() baseline.
+    // This is the fallback guarantee for every profile without the field.
+    client().dispatch_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+    REQUIRE(get_current_message() == "Preparing Print...");
 }

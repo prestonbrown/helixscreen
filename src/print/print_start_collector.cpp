@@ -121,6 +121,7 @@ void PrintStartCollector::start() {
         pre_mesh_points_.reset();
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
+        last_phase_object_state_.clear();
         bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
@@ -216,6 +217,11 @@ void PrintStartCollector::start() {
         }
 
         const auto& status = notification["params"][0];
+
+        // Profile-declared phase object: a status object whose field carries
+        // structured phase state, mapped through the profile's state patterns.
+        // No-op unless the profile declares one.
+        self->handle_phase_object_status(status);
 
         // Check _START_PRINT.print_started (AD5M KAMP macro)
         if (status.contains("gcode_macro _START_PRINT")) {
@@ -343,6 +349,7 @@ void PrintStartCollector::reset() {
         pre_mesh_points_.reset();
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
+        last_phase_object_state_.clear();
         bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
@@ -1123,43 +1130,89 @@ void PrintStartCollector::check_phase_patterns(const std::string& line) {
 
     PrintStartProfile::MatchResult match;
     if (profile_->try_match_pattern(line, match)) {
-        real_signal_seen_.store(true, std::memory_order_relaxed);
-        note_activity();
-        // match.message arrives already translated: try_match_pattern
-        // resolves the template through the loaded pack before substituting
-        // $1 capture groups.
-        // Update when this is a NEW phase, OR when it's a BED_MESH sub-phase
-        // *message* change while already in BED_MESH. The latter is what lets a
-        // mesh-start signal (Snapmaker U1 "// z offset:") relabel the display
-        // from a prior BED_MESH sub-phase (e.g. "Detecting plate") to "Bed
-        // mesh" even though the BED_MESH enum was already detected — without
-        // it, the previous sub-phase label persists through the whole real mesh
-        // because response_patterns otherwise fire once per enum value.
-        // maybe_reset_for_mesh_subphase_locked() (inside update_phase) resets
-        // the probe counter on the message change so the "(n)" count restarts.
-        bool should_update = false;
-        {
-            std::lock_guard<std::mutex> lock(state_mutex_);
-            if (detected_phases_.find(match.phase) == detected_phases_.end()) {
-                detected_phases_.insert(match.phase);
-                should_update = true;
-            } else if (match.phase == PrintStartPhase::BED_MESH &&
-                       current_phase_ == PrintStartPhase::BED_MESH &&
-                       trim_trailing_ellipsis(match.message) !=
-                           trim_trailing_ellipsis(current_mesh_message_)) {
-                should_update = true;
-            }
-        }
-        if (should_update) {
-            if (profile_->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL) {
-                update_phase(match.phase, match.message, match.progress);
-            } else {
-                update_phase(match.phase, match.message.c_str());
-            }
-            spdlog::debug("[PrintStartCollector] Detected phase: {}",
-                          static_cast<int>(match.phase));
+        apply_profile_match(match);
+    }
+}
+
+void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResult& match) {
+    real_signal_seen_.store(true, std::memory_order_relaxed);
+    note_activity();
+    // match.message arrives already translated: the profile matchers
+    // resolve the template through the loaded pack before substituting
+    // $1 capture groups.
+    // Update when this is a NEW phase, OR when it's a BED_MESH sub-phase
+    // *message* change while already in BED_MESH. The latter is what lets a
+    // mesh-start signal (Snapmaker U1 "// z offset:") relabel the display
+    // from a prior BED_MESH sub-phase (e.g. "Detecting plate") to "Bed
+    // mesh" even though the BED_MESH enum was already detected — without
+    // it, the previous sub-phase label persists through the whole real mesh
+    // because response_patterns otherwise fire once per enum value.
+    // maybe_reset_for_mesh_subphase_locked() (inside update_phase) resets
+    // the probe counter on the message change so the "(n)" count restarts.
+    bool should_update = false;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (detected_phases_.find(match.phase) == detected_phases_.end()) {
+            detected_phases_.insert(match.phase);
+            should_update = true;
+        } else if (match.phase == PrintStartPhase::BED_MESH &&
+                   current_phase_ == PrintStartPhase::BED_MESH &&
+                   trim_trailing_ellipsis(match.message) !=
+                       trim_trailing_ellipsis(current_mesh_message_)) {
+            should_update = true;
         }
     }
+    if (should_update) {
+        if (profile_->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL) {
+            update_phase(match.phase, match.message, match.progress);
+        } else {
+            update_phase(match.phase, match.message.c_str());
+        }
+        spdlog::debug("[PrintStartCollector] Detected phase: {}", static_cast<int>(match.phase));
+    }
+}
+
+void PrintStartCollector::handle_phase_object_status(const json& status) {
+    if (!profile_ || !profile_->has_phase_object()) {
+        return;
+    }
+    if (!status.is_object()) {
+        return;
+    }
+
+    const auto object = status.find(profile_->phase_object_name());
+    if (object == status.end() || !object->is_object()) {
+        return; // this frame does not carry the phase object (delta-only update)
+    }
+    const auto field = object->find(profile_->phase_object_field());
+    if (field == object->end() || !field->is_string()) {
+        return;
+    }
+    const std::string state = field->get_ref<const std::string&>();
+    if (state.empty()) {
+        return;
+    }
+
+    PrintStartProfile::MatchResult match;
+    if (!profile_->try_match_state(state, match)) {
+        return; // a state the profile has no mapping for is not a phase signal
+    }
+
+    // Klipper notifies on every field change in the object, so an unchanged
+    // state re-arrives regularly; only a NEW state applies. The latch keeps
+    // the last MATCHED state — an unmapped state between two mapped ones is
+    // not a change of phase.
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (state == last_phase_object_state_) {
+            return;
+        }
+        last_phase_object_state_ = state;
+    }
+
+    spdlog::debug("[PrintStartCollector] Phase-object state '{}' -> phase {}", state,
+                  static_cast<int>(match.phase));
+    apply_profile_match(match);
 }
 
 bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {

@@ -9,6 +9,7 @@
  * and progress calculation. No LVGL or Moonraker required - pure logic tests.
  */
 
+#include "../test_helpers/print_start_profile_test_access.h"
 #include "print_start_profile.h"
 
 #include "../catch_amalgamated.hpp"
@@ -1243,4 +1244,173 @@ TEST_CASE("PrintStartProfile: creality_k2 rejects noise from K2 responses",
         CAPTURE(noise);
         REQUIRE_FALSE(profile->try_match_pattern(noise, result));
     }
+}
+
+// ============================================================================
+// Phase-Object Status Source Tests
+//
+// A profile may declare a status object whose field carries structured phase
+// state. The state strings map to phases through state_patterns - the same
+// compiled-pattern machinery console lines use - and the object gets
+// subscribed so those frames reach the collector.
+// ============================================================================
+
+TEST_CASE("PrintStartProfile: forge_x declares its phase object",
+          "[profile][print][phase_object]") {
+    auto profile = get_forge_x_profile();
+    REQUIRE(profile != nullptr);
+    // Strict on purpose: the JSON ships with the repo, so a missing phase
+    // object here is a regression, not an environment gap.
+    REQUIRE(profile->name().find("Forge") != std::string::npos);
+
+    REQUIRE(profile->has_phase_object());
+    REQUIRE(profile->phase_object_name() == "operation_context");
+    REQUIRE(profile->phase_object_field() == "current_state");
+
+    const auto objects = profile->required_status_objects();
+    REQUIRE(objects.size() == 1);
+    REQUIRE(objects[0] == "operation_context");
+}
+
+TEST_CASE("PrintStartProfile: profiles without phase_object declare no status objects",
+          "[profile][print][phase_object]") {
+    // Absence must read as absence: no object name, no subscription request.
+    // The K2 profile doubles as the regression guard that a printer-specific
+    // profile with no phase object stays exactly as it was.
+    for (const auto& profile : {get_default_profile(), PrintStartProfile::load("creality_k2")}) {
+        REQUIRE(profile != nullptr);
+        CAPTURE(profile->name());
+        REQUIRE_FALSE(profile->has_phase_object());
+        REQUIRE(profile->phase_object_name().empty());
+        REQUIRE(profile->phase_object_field().empty());
+        REQUIRE(profile->required_status_objects().empty());
+    }
+}
+
+TEST_CASE("PrintStartProfile: forge_x state patterns map the mod's state strings",
+          "[profile][print][phase_object]") {
+    auto profile = get_forge_x_profile();
+    REQUIRE(profile != nullptr);
+    REQUIRE(profile->name().find("Forge") != std::string::npos);
+
+    struct StateRow {
+        const char* state;
+        PrintStartPhase phase;
+        const char* message;
+    };
+
+    // clang-format off
+    const StateRow rows[] = {
+        {"HOMING",    PrintStartPhase::HOMING,       "Homing..."},
+        {"HEATING",   PrintStartPhase::HEATING_BED,  "Heating Bed..."},
+        {"CLEANING",  PrintStartPhase::CLEANING,     "Cleaning Nozzle..."},
+        {"LEVELING",  PrintStartPhase::BED_MESH,     "Bed Mesh..."},
+        {"MESHING",   PrintStartPhase::BED_MESH,     "Bed Mesh..."},
+        {"PARKING",   PrintStartPhase::INITIALIZING, "Preparing..."},
+        {"PRIMING",   PrintStartPhase::PURGING,      "Priming nozzle..."},
+        {"PURGING",   PrintStartPhase::PURGING,      "Priming nozzle..."},
+        {"PRINTING",  PrintStartPhase::COMPLETE,     "Starting print..."},
+        {"FINISHING", PrintStartPhase::COMPLETE,     "Starting print..."},
+    };
+    // clang-format on
+
+    for (const auto& row : rows) {
+        CAPTURE(row.state);
+        PrintStartProfile::MatchResult result;
+        REQUIRE(profile->try_match_state(row.state, result));
+        CHECK(result.phase == row.phase);
+        CHECK(result.message == row.message);
+    }
+
+    // States the profile has no mapping for must not match anything.
+    PrintStartProfile::MatchResult result;
+    REQUIRE_FALSE(profile->try_match_state("STANDBY", result));
+    REQUIRE_FALSE(profile->try_match_state("", result));
+}
+
+TEST_CASE("PrintStartProfile: state patterns stay separate from console patterns",
+          "[profile][print][phase_object]") {
+    auto profile = get_forge_x_profile();
+    REQUIRE(profile != nullptr);
+    REQUIRE(profile->name().find("Forge") != std::string::npos);
+
+    PrintStartProfile::MatchResult result;
+
+    // A bare state string is not a console line: the response_patterns must
+    // not pick it up (forge_x's only console patterns are the temperature
+    // wait echoes).
+    REQUIRE_FALSE(profile->try_match_pattern("HOMING", result));
+
+    // And a console line must not be re-interpreted as state input - the
+    // state matcher receives the object's field, nothing else.
+    REQUIRE(profile->try_match_state("HOMING", result));
+    REQUIRE(result.phase == PrintStartPhase::HOMING);
+}
+
+TEST_CASE("PrintStartProfile: malformed phase_object is tolerated",
+          "[profile][print][phase_object]") {
+    // Missing 'field' - ignored, the profile loads without a phase object.
+    auto missing_field = PrintStartProfileTestAccess::parse(
+        nlohmann::json::parse(R"({"name":"t1","phase_object":{"object":"operation_context"}})"));
+    REQUIRE(missing_field != nullptr);
+    REQUIRE_FALSE(missing_field->has_phase_object());
+    REQUIRE(missing_field->required_status_objects().empty());
+
+    // Non-object phase_object - same outcome.
+    auto not_object = PrintStartProfileTestAccess::parse(
+        nlohmann::json::parse(R"({"name":"t2","phase_object":"operation_context"})"));
+    REQUIRE(not_object != nullptr);
+    REQUIRE_FALSE(not_object->has_phase_object());
+
+    // Empty names carry no information - treated as absent.
+    auto empty_name = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"t3","phase_object":{"object":"","field":"current_state"}})"));
+    REQUIRE(empty_name != nullptr);
+    REQUIRE_FALSE(empty_name->has_phase_object());
+
+    // A well-formed declaration beside the malformed ones still parses.
+    auto mixed = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"t4","phase_object":{"bogus":1},)"
+        R"("state_patterns":[{"pattern":"HOMING","phase":"HOMING","message":"Homing...","weight":5}]})"));
+    // The malformed object above lacks object/field, so it reads as absent -
+    // but the state_patterns are independent and still parse. A profile with
+    // state patterns and no object simply never feeds them from a status
+    // frame; matching still works for direct callers.
+    REQUIRE(mixed != nullptr);
+    PrintStartProfile::MatchResult result;
+    REQUIRE(mixed->try_match_state("HOMING", result));
+    CHECK(result.phase == PrintStartPhase::HOMING);
+}
+
+TEST_CASE("PrintStartProfile: malformed state_patterns entries are skipped",
+          "[profile][print][phase_object]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"t5","state_patterns":[)"
+        R"({"pattern":"HOMING","phase":"HOMING","message":"Homing...","weight":5},)"
+        R"({"pattern":"NO_PHASE"},)"
+        R"({"pattern":"[UNCLOSED","phase":"CLEANING"},)"
+        R"({"phase":"PURGING"},)"
+        R"("not-an-object",)"
+        R"({"pattern":"PURGING","phase":"PURGING","message":"Purging...","weight":10}]})"));
+    REQUIRE(profile != nullptr);
+
+    PrintStartProfile::MatchResult result;
+
+    // The two well-formed entries survive.
+    REQUIRE(profile->try_match_state("HOMING", result));
+    CHECK(result.phase == PrintStartPhase::HOMING);
+    CHECK(result.message == "Homing...");
+    CHECK(result.progress == 5);
+
+    REQUIRE(profile->try_match_state("PURGING", result));
+    CHECK(result.phase == PrintStartPhase::PURGING);
+    CHECK(result.progress == 10);
+
+    // Every malformed entry is dropped, not half-applied: the entry missing
+    // its phase must never fire, and the invalid regex must not abort the
+    // parse of the entries after it.
+    REQUIRE_FALSE(profile->try_match_state("NO_PHASE", result));
+    REQUIRE_FALSE(profile->try_match_state("CLEANING", result));
+    REQUIRE(profile->has_phase_object() == false);
+    REQUIRE(profile->required_status_objects().empty());
 }

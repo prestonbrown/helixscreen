@@ -21,6 +21,8 @@
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "power_device_state.h"
+#include "print_start_profile.h"
+#include "printer_detector.h"
 #include "printer_state.h"
 #include "probe_sensor_manager.h"
 #include "sensor_state.h"
@@ -1556,6 +1558,24 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     subscription_objects["gcode_macro _START_PRINT"] = json::array({"print_started"});
     subscription_objects["gcode_macro START_PRINT"] = json::array({"preparation_done"});
     subscription_objects["gcode_macro _HELIX_STATE"] = json::array({"print_started"});
+
+    // The active print-start profile may declare a status object that carries
+    // structured pre-print phase state. The profile owns which object (and
+    // field) that is — this only subscribes whatever it asks for, so a
+    // firmware that publishes its phases that way needs a JSON edit, not a
+    // code change.
+    {
+        const std::string printer_type = get_printer_state().get_printer_type();
+        if (!printer_type.empty()) {
+            const std::string profile_name = PrinterDetector::get_print_start_profile(printer_type);
+            if (!profile_name.empty()) {
+                auto profile = PrintStartProfile::load(profile_name);
+                for (const auto& object : profile->required_status_objects()) {
+                    subscription_objects[object] = nullptr;
+                }
+            }
+        }
+    }
 
     // MCUs — PerformanceState (MoonrakerPerformanceSource) reads
     // last_stats.mcu_awake for the load % and last_stats.bytes_retransmit

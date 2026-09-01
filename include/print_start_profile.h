@@ -23,6 +23,8 @@
  * @see config/print_start_profiles/forge_x.json - FlashForge AD5M Forge-X mod
  */
 class PrintStartProfile {
+    friend class PrintStartProfileTestAccess;
+
   public:
     /**
      * @brief Result of a signal or pattern match
@@ -130,6 +132,20 @@ class PrintStartProfile {
      */
     bool try_match_pattern(const std::string& line, MatchResult& result) const;
 
+    /**
+     * @brief Try to match a phase-object state string against state patterns
+     *
+     * Same compiled-pattern machinery as try_match_pattern, run over the
+     * state_patterns list against the phase object's field value instead of a
+     * console line. Capture substitution and weight-in-progress behave
+     * identically.
+     *
+     * @param state State string read from the phase object's field
+     * @param[out] result Match result (phase, message, weight in progress field)
+     * @return true if matched
+     */
+    bool try_match_state(const std::string& state, MatchResult& result) const;
+
     // =========================================================================
     // Progress Calculation
     // =========================================================================
@@ -205,6 +221,38 @@ class PrintStartProfile {
         return position_signals_;
     }
 
+    // =========================================================================
+    // Phase-Object Status Source
+    // =========================================================================
+
+    /// True when this profile declares a status object carrying structured
+    /// phase state. When set, the collector reads the declared field out of
+    /// every status frame carrying the object and maps the state string to a
+    /// phase through the state_patterns — the same matching pipeline a console
+    /// line takes. Absent declaration means exactly today's behavior: the
+    /// collector never consults status frames for phases.
+    bool has_phase_object() const {
+        return !phase_object_name_.empty();
+    }
+
+    /// The declared status object name. Empty when has_phase_object() is
+    /// false.
+    const std::string& phase_object_name() const {
+        return phase_object_name_;
+    }
+
+    /// The field inside the phase object holding the state string. Empty when
+    /// has_phase_object() is false.
+    const std::string& phase_object_field() const {
+        return phase_object_field_;
+    }
+
+    /// Klipper status objects that must be subscribed for this profile's
+    /// phase-object source to ever see a frame: the declared object name, or
+    /// an empty list when the profile declares none. The subscription builder
+    /// subscribes whatever this returns.
+    std::vector<std::string> required_status_objects() const;
+
   private:
     std::string name_;
     std::string description_;
@@ -215,14 +263,33 @@ class PrintStartProfile {
     bool position_signals_{false};
     std::vector<SignalFormat> signal_formats_;
     std::vector<ResponsePattern> response_patterns_;
+    std::vector<ResponsePattern> state_patterns_;
     std::unordered_map<helix::PrintStartPhase, int> phase_weights_;
     std::vector<SilentPhaseEntry> silent_progression_;
+    std::string phase_object_name_;
+    std::string phase_object_field_;
 
     /**
      * @brief Parse a JSON object into this profile
      * @return true on success
      */
     bool parse_json(const nlohmann::json& j, const std::string& source_path);
+
+    /**
+     * @brief Parse a response-pattern-shaped array (pattern/phase/message/
+     * weight) into `out`
+     *
+     * Shared by response_patterns and state_patterns — the entry shape is
+     * identical, only the text each list is matched against differs.
+     */
+    void parse_pattern_array(const nlohmann::json& array, std::vector<ResponsePattern>& out,
+                             const char* kind, const std::string& source_path);
+
+    /**
+     * @brief Run the compiled-pattern matching loop over one pattern list
+     */
+    bool match_pattern_list(const std::vector<ResponsePattern>& patterns, const std::string& text,
+                            MatchResult& result) const;
 
     /**
      * @brief Convert phase name string to helix::PrintStartPhase enum
