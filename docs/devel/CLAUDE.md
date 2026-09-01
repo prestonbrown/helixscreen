@@ -70,7 +70,7 @@ All developer documentation lives here. When working on features, look up the re
 | `EXCLUDE_OBJECTS.md` | Object exclusion, per-object thumbnails, slicer setup |
 | `PRINT_STATE_MACHINE.md` | Print lifecycle state machine: states, transitions, guards, resource lifecycle |
 | `PRINT_CONTROL_BUTTONS.md` | PrintControlButtons controller: owned subjects, pure view function, optimistic pending-action machine, 2x1 home widget, panel delegation |
-| `PRINT_START_PROFILES.md` | Print start phase detection, JSON profiles |
+| `PRINT_START_PROFILES.md` | Print start phase detection: evidence kinds, JSON profile schema, authoring a profile for a new printer |
 | `PRINT_START_OBSERVERS.md` | The whole pre-print observer system: arming, the five signal sources (console, probe lines, bed-mesh flap, toolhead position, fallbacks), threading/lifetime rules, and which tests pin what |
 | `PRINT_START_INTEGRATION.md` | User-facing macro setup for print start tracking |
 | `Z_OFFSET_PERSISTENCE.md` | Firmware that stores the z-offset outside `gcode_move` and zeroes the live one between prints (ZMOD on AD5M/AD5X): why the idle reading lies, the `persisted_z_offset` subjects, the relative-vs-absolute `SET_GCODE_OFFSET` rule, and the one-row recipe for adding a firmware |
