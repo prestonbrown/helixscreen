@@ -28,26 +28,35 @@ static constexpr auto RATE_LIMIT_INTERVAL = std::chrono::minutes(5);
 MemoryThresholds MemoryThresholds::for_device(const MemoryInfo& info) {
     MemoryThresholds t;
 
+    // RSS thresholds are a SHARE OF TOTAL RAM with a per-band floor, in every
+    // band. A flat number cannot serve a band 2x wide: the constrained band's
+    // 30MB was chosen for the AD5M (~110MB, so 27% of RAM), but the same band
+    // holds the 209MB Creality K1, where 30MB is 14% — and the app's own steady
+    // state there is 27-30MB. That put the trigger AT steady state and the 90%
+    // clear threshold BELOW it, so the warning latched on and could never clear:
+    // a memory warning every 5 minutes forever, on a box with 130MB free, each
+    // one dispatching the pressure responders for a measured +0kB.
+    //
+    // std::max means this only ever RAISES a threshold relative to the old flat
+    // values, so it cannot introduce a warning on any device that was quiet.
     if (info.is_constrained_device()) {
-        // <256MB (AD5M ~110MB, K1C ~214MB): tight budgets
-        // App baseline RSS is ~20MB — warn well above baseline to avoid false positives
-        t.warn_rss_kb = 30 * 1024;
-        t.critical_rss_kb = 40 * 1024;
+        // <256MB (AD5M ~110MB, K1/K1C ~209-214MB): tight budgets
+        t.warn_rss_kb = std::max<size_t>(30 * 1024, info.total_kb * 30 / 100);
+        t.critical_rss_kb = std::max<size_t>(40 * 1024, info.total_kb * 50 / 100);
         t.warn_available_kb = 15 * 1024;
         t.critical_available_kb = 8 * 1024;
         t.growth_5min_kb = 1 * 1024;
     } else if (info.is_normal_device()) {
-        // 256-512MB
-        t.warn_rss_kb = 120 * 1024;
-        t.critical_rss_kb = 180 * 1024;
+        // 256-448MB
+        t.warn_rss_kb = std::max<size_t>(120 * 1024, info.total_kb * 30 / 100);
+        t.critical_rss_kb = std::max<size_t>(180 * 1024, info.total_kb * 50 / 100);
         t.warn_available_kb = 32 * 1024;
         t.critical_available_kb = 16 * 1024;
         t.growth_5min_kb = 3 * 1024;
     } else {
-        // >512MB (Pi 4/5, desktop) — scale RSS thresholds as a fraction of total RAM.
-        // On a 4GB Pi we are usually the largest process and can legitimately use
-        // most of it for the 3D viewer; on a desktop we want even more headroom.
-        // Floors keep us reasonable on small "good" devices (e.g. 512MB-1GB).
+        // >448MB (Pi 4/5, desktop). On a 4GB Pi we are usually the largest
+        // process and can legitimately use most of it for the 3D viewer; on a
+        // desktop we want even more headroom.
         t.warn_rss_kb = std::max<size_t>(180 * 1024, info.total_kb * 30 / 100);
         t.critical_rss_kb = std::max<size_t>(230 * 1024, info.total_kb * 50 / 100);
         t.warn_available_kb = 48 * 1024;

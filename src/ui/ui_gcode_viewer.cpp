@@ -491,11 +491,17 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
     helix::gcode::GeometryBudgetManager budget_mgr;
     size_t available_kb = budget_mgr.read_system_available_kb();
     size_t budget = budget_mgr.calculate_budget(available_kb);
-    auto budget_config = budget_mgr.select_tier(file.total_segments, budget);
+    // Size the tier on what the builder will actually build. GeometryBuilder
+    // drops auxiliary (purge / prime tower) segments, so estimating from
+    // total_segments charged the budget for mass that never becomes geometry
+    // and could downgrade tubes - or refuse 3D outright - on a tower-heavy
+    // multi-color file.
+    auto budget_config = budget_mgr.select_tier(file.drawable_segments, budget);
 
-    spdlog::info("[GCode Viewer] {}: {}MB available, {}MB budget, {} segments -> tier {}",
-                 context_tag, available_kb / 1024, budget / (1024 * 1024), file.total_segments,
-                 budget_config.tier);
+    spdlog::info(
+        "[GCode Viewer] {}: {}MB available, {}MB budget, {} drawable of {} segments -> tier {}",
+        context_tag, available_kb / 1024, budget / (1024 * 1024), file.drawable_segments,
+        file.total_segments, budget_config.tier);
 
     if (budget_config.tier > 3) {
         spdlog::info("[GCode Viewer] {}: tier {} — skipping 3D geometry build", context_tag,

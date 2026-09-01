@@ -573,7 +573,12 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // already outside the fit bounds, and on a multi-color file the tower can
     // be a large fraction of the segment budget on low-RAM devices.
     std::vector<ToolpathSegment> all_segments;
-    all_segments.reserve(gcode.total_segments);
+    // Reserve for what survives the auxiliary skip below, not the raw total -
+    // a tower-heavy multi-color file otherwise over-allocates by the tower's
+    // whole share. Falls back to the total for a file parsed before the
+    // counter existed (drawable_segments defaults to 0).
+    all_segments.reserve(gcode.drawable_segments > 0 ? gcode.drawable_segments
+                                                     : gcode.total_segments);
     for (size_t li = 0; li < gcode.layers.size(); ++li) {
         for (const auto& seg : gcode.layers[li].segments) {
             if (is_auxiliary_geometry(seg.feature_type)) {

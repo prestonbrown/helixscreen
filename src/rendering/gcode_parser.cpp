@@ -119,6 +119,10 @@ void GCodeParser::reset() {
     global_bounds_ = AABB();
     lines_parsed_ = 0;
     out_of_range_width_count_ = 0;
+    // Running counter, so it must clear with layers_ above: finalize() re-sums
+    // total_segments from the (now empty) layers, and a surviving drawable
+    // count would exceed it on the next parse.
+    drawable_segments_ = 0;
 
     // Layers will be created on-demand when segments are added
     // (see add_segment() which creates a layer if layers_ is empty)
@@ -1111,6 +1115,13 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
     bool is_first_segment = (layers_.size() == 1 && current_layer.segments.size() == 1);
     const bool auxiliary = is_auxiliary_geometry(current_feature_type_);
 
+    // Count what the geometry builder will keep. Reads the SAME local the bbox
+    // guards below use, so the budget estimate and the builder's skip test the
+    // same predicate on the same value and cannot drift apart.
+    if (!auxiliary) {
+        ++drawable_segments_;
+    }
+
     // Travels never frame a layer either: the approach and departure travels
     // around a prime tower would inject its coordinates right back in. The
     // global box has always been extrusion-only; this brings the layer box
@@ -1238,6 +1249,7 @@ ParsedGCodeFile GCodeParser::finalize() {
     for (const auto& layer : result.layers) {
         result.total_segments += layer.segments.size();
     }
+    result.drawable_segments = drawable_segments_;
 
     // Transfer metadata
     result.slicer_name = metadata_slicer_name_;

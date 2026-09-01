@@ -85,6 +85,39 @@ TEST_CASE("Budget: tier selection - medium file gets Tier 2", "[gcode][budget]")
     REQUIRE(config.tube_sides == 8);
 }
 
+TEST_CASE("Budget: dropped auxiliary mass must not cost a tier", "[gcode][budget]") {
+    // #1425: the builder drops prime-tower/purge segments, but the tier gate was
+    // estimating from total_segments, which still counted them. A 4-color file
+    // that is half tower was charged for the half that never becomes geometry.
+    GeometryBudgetManager mgr;
+    const size_t budget = 100 * 1024 * 1024;
+
+    // 300K total segments, half of them prime tower.
+    // Charged in full:   300K x 600 = 171.7MB > 100MB, x 300 = 85.8MB < 100MB -> tier 3
+    // Charged drawable:  150K x 600 =  85.8MB < 100MB                         -> tier 2
+    auto inflated = mgr.select_tier(300000, budget);
+    auto drawable = mgr.select_tier(150000, budget);
+
+    REQUIRE(inflated.tier == 3);
+    REQUIRE(drawable.tier == 2);
+    REQUIRE(drawable.tube_sides > inflated.tube_sides);
+    REQUIRE(drawable.include_travels);
+    REQUIRE_FALSE(inflated.include_travels);
+}
+
+TEST_CASE("Budget: dropped auxiliary mass must not cost 3D entirely", "[gcode][budget]") {
+    // The worst case the issue names: the inflated count crosses out of tier 3
+    // into tier 4, where ui_gcode_viewer bails (`if (tier > 3) return nullptr`)
+    // and the file gets no 3D preview at all.
+    GeometryBudgetManager mgr;
+    const size_t budget = 100 * 1024 * 1024;
+
+    // Charged in full:  800K x 300 = 240MB, above 2x budget -> tier 4, no 3D
+    // Charged drawable: 300K x 300 =  90MB < 100MB          -> tier 3, still 3D
+    REQUIRE(mgr.select_tier(800000, budget).tier == 4);
+    REQUIRE(mgr.select_tier(300000, budget).tier == 3);
+}
+
 TEST_CASE("Budget: tier selection - large file gets Tier 3", "[gcode][budget]") {
     GeometryBudgetManager mgr;
     // 300K segs × 600 = 180MB > 100MB, × 300 = 90MB < 100MB → Tier 3
