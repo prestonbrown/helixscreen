@@ -296,7 +296,17 @@ struct ParsedGCodeFile {
     std::vector<std::string> object_name_table; ///< Interned object name strings
 
     // Statistics
-    size_t total_segments{0};                 ///< Total segment count
+    size_t total_segments{0}; ///< Total segment count, auxiliary geometry included
+    /// Segments GeometryBuilder will actually build: total minus the auxiliary
+    /// (purge / prime tower) mass it drops at gcode_geometry_builder.cpp:579.
+    /// The 3D memory budget must size itself on THIS, not total_segments - a
+    /// 4-color file whose tower is a large share of the mass was being pushed
+    /// to a lower tube tier, or past tier 3 into no-3D-at-all, on segments that
+    /// are never built. Stored rather than recomputed from layers: the
+    /// on-demand 2D->3D path runs against a retained file whose segments
+    /// clear_segments() has already freed, and a recomputed 0 would select
+    /// tier 1 - the opposite failure.
+    size_t drawable_segments{0};
     float estimated_print_time_minutes{0.0f}; ///< From metadata (if available)
     float total_filament_mm{0.0f};            ///< From metadata (if available)
 
@@ -729,6 +739,7 @@ class GCodeParser {
     std::set<int> tools_used_;                    ///< Tool indices seen via T-commands
     bool in_wipe_tower_{false};                   ///< True when inside wipe tower section
     FeatureType current_feature_type_{FeatureType::Unknown}; ///< Active ;TYPE: section
+    size_t drawable_segments_{0}; ///< Running count of non-auxiliary segments added
 
     // Accumulated data
     std::vector<Layer> layers_;                  ///< All parsed layers

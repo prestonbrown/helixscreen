@@ -1333,6 +1333,80 @@ TEST_CASE("GCodeParser - Real OrcaSlicer SSR file metadata",
     }
 }
 
+TEST_CASE("GCodeParser - drawable_segments on a real 4-color prime-tower file",
+          "[gcode][parser][feature_type][integration]") {
+    // The scenario #1425 describes, on a real slicer file rather than a stub:
+    // a 4-color OrcaSlicer print whose prime tower is a large share of the
+    // segment mass. The 3D budget used to be charged for that whole share.
+    std::string test_file = "assets/test_gcodes/u1_4color_ring.gcode";
+    std::ifstream check(test_file);
+    if (!check.good()) {
+        SKIP("Test G-code file not found: " << test_file);
+    }
+    check.close();
+
+    GCodeParser parser;
+    std::ifstream file_stream(test_file);
+    std::string line;
+    while (std::getline(file_stream, line)) {
+        parser.parse_line(line);
+    }
+    auto file = parser.finalize();
+
+    REQUIRE(file.total_segments > 0);
+
+    // Count the auxiliary mass independently, straight off the stored feature
+    // types, and require the counter to agree exactly. This cross-checks the
+    // running increment against the segments actually retained, so an off-by-one
+    // or a missed increment fails here even if the magnitude looks plausible.
+    size_t auxiliary = 0;
+    for (const auto& layer : file.layers) {
+        for (const auto& seg : layer.segments) {
+            if (is_auxiliary_geometry(seg.feature_type)) {
+                ++auxiliary;
+            }
+        }
+    }
+    REQUIRE(file.drawable_segments == file.total_segments - auxiliary);
+
+    // And it must actually be a meaningful share on this file, otherwise the
+    // assertion above would pass on a file with no tower at all.
+    REQUIRE(auxiliary > 0);
+    REQUIRE(file.drawable_segments < file.total_segments);
+    INFO("total=" << file.total_segments << " drawable=" << file.drawable_segments
+                  << " auxiliary=" << auxiliary);
+}
+
+TEST_CASE("GCodeParser - reset() clears the drawable count with the layers",
+          "[gcode][parser][feature_type]") {
+    // drawable_segments is a RUNNING counter, unlike total_segments which
+    // finalize() re-sums from the layers each time. reset() empties layers_, so
+    // a counter that survived would exceed the recomputed total on the next
+    // parse - and the 3D budget would size itself on segments from a file that
+    // is no longer loaded.
+    GCodeParser parser;
+    parser.parse_line(";TYPE:Outer wall");
+    parser.parse_line("G1 X10 Y10 Z0.2 F600");
+    parser.parse_line("G1 X20 Y20 E0.1");
+    parser.parse_line(";TYPE:Wipe tower");
+    parser.parse_line("G1 X300 Y300 E0.3");
+    auto first = parser.finalize();
+    REQUIRE(first.total_segments == 3);
+    REQUIRE(first.drawable_segments == 2);
+
+    parser.reset();
+
+    // A shorter second file through the SAME parser instance.
+    parser.parse_line(";TYPE:Outer wall");
+    parser.parse_line("G1 X10 Y10 Z0.2 F600");
+    parser.parse_line("G1 X20 Y20 E0.1");
+    auto second = parser.finalize();
+    REQUIRE(second.total_segments == 2);
+    CHECK(second.drawable_segments == 2);
+    // The invariant that actually matters: drawable can never exceed the total.
+    CHECK(second.drawable_segments <= second.total_segments);
+}
+
 TEST_CASE("GCodeParser - FeatureType tagging", "[gcode][parser][feature_type]") {
     GCodeParser parser;
 
@@ -1349,6 +1423,12 @@ TEST_CASE("GCodeParser - FeatureType tagging", "[gcode][parser][feature_type]") 
 
     auto file = parser.finalize();
     REQUIRE(file.total_segments == 5);
+    // THREE of the five are auxiliary - both ;TYPE:Custom segments (the travel
+    // into position and the purge line) plus the wipe tower - leaving Brim and
+    // Outer wall as the only two the geometry builder will build. The 3D memory
+    // budget sizes itself on this count: charging it for the tower could
+    // downgrade the tube tier, or refuse 3D entirely, over segments never built.
+    REQUIRE(file.drawable_segments == 2);
     auto& segs = file.layers[0].segments;
 
     // First two segments emitted under ;TYPE:Custom (travel into position +

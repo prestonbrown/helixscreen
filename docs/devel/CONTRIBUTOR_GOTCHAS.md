@@ -141,7 +141,7 @@ Full mechanism and the one-line `dots` alternative: `LVGL9_XML_GUIDE.md`, "Text 
 
 That is exactly what happened in `ui_xml/components/panel_widget_print_status.xml` - `print_card_idle` and `print_card_idle_compact` were the only two containers in the file missing the attribute (the other nine had it), and the chevrons landed on top of the thumbnail on an 800x480 panel.
 
-Page scroll is a *page-level* affordance, so home panel widget tiles are now excluded outright: the auto-inject walk stops at any tile (`src/ui/page_scroll_auto_inject.cpp:67`, flag set in `src/ui/panel_widget_manager.cpp:825`). A tile is sized by the home grid and scrolled by dragging it, and the gutter is 172px tall at the medium tier - most of a tile at 800x480. If you are seeing chevrons *inside* a home widget, that is a bug in the walk, not something to work around in XML. Full picture: `PAGE_SCROLL_BUTTONS.md`.
+Page scroll is a *page-level* affordance, so home panel widget tiles are now excluded outright: the auto-inject walk stops at any tile (`src/ui/page_scroll_auto_inject.cpp:67`, flag set in `src/ui/panel_widget_manager.cpp:832`). A tile is sized by the home grid and scrolled by dragging it, and the gutter is 172px tall at the medium tier - most of a tile at 800x480. If you are seeing chevrons *inside* a home widget, that is a bug in the walk, not something to work around in XML. Full picture: `PAGE_SCROLL_BUTTONS.md`.
 
 **Why silent?** Nothing is wrong from LVGL's point of view. The container is scrollable, the gutter is doing its job, and neither logs anything. You only find out by looking at the screen.
 
