@@ -282,7 +282,8 @@ mod_payload_mode_block() {
             if [ "${STANDALONE_INSTALL:-}" = "1" ]; then
                 log_warn "Re-run without --standalone for the payload install."
             else
-                log_warn "Re-run without the INSTALL_DIR override for the payload install."
+                log_warn "An explicit INSTALL_DIR picks the root, not the contract;"
+                log_warn "re-run without it, or name the root with --payload-root."
             fi
         fi
         return 0

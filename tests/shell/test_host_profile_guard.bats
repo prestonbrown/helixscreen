@@ -214,7 +214,7 @@ sandbox_candidates() {
     run set_install_paths "ad5x" "forge_x"
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
-    [[ "$output" == *"--mod-payload"* ]]
+    [[ "$output" == *"--payload-root"* ]]   # the current lever, not the retired --mod-payload
 
     # --mod-payload's contract is an in-place update inside the mod layout:
     # the guard must stand down for it.
@@ -242,7 +242,7 @@ sandbox_candidates() {
     run set_install_paths "pi"
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
-    [[ "$output" == *"--mod-payload"* ]]
+    [[ "$output" == *"--payload-root"* ]]   # the current lever, not the retired --mod-payload
 }
 
 @test "detect_tmp_dir refuses a mod-owned user TMP_DIR outside --mod-payload" {
@@ -259,7 +259,7 @@ sandbox_candidates() {
     run detect_tmp_dir
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
-    [[ "$output" == *"--mod-payload"* ]]
+    [[ "$output" == *"--payload-root"* ]]   # the current lever, not the retired --mod-payload
 
     HELIX_MOD_PAYLOAD=1
     detect_tmp_dir

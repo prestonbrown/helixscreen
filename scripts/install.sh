@@ -827,7 +827,8 @@ resolve_payload_root() {
 host_refuse_mod_owned() {
     if host_mod_destruct_blocked "$2"; then
         log_error "refusing ${1} on mod-owned path: $2"
-        log_error "this tree belongs to the firmware mod; --mod-payload updates it in place"
+        log_error "this tree belongs to the firmware mod; the payload contract updates"
+        log_error "it in place (a bare install here, or --payload-root to name a root)"
         exit 1
     fi
 }
@@ -8580,8 +8581,8 @@ configure_moonraker_updates() {
         return 0
     fi
 
-    # --mod-payload writes NOTHING to any Moonraker conf unless the operator
-    # opted in with --mod-payload-updates. The stanza arms Moonraker's
+    # A payload install writes NOTHING to any Moonraker conf unless the
+    # operator opted in with --auto-update. The stanza arms Moonraker's
     # NetDeploy against `path:` (its update flow rmtree()s the path), and on a
     # mod host the payload's lifecycle belongs to the mod's OTA, not to a
     # second updater. With the opt-in the stanza lands in the mod's
@@ -11090,7 +11091,8 @@ mod_payload_mode_block() {
             if [ "${STANDALONE_INSTALL:-}" = "1" ]; then
                 log_warn "Re-run without --standalone for the payload install."
             else
-                log_warn "Re-run without the INSTALL_DIR override for the payload install."
+                log_warn "An explicit INSTALL_DIR picks the root, not the contract;"
+                log_warn "re-run without it, or name the root with --payload-root."
             fi
         fi
         return 0

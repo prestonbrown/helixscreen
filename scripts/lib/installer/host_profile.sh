@@ -3,7 +3,8 @@
 # Module: host_profile
 # Host capability profile: probe the firmware mod once, answer path questions
 #
-# Reads: HELIX_MOD_PAYLOAD (set by --mod-payload parsing)
+# Reads: HELIX_MOD_PAYLOAD (set by the payload contract: auto-detected on
+#        verified mod hosts, or the --mod-payload compat alias in parsing)
 # Writes: HOST_* globals, HELIX_MOD_PAYLOAD (defaults it when unset)
 
 # Source guard
@@ -239,7 +240,8 @@ resolve_payload_root() {
 host_refuse_mod_owned() {
     if host_mod_destruct_blocked "$2"; then
         log_error "refusing ${1} on mod-owned path: $2"
-        log_error "this tree belongs to the firmware mod; --mod-payload updates it in place"
+        log_error "this tree belongs to the firmware mod; the payload contract updates"
+        log_error "it in place (a bare install here, or --payload-root to name a root)"
         exit 1
     fi
 }

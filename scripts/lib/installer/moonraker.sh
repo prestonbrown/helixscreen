@@ -619,8 +619,8 @@ configure_moonraker_updates() {
         return 0
     fi
 
-    # --mod-payload writes NOTHING to any Moonraker conf unless the operator
-    # opted in with --mod-payload-updates. The stanza arms Moonraker's
+    # A payload install writes NOTHING to any Moonraker conf unless the
+    # operator opted in with --auto-update. The stanza arms Moonraker's
     # NetDeploy against `path:` (its update flow rmtree()s the path), and on a
     # mod host the payload's lifecycle belongs to the mod's OTA, not to a
     # second updater. With the opt-in the stanza lands in the mod's
