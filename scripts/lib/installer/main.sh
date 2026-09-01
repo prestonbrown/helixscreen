@@ -52,8 +52,10 @@ usage() {
     echo "                 service installed or started (the mod owns the UI"
     echo "                 service), config/ and platform/ preserved."
     echo "  --payload-root PATH  Payload root (default: the mod's own tree on"
-    echo "                 AD5X-shape hosts). On an AD5M Forge-X host the payload"
-    echo "                 contract is not auto-detected - name the root to use it"
+    echo "                 Forge-X hosts, AD5X and AD5M alike). A host that"
+    echo "                 still carries an older standalone install is"
+    echo "                 offered adoption of that root; declining leaves it"
+    echo "                 untouched, with the migration steps printed"
     echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
     echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
     echo "                 is a real side effect)"
@@ -215,12 +217,12 @@ mod_payload_autodetect() {
         HELIX_MOD_PAYLOAD=1
         return 0
     fi
-    # Auto-detect only the VERIFIED host shape: the mod tree WITH the mod's
-    # chroot (the AD5X rig, whose bootstrap and mod-managed service the rig
-    # cycle verified). A probed tree without a chroot is the AD5M Forge-X
-    # layout - an established population installed at the platform root whose
-    # payload contract nothing has verified - so it keeps its pre-payload
-    # behavior until then (explicit --payload-root only). The chroot answer
+    # Auto-detect only the mod's own shape: the tree WITH its Buildroot
+    # chroot, which both Forge-X layouts carry (the AD5X rig's bootstrap and
+    # mod-managed service the rig cycle verified; the AD5M rig shares the
+    # same contract shape - one mod, one descriptor). A probed tree without
+    # a chroot is a mod mid-install or half-removed, so it keeps the
+    # pre-payload behavior (explicit --payload-root only). The chroot answer
     # exists from host_profile_probe, which main() runs before this.
     [ "${HOST_CHROOT_STATE:-none}" = "none" ] && return 0
     if [ -n "${HOST_MOD_ROOT:-}" ]; then
@@ -228,12 +230,91 @@ mod_payload_autodetect() {
     fi
 }
 
+# The legacy AD5M population's adopt-or-warn (Task 10). Before the payload
+# contract, our installer put ad5m+forge_x hosts at /opt/helixscreen with an
+# S90helixscreen service; that population still exists, and a payload install
+# that silently relocated to the mod's default root would strand it (A1's
+# no-silent-conversion rule). So the armed install OFFERS to adopt the legacy
+# root as its payload root - outside the mod's git tree, which is also the
+# OTA-durable answer (Open Decision 1) - and a declined or unanswerable offer
+# proceeds at the mod default with the exact manual migration commands.
+#
+# Nothing is ever deleted here: the legacy root and its service are the
+# operator's to remove, with the commands printed below or the shipped
+# uninstaller. An adoption IS recorded (the record write later in
+# mod_payload_mode_block), which is also how the next run resumes it without
+# re-asking.
+payload_legacy_adopt_or_warn() {
+    # Only an armed, bare payload install reaching for the mod's default
+    # root: an explicit --payload-root or INSTALL_DIR is the operator's own
+    # choice, --standalone never reaches here armed, and uninstall is not an
+    # install.
+    [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] || return 0
+    [ -z "${MOD_PAYLOAD_ROOT:-}" ] || return 0
+    [ -z "${_USER_INSTALL_DIR:-}" ] || return 0
+    [ "$uninstall_mode" != true ] || return 0
+    [ "${STANDALONE_INSTALL:-}" != "1" ] || return 0
+    [ -n "${HOST_LEGACY_INSTALL_ROOT:-}" ] || return 0
+    [ "${INSTALL_DIR:-}" = "${HOST_INSTALL_ROOT:-}" ] || return 0
+
+    local legacy="$HOST_LEGACY_INSTALL_ROOT"
+    local svc="${HOST_LEGACY_INIT_SCRIPT:-/etc/init.d/S90helixscreen}"
+
+    # A prior adopt recorded its choice; resuming it is not relocation.
+    if [ "$(read_payload_root_record 2>/dev/null || true)" = "$legacy" ]; then
+        INSTALL_DIR="$legacy"
+        validate_install_dir "$INSTALL_DIR" || exit 1
+        log_info "Payload root: resuming the adopted root $INSTALL_DIR"
+        log_info "(recorded in $(host_payload_root_record); clear that file to re-choose)"
+        return 0
+    fi
+
+    if payload_legacy_prompt_adopt "$legacy"; then
+        INSTALL_DIR="$legacy"
+        # The probe's platform-keyed candidate, not an operator path: the
+        # name gate still applies (a legacy root is a canonical platform
+        # root, so this cannot fail on a real rig).
+        validate_install_dir "$INSTALL_DIR" || exit 1
+        log_info "Adopted the existing install at $INSTALL_DIR as the payload root"
+        log_info "(outside the mod's git tree, so a Forge-X OTA cannot remove it)"
+        log_warn "The standalone service there is now redundant; remove it yourself:"
+        log_warn "  rm $svc"
+        return 0
+    fi
+
+    log_warn "An older standalone HelixScreen install exists at $legacy"
+    log_warn "(service: $svc). This payload install uses the mod's root instead:"
+    log_warn "  $INSTALL_DIR"
+    log_warn "The old install is left untouched. To finish the migration by hand:"
+    log_warn "  cp $legacy/config/settings.json ${HOST_CONFIG_DIR:-}/settings.json"
+    log_warn "  rm $svc"
+    log_warn "  rm -rf $legacy"
+    log_warn "Or adopt that root as the payload root:"
+    log_warn "  --payload-root $legacy"
+}
+
+# Ask the adopt question where it can be answered: a TTY. The curl|sh pipe
+# cannot answer (stdin carries the script), so every other stdin declines -
+# the same rule confirm_clean_install applies, except a decline proceeds at
+# the mod default rather than aborting.
+# Returns 0 to adopt.
+payload_legacy_prompt_adopt() {
+    [ -t 0 ] || return 1
+    printf "Adopt the existing install at %s as the payload root? [y/N] " "$1"
+    read -r response
+    case "$response" in
+        [yY][eE][sS]|[yY]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Payload-mode wiring. Runs after set_install_paths (INSTALL_DIR holds the
 # mod's payload root, an explicit env INSTALL_DIR, or the platform default)
 # and before the pre-flight checks, so every later step sees the mode's
 # answers.
 #
-# Root precedence: --payload-root > whatever set_install_paths chose (an
+# Root precedence: --payload-root > an adopted legacy root (the operator's
+# recorded or just-given choice) > whatever set_install_paths chose (an
 # explicit env INSTALL_DIR > the host profile's HOST_INSTALL_ROOT).
 mod_payload_mode_block() {
     if [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
@@ -248,6 +329,10 @@ mod_payload_mode_block() {
         validate_install_dir "$INSTALL_DIR" || exit 1
         log_info "Payload root (--payload-root): $INSTALL_DIR"
     fi
+
+    # The legacy-population choice, before anything reads or records the
+    # root: it may move INSTALL_DIR off the mod default.
+    payload_legacy_adopt_or_warn
 
     # Compat no-op notice for the old opt-in flag, whichever way it lands.
     if [ "${MOD_PAYLOAD_FLAG_GIVEN:-}" = "1" ]; then

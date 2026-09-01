@@ -92,6 +92,8 @@ setup() {
     HOST_CONFIG_DIR="$SANDBOX/usr/data/config/mod_data/helixscreen/config"
     HOST_MOONRAKER_USER_CONF="$SANDBOX/usr/data/config/mod_data/user.moonraker.conf"
     HOST_PLATFORM_HOOK_KEY="ad5x-forgex"
+    HOST_LEGACY_INSTALL_ROOT=""
+    HOST_LEGACY_INIT_SCRIPT=""
 
     HELIX_MOD_PAYLOAD=""
     HELIX_MOD_PAYLOAD_UPDATES=""
@@ -1008,14 +1010,15 @@ SHIM
 
 # --- A1: the payload auto-arm is scoped to the verified host shape ---
 #
-# The probe's candidate list includes /opt/config/mod - the AD5M Forge-X
-# layout - but everything verified on this branch is the AD5X rig's shape
-# (mod tree WITH the mod's Buildroot chroot). An AD5M Forge-X host probing a
-# tree without a chroot keeps its pre-payload contract: no auto-arm, no
-# relocation to the mod tree, the platform's own root and service stand. The
-# payload contract there is explicit-only (--payload-root).
+# Both Forge-X layouts carry the mod's Buildroot chroot beside its tree (each
+# board's own DATA_MNT: /usr/data on the AD5X, /data on the AD5M), so the arm
+# gate - tree AND chroot - now covers both rigs. What it still excludes is a
+# tree WITHOUT its chroot: a mod mid-install or half-removed, whose payload
+# root nothing can run. That shape keeps its pre-payload contract: no
+# auto-arm, no relocation to the mod tree, the platform's own root and
+# service stand. The payload contract there is explicit-only (--payload-root).
 
-@test "an AD5M-shape mod host (tree, no chroot) does not auto-arm the payload contract" {
+@test "a half-installed mod host (tree, no chroot) does not auto-arm the payload contract" {
     export HELIX_MOD_TREE_CANDIDATES="$MOD_ROOT"
     export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/usr/data/.mod/.forge-x"   # never created
     # Drop the setup's hand-pinned answers so the assertions read the PROBE's
@@ -1035,6 +1038,165 @@ SHIM
         || fail "auto-armed the payload contract on a chroot-less mod host"
     [ -z "$HOST_INSTALL_ROOT" ] \
         || fail "the probe claimed a payload root - a bare install would relocate to it"
+}
+
+@test "a genuinely-AD5M Forge-X host auto-arms the payload contract" {
+    # The AD5M block of the mod's descriptor: MOD_ROOT=/opt/config/mod,
+    # chroot /data/.mod/.forge-x, armv7l. A bare install there is a payload
+    # install exactly as on the AD5X rig (Task 10): ff5m is one mod, the
+    # AD5M/AD5X split was our verification boundary, not a real one.
+    mkdir -p "$SANDBOX/opt/config/mod/.shell" "$SANDBOX/data/.mod/.forge-x/usr/bin"
+    touch "$SANDBOX/opt/config/mod/.shell/platform.sh"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/opt/config/mod"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/data/.mod/.forge-x"
+    uname() { echo armv7l; }
+    export -f uname
+    unset HOST_MOD_ROOT HOST_MOD_CHROOT HOST_CHROOT_STATE HOST_SERVICE_MECHANISM \
+          HOST_INSTALL_ROOT HOST_CONFIG_DIR HOST_MOONRAKER_USER_CONF \
+          HOST_PLATFORM_HOOK_KEY HOST_OWNS_COMPETING_UIS
+    host_profile_probe
+    [ -n "$HOST_MOD_ROOT" ] || fail "setup: the AD5M mod tree was not recognized"
+    [ "$HOST_MOD_ROOT" = "$SANDBOX/opt/config/mod" ] \
+        || fail "setup: HOST_MOD_ROOT='$HOST_MOD_ROOT'"
+    [ "$HOST_PLATFORM_HOOK_KEY" = "ad5m-forgex" ] \
+        || fail "setup: an AD5M rig must carry the ad5m payload key"
+
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_ROOT=""
+    mod_payload_autodetect
+
+    [ "$HELIX_MOD_PAYLOAD" = "1" ] \
+        || fail "did not auto-arm on the AD5M Forge-X shape"
+}
+
+# --- Task 10: the legacy AD5M population gets adopt-or-warn, never silence ---
+#
+# Before the payload contract, our installer put ad5m+forge_x hosts at
+# /opt/helixscreen with an S90helixscreen service. A payload install that
+# silently relocated to the mod's default root would strand that install
+# (A1's no-silent-conversion rule), so the armed install offers to ADOPT the
+# legacy root - a payload root outside the mod's git tree, which is also the
+# OTA-durable answer - and a declined or unanswerable offer proceeds at the
+# mod default with the exact manual migration commands. The installer never
+# deletes the legacy root or touches its service: the commands are printed
+# for the operator.
+
+# The legacy half of the genuinely-AD5M rig state, pinned like the setup's
+# other HOST_* answers (the probe owns the real ones; these tests exercise
+# the mode block's policy on top of them).
+seed_legacy_install() {
+    HOST_LEGACY_INSTALL_ROOT="$SANDBOX/opt/helixscreen"
+    HOST_LEGACY_INIT_SCRIPT="$SANDBOX/etc/init.d/S90helixscreen"
+    mkdir -p "$HOST_LEGACY_INSTALL_ROOT/bin" "$SANDBOX/etc/init.d"
+    printf '#!/bin/sh\nexec /opt/helixscreen/bin/helix-launcher.sh\n' \
+        > "$HOST_LEGACY_INIT_SCRIPT"
+    chmod +x "$HOST_LEGACY_INIT_SCRIPT"
+    printf 'LEGACY\n' > "$HOST_LEGACY_INSTALL_ROOT/bin/helix-screen"
+}
+
+@test "legacy adopt: an accepted offer lands the payload at the legacy root, service untouched" {
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT=""
+    STANDALONE_INSTALL=""
+    uninstall_mode=false
+    seed_legacy_install
+    # The operator answers the offer with y. The prompt's contract is exactly
+    # "return 0 = adopt"; pinning it here drives the adopt arm without a pty
+    # (the decline arm below drives the REAL prompt over bats' piped stdin).
+    payload_legacy_prompt_adopt() { return 0; }
+
+    mod_payload_mode_block
+
+    [ "$INSTALL_DIR" = "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR' - the adopt did not take"
+    # The adopt is recorded: a later armed uninstall resolves this root, and
+    # the next install resumes it instead of re-offering.
+    [ "$(cat "$(host_payload_root_record)")" = "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "the record names '$(cat "$(host_payload_root_record)")', not the adopted root"
+    # The standalone service is the operator's to remove: the command is
+    # printed, never executed - and never even de-exec'd by us.
+    [ -x "$HOST_LEGACY_INIT_SCRIPT" ] \
+        || fail "the installer disabled the standalone service itself"
+    [ -f "$HOST_LEGACY_INSTALL_ROOT/bin/helix-screen" ] \
+        || fail "the installer deleted the legacy root itself"
+    # The adopt arm's own copy: reset the run state (the first call moved
+    # INSTALL_DIR and wrote the record; either alone would steer the re-run
+    # away from the offer) so this is the fresh offer again, not the resume.
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+    rm -f "$(host_payload_root_record)"
+    run mod_payload_mode_block
+    grep -q "rm $HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
+        || fail "the adopt does not print the service-removal command"
+}
+
+@test "legacy decline: the payload stays at the mod default and the warning names both roots" {
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT=""
+    STANDALONE_INSTALL=""
+    uninstall_mode=false
+    seed_legacy_install
+    # No prompt override: bats runs with piped stdin, so the REAL prompt must
+    # decline - the curl|sh path this offer has to survive.
+
+    mod_payload_mode_block
+
+    [ "$INSTALL_DIR" = "$HOST_INSTALL_ROOT" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR' - a declined offer must keep the mod default"
+    [ -d "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "the legacy root was deleted on the way past"
+    [ -x "$HOST_LEGACY_INIT_SCRIPT" ] \
+        || fail "the standalone service was touched without an adopt"
+
+    run mod_payload_mode_block
+    grep -q "$HOST_LEGACY_INSTALL_ROOT" <<< "$output" \
+        || fail "the warning does not name the legacy root"
+    grep -q "$HOST_INSTALL_ROOT" <<< "$output" \
+        || fail "the warning does not name the mod default root"
+    grep -q "rm $HOST_LEGACY_INIT_SCRIPT" <<< "$output" \
+        || fail "no command to remove the standalone service"
+    grep -q "rm -rf $HOST_LEGACY_INSTALL_ROOT" <<< "$output" \
+        || fail "no command to remove the legacy root"
+    grep -q -- "--payload-root $HOST_LEGACY_INSTALL_ROOT" <<< "$output" \
+        || fail "no explicit-adopt escape hatch named"
+}
+
+@test "legacy resume: a recorded adopt re-lands at the legacy root without asking" {
+    # An adopt is a choice the record persists. Re-offering on every update
+    # would nag an operator who already decided; re-locating silently is what
+    # A1 forbids. Resuming the recorded root is neither.
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT=""
+    STANDALONE_INSTALL=""
+    uninstall_mode=false
+    seed_legacy_install
+    mkdir -p "$(host_mod_data)"
+    printf '%s\n' "$HOST_LEGACY_INSTALL_ROOT" > "$(host_payload_root_record)"
+    # The prompt would decline; the record must bypass the offer entirely.
+    payload_legacy_prompt_adopt() { return 1; }
+
+    mod_payload_mode_block
+
+    [ "$INSTALL_DIR" = "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR' - the recorded adopt was not resumed"
+}
+
+@test "no legacy install: the payload run keeps today's behavior" {
+    # Control: with no legacy root probed, the mode block neither warns nor
+    # strays from the mod default - the AD5X rig's plain path, unchanged.
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT=""
+    STANDALONE_INSTALL=""
+    uninstall_mode=false
+    HOST_LEGACY_INSTALL_ROOT=""
+    HOST_LEGACY_INIT_SCRIPT=""
+
+    mod_payload_mode_block
+    [ "$INSTALL_DIR" = "$HOST_INSTALL_ROOT" ] \
+        || fail "INSTALL_DIR='$INSTALL_DIR' - moved without a legacy root to move to"
+
+    run mod_payload_mode_block
+    ! grep -q "older standalone" <<< "$output" \
+        || fail "warned about a legacy install that is not there"
 }
 
 @test "an AD5X-shape mod host (tree with chroot) still auto-arms" {
@@ -1128,5 +1290,26 @@ SHIM
     case "$output" in
         *--payload-root*) ;;
         *) fail "the refusal does not point at the durable-root escape";;
+    esac
+}
+
+# --- The --help copy states the AD5M truth ---
+#
+# Task 10 arms the AD5M Forge-X shape, so the line that told operators "On an
+# AD5M Forge-X host the payload contract is not auto-detected" becomes a lie
+# the moment it lands. The copy must say both rigs auto-detect and that a
+# legacy standalone install is offered adoption, not silent relocation.
+
+@test "--help: the payload root copy covers both rigs and the adopt offer" {
+    run usage
+
+    [ "$status" -eq 0 ] || fail "usage failed: $output"
+    case "$output" in
+        *"AD5X and AD5M alike"*) ;;
+        *) fail "--help does not say the payload contract covers both rigs";;
+    esac
+    case "$output" in
+        *"not auto-detected"*)
+            fail "--help still claims the contract is not auto-detected on the AD5M";;
     esac
 }

@@ -85,12 +85,14 @@ sandbox_candidates() {
 }
 
 @test "host_profile_probe: a mod tree without the mod chroot is recognized but not payload-managed" {
-    # The AD5M Forge-X layout (A1): the mod's tree exists, but there is no
-    # Buildroot chroot beside it. The tree is still recognized - flavor
+    # A HALF-INSTALLED mod: the tree exists, but its Buildroot chroot is not
+    # beside it. Both real Forge-X layouts carry the chroot (each board's own
+    # DATA_MNT; see the genuinely-AD5M test below), so a tree without one is a
+    # mod mid-install or half-removed. The tree is still recognized - flavor
     # detection, the forgex takeover paths, the mod-ownership guard - but the
-    # payload contract's answers stay OFF: nothing on that host shape is
-    # verified to manage a payload, and claiming it would silently relocate a
-    # population whose installs live at the platform root.
+    # payload contract's answers stay OFF: nothing verified that host shape,
+    # and arming it would point a payload install at a tree the mod cannot
+    # yet run it from.
     sandbox_candidates
     # No chroot directory: the chroot candidates point at nothing.
     host_profile_probe
@@ -120,6 +122,103 @@ sandbox_candidates() {
         || fail "HOST_SERVICE_MECHANISM='$HOST_SERVICE_MECHANISM'"
     [ "$HOST_OWNS_COMPETING_UIS" = "0" ] \
         || fail "HOST_OWNS_COMPETING_UIS='$HOST_OWNS_COMPETING_UIS'"
+}
+
+# The genuinely-AD5M Forge-X sandbox: the AD5M block of the mod's own
+# descriptor (ff5m .shell/platform.sh) puts MOD_ROOT at /opt/config/mod and
+# DATA_MNT at /data, so the mod's Buildroot chroot - one derivation off
+# DATA_MNT, the same rule the AD5X's /usr/data/.mod/.forge-x follows - is
+# /data/.mod/.forge-x. The descriptor selects its block by uname (mips ->
+# AD5X, everything else -> AD5M), which is why these tests shadow uname: the
+# probe answers must key on the rig's architecture, not on the test host's.
+ad5m_sandbox() {
+    mkdir -p "$SANDBOX/opt/config/mod/.shell" "$SANDBOX/data/.mod/.forge-x/usr/bin"
+    touch "$SANDBOX/opt/config/mod/.shell/platform.sh"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/opt/config/mod"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/data/.mod/.forge-x"
+}
+
+@test "host_profile_probe: a genuinely-AD5M Forge-X host is payload-managed with the ad5m key" {
+    # ff5m is ONE mod with one contract shape on both Adventurer boards; the
+    # AD5M/AD5X split in A1 was our verification boundary, not a real one. The
+    # probe must arm the payload answers for the AD5M layout exactly as it
+    # does for the AD5X rig's - mod_data derived as a sibling of the tree
+    # (/opt/config/mod_data), hook key naming the AD5M payload layout.
+    ad5m_sandbox
+    uname() { echo armv7l; }
+    export -f uname
+    host_profile_probe
+
+    [ "$HOST_MOD_ROOT" = "$SANDBOX/opt/config/mod" ] \
+        || fail "HOST_MOD_ROOT='$HOST_MOD_ROOT'"
+    [ "$HOST_MOD_CHROOT" = "$SANDBOX/data/.mod/.forge-x" ] \
+        || fail "HOST_MOD_CHROOT='$HOST_MOD_CHROOT' - the AD5M chroot was not probed"
+    [ "$HOST_SERVICE_MECHANISM" = "mod-managed" ] \
+        || fail "HOST_SERVICE_MECHANISM='$HOST_SERVICE_MECHANISM'"
+    [ "$HOST_INSTALL_ROOT" = "$SANDBOX/opt/config/mod/.bin/helixscreen" ] \
+        || fail "HOST_INSTALL_ROOT='$HOST_INSTALL_ROOT'"
+    # mod_data is a sibling of the mod tree: /opt/config/mod_data on the AD5M,
+    # their .shell/helixscreen.sh DATA_ROOT=/opt/config/mod_data/helixscreen.
+    [ "$HOST_CONFIG_DIR" = "$SANDBOX/opt/config/mod_data/helixscreen/config" ] \
+        || fail "HOST_CONFIG_DIR='$HOST_CONFIG_DIR'"
+    [ "$HOST_PLATFORM_HOOK_KEY" = "ad5m-forgex" ] \
+        || fail "HOST_PLATFORM_HOOK_KEY='$HOST_PLATFORM_HOOK_KEY' - an AD5M rig must name its own layout"
+}
+
+@test "host_profile_probe: the hook key stays ad5x-forgex on a mips (AD5X) rig" {
+    # Control for the uname split: the AD5X rig's payload layout key must not
+    # become ad5m-forgex when the key turns platform-aware.
+    sandbox_candidates
+    mkdir -p "$SANDBOX/usr/data/.mod/.forge-x/usr/bin"
+    uname() { echo mips; }
+    export -f uname
+    host_profile_probe
+
+    [ "$HOST_PLATFORM_HOOK_KEY" = "ad5x-forgex" ] \
+        || fail "HOST_PLATFORM_HOOK_KEY='$HOST_PLATFORM_HOOK_KEY'"
+}
+
+@test "host_profile_probe: an AD5M rig carrying a legacy standalone install answers where" {
+    # Before the payload contract, our own installer put ad5m+forge_x hosts at
+    # /opt/helixscreen with an S90helixscreen service (set_install_paths'
+    # platform root). The payload install cannot offer to adopt a root it
+    # never noticed, and a rig without one must answer empty or every install
+    # stops to warn about nothing. Both halves of the answer are pinned here.
+    ad5m_sandbox
+    uname() { echo armv7l; }
+    export -f uname
+    export HELIX_LEGACY_INSTALL_ROOT="$SANDBOX/opt/helixscreen"
+    export HELIX_LEGACY_INIT_SCRIPT="$SANDBOX/etc/init.d/S90helixscreen"
+
+    host_profile_probe
+    [ -z "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "claimed a legacy install with no root on disk"
+
+    mkdir -p "$SANDBOX/opt/helixscreen"
+    host_profile_probe
+    [ "$HOST_LEGACY_INSTALL_ROOT" = "$SANDBOX/opt/helixscreen" ] \
+        || fail "HOST_LEGACY_INSTALL_ROOT='$HOST_LEGACY_INSTALL_ROOT'"
+    [ "$HOST_LEGACY_INIT_SCRIPT" = "$SANDBOX/etc/init.d/S90helixscreen" ] \
+        || fail "HOST_LEGACY_INIT_SCRIPT='$HOST_LEGACY_INIT_SCRIPT'"
+}
+
+@test "host_profile_probe: an AD5X rig never answers a legacy standalone root" {
+    # The legacy population is AD5M-specific, and on the AD5X /opt is the
+    # bind of /usr/data (ff5m's _ensure_bind), so a /opt/helixscreen there is
+    # a data-partition path, not a standalone install to adopt. The legacy
+    # answer must key on the platform, not on the directory's existence.
+    sandbox_candidates
+    mkdir -p "$SANDBOX/usr/data/.mod/.forge-x/usr/bin" "$SANDBOX/opt/helixscreen"
+    uname() { echo mips; }
+    export -f uname
+    export HELIX_LEGACY_INSTALL_ROOT="$SANDBOX/opt/helixscreen"
+
+    host_profile_probe
+
+    [ "$HOST_PLATFORM_HOOK_KEY" = "ad5x-forgex" ] \
+        || fail "setup: fixture did not probe as the AD5X rig"
+    [ -z "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "HOST_LEGACY_INSTALL_ROOT='$HOST_LEGACY_INSTALL_ROOT' on an AD5X rig"
 }
 
 # ===========================================================================
@@ -180,6 +279,10 @@ sandbox_candidates() {
     [ "$status" -eq 0 ] || fail "/usr/data/config/mod not owned without marker: $output"
     run host_path_is_mod_owned "/opt/config/mod/.bin/exec/logged-real"
     [ "$status" -eq 0 ] || fail "/opt/config/mod not owned without marker: $output"
+    # /data is the AD5M's DATA_MNT (ff5m's descriptor): its .mod namespace is
+    # the mod's exactly as /usr/data/.mod is on the AD5X.
+    run host_path_is_mod_owned "/data/.mod/.forge-x/usr/bin/bash"
+    [ "$status" -eq 0 ] || fail "/data/.mod not owned without marker: $output"
 
     # The refusal must reach the gate too, not just the predicate - see
     # "set_install_paths' gate refuses a canonical mod path even with no
@@ -190,6 +293,26 @@ sandbox_candidates() {
     [ "$status" -ne 0 ] || fail "unrelated /usr/data/config path reported owned"
     run host_path_is_mod_owned "/opt/config/not-a-mod/.bin/helixscreen"
     [ "$status" -ne 0 ] || fail "unrelated /opt/config path reported owned"
+}
+
+@test "the AD5M chroot location is in BOTH lists: probe default and canonical literal" {
+    # The BOTH-PLACES RULE (host_profile.sh): a mod location appears in the
+    # env-overridable probe candidates AND in the canonical literals, or it is
+    # either a path the guard does not recognize or one the probe can never
+    # find without help. The AD5M's chroot is /data/.mod/.forge-x - one
+    # derivation off its DATA_MNT, the same rule the AD5X's
+    # /usr/data/.mod/.forge-x follows. The sandbox tests above override the
+    # candidates, so the PRODUCTION default list is pinned here by shape, the
+    # same way the mode tests pin their dispatch arms.
+    local profile="$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+
+    # The probe default (production runs leave the env unset).
+    grep -q 'usr/data/.mod/.forge-x /usr/data/.mod/.zmod /data/.mod/.forge-x' "$profile" \
+        || fail "the AD5M chroot is missing from the probe's default candidate list"
+    # The canonical literal (canonical /data/.mod ownership is pinned
+    # behaviorally in the test above; this catches the arm being re-scoped).
+    grep -q '/data/.mod|/data/.mod/\*' "$profile" \
+        || fail "the canonical mod-owned case is missing its /data/.mod arm"
 }
 
 # ===========================================================================

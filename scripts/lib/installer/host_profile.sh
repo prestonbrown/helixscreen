@@ -53,9 +53,17 @@ HOST_MOONRAKER_USER_CONF=""
 HOST_PLATFORM_HOOK_KEY=""
 # shellcheck disable=SC2034  # consumed by stop_competing_uis (mod owns the sweep)
 HOST_OWNS_COMPETING_UIS=0
+# The pre-payload standalone install an AD5M Forge-X rig may still carry
+# (our own installer put ad5m+forge_x at /opt/helixscreen with an
+# S90helixscreen service). Empty when the rig has none; the adopt-or-warn
+# offer in main.sh's mod_payload_mode_block consumes both.
+# shellcheck disable=SC2034  # consumed by payload_legacy_adopt_or_warn (main.sh)
+HOST_LEGACY_INSTALL_ROOT=""
+# shellcheck disable=SC2034  # consumed by payload_legacy_adopt_or_warn (main.sh)
+HOST_LEGACY_INIT_SCRIPT=""
 
 host_profile_probe() {
-    local cand
+    local cand legacy_root
     # The probe owns these answers: reset before probing so a second call (or
     # a caller that pre-set them) can never leave a stale answer behind.
     HOST_MOD_ROOT=""
@@ -67,13 +75,20 @@ host_profile_probe() {
     HOST_MOONRAKER_USER_CONF=""
     HOST_PLATFORM_HOOK_KEY=""
     HOST_OWNS_COMPETING_UIS=0
+    HOST_LEGACY_INSTALL_ROOT=""
+    HOST_LEGACY_INIT_SCRIPT=""
 
     # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
     for cand in ${HELIX_MOD_TREE_CANDIDATES:-/usr/data/config/mod /opt/config/mod}; do
         if [ -f "$cand/.shell/platform.sh" ]; then HOST_MOD_ROOT="$cand"; break; fi
     done
+    # The chroot is the mod's Buildroot rootfs, one derivation off each
+    # board's DATA_MNT in the mod's own descriptor (.shell/platform.sh):
+    # /usr/data on the AD5X, /data on the AD5M. Z-Mod's chroot shares the
+    # AD5X location; no /data/.mod/.zmod arm on purpose - the AD5M Z-Mod
+    # population keeps its standalone flow until its shape is verified.
     # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
-    for cand in ${HELIX_MOD_CHROOT_CANDIDATES:-/usr/data/.mod/.forge-x /usr/data/.mod/.zmod}; do
+    for cand in ${HELIX_MOD_CHROOT_CANDIDATES:-/usr/data/.mod/.forge-x /usr/data/.mod/.zmod /data/.mod/.forge-x}; do
         if [ -d "$cand/usr/bin" ]; then HOST_MOD_CHROOT="$cand"; break; fi
     done
     if [ -n "$HOST_MOD_CHROOT" ]; then
@@ -91,15 +106,13 @@ host_profile_probe() {
             HOST_CHROOT_STATE="outside:$HOST_MOD_CHROOT"
         fi
     fi
-    # The payload-contract answers are scoped to the VERIFIED host shape: the
-    # mod tree WITH the mod's chroot (the AD5X rig). A tree without a chroot
-    # is the AD5M Forge-X layout, an established population whose installs
-    # live at the platform root with its own init script - claiming
-    # mod-managed service ownership there would silently relocate them into
-    # the mod tree, skip the service, strand the old root, and get refused by
-    # the shipped uninstaller. The tree itself is still recognized above
-    # (flavor detection, the forgex takeover paths, mod-owned guarding), and
-    # the payload contract stays available there by explicit --payload-root.
+    # The payload-contract answers are scoped to the mod's own shape: the
+    # tree WITH its Buildroot chroot, which both Forge-X layouts carry (each
+    # board's DATA_MNT). A tree without a chroot is a mod mid-install or
+    # half-removed - still recognized above (flavor detection, the forgex
+    # takeover paths, mod-owned guarding), but nothing verified that shape
+    # can run a payload, so the contract stays available there by explicit
+    # --payload-root only.
     # shellcheck disable=SC2034  # consumed by set_install_paths / stop_competing_uis /
     # shellcheck disable=SC2034  # install_platform_hooks / moonraker.conf discovery
     if [ -n "$HOST_MOD_ROOT" ] && [ -n "$HOST_MOD_CHROOT" ]; then
@@ -110,7 +123,29 @@ host_profile_probe() {
         # the AD5X (Z-Mod), /opt on the AD5M (Forge-X) — derive, never pin.
         HOST_CONFIG_DIR="$(dirname "$HOST_MOD_ROOT")/mod_data/helixscreen/config"
         HOST_MOONRAKER_USER_CONF="$(dirname "$HOST_MOD_ROOT")/mod_data/user.moonraker.conf"
-        HOST_PLATFORM_HOOK_KEY="ad5x-forgex"
+        # The hook key names the RIG, not the mod: the two payload layouts
+        # differ (the AD5M hook's cache paths assume the host's own /data,
+        # which the AD5X chroot does not have). The split follows the mod's
+        # own descriptor rule - .shell/platform.sh selects its block by
+        # uname, mips -> AD5X, everything else -> AD5M.
+        case "$(uname -m)" in
+            mips*) HOST_PLATFORM_HOOK_KEY="ad5x-forgex" ;;
+            *)     HOST_PLATFORM_HOOK_KEY="ad5m-forgex" ;;
+        esac
+        # The legacy standalone population: before the payload contract, our
+        # own installer put ad5m+forge_x rigs at /opt/helixscreen with an
+        # S90helixscreen service. The payload install must see that root
+        # before it can offer to adopt it (main.sh) - and an AD5X rig must
+        # never answer one, since its /opt is the bind of /usr/data and a
+        # /opt/helixscreen there is a data-partition path, not an install to
+        # adopt. Candidates are env-overridable like the probe lists above.
+        if [ "$HOST_PLATFORM_HOOK_KEY" = "ad5m-forgex" ]; then
+            legacy_root="${HELIX_LEGACY_INSTALL_ROOT:-/opt/helixscreen}"
+            if [ -d "$legacy_root" ]; then
+                HOST_LEGACY_INSTALL_ROOT="$legacy_root"
+                HOST_LEGACY_INIT_SCRIPT="${HELIX_LEGACY_INIT_SCRIPT:-/etc/init.d/S90helixscreen}"
+            fi
+        fi
     fi
 }
 
@@ -141,6 +176,7 @@ host_path_is_mod_owned() {
     # not depend on it.
     case "$p" in
         /usr/data/.mod|/usr/data/.mod/*)                 return 0 ;;
+        /data/.mod|/data/.mod/*)                         return 0 ;;
         /usr/data/config/mod|/usr/data/config/mod/*)     return 0 ;;
         /opt/config/mod|/opt/config/mod/*)               return 0 ;;
     esac
