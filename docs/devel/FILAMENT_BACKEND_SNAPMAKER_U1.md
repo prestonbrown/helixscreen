@@ -66,6 +66,18 @@ MMU (AFC, Happy Hare, …) always wins even on U1 hardware that also reports
 `filament_detect`; the Snapmaker backend is the fallback for a stock U1 with no MMU,
 and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h:579-607`).
 
+> **A U1 with multiACE loses this backend.** [multiACE](https://github.com/decay71/multiACE)
+> bolts 1-4 Anycubic ACE Pro units onto a U1 by installing an `[ace]` Klipper extra
+> *and* shadow replacements for the U1's own `filament_feed` / `filament_switch_sensor` /
+> `extruder` extras. The printer then reports both `filament_detect` and `ace`, and the
+> `has_mmu_` branch above wins — so the Snapmaker backend is suppressed in favour of an ACE
+> backend that cannot read multiACE's multi-unit `aces[]` status shape and ends up empty.
+> Full teardown, including the head → ACE routing model and the ~43 `ACE_*` verbs:
+> [FILAMENT_BACKEND_ACE.md § Path 4](FILAMENT_BACKEND_ACE.md#path-4-multiace-snapmaker-u1--ace-pro).
+> Not yet seen on hardware; source-derived 2026-09-01. Tracked as
+> prestonbrown/helixscreen#1426. Distinct from the DnG-Crafts U1-Ace mod (`ace_device`,
+> #974), which this backend handles correctly — see the feed-state note below.
+
 ### Status the Backend Reads
 
 The subscription is the standing whole-frame `notify_status_update` hook every

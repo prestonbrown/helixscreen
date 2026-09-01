@@ -21,6 +21,12 @@ docs/devel/EXCLUDE_OBJECTS.md	gcode_layer_renderer.cpp	1695	src/rendering/gcode_
 docs/devel/EXCLUDE_OBJECTS.md	src/rendering/gcode_layer_renderer.cpp	136	src/rendering/gcode_layer_renderer.cpp	31a1c6287ac6	b3af85bd25f8
 docs/devel/EXCLUDE_OBJECTS.md	src/rendering/gcode_layer_renderer.cpp	1538	src/rendering/gcode_layer_renderer.cpp	3ee0d3650cc3	0ab7e2a6a345
 docs/devel/EXCLUDE_OBJECTS.md	src/ui/ui_gcode_viewer.cpp	862	src/ui/ui_gcode_viewer.cpp	92aa7de5ef59	1e32dc6bfd3b
+docs/devel/FILAMENT_BACKEND_ACE.md	ams_backend_snapmaker.cpp	475	src/printer/ams_backend_snapmaker.cpp	7dc1f39f9e5b	d1714aea0e72
+docs/devel/FILAMENT_BACKEND_ACE.md	include/printer_discovery.h	333	include/printer_discovery.h	739c327a6ab9	82072e228e04
+docs/devel/FILAMENT_BACKEND_ACE.md	include/printer_discovery.h	422	include/printer_discovery.h	7f881e7d9b67	589699571c45
+docs/devel/FILAMENT_BACKEND_ACE.md	include/printer_discovery.h	642	include/printer_discovery.h	04fcd7f54470	b113c9a41b64
+docs/devel/FILAMENT_BACKEND_ACE.md	src/printer/ams_backend_ace.cpp	141	src/printer/ams_backend_ace.cpp	cf3d1370c900	bae1be28aa0b
+docs/devel/FILAMENT_BACKEND_ACE.md	src/printer/ams_backend_ace.cpp	980	src/printer/ams_backend_ace.cpp	6c6ffb81ce3d	7a9a809316b4
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	ams_backend_snapmaker.cpp	39	src/printer/ams_backend_snapmaker.cpp	0fe61aeac40b	72e6120e9e9b
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	ams_backend_snapmaker.cpp	57	src/printer/ams_backend_snapmaker.cpp	6808caeee5b7	1680a7bf9306
 docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md	ams_backend_snapmaker.cpp	79	src/printer/ams_backend_snapmaker.cpp	47a051afed41	09b70d8f25a4

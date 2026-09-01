@@ -1,9 +1,10 @@
 # ACE (Anycubic ACE Pro) Filament Backend
 
 The Anycubic ACE Pro is a 4-slot dryer-equipped multi-material hub (8 slots in Rinkhals
-"Combo" setups), surfaced through three different software stacks: native Anycubic
-GoKlipper via Rinkhals (primary), community ValgACE/BunnyACE REST, and the unverified
-Kobra-S1 fork. Topology is `PathTopology::HUB`; WebSocket on the native path, REST fallback.
+"Combo" setups), surfaced through four different software stacks: native Anycubic
+GoKlipper via Rinkhals (primary), community ValgACE/BunnyACE REST, the unverified
+Kobra-S1 fork, and multiACE on the Snapmaker U1 (misdetected today). Topology is
+`PathTopology::HUB`; WebSocket on the native path, REST fallback.
 
 ## ACE (Anycubic ACE Pro)
 
@@ -17,8 +18,9 @@ whichever of these the printer is running:
 | 1 | **Native Anycubic GoKlipper (via Rinkhals)** | `filament_hub` printer object (config `[ace]`) | WebSocket query/subscribe | **Primary real user base** — stock Kobra 3 / 3 V2 / 3 Max / S1 / S1 Max (Combo) flashed with [Rinkhals](https://github.com/jbatonnet/Rinkhals) | ✅ Handled (parses `filament_hub`) |
 | 2 | **Community ValgACE / BunnyACE / DuckACE** | `ace` printer object + `ace_status.py` | `/server/ace/*` REST bridge | ACE Pro bolted onto a **non-Anycubic DIY printer** (niche; DuckACE abandoned) | ✅ Handled (REST fallback) |
 | 3 | **Mainline-Python Kobra-S1 fork** (`github.com/Kobra-S1/klipper-kobra-s1`) | custom `[ace]` extra + `[ace_status]` Moonraker component | **unconfirmed** (`ace_status.py` JSON/REST) | KS1 users replacing KobraOS with mainline Klipper (often on an external Pi) | ❓ **Unverified** — status surface not yet inspected |
+| 4 | **multiACE / SnapAce** ([`decay71/multiACE`](https://github.com/decay71/multiACE)) | `ace` printer object, but a **multi-unit** `aces[]` status shape | WebSocket only (no REST bridge) | **Snapmaker U1** with 1-4 ACE Pro / ACE Pro 2 units bolted on | ⚠️ **Misdetects** — steals the U1 backend, then parses nothing |
 
-**How to think about the three:**
+**How to think about the four:**
 
 - **Path 1 (native)** is what almost every actual ACE user runs — it ships inside
   Anycubic's own GoKlipper firmware and is surfaced when the printer is reflashed with
@@ -34,10 +36,106 @@ whichever of these the printer is running:
   Control gcode (`ACE_CHANGE_TOOL`, `ACE_ENABLE/DISABLE_FEED_ASSIST`) does match what the
   backend already sends. Full teardown:
   [`printer-research/ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md`](printer-research/ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md).
+- **Path 4 (multiACE)** is ACE Pro hardware on a **Snapmaker U1**, and it is the one path
+  that actively *breaks* an otherwise-working printer for us — see the section below.
 
 > The sections below (`filament_hub` schema, REST endpoints, etc.) document Paths 1 and 2,
 > which the backend handles today. Path 3's status schema is still TBD — see the linked
-> log-analysis doc for the open items needed to confirm or extend coverage.
+> log-analysis doc for the open items needed to confirm or extend coverage. Path 4 is
+> documented in its own section immediately below; it needs a detection fix before any of
+> the schema work matters.
+
+### Path 4: multiACE (Snapmaker U1 + ACE Pro)
+
+> **Not handled. Actively harmful today** — a U1 that gains multiACE *loses* its working
+> Snapmaker backend and gets an ACE backend that parses nothing
+> (prestonbrown/helixscreen#1426). No hardware seen; this is a source read of the upstream
+> repo (2026-09-01, v0.99.8b).
+
+[multiACE](https://github.com/decay71/multiACE) hangs **1-4 Anycubic ACE Pro / ACE Pro 2
+units off a Snapmaker U1** — the U1's four toolheads each get fed from an ACE slot through
+a 1-to-N PTFE splitter, with the ACE units daisy-chained over USB. GPL-3.0, beta,
+reverse-engineered, no custom printer firmware required (SSH root via `/oem/.debug`, then a
+bash installer). Fork chain: [`BlackFrogKok/SnapAce`](https://github.com/BlackFrogKok/SnapAce)
+→ [`decay71/multiACE`](https://github.com/decay71/multiACE) (upstream, the one to track) →
+`physicsG/multiACE` (a stale personal fork — same project, do not cite it as the source).
+
+**What it installs**, all under `klippy/extras/`:
+
+| File | Role |
+|------|------|
+| ace.py (~14.5k lines) | The `[ace]` extra: multi-unit state, ~43 `ACE_*` G-code verbs, `get_status()` |
+| ace_protocol{,_v1,_v2}.py | ACE Pro v1 / ACE Pro 2 serial dialects |
+| ace_bg_swap.py, ace_tipform.py | Parked-position background swaps, tip forming (no cutter) |
+| filament_feed_ace.py, filament_switch_sensor_ace.py, kinematics/extruder_ace.py | **Shadow replacements for the U1's own stock extras** — installed over filament_feed.py / filament_switch_sensor.py / extruder.py, with *_pre_multiace.py backups |
+
+Config is `[ace]` (from `config/extended/ace.cfg`). The web UI at
+`https://<printer>/multiace/` is multiACE's own FastAPI backend, **not** a Moonraker
+component — so there is no `/server/ace/*` REST bridge on this path.
+
+**The detection collision — this is the part that matters to us.** A U1 running multiACE
+reports *both* marker objects, and our chain resolves them the wrong way round:
+
+1. `filament_detect` (stock U1) sets `has_snapmaker_` (`include/printer_discovery.h:422`).
+2. `ace` (multiACE) sets `has_mmu_` + `mmu_type_ = ACE` (`include/printer_discovery.h:333`).
+3. `has_mmu_` is checked **first**, so `has_snapmaker_` never runs
+   (`include/printer_discovery.h:642`) — by design, since a real aftermarket MMU should beat
+   the U1 fallback. Here that design fires on a stack we cannot actually read.
+4. `AmsBackendAce` then requires a **top-level non-empty `slots` array** to accept the
+   object (`src/printer/ams_backend_ace.cpp:980`). multiACE has none — its slots are nested
+   one level down, per unit, under `aces[]`. So `select_slot_bearing_object()` returns null,
+   the backend logs "no status data — trying REST bridge fallback"
+   (`src/printer/ams_backend_ace.cpp:141`), and the REST bridge does not exist on a U1.
+
+Net result: the ACE backend attaches and stays empty, and the Snapmaker U1 backend — which
+would have worked for the four toolheads — is suppressed.
+
+> **Do not confuse multiACE with the other U1 + ACE Pro mod.**
+> [DnG-Crafts/U1-Ace](https://github.com/DnG-Crafts/U1-Ace) registers `ace_device`, which
+> matches none of our ACE patterns — so `has_mmu_` stays false and the Snapmaker backend
+> correctly keeps that printer (its bug was the unload path, #974, fixed in 0.99.72; see
+> `ams_backend_snapmaker.cpp:475`). multiACE registers plain `ace`, which is exactly what
+> we match. Same hardware category, opposite outcome — worth checking which mod a U1
+> reporter actually has.
+
+**The fix is detection-side, not schema-side:** an `ace` object carrying `aces[]`/`device_count` on a printer that also
+reports `filament_detect` is multiACE, and until the shape is supported it should leave the
+U1 backend in place rather than claim the printer.
+
+**What its `ace.get_status()` actually publishes** (ace.py, `get_status()` — multi-unit,
+head-centric, nothing like Path 1's flat single hub):
+
+| Key | Meaning |
+|-----|---------|
+| `aces[]` | Per-unit array: `idx`, `connected`, `protocol`, `model`, `firmware`, `status`, `temp`, `humidity`, `dryer_status`, `gate_status`, `feed_assist`, `serial_path`, and the unit's own `slots[]` (`index`/`status`/`sku`/`material`/`subtype`/`rfid`/`brand`/`color`) |
+| `device_count`, `active_device` | How many ACE units, which one is selected |
+| `head_ace{}`, `head_source{}`, `head_manual{}`, `head_feeder{}` | **Head → ACE unit routing** — the U1 toolhead's filament source. This is the model our slot/tool abstractions would have to grow to represent it |
+| `ace_head` / `ace_heads[]` | Which of the four U1 heads are currently ACE-fed vs stock-fed |
+| `mode` | `normal` (stock U1 behaviour) vs multi — the user can toggle the whole system off |
+| `swap_phase`, `swap_in_progress`, `last_swap_result`, `event_seq` | In-print swap state machine |
+| `spools{}`, `spool_binding{}`, `spool_mode`, `spoollink*` | Spoolman / SpoolLink integration |
+
+**Command surface.** ~43 verbs. Five overlap exactly with what we already emit on the
+native path — `ACE_FEED`, `ACE_RETRACT`, `ACE_ENABLE_FEED_ASSIST`,
+`ACE_DISABLE_FEED_ASSIST`, `ACE_START_DRYING` / `ACE_STOP_DRYING`. The rest are its own
+vocabulary, and the central one has no analogue anywhere else in this doc:
+
+- `ACE_SWAP_HEAD HEAD=<0..3> ACE=<0..3>` — mid-print swap of which ACE unit feeds a head.
+- `ACE_LOAD_HEAD` / `ACE_UNLOAD_HEAD` / `ACE_UNLOAD_ALL_HEADS`, `ACE_CLEAR_HEADS`.
+- `ACE_SET_HEAD_ACE` / `ACE_SET_HEAD_FEEDER` / `ACE_SET_HEAD_MANUAL` — routing config.
+- `ACE_SWITCH`, `ACE_PRELOAD`, `ACE_DRY`, `ACE_SET_AUTO_DRY`, `ACE_LIST`, `ACE_HEAD_STATUS`.
+- Note `ACE_CHANGE_TOOL` — the verb our backend drives Path 1 with — is **absent**. Tool
+  changes stay the U1's own `T<n>`; multiACE only changes what is *behind* a head.
+
+Also worth knowing: a Fluidd macro layer (`ACEA__Switch_*`, `ACEB__Load_*`, `ACEC__Unload_*`,
+`ACED__Dry_*`, `ACEF__Mode_*`, `ACEG__Status`) wraps those verbs, so a real installation
+shows a large alphabetised macro list — the same "macro soup" tell as AFC and Happy Hare.
+
+**If we ever support it**, the topology is neither `HUB` nor the U1's `PARALLEL`: four
+parallel toolheads, each with a *switchable* upstream source among N hubs. That is closer to
+a per-lane multiplexer than to anything currently modelled — see
+[FILAMENT_BACKEND_SNAPMAKER_U1.md](FILAMENT_BACKEND_SNAPMAKER_U1.md) for the stock model it
+replaces.
 
 ### History
 
