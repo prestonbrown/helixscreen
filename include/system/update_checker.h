@@ -393,6 +393,20 @@ class UpdateChecker {
     static std::string get_platform_key();
 
     /**
+     * @brief Runtime K1-vs-AD5X split for the mips build.
+     *
+     * The mips binary ships for K1 and AD5X alike; get_platform_key() calls
+     * this under HELIX_PLATFORM_MIPS. The AD5X side is the AD5X mod-tree
+     * layout question (ZMOD markers or a reachable Forge-X mod tree) answered
+     * by helix::logs::ad5x_mod_layout_present() — the same rule the launcher
+     * and log collector use. Returns a KNOWN platform key: "ad5x" or "k1".
+     *
+     * @param probe_root  root the layout probes resolve under (test seam;
+     *                    default "/", the running environment)
+     */
+    static std::string mips_runtime_platform_key(const std::string& probe_root = "/");
+
+    /**
      * @brief Map a platform key to its human-readable display name.
      * @param key  Platform key as returned by get_platform_key().
      * @return Display name (e.g. "Raspberry Pi", "Creality K1").

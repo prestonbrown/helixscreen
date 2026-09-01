@@ -1592,6 +1592,51 @@ TEST_CASE("get_platform_key matches compiled binary architecture",
 #endif
 }
 
+TEST_CASE("mips_runtime_platform_key classifies an AD5X mod layout as ad5x, not k1",
+          "[update_checker][platform]") {
+    // The mips binary ships for K1 and AD5X alike, so the split is a runtime
+    // question. A Forge-X rig carries none of the ZMOD markers (no /ZMOD, no
+    // /usr/prog, and no /usr/data inside the chroot) — only the mod git tree —
+    // so the classification must ask the same layout question the launcher and
+    // log collector ask, or the rig self-updates from K1 builds. Layouts are
+    // built under a temp root (the probe_root seam); the real / is never
+    // touched. Both spellings of the mod tree count: the chroot binds
+    // /usr/data at /opt, so exactly one is reachable per side.
+    SECTION("Forge-X chroot spelling (/opt/config/mod) -> ad5x") {
+        std::string root = make_temp_dir("helix_mips_fx");
+        std::filesystem::create_directories(root + "/opt/config/mod/.shell");
+        create_file(root + "/opt/config/mod/.shell/platform.sh", "#!/bin/sh\n");
+        REQUIRE(UpdateChecker::mips_runtime_platform_key(root) == "ad5x");
+        remove_dir(root);
+    }
+    SECTION("Forge-X host-side spelling (/usr/data/config/mod) -> ad5x") {
+        std::string root = make_temp_dir("helix_mips_fxh");
+        std::filesystem::create_directories(root + "/usr/data/config/mod/.shell");
+        create_file(root + "/usr/data/config/mod/.shell/platform.sh", "#!/bin/sh\n");
+        REQUIRE(UpdateChecker::mips_runtime_platform_key(root) == "ad5x");
+        remove_dir(root);
+    }
+    SECTION("ZMOD marker file -> ad5x") {
+        std::string root = make_temp_dir("helix_mips_zmod");
+        std::filesystem::create_directories(root);
+        create_file(root + "/ZMOD", "marker\n");
+        REQUIRE(UpdateChecker::mips_runtime_platform_key(root) == "ad5x");
+        remove_dir(root);
+    }
+    SECTION("FlashForge /usr/prog dir -> ad5x") {
+        std::string root = make_temp_dir("helix_mips_prog");
+        std::filesystem::create_directories(root + "/usr/prog");
+        REQUIRE(UpdateChecker::mips_runtime_platform_key(root) == "ad5x");
+        remove_dir(root);
+    }
+    SECTION("plain layout (K1) -> k1") {
+        std::string root = make_temp_dir("helix_mips_plain");
+        std::filesystem::create_directories(root);
+        REQUIRE(UpdateChecker::mips_runtime_platform_key(root) == "k1");
+        remove_dir(root);
+    }
+}
+
 TEST_CASE("get_platform_display_name returns non-empty string for all known platforms",
           "[update_checker][platform]") {
     // Mirror the known_platforms list from "get_platform_key returns a known platform".
