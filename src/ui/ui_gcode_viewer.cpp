@@ -277,7 +277,8 @@ class GCodeViewerState {
     gcode_viewer_load_callback_t first_frame_callback{nullptr};
     void* first_frame_callback_user_data{nullptr};
     bool first_frame_fired_{false};
-    bool thumbnail_parity_{false}; ///< Frame the render like the slicer thumbnail (detail view)
+    helix::gcode::FitFraming framing_{
+        helix::gcode::FitFraming::STANDARD}; ///< Fit shape every renderer of this viewer uses
     ui_gcode_viewer_clear_cb_t clear_callback{nullptr};
     void* clear_callback_user_data{nullptr};
 
@@ -632,6 +633,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             int width = lv_area_get_width(&widget_coords);
             int height = lv_area_get_height(&widget_coords);
             st->layer_renderer_2d_->set_canvas_size(width, height);
+            st->layer_renderer_2d_->set_framing(st->framing_);
             st->layer_renderer_2d_->auto_fit();
 
             apply_2d_renderer_colors(st);
@@ -763,6 +765,9 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                     st->layer_renderer_2d_->set_tool_color_palette(
                         st->gcode_file->tool_color_palette);
                 }
+                st->layer_renderer_2d_->set_canvas_size(lv_area_get_width(&widget_coords),
+                                                        lv_area_get_height(&widget_coords));
+                st->layer_renderer_2d_->set_framing(st->framing_);
                 st->layer_renderer_2d_->auto_fit();
             }
             // Repaint on the next tick now that the mode has flipped. Cannot
@@ -2048,27 +2053,11 @@ void ui_gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
         return;
     }
 
-    st->thumbnail_parity_ = enabled;
-    const auto framing =
+    // Renderers pick the mode up from gcode_viewer_refresh_content_offset()
+    // (every draw, before render()) and from set_framing() at each creation
+    // site, so storing it here is all this setter does.
+    st->framing_ =
         enabled ? helix::gcode::FitFraming::THUMBNAIL_PARITY : helix::gcode::FitFraming::STANDARD;
-
-    // Push to whatever renderers already exist; ones created lazily later pick
-    // the flag up from gcode_viewer_refresh_content_offset() on their first
-    // draw. The 2D set_framing() re-fits on change by itself; the camera only
-    // applies framing in fit_to_bounds(), so re-fit it here when geometry is
-    // loaded.
-    if (st->layer_renderer_2d_) {
-        st->layer_renderer_2d_->set_framing(framing);
-    }
-    if (st->camera_) {
-        st->camera_->set_framing(framing);
-        // Re-fit to the loaded model, matching ui_gcode_viewer_reset_camera():
-        // the camera applies framing in fit_to_bounds(), not on set.
-        if (st->gcode_file) {
-            st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
-        }
-    }
-    lv_obj_invalidate(obj);
     spdlog::debug("[GCode Viewer] Thumbnail parity {}", enabled ? "on" : "off");
 }
 
@@ -2227,6 +2216,7 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
         int width = lv_area_get_width(&coords);
         int height = lv_area_get_height(&coords);
         st->layer_renderer_2d_->set_canvas_size(width, height);
+        st->layer_renderer_2d_->set_framing(st->framing_);
         st->layer_renderer_2d_->auto_fit();
 
         st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
@@ -2646,8 +2636,7 @@ static float measure_bottom_occlusion(gcode_viewer_state_t* st, lv_obj_t* obj) {
 static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj,
                                                 int canvas_width, int canvas_height) {
     const float occlusion = measure_bottom_occlusion(st, obj);
-    const auto framing = st->thumbnail_parity_ ? helix::gcode::FitFraming::THUMBNAIL_PARITY
-                                               : helix::gcode::FitFraming::STANDARD;
+    const auto framing = st->framing_;
 
     if (st->layer_renderer_2d_) {
         st->layer_renderer_2d_->set_framing(framing);
