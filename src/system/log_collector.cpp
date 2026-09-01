@@ -4,6 +4,7 @@
 #include "system/log_collector.h"
 
 #include "logging_init.h"
+#include "system/device_layout.h"
 
 #include <spdlog/spdlog.h>
 
@@ -107,42 +108,7 @@ std::string run_capture_tail(const std::string& cmd, int max_lines, std::string_
     return join_lines(lines);
 }
 
-/// Root-relative spelling of an absolute probe path: "/" (or empty) probes the
-/// real path, a sandbox root nests it ("/tmp/xyz" + "/ZMOD"). Trailing slashes
-/// on the root are collapsed so the join never doubles up.
-std::string rooted(const std::string& probe_root, const char* abs_path) {
-    if (probe_root.empty() || probe_root == "/") {
-        return std::string(abs_path);
-    }
-    std::string root = probe_root;
-    while (root.size() > 1 && root.back() == '/') {
-        root.pop_back();
-    }
-    return root + abs_path;
-}
-
 } // namespace
-
-bool ad5x_mod_layout_present(const std::string& probe_root) {
-    // ZMOD hosts carry FlashForge's /usr/prog dir or the /ZMOD marker file. A
-    // Forge-X chroot has neither — and not even /usr/data, which the chroot
-    // binds at /opt — but the mod's git tree stays reachable, and
-    // .shell/platform.sh in it is the same evidence the installer's
-    // host_profile probe keys on. scripts/helix-launcher.sh answers this same
-    // rule for its heap-diag gate; keep the two (and their tests) in step.
-    struct ::stat st {};
-    if ((::stat(rooted(probe_root, "/ZMOD").c_str(), &st) == 0 && S_ISREG(st.st_mode)) ||
-        (::stat(rooted(probe_root, "/usr/prog").c_str(), &st) == 0 && S_ISDIR(st.st_mode))) {
-        return true;
-    }
-    for (const char* mod_tree : {"/opt/config/mod", "/usr/data/config/mod"}) {
-        const std::string probe = rooted(probe_root, mod_tree) + "/.shell/platform.sh";
-        if (::stat(probe.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
-            return true;
-        }
-    }
-    return false;
-}
 
 std::vector<std::string> default_file_paths(const std::string& probe_root) {
     // Every place an app log has ever been found, for the case where the live
@@ -188,7 +154,7 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
     // on the layout so a plain host's cascade carries only paths a helix
     // install could ever have written — on hosts without the mod tree these
     // were dead stat probes.
-    if (ad5x_mod_layout_present(probe_root)) {
+    if (helix::platform::ad5x_mod_layout_present(probe_root)) {
         paths.emplace_back("/opt/config/mod_data/log/helix.log");
         paths.emplace_back("/usr/data/config/mod_data/log/helix.log");
         paths.emplace_back("/opt/config/mod_data/log/helixscreen.log");

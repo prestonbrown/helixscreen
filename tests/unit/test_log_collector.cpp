@@ -7,6 +7,7 @@
 // exercise the real journalctl path — that's validated on-device.
 
 #include "system/log_collector.h"
+#include "test_helpers/ad5x_layout_fixture.h"
 
 #include <algorithm>
 #include <array>
@@ -20,6 +21,8 @@
 #include "../catch_amalgamated.hpp"
 
 namespace fs = std::filesystem;
+
+using helix::test::make_ad5x_layout;
 
 namespace {
 
@@ -41,38 +44,6 @@ void write_lines(const fs::path& p, int n, const std::string& prefix = "line") {
     for (int i = 1; i <= n; ++i) {
         ofs << prefix << " " << i << "\n";
     }
-}
-
-// Builds one fake rootfs layout under `base` for the AD5X mod-tree predicate
-// (ad5x_mod_layout_present). Every probe resolves under the returned root, so
-// no test ever creates /ZMOD or /usr/prog on the real build host.
-//
-//   zmod-marker : /ZMOD regular file (the Z-Mod indicator)
-//   zmod-prog   : /usr/prog dir (FlashForge's own layout — present on any
-//                 AD5X, modded or not; K1 has neither this nor the marker)
-//   forgex      : /opt/config/mod/.shell/platform.sh and nothing else — a
-//                 Forge-X chroot has no /ZMOD, no /usr/prog, no /usr/data
-//   forgex-host : /usr/data/config/mod/.shell/platform.sh — the same mod tree
-//                 seen from outside the chroot (the rig binds /usr/data at
-//                 /opt, so exactly one spelling is reachable per side)
-//   plain       : empty root (Pi / dev box / K1: none of the markers)
-fs::path make_ad5x_layout(const fs::path& base, const std::string& layout) {
-    fs::path root = base / layout;
-    if (layout == "zmod-marker") {
-        fs::create_directories(root);
-        std::ofstream(root / "ZMOD") << "marker\n";
-    } else if (layout == "zmod-prog") {
-        fs::create_directories(root / "usr/prog");
-    } else if (layout == "forgex") {
-        fs::create_directories(root / "opt/config/mod/.shell");
-        std::ofstream(root / "opt/config/mod/.shell/platform.sh") << "#!/bin/sh\n";
-    } else if (layout == "forgex-host") {
-        fs::create_directories(root / "usr/data/config/mod/.shell");
-        std::ofstream(root / "usr/data/config/mod/.shell/platform.sh") << "#!/bin/sh\n";
-    } else {
-        fs::create_directories(root);
-    }
-    return root;
 }
 
 } // namespace
@@ -298,52 +269,12 @@ TEST_CASE("helix::logs::default_file_paths always includes /var/log and /tmp", "
 }
 
 // ============================================================================
-// ad5x_mod_layout_present() — AD5X mod-tree recognition (ZMOD or Forge-X).
-// Pinned to the SAME truth table as the launcher's heap-diag gate
-// (tests/shell/test_helix_launcher_env.bats, "heap diag:" cases): a Forge-X
-// chroot carries none of the ZMOD markers, so the reachable mod git tree
-// (.shell/platform.sh) is the recognition evidence there.
+// default_file_paths() mod_data gating — AD5X mod-tree recognition (ZMOD or
+// Forge-X) is helix::platform::ad5x_mod_layout_present(); its own tests live
+// in test_device_layout.cpp, pinned to the launcher's heap-diag gate
+// (tests/shell/test_helix_launcher_env.bats, "heap diag:" cases). Here we pin
+// the consumer side: which log paths the cascade gains on each layout.
 // ============================================================================
-
-TEST_CASE("helix::logs::ad5x_mod_layout_present detects ZMOD by marker file", "[log_collector]") {
-    TempDirGuard tmp;
-    REQUIRE(
-        helix::logs::ad5x_mod_layout_present(make_ad5x_layout(tmp.path, "zmod-marker").string()));
-}
-
-TEST_CASE("helix::logs::ad5x_mod_layout_present detects ZMOD by FlashForge /usr/prog dir",
-          "[log_collector]") {
-    TempDirGuard tmp;
-    REQUIRE(helix::logs::ad5x_mod_layout_present(make_ad5x_layout(tmp.path, "zmod-prog").string()));
-}
-
-TEST_CASE("helix::logs::ad5x_mod_layout_present detects a Forge-X chroot via the mod tree",
-          "[log_collector]") {
-    TempDirGuard tmp;
-    // The rig's chroot binds /usr/data at /opt, so the mod tree is reachable
-    // under exactly one of the two spellings depending on which side of the
-    // chroot the process runs. Both must count.
-    REQUIRE(helix::logs::ad5x_mod_layout_present(make_ad5x_layout(tmp.path, "forgex").string()));
-    REQUIRE(
-        helix::logs::ad5x_mod_layout_present(make_ad5x_layout(tmp.path, "forgex-host").string()));
-}
-
-TEST_CASE("helix::logs::ad5x_mod_layout_present rejects a plain host", "[log_collector]") {
-    TempDirGuard tmp;
-    REQUIRE_FALSE(
-        helix::logs::ad5x_mod_layout_present(make_ad5x_layout(tmp.path, "plain").string()));
-}
-
-TEST_CASE("helix::logs::ad5x_mod_layout_present requires the marker kinds, not just names",
-          "[log_collector]") {
-    // /ZMOD as a DIRECTORY is not the Z-Mod marker file. The predicate checks
-    // S_ISREG here and the launcher uses `-f` — the two must stay in step or
-    // a stray directory arms AD5X handling on the wrong host.
-    TempDirGuard tmp;
-    auto root = tmp.path / "zmod-dir";
-    fs::create_directories(root / "ZMOD");
-    REQUIRE_FALSE(helix::logs::ad5x_mod_layout_present(root.string()));
-}
 
 TEST_CASE("helix::logs::default_file_paths gates the AD5X mod_data logs on the layout",
           "[log_collector]") {

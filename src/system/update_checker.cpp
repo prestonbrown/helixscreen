@@ -32,8 +32,8 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
+#include "system/device_layout.h"
 #include "system/helix_paths.h"
-#include "system/log_collector.h"
 #include "system/log_path_probe.h"
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
@@ -2828,7 +2828,7 @@ std::string UpdateChecker::mips_runtime_platform_key(const std::string& probe_ro
     // launcher and log collector use. A Forge-X rig carries none of the ZMOD
     // markers, so the old marker-only test here classified it as K1 and a rig
     // self-update would fetch K1 builds.
-    return helix::logs::ad5x_mod_layout_present(probe_root) ? "ad5x" : "k1";
+    return helix::platform::ad5x_mod_layout_present(probe_root) ? "ad5x" : "k1";
 }
 
 std::string UpdateChecker::get_platform_key() {

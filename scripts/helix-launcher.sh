@@ -327,7 +327,7 @@ fi
 # /usr/data at /opt — but the mod's git tree stays reachable and
 # .shell/platform.sh in it is the evidence. K1 shares mips and carries none of
 # the four markers, so the arch alone never arms this. Same rule as
-# helix::logs::ad5x_mod_layout_present(). Probes resolve under
+# helix::platform::ad5x_mod_layout_present(). Probes resolve under
 # HELIX_AD5X_PROBE_ROOT (default /) so the bats suite can point the predicate
 # at a sandbox root instead of touching the real filesystem.
 _ad5x_root="${HELIX_AD5X_PROBE_ROOT:-/}"

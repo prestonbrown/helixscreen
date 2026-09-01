@@ -20,21 +20,12 @@
 /// invoke one of the individual tail_* functions.
 namespace helix::logs {
 
-/// True when the environment carries an AD5X mod tree: ZMOD (the /ZMOD marker
-/// file or FlashForge's /usr/prog dir) or Forge-X — whose chroot has neither,
-/// but whose mod git tree stays reachable (/opt/config/mod in-chroot,
-/// /usr/data/config/mod host-side, proven by .shell/platform.sh). Same rule as
-/// the launcher's heap-diag gate (scripts/helix-launcher.sh); the two test
-/// suites pin both to one truth table. All probes resolve under `probe_root`
-/// (default "/") so tests can feed a fake layout without touching the real
-/// root filesystem. stat-only; never opens anything.
-bool ad5x_mod_layout_present(const std::string& probe_root = "/");
-
 /// Default file-log search paths in resolution order, matching
 /// logging_init.cpp's `resolve_log_file_path()`. Includes env-dependent entries
 /// (XDG_DATA_HOME, HOME) resolved at call time. The AD5X mod_data entries are
-/// included only when ad5x_mod_layout_present(probe_root) detects the mod tree;
-/// `probe_root` (default "/") is a test seam for feeding a fake layout.
+/// included only when helix::platform::ad5x_mod_layout_present(probe_root)
+/// detects the mod tree; `probe_root` (default "/") is a test seam for feeding
+/// a fake layout.
 std::vector<std::string> default_file_paths(const std::string& probe_root = "/");
 
 /// Read the last `num_lines` lines from the most-recently-modified readable,
