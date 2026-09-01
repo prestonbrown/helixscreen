@@ -323,7 +323,11 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     // leave the speed column's right edge ragged by a pixel or two even with
     // the boxes reserved above. A shared name-box width pins both column
     // edges for every row.
-    int name_w = 0;
+    // lv_coord_t, not int: it is compared with sz.x in std::max below, and on
+    // the xtensa ESP32 toolchain int32_t (lv_coord_t) is long - a plain int
+    // makes the max() template deduction fail there while compiling clean on
+    // desktop builds.
+    lv_coord_t name_w = 0;
     lv_obj_t* name_labels[] = {lv_obj_find_by_name(widget_obj_, "fan_stack_part_name"),
                                lv_obj_find_by_name(widget_obj_, "fan_stack_hotend_name"),
                                lv_obj_find_by_name(widget_obj_, "fan_stack_aux_name")};
