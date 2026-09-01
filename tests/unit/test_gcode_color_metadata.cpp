@@ -118,6 +118,101 @@ TEST_CASE("parse_filament_color_palette - palette extraction", "[gcode][color_me
     }
 }
 
+TEST_CASE("parse_filament_color_palette - comma and mixed separator forms",
+          "[gcode][color_metadata]") {
+    std::vector<std::string> palette;
+
+    SECTION("Comma-separated palette parses like the semicolon form") {
+        // OrcaSlicer's joined-config form: some producers join the per-tool
+        // list with ',' instead of ';'. Same palette must come out.
+        std::vector<std::string> semi;
+        REQUIRE(parse_filament_color_palette("; filament_colour = #800080;#63A5BB;#000000;#FFFFFF",
+                                             semi));
+        REQUIRE(parse_filament_color_palette("; filament_colour = #800080,#63A5BB,#000000,#FFFFFF",
+                                             palette));
+        REQUIRE(palette == semi);
+        REQUIRE(palette == std::vector<std::string>{"#800080", "#63A5BB", "#000000", "#FFFFFF"});
+    }
+
+    SECTION("Mixed separators work entry for entry") {
+        // A producer switching separators mid-list shouldn't lose the tail.
+        REQUIRE(parse_filament_color_palette("; extruder_colour = #800080;#63A5BB,#000000;#FFFFFF",
+                                             palette));
+        REQUIRE(palette == std::vector<std::string>{"#800080", "#63A5BB", "#000000", "#FFFFFF"});
+    }
+
+    SECTION("Slot alignment preserved with comma empty entries") {
+        REQUIRE(parse_filament_color_palette("; extruder_colour = #FF0000,,#00FF00", palette));
+        REQUIRE(palette.size() == 3);
+        REQUIRE(palette == std::vector<std::string>{"#FF0000", "", "#00FF00"});
+    }
+}
+
+TEST_CASE("classify_file_colors - streaming index answer", "[gcode][color_metadata]") {
+    using helix::gcode::classify_file_colors;
+
+    SECTION("A multi-entry palette is a per-tool answer") {
+        const auto d = classify_file_colors({"#800080", "#63A5BB"}, "#800080", 0);
+        CHECK(d.has_palette());
+        CHECK(d.palette == std::vector<std::string>{"#800080", "#63A5BB"});
+        CHECK_FALSE(d.has_single_color());
+        CHECK(d.initial_tool == 0);
+    }
+
+    SECTION("A 1-entry palette collapses to the single color it holds") {
+        const auto d = classify_file_colors({"#FF0000"}, "#FF0000", 0);
+        CHECK_FALSE(d.has_palette());
+        CHECK(d.single_color == "#FF0000");
+    }
+
+    SECTION("The single color prefers palette[initial_tool] when covered") {
+        // A 1-entry palette whose tool the file starts on: the file's own
+        // entry wins over the leading filament_color.
+        const auto d = classify_file_colors({"#00FF00"}, "#800080", 0);
+        CHECK_FALSE(d.has_palette());
+        CHECK(d.single_color == "#00FF00");
+    }
+
+    SECTION("Unknown initial tool falls back to the leading filament_color") {
+        const auto d = classify_file_colors({}, "#800080", -1);
+        CHECK(d.single_color == "#800080");
+        CHECK(d.initial_tool == -1);
+    }
+
+    SECTION("No palette and no color offers neither answer") {
+        // The renderer keeps its theme default; nothing here may invent one.
+        const auto d = classify_file_colors({}, "", -1);
+        CHECK_FALSE(d.has_palette());
+        CHECK_FALSE(d.has_single_color());
+    }
+}
+
+TEST_CASE("classify_file_colors - full-file answer", "[gcode][color_metadata]") {
+    using helix::gcode::classify_file_colors;
+
+    SECTION("Palette and single color are both offered, any palette size") {
+        // Full-load layers them: per-tool palette first, the single color as
+        // the fallback for tools the palette does not cover.
+        const auto d = classify_file_colors({"#800080", "#63A5BB"}, "#800080");
+        CHECK(d.has_palette());
+        CHECK(d.has_single_color());
+        CHECK(d.single_color == "#800080");
+    }
+
+    SECTION("A 1-entry palette is still a palette here") {
+        const auto d = classify_file_colors({"#FF0000"}, "#FF0000");
+        CHECK(d.has_palette());
+        CHECK(d.palette.size() == 1);
+    }
+
+    SECTION("A too-short hex offers no single color") {
+        // "#"-alone must not become a black extrusion via strtol.
+        const auto d = classify_file_colors({}, "#");
+        CHECK_FALSE(d.has_palette());
+        CHECK_FALSE(d.has_single_color());
+    }
+}
+
 TEST_CASE("parse_filament_color_palette - real-world OrcaSlicer output",
           "[gcode][color_metadata]") {
     std::vector<std::string> palette;

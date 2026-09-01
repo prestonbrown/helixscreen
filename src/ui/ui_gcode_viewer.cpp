@@ -13,6 +13,7 @@
 #include "app_constants.h"
 #include "config.h"
 #include "gcode_camera.h"
+#include "gcode_color_metadata.h"
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 #include "gcode_render_mode_policy.h"
@@ -559,8 +560,14 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
         return;
     }
 
-    if (!st->gcode_file->tool_color_palette.empty()) {
-        st->layer_renderer_2d_->set_tool_color_palette(st->gcode_file->tool_color_palette);
+    // The file's color answer, classified once: a palette of any size layers
+    // per-tool, and the single color acts as the per-segment fallback for tools
+    // the palette does not cover.
+    const auto file_colors = helix::gcode::classify_file_colors(st->gcode_file->tool_color_palette,
+                                                                st->gcode_file->filament_color_hex);
+
+    if (file_colors.has_palette()) {
+        st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
     }
 
     if (!st->tool_color_overrides.empty()) {
@@ -570,12 +577,12 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
     } else if (st->has_external_color_override) {
         st->layer_renderer_2d_->set_extrusion_color(st->external_color_override);
         spdlog::debug("[GCode Viewer] 2D renderer using external color override");
-    } else if (st->use_filament_color && st->gcode_file->filament_color_hex.length() >= 2) {
-        lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-            std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
+    } else if (st->use_filament_color && file_colors.has_single_color()) {
+        lv_color_t color = lv_color_hex(
+            static_cast<uint32_t>(std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
         st->layer_renderer_2d_->set_extrusion_color(color);
         spdlog::debug("[GCode Viewer] 2D renderer using filament color: {}",
-                      st->gcode_file->filament_color_hex);
+                      file_colors.single_color);
     }
 }
 
@@ -1654,39 +1661,27 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         st->layer_renderer_2d_->set_extrusion_color(st->external_color_override);
                         spdlog::info("[GCode Viewer] Streaming 2D using external color override");
                     } else {
+                        // The file's color answer, classified once. A per-tool palette goes to
+                        // the renderer whole so each tool's segments render in its own color;
+                        // collapsing it to a single set_extrusion_color() would paint
+                        // everything in palette[initial_tool], which on a dark filament (e.g.
+                        // #080A0D, a near-black PLA) looks like a uniformly black model.
                         const auto& stats = st->streaming_controller_->get_index_stats();
-                        // Multi-color metadata: hand the full per-tool palette to the renderer so
-                        // each tool's segments render in its own color. Collapsing to a single
-                        // color via set_extrusion_color() would paint everything in palette
-                        // [initial_tool], which on a dark filament (e.g. #080A0D, a near-black
-                        // PLA) looks like a uniformly black model.
-                        if (stats.filament_palette.size() > 1) {
-                            st->layer_renderer_2d_->set_tool_color_palette(stats.filament_palette);
+                        const auto file_colors = helix::gcode::classify_file_colors(
+                            stats.filament_palette, stats.filament_color, stats.initial_tool_index);
+                        if (file_colors.has_palette()) {
+                            st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
                             spdlog::info("[GCode Viewer] Streaming 2D using tool palette "
                                          "(size={}, initial_tool={})",
-                                         stats.filament_palette.size(), stats.initial_tool_index);
-                        } else {
-                            // Single-color print: prefer palette[initial_tool_index] when the
-                            // slicer emitted a multi-color metadata line and the gcode actually
-                            // starts on a non-T0 tool. Falls back to filament_color (palette[0])
-                            // for single-color prints or when the palette doesn't cover the
-                            // active tool.
-                            std::string chosen = stats.filament_color;
-                            if (stats.initial_tool_index >= 0 &&
-                                stats.initial_tool_index <
-                                    static_cast<int>(stats.filament_palette.size()) &&
-                                !stats.filament_palette[stats.initial_tool_index].empty()) {
-                                chosen = stats.filament_palette[stats.initial_tool_index];
-                            }
-                            if (!chosen.empty()) {
-                                lv_color_t color =
-                                    lv_color_hex(std::strtol(chosen.c_str() + 1, nullptr, 16));
-                                st->layer_renderer_2d_->set_extrusion_color(color);
-                                spdlog::info("[GCode Viewer] Using filament color from metadata: "
-                                             "{} (tool={}, palette={})",
-                                             chosen, stats.initial_tool_index,
-                                             stats.filament_palette.size());
-                            }
+                                         file_colors.palette.size(), file_colors.initial_tool);
+                        } else if (file_colors.has_single_color()) {
+                            lv_color_t color = lv_color_hex(
+                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16));
+                            st->layer_renderer_2d_->set_extrusion_color(color);
+                            spdlog::info("[GCode Viewer] Using filament color from metadata: "
+                                         "{} (tool={}, palette={})",
+                                         file_colors.single_color, file_colors.initial_tool,
+                                         stats.filament_palette.size());
                         }
                     }
 
@@ -1924,18 +1919,22 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                 std::make_unique<helix::gcode::GCodeLayerRenderer>();
                         }
                         st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-                        if (!st->gcode_file->tool_color_palette.empty()) {
-                            st->layer_renderer_2d_->set_tool_color_palette(
-                                st->gcode_file->tool_color_palette);
+                        const auto file_colors = helix::gcode::classify_file_colors(
+                            st->gcode_file->tool_color_palette, st->gcode_file->filament_color_hex);
+                        if (file_colors.has_palette()) {
+                            st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
                         }
 
                         // Apply color: external override takes priority
                         if (st->has_external_color_override) {
                             st->layer_renderer_2d_->set_extrusion_color(
                                 st->external_color_override);
-                        } else if (!st->gcode_file->filament_color_hex.empty()) {
-                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(std::strtol(
-                                st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
+                        } else if (file_colors.has_single_color()) {
+                            // >= 2 chars (one hex digit past '#'), the check the
+                            // other load sites already used; this site's old
+                            // !empty() accepted a bare '#' and painted black.
+                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(
+                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
                             st->layer_renderer_2d_->set_extrusion_color(color);
                         }
 
@@ -1964,6 +1963,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     // 2D mode, and until this it kept the theme default for
                     // color_extrusion_ - the single-color fallback a file without a
                     // parsed tool palette lands on.
+                    const auto file_colors = helix::gcode::classify_file_colors(
+                        st->gcode_file->tool_color_palette, st->gcode_file->filament_color_hex);
                     if (st->has_external_color_override) {
                         st->renderer_->set_extrusion_color(st->external_color_override);
                         if (st->layer_renderer_2d_) {
@@ -1972,16 +1973,15 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         }
                         spdlog::debug(
                             "[GCode Viewer] Applied external color override (AMS/Spoolman)");
-                    } else if (st->use_filament_color &&
-                               st->gcode_file->filament_color_hex.length() >= 2) {
-                        lv_color_t color = lv_color_hex(static_cast<uint32_t>(std::strtol(
-                            st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
+                    } else if (st->use_filament_color && file_colors.has_single_color()) {
+                        lv_color_t color = lv_color_hex(static_cast<uint32_t>(
+                            std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
                         st->renderer_->set_extrusion_color(color);
                         if (st->layer_renderer_2d_) {
                             st->layer_renderer_2d_->set_extrusion_color(color);
                         }
                         spdlog::debug("[GCode Viewer] Applied filament color: {}",
-                                      st->gcode_file->filament_color_hex);
+                                      file_colors.single_color);
                     }
 
                     // Clear first_render flag to allow actual rendering on next draw

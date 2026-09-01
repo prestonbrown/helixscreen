@@ -227,11 +227,9 @@ bool extract_filament_color(const char* line, size_t len, std::string& out_color
         return false;
     }
     // First non-empty entry is the legacy "single color" surface.
-    for (const auto& s : out_palette) {
-        if (!s.empty()) {
-            out_color = s;
-            return true;
-        }
+    if (const std::string* first = helix::gcode::first_named_color(out_palette)) {
+        out_color = *first;
+        return true;
     }
     return false;
 }

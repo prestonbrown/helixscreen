@@ -1703,6 +1703,70 @@ TEST_CASE("effective_tool_colors leaves gaps neutral without disturbing used too
 }
 
 // =============================================================================
+// routed_tool_colors — a degenerate routing must not paint over the palette
+// =============================================================================
+//
+// routed_tool_colors() answers the print-status preview's per-tool colour
+// overrides. An empty return leaves the renderer's own slicer palette in place;
+// a non-empty one replaces it. So an answer that carries no per-tool
+// information is worse than no answer: it trades a palette that may be right
+// for one that is definitely useless.
+
+TEST_CASE("routed_tool_colors: every tool on one head is degenerate above one tool",
+          "[filament_mapper][routing]") {
+    // Observed on a real rig: a 4-tool file whose routing sent every tool to
+    // head 0, with head 0 loaded. That resolves to [purple, purple, purple,
+    // purple] - not neutral, so it passed the all-grey guard and painted the
+    // whole model one solid colour over a perfectly good 4-entry palette.
+    const std::vector<AvailableSlot> one_loaded = {
+        {0, 0, 0xA03CF7, "PLA", false, -1},
+    };
+
+    SECTION("a multi-tool routing with one answer for all returns nothing") {
+        REQUIRE(FilamentMapper::routed_tool_colors({0, 0, 0, 0}, one_loaded).empty());
+    }
+
+    SECTION("a single-tool print legitimately routes its only tool anywhere") {
+        // All-equal is only degenerate when there is more than one tool to
+        // tell apart. For one tool, the lane's colour IS the answer.
+        const auto colors = FilamentMapper::routed_tool_colors({0}, one_loaded);
+        REQUIRE(colors.size() == 1);
+        CHECK(colors[0] == 0xA03CF7);
+    }
+}
+
+TEST_CASE("routed_tool_colors: a routing that distinguishes tools keeps answering",
+          "[filament_mapper][routing]") {
+    // Pins the existing behaviour either side of the degeneracy guard so the
+    // guard cannot silently widen: distinct routings answer with their lanes'
+    // colours, and a partially-unknown routing keeps its neutral gap.
+    const std::vector<AvailableSlot> slots = {
+        {0, 0, 0x080A0D, "PLA", false, -1},
+        {1, 0, 0xE2DEDB, "PLA", false, -1},
+        {2, 0, 0xE72F1D, "PLA", false, -1},
+        {3, 0, 0xF4C032, "PLA", false, -1},
+    };
+
+    SECTION("four tools on four distinct heads return the four colours") {
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0x080A0D);
+        CHECK(colors[1] == 0xE2DEDB);
+        CHECK(colors[2] == 0xE72F1D);
+        CHECK(colors[3] == 0xF4C032);
+    }
+
+    SECTION("a tool with no routing entry stays neutral, the rest answer") {
+        const auto colors = FilamentMapper::routed_tool_colors({0, -1, 1, 2}, slots);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0x080A0D);
+        CHECK(colors[1] == 0x808080);
+        CHECK(colors[2] == 0xE2DEDB);
+        CHECK(colors[3] == 0xE72F1D);
+    }
+}
+
+// =============================================================================
 // compute_defaults — a tool whose color is unknown
 // =============================================================================
 //
