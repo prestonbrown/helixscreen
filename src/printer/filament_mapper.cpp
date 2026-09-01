@@ -504,7 +504,18 @@ std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>&
     // which is strictly worse than leaving it alone.
     const bool nothing_known =
         std::all_of(colors.begin(), colors.end(), [](uint32_t c) { return c == 0x808080; });
-    if (nothing_known) {
+
+    // An all-equal answer on a multi-tool routing carries no per-tool
+    // information either - a routing that sends every tool of a multi-tool
+    // file to one head would paint the whole model one solid color over the
+    // file's own palette. A single-tool print legitimately routes its only
+    // tool anywhere, so all-equal only means "nothing to tell apart" when
+    // there is more than one tool.
+    const bool one_color_for_every_tool =
+        tool_to_head.size() > 1 &&
+        std::adjacent_find(colors.begin(), colors.end(),
+                           [](uint32_t a, uint32_t b) { return a != b; }) == colors.end();
+    if (nothing_known || one_color_for_every_tool) {
         return {};
     }
     return colors;
