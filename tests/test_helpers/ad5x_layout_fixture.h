@@ -11,7 +11,7 @@
  * heap-diag gate) keys on. Every probe resolves under the returned root, so no
  * test ever creates /ZMOD or /usr/prog on the real build host.
  *
- * Shared by test_device_layout.cpp (the predicate itself) and
+ * Shared by test_platform_info.cpp (the predicate itself) and
  * test_log_collector.cpp (the mod_data log-path gating) so the two cannot
  * drift apart on what a layout means. The caller owns the base dir's
  * lifetime — pair with a temp-dir guard.

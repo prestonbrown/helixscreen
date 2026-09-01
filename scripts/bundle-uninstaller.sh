@@ -409,11 +409,12 @@ main() {
                 shift
                 ;;
             --mod-payload)
-                # Arm the payload uninstall: the only run permitted to remove
-                # the firmware mod's payload tree (the same destruct exemption
-                # install.sh's payload contract arms). Uninstall deliberately
-                # does not auto-detect this the way install does — removing a
-                # mod-owned subtree must be an explicit opt-in.
+                # Arm the payload uninstall: the only run of THIS standalone
+                # uninstaller permitted to remove the firmware mod's payload
+                # tree (the same destruct exemption install.sh's payload
+                # contract arms). install.sh --uninstall auto-arms the same
+                # exemption on a verified mod host; run bare, this script
+                # refuses instead of making removal the destructive default.
                 HELIX_MOD_PAYLOAD=1
                 shift
                 ;;

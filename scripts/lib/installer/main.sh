@@ -52,7 +52,7 @@ usage() {
     echo "                 service installed or started (the mod owns the UI"
     echo "                 service), config/ and platform/ preserved."
     echo "  --payload-root PATH  Payload root (default: the mod's own tree on"
-    echo "                 ADX-shape hosts). On an AD5M Forge-X host the payload"
+    echo "                 AD5X-shape hosts). On an AD5M Forge-X host the payload"
     echo "                 contract is not auto-detected - name the root to use it"
     echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
     echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"

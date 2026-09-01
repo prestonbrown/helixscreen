@@ -10341,12 +10341,13 @@ helix_install_dirs_for_run() {
 # refused at the mod-owned gate with the payload subtree, the display takeover
 # and the optional user.moonraker.conf stanza all still in place.
 #
-# Only a run that explicitly armed the payload contract may remove the mod's
-# tree: HELIX_MOD_PAYLOAD, set by the uninstaller's --mod-payload parse — the
-# same single switch install.sh's destruct exemption keys on. Uninstall cannot
-# auto-detect this the way install does: removing a mod-owned subtree on a
-# bare `uninstall.sh` run would be the destructive default those guards exist
-# to prevent.
+# Only a run that armed the payload contract may remove the mod's tree:
+# HELIX_MOD_PAYLOAD — the same single switch install.sh's destruct exemption
+# keys on. The two doors arm it differently, on purpose: install.sh --uninstall
+# AUTO-ARMS (the payload contract's bare-run behavior is symmetrical in both
+# directions on a verified mod host), while THIS standalone uninstaller only
+# arms via its explicit --mod-payload flag — run bare, it must refuse rather
+# than make removal the destructive default.
 #
 # Ordering follows uninstall(): the display mode is restored FIRST, while the
 # payload is still in place — the rig is never left with neither UI nor a
@@ -10861,7 +10862,7 @@ usage() {
     echo "                 service installed or started (the mod owns the UI"
     echo "                 service), config/ and platform/ preserved."
     echo "  --payload-root PATH  Payload root (default: the mod's own tree on"
-    echo "                 ADX-shape hosts). On an AD5M Forge-X host the payload"
+    echo "                 AD5X-shape hosts). On an AD5M Forge-X host the payload"
     echo "                 contract is not auto-detected - name the root to use it"
     echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
     echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"

@@ -270,8 +270,8 @@ TEST_CASE("helix::logs::default_file_paths always includes /var/log and /tmp", "
 
 // ============================================================================
 // default_file_paths() mod_data gating — AD5X mod-tree recognition (ZMOD or
-// Forge-X) is helix::platform::ad5x_mod_layout_present(); its own tests live
-// in test_device_layout.cpp, pinned to the launcher's heap-diag gate
+// Forge-X) is helix::ad5x_mod_layout_present(); its own tests live
+// in test_platform_info.cpp, pinned to the launcher's heap-diag gate
 // (tests/shell/test_helix_launcher_env.bats, "heap diag:" cases). Here we pin
 // the consumer side: which log paths the cascade gains on each layout.
 // ============================================================================
