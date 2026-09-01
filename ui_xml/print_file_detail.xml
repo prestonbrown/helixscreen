@@ -4,6 +4,20 @@
 <component>
   <!-- Print File Detail View - Full overlay showing file details and print options -->
   <!-- Uses reactive subjects for file data (no API properties needed) -->
+  <styles>
+    <!-- Chip row height, per breakpoint. The row IS the chip height (filament_swatch
+         is height="100%" of it), and the two bands inside split it minus the 1px
+         divider and ~2px/side of theme chrome. What must fit is font_small's line
+         box per tier (globals.xml): 22px at Medium (800x480), 24 at Large (1024x600),
+         27 at XLarge (1280x720+). A glyph centers in that line box, so a band of
+         ~0.78x the line box shows the full digit (17px band vs 22px box measured
+         clean at 800x480). 40px gives a 17px band - fine through Large; XLarge's
+         27px box needs the 48px row (21px band). Bound styles rather than a height
+         attribute so the pair always covers every tier (the settings-row responsive
+         pattern; a bare height attr would fight the bound style's precedence). -->
+    <style name="mapping_rows_standard" height="40"/>
+    <style name="mapping_rows_tall" height="48"/>
+  </styles>
   <view name="detail_view_root"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
         style_bg_color="#card_bg" style_border_width="0" style_pad_all="0" style_pad_gap="0" flex_flow="column"
@@ -233,8 +247,8 @@
              backend is stopped by on_color_card_clicked()'s own guard, not by
              the flag. Tracked; do not read this binding as authoritative. -->
         <ui_card name="filament_mapping_card"
-                 width="100%" style_pad_hor="0" style_pad_ver="#space_md" style_pad_gap="#space_xs"
-                 style_border_width="0" flex_flow="column">
+                 width="100%" style_pad_ver="#space_md" style_pad_gap="#space_xs" style_bg_color="#elevated_bg"
+                 flex_flow="column">
           <bind_flag_if_eq subject="filament_mapping_visible" flag="hidden" ref_value="0"/>
           <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
           <lv_obj width="100%"
@@ -277,13 +291,16 @@
                scrollable="false" so the card cannot grow either. The card caps
                the chips at what fits and renders a "+N" pill for the rest (see
                rebuild_compact_view). -->
-          <!-- SIZE_OK: 32 IS the chip height. filament_swatch is height="100%" and
-               resolves against this row's CONTENT box, so padding here shortens
-               the chips instead of growing the row - the card is flex column
-               with style_pad_gap, which is what spaces this from the header. -->
+          <!-- SIZE_OK: the bound styles in this file's <styles> block ARE the chip
+               height (40 through Large, 48 at XLarge+). filament_swatch is
+               height="100%" and resolves against this row's CONTENT box, so padding
+               here shortens the chips instead of growing the row - the card is flex
+               column with style_pad_gap, which is what spaces this from the header. -->
           <lv_obj name="filament_mapping_rows"
-                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  width="100%" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
+            <bind_style_if_lt name="mapping_rows_standard" subject="ui_breakpoint" ref_value="5"/>
+            <bind_style_if_ge name="mapping_rows_tall" subject="ui_breakpoint" ref_value="5"/>
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
             <!-- Chips added dynamically in C++ (clickable=false + event_bubble=true
                  on filament_swatch) so a tap reaches this card. -->
@@ -292,10 +309,13 @@
                authoritative tool set exists — a cache hit never shows this.
                Height, flow and alignment all mirror filament_mapping_rows above,
                so nothing moves when detail_mapping_ready flips. -->
-          <!-- SIZE_OK: skeleton row height mirrors filament_mapping_rows' literal 32 -->
+          <!-- SIZE_OK: skeleton row height mirrors filament_mapping_rows' bound
+               styles (same two, so it tracks the breakpoint the same way) -->
           <lv_obj name="mapping_skeleton"
-                  width="100%" height="32" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  width="100%" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
+            <bind_style_if_lt name="mapping_rows_standard" subject="ui_breakpoint" ref_value="5"/>
+            <bind_style_if_ge name="mapping_rows_tall" subject="ui_breakpoint" ref_value="5"/>
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
             <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
             <lv_obj width="40"
