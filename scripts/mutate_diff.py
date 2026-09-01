@@ -39,6 +39,11 @@
 #                something else needs). Reported separately and NEVER counted
 #                as a kill: a compiler error proves the code is load-bearing
 #                for the build, not that any test checks its behaviour.
+#   SKIPPED      the hunk moves only comments or whitespace, so reverting it
+#                cannot change behaviour and no test could ever kill it.
+#                Dropped before it costs a build, and kept out of the tally
+#                rather than padding it with unkillable survivors.
+#                --no-skip-comments mutates them anyway.
 #
 # SAFETY
 #
@@ -65,7 +70,7 @@ import time
 from pathlib import Path
 
 MUTABLE_PREFIXES = ('src/', 'include/')
-HUNK_RE = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
+HUNK_RE = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 
 # Files the suite physically cannot execute (no headless GL, no device). Shared
 # with scripts/mutate_diff.py so both tools agree on what is un-judgeable rather
@@ -130,6 +135,8 @@ def collect_hunks(root, base):
     def flush():
         if path and current:
             hunks.append({'file': path, 'line': current['line'],
+                          'old_line': current['old_line'],
+                          'body': list(current['body']),
                           'patch': ''.join(hdr_lines + current['body'])})
 
     for line in r.stdout.splitlines(keepends=True):
@@ -146,11 +153,145 @@ def collect_hunks(root, base):
         elif line.startswith('@@'):
             flush()
             m = HUNK_RE.match(line)
-            current = {'line': int(m.group(1)) if m else 0, 'body': [line]}
+            current = {'old_line': int(m.group(1)) if m else 0,
+                       'line': int(m.group(2)) if m else 0, 'body': [line]}
         elif current is not None:
             current['body'].append(line)
     flush()
     return [h for h in hunks if h['file'].startswith(MUTABLE_PREFIXES)]
+
+
+def code_only_lines(text):
+    """Split source into lines with every comment blanked out.
+
+    Two revisions of a file that differ only inside comments produce identical
+    output here, which is what lets a comment-only hunk be recognised without
+    guessing from the shape of a line (`*` starts a doxygen continuation AND a
+    pointer store; `//` appears inside string literals).
+
+    The scanner tracks block comments, string/char literals and C++11 raw
+    strings. Every ambiguity it cannot resolve resolves toward CODE: the cost of
+    being wrong that way is one wasted mutant, against a silently un-mutated
+    behavioural change the other way.
+    """
+    out, line = [], []
+    state, raw_delim = 'code', ''
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == '\n':
+            out.append(''.join(line))
+            line = []
+            i += 1
+            if state == 'line':
+                state = 'code'
+            continue
+        if state == 'code':
+            if c == 'R' and text.startswith('R"', i):
+                j = text.find('(', i + 2)
+                if j != -1 and '\n' not in text[i + 2:j]:
+                    raw_delim = ')' + text[i + 2:j] + '"'
+                    state = 'raw'
+                    line.append(text[i:j + 1])
+                    i = j + 1
+                    continue
+            if text.startswith('//', i):
+                state = 'line'
+                i += 2
+                continue
+            if text.startswith('/*', i):
+                state = 'block'
+                i += 2
+                continue
+            line.append(c)
+            if c in '"\'':
+                state = 'str' if c == '"' else 'chr'
+            i += 1
+            continue
+        if state == 'line':
+            i += 1
+            continue
+        if state == 'block':
+            if text.startswith('*/', i):
+                state = 'code'
+                i += 2
+                continue
+            i += 1
+            continue
+        if state == 'raw':
+            if text.startswith(raw_delim, i):
+                line.append(raw_delim)
+                i += len(raw_delim)
+                state = 'code'
+                continue
+            line.append(c)
+            i += 1
+            continue
+        # 'str' / 'chr'
+        if c == '\\' and i + 1 < n:
+            line.append(text[i:i + 2])
+            i += 2
+            continue
+        line.append(c)
+        i += 1
+        if (state == 'str' and c == '"') or (state == 'chr' and c == "'"):
+            state = 'code'
+    out.append(''.join(line))
+    return out
+
+
+def hunk_is_comment_only(root, base, h, cache):
+    """True when reverting this hunk could not change behaviour.
+
+    Every +/- line is compared with its comments stripped; if the code that
+    remains is identical, the hunk moved only comments or whitespace. Building
+    such a mutant costs a compile and a whole-program link to prove something no
+    test could ever detect, so it is skipped rather than reported as a survivor.
+
+    Any surprise -- unreadable pre-image, a hunk body that does not line up with
+    the files -- returns False, and the hunk gets mutated as usual.
+    """
+    path = h['file']
+
+    def sides(key, loader):
+        if key not in cache:
+            try:
+                cache[key] = code_only_lines(loader())
+            except Exception:
+                cache[key] = None
+        return cache[key]
+
+    def pre_loader():
+        r = run(['git', 'show', f'{base}:{path}'], cwd=root)
+        return r.stdout if r.returncode == 0 else ''
+
+    pre = sides(('pre', path), pre_loader)
+    post = sides(('post', path), lambda: (root / path).read_text(errors='replace'))
+    if pre is None or post is None:
+        return False
+
+    removed, added = [], []
+    old_i, new_i = h['old_line'] - 1, h['line'] - 1
+    try:
+        for raw in h['body'][1:]:          # body[0] is the @@ header
+            if raw.startswith('\\'):        # "\ No newline at end of file"
+                continue
+            tag = raw[:1]
+            if tag == ' ':
+                old_i += 1
+                new_i += 1
+            elif tag == '-':
+                removed.append(pre[old_i])
+                old_i += 1
+            elif tag == '+':
+                added.append(post[new_i])
+                new_i += 1
+            else:
+                return False
+    except IndexError:
+        return False
+    keep = lambda xs: [t for t in (x.strip() for x in xs) if t]
+    return keep(removed) == keep(added)
 
 
 def apply_reverse(root, patch_text):
@@ -204,6 +345,8 @@ def main():
     # hours. Scoping to the files worth confirming is how this stays usable.
     ap.add_argument('--only', default=None,
                     help='restrict to changed files whose path contains this')
+    ap.add_argument('--no-skip-comments', action='store_true',
+                    help='mutate comment/whitespace-only hunks too (they can never be killed)')
     ap.add_argument('--list-only', action='store_true', help='list hunks, mutate nothing')
     ap.add_argument('--log', default='/tmp/mutate-diff.log')
     args = ap.parse_args()
@@ -218,6 +361,17 @@ def main():
         if hit:
             skipped_untestable.append((f"{h['file']}:{h['line']}", hit[1]))
             hunks.remove(h)
+    # A comment-only hunk costs a compile plus a 5 GB link to produce a mutant
+    # no test could possibly detect, then lands in the tally as a survivor and
+    # reads as real debt. Drop it before it costs anything.
+    skipped_comment = []
+    if not args.no_skip_comments:
+        code_cache = {}
+        for h in list(hunks):
+            if hunk_is_comment_only(root, base, h, code_cache):
+                skipped_comment.append(f"{h['file']}:{h['line']}")
+                hunks.remove(h)
+
     if args.only:
         hunks = [h for h in hunks if args.only in h['file']]
     if args.limit:
@@ -225,6 +379,8 @@ def main():
 
     for label, reason in skipped_untestable:
         print(f'  EXCLUDED  {label} - {reason}')
+    for label in skipped_comment:
+        print(f'  SKIPPED   {label} - comment/whitespace only')
 
     if not hunks:
         print(f'0 hunk(s) to mutate, vs base {base[:12]} '
