@@ -297,7 +297,7 @@ _setup_zmod_ad5x_sandbox() {
     run set_install_paths "ad5x" "forge_x"
     [ "$status" -ne 0 ]
     [[ "$output" == *"refusing"* ]]
-    [[ "$output" == *"--mod-payload"* ]]
+    [[ "$output" == *"--payload-root"* ]]
 }
 
 @test "mod host: an explicit user INSTALL_DIR still wins over the mod root" {

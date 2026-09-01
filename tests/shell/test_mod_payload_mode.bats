@@ -506,7 +506,7 @@ esac
     [ "$status" -eq 0 ]
     [[ "$output" == *"owns the UI service"* ]]
     [[ "$output" == *"not be started automatically"* ]]
-    [[ "$output" == *"without the INSTALL_DIR override"* ]]
+    [[ "$output" == *"picks the root, not the contract"* ]]
     # It is a warning, not a refusal: the install proceeds.
     [[ "$output" != *"Refusing"* ]]
 }
