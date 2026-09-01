@@ -1412,3 +1412,37 @@ SHIM
     [[ "$output" != *"/etc/init.d/"* ]]
     [[ "$output" == *"${INSTALL_DIR}/logs/launcher.log"* ]]
 }
+
+@test "a chroot without ldd does not abort the install (advisory check stays advisory)" {
+    # Found on the AD5M rig: the 1.4.2 Buildroot chroot ships no ldd, the
+    # substitution exited 127, and set -e killed the installer after every
+    # real step had succeeded. The chroot ldd probe is warn-class by design.
+    seed_payload_root
+    mkdir -p "$HOST_MOD_CHROOT/usr/bin"
+    # The candidate loop tests [ -f "$chroot_dir$cand" ]: the binary must
+    # exist INSIDE the chroot-prefixed path or the loop continues past the
+    # guarded line and the test passes vacuously.
+    mkdir -p "$HOST_MOD_CHROOT$INSTALL_DIR/bin"
+    cp "$INSTALL_DIR/bin/helix-screen" "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+    # A chroot command that fails like a missing in-chroot ldd (127, empty).
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/chroot" <<'STUB'
+#!/bin/sh
+exit 127
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/bin/chroot"
+    # The real-world kill was the BUNDLE's set -e: the assignment inherited
+    # the substitution's 127 and aborted main(). bats' run captures status
+    # without -e, so the test must replay the production shell discipline.
+    run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" sh -eu -c '
+        log_warn() { echo "WARN: $*"; }
+        log_success() { echo "OK: $*"; }
+        unset _HELIX_REQUIREMENTS_SOURCED
+        . "$1/scripts/lib/installer/requirements.sh"
+        _verify_binary_deps_via_chroot "$2" "$3"
+        echo SURVIVED-SET-E
+    ' _ "$WORKTREE_ROOT" "$HOST_MOD_CHROOT" "$INSTALL_DIR/bin/helix-screen"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"SURVIVED-SET-E"* ]]
+    [[ "$output" == *"cannot be dependency-checked"* ]]
+}

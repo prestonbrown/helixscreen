@@ -3048,7 +3048,7 @@ _verify_binary_deps_via_chroot() {
     # shellcheck disable=SC2086  # word splitting is the point: a candidate list
     for cand in $candidates; do
         [ -f "${chroot_dir}${cand}" ] || continue
-        ldd_out=$($SUDO chroot "$chroot_dir" ldd "$cand" 2>/dev/null)
+        ldd_out=$($SUDO chroot "$chroot_dir" ldd "$cand" 2>/dev/null || true)
         [ -n "$ldd_out" ] && break
     done
 
