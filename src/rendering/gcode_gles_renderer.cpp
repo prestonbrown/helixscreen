@@ -5,6 +5,7 @@
 
 #ifdef ENABLE_GLES_3D
 
+#include "color_utils.h"
 #include "data_root_resolver.h"
 #include "gcode_gl_fallback.h"
 #include "gcode_projection.h"
@@ -1620,13 +1621,20 @@ void GCodeGLESRenderer::set_interaction_mode(bool interacting) {
 }
 
 void GCodeGLESRenderer::set_filament_color(const std::string& hex_color) {
-    if (hex_color.size() < 7 || hex_color[0] != '#')
+    // The sscanf("#%02x%02x%02x") this replaced happened to be the only site in
+    // the tree that read an 8-digit #RRGGBBAA token correctly - it stopped after
+    // six digits. It accepted and silently truncated anything longer, though,
+    // and its size()<7 guard documented a rule it did not enforce. Route it
+    // through the shared parser so "correct" stops being an accident.
+    uint32_t rgb = 0;
+    if (!helix::parse_hex_color(hex_color.c_str(), rgb)) {
         return;
-    unsigned int r = 0, g = 0, b = 0;
-    if (sscanf(hex_color.c_str(), "#%02x%02x%02x", &r, &g, &b) == 3) {
-        filament_color_ = glm::vec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
-        frame_dirty_ = true;
     }
+    const float r = static_cast<float>((rgb >> 16) & 0xFF);
+    const float g = static_cast<float>((rgb >> 8) & 0xFF);
+    const float b = static_cast<float>(rgb & 0xFF);
+    filament_color_ = glm::vec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
+    frame_dirty_ = true;
 }
 
 void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {

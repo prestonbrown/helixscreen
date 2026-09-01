@@ -11,6 +11,7 @@
 
 #include "ams_state.h"
 #include "app_constants.h"
+#include "color_utils.h"
 #include "config.h"
 #include "gcode_camera.h"
 #include "gcode_color_metadata.h"
@@ -578,11 +579,16 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
         st->layer_renderer_2d_->set_extrusion_color(st->external_color_override);
         spdlog::debug("[GCode Viewer] 2D renderer using external color override");
     } else if (st->use_filament_color && file_colors.has_single_color()) {
-        lv_color_t color = lv_color_hex(
-            static_cast<uint32_t>(std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-        st->layer_renderer_2d_->set_extrusion_color(color);
-        spdlog::debug("[GCode Viewer] 2D renderer using filament color: {}",
-                      file_colors.single_color);
+        uint32_t rgb = 0;
+        if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+            st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
+            spdlog::debug("[GCode Viewer] 2D renderer using filament color: {}",
+                          file_colors.single_color);
+        } else {
+            spdlog::warn("[GCode Viewer] 2D renderer: unusable filament color '{}' - "
+                         "keeping current extrusion color",
+                         file_colors.single_color);
+        }
     }
 }
 
@@ -1674,13 +1680,18 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                          "(size={}, initial_tool={})",
                                          file_colors.palette.size(), file_colors.initial_tool);
                         } else if (file_colors.has_single_color()) {
-                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-                            st->layer_renderer_2d_->set_extrusion_color(color);
-                            spdlog::info("[GCode Viewer] Using filament color from metadata: "
-                                         "{} (tool={}, palette={})",
-                                         file_colors.single_color, file_colors.initial_tool,
-                                         stats.filament_palette.size());
+                            uint32_t rgb = 0;
+                            if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+                                st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
+                                spdlog::info("[GCode Viewer] Using filament color from metadata: "
+                                             "{} (tool={}, palette={})",
+                                             file_colors.single_color, file_colors.initial_tool,
+                                             stats.filament_palette.size());
+                            } else {
+                                spdlog::warn("[GCode Viewer] Unusable filament color '{}' in "
+                                             "metadata - keeping current extrusion color",
+                                             file_colors.single_color);
+                            }
                         }
                     }
 
@@ -1930,12 +1941,13 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                             st->layer_renderer_2d_->set_extrusion_color(
                                 st->external_color_override);
                         } else if (file_colors.has_single_color()) {
-                            // >= 2 chars (one hex digit past '#'), the check the
-                            // other load sites already used; this site's old
-                            // !empty() accepted a bare '#' and painted black.
-                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-                            st->layer_renderer_2d_->set_extrusion_color(color);
+                            // has_single_color() only proves non-empty. The digit
+                            // count is checked by the parser, which is why a bare
+                            // '#' no longer reaches lv_color_hex and paints black.
+                            uint32_t rgb = 0;
+                            if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+                                st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
+                            }
                         }
 
                         st->layer_renderer_2d_->auto_fit();
@@ -1974,14 +1986,20 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         spdlog::debug(
                             "[GCode Viewer] Applied external color override (AMS/Spoolman)");
                     } else if (st->use_filament_color && file_colors.has_single_color()) {
-                        lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-                            std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-                        st->renderer_->set_extrusion_color(color);
-                        if (st->layer_renderer_2d_) {
-                            st->layer_renderer_2d_->set_extrusion_color(color);
+                        uint32_t rgb = 0;
+                        if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+                            const lv_color_t color = lv_color_hex(rgb);
+                            st->renderer_->set_extrusion_color(color);
+                            if (st->layer_renderer_2d_) {
+                                st->layer_renderer_2d_->set_extrusion_color(color);
+                            }
+                            spdlog::debug("[GCode Viewer] Applied filament color: {}",
+                                          file_colors.single_color);
+                        } else {
+                            spdlog::warn("[GCode Viewer] Unusable filament color '{}' - "
+                                         "keeping current extrusion color",
+                                         file_colors.single_color);
                         }
-                        spdlog::debug("[GCode Viewer] Applied filament color: {}",
-                                      file_colors.single_color);
                     }
 
                     // Clear first_render flag to allow actual rendering on next draw

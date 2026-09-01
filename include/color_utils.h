@@ -49,8 +49,16 @@ void rgb_to_hsl(uint32_t rgb, float& h, float& s, float& l);
 /**
  * @brief Parse hex color string into RGB value
  *
- * Accepts: #RRGGBB, RRGGBB, #RGB, RGB, 0xRRGGBB
+ * Accepts: #RRGGBB, RRGGBB, #RGB, RGB, 0xRRGGBB, #RRGGBBAA, RRGGBBAA
  * Case-insensitive, trims leading/trailing whitespace.
+ *
+ * 8-digit input is #RRGGBBAA: the alpha byte is dropped and the RGB returned,
+ * because no consumer in this tree composites gcode or filament colors. Slicers
+ * emit the 8-digit form, so rejecting it is what pushed callers onto ad-hoc
+ * strtol conversions that read the channels off by one byte.
+ *
+ * Digits accumulate into a uint32_t directly rather than via strtol, so an
+ * 8-digit value with RR >= 0x80 does not saturate to LONG_MAX on 32-bit ARM.
  *
  * @param input Input string (null-terminated)
  * @param out_rgb Output: parsed RGB value (0x00RRGGBB format)
@@ -64,8 +72,8 @@ bool parse_hex_color(const char* input, uint32_t& out_rgb);
  * Convenience wrapper around parse_hex_color(const char*, uint32_t&) that
  * returns std::optional<uint32_t> instead of using an out-param.
  *
- * Accepts: #RRGGBB, RRGGBB, #RGB, RGB, 0xRRGGBB
- * Case-insensitive, trims leading/trailing whitespace.
+ * Accepts: #RRGGBB, RRGGBB, #RGB, RGB, 0xRRGGBB, #RRGGBBAA, RRGGBBAA
+ * Case-insensitive, trims leading/trailing whitespace. 8-digit input drops alpha.
  *
  * @param hex_str Input string
  * @return Parsed RGB value (0x00RRGGBB format), or std::nullopt if invalid
