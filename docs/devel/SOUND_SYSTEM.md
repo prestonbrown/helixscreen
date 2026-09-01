@@ -111,9 +111,24 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 | ALSA    | yes       | yes       | yes    | yes       | 1.0         | Same synthesis as SDL, hardware-negotiated buffer size |
 | PWM     | no*       | yes       | no     | no        | 2.0         | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. Tracker playback on ad5m rides the same tone path (PC-speaker mode, below) |
 | M300    | no        | no        | no     | no        | 50.0        | Frequency only, 100-10000 Hz, deduplicates commands; sequencer drives per-tick |
-| JzPwm   | yes       | yes       | no     | yes       | 60.0        | AD5X piezo: full per-sample synthesis (ADSR/sweep/LFO/waveforms via VoiceSlot), 4-voice chords, one duty-encoded buffer per theme step |
+| JzPwm   | yes       | yes       | no     | yes       | 60.0        | AD5X piezo: full per-sample synthesis (ADSR/sweep/LFO/waveforms via VoiceSlot), 4-voice chords, one duty-encoded buffer per theme step; tracker PC-speaker mode drives it through set_voice (mods on the piezo) |
 
 *PWM `supports_waveforms()` returns `false`, but `set_waveform()` stores the waveform internally to adjust the duty cycle ratio: Square=50%, Saw=25%, Triangle=35%, Sine=40%. This gives perceptually different timbres even on a single-pin buzzer.
+
+### Tracker playback on ad5x (PC-speaker mode)
+
+`HELIX_HAS_TRACKER` is enabled for ad5x: the tracker's synth fallback
+(the way the AD5M plays modules on its piezo — per-channel note
+frequencies, arpeggio/portamento/vibrato applied) drives the JzPwm
+backend through `set_voice`. Each tracker row's four-voice burst
+coalesces (40 ms debounce) into one sustained 150 ms chord buffer
+through the same renderer. No PCM path is involved — the SCHED_IDLE
+render loop that kept tracker off ad5x is not compiled in. PCM streaming
+on this engine is dead for good, with numbers: the update handler
+refuses buffer swaps while a loop is armed, and the legal chunk cycle
+(disable → copy → arm) costs a FIXED ~500 ms of silence per chunk — a
+`chunks` probe measured 502 ms overhead at both 200 ms and 500 ms
+chunks. Module playback happens as tone language, not audio.
 
 ### JzPwm one-shot buffer model (ad5x)
 
@@ -133,10 +148,13 @@ Two rig-measured properties shape the design:
   channel's prescale register (two-point phone-tuner measurement), so the
   encoder computes against a 385 MHz clock — the same calibration
   tone_player uses (`base 770 MHz / prescale 2`).
+- **Audibility floor, MEASURED**: 10 ms — thirty 10 ms duty-encoded
+  beeps were each clearly audible; 200 ms was an order-of-magnitude
+  guess. Short theme steps tile their content to 10 ms.
 - **Wedge discipline**: the vendor driver's teardown path can wedge after
   long cumulative loop times, and a wedged channel only recovers on
-  reboot. Buffers are capped at 2.5 s; the previous step's child is
-  SIGTERMed (fx-pwm's signal handler releases the channel cleanly); and
+  reboot. Buffers are capped at 2.5 s; a busy channel drops the new
+  sound (children are never signalled) (fx-pwm's signal handler releases the channel cleanly); and
   the ioctl lifecycle lives in the child process precisely so a wedge
   costs one sound, never the UI — a rig session once accumulated thirteen
   wedged fx-pwm children with zero printer impact.
