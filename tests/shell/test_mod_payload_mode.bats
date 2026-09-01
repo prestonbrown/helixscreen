@@ -881,3 +881,106 @@ esac
     grep -q '"${AD5M_FIRMWARE:-}" = "forge_x"' <<< "$body" \
         || fail "the forgex restore is not flavor-gated"
 }
+
+# --- R3: --clean is not a terminating removal - it must not orphan the record ---
+#
+# install.sh --clean runs mod_payload_mode_block FIRST (which records the
+# resolved payload root), then clean_old_installation sweeps, then CONTINUES
+# into a fresh install that never re-records. Consuming the record on the
+# clean step (round 2's addition) left the fresh payload unrecorded, so a
+# later FLAGLESS armed uninstall swept the probed default instead - R2a's
+# exact shape via a different path. The record is consumed only by
+# terminating removals: uninstall() and the standalone arm.
+
+@test "an armed --clean --payload-root does not orphan the record a later flagless uninstall needs" {
+
+    # An rm-neutral SUDO shim: clean_old_installation also rm -f's real /etc
+    # paths (polkit/udev rules) a test user cannot touch and that are
+    # irrelevant to the record lifecycle under test; everything else passes
+    # through so the sandbox writes happen for real.
+    SUDO="$BATS_TEST_TMPDIR/sudo-rm-neutral"
+    cat > "$SUDO" <<SHIM
+#!/bin/sh
+if [ "\$1" = "rm" ]; then
+    case " \$* " in
+        *"$SANDBOX"/*) exec rm "\$@" ;;
+        *) exit 0 ;;
+    esac
+fi
+exec "\$@"
+SHIM
+    chmod +x "$SUDO"
+    export SUDO
+
+    ASSUME_YES=true
+    HELIX_MOD_PAYLOAD=1
+    STANDALONE_INSTALL=""
+    local custom="$SANDBOX/usr/data/helixscreen-custom"
+    mkdir -p "$custom/bin" "$SANDBOX/usr/data/config/mod_data"
+    printf '#!/bin/sh\n' > "$custom/bin/helix-screen"
+    MOD_PAYLOAD_ROOT="$custom"
+    INSTALL_DIR="$custom"
+
+    # install.sh main() order: the mode block records, then the clean runs.
+    mod_payload_mode_block >/dev/null 2>&1
+    [ "$(cat "$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root")" = "$custom" ] \
+        || fail "setup: the mode block did not record the payload root"
+
+    clean_old_installation ad5x >/dev/null 2>&1
+
+    # --clean continues into a fresh install at the same root (no re-record).
+    mkdir -p "$custom/bin"
+    printf '#!/bin/sh\n' > "$custom/bin/helix-screen"
+
+    # Later, a FLAGLESS armed run: set_install_paths resolved the probed
+    # default, so only the record can still answer CUSTOM.
+    MOD_PAYLOAD_ROOT=""
+    HOST_PAYLOAD_ROOT=""
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+
+    local dirs
+    dirs=$(helix_install_dirs_for_run)
+
+    case " $dirs " in
+        *" $custom "*) ;;
+        *) fail "the recorded root is not resolved after an armed --clean";;
+    esac
+    case " $dirs " in
+        *" $HOST_INSTALL_ROOT "*) fail "the sweep fell back to the probed default";;
+    esac
+}
+
+@test "a plain armed --clean leaves the record naming the root the fresh install populates" {
+
+    # An rm-neutral SUDO shim: clean_old_installation also rm -f's real /etc
+    # paths (polkit/udev rules) a test user cannot touch and that are
+    # irrelevant to the record lifecycle under test; everything else passes
+    # through so the sandbox writes happen for real.
+    SUDO="$BATS_TEST_TMPDIR/sudo-rm-neutral"
+    cat > "$SUDO" <<SHIM
+#!/bin/sh
+if [ "\$1" = "rm" ]; then
+    case " \$* " in
+        *"$SANDBOX"/*) exec rm "\$@" ;;
+        *) exit 0 ;;
+    esac
+fi
+exec "\$@"
+SHIM
+    chmod +x "$SUDO"
+    export SUDO
+
+    ASSUME_YES=true
+    HELIX_MOD_PAYLOAD=1
+    mkdir -p "$SANDBOX/usr/data/config/mod_data"
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+    mkdir -p "$INSTALL_DIR"
+
+    mod_payload_mode_block >/dev/null 2>&1
+    clean_old_installation ad5x >/dev/null 2>&1
+
+    local record="$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root"
+    [ -f "$record" ] || fail "the clean step consumed the record the fresh install relies on"
+    [ "$(cat "$record")" = "$INSTALL_DIR" ] \
+        || fail "the record names $(cat "$record"), the fresh install populates $INSTALL_DIR"
+}

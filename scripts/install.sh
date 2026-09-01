@@ -10655,7 +10655,7 @@ clean_old_installation() {
     # flag-armed run, so --clean without --mod-payload cannot touch it.
     # Resolve fatally first, exactly like uninstall(): an armed --clean whose
     # flag or record names a directory that is not ours refuses before the
-    # sweep, and the record is consumed with the root it named.
+    # sweep. The record itself survives - see the note by the consume below.
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
         resolve_payload_root >/dev/null || exit 1
     fi
@@ -10730,12 +10730,13 @@ clean_old_installation() {
     # Sweep state dirs holding rolling config backups
     clean_helix_state_dirs
 
-    # Same payload-root record consumption as uninstall(): the sweep above
-    # removed the root it named.
-    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
-        $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
-    fi
-
+    # NOTE: unlike uninstall(), the clean step does NOT consume the
+    # payload-root record. --clean is not a terminating removal: main() ran
+    # mod_payload_mode_block first (recording the resolved root) and continues
+    # into a fresh install that never re-records, so eating the record here
+    # left the fresh payload unrecorded and a later flagless uninstall swept
+    # the probed default instead. Consume only where the removal is final:
+    # uninstall() and the standalone arm.
     log_success "Old installation cleaned"
     echo ""
 }
