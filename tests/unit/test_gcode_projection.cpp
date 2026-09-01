@@ -5,8 +5,10 @@
 #include "gcode_projection.h"
 
 #include <cmath>
+#include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <limits>
+#include <string>
 #include <utility>
 
 #include "../catch_amalgamated.hpp"
@@ -758,4 +760,54 @@ TEST_CASE("GCodeCamera - parity zoom frames the model into the same square as th
     standard.set_bottom_occlusion(119.0f / PARITY_CH);
     standard.fit_to_bounds(orca_aspect_box());
     REQUIRE(parity.get_content_height_fraction() > standard.get_content_height_fraction());
+}
+
+TEST_CASE("2D and GLES parity framings agree on the model's on-screen height",
+          "[gcode][projection][parity]") {
+    // The parity rule is hand-derived twice - compute_auto_fit() in scale form
+    // and GCodeCamera::fit_to_bounds() in zoom form - so the two can drift
+    // apart when someone tunes one. This pins them to each other on the real
+    // detail card: whatever the square, fill and lift resolve to, both paths
+    // must put the same box on screen.
+    const AABB bb = orca_aspect_box();
+    auto fit = compute_auto_fit(bb, ViewMode::FRONT, PARITY_CW, PARITY_CH, 0.05f, 0.0f,
+                                FitFraming::THUMBNAIL_PARITY);
+    const PixelBox box = projected_box(bb, fit, ViewMode::FRONT, PARITY_CW, PARITY_CH);
+
+    GCodeCamera camera;
+    camera.set_viewport_size(PARITY_CW, PARITY_CH);
+    camera.set_framing(FitFraming::THUMBNAIL_PARITY);
+    camera.fit_to_bounds(bb);
+
+    REQUIRE(camera.get_content_height_fraction() * PARITY_CH == Approx(box.height()).margin(2.0f));
+}
+
+TEST_CASE("thumbnail_parity::LIFT matches the #preview_offset_y design token",
+          "[gcode][projection][parity]") {
+    // The lift must equal what the XML applies to the thumbnail itself
+    // (ui_xml/globals.xml), or the render lands displaced from where the
+    // thumbnail sat at the swap. The token is hot-reloadable XML with no
+    // rebuild, so only a test reading the file catches someone tuning it
+    // without the C++ constant.
+    std::ifstream in("ui_xml/globals.xml");
+    REQUIRE(in.is_open());
+
+    std::string line;
+    bool found = false;
+    float token = 0.0f;
+    while (std::getline(in, line)) {
+        const auto name_at = line.find("name=\"preview_offset_y\"");
+        if (name_at == std::string::npos) {
+            continue;
+        }
+        const auto value_at = line.find("value=\"", name_at);
+        if (value_at == std::string::npos) {
+            continue;
+        }
+        token = std::stof(line.substr(value_at + 7));
+        found = true;
+        break;
+    }
+    REQUIRE(found);
+    REQUIRE(token == Approx(-100.0f * projection::thumbnail_parity::LIFT).margin(0.05f));
 }
