@@ -32,8 +32,9 @@
                  width="100%" flex_grow="1" style_radius="#border_radius" style_pad_all="0" style_clip_corner="true">
           <!-- Shared preview stack (thumbnail / 2D / 3D + rotate hint) - the same
                component print status uses, see components/preview_stack.xml.
-               The thumbnail stays on top of the viewer until the viewer renders its
-               first frame, so its hide condition keys off detail_viewer_first_frame
+               The thumbnail stays on top of the viewer until the viewer has real
+               content on its canvas - the 2D ghost copy, or the first complete 3D
+               frame - so its hide condition keys off detail_viewer_first_frame
                rather than the render mode; print status swaps on mode instead. -->
           <preview_stack name="detail_preview_clear_area"
                          gradient_name="gradient_bg" viewer_name="detail_gcode_viewer" thumbnail_name="detail_thumbnail"

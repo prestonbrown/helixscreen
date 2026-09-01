@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include "gcode_parser.h" // For AABB
+#include "gcode_parser.h"     // For AABB
+#include "gcode_projection.h" // For FitFraming
 
 #include <algorithm>
 #include <glm/glm.hpp>
@@ -103,9 +104,17 @@ class GCodeCamera {
     /// Fraction of viewport height covered by UI along the bottom (0..1). Feeds
     /// the same shape rule the 2D path uses: a squat model is framed above the
     /// strip, an elongated one keeps the full viewport. Takes effect on the next
-    /// fit_to_bounds().
+    /// fit_to_bounds(). Ignored for the fit under THUMBNAIL_PARITY framing.
     void set_bottom_occlusion(float occlusion) {
         bottom_occlusion_ = std::clamp(occlusion, 0.0f, 1.0f);
+    }
+
+    /// Which framing fit_to_bounds() applies (see FitFraming in
+    /// gcode_projection.h): the 3D analogue of the 2D path's framing mode, so
+    /// switching render modes does not move the model. Takes effect on the
+    /// next fit_to_bounds().
+    void set_framing(FitFraming framing) {
+        framing_ = framing;
     }
 
     /**
@@ -313,13 +322,14 @@ class GCodeCamera {
     glm::vec3 compute_camera_position() const;
 
     // Camera parameters
-    float azimuth_{45.0f};             ///< Horizontal rotation (degrees)
-    float elevation_{30.0f};           ///< Vertical rotation (degrees)
-    glm::vec3 target_{0, 0, 0};        ///< Look-at point
-    float content_height_world_{0.0f}; ///< Fitted model's projected height, world units
-    float bottom_occlusion_{0.0f};     ///< Fraction of viewport height covered by UI
-    float distance_{100.0f};           ///< Distance from target
-    float zoom_level_{1.0f};           ///< Zoom multiplier
+    float azimuth_{45.0f};                     ///< Horizontal rotation (degrees)
+    float elevation_{30.0f};                   ///< Vertical rotation (degrees)
+    glm::vec3 target_{0, 0, 0};                ///< Look-at point
+    float content_height_world_{0.0f};         ///< Fitted model's projected height, world units
+    float bottom_occlusion_{0.0f};             ///< Fraction of viewport height covered by UI
+    FitFraming framing_{FitFraming::STANDARD}; ///< Framing mode fit_to_bounds() applies
+    float distance_{100.0f};                   ///< Distance from target
+    float zoom_level_{1.0f};                   ///< Zoom multiplier
 
     // Projection parameters
     ProjectionType projection_type_{ProjectionType::ORTHOGRAPHIC};
