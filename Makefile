@@ -977,6 +977,36 @@ ifeq ($(COVERAGE),1)
     LDFLAGS += --coverage
 endif
 
+# Fast linker for host builds. helix-tests links 18 GB of objects into a 5 GB
+# binary -- 99% of both is DWARF from `-O2 -g` -- and every mutation-gate hunk,
+# every `make test`, pays that link again. Measured on this tree, same objects,
+# same warm page cache: GNU ld 31s, lld 6s (cold cache: 73s vs 9s).
+#
+# Host only. Cross toolchains ship their own ld and are not all lld-capable, and
+# Yocto's LDFLAGS come from the recipe -- neither is ours to second-guess. macOS
+# already defaults to ld64, which does not have this problem.
+#
+# FAST_LINK=0 opts out (bisecting a link-order bug, or comparing against ld).
+FAST_LINK ?= 1
+ifeq ($(FAST_LINK),1)
+ifeq ($(CROSS_COMPILE),)
+ifneq ($(YOCTO_BUILD),yes)
+ifneq ($(UNAME_S),Darwin)
+    HOST_FAST_LD := $(shell command -v ld.lld 2>/dev/null)
+    ifneq ($(HOST_FAST_LD),)
+        LDFLAGS += -fuse-ld=lld
+    else
+        # Loud on purpose. Without lld this box silently pays ~25 extra seconds
+        # on every test link, and the person or agent waiting on it has no way
+        # to tell that from the build simply being big.
+        $(warning ⚠️  ld.lld not found — helix-tests will link with GNU ld and take ~25s longer per link.)
+        $(warning     Install it: sudo apt install lld   (or set FAST_LINK=0 to silence this.))
+    endif
+endif
+endif
+endif
+endif
+
 # Sound system — synth, sequencer, backends (PWM/M300/SDL/ALSA), themes
 # Tracker player — MOD/MED file playback with PCM samples (requires HELIX_HAS_SOUND)
 #
