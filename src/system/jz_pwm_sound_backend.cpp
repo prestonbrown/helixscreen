@@ -120,8 +120,14 @@ std::vector<NoteEvent> jz_pwm_voices_to_events(const float* freq, const float* a
     for (int v = 0; v < n_voices && v < kVoices; ++v) {
         if (freq[v] <= 0 || amp[v] <= 0.001f)
             continue;
+        float f = freq[v];
+        /* Period-only tracker rows emit the Paula playback rate (8-14 kHz)
+         * as a fallback frequency - ultrasonic screech on a piezo. Octave
+         * anything above the band down into audible music. */
+        while (f > 4000.0f)
+            f *= 0.5f;
         NoteEvent e;
-        e.freq_hz = freq[v];
+        e.freq_hz = f;
         e.velocity = amp[v];
         e.duration_ms = dur_ms;
         e.wave = Waveform::TRIANGLE;
@@ -319,7 +325,7 @@ void JzPwmSoundBackend::maybe_flush_voices() {
     /* Coalesce one tracker row's set_voice burst (all four slots arrive
      * back-to-back) into a single chord buffer. 40 ms is well under a
      * typical row interval and well over the burst width. */
-    constexpr auto kDebounce = std::chrono::milliseconds(40);
+    constexpr auto kDebounce = std::chrono::milliseconds(70);
     auto now = std::chrono::steady_clock::now();
     if (!voices_dirty_ || now - last_voice_flush_ < kDebounce)
         return;
@@ -327,14 +333,14 @@ void JzPwmSoundBackend::maybe_flush_voices() {
     last_voice_flush_ = now;
     if (fx_pwm_.empty())
         return;
-    auto events = jz_pwm_voices_to_events(voice_freq_, voice_amp_, kVoices, 150.0f);
+    auto events = jz_pwm_voices_to_events(voice_freq_, voice_amp_, kVoices, 110.0f);
     if (events.empty()) {
         stop_child();
         return;
     }
     auto words = jz_pwm_render_step(events.data(), (int)events.size(), params_);
     if (!words.empty())
-        flush_words(words, 150.0f);
+        flush_words(words, 110.0f);
 }
 
 void JzPwmSoundBackend::silence() {
