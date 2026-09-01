@@ -98,7 +98,7 @@ struct LayerIndexStats {
     float min_z{std::numeric_limits<float>::max()};
     float max_z{std::numeric_limits<float>::lowest()};
     /// Model XY extents, accumulated over extruding moves during the index scan
-    /// and filtered by is_excluded_from_bounds() exactly like the full-file
+    /// and filtered by is_auxiliary_geometry() exactly like the full-file
     /// parser's global_bounding_box. Empty (min > max) if no extrusion was seen.
     ///
     /// Before this existed, GCodeLayerRenderer::auto_fit() estimated XY bounds by

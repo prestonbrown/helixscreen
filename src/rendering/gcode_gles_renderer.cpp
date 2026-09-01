@@ -2350,8 +2350,14 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
         const auto& layer = gcode.layers[static_cast<size_t>(layer_idx)];
 
         for (const auto& segment : layer.segments) {
-            if (!segment.is_extrusion || !show_extrusions_)
+            // The shared draw decision: auxiliary geometry (purge, prime
+            // tower) is dropped by the builder, so it must not be pickable
+            // here either - a tap on the blank tower area must select
+            // nothing, not an invisible object.
+            if (!segment_drawable(segment, /*is_support=*/false, show_extrusions_, show_extrusions_,
+                                  /*show_travel=*/false)) {
                 continue;
+            }
             if (segment.object_name_index < 0)
                 continue;
             // Stage 1 result: one array lookup instead of two mat4 multiplies.

@@ -225,6 +225,53 @@ TEST_CASE("Geometry Builder: RibbonGeometry - memory usage", "[gcode][geometry][
 // GeometryBuilder - Color Tests
 // ============================================================================
 
+TEST_CASE("Geometry Builder: auxiliary geometry never reaches the ribbon",
+          "[gcode][geometry][aux_skip]") {
+    // The 3D builder's budget is the scarce resource on low-RAM devices; a
+    // multi-color prime tower can be a large fraction of a file's segments.
+    // Purge/tower segments (already outside the fit bounds) must not be
+    // collected at all - not drawn, not budgeted.
+    auto make_gcode = []() {
+        ParsedGCodeFile gcode;
+        Layer layer;
+        layer.z_height = 0.2f;
+
+        ToolpathSegment part;
+        part.start = glm::vec3(10, 10, 0.2f);
+        part.end = glm::vec3(100, 100, 0.2f);
+        part.is_extrusion = true;
+        part.extrusion_amount = 1.0f;
+        part.width = 0.4f;
+        part.feature_type = FeatureType::OuterWall;
+        layer.segments.push_back(part);
+
+        ToolpathSegment tower;
+        tower.start = glm::vec3(200, 200, 0.2f);
+        tower.end = glm::vec3(250, 250, 0.2f);
+        tower.is_extrusion = true;
+        tower.extrusion_amount = 1.0f;
+        tower.width = 0.4f;
+        tower.feature_type = FeatureType::WipeTower;
+        layer.segments.push_back(tower);
+
+        gcode.layers.push_back(layer);
+        gcode.total_segments = 2;
+        return gcode;
+    };
+
+    SimplificationOptions options;
+    options.enable_merging = false;
+
+    GeometryBuilder builder;
+    RibbonGeometry geometry = builder.build(make_gcode(), options);
+
+    // The tower segment is never collected: one input segment, and no vertex
+    // lands at the tower's coordinates.
+    REQUIRE(builder.last_stats().input_segments == 1);
+}
+
+// ============================================================================
+
 TEST_CASE("Geometry Builder: Color computation - hex parsing", "[gcode][geometry][color]") {
     // Helper to create minimal G-code for color testing
     auto make_single_segment_gcode = []() {

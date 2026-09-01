@@ -635,7 +635,17 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
                 moved = true;
             }
 
-            if (is_extruding && !is_excluded_from_bounds(current_feature_type)) {
+            // Parser parity: a segment exists only when XY actually changed
+            // (gcode_parser.cpp's add path requires it). An E-only move - a
+            // toolchange retract/prime pair parked mid-print - has no spatial
+            // extent, and counting its parked position widens the stats by
+            // wherever the head happens to sit. That is not hypothetical:
+            // Orca primes at the tower BEFORE the tower's ;TYPE: marker
+            // starts, under the previous part section's type, so the tower's
+            // coordinates leaked into the fit bounds through a move that
+            // drew nothing.
+            const bool xy_changed = (current_x != prev_x || current_y != prev_y);
+            if (is_extruding && xy_changed && !is_auxiliary_geometry(current_feature_type)) {
                 if (any_position_seen) {
                     stats_.min_x = std::min(stats_.min_x, prev_x);
                     stats_.max_x = std::max(stats_.max_x, prev_x);

@@ -351,7 +351,7 @@ void GCodeLayerRenderer::auto_fit() {
                     // actual print object. Segments are still rendered — only
                     // the bbox calculation ignores them. See FeatureType in
                     // include/gcode_parser.h.
-                    if (is_excluded_from_bounds(seg.feature_type))
+                    if (is_auxiliary_geometry(seg.feature_type))
                         continue;
                     bb.min.x = std::min(bb.min.x, std::min(seg.start.x, seg.end.x));
                     bb.max.x = std::max(bb.max.x, std::max(seg.start.x, seg.end.x));

@@ -1360,6 +1360,87 @@ TEST_CASE("GCodeParser - FeatureType tagging", "[gcode][parser][feature_type]") 
     REQUIRE(segs[4].feature_type == FeatureType::WipeTower);
 }
 
+TEST_CASE("GCodeParser - Prime tower classifies and stays out of every bounds",
+          "[gcode][parser][feature_type]") {
+    // OrcaSlicer emits ';TYPE:Prime tower' (capital P) for its multi-color
+    // tower. The normalization table had "Wipe tower" and Cura's
+    // "PRIME-TOWER" but not Orca's spelling, so the tower fell to Unknown -
+    // which is NOT bounds-excluded - and auto-fit framed the print against
+    // the tower, zooming the actual part out to a thumbnail.
+    GCodeParser parser;
+    parser.parse_line(";TYPE:Outer wall");
+    parser.parse_line("G1 X10 Y10 Z0.2 F600");
+    parser.parse_line("G1 X100 Y100 E5"); // the part
+    parser.parse_line(";TYPE:Prime tower");
+    parser.parse_line("G1 X100 Y100 E0.1"); // tower entry, same spot
+    parser.parse_line("G1 X250 Y250 E2");   // the tower, far off the part
+
+    auto file = parser.finalize();
+    // Travel into the part, the part's extrusion, the tower's extrusion
+    // (the zero-XY-length entry move is not a segment).
+    REQUIRE(file.layers[0].segments.size() == 3);
+    REQUIRE(file.layers[0].segments[1].feature_type == FeatureType::OuterWall);
+    REQUIRE(file.layers[0].segments[2].feature_type == FeatureType::WipeTower);
+
+    // Global bounds feed the 3D camera fit and the full-load 2D auto-fit:
+    // the tower's far corner must not be in them.
+    REQUIRE(file.global_bounding_box.max.x < 150.0f);
+    REQUIRE(file.global_bounding_box.max.y < 150.0f);
+
+    // Per-layer bounds feed the single-layer view and its centering: same
+    // exclusion, or the tower pulls the layer framing off-center.
+    REQUIRE(file.layers[0].bounding_box.max.x < 150.0f);
+    REQUIRE(file.layers[0].bounding_box.max.y < 150.0f);
+}
+
+TEST_CASE("GCodeParser - tower approach and departure travels frame nothing",
+          "[gcode][parser][feature_type]") {
+    // The travels around a tower section carry tower coordinates: the
+    // approach ends at the tower, the departure starts there. Neither may
+    // reach the layer box, or the single-layer view still frames the tower
+    // through moves that extrude nothing.
+    GCodeParser parser;
+    parser.parse_line(";TYPE:Outer wall");
+    parser.parse_line("G1 X10 Y10 Z0.2 F600");
+    parser.parse_line("G1 X100 Y100 E5"); // the part
+    parser.parse_line(";TYPE:Prime tower");
+    parser.parse_line("G0 X250 Y250");    // approach travel: ends at the tower
+    parser.parse_line("G1 X260 Y260 E6"); // the tower
+    parser.parse_line(";TYPE:Inner wall");
+    parser.parse_line("G0 X100 Y100"); // departure travel: starts at the tower
+    parser.parse_line("G1 X101 Y101 E7");
+
+    auto file = parser.finalize();
+    REQUIRE(file.layers[0].bounding_box.max.x < 150.0f);
+    REQUIRE(file.layers[0].bounding_box.max.y < 150.0f);
+    REQUIRE(file.global_bounding_box.max.x < 150.0f);
+}
+
+TEST_CASE("GCodeParser - stationary toolchange prime mints no segment",
+          "[gcode][parser][feature_type]") {
+    // Orca's toolchange prime is an E-only move parked at the tower, emitted
+    // under the PREVIOUS part section's type (the tower's ;TYPE: marker has
+    // not started yet). A stationary extrusion has no spatial extent - the
+    // parser must not mint a segment for it, so the tower's parked
+    // coordinates cannot reach any bounds from here.
+    GCodeParser parser;
+    parser.parse_line(";TYPE:Outer wall");
+    parser.parse_line("G1 X10 Y10 Z0.2 F600");
+    parser.parse_line("G1 X100 Y100 E5");
+    parser.parse_line(";TYPE:Prime tower");
+    parser.parse_line("G1 X250 Y250 E6"); // the tower's extrusion (auxiliary)
+    parser.parse_line(";TYPE:Inner wall");
+    parser.parse_line("G1 E7 F2700"); // stationary prime at (250,250), part type
+
+    auto file = parser.finalize();
+    // Travel, part, tower - and NO segment for the stationary prime.
+    REQUIRE(file.layers[0].segments.size() == 3);
+    REQUIRE(file.layers[0].segments[2].feature_type == FeatureType::WipeTower);
+    REQUIRE(file.layers[0].segments[2].end.x == Approx(250.0f)); // setup reached the spot
+    REQUIRE(file.global_bounding_box.max.x < 150.0f);
+    REQUIRE(file.global_bounding_box.max.y < 150.0f);
+}
+
 TEST_CASE("GCodeParser - FeatureType normalization across slicer dialects",
           "[gcode][parser][feature_type]") {
     SECTION("OrcaSlicer / PrusaSlicer / Bambu dialect (space-separated)") {
@@ -1428,22 +1509,53 @@ TEST_CASE("GCodeParser - FeatureType bounds filter classification",
           "[gcode][parser][feature_type]") {
     // Purge-like types must be excluded from bbox; physical/visible types
     // must be included.
-    REQUIRE(is_excluded_from_bounds(FeatureType::Custom));
-    REQUIRE(is_excluded_from_bounds(FeatureType::WipeTower));
+    REQUIRE(is_auxiliary_geometry(FeatureType::Custom));
+    REQUIRE(is_auxiliary_geometry(FeatureType::WipeTower));
 
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::Unknown));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::Skirt));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::Brim));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::OuterWall));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::InnerWall));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::SparseInfill));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::SolidInfill));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::TopSurface));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::BottomSurface));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::Bridge));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::OverhangWall));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::GapInfill));
-    REQUIRE_FALSE(is_excluded_from_bounds(FeatureType::Support));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::Unknown));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::Skirt));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::Brim));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::OuterWall));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::InnerWall));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::SparseInfill));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::SolidInfill));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::TopSurface));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::BottomSurface));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::Bridge));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::OverhangWall));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::GapInfill));
+    REQUIRE_FALSE(is_auxiliary_geometry(FeatureType::Support));
+}
+
+TEST_CASE("segment_drawable - auxiliary short-circuits every later branch",
+          "[gcode][parser][feature_type]") {
+    // The branch ORDER is the contract: auxiliary geometry is decided before
+    // support visibility and before the travel/extrusion toggles, so no
+    // toggle combination can resurrect it. A tower inside a support-named
+    // object, or tower travel moves with travels shown, stay hidden.
+    ToolpathSegment tower_extrusion;
+    tower_extrusion.is_extrusion = true;
+    tower_extrusion.feature_type = FeatureType::WipeTower;
+    CHECK_FALSE(segment_drawable(tower_extrusion, /*is_support=*/true,
+                                 /*show_support=*/true, /*show_extrusion=*/true,
+                                 /*show_travel=*/true));
+
+    ToolpathSegment tower_travel;
+    tower_travel.is_extrusion = false;
+    tower_travel.feature_type = FeatureType::WipeTower;
+    CHECK_FALSE(segment_drawable(tower_travel, /*is_support=*/false, true, true, true));
+
+    ToolpathSegment purge;
+    purge.is_extrusion = true;
+    purge.feature_type = FeatureType::Custom;
+    CHECK_FALSE(segment_drawable(purge, false, true, true, true));
+
+    // And the branches still answer for real geometry.
+    ToolpathSegment wall;
+    wall.is_extrusion = true;
+    wall.feature_type = FeatureType::OuterWall;
+    CHECK(segment_drawable(wall, false, false, true, false));
+    CHECK_FALSE(segment_drawable(wall, false, false, false, false));
 }
 
 TEST_CASE("GCodeParser - Real Cura file FeatureType distribution",
