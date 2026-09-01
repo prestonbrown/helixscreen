@@ -953,6 +953,7 @@ FeatureType GCodeParser::parse_feature_type_value(const std::string& value) {
         {"Support material interface", FeatureType::Support},
         {"Support", FeatureType::Support},
         {"Wipe tower", FeatureType::WipeTower},
+        {"Prime tower", FeatureType::WipeTower},
         {"Ironing", FeatureType::TopSurface},
         {"Thin wall", FeatureType::InnerWall},
         // PrusaSlicer legacy names
@@ -1103,21 +1104,32 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
     current_layer.segments.push_back(segment);
 
     // For bounding box: skip start position if this is the first segment ever
-    // (avoids including implicit (0,0,0) starting position in print bounds)
+    // (avoids including implicit (0,0,0) starting position in print bounds).
+    // Auxiliary geometry (purge, prime tower) stays out of the layer box for
+    // the same reason it stays out of the global one: the single-layer view
+    // and its centering frame against the print, not the scaffolding beside it.
     bool is_first_segment = (layers_.size() == 1 && current_layer.segments.size() == 1);
+    const bool auxiliary = is_auxiliary_geometry(current_feature_type_);
 
-    if (!is_first_segment) {
-        current_layer.bounding_box.expand(start);
+    // Travels never frame a layer either: the approach and departure travels
+    // around a prime tower would inject its coordinates right back in. The
+    // global box has always been extrusion-only; this brings the layer box
+    // in line (a travel-only layer leaves the box empty, which fit_layer and
+    // the single-layer centering already handle with the plate fallback).
+    if (is_extrusion && !auxiliary) {
+        if (!is_first_segment) {
+            current_layer.bounding_box.expand(start);
+        }
+        current_layer.bounding_box.expand(end);
     }
-    current_layer.bounding_box.expand(end);
 
     // Global bounds only include extrusion moves — travel moves to homing/probing/
     // parking positions would inflate the viewport and make the model appear tiny.
-    // Also exclude purge/wipe-tower types so the auto-fit viewport zooms to the
-    // actual print object (parity with the streaming-mode filter in
-    // GCodeLayerRenderer::auto_fit).
+    // Auxiliary geometry (purge, prime tower) is excluded for the same reason:
+    // the auto-fit viewport zooms to the actual print object (parity with the
+    // streaming-mode filter in GCodeLayerRenderer::auto_fit).
     if (is_extrusion) {
-        if (!is_excluded_from_bounds(current_feature_type_)) {
+        if (!auxiliary) {
             if (!is_first_segment) {
                 global_bounds_.expand(start);
             }
@@ -1128,8 +1140,12 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
         current_layer.segment_count_travel++;
     }
 
-    // Update object bounding box (only for extrusion moves, not travels)
-    if (!current_object_.empty() && objects_.count(current_object_) > 0 && is_extrusion) {
+    // Update object bounding box (only for extrusion moves, not travels, and
+    // never auxiliary geometry: an object box reaching into the tower region
+    // turns every pick footprint and selection bracket toward empty plate,
+    // and a tap there can long-press-exclude real printed geometry).
+    if (!current_object_.empty() && objects_.count(current_object_) > 0 && is_extrusion &&
+        !auxiliary) {
         objects_[current_object_].bounding_box.expand(start);
         objects_[current_object_].bounding_box.expand(end);
 

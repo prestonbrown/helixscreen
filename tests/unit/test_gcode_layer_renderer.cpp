@@ -9,6 +9,7 @@
 #include "gcode_selection_style.h"
 #include "gcode_streaming_controller.h"
 #include "system/crash_handler.h"
+#include "test_helpers/gcode_layer_renderer_test_access.h"
 
 #include <algorithm>
 #include <chrono>
@@ -114,6 +115,107 @@ ParsedGCodeFile make_single_object_gcode(const std::string& name, float y) {
 // =============================================================================
 // Exclude Object Support
 // =============================================================================
+
+TEST_CASE("auxiliary geometry never renders", "[layer_renderer][render_gate]") {
+    // Purge/tower segments are already outside the fit bounds; the draw gate
+    // must agree, or the tower keeps burning draw time at the frame edge.
+    GCodeLayerRenderer renderer;
+    renderer.set_show_extrusions(true);
+
+    ToolpathSegment tower;
+    tower.is_extrusion = true;
+    tower.feature_type = FeatureType::WipeTower;
+    CHECK_FALSE(GCodeLayerRendererTestAccess::renders_segment(renderer, tower));
+
+    ToolpathSegment purge;
+    purge.is_extrusion = true;
+    purge.feature_type = FeatureType::Custom;
+    CHECK_FALSE(GCodeLayerRendererTestAccess::renders_segment(renderer, purge));
+
+    // Real part geometry is untouched by the auxiliary filter.
+    ToolpathSegment wall;
+    wall.is_extrusion = true;
+    wall.feature_type = FeatureType::OuterWall;
+    CHECK(GCodeLayerRendererTestAccess::renders_segment(renderer, wall));
+
+    ToolpathSegment untyped;
+    untyped.is_extrusion = true;
+    untyped.feature_type = FeatureType::Unknown;
+    CHECK(GCodeLayerRendererTestAccess::renders_segment(renderer, untyped));
+}
+
+TEST_CASE("the ghost silhouette skips auxiliary geometry too", "[layer_renderer][render_gate]") {
+    // The ghost worker is a second consumer of the draw rule, and the one
+    // that cost a real regression: the foreground gate was filtered while
+    // the worker's own copy of the rule was not, so the prime tower stayed
+    // on screen. This drives the REAL background pass and counts lit pixels.
+    auto make_gcode = [](bool with_tower) {
+        ParsedGCodeFile gcode;
+        Layer layer;
+        layer.z_height = 0.2f;
+
+        // The part is a long diagonal that alone defines the fit bounds. The
+        // tower sits INSIDE those bounds but off the diagonal, so if the gate
+        // ever stops filtering, its square lights up hundreds of pixels the
+        // part never touches - placing it outside the fit instead would clip
+        // it out of the buffer and the test could not fail.
+        ToolpathSegment part;
+        part.start = glm::vec3(10, 10, 0.2f);
+        part.end = glm::vec3(500, 500, 0.2f);
+        part.is_extrusion = true;
+        part.extrusion_amount = 1.0f;
+        part.width = 0.4f;
+        part.feature_type = FeatureType::OuterWall;
+        layer.segments.push_back(part);
+
+        if (with_tower) {
+            ToolpathSegment tower;
+            tower.start = glm::vec3(100, 300, 0.2f);
+            tower.end = glm::vec3(200, 400, 0.2f);
+            tower.is_extrusion = true;
+            tower.extrusion_amount = 1.0f;
+            tower.width = 0.4f;
+            tower.feature_type = FeatureType::WipeTower;
+            layer.segments.push_back(tower);
+        }
+
+        gcode.layers.push_back(layer);
+        gcode.total_segments = layer.segments.size();
+        return gcode;
+    };
+
+    auto lit_pixel_count = [&make_gcode](bool with_tower) {
+        GCodeLayerRenderer renderer;
+        auto gcode = make_gcode(with_tower);
+        renderer.set_gcode(&gcode);
+        renderer.set_canvas_size(200, 200);
+        renderer.set_view_mode(GCodeLayerRenderer::ViewMode::TOP_DOWN);
+        renderer.auto_fit();
+        renderer.set_current_layer(0);
+
+        GCodeLayerRendererTestAccess::run_ghost_pass(renderer);
+        const uint8_t* px = GCodeLayerRendererTestAccess::ghost_pixels(renderer);
+        REQUIRE(px != nullptr);
+        const size_t stride = GCodeLayerRendererTestAccess::ghost_stride(renderer);
+        size_t lit = 0;
+        for (int y = 0; y < GCodeLayerRendererTestAccess::ghost_height(renderer); ++y) {
+            const uint8_t* row = px + y * stride;
+            for (int x = 0; x < GCodeLayerRendererTestAccess::ghost_width(renderer); ++x) {
+                if (row[x * 4 + 3] != 0) { // ARGB8888 alpha byte
+                    ++lit;
+                }
+            }
+        }
+        return lit;
+    };
+
+    const size_t part_only = lit_pixel_count(false);
+    const size_t with_tower = lit_pixel_count(true);
+    REQUIRE(part_only > 0); // the setup actually painted something
+    // Same fit (the tower is outside every bound), so the same part pixels -
+    // a tower leaking into the ghost would add hundreds of lit pixels.
+    CHECK(with_tower == part_only);
+}
 
 TEST_CASE("set_excluded_objects stores names and can be cleared", "[layer_renderer][exclude]") {
     GCodeLayerRenderer renderer;

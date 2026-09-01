@@ -365,6 +365,59 @@ G1 X60 Y60 E0.2
     REQUIRE(index.get_entry(2).start_feature_type == FeatureType::OuterWall);
 }
 
+TEST_CASE("GCodeLayerIndex - Prime tower stays out of the streaming fit bounds",
+          "[gcode][layer_index][feature_type]") {
+    // Streaming's auto-fit frames against LayerIndexStats min/max. Orca's
+    // ';TYPE:Prime tower' spelling must classify as WipeTower so the index
+    // scan's feature filter - the same predicate the full parser applies to
+    // global_bounding_box - keeps the tower out of those stats.
+    std::string gcode = R"(
+;TYPE:Outer wall
+G1 X10 Y10 Z0.2 F600
+G1 X100 Y100 E5
+;TYPE:Prime tower
+G1 X100 Y100 E0.1
+G1 X250 Y250 E2
+G1 Z0.4
+;TYPE:Outer wall
+G1 X20 Y20 E0.2
+)";
+
+    TempGCodeFile file(gcode);
+    GCodeLayerIndex index;
+    REQUIRE(index.build_from_file(file.path()));
+
+    const auto& stats = index.get_stats();
+    REQUIRE(stats.max_x < 150.0f);
+    REQUIRE(stats.max_y < 150.0f);
+}
+
+TEST_CASE("GCodeLayerIndex - stationary toolchange prime at the tower stays out of stats",
+          "[gcode][layer_index][feature_type]") {
+    // Orca's toolchange prime is an E-only move parked at the tower, emitted
+    // BEFORE the tower's ;TYPE: marker starts - so it classifies as the
+    // previous part section and passed the auxiliary filter while parked at
+    // the tower's coordinates. Measured on a real 4-color Orca file: the
+    // stats spanned to (209.75, 209.05) through moves that drew nothing.
+    std::string gcode = R"(
+;TYPE:Outer wall
+G1 X10 Y10 Z0.2 F600
+G1 X100 Y100 E5
+;TYPE:Prime tower
+G1 X250 Y250 E6
+;TYPE:Inner wall
+G1 E7 F2700
+)";
+
+    TempGCodeFile file(gcode);
+    GCodeLayerIndex index;
+    REQUIRE(index.build_from_file(file.path()));
+
+    const auto& stats = index.get_stats();
+    REQUIRE(stats.max_x < 150.0f);
+    REQUIRE(stats.max_y < 150.0f);
+}
+
 TEST_CASE("GCodeLayerIndex - Real file", "[gcode][layer_index][integration]") {
     // Test with the real benchy file if it exists
     std::ifstream check("assets/test_gcodes/3DBenchy.gcode");

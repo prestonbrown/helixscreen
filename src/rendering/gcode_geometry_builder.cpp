@@ -567,11 +567,18 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         "[GCode Geometry] Expanded quantization bounds by {:.1f}mm for tube width {:.1f}mm",
         expansion_margin, max_tube_width);
 
-    // Collect all segments from all layers, stamping each with its source layer index
+    // Collect all segments from all layers, stamping each with its source layer
+    // index. Auxiliary geometry (start-gcode purge, prime tower) is dropped
+    // here rather than drawn or budgeted: it is not part of the print, it is
+    // already outside the fit bounds, and on a multi-color file the tower can
+    // be a large fraction of the segment budget on low-RAM devices.
     std::vector<ToolpathSegment> all_segments;
     all_segments.reserve(gcode.total_segments);
     for (size_t li = 0; li < gcode.layers.size(); ++li) {
         for (const auto& seg : gcode.layers[li].segments) {
+            if (is_auxiliary_geometry(seg.feature_type)) {
+                continue;
+            }
             all_segments.push_back(seg);
             all_segments.back().layer_index = static_cast<uint16_t>(li);
         }

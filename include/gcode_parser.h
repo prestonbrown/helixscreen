@@ -186,7 +186,7 @@ struct AABB {
  */
 enum class FeatureType : int8_t {
     Unknown = -1,  ///< No ;TYPE: seen, or unrecognized value
-    Custom = 0,    ///< Start/end gcode, priming, manual purge (EXCLUDED FROM BOUNDS)
+    Custom = 0,    ///< Start/end gcode, priming, manual purge (auxiliary)
     Skirt,         ///< Skirt loop (physical, included in bounds)
     Brim,          ///< Brim (physical, included in bounds)
     OuterWall,     ///< Outer perimeter
@@ -199,18 +199,23 @@ enum class FeatureType : int8_t {
     Bridge,        ///< Bridging extrusion
     GapInfill,     ///< Gap fill between features
     Support,       ///< Support material (included — it's physical)
-    WipeTower,     ///< Multi-color purge tower (EXCLUDED FROM BOUNDS)
+    WipeTower,     ///< Multi-color purge tower (auxiliary)
 };
 
 /**
- * @brief Should this feature type be excluded from auto-fit bounding box?
+ * @brief Is this feature type auxiliary geometry, not the print itself?
  *
- * Returns true for types that produce extrusion outside the user's intended
- * print object: Custom (start/end gcode purge), WipeTower (multi-color
- * purge structure). Returns false for everything else, including Skirt and
- * Brim which are physical and inside the user's mental model of the print.
+ * True for types that produce extrusion outside the user's intended print
+ * object: Custom (start/end gcode purge), WipeTower (multi-color purge
+ * structure). False for everything else, including Skirt and Brim which are
+ * physical and inside the user's mental model of the print.
+ *
+ * The answer applies everywhere the question is asked - every fit bound
+ * (global, per-layer, index stats) and every draw pass (foreground, cache
+ * build, ghost silhouette). The name says geometry rather than any one
+ * consumer so no caller treats it as bounds-only or draw-only.
  */
-constexpr bool is_excluded_from_bounds(FeatureType t) {
+constexpr bool is_auxiliary_geometry(FeatureType t) {
     return t == FeatureType::Custom || t == FeatureType::WipeTower;
 }
 
@@ -228,6 +233,26 @@ struct ToolpathSegment {
     // total 40 bytes
 };
 static_assert(sizeof(ToolpathSegment) == 40, "ToolpathSegment should be 40 bytes after interning");
+
+/**
+ * @brief The one draw decision for a segment, minus where its inputs come from.
+ *
+ * Auxiliary geometry never draws - no pass, foreground or background. Support
+ * visibility follows the caller's answer (the foreground resolves it from the
+ * segment, the ghost worker from a pre-resolved object name), and everything
+ * else follows its motion class. Callers hand in their own show-toggles; the
+ * rule itself lives only here.
+ */
+inline bool segment_drawable(const ToolpathSegment& seg, bool is_support, bool show_support,
+                             bool show_extrusion, bool show_travel) {
+    if (is_auxiliary_geometry(seg.feature_type)) {
+        return false;
+    }
+    if (seg.is_extrusion) {
+        return is_support ? show_support : show_extrusion;
+    }
+    return show_travel;
+}
 
 /**
  * @brief Single layer of toolpath (constant Z-height)
