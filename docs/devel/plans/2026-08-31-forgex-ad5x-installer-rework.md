@@ -290,6 +290,16 @@ Add to `validate_install_dir` (common.sh, after the existing checks): `host_refu
 - [ ] Real cycle: install over the existing payload → verify UI boots (peer's `ctl` or screen), `user.moonraker.conf` gains nothing unless flagged, mod `moonraker.conf` byte-identical, `git -C` (from the ff5m checkout, not the rig) parity. Then uninstall → stock/recorded display mode restored, `screen.sh` `bash -n` clean, payload subtree gone, mod tree otherwise untouched.
 - [ ] Record results in this plan's footer, then delete the plan on ship per convention.
 
+### Task 10 (added 2026-09-01, Preston-approved): extend the verified shape to AD5M Forge-X
+
+ff5m is ONE mod selecting its platform block by uname (armv7l -> ad5m, mips -> ad5x); the AD5M/AD5X split in the A1 scoping was our verification boundary, not a real one. Ground truth from the ff5m repo (feat/ad5x-142): AD5M block has MOD_ROOT=/opt/config/mod, DATA_MNT=/data, and their .shell/helixscreen.sh runs HELIX_ROOT=$MOD_ROOT/.bin/helixscreen with DATA_ROOT=/opt/config/mod_data/helixscreen - the identical contract shape. Our probe candidates and canonical mod-owned literals already recognize /opt/config/mod.
+
+Work: (a) arm the payload contract for ad5m+forge_x (extend the A1 shape test with a genuinely-AD5M sandbox: armv7l, /opt/config/mod, their DATA_MNT); (b) make HOST_PLATFORM_HOOK_KEY platform-aware (ad5m mod host -> ad5m-forgex, whose hooks file already exists on main); (c) legacy-population migration: an AD5M mod host with an existing standalone install (/opt/helixscreen + S90helixscreen) gets adopt-or-warn, never silent relocation - offer the existing root as a payload root outside the mod tree (also the OTA-durable answer) or warn with exact commands; A1's refusal of silent conversion stays. (d) RED-first tests for all of it; same review loop. Hardware proof joins Task 8 (rig TBD: whether the AD5M at .1.67 is Forge-X-flavored is an open question).
+
+### Task 9 (added from the architecture review): S2 guard hoist
+
+The arch review found the one earlier-to-later bundle edge: common.sh (position 1) calls host_refuse_mod_owned (host_profile.sh, position 2) from validate_tmp_dir/validate_install_dir, and host_profile needs common's log_error - a cycle. Fix: hoist the two guard calls into set_install_paths' final gate (main.sh's flow, after host_profile is loaded); common.sh becomes host-free. Guard tests re-aim at the gate; the destructive-path coverage itself is unchanged (same refusals, one call site higher). TDD: a test pinning that validate_install_dir standalone (host_profile unset) never calls into host territory - e.g. grep-level pin that common.sh contains no host_ reference - plus the existing refusal tests re-homed and green.
+
 ## Self-Review
 
 - Spec coverage: audit items 1-13 → Tasks: 1 (items 1,3-partial,12-guard), 2 (items 2,4,6), 3 (items 3,5,7,8), 4 (items 9-partial,10,11), 5 (items 1,9,12 structurally), 6 (item 13), 7 (review follow-ups). Order-of-work honored (guard first). ff5m#74 shape → Task 5 + Open Decisions. ✔
