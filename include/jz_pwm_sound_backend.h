@@ -20,13 +20,11 @@ struct JzPwmRenderParams {
     double carrier_hz = 32768.0;
     /// Driver rule: word counts must be a multiple of 4.
     size_t word_align = 4;
-    /// Floor for one buffer's play time. Theme steps as written are often
-    /// 6-80 ms ticks, which this transducer cannot reproduce duty-encoded
-    /// at any volume - everything measured audible on the rig was a
-    /// second-plus. Short steps render at their true duration and then
-    /// TILE that content out to this floor, so a click becomes its tone
-    /// repeated, not a longer envelope.
-    long min_note_ms = 200;
+    /// Floor for one buffer's play time, MEASURED on the rig: 30 cycles
+    /// of a 20 ms duty-encoded tone were each clearly audible, so short
+    /// theme steps (6 ms ticks) tile out to just this much. The original
+    /// 200 ms guess was an order of magnitude conservative.
+    long min_note_ms = 20;
     /// Cap one buffer's hold time: cumulative DMA loop time in the tens
     /// of seconds wedges the vendor driver's teardown path (measured on
     /// the rig; recovery is a reboot).
