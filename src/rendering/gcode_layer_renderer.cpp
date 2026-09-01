@@ -194,6 +194,17 @@ void GCodeLayerRenderer::set_bottom_occlusion(float occlusion) {
     invalidate_cache();
 }
 
+void GCodeLayerRenderer::set_framing(FitFraming framing) {
+    if (framing_ == framing) {
+        return;
+    }
+    framing_ = framing;
+    // Scale, shift and placement all change with the mode, so recompute the
+    // fit and start the caches over rather than adjusting.
+    bounds_valid_ = false;
+    invalidate_cache();
+}
+
 void GCodeLayerRenderer::set_content_offset_y(float offset_percent) {
     // Clamp to reasonable range
     content_offset_y_percent_ = std::clamp(offset_percent, -1.0f, 1.0f);
@@ -428,7 +439,7 @@ void GCodeLayerRenderer::auto_fit() {
     // Use shared auto-fit computation
     ViewMode current_view = get_view_mode();
     auto fit = helix::gcode::compute_auto_fit(bb, current_view, canvas_width_, canvas_height_,
-                                              0.05f, bottom_occlusion_);
+                                              0.05f, bottom_occlusion_, framing_);
     scale_ = fit.scale;
     offset_x_ = fit.offset_x;
     offset_y_ = fit.offset_y;
@@ -1937,8 +1948,16 @@ bool GCodeLayerRenderer::is_ghost_build_complete() const {
     return ghost_thread_ready_.load() || ghost_cache_valid_;
 }
 
+bool GCodeLayerRenderer::has_ghost_output() const {
+    return ghost_cache_valid_;
+}
+
 bool GCodeLayerRenderer::is_ghost_build_running() const {
     return ghost_thread_running_.load();
+}
+
+bool GCodeLayerRenderer::has_first_output() const {
+    return reveal_ready_2d(has_ghost_output(), needs_more_frames(), is_ghost_build_running());
 }
 
 void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {

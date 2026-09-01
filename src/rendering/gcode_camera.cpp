@@ -135,21 +135,38 @@ void GCodeCamera::fit_to_bounds(const AABB& raw_bounds) {
     }
 
     float aspect = static_cast<float>(viewport_width_) / static_cast<float>(viewport_height_);
+    const float viewport_h = static_cast<float>(viewport_height_);
 
-    // Compute zoom so the projected model fits with ~5% margin on each side
-    // ortho_size = distance / (2 * zoom), visible = 2 * ortho_size (vertical)
-    // We need: proj_height <= 2 * ortho_size * margin, and
-    //          proj_width  <= 2 * ortho_size * aspect * margin
-    constexpr float MARGIN = 0.80f; // ~10% margin on each side
+    float zoom_for_height = 0.0f;
+    float zoom_for_width = 0.0f;
+    if (framing_ == FitFraming::THUMBNAIL_PARITY) {
+        // The same square the 2D path fits into: side min(w,h), fill
+        // 1/(1+2*PADDING). Vertical placement is NOT applied here — the viewer
+        // shifts it through parity_content_offset_y(), exactly as STANDARD
+        // shifts through compute_content_offset_y(), so this function only
+        // owns the zoom. In this ortho setup a model spans
+        // proj * zoom * viewport_height / distance pixels on either axis,
+        // hence viewport_h in both denominators.
+        const float side = std::min(static_cast<float>(viewport_width_), viewport_h);
+        const float fill = 1.0f / (1.0f + 2.0f * projection::thumbnail_parity::PADDING);
+        zoom_for_height = fill * side * distance_ / (proj_height * viewport_h);
+        zoom_for_width = fill * side * distance_ / (proj_width * viewport_h);
+    } else {
+        // Compute zoom so the projected model fits with ~5% margin on each side
+        // ortho_size = distance / (2 * zoom), visible = 2 * ortho_size (vertical)
+        // We need: proj_height <= 2 * ortho_size * margin, and
+        //          proj_width  <= 2 * ortho_size * aspect * margin
+        constexpr float MARGIN = 0.80f; // ~10% margin on each side
 
-    // Same shape rule as compute_auto_fit(): only a model markedly taller than
-    // it is wide keeps the full viewport height and runs under the bottom UI
-    // strip. Anything squatter is framed to sit above it.
-    const bool elongated = proj_height > projection::ELONGATION_LIMIT * proj_width;
-    const float usable_height_frac = elongated ? 1.0f : (1.0f - bottom_occlusion_);
+        // Same shape rule as compute_auto_fit(): only a model markedly taller
+        // than it is wide keeps the full viewport height and runs under the
+        // bottom UI strip. Anything squatter is framed to sit above it.
+        const bool elongated = proj_height > projection::ELONGATION_LIMIT * proj_width;
+        const float usable_height_frac = elongated ? 1.0f : (1.0f - bottom_occlusion_);
 
-    float zoom_for_height = distance_ * usable_height_frac / (proj_height / MARGIN);
-    float zoom_for_width = distance_ * aspect / (proj_width / MARGIN);
+        zoom_for_height = distance_ * usable_height_frac / (proj_height / MARGIN);
+        zoom_for_width = distance_ * aspect / (proj_width / MARGIN);
+    }
     zoom_level_ = std::min(zoom_for_height, zoom_for_width);
     zoom_level_ = std::clamp(zoom_level_, 0.1f, 100.0f);
 

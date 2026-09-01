@@ -25,6 +25,18 @@
 namespace helix {
 namespace gcode {
 
+/// Reveal gate for the 2D viewer, extracted as a pure rule so its truth table
+/// is testable without a draw harness. The ghost copy alone is enough to show
+/// the render — the solid build continues visibly on top of it — while a
+/// pending build with nothing copied to the canvas yet is not.
+///
+/// @param ghost_output     has_ghost_output(): ghost pixels are on the canvas
+/// @param solid_incomplete needs_more_frames(): progressive build still going
+/// @param ghost_running    is_ghost_build_running(): background thread active
+constexpr bool reveal_ready_2d(bool ghost_output, bool solid_incomplete, bool ghost_running) {
+    return ghost_output || (!solid_incomplete && !ghost_running);
+}
+
 /**
  * @brief 2D orthographic layer renderer for G-code visualization
  *
@@ -182,7 +194,12 @@ class GCodeLayerRenderer {
     /// Tell the renderer how much of the canvas bottom the UI covers (0..1).
     /// Both the fit and the vertical shift depend on it, so changing it
     /// re-runs auto-fit rather than only nudging the existing framing.
+    /// THUMBNAIL_PARITY framing ignores it for the fit.
     void set_bottom_occlusion(float occlusion);
+
+    /// Which framing auto_fit() uses (see FitFraming in gcode_projection.h).
+    /// Changing it re-fits and rebuilds the caches on the next render.
+    void set_framing(FitFraming framing);
 
     // =========================================================================
     // Display Options
@@ -324,10 +341,30 @@ class GCodeLayerRenderer {
     bool is_ghost_build_complete() const;
 
     /**
+     * @brief Check if the ghost buffer has been copied into the LVGL canvas
+     * @return true once the first real content is on the canvas
+     *
+     * Not the same as is_ghost_build_complete(): that also reports true while
+     * the finished raw buffer is still waiting for its main-thread copy, which
+     * is a frame with nothing on the canvas yet.
+     */
+    bool has_ghost_output() const;
+
+    /**
      * @brief Check if streaming ghost build is running
      * @return true if background ghost build is in progress
      */
     bool is_ghost_build_running() const;
+
+    /**
+     * @brief The viewer's reveal gate: is there real content on the canvas?
+     *
+     * reveal_ready_2d() over this renderer's own state. True once the ghost
+     * has been copied in (the solid cache keeps building visibly after that),
+     * or — when no ghost is coming — once the progressive build has finished
+     * with nothing pending.
+     */
+    bool has_first_output() const;
 
     /// View mode alias — uses shared enum from gcode_projection.h
     using ViewMode = helix::gcode::ViewMode;
@@ -610,8 +647,9 @@ class GCodeLayerRenderer {
     // Canvas dimensions
     int canvas_width_ = 400;
     int canvas_height_ = 400;
-    float content_offset_y_percent_ = 0.0f; // Vertical content offset (-1.0 to 1.0)
-    float bottom_occlusion_ = 0.0f;         // Fraction of canvas height covered by UI
+    float content_offset_y_percent_ = 0.0f;     // Vertical content offset (-1.0 to 1.0)
+    float bottom_occlusion_ = 0.0f;             // Fraction of canvas height covered by UI
+    FitFraming framing_ = FitFraming::STANDARD; // Framing mode auto_fit() applies
 
     // Viewport transform (world → screen)
     float scale_ = 1.0f;

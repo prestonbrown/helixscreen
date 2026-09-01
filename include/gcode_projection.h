@@ -58,7 +58,46 @@ constexpr float ISO_Y_SCALE = 0.5f;  // Y compression factor
 /// accepts the overlap.
 constexpr float ELONGATION_LIMIT = 2.0f;
 
+/// Thumbnail-parity framing constants: how a render is placed so it lands
+/// where the slicer thumbnail it replaces was sitting.
+///
+/// Measured on three real slicer 300x300 thumbnails: OrcaSlicer fills 81.0% of
+/// the frame (top margin 16%, bottom 3.3%), PrusaSlicer 76.3% (21% / 3%), and
+/// a width-limited PrusaSlicer 72.3% (26% / 23%). Horizontal is always
+/// centred; the model's vertical centre lands at 51.5-59.0% of the frame.
+/// The constants sit in the middle of those ranges.
+namespace thumbnail_parity {
+
+/// Vertical lift of the frame, as a fraction of canvas height. Matches the
+/// #preview_offset_y design token in ui_xml/globals.xml (-12%) that shifts the
+/// thumbnail up over the metadata strip — keep the two in sync.
+constexpr float LIFT = 0.12f;
+
+/// Padding around the model inside the frame: limiting-axis fill
+/// 1 / (1 + 2*PADDING) = 78.1%, against the measured 72-81%.
+constexpr float PADDING = 0.14f;
+
+/// Where the model's vertical centre sits in the frame (0 = frame top).
+constexpr float CENTER_Y = 0.55f;
+
+} // namespace thumbnail_parity
+
 } // namespace projection
+
+/// How compute_auto_fit() frames a model on its canvas.
+enum class FitFraming {
+    /// Fit the whole canvas. `bottom_occlusion` shrinks squat models to clear
+    /// a bottom UI strip; ones taller than ELONGATION_LIMIT x their width keep
+    /// the full height and run underneath it instead.
+    STANDARD,
+    /// Frame the model the way the slicer thumbnail beside it is framed: the
+    /// square of the canvas's short side, centred, lifted by
+    /// projection::thumbnail_parity::LIFT, model centre at CENTER_Y of the
+    /// frame. `padding` and `bottom_occlusion` are ignored — matching the
+    /// thumbnail's size and placement is the whole point, and the thumbnail
+    /// draws over the strip rather than clearing it.
+    THUMBNAIL_PARITY,
+};
 
 // ============================================================================
 // PROJECTION PARAMETERS
@@ -140,6 +179,20 @@ struct AutoFitResult {
 float compute_content_offset_y(float content_height_px, int canvas_height_px,
                                float bottom_occlusion);
 
+/// Vertical shift, as a fraction of canvas height, for THUMBNAIL_PARITY
+/// framing: the model's centre pinned to thumbnail_parity::CENTER_Y of the
+/// lifted square, whatever the model fills — the measured thumbnails place the
+/// model centre there regardless of its height, so neither the content height
+/// nor the occlusion is an input. The 2D path applies this through
+/// compute_auto_fit(); the GLES path through the viewer, which is why it is a
+/// function of its own rather than a branch of compute_content_offset_y().
+///
+/// @param canvas_width_px  Full canvas width in pixels (the square's side is
+///                         min(width, height))
+/// @param canvas_height_px Full canvas height in pixels
+/// @return Offset as a fraction of canvas height; negative shifts content up.
+float parity_content_offset_y(int canvas_width_px, int canvas_height_px);
+
 /// Compute projection scale and offsets to fit a bounding box within a canvas.
 ///
 /// @param raw_bb        Bounding box to fit (world coordinates, mm). Normalized
@@ -148,15 +201,20 @@ float compute_content_offset_y(float content_height_px, int canvas_height_px,
 /// @param view_mode     Projection mode
 /// @param canvas_width  Canvas width in pixels
 /// @param canvas_height Canvas height in pixels
-/// @param padding       Fractional padding around content (e.g. 0.05 = 5% each side)
+/// @param padding       Fractional padding around content (e.g. 0.05 = 5% each side);
+///                      ignored in THUMBNAIL_PARITY, which uses its own measured
+///                      padding
 /// @param bottom_occlusion Fraction of canvas height covered by UI at the bottom
 ///                      (0..1). A squat model is scaled to sit entirely above it;
 ///                      one taller than ELONGATION_LIMIT x its width keeps the
 ///                      full canvas and runs underneath instead. 0 disables both.
+///                      Ignored in THUMBNAIL_PARITY.
+/// @param framing       STANDARD (default) or THUMBNAIL_PARITY
 /// @return Scale and offset parameters for use with project()
 AutoFitResult compute_auto_fit(const AABB& raw_bb, ViewMode view_mode, int canvas_width,
                                int canvas_height, float padding = 0.05f,
-                               float bottom_occlusion = 0.0f);
+                               float bottom_occlusion = 0.0f,
+                               FitFraming framing = FitFraming::STANDARD);
 
 // ============================================================================
 // DEPTH SHADING

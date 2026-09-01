@@ -277,6 +277,7 @@ class GCodeViewerState {
     gcode_viewer_load_callback_t first_frame_callback{nullptr};
     void* first_frame_callback_user_data{nullptr};
     bool first_frame_fired_{false};
+    bool thumbnail_parity_{false}; ///< Frame the render like the slicer thumbnail (detail view)
     ui_gcode_viewer_clear_cb_t clear_callback{nullptr};
     void* clear_callback_user_data{nullptr};
 
@@ -466,7 +467,7 @@ static gcode_viewer_state_t* get_state(lv_obj_t* obj) {
 }
 
 static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj,
-                                                int canvas_height);
+                                                int canvas_width, int canvas_height);
 
 /// Registered on the occluder, keyed to the viewer. Declared here so the
 /// viewer's own delete handler can detach it before this object is freed.
@@ -664,7 +665,8 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         // Re-derive the vertical shift from the live metadata-strip overlap and
         // the fit this renderer settled on. Cheap, and doing it here is what
         // keeps the framing right across relayout without the panel repushing.
-        gcode_viewer_refresh_content_offset(st, obj, lv_area_get_height(&widget_coords));
+        gcode_viewer_refresh_content_offset(st, obj, lv_area_get_width(&widget_coords),
+                                            lv_area_get_height(&widget_coords));
 
         // Render 2D layer view
         st->layer_renderer_2d_->render(layer, &widget_coords);
@@ -735,7 +737,8 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         if (!st->gcode_file) {
             return; // No ParsedGCodeFile (streaming mode) — 3D renderer needs full geometry
         }
-        gcode_viewer_refresh_content_offset(st, obj, lv_area_get_height(&widget_coords));
+        gcode_viewer_refresh_content_offset(st, obj, lv_area_get_width(&widget_coords),
+                                            lv_area_get_height(&widget_coords));
         st->renderer_->render(layer, *st->gcode_file, *st->camera_, &widget_coords);
 
 #ifdef ENABLE_3D_RENDERER
@@ -782,21 +785,26 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 #endif
     }
 
-    // Fire the one-shot first-frame callback once the viewer has produced real
-    // pixels (not during VBO upload, not on a skipped/failed frame). Callers
-    // (e.g. PrintSelectDetailView) use this to defer hiding the thumbnail until
-    // the viewer actually has something to show, avoiding a gray flash.
+    // Fire the one-shot first-frame callback once the viewer has real content
+    // on its canvas (not during VBO upload, not on a skipped/failed frame).
+    // Callers (e.g. PrintSelectDetailView) use this to hide the thumbnail they
+    // stack on top of the viewer.
     if (!st->first_frame_fired_ && st->first_frame_callback) {
         bool frame_complete = true;
         if (st->is_using_2d_mode()) {
-            // The 2D renderer paints progressively — the ghost and solid caches
-            // finish over several frames, which is exactly when the "Building
-            // preview: N%" label is up. Reporting completion here drops the
-            // thumbnail onto a half-drawn view, the gray gap this callback
-            // exists to prevent. This is every non-GLES device, plus GLES once
-            // budget_forced_2d_ flips.
-            if (st->layer_renderer_2d_ && (st->layer_renderer_2d_->needs_more_frames() ||
-                                           st->layer_renderer_2d_->is_ghost_build_running())) {
+            // The 2D renderer paints progressively, and the ghost copy is the
+            // first frame with real content: the solid cache keeps building
+            // visibly on top of it afterwards. has_first_output() fires there
+            // rather than at full build completion — waiting for the complete
+            // build kept the render drawing behind the thumbnail for the whole
+            // build window, and slicer thumbnails (Orca's especially) are
+            // largely transparent, so the half-built render and its
+            // "Building preview: N%" label showed through them at a mismatched
+            // scale. Revealing at the ghost copy is also safe for opaque
+            // thumbnails: real content is already on the canvas by then. This
+            // is every non-GLES device, plus GLES once budget_forced_2d_
+            // flips.
+            if (st->layer_renderer_2d_ && !st->layer_renderer_2d_->has_first_output()) {
                 frame_complete = false;
             }
         } else {
@@ -2034,6 +2042,36 @@ void ui_gcode_viewer_set_first_frame_callback(lv_obj_t* obj, gcode_viewer_load_c
     st->first_frame_fired_ = false;
 }
 
+void ui_gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return;
+    }
+
+    st->thumbnail_parity_ = enabled;
+    const auto framing =
+        enabled ? helix::gcode::FitFraming::THUMBNAIL_PARITY : helix::gcode::FitFraming::STANDARD;
+
+    // Push to whatever renderers already exist; ones created lazily later pick
+    // the flag up from gcode_viewer_refresh_content_offset() on their first
+    // draw. The 2D set_framing() re-fits on change by itself; the camera only
+    // applies framing in fit_to_bounds(), so re-fit it here when geometry is
+    // loaded.
+    if (st->layer_renderer_2d_) {
+        st->layer_renderer_2d_->set_framing(framing);
+    }
+    if (st->camera_) {
+        st->camera_->set_framing(framing);
+        // Re-fit to the loaded model, matching ui_gcode_viewer_reset_camera():
+        // the camera applies framing in fit_to_bounds(), not on set.
+        if (st->gcode_file) {
+            st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
+        }
+    }
+    lv_obj_invalidate(obj);
+    spdlog::debug("[GCode Viewer] Thumbnail parity {}", enabled ? "on" : "off");
+}
+
 void ui_gcode_viewer_clear(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
@@ -2599,31 +2637,40 @@ static float measure_bottom_occlusion(gcode_viewer_state_t* st, lv_obj_t* obj) {
     return std::min(1.0f, static_cast<float>(overlap) / static_cast<float>(viewer_h));
 }
 
-/// Push the live occlusion down to whichever renderer is active. Both the fit
-/// and the vertical shift derive from it, so the renderer owns that computation
-/// and re-fits when the number moves; this only has to keep it current. Cheap
-/// enough to run per draw, which is what keeps the framing right across
-/// relayout without the panel having to repush anything.
+/// Push the live occlusion and framing mode down to whichever renderer is
+/// active. Both the fit and the vertical shift derive from them, so the
+/// renderer owns that computation and re-fits when a number moves; this only
+/// has to keep them current. Cheap enough to run per draw, which is what
+/// keeps the framing right across relayout and lazy renderer creation without
+/// the panel having to repush anything.
 static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj,
-                                                int canvas_height) {
-    (void)canvas_height;
+                                                int canvas_width, int canvas_height) {
     const float occlusion = measure_bottom_occlusion(st, obj);
+    const auto framing = st->thumbnail_parity_ ? helix::gcode::FitFraming::THUMBNAIL_PARITY
+                                               : helix::gcode::FitFraming::STANDARD;
 
     if (st->layer_renderer_2d_) {
+        st->layer_renderer_2d_->set_framing(framing);
         st->layer_renderer_2d_->set_bottom_occlusion(occlusion);
     }
 #ifdef ENABLE_3D_RENDERER
     if (st->camera_) {
+        st->camera_->set_framing(framing);
         st->camera_->set_bottom_occlusion(occlusion);
     }
     if (st->renderer_) {
         // The GLES path applies the shift in build_mvp(); the camera has already
-        // absorbed the occlusion into its zoom.
-        const float content_height = st->camera_ ? st->camera_->get_content_height_fraction() *
-                                                       static_cast<float>(canvas_height)
-                                                 : 0.0f;
-        st->renderer_->set_content_offset_y(
-            helix::gcode::compute_content_offset_y(content_height, canvas_height, occlusion));
+        // absorbed the occlusion (or, under parity, the square) into its zoom.
+        // Parity pins the model centre in the lifted square and ignores both
+        // the content height and the occlusion.
+        const float shift = framing == helix::gcode::FitFraming::THUMBNAIL_PARITY
+                                ? helix::gcode::parity_content_offset_y(canvas_width, canvas_height)
+                                : helix::gcode::compute_content_offset_y(
+                                      st->camera_ ? st->camera_->get_content_height_fraction() *
+                                                        static_cast<float>(canvas_height)
+                                                  : 0.0f,
+                                      canvas_height, occlusion);
+        st->renderer_->set_content_offset_y(shift);
     }
 #endif
 }
@@ -2930,6 +2977,8 @@ void ui_gcode_viewer_load_file(lv_obj_t*, const char*) {}
 void ui_gcode_viewer_set_load_callback(lv_obj_t*, gcode_viewer_load_callback_t, void*) {}
 
 void ui_gcode_viewer_set_first_frame_callback(lv_obj_t*, gcode_viewer_load_callback_t, void*) {}
+
+void ui_gcode_viewer_set_thumbnail_parity(lv_obj_t*, bool) {}
 
 void ui_gcode_viewer_set_gcode_data(lv_obj_t*, void*) {}
 

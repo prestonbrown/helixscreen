@@ -14,11 +14,11 @@
   WHICH layer is visible is NOT decided here. Each host passes a condition
   expression per layer, because the hosts key off different subjects: print
   status hides the art while the exclude-object map covers the card, and the
-  detail view keeps the thumbnail up until the viewer's first frame lands rather
-  than swapping on mode. Passing the whole expression (rather than a subject name
-  plus a ref value) also collapses what used to be two independent bind_flag
-  observers on the same `hidden` flag into one - two of them raced at startup
-  (L042).
+  detail view keeps the thumbnail up until the viewer's first real content
+  lands on its canvas rather than swapping on mode. Passing the whole
+  expression (rather than a subject name plus a ref value) also collapses what
+  used to be two independent bind_flag observers on the same `hidden` flag into
+  one - two of them raced at startup (L042).
 
   Percentage sizes resolve against the parent's CONTENT box, so all three
   renderings fill exactly the area the host leaves for them and inner_align
@@ -64,7 +64,9 @@
     </gcode_viewer>
 
     <!-- Declared after the viewer so it draws on top of it: the detail view
-         leaves the thumbnail up until the viewer's first frame lands. -->
+         leaves the thumbnail up until the viewer has real content on its
+         canvas (2D: the ghost copy; 3D: the first complete GPU frame), then
+         hides it via $thumbnail_hidden. -->
     <lv_image name="$thumbnail_name"
               width="100%" height="100%" align="center" inner_align="contain" bind_src="$thumbnail_src"
               style_translate_y="$thumbnail_offset_y">
