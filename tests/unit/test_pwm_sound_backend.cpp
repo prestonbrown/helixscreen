@@ -854,7 +854,16 @@ struct PwmVirtualRun {
 };
 
 /// Poll pred() every 1 ms of real time until true or timeout.
-bool wait_for(const std::function<bool()>& pred, int timeout_ms = 2000) {
+// 15s, not 2s: the render loop demotes itself to SCHED_IDLE (b8c141b4a) so it
+// can never outrank the UI on a printer — which also makes it the first
+// casualty of a loaded shared runner. Every wait below polls render-thread
+// progress, and Build's Ubuntu leg starved that thread past the 2s default
+// ("non-zero buffer resets the silence run" 4 of 5 runs, "catch-up drops
+// samples" 2 of 5; a control SHA with zero C++ changes failed identically).
+// The extra headroom is paid only on already-starved or already-failing
+// runs; any suite-wide load policy belongs to the load-sensitivity family
+// tracked in #1403.
+bool wait_for(const std::function<bool()>& pred, int timeout_ms = 15000) {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
     while (std::chrono::steady_clock::now() < deadline) {
         if (pred()) {
