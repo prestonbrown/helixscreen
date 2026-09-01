@@ -643,6 +643,18 @@ HOST_OWNS_COMPETING_UIS=0
 
 host_profile_probe() {
     local cand
+    # The probe owns these answers: reset before probing so a second call (or
+    # a caller that pre-set them) can never leave a stale answer behind.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    HOST_CHROOT_STATE="none"
+    HOST_SERVICE_MECHANISM="systemd"
+    HOST_INSTALL_ROOT=""
+    HOST_CONFIG_DIR=""
+    HOST_MOONRAKER_USER_CONF=""
+    HOST_PLATFORM_HOOK_KEY=""
+    HOST_OWNS_COMPETING_UIS=0
+
     # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
     for cand in ${HELIX_MOD_TREE_CANDIDATES:-/usr/data/config/mod /opt/config/mod}; do
         if [ -f "$cand/.shell/platform.sh" ]; then HOST_MOD_ROOT="$cand"; break; fi
@@ -666,9 +678,18 @@ host_profile_probe() {
             HOST_CHROOT_STATE="outside:$HOST_MOD_CHROOT"
         fi
     fi
+    # The payload-contract answers are scoped to the VERIFIED host shape: the
+    # mod tree WITH the mod's chroot (the AD5X rig). A tree without a chroot
+    # is the AD5M Forge-X layout, an established population whose installs
+    # live at the platform root with its own init script - claiming
+    # mod-managed service ownership there would silently relocate them into
+    # the mod tree, skip the service, strand the old root, and get refused by
+    # the shipped uninstaller. The tree itself is still recognized above
+    # (flavor detection, the forgex takeover paths, mod-owned guarding), and
+    # the payload contract stays available there by explicit --payload-root.
     # shellcheck disable=SC2034  # consumed by set_install_paths / stop_competing_uis /
     # shellcheck disable=SC2034  # install_platform_hooks / moonraker.conf discovery
-    if [ -n "$HOST_MOD_ROOT" ]; then
+    if [ -n "$HOST_MOD_ROOT" ] && [ -n "$HOST_MOD_CHROOT" ]; then
         HOST_SERVICE_MECHANISM="mod-managed"
         HOST_OWNS_COMPETING_UIS=1
         HOST_INSTALL_ROOT="$HOST_MOD_ROOT/.bin/helixscreen"
@@ -8153,7 +8174,10 @@ add_update_manager_section() {
     # The stanza's `path:` hands INSTALL_DIR to Moonraker's NetDeploy, whose
     # update flow rmtree()s the path before extracting. Every writer funnels
     # through here (fresh add + migrate_to_web_type), so this one guard covers
-    # the whole stanza — and never arms it at the mod's payload root.
+    # every UNARMED stanza write. Armed payload runs are exempt BY DESIGN - the
+    # armed path is instead refused upstream in configure_moonraker_updates
+    # whenever INSTALL_DIR is mod-owned, so the exemption this guard grants can
+    # never put an updater against the mod's tree.
     host_refuse_mod_owned "arming the Moonraker updater against" "$INSTALL_DIR"
 
     fs=$(file_sudo "$conf")
@@ -8564,8 +8588,28 @@ configure_moonraker_updates() {
     # user.moonraker.conf - find_moonraker_conf's mod-host answer - never in
     # the mod's git-tracked conf.
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" != "1" ]; then
-        log_info "--mod-payload: skipping Moonraker update_manager"
-        log_info "(pass --mod-payload-updates to write the stanza into the mod's user.moonraker.conf)"
+        log_info "Payload install: skipping Moonraker update_manager"
+        log_info "(pass --auto-update to write the stanza into the mod's user.moonraker.conf)"
+        return 0
+    fi
+
+    # --auto-update is refused while the payload root sits INSIDE the mod's
+    # tree: the stanza's updater REPLACES the whole root on update, which
+    # would destroy the config/ and platform/ preservation the payload
+    # contract exists to provide. The option is refused, not the install -
+    # completing without the updater armed is the safe outcome (nothing
+    # remote-triggered can touch the root). The durable shape is a payload
+    # root outside the tree (--payload-root), which keeps the stanza.
+    if [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" = "1" ] \
+       && host_path_is_mod_owned "${INSTALL_DIR:-}" 2>/dev/null; then
+        log_error "--auto-update refused: the payload root is inside the firmware mod's tree:"
+        log_error "  ${INSTALL_DIR}"
+        log_error "Moonraker's type:web updater replaces the whole root on update, destroying"
+        log_error "the config/ and platform/ preservation the payload contract provides."
+        log_error "Re-run with --payload-root outside the mod's tree (e.g. /usr/data/helixscreen)."
+        # TODO(OD2): a persistent-files-aware stanza shape could make the
+        # mod-owned root safe for --auto-update - open decision 2 in
+        # docs/devel/plans/2026-08-31-forgex-ad5x-installer-rework.md.
         return 0
     fi
 
@@ -10737,6 +10781,25 @@ clean_old_installation() {
         fi
     fi
 
+    # A --clean must also remove the root the PREVIOUS install recorded:
+    # mod_payload_mode_block re-records THIS run's root before this sweep
+    # runs, so without this the old custom payload root - and any
+    # --auto-update stanza still pointing at it - survived a mode whose
+    # contract is "remove old installation completely". Name-gated like every
+    # other root the uninstall side acts on.
+    if [ -n "${HELIX_PRIOR_PAYLOAD_ROOT:-}" ] \
+       && [ "$HELIX_PRIOR_PAYLOAD_ROOT" != "${HOST_PAYLOAD_ROOT:-}" ] \
+       && _user_dir_name_ok "$HELIX_PRIOR_PAYLOAD_ROOT" '*helixscreen*' 2>/dev/null; then
+        log_info "Removing previously recorded payload root: $HELIX_PRIOR_PAYLOAD_ROOT"
+        $SUDO rm -rf "$HELIX_PRIOR_PAYLOAD_ROOT"
+        if [ -d "${HELIX_PRIOR_PAYLOAD_ROOT}-repo" ]; then
+            $SUDO rm -rf "${HELIX_PRIOR_PAYLOAD_ROOT}-repo"
+        fi
+        if type remove_update_manager_section >/dev/null 2>&1; then
+            remove_update_manager_section || true
+        fi
+    fi
+
     # Sweep state dirs holding rolling config backups
     clean_helix_state_dirs
 
@@ -10796,7 +10859,9 @@ usage() {
     echo "                 payload install: contents replaced in place, no"
     echo "                 service installed or started (the mod owns the UI"
     echo "                 service), config/ and platform/ preserved."
-    echo "  --payload-root PATH  Payload root (default: the mod's own tree)"
+    echo "  --payload-root PATH  Payload root (default: the mod's own tree on"
+    echo "                 ADX-shape hosts). On an AD5M Forge-X host the payload"
+    echo "                 contract is not auto-detected - name the root to use it"
     echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
     echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
     echo "                 is a real side effect)"
@@ -10952,7 +11017,21 @@ parse_installer_args() {
 # - the probe and these flags are its only setters.
 mod_payload_autodetect() {
     [ "${STANDALONE_INSTALL:-}" = "1" ] && return 0
-    if [ -n "${HOST_MOD_ROOT:-}" ] || [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
+    # An explicit --payload-root opts in on any host: the operator named the
+    # root, which is the whole decision.
+    if [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
+        HELIX_MOD_PAYLOAD=1
+        return 0
+    fi
+    # Auto-detect only the VERIFIED host shape: the mod tree WITH the mod's
+    # chroot (the AD5X rig, whose bootstrap and mod-managed service the rig
+    # cycle verified). A probed tree without a chroot is the AD5M Forge-X
+    # layout - an established population installed at the platform root whose
+    # payload contract nothing has verified - so it keeps its pre-payload
+    # behavior until then (explicit --payload-root only). The chroot answer
+    # exists from host_profile_probe, which main() runs before this.
+    [ "${HOST_CHROOT_STATE:-none}" = "none" ] && return 0
+    if [ -n "${HOST_MOD_ROOT:-}" ]; then
         HELIX_MOD_PAYLOAD=1
     fi
 }
@@ -11018,6 +11097,12 @@ mod_payload_mode_block() {
     fi
 
     if [ "$uninstall_mode" != true ]; then
+        # Capture what the PREVIOUS install recorded before this run's write
+        # replaces it: --clean must sweep the root that exists on disk, and
+        # its sweep runs after this block (clean_old_installation reads this
+        # capture, since the record now names THIS run's root instead).
+        # shellcheck disable=SC2034  # consumed by uninstall.sh (clean_old_installation sweeps it)
+        HELIX_PRIOR_PAYLOAD_ROOT=$(read_payload_root_record 2>/dev/null || true)
         # Record where this payload install actually landed, so a later armed
         # uninstall removes THIS root (its own --payload-root, else this
         # record, else the probed default). Install runs only: an uninstall

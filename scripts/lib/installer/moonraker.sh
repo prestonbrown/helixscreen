@@ -213,7 +213,10 @@ add_update_manager_section() {
     # The stanza's `path:` hands INSTALL_DIR to Moonraker's NetDeploy, whose
     # update flow rmtree()s the path before extracting. Every writer funnels
     # through here (fresh add + migrate_to_web_type), so this one guard covers
-    # the whole stanza — and never arms it at the mod's payload root.
+    # every UNARMED stanza write. Armed payload runs are exempt BY DESIGN - the
+    # armed path is instead refused upstream in configure_moonraker_updates
+    # whenever INSTALL_DIR is mod-owned, so the exemption this guard grants can
+    # never put an updater against the mod's tree.
     host_refuse_mod_owned "arming the Moonraker updater against" "$INSTALL_DIR"
 
     fs=$(file_sudo "$conf")
@@ -624,8 +627,28 @@ configure_moonraker_updates() {
     # user.moonraker.conf - find_moonraker_conf's mod-host answer - never in
     # the mod's git-tracked conf.
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" != "1" ]; then
-        log_info "--mod-payload: skipping Moonraker update_manager"
-        log_info "(pass --mod-payload-updates to write the stanza into the mod's user.moonraker.conf)"
+        log_info "Payload install: skipping Moonraker update_manager"
+        log_info "(pass --auto-update to write the stanza into the mod's user.moonraker.conf)"
+        return 0
+    fi
+
+    # --auto-update is refused while the payload root sits INSIDE the mod's
+    # tree: the stanza's updater REPLACES the whole root on update, which
+    # would destroy the config/ and platform/ preservation the payload
+    # contract exists to provide. The option is refused, not the install -
+    # completing without the updater armed is the safe outcome (nothing
+    # remote-triggered can touch the root). The durable shape is a payload
+    # root outside the tree (--payload-root), which keeps the stanza.
+    if [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" = "1" ] \
+       && host_path_is_mod_owned "${INSTALL_DIR:-}" 2>/dev/null; then
+        log_error "--auto-update refused: the payload root is inside the firmware mod's tree:"
+        log_error "  ${INSTALL_DIR}"
+        log_error "Moonraker's type:web updater replaces the whole root on update, destroying"
+        log_error "the config/ and platform/ preservation the payload contract provides."
+        log_error "Re-run with --payload-root outside the mod's tree (e.g. /usr/data/helixscreen)."
+        # TODO(OD2): a persistent-files-aware stanza shape could make the
+        # mod-owned root safe for --auto-update - open decision 2 in
+        # docs/devel/plans/2026-08-31-forgex-ad5x-installer-rework.md.
         return 0
     fi
 

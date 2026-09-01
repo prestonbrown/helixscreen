@@ -51,7 +51,9 @@ usage() {
     echo "                 payload install: contents replaced in place, no"
     echo "                 service installed or started (the mod owns the UI"
     echo "                 service), config/ and platform/ preserved."
-    echo "  --payload-root PATH  Payload root (default: the mod's own tree)"
+    echo "  --payload-root PATH  Payload root (default: the mod's own tree on"
+    echo "                 ADX-shape hosts). On an AD5M Forge-X host the payload"
+    echo "                 contract is not auto-detected - name the root to use it"
     echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
     echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
     echo "                 is a real side effect)"
@@ -207,7 +209,21 @@ parse_installer_args() {
 # - the probe and these flags are its only setters.
 mod_payload_autodetect() {
     [ "${STANDALONE_INSTALL:-}" = "1" ] && return 0
-    if [ -n "${HOST_MOD_ROOT:-}" ] || [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
+    # An explicit --payload-root opts in on any host: the operator named the
+    # root, which is the whole decision.
+    if [ -n "${MOD_PAYLOAD_ROOT:-}" ]; then
+        HELIX_MOD_PAYLOAD=1
+        return 0
+    fi
+    # Auto-detect only the VERIFIED host shape: the mod tree WITH the mod's
+    # chroot (the AD5X rig, whose bootstrap and mod-managed service the rig
+    # cycle verified). A probed tree without a chroot is the AD5M Forge-X
+    # layout - an established population installed at the platform root whose
+    # payload contract nothing has verified - so it keeps its pre-payload
+    # behavior until then (explicit --payload-root only). The chroot answer
+    # exists from host_profile_probe, which main() runs before this.
+    [ "${HOST_CHROOT_STATE:-none}" = "none" ] && return 0
+    if [ -n "${HOST_MOD_ROOT:-}" ]; then
         HELIX_MOD_PAYLOAD=1
     fi
 }
@@ -273,6 +289,12 @@ mod_payload_mode_block() {
     fi
 
     if [ "$uninstall_mode" != true ]; then
+        # Capture what the PREVIOUS install recorded before this run's write
+        # replaces it: --clean must sweep the root that exists on disk, and
+        # its sweep runs after this block (clean_old_installation reads this
+        # capture, since the record now names THIS run's root instead).
+        # shellcheck disable=SC2034  # consumed by uninstall.sh (clean_old_installation sweeps it)
+        HELIX_PRIOR_PAYLOAD_ROOT=$(read_payload_root_record 2>/dev/null || true)
         # Record where this payload install actually landed, so a later armed
         # uninstall removes THIS root (its own --payload-root, else this
         # record, else the probed default). Install runs only: an uninstall

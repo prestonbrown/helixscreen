@@ -84,6 +84,29 @@ sandbox_candidates() {
         || fail "HOST_OWNS_COMPETING_UIS='$HOST_OWNS_COMPETING_UIS'"
 }
 
+@test "host_profile_probe: a mod tree without the mod chroot is recognized but not payload-managed" {
+    # The AD5M Forge-X layout (A1): the mod's tree exists, but there is no
+    # Buildroot chroot beside it. The tree is still recognized - flavor
+    # detection, the forgex takeover paths, the mod-ownership guard - but the
+    # payload contract's answers stay OFF: nothing on that host shape is
+    # verified to manage a payload, and claiming it would silently relocate a
+    # population whose installs live at the platform root.
+    sandbox_candidates
+    # No chroot directory: the chroot candidates point at nothing.
+    host_profile_probe
+
+    [ "$HOST_MOD_ROOT" = "$SANDBOX/usr/data/config/mod" ] \
+        || fail "HOST_MOD_ROOT='$HOST_MOD_ROOT' - the tree must still be recognized"
+    [ "$HOST_CHROOT_STATE" = "none" ] \
+        || fail "HOST_CHROOT_STATE='$HOST_CHROOT_STATE' - fixture is not the chroot-less shape"
+    [ -z "$HOST_INSTALL_ROOT" ] \
+        || fail "HOST_INSTALL_ROOT set on a chroot-less host - the probe claimed a payload root"
+    [ "$HOST_SERVICE_MECHANISM" = "systemd" ] \
+        || fail "HOST_SERVICE_MECHANISM='$HOST_SERVICE_MECHANISM' - the mod does not own the service here"
+    [ "$HOST_OWNS_COMPETING_UIS" = "0" ] \
+        || fail "HOST_OWNS_COMPETING_UIS set on a chroot-less host"
+}
+
 @test "host_profile_probe: a host without the mod stays on the plain-host defaults" {
     # Candidates point at paths that do not exist in this sandbox.
     export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/no/mod/here"
@@ -180,6 +203,10 @@ sandbox_candidates() {
 
 @test "set_install_paths' gate refuses a mod-owned INSTALL_DIR outside --mod-payload" {
     sandbox_candidates
+    # The gate's scenario is the payload-capable host shape: the mod tree WITH
+    # its chroot (a chroot-less tree is the AD5M Forge-X layout, which the
+    # probe no longer claims a payload root for - see A1).
+    mkdir -p "$SANDBOX/usr/data/.mod/.forge-x/usr/bin"
     host_profile_probe
     HELIX_MOD_PAYLOAD=""
     detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }

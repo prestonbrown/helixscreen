@@ -247,14 +247,20 @@ create_payload_tarball() {
 }
 
 @test "payload install: --auto-update writes the stanza into user.moonraker.conf only" {
-    mkdir -p "$SANDBOX/usr/data/config/mod_data" "$INSTALL_DIR/bin"
-    create_fake_mips_elf "$INSTALL_DIR/bin/helix-screen"
-    chmod +x "$INSTALL_DIR/bin/helix-screen"
+    # Positive control for the A4 refusal: the stanza lands when the payload
+    # root is OUTSIDE the mod's tree (the durable shape --payload-root
+    # provides). At a mod-owned root the option is refused instead - see the
+    # "--auto-update is refused" test below.
+    local durable="$SANDBOX/usr/data/helixscreen"
+    mkdir -p "$SANDBOX/usr/data/config/mod_data" "$durable/bin"
+    create_fake_mips_elf "$durable/bin/helix-screen"
+    chmod +x "$durable/bin/helix-screen"
     printf '[server]\n' > "$MOD_ROOT/moonraker.conf"
     cp "$MOD_ROOT/moonraker.conf" "$BATS_TEST_TMPDIR/mod-conf.original"
     printf '[authorization]\n' > "$HOST_MOONRAKER_USER_CONF"
     HELIX_MOD_PAYLOAD=1
     HELIX_MOD_PAYLOAD_UPDATES=1
+    INSTALL_DIR="$durable"
 
     configure_moonraker_updates "ad5x"
 
@@ -998,4 +1004,129 @@ SHIM
     [ -f "$record" ] || fail "the clean step consumed the record the fresh install relies on"
     [ "$(cat "$record")" = "$INSTALL_DIR" ] \
         || fail "the record names $(cat "$record"), the fresh install populates $INSTALL_DIR"
+}
+
+# --- A1: the payload auto-arm is scoped to the verified host shape ---
+#
+# The probe's candidate list includes /opt/config/mod - the AD5M Forge-X
+# layout - but everything verified on this branch is the AD5X rig's shape
+# (mod tree WITH the mod's Buildroot chroot). An AD5M Forge-X host probing a
+# tree without a chroot keeps its pre-payload contract: no auto-arm, no
+# relocation to the mod tree, the platform's own root and service stand. The
+# payload contract there is explicit-only (--payload-root).
+
+@test "an AD5M-shape mod host (tree, no chroot) does not auto-arm the payload contract" {
+    export HELIX_MOD_TREE_CANDIDATES="$MOD_ROOT"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/usr/data/.mod/.forge-x"   # never created
+    # Drop the setup's hand-pinned answers so the assertions read the PROBE's
+    # output, not stale pins (the probe owns these answers).
+    unset HOST_MOD_ROOT HOST_MOD_CHROOT HOST_CHROOT_STATE HOST_SERVICE_MECHANISM \
+          HOST_INSTALL_ROOT HOST_CONFIG_DIR HOST_MOONRAKER_USER_CONF \
+          HOST_PLATFORM_HOOK_KEY HOST_OWNS_COMPETING_UIS
+    host_profile_probe
+    [ -n "$HOST_MOD_ROOT" ] || fail "setup: the mod tree was not recognized"
+    [ "$HOST_CHROOT_STATE" = "none" ] || fail "setup: fixture is not the chroot-less shape"
+
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_ROOT=""
+    mod_payload_autodetect
+
+    [ -z "$HELIX_MOD_PAYLOAD" ] \
+        || fail "auto-armed the payload contract on a chroot-less mod host"
+    [ -z "$HOST_INSTALL_ROOT" ] \
+        || fail "the probe claimed a payload root - a bare install would relocate to it"
+}
+
+@test "an AD5X-shape mod host (tree with chroot) still auto-arms" {
+    export HELIX_MOD_TREE_CANDIDATES="$MOD_ROOT"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/usr/data/.mod/.forge-x"
+    mkdir -p "$SANDBOX/usr/data/.mod/.forge-x/usr/bin"
+    unset HOST_MOD_ROOT HOST_MOD_CHROOT HOST_CHROOT_STATE HOST_SERVICE_MECHANISM \
+          HOST_INSTALL_ROOT HOST_CONFIG_DIR HOST_MOONRAKER_USER_CONF \
+          HOST_PLATFORM_HOOK_KEY HOST_OWNS_COMPETING_UIS
+    host_profile_probe
+    [ "$HOST_CHROOT_STATE" != "none" ] || fail "setup: the chroot was not found"
+
+    STANDALONE_INSTALL=""
+    MOD_PAYLOAD_ROOT=""
+    mod_payload_autodetect
+
+    [ "$HELIX_MOD_PAYLOAD" = "1" ] \
+        || fail "did not auto-arm on the verified host shape"
+}
+
+# --- A3: --clean must sweep the RECORDED root, not just this run's ---
+#
+# The mode block re-records THIS run's root before the clean sweep resolves,
+# so a custom root recorded by the previous install was never swept - the
+# full payload (and its --auto-update stanza) survived a mode whose contract
+# is "remove old installation completely".
+
+@test "--clean sweeps the previously recorded custom root, not just the re-recorded default" {
+    SUDO="$BATS_TEST_TMPDIR/sudo-rm-neutral"
+    cat > "$SUDO" <<SHIM
+#!/bin/sh
+if [ "\$1" = "rm" ]; then
+    case " \$* " in
+        *"$SANDBOX"/*) exec rm "\$@" ;;
+        *) exit 0 ;;
+    esac
+fi
+exec "\$@"
+SHIM
+    chmod +x "$SUDO"
+    export SUDO
+    ASSUME_YES=true
+    HELIX_MOD_PAYLOAD=1
+    local custom="$SANDBOX/usr/data/helixscreen-custom"
+    mkdir -p "$custom/bin" "$custom-repo" \
+             "$SANDBOX/usr/data/config/mod_data" "$HOST_INSTALL_ROOT"
+    printf '#!/bin/sh\n' > "$custom/bin/helix-screen"
+    printf 'clone\n' > "$custom-repo/HEAD"
+    printf '%s\n' "$custom" > "$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root"
+    printf '[authorization]\n[update_manager helixscreen]\ntype: web\n' \
+        > "$HOST_MOONRAKER_USER_CONF"
+    INSTALL_DIR="$HOST_INSTALL_ROOT"
+
+    mod_payload_mode_block >/dev/null 2>&1
+    [ "$(cat "$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root")" = "$HOST_INSTALL_ROOT" ] \
+        || fail "setup: the mode block did not re-record this run's root"
+
+    clean_old_installation ad5x >/dev/null 2>&1
+
+    [ ! -d "$custom" ] \
+        || fail "the previously recorded custom root survived --clean"
+    [ ! -d "$custom-repo" ] \
+        || fail "the previously recorded root's updater clone survived --clean"
+    ! grep -q 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF" \
+        || fail "the custom root's --auto-update stanza survived --clean"
+}
+
+# --- A4 ruling: --auto-update never arms at a mod-owned payload root ---
+#
+# Moonraker's type:web updater REPLACES the whole root on update, which would
+# destroy the config//platform preservation the payload contract exists to
+# provide. Refused loudly with the root named and the durable-root escape
+# pointed at; a payload root OUTSIDE the mod tree (OD1's durable shape) still
+# gets the stanza (the positive control is the reworked test above).
+
+@test "--auto-update is refused while the payload root is inside the mod's tree" {
+    mkdir -p "$INSTALL_DIR/bin" "$SANDBOX/usr/data/config/mod_data"
+    printf '[authorization]\n' > "$HOST_MOONRAKER_USER_CONF"
+    HELIX_MOD_PAYLOAD=1
+    HELIX_MOD_PAYLOAD_UPDATES=1
+
+    run configure_moonraker_updates "ad5x"
+    [ "$status" -eq 0 ] || fail "the refusal aborted the install: $output"
+
+    ! grep -q 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF" \
+        || fail "the stanza was armed at a mod-owned root"
+    case "$output" in
+        *"$INSTALL_DIR"*) ;;
+        *) fail "the refusal does not name the payload root";;
+    esac
+    case "$output" in
+        *--payload-root*) ;;
+        *) fail "the refusal does not point at the durable-root escape";;
+    esac
 }

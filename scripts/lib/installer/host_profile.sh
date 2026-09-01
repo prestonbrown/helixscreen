@@ -55,6 +55,18 @@ HOST_OWNS_COMPETING_UIS=0
 
 host_profile_probe() {
     local cand
+    # The probe owns these answers: reset before probing so a second call (or
+    # a caller that pre-set them) can never leave a stale answer behind.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    HOST_CHROOT_STATE="none"
+    HOST_SERVICE_MECHANISM="systemd"
+    HOST_INSTALL_ROOT=""
+    HOST_CONFIG_DIR=""
+    HOST_MOONRAKER_USER_CONF=""
+    HOST_PLATFORM_HOOK_KEY=""
+    HOST_OWNS_COMPETING_UIS=0
+
     # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
     for cand in ${HELIX_MOD_TREE_CANDIDATES:-/usr/data/config/mod /opt/config/mod}; do
         if [ -f "$cand/.shell/platform.sh" ]; then HOST_MOD_ROOT="$cand"; break; fi
@@ -78,9 +90,18 @@ host_profile_probe() {
             HOST_CHROOT_STATE="outside:$HOST_MOD_CHROOT"
         fi
     fi
+    # The payload-contract answers are scoped to the VERIFIED host shape: the
+    # mod tree WITH the mod's chroot (the AD5X rig). A tree without a chroot
+    # is the AD5M Forge-X layout, an established population whose installs
+    # live at the platform root with its own init script - claiming
+    # mod-managed service ownership there would silently relocate them into
+    # the mod tree, skip the service, strand the old root, and get refused by
+    # the shipped uninstaller. The tree itself is still recognized above
+    # (flavor detection, the forgex takeover paths, mod-owned guarding), and
+    # the payload contract stays available there by explicit --payload-root.
     # shellcheck disable=SC2034  # consumed by set_install_paths / stop_competing_uis /
     # shellcheck disable=SC2034  # install_platform_hooks / moonraker.conf discovery
-    if [ -n "$HOST_MOD_ROOT" ]; then
+    if [ -n "$HOST_MOD_ROOT" ] && [ -n "$HOST_MOD_CHROOT" ]; then
         HOST_SERVICE_MECHANISM="mod-managed"
         HOST_OWNS_COMPETING_UIS=1
         HOST_INSTALL_ROOT="$HOST_MOD_ROOT/.bin/helixscreen"

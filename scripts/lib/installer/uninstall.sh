@@ -808,6 +808,25 @@ clean_old_installation() {
         fi
     fi
 
+    # A --clean must also remove the root the PREVIOUS install recorded:
+    # mod_payload_mode_block re-records THIS run's root before this sweep
+    # runs, so without this the old custom payload root - and any
+    # --auto-update stanza still pointing at it - survived a mode whose
+    # contract is "remove old installation completely". Name-gated like every
+    # other root the uninstall side acts on.
+    if [ -n "${HELIX_PRIOR_PAYLOAD_ROOT:-}" ] \
+       && [ "$HELIX_PRIOR_PAYLOAD_ROOT" != "${HOST_PAYLOAD_ROOT:-}" ] \
+       && _user_dir_name_ok "$HELIX_PRIOR_PAYLOAD_ROOT" '*helixscreen*' 2>/dev/null; then
+        log_info "Removing previously recorded payload root: $HELIX_PRIOR_PAYLOAD_ROOT"
+        $SUDO rm -rf "$HELIX_PRIOR_PAYLOAD_ROOT"
+        if [ -d "${HELIX_PRIOR_PAYLOAD_ROOT}-repo" ]; then
+            $SUDO rm -rf "${HELIX_PRIOR_PAYLOAD_ROOT}-repo"
+        fi
+        if type remove_update_manager_section >/dev/null 2>&1; then
+            remove_update_manager_section || true
+        fi
+    fi
+
     # Sweep state dirs holding rolling config backups
     clean_helix_state_dirs
 
