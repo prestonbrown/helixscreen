@@ -167,6 +167,52 @@ read_payload_root_record() {
     cat "$(host_payload_root_record)" 2>/dev/null || true
 }
 
+# Resolve the payload root this run's uninstall acts on: the --payload-root
+# flag, else the root the install recorded in mod_data, else the probed
+# default (INSTALL_DIR). ONE resolver for every uninstall entry point — the
+# standalone arm and install.sh's HELIX_INSTALL_DIRS sweep must not drift,
+# and did: the sweep resolved from probe/flag only, so a custom-root install
+# uninstalled through install.sh removed the probed default while the
+# recorded root (and its updater clone) survived and the record went stale.
+#
+# Echoes the resolved path (empty when nothing resolves). Returns 1 to
+# REFUSE: a flag or a corrupted record can name an arbitrary existing
+# directory, and that must fail loudly with the offending source named —
+# never removed, never silently fallen back from; the operator re-runs with
+# an explicit flag. Resolution happens once per run: the cached answer
+# (HOST_PAYLOAD_ROOT) keeps the arm and the sweep on the same root.
+resolve_payload_root() {
+    if [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
+        printf '%s\n' "$HOST_PAYLOAD_ROOT"
+        return 0
+    fi
+
+    rpr_root="${MOD_PAYLOAD_ROOT:-}"
+    rpr_src="the --payload-root flag"
+    if [ -z "$rpr_root" ]; then
+        rpr_root=$(read_payload_root_record 2>/dev/null || true)
+        rpr_src="the payload-root record ($(host_payload_root_record))"
+    fi
+
+    if [ -z "$rpr_root" ]; then
+        # The probed default already passed set_install_paths' own validate
+        # gate in every entry point that reaches here armed.
+        rpr_root="${INSTALL_DIR:-}"
+    elif ! _user_dir_name_ok "$rpr_root" '*helixscreen*' 2>/dev/null; then
+        # A missing gate helper fails the test too (rc 127): refusing without
+        # it is fail-safe, acting without it is not.
+        log_error "Refusing to uninstall the payload root named by ${rpr_src}:"
+        log_error "  ${rpr_root}"
+        log_error "Its last path component must contain 'helixscreen' - the same name"
+        log_error "gate every install root passes. Re-run with an explicit --payload-root."
+        return 1
+    fi
+
+    HOST_PAYLOAD_ROOT="$rpr_root"
+    printf '%s\n' "$rpr_root"
+    return 0
+}
+
 # $1=what the caller was about to do, $2=path — call before any destructive
 # step. Exits 1 when the path is mod-owned and this is not a payload update.
 host_refuse_mod_owned() {

@@ -51,19 +51,27 @@ PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen 
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
 # HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the run's
-# ACTUAL payload root (INSTALL_DIR after the mode block: --mod-payload-root, an
-# env override, or the probed mod root) joins the list - the sweep must remove
-# what THIS run targeted, not whatever the probe last found, or a custom-root
-# payload survives a "successful" uninstall while a stale in-tree root is
-# removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
-# exempts exactly the flag-armed run, so a plain uninstall still leaves the
-# mod's tree alone.
+# ACTUAL payload root joins the list via resolve_payload_root (flag > the root
+# the install recorded > INSTALL_DIR) - the sweep must remove what THIS run
+# targeted, not whatever the probe last found, or a custom-root payload
+# survives a "successful" uninstall while a stale in-tree root is removed
+# instead. The sweeps' mod-owned skip (host_mod_destruct_blocked) exempts
+# exactly the flag-armed run, so a plain uninstall still leaves the mod's tree
+# alone.
 helix_install_dirs_for_run() {
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
-        echo "$HELIX_INSTALL_DIRS $INSTALL_DIR"
-    else
-        echo "$HELIX_INSTALL_DIRS"
+        # Same resolver the standalone arm uses. A root that fails the
+        # resolver's name gate never enters this list: the uninstall entry
+        # points resolve fatally BEFORE sweeping (see uninstall() and
+        # clean_old_installation), so a refusal surfacing here means a caller
+        # skipped that - drop the entry rather than rm -rf an ungated path.
+        hpr=$(resolve_payload_root 2>/dev/null || true)
+        if [ -n "$hpr" ]; then
+            echo "$HELIX_INSTALL_DIRS $hpr"
+            return 0
+        fi
     fi
+    echo "$HELIX_INSTALL_DIRS"
 }
 
 # Init script locations vary by platform/firmware
@@ -764,6 +772,52 @@ record_payload_root() {
 read_payload_root_record() {
     [ -f "$(host_payload_root_record)" ] || return 0
     cat "$(host_payload_root_record)" 2>/dev/null || true
+}
+
+# Resolve the payload root this run's uninstall acts on: the --payload-root
+# flag, else the root the install recorded in mod_data, else the probed
+# default (INSTALL_DIR). ONE resolver for every uninstall entry point — the
+# standalone arm and install.sh's HELIX_INSTALL_DIRS sweep must not drift,
+# and did: the sweep resolved from probe/flag only, so a custom-root install
+# uninstalled through install.sh removed the probed default while the
+# recorded root (and its updater clone) survived and the record went stale.
+#
+# Echoes the resolved path (empty when nothing resolves). Returns 1 to
+# REFUSE: a flag or a corrupted record can name an arbitrary existing
+# directory, and that must fail loudly with the offending source named —
+# never removed, never silently fallen back from; the operator re-runs with
+# an explicit flag. Resolution happens once per run: the cached answer
+# (HOST_PAYLOAD_ROOT) keeps the arm and the sweep on the same root.
+resolve_payload_root() {
+    if [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
+        printf '%s\n' "$HOST_PAYLOAD_ROOT"
+        return 0
+    fi
+
+    rpr_root="${MOD_PAYLOAD_ROOT:-}"
+    rpr_src="the --payload-root flag"
+    if [ -z "$rpr_root" ]; then
+        rpr_root=$(read_payload_root_record 2>/dev/null || true)
+        rpr_src="the payload-root record ($(host_payload_root_record))"
+    fi
+
+    if [ -z "$rpr_root" ]; then
+        # The probed default already passed set_install_paths' own validate
+        # gate in every entry point that reaches here armed.
+        rpr_root="${INSTALL_DIR:-}"
+    elif ! _user_dir_name_ok "$rpr_root" '*helixscreen*' 2>/dev/null; then
+        # A missing gate helper fails the test too (rc 127): refusing without
+        # it is fail-safe, acting without it is not.
+        log_error "Refusing to uninstall the payload root named by ${rpr_src}:"
+        log_error "  ${rpr_root}"
+        log_error "Its last path component must contain 'helixscreen' - the same name"
+        log_error "gate every install root passes. Re-run with an explicit --payload-root."
+        return 1
+    fi
+
+    HOST_PAYLOAD_ROOT="$rpr_root"
+    printf '%s\n' "$rpr_root"
+    return 0
 }
 
 # $1=what the caller was about to do, $2=path — call before any destructive
@@ -6526,16 +6580,12 @@ uninstall_mod_payload() {
         return 0
     fi
 
-    # Resolve THIS run's payload root: the --payload-root flag, else the root
-    # the install recorded in mod_data, else the probed default. An install
-    # can land outside the default (--payload-root, the OTA-durable seam), and
-    # without this resolution an armed uninstall removed the default while the
-    # real payload — and its updater clone — sat where the operator put it.
-    payload_root="${MOD_PAYLOAD_ROOT:-}"
-    if [ -z "$payload_root" ]; then
-        payload_root=$(read_payload_root_record 2>/dev/null || true)
-        payload_root="${payload_root:-${INSTALL_DIR:-}}"
-    fi
+    # Resolve THIS run's payload root through the ONE shared resolver
+    # (flag > recorded root > probed default) — see resolve_payload_root, and
+    # helix_install_dirs_for_run, which sweeps install.sh's uninstalls off the
+    # same answer. A refusal (a flag or record naming a directory that is not
+    # ours) fails the run here: the offending source is already logged.
+    payload_root=$(resolve_payload_root) || return 1
 
     if [ -z "$payload_root" ]; then
         log_warn "--mod-payload: no payload root resolved; nothing to remove"
@@ -6708,10 +6758,18 @@ uninstall() {
     # root (HELIX_INSTALL_DIRS gains it via helix_install_dirs_for_run below).
     # Restore the mod's display mode FIRST - while the payload is still in
     # place, the rig is never left with neither UI nor a restore record.
+    # Flavor-gated exactly like the standalone arm: the takeover ran for
+    # forge_x only, and a Z-Mod payload install never took the display over.
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
-        if type uninstall_forgex >/dev/null 2>&1; then
+        if [ "${AD5M_FIRMWARE:-}" = "forge_x" ] && type uninstall_forgex >/dev/null 2>&1; then
             uninstall_forgex || true
         fi
+        # Resolve the payload root before any sweep removes anything: a flag
+        # or a corrupted record naming a directory that is not ours refuses
+        # the whole uninstall here rather than after the damage. The resolver
+        # has already logged the offending source; its cached answer is what
+        # the sweep below consumes.
+        resolve_payload_root >/dev/null || exit 1
     fi
 
     # Remove installation (check all possible locations)
@@ -6738,6 +6796,13 @@ uninstall() {
 
     if [ -z "$removed_dir" ]; then
         log_warn "No HelixScreen installation found"
+    fi
+
+    # Consume the payload-root record with the root it directed the sweep at
+    # — the same contract as the standalone arm, so a later plain run cannot
+    # chase a stale pointer.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
+        $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
     fi
 
     # Re-enable the previous UI based on firmware
@@ -6866,6 +6931,12 @@ clean_old_installation() {
     # payload-mode list adds the mod's payload root via
     # helix_install_dirs_for_run; the mod-owned skip below exempts only the
     # flag-armed run, so --clean without --mod-payload cannot touch it.
+    # Resolve fatally first, exactly like uninstall(): an armed --clean whose
+    # flag or record names a directory that is not ours refuses before the
+    # sweep, and the record is consumed with the root it named.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        resolve_payload_root >/dev/null || exit 1
+    fi
     for install_dir in $(helix_install_dirs_for_run); do
         if [ -d "$install_dir" ]; then
             # Same ownership rule as uninstall()'s sweep: never rm -rf a
@@ -6936,6 +7007,12 @@ clean_old_installation() {
 
     # Sweep state dirs holding rolling config backups
     clean_helix_state_dirs
+
+    # Same payload-root record consumption as uninstall(): the sweep above
+    # removed the root it named.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
+        $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
+    fi
 
     log_success "Old installation cleaned"
     echo ""

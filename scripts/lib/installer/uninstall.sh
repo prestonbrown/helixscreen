@@ -353,16 +353,12 @@ uninstall_mod_payload() {
         return 0
     fi
 
-    # Resolve THIS run's payload root: the --payload-root flag, else the root
-    # the install recorded in mod_data, else the probed default. An install
-    # can land outside the default (--payload-root, the OTA-durable seam), and
-    # without this resolution an armed uninstall removed the default while the
-    # real payload — and its updater clone — sat where the operator put it.
-    payload_root="${MOD_PAYLOAD_ROOT:-}"
-    if [ -z "$payload_root" ]; then
-        payload_root=$(read_payload_root_record 2>/dev/null || true)
-        payload_root="${payload_root:-${INSTALL_DIR:-}}"
-    fi
+    # Resolve THIS run's payload root through the ONE shared resolver
+    # (flag > recorded root > probed default) — see resolve_payload_root, and
+    # helix_install_dirs_for_run, which sweeps install.sh's uninstalls off the
+    # same answer. A refusal (a flag or record naming a directory that is not
+    # ours) fails the run here: the offending source is already logged.
+    payload_root=$(resolve_payload_root) || return 1
 
     if [ -z "$payload_root" ]; then
         log_warn "--mod-payload: no payload root resolved; nothing to remove"
@@ -535,10 +531,18 @@ uninstall() {
     # root (HELIX_INSTALL_DIRS gains it via helix_install_dirs_for_run below).
     # Restore the mod's display mode FIRST - while the payload is still in
     # place, the rig is never left with neither UI nor a restore record.
+    # Flavor-gated exactly like the standalone arm: the takeover ran for
+    # forge_x only, and a Z-Mod payload install never took the display over.
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
-        if type uninstall_forgex >/dev/null 2>&1; then
+        if [ "${AD5M_FIRMWARE:-}" = "forge_x" ] && type uninstall_forgex >/dev/null 2>&1; then
             uninstall_forgex || true
         fi
+        # Resolve the payload root before any sweep removes anything: a flag
+        # or a corrupted record naming a directory that is not ours refuses
+        # the whole uninstall here rather than after the damage. The resolver
+        # has already logged the offending source; its cached answer is what
+        # the sweep below consumes.
+        resolve_payload_root >/dev/null || exit 1
     fi
 
     # Remove installation (check all possible locations)
@@ -565,6 +569,13 @@ uninstall() {
 
     if [ -z "$removed_dir" ]; then
         log_warn "No HelixScreen installation found"
+    fi
+
+    # Consume the payload-root record with the root it directed the sweep at
+    # — the same contract as the standalone arm, so a later plain run cannot
+    # chase a stale pointer.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
+        $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
     fi
 
     # Re-enable the previous UI based on firmware
@@ -693,6 +704,12 @@ clean_old_installation() {
     # payload-mode list adds the mod's payload root via
     # helix_install_dirs_for_run; the mod-owned skip below exempts only the
     # flag-armed run, so --clean without --mod-payload cannot touch it.
+    # Resolve fatally first, exactly like uninstall(): an armed --clean whose
+    # flag or record names a directory that is not ours refuses before the
+    # sweep, and the record is consumed with the root it named.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        resolve_payload_root >/dev/null || exit 1
+    fi
     for install_dir in $(helix_install_dirs_for_run); do
         if [ -d "$install_dir" ]; then
             # Same ownership rule as uninstall()'s sweep: never rm -rf a
@@ -763,6 +780,12 @@ clean_old_installation() {
 
     # Sweep state dirs holding rolling config backups
     clean_helix_state_dirs
+
+    # Same payload-root record consumption as uninstall(): the sweep above
+    # removed the root it named.
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HOST_PAYLOAD_ROOT:-}" ]; then
+        $SUDO rm -f "$(host_payload_root_record)" 2>/dev/null || true
+    fi
 
     log_success "Old installation cleaned"
     echo ""

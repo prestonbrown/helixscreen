@@ -25,19 +25,27 @@ _HELIX_COMMON_SOURCED=1
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
 # HELIX_INSTALL_DIRS as THIS run may sweep it. In --mod-payload mode the run's
-# ACTUAL payload root (INSTALL_DIR after the mode block: --mod-payload-root, an
-# env override, or the probed mod root) joins the list - the sweep must remove
-# what THIS run targeted, not whatever the probe last found, or a custom-root
-# payload survives a "successful" uninstall while a stale in-tree root is
-# removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
-# exempts exactly the flag-armed run, so a plain uninstall still leaves the
-# mod's tree alone.
+# ACTUAL payload root joins the list via resolve_payload_root (flag > the root
+# the install recorded > INSTALL_DIR) - the sweep must remove what THIS run
+# targeted, not whatever the probe last found, or a custom-root payload
+# survives a "successful" uninstall while a stale in-tree root is removed
+# instead. The sweeps' mod-owned skip (host_mod_destruct_blocked) exempts
+# exactly the flag-armed run, so a plain uninstall still leaves the mod's tree
+# alone.
 helix_install_dirs_for_run() {
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${INSTALL_DIR:-}" ]; then
-        echo "$HELIX_INSTALL_DIRS $INSTALL_DIR"
-    else
-        echo "$HELIX_INSTALL_DIRS"
+        # Same resolver the standalone arm uses. A root that fails the
+        # resolver's name gate never enters this list: the uninstall entry
+        # points resolve fatally BEFORE sweeping (see uninstall() and
+        # clean_old_installation), so a refusal surfacing here means a caller
+        # skipped that - drop the entry rather than rm -rf an ungated path.
+        hpr=$(resolve_payload_root 2>/dev/null || true)
+        if [ -n "$hpr" ]; then
+            echo "$HELIX_INSTALL_DIRS $hpr"
+            return 0
+        fi
     fi
+    echo "$HELIX_INSTALL_DIRS"
 }
 
 # Init script locations vary by platform/firmware

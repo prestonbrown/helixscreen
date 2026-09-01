@@ -806,3 +806,78 @@ esac
     [ ! -e "$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root" ] \
         || fail "non-payload install wrote a payload-root record"
 }
+
+# --- R2a/R2b: every uninstall entry point resolves the payload root the same way ---
+#
+# install.sh --uninstall auto-arms on a mod host and swept via
+# helix_install_dirs_for_run, which resolved from probe/flag only — a
+# custom-root install removed the probed default there while the recorded
+# root (and its -repo) survived, and the record went stale. The sweep and the
+# standalone arm now share one resolver (flag > recorded root > probed
+# default) whose name gate refuses anything that is not recognisably ours.
+
+@test "the run's sweep list carries the recorded payload root, not the probed default" {
+    HELIX_MOD_PAYLOAD=1
+    local custom="$SANDBOX/usr/data/helixscreen"
+    mkdir -p "$custom" "$SANDBOX/usr/data/config/mod_data"
+    printf '%s\n' "$custom" > "$SANDBOX/usr/data/config/mod_data/helixscreen_payload_root"
+
+    local dirs
+    dirs=$(helix_install_dirs_for_run)
+
+    case " $dirs " in
+        *" $custom "*) ;;
+        *) fail "the recorded payload root is not in the sweep list";;
+    esac
+    case " $dirs " in
+        *" $INSTALL_DIR "*) fail "the probed default is swept instead of the recorded root";;
+    esac
+}
+
+@test "a payload root that fails the name gate never enters the sweep list" {
+    # The sweep's rm -rf must never see a root that is not recognisably ours,
+    # whichever of the three tiers produced it.
+    HELIX_MOD_PAYLOAD=1
+    MOD_PAYLOAD_ROOT="$SANDBOX/usr/data"
+    mkdir -p "$SANDBOX/usr/data"
+
+    local dirs
+    dirs=$(helix_install_dirs_for_run 2>/dev/null)
+
+    case " $dirs " in
+        *" $SANDBOX/usr/data "*) fail "an ungated root entered the sweep list";;
+    esac
+    [ -d "$SANDBOX/usr/data" ]
+}
+
+@test "uninstall() resolves the payload root before sweeping and consumes the record after" {
+    local body
+    body=$(awk '/^uninstall\(\) \{/{c=1} c{print} c&&/^\}/{exit}' \
+        "$WORKTREE_ROOT/scripts/lib/installer/uninstall.sh" | sed 's/#.*//')
+    [ -n "$body" ] || fail "uninstall() not found"
+
+    local resolve_line sweep_line consume_line
+    resolve_line=$(grep -n 'resolve_payload_root' <<< "$body" | head -1 | cut -d: -f1)
+    sweep_line=$(grep -n 'helix_install_dirs_for_run' <<< "$body" | head -1 | cut -d: -f1)
+    consume_line=$(grep -n 'host_payload_root_record' <<< "$body" | head -1 | cut -d: -f1)
+    [ -n "$resolve_line" ] || fail "uninstall() never resolves the payload root"
+    [ -n "$sweep_line" ]  || fail "uninstall() never sweeps"
+    [ -n "$consume_line" ] || fail "uninstall() never consumes the payload-root record"
+    [ "$resolve_line" -lt "$sweep_line" ] \
+        || fail "resolution must precede the sweep (a refusal cannot come after removals)"
+    [ "$sweep_line" -lt "$consume_line" ] \
+        || fail "the record must be consumed after the sweep removed the root it named"
+}
+
+@test "uninstall()'s forgex restore is flavor-gated like the standalone arm" {
+    # Coherence across entry points: the takeover ran for forge_x only, so a
+    # Z-Mod payload install must be untouched by uninstall() here too, not
+    # just by the bundle's arm.
+    local body
+    body=$(awk '/^uninstall\(\) \{/{c=1} c{print} c&&/^\}/{exit}' \
+        "$WORKTREE_ROOT/scripts/lib/installer/uninstall.sh" | sed 's/#.*//')
+    [ -n "$body" ] || fail "uninstall() not found"
+    grep -q 'uninstall_forgex' <<< "$body" || fail "uninstall() never restores the display"
+    grep -q '"${AD5M_FIRMWARE:-}" = "forge_x"' <<< "$body" \
+        || fail "the forgex restore is not flavor-gated"
+}

@@ -360,3 +360,43 @@ _bundle_main_body() {
 @test "the bundle help text documents the arm" {
     grep -q -- '--mod-payload' "$WORKTREE_ROOT/scripts/uninstall.sh"
 }
+
+# --- R2b: a root that is not recognisably ours is refused, never removed ---
+#
+# The arm's resolved root used to get none of install's name gating, so
+# --payload-root /usr/data (or a corrupted record — the tee write is
+# non-atomic) could rm -rf an arbitrary existing directory. Every tier of the
+# resolution now passes the same last-component-helixscreen gate install
+# roots pass; a refusal names the offending source and touches nothing.
+
+@test "--payload-root naming a directory that is not ours refuses the uninstall" {
+    mkdir -p "$SANDBOX/usr/data"
+    MOD_PAYLOAD_ROOT="$SANDBOX/usr/data"
+    HELIX_MOD_PAYLOAD=1
+
+    run uninstall_mod_payload
+    [ "$status" -ne 0 ] || fail "acted on a --payload-root that is not ours"
+    case "$output" in
+        *payload-root*) ;;
+        *) fail "the refusal does not name the flag as the source";;
+    esac
+    [ -d "$SANDBOX/usr/data" ] || fail "the named directory was removed"
+    [ -d "$PAYLOAD_ROOT" ] || fail "a refused run still removed the probed default"
+    grep -q "^display = 'HEADLESS'$" "$MOD_DATA/variables.cfg" \
+        || fail "a refused run still touched the display mode"
+}
+
+@test "a corrupted record naming a directory that is not ours refuses and names the record" {
+    mkdir -p "$SANDBOX/usr/data"
+    printf '%s\n' "$SANDBOX/usr/data" > "$MOD_DATA/helixscreen_payload_root"
+    HELIX_MOD_PAYLOAD=1
+
+    run uninstall_mod_payload
+    [ "$status" -ne 0 ] || fail "acted on a corrupted payload-root record"
+    case "$output" in
+        *helixscreen_payload_root*) ;;
+        *) fail "the refusal does not name the record file";;
+    esac
+    [ -d "$SANDBOX/usr/data" ] || fail "the named directory was removed"
+    [ -d "$PAYLOAD_ROOT" ] || fail "a refused run still removed the probed default"
+}
