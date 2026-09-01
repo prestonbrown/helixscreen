@@ -100,18 +100,14 @@ setup() {
     INSTALL_DIR="$HOST_INSTALL_ROOT"
 }
 
-# forgex.sh with its /opt/config layout rewritten onto the AD5X host-side
-# layout the probe answers for (same rewrite pattern as
-# test_forgex_display_modes.bats). Nothing under test may reach the real
-# /opt/config tree.
+# forgex.sh sourced PRISTINE: the module derives its mod tree from the probe
+# (HOST_MOD_ROOT, set in this setup), so no path rewriting is needed. A sed
+# rewrite of its /opt/config literals is exactly what masked the AD5X
+# host-side layout derivation from this suite.
 source_forgex_patched() {
-    local patched="$BATS_TEST_TMPDIR/forgex.sh"
-    sed -e "s|/opt/config/|$SANDBOX/usr/data/config/|g" \
-        "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh" > "$patched"
-    refute_sh "grep '/opt/config' '$patched'"
     unset _HELIX_FORGEX_SOURCED
     # shellcheck disable=SC1090
-    . "$patched"
+    . "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh"
 }
 
 # main.sh defines mod_payload_mode_block + parse_installer_args. Its

@@ -264,9 +264,22 @@ assert_consults_flag() {
 }
 
 @test "both unpatch functions still recognise the helixscreen_active marker" {
-    # An unpatch that stops matching the marker leaves the patch applied forever.
-    assert_consults_flag unpatch_forgex_screen_sh
-    assert_consults_flag unpatch_forgex_screen_drawing
+    # An unpatch that stops matching the marker leaves the patch applied
+    # forever. Recognition now lives in the shared strip helper (armed on the
+    # marker comment, confirmed by the flag's if-line) and in
+    # forgex_case_is_guarded, so each unpatch must route through the helper -
+    # a hand-rolled remover in a function body is how the cross-family
+    # corruption came back.
+    assert_consults_flag forgex_strip_guard_blocks
+    local body
+    body=$(awk '/^unpatch_forgex_screen_sh\(\)/,/^}/' \
+        "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    printf '%s\n' "$body" | grep -q 'forgex_strip_guard_blocks' \
+        || fail "unpatch_forgex_screen_sh does not route through the strip helper"
+    body=$(awk '/^unpatch_forgex_screen_drawing\(\)/,/^}/' \
+        "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
+    printf '%s\n' "$body" | grep -q 'forgex_strip_guard_blocks' \
+        || fail "unpatch_forgex_screen_drawing does not route through the strip helper"
 }
 
 # --- Boot splash ownership: ForgeX splash daemon vs helix-splash ---
@@ -418,11 +431,14 @@ promo_fixture() {
 @test "configure_forgex_display disables the .root/guppyscreen launcher" {
     # zdisplay.sh apply_display_off() calls .root/guppyscreen directly, so
     # disabling only S80guppyscreen leaves the collision reachable on any
-    # SET_MOD display change.
+    # SET_MOD display change. The path must derive from the probe
+    # (forgex_mod_root), never a pinned /opt/config literal - the AD5X's
+    # host-side mod tree is /usr/data/config/mod.
     body=$(sed -n '/^configure_forgex_display()/,/^}/p' \
         "$WORKTREE_ROOT/scripts/lib/installer/forgex.sh")
-    echo "$body" | grep -q 'guppy_bin="/opt/config/mod/.root/guppyscreen"'
+    echo "$body" | grep -q 'guppy_bin="$(forgex_mod_root)/.root/guppyscreen"'
     echo "$body" | grep -q 'chmod a-x "\$guppy_bin"'
+    refute_sh "printf '%s\\n' \"\$body\" | grep -q '/opt/config/mod'"
 }
 
 # --- netd owns networking on ForgeX 1.4.2+ ---

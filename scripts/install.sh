@@ -3028,10 +3028,116 @@ verify_binary_deps() {
 # ============================================
 
 #
-# Display modes we take over from, in the order they are probed.
+# Display modes we take over from, in the order they are probed. HEADLESS is
+# probed as an arrival state too (configure_forgex_display) but is not a mode
+# we transition FROM, so it is absent here.
 FORGEX_DISPLAY_MODES="STOCK FEATHER GUPPY"
-# Where the pre-install display mode is recorded so uninstall can restore it.
-FORGEX_PREV_DISPLAY_F="/opt/config/mod_data/helixscreen_prev_display"
+
+# The mod tree sits at different roots by host: /opt/config/mod in the AD5M
+# (Forge-X) layout and inside the mod's own chroot, /usr/data/config/mod
+# host-side on the AD5X (Z-Mod Buildroot; the mod bind-mounts /opt/config at
+# the same path only IN-chroot, where the installer does not run). The probe
+# (host_profile.sh) is the authority; /opt/config/mod stays the fallback for
+# callers that never probed one.
+forgex_mod_root() {
+    printf '%s\n' "${HOST_MOD_ROOT:-/opt/config/mod}"
+}
+
+# mod_data is a sibling of the mod tree on every layout (see host_profile.sh):
+# /usr/data on the AD5X, /opt on the AD5M. Derived, never pinned.
+forgex_mod_data() {
+    printf '%s\n' "$(dirname "$(forgex_mod_root)")/mod_data"
+}
+
+# Where the pre-install display mode is recorded so uninstall can restore it
+# (forgex_record_prev_display writes it, uninstall_forgex reads it).
+forgex_prev_display_f() {
+    printf '%s\n' "$(forgex_mod_data)/helixscreen_prev_display"
+}
+
+# Replace a vendor script with its rewrite only after the rewrite parses.
+# Every screen.sh surgery funnels through here: the candidate stays a .tmp
+# beside the target until it passes a shell syntax check, so a botched edit -
+# an awk state machine that eats one fi too many, a grep -v that orphans one -
+# is discarded and the vendor's file survives byte-identical. The untouched
+# original IS the backup; there is nothing to restore.
+forgex_apply_patch() {
+    apply_tmp="$1"
+    apply_dest="$2"
+
+    if [ ! -s "$apply_tmp" ]; then
+        rm -f "$apply_tmp" 2>/dev/null
+        log_warn "Empty rewrite candidate for ${apply_dest} - original left untouched"
+        return 1
+    fi
+
+    # bash -n parses without running. sh -n is the best-effort fallback for a
+    # host without bash; a screen.sh carrying bash-isms (arrays) can fail it,
+    # but every Forge-X screen.sh has a #!/bin/bash shebang, so bash is there.
+    apply_bad=""
+    if command -v bash >/dev/null 2>&1; then
+        bash -n "$apply_tmp" 2>/dev/null || apply_bad=1
+    else
+        sh -n "$apply_tmp" 2>/dev/null || apply_bad=1
+    fi
+
+    if [ -n "$apply_bad" ]; then
+        rm -f "$apply_tmp" 2>/dev/null
+        log_warn "Rewrite of ${apply_dest} failed the shell syntax check - original left untouched"
+        return 1
+    fi
+
+    if ! $SUDO mv "$apply_tmp" "$apply_dest"; then
+        rm -f "$apply_tmp" 2>/dev/null
+        log_warn "Could not install rewrite of ${apply_dest}"
+        return 1
+    fi
+    $SUDO chmod +x "$apply_dest"
+    return 0
+}
+
+# Copy $1 to $3 minus every HelixScreen guard block whose marker comment
+# matches the ERE in $2. A block is its marker comment line(s) plus everything
+# through its closing fi.
+#
+# Arming on the MARKER COMMENT - never on a bare "if [ -f /tmp/helixscreen_
+# active ]" line - is what keeps the guard families from eating each other:
+# the backlight, old-style backlight and draw-command guards share
+# byte-identical if-lines, but their comments are distinct. Arming on the
+# if-line is exactly how the old unpatch destroyed screen.sh on uninstall: it
+# consumed the draw guards' if/exit/fi while leaving their comments behind,
+# and the drawing unpatch then ran away from those orphaned comments.
+#
+# A marker comment not followed (after further comments only) by a
+# helixscreen_active line arms nothing - the state machine never starts on a
+# foreign block. If a block's fi never arrives, everything after it is
+# dropped; forgex_apply_patch's syntax check is the net that catches that.
+forgex_strip_guard_blocks() {
+    awk -v arm_re="$2" '
+        $0 ~ arm_re { armed = 1; next }
+        armed && /^[[:space:]]*#/ { next }
+        armed && /helixscreen_active/ { skip = 1; armed = 0; next }
+        armed { armed = 0 }
+        skip && /^[[:space:]]*fi[[:space:]]*$/ { skip = 0; next }
+        skip { next }
+        { print }
+    ' "$1" > "$3"
+}
+
+# Record the display mode the printer arrived on, so uninstall can restore it.
+# The write goes through $SUDO like every other privileged write: mod_data is
+# root-owned on a real device and a bare redirect fails silently there - which
+# is how installs lost their restore record. The first record wins: a re-run
+# (upgrade) finds HEADLESS because we set it, and overwriting would make
+# uninstall "restore" HEADLESS, leaving an uninstalled printer with no UI.
+forgex_record_prev_display() {
+    record_f="$(forgex_prev_display_f)"
+    if [ -s "$record_f" ]; then
+        return 0
+    fi
+    printf '%s\n' "$1" | $SUDO tee "$record_f" >/dev/null 2>/dev/null \
+        || log_warn "Could not record the previous ForgeX display mode (${record_f})"
+}
 
 # Configure ForgeX display settings for HelixScreen.
 #
@@ -3049,30 +3155,42 @@ FORGEX_PREV_DISPLAY_F="/opt/config/mod_data/helixscreen_prev_display"
 # display change can reach .root/guppyscreen through zdisplay.sh without going
 # through start.sh at all, whatever mode variables.cfg names.
 configure_forgex_display() {
-    var_file="/opt/config/mod_data/variables.cfg"
-    guppy_init="/opt/config/mod/.root/S80guppyscreen"
-    guppy_bin="/opt/config/mod/.root/guppyscreen"
-    tslib_init="/opt/config/mod/.root/S35tslib"
+    var_file="$(forgex_mod_data)/variables.cfg"
+    guppy_init="$(forgex_mod_root)/.root/S80guppyscreen"
+    guppy_bin="$(forgex_mod_root)/.root/guppyscreen"
+    tslib_init="$(forgex_mod_root)/.root/S35tslib"
     changed=false
+    display_set=false
 
     if [ -f "$var_file" ]; then
-        for mode in $FORGEX_DISPLAY_MODES; do
+        # HEADLESS closes the list as an arrival state: a printer already on
+        # it (a prior HelixScreen install, or DrA1ex's slot for custom
+        # screens) must be recorded as such, or uninstall "restores" it to
+        # GUPPY - a mode that printer never had, and one that starts a UI the
+        # operator had turned off.
+        for mode in $FORGEX_DISPLAY_MODES HEADLESS; do
             grep -q "display[[:space:]]*=[[:space:]]*'$mode'" "$var_file" || continue
-
-            log_info "Setting ForgeX display mode to HEADLESS (was $mode)..."
 
             # Remember where we found it so uninstall can put it back. 1.4.0
             # and 1.4.1 default to STOCK, 1.4.2 to FEATHER, so a fixed restore
             # target would strand one of them on a mode it never had.
-            if printf '%s\n' "$mode" > "${FORGEX_PREV_DISPLAY_F}.tmp" 2>/dev/null; then
-                $SUDO mv "${FORGEX_PREV_DISPLAY_F}.tmp" "$FORGEX_PREV_DISPLAY_F" 2>/dev/null || \
-                    rm -f "${FORGEX_PREV_DISPLAY_F}.tmp"
+            forgex_record_prev_display "$mode"
+            display_set=true
+
+            if [ "$mode" = "HEADLESS" ]; then
+                log_info "ForgeX display mode is already HEADLESS"
+                break
             fi
 
+            log_info "Setting ForgeX display mode to HEADLESS (was $mode)..."
             $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'$mode'/display = 'HEADLESS'/" "$var_file"
             changed=true
             break
         done
+
+        if [ "$display_set" != true ]; then
+            log_warn "ForgeX display mode in ${var_file} was not recognized - left unchanged"
+        fi
     fi
 
     # Disable GuppyScreen init script (remove execute permission). HEADLESS
@@ -3104,6 +3222,12 @@ configure_forgex_display() {
         changed=true
     fi
 
+    if [ "$display_set" != true ] && [ -f "$var_file" ]; then
+        # A variables.cfg whose display spelling we did not recognize means
+        # the takeover failed - the vendor UI keeps the slot - and that must
+        # not be reported as success just because the chmod arms above fired.
+        return 1
+    fi
     if [ "$changed" = true ]; then
         log_success "ForgeX configured for HelixScreen (HEADLESS mode, GuppyScreen disabled)"
         return 0
@@ -3129,8 +3253,8 @@ configure_forgex_display() {
 # by hand is left alone -- and for the same reason uninstall does not restore
 # it, since we cannot tell our 0 from theirs.
 dismiss_forgex_feather_promo() {
-    var_file="${FORGEX_VAR_FILE:-/opt/config/mod_data/variables.cfg}"
-    offer_cfg="${FORGEX_OFFER_CFG:-/opt/config/mod/config/display_offer.cfg}"
+    var_file="${FORGEX_VAR_FILE:-$(forgex_mod_data)/variables.cfg}"
+    offer_cfg="${FORGEX_OFFER_CFG:-$(forgex_mod_root)/config/display_offer.cfg}"
 
     if [ ! -f "$offer_cfg" ]; then
         log_info "ForgeX has no Feather display offer, nothing to dismiss"
@@ -3187,7 +3311,7 @@ dismiss_forgex_feather_promo() {
 # - Allows "backlight 100" (needed for S99root initialization cycle)
 # - Blocks other values (10, 0, etc.) when helixscreen_active flag exists
 patch_forgex_screen_sh() {
-    screen_sh="/opt/config/mod/.shell/screen.sh"
+    screen_sh="$(forgex_mod_root)/.shell/screen.sh"
 
     if [ ! -f "$screen_sh" ]; then
         log_info "ForgeX screen.sh not found, skipping patch"
@@ -3200,13 +3324,17 @@ patch_forgex_screen_sh() {
         return 0
     fi
 
-    # Remove old-style patch if present (blocks ALL backlight when flag exists)
-    if grep -q "helixscreen_active" "$screen_sh" 2>/dev/null; then
+    # Remove old-style patch if present (blocks ALL backlight when flag
+    # exists, from pre-smart-patch HelixScreen installs). Stripped by marker
+    # comment, never by a whole-file `grep -v helixscreen_active`: the
+    # draw-command guards mention the flag on identical if-lines, and grep -v
+    # drops those while leaving their exit 0/fi behind - an unbalanced script.
+    if grep -qE '^[[:space:]]*# Skip if HelixScreen' "$screen_sh" 2>/dev/null; then
         log_info "Removing old-style patch from screen.sh..."
         tmp_file="${screen_sh}.tmp"
-        grep -v "helixscreen_active\|# Skip if HelixScreen" "$screen_sh" > "$tmp_file"
-        $SUDO mv "$tmp_file" "$screen_sh"
-        $SUDO chmod +x "$screen_sh"
+        forgex_strip_guard_blocks "$screen_sh" \
+            '^[[:space:]]*# Skip if HelixScreen' "$tmp_file"
+        forgex_apply_patch "$tmp_file" "$screen_sh" || return 1
     fi
 
     # Find the backlight) case and add our guard
@@ -3234,8 +3362,7 @@ patch_forgex_screen_sh() {
     ' "$screen_sh" > "$tmp_file"
 
     if [ -s "$tmp_file" ] && grep -q 'helixscreen_active.*!=.*100' "$tmp_file" 2>/dev/null; then
-        $SUDO mv "$tmp_file" "$screen_sh"
-        $SUDO chmod +x "$screen_sh"
+        forgex_apply_patch "$tmp_file" "$screen_sh" || return 1
         log_success "ForgeX screen.sh patched with smart backlight control"
         return 0
     else
@@ -3247,47 +3374,48 @@ patch_forgex_screen_sh() {
 
 # Remove HelixScreen patch from ForgeX screen.sh (for uninstall)
 unpatch_forgex_screen_sh() {
-    screen_sh="/opt/config/mod/.shell/screen.sh"
+    screen_sh="$(forgex_mod_root)/.shell/screen.sh"
 
     if [ ! -f "$screen_sh" ]; then
         return 1
     fi
 
-    # Check if patched
-    if ! grep -q "helixscreen_active" "$screen_sh" 2>/dev/null; then
-        log_info "ForgeX screen.sh not patched, nothing to remove"
+    # Is OUR patch here? Ask the backlight case, not the whole file: the
+    # draw-command guards' if-lines are byte-identical to ours, so a
+    # whole-file grep for helixscreen_active cannot tell ours from theirs -
+    # the confusion that made this function eat their blocks.
+    if ! forgex_case_is_guarded "$screen_sh" backlight \
+       && ! grep -qE '^[[:space:]]*# Skip (non-100 backlight changes|if HelixScreen)' "$screen_sh" 2>/dev/null; then
+        log_info "ForgeX screen.sh has no backlight patch, nothing to remove"
         return 0
     fi
 
-    log_info "Removing HelixScreen patch from ForgeX screen.sh..."
+    log_info "Removing HelixScreen backlight patch from ForgeX screen.sh..."
 
-    # Use awk to remove only our specific block (BusyBox compatible)
-    # Match and skip: comment line, if line with helixscreen_active, exit 0, fi
+    # Strip both of our backlight spellings - the smart block and the
+    # old-style one a pre-smart install may have left - by marker comment.
     tmp_file="${screen_sh}.tmp"
-    awk '
-    /# Skip if HelixScreen is controlling the display/ { skip=1; next }
-    /if \[ -f \/tmp\/helixscreen_active \]; then/ { skip=1; next }
-    skip && /^[[:space:]]*exit 0[[:space:]]*$/ { next }
-    skip && /^[[:space:]]*fi[[:space:]]*$/ { skip=0; next }
-    { print }
-    ' "$screen_sh" > "$tmp_file"
+    forgex_strip_guard_blocks "$screen_sh" \
+        '^[[:space:]]*# Skip (non-100 backlight changes|if HelixScreen)' "$tmp_file"
 
-    if [ -s "$tmp_file" ]; then
-        $SUDO mv "$tmp_file" "$screen_sh"
-        $SUDO chmod +x "$screen_sh"
-    else
+    if [ ! -s "$tmp_file" ]; then
         rm -f "$tmp_file"
         log_warn "Failed to unpatch ForgeX screen.sh"
         return 1
     fi
 
-    # Verify removal
-    if grep -q "helixscreen_active" "$screen_sh" 2>/dev/null; then
-        log_warn "Could not fully remove patch from screen.sh"
+    forgex_apply_patch "$tmp_file" "$screen_sh" || return 1
+
+    # Verify against the backlight case only, for the same reason as the
+    # pre-check above: helixscreen_active elsewhere belongs to other patches,
+    # and requiring the whole file clean made this warn on every uninstall
+    # where the draw guards were still in place.
+    if forgex_case_is_guarded "$screen_sh" backlight; then
+        log_warn "Could not fully remove backlight patch from screen.sh"
         return 1
     fi
 
-    log_success "ForgeX screen.sh patch removed"
+    log_success "ForgeX screen.sh backlight patch removed"
     return 0
 }
 
@@ -3357,7 +3485,7 @@ forgex_case_is_guarded() {
 # guarded, so a future Forge-X that reshapes screen.sh is loud instead of
 # quietly leaving the framebuffer contended.
 patch_forgex_screen_drawing() {
-    screen_sh="/opt/config/mod/.shell/screen.sh"
+    screen_sh="$(forgex_mod_root)/.shell/screen.sh"
 
     if [ ! -f "$screen_sh" ]; then
         log_info "ForgeX screen.sh not found, skipping screen drawing patch"
@@ -3425,15 +3553,14 @@ patch_forgex_screen_drawing() {
         return 1
     fi
 
-    $SUDO mv "$tmp_file" "$screen_sh"
-    $SUDO chmod +x "$screen_sh"
+    forgex_apply_patch "$tmp_file" "$screen_sh" || return 1
     log_success "ForgeX screen.sh patched for screen drawing (${unguarded# })"
     return 0
 }
 
 # Remove screen drawing patches from ForgeX screen.sh (for uninstall)
 unpatch_forgex_screen_drawing() {
-    screen_sh="/opt/config/mod/.shell/screen.sh"
+    screen_sh="$(forgex_mod_root)/.shell/screen.sh"
 
     if [ ! -f "$screen_sh" ]; then
         return 1
@@ -3447,24 +3574,19 @@ unpatch_forgex_screen_drawing() {
 
     log_info "Removing HelixScreen drawing patches from ForgeX screen.sh..."
 
-    # Remove our 4-line block: comment + if + exit 0 + fi
+    # Remove our 4-line block: comment + if + exit 0 + fi, armed on the
+    # comment (see forgex_strip_guard_blocks).
     tmp_file="${screen_sh}.tmp"
-    awk '
-    /# Skip when HelixScreen is controlling display/ { skip=1; next }
-    skip && /if \[ -f \/tmp\/helixscreen_active \]; then/ { next }
-    skip && /^[[:space:]]*exit 0[[:space:]]*$/ { next }
-    skip && /^[[:space:]]*fi[[:space:]]*$/ { skip=0; next }
-    { print }
-    ' "$screen_sh" > "$tmp_file"
+    forgex_strip_guard_blocks "$screen_sh" \
+        '# Skip when HelixScreen is controlling display' "$tmp_file"
 
-    if [ -s "$tmp_file" ]; then
-        $SUDO mv "$tmp_file" "$screen_sh"
-        $SUDO chmod +x "$screen_sh"
-    else
+    if [ ! -s "$tmp_file" ]; then
         rm -f "$tmp_file"
         log_warn "Failed to unpatch ForgeX screen.sh drawing patches"
         return 1
     fi
+
+    forgex_apply_patch "$tmp_file" "$screen_sh" || return 1
 
     # Verify removal
     if grep -q '# Skip when HelixScreen is controlling display' "$screen_sh" 2>/dev/null; then
@@ -3480,9 +3602,9 @@ unpatch_forgex_screen_drawing() {
 # ForgeX's 'logged' binary writes directly to /dev/fb0 when --send-to-screen is used,
 # bypassing our screen.sh patches. This wrapper strips that flag when HelixScreen is active.
 install_forgex_logged_wrapper() {
-    logged_bin="/opt/config/mod/.bin/exec/logged"
-    logged_real="/opt/config/mod/.bin/exec/logged-real"
-    logged_wrapper="/opt/config/mod/.bin/exec/logged-wrapper"
+    logged_bin="$(forgex_mod_root)/.bin/exec/logged"
+    logged_real="$(forgex_mod_root)/.bin/exec/logged-real"
+    logged_wrapper="$(forgex_mod_root)/.bin/exec/logged-wrapper"
 
     if [ ! -f "$logged_bin" ]; then
         log_info "ForgeX logged binary not found, skipping wrapper"
@@ -3500,7 +3622,11 @@ install_forgex_logged_wrapper() {
         log_info "Installing ForgeX logged wrapper..."
     fi
 
-    # Create the wrapper script
+    # Create the wrapper script. Its /opt/config/mod paths are the IN-CHROOT
+    # spelling on purpose: the wrapper runs inside the mod's chroot, where
+    # /opt/config is bind-mounted onto the same path on every host layout
+    # (the host-side root this module derives from the probe does not exist
+    # in there).
     cat > "$logged_wrapper" << 'WRAPPER_EOF'
 #!/bin/sh
 # Wrapper for logged that strips --send-to-screen when HelixScreen is active
@@ -3551,9 +3677,9 @@ WRAPPER_EOF
 
 # Remove logged wrapper (for uninstall)
 uninstall_forgex_logged_wrapper() {
-    logged_bin="/opt/config/mod/.bin/exec/logged"
-    logged_real="/opt/config/mod/.bin/exec/logged-real"
-    logged_wrapper="/opt/config/mod/.bin/exec/logged-wrapper"
+    logged_bin="$(forgex_mod_root)/.bin/exec/logged"
+    logged_real="$(forgex_mod_root)/.bin/exec/logged-real"
+    logged_wrapper="$(forgex_mod_root)/.bin/exec/logged-wrapper"
 
     if [ ! -f "$logged_real" ]; then
         return 0  # Not installed
@@ -3574,29 +3700,34 @@ uninstall_forgex_logged_wrapper() {
 # and cleans up backup files from manual patches.
 # Note: Sets caller's `restored_ui` variable via dynamic scoping.
 uninstall_forgex() {
+    var_file="$(forgex_mod_data)/variables.cfg"
+
     # Put the display mode back where install found it. 1.4.0/1.4.1 default to
     # STOCK and 1.4.2 to FEATHER, so a hardcoded restore target would leave one
     # of them on a mode the printer never had. GUPPY is the fallback for
     # installs predating the recorded value; it exists in every supported
     # Forge-X.
-    if [ -f "/opt/config/mod_data/variables.cfg" ]; then
-        restore_mode="GUPPY"
-        if [ -r "$FORGEX_PREV_DISPLAY_F" ]; then
-            saved_mode=$(cat "$FORGEX_PREV_DISPLAY_F" 2>/dev/null)
-            case "$saved_mode" in
-                STOCK|FEATHER|GUPPY|HEADLESS) restore_mode="$saved_mode" ;;
-            esac
-        fi
+    restore_mode="GUPPY"
+    mode_restored=false
+    if [ -r "$(forgex_prev_display_f)" ]; then
+        saved_mode=$(cat "$(forgex_prev_display_f)" 2>/dev/null)
+        case "$saved_mode" in
+            STOCK|FEATHER|GUPPY|HEADLESS) restore_mode="$saved_mode" ;;
+        esac
+    fi
 
-        if grep -q "display[[:space:]]*=[[:space:]]*'HEADLESS'" "/opt/config/mod_data/variables.cfg"; then
+    if [ -f "$var_file" ]; then
+        if grep -q "display[[:space:]]*=[[:space:]]*'HEADLESS'" "$var_file"; then
             log_info "Restoring ForgeX display mode to ${restore_mode}..."
-            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'HEADLESS'/display = '${restore_mode}'/" "/opt/config/mod_data/variables.cfg"
+            $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'HEADLESS'/display = '${restore_mode}'/" "$var_file"
+            mode_restored=true
         fi
-        $SUDO rm -f "$FORGEX_PREV_DISPLAY_F"
+        $SUDO rm -f "$(forgex_prev_display_f)"
     fi
 
     # Restore stock FlashForge UI in auto_run.sh
-    restore_stock_firmware_ui || true
+    stock_ui_restored=false
+    restore_stock_firmware_ui && stock_ui_restored=true
 
     # Remove HelixScreen patches from screen.sh
     unpatch_forgex_screen_sh || true
@@ -3605,23 +3736,57 @@ uninstall_forgex() {
     # Remove logged wrapper
     uninstall_forgex_logged_wrapper || true
 
-    # Re-enable GuppyScreen and tslib init scripts
-    if [ -f "/opt/config/mod/.root/S80guppyscreen" ]; then
-        $SUDO chmod +x "/opt/config/mod/.root/S80guppyscreen" 2>/dev/null || true
-        # shellcheck disable=SC2034  # consumed by uninstall.sh (previous-UI restore chain) and the uninstaller bundle
-        restored_ui="GuppyScreen (/opt/config/mod/.root/S80guppyscreen)"
+    # What we tell the operator is coming back follows the mode actually
+    # restored, not the file layout: claiming GuppyScreen on a STOCK or
+    # FEATHER printer points at a UI that is not the one returning. HEADLESS
+    # claims nothing - that printer had no vendor UI displaced in the first
+    # place, and silence is the honest report.
+    if [ "$mode_restored" = true ]; then
+        case "$restore_mode" in
+            STOCK)
+                if [ "$stock_ui_restored" = true ]; then
+                    # shellcheck disable=SC2034  # consumed by uninstall.sh (dynamic scoping) and the uninstaller bundle
+                    restored_ui="stock FlashForge UI (/opt/auto_run.sh)"
+                fi
+                ;;
+            FEATHER)
+                # shellcheck disable=SC2034  # consumed by uninstall.sh (dynamic scoping) and the uninstaller bundle
+                restored_ui="Feather (ForgeX display mode)"
+                ;;
+            GUPPY)
+                if [ -f "$(forgex_mod_root)/.root/S80guppyscreen" ]; then
+                    # shellcheck disable=SC2034  # consumed by uninstall.sh (dynamic scoping) and the uninstaller bundle
+                    restored_ui="GuppyScreen ($(forgex_mod_root)/.root/S80guppyscreen)"
+                fi
+                ;;
+            HEADLESS)
+                ;;
+        esac
     fi
-    if [ -f "/opt/config/mod/.root/S35tslib" ]; then
-        $SUDO chmod +x "/opt/config/mod/.root/S35tslib" 2>/dev/null || true
+
+    # Re-enable GuppyScreen and tslib init scripts. This is not in tension
+    # with configure_forgex_display's deliberate de-exec: that exists to keep
+    # GuppyScreen from relaunching WHILE HelixScreen owns the framebuffer (a
+    # SET_MOD display change reaches .root/guppyscreen through zdisplay.sh
+    # whatever mode variables.cfg names). Uninstall ends that ownership - the
+    # display mode above is already restored - so the vendor UI must be
+    # executable again. Nothing is started here; the next boot launches
+    # whatever the restored mode names, which the caller's messages say.
+    if [ -f "$(forgex_mod_root)/.root/S80guppyscreen" ]; then
+        $SUDO chmod +x "$(forgex_mod_root)/.root/S80guppyscreen" 2>/dev/null || true
     fi
-    # install_forgex de-execs the launcher as well as the init script, so the
-    # GUPPY fallback below must restore both or the restored UI never starts.
-    if [ -f "/opt/config/mod/.root/guppyscreen" ]; then
-        $SUDO chmod +x "/opt/config/mod/.root/guppyscreen" 2>/dev/null || true
+    if [ -f "$(forgex_mod_root)/.root/S35tslib" ]; then
+        $SUDO chmod +x "$(forgex_mod_root)/.root/S35tslib" 2>/dev/null || true
+    fi
+    # configure_forgex_display de-execs the launcher as well as the init
+    # script (see the restore_mode selection above), so the launcher must be
+    # re-executed too or the restored UI never starts.
+    if [ -f "$(forgex_mod_root)/.root/guppyscreen" ]; then
+        $SUDO chmod +x "$(forgex_mod_root)/.root/guppyscreen" 2>/dev/null || true
     fi
 
     # Clean up any leftover backup files from manual patches
-    for backup_file in /opt/config/mod/.shell/*.helix-backup /opt/config/mod/.shell/*.bak; do
+    for backup_file in "$(forgex_mod_root)"/.shell/*.helix-backup "$(forgex_mod_root)"/.shell/*.bak; do
         if [ -f "$backup_file" ] 2>/dev/null; then
             log_info "Removing leftover backup: $backup_file"
             $SUDO rm -f "$backup_file"
