@@ -174,7 +174,13 @@ void XmlHotReloader::stop() {
     if (!running_.load()) {
         return;
     }
-    running_.store(false);
+    {
+        // Under the mutex so the poll thread cannot miss the wakeup between
+        // testing the flag and parking on the condvar.
+        std::lock_guard<std::mutex> lock(stop_mutex_);
+        running_.store(false);
+    }
+    stop_cv_.notify_all();
     if (poll_thread_.joinable()) {
         poll_thread_.join();
     }
@@ -291,10 +297,17 @@ void XmlHotReloader::initial_scan(const std::vector<std::string>& xml_dirs) {
 }
 
 void XmlHotReloader::poll_loop() {
-    while (running_.load()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(poll_interval_ms_));
-        if (!running_.load())
-            break;
+    while (true) {
+        {
+            std::unique_lock<std::mutex> lock(stop_mutex_);
+            // Returns the predicate's value: true means stop() asked us to
+            // quit, false means the interval simply elapsed and it is time to
+            // scan. Scanning happens outside the lock -- it is the slow half.
+            if (stop_cv_.wait_for(lock, std::chrono::milliseconds(poll_interval_ms_),
+                                  [this] { return !running_.load(); })) {
+                break;
+            }
+        }
         scan_and_reload();
     }
 }
