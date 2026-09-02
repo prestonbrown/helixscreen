@@ -1986,10 +1986,9 @@ extract_release() {
     #
     # A mod-managed host never runs it: the env there is the rig's own runtime
     # configuration regardless of what this payload shipped, so the HOST
-    # CAPABILITY is the gate. Keying on PAYLOAD_ENV_PRESERVED alone left a
-    # payload whose archive shipped no env (preserve_payload_env returns
-    # before setting it) letting the migration rewrite the operator's
-    # restored env.
+    # CAPABILITY is the gate. PAYLOAD_ENV_PRESERVED alone is not sufficient --
+    # it stays unset when the archive shipped no env at all
+    # (preserve_payload_env returns before setting it).
     if [ "${PAYLOAD_ENV_PRESERVED:-0}" != "1" ] \
         && [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ] \
         && [ -f "$_env_dest" ] \
@@ -2083,23 +2082,18 @@ extract_release() {
     log_success "Extracted to ${INSTALL_DIR}"
 }
 
-# Remove backup of previous installation (call after service starts successfully)
-# Reclaim directories a previous version left on the wrong filesystem.
-#
-# Two kinds, both measured on a K2 whose root overlay is ~240MB while its user
-# partition at /mnt/UDISK is 27.5GB:
-#   - caches: the app used to cache thumbnails and modified gcode under
-#     /usr/data, i.e. on the overlay. It now caches on /mnt/UDISK.
-#   - scratch dirs: before cleanup was armed on EXIT (it hung off a bash-only
-#     ERR trap that never fired under ash/dash), an interrupted install left the
-#     whole download behind. One unit held a 60MB archive for two months.
+# Reclaim directories an older version left on the wrong filesystem — sized
+# against a K2 whose root overlay is ~240MB while /mnt/UDISK is 27.5GB:
+#   - caches: thumbnails and modified gcode written under /usr/data, i.e. on
+#     the overlay; the app caches on /mnt/UDISK.
+#   - scratch dirs: staged downloads from installs interrupted before the
+#     scratch dir was removed.
 #
 # Platforms declare what to reclaim in STALE_CACHE_DIRS; a no-op elsewhere.
 #
 # SAFETY: same guard shape as the off-partition rollback cleanup below — the
 # final path component must be exactly "cache" or name itself an installer
-# scratch dir, and never a top-level directory. A past incident wiped a K2's
-# /mnt/UDISK mount root via an unguarded rm -rf.
+# scratch dir, never a top-level directory and never a mount root.
 cleanup_stale_cache_dirs() {
     [ -n "${STALE_CACHE_DIRS:-}" ] || return 0
 
@@ -2130,6 +2124,7 @@ cleanup_stale_cache_dirs() {
     return 0
 }
 
+# Remove backup of previous installation (call after service starts successfully)
 cleanup_old_install() {
     # Keep .old as a last-resort recovery path if config wasn't restored.
     # Without this guard, a failed Phase 6 + cleanup = permanent config loss.

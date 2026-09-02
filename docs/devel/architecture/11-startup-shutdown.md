@@ -197,4 +197,4 @@ Read in this order; about 30 minutes total.
 13. [`src/helix_watchdog.cpp:1099`](../../../src/helix_watchdog.cpp#L1099) — `run_watchdog()`: fork/supervise loop, exit-code translation at `:1221`, crash-loop branch at `:1336`.
 14. [`src/helix_watchdog.cpp:875`](../../../src/helix_watchdog.cpp#L875) — `create_crash_dialog()`: raw LVGL, hardcoded colors, countdown.
 15. [`src/helix_splash.cpp:83`](../../../src/helix_splash.cpp#L83) — `MAX_LIFETIME_SEC` and the defense-in-depth comment; then [`include/splash_screen_manager.h:32`](../../../include/splash_screen_manager.h#L32) for the app-side 8s timeout.
-16. [`scripts/helix-launcher.sh:468`](../../../scripts/helix-launcher.sh#L468) — how watchdog and splash get started on device, and the `HELIX_NO_SPLASH`/pre-started-splash branches.
+16. [`scripts/helix-launcher.sh:467`](../../../scripts/helix-launcher.sh#L467) — how watchdog and splash get started on device, and the `HELIX_NO_SPLASH`/pre-started-splash branches.

@@ -741,11 +741,10 @@ detect_tmp_dir() {
     # User already set TMP_DIR — respect it, but only after the ownership and
     # name guards. TMP_DIR is rm -rf'd on both the success and the failure
     # path, so an unvalidated override erases whatever it points at
-    # (validate_tmp_dir in common.sh; the /mnt/UDISK incident). The mod-owned
-    # refusal rides HERE, one layer above the validator: common.sh is the
-    # bundle's first module and must stay free of later-module calls, so this
-    # module (which loads after the profile) owns the guard call. Before the
-    # name check, exactly where it sat inside the validator.
+    # (validate_tmp_dir in common.sh). The mod-owned refusal rides HERE, one
+    # layer above the validator: common.sh is the bundle's first module and
+    # must stay free of later-module calls, so this module (which loads after
+    # the profile) owns the guard call. It runs BEFORE the name check.
     if [ -n "${TMP_DIR:-}" ]; then
         host_refuse_mod_owned "stage the download in" "$TMP_DIR"
         validate_tmp_dir "$TMP_DIR" || exit 1
@@ -844,6 +843,50 @@ detect_tmp_dir() {
 
 # Set installation paths based on platform and firmware
 # Sets: INSTALL_DIR, INIT_SCRIPT_DEST, PREVIOUS_UI_SCRIPT, TMP_DIR, KLIPPER_CONFIG_DIR
+# The install root as the SERVICE will see it, from inside the mod's chroot.
+#
+# A mod tree can be reachable by more than one host path — the AD5X carries
+# both /usr/data/config/mod and /opt/config/mod for one directory — and only
+# some of those spellings are bind-mounted into the chroot. The service runs
+# inside it, so a DAEMON_DIR that resolves only on the host makes the init
+# script cd into nothing and exit 0 silently, which looks like a healthy boot
+# with no UI.
+#
+# Sets HELIX_CHROOT_DAEMON_DIR to a spelling that resolves in-chroot, trying
+# INSTALL_DIR first and then the same path under each other mod-tree candidate.
+# Leaves it empty and warns when none does: a wrong DAEMON_DIR fails silently,
+# so it must be said out loud here.
+# shellcheck disable=SC2034  # consumed by service.sh (install_service_sysv)
+resolve_chroot_daemon_dir() {
+    HELIX_CHROOT_DAEMON_DIR=""
+    [ -n "${HOST_MOD_CHROOT:-}" ] && [ -n "${INSTALL_DIR:-}" ] || return 0
+
+    if [ -d "${HOST_MOD_CHROOT}${INSTALL_DIR}" ]; then
+        # shellcheck disable=SC2034  # consumed by service.sh (install_service_sysv)
+        HELIX_CHROOT_DAEMON_DIR="$INSTALL_DIR"
+        return 0
+    fi
+
+    local cand suffix candidate
+    suffix="${INSTALL_DIR#"${HOST_MOD_ROOT}"}"
+    # shellcheck disable=SC2086  # word splitting is the point: a candidate list
+    for cand in ${HELIX_MOD_TREE_CANDIDATES:-/usr/data/config/mod /opt/config/mod}; do
+        [ "$cand" = "${HOST_MOD_ROOT:-}" ] && continue
+        candidate="${cand}${suffix}"
+        if [ -d "${HOST_MOD_CHROOT}${candidate}" ]; then
+            # shellcheck disable=SC2034  # consumed by service.sh (install_service_sysv)
+            HELIX_CHROOT_DAEMON_DIR="$candidate"
+            log_info "Mod host: service reaches the payload in-chroot as ${candidate}"
+            return 0
+        fi
+    done
+
+    log_warn "No install-root spelling resolves inside ${HOST_MOD_CHROOT}."
+    log_warn "The service starts from in there, so it would find nothing at boot."
+    log_warn "Checked: ${INSTALL_DIR}"
+    return 0
+}
+
 set_install_paths() {
     local platform=$1
     local firmware=${2:-}
@@ -1019,6 +1062,20 @@ set_install_paths() {
         elif [ "${STANDALONE_INSTALL:-}" != "1" ]; then
             INSTALL_DIR="$HOST_INSTALL_ROOT"
             log_info "Mod host: install root is the firmware mod's payload tree"
+            # The payload boots from inside the mod's chroot, so its init
+            # script goes in the chroot's /etc/init.d, not the host's. The mod
+            # runs `chroot $MOD .root/start.sh`, which starts every S* it finds
+            # in /etc/init.d in any display mode -- the add-on mechanism
+            # upstream documents (DrA1ex/ff5m#74). A stock rig has no such
+            # directory; install_service_sysv creates it.
+            #
+            # Only the directory moves. The S-number stays whatever this
+            # platform chose above, preserving its ordering intent.
+            if [ -n "${HOST_MOD_CHROOT:-}" ] && [ -n "${INIT_SCRIPT_DEST:-}" ]; then
+                INIT_SCRIPT_DEST="${HOST_MOD_CHROOT}/etc/init.d/$(basename "$INIT_SCRIPT_DEST")"
+                log_info "Mod host: service installs into the chroot: ${INIT_SCRIPT_DEST}"
+                resolve_chroot_daemon_dir
+            fi
         else
             log_info "Mod host: --standalone keeps the platform root for this install"
         fi
@@ -1029,10 +1086,10 @@ set_install_paths() {
     # platform path above already satisfies it; this catches a future branch
     # (or an override route added later) that would hand a bare data directory
     # to the mv/rm -rf in release.sh and uninstall.sh. The mod-owned refusal
-    # rides HERE - one layer above the name validator, because common.sh is
-    # the bundle's first module and must not call into later ones (the arch
-    # review's S2 hoist); the guard runs before the name check exactly as it
-    # did when it lived inside validate_install_dir.
+    # rides HERE, one layer above the name validator: common.sh is the
+    # bundle's first module and must not call into later ones, and this module
+    # loads after host_profile.sh. Order matters - the ownership refusal must
+    # run BEFORE the name check.
     host_refuse_mod_owned "install into" "$INSTALL_DIR"
     validate_install_dir "$INSTALL_DIR" || exit 1
 
@@ -1042,14 +1099,10 @@ set_install_paths() {
 
 # Decide which platform-hook file a host needs, without installing anything.
 #
-# Split out of install_platform_hooks so this rule has exactly one
-# implementation. The installer deploys the answer; the dev-deploy path asks
-# for it over ssh (scripts/device-profile.sh, consumed by mk/cross.mk's
-# deploy-ad5m). The makefile used to hand-roll its own copy, and the copies
-# drifted: it had no zmod branch at all -- so hooks-ad5m-zmod.sh was
-# unreachable from a deploy -- and it tested /opt/config/mod/.root before
-# /ZMOD, the reverse of detect_mod_flavor's order, so a ZMOD rig carrying both
-# markers silently received the Forge-X hooks.
+# The ONE implementation of this rule. Two consumers: the installer, which
+# deploys the answer, and the dev-deploy path, which asks for it over ssh
+# (scripts/device-profile.sh, used by mk/cross.mk's deploy-ad5m). Neither may
+# re-derive it -- a wrong key installs a hook that runs and points nowhere.
 #
 # $1 = platform (detect_platform's answer). Echoes the hook key, or nothing
 # when the platform ships no hooks.
@@ -1062,11 +1115,10 @@ resolve_platform_hook_key() {
         zmod)        platform_hook="ad5m-zmod" ;;
     esac
 
-    # Platform hooks (pi32 shares Pi hooks). The AD5X used to share ad5m-zmod on
-    # the assumption that both ZMOD firmwares have the same layout; they do not.
-    # The AD5X runs inside a chroot at /usr/data/.mod/.zmod, installs to
-    # /srv/helixscreen, and has no /data at all, so the AD5M hook's
-    # HELIX_CACHE_DIR=/data/helixscreen/cache pointed at a path that is not there.
+    # Platform hooks (pi32 shares Pi hooks). AD5X gets its own key, never
+    # ad5m-zmod: it runs inside the chroot at /usr/data/.mod/.zmod, installs to
+    # /srv/helixscreen, and has no /data, so the AD5M hook's
+    # HELIX_CACHE_DIR=/data/helixscreen/cache does not exist there.
     case "$platform" in
         pi|pi32)       platform_hook="pi" ;;
         k1)            platform_hook="k1" ;;

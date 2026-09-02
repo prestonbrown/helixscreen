@@ -602,6 +602,58 @@ esac
         || fail "standalone INSTALL_DIR='$INSTALL_DIR' (want the platform default)"
 }
 
+@test "payload install points the init script at the chroot's /etc/init.d" {
+    # The mod starts every S* it finds in the chroot's /etc/init.d, so that is
+    # where the payload's service has to land for anything to boot it.
+    # Armed first, matching main(): mod_payload_autodetect runs before
+    # set_install_paths, and the install-dir gate needs the contract armed to
+    # accept the mod's own tree as a destination.
+    HELIX_MOD_PAYLOAD="1"
+    STANDALONE_INSTALL=""
+    _USER_INSTALL_DIR=""
+    HOST_INSTALL_ROOT="$MOD_ROOT/.bin/helixscreen"
+    HOST_MOD_CHROOT="$SANDBOX/usr/data/.mod/.forge-x"
+    detect_tmp_dir() { TMP_DIR="$BATS_TEST_TMPDIR/tmp"; }
+
+    set_install_paths "ad5x" "forge_x"
+
+    [ "$INIT_SCRIPT_DEST" = "$HOST_MOD_CHROOT/etc/init.d/S80helixscreen" ] \
+        || fail "INIT_SCRIPT_DEST='$INIT_SCRIPT_DEST' (want the chroot init.d)"
+}
+
+@test "payload install keeps the platform's S-number when relocating the service" {
+    # Only the directory moves into the chroot; the ordering prefix each
+    # platform chose upstream of here has to survive.
+    HELIX_MOD_PAYLOAD="1"
+    STANDALONE_INSTALL=""
+    _USER_INSTALL_DIR=""
+    HOST_INSTALL_ROOT="$MOD_ROOT/.bin/helixscreen"
+    HOST_MOD_CHROOT="$SANDBOX/data/.mod/.forge-x"
+    detect_tmp_dir() { TMP_DIR="$BATS_TEST_TMPDIR/tmp"; }
+
+    set_install_paths "ad5m" "forge_x"
+
+    # ad5m+forge_x picks S90 upstream of the relocation.
+    [ "$INIT_SCRIPT_DEST" = "$HOST_MOD_CHROOT/etc/init.d/S90helixscreen" ] \
+        || fail "INIT_SCRIPT_DEST='$INIT_SCRIPT_DEST' (want S90 inside the chroot)"
+}
+
+@test "a standalone install on a mod host keeps the host init script path" {
+    # --standalone opts out of the payload contract, so the service belongs on
+    # the host where that install actually boots from.
+    HELIX_MOD_PAYLOAD=""
+    STANDALONE_INSTALL="1"
+    _USER_INSTALL_DIR=""
+    HOST_INSTALL_ROOT="$MOD_ROOT/.bin/helixscreen"
+    HOST_MOD_CHROOT="$SANDBOX/data/.mod/.forge-x"
+    detect_tmp_dir() { TMP_DIR="$BATS_TEST_TMPDIR/tmp"; }
+
+    set_install_paths "ad5m" "forge_x"
+
+    [ "$INIT_SCRIPT_DEST" = "/etc/init.d/S90helixscreen" ] \
+        || fail "standalone INIT_SCRIPT_DEST='$INIT_SCRIPT_DEST' (want the host path)"
+}
+
 @test "autodetect: a ZMOD-shape host (no probed mod tree) never arms" {
     # The probe does not recognize ZMOD trees, so HOST_MOD_ROOT stays empty
     # there and the pre-Task-5 flow must be unchanged: no payload mode, and
@@ -1401,16 +1453,28 @@ SHIM
     esac
 }
 
-@test "payload-mode success epilogue does not coach a service we did not install" {
-    # Found on hardware (AD5X cycle 2026-09-01): the generic epilogue printed
-    # /etc/init.d/S80helixscreen restart on a payload install, where no service
-    # exists by design. The epilogue must name the mod's lifecycle instead.
+@test "payload-mode success epilogue names the service and how to start it" {
+    # A payload install writes its service into the mod's chroot, which the mod
+    # runs at boot — so nothing is running when the installer exits. The
+    # epilogue has to say that, and name the script it actually installed.
     seed_payload_root
+    INIT_SCRIPT_DEST="/data/.mod/.forge-x/etc/init.d/S90helixscreen"
     run print_post_install_commands "mod-managed"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"firmware mod starts the UI"* ]]
-    [[ "$output" != *"/etc/init.d/"* ]]
+    [[ "$output" == *"Reboot"* ]]
+    [[ "$output" == *"$INIT_SCRIPT_DEST"* ]]
     [[ "$output" == *"${INSTALL_DIR}/logs/launcher.log"* ]]
+}
+
+@test "payload-mode epilogue coaches no host service manager" {
+    # The service lives in the chroot and is started by the mod, so systemctl
+    # and a bare host init path are both wrong advice here.
+    seed_payload_root
+    INIT_SCRIPT_DEST="/data/.mod/.forge-x/etc/init.d/S90helixscreen"
+    run print_post_install_commands "mod-managed"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"systemctl"* ]]
+    [[ "$output" != *"service helixscreen"* ]]
 }
 
 @test "a chroot without ldd does not abort the install (advisory check stays advisory)" {
@@ -1445,4 +1509,46 @@ STUB
     [ "$status" -eq 0 ]
     [[ "$output" == *"SURVIVED-SET-E"* ]]
     [[ "$output" == *"cannot be dependency-checked"* ]]
+}
+
+@test "chroot daemon dir: keeps INSTALL_DIR when it resolves in-chroot" {
+    HOST_MOD_ROOT="$SANDBOX/opt/config/mod"
+    HOST_MOD_CHROOT="$SANDBOX/chroot"
+    INSTALL_DIR="$HOST_MOD_ROOT/.bin/helixscreen"
+    mkdir -p "${HOST_MOD_CHROOT}${INSTALL_DIR}"
+
+    resolve_chroot_daemon_dir
+
+    [ "$HELIX_CHROOT_DAEMON_DIR" = "$INSTALL_DIR" ] \
+        || fail "HELIX_CHROOT_DAEMON_DIR='$HELIX_CHROOT_DAEMON_DIR'"
+}
+
+@test "chroot daemon dir: swaps to the spelling the chroot actually binds" {
+    # One mod tree, two host paths, only one bound into the chroot. The service
+    # runs in there, so it must get the bound spelling.
+    HOST_MOD_ROOT="$SANDBOX/usr/data/config/mod"
+    HOST_MOD_CHROOT="$SANDBOX/chroot"
+    INSTALL_DIR="$HOST_MOD_ROOT/.bin/helixscreen"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/usr/data/config/mod $SANDBOX/opt/config/mod"
+    # Only the /opt spelling exists inside the chroot.
+    mkdir -p "${HOST_MOD_CHROOT}${SANDBOX}/opt/config/mod/.bin/helixscreen"
+
+    resolve_chroot_daemon_dir
+
+    [ "$HELIX_CHROOT_DAEMON_DIR" = "$SANDBOX/opt/config/mod/.bin/helixscreen" ] \
+        || fail "HELIX_CHROOT_DAEMON_DIR='$HELIX_CHROOT_DAEMON_DIR'"
+}
+
+@test "chroot daemon dir: warns and stays empty when no spelling resolves" {
+    # Silent is the failure mode we are guarding against: the init script would
+    # cd into nothing and exit 0, which reads as a healthy boot with no UI.
+    HOST_MOD_ROOT="$SANDBOX/usr/data/config/mod"
+    HOST_MOD_CHROOT="$SANDBOX/chroot"
+    INSTALL_DIR="$HOST_MOD_ROOT/.bin/helixscreen"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/usr/data/config/mod $SANDBOX/opt/config/mod"
+    mkdir -p "$HOST_MOD_CHROOT"
+
+    run resolve_chroot_daemon_dir
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"resolves inside"* ]]
 }

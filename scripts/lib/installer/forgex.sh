@@ -86,9 +86,9 @@ forgex_apply_patch() {
 # active ]" line - is what keeps the guard families from eating each other:
 # the backlight, old-style backlight and draw-command guards share
 # byte-identical if-lines, but their comments are distinct. Arming on the
-# if-line is exactly how the old unpatch destroyed screen.sh on uninstall: it
-# consumed the draw guards' if/exit/fi while leaving their comments behind,
-# and the drawing unpatch then ran away from those orphaned comments.
+# if-line instead would consume a neighbouring family's if/exit/fi and leave
+# its comment behind, and the next unpatch pass then runs away from that
+# orphaned comment.
 #
 # A marker comment not followed (after further comments only) by a
 # helixscreen_active line arms nothing - the state machine never starts on a
@@ -108,8 +108,8 @@ forgex_strip_guard_blocks() {
 
 # Record the display mode the printer arrived on, so uninstall can restore it.
 # The write goes through $SUDO like every other privileged write: mod_data is
-# root-owned on a real device and a bare redirect fails silently there - which
-# is how installs lost their restore record. The first record wins: a re-run
+# root-owned on a real device and a bare redirect fails silently there.
+# The first record wins: a re-run
 # (upgrade) finds HEADLESS because we set it, and overwriting would make
 # uninstall "restore" HEADLESS, leaving an uninstalled printer with no UI.
 forgex_record_prev_display() {
@@ -692,9 +692,9 @@ uninstall_forgex_logged_wrapper() {
 uninstall_forgex() {
     # Once per run. Callers stack -- the payload arm, then
     # restore_previous_ui_platform, then the uninstaller's own forge_x branch
-    # -- and a second call used to find the restore record already consumed,
-    # fall back to GUPPY, and rewrite a still-HEADLESS rig to a mode it never
-    # had. The first call performs every effect (record consumption, display
+    # -- and the first call consumes the restore record. A second call would
+    # find it gone, fall back to GUPPY, and rewrite a still-HEADLESS rig to a
+    # mode it never had. The first call performs every effect (record
     # restore, stock-UI re-enable, unpatches, wrapper removal, re-execs) and
     # caches its restored-ui claim; later calls in the same run touch nothing
     # and hand their caller the same claim.

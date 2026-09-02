@@ -168,16 +168,14 @@ undo_seeded_settings() {
     $(path_sudo "$state_file") rm -f "$state_file" 2>/dev/null || true
 }
 
-# Uninstall HelixScreen
-# Args: platform (optional)
 # Restore whatever screen UI HelixScreen displaced at install time, for the
-# platform passed in $1. Split out of uninstall() so the STANDALONE uninstaller can
-# reach it too. `install.sh --uninstall` calls uninstall() and always could;
-# bundle-uninstaller.sh builds its own main() around reenable_previous_ui() instead,
-# so every platform branch below — COSMOS, Snapmaker U1, AD5M zmod, Creality app —
-# was unreachable from the uninstall.sh that ships into the install dir. On a U1 that
-# left /usr/bin/gui non-executable and /oem/.debug set: no bootable stock UI and the
-# firmware's overlay-wipe disabled for good.
+# platform passed in $1. Split out of uninstall() so BOTH removal doors reach
+# it: `install.sh --uninstall` calls uninstall(), while bundle-uninstaller.sh
+# builds its own main() around reenable_previous_ui() and never calls
+# uninstall() at all. Every platform branch below — COSMOS, Snapmaker U1, AD5M
+# zmod, Creality app — must stay reachable from both, or the standalone
+# uninstaller leaves that platform with no bootable stock UI (on a U1: a
+# non-executable /usr/bin/gui and /oem/.debug still set).
 #
 # Communicates results through HELIX_RESTORED_UI / HELIX_RESTORED_XORG rather
 # than a return value, because callers need both.
@@ -331,12 +329,12 @@ restore_previous_ui_platform() {
     HELIX_RESTORED_XORG="$restored_xorg"
 }
 
-# HELIX_INSTALL_DIRS (common.sh) as THIS run may sweep it. In --mod-payload
-# mode the run's ACTUAL payload root joins the list via resolve_payload_root
-# (flag > the root the install recorded > INSTALL_DIR) - the sweep must remove
-# what THIS run targeted, not whatever the probe last found, or a custom-root
-# payload survives a "successful" uninstall while a stale in-tree root is
-# removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
+# Emit HELIX_INSTALL_DIRS (common.sh) widened to whatever THIS run may sweep.
+# In --mod-payload mode the run's ACTUAL payload root joins the list via
+# resolve_payload_root (flag > the root the install recorded > INSTALL_DIR) -
+# the sweep must remove what THIS run targeted, not whatever the probe last
+# found, or a custom-root payload survives a "successful" uninstall while a
+# stale in-tree root is removed instead. The sweeps' mod-owned skip (host_mod_destruct_blocked)
 # exempts exactly the flag-armed run, so a plain uninstall still leaves the
 # mod's tree alone.
 #
@@ -362,10 +360,9 @@ helix_install_dirs_for_run() {
 }
 
 # Undo a payload-contract install — the STANDALONE uninstaller's --mod-payload
-# arm. The generic sweeps refuse mod-owned paths by design, so before this arm
-# a payload install could only be removed by hand: the shipped uninstaller
-# refused at the mod-owned gate with the payload subtree, the display takeover
-# and the optional user.moonraker.conf stanza all still in place.
+# arm. The generic sweeps refuse mod-owned paths by design, so this arm is the
+# only route past the mod-owned gate: the payload subtree, the display takeover
+# and the optional user.moonraker.conf stanza are reachable nowhere else.
 #
 # Only a run that armed the payload contract may remove the mod's tree:
 # HELIX_MOD_PAYLOAD — the same single switch install.sh's destruct exemption
@@ -418,6 +415,21 @@ uninstall_mod_payload() {
         remove_update_manager_section || true
     fi
 
+    # Remove the service from the mod's chroot. HELIX_INIT_SCRIPTS is a list of
+    # host-absolute paths and never names anything under the chroot, so the
+    # generic SysV sweep cannot find this one. Left behind, the mod's start.sh
+    # runs it at every boot against a payload root that no longer exists.
+    if [ -n "${HOST_MOD_CHROOT:-}" ] && [ -d "${HOST_MOD_CHROOT}/etc/init.d" ]; then
+        for _chroot_init in "${HOST_MOD_CHROOT}"/etc/init.d/S*helixscreen; do
+            [ -e "$_chroot_init" ] || continue
+            $SUDO rm -f "$_chroot_init"
+            log_success "Removed chroot service ${_chroot_init}"
+        done
+        # Drop the directory too when we are the only thing that ever used it.
+        rmdir "${HOST_MOD_CHROOT}/etc/init.d" 2>/dev/null \
+            || $SUDO rmdir "${HOST_MOD_CHROOT}/etc/init.d" 2>/dev/null || true
+    fi
+
     if [ -d "$INSTALL_DIR" ]; then
         # The armed flag is exactly what host_mod_destruct_blocked exempts, so
         # this guard can only fire on a wiring mistake — and must, loudly.
@@ -434,11 +446,11 @@ uninstall_mod_payload() {
         log_info "Payload root ${INSTALL_DIR} already absent"
     fi
 
-    # An ADOPTED root was booted by the legacy standalone service, not the
-    # mod's (their .shell/helixscreen.sh starts only its own tree), and the
-    # payload contract installed none — so with this root gone that service
-    # is stale at every boot. Name it for the operator; removal stays theirs,
-    # exactly as adoption kept the service theirs.
+    # An ADOPTED root sits outside the mod's chroot, so the service installed
+    # into that chroot cannot reach it: the legacy standalone service is what
+    # booted it. With this root gone that service is stale at every boot. Name
+    # it for the operator; removal stays theirs, exactly as adoption kept the
+    # service theirs.
     if [ -n "${HOST_LEGACY_INIT_SCRIPT:-}" ] \
        && [ "$INSTALL_DIR" = "${HOST_LEGACY_INSTALL_ROOT:-}" ] \
        && [ -e "$HOST_LEGACY_INIT_SCRIPT" ]; then
@@ -824,7 +836,7 @@ clean_old_installation() {
     # A --clean must also remove the root the PREVIOUS install recorded:
     # mod_payload_mode_block re-records THIS run's root before this sweep
     # runs, so without this the old custom payload root - and any
-    # --auto-update stanza still pointing at it - survived a mode whose
+    # --auto-update stanza still pointing at it - survives a mode whose
     # contract is "remove old installation completely". Name-gated like every
     # other root the uninstall side acts on.
     if [ -n "${HELIX_PRIOR_PAYLOAD_ROOT:-}" ] \
@@ -847,9 +859,9 @@ clean_old_installation() {
     # payload-root record. --clean is not a terminating removal: main() ran
     # mod_payload_mode_block first (recording the resolved root) and continues
     # into a fresh install that never re-records, so eating the record here
-    # left the fresh payload unrecorded and a later flagless uninstall swept
-    # the probed default instead. Consume only where the removal is final:
-    # uninstall() and the standalone arm.
+    # would leave the fresh payload unrecorded and a later flagless uninstall
+    # would sweep the probed default instead. Consume only where the removal
+    # is final: uninstall() and the standalone arm.
     log_success "Old installation cleaned"
     echo ""
 }

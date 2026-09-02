@@ -305,33 +305,58 @@ OKEOF
 }
 
 # =============================================================================
-# install_service: mod-managed host (the firmware mod owns the UI service)
+# install_service: mod-managed host
 #
-# On a Forge-X rig the mod starts the UI itself from its own bootstrap
-# (.shell/helixscreen.sh); the host-side SysV script this installer writes
-# never ran there (the rig's chroot has no populated /etc/init.d), and the
-# mod's OTA manages the payload tree. install_service must write NOTHING:
-# no init script, no systemd unit, nothing inside the mod's chroot.
+# The mod does not start the payload, so the installer installs its own
+# service. set_install_paths points INIT_SCRIPT_DEST at the mod chroot's
+# /etc/init.d; install_service must take the ordinary SysV path and land the
+# script there, creating the directory, which a stock rig does not have.
 # =============================================================================
 
-@test "install_service: mod-managed host writes no service files anywhere" {
+@test "install_service: mod-managed host installs into the chroot init.d" {
     HOST_SERVICE_MECHANISM="mod-managed"
     INIT_SYSTEM="sysv"
-    # Both templates exist in the extracted payload — the skip must happen
-    # before either install path consults them.
     create_init_template
-    create_service_template
-    setup_sudo_redirect
-    # The chroot is part of "anywhere": nothing may land under it either.
     HOST_MOD_CHROOT="$BATS_TEST_TMPDIR/usr/data/.mod/.forge-x"
-    mkdir -p "$HOST_MOD_CHROOT"
+    # Deliberately NOT pre-created: the installer owns creating it.
+    INIT_SCRIPT_DEST="$HOST_MOD_CHROOT/etc/init.d/S80helixscreen"
 
     run install_service "ad5x"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"mod manages the UI service"* ]]
-    [ ! -f "$INIT_SCRIPT_DEST" ]
+    [ -f "$INIT_SCRIPT_DEST" ]
+    [ -x "$INIT_SCRIPT_DEST" ]
+}
+
+@test "install_service: mod-managed host creates the absent chroot init.d dir" {
+    # The directory being absent is what leaves the mod's start.sh loop with
+    # nothing to run, so creating it is the load-bearing half of the install.
+    HOST_SERVICE_MECHANISM="mod-managed"
+    INIT_SYSTEM="sysv"
+    create_init_template
+    HOST_MOD_CHROOT="$BATS_TEST_TMPDIR/usr/data/.mod/.forge-x"
+    mkdir -p "$HOST_MOD_CHROOT/etc"
+    [ ! -d "$HOST_MOD_CHROOT/etc/init.d" ]
+    INIT_SCRIPT_DEST="$HOST_MOD_CHROOT/etc/init.d/S80helixscreen"
+
+    install_service "ad5x"
+
+    [ -d "$HOST_MOD_CHROOT/etc/init.d" ]
+    [ -f "$INIT_SCRIPT_DEST" ]
+}
+
+@test "install_service: mod-managed host writes no systemd unit" {
+    # Mod hosts are SysV; a unit file would be dead weight in the mod's tree.
+    HOST_SERVICE_MECHANISM="mod-managed"
+    INIT_SYSTEM="sysv"
+    create_init_template
+    create_service_template
+    setup_sudo_redirect
+    HOST_MOD_CHROOT="$BATS_TEST_TMPDIR/usr/data/.mod/.forge-x"
+    INIT_SCRIPT_DEST="$HOST_MOD_CHROOT/etc/init.d/S80helixscreen"
+
+    install_service "ad5x"
+
     [ ! -f "$FAKE_SYSTEMD_DIR/helixscreen.service" ]
-    [ -z "$(find "$HOST_MOD_CHROOT" -type f -print -quit)" ]
 }
 
 @test "install_service: a plain host still installs the init script (control)" {
@@ -514,11 +539,9 @@ EOF
     grep -q "$INSTALL_DIR" "$chown_log"
 }
 
-# Root-run platforms (ad5m/ad5x/k1/k2/cc1/u1) used to be skipped entirely, so
-# nothing ever normalised the numeric uid/gid that root's --same-owner extract
-# restored out of the release tarball.  A K2 install measured 890 of 915 files
-# owned by uid 1001, which has no /etc/passwd entry on that box.  The root case
-# must now chown to root:root so existing bad installs heal on the next update.
+# Root's --same-owner extract restores the numeric uid/gid baked into the
+# release tarball, which need not exist in the device's /etc/passwd. The root
+# case must normalise the tree to root:root.
 @test "fix_install_ownership: root user normalises the tree to root:root" {
     KLIPPER_USER="root"
     mkdir -p "$INSTALL_DIR/config"

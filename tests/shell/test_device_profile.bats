@@ -4,13 +4,11 @@
 # Tests for resolve_platform_hook_key() (platform.sh) and the device-profile
 # probe (scripts/device-profile.sh).
 #
-# These two are what stop mk/cross.mk from keeping a second, drifting copy of
-# the firmware-detection rules. Before the split, deploy-ad5m hand-rolled its
-# own dispatch and it had drifted three ways: no zmod branch at all, the
-# /opt/config/mod/.root test placed before /ZMOD, and only two of the four
-# install directories. The zmod cases below are the ones that were unreachable
-# from a deploy entirely -- if resolve_platform_hook_key stops returning
-# ad5m-zmod, hooks-ad5m-zmod.sh goes back to being dead weight.
+# These two are what keep the firmware-detection rules to a single
+# implementation: the installer resolves the hook key, and mk/cross.mk's deploy
+# targets ask for the same answer over ssh instead of deriving their own. A
+# second copy drifts silently, so the cases below pin every flavor the resolver
+# must answer for, not just the common one.
 
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
@@ -53,8 +51,7 @@ setup() {
 }
 
 @test "resolve_platform_hook_key: ad5m + zmod selects the zmod hook" {
-    # The branch mk/cross.mk never had. hooks-ad5m-zmod.sh exists and is tested
-    # by test_platform_hooks.bats, but nothing could ever select it on a deploy.
+    # hooks-ad5m-zmod.sh is only ever reachable through this branch.
     AD5M_FIRMWARE="zmod"
     run resolve_platform_hook_key "ad5m"
     [ "$status" -eq 0 ]
@@ -113,10 +110,8 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "install_platform_hooks delegates to resolve_platform_hook_key" {
-    # Guards the split itself: if install_platform_hooks ever grows its own copy
-    # of the dispatch again, the makefile and the installer can drift apart once
-    # more. Stub the resolver and assert the deploy call follows IT, not a
-    # recomputed answer.
+    # install_platform_hooks must not re-derive the key. Stub the resolver and
+    # assert the deploy call follows ITS answer, not a recomputed one.
     unset _HELIX_MAIN_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
 
@@ -185,8 +180,7 @@ setup() {
 @test "device-profile probe survives the real guards being present" {
     # The stubs must come AFTER the modules: defining them first lets the real
     # validate_install_dir load over them, and its `|| exit 1` inside
-    # set_install_paths kills the probe with no output at all. That is exactly
-    # what happened on the first attempt against the AD5M.
+    # set_install_paths kills the probe with no output at all.
     "$WORKTREE_ROOT/scripts/device-profile.sh" --emit > "$BATS_TEST_TMPDIR/probe.sh"
     run sh "$BATS_TEST_TMPDIR/probe.sh"
     [ "$status" -eq 0 ]
@@ -230,9 +224,8 @@ setup() {
     # The exact shapes that drifted. A recipe line naming a specific hook file
     # or testing a firmware marker means the second copy is back.
     #
-    # Comments are stripped first: the replacement carries a comment explaining
-    # which hook each flavor now gets, and the whole point is that the rule is
-    # documented in prose while living in exactly one place in code.
+    # Comments are stripped first: the rule is documented in prose here while
+    # living in exactly one place in code.
     strip_comments() {
         sed -e "s/^[[:space:]]*@\\{0,1\\}#.*$//" "/home/pbrown/Code/Printing/helixscreen/.worktrees/devel-1.1/mk/cross.mk"
     }
@@ -246,7 +239,7 @@ setup() {
 
 @test "cross.mk evaluates the device profile lazily" {
     # A simply-expanded (:=) AD5M_PROFILE would ssh the printer on EVERY make
-    # invocation, including a plain `make -j` that never touches the device.
+    # invocation, including a plain `make -j` that never touches a device.
     run grep -E '^AD5M_PROFILE[[:space:]]*=' "$WORKTREE_ROOT/mk/cross.mk"
     [ "$status" -eq 0 ]
     echo "$output" | grep -q 'eval'

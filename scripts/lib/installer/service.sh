@@ -42,8 +42,7 @@ _has_no_new_privs() {
 # Init scripts shipped before 2026-04-20 sourced platform hooks from
 # ${DAEMON_DIR}/assets/config/platform/hooks.sh, but the installer (and the
 # deploy makefile) write hooks to ${DAEMON_DIR}/platform/hooks.sh.  Result:
-# the file was never found, platform_stop_competing_uis() stayed a no-op,
-# and stock UIs (Creality K2 /etc/init.d/app, etc.) ran alongside HelixScreen.
+# platform_stop_competing_uis() silently stays a no-op there.
 #
 # Self-update deliberately skips copying the init script to preserve
 # platform customizations (#314), so a pure source-tree fix can't reach
@@ -64,16 +63,10 @@ _migrate_init_script_hooks_path() {
 install_service() {
     local platform=$1
 
-    # A mod-managed host runs the UI from the mod's own bootstrap
-    # (.shell/helixscreen.sh), not from any init file this installer writes:
-    # the host-side SysV script never ran on the rig (its chroot has no
-    # populated /etc/init.d) and the mod's OTA owns the payload tree. Writing
-    # service files there would only leave dead files in the mod's namespace.
-    if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
-        log_info "mod manages the UI service (forge-x); skipping service install"
-        return 0
-    fi
-
+    # A mod host installs its service like any other SysV host: the mod does
+    # not start the payload, so the installer owns its own lifecycle.
+    # set_install_paths has already pointed INIT_SCRIPT_DEST at the mod
+    # chroot's /etc/init.d, which is where the mod's start.sh looks.
     if [ "$platform" = "snapmaker-u1" ]; then
         install_service_snapmaker_u1
         return
@@ -121,12 +114,11 @@ install_procd_shim_k2() {
     $SUDO cp "$shim_src" "$shim_dest"
     $SUDO chmod +x "$shim_dest"
 
-    # Older installs (and `make deploy-k2` before mk/cross.mk was fixed)
-    # symlinked /etc/rc.d/S99helixscreen directly to the SysV script,
-    # which procd skips at boot. Drop those, then let rc.common's `enable`
+    # procd skips an /etc/rc.d/S99helixscreen that points straight at the
+    # SysV script, so drop any such symlink, then let rc.common's `enable`
     # create fresh S99/K01 symlinks pointing at the shim. Verify the rc.d
-    # entry before returning — `enable` exits 0 even on weird edge cases,
-    # and a silently-wrong symlink is the original bug we're fixing here.
+    # entry before returning — `enable` exits 0 even when it produced no
+    # symlink at all, so a silently-wrong entry is otherwise invisible.
     $SUDO rm -f /etc/rc.d/S99helixscreen /etc/rc.d/K01helixscreen
     if ! $SUDO "$shim_dest" enable; then
         log_warn "K2 procd shim: enable failed — UI will not autostart at boot"
@@ -370,13 +362,20 @@ install_service_sysv() {
         exit 1
     fi
 
-    # Use the dynamically set INIT_SCRIPT_DEST (varies by firmware)
+    # Use the dynamically set INIT_SCRIPT_DEST (varies by firmware).
+    # The mod chroot's /etc/init.d does not exist until we create it.
+    $SUDO mkdir -p "$(dirname "$INIT_SCRIPT_DEST")"
     $SUDO cp "$init_src" "$INIT_SCRIPT_DEST"
     $SUDO chmod +x "$INIT_SCRIPT_DEST"
 
     # Update the DAEMON_DIR in the init script to match the install location
-    # This is important for Klipper Mod which uses a different path
-    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST"
+    # This is important for Klipper Mod which uses a different path.
+    #
+    # On a mod host the script runs inside the chroot, where the install root
+    # may have a different spelling than it does on the host (see
+    # resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
+    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
+    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
 
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
 }
@@ -391,10 +390,11 @@ start_service() {
     # an operator-chosen INSTALL_DIR on a mod host runs the whole install and
     # would otherwise die here at start_service_sysv's missing-init-script
     # exit - after which the error names a script this host never had and the
-    # .old backups sit uncollected. The mod owns the UI service; there is
-    # nothing for us to start, in either mode.
+    # .old backups sit uncollected. The installed service starts from inside
+    # the mod's chroot at boot; the host cannot usefully start it now, since
+    # on the AD5X the binary only loads against the chroot's glibc.
     if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
-        log_info "mod manages the UI service (forge-x); skipping service start"
+        log_info "mod host: the UI starts from the chroot at boot; not starting now"
         return 0
     fi
 
@@ -558,10 +558,10 @@ deploy_platform_hooks() {
     local install_dir="$1"
     local platform="$2"  # "ad5m-forgex", "ad5m-kmod", "pi", "k1"
     # Tarball ships platform hooks under assets/config/ as part of the
-    # read-only seed bundle (see scripts/package.sh). Older installers looked
-    # in config/platform/ — that path moved in the config/→assets/config/
-    # refactor and the deploy_platform_hooks lookup got left behind,
-    # silently dropping the hooks file for every sysv platform (#k2-no-hooks).
+    # read-only seed bundle (see scripts/package.sh). The lookup path must
+    # match that layout exactly: a wrong one fails silently — no hooks file is
+    # copied, platform_stop_competing_uis() stays a no-op, and the stock UI
+    # keeps running alongside HelixScreen on every sysv platform.
     local hooks_src="${install_dir}/assets/config/platform/hooks-${platform}.sh"
 
     if [ ! -f "$hooks_src" ]; then
@@ -592,12 +592,11 @@ fix_install_ownership() {
     [ -n "$user" ] || return 0
     [ -d "$INSTALL_DIR" ] || return 0
 
-    # Root-run platforms (ad5m/ad5x/k1/k2/cc1/u1) still need normalising, and
-    # used to be skipped entirely.  Root's tar extract restores the uid/gid
-    # baked into the release archive, so the tree ends up owned by the build
-    # machine's numeric ids — a measured K2 had 890 of 915 files owned by uid
-    # 1001, which has no /etc/passwd entry there.  The extract now passes -o so
-    # fresh installs land as root, and this repairs installs made before that.
+    # Root-run platforms (ad5m/ad5x/k1/k2/cc1/u1) need normalising too.  Root's
+    # tar extract restores the uid/gid baked into the release archive, so the
+    # tree ends up owned by the build machine's numeric ids, which need not
+    # exist in the device's /etc/passwd.  The extract passes -o so a fresh
+    # install lands as root; this re-chowns the whole tree regardless.
     log_info "Setting ownership to ${user}:${group}..."
 
     # Try without sudo first: during self-update under NoNewPrivileges,

@@ -246,10 +246,10 @@ read_payload_root_record() {
 # Resolve the payload root this run's uninstall acts on: the --payload-root
 # flag, else the root the install recorded in mod_data, else the probed
 # default (INSTALL_DIR). ONE resolver for every uninstall entry point — the
-# standalone arm and install.sh's HELIX_INSTALL_DIRS sweep must not drift,
-# and did: the sweep resolved from probe/flag only, so a custom-root install
-# uninstalled through install.sh removed the probed default while the
-# recorded root (and its updater clone) survived and the record went stale.
+# standalone arm and install.sh's HELIX_INSTALL_DIRS sweep. A caller that
+# resolves from the probe or flag alone misses a --payload-root install: it
+# removes the probed default while the real payload, and its updater clone,
+# survives and the record goes stale.
 #
 # Echoes the resolved path (empty when nothing resolves). Returns 1 to
 # REFUSE: a flag or a corrupted record can name an arbitrary existing

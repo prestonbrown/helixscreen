@@ -316,7 +316,7 @@ _user_dir_name_ok() {
 # in-app updater hands over via TMP_DIR (update_checker.cpp STAGING_NAME).
 # Mod-owned refusal is NOT here: common.sh is the bundle's first module and
 # must not call into later ones, so that guard rides detect_tmp_dir's user
-# override branch in platform.sh (the arch review's S2 hoist).
+# override branch in platform.sh.
 validate_tmp_dir() {
     local d="$1"
     if _user_dir_name_ok "$d" '*helixscreen-install*' '.helix-update-staging'; then
@@ -333,8 +333,8 @@ validate_tmp_dir() {
 # Accept only install directories that name themselves after us. Every
 # auto-detected value already does (/opt/helixscreen, $HOME/helixscreen,
 # /usr/data/helixscreen, /srv/helixscreen, /user-resource/helixscreen, ...).
-# Mod-owned refusal is NOT here (same S2 hoist note as validate_tmp_dir
-# above): it rides set_install_paths' final gate in platform.sh.
+# Mod-owned refusal is NOT here (same reason as validate_tmp_dir above):
+# it rides set_install_paths' final gate in platform.sh.
 validate_install_dir() {
     local d="$1"
     if _user_dir_name_ok "$d" '*helixscreen*'; then
@@ -395,7 +395,7 @@ cleanup_on_success() {
 # Kill process(es) by name — SIGTERM first, then SIGKILL any survivors.
 # helix-watchdog and helix-screen catch SIGTERM but don't always exit (e.g.
 # during splash handoff or when blocked on I/O), so the installer must
-# escalate or uninstall leaves zombie processes behind (#xxx observed on CC1).
+# escalate or uninstall leaves zombie processes behind.
 # Works on both GNU systems and BusyBox (AD5M/K1/CC1).
 # Args: process_name [process_name2 ...]
 # Returns: 0 if any process was killed, 1 if none found
@@ -538,14 +538,14 @@ clean_helix_state_dirs() {
 # Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST, INSTALL_DIR
 # $1:   service mechanism, passed BY THE CALLER (the prober's answer;
 #       this module is bundle position 1 and must not reach forward for
-#       any later module's globals - the S2 pin enforces exactly that)
+#       any later module's globals)
 print_post_install_commands() {
     if [ "${1:-}" = "mod-managed" ]; then
-        # Payload install: we wrote no service anywhere — the firmware mod
-        # owns the UI's lifecycle. Coaching a service command here would
-        # point at a script that does not exist.
+        # Payload install: the service lives in the mod's chroot, which the
+        # mod's own start.sh runs at boot. Nothing is running yet, so the
+        # useful instruction is how to get there.
         echo "Useful commands:"
-        echo "  The firmware mod starts the UI (its .shell service control)."
+        echo "  Reboot to start the UI (installed as ${INIT_SCRIPT_DEST})"
         echo "  tail -f ${INSTALL_DIR}/logs/launcher.log   # View logs"
         return 0
     fi
