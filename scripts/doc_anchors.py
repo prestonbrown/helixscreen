@@ -316,6 +316,17 @@ _BATS = re.compile(r'^@test\s+"([^"]+)"')
 _MD_HEAD = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _JSON_KEY = re.compile(r'^\s*"([^"]+)"\s*:')
 
+# GitHub's heading-anchor slug, common subset: lowercase, drop anything that
+# is not a word character/space/hyphen, spaces to hyphens. Doc-to-doc
+# citations in this repo use this form (it is what actually works as a
+# browser fragment); doc_anchors' own anchors use the literal heading text.
+# Both need to resolve, since a citation cannot say which convention wrote it.
+_SLUG_STRIP_RE = re.compile(r"[^\w\s-]")
+
+
+def _github_heading_slug(text):
+    return _SLUG_STRIP_RE.sub("", text.lower()).replace(" ", "-")
+
 
 def definitions(lines, region, ext):
     """Every named definition inside `region`, as (name, Region) pairs."""
@@ -426,7 +437,14 @@ def _defs_shell(lines, region):
 
 
 def _defs_markdown(lines, region):
-    """Headings; a heading owns everything up to the next heading of its level."""
+    """Headings; a heading owns everything up to the next heading of its level.
+
+    Each heading registers under its literal text and, when that differs, its
+    GitHub anchor slug - the two conventions a `#fragment` citation into a
+    markdown file may use. Skipping the slug when it equals the literal text
+    avoids registering an already-lowercase single-word heading twice under
+    the same name, which would turn its own resolution ambiguous.
+    """
     out = []
     for i in range(region.start, region.end):
         m = _MD_HEAD.match(lines[i])
@@ -439,7 +457,12 @@ def _defs_markdown(lines, region):
             if n and len(n.group(1)) <= level:
                 end = j
                 break
-        out.append((m.group(2), Region(i, end)))
+        heading = m.group(2)
+        span = Region(i, end)
+        out.append((heading, span))
+        slug = _github_heading_slug(heading)
+        if slug != heading:
+            out.append((slug, span))
     return out
 
 

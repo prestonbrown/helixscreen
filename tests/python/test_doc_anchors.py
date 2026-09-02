@@ -276,6 +276,35 @@ def test_markdown_heading():
     assert _resolve(src, 'LOGGING.md#"Console sink"', ".md") == "## Console sink"
 
 
+def test_markdown_heading_slug_matches_a_title_case_heading():
+    src = "# Top\n\ntext\n\n## Contributing\n\nmore\n"
+    assert _resolve(src, "a.md#contributing", ".md") == "## Contributing"
+
+
+def test_markdown_heading_slug_hyphenates_spaces():
+    src = "# Top\n\ntext\n\n## Console sink\n\nmore\n"
+    assert _resolve(src, "a.md#console-sink", ".md") == "## Console sink"
+
+
+def test_markdown_lowercase_single_word_heading_is_not_ambiguous():
+    # A heading whose literal text already equals its own slug (lowercase, no
+    # spaces) must resolve once, not raise Ambiguous from being registered
+    # under the same name twice.
+    src = "# Top\n\ntext\n\n## sound\n\nmore\n"
+    assert _resolve(src, "a.md#sound", ".md") == "## sound"
+
+
+def test_markdown_heading_slug_collision_raises_ambiguous():
+    src = "## Foo Bar\n\ntext\n\n## foo-bar\n\nmore\n"
+    with pytest.raises(Ambiguous):
+        _resolve(src, "a.md#foo-bar", ".md")
+
+
+def test_markdown_heading_slug_collision_quoted_literal_disambiguates():
+    src = "## Foo Bar\n\ntext\n\n## foo-bar\n\nmore\n"
+    assert _resolve(src, 'a.md#"Foo Bar"', ".md") == "## Foo Bar"
+
+
 def test_bare_segment_cannot_contain_spaces():
     # Heading and test-name anchors use the quoted form; a bare segment is a
     # single identifier, so prose with spaces must be quoted to resolve.
