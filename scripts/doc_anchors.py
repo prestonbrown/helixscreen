@@ -452,11 +452,36 @@ def _defs_json(lines, region):
     return out
 
 
-def resolve(citation_text, repo_root="."):
-    """1-based line number for a citation, or raise."""
+def _locate(path, repo_root, relative_to):
+    """The on-disk file a citation's path names, or None.
+
+    Repo-root-relative wins on a name collision: it is the only candidate
+    that names one specific file rather than "whatever happens to sit next
+    to the citing document", so it is tried first and the rest are a
+    fallback for a path the author wrote relative to their own document
+    (doc-dir-relative, then that directory's parent).
+    """
+    candidates = [os.path.join(str(repo_root), path)]
+    if relative_to is not None:
+        candidates.append(os.path.join(str(relative_to), path))
+        candidates.append(os.path.join(os.path.dirname(str(relative_to)), path))
+    for cand in candidates:
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
+def resolve(citation_text, repo_root=".", relative_to=None):
+    """1-based line number for a citation, or raise.
+
+    `relative_to` is the directory a doc-relative path (as opposed to a
+    repo-root-relative one) is resolved against - typically the directory of
+    the document that wrote the citation. Omitted, only repo-root-relative
+    paths resolve.
+    """
     citation = parse_citation(citation_text)
-    full = os.path.join(str(repo_root), citation.path)
-    if not os.path.isfile(full):
+    full = _locate(citation.path, repo_root, relative_to)
+    if full is None:
         raise FileNotFoundError(citation.path)
     with open(full, encoding="utf-8", errors="replace") as fh:
         lines = fh.read().split("\n")
@@ -500,7 +525,7 @@ def check(paths, repo_root="."):
         if "#" not in text:
             continue
         try:
-            resolve(text, repo_root=repo_root)
+            resolve(text, repo_root=repo_root, relative_to=os.path.dirname(doc))
         except FileNotFoundError:
             findings.append(f"{doc}:{lineno}: no such file: {text}")
         except (NotFound, Ambiguous) as exc:

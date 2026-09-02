@@ -595,3 +595,39 @@ def test_check_cli_exits_zero_even_with_findings(tmp_path):
     )
     assert p.returncode == 0
     assert "nope" in p.stdout
+
+
+def test_check_resolves_a_citation_relative_to_the_citing_doc(tmp_path):
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "sibling.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = docs_dir / "d.md"
+    doc.write_text("see `sibling.cpp#f`\n", encoding="utf-8")
+    assert check([doc], repo_root=tmp_path) == []
+
+
+def test_check_resolves_a_citation_relative_to_the_citing_docs_parent_dir(tmp_path):
+    docs_dir = tmp_path / "docs"
+    devel_dir = docs_dir / "devel"
+    devel_dir.mkdir(parents=True)
+    (docs_dir / "sibling.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = devel_dir / "d.md"
+    doc.write_text("see `sibling.cpp#f`\n", encoding="utf-8")
+    assert check([doc], repo_root=tmp_path) == []
+
+
+def test_resolve_prefers_repo_root_over_doc_relative_on_a_name_collision(tmp_path):
+    (tmp_path / "a.cpp").write_text("// header\nvoid root_only() {\n}\n", encoding="utf-8")
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "a.cpp").write_text("void root_only() {\n}\n", encoding="utf-8")
+    line = resolve("a.cpp#root_only", repo_root=tmp_path, relative_to=docs_dir)
+    assert line == 2
+
+
+def test_resolve_without_relative_to_does_not_widen_to_doc_relative_paths(tmp_path):
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "sibling.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    with pytest.raises(FileNotFoundError):
+        resolve("sibling.cpp#f", repo_root=tmp_path)
