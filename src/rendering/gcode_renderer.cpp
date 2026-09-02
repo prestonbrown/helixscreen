@@ -308,16 +308,10 @@ std::optional<glm::vec2> GCodeRenderer::project_to_screen(const glm::vec3& world
 }
 
 bool GCodeRenderer::should_render_segment(const ToolpathSegment& segment) const {
-    // Filter by segment type
-    if (segment.is_extrusion && !options_.show_extrusions) {
-        return false;
-    }
-    if (!segment.is_extrusion && !options_.show_travels) {
-        return false;
-    }
-
-    // No further culling here - done in project_to_screen()
-    return true;
+    // The shared draw decision (auxiliary geometry never draws); this renderer
+    // has no support toggle, so support visibility follows the extrusion one.
+    return segment_drawable(segment, /*is_support=*/false, options_.show_extrusions,
+                            options_.show_extrusions, options_.show_travels);
 }
 
 bool GCodeRenderer::clip_line_to_viewport(glm::vec2& p1, glm::vec2& p2) const {

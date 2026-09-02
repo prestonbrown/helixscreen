@@ -737,18 +737,21 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             } else if (stored_range.valid) {
                 // A stored range solved on a rotated panel folds the rotation
                 // into (min,max,swap) and double-applies it at runtime
-                // (prestonbrown/helixscreen#1394). Rotation is read from
-                // config, not the display: the display is not rotated yet at
-                // backend init.
-                const int configured_rotation =
-                    helix::Config::get_instance()
-                        ? helix::Config::get_instance()->get<int>("/display/rotate", 0)
-                        : 0;
-                if (configured_rotation != 0) {
+                // (prestonbrown/helixscreen#1394). Asked of the display, not
+                // of `/display/rotate`, and via the same helper the
+                // calibration solver gates on - the key is only the request,
+                // and it differs from the applied rotation both ways (CLI/env
+                // rotation with no key; a failed DRM->fbdev rotation fallback
+                // leaving the key set on an unrotated display). This runs from
+                // create_input_pointer(), which DisplayManager calls after it
+                // applies rotation, so the display is already at its final
+                // rotation.
+                const int applied_rotation = display_rotation_degrees();
+                if (applied_rotation != 0) {
                     spdlog::warn("[DRM Backend] Ignoring stored touch range on a"
                                  " {}°-rotated display - solved through the rotation,"
                                  " affine-only path applies",
-                                 configured_rotation);
+                                 applied_rotation);
                 } else {
                     if (!env_swap_override) {
                         lv_evdev_set_swap_axes(pointer_, stored_range.swap_axes);

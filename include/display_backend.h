@@ -85,6 +85,52 @@ inline lv_display_rotation_t degrees_to_lv_rotation(int degrees) {
 }
 
 /**
+ * @brief Rotation the display is actually running at, in degrees
+ *
+ * The single source for "is the display rotated right now?" - the question
+ * the touch pipeline asks in two places that must agree: the calibration
+ * solver deciding whether an evdev range fit is safe to compute, and the
+ * backends deciding whether a stored range fit is safe to program
+ * (prestonbrown/helixscreen#1394).
+ *
+ * Reads LVGL rather than `/display/rotate`, because the config key is the
+ * REQUEST and the two disagree in both directions:
+ *
+ *  - `--rotate` / HELIX_DISPLAY_ROTATION with no `/display/rotate` key: the
+ *    display is rotated and the key reads 0.
+ *  - A DRM→fbdev rotation fallback that fails (DSI/EGL), or any rotation
+ *    asked for on SDL: the key is non-zero and the display is NOT rotated -
+ *    DisplayManager logs "Continuing without rotation" and leaves it at 0.
+ *
+ * A gate reading the key gets one of those wrong; two gates reading
+ * different sources disagree with each other.
+ *
+ * Ordering: DisplayManager::init() applies rotation before it creates the
+ * input devices, so a backend asking this from create_input_pointer() already
+ * sees the final state. apply_rotation() and the first-boot rotation probe
+ * both go through lv_display_set_rotation() as well, so a rotation changed
+ * after startup is picked up with no cached value to keep in sync.
+ *
+ * @param disp Display to query, or nullptr for the default display
+ * @return 0, 90, 180 or 270; 0 when there is no display
+ */
+inline int display_rotation_degrees(lv_display_t* disp = nullptr) {
+    lv_display_t* target = disp ? disp : lv_display_get_default();
+    return target ? static_cast<int>(lv_display_get_rotation(target)) * 90 : 0;
+}
+
+/**
+ * @brief Is the display actually rotated right now?
+ *
+ * @see display_rotation_degrees() for why this reads LVGL, not the config key
+ * @param disp Display to query, or nullptr for the default display
+ * @return true when the display is at 90, 180 or 270 degrees
+ */
+inline bool display_is_rotated(lv_display_t* disp = nullptr) {
+    return display_rotation_degrees(disp) != 0;
+}
+
+/**
  * @brief Detect panel orientation from kernel cmdline
  *
  * Parses /proc/cmdline for video=*:panel_orientation=* to determine if the

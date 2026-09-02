@@ -227,6 +227,35 @@ TEST_CASE_METHOD(HotReloadFixture, "stop without start is safe", "[hot-reload]")
     REQUIRE(hr.is_running() == false);
 }
 
+TEST_CASE_METHOD(HotReloadFixture, "stop does not wait out the poll interval", "[hot-reload]") {
+    // Every caller of stop() assumes it returns now, not one poll cycle from
+    // now: the destructor runs it during shutdown, and the tests below start
+    // with a long interval precisely to mean "never poll on your own, I will
+    // call scan_and_reload() myself". A poll thread that sleeps the interval
+    // and only then checks the flag makes both of those cost a full interval --
+    // which is why the [hot-reload] cases were eight of the ten slowest tests
+    // in the suite, at 10s each, and why every mutation-gate mutant paid 80
+    // seconds of pure sleep.
+    create_xml("panel.xml");
+
+    helix::XmlHotReloader hr;
+    hr.set_reload_callback([](const std::string&, const std::string&) {});
+    hr.start({temp_dir_.string()}, 10000);
+    REQUIRE(hr.is_running() == true);
+
+    // Let the poll thread reach its wait. Without this the race hides the bug:
+    // stop() clears the flag before the thread ever parks, so it exits at the
+    // top of the loop and the interval is never waited out at all.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    auto t0 = std::chrono::steady_clock::now();
+    hr.stop();
+    auto elapsed = std::chrono::steady_clock::now() - t0;
+
+    REQUIRE(hr.is_running() == false);
+    REQUIRE(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() < 1000);
+}
+
 TEST_CASE_METHOD(HotReloadFixture, "double stop is safe", "[hot-reload]") {
     create_xml("panel.xml");
 

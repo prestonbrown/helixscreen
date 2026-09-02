@@ -784,10 +784,10 @@ void GridEditMode::remove_selected_widget() {
     if (widget_id.find(':') != std::string::npos) {
         config_->delete_entry(widget_id);
     } else {
-        // Use page-scoped entry access instead of set_enabled() which only operates on page 0
+        // Use page-scoped entry access instead of set_enabled() which only operates on page 0.
         config_
             ->page_entries_mut(static_cast<size_t>(page_index_))[static_cast<size_t>(config_index)]
-            .enabled = false;
+            .disable_and_unplace();
     }
 
     // Deselect before rebuild. Null out overlay pointers since

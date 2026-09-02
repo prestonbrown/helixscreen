@@ -69,6 +69,15 @@ class WiFiManagerTestAccess {
         return wm.scan_scheduler_.should_trigger();
     }
 
+    /// The backend object the manager is currently driving. Tests read its
+    /// dynamic type after an INIT_FAILED to tell a real fallback swap from an
+    /// untouched backend — an address comparison would not, since the
+    /// replacement is allocated after the old backend is freed and routinely
+    /// lands on the same bytes.
+    static WifiBackend* backend(const WiFiManager& wm) {
+        return wm.backend_.get();
+    }
+
     static bool grace_pending(WiFiManager& wm) {
         return wm.auth_fail_grace_timer_ != nullptr;
     }

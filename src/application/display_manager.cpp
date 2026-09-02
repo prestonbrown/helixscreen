@@ -320,6 +320,13 @@ bool DisplayManager::init(const Config& config) {
     // Apply display rotation if configured.
     // Must happen AFTER display creation but BEFORE UI init so layout uses
     // the rotated resolution. LVGL auto-swaps width/height when rotation is set.
+    //
+    // Also before create_input_pointer() below, deliberately: the backends'
+    // stored-touch-range gate asks display_rotation_degrees() (the same helper
+    // the calibration solver gates on, #1394), and that reads the display
+    // rather than `/display/rotate` precisely because the block below draws
+    // on three inputs the key does not see. Move input creation above this
+    // block and both gates go blind again.
     {
         // CLI/config rotation (passed via Config struct)
         int rotation_degrees = config.rotation;
@@ -361,6 +368,11 @@ bool DisplayManager::init(const Config& config) {
                 // Fallback failed (EGL/DSI display without fbdev).
                 // Continue without rotation rather than aborting — a
                 // working unrotated display is better than no display.
+                // lv_display_set_rotation() is deliberately NOT called, which
+                // is what makes the display the honest source: `/display/rotate`
+                // still says 90/180/270 here while nothing is rotated, and a
+                // gate believing the key would throw away a perfectly good
+                // stored touch range on every boot of such a unit.
                 spdlog::warn("[DisplayManager] Continuing without rotation. "
                              "For DSI/EGL displays, use panel_orientation in "
                              "/boot/firmware/cmdline.txt instead.");

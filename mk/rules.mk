@@ -285,7 +285,13 @@ endif
 # unit; off_t crosses no TU boundary here (see the comment in the source).
 # Side effect: the flags no longer match $(PCH), so this object re-parses
 # lvgl_pch.h from source instead of using the precompiled copy.
-$(OBJ_DIR)/rendering/gcode_data_source.o: CXXFLAGS += -D_FILE_OFFSET_BITS=64
+#
+# `override` is load-bearing: the sanitizer targets re-invoke make with CXXFLAGS
+# on the command line, and a command-line variable discards every makefile
+# assignment to it - target-specific ones included - unless the assignment says
+# so. Nothing else supplies this define, so without the keyword the object
+# compiles with a 32-bit off_t wherever that route is taken.
+$(OBJ_DIR)/rendering/gcode_data_source.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
 
 # Compile app Objective-C++ sources (macOS .mm files)
 # Uses DEPFLAGS to generate .d files for header dependency tracking

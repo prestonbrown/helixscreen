@@ -20,8 +20,13 @@ TEST_CASE("MemoryThresholds for constrained device", "[memory_monitor]") {
 
     auto t = MemoryThresholds::for_device(info);
 
-    REQUIRE(t.warn_rss_kb == 30 * 1024);
-    REQUIRE(t.critical_rss_kb == 40 * 1024);
+    // Constrained tier scales like every other tier, with 30MB/40MB floors:
+    //   warn = max(30MB, total * 30%), critical = max(40MB, total * 50%)
+    // At 110MB the scaled values win (33MB / 55MB).
+    REQUIRE(t.warn_rss_kb == info.total_kb * 30 / 100);
+    REQUIRE(t.critical_rss_kb == info.total_kb * 50 / 100);
+    REQUIRE(t.warn_rss_kb == 33u * 1024);
+    REQUIRE(t.critical_rss_kb == 55u * 1024);
     REQUIRE(t.warn_available_kb == 15 * 1024);
     REQUIRE(t.critical_available_kb == 8 * 1024);
     REQUIRE(t.growth_5min_kb == 1 * 1024);
@@ -40,8 +45,11 @@ TEST_CASE("MemoryThresholds for normal device", "[memory_monitor]") {
 
     auto t = MemoryThresholds::for_device(info);
 
-    REQUIRE(t.warn_rss_kb == 120 * 1024);
-    REQUIRE(t.critical_rss_kb == 180 * 1024);
+    // Normal tier: warn = max(120MB, 30%), critical = max(180MB, 50%).
+    // At 400MB, 30% = 120MB ties the floor and 50% = 200MB beats it.
+    REQUIRE(t.warn_rss_kb == 120u * 1024);
+    REQUIRE(t.critical_rss_kb == info.total_kb * 50 / 100);
+    REQUIRE(t.critical_rss_kb == 200u * 1024);
 }
 
 TEST_CASE("MemoryThresholds for good device", "[memory_monitor]") {
@@ -180,12 +188,80 @@ TEST_CASE("compute_pressure_level: growth still warns constrained device under l
     auto t = MemoryThresholds::for_device(sys);
 
     MemoryStats stats;
-    stats.vm_rss_kb = 25 * 1024; // Above warn_rss/2 (15MB) but under warn_rss (30MB)
+    stats.vm_rss_kb = 25 * 1024; // Above warn_rss/2 (16.5MB) but under warn_rss (33MB)
 
     int64_t growth = static_cast<int64_t>(t.growth_5min_kb) + 512;
 
     auto level = compute_pressure_level(stats, t, MemoryPressureLevel::none, sys, growth);
     REQUIRE(level == MemoryPressureLevel::elevated);
+}
+
+TEST_CASE("MemoryThresholds: a 209MB K1 does not warn at its own steady-state RSS",
+          "[memory_monitor]") {
+    // The constrained band spans 2x in RAM (AD5M ~110MB to K1/K1C ~209-214MB),
+    // and its flat 30MB warn threshold was chosen for the small end. On the K1
+    // the app's steady state is 27-30MB, so the trigger sat AT steady state and
+    // the 90% clear threshold (27MB) sat BELOW it: once tripped, the warning
+    // could never clear. Field evidence (bundle 5J49T5RU, 66 minutes): a memory
+    // warning every 5 minutes with 130MB free, 10 pressure dispatches, every
+    // one completing +0kB, one of them destroying the print-status overlay tree.
+    MemoryInfo sys;
+    sys.total_kb = 209 * 1024;     // Creality K1 as reported by the firmware
+    sys.available_kb = 130 * 1024; // healthy: the box is not short of memory
+    REQUIRE(sys.is_constrained_device());
+
+    auto t = MemoryThresholds::for_device(sys);
+
+    // Steady state must sit below the CLEAR threshold, not merely below the
+    // trigger - otherwise the level latches on the hysteresis hold arm.
+    REQUIRE(t.clear_warn_rss_kb > 30u * 1024);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = 30 * 1024; // top of the observed 27-30MB steady range
+
+    // Cold: no warning.
+    REQUIRE(compute_pressure_level(stats, t, MemoryPressureLevel::none, sys, 0) ==
+            MemoryPressureLevel::none);
+
+    // And critically, it does not HOLD one either. Passing warning as the
+    // current level is what the latch looked like in the field: every 5-minute
+    // sample re-entered with warning and the hold arm handed it straight back.
+    REQUIRE(compute_pressure_level(stats, t, MemoryPressureLevel::warning, sys, 0) ==
+            MemoryPressureLevel::none);
+
+    // The growth gate must be shut too. near_rss_limit = RSS >= warn_rss/2 was
+    // permanently true at 15MB, so any 1MB drift escalated to elevated.
+    REQUIRE(stats.vm_rss_kb < t.warn_rss_kb / 2);
+    const int64_t drift = static_cast<int64_t>(t.growth_5min_kb) + 512;
+    REQUIRE(compute_pressure_level(stats, t, MemoryPressureLevel::none, sys, drift) ==
+            MemoryPressureLevel::none);
+}
+
+TEST_CASE("MemoryThresholds: scaling never lowers a threshold below its band floor",
+          "[memory_monitor]") {
+    // The scaling is std::max against the old flat value, so no device that was
+    // quiet before can start warning. Check the small end of each band, where
+    // the floor is what wins.
+    struct Case {
+        size_t total_mb;
+        size_t min_warn_mb;
+        size_t min_crit_mb;
+    };
+    // 64MB and 200MB are constrained; 256MB normal; 448MB and 512MB good.
+    const Case cases[] = {
+        {64, 30, 40}, {200, 30, 40}, {256, 120, 180}, {448, 180, 230}, {512, 180, 230}};
+
+    for (const auto& c : cases) {
+        MemoryInfo info;
+        info.total_kb = c.total_mb * 1024;
+        info.available_kb = info.total_kb / 2;
+        auto t = MemoryThresholds::for_device(info);
+        INFO("total_mb=" << c.total_mb);
+        REQUIRE(t.warn_rss_kb >= c.min_warn_mb * 1024);
+        REQUIRE(t.critical_rss_kb >= c.min_crit_mb * 1024);
+        REQUIRE(t.critical_rss_kb > t.warn_rss_kb);
+        REQUIRE(t.clear_warn_rss_kb < t.warn_rss_kb);
+    }
 }
 
 TEST_CASE("compute_pressure_level: available memory triggers warning", "[memory_monitor]") {

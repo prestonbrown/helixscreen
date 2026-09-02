@@ -1619,8 +1619,13 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # wifi_signal_percent_from_dbm, and an AmsBackend forward declaration - each
   # beside global-scope siblings in its own file. +2 for the main-side sync:
   # ui_gcode_viewer_set_thumbnail_parity (declaration + definition), another
-  # member of the global ui_gcode_viewer_* C-API family.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2328 --summary >/tmp/namespace_check.out 2>&1; then
+  # member of the global ui_gcode_viewer_* C-API family. 2328 -> 2334 is the
+  # 2026-09-02 sync's six: display_backend.h's display_is_rotated and
+  # display_rotation_degrees, beside the global inline rotation helpers already
+  # counted there, and ui_gcode_viewer_clear_tool_colors and
+  # ui_gcode_viewer_get_tool_colors (declaration + definition each), two more of
+  # the same global ui_gcode_viewer_* C-API family.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2334 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -1978,6 +1983,84 @@ else
   section_time $SECTION_START
   echo ""
   echo "⚠️  check_gcode_lfs.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🔧 Checking target-specific flag rules use override..."
+
+# test-asan/test-tsan re-invoke make with CXXFLAGS on the command line, and a
+# command-line variable discards makefile assignments to it unless they say
+# override. A rule missing the keyword builds its object without the flag, with
+# no diagnostic and with the rule still visibly present in the makefile.
+if [ -f "scripts/check_target_specific_override.py" ]; then
+  if python3 scripts/check_target_specific_override.py >/tmp/tgt_override.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ every target-specific flag rule uses override"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/tgt_override.out
+    echo "   Run: python3 scripts/check_target_specific_override.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_target_specific_override.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(start_section)
+echo -n "🔄 Checking touch-range rotation source..."
+
+# The gate lives in create_input_pointer(), which needs a real fbdev/DRM device
+# and cannot run headless - mutation testing confirmed no test kills a revert to
+# the config key. A backend reading /display/rotate instead of the applied
+# rotation leaves #1394 live on any unit rotated via CLI/env.
+if [ -f "scripts/check_touch_rotation_source.py" ]; then
+  if python3 scripts/check_touch_rotation_source.py >/tmp/touch_rotation.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ display backends gate the stored touch range on the applied rotation"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/touch_rotation.out
+    echo "   Run: python3 scripts/check_touch_rotation_source.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_touch_rotation_source.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(start_section)
+echo -n "🕰️  Checking comments for commit-SHA citations..."
+
+# Ratchet. Comments explain the code as it is; how it got here belongs in the
+# commit message, where git blame will surface it on demand.
+if [ -f "scripts/check_comment_archaeology.py" ]; then
+  if python3 scripts/check_comment_archaeology.py >/tmp/comment_arch.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ no new commit-SHA citations in comments"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/comment_arch.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_comment_archaeology.py not found — skipping"
 fi
 
 echo ""

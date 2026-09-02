@@ -302,6 +302,83 @@ TEST_CASE("Palette: a shorter override vector does not truncate the slicer palet
     REQUIRE(lv_color_to_u32(pal.resolve(2, sentinel)) != lv_color_to_u32(sentinel));
 }
 
+TEST_CASE("Palette: an empty interior slot keeps its index instead of compacting",
+          "[gcode][toolchanger][palette]") {
+    // set_from_hex_palette() used to SKIP entries it could not parse, so a
+    // slot-aligned palette collapsed and every tool past the gap inherited its
+    // neighbour's colour: {"#A", "", "#B"} became size 2, tool 1 rendered #B,
+    // and tool 2 fell off the end to the fallback. The 3D builder indexes the
+    // original strings and painted the same file correctly - one file, two
+    // renderers, two answers. gcode_color_metadata.h guarantees the palette is
+    // slot-aligned ("#A;;#B" -> {"#A", "", "#B"}), so this must preserve it.
+    GCodeColorPalette pal;
+    pal.set_from_hex_palette({"#FF0000", "", "#0000FF"});
+
+    const lv_color_t sentinel = lv_color_hex(0x123456);
+    REQUIRE(pal.tool_colors.size() == 3);
+    REQUIRE(lv_color_to_u32(pal.resolve(0, sentinel)) == lv_color_to_u32(lv_color_hex(0xFF0000)));
+    // Tool 1 has no colour of its own: it must fall through to the caller's
+    // fallback, and specifically must NOT have inherited tool 2's blue.
+    REQUIRE(lv_color_to_u32(pal.resolve(1, sentinel)) == lv_color_to_u32(sentinel));
+    REQUIRE(lv_color_to_u32(pal.resolve(1, sentinel)) != lv_color_to_u32(lv_color_hex(0x0000FF)));
+    // Tool 2 still answers from its own slot, not from off the end.
+    REQUIRE(lv_color_to_u32(pal.resolve(2, sentinel)) == lv_color_to_u32(lv_color_hex(0x0000FF)));
+}
+
+TEST_CASE("Palette: an unparseable entry occupies its slot without answering",
+          "[gcode][toolchanger][palette]") {
+    // A bare '#' and a non-hex blob are both reachable: the palette splitter
+    // emits an empty string for a token it rejects, and callers can hand this
+    // whatever the slicer wrote. Each must hold its slot and answer nothing.
+    GCodeColorPalette pal;
+    pal.set_from_hex_palette({"#FF0000", "#", "nonsense", "#0000FF"});
+
+    const lv_color_t sentinel = lv_color_hex(0x123456);
+    REQUIRE(pal.tool_colors.size() == 4);
+    REQUIRE(lv_color_to_u32(pal.resolve(1, sentinel)) == lv_color_to_u32(sentinel));
+    REQUIRE(lv_color_to_u32(pal.resolve(2, sentinel)) == lv_color_to_u32(sentinel));
+    REQUIRE(lv_color_to_u32(pal.resolve(3, sentinel)) == lv_color_to_u32(lv_color_hex(0x0000FF)));
+}
+
+TEST_CASE("Palette: an 8-digit RGBA entry resolves to its RGB", "[gcode][toolchanger][palette]") {
+    // Slicers emit #RRGGBBAA and the metadata parser accepts it, so it reaches
+    // the palette. The old strtol spelling shifted every channel one byte left.
+    GCodeColorPalette pal;
+    pal.set_from_hex_palette({"#800080FF", "#00C1AE"});
+
+    const lv_color_t sentinel = lv_color_hex(0x123456);
+    REQUIRE(lv_color_to_u32(pal.resolve(0, sentinel)) == lv_color_to_u32(lv_color_hex(0x800080)));
+    REQUIRE(lv_color_to_u32(pal.resolve(0, sentinel)) != lv_color_to_u32(lv_color_hex(0x0080FF)));
+    REQUIRE(lv_color_to_u32(pal.resolve(1, sentinel)) == lv_color_to_u32(lv_color_hex(0x00C1AE)));
+}
+
+TEST_CASE("Palette: an override fills a gap without inventing colours elsewhere",
+          "[gcode][toolchanger][palette]") {
+    // apply_overrides() grows with resize(), which introduces slots holding no
+    // colour. A grown-but-not-overridden slot must keep falling through rather
+    // than reporting the value-initialised black a plain lv_color_t would give.
+    GCodeColorPalette pal;
+    pal.set_from_hex_palette({"#FF0000", "", "#0000FF"});
+    pal.apply_overrides({0xAAAAAA, 0xBBBBBB});
+
+    const lv_color_t sentinel = lv_color_hex(0x123456);
+    REQUIRE(pal.tool_colors.size() == 3);
+    REQUIRE(lv_color_to_u32(pal.resolve(1, sentinel)) == lv_color_to_u32(lv_color_hex(0xBBBBBB)));
+    REQUIRE(lv_color_to_u32(pal.resolve(2, sentinel)) == lv_color_to_u32(lv_color_hex(0x0000FF)));
+}
+
+TEST_CASE("Palette: growth past the slicer palette leaves the new slots unanswered",
+          "[gcode][toolchanger][palette]") {
+    GCodeColorPalette pal;
+    pal.set_from_hex_palette({"#FF0000"});
+    pal.tool_colors.resize(3); // what apply_overrides() does before it assigns
+
+    const lv_color_t sentinel = lv_color_hex(0x123456);
+    REQUIRE(lv_color_to_u32(pal.resolve(0, sentinel)) == lv_color_to_u32(lv_color_hex(0xFF0000)));
+    REQUIRE(lv_color_to_u32(pal.resolve(2, sentinel)) == lv_color_to_u32(sentinel));
+    REQUIRE(lv_color_to_u32(pal.resolve(2, sentinel)) != lv_color_to_u32(lv_color_hex(0x000000)));
+}
+
 TEST_CASE("Palette: a longer override vector still grows the palette",
           "[gcode][toolchanger][palette]") {
     GCodeColorPalette pal;

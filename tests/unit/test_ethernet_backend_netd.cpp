@@ -19,6 +19,9 @@
 
 #include <array>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -362,6 +365,108 @@ TEST_CASE_METHOD(EthernetNetdFixture, "netd ethernet factory selects the netd ba
     REQUIRE(spoke);
     REQUIRE(info.connected);
     REQUIRE(info.ip_address == "10.0.0.7");
+}
+
+// ============================================================================
+// The default kernel reader is built ONCE per backend, not once per poll.
+//
+// ~EthernetBackendLinux writes an unconditional line to stderr (it can run
+// during static teardown, when spdlog may already be gone, so it cannot use a
+// level and no verbosity flag can silence it). A reader constructed inside
+// get_info() therefore printed that line on every ethernet refresh. Counting
+// the line is also the only externally visible evidence of how many readers
+// were built, so this case captures stderr around the whole lifetime:
+// three polls plus the backend's own destruction must produce exactly one.
+//
+// Deliberately NOT the fixture: this needs the constructor's own default
+// reader, which the fixture replaces with a host-independent stub.
+// ============================================================================
+namespace {
+
+/// Redirects stderr into a temp file for the object's lifetime. RAII rather
+/// than a scoped helper function so a failed assertion inside the measured
+/// block still restores the real stderr.
+class StderrCapture {
+  public:
+    StderrCapture() {
+        std::strncpy(path_, "/tmp/helix_eth_stderr_XXXXXX", sizeof(path_) - 1);
+        fd_ = ::mkstemp(path_);
+        if (fd_ < 0)
+            return;
+        std::fflush(stderr);
+        saved_ = ::dup(STDERR_FILENO);
+        if (saved_ >= 0)
+            ::dup2(fd_, STDERR_FILENO);
+    }
+    ~StderrCapture() {
+        restore();
+        if (fd_ >= 0)
+            ::close(fd_);
+        ::unlink(path_);
+    }
+    StderrCapture(const StderrCapture&) = delete;
+    StderrCapture& operator=(const StderrCapture&) = delete;
+
+    /// Everything written to stderr since construction. Restores the real
+    /// stderr first, so assertions on the result print where they should.
+    std::string text() {
+        restore();
+        std::string out;
+        if (fd_ < 0)
+            return out;
+        ::lseek(fd_, 0, SEEK_SET);
+        char buffer[4096];
+        ssize_t n = 0;
+        while ((n = ::read(fd_, buffer, sizeof(buffer))) > 0)
+            out.append(buffer, static_cast<size_t>(n));
+        return out;
+    }
+
+  private:
+    void restore() {
+        if (saved_ < 0)
+            return;
+        std::fflush(stderr);
+        ::dup2(saved_, STDERR_FILENO);
+        ::close(saved_);
+        saved_ = -1;
+    }
+    char path_[64]{};
+    int fd_ = -1;
+    int saved_ = -1;
+};
+
+size_t count_occurrences(const std::string& haystack, const std::string& needle) {
+    size_t count = 0;
+    for (size_t pos = haystack.find(needle); pos != std::string::npos;
+         pos = haystack.find(needle, pos + needle.size()))
+        ++count;
+    return count;
+}
+
+} // namespace
+
+TEST_CASE("netd ethernet builds one kernel reader, not one per poll", "[netd][ethernet]") {
+    // Point the daemon query at a path that does not exist: connect fails
+    // immediately instead of waiting out a read timeout. The daemon half is
+    // not what this case measures — the kernel reader is.
+    helix_test::EnvVarGuard sock_env{"HELIX_NETD_SOCKET"};
+    const std::string absent = "/tmp/helix_netd_absent_" + std::to_string(::getpid()) + ".sock";
+    ::unlink(absent.c_str());
+    sock_env.set(absent);
+
+    StderrCapture capture;
+    {
+        // Default kernel_state: the constructor picks the real reader.
+        EthernetBackendNetd backend;
+        for (int poll = 0; poll < 3; ++poll)
+            (void)backend.get_info();
+    }
+    const std::string log = capture.text();
+
+    // One reader, destroyed once with the backend. A reader built per call
+    // wrote this line three times instead — once per get_info().
+    REQUIRE(count_occurrences(log, "[EthernetLinux] Linux backend destroyed") == 1);
 }
 
 #endif // !__ANDROID__ && !__APPLE__

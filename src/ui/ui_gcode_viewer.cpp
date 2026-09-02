@@ -11,6 +11,7 @@
 
 #include "ams_state.h"
 #include "app_constants.h"
+#include "color_utils.h"
 #include "config.h"
 #include "gcode_camera.h"
 #include "gcode_color_metadata.h"
@@ -490,11 +491,17 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
     helix::gcode::GeometryBudgetManager budget_mgr;
     size_t available_kb = budget_mgr.read_system_available_kb();
     size_t budget = budget_mgr.calculate_budget(available_kb);
-    auto budget_config = budget_mgr.select_tier(file.total_segments, budget);
+    // Size the tier on what the builder will actually build. GeometryBuilder
+    // drops auxiliary (purge / prime tower) segments, so estimating from
+    // total_segments charged the budget for mass that never becomes geometry
+    // and could downgrade tubes - or refuse 3D outright - on a tower-heavy
+    // multi-color file.
+    auto budget_config = budget_mgr.select_tier(file.drawable_segments, budget);
 
-    spdlog::info("[GCode Viewer] {}: {}MB available, {}MB budget, {} segments -> tier {}",
-                 context_tag, available_kb / 1024, budget / (1024 * 1024), file.total_segments,
-                 budget_config.tier);
+    spdlog::info(
+        "[GCode Viewer] {}: {}MB available, {}MB budget, {} drawable of {} segments -> tier {}",
+        context_tag, available_kb / 1024, budget / (1024 * 1024), file.drawable_segments,
+        file.total_segments, budget_config.tier);
 
     if (budget_config.tier > 3) {
         spdlog::info("[GCode Viewer] {}: tier {} — skipping 3D geometry build", context_tag,
@@ -566,9 +573,14 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
     const auto file_colors = helix::gcode::classify_file_colors(st->gcode_file->tool_color_palette,
                                                                 st->gcode_file->filament_color_hex);
 
-    if (file_colors.has_palette()) {
-        st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
-    }
+    // Unconditional, including an EMPTY palette. This function is the one place
+    // that rebuilds the 2D renderer's colors from the file, so it is also the
+    // retraction path (ui_gcode_viewer_clear_tool_colors) and the re-load path.
+    // Skipping the call when the file names no palette left whatever was there
+    // before - a previous file's palette, or AMS overrides applied over it -
+    // still resolving per tool. set_tool_color_palette() no-ops cheaply when
+    // there is genuinely nothing to install and nothing to clear.
+    st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
 
     if (!st->tool_color_overrides.empty()) {
         st->layer_renderer_2d_->set_tool_color_overrides(st->tool_color_overrides);
@@ -578,11 +590,16 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
         st->layer_renderer_2d_->set_extrusion_color(st->external_color_override);
         spdlog::debug("[GCode Viewer] 2D renderer using external color override");
     } else if (st->use_filament_color && file_colors.has_single_color()) {
-        lv_color_t color = lv_color_hex(
-            static_cast<uint32_t>(std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-        st->layer_renderer_2d_->set_extrusion_color(color);
-        spdlog::debug("[GCode Viewer] 2D renderer using filament color: {}",
-                      file_colors.single_color);
+        uint32_t rgb = 0;
+        if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+            st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
+            spdlog::debug("[GCode Viewer] 2D renderer using filament color: {}",
+                          file_colors.single_color);
+        } else {
+            spdlog::warn("[GCode Viewer] 2D renderer: unusable filament color '{}' - "
+                         "keeping current extrusion color",
+                         file_colors.single_color);
+        }
     }
 }
 
@@ -1674,13 +1691,18 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                          "(size={}, initial_tool={})",
                                          file_colors.palette.size(), file_colors.initial_tool);
                         } else if (file_colors.has_single_color()) {
-                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-                            st->layer_renderer_2d_->set_extrusion_color(color);
-                            spdlog::info("[GCode Viewer] Using filament color from metadata: "
-                                         "{} (tool={}, palette={})",
-                                         file_colors.single_color, file_colors.initial_tool,
-                                         stats.filament_palette.size());
+                            uint32_t rgb = 0;
+                            if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+                                st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
+                                spdlog::info("[GCode Viewer] Using filament color from metadata: "
+                                             "{} (tool={}, palette={})",
+                                             file_colors.single_color, file_colors.initial_tool,
+                                             stats.filament_palette.size());
+                            } else {
+                                spdlog::warn("[GCode Viewer] Unusable filament color '{}' in "
+                                             "metadata - keeping current extrusion color",
+                                             file_colors.single_color);
+                            }
                         }
                     }
 
@@ -1930,12 +1952,13 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                             st->layer_renderer_2d_->set_extrusion_color(
                                 st->external_color_override);
                         } else if (file_colors.has_single_color()) {
-                            // >= 2 chars (one hex digit past '#'), the check the
-                            // other load sites already used; this site's old
-                            // !empty() accepted a bare '#' and painted black.
-                            lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-                                std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-                            st->layer_renderer_2d_->set_extrusion_color(color);
+                            // has_single_color() only proves non-empty. The digit
+                            // count is checked by the parser, which is why a bare
+                            // '#' no longer reaches lv_color_hex and paints black.
+                            uint32_t rgb = 0;
+                            if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+                                st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
+                            }
                         }
 
                         st->layer_renderer_2d_->auto_fit();
@@ -1974,14 +1997,20 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         spdlog::debug(
                             "[GCode Viewer] Applied external color override (AMS/Spoolman)");
                     } else if (st->use_filament_color && file_colors.has_single_color()) {
-                        lv_color_t color = lv_color_hex(static_cast<uint32_t>(
-                            std::strtol(file_colors.single_color.c_str() + 1, nullptr, 16)));
-                        st->renderer_->set_extrusion_color(color);
-                        if (st->layer_renderer_2d_) {
-                            st->layer_renderer_2d_->set_extrusion_color(color);
+                        uint32_t rgb = 0;
+                        if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
+                            const lv_color_t color = lv_color_hex(rgb);
+                            st->renderer_->set_extrusion_color(color);
+                            if (st->layer_renderer_2d_) {
+                                st->layer_renderer_2d_->set_extrusion_color(color);
+                            }
+                            spdlog::debug("[GCode Viewer] Applied filament color: {}",
+                                          file_colors.single_color);
+                        } else {
+                            spdlog::warn("[GCode Viewer] Unusable filament color '{}' - "
+                                         "keeping current extrusion color",
+                                         file_colors.single_color);
                         }
-                        spdlog::debug("[GCode Viewer] Applied filament color: {}",
-                                      file_colors.single_color);
                     }
 
                     // Clear first_render flag to allow actual rendering on next draw
@@ -2485,6 +2514,48 @@ void ui_gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>&
     spdlog::debug("[GCode Viewer] Applied {} per-tool AMS color overrides", colors.size());
 }
 
+void ui_gcode_viewer_clear_tool_colors(lv_obj_t* obj) {
+    if (!obj) {
+        return;
+    }
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st || st->tool_color_overrides.empty()) {
+        return;
+    }
+
+    // Retraction needs its own entry point rather than set_tool_colors(obj, {}):
+    // an empty vector already means "no information" everywhere below, and every
+    // layer correctly refuses to act on it so that a FIRST apply with no AMS data
+    // leaves the slicer palette alone. The two meanings cannot share a call.
+    st->tool_color_overrides.clear();
+
+#ifdef ENABLE_3D_RENDERER
+    // 3D: the overrides were written into the baked palette in place, so only
+    // the renderer's own snapshot can put the slicer colors back.
+    st->renderer_->clear_tool_color_overrides();
+#endif
+
+    // 2D: rebuild palette-then-override from the file. With tool_color_overrides
+    // now empty this lands on the slicer palette, or the single filament color -
+    // the same fallback order a fresh load takes, which is why it reuses the
+    // loader's helper instead of restating it.
+    apply_2d_renderer_colors(st);
+
+    lv_obj_invalidate(obj);
+    spdlog::debug("[GCode Viewer] Retracted per-tool AMS color overrides");
+}
+
+std::vector<uint32_t> ui_gcode_viewer_get_tool_colors(lv_obj_t* obj) {
+    if (!obj) {
+        return {};
+    }
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    return st->tool_color_overrides;
+}
+
 bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
     if (!obj) {
         return false;
@@ -2501,10 +2572,7 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
         // answer may still be applied as overrides, and returning false alone
         // would leave those lane colors frozen on the renderer for the rest
         // of the file instead of falling back to the slicer palette.
-        gcode_viewer_state_t* st = get_state(obj);
-        if (st && !st->tool_color_overrides.empty()) {
-            ui_gcode_viewer_set_tool_colors(obj, {});
-        }
+        ui_gcode_viewer_clear_tool_colors(obj);
         return false;
     }
     ui_gcode_viewer_set_tool_colors(obj, colors);

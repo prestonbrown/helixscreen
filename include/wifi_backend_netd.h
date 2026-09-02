@@ -108,6 +108,8 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     bool supports_5ghz() const override;
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;
+    bool supports_radio_toggle() const override;
+    bool supports_wpa_supplicant_fallback() const override;
 
   private:
     // ========================================================================
@@ -188,6 +190,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     // ========================================================================
     // Write path (any thread)
     // ========================================================================
+
+    /// True while a daemon connection is actually open. is_running() is
+    /// deliberately blind to socket loss (the reconnect timer owns that), so
+    /// anything that answers a caller from local state INSTEAD of going to
+    /// the wire has to ask this too — otherwise a dead daemon's stale
+    /// snapshot becomes a verdict nothing ever confirmed. Any thread.
+    bool connection_live();
 
     /// Non-blocking send under cmd_mutex_ for EXTERNAL threads. Commands are
     /// tiny, so a send that cannot complete immediately means a wedged
@@ -313,6 +322,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     std::atomic<bool> seen_5ghz_network_{false};
     /// Guards emit_init_failed_once()'s at-most-once dispatch per attempt.
     std::atomic<bool> init_failed_dispatched_{false};
+    /// The daemon's socket could not be reached on the last connect attempt.
+    /// This is the ONLY evidence that admits a wpa_supplicant fallback: a
+    /// daemon that answers the connect owns the radio, the supplicant and
+    /// DHCP, whatever else may have failed afterwards. Written on the loop
+    /// thread by open_connection(), read from the manager's thread through
+    /// supports_wpa_supplicant_fallback().
+    std::atomic<bool> daemon_unreachable_{false};
     bool was_connected_ = false; ///< loop thread only (snapshot state diff)
 
     // Timers and liveness bookkeeping. Loop thread only.

@@ -27,6 +27,38 @@ constexpr helix::GridDimensions kGrid6x4{6, 4};
 
 using namespace helix;
 
+TEST_CASE("PanelWidgetEntry::disable_and_unplace surrenders the cell with the flag",
+          "[grid_edit][panel_widget_config]") {
+    // #1414. save() persists col/row for every entry regardless of `enabled`,
+    // so switching a widget off without clearing its coordinates leaves a claim
+    // on a cell nothing draws in. The anchored pass looks entries up by id, so
+    // that stale claim could be handed to the synthesized firmware_restart tile
+    // and knock a user-anchored widget off its saved rectangle. Four call sites
+    // wrote this pairing by hand and one of them (the grid-edit removal path)
+    // dropped the coordinate half - hence one rule, one place.
+    PanelWidgetEntry e;
+    e.id = "print_status";
+    e.enabled = true;
+    e.col = 4;
+    e.row = 1;
+    e.colspan = 3;
+    e.rowspan = 3;
+    REQUIRE(e.has_grid_position());
+
+    e.disable_and_unplace();
+
+    CHECK_FALSE(e.enabled);
+    CHECK(e.col == -1);
+    CHECK(e.row == -1);
+    // has_grid_position() is what the anchored pass gates on, so this is the
+    // property that actually matters: the entry must no longer claim a cell.
+    CHECK_FALSE(e.has_grid_position());
+    // Spans are the widget's authored size, not a claim on the grid - an entry
+    // re-enabled later should come back at its own size, so they survive.
+    CHECK(e.colspan == 3);
+    CHECK(e.rowspan == 3);
+}
+
 TEST_CASE("GridEditMode: starts inactive", "[grid_edit][edit_mode]") {
     GridEditMode em;
     REQUIRE_FALSE(em.is_active());

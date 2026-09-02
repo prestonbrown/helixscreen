@@ -137,8 +137,13 @@ GCodeObjectThumbnailRenderer::render_impl(const ParsedGCodeFile* gcode, int thum
 
         const auto& layer = gcode->layers[layer_idx];
         for (const auto& seg : layer.segments) {
-            // Skip non-extrusion and unnamed segments
-            if (!seg.is_extrusion || seg.object_name_index < 0) {
+            // Skip non-extrusion, unnamed, and auxiliary segments: the main
+            // previews do not draw purge or prime tower geometry, and a
+            // thumbnail framing the object against its own box must not
+            // either (tower extrusion inside an EXCLUDE_OBJECT region carries
+            // the object's name, so the object filter alone lets it through).
+            if (!seg.is_extrusion || seg.object_name_index < 0 ||
+                is_auxiliary_geometry(seg.feature_type)) {
                 continue;
             }
 

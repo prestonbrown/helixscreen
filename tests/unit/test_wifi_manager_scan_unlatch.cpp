@@ -3,15 +3,20 @@
 
 /**
  * @file test_wifi_manager_scan_unlatch.cpp
- * @brief Regression test for helixscreen#1405 — a backend swap mid-scan must
- *        unlatch the scan scheduler.
+ * @brief The gate that decides whether a failed backend is swapped for
+ *        wpa_supplicant, and the scan latch that swap must resolve.
  *
- * WiFiManager's NM->wpa_supplicant fallback swaps the backend object when the
- * NetworkManager backend reports INIT_FAILED. A scan that was outstanding on
- * the old backend can never receive its SCAN_COMPLETE after the swap, and
- * ScanScheduler latches on "a scan is outstanding", so should_trigger() stays
- * false for the rest of the scan session — periodic scanning silently dies on
- * the network settings page.
+ * WiFiManager replaces a backend that reports INIT_FAILED with wpa_supplicant
+ * when — and only when — that backend answers
+ * supports_wpa_supplicant_fallback(). A backend whose radio, supplicant and
+ * DHCP are owned by something still alive answers false and must be left in
+ * place: two clients on one radio is worse than no WiFi.
+ *
+ * The swap carries a second obligation. A scan outstanding on the old backend
+ * can never receive its SCAN_COMPLETE afterwards, and ScanScheduler latches on
+ * "a scan is outstanding", so should_trigger() would stay false for the rest of
+ * the scan session and periodic scanning silently dies on the network settings
+ * page (prestonbrown/helixscreen#1405).
  *
  * The manager owns the latch, so the manager resolves it when it stops or
  * swaps the backend; a backend that merely re-establishes its own connection
@@ -26,6 +31,7 @@
 #include "../ui_test_utils.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
+#include "wifi_backend_wpa_supplicant.h"
 #include "wifi_manager.h"
 
 #include <memory>
@@ -36,8 +42,9 @@
 
 using namespace helix;
 
-// The NM->wpa fallback only exists on the Linux desktop path; other platforms
-// compile the swap out entirely (wifi_manager.cpp guards it the same way).
+// The wpa_supplicant fallback only exists on the Linux desktop path; other
+// platforms compile the swap out entirely (wifi_manager.cpp guards it the same
+// way).
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
 
 namespace {
@@ -64,15 +71,14 @@ struct ScanUnlatchFixture {
 // A backend that ACCEPTS a scan whose SCAN_COMPLETE never arrives — exactly
 // the state a mid-scan backend swap strands. trigger_scan() is overridden
 // rather than reusing the mock's simulated 2s scan, which would complete on
-// its own and unlatch before the swap lands. The nm flag decides whether
-// INIT_FAILED takes the fallback path (only the NetworkManager backend has
-// that fallback).
+// its own and unlatch before the swap lands. The fallback flag is the answer
+// the manager's swap gate reads.
 class StalledScanBackend : public WifiBackendMock {
   public:
-    explicit StalledScanBackend(bool nm) : nm_(nm) {}
+    explicit StalledScanBackend(bool fallback) : fallback_(fallback) {}
 
-    bool is_network_manager() const override {
-        return nm_;
+    bool supports_wpa_supplicant_fallback() const override {
+        return fallback_;
     }
 
     WiFiError trigger_scan() override {
@@ -80,25 +86,33 @@ class StalledScanBackend : public WifiBackendMock {
     }
 
   private:
-    bool nm_;
+    bool fallback_;
 };
 
 } // namespace
 
-TEST_CASE("NM->wpa fallback swap unlatches an outstanding scan", "[wifi][1405]") {
+TEST_CASE("wpa_supplicant fallback swap replaces the backend and unlatches a scan",
+          "[wifi][1405]") {
     ScanUnlatchFixture fx;
-    auto wm = std::make_shared<WiFiManager>(std::make_unique<StalledScanBackend>(/*nm=*/true),
+    auto wm = std::make_shared<WiFiManager>(std::make_unique<StalledScanBackend>(/*fallback=*/true),
                                             /*silent=*/true);
     wm->init_self_reference(wm);
 
-    // Scan session live with one scan outstanding on the NM backend.
+    // Scan session live with one scan outstanding on the failing backend.
     wm->start_scan([](const std::vector<WiFiNetwork>&) {});
     REQUIRE_FALSE(WiFiManagerTestAccess::scan_should_trigger(*wm)); // the latch is set
 
-    // The NM daemon turns out to be dead: INIT_FAILED schedules the deferred
-    // backend swap.
-    WiFiManagerTestAccess::fire_init_failed(*wm, /*silent=*/true, "nmcli present but NM masked");
+    // The underlying network service turns out to be dead: INIT_FAILED
+    // schedules the deferred backend swap.
+    WiFiManagerTestAccess::fire_init_failed(*wm, /*silent=*/true,
+                                            "service present but not running");
     lv_timer_handler_safe(); // drain queue -> swap runs (stop old, wpa, start)
+
+    // wpa_supplicant is now driving, not merely some other object. Identity
+    // is read off the type, never the address: the replacement is allocated
+    // after the old backend is freed and routinely lands on the same bytes.
+    REQUIRE(dynamic_cast<WifiBackendWpaSupplicant*>(WiFiManagerTestAccess::backend(*wm)) !=
+            nullptr);
 
     // The swapped-out backend can never deliver the SCAN_COMPLETE it owed, so
     // the manager must have resolved the latch — otherwise periodic scanning
@@ -110,10 +124,12 @@ TEST_CASE("NM->wpa fallback swap unlatches an outstanding scan", "[wifi][1405]")
 
 TEST_CASE("INIT_FAILED without a backend swap leaves the outstanding scan alone", "[wifi][1405]") {
     ScanUnlatchFixture fx;
-    // Not the NM backend: INIT_FAILED is terminal (a log line in silent mode),
-    // not a swap. The backend object stays alive and still owes the completion.
-    auto wm = std::make_shared<WiFiManager>(std::make_unique<StalledScanBackend>(/*nm=*/false),
-                                            /*silent=*/true);
+    // A backend that declines the fallback: INIT_FAILED is terminal (a log line
+    // in silent mode), not a swap. The backend object stays alive and still
+    // owes the completion.
+    auto wm =
+        std::make_shared<WiFiManager>(std::make_unique<StalledScanBackend>(/*fallback=*/false),
+                                      /*silent=*/true);
     wm->init_self_reference(wm);
 
     wm->start_scan([](const std::vector<WiFiNetwork>&) {});
@@ -121,6 +137,10 @@ TEST_CASE("INIT_FAILED without a backend swap leaves the outstanding scan alone"
 
     WiFiManagerTestAccess::fire_init_failed(*wm, /*silent=*/true, "init failed");
     lv_timer_handler_safe();
+
+    // Nothing was swapped: replacing a backend whose hardware is still spoken
+    // for would put wpa_supplicant on a radio someone else owns.
+    REQUIRE(dynamic_cast<StalledScanBackend*>(WiFiManagerTestAccess::backend(*wm)) != nullptr);
 
     // No backend was stopped, so the manager must NOT resolve the latch on
     // INIT_FAILED alone — the obligation still belongs to a live backend.

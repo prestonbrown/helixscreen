@@ -7,6 +7,8 @@
 #include "netd_protocol.h"
 #include "spdlog/spdlog.h"
 
+#include <memory>
+
 // Linux-only backend: falls back to an EthernetBackendLinux instance and the
 // ethernet:: sysfs classifiers, both compiled out on non-Linux targets.
 #if !defined(__ANDROID__) && !defined(__APPLE__)
@@ -41,9 +43,15 @@ EthernetBackendNetd::EthernetBackendNetd(const std::string& sysfs_root,
                                          std::function<EthernetInfo()> kernel_state)
     : sysfs_root_(sysfs_root), kernel_state_(std::move(kernel_state)) {
     if (!kernel_state_) {
-        kernel_state_ = [] {
-            EthernetBackendLinux linux_backend;
-            return linux_backend.get_info();
+        // ONE reader for the life of this backend, not one per get_info().
+        // ~EthernetBackendLinux writes an unconditional line to stderr (it
+        // can run during static teardown, when spdlog may already be gone,
+        // so it cannot use a level), and a per-call instance turned every
+        // ethernet refresh into a console line no verbosity flag could
+        // silence. The reader holds no state, so sharing it across the
+        // worker threads that call get_info() is safe.
+        kernel_state_ = [reader = std::make_shared<EthernetBackendLinux>()] {
+            return reader->get_info();
         };
     }
     spdlog::debug("[EthernetNetd] netd backend created (sysfs root: {})", sysfs_root_);

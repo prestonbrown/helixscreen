@@ -786,10 +786,9 @@ TEST_CASE("default_layout: unanchored bed_temperature survives AMS at medium bre
     TempCwdGuard guard;
     BreakpointGuard bp(UiBreakpoint::Medium);
     AmsSubjectGuard ams(4);
-    // The AMS-crowds-it-out heuristic is gone (86a674c73): it existed because the
-    // pre-square-cell grid ran out of cells, and the square-cell grid has three
-    // times as many. bed_temperature ships enabled on every tier now, anchored or
-    // not, and the placement engine decides where it lands.
+    // bed_temperature ships enabled on every tier, anchored or not, and the
+    // placement engine decides where it lands. The square-cell grid has the cells
+    // to seat it alongside an AMS widget, so no heuristic disables it.
     guard.write_layout(R"({
       "anchors": [
         { "id": "printer_image",

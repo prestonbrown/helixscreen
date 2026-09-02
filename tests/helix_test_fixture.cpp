@@ -53,6 +53,20 @@ struct ForceDummyAudioDriver {
 };
 const ForceDummyAudioDriver g_force_dummy_audio_driver;
 
+// Force SDL's dummy VIDEO driver too. No test initializes SDL video today (the
+// only SDL_Init in the test link is AUDIO, in SDLSoundBackend), so this changes
+// no current behavior. It enforces that invariant: the first test that does
+// reach display creation (DisplayBackendSDL -> lv_sdl_window_create) would
+// otherwise open a real "HelixScreen" window on whatever desktop the run lands
+// on, a behavior CI can never catch because its runners have no display
+// server. Same placement and escape hatch as the audio twin above.
+struct ForceDummyVideoDriver {
+    ForceDummyVideoDriver() {
+        ::setenv("SDL_VIDEODRIVER", "dummy", /*overwrite=*/0);
+    }
+};
+const ForceDummyVideoDriver g_force_dummy_video_driver;
+
 namespace fs = std::filesystem;
 
 // Per-process sandbox for everything the test binary persists.

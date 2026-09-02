@@ -5,6 +5,7 @@
 
 #ifdef ENABLE_GLES_3D
 
+#include "color_utils.h"
 #include "data_root_resolver.h"
 #include "gcode_gl_fallback.h"
 #include "gcode_projection.h"
@@ -1620,13 +1621,20 @@ void GCodeGLESRenderer::set_interaction_mode(bool interacting) {
 }
 
 void GCodeGLESRenderer::set_filament_color(const std::string& hex_color) {
-    if (hex_color.size() < 7 || hex_color[0] != '#')
+    // The sscanf("#%02x%02x%02x") this replaced happened to be the only site in
+    // the tree that read an 8-digit #RRGGBBAA token correctly - it stopped after
+    // six digits. It accepted and silently truncated anything longer, though,
+    // and its size()<7 guard documented a rule it did not enforce. Route it
+    // through the shared parser so "correct" stops being an accident.
+    uint32_t rgb = 0;
+    if (!helix::parse_hex_color(hex_color.c_str(), rgb)) {
         return;
-    unsigned int r = 0, g = 0, b = 0;
-    if (sscanf(hex_color.c_str(), "#%02x%02x%02x", &r, &g, &b) == 3) {
-        filament_color_ = glm::vec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
-        frame_dirty_ = true;
     }
+    const float r = static_cast<float>((rgb >> 16) & 0xFF);
+    const float g = static_cast<float>((rgb >> 8) & 0xFF);
+    const float b = static_cast<float>(rgb & 0xFF);
+    filament_color_ = glm::vec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
+    frame_dirty_ = true;
 }
 
 void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {
@@ -1647,6 +1655,17 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
 
     // Lock palette during modification to prevent data races with render path
     std::lock_guard<std::mutex> lock(palette_mutex_);
+
+    // The loop below overwrites the baked palette IN PLACE - the vertex data
+    // indexes into it, so there is nowhere else to put an override. Snapshot it
+    // the first time, because that copy becomes the only surviving record of
+    // what the slicer said and clear_tool_color_overrides() restores from it.
+    // At most 256 uint32_t (RibbonGeometry caps the palette), so ~1KB: cheaper
+    // than re-deriving the file palette and re-running the tool->palette map on
+    // the way back out, and it cannot disagree with what was actually baked.
+    if (baked_color_palette_.empty()) {
+        baked_color_palette_ = geometry_->color_palette;
+    }
 
     // Replace palette entries using tool→palette mapping from geometry build
     bool changed = false;
@@ -1683,6 +1702,41 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
         spdlog::debug("[GCode GLES] Applied {} tool color overrides, triggering VBO re-upload",
                       ams_colors.size());
     }
+}
+
+void GCodeGLESRenderer::clear_tool_color_overrides() {
+    if (!geometry_) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(palette_mutex_);
+
+    // Nothing was ever overridden on this geometry, so the palette it was built
+    // with is still the palette it has. Note this is NOT the same test as
+    // "ams_colors is empty" on the way in: that one means "no information, leave
+    // the slicer palette alone", which is why it must stay a no-op there.
+    if (baked_color_palette_.empty()) {
+        return;
+    }
+
+    const bool changed = geometry_->color_palette != baked_color_palette_;
+    geometry_->color_palette = baked_color_palette_;
+    baked_color_palette_.clear();
+
+    if (!changed) {
+        return;
+    }
+
+    // Same repaint route as applying an override: patch only the RGBA8 lanes in
+    // the prepared buffers rather than re-expanding the whole pack, then force
+    // the VBOs back up so the GPU sees the restored colors.
+    geometry_->patch_prepared_buffer_colors();
+    geometry_uploaded_ = false;
+    upload_next_layer_ = 0;
+    upload_total_layers_ = 0;
+    frame_dirty_ = true;
+    spdlog::debug("[GCode GLES] Retracted tool color overrides, restored {}-entry baked palette",
+                  geometry_->color_palette.size());
 }
 
 void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
@@ -1827,6 +1881,11 @@ void GCodeGLESRenderer::release_geometry() {
 
     // Free CPU geometry
     geometry_.reset();
+    {
+        // Nothing left to restore the baked palette onto.
+        std::lock_guard<std::mutex> lock(palette_mutex_);
+        baked_color_palette_.clear();
+    }
     active_geometry_ = nullptr;
     current_filename_.clear();
     geometry_uploaded_ = false;
@@ -1850,6 +1909,12 @@ void GCodeGLESRenderer::release_geometry() {
 void GCodeGLESRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> geometry,
                                               const std::string& filename) {
     geometry_ = std::move(geometry);
+    {
+        // The snapshot describes the palette of the geometry just replaced.
+        // Kept, it would be restored onto a different file's palette.
+        std::lock_guard<std::mutex> lock(palette_mutex_);
+        baked_color_palette_.clear();
+    }
     current_filename_ = filename;
     geometry_uploaded_ = false;
     upload_next_layer_ = 0;
@@ -2350,8 +2415,14 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
         const auto& layer = gcode.layers[static_cast<size_t>(layer_idx)];
 
         for (const auto& segment : layer.segments) {
-            if (!segment.is_extrusion || !show_extrusions_)
+            // The shared draw decision: auxiliary geometry (purge, prime
+            // tower) is dropped by the builder, so it must not be pickable
+            // here either - a tap on the blank tower area must select
+            // nothing, not an invisible object.
+            if (!segment_drawable(segment, /*is_support=*/false, show_extrusions_, show_extrusions_,
+                                  /*show_travel=*/false)) {
                 continue;
+            }
             if (segment.object_name_index < 0)
                 continue;
             // Stage 1 result: one array lookup instead of two mat4 multiplies.

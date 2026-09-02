@@ -988,30 +988,58 @@ ifeq ($(COVERAGE),1)
     LDFLAGS += --coverage
 endif
 
+# Fast linker for host builds. helix-tests links 18 GB of objects into a 5 GB
+# binary -- 99% of both is DWARF from `-O2 -g` -- and every mutation-gate hunk,
+# every `make test`, pays that link again. Measured on this tree, same objects,
+# same warm page cache: GNU ld 31s, lld 6s (cold cache: 73s vs 9s).
+#
+# Host only. Cross toolchains ship their own ld and are not all lld-capable, and
+# Yocto's LDFLAGS come from the recipe -- neither is ours to second-guess. macOS
+# already defaults to ld64, which does not have this problem.
+#
+# FAST_LINK=0 opts out (bisecting a link-order bug, or comparing against ld).
+FAST_LINK ?= 1
+ifeq ($(FAST_LINK),1)
+ifeq ($(CROSS_COMPILE),)
+ifneq ($(YOCTO_BUILD),yes)
+ifneq ($(UNAME_S),Darwin)
+    HOST_FAST_LD := $(shell command -v ld.lld 2>/dev/null)
+    ifneq ($(HOST_FAST_LD),)
+        LDFLAGS += -fuse-ld=lld
+    else
+        # Loud on purpose. Without lld this box silently pays ~25 extra seconds
+        # on every test link, and the person or agent waiting on it has no way
+        # to tell that from the build simply being big.
+        $(warning ⚠️  ld.lld not found — helix-tests will link with GNU ld and take ~25s longer per link.)
+        $(warning     Install it: sudo apt install lld   (or set FAST_LINK=0 to silence this.))
+    endif
+endif
+endif
+endif
+endif
+
 # Sound system — synth, sequencer, backends (PWM/M300/SDL/ALSA), themes
 # Tracker player — MOD/MED file playback with PCM samples (requires HELIX_HAS_SOUND)
 #
 # HELIX_HAS_SOUND:   Pi, x86, AD5M family, native — any platform with audio output
-# HELIX_HAS_TRACKER: Pi, x86, native, ad5m — platforms cleared for tracker PCM
-# ad5m: tracker playback re-enabled (b8c141b4a) — the PWM PCM render loop is now
-#   SCHED_IDLE with absolute pacing, bounded catch-up, and silence auto-park, so
-#   it can no longer starve the CPU that runs a print. Originally disabled
-#   2026-04 (003c195ac) for exactly that starvation at normal priority.
-# ad5m-br: tone-only — the SCHED_IDLE render loop has not been re-validated
-#   on that hardware. ad5x turns tracker on below: the jz PC-speaker path
-#   plays per-note buffers, and no ad5x backend reports supports_render_source.
+# HELIX_HAS_TRACKER: Pi, x86, native, ad5x — platforms cleared for tracker playback
+# ad5m/ad5m-br: tone-only. The PWM backend answers supports_render_source() false —
+#   the piezo demodulates a duty-modulated carrier as static — so tracker playback
+#   falls back to the set_voice note path on the sequencer thread: SCHED_OTHER, a
+#   2 ms tick, and no print-state gating anywhere in the sound path. That is the
+#   shape that starves the CPU running a print, so tracker stays off here until the
+#   note fallback is measured against a running print on the hardware.
+# ad5x: tracker on. The jz_pwm backend drives the tracker's PC-speaker path with
+#   per-note buffers, so no PCM render loop is involved.
 # K1/K2/MIPS: no audio hardware at all
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=
 ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
-else ifeq ($(PLATFORM_TARGET),ad5m)
-    SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
-    TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
-else ifneq (,$(filter ad5m-br ad5x,$(PLATFORM_TARGET)))
-    # PWM buzzer for tone-mode SFX only — the printer-safe render loop behind
-    # the ad5m branch has not been re-validated on this hardware.
+else ifneq (,$(filter ad5m ad5m-br ad5x,$(PLATFORM_TARGET)))
+    # PWM buzzer for tone-mode SFX only. Auto-export still applies to
+    # ad5m/ad5m-br above; only tracker playback is withheld.
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     ifneq (,$(filter ad5x,$(PLATFORM_TARGET)))
         # ad5x: the jz_pwm backend drives the tracker's PC-speaker (synth

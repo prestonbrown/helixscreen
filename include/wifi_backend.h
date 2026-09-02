@@ -40,6 +40,7 @@ enum class WiFiResult {
     INVALID_PARAMETERS,     ///< Invalid SSID, password, or other parameters
     BACKEND_ERROR,          ///< Internal backend error
     NOT_INITIALIZED,        ///< Backend not started/initialized
+    NOT_SUPPORTED,          ///< Capability absent on this backend (nothing failed)
     UNKNOWN_ERROR           ///< Unexpected error condition
 };
 
@@ -296,14 +297,28 @@ class WifiBackend {
     }
 
     /**
-     * @brief Whether this is the NetworkManager (nmcli) backend
+     * @brief Whether replacing this backend with wpa_supplicant is safe AND useful
      *
-     * WiFiManager needs it to decide whether an INIT_FAILED is recoverable by
-     * falling back to wpa_supplicant — only the NM backend has that fallback.
+     * WiFiManager asks this when a backend reports INIT_FAILED, to decide
+     * whether the failure is recoverable by swapping in
+     * WifiBackendWpaSupplicant. Return true only when BOTH halves hold:
+     *
+     * - SAFE: nothing else currently owns the radio, the supplicant or DHCP.
+     *   A printer network daemon that is alive owns all three and enforces a
+     *   single transport, so running wpa_supplicant alongside it fights it for
+     *   the hardware — strictly worse than leaving WiFi down.
+     * - USEFUL: wpa_supplicant is a plausible substitute for whatever this
+     *   backend drives on this platform.
+     *
+     * The answer belongs to the backend because only the backend knows why its
+     * init failed. A backend whose safety depends on that reason must derive
+     * the answer from it rather than answering unconditionally, so the default
+     * is the conservative one: no fallback.
+     *
      * A virtual query rather than a `dynamic_cast` to the concrete backend,
      * because the firmware builds -fno-rtti.
      */
-    virtual bool is_network_manager() const {
+    virtual bool supports_wpa_supplicant_fallback() const {
         return false;
     }
 
@@ -391,7 +406,7 @@ class WifiBackend {
      * must dispatch the completion from whatever state it retained. The one
      * exception is stop(): a stopped backend sends nothing further, and the
      * OWNER resolves the latch when it stops or swaps the backend
-     * (WiFiManager's NM->wpa fallback swap does exactly that).
+     * (WiFiManager's wpa_supplicant fallback swap does exactly that).
      *
      * @return WiFiError with detailed status information
      */
@@ -457,6 +472,41 @@ class WifiBackend {
         return true;
     }
 
+    /// Whether set_radio_enabled() can actually move the radio.
+    ///
+    /// Callers use it to stop acting on a switch that cannot move. The one
+    /// that matters is WiFiManager's startup reassert of the stored WiFi
+    /// setting: with no way to apply "off" it also declines to, and then
+    /// CORRECTS the stored value to on so the UI does not show a lie — which
+    /// on a radio nobody controls would silently overwrite a choice the user
+    /// made under an older release. Neither half is right when the backend
+    /// does not own the radio, so the whole reassert is skipped instead.
+    ///
+    /// DEFAULTS TO TRUE, deliberately unlike the uniformly-false supports_*
+    /// defaults on AmsBackend, for two reasons:
+    ///
+    /// 1. It is fail-safe in the direction that matters. A wrong "true" only
+    ///    runs a reassert that cannot do anything. A wrong "false" switches OFF the
+    ///    stranding protection that keeps a stored "off" from bricking a
+    ///    WiFi-only printer's remote access (the CC1 incident) — for every
+    ///    backend that forgot to override it. AmsBackend's defaults are
+    ///    false because a wrong "true" there offers a button that does
+    ///    nothing; here the asymmetry runs the other way.
+    /// 2. It matches the asymmetry this file already committed to. The
+    ///    default set_radio_enabled() is a SUCCESSFUL no-op because an
+    ///    unreachable toggle is harmless, while the default forget_network()
+    ///    is a failure because a fake "forgotten" is not — the reasoning
+    ///    spelled out on forget_network() below. An unoverridden backend
+    ///    already claims the toggle works; this answers consistently with
+    ///    that claim rather than contradicting it.
+    ///
+    /// A backend whose radio belongs to something else entirely — the
+    /// printer's own network daemon, which has no verb for this — overrides
+    /// it to false. WifiBackendNetd is the only one today.
+    virtual bool supports_radio_toggle() const {
+        return true;
+    }
+
     /// The interface identity this backend resolved (netdev, control socket,
     /// rfkill node — see wifi_interface.h), when resolution succeeded.
     ///
@@ -479,23 +529,32 @@ class WifiBackend {
      * persists it (vendor config, HelixScreen's own credential store, or
      * both), so the network does not reappear on its own.
      *
-     * Default implementation returns BACKEND_ERROR, NOT a silent success.
+     * Default implementation returns NOT_SUPPORTED, NOT a silent success.
      * This is deliberately the opposite choice from set_radio_enabled()'s
      * no-op default: a silent success here would tell the user a network
      * was forgotten when nothing happened — the exact class of lie this
      * feature exists to eliminate. Platforms that can forget a network must
      * override.
      *
+     * NOT_SUPPORTED and not BACKEND_ERROR, because those are different
+     * things to say to a user: an error is a failure they might retry or
+     * report, while this is a capability the platform does not have. On a
+     * printer whose network daemon owns the credential store there is no
+     * forget verb to call and nothing HelixScreen persists to remove, so
+     * "Failed to forget WiFi network 'X'" blames the user for the absence
+     * of a feature. Callers MUST branch on it — see WiFiManager::forget().
+     *
      * @param ssid Network name to forget
      * @return WiFiResult::SUCCESS on success; WiFiResult::NETWORK_NOT_FOUND
      *         when @p ssid has no saved entry anywhere this backend looks
      *         (so callers can distinguish "nothing to forget" from "forget
-     *         failed"); WiFiResult::BACKEND_ERROR when this backend does not
-     *         support forgetting a network at all.
+     *         failed"); WiFiResult::NOT_SUPPORTED when this backend cannot
+     *         forget a network at all; a real error code when the attempt
+     *         was made and failed.
      */
     virtual WiFiError forget_network(const std::string& ssid) {
         (void)ssid;
-        return WiFiError(WiFiResult::BACKEND_ERROR, "forget_network not supported by this backend",
+        return WiFiError(WiFiResult::NOT_SUPPORTED, "forget_network not supported by this backend",
                          "Cannot forget this network on this platform");
     }
 

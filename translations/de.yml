@@ -2703,6 +2703,7 @@ translations:
   Support, documentation, and version info: Support, Dokumentation und Versionsinfo
   Suppress periodic 'T:.../B:...' status lines: Periodische 'T:.../B:...'-Statuszeilen
     unterdrücken
+  Suppress periodic temperature status lines: Periodische Temperatur-Statuszeilen unterdrücken
   Suppress raw debug output from printer firmware modules: Rohe Debug-Ausgaben von
     Drucker-Firmware-Modulen unterdrücken
   Surfaces inherit app background tokens for light and dark modes.: Oberflächen erben

@@ -44,8 +44,8 @@ bool parse_filament_color_palette(std::string_view line, std::vector<std::string
  * reject - a colon-separated key form, say - so only a real color token is
  * ever stored, never a raw blob.
  *
- * 8-digit RGBA tokens validate here but render channel-shifted through the
- * strtol + lv_color_hex consumers (prestonbrown/helixscreen#1419).
+ * 8-digit RGBA is accepted and stays 8-digit here; consumers drop the alpha
+ * when they convert, via helix::parse_hex_color().
  */
 std::string_view clean_color_hex(std::string_view value);
 
@@ -76,9 +76,10 @@ inline const std::string* first_named_color(const std::vector<std::string>& pale
 struct FileColorDecision {
     /// Per-tool palette from slicer metadata. Empty = no per-tool answer.
     std::vector<std::string> palette;
-    /// Single hex color ("#RRGGBB") when the file carries one. Empty =
-    /// no single-color answer. 8-digit RGBA tokens can reach this field but
-    /// render channel-shifted (prestonbrown/helixscreen#1419).
+    /// Single hex color ("#RRGGBB" or "#RRGGBBAA") when the file carries one.
+    /// Empty = no single-color answer. Non-empty does NOT mean parseable — it
+    /// can be a bare '#' — so convert with helix::parse_hex_color() and act
+    /// only on success, rather than trusting has_single_color().
     std::string single_color;
     /// Tool index the file starts on; -1 when unknown.
     int initial_tool = -1;

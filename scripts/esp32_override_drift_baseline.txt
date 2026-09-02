@@ -1,0 +1,24 @@
+# ESP32 native-audit override drift baseline.
+#
+# Each line is the number of UNMARKED differing lines between
+# firmware/native-audit/overrides/<name> and its src/ twin — i.e. the
+# drift that carries no 'AUDIT OVERRIDE' explanation at the site.
+#
+# The counts may FALL, never RISE. A rise means a commit touched a src/
+# file and skipped its fork, which silently reintroduces on the ESP32
+# build every bug that commit fixed (#1427).
+#
+# To lower an entry: resync the fork against its twin, keeping only the
+# divergence that carries an AUDIT OVERRIDE marker, then regenerate with
+#   python3 scripts/check_esp32_override_drift.py --write-baseline
+#
+# Format:  <unmarked-differing-lines> <override basename>
+
+966 filament_slot_override_store.cpp
+0 gcode_layer_renderer.cpp
+25 helix_paths.cpp
+826 theme_manager.cpp
+0 ui_hsv_picker.cpp
+0 ui_progress_bar.cpp
+29 ui_settings_label_printer.cpp
+39 wifi_ui_utils.cpp

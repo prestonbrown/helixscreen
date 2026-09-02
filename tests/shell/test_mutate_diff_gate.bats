@@ -164,3 +164,126 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     [[ "$output" != *"EXCLUDED"* ]]
     [[ "$output" == *"1 hunk(s) to mutate"* ]]
 }
+
+# --- comment/whitespace-only hunks ----------------------------------------
+#
+# Reverting a comment is a mutant no test can ever kill, so it lands in the
+# tally as a survivor and reads as real debt while having cost a compile and a
+# whole-program link to get there. The script drops those hunks up front.
+#
+# The risk is the opposite error: skipping a hunk that DOES change behaviour,
+# which would hide exactly what this gate exists to find. That is why the
+# classifier strips comments with a real scanner instead of matching on the
+# shape of a line, and why the tests below are mostly the cases where a
+# shape-matching heuristic would be wrong.
+
+# Re-point the fixture at a base/changed pair of our own.
+reset_to() {
+    printf '%s' "$1" > "$WORK/src/feature.cpp"
+    git -C "$WORK" add src/feature.cpp
+    git -C "$WORK" commit -qm rebase --allow-empty
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '%s' "$2" > "$WORK/src/feature.cpp"
+}
+
+@test "a comment-only hunk is skipped, not reported as a survivor" {
+    stub_tests_that_ignore
+    reset_to 'int f(int n) {
+    // old note
+    return n + 1;
+}
+' 'int f(int n) {
+    // new note
+    return n + 1;
+}
+'
+    run mutate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"comment/whitespace only"* ]]
+    [[ "$output" != *"SURVIVED"* ]]
+}
+
+@test "a whitespace-only hunk is skipped" {
+    stub_tests_that_ignore
+    reset_to 'int f(int n) {
+    return n + 1;
+}
+' 'int f(int n) {
+        return n + 1;
+}
+'
+    run mutate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"comment/whitespace only"* ]]
+}
+
+@test "--no-skip-comments mutates a comment-only hunk anyway" {
+    stub_tests_that_ignore
+    reset_to 'int f(int n) {
+    // old note
+    return n + 1;
+}
+' 'int f(int n) {
+    // new note
+    return n + 1;
+}
+'
+    run mutate --no-skip-comments
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"SURVIVED"* ]]
+}
+
+@test "a comment edit riding along with a code change is still mutated" {
+    stub_tests_that_ignore
+    reset_to 'int f(int n) {
+    return n + 1;  // note
+}
+' 'int f(int n) {
+    return n + 2;  // NEW_BEHAVIOR
+}
+'
+    run mutate
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"SURVIVED"* ]]
+    [[ "$output" != *"comment/whitespace only"* ]]
+}
+
+@test "a changed string that merely looks like a comment is still mutated" {
+    stub_tests_that_ignore
+    reset_to 'const char* k() { return "// one"; }
+' 'const char* k() { return "// two"; }
+'
+    run mutate
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"SURVIVED"* ]]
+}
+
+@test "a pointer store is not mistaken for a doc-comment continuation" {
+    stub_tests_that_ignore
+    reset_to 'void g(int* out) {
+    *out = 1;
+}
+' 'void g(int* out) {
+    *out = 2;
+}
+'
+    run mutate
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"SURVIVED"* ]]
+}
+
+@test "a change inside a block comment with no leading star is skipped" {
+    stub_tests_that_ignore
+    reset_to '/*
+   alpha
+*/
+int f(int n) { return n + 1; }
+' '/*
+   beta
+*/
+int f(int n) { return n + 1; }
+'
+    run mutate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"comment/whitespace only"* ]]
+}
