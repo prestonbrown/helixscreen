@@ -573,9 +573,14 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
     const auto file_colors = helix::gcode::classify_file_colors(st->gcode_file->tool_color_palette,
                                                                 st->gcode_file->filament_color_hex);
 
-    if (file_colors.has_palette()) {
-        st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
-    }
+    // Unconditional, including an EMPTY palette. This function is the one place
+    // that rebuilds the 2D renderer's colors from the file, so it is also the
+    // retraction path (ui_gcode_viewer_clear_tool_colors) and the re-load path.
+    // Skipping the call when the file names no palette left whatever was there
+    // before - a previous file's palette, or AMS overrides applied over it -
+    // still resolving per tool. set_tool_color_palette() no-ops cheaply when
+    // there is genuinely nothing to install and nothing to clear.
+    st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
 
     if (!st->tool_color_overrides.empty()) {
         st->layer_renderer_2d_->set_tool_color_overrides(st->tool_color_overrides);
@@ -2509,6 +2514,48 @@ void ui_gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>&
     spdlog::debug("[GCode Viewer] Applied {} per-tool AMS color overrides", colors.size());
 }
 
+void ui_gcode_viewer_clear_tool_colors(lv_obj_t* obj) {
+    if (!obj) {
+        return;
+    }
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st || st->tool_color_overrides.empty()) {
+        return;
+    }
+
+    // Retraction needs its own entry point rather than set_tool_colors(obj, {}):
+    // an empty vector already means "no information" everywhere below, and every
+    // layer correctly refuses to act on it so that a FIRST apply with no AMS data
+    // leaves the slicer palette alone. The two meanings cannot share a call.
+    st->tool_color_overrides.clear();
+
+#ifdef ENABLE_3D_RENDERER
+    // 3D: the overrides were written into the baked palette in place, so only
+    // the renderer's own snapshot can put the slicer colors back.
+    st->renderer_->clear_tool_color_overrides();
+#endif
+
+    // 2D: rebuild palette-then-override from the file. With tool_color_overrides
+    // now empty this lands on the slicer palette, or the single filament color -
+    // the same fallback order a fresh load takes, which is why it reuses the
+    // loader's helper instead of restating it.
+    apply_2d_renderer_colors(st);
+
+    lv_obj_invalidate(obj);
+    spdlog::debug("[GCode Viewer] Retracted per-tool AMS color overrides");
+}
+
+std::vector<uint32_t> ui_gcode_viewer_get_tool_colors(lv_obj_t* obj) {
+    if (!obj) {
+        return {};
+    }
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    return st->tool_color_overrides;
+}
+
 bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
     if (!obj) {
         return false;
@@ -2525,10 +2572,7 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
         // answer may still be applied as overrides, and returning false alone
         // would leave those lane colors frozen on the renderer for the rest
         // of the file instead of falling back to the slicer palette.
-        gcode_viewer_state_t* st = get_state(obj);
-        if (st && !st->tool_color_overrides.empty()) {
-            ui_gcode_viewer_set_tool_colors(obj, {});
-        }
+        ui_gcode_viewer_clear_tool_colors(obj);
         return false;
     }
     ui_gcode_viewer_set_tool_colors(obj, colors);

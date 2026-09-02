@@ -237,6 +237,16 @@ void GCodeLayerRenderer::set_support_color(lv_color_t color) {
 }
 
 void GCodeLayerRenderer::set_tool_color_palette(const std::vector<std::string>& hex_colors) {
+    if (hex_colors.empty() && !tool_palette_.has_tool_colors()) {
+        // Nothing to install and nothing to clear - bail before the join below so
+        // a file the slicer named no colors for does not kill a healthy
+        // background ghost render. Same shape as set_excluded_objects().
+        // An EMPTY palette on a renderer that HAS tool colors still goes through:
+        // that is the retraction path (a previous file's palette, or AMS
+        // overrides applied over it) and it must actually clear.
+        return;
+    }
+
     // Join the background ghost-render worker before mutating tool_palette_: the worker
     // copy-reads this member without a lock (background_ghost_render_thread), so reallocating
     // its backing vector here while the worker is mid-copy is a data race. Same discipline as
@@ -631,7 +641,6 @@ void GCodeLayerRenderer::invalidate_cache() {
     // copy it straight into the cleared buffer and mark the stale pixels
     // valid - and a valid cache is never rebuilt. The thread is joined above,
     // so the raw buffer has no concurrent writer.
-    // MUTANT-EXPERIMENT: fix reverted
     ghost_thread_ready_.store(false);
     ghost_raw_buffer_.reset();
     ghost_raw_width_ = 0;

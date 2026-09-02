@@ -1656,6 +1656,17 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
     // Lock palette during modification to prevent data races with render path
     std::lock_guard<std::mutex> lock(palette_mutex_);
 
+    // The loop below overwrites the baked palette IN PLACE - the vertex data
+    // indexes into it, so there is nowhere else to put an override. Snapshot it
+    // the first time, because that copy becomes the only surviving record of
+    // what the slicer said and clear_tool_color_overrides() restores from it.
+    // At most 256 uint32_t (RibbonGeometry caps the palette), so ~1KB: cheaper
+    // than re-deriving the file palette and re-running the tool->palette map on
+    // the way back out, and it cannot disagree with what was actually baked.
+    if (baked_color_palette_.empty()) {
+        baked_color_palette_ = geometry_->color_palette;
+    }
+
     // Replace palette entries using tool→palette mapping from geometry build
     bool changed = false;
     for (size_t tool = 0; tool < ams_colors.size(); ++tool) {
@@ -1691,6 +1702,41 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
         spdlog::debug("[GCode GLES] Applied {} tool color overrides, triggering VBO re-upload",
                       ams_colors.size());
     }
+}
+
+void GCodeGLESRenderer::clear_tool_color_overrides() {
+    if (!geometry_) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(palette_mutex_);
+
+    // Nothing was ever overridden on this geometry, so the palette it was built
+    // with is still the palette it has. Note this is NOT the same test as
+    // "ams_colors is empty" on the way in: that one means "no information, leave
+    // the slicer palette alone", which is why it must stay a no-op there.
+    if (baked_color_palette_.empty()) {
+        return;
+    }
+
+    const bool changed = geometry_->color_palette != baked_color_palette_;
+    geometry_->color_palette = baked_color_palette_;
+    baked_color_palette_.clear();
+
+    if (!changed) {
+        return;
+    }
+
+    // Same repaint route as applying an override: patch only the RGBA8 lanes in
+    // the prepared buffers rather than re-expanding the whole pack, then force
+    // the VBOs back up so the GPU sees the restored colors.
+    geometry_->patch_prepared_buffer_colors();
+    geometry_uploaded_ = false;
+    upload_next_layer_ = 0;
+    upload_total_layers_ = 0;
+    frame_dirty_ = true;
+    spdlog::debug("[GCode GLES] Retracted tool color overrides, restored {}-entry baked palette",
+                  geometry_->color_palette.size());
 }
 
 void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
@@ -1835,6 +1881,11 @@ void GCodeGLESRenderer::release_geometry() {
 
     // Free CPU geometry
     geometry_.reset();
+    {
+        // Nothing left to restore the baked palette onto.
+        std::lock_guard<std::mutex> lock(palette_mutex_);
+        baked_color_palette_.clear();
+    }
     active_geometry_ = nullptr;
     current_filename_.clear();
     geometry_uploaded_ = false;
@@ -1858,6 +1909,12 @@ void GCodeGLESRenderer::release_geometry() {
 void GCodeGLESRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> geometry,
                                               const std::string& filename) {
     geometry_ = std::move(geometry);
+    {
+        // The snapshot describes the palette of the geometry just replaced.
+        // Kept, it would be restored onto a different file's palette.
+        std::lock_guard<std::mutex> lock(palette_mutex_);
+        baked_color_palette_.clear();
+    }
     current_filename_ = filename;
     geometry_uploaded_ = false;
     upload_next_layer_ = 0;
