@@ -269,3 +269,4 @@ src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard_validation.cpp  # not in the v1 Core+AMS cut
 src/util/version.cpp  # not in the v1 Core+AMS cut
 
+src/system/jz_pwm_sound_backend.cpp  # AD5X-only: exec's the Linux fx-pwm child; no process model on ESP32

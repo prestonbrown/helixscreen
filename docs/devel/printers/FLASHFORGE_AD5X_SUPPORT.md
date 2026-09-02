@@ -126,6 +126,37 @@ The ZMOD init script sets up touch input via tslib environment variables, but He
 - Framebuffer: `/dev/fb0` (800x480, 32bpp)
 - Backlight: `FBIOBLANK` ioctl (standard Linux fbdev)
 
+## Sound (2026-09-01 rig sessions)
+
+**Decision: UI sounds only.** The piezo is driven natively by
+`JzPwmSoundBackend` (behind `HELIX_HAS_JZ_PWM`, ad5x builds): theme steps
+render in-process with the full NoteEvent synthesis - chords, ADSR,
+sweeps - duty-encoded at the tuner-calibrated 385 MHz DMA rate and played
+by the long-lived `fx-pwm serve` daemon over `/tmp/fx-pwm.sock` (the
+backend spawns it on first sound; it idle-exits after 30 s so klippy's
+per-tone fx-pwm one-shots keep working between UI sounds). Audibility
+floor measured at 10 ms; buffers capped at 2.5 s.
+
+Why no music, with numbers: the driver's dma_update copies buffer words
+at ~30 µs each (measured 2026-09-01: 3,504 words = 106 ms, 14,024 =
+429 ms, linear). Upload time therefore equals playback time at the
+32 kHz ultrasonic carrier - a hard 50% duty ceiling for continuous
+audio; ~80% is reachable only by dropping the carrier into the audible
+band, which whines. The tracker phrase path
+(`jz_pwm_render_phrase`) stays in the tree, tested but unused: mods do
+not ship on ad5x. The M300 path remains for remote-UI installs. PCM
+streaming on this engine is impossible with numbers: buffer swaps are
+refused while a loop is armed and the legal chunk cycle costs a fixed
+~500 ms of silence per chunk.
+
+Daemon hardening (all learned from rig incidents, see SOUND_SYSTEM.md for
+the protocol): SIGPIPE ignored (a client close must not kill the daemon);
+per-frame release/re-request claim dance (second dma_init otherwise
+EPERMs) - and that dance can itself D-wedge pwm2_release, so never loop
+it hot; hold loops use absolute deadlines (poll timeout restarts on a
+readable socket = infinite phrase loop otherwise); the app's sender
+worker is the only socket writer (250 KB bodies block for seconds).
+
 ## Firmware Quirks and Operating Rules (verified 2026-08)
 
 Recorded during the 2026-08 research pass that accompanied commissioning our own AD5X
