@@ -177,6 +177,16 @@ _CPP_KEYWORDS = {
     "throw", "static_cast", "const_cast", "reinterpret_cast", "dynamic_cast",
 }
 
+# Statement-starters only, for rejecting a line before a name is even
+# captured. Deliberately narrower than _CPP_KEYWORDS: `using` and `typedef`
+# introduce a declaration rather than a statement, so they stay out of this
+# set even though a *captured name* equal to one of them is still rejected
+# via _CPP_KEYWORDS in _defs_cpp.
+_CPP_STATEMENT_KEYWORDS = {
+    "if", "for", "while", "switch", "return", "else", "do", "case", "throw",
+    "delete", "new", "catch", "try", "goto",
+}
+
 _CPP_SCOPE = re.compile(
     r"^\s*(?:template\s*<[^>]*>\s*)?"
     r"(?:(?:class|struct|union|enum(?:\s+class)?)\s+(?:\w+\s+)?([A-Za-z_]\w*)"
@@ -190,9 +200,11 @@ _CPP_FUNC = re.compile(
 # or a pointer/reference sigil - otherwise `spdlog::info(...)` (a qualified
 # call, no type) and `counter_ = 0;` (an assignment, nothing before the name)
 # both read as a name being declared. The leading keyword check rejects
-# `return foo(bar);` the same way: `return` is not a type.
+# `return foo(bar);` the same way: `return` is not a type. `using`/`typedef`
+# are excluded from that check - they introduce a declaration, not a
+# statement, so `using Callback = ...;` must still resolve.
 _CPP_DECL = re.compile(
-    r"^\s*(?!(?:" + "|".join(_CPP_KEYWORDS) + r")\b)"
+    r"^\s*(?!(?:" + "|".join(_CPP_STATEMENT_KEYWORDS) + r")\b)"
     r"[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
 )
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")

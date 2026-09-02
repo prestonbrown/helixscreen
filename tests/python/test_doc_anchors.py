@@ -178,6 +178,11 @@ def _resolve(text, citation, ext):
     return lines[r.start].strip()
 
 
+def _resolve_region(text, citation, ext):
+    lines = text.split("\n")
+    return lines, resolve_segments(lines, parse_citation(citation).segments, ext)
+
+
 def test_cpp_class_then_member():
     assert _resolve(
         "\n".join(CPP), "a.h#PanelRequest/overlay_root", ".h"
@@ -223,10 +228,21 @@ def test_xml_self_closed_and_paired_siblings_resolve():
         '</view>\n'
     )
     # "a" holds one self-closed sibling and one paired sibling with the same
-    # tag name; both must resolve without being mistaken for each other.
-    assert _resolve(src, "a.xml#a", ".xml") == '<lv_obj name="a">'
-    assert _resolve(src, "a.xml#a/b", ".xml") == '<lv_obj name="b"/>'
-    assert _resolve(src, "a.xml#a/c", ".xml") == '<lv_obj name="c">'
+    # tag name. Checking the END boundary matters here, not just the start
+    # line: a self-closed element's region is exactly one line, and a wrong
+    # end for "b" would swallow "c" (or vice versa) while the start line -
+    # found by a name search, not by the end computation - stays correct.
+    lines, r_a = _resolve_region(src, "a.xml#a", ".xml")
+    assert lines[r_a.start].strip() == '<lv_obj name="a">'
+    assert (r_a.start, r_a.end) == (1, 6)
+
+    lines, r_b = _resolve_region(src, "a.xml#a/b", ".xml")
+    assert lines[r_b.start].strip() == '<lv_obj name="b"/>'
+    assert (r_b.start, r_b.end) == (2, 3)
+
+    lines, r_c = _resolve_region(src, "a.xml#a/c", ".xml")
+    assert lines[r_c.start].strip() == '<lv_obj name="c">'
+    assert (r_c.start, r_c.end) == (3, 5)
 
 
 def test_make_variable():
@@ -296,6 +312,18 @@ def test_cpp_decl_rejects_control_flow_statement():
     names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
     # "return" is not a type, so "foo" is not a declaration.
     assert names == ["g"]
+
+
+def test_cpp_decl_resolves_using_and_typedef():
+    lines = [
+        "using Callback = std::function<void(bool)>;",
+        "typedef int MyInt;",
+        "void f();",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # "using" and "typedef" introduce a declaration, not a statement - they
+    # must not be caught by the same leading-keyword rejection as "return".
+    assert names == ["Callback", "MyInt", "f"]
 
 
 def test_block_end_ignores_braces_inside_string_literal():
