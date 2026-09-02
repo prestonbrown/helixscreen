@@ -541,6 +541,27 @@ CITE_RE = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+(?:#[^`]+)?)`")
 _FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
+def _fence_advance(line, fence_marker, fence_opened_at, lineno):
+    """One step of CommonMark fence-tracking; returns (marker, opened_at, is_content).
+
+    `is_content` is true only for a line outside any fence - the one rule
+    both `iter_citations` and `render` drive, so a stray `~~~` inside a ```
+    block, or an unclosed fence, is handled identically wherever citations
+    or links are found.
+    """
+    m = _FENCE_RE.match(line)
+    if m:
+        marker = m.group(1)
+        if fence_marker is None:
+            return marker, lineno, False
+        if marker[0] == fence_marker[0] and len(marker) >= len(fence_marker):
+            return None, None, False
+        return fence_marker, fence_opened_at, False
+    if fence_marker is not None:
+        return fence_marker, fence_opened_at, False
+    return fence_marker, fence_opened_at, True
+
+
 def iter_citations(paths, problems=None):
     """(doc, doc_line, citation_text) for every citation outside a fence.
 
@@ -562,15 +583,9 @@ def iter_citations(paths, problems=None):
         with fh:
             fence_marker = fence_opened_at = None
             for lineno, line in enumerate(fh, start=1):
-                m = _FENCE_RE.match(line)
-                if m:
-                    marker = m.group(1)
-                    if fence_marker is None:
-                        fence_marker, fence_opened_at = marker, lineno
-                    elif marker[0] == fence_marker[0] and len(marker) >= len(fence_marker):
-                        fence_marker = None
-                    continue
-                if fence_marker is not None:
+                fence_marker, fence_opened_at, is_content = _fence_advance(
+                    line, fence_marker, fence_opened_at, lineno)
+                if not is_content:
                     continue
                 for cm in CITE_RE.finditer(line):
                     out.append((str(path), lineno, cm.group(1)))
@@ -604,39 +619,61 @@ def check(paths, repo_root="."):
     return findings
 
 
+# A local link's target, split at its first `#`: a scheme (`http:`,
+# `https:`, `mailto:`, ...) names something outside the working tree and a
+# pure #fragment has no path at all - neither has a file to re-base.
+_URL_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+# What render() rewrites on a content line: an unresolved citation (from
+# CITE_RE) or a markdown link/image target `[text](target)`. One regex, so
+# a citation link and a doc-to-doc or image link go through the same
+# rebasing step below rather than two separately-maintained rules for
+# "where does this link point". Link text must be non-empty, and the target
+# may hold no whitespace - `[…](const MoonrakerError&)` is an inline-code
+# C++ lambda in prose, not a link (check_doc_refs.py's LINK_RE excludes
+# both shapes for the same reason - an inline code span isn't a fence, so
+# fence-tracking alone does not catch it).
+_PIN_RE = re.compile(CITE_RE.pattern + r"|\[([^\]]+)\]\(([^)\s]+)\)")
+
+
 def render(paths, out_dir, repo_root=".", problems=None):
-    """Write a copy of each doc with citations expanded to `path:line` links.
+    """Write a copy of each doc with every local relative link re-based.
 
     The pinned copy is the one to read in a terminal or publish; its line
-    numbers are generated on demand, never committed, so moved code cannot
-    make them stale in git. Citation discovery reuses `iter_citations`, so a
-    citation inside a fenced example is left as literal text exactly as
-    `check` leaves it out of its findings. A document a fenced-code problem
-    or a read error kept `iter_citations` from fully scanning is still
-    rendered from what it did find - pass a list as `problems` to learn
-    which document that happened to and why, instead of it passing silently.
+    numbers and link targets are generated on demand, never committed, so
+    moved code - and the pinned tree sitting deeper than the repo it copies
+    from - cannot make either stale in git. An unresolved citation
+    (`` `path#segment` ``) is resolved and turned into a link; an already-
+    formed markdown link or image (`[text](target)`) keeps its text and
+    gets its target re-based the same way. Both point at the source's real
+    location in the working tree, never at a path inside the pinned tree,
+    which holds doc copies only - so a link that used to read fine from the
+    doc's original directory still resolves after the doc moves two levels
+    under `out_dir`. A citation that fails to resolve, or a link whose
+    target is a URL, a mailto:, or a pure #fragment, is left exactly as
+    written.
 
-    The pinned tree holds copies of the docs only, not the source they cite,
-    so a link points at the cited file where it actually lives in the
-    working tree rather than at a path inside the pinned tree that was never
-    written. A doc whose own pinned destination would fall outside `out_dir`
-    (for instance, one given by a path outside `repo_root`) is skipped
-    rather than written somewhere a caller did not ask for; that skip is
-    recorded in `problems` too.
+    A fenced code block shows this syntax as an example rather than making
+    a claim about the tree, so its lines are copied verbatim. A document a
+    fenced-code problem or a read error kept from being fully processed is
+    still rendered from what it did find - pass a list as `problems` to
+    learn which document that happened to and why, instead of it passing
+    silently. A doc whose own pinned destination would fall outside
+    `out_dir` (for instance, one given by a path outside `repo_root`) is
+    skipped rather than written somewhere a caller did not ask for; that
+    skip is recorded in `problems` too.
     """
     out_dir = str(out_dir)
     out_root = os.path.abspath(out_dir)
-    pinned_lines = {}
-    for doc, lineno, _ in iter_citations(paths, problems=problems):
-        pinned_lines.setdefault(doc, set()).add(lineno)
-
     written = 0
     for path in paths:
         doc = str(path)
         try:
             with open(path, encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
-        except OSError:
+        except OSError as exc:
+            if problems is not None:
+                problems.append(f"{doc}: cannot open: {exc}")
             continue
         dest = os.path.join(out_dir, os.path.relpath(doc, str(repo_root)))
         if os.path.commonpath([out_root, os.path.abspath(dest)]) != out_root:
@@ -644,12 +681,15 @@ def render(paths, out_dir, repo_root=".", problems=None):
                 problems.append(f"{doc}: pinned path falls outside {out_dir}, skipped")
             continue
         dest_dir = os.path.dirname(dest) or "."
-        lines = text.split("\n")
-        to_pin = pinned_lines.get(doc, ())
-        rendered = [
-            _pin_line(line, repo_root, os.path.dirname(doc), dest_dir) if i in to_pin else line
-            for i, line in enumerate(lines, start=1)
-        ]
+        doc_dir = os.path.dirname(doc)
+        rendered = []
+        fence_marker = fence_opened_at = None
+        for lineno, line in enumerate(text.split("\n"), start=1):
+            fence_marker, fence_opened_at, is_content = _fence_advance(
+                line, fence_marker, fence_opened_at, lineno)
+            rendered.append(_pin_line(line, repo_root, doc_dir, dest_dir) if is_content else line)
+        if fence_marker is not None and problems is not None:
+            problems.append(f"{doc}:{fence_opened_at}: fence never closed")
         os.makedirs(dest_dir, exist_ok=True)
         with open(dest, "w", encoding="utf-8") as fh:
             fh.write("\n".join(rendered))
@@ -657,27 +697,52 @@ def render(paths, out_dir, repo_root=".", problems=None):
     return written
 
 
-def _pin_line(line, repo_root, relative_to, dest_dir):
-    """Expand every citation on a line already known to be outside a fence.
+def _rebase(real_path, dest_dir):
+    """Relative path from `dest_dir` (a pinned doc's own directory) to
+    `real_path`'s actual location in the working tree."""
+    return os.path.relpath(real_path, dest_dir)
 
-    The link's href is a relpath from `dest_dir` (where the pinned copy of
-    this doc lives) to the citation's resolved file in the real working
-    tree - not a path inside the pinned tree, which holds no source at all.
+
+def _rebase_target(target, doc_dir, dest_dir):
+    """Rewrite a local relative link target to resolve from `dest_dir`.
+
+    `doc_dir` is the citing document's own real directory - what a relative
+    target was originally written against. A URL, a mailto: link, or a pure
+    #fragment link names nothing in the working tree and passes through
+    unchanged; any other #fragment is kept on the rebased target intact.
+    """
+    path, has_frag, frag = target.partition("#")
+    if not path or _URL_SCHEME_RE.match(path):
+        return target
+    real = os.path.normpath(os.path.join(doc_dir, path))
+    rebased = _rebase(real, dest_dir)
+    return f"{rebased}#{frag}" if has_frag else rebased
+
+
+def _pin_line(line, repo_root, doc_dir, dest_dir):
+    """Rewrite every citation and local link on a line already known to be
+    outside a fence.
+
+    A citation gets a freshly resolved line number and fragment; a plain
+    link keeps whatever fragment it already had (see `_rebase_target`).
+    Both compute their href the same way, through `_rebase`.
     """
 
     def replace(m):
-        text = m.group(1)
-        if "#" not in text:
-            return m.group(0)
-        citation = parse_citation(text)
-        try:
-            full, lineno = locate(text, repo_root=repo_root, relative_to=relative_to)
-        except (NotFound, Ambiguous, FileNotFoundError, ValueError):
-            return m.group(0)
-        href = os.path.relpath(full, dest_dir)
-        return f"[`{citation.path}:{lineno}`]({href}#L{lineno})"
+        if m.group(1) is not None:
+            text = m.group(1)
+            if "#" not in text:
+                return m.group(0)
+            citation = parse_citation(text)
+            try:
+                full, lineno = locate(text, repo_root=repo_root, relative_to=doc_dir)
+            except (NotFound, Ambiguous, FileNotFoundError, ValueError):
+                return m.group(0)
+            return f"[`{citation.path}:{lineno}`]({_rebase(full, dest_dir)}#L{lineno})"
+        link_text, target = m.group(2), m.group(3)
+        return f"[{link_text}]({_rebase_target(target, doc_dir, dest_dir)})"
 
-    return CITE_RE.sub(replace, line)
+    return _PIN_RE.sub(replace, line)
 
 
 def _default_doc_targets():

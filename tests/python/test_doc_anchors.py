@@ -841,3 +841,72 @@ def test_render_skips_a_doc_whose_pinned_path_would_escape_out_dir(tmp_path):
     assert written == 0
     assert problems
     assert not (repo_root / "outside").exists()
+
+
+def test_render_rebases_a_doc_to_doc_link_two_directories_deep(tmp_path):
+    (tmp_path / "OTHER.md").write_text("# Other\n", encoding="utf-8")
+    doc_dir = tmp_path / "docs" / "devel"
+    doc_dir.mkdir(parents=True)
+    doc = doc_dir / "d.md"
+    doc.write_text("see [other](../../OTHER.md)\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    dest = out / "docs" / "devel" / "d.md"
+    m = re.search(r"\]\(([^)]+)\)", dest.read_text(encoding="utf-8"))
+    assert m
+    assert os.path.isfile(os.path.join(os.path.dirname(dest), m.group(1)))
+
+
+def test_render_rebases_an_image_link(tmp_path):
+    (tmp_path / "diagram.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    doc_dir = tmp_path / "docs" / "devel"
+    doc_dir.mkdir(parents=True)
+    doc = doc_dir / "d.md"
+    doc.write_text("![diagram](../../diagram.png)\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    dest = out / "docs" / "devel" / "d.md"
+    m = re.search(r"!\[diagram\]\(([^)]+)\)", dest.read_text(encoding="utf-8"))
+    assert m
+    assert os.path.isfile(os.path.join(os.path.dirname(dest), m.group(1)))
+
+
+def test_render_leaves_a_url_mailto_and_bare_fragment_untouched(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text(
+        "see [ext](https://example.com/page) "
+        "and [me](mailto:person@example.com) "
+        "and [here](#section)\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    text = (out / "d.md").read_text(encoding="utf-8")
+    assert "[ext](https://example.com/page)" in text
+    assert "[me](mailto:person@example.com)" in text
+    assert "[here](#section)" in text
+
+
+def test_render_rebased_link_keeps_its_fragment(tmp_path):
+    (tmp_path / "OTHER.md").write_text("# Other\n", encoding="utf-8")
+    doc_dir = tmp_path / "docs"
+    doc_dir.mkdir()
+    doc = doc_dir / "d.md"
+    doc.write_text("see [other](../OTHER.md#section)\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    text = (out / "docs" / "d.md").read_text(encoding="utf-8")
+    m = re.search(r"\]\(([^)]+)\)", text)
+    assert m
+    assert m.group(1).endswith("#section")
+    target_path = m.group(1).rsplit("#", 1)[0]
+    assert os.path.isfile(os.path.join(str(out / "docs"), target_path))
+
+
+def test_render_does_not_touch_a_fenced_markdown_link(tmp_path):
+    (tmp_path / "OTHER.md").write_text("# Other\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("```\n[other](OTHER.md)\n```\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    assert "[other](OTHER.md)" in (out / "d.md").read_text(encoding="utf-8")
