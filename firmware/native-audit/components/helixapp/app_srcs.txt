@@ -125,7 +125,7 @@ src/ui/ui_text.cpp
 src/ui/ui_text_input.cpp
 src/ui/ui_wizard.cpp
 src/ui/ui_z_offset_indicator.cpp
-overrides/grid_edit_mode.cpp
+src/ui/grid_edit_mode.cpp
 overrides/ui_hsv_picker.cpp
 overrides/ui_progress_bar.cpp
 assets/fonts/mdi_icons_14.c
@@ -314,7 +314,7 @@ src/ui/ui_variant.cpp
 src/ui/ui_widget_catalog_overlay.cpp
 src/ui/wizard_step_registry.cpp
 src/ui/z_offset_utils.cpp
-overrides/ui_ams_detail.cpp
+src/ui/ui_ams_detail.cpp
 overrides/ui_settings_label_printer.cpp
 lib/lv_markdown/src/lv_markdown.c
 lib/lv_markdown/src/lv_markdown_style.c
