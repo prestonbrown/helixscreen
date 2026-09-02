@@ -33,9 +33,8 @@ class Citation:
 
 # A segment is either a double-quoted literal (backslash escapes allowed, so a
 # snippet may contain a quote or a slash) or a bare name. Bare names keep `::`
-# and `~` so a namespace-qualified or destructor anchor stays one segment, and
-# allow single interior spaces so a markdown heading needs no quoting.
-_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*(?:[ \t]+[\w:~.-]+)*)')
+# and `~` so a namespace-qualified or destructor anchor stays one segment.
+_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*)')
 
 
 def parse_citation(text):

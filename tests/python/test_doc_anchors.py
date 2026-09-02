@@ -239,7 +239,14 @@ def test_bats_test_name():
 
 def test_markdown_heading():
     src = "# Top\n\ntext\n\n## Console sink\n\nmore\n"
-    assert _resolve(src, "LOGGING.md#Console sink", ".md") == "## Console sink"
+    assert _resolve(src, 'LOGGING.md#"Console sink"', ".md") == "## Console sink"
+
+
+def test_bare_segment_cannot_contain_spaces():
+    # Heading and test-name anchors use the quoted form; a bare segment is a
+    # single identifier, so prose with spaces must be quoted to resolve.
+    with pytest.raises(ValueError):
+        parse_citation("a.md#Console sink")
 
 
 def test_json_key():
