@@ -95,6 +95,8 @@ from doc_anchors import (  # noqa: E402
     Ambiguous,
     NotFound,
     Region,
+    block_end,
+    definitions,
     resolve_segments,
 )
 
@@ -210,6 +212,23 @@ def test_xml_nested_names_scope():
     assert _resolve(src, "a.xml#outer/inner", ".xml") == '<lv_label name="inner"/>'
 
 
+def test_xml_self_closed_and_paired_siblings_resolve():
+    src = (
+        '<view>\n'
+        '  <lv_obj name="a">\n'
+        '    <lv_obj name="b"/>\n'
+        '    <lv_obj name="c">\n'
+        '    </lv_obj>\n'
+        '  </lv_obj>\n'
+        '</view>\n'
+    )
+    # "a" holds one self-closed sibling and one paired sibling with the same
+    # tag name; both must resolve without being mistaken for each other.
+    assert _resolve(src, "a.xml#a", ".xml") == '<lv_obj name="a">'
+    assert _resolve(src, "a.xml#a/b", ".xml") == '<lv_obj name="b"/>'
+    assert _resolve(src, "a.xml#a/c", ".xml") == '<lv_obj name="c">'
+
+
 def test_make_variable():
     src = "TIER_FONT_SRCS := $(FONTS_ALL)\n"
     assert _resolve(src, "fonts.mk#TIER_FONT_SRCS", ".mk") == "TIER_FONT_SRCS := $(FONTS_ALL)"
@@ -257,3 +276,28 @@ def test_json_key():
 def test_unknown_extension_falls_back_to_cpp_scanner():
     src = "void f() {\n}\n"
     assert _resolve(src, "a.inc#f", ".inc") == "void f() {"
+
+
+def test_cpp_decl_ignores_statements_with_no_leading_type():
+    lines = [
+        "void f() {",
+        '    spdlog::info("temp: {}", t);',
+        "    counter_ = 0;",
+        "}",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # Neither line declares anything: the first is a qualified call, the
+    # second an assignment to an existing member. Only "f" is a definition.
+    assert names == ["f"]
+
+
+def test_cpp_decl_rejects_control_flow_statement():
+    lines = ["void g() {", "    return foo(bar);", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # "return" is not a type, so "foo" is not a declaration.
+    assert names == ["g"]
+
+
+def test_block_end_ignores_braces_inside_string_literal():
+    lines = ["void g() {", '    return "opening only {";', "}"]
+    assert block_end(lines, 0) == 3

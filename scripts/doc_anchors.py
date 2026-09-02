@@ -130,7 +130,7 @@ def block_end(lines, start):
     depth = 0
     opened = False
     for i in range(start, len(lines)):
-        text = _strip_comment(lines[i])
+        text = _blank_literals(_strip_comment(lines[i]))
         for ch in text:
             if ch == "{":
                 depth += 1
@@ -148,6 +148,29 @@ def _strip_comment(text):
     return re.sub(r"//.*$", "", text)
 
 
+def _blank_literals(text):
+    """Blank the contents of string/char literals.
+
+    A brace or semicolon inside a literal is not block structure, so counting
+    it as one truncates the block at the literal's line.
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] in ('"', "'"):
+            quote = text[i]
+            i += 1
+            while i < n and text[i] != quote:
+                if text[i] == "\\" and i + 1 < n:
+                    out[i] = out[i + 1] = " "
+                    i += 2
+                    continue
+                out[i] = " "
+                i += 1
+        i += 1
+    return "".join(out)
+
+
 _CPP_KEYWORDS = {
     "if", "for", "while", "switch", "return", "else", "do", "catch", "sizeof",
     "try", "case", "default", "using", "typedef", "friend", "delete", "new",
@@ -163,7 +186,15 @@ _CPP_FUNC = re.compile(
     r"^[\w:<>,&*\s~\[\]]*?\b([A-Za-z_]\w*)\s*\([^;{]*\)\s*"
     r"(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?(?:final\s*)?\{"
 )
-_CPP_DECL = re.compile(r"^[\w:<>,&*\s\[\]]*?\b([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;")
+# A declaration needs a type token before the name, separated by whitespace
+# or a pointer/reference sigil - otherwise `spdlog::info(...)` (a qualified
+# call, no type) and `counter_ = 0;` (an assignment, nothing before the name)
+# both read as a name being declared. The leading keyword check rejects
+# `return foo(bar);` the same way: `return` is not a type.
+_CPP_DECL = re.compile(
+    r"^\s*(?!(?:" + "|".join(_CPP_KEYWORDS) + r")\b)"
+    r"[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
+)
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
 
 _XML_NAME = re.compile(r'<\s*[A-Za-z_][\w-]*[^>]*?\bname\s*=\s*"([^"]+)"')
