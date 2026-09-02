@@ -62,7 +62,7 @@ Everything else — deletion rules, timers, shutdown ordering — follows from t
 
 ### The thread inventory
 
-There is exactly one thread that may call `lv_*` anything: the main thread, which enters `Application::main_loop()` ([`src/application/application.cpp:4033`](../../../src/application/application.cpp#L4033)) and never leaves it until shutdown. Everything else is background:
+There is exactly one thread that may call `lv_*` anything: the main thread, which enters `Application::main_loop()` ([`src/application/application.cpp:4032`](../../../src/application/application.cpp#L4032)) and never leaves it until shutdown. Everything else is background:
 
 - **The libhv event loop.** `MoonrakerClient` extends `hv::WebSocketClient` ([`include/moonraker_client.h:78`](../../../include/moonraker_client.h#L78)), and libhv runs the socket's event loop on its own thread. Every WebSocket frame, JSON-RPC reply, and connection-state callback arrives there. This is the thread that produces almost all printer data.
 - **`HttpExecutor` pools.** Two process-wide executors ([`include/http_executor.h:87`](../../../include/http_executor.h#L87)): `fast()` with 4 workers for status/REST/thumbnail traffic that deserves burst parallelism, `slow()` with 1 worker so a multi-minute upload cannot head-of-line-block a quick request. `submit()` from any thread, `run_sync()` when a result is needed now (never from inside a worker on a single-worker lane — self-deadlock).
@@ -78,7 +78,7 @@ The heuristic for everything else: if you are in a callback from libhv, an `Http
 
 ### One bridge: the `UpdateQueue` contract
 
-Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`application.cpp:4155`](../../../src/application/application.cpp#L4155)) before `lv_timer_handler()` (`:4136`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; a 1 ms LVGL timer created in `init()` ([`include/ui_update_queue.h:119`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`:441`) on the main thread inside `lv_timer_handler()`.
+Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`application.cpp:4154`](../../../src/application/application.cpp#L4154)) before `lv_timer_handler()` (`:4136`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; a 1 ms LVGL timer created in `init()` ([`include/ui_update_queue.h:119`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`:441`) on the main thread inside `lv_timer_handler()`.
 
 The safety property is same-thread serialization: because the drain runs inside LVGL's timer walk, a queued `lv_subject_set_*()` can never interleave with an in-progress render — that is what prevents LVGL's "invalidate during rendering" assertion, which on embedded targets is an infinite loop rather than a crash. One correction absorbed from the old diagram: it called the drain "HIGHEST PRIORITY, runs first". LVGL 9 timers have no priority field; the real guarantees are the 1 ms period (work lands within a frame) and creation-order precedence over the later-created refresh timer. Trust the serialization, not per-tick ordering claims.
 

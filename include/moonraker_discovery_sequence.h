@@ -241,11 +241,25 @@ class MoonrakerDiscoverySequence {
     /**
      * @brief Record the hardware fields carried by a machine.system_info reply
      *
-     * OS distribution name and CPU architecture. The same reply also carries
-     * the camera `service_state` detect_webcam() cross-checks, which is why one
-     * query feeds both.
+     * OS distribution name, CPU architecture, and the model string a vendor
+     * firmware may publish as `system_info.machine_name`. The same reply also
+     * carries the camera `service_state` detect_webcam() cross-checks, which is
+     * why one query feeds both.
      */
     void parse_system_info(const json& sys_response);
+
+    /**
+     * @brief Publish the printer's identity string
+     *
+     * `printer.info` reports the host's own name, which on a stock vendor image
+     * is the distro default and names nothing. A firmware that publishes
+     * `machine_name` is naming the machine itself, so that wins whenever it is
+     * present. Both replies are in flight at once and either may land first, so
+     * precedence lives here rather than in whichever handler ran last.
+     *
+     * Caller must hold hardware_mutex_.
+     */
+    void publish_identity_locked();
 
     /**
      * @brief Detect a usable webcam and publish the answer (fire-and-forget)
@@ -319,6 +333,10 @@ class MoonrakerDiscoverySequence {
 
     PrinterDiscovery hardware_;
     mutable std::mutex hardware_mutex_; // Protects hardware_ from concurrent read/write (#777)
+    // Identity strings as each reply reports them, kept apart from the resolved
+    // hostname so a late reply cannot undo the precedence rule.
+    std::string reported_hostname_;     // printer.info "hostname"
+    std::string reported_machine_name_; // machine.system_info "machine_name"
     std::atomic<bool> identified_{false};
     std::atomic<bool> discovery_completed_{false};
 
