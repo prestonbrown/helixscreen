@@ -73,9 +73,9 @@ bool firmware_persists_z_offset(const PrinterDiscovery& hw);
 /// down" from the first moment, because the opposite mistake is the damaging
 /// one: on a printer that really does persist, the save path folds the gcode
 /// offset into the probe and the firmware re-applies the same offset on top at
-/// every boot (prestonbrown/helixscreen#1401 grew a probe offset 0.060 ->
-/// 2.515mm over five save cycles, ending nozzle-on-bed). Losing the Save button
-/// on a printer that did not need the stand-down is merely annoying.
+/// every boot, so the probe value grows without bound until the nozzle reaches
+/// the bed (prestonbrown/helixscreen#1401). Losing the Save button on a printer
+/// that did not need the stand-down is merely annoying.
 ///
 /// Some rows must detect on a signature that proves a SET_GCODE_OFFSET wrapper
 /// exists without proving the wrapper stores anything - wrapping the command

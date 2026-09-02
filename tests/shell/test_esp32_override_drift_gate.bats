@@ -13,10 +13,7 @@
 # silently reintroduced as a bug on the ESP32 build.
 #
 # Nothing else can catch it: the audit tree is not a make target, CI never
-# compiles it, and no test links it. A v0.99.118..HEAD sweep found three forks
-# stale at once (#1427) — the prime-tower fit fix, the thumbnail-parity framing
-# fix and the stale-ghost cache discard were all in src/rendering/, none in the
-# fork; grid_edit_mode.cpp still wrote the bare `.enabled = false` behind #1414.
+# compiles it, and no test links it (#1427).
 #
 # The catch half is the whole point: a twin that moves without its fork must go
 # red. The quiet half matters as much — a gate that fired on the deliberate
@@ -57,7 +54,7 @@ run_gate() {
 # fork. Every one of these must be red.
 
 @test "flags a twin that gained a fix the fork did not (the drift case)" {
-    # src/ grows the guard that b3d90b834 added; the fork stays behind.
+    # src/ grows a guard the fork does not have.
     printf 'int a() { return 1; }\nint b() { return std::max(1u, x); }\nint c() { return 3; }\nvoid fixed() { entry.disable_and_unplace(); }\n' \
         > "$ROOT/src/ui/synced.cpp"
     run_gate

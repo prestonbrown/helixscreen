@@ -604,8 +604,7 @@ void WiFiManager::forget(const std::string& ssid,
         //   network daemon owns the credential store, so there is nothing
         //   HelixScreen persists to remove). The user did tap a button and is
         //   owed an answer, so this one speaks — but as "not here", not as a
-        //   failure. Saying nothing would be the same silent dead control the
-        //   radio toggle used to be.
+        //   failure. Saying nothing would leave a silent dead control.
         if (result.result == WiFiResult::NOT_SUPPORTED) {
             NOTIFY_INFO("This printer's network service manages saved WiFi networks");
         } else if (result.result != WiFiResult::NETWORK_NOT_FOUND) {

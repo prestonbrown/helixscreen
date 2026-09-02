@@ -211,15 +211,14 @@ void CameraWidget::on_hooked_root_deleted() {
     // Runs inside LVGL's delete event for the tile: drop the cached tile
     // pointers ONLY.
     //
-    // lifetime_ is deliberately NOT invalidated, unlike the three widgets
-    // 3d0875bff fixed. It guards the MJPEG frame and status deferrals of a
-    // stream that is meant to outlive the tree, and a token the running stream
-    // captured at start_stream() never recovers from an invalidate() -
+    // Do NOT invalidate lifetime_ here. It guards the MJPEG frame and status
+    // deferrals of a stream that outlives the tree, and a token the running
+    // stream captured at start_stream() never recovers from an invalidate():
     // LifetimeToken::expired() compares its snapshot against the bumped
-    // generation, so every later frame would be dropped for the life of that
-    // stream. The fullscreen overlay is a child of the screen, not of the tile,
-    // so a page-container delete leaves it live and still being fed;
-    // invalidating here would freeze a fullscreen view the user is watching.
+    // generation, so every later frame is dropped for the life of that stream.
+    // The fullscreen overlay is a child of the screen, not of the tile, so a
+    // page-container delete leaves it live and still being fed - invalidating
+    // here freezes a fullscreen view the user is watching.
     //
     // Dropping camera_image_ is what makes the deferrals safe instead: the
     // frame lambda resolves its target as

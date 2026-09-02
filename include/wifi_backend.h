@@ -471,9 +471,8 @@ class WifiBackend {
     /// DEFAULTS TO TRUE, deliberately unlike the uniformly-false supports_*
     /// defaults on AmsBackend, for two reasons:
     ///
-    /// 1. It is fail-safe in the direction that matters. A wrong "true" is
-    ///    exactly the behaviour that shipped before this query existed and
-    ///    costs nothing new. A wrong "false" silently switches OFF the
+    /// 1. It is fail-safe in the direction that matters. A wrong "true" only
+    ///    runs a reassert that cannot do anything. A wrong "false" switches OFF the
     ///    stranding protection that keeps a stored "off" from bricking a
     ///    WiFi-only printer's remote access (the CC1 incident) — for every
     ///    backend that forgot to override it. AmsBackend's defaults are

@@ -1947,6 +1947,30 @@ fi
 
 echo ""
 
+SECTION_START=$(start_section)
+echo -n "🕰️  Checking comments for commit-SHA citations..."
+
+# Ratchet. Comments explain the code as it is; how it got here belongs in the
+# commit message, where git blame will surface it on demand.
+if [ -f "scripts/check_comment_archaeology.py" ]; then
+  if python3 scripts/check_comment_archaeology.py >/tmp/comment_arch.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ no new commit-SHA citations in comments"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/comment_arch.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_comment_archaeology.py not found — skipping"
+fi
+
+echo ""
+
 SECTION_START=$(date +%s)
 echo -n "🖼️  Checking guarded ThumbnailCache access..."
 

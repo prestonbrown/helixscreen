@@ -599,13 +599,13 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 // CameraWidget
 // ============================================================================
 //
-// The camera is the fourth widget with these mechanics and the only one that
-// deliberately opts out of expiring its guard on detach: the MJPEG stream is
-// meant to keep running across a detach->reattach gap, and the frame callbacks
-// stay safe purely because camera_image_ is null in between. That makes the
-// pointer drop load-bearing rather than defensive - a raw lv_obj_delete() of
-// the page tree calls no detach(), so pre-fix the stream's next frame (10-30
-// per second) wrote lv_image_set_src() into a freed lv_image.
+// CameraWidget is the only one of these widgets that deliberately does not
+// expire its guard on detach: the MJPEG stream keeps running across a
+// detach->reattach gap, and the frame callbacks stay safe purely because
+// camera_image_ is null in between. That makes the pointer drop load-bearing
+// rather than defensive - a raw lv_obj_delete() of the page tree calls no
+// detach(), and without the hook the stream's next frame (10-30 per second)
+// writes lv_image_set_src() into a freed lv_image.
 
 #if HELIX_HAS_CAMERA
 

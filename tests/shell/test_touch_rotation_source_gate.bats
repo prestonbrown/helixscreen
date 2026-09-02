@@ -7,9 +7,7 @@
 #
 # Why a lint carries this instead of a unit test: the gate it protects lives in
 # create_input_pointer(), which needs a real fbdev or DRM device and cannot run
-# headless. A mutation run over the fix confirmed the hole directly — reverting
-# either backend to the config-key read killed no test in the suite, so the
-# change shipped unverified. This gate is what makes that revert fail.
+# headless, so no unit test can reach it.
 #
 # The key is only the REQUEST and differs from the applied rotation both ways:
 # CLI/env rotation leaves the key at 0 on a rotated display (#1394 stays live),
@@ -72,8 +70,7 @@ run_gate() {
 
 # ------------------------------------------------------------- the catch half
 #
-# These two are the exact mutations that SURVIVED the suite before this gate
-# existed. Both must be red.
+# The two ways the gate can be defeated. Both must be red.
 
 @test "flags a backend reverted to the config key" {
     cat > "$ROOT/src/api/display_backend_fbdev.cpp" <<'EOF'
