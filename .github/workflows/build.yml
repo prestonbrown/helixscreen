@@ -179,6 +179,21 @@ jobs:
       timeout-minutes: 5
       run: ./scripts/smoke-headless.sh
 
+    # The shell suite is the only place installer/download/bats behavior is
+    # verified; without this step those changes ride to the release gate
+    # untested (two CI-green reds landed that way on 2026-09-01). Same recipe
+    # release.yml runs: bats via npm, suite via make test-shell. Runs here in
+    # compile-ubuntu because the patched submodules the gate tests read are
+    # already in place after the build steps above.
+    - name: Apply submodule patches
+      run: make apply-patches
+
+    - name: Install bats
+      run: sudo npm install -g bats
+
+    - name: Run shell tests
+      run: make test-shell
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v7
       with:
