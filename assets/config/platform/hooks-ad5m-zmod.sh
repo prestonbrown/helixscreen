@@ -79,8 +79,8 @@ platform_pre_start() {
     #   AD5X  /opt/config/ /usr/prog/config/ /usr/data/logs/
     #         /usr/prog/app_startup.sh /tmp/*.txt
     #   AD5M  /opt/config/ /data/logFiles/ /tmp/*.txt
-    # /data/helixscreen/ is in neither list, so the app log we were writing
-    # there never reached a single support archive (issue #1249). /opt/config
+    # /data/helixscreen/ is in neither list, so anything written there never
+    # reaches a support archive. /opt/config
     # is a bind-mount of the durable mod config dir on both models, `log` is
     # not in TAR_CONFIG's exclude list, and mod_data/log/ already exists and is
     # writable on real hardware.

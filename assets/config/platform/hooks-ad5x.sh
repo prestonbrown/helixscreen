@@ -75,7 +75,7 @@ platform_pre_start() {
     # excluding logo, save, database, shapers, ssh.key, .git, .shell, notify.txt
     # and printer_data. `log` is not excluded, and /opt/config is a bind mount of
     # the durable mod config dir, so mod_data/log/ rides along. Anything written
-    # outside those roots never reaches a support archive at all (#1249).
+    # outside those roots never reaches a support archive at all.
     #
     # helix.log, deliberately NOT helixscreen.log: Z-Mod's own S80helixscreen
     # hardcodes LOGFILE=/opt/config/mod_data/log/helixscreen.log and redirects the

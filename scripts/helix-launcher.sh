@@ -53,10 +53,9 @@ set -e
 #
 # Reads /proc/<pid>/cmdline directly instead of shelling out to pgrep. pgrep is
 # absent entirely on some BusyBox rootfs — Forge-X on the AD5M ships none — and
-# where BusyBox does provide it, `-f` matching is unreliable. Both probes in the
-# previous pgrep-plus-socket version missed there (Forge-X's klippy socket is
-# /tmp/uds and its Moonraker has none), so the UI ran at nice 0 against Klipper
-# on exactly the boards this exists to protect.
+# where BusyBox does provide it, `-f` matching is unreliable. A socket probe
+# alone is not enough either: Forge-X's klippy socket is /tmp/uds and its
+# Moonraker has none, so the socket checks below are only a fallback.
 #
 # Reading the files also avoids the pgrep self-match trap: nothing is spawned
 # with the search pattern on its own command line.
@@ -454,12 +453,12 @@ fi
 # hooks export HELIX_LOG_DEST / HELIX_LOG_FILE from platform_pre_start
 # (ad5m-zmod, ad5m-forgex, ad5m-kmod, k1, k2, cc1) to steer the app log onto a
 # partition that is persistent AND captured by that firmware's log archiver.
-# Resolving before platform_pre_start ran read an unset variable, so
-# --log-dest/--log-file never reached the binary and the app log fell back to
-# auto-detection (syslog on Linux). helixscreen.init happens to call
-# platform_pre_start itself before exec'ing us, which masked this on a normal
-# boot — but NOT for `make deploy-*` restarts, hand-started launchers, or any
-# third-party init script that leaves the hook to us. See issue #1249.
+# Resolved any earlier, those variables are unset: --log-dest/--log-file never
+# reach the binary and the app log falls back to auto-detection (syslog on
+# Linux). A normal boot hides that, because helixscreen.init calls
+# platform_pre_start before exec'ing us — `make deploy-*` restarts,
+# hand-started launchers, and third-party init scripts that leave the hook to
+# us do not.
 DEBUG_MODE="${CLI_DEBUG:-${HELIX_DEBUG:-0}}"
 LOG_DEST="${CLI_LOG_DEST:-${HELIX_LOG_DEST:-auto}}"
 LOG_FILE="${CLI_LOG_FILE:-${HELIX_LOG_FILE:-}}"

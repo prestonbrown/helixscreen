@@ -3,27 +3,11 @@
 #
 # Ask a device which platform profile the INSTALLER would choose for it.
 #
-# Why this exists: the deploy targets in mk/cross.mk used to hand-roll their own
-# firmware detection over ssh -- a two-branch `if [ -d /mnt/data/.klipper_mod ]
-# ... elif [ -d /opt/config/mod/.root ]` next to the installer's four-way
-# detect_mod_flavor(). The copies drifted, as two hand-written copies of one rule
-# always do:
-#
-#   * the makefile had no zmod branch at all, so hooks-ad5m-zmod.sh was
-#     unreachable from any deploy even though the file, its tests and its docs
-#     all exist;
-#   * it tested /opt/config/mod/.root BEFORE /ZMOD, the reverse of
-#     detect_mod_flavor's order, so a ZMOD rig carrying both markers silently
-#     received the Forge-X hooks;
-#   * it knew only /root/printer_software vs /opt/helixscreen for the install
-#     directory, so it missed both ZMOD's /srv/helixscreen and the Forge-X
-#     payload root the installer rework introduced.
-#
-# So there is exactly one implementation of each of these rules, and it is the
-# installer's. This script ships the installer's own detection modules to the
-# device, runs them there, and prints what they decided. Nothing here decides
-# anything itself -- if an answer looks wrong, fix it in scripts/lib/installer/
-# and both the installer and the deploy path change together.
+# The installer's detection modules are the only implementation of these rules.
+# This script ships scripts/lib/installer/{common,host_profile,platform}.sh to
+# the device, runs them there, and prints what they decided. It decides nothing
+# itself: a wrong answer is a bug in scripts/lib/installer/, and fixing it there
+# fixes the mk/cross.mk deploy targets at the same time.
 #
 # Usage:
 #   scripts/device-profile.sh <ssh-target> [ssh-opts...]
@@ -59,11 +43,10 @@ emit_probe() {
         cat "$LIB_DIR/$m"
     done
 
-    # These overrides come AFTER the modules on purpose: a shell function is
-    # whatever was defined last, so defining them first would let the real
-    # implementations replace them. Learned the hard way -- the real
-    # validate_install_dir ends set_install_paths with `|| exit 1`, and with the
-    # stubs on top the probe exited 1 with no output at all.
+    # These overrides must come AFTER the modules: a shell function is whatever
+    # was defined last, so defining them first lets the real implementations
+    # replace them -- and the real validate_install_dir ends set_install_paths
+    # with `|| exit 1`, so a shadowed stub exits the probe with no output.
     #
     # Silencing the log_* family keeps stdout to KEY=VALUE lines. Neutering the
     # two guards is what makes this a QUERY: host_refuse_mod_owned and

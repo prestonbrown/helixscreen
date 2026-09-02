@@ -3,18 +3,17 @@
 #
 # Platform hooks: FlashForge AD5X running the Forge-X rig payload
 #
-# Adapted from HelixScreen's assets/config/platform/hooks-ad5x.sh (the Z-Mod
-# AD5X hook). Same board, same rules: the mod userland is a MIPS buildroot
-# chroot with its own glibc, HelixScreen runs inside it, and /data does not
-# exist. Two things differ on this rig, both addressed below:
+# The mod userland is a MIPS buildroot chroot with its own glibc; HelixScreen
+# runs inside it and /data does not exist on this board. Every path here is a
+# path as seen from inside the chroot:
 #
-#   - The chroot is $MOD (/usr/data/.mod/.forge-x), not Z-Mod's /usr/data/.mod/.zmod,
-#     and the install root is the synced payload /opt/config/mod/.bin/helixscreen.
-#     init_buildroot bind-mounts /opt/config into the chroot at the same path,
-#     so these paths hold on both sides of the chroot.
-#   - Durable state lives under /opt/config/mod_data (the same tree the mod's
-#     own logs and variables use), so the cache no longer points at Z-Mod's
-#     /srv/helixscreen.
+#   - The chroot is $MOD (/usr/data/.mod/.forge-x) and the install root is the
+#     synced payload /opt/config/mod/.bin/helixscreen. init_buildroot
+#     bind-mounts /opt/config into the chroot at the same path, so these paths
+#     hold on both sides of the chroot.
+#   - Durable state lives under /opt/config/mod_data, beside the mod's own logs
+#     and variables. The payload tree is synced (replaceable), so nothing
+#     runtime-writable belongs in it.
 
 # shellcheck disable=SC3043  # local is supported by BusyBox ash
 

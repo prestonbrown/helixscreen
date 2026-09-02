@@ -37,9 +37,9 @@ PIDFILE="/var/run/${NAME}.pid"
 #
 # Prefer FHS /var/log when its backing filesystem is persistent (the standard
 # Unix location for daemon logs). Fall back to ${DAEMON_DIR}/logs/ when /var/log
-# is tmpfs/ramfs — using a RAM-backed /var/log would re-create the Snapmaker U1
-# print failure where 498 MB of accidental trace output filled tmpfs and starved
-# Klipper. DAEMON_DIR is persistent ext4 on every SysV platform.
+# is tmpfs/ramfs: a RAM-backed log competes with Klipper for memory, and one
+# burst of unexpected output (a trace level left on) can fill tmpfs and stall a
+# print. DAEMON_DIR is persistent ext4 on every SysV platform.
 LOGFILE=""
 if [ -d /var/log ] && [ -w /var/log ]; then
     # Resolve any symlink first: some Yocto/BusyBox systems (e.g., Elegoo CC1
