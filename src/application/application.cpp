@@ -2799,18 +2799,17 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
         cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
 
     auto detected = PrinterDetector::auto_detect(hardware);
-    const auto decision = detected.detected()
-                              ? PrinterDetector::classify_type_mismatch(saved, detected.type_name,
-                                                                        detected.confidence, flag)
-                              : PrinterDetector::MismatchDecision::NoDetection;
+    const auto decision = PrinterDetector::classify_type_mismatch(saved, detected, flag);
     if (decision != PrinterDetector::MismatchDecision::Warn) {
         // info, not debug: this runs once per discovery pass, and it is the line
         // that answers "why was there no prompt?" in a bundle.
         spdlog::info("[Application] No type mismatch prompt: detected '{}' at {}% (runner-up '{}' "
-                     "at {}%), saved '{}', dismissed-for '{}', need >={}% - {}",
+                     "at {}%, margin {}, {} tied), saved '{}', dismissed-for '{}', need >={}% and "
+                     "margin >={} - {}",
                      detected.type_name, detected.confidence, detected.runner_up_type_name,
-                     detected.runner_up_confidence, saved, flag,
-                     PrinterDetector::MISMATCH_MIN_CONFIDENCE,
+                     detected.runner_up_confidence, detected.margin(), detected.tied_count, saved,
+                     flag, PrinterDetector::MISMATCH_MIN_CONFIDENCE,
+                     PrinterDetector::DETECT_MIN_MARGIN,
                      PrinterDetector::mismatch_decision_name(decision));
         return;
     }
