@@ -847,7 +847,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slot hides empty slot with no metadata 
 }
 
 TEST_CASE("SlotInfo::display_fill_level renders ghost lanes empty, present lanes by weight",
-          "[ams][slot][1071]") {
+          "[ams][slot][1071][1367]") {
     // Ghost lane: EMPTY status, but a Spoolman link + material were RETAINED
     // across an eject (#1071), so has_filament_info() is true. The fill bar must
     // read empty (0), NOT the metadata fallback — otherwise an ejected lane
@@ -884,4 +884,39 @@ TEST_CASE("SlotInfo::display_fill_level renders ghost lanes empty, present lanes
     SlotInfo bare;
     bare.status = SlotStatus::AVAILABLE;
     CHECK_FALSE(bare.display_fill_level().has_value());
+
+    // UNKNOWN lane, both weights known: UNKNOWN itself carries no presence
+    // signal (a backend that publishes none, or the startup skeleton before
+    // the first status parse lands), so the weights decide as for a present
+    // lane.
+    SlotInfo unknown_weighed;
+    unknown_weighed.status = SlotStatus::UNKNOWN;
+    unknown_weighed.total_weight_g = 1000.0f;
+    unknown_weighed.remaining_weight_g = 250.0f;
+    auto uwfill = unknown_weighed.display_fill_level();
+    REQUIRE(uwfill.has_value());
+    CHECK(*uwfill == Catch::Approx(0.25f));
+
+    // UNKNOWN lane, metadata but no weights: full, same metadata fallback as
+    // a present lane.
+    SlotInfo unknown_meta;
+    unknown_meta.status = SlotStatus::UNKNOWN;
+    unknown_meta.material = "PLA";
+    auto umfill = unknown_meta.display_fill_level();
+    REQUIRE(umfill.has_value());
+    CHECK(*umfill == Catch::Approx(1.0f));
+
+    // UNKNOWN lane, nothing known at all: leave the bar unchanged (nullopt).
+    SlotInfo unknown_bare;
+    unknown_bare.status = SlotStatus::UNKNOWN;
+    CHECK_FALSE(unknown_bare.display_fill_level().has_value());
+
+    // UNKNOWN lane, colour only: has_filament_info() counts a non-default
+    // color_rgb, so the metadata fallback applies here too.
+    SlotInfo unknown_color;
+    unknown_color.status = SlotStatus::UNKNOWN;
+    unknown_color.color_rgb = 0x00FF00;
+    auto ucfill = unknown_color.display_fill_level();
+    REQUIRE(ucfill.has_value());
+    CHECK(*ucfill == Catch::Approx(1.0f));
 }

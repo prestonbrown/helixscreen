@@ -1026,18 +1026,20 @@ struct SlotInfo {
     /**
      * @brief Fill-bar level for the slot UI, or nullopt to leave the bar as-is.
      *
-     * EMPTY/UNKNOWN lanes render empty (0.0) — even when a Spoolman link and
-     * material were deliberately RETAINED across an eject (#1071), so a ghost
-     * lane never shows a phantom fill (#1071 BUG-1). Present lanes use the real
-     * remaining/total ratio when both weights are known; else fall back to full
-     * when any filament metadata is present (some backends, e.g. Snapmaker RFID,
-     * report a total but never a remaining, and a lane outside Spoolman has no
-     * weights at all). Full is what every other printer UI shows for an unweighed
-     * spool, and matching them beats a half-bar nobody reads as "unknown". Else
-     * nullopt (leave unchanged).
+     * EMPTY lanes render empty (0.0) — even when a Spoolman link and material
+     * were deliberately RETAINED across an eject (#1071), so a ghost lane
+     * never shows a phantom fill (#1071 BUG-1). UNKNOWN carries no presence
+     * signal (a backend that publishes none, or the startup skeleton before
+     * the first status parse lands), so it falls through to the same logic as
+     * a present lane: the real remaining/total ratio when both weights are
+     * known, else full when any filament metadata is present (some backends,
+     * e.g. Snapmaker RFID, report a total but never a remaining, and a lane
+     * outside Spoolman has no weights at all). Full is what every other
+     * printer UI shows for an unweighed spool, and matching them beats a
+     * half-bar nobody reads as "unknown". Else nullopt (leave unchanged).
      */
     [[nodiscard]] std::optional<float> display_fill_level() const {
-        if (!is_present()) {
+        if (status == SlotStatus::EMPTY) {
             return 0.0f;
         }
         if (total_weight_g > 0.0f && remaining_weight_g >= 0.0f) {
@@ -1055,7 +1057,7 @@ struct SlotInfo {
      * Encodes display_fill_level() into the 0-100 int convention used by the
      * per-slot fill subjects (AmsState::get_slot_fill_subject): -1 when
      * display_fill_level() is nullopt (no data — leave the render untouched),
-     * otherwise the ratio rounded to 0-100 (absent lane -> 0, metadata-only
+     * otherwise the ratio rounded to 0-100 (empty lane -> 0, metadata-only
      * fallback -> 100, real ratio -> lround(ratio*100)). Implemented in terms of
      * display_fill_level() so the two never drift.
      */

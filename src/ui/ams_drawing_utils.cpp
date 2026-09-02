@@ -73,7 +73,7 @@ SlotError::Severity worst_unit_severity(const AmsUnit& unit) {
 int fill_percent_from_slot(const SlotInfo& slot, int min_pct) {
     // Canonical fill semantics (SlotInfo::display_fill_pct): real ratio when
     // both weights are known, 100% when only metadata is present, 0 for an
-    // absent/ghost lane, and -1 when there is no data at all. -1 is propagated
+    // empty/ghost lane, and -1 when there is no data at all. -1 is propagated
     // so callers can skip/keep-previous instead of rendering a phantom bar; it
     // is what keeps a lane we know nothing about from being painted, which is a
     // different case from a known lane whose weight nobody tracks.
