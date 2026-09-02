@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/pwm_sound_backend_test_access.h"
+#include "../test_helpers/scoped_env.h"
 #include "pwm_sound_backend.h"
 
 #include <atomic>
@@ -177,31 +178,9 @@ TEST_CASE("PWM backend reports correct capabilities", "[sound][pwm]") {
 // Audible floor: min_tick_ms default + HELIX_PWM_MIN_NOTE_MS override
 // ============================================================================
 
-// RAII guard for env vars - restores original value on destruction
-struct EnvGuard {
-    std::string name;
-    std::string original;
-    bool was_set;
-
-    explicit EnvGuard(const char* env_name) : name(env_name) {
-        const char* val = std::getenv(env_name);
-        was_set = (val != nullptr);
-        if (was_set)
-            original = val;
-    }
-
-    ~EnvGuard() {
-        if (was_set) {
-            setenv(name.c_str(), original.c_str(), 1);
-        } else {
-            unsetenv(name.c_str());
-        }
-    }
-};
-
 TEST_CASE("min note floor defaults to 20 ms and HELIX_PWM_MIN_NOTE_MS clamps to 10-100",
           "[sound][pwm]") {
-    EnvGuard guard("HELIX_PWM_MIN_NOTE_MS");
+    helix::ScopedEnv guard("HELIX_PWM_MIN_NOTE_MS");
     auto base = create_mock_sysfs(0, 6);
 
     SECTION("default floor without the env var") {

@@ -107,15 +107,17 @@ AD5M both HelixScreen (PWM sysfs) and klippy's tone_player plugin (for every
 M300/TONE it handles) write `/sys/class/pwm/pwmchip0/pwm6`, so with PWM
 installed the two fight over the channel forever. `try_install_m300_backend()`
 therefore REPLACES an installed PWM backend when — and only when — the gate
-opened on a real signal (`src/system/sound_manager.cpp:145`). The type check
+opened on a real signal (`src/system/sound_manager.cpp:134`). The type check
 is the `owns_sysfs_pwm_channel()` capability probe on SoundBackend, not a
 dynamic_cast (firmware builds `-fno-rtti`). SDL/ALSA/JzPwm are real host
 audio and never displaced; the forced `enable` override alone never displaces
 anything (M300 may be unhandled there — the feedback loop again). If M300
 cannot install (no Moonraker client yet, sound disabled), the PWM backend
-stays, and clearing the client drops M300 and re-runs `create_backend()` so
-the displaced PWM backend returns instead of leaving the box soundless
-(`src/system/sound_manager.cpp:64`).
+stays, and clearing the client drops M300 and re-runs the host probe so the
+displaced PWM backend returns instead of leaving the box soundless
+(`src/system/sound_manager.cpp:82`) — except at full app shutdown, which
+clears the client with `host_recovery=false` since the manager is torn down
+moments later anyway.
 
 ### Backend Capabilities
 
@@ -229,7 +231,7 @@ Tone efficiency: the fallback re-sends the same note every tracker tick, so `set
 
 ### PWM PCM machinery (dormant)
 
-The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:504`):
+The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:501`):
 
 - **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h:101`).
 - **62.5 kHz carrier**, above the audible range; each sample becomes a duty-cycle value within that period (`PCM_CARRIER_HZ`).

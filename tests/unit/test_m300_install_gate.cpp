@@ -312,3 +312,36 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "M300 backend displaces the PWM sysfs bac
         REQUIRE(SoundManagerTestAccess::backend(sm)->needs_moonraker_client());
     }
 }
+
+TEST_CASE_METHOD(MoonrakerTestFixture, "M300 drop without host recovery leaves no backend",
+                 "[sound][m300][capabilities]") {
+    // Application::shutdown clears the SoundManager client with
+    // host_recovery=false: the manager is torn down moments later, so
+    // re-opening audio hardware and spawning a sequencer thread on the way
+    // out would be pure waste. Printer switch / transient disconnect keep the
+    // default (true) — there the gcode path is dead and local audio is the
+    // only fallback.
+    SoundManagerClean clean;
+    auto& sm = SoundManager::instance();
+
+    PrinterStateTestAccess::reset(state());
+    state().init_subjects(true);
+
+    sm.set_moonraker_client(&client());
+    SoundManagerTestAccess::install_backend(sm, make_pwm_backend());
+
+    PrinterDiscovery hw;
+    nlohmann::json objects = {"output_pin beeper"};
+    hw.parse_objects(objects);
+    REQUIRE(hw.has_speaker());
+
+    state().set_hardware(hw);
+    UpdateQueue::instance().drain();
+    REQUIRE(SoundManagerTestAccess::backend(sm)->needs_moonraker_client()); // M300 active
+
+    sm.set_moonraker_client(nullptr, /*host_recovery=*/false);
+
+    // M300 dropped, and nothing re-probed in its place — even on a host
+    // where create_backend() would succeed.
+    REQUIRE(SoundManagerTestAccess::backend(sm) == nullptr);
+}

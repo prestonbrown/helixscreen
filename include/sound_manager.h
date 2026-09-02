@@ -51,8 +51,14 @@ class SoundManager {
     SoundManager(const SoundManager&) = delete;
     SoundManager& operator=(const SoundManager&) = delete;
 
-    /// Set Moonraker client for M300 backend
-    void set_moonraker_client(IMoonrakerClient* client);
+    /// Set Moonraker client for M300 backend. Clearing the client (nullptr)
+    /// drops an M300 backend; with @p host_recovery (default) the eager
+    /// host-backend probe re-runs so a displaced backend returns — printer
+    /// switch and transient disconnect want that, since with the client gone
+    /// the gcode path is dead and local audio is the only fallback. Full app
+    /// shutdown passes false: the manager is torn down moments later and
+    /// re-opening audio hardware there is wasted work.
+    void set_moonraker_client(IMoonrakerClient* client, bool host_recovery = true);
 
     /// Auto-detect backend, load theme, start sequencer.
     /// Only considers host-side audio backends (SDL/ALSA/PWM). The M300
@@ -156,6 +162,18 @@ class SoundManager {
     /// Detect best available host-side audio backend (SDL/ALSA/PWM).
     /// Does NOT include M300 — see try_install_m300_backend().
     std::shared_ptr<SoundBackend> create_backend();
+
+    /// Run the eager host-backend probe and finish setup when one is found
+    /// (sequencer + theme via finalize_backend_setup()). When none is found,
+    /// mark initialized_ anyway so try_install_m300_backend() stays reachable
+    /// for the late M300 install.
+    void probe_and_install_host_backend();
+
+    /// Join the sequencer thread, then release the backend it drives — in
+    /// that order: the sequencer's tick loop calls into the backend, so the
+    /// thread must be dead before the backend it references is destroyed.
+    /// Every path that swaps or drops a backend goes through here.
+    void tear_down_active_backend();
 
     /// Common setup after a backend is installed: load theme, create and
     /// start sequencer, mark initialized. Idempotent.

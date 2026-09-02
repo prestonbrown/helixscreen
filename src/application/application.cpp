@@ -5140,8 +5140,10 @@ void Application::shutdown() {
     }
 
     // Clear SoundManager's client ref so the M300 sequencer thread
-    // won't call gcode_script() on a dangling pointer (#714).
-    SoundManager::instance().set_moonraker_client(nullptr);
+    // won't call gcode_script() on a dangling pointer (#714). No host
+    // recovery: SoundManager::shutdown() runs below in this same teardown, so
+    // re-opening audio hardware here would only be torn down again.
+    SoundManager::instance().set_moonraker_client(nullptr, /*host_recovery=*/false);
 
     // Clear app_globals references BEFORE destroying managers to prevent
     // destructors (e.g., PrintSelectPanel) from accessing destroyed objects
