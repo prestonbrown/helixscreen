@@ -88,7 +88,7 @@ EndlessSpoolStatus endless_spool_status(const EndlessSpoolCapabilities& caps) {
         // (the On sentence) is the false promise this state exists to retract.
         out.kind = EndlessSpoolStatusKind::OnWithoutBackup;
         out.text =
-            lv_tr("Auto-refill is on but no two lanes hold matching filament, so nothing will "
+            lv_tr("Auto-refill is on but no two slots hold matching filament, so nothing will "
                   "switch on runout");
         break;
     }

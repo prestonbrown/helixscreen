@@ -11,7 +11,7 @@
   <translation tag="%d more sensors" zh="还有%d个传感器"/>
   <translation tag="%d of %d plugins loaded" zh="已加载 %d / %d 个插件"/>
   <translation tag="%d plugins loaded" zh="已加载 %d 个插件"/>
-  <translation tag="%d slots" zh="%d 个料仓"/>
+  <translation tag="%d slots" zh="%d 个槽位"/>
   <translation tag="%lu days ago" zh="%lu天前"/>
   <translation tag="%lu hours ago" zh="%lu小时前"/>
   <translation tag="%lu min ago" zh="%lu分钟前"/>
@@ -42,7 +42,7 @@
   <translation tag="..." zh="..."/>
   <translation tag="0 = computed" zh="0 = 自动计算"/>
   <translation tag="0 events queued" zh="0 个事件已排队"/>
-  <translation tag="0 slots" zh="{0} 个料仓"/>
+  <translation tag="0 slots" zh="{0} 个槽位"/>
   <translation tag="0.4-2mm direct drive, 4-6mm bowden" zh="直驱 0.4-2mm，远程挤出 4-6mm"/>
   <translation tag="0°" zh="0°"/>
   <translation tag="1 day ago" zh="1天前"/>
@@ -216,7 +216,7 @@
   <translation tag="Auto-lock" zh="自动锁定"/>
   <translation tag="Auto-poll for weight updates" zh="自动轮询重量更新"/>
   <translation tag="Auto-probe or manually check screw heights" zh="自动探测或手动检查螺丝高度"/>
-  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout" zh="自动续料已开启，但没有两个料仓装有相同的耗材，因此耗材用尽时不会切换"/>
+  <translation tag="Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout" zh="自动续料已开启，但没有两个槽位装有相同的耗材，因此耗材用尽时不会切换"/>
   <translation tag="Auto-render video" zh="自动渲染视频"/>
   <translation tag="Auto-tuning Shapers..." zh="正在自动校准整形器..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" zh="自动卸载仅适用于本地 Moonraker"/>
@@ -322,7 +322,7 @@
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
   <translation tag="Bypass failed" zh="旁通失败"/>
-  <translation tag="Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" zh="旁路已启用，但此打印使用 AMS 料仓。当旁路耗材仍在工具头中时，打印机可能拒绝装载料仓。请在打印前取出耗材并关闭旁路。仍要开始打印吗？"/>
+  <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" zh="旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？"/>
   <translation tag="Bypass toggle failed" zh="旁通切换失败"/>
   <translation tag="C" zh="腔"/>
   <translation tag="CALIBRATION" zh="校准"/>
@@ -343,7 +343,7 @@
   <translation tag="Calibrate All" zh="全部校准"/>
   <translation tag="Calibrate Bowden" zh="校准波顿管"/>
   <translation tag="Calibrate Encoder" zh="校准编码器"/>
-  <translation tag="Calibrate Gates" zh="校准料仓"/>
+  <translation tag="Calibrate Gates" zh="校准槽位"/>
   <translation tag="Calibrate Gear" zh="校准齿轮"/>
   <translation tag="Calibrate X" zh="校准 X 轴"/>
   <translation tag="Calibrate Y" zh="校准 Y 轴"/>
@@ -428,10 +428,10 @@
   <translation tag="Check Again" zh="重新检查"/>
   <translation tag="Check filament" zh="检查耗材"/>
   <translation tag="Check for Updates" zh="检查更新"/>
-  <translation tag="Check slot" zh="检查料仓"/>
-  <translation tag="Check slot failed" zh="检查料仓失败"/>
-  <translation tag="Check slots" zh="检查料仓"/>
-  <translation tag="Check slots failed" zh="检查料仓失败"/>
+  <translation tag="Check slot" zh="检查槽位"/>
+  <translation tag="Check slot failed" zh="检查槽位失败"/>
+  <translation tag="Check slots" zh="检查槽位"/>
+  <translation tag="Check slots failed" zh="检查槽位失败"/>
   <translation tag="Check the filament path and try again." zh="检查耗材路径并重试。"/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" zh="检查加热器功率（热端通常为 40-60W）"/>
   <translation tag="Checking" zh="检查中"/>
@@ -443,7 +443,7 @@
   <translation tag="Checking for plugin..." zh="正在检查插件..."/>
   <translation tag="Checking for webcam..." zh="正在检查摄像头..."/>
   <translation tag="Checking plugin" zh="正在检查插件"/>
-  <translation tag="Checking slots..." zh="正在检查料仓..."/>
+  <translation tag="Checking slots..." zh="正在检查槽位..."/>
   <translation tag="Checking timelapse plugin..." zh="正在检查延时摄影插件..."/>
   <translation tag="Checking webcam" zh="正在检查摄像头"/>
   <translation tag="Checking..." zh="检查中..."/>
@@ -702,7 +702,7 @@
   <translation tag="Display: " zh="显示: "/>
   <translation tag="Distance for hub cutter operation" zh="集线器切刀动作的距离"/>
   <translation tag="Distance from hub to toolhead" zh="从集线器到工具头的距离"/>
-  <translation tag="Distance from lane extruder to hub" zh="从料仓挤出机到集线器的距离"/>
+  <translation tag="Distance from lane extruder to hub" zh="从槽位挤出机到集线器的距离"/>
   <translation tag="Distance from toolhead sensor to nozzle tip" zh="从工具头传感器到喷嘴尖端的距离"/>
   <translation tag="Do not power off your printer." zh="请勿关闭打印机电源。"/>
   <translation tag="Do not touch the printer during calibration" zh="校准期间请勿触碰打印机"/>
@@ -735,7 +735,7 @@
   <translation tag="Each fan can only be selected once" zh="每个风扇只能选择一次"/>
   <translation tag="Edit" zh="编辑"/>
   <translation tag="Edit Filament" zh="编辑耗材"/>
-  <translation tag="Edit Slot" zh="编辑料仓"/>
+  <translation tag="Edit Slot" zh="编辑槽位"/>
   <translation tag="Edit Spool" zh="编辑料盘"/>
   <translation tag="Edit Spool #{}" zh="编辑线轴 #{}"/>
   <translation tag="Edit Theme Colors" zh="编辑主题颜色"/>
@@ -755,7 +755,7 @@
   <translation tag="Emergency stop and print alerts" zh="紧急停止和打印警报"/>
   <translation tag="Emergency stop failed: not connected" zh="紧急停止失败: 未连接"/>
   <translation tag="Empty" zh="空"/>
-  <translation tag="Empty slots disable the associated functionality" zh="空料仓将禁用相关功能"/>
+  <translation tag="Empty slots disable the associated functionality" zh="空槽位将禁用相关功能"/>
   <translation tag="Enable" zh="启用"/>
   <translation tag="Enable Brush Wipe" zh="启用刷子擦拭"/>
   <translation tag="Enable Bypass Controls" zh="启用旁路控制"/>
@@ -771,7 +771,7 @@
   <translation tag="Enable audio feedback" zh="启用声音反馈"/>
   <translation tag="Enable brush wipe after purging" zh="排料后启用刷子擦拭"/>
   <translation tag="Enable detailed print preparation tracking (Recommended)" zh="启用详细打印准备跟踪（推荐）"/>
-  <translation tag="Enable feed assist for active slot during printing" zh="打印时为当前料仓启用送料辅助"/>
+  <translation tag="Enable feed assist for active slot during printing" zh="打印时为当前槽位启用送料辅助"/>
   <translation tag="Enable or disable the hub cutter" zh="启用或停用集线器切刀"/>
   <translation tag="Enable purging during tool changes" zh="在换工具时启用排料"/>
   <translation tag="Enable/disable automatic backup spool switching" zh="启用/停用自动切换备用料盘"/>
@@ -780,7 +780,7 @@
   <translation tag="Enclosure humidity sensor readings" zh="机箱湿度传感器读数"/>
   <translation tag="Encoder" zh="编码器"/>
   <translation tag="Ended" zh="已结束"/>
-  <translation tag="Endless spool failover cleared for every slot" zh="已清除所有料仓的无限料盘设置"/>
+  <translation tag="Endless spool failover cleared for every slot" zh="已清除所有槽位的无限料盘设置"/>
   <translation tag="Enhanced {} operation in PRINT_START" zh="增强了 PRINT_START 中的 {} 项操作"/>
   <translation tag="Enhanced {} operations in PRINT_START" zh="增强了 PRINT_START 中的 {} 项操作"/>
   <translation tag="Enhancement Complete!" zh="增强完成！"/>
@@ -970,7 +970,7 @@
   <translation tag="Feed assist and debug tools" zh="送料辅助与调试工具"/>
   <translation tag="Feed filament" zh="进料"/>
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
-  <translation tag="Feed filament from current slot" zh="从当前料仓送入耗材"/>
+  <translation tag="Feed filament from current slot" zh="从当前槽位送入耗材"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Control" zh="耗材控制"/>
@@ -1000,7 +1000,7 @@
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." zh="耗材已用尽，且 CFS 未找到可切换的匹配料盘。请装入相同材料和颜色的料盘后恢复打印。"/>
   <translation tag="Filament ran out at the toolhead" zh="工具头处耗材已用尽"/>
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." zh="耗材已用尽。自动续料已关闭，CFS 不会自行更换料盘。请装入耗材后恢复打印。"/>
-  <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." zh="耗材已用尽。CFS 知道哪些料盘匹配，但这些料仓都是空的。请装载其中一个，然后恢复打印。"/>
+  <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." zh="耗材已用尽。CFS 知道哪些料盘匹配，但这些槽位都是空的。请装载其中一个，然后恢复打印。"/>
   <translation tag="Filament runout" zh="耗材用尽"/>
   <translation tag="Filament runout and motion detection sensors" zh="耗材用尽和运动检测传感器"/>
   <translation tag="Filament runout detection status" zh="耗材耗尽检测状态"/>
@@ -1226,7 +1226,7 @@
   <translation tag="Installation timed out. The script may be stuck." zh="安装超时。脚本可能已卡住。"/>
   <translation tag="Installing..." zh="正在安装..."/>
   <translation tag="Intensity" zh="强度"/>
-  <translation tag="Interactive calibration for all lanes" zh="所有料仓的交互式校准"/>
+  <translation tag="Interactive calibration for all lanes" zh="所有槽位的交互式校准"/>
   <translation tag="Interactive probe calibration" zh="交互式探针校准"/>
   <translation tag="Internal error: API not available" zh="内部错误: API 不可用"/>
   <translation tag="Internal error: no scan result" zh="内部错误: 无扫描结果"/>
@@ -1282,9 +1282,8 @@
   <translation tag="Label printed" zh="标签已打印"/>
   <translation tag="Labels" zh="标签"/>
   <translation tag="Labels Per Sheet" zh="每页标签数"/>
-  <translation tag="Lane" zh="料仓"/>
-  <translation tag="Lane tests and motor resets" zh="料仓测试与电机重置"/>
-  <translation tag="Lane {} is blocked — manual intervention required" zh="料仓 {} 被阻塞 — 需要手动干预"/>
+  <translation tag="Lane" zh="槽位"/>
+  <translation tag="Lane tests and motor resets" zh="槽位测试与电机重置"/>
   <translation tag="Language" zh="语言"/>
   <translation tag="Language, theme, brightness, and sound" zh="语言、主题、亮度和声音"/>
   <translation tag="Last" zh="最近"/>
@@ -1472,7 +1471,7 @@
   <translation tag="Move speed multipliers" zh="移动速度倍率"/>
   <translation tag="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings." zh="移动打印头、归位轴、调平热床，并微调温度、风扇及其他运动设置。"/>
   <translation tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." zh="移动打印头以测量每个轴上的振动频率。需要 2-3 分钟。打印机会发出噪音——这是正常的。"/>
-  <translation tag="Moving lane" zh="正在移动料仓"/>
+  <translation tag="Moving lane" zh="正在移动槽位"/>
   <translation tag="Multi-Filament" zh="多耗材"/>
   <translation tag="Multi-Filament Overview" zh="多耗材概览"/>
   <translation tag="Multi-Filament System" zh="多耗材系统"/>
@@ -1578,7 +1577,7 @@
   <translation tag="No prints yet" zh="暂无打印记录"/>
   <translation tag="No profiles available" zh="无可用配置"/>
   <translation tag="No sensors detected" zh="未检测到传感器"/>
-  <translation tag="No slot currently matches." zh="当前没有匹配的料仓。"/>
+  <translation tag="No slot currently matches." zh="当前没有匹配的槽位。"/>
   <translation tag="No spool assigned" zh="未分配料盘"/>
   <translation tag="No spools found — tap to retry" zh="未找到料盘 - 点击重试"/>
   <translation tag="No spools match your search" zh="没有符合搜索条件的料盘"/>
@@ -1994,7 +1993,7 @@
   <translation tag="Remap Tool" zh="重映射工具"/>
   <translation tag="Remap needs the HelixPrint plugin" zh="重新映射需要 HelixPrint 插件"/>
   <translation tag="Remap…" zh="重新映射……"/>
-  <translation tag="Remember lane spool details across an eject" zh="弹出后记住料仓的料盘详情"/>
+  <translation tag="Remember slot spool details across an eject" zh="弹出后记住槽位的料盘详情"/>
   <translation tag="Remove" zh="移除"/>
   <translation tag="Remove PIN" zh="移除 PIN"/>
   <translation tag="Remove Spoolman?" zh="移除 Spoolman？"/>
@@ -2076,7 +2075,7 @@
   <translation tag="Retract Speed" zh="回抽速度"/>
   <translation tag="Retract failed: {}" zh="回抽失败: {}"/>
   <translation tag="Retract filament" zh="回抽耗材"/>
-  <translation tag="Retract filament to current slot" zh="将耗材回抽至当前料仓"/>
+  <translation tag="Retract filament to current slot" zh="将耗材回抽至当前槽位"/>
   <translation tag="Retract may still be running — response timed out" zh="回抽可能仍在运行 — 响应超时"/>
   <translation tag="Retraction" zh="回抽"/>
   <translation tag="Retraction Settings" zh="回抽设置"/>
@@ -2102,7 +2101,7 @@
   <translation tag="Run a configured macro with one tap" zh="一键运行已配置的宏"/>
   <translation tag="Run brush cleaning sequence" zh="运行刷子清洁流程"/>
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" zh="即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）"/>
-  <translation tag="Run test sequence on all lanes" zh="在所有料仓运行测试流程"/>
+  <translation tag="Run test sequence on all lanes" zh="在所有槽位运行测试流程"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." zh="在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。"/>
   <translation tag="Run {}?" zh="运行 {}？"/>
   <translation tag="Running {}..." zh="正在运行 {}..."/>
@@ -2192,22 +2191,22 @@
   <translation tag="Select Spool" zh="选择料盘"/>
   <translation tag="Select a filament slot to load" zh="选择要加载的耗材槽位"/>
   <translation tag="Select fan" zh="选择风扇"/>
-  <translation tag="Select gate" zh="选择料仓"/>
+  <translation tag="Select gate" zh="选择槽位"/>
   <translation tag="Select macro for first button" zh="为第一个按钮选择宏"/>
   <translation tag="Select macro for fourth button" zh="为第四个按钮选择宏"/>
   <translation tag="Select macro for second button" zh="为第二个按钮选择宏"/>
   <translation tag="Select macro for third button" zh="为第三个按钮选择宏"/>
   <translation tag="Select material to begin" zh="选择材料以开始"/>
   <translation tag="Select sensor" zh="选择传感器"/>
-  <translation tag="Select slot" zh="选择料仓"/>
-  <translation tag="Select slot failed" zh="选择料仓失败"/>
+  <translation tag="Select slot" zh="选择槽位"/>
+  <translation tag="Select slot failed" zh="选择槽位失败"/>
   <translation tag="Select the heaters Klipper uses for your bed and hotend" zh="选择 Klipper 用于热床和热端的加热器"/>
   <translation tag="Select which devices the home screen power button controls" zh="选择主页电源按钮控制的设备"/>
   <translation tag="Select which sensor triggers pause on filament runout" zh="选择耗材用尽时触发暂停的传感器"/>
   <translation tag="Select your preferred language" zh="选择您的首选语言"/>
   <translation tag="Selected" zh="已选择"/>
   <translation tag="Selecting" zh="选择中"/>
-  <translation tag="Selecting slot..." zh="正在选择料仓..."/>
+  <translation tag="Selecting slot..." zh="正在选择槽位..."/>
   <translation tag="Selector" zh="选择器"/>
   <translation tag="Selector Speed" zh="选择器速度"/>
   <translation tag="Self-Test" zh="自检"/>
@@ -2279,14 +2278,15 @@
   <translation tag="Sleep adjusted to match dim timeout" zh="休眠超时已调整"/>
   <translation tag="Sliced colors" zh="切片颜色"/>
   <translation tag="Slicer" zh="切片软件"/>
-  <translation tag="Slot" zh="料仓"/>
-  <translation tag="Slot %d" zh="料仓 %d"/>
-  <translation tag="Slot %d Filament" zh="料仓 %d 耗材"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" zh="料仓 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" zh="料仓 %d：%.0fg / 需要 %.0fg"/>
-  <translation tag="Slot 1" zh="料仓 1"/>
-  <translation tag="Slot {}" zh="料仓 {}"/>
-  <translation tag="Slot {} matches." zh="料仓 {} 匹配。"/>
+  <translation tag="Slot" zh="槽位"/>
+  <translation tag="Slot %d" zh="槽位 %d"/>
+  <translation tag="Slot %d Filament" zh="槽位 %d 耗材"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" zh="槽位 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" zh="槽位 %d：%.0fg / 需要 %.0fg"/>
+  <translation tag="Slot 1" zh="槽位 1"/>
+  <translation tag="Slot {}" zh="槽位 {}"/>
+  <translation tag="Slot {} is blocked — manual intervention required" zh="槽位 {} 被阻塞 — 需要手动干预"/>
+  <translation tag="Slot {} matches." zh="槽位 {} 匹配。"/>
   <translation tag="Slot {} spool cleared" zh="槽位 {} 料盘已清除"/>
   <translation tag="Slot {} updated" zh="槽位 {} 已更新"/>
   <translation tag="Small labels help keep controls calm and focused." zh="小标签有助于保持控件简洁专注。"/>
@@ -2295,7 +2295,7 @@
   <translation tag="Soft" zh="柔和"/>
   <translation tag="Software Updates" zh="软件更新"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." zh="部分耗材与切片软件的意图不符。"/>
-  <translation tag="Some mapped slots are short on filament:" zh="部分已映射料仓耗材不足："/>
+  <translation tag="Some mapped slots are short on filament:" zh="部分已映射槽位耗材不足："/>
   <translation tag="Some settings will take effect after restart." zh="某些设置将在重启后生效。"/>
   <translation tag="Sound Theme" zh="声音主题"/>
   <translation tag="Sounds" zh="声音"/>
@@ -2371,8 +2371,8 @@
   <translation tag="Stop failed" zh="停止失败"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." zh="停止打印 &quot;{}&quot;？&#10;&#10;5秒后将无法撤销。"/>
   <translation tag="Stopped between Hub and Toolhead" zh="停在集线器与工具头之间"/>
-  <translation tag="Stopped between Lane and Hub" zh="停在料仓与集线器之间"/>
-  <translation tag="Stopped between Spool and Lane" zh="停在料盘与料仓之间"/>
+  <translation tag="Stopped between Lane and Hub" zh="停在槽位与集线器之间"/>
+  <translation tag="Stopped between Spool and Lane" zh="停在料盘与槽位之间"/>
   <translation tag="Stops all motion. Requires firmware restart." zh="停止所有运动。需要固件重启。"/>
   <translation tag="Stow" zh="收回"/>
   <translation tag="Strobe LED" zh="频闪LED"/>
@@ -2403,7 +2403,7 @@
   <translation tag="System default" zh="系统默认"/>
   <translation tag="System detected" zh="检测到系统"/>
   <translation tag="T%d has no filament loaded — this print will run out." zh="T%d 未加载耗材 —— 此次打印将会耗尽耗材。"/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." zh="T%d 需要 %d 号料仓中的耗材，但该料仓为空 —— 此次打印将会耗尽耗材。"/>
+  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." zh="T%d 需要 %d 号槽位中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。"/>
   <translation tag="TD-1 filament color detection" zh="TD-1 耗材颜色检测"/>
   <translation tag="TEMPERATURE SENSORS" zh="温度传感器"/>
   <translation tag="THEME COLORS" zh="主题颜色"/>
@@ -2442,7 +2442,7 @@
   <translation tag="Template" zh="模板"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" zh="此打印的临时调整，除非在控制面板上保存"/>
   <translation tag="Tertiary" zh="第三"/>
-  <translation tag="Test All Lanes" zh="测试所有料仓"/>
+  <translation tag="Test All Lanes" zh="测试所有槽位"/>
   <translation tag="Test Connection" zh="测试连接"/>
   <translation tag="Test Grip" zh="测试夹持"/>
   <translation tag="Test Load" zh="测试装载"/>
@@ -2476,8 +2476,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." zh="打印机拒绝了该耗材配置。打印未启动。"/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" zh="备用料盘由打印机固件自行选择"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
-  <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 料仓报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
-  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 料仓报告已装载。在清空之前，打印机可能拒绝装载料仓。仍要开始打印吗？"/>
+  <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
+  <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
   <translation tag="Theme" zh="主题"/>
@@ -2561,7 +2561,7 @@
   <translation tag="Tool change failed: {}" zh="工具切换失败: {}"/>
   <translation tag="Tool mapping failed" zh="工具映射失败"/>
   <translation tag="Tool swap" zh="工具切换"/>
-  <translation tag="Tool {} → Lane {}: no filament loaded." zh="工具 {} → 料仓 {}: 未加载耗材。"/>
+  <translation tag="Tool {} → Slot {}: no filament loaded." zh="工具 {} → 槽位 {}: 未加载耗材。"/>
   <translation tag="Toolhead" zh="工具头"/>
   <translation tag="Toolhead LED" zh="工具头 LED"/>
   <translation tag="Toolhead Style" zh="工具头样式"/>
@@ -2596,7 +2596,7 @@
   <translation tag="Type" zh="类型"/>
   <translation tag="Type to preview input field..." zh="输入以预览输入框..."/>
   <translation tag="Type:" zh="类型:"/>
-  <translation tag="T{} shares slot with T{}" zh="T{} 与 T{} 共用料仓"/>
+  <translation tag="T{} shares slot with T{}" zh="T{} 与 T{} 共用槽位"/>
   <translation tag="UI Sounds" zh="界面声音"/>
   <translation tag="USB" zh="USB"/>
   <translation tag="USB DEVICES" zh="USB 设备"/>
@@ -2828,7 +2828,7 @@
   <translation tag="remaining" zh="剩余"/>
   <translation tag="remaining before clog detection triggers" zh="剩余即触发堵料检测"/>
   <translation tag="rendering" zh="渲染中"/>
-  <translation tag="slots)" zh="个料仓)"/>
+  <translation tag="slots)" zh="个槽位)"/>
   <translation tag="started" zh="已启动"/>
   <translation tag="steppers" zh="步进电机"/>
   <translation tag="tall" zh="高"/>
@@ -2855,7 +2855,6 @@
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." zh="{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." zh="{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。"/>
   <translation tag="{} is not set up on this printer" zh="{} 未在此打印机上设置"/>
-  <translation tag="{} lanes" zh="{} 个料仓"/>
   <translation tag="{} macro not configured" zh="{} 宏未配置"/>
   <translation tag="{} may cause unintended changes. Are you sure?" zh="{} 可能导致意外更改。确定吗？"/>
   <translation tag="{} more taps to {} beta features" zh="再点击 {} 次以{}测试功能"/>
@@ -2864,8 +2863,9 @@
   <translation tag="{} preset{}" zh="{} 个预设{}"/>
   <translation tag="{} set to {}" zh="{} 已设为 {}"/>
   <translation tag="{} set to {} {}" zh="{} 已设为 {} {}"/>
+  <translation tag="{} slots" zh="{} 个槽位"/>
   <translation tag="{} started" zh="已开始{}"/>
   <translation tag="{} target set to {}°C" zh="{} 目标已设为 {}°C"/>
-  <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." zh="{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的料仓。"/>
+  <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." zh="{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。"/>
   <translation tag="{} — response timed out" zh="{} — 响应超时"/>
 </translations>

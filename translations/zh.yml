@@ -11,7 +11,7 @@ translations:
   '%d more sensors': 还有%d个传感器
   '%d of %d plugins loaded': 已加载 %d / %d 个插件
   '%d plugins loaded': 已加载 %d 个插件
-  '%d slots': '%d 个料仓'
+  '%d slots': '%d 个槽位'
   '%lu days ago': '%lu天前'
   '%lu hours ago': '%lu小时前'
   '%lu min ago': '%lu分钟前'
@@ -42,7 +42,7 @@ translations:
   '...': '...'
   0 = computed: 0 = 自动计算
   0 events queued: 0 个事件已排队
-  0 slots: '{0} 个料仓'
+  0 slots: '{0} 个槽位'
   '0.4-2mm direct drive, 4-6mm bowden': '直驱 0.4-2mm，远程挤出 4-6mm'
   '0°': '0°'
   '1 day ago': '1天前'
@@ -216,7 +216,7 @@ translations:
   Auto-lock: 自动锁定
   Auto-poll for weight updates: 自动轮询重量更新
   Auto-probe or manually check screw heights: 自动探测或手动检查螺丝高度
-  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: 自动续料已开启，但没有两个料仓装有相同的耗材，因此耗材用尽时不会切换
+  Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout: 自动续料已开启，但没有两个槽位装有相同的耗材，因此耗材用尽时不会切换
   Auto-render video: 自动渲染视频
   Auto-tuning Shapers...: 正在自动校准整形器...
   Auto-uninstall only works on local Moonraker: 自动卸载仅适用于本地 Moonraker
@@ -323,8 +323,8 @@ translations:
   Bypass disabled: 旁通已禁用
   Bypass enabled: 旁通已启用
   Bypass failed: 旁通失败
-  ? Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
-  : 旁路已启用，但此打印使用 AMS 料仓。当旁路耗材仍在工具头中时，打印机可能拒绝装载料仓。请在打印前取出耗材并关闭旁路。仍要开始打印吗？
+  ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
+  : 旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？
   Bypass toggle failed: 旁通切换失败
   C: 腔
   CALIBRATION: 校准
@@ -345,7 +345,7 @@ translations:
   Calibrate All: 全部校准
   Calibrate Bowden: '校准波顿管'
   Calibrate Encoder: '校准编码器'
-  Calibrate Gates: '校准料仓'
+  Calibrate Gates: '校准槽位'
   Calibrate Gear: '校准齿轮'
   Calibrate X: 校准 X 轴
   Calibrate Y: 校准 Y 轴
@@ -431,10 +431,10 @@ translations:
   Check Again: 重新检查
   Check filament: 检查耗材
   Check for Updates: 检查更新
-  Check slot: 检查料仓
-  Check slot failed: 检查料仓失败
-  Check slots: 检查料仓
-  Check slots failed: 检查料仓失败
+  Check slot: 检查槽位
+  Check slot failed: 检查槽位失败
+  Check slots: 检查槽位
+  Check slots failed: 检查槽位失败
   Check the filament path and try again.: 检查耗材路径并重试。
   Check your heater's rating (typically 40-60W for hotends): 检查加热器功率（热端通常为 40-60W）
   Checking: 检查中
@@ -445,7 +445,7 @@ translations:
   Checking for plugin...: 正在检查插件...
   Checking for webcam...: 正在检查摄像头...
   Checking plugin: 正在检查插件
-  Checking slots...: 正在检查料仓...
+  Checking slots...: 正在检查槽位...
   Checking timelapse plugin...: 正在检查延时摄影插件...
   Checking webcam: 正在检查摄像头
   Checking...: 检查中...
@@ -710,7 +710,7 @@ translations:
   'Display: ': '显示: '
   Distance for hub cutter operation: '集线器切刀动作的距离'
   Distance from hub to toolhead: '从集线器到工具头的距离'
-  Distance from lane extruder to hub: '从料仓挤出机到集线器的距离'
+  Distance from lane extruder to hub: '从槽位挤出机到集线器的距离'
   Distance from toolhead sensor to nozzle tip: '从工具头传感器到喷嘴尖端的距离'
   Do not power off your printer.: 请勿关闭打印机电源。
   Do not touch the printer during calibration: 校准期间请勿触碰打印机
@@ -743,7 +743,7 @@ translations:
   Each fan can only be selected once: 每个风扇只能选择一次
   Edit: 编辑
   Edit Filament: 编辑耗材
-  Edit Slot: 编辑料仓
+  Edit Slot: 编辑槽位
   Edit Spool: 编辑料盘
   'Edit Spool #{}': '编辑线轴 #{}'
   Edit Theme Colors: 编辑主题颜色
@@ -763,7 +763,7 @@ translations:
   Emergency stop and print alerts: 紧急停止和打印警报
   'Emergency stop failed: not connected': '紧急停止失败: 未连接'
   Empty: 空
-  Empty slots disable the associated functionality: 空料仓将禁用相关功能
+  Empty slots disable the associated functionality: 空槽位将禁用相关功能
   Enable: 启用
   Enable Brush Wipe: '启用刷子擦拭'
   Enable Bypass Controls: 启用旁路控制
@@ -779,7 +779,7 @@ translations:
   Enable audio feedback: 启用声音反馈
   Enable brush wipe after purging: '排料后启用刷子擦拭'
   Enable detailed print preparation tracking (Recommended): 启用详细打印准备跟踪（推荐）
-  Enable feed assist for active slot during printing: '打印时为当前料仓启用送料辅助'
+  Enable feed assist for active slot during printing: '打印时为当前槽位启用送料辅助'
   Enable or disable the hub cutter: '启用或停用集线器切刀'
   Enable purging during tool changes: '在换工具时启用排料'
   Enable/disable automatic backup spool switching: '启用/停用自动切换备用料盘'
@@ -788,7 +788,7 @@ translations:
   Enclosure humidity sensor readings: '机箱湿度传感器读数'
   Encoder: 编码器
   Ended: 已结束
-  Endless spool failover cleared for every slot: '已清除所有料仓的无限料盘设置'
+  Endless spool failover cleared for every slot: '已清除所有槽位的无限料盘设置'
   Enhanced {} operation in PRINT_START: 增强了 PRINT_START 中的 {} 项操作
   Enhanced {} operations in PRINT_START: 增强了 PRINT_START 中的 {} 项操作
   Enhancement Complete!: 增强完成！
@@ -982,7 +982,7 @@ translations:
   Feed assist and debug tools: 送料辅助与调试工具
   Feed filament: 进料
   Feed filament directly to extruder: 将耗材直接送入挤出机
-  Feed filament from current slot: '从当前料仓送入耗材'
+  Feed filament from current slot: '从当前槽位送入耗材'
   Feeding filament forward: 正在向前送料
   Filament: 耗材
   Filament Control: 耗材控制
@@ -1014,7 +1014,7 @@ translations:
   : '耗材已用尽，且 CFS 未找到可切换的匹配料盘。请装入相同材料和颜色的料盘后恢复打印。'
   Filament ran out at the toolhead: '工具头处耗材已用尽'
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: '耗材已用尽。自动续料已关闭，CFS 不会自行更换料盘。请装入耗材后恢复打印。'
-  Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: 耗材已用尽。CFS 知道哪些料盘匹配，但这些料仓都是空的。请装载其中一个，然后恢复打印。
+  Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: 耗材已用尽。CFS 知道哪些料盘匹配，但这些槽位都是空的。请装载其中一个，然后恢复打印。
   Filament runout: 耗材用尽
   Filament runout and motion detection sensors: 耗材用尽和运动检测传感器
   Filament runout detection status: '耗材耗尽检测状态'
@@ -1251,7 +1251,7 @@ translations:
   Installation timed out. The script may be stuck.: 安装超时。脚本可能已卡住。
   Installing...: 正在安装...
   Intensity: 强度
-  Interactive calibration for all lanes: '所有料仓的交互式校准'
+  Interactive calibration for all lanes: '所有槽位的交互式校准'
   Interactive probe calibration: 交互式探针校准
   'Internal error: API not available': '内部错误: API 不可用'
   'Internal error: no scan result': '内部错误: 无扫描结果'
@@ -1312,9 +1312,8 @@ translations:
   Label printed: 标签已打印
   Labels: 标签
   Labels Per Sheet: 每页标签数
-  Lane: 料仓
-  Lane tests and motor resets: '料仓测试与电机重置'
-  Lane {} is blocked — manual intervention required: 料仓 {} 被阻塞 — 需要手动干预
+  Lane: 槽位
+  Lane tests and motor resets: '槽位测试与电机重置'
   Language: 语言
   Language, theme, brightness, and sound: 语言、主题、亮度和声音
   Last: 最近
@@ -1500,7 +1499,7 @@ translations:
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3
     minutes. The printer will make noise — this is normal.
   : 移动打印头以测量每个轴上的振动频率。需要 2-3 分钟。打印机会发出噪音——这是正常的。
-  Moving lane: 正在移动料仓
+  Moving lane: 正在移动槽位
   Multi-Filament: 多耗材
   Multi-Filament Overview: 多耗材概览
   Multi-Filament System: 多耗材系统
@@ -1608,7 +1607,7 @@ translations:
   No prints yet: 暂无打印记录
   No profiles available: 无可用配置
   No sensors detected: 未检测到传感器
-  No slot currently matches.: '当前没有匹配的料仓。'
+  No slot currently matches.: '当前没有匹配的槽位。'
   No spool assigned: 未分配料盘
   No spools found — tap to retry: 未找到料盘 - 点击重试
   No spools match your search: 没有符合搜索条件的料盘
@@ -2036,7 +2035,7 @@ translations:
   Remap Tool: 重映射工具
   Remap needs the HelixPrint plugin: 重新映射需要 HelixPrint 插件
   Remap…: 重新映射……
-  Remember lane spool details across an eject: 弹出后记住料仓的料盘详情
+  Remember slot spool details across an eject: 弹出后记住槽位的料盘详情
   Remove: 移除
   Remove PIN: 移除 PIN
   Remove Spoolman?: 移除 Spoolman？
@@ -2118,7 +2117,7 @@ translations:
   Retract Speed: 回抽速度
   'Retract failed: {}': '回抽失败: {}'
   Retract filament: '回抽耗材'
-  Retract filament to current slot: '将耗材回抽至当前料仓'
+  Retract filament to current slot: '将耗材回抽至当前槽位'
   Retract may still be running — response timed out: 回抽可能仍在运行 — 响应超时
   Retraction: 回抽
   Retraction Settings: 回抽设置
@@ -2145,7 +2144,7 @@ translations:
   Run a configured macro with one tap: '一键运行已配置的宏'
   Run brush cleaning sequence: '运行刷子清洁流程'
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): 即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）
-  Run test sequence on all lanes: '在所有料仓运行测试流程'
+  Run test sequence on all lanes: '在所有槽位运行测试流程'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: 在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。
   Run {}?: 运行 {}？
   Running {}...: 正在运行 {}...
@@ -2241,22 +2240,22 @@ translations:
   Select Spool: 选择料盘
   Select a filament slot to load: 选择要加载的耗材槽位
   Select fan: 选择风扇
-  Select gate: '选择料仓'
+  Select gate: '选择槽位'
   Select macro for first button: 为第一个按钮选择宏
   Select macro for fourth button: 为第四个按钮选择宏
   Select macro for second button: 为第二个按钮选择宏
   Select macro for third button: 为第三个按钮选择宏
   Select material to begin: 选择材料以开始
   Select sensor: 选择传感器
-  Select slot: 选择料仓
-  Select slot failed: 选择料仓失败
+  Select slot: 选择槽位
+  Select slot failed: 选择槽位失败
   Select the heaters Klipper uses for your bed and hotend: 选择 Klipper 用于热床和热端的加热器
   Select which devices the home screen power button controls: 选择主页电源按钮控制的设备
   Select which sensor triggers pause on filament runout: 选择耗材用尽时触发暂停的传感器
   Select your preferred language: 选择您的首选语言
   Selected: 已选择
   Selecting: 选择中
-  Selecting slot...: 正在选择料仓...
+  Selecting slot...: 正在选择槽位...
   Selector: 选择器
   Selector Speed: '选择器速度'
   Self-Test: 自检
@@ -2330,14 +2329,15 @@ translations:
   Sleep adjusted to match dim timeout: 休眠超时已调整
   Sliced colors: 切片颜色
   Slicer: 切片软件
-  Slot: 料仓
-  Slot %d: 料仓 %d
-  Slot %d Filament: 料仓 %d 耗材
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: '料仓 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？'
-  'Slot %d: %.0fg of %.0fg needed': '料仓 %d：%.0fg / 需要 %.0fg'
-  Slot 1: 料仓 1
-  Slot {}: 料仓 {}
-  Slot {} matches.: '料仓 {} 匹配。'
+  Slot: 槽位
+  Slot %d: 槽位 %d
+  Slot %d Filament: 槽位 %d 耗材
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: '槽位 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？'
+  'Slot %d: %.0fg of %.0fg needed': '槽位 %d：%.0fg / 需要 %.0fg'
+  Slot 1: 槽位 1
+  Slot {}: 槽位 {}
+  Slot {} is blocked — manual intervention required: 槽位 {} 被阻塞 — 需要手动干预
+  Slot {} matches.: '槽位 {} 匹配。'
   Slot {} spool cleared: 槽位 {} 料盘已清除
   Slot {} updated: 槽位 {} 已更新
   Small labels help keep controls calm and focused.: 小标签有助于保持控件简洁专注。
@@ -2346,7 +2346,7 @@ translations:
   Soft: 柔和
   Software Updates: 软件更新
   Some filaments don't match the slicer's intent.: 部分耗材与切片软件的意图不符。
-  'Some mapped slots are short on filament:': '部分已映射料仓耗材不足：'
+  'Some mapped slots are short on filament:': '部分已映射槽位耗材不足：'
   Some settings will take effect after restart.: 某些设置将在重启后生效。
   Sound Theme: 声音主题
   Sounds: 声音
@@ -2424,8 +2424,8 @@ translations:
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "停止打印 \"{}\"？\n\n5秒后将无法撤销。"
   Stopped between Hub and Toolhead: 停在集线器与工具头之间
-  Stopped between Lane and Hub: 停在料仓与集线器之间
-  Stopped between Spool and Lane: 停在料盘与料仓之间
+  Stopped between Lane and Hub: 停在槽位与集线器之间
+  Stopped between Spool and Lane: 停在料盘与槽位之间
   Stops all motion. Requires firmware restart.: 停止所有运动。需要固件重启。
   Stow: 收回
   Strobe LED: 频闪LED
@@ -2458,7 +2458,7 @@ translations:
   System detected: 检测到系统
   T%d has no filament loaded — this print will run out.: T%d 未加载耗材 —— 此次打印将会耗尽耗材。
   T%d needs filament in slot %d, which is empty — this print will run out.: T%d 需要
-    %d 号料仓中的耗材，但该料仓为空 —— 此次打印将会耗尽耗材。
+    %d 号槽位中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。
   TD-1 filament color detection: TD-1 耗材颜色检测
   TEMPERATURE SENSORS: 温度传感器
   THEME COLORS: 主题颜色
@@ -2498,7 +2498,7 @@ translations:
   Template: 模板
   Temporary adjustment for this print, unless saved on Controls panel: 此打印的临时调整，除非在控制面板上保存
   Tertiary: 第三
-  Test All Lanes: '测试所有料仓'
+  Test All Lanes: '测试所有槽位'
   Test Connection: 测试连接
   Test Grip: '测试夹持'
   Test Load: '测试装载'
@@ -2542,9 +2542,9 @@ translations:
   The printer rejected the filament configuration. The print was not started.: 打印机拒绝了该耗材配置。打印未启动。
   The printer's firmware chooses the backup spool itself: 备用料盘由打印机固件自行选择
   The runout sensor indicates no filament is loaded. Start print anyway?: 断料传感器显示未装载耗材。仍要开始打印吗？
-  The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 料仓报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
-  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
-  : '工具头内有耗材，但没有 AMS 料仓报告已装载。在清空之前，打印机可能拒绝装载料仓。仍要开始打印吗？'
+  The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
+  ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
+  : '工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: 工具头传感器显示耗材已装载。仍要继续装载吗？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: 工具头传感器显示无耗材。仍要继续卸载吗？
   Theme: 主题
@@ -2642,7 +2642,7 @@ translations:
   'Tool change failed: {}': '工具切换失败: {}'
   Tool mapping failed: 工具映射失败
   Tool swap: 工具切换
-  'Tool {} → Lane {}: no filament loaded.': '工具 {} → 料仓 {}: 未加载耗材。'
+  'Tool {} → Slot {}: no filament loaded.': '工具 {} → 槽位 {}: 未加载耗材。'
   Toolhead: '工具头'
   Toolhead LED: '工具头 LED'
   Toolhead Style: 工具头样式
@@ -2678,7 +2678,7 @@ translations:
   Type: 类型
   Type to preview input field...: 输入以预览输入框...
   'Type:': '类型:'
-  T{} shares slot with T{}: T{} 与 T{} 共用料仓
+  T{} shares slot with T{}: T{} 与 T{} 共用槽位
   UI Sounds: 界面声音
   USB: USB
   USB DEVICES: USB 设备
@@ -2922,7 +2922,7 @@ translations:
   remaining: 剩余
   remaining before clog detection triggers: 剩余即触发堵料检测
   rendering: 渲染中
-  slots): 个料仓)
+  slots): 个槽位)
   started: 已启动
   steppers: 步进电机
   tall: 高
@@ -2963,7 +2963,6 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。'
   '{} is not set up on this printer': '{} 未在此打印机上设置'
-  '{} lanes': '{} 个料仓'
   '{} macro not configured': '{} 宏未配置'
   '{} may cause unintended changes. Are you sure?': '{} 可能导致意外更改。确定吗？'
   '{} more taps to {} beta features': 再点击 {} 次以{}测试功能
@@ -2972,8 +2971,9 @@ translations:
   '{} preset{}': '{} 个预设{}'
   '{} set to {}': '{} 已设为 {}'
   '{} set to {} {}': '{} 已设为 {} {}'
+  '{} slots': '{} 个槽位'
   '{} started': '已开始{}'
   '{} target set to {}°C': '{} 目标已设为 {}°C'
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
-  : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的料仓。'
+  : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。'
   '{} — response timed out': '{} — 响应超时'
