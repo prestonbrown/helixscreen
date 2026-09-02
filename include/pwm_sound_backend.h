@@ -70,6 +70,16 @@ class PWMSoundBackend : public SoundBackend {
     /// @return period_ns = 1e9 / freq_hz, or 0 if freq_hz <= 0
     static uint32_t freq_to_period_ns(float freq_hz);
 
+    /// Audible floor for one sequencer step, in ms — also the sequencer's
+    /// tick interval (min_tick_ms). The AD5M piezo needs ~20 ms of drive to
+    /// register a tone; shorter notes collapse into clicks. The sequencer
+    /// quantizes every theme step up to the tick interval, so each step
+    /// sounds for at least one floor. Overridable for rig tuning via
+    /// HELIX_PWM_MIN_NOTE_MS, clamped to [MIN_NOTE_MS_CLAMP_LOW, HIGH].
+    static constexpr float DEFAULT_MIN_NOTE_MS = 20.0f;
+    static constexpr float MIN_NOTE_MS_CLAMP_LOW = 10.0f;
+    static constexpr float MIN_NOTE_MS_CLAMP_HIGH = 100.0f;
+
     /// Shift a frequency into the piezo's loud band [500, 2500] Hz by whole
     /// octaves (preserves pitch class). Below 500 doubles, above 2500 halves,
     /// in-band and <= 0 pass through unchanged. The band was measured on the
@@ -169,6 +179,10 @@ class PWMSoundBackend : public SoundBackend {
     bool enabled_ = false;
     bool initialized_ = false;
     Waveform current_wave_ = Waveform::SQUARE;
+
+    // Audible floor reported by min_tick_ms(); initialize() applies the
+    // HELIX_PWM_MIN_NOTE_MS override (clamped) on top of DEFAULT_MIN_NOTE_MS.
+    float min_note_ms_ = DEFAULT_MIN_NOTE_MS;
 
     // Tone dedup (mirrors M300SoundBackend::last_freq_): the sequencer
     // re-sends the same note every tick, so a held tone would otherwise

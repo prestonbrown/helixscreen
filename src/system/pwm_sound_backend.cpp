@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -132,7 +133,7 @@ bool PWMSoundBackend::supports_filter() const {
 }
 
 float PWMSoundBackend::min_tick_ms() const {
-    return 2.0f;
+    return min_note_ms_;
 }
 
 bool PWMSoundBackend::owns_sysfs_pwm_channel() const {
@@ -202,6 +203,16 @@ bool PWMSoundBackend::initialize() {
 
     render_buf_.resize(PCM_RENDER_BUFFER_FRAMES);
     park_probe_buf_.resize(static_cast<size_t>(park_probe_frames()));
+
+    // Rig-tunable audible floor (see DEFAULT_MIN_NOTE_MS). A non-positive or
+    // unparseable value keeps the default.
+    if (const char* env = std::getenv("HELIX_PWM_MIN_NOTE_MS"); env && env[0] != '\0') {
+        float requested = std::strtof(env, nullptr);
+        if (requested > 0.0f) {
+            min_note_ms_ = std::clamp(requested, MIN_NOTE_MS_CLAMP_LOW, MIN_NOTE_MS_CLAMP_HIGH);
+        }
+    }
+    spdlog::debug("[PWMSoundBackend] min note floor: {} ms", min_note_ms_);
 
     initialized_ = true;
     return true;
