@@ -347,6 +347,11 @@ bool WifiBackendNetd::open_connection(std::string& error_out) {
     // join. One second to connect, then the reconnect cadence owns the retry.
     // The fd STAYS nonblocking: libhv owns it from here.
     const int fd = helix::netd::connect_unix(path, 1000, &error_out);
+    // The connect is the whole reachability verdict. Reaching the daemon means
+    // it owns the radio, the supplicant and DHCP, so every failure PAST this
+    // point still leaves wpa_supplicant locked out; failing the connect itself
+    // is the one outcome that frees the hardware for it.
+    daemon_unreachable_.store(fd < 0);
     if (fd < 0) {
         return false;
     }
@@ -1073,6 +1078,14 @@ WiFiError WifiBackendNetd::set_radio_enabled(bool on) {
 bool WifiBackendNetd::is_radio_enabled() const {
     // The daemon owns the radio; we never disable it, so report enabled.
     return true;
+}
+
+bool WifiBackendNetd::supports_wpa_supplicant_fallback() const {
+    // The daemon enforces a single transport and drives the supplicant itself,
+    // so wpa_supplicant may only be started when the daemon is provably absent
+    // — an init failure with a live daemon must leave WiFi down rather than
+    // put two clients on one radio. open_connection() supplies that proof.
+    return daemon_unreachable_.load();
 }
 
 bool WifiBackendNetd::supports_radio_toggle() const {

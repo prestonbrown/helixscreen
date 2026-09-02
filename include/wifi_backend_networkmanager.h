@@ -46,7 +46,10 @@ class WifiBackendNetworkManager : public WifiBackend {
     WifiBackendNetworkManager();
     ~WifiBackendNetworkManager();
 
-    bool is_network_manager() const override {
+    /// NetworkManager holds nothing while it is down: an init failure here
+    /// means the daemon is masked, stopped or otherwise unreachable, leaving
+    /// the radio, the supplicant and DHCP free for wpa_supplicant to drive.
+    bool supports_wpa_supplicant_fallback() const override {
         return true;
     }
 

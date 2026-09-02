@@ -27,7 +27,7 @@
 #include "wifi_ui_utils.h"
 
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
-// NetworkManager/wpa_supplicant fallback (handle_init_failed, below) is a
+// The wpa_supplicant fallback (handle_init_failed, below) is a
 // Linux-desktop-only concern — ESP32 has a single esp_wifi backend with no
 // fallback path (see wifi_backend_esp.cpp).
 #include "wifi_backend_networkmanager.h"
@@ -144,7 +144,7 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         // worker — see the INIT_FAILED handling above), and both
         // get_wifi_enabled() (reads an lv_subject_t) and set_radio_enabled()
         // must not run there, so defer through async_lifetime_ the same way
-        // the NetworkManager fallback above does.
+        // the wpa_supplicant fallback above does.
         //
         // CC1 incident (Task 15): on a device whose only network path is this
         // radio, reasserting "off" is a one-way door — a reboot clears the
@@ -218,17 +218,22 @@ void WiFiManager::register_backend_callbacks(bool silent) {
 }
 
 void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
-    // On Linux, if the NetworkManager backend fails (e.g. nmcli binary present
-    // but NM daemon masked/dead), transparently fall back to wpa_supplicant
-    // so users aren't left WiFi-less because of a dormant NM install. Guarded
-    // by tried_fallback_ to avoid infinite loops if wpa_supplicant also fails.
+    // On Linux, a backend that cannot initialize is worth replacing with
+    // wpa_supplicant only when wpa_supplicant can actually take the hardware
+    // over. That is the backend's question to answer, never this function's:
+    // a dormant NetworkManager install holds nothing, while a printer network
+    // daemon holds the radio, the supplicant and DHCP even when our client
+    // connection to it fails. Starting wpa_supplicant against the second case
+    // puts two clients on one radio, which is worse than no WiFi.
+    // tried_fallback_ bounds this to a single swap, so a wpa_supplicant that
+    // also fails cannot loop.
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
-    if (!tried_fallback_ && backend_ && backend_->is_network_manager()) {
+    if (!tried_fallback_ && backend_ && backend_->supports_wpa_supplicant_fallback()) {
         tried_fallback_ = true;
-        spdlog::warn("[WiFiManager] NetworkManager backend INIT_FAILED ({}); "
+        spdlog::warn("[WiFiManager] WiFi backend INIT_FAILED ({}); "
                      "falling back to wpa_supplicant",
                      msg);
-        // CRITICAL: INIT_FAILED fires from inside the NM backend's init worker
+        // CRITICAL: INIT_FAILED fires from inside the backend's init worker
         // thread. Calling backend_->stop() here would invoke
         // init_thread_.join() on the currently-executing thread, producing
         // std::system_error(resource_deadlock_would_occur). Defer the swap to

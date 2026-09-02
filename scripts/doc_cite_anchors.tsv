@@ -238,7 +238,7 @@ docs/devel/architecture/03-threading-lifetime.md	include/ui_update_queue.h	94	in
 docs/devel/architecture/03-threading-lifetime.md	include/ui_update_queue.h	119	include/ui_update_queue.h	18f71965fe19	6aa5497e408f
 docs/devel/architecture/03-threading-lifetime.md	include/ui_utils.h	96	include/ui_utils.h	0f234a8e9aef	98c17a126296
 docs/devel/architecture/03-threading-lifetime.md	include/ui_utils.h	200	include/ui_utils.h	508062ccc15d	ad71faa40aff
-docs/devel/architecture/03-threading-lifetime.md	src/api/wifi_manager.cpp	864	src/api/wifi_manager.cpp	ec048226cc24	34defac0545a
+docs/devel/architecture/03-threading-lifetime.md	src/api/wifi_manager.cpp	869	src/api/wifi_manager.cpp	ec048226cc24	34defac0545a
 docs/devel/architecture/03-threading-lifetime.md	src/application/application.cpp	4030	src/application/application.cpp	d01f57687fa2	02e35d842e8e
 docs/devel/architecture/03-threading-lifetime.md	src/bluetooth/bt_bus_thread.h	19	src/bluetooth/bt_bus_thread.h	c6bc333f5acf	fcbf1ca472ee
 docs/devel/architecture/03-threading-lifetime.md	src/printer/detection_manager.cpp	26	src/printer/detection_manager.cpp	f5ed4358790f	6fcdb5737545

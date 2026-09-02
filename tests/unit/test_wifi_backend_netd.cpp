@@ -171,6 +171,13 @@ class NetdBackendFixture {
         return true;
     }
 
+    /// Address the fixture's fake daemon listens on. Tests that kill the
+    /// daemon and bring it back need it: a revived listener must reappear at
+    /// the same path the backend is configured to dial.
+    std::string socket_path() const {
+        return dir_ + "/netd.sock";
+    }
+
     helix_test::EnvVarGuard sock_env_{"HELIX_NETD_SOCKET"};
     helix_test::EnvVarGuard bin_env_{"HELIX_NETD_BIN"};
     std::unique_ptr<helix_test::NetdFakeServer> server_;
@@ -208,8 +215,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd backend interface surface", "[netd][w
 
     backend_->register_event_callback("SCAN_COMPLETE", [](const std::string&) {});
 
-    // Capability answers.
-    REQUIRE(backend_->is_network_manager() == false);
+    // Capability answers. No connect has been attempted yet, so nothing has
+    // shown the daemon to be absent and the manager must not put
+    // wpa_supplicant on a radio the daemon may still own.
+    REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
     REQUIRE(backend_->is_radio_enabled());
     REQUIRE_FALSE(backend_->resolved_interface().has_value());
 
@@ -229,6 +238,8 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd backend interface surface", "[netd][w
     // Lifecycle via the base pointer.
     REQUIRE(backend_->start().success());
     REQUIRE(backend_->is_running());
+    // The daemon answered, so it owns the radio, the supplicant and DHCP.
+    REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
     backend_->stop();
     REQUIRE_FALSE(backend_->is_running());
 
@@ -1379,6 +1390,55 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd abandoned scan rows do not reach the 
     std::vector<WiFiNetwork> rows;
     REQUIRE(backend_->get_scan_results(rows).success());
     REQUIRE(rows.empty());
+}
+
+// ============================================================================
+// The wpa_supplicant fallback question. WiFiManager swaps a failed backend for
+// wpa_supplicant on the strength of this answer alone, and the daemon enforces
+// a single transport while driving the supplicant itself — so the answer may
+// only be yes when the daemon's socket could not be reached at all. Any other
+// init failure leaves the daemon in charge of the hardware, and starting
+// wpa_supplicant against it puts two clients on one radio.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd unreachable daemon admits the wpa_supplicant fallback",
+                 "[netd][wifi]") {
+    std::atomic<int> init_failed{0};
+    backend_->register_event_callback("INIT_FAILED",
+                                      [&](const std::string&) { init_failed.fetch_add(1); });
+
+    // Nothing has been attempted, so nothing has shown the daemon to be absent.
+    REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
+
+    // The daemon goes away: its listener is closed and the socket unlinked, so
+    // HELIX_NETD_SOCKET now names an address nothing answers on.
+    server_.reset();
+
+    REQUIRE_FALSE(backend_->start().success());
+    REQUIRE_FALSE(backend_->is_running());
+    REQUIRE(wait_until([&] { return init_failed.load() == 1; }));
+
+    // The connect itself could not be made, so the radio, the supplicant and
+    // DHCP are free and the manager may swap wpa_supplicant in.
+    REQUIRE(backend_->supports_wpa_supplicant_fallback());
+}
+
+TEST_CASE_METHOD(NetdBackendFixture,
+                 "netd reaching the daemon withdraws the wpa_supplicant fallback", "[netd][wifi]") {
+    // Start from the answer that admits the fallback, so a flag that is never
+    // written cannot satisfy this case.
+    const std::string path = socket_path();
+    server_.reset();
+    REQUIRE_FALSE(backend_->start().success());
+    REQUIRE(backend_->supports_wpa_supplicant_fallback());
+
+    // The daemon comes back at the same address and the connect succeeds. It
+    // owns the radio, the supplicant and DHCP again, so the fallback has to be
+    // withdrawn — wpa_supplicant started now would fight a live daemon.
+    server_ = std::make_unique<helix_test::NetdFakeServer>();
+    REQUIRE(server_->start(path));
+    REQUIRE(start_and_settle());
+    REQUIRE(backend_->is_running());
+    REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
 }
 
 #endif // !__APPLE__ && !__ANDROID__

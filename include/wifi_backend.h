@@ -297,14 +297,28 @@ class WifiBackend {
     }
 
     /**
-     * @brief Whether this is the NetworkManager (nmcli) backend
+     * @brief Whether replacing this backend with wpa_supplicant is safe AND useful
      *
-     * WiFiManager needs it to decide whether an INIT_FAILED is recoverable by
-     * falling back to wpa_supplicant — only the NM backend has that fallback.
+     * WiFiManager asks this when a backend reports INIT_FAILED, to decide
+     * whether the failure is recoverable by swapping in
+     * WifiBackendWpaSupplicant. Return true only when BOTH halves hold:
+     *
+     * - SAFE: nothing else currently owns the radio, the supplicant or DHCP.
+     *   A printer network daemon that is alive owns all three and enforces a
+     *   single transport, so running wpa_supplicant alongside it fights it for
+     *   the hardware — strictly worse than leaving WiFi down.
+     * - USEFUL: wpa_supplicant is a plausible substitute for whatever this
+     *   backend drives on this platform.
+     *
+     * The answer belongs to the backend because only the backend knows why its
+     * init failed. A backend whose safety depends on that reason must derive
+     * the answer from it rather than answering unconditionally, so the default
+     * is the conservative one: no fallback.
+     *
      * A virtual query rather than a `dynamic_cast` to the concrete backend,
      * because the firmware builds -fno-rtti.
      */
-    virtual bool is_network_manager() const {
+    virtual bool supports_wpa_supplicant_fallback() const {
         return false;
     }
 
@@ -392,7 +406,7 @@ class WifiBackend {
      * must dispatch the completion from whatever state it retained. The one
      * exception is stop(): a stopped backend sends nothing further, and the
      * OWNER resolves the latch when it stops or swaps the backend
-     * (WiFiManager's NM->wpa fallback swap does exactly that).
+     * (WiFiManager's wpa_supplicant fallback swap does exactly that).
      *
      * @return WiFiError with detailed status information
      */

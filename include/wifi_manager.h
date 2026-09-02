@@ -402,8 +402,8 @@ class WiFiManager {
     // again after swapping backends during INIT_FAILED auto-failover.
     void register_backend_callbacks(bool silent);
 
-    // On Linux, WiFiManager attempts a one-shot NetworkManager -> wpa_supplicant
-    // fallback when NM's INIT_FAILED fires (daemon dead despite nmcli present).
+    // On Linux, WiFiManager attempts a one-shot swap to wpa_supplicant when a
+    // backend reports INIT_FAILED and answers supports_wpa_supplicant_fallback().
     // This flag prevents infinite loops if wpa_supplicant also fails.
     bool tried_fallback_ = false;
 

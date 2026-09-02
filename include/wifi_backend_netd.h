@@ -109,6 +109,7 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;
     bool supports_radio_toggle() const override;
+    bool supports_wpa_supplicant_fallback() const override;
 
   private:
     // ========================================================================
@@ -321,6 +322,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     std::atomic<bool> seen_5ghz_network_{false};
     /// Guards emit_init_failed_once()'s at-most-once dispatch per attempt.
     std::atomic<bool> init_failed_dispatched_{false};
+    /// The daemon's socket could not be reached on the last connect attempt.
+    /// This is the ONLY evidence that admits a wpa_supplicant fallback: a
+    /// daemon that answers the connect owns the radio, the supplicant and
+    /// DHCP, whatever else may have failed afterwards. Written on the loop
+    /// thread by open_connection(), read from the manager's thread through
+    /// supports_wpa_supplicant_fallback().
+    std::atomic<bool> daemon_unreachable_{false};
     bool was_connected_ = false; ///< loop thread only (snapshot state diff)
 
     // Timers and liveness bookkeeping. Loop thread only.
