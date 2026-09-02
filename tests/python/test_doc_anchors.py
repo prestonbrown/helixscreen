@@ -356,6 +356,46 @@ def test_block_end_ignores_braces_inside_string_literal():
     assert block_end(lines, 0) == 3
 
 
+def test_cpp_func_rejects_call_through_instance_accessor():
+    lines = ["helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # "instance"'s own parens close immediately, but a member-call dot
+    # follows before any brace opens a body - it is not a definition.
+    assert names == []
+
+
+def test_cpp_func_rejects_registration_call_with_lambda_argument():
+    lines = ["lv_obj_add_event_cb(btn, [](lv_event_t* e) {"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # The lambda argument's own parens leave the call's parens unclosed on
+    # this line, so the brace belongs to the lambda, not to a definition.
+    assert names == []
+
+
+def test_cpp_func_rejects_algorithm_call_with_lambda_argument():
+    lines = ["std::sort(v.begin(), v.end(), [](int a, int b) {"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == []
+
+
+def test_cpp_func_accepts_qualified_member_definition():
+    lines = ["void PanelRequest::reset() {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["reset"]
+
+
+def test_cpp_func_accepts_free_function_definition():
+    lines = ["void f() {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["f"]
+
+
+def test_cpp_func_accepts_const_qualified_member_definition():
+    lines = ["static int g(int a) const {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["g"]
+
+
 import subprocess
 
 from doc_anchors import resolve  # noqa: E402

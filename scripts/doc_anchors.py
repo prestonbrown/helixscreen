@@ -224,10 +224,48 @@ _CPP_SCOPE = re.compile(
     r"(?:(?:class|struct|union|enum(?:\s+class)?)\s+(?:\w+\s+)?([A-Za-z_]\w*)"
     r"|namespace\s+([A-Za-z_][\w:]*))"
 )
-_CPP_FUNC = re.compile(
-    r"^[\w:<>,&*\s~\[\]]*?\b([A-Za-z_]\w*)\s*\([^;{]*\)\s*"
-    r"(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?(?:final\s*)?\{"
+# A regex alone cannot tell a function definition from a call that takes a
+# lambda: `f(a, [](int x) { ... })` reaches a `{` on the same line without
+# ever closing f's own parens, and `x.g().h([](...) {` closes an empty `g()`
+# before running into a method call. Both shapes end the line in a brace, so
+# the candidate name's own parens have to be walked and balanced by hand, and
+# only qualifier tokens are allowed between that closing paren and the brace
+# opening its body.
+_CPP_FUNC_NAME = re.compile(r"\b([A-Za-z_]\w*)\s*\(")
+_CPP_FUNC_PREFIX_OK = re.compile(r"[\w:<>,&*\s~\[\]]*")
+_CPP_FUNC_QUALIFIER = re.compile(
+    r"(?:\s*(?:const|noexcept|override|final|mutable|&&|&))*"
+    r"(?:\s*->\s*[\w:<>,*\s]+)?\s*"
 )
+
+
+def _cpp_func_definition(text):
+    """Name of the function whose body this line opens, or None."""
+    blank = _blank_literals(text)
+    for m in _CPP_FUNC_NAME.finditer(blank):
+        start = m.start(1)
+        if not _CPP_FUNC_PREFIX_OK.fullmatch(blank[:start]):
+            continue
+        depth, j, close = 1, m.end(), None
+        while j < len(blank):
+            if blank[j] == "(":
+                depth += 1
+            elif blank[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    close = j
+                    break
+            j += 1
+        if close is None:
+            continue
+        brace = blank.find("{", close + 1)
+        if brace == -1:
+            continue
+        if _CPP_FUNC_QUALIFIER.fullmatch(blank[close + 1 : brace]):
+            return m.group(1)
+    return None
+
+
 # A declaration needs a type token before the name, separated by whitespace
 # or a pointer/reference sigil - otherwise `spdlog::info(...)` (a qualified
 # call, no type) and `counter_ = 0;` (an assignment, nothing before the name)
@@ -266,6 +304,16 @@ def definitions(lines, region, ext):
     return scanner(lines, region)
 
 
+def _match_cpp_define(text):
+    m = _CPP_DEFINE.match(text)
+    return m.group(1) if m else None
+
+
+def _match_cpp_decl(text):
+    m = _CPP_DECL.match(text)
+    return m.group(1) if m else None
+
+
 def _defs_cpp(lines, region):
     out = []
     for i in range(region.start, region.end):
@@ -276,10 +324,10 @@ def _defs_cpp(lines, region):
             if name:
                 out.append((name, Region(i, block_end(lines, i))))
                 continue
-        for rex in (_CPP_DEFINE, _CPP_FUNC, _CPP_DECL):
-            m = rex.match(text)
-            if m and m.group(1) not in _CPP_KEYWORDS:
-                out.append((m.group(1), Region(i, block_end(lines, i))))
+        for matcher in (_match_cpp_define, _cpp_func_definition, _match_cpp_decl):
+            name = matcher(text)
+            if name and name not in _CPP_KEYWORDS:
+                out.append((name, Region(i, block_end(lines, i))))
                 break
     return out
 
