@@ -234,7 +234,16 @@ void AmsState::init_subjects(bool register_xml) {
         // install_print_state_observer() is idempotent (reset()s the prior
         // guard, then rebinds to the current subject with the current lifetime
         // token), so calling it unconditionally is safe and self-healing.
+        //
+        // register_xml is honored on re-entry too: the first init may have run
+        // with false and published no names, and skipping them here would keep
+        // lv_xml_get_subject() null for the rest of the process.
+        // register_xml_subject_names() must mirror the first-init registration
+        // list below — a name added there must be added here too.
         install_print_state_observer();
+        if (register_xml) {
+            register_xml_subject_names();
+        }
         return;
     }
 
@@ -666,6 +675,185 @@ void AmsState::install_print_state_observer() {
     print_state_observer_ = helix::ui::observe_int_sync<AmsState>(
         get_printer_state().get_print_state_enum_subject(), this,
         [](AmsState* self, int /*print_state*/) { self->recompute_action_detail(); }, lifetime);
+}
+
+void AmsState::register_xml_subject_names() {
+    // Publishes the ALREADY-INITIALIZED subjects under their XML names —
+    // registration only, no lv_subject_init_* (init memzeros the subject and
+    // would wipe the observers bound since the first init). Re-registering an
+    // existing name replaces the record's subject pointer, so names the first
+    // init already published are harmlessly re-published. Called with mutex_
+    // held.
+    //
+    // MUST mirror the registration list in init_subjects(): same names, same
+    // order, same loops. A name registered there but not here stays
+    // unpublished after a register_xml=false first init
+    // (prestonbrown/helixscreen#1374).
+
+    // Backend selector subjects
+    helix::xml::register_subject_in_current_scope("backend_count", &backend_count_);
+    helix::xml::register_subject_in_current_scope("ams_data_revision", &ams_data_revision_);
+    helix::xml::register_subject_in_current_scope("active_backend", &active_backend_);
+
+    // System-level subjects
+    helix::xml::register_subject_in_current_scope("ams_type", &ams_type_);
+    helix::xml::register_subject_in_current_scope("ams_is_tool_changer", &ams_is_tool_changer_);
+    helix::xml::register_subject_in_current_scope("ams_is_filament_system",
+                                                  &ams_is_filament_system_);
+    helix::xml::register_subject_in_current_scope("ams_action", &ams_action_);
+    helix::xml::register_subject_in_current_scope("ams_operation_phase", &ams_operation_phase_);
+    helix::xml::register_subject_in_current_scope("ams_operation_indeterminate",
+                                                  &ams_operation_indeterminate_);
+    helix::xml::register_subject_in_current_scope("toolchange_step", &toolchange_step_);
+    helix::xml::register_subject_in_current_scope("current_slot", &current_slot_);
+    helix::xml::register_subject_in_current_scope("pending_target_slot", &pending_target_slot_);
+    helix::xml::register_subject_in_current_scope("ams_current_tool", &ams_current_tool_);
+    // Members without the ams_ prefix; the XML names carry it
+    lv_xml_register_subject(nullptr, "ams_filament_loaded", &filament_loaded_);
+    lv_xml_register_subject(nullptr, "ams_filament_runout", &filament_runout_);
+    lv_xml_register_subject(nullptr, "ams_bypass_active", &bypass_active_);
+    lv_xml_register_subject(nullptr, "ams_external_spool_color", &external_spool_color_);
+    lv_xml_register_subject(nullptr, "ams_external_spool_material", &external_spool_material_);
+    lv_xml_register_subject(nullptr, "ams_supports_bypass", &supports_bypass_);
+    helix::xml::register_subject_in_current_scope("ams_slot_count", &ams_slot_count_);
+    helix::xml::register_subject_in_current_scope("ams_cards_compact", &ams_cards_compact_);
+    helix::xml::register_subject_in_current_scope("slots_version", &slots_version_);
+    helix::xml::register_subject_in_current_scope("tool_map_version", &tool_map_version_);
+    helix::xml::register_subject_in_current_scope("active_tool_port_present",
+                                                  &active_tool_port_present_);
+
+    // String subjects (buffer names don't match macro convention)
+    lv_xml_register_subject(nullptr, "ams_action_detail", &ams_action_detail_);
+    lv_xml_register_subject(nullptr, "ams_system_name", &ams_system_name_);
+    lv_xml_register_subject(nullptr, "ams_system_logo", &ams_system_logo_);
+    helix::xml::register_subject_in_current_scope("ams_current_tool_text", &ams_current_tool_text_);
+    helix::xml::register_subject_in_current_scope("ams_endless_state", &ams_endless_state_);
+    lv_xml_register_subject(nullptr, "ams_endless_text", &ams_endless_text_);
+
+    // Tool change progress subjects
+    helix::xml::register_subject_in_current_scope("toolchange_visible", &toolchange_visible_);
+    helix::xml::register_subject_in_current_scope("ams_current_toolchange",
+                                                  &ams_current_toolchange_);
+    helix::xml::register_subject_in_current_scope("ams_number_of_toolchanges",
+                                                  &ams_number_of_toolchanges_);
+    helix::xml::register_subject_in_current_scope("toolchange_text", &toolchange_text_);
+
+    // Filament path visualization subjects
+    helix::xml::register_subject_in_current_scope("path_topology", &path_topology_);
+    helix::xml::register_subject_in_current_scope("path_active_slot", &path_active_slot_);
+    helix::xml::register_subject_in_current_scope("path_filament_segment", &path_filament_segment_);
+    helix::xml::register_subject_in_current_scope("path_error_segment", &path_error_segment_);
+    helix::xml::register_subject_in_current_scope("path_anim_progress", &path_anim_progress_);
+
+    // Dryer subjects
+    helix::xml::register_subject_in_current_scope("dryer_supported", &dryer_supported_);
+    helix::xml::register_subject_in_current_scope("dryer_active", &dryer_active_);
+    helix::xml::register_subject_in_current_scope("dryer_current_temp", &dryer_current_temp_);
+    helix::xml::register_subject_in_current_scope("dryer_target_temp", &dryer_target_temp_);
+    helix::xml::register_subject_in_current_scope("dryer_remaining_min", &dryer_remaining_min_);
+    helix::xml::register_subject_in_current_scope("dryer_progress_pct", &dryer_progress_pct_);
+    helix::xml::register_subject_in_current_scope("dryer_current_temp_text",
+                                                  &dryer_current_temp_text_);
+    helix::xml::register_subject_in_current_scope("dryer_target_temp_text",
+                                                  &dryer_target_temp_text_);
+    helix::xml::register_subject_in_current_scope("dryer_time_text", &dryer_time_text_);
+
+    // Dryer modal editing subjects
+    helix::xml::register_subject_in_current_scope("modal_target_temp", &modal_target_temp_);
+    helix::xml::register_subject_in_current_scope("modal_duration_min", &modal_duration_min_);
+    helix::xml::register_subject_in_current_scope("dryer_modal_temp_text", &dryer_modal_temp_text_);
+    helix::xml::register_subject_in_current_scope("dryer_modal_duration_text",
+                                                  &dryer_modal_duration_text_);
+
+    // Dryer humidity and info bar visibility subjects
+    helix::xml::register_subject_in_current_scope("dryer_humidity_text", &dryer_humidity_text_);
+    helix::xml::register_subject_in_current_scope("dryer_info_visible", &dryer_info_visible_);
+
+    // Currently Loaded display subjects
+    lv_xml_register_subject(nullptr, "ams_current_material_text", &current_material_text_);
+    lv_xml_register_subject(nullptr, "ams_current_slot_text", &current_slot_text_);
+    lv_xml_register_subject(nullptr, "ams_current_weight_text", &current_weight_text_);
+    lv_xml_register_subject(nullptr, "ams_current_has_weight", &current_has_weight_);
+    helix::xml::register_subject_in_current_scope("current_color", &current_color_);
+
+    // Clog detection meter subjects
+    helix::xml::register_subject_in_current_scope("clog_meter_mode", &clog_meter_mode_);
+    helix::xml::register_subject_in_current_scope("clog_meter_value", &clog_meter_value_);
+    helix::xml::register_subject_in_current_scope("clog_meter_warning", &clog_meter_warning_);
+    helix::xml::register_subject_in_current_scope("clog_meter_status", &clog_meter_status_);
+    helix::xml::register_subject_in_current_scope("clog_meter_mode_text", &clog_meter_mode_text_);
+    helix::xml::register_subject_in_current_scope("clog_meter_danger_pct", &clog_meter_danger_pct_);
+    helix::xml::register_subject_in_current_scope("clog_meter_peak_pct", &clog_meter_peak_pct_);
+    helix::xml::register_subject_in_current_scope("clog_meter_center_text",
+                                                  &clog_meter_center_text_);
+    helix::xml::register_subject_in_current_scope("clog_meter_label_left", &clog_meter_label_left_);
+    helix::xml::register_subject_in_current_scope("clog_meter_label_right",
+                                                  &clog_meter_label_right_);
+
+    // Per-slot subjects (snprintf'd names)
+    char name_buf[48];
+    for (int i = 0; i < MAX_SLOTS; ++i) {
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_color", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_colors_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_status", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_statuses_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_remaining", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_remaining_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_material", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_materials_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_fill", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_fills_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_segment", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_segments_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_toolhead_present", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_toolhead_present_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_active_loaded", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_active_loaded_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_lane_state", i);
+        lv_xml_register_subject(nullptr, name_buf, &slot_lane_states_[i]);
+    }
+
+    // Per-unit environment subjects (CFS temperature/humidity)
+    for (int i = 0; i < MAX_UNITS; ++i) {
+        snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_temp", i);
+        lv_xml_register_subject(nullptr, name_buf, &unit_temp_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_humidity", i);
+        lv_xml_register_subject(nullptr, name_buf, &unit_humidity_[i]);
+    }
+
+    // Per-unit environment indicator display subjects
+    for (int i = 0; i < MAX_UNITS; ++i) {
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_temp_text", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_temp_text_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity_text", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_humidity_text_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity_status", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_humidity_status_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity_visible", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_humidity_visible_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_visible", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_visible_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_drying_active", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_drying_active_[i]);
+        snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_drying_text", i);
+        lv_xml_register_subject(nullptr, name_buf, &env_ind_drying_text_[i]);
+    }
+
+    // Off-flag placeholders and detail-view env indicator mirrors
+    lv_xml_register_subject(nullptr, ENV_IND_OFF_FLAG_SUBJECT, &env_ind_off_flag_);
+    lv_xml_register_subject(nullptr, ENV_IND_OFF_TEXT_SUBJECT, &env_ind_off_text_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_temp_text", &env_ind_detail_temp_text_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_humidity_text",
+                            &env_ind_detail_humidity_text_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_humidity_status",
+                            &env_ind_detail_humidity_status_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_humidity_visible",
+                            &env_ind_detail_humidity_visible_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_visible", &env_ind_detail_visible_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_drying_active",
+                            &env_ind_detail_drying_active_);
+    lv_xml_register_subject(nullptr, "ams_env_ind_detail_drying_text",
+                            &env_ind_detail_drying_text_);
 }
 
 void AmsState::deinit_subjects() {

@@ -668,19 +668,19 @@ EOF
 
 # --- AmsState is initialized with its XML names, always -------------------------
 #
-# AmsState is a process-wide singleton and init_subjects() returns early once
-# initialized_ is set, so the FIRST call in a test binary decides whether the
-# `ams_*` XML names exist. A single init_subjects(false) - written because the
-# test under it binds through the C++ accessors - leaves lv_xml_get_subject()
-# answering null for every later case in the same shard, and an XML layout that
-# binds one of those names comes up empty rather than erroring. Four
-# clog_detection cases went red exactly this way, and only in the shard split
-# that put an ams_slot case first, which is why the shard order looked like the
-# bug. Publishing costs a test nothing: XML subjects share one global scope in
-# the test build whatever this argument says.
+# AmsState is a process-wide singleton, so a single init_subjects(false) -
+# written because the test under it binds through the C++ accessors - publishes
+# no `ams_*` names, and every later case in the same shard that does not itself
+# re-enter init_subjects(true) sees lv_xml_get_subject() answer null; an XML
+# layout that binds one of those names comes up empty rather than erroring.
+# Publishing costs a test nothing: XML subjects share one global scope in the
+# test build whatever this argument says.
 
 ams_state_unpublished_init_files() {
-    grep -rlE 'AmsState::instance\(\)\.init_subjects\([[:space:]]*false' "$@" 2>/dev/null || true
+    # test_ams_lane_state_subject.cpp owns the one deliberate false init: its
+    # [1374] case exercises re-entry publishing and republishes the names itself.
+    grep -rlE 'AmsState::instance\(\)\.init_subjects\([[:space:]]*false' "$@" 2>/dev/null |
+        grep -v 'test_ams_lane_state_subject\.cpp' || true
 }
 
 @test "no test initializes AmsState without its XML names" {

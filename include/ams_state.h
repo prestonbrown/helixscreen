@@ -211,19 +211,20 @@ class AmsState {
      * @brief Initialize all LVGL subjects
      *
      * MUST be called BEFORE creating XML components that bind to these subjects.
-     * Can be called multiple times safely - subsequent calls are ignored.
+     * Can be called multiple times safely - re-entry rebinds the print-state
+     * observer and, when register_xml is true, re-publishes the XML names.
      *
      * @param register_xml If true, registers subjects with LVGL XML system (default).
      *
-     * Pass true. On this process-wide singleton the FIRST call decides: a later
-     * init_subjects(true) hits the already-initialized guard and returns without
-     * publishing anything, so one register_xml=false leaves lv_xml_get_subject()
-     * answering null for the rest of the process and every XML binding on an
-     * `ams_*` name resolves to nothing instead of failing. A test that binds
-     * only through the C++ accessors still costs nothing by publishing - XML
-     * subjects live in one global scope in the test build either way. Enforced
-     * by "no test initializes AmsState without its XML names" in
-     * tests/shell/test_code_lint.bats.
+     * Pass true. A call with register_xml=false brings this process-wide
+     * singleton up WITHOUT publishing the `ams_*` XML names, and they stay
+     * absent until a later init_subjects(true) re-enters and publishes them -
+     * a test that never re-enters sees lv_xml_get_subject() answer null and
+     * every XML binding on an `ams_*` name resolves to nothing instead of
+     * failing. A test that binds only through the C++ accessors still costs
+     * nothing by publishing - XML subjects live in one global scope in the
+     * test build either way. Enforced by "no test initializes AmsState
+     * without its XML names" in tests/shell/test_code_lint.bats.
      */
     void init_subjects(bool register_xml = true);
 
@@ -1856,6 +1857,15 @@ class AmsState {
 
     /// Wire (or rewire) the print_state_observer_. Idempotent.
     void install_print_state_observer();
+
+    /// Publish the already-initialized subjects under their XML names. Used by
+    /// the init_subjects() re-entry path so register_xml=true still publishes
+    /// after a first init that ran with register_xml=false. Registration only:
+    /// subjects must already be initialized — no lv_subject_init_* here, init
+    /// memzeros the subject and would wipe the observers bound since the first
+    /// init. MUST mirror the registration list in init_subjects(): a name
+    /// registered there must be registered here too. Caller must hold mutex_.
+    void register_xml_subject_names();
 
     /// In-memory override for external spool info. Set by set_external_spool_info_in_memory()
     /// to allow live tracker updates without touching settings.json. When set, takes priority

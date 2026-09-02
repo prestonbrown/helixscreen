@@ -57,19 +57,37 @@ TEST_CASE_METHOD(XMLTestFixture, "lane_state subject tracks the backend",
 
 TEST_CASE_METHOD(XMLTestFixture, "lane_state subject is XML-registered per lane",
                  "[ams][lane_state][subject]") {
-    // deinit FIRST, deliberately. init_subjects() early-returns when initialized_
-    // is already set and does NOT register the XML names on that path, so a bare
-    // init_subjects(true) is a no-op whenever anything earlier in the process
-    // already brought AmsState up. This case therefore used to assert against
-    // names some previous test happened to register: green standalone and in a
-    // full [ams] run, red for any shard subset without such a test. Forcing a
-    // real registration pass makes it independent of execution order.
+    // deinit FIRST, deliberately, so this case exercises the first-init
+    // registration pass itself and stays independent of execution order; the
+    // re-entry registration pass has its own case below ([1374]).
     AmsState::instance().deinit_subjects();
     AmsState::instance().init_subjects(true);
 
     // Name shape must match what the chrome binds to: ams_slot_<n>_lane_state.
     CHECK(lv_xml_get_subject(nullptr, "ams_slot_0_lane_state") != nullptr);
     CHECK(lv_xml_get_subject(nullptr, "ams_slot_3_lane_state") != nullptr);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "init_subjects(true) after a false init still registers XML names",
+                 "[ams][1374]") {
+    AmsState::instance().deinit_subjects(); // fresh baseline regardless of earlier tests
+    // deinit withdraws only SubjectManager-tracked names; the per-slot loop registers
+    // its names untracked, so withdraw the two under test by hand.
+    lv_xml_unregister_subject(nullptr, "ams_slot_0_lane_state");
+    lv_xml_unregister_subject(nullptr, "ams_slot_count");
+
+    AmsState::instance().init_subjects(false); // singleton up, no XML names
+    // Must hold before the re-entry below: proves the names are genuinely absent, so
+    // the CHECKs at the end can only pass via the re-entry registration itself.
+    REQUIRE(lv_xml_get_subject(nullptr, "ams_slot_0_lane_state") == nullptr);
+
+    AmsState::instance().init_subjects(true); // re-entry asks for registration
+    lv_subject_t* lane = lv_xml_get_subject(nullptr, "ams_slot_0_lane_state");
+    CHECK(lane != nullptr);
+    CHECK(lane == AmsState::instance().get_slot_lane_state_subject(0));
+    CHECK(lv_xml_get_subject(nullptr, "ams_slot_count") != nullptr);
+
+    AmsState::instance().deinit_subjects();
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "lane_state subject bounds-checks its index",
