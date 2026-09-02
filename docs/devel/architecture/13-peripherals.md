@@ -176,7 +176,7 @@ the APK) with stb_image as fallback. Three load-bearing details:
 - **The detach contract**: if `stop()`'s timed join fails (network read wedged), the thread is detached and `was_detached()` returns true — the caller must then intentionally leak the object (`unique_ptr::release()`) because the thread still holds `this` (#624).
 
 The widget also throttles: `set_max_fps(0)` when an overlay covers it, `2` in edit mode, the configured cap
-otherwise ([`src/ui/panel_widgets/camera_widget.cpp:492`](../../../src/ui/panel_widgets/camera_widget.cpp#L492)–`518`). Flip, rotation, target size, and fps cap are all
+otherwise ([`src/ui/panel_widgets/camera_widget.cpp:533`](../../../src/ui/panel_widgets/camera_widget.cpp#L533)–`518`). Flip, rotation, target size, and fps cap are all
 atomics, so the widget can retune a running stream without touching the decode thread. After 3 stream failures
 (`MAX_STREAM_FAILURES`) the streamer falls back to polling the snapshot URL every 2 seconds
 (`SNAPSHOT_INTERVAL_MS`) and reconnects the stream opportunistically; libhv callbacks carry `AsyncLifetimeGuard`
@@ -265,7 +265,7 @@ Read in this order; about 30 minutes total.
 6. [`include/bt_print_utils.h:23`](../../../include/bt_print_utils.h#L23) — `rfcomm_send()`'s full lifecycle (connect → chunked write → drain → disconnect) and the shared mutex; then `:46` for SDP channel caching.
 7. [`include/camera_stream.h:36`](../../../include/camera_stream.h#L36) — the class doc: threading contract, snapshot fallback, downscaling, and the `was_detached()` leak rule.
 8. [`src/system/camera_stream.cpp:58`](../../../src/system/camera_stream.cpp#L58) — turbojpeg runtime loading; then `:190` for `stop()`'s timed-join-or-detach path.
-9. [`src/ui/panel_widgets/camera_widget.cpp:492`](../../../src/ui/panel_widgets/camera_widget.cpp#L492) — the fps ladder: paused under overlays, 2fps in edit mode, configured cap otherwise.
+9. [`src/ui/panel_widgets/camera_widget.cpp:533`](../../../src/ui/panel_widgets/camera_widget.cpp#L533) — the fps ladder: paused under overlays, 2fps in edit mode, configured cap otherwise.
 10. [`include/usb_scanner_monitor.h:20`](../../../include/usb_scanner_monitor.h#L20) — `ScannerKeymap` rationale and the `ScannerSource` grab-vs-passive split.
 11. [`src/ui/ui_overlay_qr_scanner.cpp:383`](../../../src/ui/ui_overlay_qr_scanner.cpp#L383) — the overlay racing both scanner paths (`:312` for the snapshot viewfinder, `:383` for the evdev wedge).
 12. [`include/mdns_discovery.h:54`](../../../include/mdns_discovery.h#L54) — the class doc: PIMPL, threading, and callback contract.
