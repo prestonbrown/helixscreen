@@ -27,8 +27,19 @@ class ContainerDeleteNet {
 
   protected:
     /// Views are held as members of their panels and never deleted through
-    /// this base.
-    ~ContainerDeleteNet() = default;
+    /// this base — hence non-virtual.
+    ///
+    /// The detach is the base's own guarantee, not a per-derived obligation:
+    /// every current view calls cleanup() from its destructor, but a view
+    /// added later that forgets would leave the container holding a callback
+    /// into a half-destroyed object, and net_on_container_delete() would then
+    /// dispatch on_netted_container_destroyed() through a vtable whose
+    /// override is already gone — a pure-virtual call, or a plain UAF.
+    /// detach_container_net() touches no virtual, so running it from here is
+    /// legal. Same guarantee ~PanelWidget() gives its delete hook.
+    ~ContainerDeleteNet() {
+        detach_container_net();
+    }
 
     /// The container the net currently watches, or nullptr when detached.
     lv_obj_t* netted_container() const {
@@ -58,7 +69,12 @@ class ContainerDeleteNet {
     /// (cleanup() clears its own state; the net must simply never fire
     /// again into an owner about to die).
     void detach_container_net() {
-        if (netted_ != nullptr) {
+        // Guarded like every sibling uninstall (PanelWidget::uninstall_delete_hook(),
+        // ~PrintStatusPanel(), ToolSwitcherWidget::detach()): this runs on
+        // teardown paths that can execute after lv_deinit() — cleanup() calls it
+        // ahead of a clear_cached_state() that guards its own LVGL calls for
+        // exactly that reason, and the destructor above calls it later still.
+        if (netted_ != nullptr && lv_is_initialized()) {
             lv_obj_remove_event_cb_with_user_data(netted_, net_on_container_delete, this);
         }
         netted_ = nullptr;

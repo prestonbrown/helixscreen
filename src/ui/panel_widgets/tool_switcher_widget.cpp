@@ -151,21 +151,6 @@ void ToolSwitcherWidget::detach() {
     tool_count_observer_.reset();
     print_state_observer_.reset();
     uninstall_delete_hook();
-
-    // #983 shape: lv_obj_set_grid_dsc_array() stores the descriptor pointers
-    // without copying, so a condemned container still in LV_LAYOUT_GRID keeps
-    // reading grid_col_dsc_/grid_row_dsc_ after a recycled instance's next
-    // rebuild_pills() .assign() frees the old buffer (safe_clean_children
-    // reparents the tile to lv_layer_top and deletes it async, leaving exactly
-    // that cross-attach window). detach() precedes every reachable
-    // condemnation, so stripping the layout here makes a condemned container
-    // structurally unable to read the descriptors again — the same mitigation
-    // PanelWidgetManager applies to the page container. rebuild_pills()
-    // re-establishes the grid when it rebuilds one.
-    if (size_watch_container_ && lv_is_initialized()) {
-        lv_obj_set_layout(size_watch_container_, LV_LAYOUT_NONE);
-    }
-
     forget_tile_widgets();
     if (s_active_instance == this) {
         s_active_instance = nullptr;
@@ -189,7 +174,21 @@ void ToolSwitcherWidget::on_hooked_root_deleted() {
 void ToolSwitcherWidget::forget_tile_widgets() {
     pill_buttons_.clear();
     compact_label_ = nullptr;
-    if (size_watch_container_) {
+    if (size_watch_container_ && lv_is_initialized()) {
+        // #983 shape: lv_obj_set_grid_dsc_array() stores the descriptor pointers
+        // without copying, so a condemned container still in LV_LAYOUT_GRID keeps
+        // reading grid_col_dsc_/grid_row_dsc_ after a recycled instance's next
+        // rebuild_pills() .assign() frees the old buffer (safe_clean_children
+        // reparents the tile to lv_layer_top and deletes it async, leaving exactly
+        // that cross-attach window). Stripping the layout as the pointer is
+        // dropped makes a condemned container structurally unable to read the
+        // descriptors again — the same mitigation PanelWidgetManager applies to
+        // the page container. It belongs HERE rather than in detach(): the
+        // raw-delete path (on_hooked_root_deleted) reaches this function without
+        // a detach() of its own, and PanelWidgetManager::populate_page()'s
+        // safe_clean_children() has no detach either — it relies entirely on its
+        // caller. rebuild_pills() re-establishes the grid when it rebuilds one.
+        lv_obj_set_layout(size_watch_container_, LV_LAYOUT_NONE);
         lv_obj_remove_event_cb_with_user_data(size_watch_container_, on_widget_size_changed, this);
     }
     size_watch_container_ = nullptr;

@@ -28,6 +28,12 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/nozzle_temps_test_access.h"
 #include "../test_helpers/thermistor_test_access.h"
+#include "app_globals.h"
+#include "panel_widget_manager.h"
+#if HELIX_HAS_CAMERA
+#include "../test_helpers/camera_widget_test_access.h"
+#include "src/ui/panel_widgets/camera_widget.h"
+#endif
 #include "../test_helpers/tool_switcher_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -543,3 +549,159 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 
     CHECK(lv_obj_get_style_layout(container, LV_PART_MAIN) == LV_LAYOUT_NONE);
 }
+
+namespace {
+
+/// Layout the probed container was in when LVGL got round to deleting it — the
+/// last moment the grid descriptors could still be read out of the widget.
+uint16_t g_layout_at_container_delete = 0xFFFF;
+
+void record_layout_at_delete(lv_event_t* e) {
+    auto* obj = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    g_layout_at_container_delete = lv_obj_get_style_layout(obj, LV_PART_MAIN);
+}
+
+} // namespace
+
+// The strip cannot live in detach() alone. detach() precedes every HomePanel
+// condemnation today (ui_panel_home.cpp:83, 367, 461), but that is a property of
+// the callers, not of the widget: PanelWidgetManager::populate_page() reaches
+// safe_clean_children() with no detach of its own, and the raw-delete path
+// (on_hooked_root_deleted -> forget_tile_widgets) nulls size_watch_container_
+// without touching the layout, leaving a condemned container in LV_LAYOUT_GRID
+// still pointed at the widget's descriptor buffers. Stripping it where the
+// pointer is dropped covers both paths and removes the reasoning dependency.
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "tool_switcher detaches its container from the grid on the raw-delete path too",
+                 "[tool_switcher][teardown][uaf]") {
+    configure_tools(3);
+    AttachedToolSwitcher attached(*this);
+
+    lv_obj_t* container = lv_obj_find_by_name(attached.tile, "tool_switcher_container");
+    REQUIRE(container != nullptr);
+    REQUIRE(lv_obj_get_style_layout(container, LV_PART_MAIN) == LV_LAYOUT_GRID);
+
+    // The widget's hook is on the tile, and LVGL sends a subtree's LV_EVENT_DELETE
+    // top-down before recursing into children — so a probe on the container
+    // itself reads it after the widget has had its chance to strip the layout,
+    // and while the container is still allocated.
+    g_layout_at_container_delete = 0xFFFF;
+    lv_obj_add_event_cb(container, record_layout_at_delete, LV_EVENT_DELETE, nullptr);
+
+    // Raw page delete: no detach(), the widget hears only on_hooked_root_deleted().
+    lv_obj_delete(attached.page);
+
+    REQUIRE(g_layout_at_container_delete != 0xFFFF); // the probe must have run
+    CHECK(g_layout_at_container_delete == LV_LAYOUT_NONE);
+}
+
+// ============================================================================
+// CameraWidget
+// ============================================================================
+//
+// The camera is the fourth widget with these mechanics and the only one that
+// deliberately opts out of expiring its guard on detach: the MJPEG stream is
+// meant to keep running across a detach->reattach gap, and the frame callbacks
+// stay safe purely because camera_image_ is null in between. That makes the
+// pointer drop load-bearing rather than defensive - a raw lv_obj_delete() of
+// the page tree calls no detach(), so pre-fix the stream's next frame (10-30
+// per second) wrote lv_image_set_src() into a freed lv_image.
+
+#if HELIX_HAS_CAMERA
+
+namespace {
+
+/// Attach a CameraWidget to its real XML tile on a page container, with no
+/// webcam configured so nothing ever opens a socket.
+struct AttachedCamera {
+    HomeWidgetTeardownFixture& fixture;
+    std::unique_ptr<helix::CameraWidget> widget = std::make_unique<helix::CameraWidget>();
+    lv_obj_t* page = nullptr;
+    lv_obj_t* tile = nullptr;
+
+    explicit AttachedCamera(HomeWidgetTeardownFixture& f) : fixture(f) {
+        PanelWidgetManager::instance().init_widget_subjects();
+        page = fixture.make_page();
+        tile = fixture.make_tile(page, "panel_widget_camera");
+        widget->attach(tile, fixture.test_screen());
+        UpdateQueue::instance().drain();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "camera drops its cached tile pointers when the page tree is deleted raw",
+                 "[camera][teardown][uaf]") {
+    AttachedCamera attached(*this);
+
+    // The tile must have actually populated the pointers under test, or the
+    // null checks below would pass for the wrong reason.
+    REQUIRE(helix::CameraWidgetTestAccess::camera_image(*attached.widget) != nullptr);
+    REQUIRE(helix::CameraWidgetTestAccess::camera_overlay(*attached.widget) != nullptr);
+    REQUIRE(helix::CameraWidgetTestAccess::camera_status(*attached.widget) != nullptr);
+
+    // No detach(): the widget hears only on_hooked_root_deleted().
+    lv_obj_delete(attached.page);
+
+    CHECK(helix::CameraWidgetTestAccess::camera_image(*attached.widget) == nullptr);
+    CHECK(helix::CameraWidgetTestAccess::camera_overlay(*attached.widget) == nullptr);
+    CHECK(helix::CameraWidgetTestAccess::camera_status(*attached.widget) == nullptr);
+    CHECK(helix::CameraWidgetTestAccess::widget_obj(*attached.widget) == nullptr);
+}
+
+// The camera's divergence from the other three home widgets, pinned so nobody
+// "completes" the fix by copying their lifetime_.invalidate() in here. A token
+// the running CameraStream captured at start_stream() compares its snapshot
+// against the guard's generation counter, so an invalidate() drops every
+// subsequent frame for the life of that stream - and the fullscreen overlay is
+// a child of the screen, not of the tile, so a page-container delete leaves a
+// fullscreen view running that would freeze.
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "camera keeps its stream lifetime valid across a raw tile delete",
+                 "[camera][teardown][uaf]") {
+    AttachedCamera attached(*this);
+
+    helix::LifetimeToken token = helix::CameraWidgetTestAccess::stream_token(*attached.widget);
+    REQUIRE_FALSE(token.expired());
+
+    lv_obj_delete(attached.page);
+
+    CHECK_FALSE(token.expired());
+}
+
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "camera uninstalls its delete hook when destroyed before its tree",
+                 "[camera][teardown][uaf]") {
+    AttachedCamera attached(*this);
+
+    // Guards against passing for the wrong reason: if attach() never installed
+    // the hook, its absence after destruction would prove nothing.
+    REQUIRE(delete_hook_installed(attached.tile, attached.widget.get()));
+
+    const void* dead = attached.widget.get();
+    attached.widget.reset();
+    CHECK_FALSE(delete_hook_installed(attached.tile, dead));
+
+    // The tree outlives the widget exactly as it does under lv_deinit().
+    lv_obj_delete(attached.tile);
+    UpdateQueue::instance().drain();
+    SUCCEED("tile torn down after the widget without touching freed memory");
+}
+
+TEST_CASE_METHOD(HomeWidgetTeardownFixture, "camera ignores a replaced root's late delete event",
+                 "[camera][teardown][uaf]") {
+    AttachedCamera attached(*this);
+    lv_obj_t* old_tile = attached.tile;
+
+    attached.widget->attach(make_tile(attached.page, "panel_widget_camera"), test_screen());
+    UpdateQueue::instance().drain();
+    REQUIRE(helix::CameraWidgetTestAccess::camera_image(*attached.widget) != nullptr);
+
+    lv_obj_delete(old_tile);
+    UpdateQueue::instance().drain();
+
+    CHECK(helix::CameraWidgetTestAccess::camera_image(*attached.widget) != nullptr);
+}
+
+#endif // HELIX_HAS_CAMERA
