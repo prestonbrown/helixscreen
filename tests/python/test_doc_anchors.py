@@ -89,3 +89,82 @@ def test_empty_fragment_is_an_error():
 def test_unterminated_snippet_is_an_error():
     with pytest.raises(ValueError):
         parse_citation('src/a.cpp#f/"never closed')
+
+
+from doc_anchors import (  # noqa: E402
+    Ambiguous,
+    NotFound,
+    Region,
+    resolve_segments,
+)
+
+CPP = """\
+namespace helix {
+
+class PanelRequest {
+  public:
+    lv_obj_t* overlay_root;
+    void reset();
+};
+
+void PanelRequest::reset() {
+    overlay_root = nullptr;
+}
+
+void instance() {
+    bool shutdown_requested = false;
+    if (shutdown_requested) {
+        return;
+    }
+}
+
+}  // namespace helix
+""".split("\n")
+
+
+def test_identifier_resolves_to_its_definition():
+    r = resolve_segments(CPP, parse_citation("a.cpp#instance").segments, ".cpp")
+    assert CPP[r.start].strip() == "void instance() {"
+
+
+def test_nested_segment_resolves_inside_its_parent():
+    segs = parse_citation("a.h#PanelRequest/overlay_root").segments
+    r = resolve_segments(CPP, segs, ".h")
+    assert CPP[r.start].strip() == "lv_obj_t* overlay_root;"
+
+
+def test_snippet_segment_resolves_inside_its_parent():
+    segs = parse_citation('a.cpp#instance/"shutdown_requested = false"').segments
+    r = resolve_segments(CPP, segs, ".cpp")
+    assert CPP[r.start].strip() == "bool shutdown_requested = false;"
+
+
+def test_a_snippet_scoped_to_a_parent_ignores_matches_elsewhere():
+    # "reset" appears both as a member declaration and as a definition; scoping
+    # to the class picks out exactly one without the resolver guessing.
+    segs = parse_citation("a.h#PanelRequest/reset").segments
+    r = resolve_segments(CPP, segs, ".h")
+    assert CPP[r.start].strip() == "void reset();"
+
+
+def test_zero_matches_raises_not_found():
+    with pytest.raises(NotFound):
+        resolve_segments(CPP, parse_citation("a.cpp#no_such_thing").segments, ".cpp")
+
+
+def test_two_matches_raises_ambiguous_with_candidates():
+    dupe = ["void f() {", "}", "void f() {", "}"]
+    with pytest.raises(Ambiguous) as excinfo:
+        resolve_segments(dupe, parse_citation("a.cpp#f").segments, ".cpp")
+    assert len(excinfo.value.candidates) == 2
+
+
+def test_ambiguous_snippet_raises_rather_than_taking_the_first():
+    segs = parse_citation('a.cpp#instance/"shutdown_requested"').segments
+    with pytest.raises(Ambiguous):
+        resolve_segments(CPP, segs, ".cpp")
+
+
+def test_no_segments_resolves_to_the_whole_file():
+    r = resolve_segments(CPP, (), ".cpp")
+    assert r == Region(0, len(CPP))

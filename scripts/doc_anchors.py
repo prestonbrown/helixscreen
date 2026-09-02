@@ -77,3 +77,114 @@ def _unescape(text):
 
 def _escape(text):
     return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+@dataclass(frozen=True)
+class Region:
+    """A half-open span of 0-based line indices."""
+
+    start: int
+    end: int
+
+
+class NotFound(Exception):
+    def __init__(self, segment):
+        self.segment = segment
+        super().__init__(f"no match for segment {segment.text!r}")
+
+
+class Ambiguous(Exception):
+    def __init__(self, segment, candidates):
+        self.segment = segment
+        self.candidates = candidates
+        lines = ", ".join(str(r.start + 1) for r in candidates)
+        super().__init__(f"segment {segment.text!r} matches lines {lines}")
+
+
+def resolve_segments(lines, segments, ext):
+    """Narrow the file to the region named by segments, or raise."""
+    region = Region(0, len(lines))
+    for segment in segments:
+        if segment.is_snippet:
+            hits = [
+                Region(i, i + 1)
+                for i in range(region.start, region.end)
+                if segment.text in lines[i]
+            ]
+        else:
+            hits = [r for name, r in definitions(lines, region, ext) if name == segment.text]
+        if not hits:
+            raise NotFound(segment)
+        if len(hits) > 1:
+            raise Ambiguous(segment, hits)
+        region = hits[0]
+    return region
+
+
+def block_end(lines, start):
+    """Exclusive end of the brace block opening at or after `start`.
+
+    A definition with no brace on its line owns that line alone, which is what
+    a member declaration or a forward declaration should resolve to.
+    """
+    depth = 0
+    opened = False
+    for i in range(start, len(lines)):
+        text = _strip_comment(lines[i])
+        for ch in text:
+            if ch == "{":
+                depth += 1
+                opened = True
+            elif ch == "}":
+                depth -= 1
+                if opened and depth == 0:
+                    return i + 1
+        if not opened and ";" in text:
+            return i + 1
+    return start + 1
+
+
+def _strip_comment(text):
+    return re.sub(r"//.*$", "", text)
+
+
+_CPP_KEYWORDS = {
+    "if", "for", "while", "switch", "return", "else", "do", "catch", "sizeof",
+    "try", "case", "default", "using", "typedef", "friend", "delete", "new",
+    "throw", "static_cast", "const_cast", "reinterpret_cast", "dynamic_cast",
+}
+
+_CPP_SCOPE = re.compile(
+    r"^\s*(?:template\s*<[^>]*>\s*)?"
+    r"(?:(?:class|struct|union|enum(?:\s+class)?)\s+(?:\w+\s+)?([A-Za-z_]\w*)"
+    r"|namespace\s+([A-Za-z_][\w:]*))"
+)
+_CPP_FUNC = re.compile(
+    r"^[\w:<>,&*\s~\[\]]*?\b([A-Za-z_]\w*)\s*\([^;{]*\)\s*"
+    r"(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?(?:final\s*)?\{"
+)
+_CPP_DECL = re.compile(r"^[\w:<>,&*\s\[\]]*?\b([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;")
+_CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
+
+
+def definitions(lines, region, ext):
+    """Every named definition inside `region`, as (name, Region) pairs."""
+    return _defs_cpp(lines, region)
+
+
+def _defs_cpp(lines, region):
+    out = []
+    for i in range(region.start, region.end):
+        text = _strip_comment(lines[i])
+        m = _CPP_SCOPE.match(text)
+        if m:
+            name = m.group(1) or m.group(2)
+            if name:
+                out.append((name, Region(i, block_end(lines, i))))
+                continue
+        for rex in (_CPP_DEFINE, _CPP_FUNC, _CPP_DECL):
+            m = rex.match(text)
+            if m and m.group(1) not in _CPP_KEYWORDS:
+                out.append((m.group(1), Region(i, block_end(lines, i))))
+                break
+    return out
