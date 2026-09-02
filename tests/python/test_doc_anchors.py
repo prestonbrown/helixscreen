@@ -606,6 +606,20 @@ def test_tilde_fence_does_not_close_a_backtick_fence(tmp_path):
     assert found == ["src/a.cpp#f", "src/c.cpp#h"]
 
 
+def test_longer_closing_fence_still_closes(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text(
+        "prose `src/a.cpp#f` here\n"
+        "```\n"
+        "`src/b.cpp#g`\n"
+        "````\n"
+        "and `src/c.cpp#h`\n",
+        encoding="utf-8",
+    )
+    found = [c for _, _, c in iter_citations([doc])]
+    assert found == ["src/a.cpp#f", "src/c.cpp#h"]
+
+
 def test_unclosed_fence_produces_a_problem(tmp_path):
     doc = tmp_path / "d.md"
     doc.write_text("prose\n```\nsome code, never closed\n", encoding="utf-8")
