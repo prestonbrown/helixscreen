@@ -12,14 +12,20 @@
  * capability API, and reach a vendor only through a printer's macro list.
  */
 
+#include "../test_helpers/config_test_access.h"
+#include "config.h"
 #include "printer_discovery.h"
 #include "z_offset_persistence.h"
 
 #include <algorithm>
+#include <fstream>
+#include <optional>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
+using helix::Config;
 using helix::PrinterDiscovery;
 using nlohmann::json;
 
@@ -50,6 +56,48 @@ json zmod_frame(const json& gcode_offsets) {
 /// A Forge-X-shaped mod_params frame.
 json forge_x_frame(const json& z_offset) {
     return json{{"mod_params", json{{"variables", json{{"z_offset", z_offset}}}}}};
+}
+
+/// A ZMOD save_variables frame carrying the persistence flag.
+json zmod_enable_frame(const json& load_zoffset) {
+    return json{{"save_variables", json{{"variables", json{{"load_zoffset", load_zoffset}}}}}};
+}
+
+/// A Forge-X mod_params frame carrying the persistence flag.
+json forge_x_enable_frame(const json& load_zoffset) {
+    return json{{"mod_params", json{{"variables", json{{"load_zoffset", load_zoffset}}}}}};
+}
+
+/// Spell a tri-state answer so a case fits on one line and a failure names the
+/// state it got instead of printing an opaque optional.
+std::string tri(const std::optional<bool>& v) {
+    if (!v.has_value()) {
+        return "unknown";
+    }
+    return *v ? "on" : "off";
+}
+
+/// The Config singleton, pointed at a named printer so df() routes the record
+/// to a stable per-printer key. The suite's isolation listener has already
+/// pointed the singleton at the sandbox and blanked its document, so every test
+/// starts from a fresh install with no settings.json on disk.
+Config* fresh_config(const char* printer_id = "zoffset_test_printer") {
+    Config* cfg = Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    helix::ConfigTestAccess::active_printer_id(*cfg) = printer_id;
+    return cfg;
+}
+
+/// Replace the live document with whatever save() actually wrote to disk. A
+/// record that only reached memory does not survive this.
+void reload_from_disk(Config* cfg) {
+    const std::string path = cfg->get_path();
+    INFO("reading back " << path);
+    std::ifstream in(path);
+    REQUIRE(in.good());
+    json saved = json::parse(in, nullptr, /*allow_exceptions=*/false);
+    REQUIRE_FALSE(saved.is_discarded());
+    helix::ConfigTestAccess::data(*cfg) = saved;
 }
 
 } // namespace
@@ -291,19 +339,129 @@ TEST_CASE("z-offset persistence: enable gate requires a firmware that needs it",
           "[zoffset][persistence]") {
     using helix::zoffset::should_enable_persistence;
 
-    CHECK_FALSE(should_enable_persistence(false, false, false));
-    CHECK_FALSE(should_enable_persistence(false, true, false));
-    CHECK_FALSE(should_enable_persistence(false, false, true));
+    CHECK_FALSE(should_enable_persistence(false, false, false, std::nullopt));
+    CHECK_FALSE(should_enable_persistence(false, true, false, std::nullopt));
+    CHECK_FALSE(should_enable_persistence(false, false, true, std::nullopt));
+    CHECK_FALSE(should_enable_persistence(false, false, false, false));
 }
 
 TEST_CASE("z-offset persistence: enable gate fires once, while idle", "[zoffset][persistence]") {
     using helix::zoffset::should_enable_persistence;
 
-    CHECK(should_enable_persistence(true, false, false));
+    CHECK(should_enable_persistence(true, false, false, std::nullopt));
     // Never mid-print: this injects gcode into a running job.
-    CHECK_FALSE(should_enable_persistence(true, true, false));
-    // Never twice in a session.
-    CHECK_FALSE(should_enable_persistence(true, false, true));
+    CHECK_FALSE(should_enable_persistence(true, true, false, std::nullopt));
+    // Never again once this install has sent it. The flag is persisted, so a
+    // user who turns the setting back off is not overruled at the next launch
+    // (prestonbrown/helixscreen#1432).
+    CHECK_FALSE(should_enable_persistence(true, false, true, std::nullopt));
+}
+
+TEST_CASE("z-offset persistence: enable gate stands down when the firmware already agrees",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::should_enable_persistence;
+
+    // The write is persistent firmware state and costs the user the slicer's
+    // per-print Z_OFFSET / SKIP_ZOFFSET parameters, so a firmware that already
+    // holds the setting must be left alone.
+    CHECK_FALSE(should_enable_persistence(true, false, false, true));
+    // Off is the state the send exists for.
+    CHECK(should_enable_persistence(true, false, false, false));
+    // Unknown is not an off. Only a definite true suppresses.
+    CHECK(should_enable_persistence(true, false, false, std::nullopt));
+
+    // The other gates still bind regardless of what the firmware reports.
+    CHECK_FALSE(should_enable_persistence(true, true, false, false));
+    CHECK_FALSE(should_enable_persistence(true, false, true, false));
+}
+
+// ============================================================================
+// Reading the firmware's current enable state (prestonbrown/helixscreen#1432)
+// ============================================================================
+
+TEST_CASE("z-offset persistence: ZMOD's enable flag comes from save_variables",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::persistence_already_enabled;
+    PrinterDiscovery hw = printer_with_macros({"SAVE_ZMOD_DATA"});
+
+    CHECK(tri(persistence_already_enabled(hw, zmod_enable_frame(1))) == "on");
+    // A 0 on ZMOD is a deliberate user choice: GET_ZMOD_DATA writes the key
+    // back as 1 by default at every Klipper start, so the setting can only be
+    // off because somebody turned it off.
+    CHECK(tri(persistence_already_enabled(hw, zmod_enable_frame(0))) == "off");
+
+    // The key materializes about ten seconds into a Klipper session. Until it
+    // does, the frame says nothing - reading that as an off would send the
+    // enable gcode to a printer that never needed it.
+    json no_key =
+        json{{"save_variables", json{{"variables", json{{"gcode_offsets", json{{"z", -0.2}}}}}}}};
+    CHECK(tri(persistence_already_enabled(hw, no_key)) == "unknown");
+    // save_variables is delta-only, so most frames omit it entirely.
+    CHECK(tri(persistence_already_enabled(hw, json{{"gcode_move", json{{"speed", 100.0}}}})) ==
+          "unknown");
+    CHECK(tri(persistence_already_enabled(hw, json{{"save_variables", json::object()}})) ==
+          "unknown");
+    // Degenerate inputs must not throw.
+    CHECK(tri(persistence_already_enabled(hw, json::object())) == "unknown");
+    CHECK(tri(persistence_already_enabled(hw, json())) == "unknown");
+}
+
+TEST_CASE("z-offset persistence: Forge-X's enable flag arrives as an int or a bool",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::persistence_already_enabled;
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+
+    // An untouched param serialises as the JSON integer 0; once something sets
+    // it explicitly the plugin stores a Python bool. All four spellings are
+    // real traffic and must map the same way.
+    CHECK(tri(persistence_already_enabled(hw, forge_x_enable_frame(0))) == "off");
+    CHECK(tri(persistence_already_enabled(hw, forge_x_enable_frame(1))) == "on");
+    CHECK(tri(persistence_already_enabled(hw, forge_x_enable_frame(false))) == "off");
+    CHECK(tri(persistence_already_enabled(hw, forge_x_enable_frame(true))) == "on");
+
+    // Unlike ZMOD, the plugin populates every declared param at load and the
+    // declared default is 0 - so an off here is the shipped state, and the
+    // enable send is exactly what it is for.
+    CHECK(helix::zoffset::should_enable_persistence(
+        true, false, false, persistence_already_enabled(hw, forge_x_enable_frame(0))));
+
+    // No mod_params in this frame, so no answer.
+    CHECK(tri(persistence_already_enabled(hw, forge_x_frame(-0.15))) == "unknown");
+    CHECK(tri(persistence_already_enabled(hw, json{{"mod_params", json::object()}})) == "unknown");
+    CHECK(tri(persistence_already_enabled(hw, json{{"gcode_move", json::object()}})) == "unknown");
+    // A value we cannot read is silence, not an off.
+    CHECK(tri(persistence_already_enabled(hw, forge_x_enable_frame("1"))) == "unknown");
+    CHECK(tri(persistence_already_enabled(hw, forge_x_enable_frame(nullptr))) == "unknown");
+}
+
+TEST_CASE("z-offset persistence: firmware with no enable setting reports unknown",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::persistence_already_enabled;
+
+    // Helper-Script's boot delayed_gcode re-applies the stored offset
+    // unconditionally: there is no enable gcode and so nothing to read. A key
+    // of that name landing in its save_variables belongs to someone else.
+    PrinterDiscovery helper = printer_with_macros({"SET_GCODE_OFFSET"});
+    REQUIRE(helix::zoffset::persistence_enable_gcode(helper).empty());
+    CHECK(tri(persistence_already_enabled(helper, zmod_enable_frame(1))) == "unknown");
+
+    // And a printer with no provider at all answers nothing, whatever arrives.
+    PrinterDiscovery plain = printer_with_macros({"START_PRINT", "END_PRINT"});
+    CHECK(tri(persistence_already_enabled(plain, zmod_enable_frame(1))) == "unknown");
+    CHECK(tri(persistence_already_enabled(plain, forge_x_enable_frame(1))) == "unknown");
+}
+
+TEST_CASE("z-offset persistence: the enable flag is read from the matched firmware's schema",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::persistence_already_enabled;
+
+    // Both firmwares name the flag load_zoffset but keep it in different status
+    // objects, so a frame carrying both must resolve by the matched provider,
+    // not by whichever key is found first.
+    json both = json{{"save_variables", json{{"variables", json{{"load_zoffset", 1}}}}},
+                     {"mod_params", json{{"variables", json{{"load_zoffset", 0}}}}}};
+    CHECK(tri(persistence_already_enabled(printer_with_macros({"SAVE_ZMOD_DATA"}), both)) == "on");
+    CHECK(tri(persistence_already_enabled(printer_with_macros({"SET_MOD"}), both)) == "off");
 }
 
 // ============================================================================
@@ -476,4 +634,116 @@ TEST_CASE("z-offset persistence: unambiguous providers are never refutable",
 
     // And a printer with no provider at all has nothing to refute.
     CHECK_FALSE(status_refutes_persistence(printer_with_macros({"START_PRINT"}), no_zoffset_key));
+}
+
+// ============================================================================
+// Claiming the one-shot enable (prestonbrown/helixscreen#1432)
+// ============================================================================
+
+TEST_CASE("z-offset persistence: the enable is claimed once and never again",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    CHECK(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    // The command writes persistent firmware state, so a second discovery -
+    // this launch or any later one - must not re-send it over a user who has
+    // since turned the setting back off.
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: the claim survives a restart", "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    REQUIRE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+
+    // A record held only in the in-memory document is no record at all: the
+    // next launch reads settings.json and would send the command again.
+    reload_from_disk(cfg);
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: a print does not consume the claim",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/true));
+    // Refusing to inject gcode into a running job must not cost the printer its
+    // one send - the next idle discovery still gets it.
+    CHECK(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: an already-enabled firmware does not consume the claim",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+
+    json already_on = forge_x_enable_frame(true);
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, &already_on, /*print_active=*/false));
+
+    // Standing down because the firmware agrees is not the same as having sent
+    // anything, so a printer that later reports it off is still owed its send.
+    json now_off = forge_x_enable_frame(false);
+    CHECK(claim_persistence_enable(cfg, hw, &now_off, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: a printer with no enable command never claims",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    Config* cfg = fresh_config();
+    json status = forge_x_enable_frame(0);
+
+    CHECK_FALSE(claim_persistence_enable(cfg, printer_with_macros({"START_PRINT", "END_PRINT"}),
+                                         &status, /*print_active=*/false));
+    // Helper-Script persists the offset but has nothing to switch on.
+    CHECK_FALSE(claim_persistence_enable(cfg, printer_with_macros({"SET_GCODE_OFFSET"}), &status,
+                                         /*print_active=*/false));
+    // A null config is a caller with nothing to record into.
+    CHECK_FALSE(claim_persistence_enable(nullptr, printer_with_macros({"SET_MOD"}), &status,
+                                         /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: no status frame is no news, and still allows the send",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    // A discovery that carries no frame says nothing about the firmware's
+    // setting. Treating that silence as "already on" would leave the feature
+    // permanently off on a printer that needs it.
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+
+    CHECK(claim_persistence_enable(cfg, hw, nullptr, /*print_active=*/false));
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, nullptr, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: each printer gets its own claim", "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+
+    // The setting lives in a printer's firmware, so the record is scoped to the
+    // active printer. One install driving two printers owes each of them a send.
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    Config* cfg = fresh_config("printer_a");
+    REQUIRE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    REQUIRE_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+
+    helix::ConfigTestAccess::active_printer_id(*cfg) = "printer_b";
+    CHECK(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
 }

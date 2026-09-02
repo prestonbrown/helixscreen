@@ -248,6 +248,15 @@ void MoonrakerDiscoverySequence::discover_sensors() {
         });
 }
 
+// The model string wins over the host's own name: a firmware that publishes one
+// is naming the machine, while printer.info reports whatever the rootfs was
+// imaged with, which on a stock vendor image is a distro default shared by every
+// unit of every model.
+void MoonrakerDiscoverySequence::publish_identity_locked() {
+    hardware_.set_hostname(reported_machine_name_.empty() ? reported_hostname_
+                                                          : reported_machine_name_);
+}
+
 // Read the hardware fields HelixScreen keeps out of a machine.system_info
 // response. The same response also carries the camera service_state that
 // detect_webcam() cross-checks, which is why one query feeds both.
@@ -278,6 +287,23 @@ void MoonrakerDiscoverySequence::parse_system_info(const json& sys_response) {
             hardware_.set_cpu_arch(cpu_arch);
         }
         spdlog::debug("[Moonraker Client] CPU architecture: {}", cpu_arch);
+    }
+
+    // Vendor forks publish the machine's own model name here; upstream
+    // Moonraker does not send the field at all, so its absence is the norm.
+    if (sys_response.contains("result") && sys_response["result"].contains("system_info") &&
+        sys_response["result"]["system_info"].contains("machine_name") &&
+        sys_response["result"]["system_info"]["machine_name"].is_string()) {
+        std::string machine_name =
+            sys_response["result"]["system_info"]["machine_name"].get<std::string>();
+        if (!machine_name.empty()) {
+            {
+                std::lock_guard<std::mutex> lock(hardware_mutex_);
+                reported_machine_name_ = machine_name;
+                publish_identity_locked();
+            }
+            spdlog::info("[Moonraker Client] Machine name: {}", machine_name);
+        }
     }
 }
 
@@ -774,7 +800,8 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                         auto software_version = result.value("software_version", "unknown");
                         {
                             std::lock_guard<std::mutex> lock(hardware_mutex_);
-                            hardware_.set_hostname(hostname);
+                            reported_hostname_ = hostname;
+                            publish_identity_locked();
                             hardware_.set_software_version(software_version);
                         }
                         std::string state = result.value("state", "");

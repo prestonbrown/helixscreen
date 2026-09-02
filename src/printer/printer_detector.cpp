@@ -21,7 +21,9 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <tuple>
 #include <unordered_set>
+#include <vector>
 
 #ifdef __GLIBC__
 #include <malloc.h> // malloc_trim() — see PrinterDatabase::compact()
@@ -748,7 +750,10 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
     spdlog::debug("[PrinterDetector] {} scored {}% (base {} + bonus {} from {} matches)",
                   printer_name, combined, base_confidence, bonus, matches.size());
 
-    return {printer_name, combined, reason, static_cast<int>(matches.size()), base_confidence};
+    PrinterDetectionResult result{printer_name, combined, reason, static_cast<int>(matches.size()),
+                                  base_confidence};
+    result.uncapped_confidence = base_confidence + bonus;
+    return result;
 }
 } // namespace
 
@@ -782,9 +787,7 @@ PrinterDetectionResult PrinterDetector::detect(const PrinterHardwareData& hardwa
             g_database.reload();
         }
 
-        // Iterate through all printers in database and find best match
         PrinterDetectionResult best_match{"", 0, "No distinctive hardware detected"};
-        PrinterDetectionResult runner_up{"", 0, ""};
 
         if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
             NOTIFY_ERROR(lv_tr("Printer database is corrupt"));
@@ -792,6 +795,22 @@ PrinterDetectionResult PrinterDetector::detect(const PrinterHardwareData& hardwa
                 "[PrinterDetector] Invalid database format: missing 'printers' array");
             return {"", 0, "Invalid printer database format"};
         }
+
+        // Candidates are separated by the machine they name. The image is the
+        // physical printer the user owns; the preset is a configuration applied
+        // to it, and a firmware variant of one printer is not a second answer to
+        // "which printer is this". So two entries picturing the same machine
+        // are interchangeable here, however their presets differ.
+        struct ScoredCandidate {
+            PrinterDetectionResult result;
+            std::string preset;
+            std::string image;
+
+            bool same_outcome_as(const ScoredCandidate& other) const {
+                return image == other.image;
+            }
+        };
+        std::vector<ScoredCandidate> candidates;
 
         for (const auto& printer : g_database.data["printers"]) {
             PrinterDetectionResult result = execute_printer_heuristics(printer, hardware);
@@ -812,35 +831,55 @@ PrinterDetectionResult PrinterDetector::detect(const PrinterHardwareData& hardwa
                 continue;
             }
 
-            auto beats = [](const PrinterDetectionResult& a, const PrinterDetectionResult& b) {
-                return a.confidence > b.confidence ||
-                       (a.confidence == b.confidence &&
-                        a.best_single_confidence > b.best_single_confidence) ||
-                       (a.confidence == b.confidence &&
-                        a.best_single_confidence == b.best_single_confidence &&
-                        a.match_count > b.match_count);
-            };
+            if (result.confidence <= 0) {
+                continue;
+            }
 
-            if (beats(result, best_match)) {
-                runner_up = best_match; // demote previous winner
-                best_match = result;
-                if (printer.contains("preset") && printer["preset"].is_string()) {
-                    best_match.preset = printer["preset"].get<std::string>();
-                } else {
-                    best_match.preset.clear();
+            std::string preset;
+            if (printer.contains("preset") && printer["preset"].is_string()) {
+                preset = printer["preset"].get<std::string>();
+            }
+            candidates.push_back(
+                {std::move(result), std::move(preset), printer.value("image", "")});
+        }
+
+        // Equal on every tiebreaker leaves database order deciding, so the sort
+        // has to be stable to keep answering the way the loop that fed it did.
+        std::stable_sort(candidates.begin(), candidates.end(),
+                         [](const ScoredCandidate& a, const ScoredCandidate& b) {
+                             return std::tie(b.result.confidence, b.result.best_single_confidence,
+                                             b.result.match_count) <
+                                    std::tie(a.result.confidence, a.result.best_single_confidence,
+                                             a.result.match_count);
+                         });
+
+        if (!candidates.empty()) {
+            const ScoredCandidate& winner = candidates.front();
+            best_match = winner.result;
+            best_match.preset = winner.preset;
+
+            for (const auto& candidate : candidates) {
+                if (candidate.result.confidence != best_match.confidence) {
+                    break; // sorted by confidence: the tied run ends here
                 }
-            } else if (result.confidence > 0 && beats(result, runner_up)) {
-                runner_up = result;
+                ++best_match.tied_count;
+            }
+
+            for (auto it = candidates.begin() + 1; it != candidates.end(); ++it) {
+                if (!it->same_outcome_as(winner)) {
+                    best_match.runner_up_type_name = it->result.type_name;
+                    best_match.runner_up_confidence = it->result.confidence;
+                    best_match.runner_up_uncapped_confidence = it->result.uncapped_confidence;
+                    break;
+                }
             }
         }
 
-        best_match.runner_up_type_name = runner_up.type_name;
-        best_match.runner_up_confidence = runner_up.confidence;
-
         if (best_match.confidence > 0) {
             spdlog::info("[PrinterDetector] Detection complete: {} (confidence: {}%, {} matches, "
-                         "reason: {})",
+                         "margin: {} over '{}', {} tied, reason: {})",
                          best_match.type_name, best_match.confidence, best_match.match_count,
+                         best_match.margin(), best_match.runner_up_type_name, best_match.tied_count,
                          best_match.reason);
         } else {
             spdlog::debug("[PrinterDetector] No distinctive fingerprints detected");
@@ -1918,10 +1957,11 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         // and a later reconnect with a fuller discovery snapshot gets another
         // chance instead of being locked out by a non-empty saved type.
         spdlog::info("[PrinterDetector] Detection below auto-save bar (best '{}' at {}%, "
-                     "runner-up '{}' at {}%, need >={}%) - leaving printer type unset "
-                     "for the user to choose",
+                     "runner-up '{}' at {}%, margin {}, {} tied; need >={}% and margin >={}) - "
+                     "leaving printer type unset for the user to choose",
                      result.type_name, result.confidence, result.runner_up_type_name,
-                     result.runner_up_confidence, AUTOSAVE_MIN_CONFIDENCE);
+                     result.runner_up_confidence, result.margin(), result.tied_count,
+                     AUTOSAVE_MIN_CONFIDENCE, DETECT_MIN_MARGIN);
         // Deliberately NOT compacting: compact_database() strips the heuristics,
         // and without them a later attempt could never match anything. Holding
         // them is the cost of staying open to a better answer.
@@ -2058,7 +2098,7 @@ std::string PrinterDetector::screws_tilt_direction_override() {
 bool PrinterDetector::meets_autosave_threshold(const PrinterDetectionResult& result) {
     if (result.type_name.empty() || !result.detected())
         return false;
-    return result.confidence >= AUTOSAVE_MIN_CONFIDENCE;
+    return result.confidence >= AUTOSAVE_MIN_CONFIDENCE && !result.ambiguous();
 }
 
 const char* PrinterDetector::mismatch_decision_name(MismatchDecision decision) {
@@ -2069,6 +2109,8 @@ const char* PrinterDetector::mismatch_decision_name(MismatchDecision decision) {
         return "no detection";
     case MismatchDecision::ConfidenceTooLow:
         return "confidence below threshold";
+    case MismatchDecision::Ambiguous:
+        return "tied with a rival model";
     case MismatchDecision::MatchesSavedType:
         return "detected type matches saved type";
     case MismatchDecision::SavedTypeNotSpecific:
@@ -2127,13 +2169,18 @@ std::string PrinterDetector::canonical_type_name(const std::string& printer_name
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const std::string& detected_type, int detected_confidence,
-                                        const std::string& flag_value) {
+                                        const std::string& flag_value, int detected_margin) {
     // Emptiness is checked before confidence so a no-detection pass is
     // distinguishable in the log from a real candidate that scored short.
     if (detected_type.empty())
         return MismatchDecision::NoDetection;
     if (detected_confidence < MISMATCH_MIN_CONFIDENCE)
         return MismatchDecision::ConfidenceTooLow;
+    // Ordered after the confidence test and before everything else: "scored 92
+    // and so did four other models" is a different diagnosis from "scored 68",
+    // and a debug bundle has to be able to tell them apart.
+    if (detected_margin < DETECT_MIN_MARGIN)
+        return MismatchDecision::Ambiguous;
     if (detected_type == saved_type)
         return MismatchDecision::MatchesSavedType;
     if (saved_type.empty() || saved_type == "Custom/Other" || saved_type == "Unknown")
@@ -2141,6 +2188,17 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
     if (flag_value == saved_type)
         return MismatchDecision::AlreadyDismissed;
     return MismatchDecision::Warn;
+}
+
+PrinterDetector::MismatchDecision
+PrinterDetector::classify_type_mismatch(const std::string& saved_type,
+                                        const PrinterDetectionResult& detected,
+                                        const std::string& flag_value) {
+    if (!detected.detected()) {
+        return MismatchDecision::NoDetection;
+    }
+    return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, flag_value,
+                                  detected.margin());
 }
 
 bool PrinterDetector::should_warn_type_mismatch(const std::string& saved_type,

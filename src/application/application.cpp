@@ -2848,18 +2848,17 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
         cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
 
     auto detected = PrinterDetector::auto_detect(hardware);
-    const auto decision = detected.detected()
-                              ? PrinterDetector::classify_type_mismatch(saved, detected.type_name,
-                                                                        detected.confidence, flag)
-                              : PrinterDetector::MismatchDecision::NoDetection;
+    const auto decision = PrinterDetector::classify_type_mismatch(saved, detected, flag);
     if (decision != PrinterDetector::MismatchDecision::Warn) {
         // info, not debug: this runs once per discovery pass, and it is the line
         // that answers "why was there no prompt?" in a bundle.
         spdlog::info("[Application] No type mismatch prompt: detected '{}' at {}% (runner-up '{}' "
-                     "at {}%), saved '{}', dismissed-for '{}', need >={}% - {}",
+                     "at {}%, margin {}, {} tied), saved '{}', dismissed-for '{}', need >={}% and "
+                     "margin >={} - {}",
                      detected.type_name, detected.confidence, detected.runner_up_type_name,
-                     detected.runner_up_confidence, saved, flag,
-                     PrinterDetector::MISMATCH_MIN_CONFIDENCE,
+                     detected.runner_up_confidence, detected.margin(), detected.tied_count, saved,
+                     flag, PrinterDetector::MISMATCH_MIN_CONFIDENCE,
+                     PrinterDetector::DETECT_MIN_MARGIN,
                      PrinterDetector::mismatch_decision_name(decision));
         return;
     }
@@ -3049,14 +3048,17 @@ void Application::setup_discovery_callbacks() {
             crash_handler::breadcrumb::note("disc", "post_init_fans",
                                             static_cast<long>(hw.fans().size()));
 
-            // Turn on the firmware's own z-offset persistence once per session,
-            // only when idle. Some firmwares store the offset themselves but ship
-            // with reload-at-print-start off, so adjustments made here would not
-            // survive. Which printers need it, and what to send, lives in
-            // include/z_offset_persistence.h. The print_active subject is not yet
-            // applied from this discovery's status (see the reconfig-wizard gate
-            // below), so consult status_snapshot directly to avoid injecting gcode
-            // over a live print.
+            // Turn on the firmware's own z-offset persistence, at most once per
+            // printer and only when idle. Some firmwares store the offset
+            // themselves and re-apply it at print start only when their own
+            // setting says to, so with that setting off an adjustment made here
+            // does not survive. Whether to send, what to send, and recording that
+            // it went out all live behind claim_persistence_enable() in
+            // include/z_offset_persistence.h.
+            //
+            // The print_active subject is not yet applied from this discovery's
+            // status (see the reconfig-wizard gate below), so consult
+            // status_snapshot directly to avoid injecting gcode over a live print.
             {
                 bool print_active =
                     lv_subject_get_int(get_printer_state().get_print_active_subject()) != 0;
@@ -3066,9 +3068,9 @@ void Application::setup_discovery_callbacks() {
                 }
                 const std::string enable_gcode =
                     helix::zoffset::persistence_enable_gcode(api->hardware());
-                if (helix::zoffset::should_enable_persistence(!enable_gcode.empty(), print_active,
-                                                              app->m_zoffset_persistence_enabled)) {
-                    app->m_zoffset_persistence_enabled = true;
+                if (!enable_gcode.empty() && helix::zoffset::claim_persistence_enable(
+                                                 Config::get_instance(), api->hardware(),
+                                                 status_snapshot.get(), print_active)) {
                     spdlog::info("[ZOffset] Enabling firmware z-offset persistence ({})",
                                  helix::zoffset::persistence_provider_name(api->hardware()));
                     // Fire-and-forget: callbacks are LOG-ONLY and capture nothing that

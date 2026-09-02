@@ -2,9 +2,11 @@
 
 #include "z_offset_persistence.h"
 
+#include "config.h"
 #include "printer_discovery.h"
 
 #include <cmath>
+#include <string>
 
 namespace helix::zoffset {
 namespace {
@@ -23,6 +25,10 @@ struct Provider {
     const char* stale_delta_clear_gcode;
     /// Pull the stored offset, in microns, out of a status frame.
     std::optional<int> (*read)(const nlohmann::json& status);
+    /// Read whether enable_gcode's setting is already on, or nullptr where the
+    /// firmware exposes no such flag. Must answer nullopt when the frame does
+    /// not carry the key: absence is silence, not an off.
+    std::optional<bool> (*read_enabled)(const nlohmann::json& status);
     /// Predicate a status frame must satisfy to PROVE this row's storage is
     /// absent - i.e. that the detect macro matched something other than this
     /// firmware. nullptr where the detect macro is unambiguous and the match
@@ -48,12 +54,37 @@ const nlohmann::json* nested_object(const nlohmann::json& status, const char* ob
     return &(*inner);
 }
 
+/// Read a firmware on/off flag out of an already-located variables dict.
+/// nullopt for a missing key or a type we cannot read - the frame is silent
+/// about the setting, which no caller may treat as an off.
+std::optional<bool> read_flag(const nlohmann::json* variables, const char* key) {
+    if (!variables) {
+        return std::nullopt;
+    }
+    auto it = variables->find(key);
+    if (it == variables->end()) {
+        return std::nullopt;
+    }
+    // Both spellings are live: a firmware that stores the flag as a Python bool
+    // serialises true/false, one that stores it as an int serialises 0/1, and
+    // Forge-X emits BOTH - the integer for a param still at its declared
+    // default, the bool once something has set it explicitly.
+    if (it->is_boolean()) {
+        return it->get<bool>();
+    }
+    if (it->is_number()) {
+        return it->get<double>() != 0.0;
+    }
+    return std::nullopt;
+}
+
 // --- ZMOD (AD5M / AD5X and friends) -----------------------------------------
 //
 // ZMOD's SET_GCODE_OFFSET override writes every offset the user dials in to the
 // `gcode_offsets` save-variable, its END_PRINT/CANCEL_PRINT zero the live
 // gcode_move offset, and START_PRINT re-applies the stored one via
-// LOAD_GCODE_OFFSET. Reloading is off by default, hence the enable command.
+// LOAD_GCODE_OFFSET, gated on the load_zoffset save-variable that
+// read_enabled_zmod() below reads.
 //
 // The write is `z - _TEST_POINT.temp_z_offset`: mid-print that subtraction is
 // the point, excluding the per-print probe delta START_PRINT stashed in the
@@ -91,6 +122,18 @@ std::optional<int> read_zmod(const nlohmann::json& status) {
     return static_cast<int>(std::lround(z->get<double>() * 1000.0));
 }
 
+// ZMOD ships no load_zoffset key. Its `start_led` delayed_gcode runs
+// GET_ZMOD_DATA ten seconds after every Klipper start, which reads
+// `save_variables.variables['load_zoffset']|default(1)|int` and writes the
+// result straight back - and Klipper's Jinja is non-strict, so an absent key
+// really does take the default. The setting therefore comes up ON by itself and
+// a 0 here is always a deliberate user choice. Two consequences for the enable
+// gate: sending the gcode buys nothing on a healthy ZMOD box, and the ten-second
+// window before the key exists must read as unknown rather than off.
+std::optional<bool> read_enabled_zmod(const nlohmann::json& status) {
+    return read_flag(nested_object(status, "save_variables", "variables"), "load_zoffset");
+}
+
 // --- Forge-X (FlashForge Adventurer 5M / Pro mod) ----------------------------
 //
 // The mod's klippy plugin keeps its parameters - z-offset among them - in its
@@ -111,6 +154,15 @@ std::optional<int> read_forge_x(const nlohmann::json& status) {
     // Same accumulate-and-round treatment as ZMOD: the stored value is the sum
     // of relative Z_ADJUST deltas, so a nominal -0.150 arrives as -0.1499999.
     return static_cast<int>(std::lround(z->get<double>() * 1000.0));
+}
+
+// The mod's plugin populates every declared param when it loads, so once
+// mod_params is subscribed the key is always present; the declared default in
+// mod_params.json is 0. An off here is thus the shipped state rather than a user
+// decision, which is what makes the one enable write worth sending on this
+// firmware and not on ZMOD.
+std::optional<bool> read_enabled_forge_x(const nlohmann::json& status) {
+    return read_flag(nested_object(status, "mod_params", "variables"), "load_zoffset");
 }
 
 // --- Helper-Script save-zoffset (Creality K1/K1C/K1 Max and friends) --------
@@ -177,6 +229,7 @@ const std::vector<Provider>& providers() {
          "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
          "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0",
          &read_zmod,
+         &read_enabled_zmod,
          // SAVE_ZMOD_DATA belongs to one firmware and means one thing.
          nullptr},
         {"Forge-X",
@@ -185,6 +238,7 @@ const std::vector<Provider>& providers() {
          "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
          nullptr,
          &read_forge_x,
+         &read_enabled_forge_x,
          // Likewise SET_MOD: the mod's own plugin registers it, nothing else.
          nullptr},
         // Keyed on the WRAPPER object. Klipper exposes a builtin command as a
@@ -206,6 +260,9 @@ const std::vector<Provider>& providers() {
          nullptr,
          nullptr,
          &read_helper_script,
+         // The module's boot delayed_gcode re-applies the stored offset
+         // unconditionally; there is no setting to enable and none to read.
+         nullptr,
          &refuted_helper_script},
     };
     return table;
@@ -218,6 +275,14 @@ const Provider* match(const PrinterDiscovery& hw) {
         }
     }
     return nullptr;
+}
+
+/// Where the "already sent" record lives. Scoped to the active printer: the
+/// setting belongs to that printer's firmware, so a second printer on the same
+/// install still gets its own one send. Named here once so the read and the
+/// write cannot drift apart.
+std::string enable_sent_key(const Config& config) {
+    return config.df() + "zoffset_persistence_enable_sent";
 }
 
 } // namespace
@@ -264,6 +329,15 @@ std::string persistence_enable_gcode(const PrinterDiscovery& hw) {
     return {};
 }
 
+std::optional<bool> persistence_already_enabled(const PrinterDiscovery& hw,
+                                                const nlohmann::json& status) {
+    const Provider* p = match(hw);
+    if (!p || !p->read_enabled) {
+        return std::nullopt;
+    }
+    return p->read_enabled(status);
+}
+
 std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     if (p && p->stale_delta_clear_gcode) {
@@ -285,6 +359,28 @@ bool status_refutes_persistence(const PrinterDiscovery& hw, const nlohmann::json
         return false;
     }
     return p->refuted_by(status);
+}
+
+bool claim_persistence_enable(Config* config, const PrinterDiscovery& hw,
+                              const nlohmann::json* status, bool print_active) {
+    if (!config) {
+        return false;
+    }
+    const std::string key = enable_sent_key(*config);
+    const std::optional<bool> already_enabled =
+        status ? persistence_already_enabled(hw, *status) : std::nullopt;
+    if (!should_enable_persistence(!persistence_enable_gcode(hw).empty(), print_active,
+                                   config->get<bool>(key, false), already_enabled)) {
+        // Nothing recorded on a no: a print in progress or an already-enabled
+        // firmware must leave the one shot unspent for a later discovery.
+        return false;
+    }
+    config->set<bool>(key, true);
+    // set() writes the in-memory document only. Without the save the record is
+    // gone at the next launch and the command is re-sent for the life of the
+    // install.
+    config->save();
+    return true;
 }
 
 std::string persistence_provider_name(const PrinterDiscovery& hw) {

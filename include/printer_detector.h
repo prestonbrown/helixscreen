@@ -28,9 +28,24 @@ struct PrinterDetectionResult {
     int best_single_confidence = 0; ///< Highest individual heuristic confidence (tiebreaker)
     std::string
         preset; ///< Platform preset name from DB (e.g., "k1", "snapmaker_u1"), empty if none
-    std::string
-        runner_up_type_name; ///< 2nd-place candidate model name (for margin gating), empty if none
-    int runner_up_confidence = 0; ///< 2nd-place candidate confidence (0 if none)
+    /// Best-scoring candidate naming a DIFFERENT machine than the winner.
+    /// Detection answers "which printer is this", so candidates are told apart
+    /// by the machine they picture: entries that picture the same one are two
+    /// spellings of a single answer - a filament-system option, or a firmware
+    /// variant of the printer the user owns - and a tie between those says
+    /// nothing about how well the machine was identified. Empty when no other
+    /// candidate scored.
+    std::string runner_up_type_name;
+    int runner_up_confidence = 0; ///< Its confidence (0 if none)
+    int tied_count = 0;           ///< Candidates sharing the winner's confidence, winner included
+
+    /// Scores before the 100 ceiling, for the winner and for that runner-up.
+    /// The published confidence saturates, which flattens a real lead between
+    /// two strong candidates into an apparent tie, so margin() is measured on
+    /// these. Zero on a result assembled by hand rather than returned by
+    /// detect(), where the published confidence is the only score there is.
+    int uncapped_confidence = 0;
+    int runner_up_uncapped_confidence = 0;
 
     /**
      * @brief Check if detection succeeded
@@ -39,6 +54,19 @@ struct PrinterDetectionResult {
     bool detected() const {
         return confidence > 0;
     }
+
+    /// How far the winner leads the best candidate with a different outcome.
+    int margin() const {
+        const int winner = uncapped_confidence > 0 ? uncapped_confidence : confidence;
+        const int rival = runner_up_uncapped_confidence > 0 ? runner_up_uncapped_confidence
+                                                            : runner_up_confidence;
+        return winner - rival;
+    }
+
+    /// A detection that named a printer without separating it from an
+    /// alternative the user would notice. Defined below PrinterDetector, which
+    /// owns the margin floor.
+    bool ambiguous() const;
 };
 
 /**
@@ -558,9 +586,34 @@ class PrinterDetector {
      */
     static std::string canonical_type_name(const std::string& printer_name);
 
+    /// Minimum winning confidence before detection may persist a printer type.
+    /// Mirrors HELIX_DETECT_MIN_CONFIDENCE in scripts/install.sh.
+    static constexpr int AUTOSAVE_MIN_CONFIDENCE = 85;
+
     /// Minimum detection confidence before the saved-vs-detected type warning
-    /// may be offered. Matches the wizard's override threshold.
-    static constexpr int MISMATCH_MIN_CONFIDENCE = 70;
+    /// may be offered. Telling a user the type they chose is wrong is a
+    /// stronger claim than filling in a blank, so it is derived from the
+    /// autosave bar rather than set alongside it: the two cannot drift into an
+    /// order where contradicting an explicit setting is the cheaper of the two.
+    static constexpr int MISMATCH_MIN_CONFIDENCE = AUTOSAVE_MIN_CONFIDENCE;
+
+    /// Minimum lead over the best candidate offering a different outcome before
+    /// a detection counts as an identification rather than a guess between
+    /// look-alikes. One point: refuse an exact tie, where the winner is decided
+    /// by how many heuristics somebody happened to author, and accept anything
+    /// that separates at all.
+    ///
+    /// Raising it needs the scoring saturation fixed first
+    /// (prestonbrown/helixscreen#1435). While the extra-match bonus caps, whole
+    /// families of entries collapse onto one number and a one-point lead is the
+    /// most that correctly-identified hardware is guaranteed to show: a genuine
+    /// AD5M Pro leads the plain 5M by exactly that. Any larger floor refuses
+    /// printers this database identifies correctly today.
+    ///
+    /// Independent of the installer's HELIX_DETECT_MIN_MARGIN in
+    /// scripts/install.sh, which chooses between two seeding depths rather than
+    /// between saving and declining.
+    static constexpr int DETECT_MIN_MARGIN = 1;
 
     /**
      * @brief Why the saved-vs-detected type warning was or was not offered.
@@ -573,6 +626,7 @@ class PrinterDetector {
         Warn,                 ///< Offer the prompt.
         NoDetection,          ///< Detection produced no type name.
         ConfidenceTooLow,     ///< Below MISMATCH_MIN_CONFIDENCE.
+        Ambiguous,            ///< Scored well, but a rival outcome scored within DETECT_MIN_MARGIN.
         MatchesSavedType,     ///< Detected type equals the saved one.
         SavedTypeNotSpecific, ///< Saved type is empty, Custom/Other, or Unknown.
         AlreadyDismissed      ///< The user already answered for this saved type.
@@ -584,14 +638,36 @@ class PrinterDetector {
     /**
      * @brief Classify the saved-vs-detected type comparison.
      *
-     * Warn iff detection is high-confidence (>= MISMATCH_MIN_CONFIDENCE),
-     * contradicts a meaningful saved type (not Custom/Other, Unknown, or
-     * empty), and the per-printer flag does not already equal the current saved
-     * type (changing the type re-arms the warning once).
+     * Warn iff detection is high-confidence (>= MISMATCH_MIN_CONFIDENCE), leads
+     * its nearest rival outcome by DETECT_MIN_MARGIN, contradicts a meaningful
+     * saved type (not Custom/Other, Unknown, or empty), and the per-printer
+     * flag does not already equal the current saved type (changing the type
+     * re-arms the warning once).
+     *
+     * @param detected_margin PrinterDetectionResult::margin() for the detection
+     *        being classified. Callers that hold no candidate field - a bare
+     *        confidence from a stored verdict - leave it at the default, which
+     *        asserts nothing about rivals rather than inventing an ambiguity.
      */
     static MismatchDecision classify_type_mismatch(const std::string& saved_type,
                                                    const std::string& detected_type,
                                                    int detected_confidence,
+                                                   const std::string& flag_value,
+                                                   int detected_margin = DETECT_MIN_MARGIN);
+
+    /**
+     * @brief Classify a detection result against the saved type.
+     *
+     * The overload callers holding a whole result should use: it reads the
+     * fields the decision depends on - including the margin, which the scalar
+     * form defaults away when a caller does not supply one - so a caller cannot
+     * silently drop one and still compile.
+     *
+     * @param detected A result from detect()/auto_detect(). A result that
+     *        identified nothing classifies as NoDetection.
+     */
+    static MismatchDecision classify_type_mismatch(const std::string& saved_type,
+                                                   const PrinterDetectionResult& detected,
                                                    const std::string& flag_value);
 
     /**
@@ -603,34 +679,29 @@ class PrinterDetector {
                                           const std::string& detected_type, int detected_confidence,
                                           const std::string& flag_value);
 
-    /// Minimum winning confidence before detection may persist a printer type.
-    /// Mirrors HELIX_DETECT_MIN_CONFIDENCE in scripts/install.sh.
-    static constexpr int AUTOSAVE_MIN_CONFIDENCE = 85;
-
     /**
      * @brief Decide whether a detection result is solid enough to persist.
      *
-     * The runtime path used to write whatever scored above zero. Because a
-     * non-empty PRINTER_TYPE makes auto_detect_and_save short-circuit forever,
-     * a single weak guess became permanent and no later reconnect could revise
-     * it: a custom rig whose only FlashForge-ish signal was an LED named
-     * 'chamber_light' scores 55 and shipped as a FlashForge Adventurer 5M Pro.
-     * Below this bar we persist nothing, which leaves the wizard's identify
-     * step on its Custom/Other default and lets a fuller discovery snapshot
-     * try again on the next hardware change.
+     * A non-empty PRINTER_TYPE makes auto_detect_and_save short-circuit
+     * forever, so whatever is written here is what the printer stays. Two
+     * things have to hold before that is a fair thing to do:
      *
-     * Deliberately confidence-only, unlike the installer's seed gate in
-     * scripts/install.sh, which also demands HELIX_DETECT_MIN_MARGIN=10 over
-     * the runner-up. That margin does not survive this database: near-ties are
-     * what a CORRECT detection looks like here. Measured on real fixtures, a
-     * genuine AD5M Pro scores 100 against its own ForgeX twin at 100 (margin
-     * 0 - stock is modelled as "the ForgeX markers are absent", which the
-     * schema cannot score positively), and a QGL + 4-Z Voron 2.4 scores 100
-     * against Sovol SV08, a V2.4 derivative, at 91 (margin 9). Gating on
-     * margin would push both of those into the picker. Confidence alone
-     * separates the real cases cleanly: genuine matches land at 100, the
-     * misdetections we are fixing land in the 50s. The runner-up is still
-     * logged on the declined path so the data is there if we revisit.
+     *  - the winner scored at least AUTOSAVE_MIN_CONFIDENCE. Below that bar a
+     *    custom rig whose only FlashForge-ish signal was an LED named
+     *    'chamber_light' scores 55 and ships as a FlashForge Adventurer 5M Pro.
+     *  - the winner leads the best candidate offering a DIFFERENT outcome by
+     *    DETECT_MIN_MARGIN. Without it, a field of look-alikes that all score
+     *    the same is resolved by heuristic count and database order, and an
+     *    arbitrary pick becomes permanent.
+     *
+     * Declining leaves the wizard's identify step on its Custom/Other default
+     * and lets a fuller discovery snapshot try again on the next hardware
+     * change, which is the honest answer when the evidence does not separate
+     * the candidates.
      */
     static bool meets_autosave_threshold(const PrinterDetectionResult& result);
 };
+
+inline bool PrinterDetectionResult::ambiguous() const {
+    return detected() && margin() < PrinterDetector::DETECT_MIN_MARGIN;
+}

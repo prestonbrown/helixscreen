@@ -2953,8 +2953,8 @@
           "type": "macro_match",
           "field": "macros",
           "pattern": "M4029",
-          "confidence": 70,
-          "reason": "M4029 calibration macro (QIDI Plus 4 specific)"
+          "confidence": 45,
+          "reason": "M4029 calibration macro (QIDI stock firmware, shared across the range)"
         },
         {
           "type": "mcu_match",
@@ -3336,12 +3336,12 @@
         {
           "type": "build_volume_range",
           "field": "bed_mesh",
-          "min_x": 230,
-          "max_x": 260,
-          "min_y": 230,
-          "max_y": 260,
+          "min_x": 245,
+          "max_x": 290,
+          "min_y": 245,
+          "max_y": 310,
           "confidence": 50,
-          "reason": "Build volume ~245mm (Q2 size)"
+          "reason": "Build volume ~250x250 (Q2 print area, pos_max 275x295)"
         },
         {
           "type": "hostname_match",
@@ -3379,11 +3379,18 @@
           "reason": "CLEAR_NOZZLE macro (common on QIDI printers)"
         },
         {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "M4029",
+          "confidence": 45,
+          "reason": "M4029 calibration macro (QIDI stock firmware, shared across the range)"
+        },
+        {
           "type": "mcu_match",
           "field": "mcu",
-          "pattern": "rp2040",
-          "confidence": 45,
-          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)"
+          "pattern": "STM32F407",
+          "confidence": 35,
+          "reason": "STM32F407 main MCU (QIDI new-generation board)"
         }
       ]
     },
