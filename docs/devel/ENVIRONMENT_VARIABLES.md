@@ -10,6 +10,7 @@ This document is a reference for the environment variables HelixScreen reads at 
 | [Touch Calibration](#touch-calibration) | `HELIX_TOUCH_*` / `HELIX_SCROLL_*` |
 | [G-Code Viewer](#g-code-viewer) | `HELIX_` |
 | [Bed Mesh](#bed-mesh) | `HELIX_` |
+| [Audio](#audio) | `HELIX_` |
 | [Networking](#networking) | `HELIX_` |
 | [Mock & Testing](MOCK_ENVIRONMENT_VARIABLES.md) | `HELIX_MOCK_*` |
 | [UI Automation](#ui-automation) | `HELIX_AUTO_*` |
@@ -889,6 +890,44 @@ Force the bed mesh visualization to use 2D heatmap mode instead of 3D surface re
 # Force 2D heatmap visualization
 HELIX_BED_MESH_2D=1 ./build/bin/helix-screen
 ```
+
+---
+
+## Audio
+
+### `HELIX_PWM_MIN_NOTE_MS`
+
+Audible floor for one theme note on the PWM sysfs buzzer backend (ad5m/ad5m-br/ad5x platform builds). The piezo needs ~20 ms of drive to register a tone; the sequencer quantizes every theme step up to this value, so a sub-floor tone+rest pair plays as one floor-length tone instead of a click. Read once at backend `initialize()` — relaunch to change it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | milliseconds, clamped to 10-100; non-numeric or <= 0 keeps the default |
+| **Default** | `20` |
+| **File** | `src/system/pwm_sound_backend.cpp` (`PWMSoundBackend::initialize`) |
+
+```bash
+# Rig tuning: stretch the audible floor
+HELIX_PWM_MIN_NOTE_MS=35 ./build/bin/helix-screen
+```
+
+### `HELIX_JZ_*` (jz_pwm rig tuning)
+
+Ear-sweep knobs for the AD5X jz_pwm backend's tracker voice path — one variable per listening round, read at backend `initialize()`. These exist for the piezo rig; they are not user settings.
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `HELIX_JZ_VOICE_MS` | `1900` | Phrase length in ms (one daemon buffer) |
+| `HELIX_JZ_ATTACK_MS` | `2` | Per-voice attack envelope (ms) |
+| `HELIX_JZ_RELEASE_MS` | `10` | Per-voice release envelope (ms) |
+| `HELIX_JZ_SWING` | `0.4` | Duty depth around 50% |
+| `HELIX_JZ_WAVE` | `0` | Waveform: 0=triangle, 1=square, 2=saw (clamped 0-2) |
+| `HELIX_JZ_OCTAVE` | `0` | Global octave shift (clamped 0-5; piezo band is ~1-4 kHz) |
+| `HELIX_JZ_CARRIER` | `32768` | Carrier Hz — upload time scales with it (see `JzPwmVoiceKnobs` in the header) |
+| `HELIX_JZ_LOG_VOICE` | off | `1` appends voice rows to `/tmp/jz-voice.log` |
+
+| Property | Value |
+|----------|-------|
+| **File** | `src/system/jz_pwm_sound_backend.cpp` (`JzPwmSoundBackend::initialize`) |
 
 ---
 
