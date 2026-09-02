@@ -27,6 +27,7 @@
 
 #include "app_globals.h"
 #include "asset_manager.h"
+#include "data_root_resolver.h"
 #include "helix_sparkline.h"
 #include "panel_factory.h"
 #include "printer_state.h"
@@ -42,13 +43,18 @@
 #include <spdlog/spdlog.h>
 
 extern "C" void audit_app_run(void) {
+    // The bundle is mounted at /littlefs here, not the desktop cwd. Setting the
+    // root once makes every asset_path()/asset_component_uri() caller resolve
+    // correctly, so src/ needs no ESP-specific copy to find its XML.
+    helix::set_asset_root("/littlefs");
     spdlog::info("audit_app: PrinterState subject pipeline");
     helix::ui::update_queue_init();
     helix::PrinterState& ps = get_printer_state();
     ps.init_subjects(true);
 
     // Phase 6 mirror: globals scope + theme consts (#screen_bg etc.)
-    lv_result_t g = lv_xml_register_component_from_file("A:ui_xml/globals.xml");
+    lv_result_t g = lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/globals.xml").c_str());
     spdlog::info("audit_app: globals.xml {}", g == LV_RESULT_OK ? "OK" : "FAILED");
     // Fonts must be XML-registered before theme_manager_init: the responsive
     // font registrar drops any token whose face isn't linked (application.cpp

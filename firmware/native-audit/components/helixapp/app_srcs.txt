@@ -58,7 +58,7 @@ src/ui/print_control_buttons.cpp
 src/ui/setting_group.cpp
 src/ui/temperature_controller.cpp
 src/ui/temperature_service.cpp
-overrides/theme_manager.cpp
+src/ui/theme_manager.cpp
 src/ui/tour/first_run_tour.cpp
 src/ui/ui_ams_current_tool.cpp
 src/ui/ui_ams_device_operations_overlay.cpp
@@ -126,8 +126,8 @@ src/ui/ui_text_input.cpp
 src/ui/ui_wizard.cpp
 src/ui/ui_z_offset_indicator.cpp
 src/ui/grid_edit_mode.cpp
-overrides/ui_hsv_picker.cpp
-overrides/ui_progress_bar.cpp
+src/ui/ui_hsv_picker.cpp
+src/ui/ui_progress_bar.cpp
 assets/fonts/mdi_icons_14.c
 assets/fonts/mdi_icons_16.c
 assets/fonts/mdi_icons_48.c
@@ -315,11 +315,11 @@ src/ui/ui_widget_catalog_overlay.cpp
 src/ui/wizard_step_registry.cpp
 src/ui/z_offset_utils.cpp
 src/ui/ui_ams_detail.cpp
-overrides/ui_settings_label_printer.cpp
+src/ui/ui_settings_label_printer.cpp
 lib/lv_markdown/src/lv_markdown.c
 lib/lv_markdown/src/lv_markdown_style.c
 lib/lv_markdown/deps/md4c/md4c.c
-overrides/gcode_layer_renderer.cpp
+src/rendering/gcode_layer_renderer.cpp
 assets/fonts/noto_sans_10.c
 src/led/led_auto_state.cpp
 src/print/print_file_data.cpp
@@ -432,7 +432,7 @@ src/ui/ui_theme_editor_overlay.cpp
 src/ui/widgets/favorite_macro_widget.cpp
 src/ui/widgets/power_device_widget.cpp
 src/utils/network_validation.cpp
-overrides/helix_paths.cpp
+src/system/helix_paths.cpp
 assets/fonts/noto_sans_11.c
 assets/fonts/noto_sans_20.c
 assets/fonts/noto_sans_24.c
@@ -483,8 +483,8 @@ src/ui/ui_filament_path_glyphs.cpp
 src/ui/ui_history_list_view.cpp
 src/ui/ui_spool_drawing.cpp
 src/ui/widgets/favorite_macro_config.cpp
-overrides/filament_slot_override_store.cpp
-overrides/wifi_ui_utils.cpp
+src/printer/filament_slot_override_store.cpp
+src/api/wifi_ui_utils.cpp
 lib/quirc/lib/quirc.c
 lib/quirc/lib/decode.c
 lib/quirc/lib/identify.c

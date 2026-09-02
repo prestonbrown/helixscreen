@@ -48,6 +48,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_GIT_HASH="audit"
     INSTALLER_FILENAME="install.sh"
     HELIX_MAX_FONT_TIER=6
+    # src/ carries its own ESP32 guards; without this every one of them
+    # compiles the desktop branch and the audit measures the wrong code.
+    HELIX_PLATFORM_ESP32=1
     HELIX_ENABLE_MOCKS
     HELIX_ENABLE_SCREENSAVER
     HELIX_HAS_LABEL_PRINTER=1
@@ -64,6 +67,12 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # both untenable in 8MB PSRAM next to the framebuffer.
     HELIX_HAS_GCODE_VIEWER=0
     HELIX_HAS_BED_MESH_3D=0)
+
+# The renderer is compiled out of the firmware (HELIX_HAS_GCODE_VIEWER=0) but the
+# audit still needs its bytes attributed, so this one TU is built with the feature
+# on. Per-source, so nothing else sees the renderer as enabled.
+set_source_files_properties(${REPO_ROOT}/src/rendering/gcode_layer_renderer.cpp
+    PROPERTIES COMPILE_DEFINITIONS HELIX_HAS_GCODE_VIEWER=1)
 
 target_include_directories(${COMPONENT_LIB} PRIVATE
     ${REPO_ROOT}

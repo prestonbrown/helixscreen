@@ -202,32 +202,37 @@ run_gate() {
 
 # --------------------------------------------- the real tree (pins the port)
 #
-# These three forks were resynced when the gate landed. Pinning them here means
-# a future stale fork fails a TEST, not just the gate — the audit tree has no
-# other test coverage at all.
+# The audit tree compiles src/ directly: an ESP-specific need is expressed in
+# src/ behind a guard, or in the audit build's CMake, never as a forked copy.
+# A fork cannot drift if it does not exist, so these pin the absence.
 
 @test "the real overrides/ tree is within its committed baseline" {
     run python3 "$GATE"
     [ "$status" -eq 0 ]
 }
 
-@test "gcode_layer_renderer.cpp fork has no unmarked drift from its twin" {
-    run python3 "$GATE" --summary
-    [[ "$output" == *"gcode_layer_renderer.cpp: 0 unmarked"* ]]
+@test "no src/ file is forked into overrides/" {
+    run bash -c 'ls firmware/native-audit/overrides/*.cpp 2>/dev/null | wc -l'
+    [ "$output" -eq 0 ]
 }
 
-@test "grid_edit_mode.cpp and ui_ams_detail.cpp forks match their twins" {
-    run python3 "$GATE" --summary
-    [[ "$output" == *"grid_edit_mode.cpp: identical to twin"* ]]
-    [[ "$output" == *"ui_ams_detail.cpp: identical to twin"* ]]
+@test "every app_srcs.txt entry resolves to a file in the repo" {
+    # Repointing a manifest line at the wrong src/ path drops the TU from the
+    # audit silently: CMake globs what it is given and never sees the gap.
+    run bash -c '
+        miss=0
+        while read -r rel; do
+            case "$rel" in ""|\#*) continue ;; esac
+            [ -f "$rel" ] || { echo "missing: $rel"; miss=1; }
+        done < firmware/native-audit/components/helixapp/app_srcs.txt
+        exit $miss'
+    [ "$status" -eq 0 ]
 }
 
-@test "the ported #1414 coordinate clear is present in the grid_edit_mode fork" {
-    # The bare `.enabled = false` this replaced is what left stale col/row on
-    # disk; a resync that lost it would put the bad-layout bug back on ESP32.
-    run grep -c "disable_and_unplace" firmware/native-audit/overrides/grid_edit_mode.cpp
+@test "the #1414 coordinate clear reaches ESP32 through src/" {
+    # A bare `.enabled = false` leaves stale col/row on disk. The audit build
+    # now compiles this file directly, so the guard belongs here.
+    run grep -c "disable_and_unplace" src/ui/grid_edit_mode.cpp
     [ "$status" -eq 0 ]
     [ "$output" -ge 1 ]
-    run grep -c "\.enabled = false;" firmware/native-audit/overrides/grid_edit_mode.cpp
-    [ "$output" -eq 0 ]
 }

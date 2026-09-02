@@ -3003,20 +3003,40 @@ static void XMLCALL suffix_value_element_start(void* user_data, const XML_Char* 
     }
 }
 
+/// Read a top-level XML file whole, for the token-discovery passes.
+///
+/// Discovery makes roughly 25 passes and each one re-reads every file. That is
+/// free on a desktop filesystem; on SPI-flash LittleFS it costs minutes of boot
+/// and trips the watchdog, so the bytes are cached there. Making discovery
+/// single-pass would retire the cache.
+static std::string tm_read_xml_file(const char* filepath) {
+#if defined(HELIX_PLATFORM_ESP32)
+    static std::unordered_map<std::string, std::string> cache;
+    auto cached = cache.find(filepath);
+    if (cached != cache.end()) {
+        return cached->second;
+    }
+#endif
+    std::string content;
+    std::ifstream file(filepath);
+    if (file.is_open()) {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        content = buffer.str();
+    }
+#if defined(HELIX_PLATFORM_ESP32)
+    cache.emplace(filepath, content);
+#endif
+    return content;
+}
+
 void theme_manager_parse_xml_file_for_all(
     const char* filepath, const char* element_type,
     std::unordered_map<std::string, std::string>& token_values) {
     if (!filepath)
         return;
 
-    std::ifstream file(filepath);
-    if (!file.is_open())
-        return;
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string xml_content = buffer.str();
-    file.close();
+    const std::string xml_content = tm_read_xml_file(filepath);
     if (xml_content.empty())
         return;
 
@@ -3040,16 +3060,11 @@ void theme_manager_parse_xml_file_for_suffix(
         return;
     }
 
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
+    const std::string xml_content = tm_read_xml_file(filepath);
+    if (xml_content.empty()) {
         spdlog::trace("[Theme] Could not open {} for suffix parsing", filepath);
         return;
     }
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string xml_content = buffer.str();
-    file.close();
 
     // Handle empty file
     if (xml_content.empty()) {
@@ -3212,14 +3227,7 @@ static void theme_manager_parse_xml_file_for_refs(
     if (!filepath)
         return;
 
-    std::ifstream file(filepath);
-    if (!file.is_open())
-        return;
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string xml_content = buffer.str();
-    file.close();
+    const std::string xml_content = tm_read_xml_file(filepath);
 
     if (xml_content.empty())
         return;

@@ -14,11 +14,3 @@
 #
 # Format:  <unmarked-differing-lines> <override basename>
 
-966 filament_slot_override_store.cpp
-0 gcode_layer_renderer.cpp
-25 helix_paths.cpp
-826 theme_manager.cpp
-0 ui_hsv_picker.cpp
-0 ui_progress_bar.cpp
-29 ui_settings_label_printer.cpp
-39 wifi_ui_utils.cpp
