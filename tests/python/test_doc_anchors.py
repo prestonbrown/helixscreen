@@ -168,3 +168,85 @@ def test_ambiguous_snippet_raises_rather_than_taking_the_first():
 def test_no_segments_resolves_to_the_whole_file():
     r = resolve_segments(CPP, (), ".cpp")
     assert r == Region(0, len(CPP))
+
+
+def _resolve(text, citation, ext):
+    lines = text.split("\n")
+    r = resolve_segments(lines, parse_citation(citation).segments, ext)
+    return lines[r.start].strip()
+
+
+def test_cpp_class_then_member():
+    assert _resolve(
+        "\n".join(CPP), "a.h#PanelRequest/overlay_root", ".h"
+    ) == "lv_obj_t* overlay_root;"
+
+
+def test_cpp_namespace_qualifies_a_free_function():
+    src = "namespace helix {\nvoid attach() {\n}\n}\n"
+    assert _resolve(src, "a.cpp#helix/attach", ".cpp") == "void attach() {"
+
+
+def test_cpp_define():
+    src = "#define HELIX_MAX 4\n"
+    assert _resolve(src, "a.h#HELIX_MAX", ".h") == "#define HELIX_MAX 4"
+
+
+def test_xml_name_attribute():
+    src = '<view>\n  <lv_obj name="carousel_host">\n  </lv_obj>\n</view>\n'
+    assert _resolve(src, "a.xml#carousel_host", ".xml") == '<lv_obj name="carousel_host">'
+
+
+def test_xml_nested_names_scope():
+    src = (
+        '<view>\n'
+        '  <lv_obj name="outer">\n'
+        '    <lv_label name="inner"/>\n'
+        '  </lv_obj>\n'
+        '  <lv_label name="inner"/>\n'
+        '</view>\n'
+    )
+    # Two widgets are named "inner"; scoping to "outer" resolves without guessing.
+    assert _resolve(src, "a.xml#outer/inner", ".xml") == '<lv_label name="inner"/>'
+
+
+def test_make_variable():
+    src = "TIER_FONT_SRCS := $(FONTS_ALL)\n"
+    assert _resolve(src, "fonts.mk#TIER_FONT_SRCS", ".mk") == "TIER_FONT_SRCS := $(FONTS_ALL)"
+
+
+def test_make_target():
+    src = "regen-doc-links: regen-doc-anchors\n\techo hi\n"
+    assert _resolve(src, "tools.mk#regen-doc-links", ".mk").startswith("regen-doc-links:")
+
+
+def test_python_nested_def_scopes():
+    src = "class A:\n    def run(self):\n        pass\n\ndef run():\n    pass\n"
+    assert _resolve(src, "a.py#A/run", ".py") == "def run(self):"
+
+
+def test_shell_function():
+    src = "qc_doc_refs() {\n  echo hi\n}\n"
+    assert _resolve(src, "quality-checks.sh#qc_doc_refs", ".sh") == "qc_doc_refs() {"
+
+
+def test_bats_test_name():
+    src = '@test "temp files use unit helpers" {\n  true\n}\n'
+    assert _resolve(
+        src, 'a.bats#"temp files use unit helpers"', ".bats"
+    ).startswith("@test")
+
+
+def test_markdown_heading():
+    src = "# Top\n\ntext\n\n## Console sink\n\nmore\n"
+    assert _resolve(src, "LOGGING.md#Console sink", ".md") == "## Console sink"
+
+
+def test_json_key():
+    src = '{\n  "printers": {\n    "ad5m": 1\n  }\n}\n'
+    assert _resolve(src, "db.json#printers", ".json") == '"printers": {'
+
+
+def test_unknown_extension_falls_back_to_cpp_scanner():
+    src = "void f() {\n}\n"
+    assert _resolve(src, "a.inc#f", ".inc") == "void f() {"

@@ -33,8 +33,9 @@ class Citation:
 
 # A segment is either a double-quoted literal (backslash escapes allowed, so a
 # snippet may contain a quote or a slash) or a bare name. Bare names keep `::`
-# and `~` so a namespace-qualified or destructor anchor stays one segment.
-_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*)')
+# and `~` so a namespace-qualified or destructor anchor stays one segment, and
+# allow single interior spaces so a markdown heading needs no quoting.
+_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*(?:[ \t]+[\w:~.-]+)*)')
 
 
 def parse_citation(text):
@@ -166,10 +167,29 @@ _CPP_FUNC = re.compile(
 _CPP_DECL = re.compile(r"^[\w:<>,&*\s\[\]]*?\b([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;")
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
 
+_XML_NAME = re.compile(r'<\s*[A-Za-z_][\w-]*[^>]*?\bname\s*=\s*"([^"]+)"')
+_MAKE_VAR = re.compile(r"^([A-Za-z_][\w.]*)\s*:?[+?]?=")
+_MAKE_TGT = re.compile(r"^([A-Za-z_][\w.%/$()-]*)\s*:(?!=)")
+_PY_DEF = re.compile(r"^(\s*)(?:def|class)\s+([A-Za-z_]\w*)")
+_SH_FUNC = re.compile(r"^([A-Za-z_]\w*)\s*\(\)\s*\{")
+_BATS = re.compile(r'^@test\s+"([^"]+)"')
+_MD_HEAD = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+_JSON_KEY = re.compile(r'^\s*"([^"]+)"\s*:')
+
 
 def definitions(lines, region, ext):
     """Every named definition inside `region`, as (name, Region) pairs."""
-    return _defs_cpp(lines, region)
+    scanner = {
+        ".xml": _defs_xml,
+        ".mk": _defs_make,
+        ".py": _defs_python,
+        ".sh": _defs_shell,
+        ".bash": _defs_shell,
+        ".bats": _defs_shell,
+        ".md": _defs_markdown,
+        ".json": _defs_json,
+    }.get(ext, _defs_cpp)
+    return scanner(lines, region)
 
 
 def _defs_cpp(lines, region):
@@ -187,4 +207,94 @@ def _defs_cpp(lines, region):
             if m and m.group(1) not in _CPP_KEYWORDS:
                 out.append((m.group(1), Region(i, block_end(lines, i))))
                 break
+    return out
+
+
+def _defs_xml(lines, region):
+    """Widgets keyed by their name= attribute; the region is the element."""
+    out = []
+    for i in range(region.start, region.end):
+        m = _XML_NAME.search(lines[i])
+        if m:
+            out.append((m.group(1), Region(i, _xml_element_end(lines, i))))
+    return out
+
+
+def _xml_element_end(lines, start):
+    if re.search(r"/\s*>", lines[start]):
+        return start + 1
+    m = re.search(r"<\s*([A-Za-z_][\w-]*)", lines[start])
+    if not m:
+        return start + 1
+    tag = m.group(1)
+    depth = 0
+    for i in range(start, len(lines)):
+        depth += len(re.findall(rf"<\s*{re.escape(tag)}\b(?![^>]*/\s*>)", lines[i]))
+        depth -= len(re.findall(rf"</\s*{re.escape(tag)}\s*>", lines[i]))
+        if i > start and depth <= 0:
+            return i + 1
+    return start + 1
+
+
+def _defs_make(lines, region):
+    out = []
+    for i in range(region.start, region.end):
+        for rex in (_MAKE_VAR, _MAKE_TGT):
+            m = rex.match(lines[i])
+            if m:
+                out.append((m.group(1), Region(i, _indented_block_end(lines, i, "\t"))))
+                break
+    return out
+
+
+def _defs_python(lines, region):
+    out = []
+    for i in range(region.start, region.end):
+        m = _PY_DEF.match(lines[i])
+        if m:
+            indent = m.group(1)
+            out.append((m.group(2), Region(i, _indented_block_end(lines, i, indent + " "))))
+    return out
+
+
+def _indented_block_end(lines, start, indent):
+    for i in range(start + 1, len(lines)):
+        if lines[i].strip() and not lines[i].startswith(indent):
+            return i
+    return len(lines)
+
+
+def _defs_shell(lines, region):
+    out = []
+    for i in range(region.start, region.end):
+        m = _SH_FUNC.match(lines[i]) or _BATS.match(lines[i])
+        if m:
+            out.append((m.group(1), Region(i, block_end(lines, i))))
+    return out
+
+
+def _defs_markdown(lines, region):
+    """Headings; a heading owns everything up to the next heading of its level."""
+    out = []
+    for i in range(region.start, region.end):
+        m = _MD_HEAD.match(lines[i])
+        if not m:
+            continue
+        level = len(m.group(1))
+        end = region.end
+        for j in range(i + 1, region.end):
+            n = _MD_HEAD.match(lines[j])
+            if n and len(n.group(1)) <= level:
+                end = j
+                break
+        out.append((m.group(2), Region(i, end)))
+    return out
+
+
+def _defs_json(lines, region):
+    out = []
+    for i in range(region.start, region.end):
+        m = _JSON_KEY.match(lines[i])
+        if m:
+            out.append((m.group(1), Region(i, _indented_block_end(lines, i, " " * (len(lines[i]) - len(lines[i].lstrip())) + " "))))
     return out
