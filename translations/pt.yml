@@ -4,8 +4,7 @@ translations:
   ' frames': ' quadros'
   ' left': ' restante'
   '"%s" failed to load': '"%s" falhou ao carregar'
-  '%.0f Hz difference': ''
-  '%.1f Hz difference': Diferença de %.1f Hz
+  '%.0f Hz difference': Diferença de %.0f Hz
   '%d additional fan%s': '%d ventoinha%s adicional'
   '%d disabled': '%d desativado'
   '%d failed to load - see details below': '%d falhou ao carregar - veja os detalhes
@@ -104,7 +103,7 @@ translations:
   ADXL: ADXL
   AFC: AFC
   AFC Update Available: Atualização do AFC Disponível
-  AFC buffer: ''
+  AFC buffer: Buffer do AFC
   AFC failure reset complete: Reinício de falha AFC concluído
   AFC failure reset failed: Falha ao reiniciar erro AFC
   AFC recovery complete: Recuperação AFC concluída
@@ -217,8 +216,8 @@ translations:
   Apply Changes: Aplicar Alterações
   Applying Changes: Aplicando Alterações
   Applying...: Aplicando...
-  Archive: ''
-  Archive Spool?: ''
+  Archive: Arquivar
+  Archive Spool?: Arquivar Carretel?
   Are you sure you want to cancel this print? All progress will be lost.: Tem certeza
     de que deseja cancelar esta impressão? Todo o progresso será perdido.
   Are you sure? This will power off or restart this device.: Tem certeza? Isso desligará
@@ -243,9 +242,9 @@ translations:
   Auto-poll for weight updates: Consultar peso automaticamente
   Auto-probe or manually check screw heights: Sondagem automática ou verificação manual
     da altura dos parafusos
-  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: ''
+  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: O reabastecimento automático está ligado, mas nenhum par de lanes tem filamento compatível, então nada trocará ao acabar o filamento
   Auto-render video: Renderizar vídeo automaticamente
-  'Auto-tuning Shapers...': ''
+  Auto-tuning Shapers...: Ajuste automático de Shapers...
   Auto-uninstall only works on local Moonraker: A desinstalação automática só funciona
     no Moonraker local
   Automatic: Automático
@@ -256,7 +255,7 @@ translations:
   Available Networks: Redes Disponíveis
   Available networks: Redes disponíveis
   Average: Média
-  B: ''
+  B: B
   BEACON: BEACON
   BETA: BETA
   'BLE connect failed: {}': 'Falha ao conectar BLE: {}'
@@ -277,10 +276,10 @@ translations:
   Bed Level: Nível da Mesa
   Bed Leveling: Nivelamento da Mesa
   Bed Mesh: Malha da Mesa
-  'Bed Mesh Complete': ''
+  Bed Mesh Complete: Malha da Mesa Concluída
   Bed Mesh Render: Renderização da Malha da Mesa
   Bed Mesh...: Malha da Mesa...
-  Bed Meshing...: ''
+  Bed Meshing...: Gerando malha da mesa...
   Bed Moves: Mesa se move
   Bed Screw Adjustment: Ajuste dos Parafusos da Mesa
   Bed Screw Results: Resultados dos Parafusos da Mesa
@@ -290,14 +289,14 @@ translations:
   Bed Temperature: Temperatura da Mesa
   Bed is Level!: Mesa Nivelada!
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
-  'Bed mesh...': ''
+  Bed mesh...: Malha da mesa...
   Bed target set to {}°C: Mesa configurada para {}°C
   Bed temp must be 0-200°C: A temperatura da mesa deve ser 0-200°C
   Bed warming timed out: Aquecimento da mesa — tempo esgotado
-  Belt A: ''
-  Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: ''
-  Belt B: ''
-  Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B.: ''
+  Belt A: Correia A
+  Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: A correia A (dianteira direita) está mais apertada por %.0f Hz. Tensione a correia B, na dianteira esquerda, ou afrouxe a correia A.
+  Belt B: Correia B
+  Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the front right, or loosen belt B.: A correia B (dianteira esquerda) está mais apertada por %.0f Hz. Tensione a correia A, na dianteira direita, ou afrouxe a correia B.
   Belt Tension: Tensão da correia
   Belt Tension Check: Verificação de tensão da correia
   Belt tension looks good!: A tensão da correia parece boa!
@@ -324,12 +323,12 @@ translations:
   Border transparency (0 = invisible, 255 = solid): Transparência da borda (0 = invisível,
     255 = sólido)
   Both: Ambos
-  Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both.: ''
-  Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more.: ''
-  Both belts are on the %.0f Hz target and match each other. Nothing to adjust.: ''
+  Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Loosen both.: Ambas as correias estão acima do alvo de %.0f Hz - A por %.0f Hz, B por %.0f Hz. Afrouxe ambas.
+  Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. Tighten both, %s more.: Ambas as correias estão abaixo do alvo de %.0f Hz - A por %.0f Hz, B por %.0f Hz. Tensione ambas, %s mais.
+  Both belts are on the %.0f Hz target and match each other. Nothing to adjust.: Ambas as correias estão no alvo de %.0f Hz e correspondem entre si. Nada a ajustar.
   Both belts are overtightened.: Ambas as correias estão muito tensas.
   Both belts need tightening.: Ambas as correias precisam ser tensionadas.
-  Both belts read the same to within what this measurement can resolve. Nothing to adjust.: ''
+  Both belts read the same to within what this measurement can resolve. Nothing to adjust.: Ambas as correias apresentam a mesma leitura, dentro do que esta medição consegue resolver. Nada a ajustar.
   Bowden Length: 'Comprimento do bowden'
   Bowden tube length from hub to toolhead: 'Comprimento do tubo bowden do hub ao cabeçote'
   Brand: Marca
@@ -367,7 +366,7 @@ translations:
   CAPABILITIES: CAPACIDADES
   CARTOGRAPHER: CARTOGRAPHER
   CHANGED FROM LAST SESSION: ALTERADO DESDE A ÚLTIMA SESSÃO
-  CLOG: ''
+  CLOG: OBSTRUÇÃO
   COLOR SENSORS: SENSORES DE COR
   CONFIGURATION: CONFIGURAÇÃO
   CONNECTION TYPE: TIPO DE CONEXÃO
@@ -392,8 +391,8 @@ translations:
   Calibrate your touchscreen for accurate input: Calibrar a tela touch para entrada
     precisa
   Calibrated: Calibrado
-  'Calibrating Probe...': ''
-  'Calibrating bed mesh...': ''
+  Calibrating Probe...: Calibrando a Sonda...
+  Calibrating bed mesh...: Calibrando malha da mesa...
   Calibrating {} axis...: 'Calibrando o eixo {}...'
   Calibrating...: Calibrando...
   Calibration & Tools: Calibração e Ferramentas
@@ -422,9 +421,7 @@ translations:
     na impressora.
   Calibration timed out. Please try again.: Tempo esgotado. Tente novamente.
   Calibration, LED, and system configuration: 'Calibração, LED e configuração do sistema'
-  Calibrator not initialized. Try reopening the panel.: Calibrador não inicializado.
-    Tente reabrir o painel.
-  Cam: ''
+  Cam: Cam
   Camera: Câmera
   Can't connect — try forgetting and re-pairing the printer: Não foi possível conectar
     — tente esquecer e parear a impressora novamente
@@ -484,7 +481,7 @@ translations:
   Change Printer Host: Alterar Host da Impressora
   Change Tool: Trocar Ferramenta
   Change Tool While Paused: Trocar Ferramenta com Impressão Pausada
-  Change tool: ''
+  Change tool: Trocar ferramenta
   Changes apply immediately. Adjust during print for tuning.: Alterações aplicadas
     imediatamente. Ajuste durante a impressão para calibrar.
   Changes are temporary and reset on printer reboot: Alterações são temporárias e
@@ -503,10 +500,10 @@ translations:
   Check your heater's rating (typically 40-60W for hotends): Verifique a potência
     do aquecedor (normalmente 40-60W para hotends)
   Checking: Verificando
-  'Checking Bed Mesh...': ''
+  Checking Bed Mesh...: Verificando Malha da Mesa...
   Checking Spoolman server...: Verificando servidor Spoolman...
   Checking accelerometer...: Verificando acelerômetro...
-  'Checking extruders...': ''
+  Checking extruders...: Verificando extrusores...
   Checking filament...: Verificando filamento...
   Checking for plugin...: Verificando plugin...
   Checking for webcam...: Verificando webcam...
@@ -533,7 +530,7 @@ translations:
   Clean Brush: 'Limpar escova'
   Clean Nozzle: Limpar Bico
   Cleaning Nozzle...: Limpando bocal...
-  'Cleaning nozzle...': ''
+  Cleaning nozzle...: Limpando o bico...
   Clear: Limpar
   Clear All: Limpar Tudo
   Clear All Events: Limpar Todos os Eventos
@@ -545,15 +542,15 @@ translations:
     configurações; falha ao desemparelhar no sistema, pode ser necessário o Bluetooth
     do SO
   Clipboard unavailable - use SSH: Área de transferência indisponível - use SSH
-  Clog: ''
-  Clog Auto: ''
+  Clog: Obstrução
+  Clog Auto: Obstrução Automática
   Clog Detection: Detecção de Obstrução
-  Clog Manual: ''
+  Clog Manual: Obstrução Manual
   Clog and flow health while printing: Obstrução e fluxo durante a impressão
   Clog detection: Detecção de obstrução
   Close: Fechar
-  Close feeder: ''
-  Close feeder macro: ''
+  Close feeder: Fechar alimentador
+  Close feeder macro: Macro de fechar alimentador
   Closer: Mais Perto
   Closer = more squish | Farther = less squish: Mais perto = mais compressão | Mais
     longe = menos compressão
@@ -569,7 +566,7 @@ translations:
   Color Sensors: Sensores de cor
   Communication Test: 'Teste de comunicação'
   Compact: Compacto
-  Compare: ''
+  Compare: Comparar
   Comparison: Comparação
   Complete: Concluído
   Complete!: Concluído!
@@ -618,7 +615,6 @@ translations:
     e execute:'
   Connected: Conectado
   Connected (%s): Conectado (%s)
-  Connected (auto-sweep): Conectado (varredura automática)
   Connected (no discovery): Conectado (sem descoberta)
   Connected (system-managed network): Conectado (rede gerenciada pelo sistema)
   Connected Time: Tempo Conectado
@@ -668,7 +664,7 @@ translations:
   Cooling: Resfriamento
   Cooling Tube Length: 'Comprimento do tubo de resfriamento'
   Cooling Tube Retraction: 'Retração do tubo de resfriamento'
-  'Cooling for probing...': ''
+  Cooling for probing...: Resfriando para sondagem...
   Copied to clipboard!: Copiado para a área de transferência!
   Copy Command: Copiar Comando
   Copy failed - use SSH manually: Falha ao copiar - use SSH manualmente
@@ -680,10 +676,10 @@ translations:
   Could not answer the connection request: 'Não foi possível responder à solicitação de conexão'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Não foi possível verificar status da webcam.\nVerifique a conexão da impressora."
-  Could not confirm cancel: ''
+  Could not confirm cancel: Não foi possível confirmar o cancelamento
   Could not forget device: Não foi possível esquecer o dispositivo
   Could not load printer database: Não foi possível carregar o banco de dados de impressoras
-  Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.: ''
+  Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.: Não foi possível abrir a transmissão do acelerômetro do Klipper. Verifique se o Klipper está em execução e tente novamente.
   Could not parse tips database: Não foi possível analisar o banco de dados de dicas
   Could not reach Spoolman at: Não foi possível alcançar o Spoolman em
   Could not read the screw adjustments from the printer: Não foi possível ler os ajustes dos parafusos da impressora
@@ -708,7 +704,7 @@ translations:
   Create a 4-6 digit security PIN: Crie um PIN de segurança de 4-6 dígitos
   Create backup of %s before applying: Criar backup de %s antes de aplicar
   Create video when print completes: Criar vídeo quando a impressão terminar
-  'Creating bed mesh...': ''
+  Creating bed mesh...: Criando malha da mesa...
   Creating spool...: Criando carretel...
   'Critical hardware missing: {}': 'Hardware crítico ausente: {}'
   Current / Target: Atual / Alvo
@@ -767,7 +763,7 @@ translations:
   Deploy: Implantar
   Describe the issue (optional): Descreva o problema (opcional)
   Detailed: Detalhado
-  'Detecting plate...': ''
+  Detecting plate...: Detectando placa...
   Detecting printer type...: Detectando tipo de impressora...
   Detecting...: Detectando...
   Detection Length: Comprimento de Detecção
@@ -809,8 +805,8 @@ translations:
   Do not power off your printer.: Não desligue sua impressora.
   Do not touch the printer during calibration: Não toque na impressora durante a calibração
   Dock: Encaixar
-  Dock sensors cannot tell which tool is mounted: ''
-  Dock tool: ''
+  Dock sensors cannot tell which tool is mounted: Sensores de encaixe não conseguem identificar qual ferramenta está montada
+  Dock tool: Encaixar ferramenta
   Docking tool: Encaixando ferramenta
   Documentation: Documentação
   Don't Save: Não Salvar
@@ -853,7 +849,7 @@ translations:
     habilitado na configuração da impressora
   Ejecting: Ejetando
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
-  Element: ''
+  Element: Elemento
   Emergency Stop: Parada de Emergência
   Emergency Stop?: Parada de Emergência?
   Emergency stop activated: Parada de emergência ativada
@@ -905,7 +901,7 @@ translations:
   Enter the IP address and port of your Spoolman server.: Insira o endereço IP e a
     porta do seu servidor Spoolman.
   Entry: 'Entrada'
-  Entry Sensor: ''
+  Entry Sensor: Sensor de Entrada
   Entry to Extruder: 'Entrada ao extrusor'
   Error: Erro
   Error at chunk {} (code={}): Erro no fragmento {} (code={})
@@ -973,7 +969,7 @@ translations:
   Extruder heats automatically based on material: O extrusor aquece automaticamente
     com base no material
   Extruder to Nozzle: 'Extrusor ao bico'
-  'Extruding prime line...': ''
+  Extruding prime line...: Extrudando linha de preparação...
   FAILED: FALHOU
   FILAMENTS: FILAMENTOS
   FILTERS: FILTROS
@@ -982,7 +978,7 @@ translations:
   Failed to analyze PRINT_START macro: Falha ao analisar macro PRINT_START
   Failed to apply limits: Falha ao aplicar limites
   Failed to apply settings: Falha ao aplicar configurações
-  Failed to archive spool: ''
+  Failed to archive spool: Falha ao arquivar carretel
   Failed to build raster data: Falha ao construir os dados raster
   'Failed to cancel: {}': 'Falha ao cancelar: {}'
   'Failed to clear print state: {}': 'Falha ao limpar estado de impressão: {}'
@@ -1090,13 +1086,13 @@ translations:
   Farther: Mais Longe
   'Features: ': 'Recursos: '
   Feed Assist: 'Assistência de alimentação'
-  Feed assist and debug tools: ''
+  Feed assist and debug tools: Assistência de alimentação e ferramentas de depuração
   Feed filament: Alimentar filamento
   Feed filament directly to extruder: Alimentar filamento diretamente ao extrusor
   Feed filament from current slot: 'Alimentar filamento a partir do slot atual'
   Feeding filament forward: Avançando filamento
   Filament: Filamento
-  Filament Control: ''
+  Filament Control: Controle de Filamento
   Filament Detected: Filamento Detectado
   Filament Environment: Ambiente do filamento
   Filament Grade Mismatch: Grau de Filamento Incompatível
@@ -1108,11 +1104,11 @@ translations:
   Filament Used: Filamento Usado
   Filament already exists: Filamento já existe
   Filament by Type: Filamento por Tipo
-  Filament controls are unavailable while printing.: ''
+  Filament controls are unavailable while printing.: Os controles de filamento estão indisponíveis durante a impressão.
   Filament deleted: Filamento excluído
   Filament diameter sensors for flow compensation: Sensores de diâmetro de filamento
     para compensação de fluxo
-  Filament feeder: ''
+  Filament feeder: Alimentador de Filamento
   Filament is clear of the toolhead. Pull it out the rest of the way.: O filamento já saiu do cabeçote. Puxe o restante até o fim.
   Filament is loose: O filamento está solto
   Filament is pulling tight: O filamento está puxando com tensão
@@ -1141,12 +1137,12 @@ translations:
   File: Arquivo
   File Size: Tamanho do Arquivo
   Filename: Nome do Arquivo
-  Filter Fan: ''
-  'Filter Fan: Off': ''
-  'Filter Fan: On': ''
+  Filter Fan: Ventoinha do Filtro
+  'Filter Fan: Off': 'Ventoinha do Filtro: Desligado'
+  'Filter Fan: On': 'Ventoinha do Filtro: Ligado'
   Fine: Fino
   Finish: Finalizar
-  'Finishing clean...': ''
+  Finishing clean...: Finalizando limpeza...
   Finishing up...: Finalizando...
   Firmware Restart: Reiniciar Firmware
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: O
@@ -1162,7 +1158,7 @@ translations:
   Flow Compensation: 'Compensação de fluxo'
   Flow Rate: Taxa de Fluxo
   Flowguard: Proteção de Fluxo
-  'Flushing Filament...': ''
+  Flushing Filament...: Purgando filamento...
   Flying Toasters: Torradeiras Voadoras
   Follow active tool: Seguir ferramenta ativa
   Follow graph screen: Acompanhar tela do gráfico
@@ -1178,9 +1174,7 @@ translations:
   Framerate: Taxa de Quadros
   Frequency Delta: Delta de frequência
   ? "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
-  : ''
-  ? "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
-  : "Delta de Frequência: Diferença entre o Caminho A e B. Idealmente abaixo de 5 Hz; acima de 15 Hz precisa de ajuste.\n\nSimilaridade de Caminho: O quão próximos os perfis de vibração coincidem. Acima de 90% é excelente; abaixo de 70% sugere tensão desigual."
+  : "Delta de Frequência: Diferença entre o Caminho A e B. Qualquer valor abaixo de 2 Hz está fora do que esta medição consegue resolver, portanto conta como correspondente.\n\nCorrespondência: O quão próximas as duas correias estão, como uma porcentagem da frequência da correia A. Acima de 95% é excelente; abaixo de 90% vale a pena ajustar."
   From Buffer: Do buffer
   From Version: Da Versão
   Full: Completo
@@ -1197,13 +1191,13 @@ translations:
   Gear sync: Sincronização de engrenagem
   Generic: Genérico
   Get help and share feedback: Obter ajuda e enviar feedback
-  Global: ''
+  Global: Global
   Good: Bom
   Good Accuracy: Boa Precisão
   Got it: Entendi
   Gray: Cinza
-  Grip filament: ''
-  Grip the filament: ''
+  Grip filament: Segurar filamento
+  Grip the filament: Segurar o filamento
   Guides and reference: Guias e referência
   H: H
   HOST: Host
@@ -1242,22 +1236,22 @@ translations:
   Heated Bed PID Tuning: Ajuste PID da Mesa Aquecida
   Heater: Aquecedor
   Heater Power: Potência do Aquecedor
-  Heater connection lost: ''
-  Heater fault: ''
-  Heater over-temperature: ''
-  Heater sensor fault: ''
+  Heater connection lost: Conexão do aquecedor perdida
+  Heater fault: Falha do aquecedor
+  Heater over-temperature: Sobretemperatura do aquecedor
+  Heater sensor fault: Falha no sensor do aquecedor
   HeaterSelect: Selecionar Aquecedor
   Heaters off: Aquecedores desligados
   Heating: Aquecendo
   Heating (%d°C below minimum): Aquecendo (%d°C abaixo do mínimo)
   Heating Bed...: Aquecendo mesa...
-  'Heating Chamber...': ''
+  Heating Chamber...: Aquecendo câmara...
   Heating Nozzle...: Aquecendo bocal...
-  'Heating bed to $1°C...': ''
-  'Heating bed...': ''
-  'Heating chamber...': ''
-  'Heating nozzle to $1°C...': ''
-  'Heating nozzle...': ''
+  Heating bed to $1°C...: Aquecendo mesa a $1°C...
+  Heating bed...: Aquecendo mesa...
+  Heating chamber...: Aquecendo câmara...
+  Heating nozzle to $1°C...: Aquecendo bico a $1°C...
+  Heating nozzle...: Aquecendo bico...
   Heating to %d°C... %.0f°C: Aquecendo a %d°C... %.0f°C
   Heating to {}°C before {}...: Aquecendo a {}°C antes de {}...
   Heating to {}°C for {}...: Aquecendo a {}°C por {}...
@@ -1280,7 +1274,7 @@ translations:
   Hide Temperature Reports: Ocultar Relatórios de Temperatura
   High Water Mark: Marca de Pico
   Hold anywhere to cancel: Segure em qualquer lugar para cancelar
-  Hold still: ''
+  Hold still: Não se mexa
   Holding nozzle at {}°C to purge previous filament.: Mantendo o bico a {}°C para purgar
     o filamento anterior.
   Home: Início
@@ -1294,7 +1288,7 @@ translations:
   Homing Y...: Posicionando Y...
   Homing Z...: Posicionando Z...
   Homing all axes...: Posicionando todos os eixos...
-  'Homing axes...': ''
+  Homing axes...: Posicionando eixos...
   'Homing failed: ': 'Falha ao referenciar: '
   'Homing failed: {}': 'Falha no homing: {}'
   Homing first...: Posicionando primeiro...
@@ -1352,7 +1346,7 @@ translations:
   Info: Info
   Initial speed for filament unloading: 'Velocidade inicial para o descarregamento do filamento'
   Initialized: Inicializado
-  'Initializing print...': ''
+  Initializing print...: Inicializando impressão...
   Initializing...: Inicializando...
   Initiate blade change procedure: 'Iniciar o procedimento de troca de lâmina'
   Input: Entrada
@@ -1360,7 +1354,7 @@ translations:
   Input Shaper Help: Ajuda do Input Shaper
   Input Shaping: Input Shaping
   Input shaper calibration sensors: Sensores de calibração do input shaper
-  'Input shaper calibration...': ''
+  Input shaper calibration...: Calibração do input shaper...
   Input shaper settings applied!: Configurações do input shaper aplicadas!
   Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements.: O
     input shaping reduz artefatos de ringing e ghosting causados por vibrações da
@@ -1370,7 +1364,7 @@ translations:
   'Input: ': 'Entrada: '
   InputShaper: InputShaper
   Insert filament before resuming: Insira filamento antes de retomar
-  'Inspecting bed...': ''
+  Inspecting bed...: Inspecionando a mesa...
   Install: Instalar
   Install HelixPrint Plugin: Instalar Plugin HelixPrint
   Install Older Version?: 'Instalar uma versão anterior?'
@@ -1410,7 +1404,7 @@ translations:
     {} (tem {})'
   Invalid status response from printer: Resposta de status inválida da impressora
   Issue description: Descrição do problema
-  It can be un-archived in Spoolman's web UI.: ''
+  It can be un-archived in Spoolman's web UI.: Pode ser desarquivado na interface web do Spoolman.
   It's a new spool: É um carretel novo
   Jammed at the Toolhead: Atolado no cabeçote
   Job Queue: Fila de Trabalhos
@@ -1504,7 +1498,7 @@ translations:
   Light will switch when the current operation finishes: A luz será alternada quando
     a operação atual terminar
   Listen to all theme sounds: Ouvir todos os sons do tema
-  Listening: ''
+  Listening: Escutando
   Live view from your webcam: Visão ao vivo da sua webcam
   Load: Carregar
   Load Filament: Carregar Filamento
@@ -1512,7 +1506,7 @@ translations:
   Load filament: 'Carregar filamento'
   Load may still be running — response timed out: A carga pode ainda estar em execução
     — tempo esgotado
-  Load or unload filament.: ''
+  Load or unload filament.: Carregue ou descarregue o filamento.
   Load the required filaments or start anyway?: Carregar os filamentos necessários
     ou iniciar mesmo assim?
   'Load, unload, and swap spools. View your multi-filament system at a glance, map colors to slots, and monitor runout sensors.': 'Carregue, descarregue e troque carretéis. Visualize seu sistema de múltiplos filamentos rapidamente, mapeie cores para slots e monitore sensores de fim de filamento.'
@@ -1606,13 +1600,13 @@ translations:
   Manual Bed Leveling: Nivelamento Manual da Mesa
   Manual Feed: 'Alimentação manual'
   Manual Retract: 'Retração manual'
-  Manual feed and retract operations: ''
+  Manual feed and retract operations: Operações manuais de alimentação e retração
   Map to closest colors with matching material: Mapear para cores mais próximas com
     material compatível
   Marginal: Marginal
   Master volume level: Nível de volume principal
-  Match: ''
-  Match to belt A: ''
+  Match: Correspondência
+  Match to belt A: Correspondência à correia A
   Match your typical print fan speed: Ajuste a velocidade típica da ventoinha de impressão
   Material: Material
   'Material Comfort:': 'Conforto do Material:'
@@ -1631,15 +1625,12 @@ translations:
   Measure and compare belt path frequencies: Medir e comparar frequências dos caminhos
     de correia
   Measure belt path frequencies: Medir frequências dos caminhos de correia
-  Measured: Medido
   Measured (shaper off): Medido (shaper desligado)
   Measured filament diameter: Diâmetro medido do filamento
   Measurement Failed: Medição falhou
-  Measuring Path A... %d%%: Medindo Caminho A... %d%%
-  Measuring Path B... %d%%: Medindo Caminho B... %d%%
   Measuring accelerometer noise...: 'Medindo o ruído do acelerômetro...'
   Measuring vibrations... {}%: 'Medindo vibrações... {}%'
-  Median %.0f Hz: ''
+  Median %.0f Hz: Mediana %.0f Hz
   Memory: Memória
   Memory (MB): Memória (MB)
   Memory Snapshot: Captura de Memória
@@ -1670,7 +1661,7 @@ translations:
   Motors Off: Desligar Motores
   'Motors disable failed: {}': 'Falha ao desativar motores: {}'
   Motors disabled: Motores desativados
-  Mount: ''
+  Mount: Montar
   Move: Mover
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Mova
     o papel para frente e para trás enquanto ajusta. Pare quando o papel prender levemente,
@@ -1682,7 +1673,7 @@ translations:
     minutes. The printer will make noise — this is normal.
   : Move o cabeçote para medir frequências de vibração em cada eixo. Leva 2-3 minutos.
     A impressora fará barulho — isso é normal.
-  Moving gantry: ''
+  Moving gantry: Movendo pórtico
   Moving lane: Movendo lane
   Multi-Filament: Multi-Filamento
   Multi-Filament Overview: Visão geral multi-filamento
@@ -1702,7 +1693,7 @@ translations:
   Name: Nome
   Name (optional): Nome (opcional)
   'Name:': 'Nome:'
-  Named actions in the LED Controls widget. Not shown under LED selection.: ''
+  Named actions in the LED Controls widget. Not shown under LED selection.: Ações nomeadas no widget Controles LED. Não aparecem na seleção de LED.
   Needs adjustment: Precisa de ajuste
   Needs the {} package to switch spools: 'Precisa do plugin {} para trocar de carretel'
   Net Weight (g): Peso Líquido (g)
@@ -1724,7 +1715,7 @@ translations:
   New printer successfully added: Nova impressora adicionada com sucesso
   New profile name: Novo nome do perfil
   Next: Próximo
-  Next belt: ''
+  Next belt: Próxima correia
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   'No': Não
   No API connection: Sem conexão com a API
@@ -1737,7 +1728,7 @@ translations:
   No LED macros detected on your printer. Add Klipper macros for LED control first.: Nenhuma
     macro de LED detectada na sua impressora. Adicione macros Klipper para controle
     de LED primeiro.
-  No LED macros detected. Type a macro name below.: ''
+  No LED macros detected. Type a macro name below.: Nenhuma macro LED detectada. Digite um nome de macro abaixo.
   No LED strips detected: 'Nenhuma fita LED detectada'
   No Macros Found: Nenhuma Macro Encontrada
   No Multi-Filament System connected: Nenhum sistema multi-filamento conectado
@@ -1748,7 +1739,7 @@ translations:
   No Spools: Sem Carretéis
   No USB printer detected: Nenhuma impressora USB detectada
   No USB printers found: Nenhuma impressora USB encontrada
-  No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry.: ''
+  No accelerometer stream available. Check that Klipper is running and an accelerometer is configured, then retry.: Nenhuma transmissão do acelerômetro disponível. Verifique se o Klipper está em execução e se um acelerômetro está configurado, e tente novamente.
   No automatic backup-spool package is installed: Nenhum plugin de carretel de reserva automático instalado
   No buffer data available: Nenhum dado de buffer disponível
   No camera — use USB barcode scanner: Sem câmera — use leitor de código de barras
@@ -1802,7 +1793,7 @@ translations:
   No slot currently matches.: 'Nenhum slot corresponde no momento.'
   No spool assigned: Nenhuma bobina atribuída
   No spools found — tap to retry: Nenhuma bobina encontrada — toque para tentar novamente
-  No spools match your search: ''
+  No spools match your search: Nenhum carretel corresponde à sua busca
   No tape detected in printer: Nenhuma fita detectada na impressora
   No target printer configured: Nenhuma impressora de destino configurada
   No temperature sensors detected: 'Nenhum sensor de temperatura detectado'
@@ -1823,7 +1814,7 @@ translations:
   Not connected: Não conectado
   Not connected to printer: Não conectado à impressora
   Not connected to printer.: Não conectado à impressora.
-  Not connected to the printer: ''
+  Not connected to the printer: Não conectado à impressora
   Not detected: Não detectado
   Not in your spools? Set it up: Não está nos seus carretéis? Configure aqui
   Not now: Agora não
@@ -1849,7 +1840,7 @@ translations:
   Nozzle Temperature: Temperatura do Bico
   Nozzle Temperatures: 'Temperaturas dos bicos'
   Nozzle Temps: Temps do bico
-  'Nozzle clean complete': ''
+  Nozzle clean complete: Limpeza do bico concluída
   Nozzle did not reach {}°C — {} cancelled: O bico não atingiu {}°C — {} cancelado
   Nozzle min cannot exceed max: O mínimo do bico não pode exceder o máximo
   Nozzle target set to {}°C: Bico configurado para {}°C
@@ -1879,8 +1870,8 @@ translations:
   Open: Abrir
   Open Source Licenses: Licenças de código aberto
   Open color and brightness controls: Abrir controles de cor e brilho
-  Open feeder: ''
-  Open feeder macro: ''
+  Open feeder: Abrir alimentador
+  Open feeder macro: Macro de abrir alimentador
   Open motion controls for jogging: Abrir os controles de movimento
   Operation already in progress: Operação já em andamento
   Operations: Operações
@@ -1892,7 +1883,7 @@ translations:
     uma
   Options: Opções
   Or Enter Manually: Ou Digite Manualmente
-  Or instead of turning the others: ''
+  Or instead of turning the others: Ou, em vez de girar os outros
   Oscillating... cycle %d/%d: Oscilando... ciclo %d/%d
   Out of range: Fora do intervalo
   Outcome: Resultado
@@ -1945,7 +1936,6 @@ translations:
   Password is required for secured networks: Senha é necessária para redes protegidas
   Path A: Caminho A
   Path B: Caminho B
-  Path Similarity: Similaridade de caminho
   Pause: Pausar
   Pause macro not configured: Macro de pausa não configurado
   Pause the print first, then load, unload, or change filament: Pause a impressão primeiro, depois carregue, descarregue ou troque o filamento
@@ -1964,7 +1954,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Escolher
   Pick Color: Escolher Cor
-  Pick up tool: ''
+  Pick up tool: Pegar ferramenta
   Picking up tool: Pegando ferramenta
   Pill: Pílula
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels antes
@@ -1987,8 +1977,8 @@ translations:
     faz home e sonda.
   Please wait while the printer probes each screw position.: Por favor, aguarde enquanto
     a impressora sonda cada posição de parafuso.
-  Pluck the front belt on the left: ''
-  Pluck the front belt on the right: ''
+  Pluck the front belt on the left: Dedilhe a correia dianteira esquerda
+  Pluck the front belt on the right: Dedilhe a correia dianteira direita
   Plugin already installed: Plugin já instalado
   Plugin disabled: Plugin desabilitado
   Plugin installed successfully: Plugin instalado com sucesso
@@ -2006,13 +1996,13 @@ translations:
   Poor Accuracy: Precisão Baixa
   Port: Porta
   Position: Posição
-  Position the gantry yourself, then continue: ''
+  Position the gantry yourself, then continue: Posicione o pórtico manualmente e continue
   Post-Sensor Clear: 'Avanço após o sensor'
   Power: Energia
   Power Devices: Dispositivos de energia
   Power off the printer or screen: Desligar a impressora ou a tela
   'Pre-print command failed: {}': 'Falha no comando pré-impressão: {}'
-  'Pre-print homing...': ''
+  Pre-print homing...: Posicionamento pré-impressão...
   Preheat: 'Pré-aquecer'
   Preheat Macro: Macro de Pré-aquecimento
   Preheat PLA: Pré-aquecer PLA
@@ -2020,12 +2010,12 @@ translations:
   'Preheat: T{} + bed set': 'Pré-aquecer: T{} + mesa configurada'
   'Preheat: all {} tools + bed set': 'Pré-aquecer: todas as {} ferramentas + mesa
     configurada'
-  'Prepared': ''
+  Prepared: Preparado
   Preparing: Preparando
   Preparing Print: Preparando Impressão
   Preparing Print...: Preparando impressão...
-  'Preparing to Print...': ''
-  'Preparing to clean...': ''
+  Preparing to Print...: Preparando para imprimir...
+  Preparing to clean...: Preparando para limpar...
   Preparing...: Preparando...
   Preset: Predefinição
   'Preset ID: {}': 'ID da predefinição: {}'
@@ -2037,7 +2027,7 @@ translations:
   Previous: Anterior
   Price: Preço
   Primary: Primário
-  'Priming nozzle...': ''
+  Priming nozzle...: Preparando o bico...
   Priming...: Preparando...
   Print: Imprimir
   Print Anyway: Imprimir Mesmo Assim
@@ -2063,12 +2053,12 @@ translations:
   Print Tuning: Ajuste de Impressão
   Print Was Terminated: A impressão foi terminada
   Print cancelled: Impressão cancelada
-  'Print complete': ''
+  Print complete: Impressão concluída
   Print did not start: A impressão não iniciou
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): A
     impressão não iniciou — a impressora pode estar ocupada ou offline (B3 polls={},
     status=0x{:02X}, error=0x{:02X})
-  'Print ending...': ''
+  Print ending...: Finalizando impressão...
   Print error: Erro de impressão
   Print failed: Impressão falhou
   Print issue detected: Problema de impressão detectado
@@ -2142,11 +2132,11 @@ translations:
   Probe controls, accuracy test, and settings: Controles de sonda, teste de precisão
     e configurações
   Probing Bed Mesh: Sondando Malha da Mesa
-  'Probing Bed Mesh...': ''
+  Probing Bed Mesh...: Sondando Malha da Mesa...
   Probing Bed Screws...: Sondando Parafusos da Mesa...
   Probing Bed...: Sondando Mesa...
   Probing Failed: Sondagem Falhou
-  'Probing Z...': ''
+  Probing Z...: Sondando Z...
   Probing point {} of {}: 'Ponto de sondagem {} de {}'
   Probing... ({} points): 'Sondando... ({} pontos)'
   Proceed: Prosseguir
@@ -2208,7 +2198,7 @@ translations:
   Ready: Pronto
   Ready for filament operations: Pronto para operações de filamento
   Ready to Apply: Pronto para Aplicar
-  Ready to pluck: ''
+  Ready to pluck: Pronto para dedilhar
   Reason: Motivo
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
   : "Motivo: {}\n\nA impressora não pode retomar esta impressão. Reiniciar do início?"
@@ -2241,13 +2231,13 @@ translations:
   Refresh: Atualizar
   Refresh Interval: Intervalo de Atualização
   Refresh RFID: 'Atualizar RFID'
-  'Reheating...': ''
+  Reheating...: Reaquecendo...
   Relative vibration: Vibração relativa
   Release all stepper motors. Position will be lost.: Liberar todos os motores de
     passo. A posição será perdida.
-  Release filament: ''
-  Release or grip the filament by hand: ''
-  Release the filament: ''
+  Release filament: Soltar filamento
+  Release or grip the filament by hand: Soltar ou segurar o filamento manualmente
+  Release the filament: Soltar o filamento
   Remaining (g): Restante (g)
   Remaining Weight (g): Peso Restante (g)
   Remap Tool: Remapear Ferramenta
@@ -2270,7 +2260,7 @@ translations:
   Replace: "Substituir"
   Replace Profile?: "Substituir Perfil?"
   Replay Welcome Tour: Repetir Tour de Boas-Vindas
-  'Replenishing filament...': ''
+  Replenishing filament...: Reabastecendo filamento...
   Report saved to crash_report.txt: Relatório salvo em crash_report.txt
   Reprint: Reimprimir
   Reprint Last: Reimprimir última
@@ -2329,7 +2319,7 @@ translations:
   Resume interrupted print?: Retomar impressão interrompida?
   Resume macro not configured: Macro de retomada não configurado
   Resume preparation failed: Falha na preparação para retomar
-  'Resuming print...': ''
+  Resuming print...: Retomando impressão...
   Resuming...: Retomando...
   Retract: Retrair
   Retract Distance: Distância de Retração
@@ -2509,7 +2499,7 @@ translations:
   Sending...: Enviando...
   Sensor: Sensor
   Sensor Response: Resposta do Sensor
-  Sensor Source: ''
+  Sensor Source: Fonte do Sensor
   Sensor Temperature: Temperatura do Sensor
   Sensor to Nozzle: 'Sensor ao bico'
   Sensors: Sensores
@@ -2628,7 +2618,7 @@ translations:
   'Spool #{}': 'Bobina #{}'
   Spool Info: Info da bobina
   Spool Weight (g): Peso do Carretel (g)
-  Spool archived: ''
+  Spool archived: Carretel arquivado
   Spool created successfully: Bobina criada com sucesso
   Spool deleted: Carretel excluído
   Spool motor: Motor da bobina
@@ -2657,20 +2647,19 @@ translations:
   Start Calibration: Iniciar Calibração
   Start Check: Iniciar verificação
   Start Drying: Iniciar secagem
-  Start Listening: ''
+  Start Listening: Iniciar Escuta
   Start Print: Iniciar Impressão
   Start Probing: Iniciar Sondagem
   Start anyway?: 'Iniciar mesmo assim?'
   Start at: Começar em
   Start failed: Falha ao iniciar
-  Start over: ''
+  Start over: Recomeçar
   Start print anyway?: Iniciar impressão mesmo assim?
   Started: Iniciado
   Starting Print...: Iniciando impressão...
   Starting download...: Iniciando download...
-  Starting measurement...: Iniciando medição...
-  'Starting nozzle clean...': ''
-  'Starting print...': ''
+  Starting nozzle clean...: Iniciando limpeza do bico...
+  Starting print...: Iniciando impressão...
   Starting...: Iniciando...
   Startup Brightness: Brilho na inicialização
   Startup, auto-control, and macro devices: Inicialização, controle automático e dispositivos
@@ -2733,7 +2722,7 @@ translations:
     — esta impressão vai acabar.
   T%d needs filament in slot %d, which is empty — this print will run out.: T%d precisa
     de filamento no slot %d, que está vazio — esta impressão vai acabar.
-  TANGLE: ''
+  TANGLE: EMARANHADO
   TD-1 filament color detection: Detecção de cor de filamento TD-1
   TEMPERATURE SENSORS: SENSORES DE TEMPERATURA
   THEME COLORS: CORES DO TEMA
@@ -2755,7 +2744,7 @@ translations:
   Target Frequency: Frequência alvo
   Target Temperature: Temperatura Alvo
   Target Version: Versão Alvo
-  Target is %.0f Hz. Tighten belt %s and loosen belt %s.: ''
+  Target is %.0f Hz. Tighten belt %s and loosen belt %s.: O alvo é %.0f Hz. Tensione a correia %s e afrouxe a correia %s.
   Telemetry: Telemetria
   Telemetry Data: Dados de Telemetria
   Telemetry Disabled: Telemetria Desativada
@@ -2796,7 +2785,7 @@ translations:
     anônimos ajudam a melhorar o HelixScreen.
   Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Obrigado! Dados
     de uso TOTALMENTE anônimos ajudam a melhorar o HelixScreen.
-  That did not sound like a pluck - try again: ''
+  That did not sound like a pluck - try again: Isso não soou como um dedilhado - tente novamente
   That slot cannot stand in for this one: Esse slot não pode substituir este
   That tool is already loaded: Essa ferramenta já está carregada
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
@@ -2804,7 +2793,7 @@ translations:
   : O plugin HelixPrint permite modificações rápidas de G-code diretamente na sua
     impressora—como pular malha da mesa para reimpressões rápidas.
   The Spoolman spool currently loaded: O carretel do Spoolman em uso
-  'The accelerometer stream stopped: %s. Check that Klipper is running, then retry.': ''
+  'The accelerometer stream stopped: %s. Check that Klipper is running, then retry.': 'A transmissão do acelerômetro parou: %s. Verifique se o Klipper está em execução e tente novamente.'
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : O protetor de tela animado foi desativado neste dispositivo para evitar que interfira
@@ -2915,7 +2904,7 @@ translations:
   This will restart Klipper firmware. Any active operations will be interrupted.: O
     firmware Klipper será reiniciado. Operações ativas serão interrompidas.
   This will restart Klipper.: Isso reiniciará o Klipper.
-  This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: ''
+  This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: Isso salvará o Z-offset e reiniciará o Klipper para gravar a configuração. A impressora será brevemente desconectada.
   Thorough: Completo
   Thumbnail Only: Apenas miniatura
   'Thumbnail: ': 'Miniatura: '
@@ -2953,7 +2942,7 @@ translations:
   Toggle toolhead LED for an extruder: 'Alternar o LED do cabeçote para um extrusor'
   'Toggle:': 'Alternar:'
   Too humid: Muito úmido
-  Too soft - pluck harder: ''
+  Too soft - pluck harder: Muito fraco - dedilhe com mais força
   Tool: Ferramenta
   Tool Changer: Trocador de Ferramentas
   Tool Switcher: 'Seletor de ferramentas'
@@ -2964,7 +2953,7 @@ translations:
     carregado.'
   Toolhead: 'Cabeçote'
   Toolhead LED: 'LED do cabeçote'
-  Toolhead Sensor: ''
+  Toolhead Sensor: Sensor do Cabeçote
   Toolhead Style: Estilo do Cabeçote
   Toolhead jam: Atolamento do cabeçote
   Toolhead, G-code, limits, and materials: Cabeçote, G-code, limites e materiais
@@ -3011,7 +3000,7 @@ translations:
   USB drive removed: Unidade USB removida
   USB printer access denied — check permissions: Acesso à impressora USB negado —
     verifique as permissões
-  Unavailable: ''
+  Unavailable: Indisponível
   Understanding Results: Entender resultados
   ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
   : "A tensão desigual da correia causa artefatos de impressão como deslocamentos de camada, VFAs (artefatos verticais finos) e ringing.\n\nEsta ferramenta vibra cada caminho de correia e mede a frequência de ressonância — frequências coincidentes significam tensão equilibrada.\n\nPara CoreXY, o Caminho A e B devem estar a poucos Hz um do outro."
@@ -3044,7 +3033,7 @@ translations:
   Unloads After Print: Descarrega após a impressão
   Unlock: Desbloquear
   Unmapped: Não mapeado
-  Unmount: ''
+  Unmount: Desmontar
   Unretract Extra: Extra de Desretração
   Unretract Speed: Velocidade de Desretração
   Unsupported tape width: Largura de fita não suportada
@@ -3072,7 +3061,7 @@ translations:
   Use printer type to select image: Usar tipo de impressora para selecionar imagem
   VM Peak: Pico de VM
   VM Size: Tamanho de VM
-  'Validating bed mesh...': ''
+  Validating bed mesh...: Validando malha da mesa...
   Value must be between {:.0f} and {:.0f}: O valor deve estar entre {:.0f} e {:.0f}
   Values must not be negative: Os valores não podem ser negativos
   Velocity and acceleration limits: Limites de velocidade e aceleração
@@ -3083,7 +3072,7 @@ translations:
   Verify: Verificar
   Verifying SHA256 checksum...: Verificando checksum SHA256...
   Verifying download...: Verificando download...
-  'Verifying file...': ''
+  Verifying file...: Verificando arquivo...
   Verifying timelapse plugin...: Verificando plugin de timelapse...
   Verifying...: Verificando...
   Version: Versão
@@ -3111,7 +3100,7 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Aguarde a operação de filamento atual terminar
-  Wait until the print finishes: ''
+  Wait until the print finishes: Aguarde até a impressão terminar
   Waiting for Moonraker...: Aguardando Moonraker...
   Waiting for bed to reach temperature for accurate calibration.: Aguardando a mesa
     atingir a temperatura para calibração precisa.
@@ -3144,8 +3133,8 @@ translations:
     da sua impressão.
   Where UI sounds play: Onde os sons da interface são reproduzidos
   Whether filament is loaded: Se há filamento carregado
-  Which macro the Close feeder button sends: ''
-  Which macro the Open feeder button sends: ''
+  Which macro the Close feeder button sends: Qual macro o botão Fechar alimentador envia
+  Which macro the Open feeder button sends: Qual macro o botão Abrir alimentador envia
   White: Branco
   Wi-Fi or ethernet connection status: Status da conexão Wi-Fi ou ethernet
   WiFi: WiFi
@@ -3168,7 +3157,7 @@ translations:
   Wifi: Wi-Fi
   Will not switch spools on runout: Não trocará de carretel ao acabar
   Wipe nozzle on silicone cleaning strip: 'Limpar o bico na tira de limpeza de silicone'
-  Within measurement resolution: ''
+  Within measurement resolution: Dentro da resolução de medição
   Wizard Error: Erro do assistente
   Working...: Processando...
   Write failed at chunk {}: Falha na escrita no fragmento {}
@@ -3228,7 +3217,7 @@ translations:
   Z-offset calibration timed out: Calibração de Z-offset — tempo esgotado
   'Z-offset failed: {}': 'Falha no Z-offset: {}'
   Z-offset is auto-saved by firmware: Z-offset é salvo automaticamente pelo firmware
-  Z-offset saved: ''
+  Z-offset saved: Z-offset salvo
   Z-offset saved ({:+.3f}mm). Klipper restarting...: Z-offset salvo ({:+.3f}mm). Klipper
     reiniciando...
   Z-offset saved - Klipper restarting...: Z-offset salvo - Klipper reiniciando...
@@ -3264,7 +3253,7 @@ translations:
   nozzle: bico
   of: de
   'off': desligado
-  or type a macro name: ''
+  or type a macro name: ou digite um nome de macro
   prints: impressões
   remaining: restante
   remaining before clog detection triggers: restante antes da detecção de obstrução
@@ -3296,7 +3285,7 @@ translations:
   '{} is asking to connect to this printer.': '{} quer conectar-se a esta impressora.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} está instalado mas sua troca para carretel reserva está desligada, então não haverá troca automática.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} está instalado, mas não foi possível ler sua configuração de carretel reserva - não conte com uma troca automática.'
-  '{} is not set up on this printer': ''
+  '{} is not set up on this printer': '{} não está configurado nesta impressora'
   '{} lanes': '{} lanes'
   '{} macro not configured': Macro {} não configurado
   '{} may cause unintended changes. Are you sure?': '{} pode causar alterações não

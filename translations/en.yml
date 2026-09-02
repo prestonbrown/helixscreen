@@ -5,7 +5,6 @@ translations:
   ' left': ' left'
   '"%s" failed to load': '"%s" failed to load'
   '%.0f Hz difference': '%.0f Hz difference'
-  '%.1f Hz difference': '%.1f Hz difference'
   '%d additional fan%s': '%d additional fan%s'
   '%d disabled': '%d disabled'
   '%d failed to load - see details below': '%d failed to load - see details below'
@@ -407,8 +406,6 @@ translations:
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.
   Calibration timed out. Please try again.: Calibration timed out. Please try again.
   Calibration, LED, and system configuration: Calibration, LED, and system configuration
-  Calibrator not initialized. Try reopening the panel.: Calibrator not initialized.
-    Try reopening the panel.
   Cam: Cam
   Camera: Camera
   Can't connect — try forgetting and re-pairing the printer: Can't connect — try forgetting
@@ -593,7 +590,6 @@ translations:
     run:'
   Connected: Connected
   Connected (%s): Connected (%s)
-  Connected (auto-sweep): Connected (auto-sweep)
   Connected (no discovery): Connected (no discovery)
   Connected (system-managed network): Connected (system-managed network)
   Connected Time: Connected Time
@@ -1144,8 +1140,6 @@ translations:
   Frequency Delta: Frequency Delta
   ? "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
   : "Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.\n\nMatch: How close the two belts are, as a percentage of belt A's frequency. Above 95% is excellent; below 90% is worth adjusting."
-  ? "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
-  : "Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.\n\nPath Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."
   From Buffer: From Buffer
   From Version: From Version
   Full: Full
@@ -1584,12 +1578,9 @@ translations:
   Maximum toolhead speed (mm/s): Maximum toolhead speed (mm/s)
   Measure and compare belt path frequencies: Measure and compare belt path frequencies
   Measure belt path frequencies: Measure belt path frequencies
-  Measured: Measured
   Measured (shaper off): Measured (shaper off)
   Measured filament diameter: Measured filament diameter
   Measurement Failed: Measurement Failed
-  Measuring Path A... %d%%: Measuring Path A... %d%%
-  Measuring Path B... %d%%: Measuring Path B... %d%%
   Measuring accelerometer noise...: Measuring accelerometer noise...
   Measuring vibrations... {}%: Measuring vibrations... {}%
   Median %.0f Hz: Median %.0f Hz
@@ -1894,7 +1885,6 @@ translations:
   Password is required for secured networks: Password is required for secured networks
   Path A: Path A
   Path B: Path B
-  Path Similarity: Path Similarity
   Pause: Pause
   Pause macro not configured: Pause macro not configured
   Pause the print first, then load, unload, or change filament: Pause the print first,
@@ -2600,7 +2590,6 @@ translations:
   Started: Started
   Starting Print...: Starting Print...
   Starting download...: Starting download...
-  Starting measurement...: Starting measurement...
   'Starting nozzle clean...': 'Starting nozzle clean...'
   'Starting print...': 'Starting print...'
   Starting...: Starting...

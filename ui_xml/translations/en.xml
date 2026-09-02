@@ -5,7 +5,6 @@
   <translation tag=" left" en=" left"/>
   <translation tag="&quot;%s&quot; failed to load" en="&quot;%s&quot; failed to load"/>
   <translation tag="%.0f Hz difference" en="%.0f Hz difference"/>
-  <translation tag="%.1f Hz difference" en="%.1f Hz difference"/>
   <translation tag="%d additional fan%s" en="%d additional fan%s"/>
   <translation tag="%d disabled" en="%d disabled"/>
   <translation tag="%d failed to load - see details below" en="%d failed to load - see details below"/>
@@ -377,7 +376,6 @@
   <translation tag="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer." en="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer."/>
   <translation tag="Calibration timed out. Please try again." en="Calibration timed out. Please try again."/>
   <translation tag="Calibration, LED, and system configuration" en="Calibration, LED, and system configuration"/>
-  <translation tag="Calibrator not initialized. Try reopening the panel." en="Calibrator not initialized. Try reopening the panel."/>
   <translation tag="Cam" en="Cam"/>
   <translation tag="Camera" en="Camera"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" en="Can&apos;t connect — try forgetting and re-pairing the printer"/>
@@ -538,7 +536,6 @@
   <translation tag="Connect to your printer via SSH and run:" en="Connect to your printer via SSH and run:"/>
   <translation tag="Connected" en="Connected"/>
   <translation tag="Connected (%s)" en="Connected (%s)"/>
-  <translation tag="Connected (auto-sweep)" en="Connected (auto-sweep)"/>
   <translation tag="Connected (no discovery)" en="Connected (no discovery)"/>
   <translation tag="Connected (system-managed network)" en="Connected (system-managed network)"/>
   <translation tag="Connected Time" en="Connected Time"/>
@@ -1056,7 +1053,6 @@
   <translation tag="Framerate" en="Framerate"/>
   <translation tag="Frequency Delta" en="Frequency Delta"/>
   <translation tag="Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.&#10;&#10;Match: How close the two belts are, as a percentage of belt A&apos;s frequency. Above 95% is excellent; below 90% is worth adjusting." en="Frequency Delta: Difference between Path A and B. Anything under 2 Hz is below what this measurement can resolve, so it counts as matched.&#10;&#10;Match: How close the two belts are, as a percentage of belt A&apos;s frequency. Above 95% is excellent; below 90% is worth adjusting."/>
-  <translation tag="Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.&#10;&#10;Path Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension." en="Frequency Delta: Difference between Path A and B. Ideally under 5 Hz; over 15 Hz needs adjustment.&#10;&#10;Path Similarity: How closely the vibration profiles match. Above 90% is excellent; below 70% suggests uneven tension."/>
   <translation tag="From Buffer" en="From Buffer"/>
   <translation tag="From Version" en="From Version"/>
   <translation tag="Full" en="Full"/>
@@ -1445,12 +1441,9 @@
   <translation tag="Maximum toolhead speed (mm/s)" en="Maximum toolhead speed (mm/s)"/>
   <translation tag="Measure and compare belt path frequencies" en="Measure and compare belt path frequencies"/>
   <translation tag="Measure belt path frequencies" en="Measure belt path frequencies"/>
-  <translation tag="Measured" en="Measured"/>
   <translation tag="Measured (shaper off)" en="Measured (shaper off)"/>
   <translation tag="Measured filament diameter" en="Measured filament diameter"/>
   <translation tag="Measurement Failed" en="Measurement Failed"/>
-  <translation tag="Measuring Path A... %d%%" en="Measuring Path A... %d%%"/>
-  <translation tag="Measuring Path B... %d%%" en="Measuring Path B... %d%%"/>
   <translation tag="Measuring accelerometer noise..." en="Measuring accelerometer noise..."/>
   <translation tag="Measuring vibrations... {}%" en="Measuring vibrations... {}%"/>
   <translation tag="Median %.0f Hz" en="Median %.0f Hz"/>
@@ -1734,7 +1727,6 @@
   <translation tag="Password is required for secured networks" en="Password is required for secured networks"/>
   <translation tag="Path A" en="Path A"/>
   <translation tag="Path B" en="Path B"/>
-  <translation tag="Path Similarity" en="Path Similarity"/>
   <translation tag="Pause" en="Pause"/>
   <translation tag="Pause macro not configured" en="Pause macro not configured"/>
   <translation tag="Pause the print first, then load, unload, or change filament" en="Pause the print first, then load, unload, or change filament"/>
@@ -2373,7 +2365,6 @@
   <translation tag="Started" en="Started"/>
   <translation tag="Starting Print..." en="Starting Print..."/>
   <translation tag="Starting download..." en="Starting download..."/>
-  <translation tag="Starting measurement..." en="Starting measurement..."/>
   <translation tag="Starting nozzle clean..." en="Starting nozzle clean..."/>
   <translation tag="Starting print..." en="Starting print..."/>
   <translation tag="Starting..." en="Starting..."/>
