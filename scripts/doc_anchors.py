@@ -219,6 +219,18 @@ _CPP_DECL_KEYWORDS = {
 
 _CPP_STATEMENT_KEYWORDS = _CPP_ALL_KEYWORDS - _CPP_DECL_KEYWORDS
 
+_CPP_LEADING_TOKEN = re.compile(r"^\s*([A-Za-z_]\w*)\b")
+
+
+def _cpp_leading_keyword_blocks_definition(text):
+    """True if the line's first token is a keyword that cannot start a
+    definition - shared by every C++ scanner path so `case`/`return`/`friend`/
+    etc. are rejected identically everywhere, not by whichever structural
+    accident (a missing brace, an unmatched paren) each path happens to hit."""
+    m = _CPP_LEADING_TOKEN.match(text)
+    return bool(m and m.group(1) in _CPP_STATEMENT_KEYWORDS)
+
+
 _CPP_SCOPE = re.compile(
     r"^\s*(?:template\s*<[^>]*>\s*)?"
     r"(?:(?:class|struct|union|enum(?:\s+class)?)\s+(?:\w+\s+)?([A-Za-z_]\w*)"
@@ -238,13 +250,17 @@ _CPP_FUNC_QUALIFIER = re.compile(
     r"(?:\s*->\s*[\w:<>,*\s]+)?\s*"
 )
 # A single colon not part of a `::` scope operator opens a constructor's
-# member-initializer list, which is the only C++ construct with this shape
-# after a parameter list. Qualifiers (e.g. `noexcept`) may still precede it.
+# member-initializer list. `case EXPR():` has the same shape, but its leading
+# keyword is rejected by _cpp_leading_keyword_blocks_definition before this
+# ever runs, so by the time a candidate reaches here the colon can only be an
+# initializer list. Qualifiers (e.g. `noexcept`) may still precede it.
 _CPP_CTOR_INIT_COLON = re.compile(r"(?<!:):(?!:)")
 
 
 def _cpp_func_definition(text):
     """Name of the function whose body this line opens, or None."""
+    if _cpp_leading_keyword_blocks_definition(text):
+        return None
     blank = _blank_literals(text)
     for m in _CPP_FUNC_NAME.finditer(blank):
         start = m.start(1)
@@ -282,13 +298,12 @@ def _cpp_func_definition(text):
 # A declaration needs a type token before the name, separated by whitespace
 # or a pointer/reference sigil - otherwise `spdlog::info(...)` (a qualified
 # call, no type) and `counter_ = 0;` (an assignment, nothing before the name)
-# both read as a name being declared. The leading keyword check rejects any
-# line starting with a keyword outside _CPP_DECL_KEYWORDS the same way:
-# `return foo(bar);` and `friend class Foo;` both start with a keyword that
-# is not a declaration specifier.
+# both read as a name being declared. `_cpp_leading_keyword_blocks_definition`
+# rejects a line starting with a keyword outside _CPP_DECL_KEYWORDS the same
+# way: `return foo(bar);` and `friend class Foo;` both start with a keyword
+# that is not a declaration specifier.
 _CPP_DECL = re.compile(
-    r"^\s*(?!(?:" + "|".join(_CPP_STATEMENT_KEYWORDS) + r")\b)"
-    r"[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
+    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
 )
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
 
@@ -323,6 +338,8 @@ def _match_cpp_define(text):
 
 
 def _match_cpp_decl(text):
+    if _cpp_leading_keyword_blocks_definition(text):
+        return None
     m = _CPP_DECL.match(text)
     return m.group(1) if m else None
 

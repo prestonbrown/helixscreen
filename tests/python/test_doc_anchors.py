@@ -452,6 +452,41 @@ def test_cpp_func_prefix_rejects_a_call_argument_that_looks_like_a_name():
     assert names == []
 
 
+def test_cpp_func_rejects_case_label_with_call_expression():
+    lines = ["case foo(): {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # "case foo():" has the same shape as a constructor's empty
+    # initializer list ("Foo() : {"), but "case" is a statement keyword,
+    # not a name being defined.
+    assert names == []
+
+
+def test_cpp_func_rejects_case_label_with_identifier_expression():
+    lines = ["case kMax: {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == []
+
+
+def test_cpp_func_rejects_default_label():
+    lines = ["default: bar();", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == []
+
+
+def test_cpp_func_leading_keyword_gate_still_accepts_every_prior_shape():
+    for src, expected in (
+        ("void f() {", "f"),
+        ("static int g(int a) const {", "g"),
+        ("auto f() -> int {", "f"),
+        ("UsbManager::UsbManager(bool force_mock) : force_mock_(force_mock) {", "UsbManager"),
+        ("Foo::Foo() noexcept : a_(1) {", "Foo"),
+        ("Foo::Foo() : base::Thing(1) {", "Foo"),
+    ):
+        lines = [src, "}"]
+        names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+        assert names == [expected], src
+
+
 import subprocess
 
 from doc_anchors import resolve  # noqa: E402
