@@ -40,6 +40,13 @@ class Ad5xIfsTestAccess {
     static std::string normalize_module_color(const std::string& value) {
         return AmsBackendAd5xIfs::normalize_module_color_hex(value);
     }
+    // Deliver a printer.ifs status frame carrying the identity tool_map — the
+    // fixture every "wire contract detected" test starts from. Shape as the
+    // module serialises it: string tool keys, 1-based lanes.
+    static void deliver_identity_tool_map(AmsBackendAd5xIfs& b) {
+        handle_status(
+            b, json{{"ifs", json{{"tool_map", json{{"0", 1}, {"1", 2}, {"2", 3}, {"3", 4}}}}}});
+    }
     static void parse_vars(AmsBackendAd5xIfs& b, const json& v) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.parse_save_variables(v);

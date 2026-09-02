@@ -50,7 +50,7 @@ namespace printer {
  *
  * THE question generic code should ask. Both halves matter: a backend built to
  * remap but not yet ready answers false. Asking the strategy alone offers the
- * user a write that cannot land (AD5X IFS before `_IFS_VARS` discovery); asking
+ * user a write that cannot land (AD5X IFS before its tool-map discovery); asking
  * readiness alone says yes for every backend that never had a route.
  */
 [[nodiscard]] inline bool can_remap(const AmsBackend& backend) {

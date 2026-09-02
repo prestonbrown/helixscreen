@@ -74,14 +74,17 @@ TEST_CASE("ACE produces no topology", "[ams][topology]") {
     CHECK_FALSE(helix::build_ams_topology(&ace, 0).has_value());
 }
 
-TEST_CASE("AD5X IFS produces no topology until _IFS_VARS is discovered", "[ams][topology][ad5x]") {
-    // Without the macro get_tool_mapping() returns {}, so there is nothing to
-    // build from — and the 1:1 slot-count fallback must not paper over that,
-    // which it would if the gate asked any question but table ownership.
+TEST_CASE("AD5X IFS produces no topology until the wire tool_map is discovered",
+          "[ams][topology][ad5x]") {
+    // Without printer.ifs tool_map, get_tool_mapping() returns {}, so there is
+    // nothing to build from — and the 1:1 slot-count fallback must not paper
+    // over that, which it would if the gate asked any question but table
+    // ownership.
     Ad5xIfsProbe ad5x;
     CHECK_FALSE(helix::build_ams_topology(&ad5x, 0).has_value());
 
-    Ad5xIfsTestAccess::set_has_ifs_vars(ad5x, true);
+    // The module's echo shape: string tool keys, 1-based lanes.
+    Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
     CHECK(helix::build_ams_topology(&ad5x, 0).has_value());
 }
 
