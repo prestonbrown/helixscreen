@@ -960,7 +960,13 @@ MANIFEST_WITH_HASHES='{
     printf 'x' > "$TMP_DIR/hashme"
 
     # Absolute /bin/bash so the restricted PATH doesn't have to carry a shell.
-    run env PATH="$bin" /bin/bash -c "
+    #
+    # HELIX_TEST_REAL_SYSTEMCTL=1 keeps helpers.bash from installing its
+    # systemctl shim in here: the shim runs mkdir and chmod at source time, and
+    # this PATH deliberately carries neither, so it would write "command not
+    # found" onto stderr and `run` would fold that into $output. The assertion
+    # below is about what _sha256_file prints, so nothing else may print.
+    run env PATH="$bin" HELIX_TEST_REAL_SYSTEMCTL=1 /bin/bash -c "
         source tests/shell/helpers.bash
         unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
         source scripts/lib/installer/common.sh
