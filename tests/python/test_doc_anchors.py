@@ -396,6 +396,62 @@ def test_cpp_func_accepts_const_qualified_member_definition():
     assert names == ["g"]
 
 
+def test_cpp_func_accepts_trailing_return_type():
+    lines = ["auto f() -> int {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["f"]
+
+
+def test_cpp_func_accepts_ctor_with_single_member_initializer():
+    lines = ["UsbManager::UsbManager(bool force_mock) : force_mock_(force_mock) {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["UsbManager"]
+
+
+def test_cpp_func_accepts_ctor_with_multiple_member_initializers():
+    lines = [
+        "WiFiManager::WiFiManager() : scan_timer_(nullptr), scan_pending_(false) {",
+        "}",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["WiFiManager"]
+
+
+def test_cpp_func_accepts_ctor_with_short_member_initializer():
+    lines = ["Foo::Foo() : a_(1) {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["Foo"]
+
+
+def test_cpp_func_accepts_ctor_with_qualifier_before_initializer_list():
+    lines = ["Foo::Foo() noexcept : a_(1) {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["Foo"]
+
+
+def test_cpp_func_reject_shapes_still_reject_beside_ctor_support():
+    lines = ["helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == []
+
+    lines = ["lv_obj_add_event_cb(btn, [](lv_event_t* e) {"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == []
+
+    lines = ["std::sort(v.begin(), v.end(), [](int a, int b) {"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == []
+
+
+def test_cpp_func_prefix_rejects_a_call_argument_that_looks_like_a_name():
+    lines = ["foo(bar) baz() {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # "foo(bar)" is a call, not a definition. Its own parens land in the
+    # prefix before "baz": rejecting any paren there is what keeps "baz"
+    # from being picked up as if it were a name following a type.
+    assert names == []
+
+
 import subprocess
 
 from doc_anchors import resolve  # noqa: E402
@@ -440,3 +496,14 @@ def test_resolve_cli_exits_nonzero_on_ambiguity(tmp_path):
     )
     assert p.returncode != 0
     assert "matches lines" in (p.stdout + p.stderr)
+
+
+def test_resolve_cli_reports_missing_file_without_repeating_the_path(tmp_path):
+    p = subprocess.run(
+        [sys.executable, str(SCRIPT), "--resolve", "nope.cpp"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert p.returncode != 0
+    assert (p.stdout + p.stderr).count("nope.cpp") == 1

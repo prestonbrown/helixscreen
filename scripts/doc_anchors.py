@@ -237,6 +237,10 @@ _CPP_FUNC_QUALIFIER = re.compile(
     r"(?:\s*(?:const|noexcept|override|final|mutable|&&|&))*"
     r"(?:\s*->\s*[\w:<>,*\s]+)?\s*"
 )
+# A single colon not part of a `::` scope operator opens a constructor's
+# member-initializer list, which is the only C++ construct with this shape
+# after a parameter list. Qualifiers (e.g. `noexcept`) may still precede it.
+_CPP_CTOR_INIT_COLON = re.compile(r"(?<!:):(?!:)")
 
 
 def _cpp_func_definition(text):
@@ -261,8 +265,17 @@ def _cpp_func_definition(text):
         brace = blank.find("{", close + 1)
         if brace == -1:
             continue
-        if _CPP_FUNC_QUALIFIER.fullmatch(blank[close + 1 : brace]):
+        between = blank[close + 1 : brace]
+        if _CPP_FUNC_QUALIFIER.fullmatch(between):
             return m.group(1)
+        colon = _CPP_CTOR_INIT_COLON.search(between)
+        if colon:
+            qualifiers, init_list = between[: colon.start()], between[colon.end() :]
+            if (
+                _CPP_FUNC_QUALIFIER.fullmatch(qualifiers)
+                and init_list.count("(") == init_list.count(")")
+            ):
+                return m.group(1)
     return None
 
 
@@ -444,7 +457,10 @@ def main(argv=None):
         citation = parse_citation(args.resolve)
         try:
             line = resolve(args.resolve)
-        except (NotFound, Ambiguous, FileNotFoundError) as exc:
+        except FileNotFoundError:
+            print(f"{citation.path}: no such file", file=sys.stderr)
+            return 1
+        except (NotFound, Ambiguous) as exc:
             print(f"{citation.path}: {exc}", file=sys.stderr)
             return 1
         print(f"{citation.path}:{line}")
