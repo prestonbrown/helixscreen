@@ -1012,24 +1012,23 @@ endif
 #
 # HELIX_HAS_SOUND:   Pi, x86, AD5M family, native — any platform with audio output
 # HELIX_HAS_TRACKER: Pi, x86, native, ad5m — platforms cleared for tracker PCM
-# ad5m: tracker playback re-enabled (b8c141b4a) — the PWM PCM render loop is now
-#   SCHED_IDLE with absolute pacing, bounded catch-up, and silence auto-park, so
-#   it can no longer starve the CPU that runs a print. Originally disabled
-#   2026-04 (003c195ac) for exactly that starvation at normal priority.
-# ad5m-br/ad5x: tone-only — the SCHED_IDLE render loop has not been re-validated
-#   on their hardware, so tracker stays off there.
+# ad5m/ad5m-br/ad5x: tone-only. The SCHED_IDLE PCM render loop (b8c141b4a) is
+#   dormant on this hardware: supports_render_source() is false on the PWM
+#   backend because the piezo demodulates a duty-modulated carrier as static,
+#   so tracker playback falls to the set_voice note fallback on the sequencer
+#   thread instead - SCHED_OTHER, a 2 ms tick, and no print-state gating
+#   anywhere in the sound path. That is the starvation shape that disabled
+#   tracker in 2026-04 (003c195ac), so it stays off until the note-fallback
+#   path is measured against a running print on the hardware.
 # K1/K2/MIPS: no audio hardware at all
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=
 ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
-else ifeq ($(PLATFORM_TARGET),ad5m)
-    SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
-    TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
-else ifneq (,$(filter ad5m-br ad5x,$(PLATFORM_TARGET)))
-    # PWM buzzer for tone-mode SFX only — the printer-safe render loop behind
-    # the ad5m branch has not been re-validated on this hardware.
+else ifneq (,$(filter ad5m ad5m-br ad5x,$(PLATFORM_TARGET)))
+    # PWM buzzer for tone-mode SFX only. Auto-export still applies to
+    # ad5m/ad5m-br above; only tracker playback is withheld.
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
 else ifeq ($(PLATFORM_TARGET),native)
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
