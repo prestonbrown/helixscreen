@@ -354,3 +354,49 @@ def test_cpp_decl_rejects_other_non_declaration_keyword_leaders():
 def test_block_end_ignores_braces_inside_string_literal():
     lines = ["void g() {", '    return "opening only {";', "}"]
     assert block_end(lines, 0) == 3
+
+
+import subprocess
+
+from doc_anchors import resolve  # noqa: E402
+
+SCRIPT = REPO_ROOT / "scripts" / "doc_anchors.py"
+
+
+def test_resolve_returns_a_one_based_line(tmp_path):
+    (tmp_path / "a.cpp").write_text("// header\nvoid f() {\n}\n", encoding="utf-8")
+    assert resolve("a.cpp#f", repo_root=tmp_path) == 2
+
+
+def test_resolve_path_only_returns_line_one(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    assert resolve("a.cpp", repo_root=tmp_path) == 1
+
+
+def test_resolve_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        resolve("nope.cpp#f", repo_root=tmp_path)
+
+
+def test_resolve_cli_prints_path_and_line():
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT), "--resolve", "scripts/doc_anchors.py#resolve"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert out.startswith("scripts/doc_anchors.py:")
+    assert int(out.rsplit(":", 1)[1]) > 0
+
+
+def test_resolve_cli_exits_nonzero_on_ambiguity(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\nvoid f() {\n}\n", encoding="utf-8")
+    p = subprocess.run(
+        [sys.executable, str(SCRIPT), "--resolve", "a.cpp#f"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert p.returncode != 0
+    assert "matches lines" in (p.stdout + p.stderr)

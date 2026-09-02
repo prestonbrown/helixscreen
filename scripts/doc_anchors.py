@@ -15,7 +15,10 @@
 # scanner recognises as a definition. Resolution never guesses: a segment that
 # matches nothing, or more than one place, is an error naming the candidates.
 
+import argparse
+import os
 import re
+import sys
 from dataclasses import dataclass
 
 
@@ -369,3 +372,38 @@ def _defs_json(lines, region):
         if m:
             out.append((m.group(1), Region(i, _indented_block_end(lines, i, " " * (len(lines[i]) - len(lines[i].lstrip())) + " "))))
     return out
+
+
+def resolve(citation_text, repo_root="."):
+    """1-based line number for a citation, or raise."""
+    citation = parse_citation(citation_text)
+    full = os.path.join(str(repo_root), citation.path)
+    if not os.path.isfile(full):
+        raise FileNotFoundError(citation.path)
+    with open(full, encoding="utf-8", errors="replace") as fh:
+        lines = fh.read().split("\n")
+    ext = os.path.splitext(citation.path)[1]
+    region = resolve_segments(lines, citation.segments, ext)
+    return region.start + 1
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--resolve", metavar="CITATION",
+                        help="print path:line for one citation")
+    args = parser.parse_args(argv)
+    if args.resolve:
+        citation = parse_citation(args.resolve)
+        try:
+            line = resolve(args.resolve)
+        except (NotFound, Ambiguous, FileNotFoundError) as exc:
+            print(f"{citation.path}: {exc}", file=sys.stderr)
+            return 1
+        print(f"{citation.path}:{line}")
+        return 0
+    parser.print_help()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
