@@ -541,11 +541,21 @@ _load_install_platform_hooks() {
     local main_patched="$BATS_TEST_TMPDIR/main.sh"
     sed -e "/^trap /d" \
         "$WORKTREE_ROOT/scripts/lib/installer/main.sh" > "$main_patched"
-    unset _HELIX_MAIN_SOURCED _HELIX_SERVICE_SOURCED
+    unset _HELIX_MAIN_SOURCED _HELIX_SERVICE_SOURCED _HELIX_PLATFORM_SOURCED
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/service.sh"
+    # platform.sh holds resolve_platform_hook_key, which install_platform_hooks
+    # delegates the whole dispatch to (it lives there rather than in main.sh so
+    # scripts/device-profile.sh can ask the same question over ssh without
+    # sourcing the orchestrator and its traps). Sourced ahead of main.sh, which
+    # is the bundle's own module order.
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     # shellcheck disable=SC1090
     . "$main_patched"
+    # platform.sh defines the real log_* helpers' callers; restore helpers.bash's
+    # silent stubs so they cannot write into the assertions below.
+    load helpers
 }
 
 # Stage every hooks file the dispatch could pick into a sandbox payload tree,

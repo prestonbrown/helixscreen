@@ -1868,20 +1868,37 @@ pi32-asan-test: pi32-asan-docker deploy-pi32-asan-fg
 # Example: make deploy-ad5m AD5M_HOST=192.168.1.100
 # Note: AD5M uses BusyBox and only has scp (no rsync), so we use scp -O for compatibility
 #
-# Deploy directory is auto-detected:
-#   - KlipperMod: /root/printer_software/helixscreen (if /root/printer_software exists)
-#   - Forge-X/Stock: /opt/helixscreen
+# Deploy directory, firmware flavor and platform hooks all come from the
+# INSTALLER's own detection, asked of the device by scripts/device-profile.sh.
 # Override with AD5M_DEPLOY_DIR if needed.
+#
+# This used to be hand-rolled here, a two-branch `if [ -d ... ]` sitting next to
+# the installer's four-way detect_mod_flavor(), and the two copies drifted: no
+# zmod branch at all (so hooks-ad5m-zmod.sh was unreachable from a deploy), the
+# /opt/config/mod/.root test placed BEFORE /ZMOD (so a ZMOD rig got the Forge-X
+# hooks), and only /root/printer_software vs /opt/helixscreen for the directory
+# (so it missed both ZMOD's /srv/helixscreen and the Forge-X payload root).
+# See the header of scripts/device-profile.sh.
 AD5M_HOST ?= ad5m.local
 AD5M_USER ?= root
 
 # Build SSH target for AD5M
 AD5M_SSH_TARGET := $(AD5M_USER)@$(AD5M_HOST)
 
-# Auto-detect deploy directory (KlipperMod vs Forge-X/Stock)
-# Can be overridden: make deploy-ad5m AD5M_DEPLOY_DIR=/custom/path
-AD5M_DEPLOY_DIR ?= $(shell ssh -o ConnectTimeout=5 $(AD5M_SSH_TARGET) \
-	"if [ -d /root/printer_software ]; then echo /root/printer_software/helixscreen; else echo /opt/helixscreen; fi" 2>/dev/null || echo /opt/helixscreen)
+# Lazily memoized: the $(eval) rewrites this to a simply-expanded variable on
+# FIRST use, so the ssh happens once per make run instead of once per mention
+# (AD5M_DEPLOY_DIR alone appears ~20 times in the recipes below), and not at all
+# for targets that never reference it -- a plain `make -j` must never phone the
+# printer.
+AD5M_PROFILE = $(eval AD5M_PROFILE := $(shell scripts/device-profile.sh $(AD5M_SSH_TARGET) -o ConnectTimeout=5 2>/dev/null))$(AD5M_PROFILE)
+
+# Pull one KEY=VALUE answer out of a device profile. $(1)=key, $(2)=profile.
+device-profile-value = $(patsubst $(1)=%,%,$(filter $(1)=%,$(2)))
+
+AD5M_DEPLOY_DIR ?= $(or $(call device-profile-value,INSTALL_DIR,$(AD5M_PROFILE)),/opt/helixscreen)
+AD5M_HOOK_KEY = $(call device-profile-value,PLATFORM_HOOK_KEY,$(AD5M_PROFILE))
+AD5M_MOD_FLAVOR = $(call device-profile-value,MOD_FLAVOR,$(AD5M_PROFILE))
+AD5M_SERVICE_MECHANISM = $(call device-profile-value,SERVICE_MECHANISM,$(AD5M_PROFILE))
 
 # =============================================================================
 # AD5M Deployment Targets
@@ -1894,6 +1911,7 @@ deploy-ad5m:
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
+	@echo "$(DIM)  firmware=$(AD5M_MOD_FLAVOR) hooks=$(AD5M_HOOK_KEY) services=$(AD5M_SERVICE_MECHANISM)$(RESET)"
 	@# Generate pre-rendered images if missing
 	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
@@ -1939,24 +1957,25 @@ deploy-ad5m:
 		ssh $(AD5M_SSH_TARGET) "mkdir -p $(AD5M_DEPLOY_DIR)/certs"; \
 		cat build/ad5m/certs/ca-certificates.crt | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/certs/ca-certificates.crt"; \
 	fi
-	@# AD5M-specific: Deploy platform hooks (auto-detect firmware variant)
+	@# AD5M-specific: Deploy platform hooks. The key is whatever the installer's
+	@# own resolve_platform_hook_key() chose for this rig (via AD5M_PROFILE), so
+	@# a ZMOD box gets hooks-ad5m-zmod.sh and a Forge-X box hooks-ad5m-forgex.sh
+	@# without this makefile knowing one firmware from another.
 	@echo "$(DIM)Deploying platform hooks...$(RESET)"
-	@ssh $(AD5M_SSH_TARGET) '\
-		mkdir -p $(AD5M_DEPLOY_DIR)/platform; \
-		if [ -d /mnt/data/.klipper_mod ]; then \
-			HOOK="$(AD5M_DEPLOY_DIR)/assets/config/platform/hooks-ad5m-kmod.sh"; \
-		elif [ -d /opt/config/mod/.root ]; then \
-			HOOK="$(AD5M_DEPLOY_DIR)/assets/config/platform/hooks-ad5m-forgex.sh"; \
-		else \
-			HOOK=""; \
-		fi; \
-		if [ -n "$$HOOK" ] && [ -f "$$HOOK" ]; then \
-			cp "$$HOOK" "$(AD5M_DEPLOY_DIR)/platform/hooks.sh"; \
-			chmod +x "$(AD5M_DEPLOY_DIR)/platform/hooks.sh"; \
-			echo "Platform hooks deployed: $$HOOK"; \
-		else \
-			echo "No platform hooks to deploy"; \
-		fi'
+	@if [ -z "$(AD5M_HOOK_KEY)" ]; then \
+		echo "No platform hooks to deploy (device profile named no hook)"; \
+	else \
+		ssh $(AD5M_SSH_TARGET) '\
+			mkdir -p $(AD5M_DEPLOY_DIR)/platform; \
+			HOOK="$(AD5M_DEPLOY_DIR)/assets/config/platform/hooks-$(AD5M_HOOK_KEY).sh"; \
+			if [ -f "$$HOOK" ]; then \
+				cp "$$HOOK" "$(AD5M_DEPLOY_DIR)/platform/hooks.sh"; \
+				chmod +x "$(AD5M_DEPLOY_DIR)/platform/hooks.sh"; \
+				echo "Platform hooks deployed: $$HOOK"; \
+			else \
+				echo "Platform hook missing on device: $$HOOK"; \
+			fi'; \
+	fi
 	@# AD5M-specific: Update init script in /etc/init.d/ if it differs
 	@echo "$(DIM)Checking init script...$(RESET)"
 	@ssh $(AD5M_SSH_TARGET) '\

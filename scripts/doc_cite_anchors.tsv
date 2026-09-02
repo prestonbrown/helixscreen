@@ -138,7 +138,7 @@ docs/devel/QIDI_BOX_HEATER.md	src/printer/ams_backend_qidi.cpp	1152	src/printer/
 docs/devel/RELEASE_1_0_CHECKLIST.md	config.cpp	464	src/system/config.cpp	cabfaf4f0103	d4775e93e3b4
 docs/devel/RELEASE_1_0_CHECKLIST.md	scripts/generate-manifest.sh	36	scripts/generate-manifest.sh	b672608bdf3d	588242abc9c0
 docs/devel/RELEASE_1_0_CHECKLIST.md	src/system/config.cpp	367	src/system/config.cpp	df2a08e2a04e	41a74879bccd
-docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2489	mk/cross.mk	e4f16f861f61	4c3084a9242a
+docs/devel/RELEASE_PROCESS.md	mk/cross.mk	2508	mk/cross.mk	e4f16f861f61	4c3084a9242a
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/ams_subscription_backend.h	111	include/ams_subscription_backend.h	3f9b832313a2	57284619e5b5
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_api.h	176	include/i_moonraker_api.h	c454282fb554	63661987b10e
 docs/devel/RPC_ERROR_OWNERSHIP.md	include/i_moonraker_api.h	190	include/i_moonraker_api.h	6003065bf5c4	8db77f9c2826

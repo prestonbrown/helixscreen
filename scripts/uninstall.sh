@@ -1923,6 +1923,56 @@ set_install_paths() {
     detect_tmp_dir
 }
 
+# Decide which platform-hook file a host needs, without installing anything.
+#
+# Split out of install_platform_hooks so this rule has exactly one
+# implementation. The installer deploys the answer; the dev-deploy path asks
+# for it over ssh (scripts/device-profile.sh, consumed by mk/cross.mk's
+# deploy-ad5m). The makefile used to hand-roll its own copy, and the copies
+# drifted: it had no zmod branch at all -- so hooks-ad5m-zmod.sh was
+# unreachable from a deploy -- and it tested /opt/config/mod/.root before
+# /ZMOD, the reverse of detect_mod_flavor's order, so a ZMOD rig carrying both
+# markers silently received the Forge-X hooks.
+#
+# $1 = platform (detect_platform's answer). Echoes the hook key, or nothing
+# when the platform ships no hooks.
+resolve_platform_hook_key() {
+    local platform="$1"
+    local platform_hook=""
+    case "${AD5M_FIRMWARE:-}" in
+        forge_x)     platform_hook="ad5m-forgex" ;;
+        klipper_mod) platform_hook="ad5m-kmod" ;;
+        zmod)        platform_hook="ad5m-zmod" ;;
+    esac
+
+    # Platform hooks (pi32 shares Pi hooks). The AD5X used to share ad5m-zmod on
+    # the assumption that both ZMOD firmwares have the same layout; they do not.
+    # The AD5X runs inside a chroot at /usr/data/.mod/.zmod, installs to
+    # /srv/helixscreen, and has no /data at all, so the AD5M hook's
+    # HELIX_CACHE_DIR=/data/helixscreen/cache pointed at a path that is not there.
+    case "$platform" in
+        pi|pi32)       platform_hook="pi" ;;
+        k1)            platform_hook="k1" ;;
+        k2)            platform_hook="k2" ;;
+        cc1)           platform_hook="cc1" ;;
+        m1)            platform_hook="m1" ;;
+        ad5x)          platform_hook="ad5x" ;;
+        snapmaker-u1)  platform_hook="snapmaker-u1" ;;
+    esac
+
+    # A probed mod host outranks both dispatches above. HOST_PLATFORM_HOOK_KEY
+    # is set only when the mod's own tree layout was found, and names the
+    # payload layout that rig actually runs. Without this a Forge-X AD5X
+    # reports platform=ad5x AND flavor=forge_x — the flavor case picks
+    # ad5m-forgex, the platform case overrides to ad5x (the Z-Mod hook) — and
+    # neither dispatch knows the forge-x payload layout exists.
+    if [ -n "${HOST_PLATFORM_HOOK_KEY:-}" ]; then
+        platform_hook="$HOST_PLATFORM_HOOK_KEY"
+    fi
+
+    echo "$platform_hook"
+}
+
 # User-editable config files that live in printer_data/config/helixscreen/.
 # These are the files users may want to edit from Fluidd/Mainsail, and that
 # the app writes to at runtime. All other files in INSTALL_DIR/config/ are

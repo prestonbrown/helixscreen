@@ -443,37 +443,8 @@ configure_platform() {
 # Deploy platform-specific hooks for the init script
 # Must be called after extract_release (hooks are in the release package)
 install_platform_hooks() {
-    local platform_hook=""
-    case "${AD5M_FIRMWARE:-}" in
-        forge_x)     platform_hook="ad5m-forgex" ;;
-        klipper_mod) platform_hook="ad5m-kmod" ;;
-        zmod)        platform_hook="ad5m-zmod" ;;
-    esac
-
-    # Platform hooks (pi32 shares Pi hooks). The AD5X used to share ad5m-zmod on
-    # the assumption that both ZMOD firmwares have the same layout; they do not.
-    # The AD5X runs inside a chroot at /usr/data/.mod/.zmod, installs to
-    # /srv/helixscreen, and has no /data at all, so the AD5M hook's
-    # HELIX_CACHE_DIR=/data/helixscreen/cache pointed at a path that is not there.
-    case "$platform" in
-        pi|pi32)       platform_hook="pi" ;;
-        k1)            platform_hook="k1" ;;
-        k2)            platform_hook="k2" ;;
-        cc1)           platform_hook="cc1" ;;
-        m1)            platform_hook="m1" ;;
-        ad5x)          platform_hook="ad5x" ;;
-        snapmaker-u1)  platform_hook="snapmaker-u1" ;;
-    esac
-
-    # A probed mod host outranks both dispatches above. HOST_PLATFORM_HOOK_KEY
-    # is set only when the mod's own tree layout was found, and names the
-    # payload layout that rig actually runs. Without this a Forge-X AD5X
-    # reports platform=ad5x AND flavor=forge_x — the flavor case picks
-    # ad5m-forgex, the platform case overrides to ad5x (the Z-Mod hook) — and
-    # neither dispatch knows the forge-x payload layout exists.
-    if [ -n "${HOST_PLATFORM_HOOK_KEY:-}" ]; then
-        platform_hook="$HOST_PLATFORM_HOOK_KEY"
-    fi
+    local platform_hook
+    platform_hook=$(resolve_platform_hook_key "$platform")
 
     if [ -n "$platform_hook" ]; then
         deploy_platform_hooks "$INSTALL_DIR" "$platform_hook"
