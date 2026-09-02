@@ -784,3 +784,60 @@ def test_render_does_not_touch_fenced_examples(tmp_path):
     out = tmp_path / "pinned"
     render([doc], out, repo_root=tmp_path)
     assert "`a.cpp#f`" in (out / "d.md").read_text(encoding="utf-8")
+
+
+import re  # noqa: E402
+
+
+def test_render_link_resolves_for_a_repo_root_relative_citation(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    (src_dir / "a.cpp").write_text("// header\nvoid f() {\n}\n", encoding="utf-8")
+    doc_dir = tmp_path / "docs" / "devel"
+    doc_dir.mkdir(parents=True)
+    doc = doc_dir / "d.md"
+    doc.write_text("see `src/a.cpp#f`\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    dest = out / "docs" / "devel" / "d.md"
+    m = re.search(r"\]\(([^)]+)#L2\)", dest.read_text(encoding="utf-8"))
+    assert m
+    assert os.path.isfile(os.path.join(os.path.dirname(dest), m.group(1)))
+
+
+def test_render_link_resolves_for_a_doc_relative_citation(tmp_path):
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "sibling.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = docs_dir / "d.md"
+    doc.write_text("see `sibling.cpp#f`\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    dest = out / "docs" / "d.md"
+    m = re.search(r"\]\(([^)]+)#L1\)", dest.read_text(encoding="utf-8"))
+    assert m
+    assert os.path.isfile(os.path.join(os.path.dirname(dest), m.group(1)))
+
+
+def test_render_link_text_uses_the_citations_own_path_unchanged(tmp_path):
+    (tmp_path / "a.cpp").write_text("// header\nvoid f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#f`\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    text = (out / "d.md").read_text(encoding="utf-8")
+    assert "[`a.cpp:2`](" in text
+
+
+def test_render_skips_a_doc_whose_pinned_path_would_escape_out_dir(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    outside_doc = tmp_path / "outside" / "d.md"
+    outside_doc.parent.mkdir()
+    outside_doc.write_text("no citations here\n", encoding="utf-8")
+    out = repo_root / "pinned"
+    problems = []
+    written = render([outside_doc], out, repo_root=repo_root, problems=problems)
+    assert written == 0
+    assert problems
+    assert not (repo_root / "outside").exists()

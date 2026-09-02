@@ -498,13 +498,14 @@ def _locate(path, repo_root, relative_to):
     return None
 
 
-def resolve(citation_text, repo_root=".", relative_to=None):
-    """1-based line number for a citation, or raise.
+def locate(citation_text, repo_root=".", relative_to=None):
+    """(on-disk path, 1-based line number) for a citation, or raise.
 
-    `relative_to` is the directory a doc-relative path (as opposed to a
-    repo-root-relative one) is resolved against - typically the directory of
-    the document that wrote the citation. Omitted, only repo-root-relative
-    paths resolve.
+    Same resolution rules as `resolve` - `relative_to` is the directory a
+    doc-relative path is resolved against, typically the directory of the
+    document that wrote the citation. `resolve` is this minus the path: a
+    consumer that needs to point AT the resolved file, such as a rendered
+    link, needs the path too.
     """
     citation = parse_citation(citation_text)
     full = _locate(citation.path, repo_root, relative_to)
@@ -514,7 +515,19 @@ def resolve(citation_text, repo_root=".", relative_to=None):
         lines = fh.read().split("\n")
     ext = os.path.splitext(citation.path)[1]
     region = resolve_segments(lines, citation.segments, ext)
-    return region.start + 1
+    return full, region.start + 1
+
+
+def resolve(citation_text, repo_root=".", relative_to=None):
+    """1-based line number for a citation, or raise.
+
+    `relative_to` is the directory a doc-relative path (as opposed to a
+    repo-root-relative one) is resolved against - typically the directory of
+    the document that wrote the citation. Omitted, only repo-root-relative
+    paths resolve.
+    """
+    _, line = locate(citation_text, repo_root=repo_root, relative_to=relative_to)
+    return line
 
 
 # A backticked citation, optionally with a `#fragment`. The one definition of
@@ -602,8 +615,17 @@ def render(paths, out_dir, repo_root=".", problems=None):
     or a read error kept `iter_citations` from fully scanning is still
     rendered from what it did find - pass a list as `problems` to learn
     which document that happened to and why, instead of it passing silently.
+
+    The pinned tree holds copies of the docs only, not the source they cite,
+    so a link points at the cited file where it actually lives in the
+    working tree rather than at a path inside the pinned tree that was never
+    written. A doc whose own pinned destination would fall outside `out_dir`
+    (for instance, one given by a path outside `repo_root`) is skipped
+    rather than written somewhere a caller did not ask for; that skip is
+    recorded in `problems` too.
     """
     out_dir = str(out_dir)
+    out_root = os.path.abspath(out_dir)
     pinned_lines = {}
     for doc, lineno, _ in iter_citations(paths, problems=problems):
         pinned_lines.setdefault(doc, set()).add(lineno)
@@ -616,22 +638,32 @@ def render(paths, out_dir, repo_root=".", problems=None):
                 text = fh.read()
         except OSError:
             continue
+        dest = os.path.join(out_dir, os.path.relpath(doc, str(repo_root)))
+        if os.path.commonpath([out_root, os.path.abspath(dest)]) != out_root:
+            if problems is not None:
+                problems.append(f"{doc}: pinned path falls outside {out_dir}, skipped")
+            continue
+        dest_dir = os.path.dirname(dest) or "."
         lines = text.split("\n")
         to_pin = pinned_lines.get(doc, ())
         rendered = [
-            _pin_line(line, repo_root, os.path.dirname(doc)) if i in to_pin else line
+            _pin_line(line, repo_root, os.path.dirname(doc), dest_dir) if i in to_pin else line
             for i, line in enumerate(lines, start=1)
         ]
-        dest = os.path.join(out_dir, os.path.relpath(doc, str(repo_root)))
-        os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
+        os.makedirs(dest_dir, exist_ok=True)
         with open(dest, "w", encoding="utf-8") as fh:
             fh.write("\n".join(rendered))
         written += 1
     return written
 
 
-def _pin_line(line, repo_root, relative_to):
-    """Expand every citation on a line already known to be outside a fence."""
+def _pin_line(line, repo_root, relative_to, dest_dir):
+    """Expand every citation on a line already known to be outside a fence.
+
+    The link's href is a relpath from `dest_dir` (where the pinned copy of
+    this doc lives) to the citation's resolved file in the real working
+    tree - not a path inside the pinned tree, which holds no source at all.
+    """
 
     def replace(m):
         text = m.group(1)
@@ -639,10 +671,11 @@ def _pin_line(line, repo_root, relative_to):
             return m.group(0)
         citation = parse_citation(text)
         try:
-            lineno = resolve(text, repo_root=repo_root, relative_to=relative_to)
+            full, lineno = locate(text, repo_root=repo_root, relative_to=relative_to)
         except (NotFound, Ambiguous, FileNotFoundError, ValueError):
             return m.group(0)
-        return f"[`{citation.path}:{lineno}`]({citation.path}#L{lineno})"
+        href = os.path.relpath(full, dest_dir)
+        return f"[`{citation.path}:{lineno}`]({href}#L{lineno})"
 
     return CITE_RE.sub(replace, line)
 
