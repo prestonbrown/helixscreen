@@ -591,6 +591,62 @@ def check(paths, repo_root="."):
     return findings
 
 
+def render(paths, out_dir, repo_root=".", problems=None):
+    """Write a copy of each doc with citations expanded to `path:line` links.
+
+    The pinned copy is the one to read in a terminal or publish; its line
+    numbers are generated on demand, never committed, so moved code cannot
+    make them stale in git. Citation discovery reuses `iter_citations`, so a
+    citation inside a fenced example is left as literal text exactly as
+    `check` leaves it out of its findings. A document a fenced-code problem
+    or a read error kept `iter_citations` from fully scanning is still
+    rendered from what it did find - pass a list as `problems` to learn
+    which document that happened to and why, instead of it passing silently.
+    """
+    out_dir = str(out_dir)
+    pinned_lines = {}
+    for doc, lineno, _ in iter_citations(paths, problems=problems):
+        pinned_lines.setdefault(doc, set()).add(lineno)
+
+    written = 0
+    for path in paths:
+        doc = str(path)
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+        except OSError:
+            continue
+        lines = text.split("\n")
+        to_pin = pinned_lines.get(doc, ())
+        rendered = [
+            _pin_line(line, repo_root, os.path.dirname(doc)) if i in to_pin else line
+            for i, line in enumerate(lines, start=1)
+        ]
+        dest = os.path.join(out_dir, os.path.relpath(doc, str(repo_root)))
+        os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
+        with open(dest, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(rendered))
+        written += 1
+    return written
+
+
+def _pin_line(line, repo_root, relative_to):
+    """Expand every citation on a line already known to be outside a fence."""
+
+    def replace(m):
+        text = m.group(1)
+        if "#" not in text:
+            return m.group(0)
+        citation = parse_citation(text)
+        try:
+            lineno = resolve(text, repo_root=repo_root, relative_to=relative_to)
+        except (NotFound, Ambiguous, FileNotFoundError, ValueError):
+            return m.group(0)
+        return f"[`{citation.path}:{lineno}`]({citation.path}#L{lineno})"
+
+    return CITE_RE.sub(replace, line)
+
+
 def _default_doc_targets():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import check_doc_refs as refs
@@ -608,6 +664,8 @@ def main(argv=None):
                         help="print path:line for one citation")
     parser.add_argument("--check", nargs="*", metavar="PATH",
                         help="report unresolvable citations (advisory, always exit 0)")
+    parser.add_argument("--render", metavar="OUT_DIR",
+                        help="render docs with citations expanded to real line numbers")
     args = parser.parse_args(argv)
     if args.resolve:
         citation = parse_citation(args.resolve)
@@ -637,6 +695,13 @@ def main(argv=None):
         n = len(findings)
         print("✅ Citation anchors: all resolve" if not n
               else f"⚠️  Citation anchors: {n} finding(s), advisory")
+        return 0
+    if args.render is not None:
+        problems = []
+        written = render(_default_doc_targets(), args.render, problems=problems)
+        for p in problems:
+            print(p)
+        print(f"✓ rendered {written} doc(s) into {args.render}")
         return 0
     parser.print_help()
     return 0

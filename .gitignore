@@ -6,6 +6,10 @@ lib/sdl2/build/
 *.o
 *.a
 
+# Pinned doc citations (make docs-pinned) — already under build/, named
+# explicitly since its line numbers must never be committed.
+build/docs-pinned/
+
 # ============================================================================
 # Dependencies
 # ============================================================================

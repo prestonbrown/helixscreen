@@ -752,3 +752,35 @@ def test_resolve_without_relative_to_does_not_widen_to_doc_relative_paths(tmp_pa
     (docs_dir / "sibling.cpp").write_text("void f() {\n}\n", encoding="utf-8")
     with pytest.raises(FileNotFoundError):
         resolve("sibling.cpp#f", repo_root=tmp_path)
+
+
+from doc_anchors import render  # noqa: E402
+
+
+def test_render_expands_citations_to_path_and_line(tmp_path):
+    (tmp_path / "a.cpp").write_text("// header\nvoid f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#f` for details\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    assert render([doc], out, repo_root=tmp_path) == 1
+    text = (out / "d.md").read_text(encoding="utf-8")
+    assert "`a.cpp:2`" in text
+    assert "#L2" in text
+
+
+def test_render_leaves_an_unresolvable_citation_alone(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#nope`\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    assert "`a.cpp#nope`" in (out / "d.md").read_text(encoding="utf-8")
+
+
+def test_render_does_not_touch_fenced_examples(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("```\n`a.cpp#f`\n```\n", encoding="utf-8")
+    out = tmp_path / "pinned"
+    render([doc], out, repo_root=tmp_path)
+    assert "`a.cpp#f`" in (out / "d.md").read_text(encoding="utf-8")
