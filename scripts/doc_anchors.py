@@ -465,10 +465,66 @@ def resolve(citation_text, repo_root="."):
     return region.start + 1
 
 
+# A backticked citation, optionally with a `#fragment`. The one definition of
+# what a citation looks like — check_doc_refs.py's PATH_RE matches the same
+# shape and is meant to derive from this rather than keep its own copy.
+CITE_RE = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+(?:#[^`]+)?)`")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+
+
+def iter_citations(paths):
+    """(doc, doc_line, citation_text) for every citation outside a fence.
+
+    A fenced code block is where a doc shows citation syntax rather than
+    making a claim about the tree, so citations inside one are skipped.
+    """
+    out = []
+    for path in paths:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            in_fence = False
+            for lineno, line in enumerate(fh, start=1):
+                if _FENCE_RE.match(line):
+                    in_fence = not in_fence
+                    continue
+                if in_fence:
+                    continue
+                for m in CITE_RE.finditer(line):
+                    out.append((str(path), lineno, m.group(1)))
+    return out
+
+
+def check(paths, repo_root="."):
+    """Advisory findings: unresolvable or ambiguous citations."""
+    findings = []
+    for doc, lineno, text in iter_citations(paths):
+        if "#" not in text:
+            continue
+        try:
+            resolve(text, repo_root=repo_root)
+        except FileNotFoundError:
+            findings.append(f"{doc}:{lineno}: no such file: {text}")
+        except (NotFound, Ambiguous) as exc:
+            findings.append(f"{doc}:{lineno}: {text}: {exc}")
+    return findings
+
+
+def _default_doc_targets():
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import check_doc_refs as refs
+    seen, out = set(), []
+    for t in list(refs.scan_targets()) + list(refs.scan_devel_targets(["docs/devel"])):
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolve", metavar="CITATION",
                         help="print path:line for one citation")
+    parser.add_argument("--check", nargs="*", metavar="PATH",
+                        help="report unresolvable citations (advisory, always exit 0)")
     args = parser.parse_args(argv)
     if args.resolve:
         citation = parse_citation(args.resolve)
@@ -481,6 +537,15 @@ def main(argv=None):
             print(f"{citation.path}: {exc}", file=sys.stderr)
             return 1
         print(f"{citation.path}:{line}")
+        return 0
+    if args.check is not None:
+        paths = args.check or _default_doc_targets()
+        findings = check(paths)
+        for f in findings:
+            print(f)
+        n = len(findings)
+        print("✅ Citation anchors: all resolve" if not n
+              else f"⚠️  Citation anchors: {n} finding(s), advisory")
         return 0
     parser.print_help()
     return 0

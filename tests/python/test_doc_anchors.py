@@ -542,3 +542,56 @@ def test_resolve_cli_reports_missing_file_without_repeating_the_path(tmp_path):
     )
     assert p.returncode != 0
     assert (p.stdout + p.stderr).count("nope.cpp") == 1
+
+
+from doc_anchors import check, iter_citations  # noqa: E402
+
+
+def test_iter_citations_skips_fenced_code_blocks(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text(
+        "prose `src/a.cpp#f` here\n"
+        "```\n"
+        "`src/b.cpp#g`\n"
+        "```\n"
+        "and `src/c.cpp#h`\n",
+        encoding="utf-8",
+    )
+    found = [c for _, _, c in iter_citations([doc])]
+    assert found == ["src/a.cpp#f", "src/c.cpp#h"]
+
+
+def test_check_reports_a_missing_name(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#nope`\n", encoding="utf-8")
+    findings = check([doc], repo_root=tmp_path)
+    assert len(findings) == 1
+    assert "nope" in findings[0]
+
+
+def test_check_reports_ambiguity(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\nvoid f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#f`\n", encoding="utf-8")
+    findings = check([doc], repo_root=tmp_path)
+    assert len(findings) == 1
+    assert "matches lines" in findings[0]
+
+
+def test_check_is_silent_when_everything_resolves(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#f`\n", encoding="utf-8")
+    assert check([doc], repo_root=tmp_path) == []
+
+
+def test_check_cli_exits_zero_even_with_findings(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    (tmp_path / "d.md").write_text("see `a.cpp#nope`\n", encoding="utf-8")
+    p = subprocess.run(
+        [sys.executable, str(SCRIPT), "--check", "d.md"],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert p.returncode == 0
+    assert "nope" in p.stdout
