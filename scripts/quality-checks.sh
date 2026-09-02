@@ -1920,6 +1920,33 @@ fi
 
 echo ""
 
+SECTION_START=$(date +%s)
+echo -n "🔧 Checking target-specific flag rules use override..."
+
+# test-asan/test-tsan re-invoke make with CXXFLAGS on the command line, and a
+# command-line variable discards makefile assignments to it unless they say
+# override. A rule missing the keyword builds its object without the flag, with
+# no diagnostic and with the rule still visibly present in the makefile.
+if [ -f "scripts/check_target_specific_override.py" ]; then
+  if python3 scripts/check_target_specific_override.py >/tmp/tgt_override.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ every target-specific flag rule uses override"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/tgt_override.out
+    echo "   Run: python3 scripts/check_target_specific_override.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_target_specific_override.py not found — skipping"
+fi
+
+echo ""
+
 SECTION_START=$(start_section)
 echo -n "🔄 Checking touch-range rotation source..."
 

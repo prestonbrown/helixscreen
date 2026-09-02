@@ -1153,9 +1153,11 @@ TEST_TSAN_BIN := $(BIN_DIR)/helix-tests-tsan
 # whole link even when the surrounding invocation zeroes them for a device
 # target. Target-specific CXXFLAGS inherit to every prerequisite object and a
 # later -D wins, so `make test HELIX_HAS_SNAPMAKER=0` still compiles.
-# test-asan/test-tsan re-invoke make with TEST_BIN=<their binary>; the override
-# makes this line attach to those targets in the recursive invocation.
-$(TEST_BIN): CXXFLAGS += -DHELIX_HAS_ACE=1 -DHELIX_HAS_QIDI=1 -DHELIX_HAS_SNAPMAKER=1
+# test-asan/test-tsan re-invoke make with TEST_BIN=<their binary>, so this line
+# attaches to those targets too. `override` is what makes it survive there: the
+# same invocation passes CXXFLAGS on the command line, and a command-line
+# variable discards every makefile assignment to it without the keyword.
+$(TEST_BIN): override CXXFLAGS += -DHELIX_HAS_ACE=1 -DHELIX_HAS_QIDI=1 -DHELIX_HAS_SNAPMAKER=1
 
 # Build and run tests with AddressSanitizer
 test-asan:
