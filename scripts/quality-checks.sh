@@ -1920,6 +1920,33 @@ fi
 
 echo ""
 
+SECTION_START=$(start_section)
+echo -n "🔄 Checking touch-range rotation source..."
+
+# The gate lives in create_input_pointer(), which needs a real fbdev/DRM device
+# and cannot run headless - mutation testing confirmed no test kills a revert to
+# the config key. A backend reading /display/rotate instead of the applied
+# rotation leaves #1394 live on any unit rotated via CLI/env.
+if [ -f "scripts/check_touch_rotation_source.py" ]; then
+  if python3 scripts/check_touch_rotation_source.py >/tmp/touch_rotation.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ display backends gate the stored touch range on the applied rotation"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/touch_rotation.out
+    echo "   Run: python3 scripts/check_touch_rotation_source.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_touch_rotation_source.py not found — skipping"
+fi
+
+echo ""
+
 SECTION_START=$(date +%s)
 echo -n "🖼️  Checking guarded ThumbnailCache access..."
 

@@ -426,16 +426,18 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         // (prestonbrown/helixscreen#1394). The range stage post-dates the
         // rotation-blind solver by days, so any stored range on a rotated
         // display is from the broken window: ignore it and ride the
-        // affine-only path. Rotation is read from config because the display
-        // is not rotated yet at backend init.
-        const int configured_rotation =
-            helix::Config::get_instance()
-                ? helix::Config::get_instance()->get<int>("/display/rotate", 0)
-                : 0;
-        if (configured_rotation != 0) {
+        // affine-only path. Asked of the display, not of `/display/rotate`,
+        // and via the same helper the calibration solver gates on - the key
+        // is only the request, and it differs from the applied rotation both
+        // ways (CLI/env rotation with no key; a failed DRM->fbdev rotation
+        // fallback leaving the key set on an unrotated display). This runs
+        // from create_input_pointer(), which DisplayManager calls after it
+        // applies rotation, so the display is already at its final rotation.
+        const int applied_rotation = display_rotation_degrees();
+        if (applied_rotation != 0) {
             spdlog::warn("[Fbdev Backend] Ignoring stored touch range on a {}°-rotated display"
                          " - solved through the rotation, affine-only path applies",
-                         configured_rotation);
+                         applied_rotation);
         } else {
             if (!env_swap_override) {
                 lv_evdev_set_swap_axes(touch_, stored_range.swap_axes);
