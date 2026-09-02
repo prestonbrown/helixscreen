@@ -2435,6 +2435,7 @@ translations:
   Summary: 摘要
   Support, documentation, and version info: 支持、文档和版本信息
   Suppress periodic 'T:.../B:...' status lines: 抑制周期性 'T:.../B:...' 状态行
+  Suppress periodic temperature status lines: 抑制周期性温度状态行
   Suppress raw debug output from printer firmware modules: 抑制打印机固件模块的原始调试输出
   Surfaces inherit app background tokens for light and dark modes.: 表面继承应用背景色用于浅色和深色模式。
   Switch Printer: 切换打印机

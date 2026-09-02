@@ -2382,6 +2382,7 @@
   <translation tag="Summary" en="Summary"/>
   <translation tag="Support, documentation, and version info" en="Support, documentation, and version info"/>
   <translation tag="Suppress periodic &apos;T:.../B:...&apos; status lines" en="Suppress periodic &apos;T:.../B:...&apos; status lines"/>
+  <translation tag="Suppress periodic temperature status lines" en="Suppress periodic temperature status lines"/>
   <translation tag="Suppress raw debug output from printer firmware modules" en="Suppress raw debug output from printer firmware modules"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." en="Surfaces inherit app background tokens for light and dark modes."/>
   <translation tag="Switch Printer" en="Switch Printer"/>

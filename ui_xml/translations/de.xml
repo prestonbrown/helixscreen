@@ -2382,6 +2382,7 @@
   <translation tag="Summary" de="Zusammenfassung"/>
   <translation tag="Support, documentation, and version info" de="Support, Dokumentation und Versionsinfo"/>
   <translation tag="Suppress periodic &apos;T:.../B:...&apos; status lines" de="Periodische &apos;T:.../B:...&apos;-Statuszeilen unterdrücken"/>
+  <translation tag="Suppress periodic temperature status lines" de="Periodische Temperatur-Statuszeilen unterdrücken"/>
   <translation tag="Suppress raw debug output from printer firmware modules" de="Rohe Debug-Ausgaben von Drucker-Firmware-Modulen unterdrücken"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." de="Oberflächen erben App-Hintergrund-Tokens für Hell- und Dunkelmodus."/>
   <translation tag="Switch Printer" de="Drucker wechseln"/>

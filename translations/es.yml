@@ -2664,6 +2664,7 @@ translations:
     versión
   Suppress periodic 'T:.../B:...' status lines: Suprimir líneas de estado periódicas
     'T:.../B:...'
+  Suppress periodic temperature status lines: Suprimir líneas de estado periódicas de temperatura
   Suppress raw debug output from printer firmware modules: Suprimir salida de depuración
     de módulos del firmware de la impresora
   Surfaces inherit app background tokens for light and dark modes.: Las superficies

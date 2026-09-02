@@ -2382,6 +2382,7 @@
   <translation tag="Summary" ja="概要"/>
   <translation tag="Support, documentation, and version info" ja="サポート、ドキュメント、バージョン情報"/>
   <translation tag="Suppress periodic &apos;T:.../B:...&apos; status lines" ja="定期的な &apos;T:.../B:...&apos; ステータス行を抑制"/>
+  <translation tag="Suppress periodic temperature status lines" ja="定期的な温度ステータス行を抑制"/>
   <translation tag="Suppress raw debug output from printer firmware modules" ja="プリンターファームウェアモジュールからの生のデバッグ出力を抑制"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ja="サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。"/>
   <translation tag="Switch Printer" ja="プリンターを切り替え"/>

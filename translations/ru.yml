@@ -2633,6 +2633,7 @@ translations:
     версии
   Suppress periodic 'T:.../B:...' status lines: Скрывать периодические строки статуса
     'T:.../B:...'
+  Suppress periodic temperature status lines: Скрывать периодические строки статуса температуры
   Suppress raw debug output from printer firmware modules: Скрывать отладочный вывод
     модулей прошивки принтера
   Surfaces inherit app background tokens for light and dark modes.: Поверхности наследуют
