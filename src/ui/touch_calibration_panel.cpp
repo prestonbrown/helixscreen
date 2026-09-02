@@ -8,6 +8,7 @@
 
 #include "touch_calibration_panel.h"
 
+#include "display_backend.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -254,11 +255,14 @@ void TouchCalibrationPanel::capture_point(Point raw, const Point* device_raw) {
         // (prestonbrown/helixscreen#1394). A rotated panel keeps the affine-only
         // shape, which was the long-tested path before the range stage existed
         // (#1259) and composes correctly with lv_display_rotate_point().
+        //
+        // display_is_rotated() is shared with the backends' stored-range gate:
+        // both must answer the same question the same way, or one solves a
+        // range the other refuses to program (or vice versa).
         // Braced: declarations in a case body stay in scope at later labels,
         // and an initialized one makes the implicit jump ill-formed.
         {
-            lv_display_t* disp = lv_display_get_default();
-            const bool unrotated = !disp || lv_display_get_rotation(disp) == LV_DISPLAY_ROTATION_0;
+            const bool unrotated = !display_is_rotated();
             if (raw_points_valid_ && unrotated) {
                 range_fit_ =
                     compute_range_fit(screen_points_, raw_points_, screen_width_, screen_height_);

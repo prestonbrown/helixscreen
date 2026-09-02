@@ -64,11 +64,16 @@ load helpers
     }
 }
 
-@test "ad5m: tracker enabled (HELIX_HAS_TRACKER) for PWM PCM playback" {
+@test "ad5m: sound enabled, tracker disabled (note fallback is not print-safe)" {
     run make -n PLATFORM_TARGET=ad5m CROSS_COMPILE= CC=gcc CXX=g++ print-cxxflags
     [ "$status" -eq 0 ]
-    echo "$output" | grep -q 'DHELIX_HAS_TRACKER' || {
-        echo "Expected -DHELIX_HAS_TRACKER in ad5m CXXFLAGS (SCHED_IDLE render loop is printer-safe):"
+    echo "$output" | grep -q 'DHELIX_HAS_SOUND' || {
+        echo "Expected -DHELIX_HAS_SOUND in ad5m CXXFLAGS:"
+        echo "$output"
+        return 1
+    }
+    ! echo "$output" | grep -q 'DHELIX_HAS_TRACKER' || {
+        echo "Unexpected -DHELIX_HAS_TRACKER: supports_render_source() is false on the PWM backend, so tracker would run the set_voice note fallback on the un-demoted sequencer thread:"
         echo "$output"
         return 1
     }

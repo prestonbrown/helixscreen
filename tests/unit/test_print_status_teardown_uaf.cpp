@@ -211,6 +211,43 @@ TEST_CASE_METHOD(PrintStatusTeardownFixture,
     SUCCEED("explicit teardown left nothing armed against the panel");
 }
 
+// OverlayBase::rebuild() calls create() again while the replaced root is still
+// alive, and only then hands it to safe_delete_subtree() — detached
+// synchronously, deleted async. If create() installs the hook on the successor
+// without taking it off the predecessor, no uninstall path can ever reach the
+// old one again: the destructor and on_ui_destroyed() both work from
+// delete_hook_root_, which by then names the successor. A hot-reload rebuild
+// followed by shutdown before the async delete tick then fires on_root_deleted()
+// through a freed `this`.
+TEST_CASE_METHOD(PrintStatusTeardownFixture,
+                 "PrintStatusPanel moves its delete hook off the root it replaces",
+                 "[print_status][teardown][uaf]") {
+    lv_obj_t* old_root = panel().get_panel();
+    REQUIRE(old_root != nullptr);
+    // Guards against the test passing for the wrong reason: if create() never
+    // installed the hook, its absence after the rebuild would prove nothing.
+    REQUIRE(delete_hook_installed(old_root, &panel()));
+
+    lv_obj_t* new_root = panel().create(test_screen());
+    REQUIRE(new_root != nullptr);
+    REQUIRE(new_root != old_root);
+
+    CHECK_FALSE(delete_hook_installed(old_root, &panel()));
+    CHECK(delete_hook_installed(new_root, &panel()));
+
+    // The failure the stale hook produces: the panel dies with the replaced
+    // tree still allocated, and nothing took the hook off it.
+    const void* dead = &panel();
+    panel_release();
+    CHECK_FALSE(delete_hook_installed(old_root, dead));
+
+    lv_obj_delete(old_root);
+    lv_obj_delete(new_root);
+    root_ = nullptr;
+    UpdateQueue::instance().drain();
+    SUCCEED("replaced root torn down after the panel without touching freed memory");
+}
+
 // OverlayBase::rebuild() deletes the replaced root after overlay_root_ already
 // points at the successor. That late delete event must not blank the successor's
 // cached pointers.

@@ -1073,9 +1073,7 @@ bool PanelWidgetConfig::migrate_stuck_ams_filament_swap() {
                      page.id, fil->col, fil->row, fil->col, fil->row);
         ams->col = fil->col;
         ams->row = fil->row;
-        fil->enabled = false;
-        fil->col = -1;
-        fil->row = -1;
+        fil->disable_and_unplace();
         mutated = true;
     }
     return mutated;

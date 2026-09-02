@@ -603,13 +603,11 @@ void register_xml_components() {
     // before motion_panel.xml, which uses it.
     register_xml("components/motion_position_card.xml");
     register_xml("motion_panel.xml");
-    // The three old per-heater overlays (nozzle/bed/chamber_temp_panel.xml)
-    // were removed: unreachable since the unified TempGraphOverlay replaced
-    // them (137e51ff3). TemperatureService::setup_panel() /
-    // xml_component_name() are the residual per-heater panel machinery —
-    // compiled but with no callers and no XML behind the names it returns
-    // (lv_xml_component_get_scope() returns nullptr, guarded); a future
-    // cleanup can delete that whole dead path.
+    // TempGraphOverlay is the only temperature overlay; there are no per-heater
+    // nozzle/bed/chamber_temp_panel.xml components. TemperatureService::setup_panel()
+    // and xml_component_name() are residual per-heater machinery — compiled, but with
+    // no callers and no XML behind the names they return, so
+    // lv_xml_component_get_scope() returns nullptr there (guarded).
     register_xml("temp_graph_overlay.xml");
     // Register TempGraphOverlay event callbacks at startup (before XML is parsed)
     lv_xml_register_event_cb(nullptr, "on_temp_graph_preset_clicked",

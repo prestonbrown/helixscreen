@@ -2403,6 +2403,7 @@
   <translation tag="Summary" zh="摘要"/>
   <translation tag="Support, documentation, and version info" zh="支持、文档和版本信息"/>
   <translation tag="Suppress periodic &apos;T:.../B:...&apos; status lines" zh="抑制周期性 &apos;T:.../B:...&apos; 状态行"/>
+  <translation tag="Suppress periodic temperature status lines" zh="抑制周期性温度状态行"/>
   <translation tag="Suppress raw debug output from printer firmware modules" zh="抑制打印机固件模块的原始调试输出"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." zh="表面继承应用背景色用于浅色和深色模式。"/>
   <translation tag="Switch Printer" zh="切换打印机"/>

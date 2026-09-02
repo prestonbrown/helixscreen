@@ -54,6 +54,15 @@ class CameraWidget : public PanelWidget {
     void set_status_text(const char* text);
     void destroy_fullscreen(); // Synchronous cleanup of fullscreen overlay
 
+    /// Null the tile-tree pointers (root, screen, image, overlay, status
+    /// label) without touching the stream, the observers, or the fullscreen
+    /// overlay. Shared by detach() and the raw-delete hook.
+    void forget_tile_widgets();
+
+    /// Drop the cached tile pointers when the tile tree dies without a
+    /// detach() - a raw lv_obj_delete() of the home page container.
+    void on_hooked_root_deleted() override;
+
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
     lv_obj_t* camera_image_ = nullptr;

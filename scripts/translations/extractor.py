@@ -40,7 +40,30 @@ TEXT_ATTRIBUTES = {"text", "label", "description", "title", "subtitle", "placeho
 # title_tag pairs with title= the way label_tag pairs with label= (section
 # headers via setting_group_header); leaving it out kept every section title
 # out of the catalogs, so non-English devices rendered them in English.
-EXPLICIT_TAG_ATTRIBUTES = ("translation_tag", "label_tag", "title_tag")
+#
+# Every other *_tag prop a component forwards to an inner widget's
+# translation_tag= belongs here too. They were covered only by accident, by the
+# same literal appearing somewhere else in the tree -- console_settings_overlay's
+# "Suppress periodic temperature status lines" is the one that had no twin, and
+# that row rendered in English on all nine non-English locales. The list is the
+# full set of forwarding props in ui_xml/ (header_bar, modal_button_row,
+# context_menu_card, setting_toggle_row, favorite_macro_config_modal); the three
+# deliberate omissions are value_tag and options_tag, which have their own loops
+# below because they carry list semantics, and placeholder_tag, which rides
+# TEXT_ATTRIBUTES.
+EXPLICIT_TAG_ATTRIBUTES = (
+    "translation_tag",
+    "label_tag",
+    "title_tag",
+    "description_tag",
+    "action_button_text_tag",
+    "action_button_2_text_tag",
+    "primary_tag",
+    "secondary_tag",
+    "tertiary_tag",
+    "close_text_tag",
+    "text_tag",
+)
 
 # Inline element text: <text_muted>Foo</text_muted>. The C parser
 # (lib/helix-xml/src/xml/lv_xml.c) applies this as text= + translation_tag=,

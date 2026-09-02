@@ -347,6 +347,11 @@ bool WifiBackendNetd::open_connection(std::string& error_out) {
     // join. One second to connect, then the reconnect cadence owns the retry.
     // The fd STAYS nonblocking: libhv owns it from here.
     const int fd = helix::netd::connect_unix(path, 1000, &error_out);
+    // The connect is the whole reachability verdict. Reaching the daemon means
+    // it owns the radio, the supplicant and DHCP, so every failure PAST this
+    // point still leaves wpa_supplicant locked out; failing the connect itself
+    // is the one outcome that frees the hardware for it.
+    daemon_unreachable_.store(fd < 0);
     if (fd < 0) {
         return false;
     }
@@ -557,15 +562,26 @@ bool WifiBackendNetd::handle_line(const std::string& line) {
     }
 
     if (const auto row = helix::netd::parse_scan_row(line)) {
+        if (row->frequency_mhz >= 4900) {
+            // A 5 GHz BSS answers supports_5ghz() better than any static
+            // claim: the radio demonstrably sees the band. True of ANY row
+            // the daemon broadcasts, including another client's scan — the
+            // radio saw the band either way, so this precedes the
+            // ownership check below.
+            seen_5ghz_network_.store(true);
+        }
+        if (!scan_pending_.load()) {
+            // The daemon broadcasts to every subscriber, so rows arrive for
+            // scans this client never asked for (the vendor UI's, or one our
+            // watchdog already abandoned). Staging them would grow without
+            // bound on a long-lived connection and then publish someone
+            // else's results as ours at the next completion.
+            return false;
+        }
         // Loop thread only: rows stream in BEFORE the OK that completes the
         // scan, accumulating apart from the published list until
         // finish_scan() swaps them in.
         incoming_rows_.push_back(*row);
-        if (row->frequency_mhz >= 4900) {
-            // A 5 GHz BSS answers supports_5ghz() better than any static
-            // claim: the radio demonstrably sees the band.
-            seen_5ghz_network_.store(true);
-        }
         return false;
     }
 
@@ -641,8 +657,17 @@ void WifiBackendNetd::finish_scan(helix::netd::Ack::Kind completing) {
         loop()->killTimer(scan_watchdog_timer_);
         scan_watchdog_timer_ = kNoTimer;
     }
-    if (!scan_pending_.exchange(false))
+    if (!scan_pending_.exchange(false)) {
+        // No scan was outstanding, so there is nothing to publish — but rows
+        // may still be sitting in the staging cache (cleanup_netd() clears
+        // scan_pending_ without completing, and open_connection() calls this
+        // to retire an orphaned scan). Returning above the clear kept them
+        // alive to be swapped into a LATER scan's results, so they grew for
+        // the life of the process and contaminated the next published list.
+        std::lock_guard<std::mutex> lock(scan_mutex_);
+        incoming_rows_.clear();
         return;
+    }
     size_t rows = 0;
     {
         std::lock_guard<std::mutex> lock(scan_mutex_);
@@ -716,6 +741,14 @@ bool WifiBackendNetd::write_line_from_loop(const std::string& line) {
         return false;
     }
     return remaining == 0;
+}
+
+bool WifiBackendNetd::connection_live() {
+    // Same predicate write_line_raw() gates its send on, under the same lock,
+    // so "this would reach the daemon" and "this may be answered locally"
+    // can never disagree.
+    std::lock_guard<std::mutex> lock(cmd_mutex_);
+    return io_ != nullptr && fd_ >= 0;
 }
 
 bool WifiBackendNetd::write_line_raw(const std::string& line) {
@@ -922,12 +955,17 @@ WiFiError WifiBackendNetd::connect_network(const std::string& ssid, const std::s
     // Credential-free reselect of the network the snapshot says we are ON:
     // nothing new is being asked, and the daemon ignores redundant joins, so
     // answering from the snapshot beats riding the manager's 45 s watchdog
-    // (#1399's sibling shape). Two boundaries keep it honest: a provided
+    // (#1399's sibling shape). Three boundaries keep it honest: a provided
     // password is NEWER information than the snapshot (a rotated PSK must
     // reach the wire, not be silently dropped), and a join to another
     // network already in flight owns the wire - a reselect tap must not
-    // resolve THAT attempt with a synthetic success.
-    if (password.empty() && !connect_in_flight_.load()) {
+    // resolve THAT attempt with a synthetic success. The third is liveness:
+    // is_running() deliberately survives socket loss (the reconnect timer
+    // owns that), so without connection_live() a dead daemon would answer a
+    // join with a synthetic CONNECTED carrying whatever SSID and IP the
+    // snapshot held when the socket dropped - a "Connected" the daemon never
+    // confirmed and cannot be asked about.
+    if (password.empty() && !connect_in_flight_.load() && connection_live()) {
         helix::netd::NetdSnapshot current;
         {
             std::lock_guard<std::mutex> lock(snapshot_mutex_);
@@ -1025,7 +1063,14 @@ bool WifiBackendNetd::supports_5ghz() const {
 
 WiFiError WifiBackendNetd::set_radio_enabled(bool on) {
     (void)on;
-    return WiFiError(WiFiResult::BACKEND_ERROR,
+    // NOT_SUPPORTED, not BACKEND_ERROR: nothing failed and nothing is broken.
+    // The daemon owns the radio and its protocol has no verb for this, so the
+    // capability is absent. The distinction is what the user sees — an error
+    // here is suppressed outright whenever a network path is up
+    // (WiFiManager::report_radio_result), which is exactly the case where
+    // someone is toggling a working radio off and gets no message at all
+    // while the switch snaps back on its own.
+    return WiFiError(WiFiResult::NOT_SUPPORTED,
                      "set_radio_enabled not supported: the network daemon owns the radio",
                      "WiFi radio is managed by the printer's network daemon");
 }
@@ -1033,6 +1078,22 @@ WiFiError WifiBackendNetd::set_radio_enabled(bool on) {
 bool WifiBackendNetd::is_radio_enabled() const {
     // The daemon owns the radio; we never disable it, so report enabled.
     return true;
+}
+
+bool WifiBackendNetd::supports_wpa_supplicant_fallback() const {
+    // The daemon enforces a single transport and drives the supplicant itself,
+    // so wpa_supplicant may only be started when the daemon is provably absent
+    // — an init failure with a live daemon must leave WiFi down rather than
+    // put two clients on one radio. open_connection() supplies that proof.
+    return daemon_unreachable_.load();
+}
+
+bool WifiBackendNetd::supports_radio_toggle() const {
+    // Paired with set_radio_enabled() above: the toggle cannot move, so
+    // callers must not reconcile stored state against it (see the base
+    // declaration for what WiFiManager's startup reassert would otherwise
+    // silently rewrite).
+    return false;
 }
 
 void WifiBackendNetd::read_mac_address_if_empty() {

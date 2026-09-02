@@ -111,7 +111,7 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe_int_sync<Panel>()` from `observer_factory.h` |
 | **Icon sync** | Add icon, forget fonts | `include/ui_icon_codepoints.h` + `make regen-fonts` + rebuild |
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
-| **Doc citations** | Hand-writing the markdown link, or hand-fixing a `:123` line number after moving code | Write the plain backticked citation (`src/printer/printer_state.cpp:625`), then `make regen-doc-links`. Both halves are derived: `scripts/doc_cite_anchors.py` re-pins the line number from a committed content hash of the cited line (so moved code self-heals across every scanned doc, not just the guide), then `scripts/gen_doc_links.py` derives the link URL in `docs/devel/architecture/` from the citation text. `quality-checks.sh` fails a doc that is out of date with either, and the pre-commit hook repairs it in place — re-stage and commit. The one thing you must fix by hand: a cited line whose **own text changed**, which is a hard error because the sentence may no longer be true. |
+| **Doc citations** | Hand-writing the markdown link, or hand-fixing a `:123` line number after moving code | Write the plain backticked citation (`src/printer/printer_state.cpp:641`), then `make regen-doc-links`. Both halves are derived: `scripts/doc_cite_anchors.py` re-pins the line number from a committed content hash of the cited line (so moved code self-heals across every scanned doc, not just the guide), then `scripts/gen_doc_links.py` derives the link URL in `docs/devel/architecture/` from the citation text. `quality-checks.sh` fails a doc that is out of date with either, and the pre-commit hook repairs it in place — re-stage and commit. The one thing you must fix by hand: a cited line whose **own text changed**, which is a hard error because the sentence may no longer be true. |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
 | **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"` (libhv's bundled version) |
 | **Build system** | `cmake`, `ninja` | `make -j` (pure Makefile) |
@@ -119,9 +119,58 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite the issue when one already exists: `fix(scope): thing (prestonbrown/helixscreen#123)`. No issue? `fix(scope): thing` is complete on its own — the commit body carries the explanation. |
 | **Unproven tests** | Claiming "tests pass" as evidence the change is tested | `make mutate-diff` (reverts each hunk, looks for red) and one line in the commit body naming the mutation. A green suite is not evidence: 11 changes in one release range revert green. See `tests/CLAUDE.md` § "Proving a test can fail" |
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph (cf. `feat(z-offset)` 25e1505e7). Reserve the long form for genuine state-machine fixes that touch multiple subsystems (cf. `fix(ams): DRY unload API` 504905a2). |
+| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas`, `// #1401 grew the offset to 2.515mm`, `// pre-fix the stream wrote into freed memory` | State the constraint, not the history: `// Invalidating here freezes a fullscreen view the user is watching`. See § "Comments describe the code, not its past" |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | Add/amend `patches/*.patch` — `mk/patches.mk` auto-applies. **Exception: `lib/helix-xml/` is our own submodule** ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)) — edit it directly, commit and push *in the submodule*, then commit the bumped pointer in this repo. Never write a patch for it. A worktree gets its own checkout of it (not a symlink), so engine edits stay in that branch. |
 
 **ALWAYS:** Search the SAME FILE you're editing for similar patterns before implementing.
+
+### Comments describe the code, not its past
+
+A comment earns its place by helping someone understand the code **as it is now**.
+Development history — what it used to do, which commit changed it, what bug prompted
+it, what a review found, what a mutation run proved — belongs in the commit message,
+which is exactly where `git log` and `git blame` will surface it when someone asks
+"why is this here?". Putting it in the source means every future reader pays for it
+forever, and it rots: the commit gets squashed, the issue gets closed, the "recent"
+fix becomes ancient, and the comment now misleads.
+
+**The deletion test.** Cut the historical clause. Does the comment still explain the
+code to someone reading this file for the first time who will never look at git
+history? If yes, the clause was archaeology — leave it cut. If the sentence collapses,
+you were relying on history to carry an explanation that should stand on its own, so
+rewrite it as a present-tense fact about the code.
+
+| Keep — a constraint that still binds | Cut — how we got here |
+|---|---|
+| `// Invalidating here freezes a fullscreen view the user is watching` | `// unlike the three widgets 3d0875bff fixed` |
+| `// The piezo demodulates a duty-modulated carrier as static, so PWM is tone-only` | `// Originally disabled 2026-04 for exactly that starvation` |
+| `// A wrapper existing does not prove it persists anything` | `// #1401 grew a probe offset 0.060 -> 2.515mm over five save cycles` |
+| `// Rows arriving with no scan pending would accumulate unbounded` | `// this file used to have several data races` |
+
+Specific forms that are almost always archaeology: a commit SHA; `used to`,
+`previously`, `originally`, `before this`, `no longer`, `pre-fix`; a narrated issue
+(`#123 found that…`) as opposed to a bare cite; "the bug where…"; and in tests, a
+recap of what a review or mutation run discovered.
+
+**This applies to tests, shell scripts, gates and Makefiles too**, not just C++. A
+bats file's header comment is the most common offender — describe what the gate
+checks and why that matters, not the sweep that motivated writing it.
+
+**The legitimate need is real, and it is narrower than it feels.** When a
+counter-intuitive line exists because the obvious alternative is wrong, say what
+breaks — in the present tense, as a property of the system. "Do not invalidate here:
+a token the running stream already captured never recovers" is a constraint the next
+reader must respect. "3d0875bff invalidates here but we can't" is trivia about a
+different file.
+
+**Issue references are welcome — keep them short.** `(prestonbrown/helixscreen#1394)`
+appended to a sentence that already stands on its own is exactly right: it points at
+the full story for anyone who wants it, costs one reader half a second, and cannot
+rot. Do not strip these. What to avoid is *narrating* the issue inline — the cite is
+a pointer, not a summary:
+
+- ✅ `// A wrapper existing does not prove it persists anything (prestonbrown/helixscreen#1401)`
+- ❌ `// #1401: a Helper-Script box folded the offset into the probe, SAVE_CONFIG restarted klipper, and the boot gcode re-applied it, growing 0.060 -> 2.515mm over five cycles`
 
 **Submodule patch workflow** — third-party submodules ONLY (`lib/lvgl/`, `lib/libhv/`, …). **Never run it on `lib/helix-xml/`**: that repo is ours, its edits are meant to be committed, and the `git restore .` below would destroy them.
 

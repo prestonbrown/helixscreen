@@ -23,6 +23,12 @@ struct Provider {
     const char* stale_delta_clear_gcode;
     /// Pull the stored offset, in microns, out of a status frame.
     std::optional<int> (*read)(const nlohmann::json& status);
+    /// Predicate a status frame must satisfy to PROVE this row's storage is
+    /// absent - i.e. that the detect macro matched something other than this
+    /// firmware. nullptr where the detect macro is unambiguous and the match
+    /// therefore cannot be wrong. Must answer false for "no news": a frame
+    /// that simply does not carry the store is not evidence of absence.
+    bool (*refuted_by)(const nlohmann::json& status);
 };
 
 /// Fetch status.<object>.<member> as an object, or nullptr.
@@ -139,6 +145,28 @@ std::optional<int> read_helper_script(const nlohmann::json& status) {
     return static_cast<int>(std::lround(z->get<double>() * 1000.0));
 }
 
+// The detect macro for this row is the WRAPPER, not a vendor-unique name, so
+// the match proves only that SOMETHING shadows SET_GCODE_OFFSET. Wrapping it to
+// log, clamp, or fan out per-tool offsets is a standard Voron / Klippain /
+// toolchanger pattern, and such a wrapper stores nothing. This is the frame
+// that tells the two apart: save-zoffset.cfg SAVE_VARIABLEs `zoffset` on every
+// wrapped call and its boot delayed_gcode reads it straight back, so a
+// save_variables store delivered WITH its variables member and carrying no
+// `zoffset` key at all is positive evidence the module is not installed.
+//
+// The distinction that keeps this on the safe side of #1401: `zoffset` present
+// but seeded as {'z': None} is the module installed and not yet used, which is
+// emphatically NOT a refutation. Only total absence of the key refutes.
+bool refuted_helper_script(const nlohmann::json& status) {
+    const nlohmann::json* variables = nested_object(status, "save_variables", "variables");
+    if (!variables) {
+        // No news. save_variables is delta-only, and it can arrive without its
+        // variables member; neither shape proves anything either way.
+        return false;
+    }
+    return variables->find("zoffset") == variables->end();
+}
+
 const std::vector<Provider>& providers() {
     // Row order is match priority: a box exposing two firmwares' macros
     // resolves to the first hit.
@@ -148,13 +176,17 @@ const std::vector<Provider>& providers() {
          {"save_variables"},
          "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
          "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0",
-         &read_zmod},
+         &read_zmod,
+         // SAVE_ZMOD_DATA belongs to one firmware and means one thing.
+         nullptr},
         {"Forge-X",
          "SET_MOD",
          {"mod_params"},
          "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
          nullptr,
-         &read_forge_x},
+         &read_forge_x,
+         // Likewise SET_MOD: the mod's own plugin registers it, nothing else.
+         nullptr},
         // Keyed on the WRAPPER object. Klipper exposes a builtin command as a
         // printer object ONLY when a [gcode_macro] shadows it (and shadowing a
         // builtin requires rename_existing), so `gcode_macro
@@ -164,12 +196,17 @@ const std::vector<Provider>& providers() {
         // debug bundle 5J49T5RU: 83 macro objects including
         // SET_GCODE_OFFSET, none named _SET_GCODE_OFFSET. Must stay below
         // ZMOD, which also wraps the command.
+        //
+        // That signature proves a wrapper exists, NOT that it persists
+        // anything, so this is the one row that carries a refutation - see
+        // refuted_helper_script().
         {"Helper-Script",
          "SET_GCODE_OFFSET",
          {"save_variables"},
          nullptr,
          nullptr,
-         &read_helper_script},
+         &read_helper_script,
+         &refuted_helper_script},
     };
     return table;
 }
@@ -237,6 +274,17 @@ std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw) {
 
 bool firmware_persists_z_offset(const PrinterDiscovery& hw) {
     return match(hw) != nullptr;
+}
+
+bool status_refutes_persistence(const PrinterDiscovery& hw, const nlohmann::json& status) {
+    const Provider* p = match(hw);
+    // No provider: nothing latched, nothing to refute. A provider whose detect
+    // macro is unambiguous carries no refutation and can never be talked out of
+    // the match by a status frame.
+    if (!p || !p->refuted_by) {
+        return false;
+    }
+    return p->refuted_by(status);
 }
 
 std::string persistence_provider_name(const PrinterDiscovery& hw) {

@@ -186,7 +186,7 @@ struct AABB {
  */
 enum class FeatureType : int8_t {
     Unknown = -1,  ///< No ;TYPE: seen, or unrecognized value
-    Custom = 0,    ///< Start/end gcode, priming, manual purge (EXCLUDED FROM BOUNDS)
+    Custom = 0,    ///< Start/end gcode, priming, manual purge (auxiliary)
     Skirt,         ///< Skirt loop (physical, included in bounds)
     Brim,          ///< Brim (physical, included in bounds)
     OuterWall,     ///< Outer perimeter
@@ -199,18 +199,23 @@ enum class FeatureType : int8_t {
     Bridge,        ///< Bridging extrusion
     GapInfill,     ///< Gap fill between features
     Support,       ///< Support material (included — it's physical)
-    WipeTower,     ///< Multi-color purge tower (EXCLUDED FROM BOUNDS)
+    WipeTower,     ///< Multi-color purge tower (auxiliary)
 };
 
 /**
- * @brief Should this feature type be excluded from auto-fit bounding box?
+ * @brief Is this feature type auxiliary geometry, not the print itself?
  *
- * Returns true for types that produce extrusion outside the user's intended
- * print object: Custom (start/end gcode purge), WipeTower (multi-color
- * purge structure). Returns false for everything else, including Skirt and
- * Brim which are physical and inside the user's mental model of the print.
+ * True for types that produce extrusion outside the user's intended print
+ * object: Custom (start/end gcode purge), WipeTower (multi-color purge
+ * structure). False for everything else, including Skirt and Brim which are
+ * physical and inside the user's mental model of the print.
+ *
+ * The answer applies everywhere the question is asked - every fit bound
+ * (global, per-layer, index stats) and every draw pass (foreground, cache
+ * build, ghost silhouette). The name says geometry rather than any one
+ * consumer so no caller treats it as bounds-only or draw-only.
  */
-constexpr bool is_excluded_from_bounds(FeatureType t) {
+constexpr bool is_auxiliary_geometry(FeatureType t) {
     return t == FeatureType::Custom || t == FeatureType::WipeTower;
 }
 
@@ -228,6 +233,26 @@ struct ToolpathSegment {
     // total 40 bytes
 };
 static_assert(sizeof(ToolpathSegment) == 40, "ToolpathSegment should be 40 bytes after interning");
+
+/**
+ * @brief The one draw decision for a segment, minus where its inputs come from.
+ *
+ * Auxiliary geometry never draws - no pass, foreground or background. Support
+ * visibility follows the caller's answer (the foreground resolves it from the
+ * segment, the ghost worker from a pre-resolved object name), and everything
+ * else follows its motion class. Callers hand in their own show-toggles; the
+ * rule itself lives only here.
+ */
+inline bool segment_drawable(const ToolpathSegment& seg, bool is_support, bool show_support,
+                             bool show_extrusion, bool show_travel) {
+    if (is_auxiliary_geometry(seg.feature_type)) {
+        return false;
+    }
+    if (seg.is_extrusion) {
+        return is_support ? show_support : show_extrusion;
+    }
+    return show_travel;
+}
 
 /**
  * @brief Single layer of toolpath (constant Z-height)
@@ -271,7 +296,17 @@ struct ParsedGCodeFile {
     std::vector<std::string> object_name_table; ///< Interned object name strings
 
     // Statistics
-    size_t total_segments{0};                 ///< Total segment count
+    size_t total_segments{0}; ///< Total segment count, auxiliary geometry included
+    /// Segments GeometryBuilder will actually build: total minus the auxiliary
+    /// (purge / prime tower) mass it drops at gcode_geometry_builder.cpp:579.
+    /// The 3D memory budget must size itself on THIS, not total_segments - a
+    /// 4-color file whose tower is a large share of the mass was being pushed
+    /// to a lower tube tier, or past tier 3 into no-3D-at-all, on segments that
+    /// are never built. Stored rather than recomputed from layers: the
+    /// on-demand 2D->3D path runs against a retained file whose segments
+    /// clear_segments() has already freed, and a recomputed 0 would select
+    /// tier 1 - the opposite failure.
+    size_t drawable_segments{0};
     float estimated_print_time_minutes{0.0f}; ///< From metadata (if available)
     float total_filament_mm{0.0f};            ///< From metadata (if available)
 
@@ -704,6 +739,7 @@ class GCodeParser {
     std::set<int> tools_used_;                    ///< Tool indices seen via T-commands
     bool in_wipe_tower_{false};                   ///< True when inside wipe tower section
     FeatureType current_feature_type_{FeatureType::Unknown}; ///< Active ;TYPE: section
+    size_t drawable_segments_{0}; ///< Running count of non-auxiliary segments added
 
     // Accumulated data
     std::vector<Layer> layers_;                  ///< All parsed layers

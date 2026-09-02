@@ -567,11 +567,23 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         "[GCode Geometry] Expanded quantization bounds by {:.1f}mm for tube width {:.1f}mm",
         expansion_margin, max_tube_width);
 
-    // Collect all segments from all layers, stamping each with its source layer index
+    // Collect all segments from all layers, stamping each with its source layer
+    // index. Auxiliary geometry (start-gcode purge, prime tower) is dropped
+    // here rather than drawn or budgeted: it is not part of the print, it is
+    // already outside the fit bounds, and on a multi-color file the tower can
+    // be a large fraction of the segment budget on low-RAM devices.
     std::vector<ToolpathSegment> all_segments;
-    all_segments.reserve(gcode.total_segments);
+    // Reserve for what survives the auxiliary skip below, not the raw total -
+    // a tower-heavy multi-color file otherwise over-allocates by the tower's
+    // whole share. Falls back to the total for a file parsed before the
+    // counter existed (drawable_segments defaults to 0).
+    all_segments.reserve(gcode.drawable_segments > 0 ? gcode.drawable_segments
+                                                     : gcode.total_segments);
     for (size_t li = 0; li < gcode.layers.size(); ++li) {
         for (const auto& seg : gcode.layers[li].segments) {
+            if (is_auxiliary_geometry(seg.feature_type)) {
+                continue;
+            }
             all_segments.push_back(seg);
             all_segments.back().layer_index = static_cast<uint16_t>(li);
         }
@@ -1457,13 +1469,17 @@ uint32_t GeometryBuilder::compute_color_rgb(float z_height, float z_min, float z
 void GeometryBuilder::set_filament_color(const std::string& hex_color) {
     use_height_gradient_ = false; // Disable gradient
 
-    // Remove '#' prefix if present
-    const char* hex_str = hex_color.c_str();
-    if (hex_str[0] == '#')
-        hex_str++;
+    // Same parser as every other color decision: it owns the '#'/0x prefixes,
+    // the accepted digit counts, and the #RRGGBBAA alpha drop. The hand-rolled
+    // strtol this replaced read an 8-digit token one byte to the left, and
+    // turned any unparseable string into 0 - painting the model black rather
+    // than reporting a bad color. An unusable color now keeps the current one.
+    uint32_t rgb = 0;
+    if (!helix::parse_hex_color(hex_color.c_str(), rgb)) {
+        spdlog::warn("[GCode Geometry] Unusable filament color '{}' - keeping current", hex_color);
+        return;
+    }
 
-    // Parse RGB hex (e.g., "26A69A")
-    uint32_t rgb = static_cast<uint32_t>(std::strtol(hex_str, nullptr, 16));
     filament_r_ = (rgb >> 16) & 0xFF;
     filament_g_ = (rgb >> 8) & 0xFF;
     filament_b_ = rgb & 0xFF;

@@ -302,11 +302,16 @@ install_systemctl_shim() {
     [ -n "${_HELIX_SYSTEMCTL_SHIM:-}" ] && return 0
     _HELIX_SYSTEMCTL_SHIM=1
 
-    mkdir -p "$BATS_TEST_TMPDIR/bin"
-    printf '#!/bin/sh\n# Inert inside bats: helpers.bash shadows systemctl by default.\nexit 0\n' \
-        > "$BATS_TEST_TMPDIR/bin/systemctl"
-    chmod +x "$BATS_TEST_TMPDIR/bin/systemctl"
-    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    # helpers.bash is also sourced as a library inside synthetic environments
+    # built on a minimal PATH (no mkdir/chmod) that assert on total silence:
+    # install where possible, degrade to no shadow without a word otherwise.
+    if mkdir -p "$BATS_TEST_TMPDIR/bin" 2>/dev/null \
+       && printf '#!/bin/sh\n# Inert inside bats: helpers.bash shadows systemctl by default.\nexit 0\n' \
+              > "$BATS_TEST_TMPDIR/bin/systemctl" 2>/dev/null \
+       && chmod +x "$BATS_TEST_TMPDIR/bin/systemctl" 2>/dev/null; then
+        export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    fi
+    return 0
 }
 
 [ -z "${HELIX_TEST_REAL_SYSTEMCTL:-}" ] && install_systemctl_shim

@@ -46,7 +46,14 @@ namespace helix_test {
 
 /// Bounded polling wait on the real clock with a small step. The fake server
 /// exposes no condition variable, so tests poll its recorded state.
-inline bool wait_until(const std::function<bool()>& pred, int timeout_ms = 5000, int step_ms = 10) {
+///
+/// The ceiling is deliberately generous: the wait returns the moment the
+/// predicate holds, so its size is paid only on a run that was going to fail
+/// anyway, while a shard-parallel run on a saturated host can starve a
+/// backend's dispatch thread for seconds. A tight ceiling buys nothing and
+/// turns that starvation into a red suite.
+inline bool wait_until(const std::function<bool()>& pred, int timeout_ms = 30000,
+                       int step_ms = 10) {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
     while (std::chrono::steady_clock::now() < deadline) {
         if (pred())

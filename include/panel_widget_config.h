@@ -34,6 +34,21 @@ struct PanelWidgetEntry {
     bool has_grid_position() const {
         return col >= 0 && row >= 0;
     }
+
+    /// Turn this entry off AND surrender its grid cell.
+    ///
+    /// These belong together. save() persists col/row for every entry whether
+    /// it is enabled or not, so a disabled entry that keeps coordinates leaves
+    /// a claim on a cell nothing is drawing in - and the anchored pass, which
+    /// looks entries up by id, could then hand that cell to a widget the
+    /// manager synthesizes (the temporary firmware_restart tile), knocking a
+    /// user-anchored widget off its saved rectangle (#1414). Three call sites
+    /// wrote this rule by hand; one of them forgot the coordinates.
+    void disable_and_unplace() {
+        enabled = false;
+        col = -1;
+        row = -1;
+    }
 };
 
 /// A single page of widgets in a multi-page home screen

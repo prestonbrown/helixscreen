@@ -23,9 +23,15 @@ setup_file() {
     # race for it, and the loser dies with "Another instance is already running".
     export HELIX_CONFIG_DIR="${BATS_FILE_TMPDIR}/config"
     mkdir -p "$HELIX_CONFIG_DIR"
-    # Mirror scripts/screenshot.sh's launch: Wayland needs SDL's native driver.
-    if [ -n "$WAYLAND_DISPLAY" ] && [ -z "$SDL_VIDEODRIVER" ]; then
-        export SDL_VIDEODRIVER=wayland
+    # Headless: these cases assert on `ctl --json` output only, so nothing here
+    # needs pixels — and any real video driver maps a "HelixScreen" window on
+    # the developer's desktop for the whole file (wayland under a Wayland
+    # session, x11 otherwise; the CI Shell Tests job never builds the binary,
+    # so only desktop runs ever saw it). test_headless_display.bats drives the
+    # same ctl surface under the dummy driver. An explicitly exported
+    # SDL_VIDEODRIVER still wins.
+    if [ -z "$SDL_VIDEODRIVER" ]; then
+        export SDL_VIDEODRIVER=dummy
     fi
     "$BIN" --test --skip-wizard --skip-splash --remote --remote-socket "$SOCK" \
         >"$APP_LOG" 2>&1 &

@@ -65,6 +65,29 @@ std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw);
 /// Whether this printer keeps its authoritative z-offset outside gcode_move.
 bool firmware_persists_z_offset(const PrinterDiscovery& hw);
 
+/// Whether this status frame PROVES the matched provider's storage is absent -
+/// that detection over-matched and this printer does not in fact persist the
+/// offset anywhere.
+///
+/// Detection is deliberately asymmetric. A match latches "Save Z Offset stands
+/// down" from the first moment, because the opposite mistake is the damaging
+/// one: on a printer that really does persist, the save path folds the gcode
+/// offset into the probe and the firmware re-applies the same offset on top at
+/// every boot, so the probe value grows without bound until the nozzle reaches
+/// the bed (prestonbrown/helixscreen#1401). Losing the Save button on a printer
+/// that did not need the stand-down is merely annoying.
+///
+/// Some rows must detect on a signature that proves a SET_GCODE_OFFSET wrapper
+/// exists without proving the wrapper stores anything - wrapping the command
+/// for logging, clamping, or per-tool offsets is a standard Voron / Klippain /
+/// toolchanger pattern. Those rows carry a refutation, and only a frame that
+/// satisfies it relaxes the strategy back to the type-derived one.
+///
+/// false is the safe answer and the default in every uncertain case: a frame
+/// that merely lacks news never refutes, and a row detecting on an unambiguous
+/// vendor macro is not refutable at all.
+bool status_refutes_persistence(const PrinterDiscovery& hw, const nlohmann::json& status);
+
 /// Human-readable name of the matched firmware, for logging. Empty when none.
 std::string persistence_provider_name(const PrinterDiscovery& hw);
 

@@ -2,9 +2,11 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <filesystem>
 #include <functional>
 #include <lvgl.h>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -130,6 +132,14 @@ class XmlHotReloader {
     std::thread poll_thread_;
     std::atomic<bool> running_{false};
     int poll_interval_ms_{500};
+
+    /// The poll thread parks here between scans instead of sleeping, so stop()
+    /// wakes it immediately rather than waiting out a whole interval. Every
+    /// caller assumes that: the destructor stops the thread during shutdown,
+    /// and the tests start with a deliberately long interval to mean "do not
+    /// poll on your own, I will drive scan_and_reload() myself".
+    std::mutex stop_mutex_;
+    std::condition_variable stop_cv_;
 
     /// Map: absolute file path -> last modification time
     std::unordered_map<std::string, std::filesystem::file_time_type> file_mtimes_;

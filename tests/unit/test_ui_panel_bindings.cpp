@@ -398,11 +398,10 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK_FALSE(is_hidden(overlay));
 }
 
-// The nozzle_temp_panel / bed_temp_panel placeholder cases below were
-// deleted with the panels themselves (unreachable since the unified
-// TempGraphOverlay, 137e51ff3): every one was a SKIP stub asserting nothing.
-// Live per-heater binding coverage now lives in the temp_display cases above
-// and in test_chamber_panel_diagnostics.cpp (temp_graph_overlay).
+// There are no nozzle_temp_panel / bed_temp_panel cases here: those panels do not
+// exist, and TempGraphOverlay is the single temperature overlay. Per-heater binding
+// coverage lives in the temp_display cases above and in
+// test_chamber_panel_diagnostics.cpp (temp_graph_overlay).
 
 // =============================================================================
 // ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)

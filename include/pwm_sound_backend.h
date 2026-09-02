@@ -206,13 +206,13 @@ class PWMSoundBackend : public SoundBackend {
     std::atomic<bool> parked_{false};
     std::atomic<int> silent_buffer_run_{0};
     std::atomic<uint64_t> duty_write_count_{0};
+    std::atomic<int> applied_sched_policy_{-1};
     int park_silent_buffers_ = PCM_PARK_SILENT_BUFFERS;
 
     // Clock/sleep seams — injected by tests before the render thread starts,
     // otherwise defaulted by render_loop() itself
     std::function<int64_t()> now_fn_;
     std::function<void(int64_t)> wait_until_fn_;
-    int applied_sched_policy_ = -1;
 
     // Pre-opened file descriptors for fast sysfs writes in render loop
     int fd_duty_ = -1;

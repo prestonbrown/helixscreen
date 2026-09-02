@@ -63,6 +63,20 @@ class GCodeLayerRendererTestAccess {
     static size_t ghost_stride(const GCodeLayerRenderer& renderer) {
         return renderer.ghost_raw_stride_;
     }
+
+    /// The per-tool palette every draw path resolves segment colors through.
+    /// Private for that reason; a test asking "which color is tool N wearing
+    /// now" - after a slicer palette, after AMS overrides, after a retraction -
+    /// has no other way to see the answer.
+    static const GCodeColorPalette& tool_palette(const GCodeLayerRenderer& renderer) {
+        return renderer.tool_palette_;
+    }
+
+    /// The per-segment draw gate, private because every draw path consults it
+    /// internally. A test pins its feature-type filtering here.
+    static bool renders_segment(const GCodeLayerRenderer& renderer, const ToolpathSegment& seg) {
+        return renderer.should_render_segment(seg);
+    }
 };
 
 } // namespace gcode

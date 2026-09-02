@@ -237,6 +237,16 @@ void GCodeLayerRenderer::set_support_color(lv_color_t color) {
 }
 
 void GCodeLayerRenderer::set_tool_color_palette(const std::vector<std::string>& hex_colors) {
+    if (hex_colors.empty() && !tool_palette_.has_tool_colors()) {
+        // Nothing to install and nothing to clear - bail before the join below so
+        // a file the slicer named no colors for does not kill a healthy
+        // background ghost render. Same shape as set_excluded_objects().
+        // An EMPTY palette on a renderer that HAS tool colors still goes through:
+        // that is the retraction path (a previous file's palette, or AMS
+        // overrides applied over it) and it must actually clear.
+        return;
+    }
+
     // Join the background ghost-render worker before mutating tool_palette_: the worker
     // copy-reads this member without a lock (background_ghost_render_thread), so reallocating
     // its backing vector here while the worker is mid-copy is a data race. Same discipline as
@@ -631,7 +641,6 @@ void GCodeLayerRenderer::invalidate_cache() {
     // copy it straight into the cleared buffer and mark the stale pixels
     // valid - and a valid cache is never rebuilt. The thread is joined above,
     // so the raw buffer has no concurrent writer.
-    // MUTANT-EXPERIMENT: fix reverted
     ghost_thread_ready_.store(false);
     ghost_raw_buffer_.reset();
     ghost_raw_width_ = 0;
@@ -1308,8 +1317,17 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
         } else if (gcode_) {
             // Full file mode: get segments and bounding box from parsed file
             const auto& layer_bb = gcode_->layers[current_layer_].bounding_box;
-            offset_x_ = (layer_bb.min.x + layer_bb.max.x) / 2.0f;
-            offset_y_ = (layer_bb.min.y + layer_bb.max.y) / 2.0f;
+            if (layer_bb.is_empty()) {
+                // Auxiliary-only or travel-only layer: min/max still hold the
+                // ±inf sentinels and their midpoint is NaN. Center the plate
+                // instead, the same guard fit_layer() applies.
+                const auto plate = AABB::default_plate_bbox();
+                offset_x_ = (plate.min.x + plate.max.x) / 2.0f;
+                offset_y_ = (plate.min.y + plate.max.y) / 2.0f;
+            } else {
+                offset_x_ = (layer_bb.min.x + layer_bb.max.x) / 2.0f;
+                offset_y_ = (layer_bb.min.y + layer_bb.max.y) / 2.0f;
+            }
             segments = &gcode_->layers[current_layer_].segments;
         }
 
@@ -1416,13 +1434,12 @@ bool GCodeLayerRenderer::needs_more_frames() const {
 }
 
 bool GCodeLayerRenderer::should_render_segment(const ToolpathSegment& seg) const {
-    if (seg.is_extrusion) {
-        if (is_support_segment(seg)) {
-            return show_supports_.load(std::memory_order_relaxed);
-        }
-        return show_extrusions_.load(std::memory_order_relaxed);
-    }
-    return show_travels_.load(std::memory_order_relaxed);
+    // The support answer is only read for extrusions, and resolving it costs a
+    // name lookup - do not pay that for travel segments.
+    const bool support = seg.is_extrusion && is_support_segment(seg);
+    return segment_drawable(seg, support, show_supports_.load(std::memory_order_relaxed),
+                            show_extrusions_.load(std::memory_order_relaxed),
+                            show_travels_.load(std::memory_order_relaxed));
 }
 
 void GCodeLayerRenderer::render_segment(lv_layer_t* layer, const ToolpathSegment& seg, bool ghost) {
@@ -2042,12 +2059,14 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     // Uses name_looks_like_support() (shared with is_support_segment()) to avoid duplication.
     auto local_should_render = [&](const ToolpathSegment& seg,
                                    const std::string& obj_name) -> bool {
-        if (seg.is_extrusion) {
-            if (seg.object_name_index >= 0 && name_looks_like_support(obj_name))
-                return local_show_supports;
-            return local_show_extrusions;
-        }
-        return local_show_travels;
+        // The draw rule lives in segment_drawable(); this wrapper only feeds
+        // it the thread-safe snapshot values the worker captured at spawn.
+        // Support is resolved for extrusions only - the name scan is not free
+        // and travels never read it.
+        const bool support =
+            seg.is_extrusion && seg.object_name_index >= 0 && name_looks_like_support(obj_name);
+        return segment_drawable(seg, support, local_show_supports, local_show_extrusions,
+                                local_show_travels);
     };
 
     // Compute ghost colors once from the captured base color. First wash the base

@@ -100,6 +100,18 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen);
 }
 #endif
 
+// Take the panel's LV_EVENT_DELETE hook off the tree @p root names and clear
+// the tracking pointer. The lv_is_initialized() guard is what makes this safe
+// from ~PrintStatusPanel(), which can run during static destruction after
+// lv_deinit(). Shared by all three uninstall paths (destructor, explicit
+// teardown, and the re-install in create()) so they cannot drift apart.
+static void uninstall_root_delete_hook(lv_obj_t*& root, lv_event_cb_t cb, void* owner) {
+    if (root != nullptr && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(root, cb, owner);
+    }
+    root = nullptr;
+}
+
 // Global instance for legacy API and resize callback
 static std::unique_ptr<PrintStatusPanel> g_print_status_panel;
 
@@ -459,10 +471,7 @@ PrintStatusPanel::~PrintStatusPanel() {
     // eventual teardown would call on_root_deleted() on freed memory. A null
     // delete_hook_root_ means the tree already died (the hook fired) or the
     // explicit teardown path removed it — nothing left to uninstall.
-    if (delete_hook_root_ && lv_is_initialized()) {
-        lv_obj_remove_event_cb_with_user_data(delete_hook_root_, on_root_deleted, this);
-        delete_hook_root_ = nullptr;
-    }
+    uninstall_root_delete_hook(delete_hook_root_, on_root_deleted, this);
 
     // Before deinit_subjects(): the mini-graph's observers are attached to
     // PrinterState subjects, and detaching them after those are freed is the
@@ -893,6 +902,16 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
+    // A rebuild reaches create() with the hook still on the previous root:
+    // OverlayBase::rebuild() condemns that tree only AFTER create() has pointed
+    // the panel at the successor, and safe_delete_subtree() defers the actual
+    // deletion. Left installed, that late event would fire into a panel whose
+    // uninstall paths only know delete_hook_root_ — which by then names the
+    // successor — so nothing could ever take it off, and a shutdown before the
+    // async tick would reach a freed `this`. Take it off first, the way
+    // PanelWidget::install_delete_hook() does.
+    uninstall_root_delete_hook(delete_hook_root_, on_root_deleted, this);
+
     // The panel/navigation layer owns this tree; a raw lv_obj_delete() gives
     // the panel no other notice, and the queued observe_int_sync handlers
     // would run against the freed child pointers on the next drain.
@@ -1282,10 +1301,7 @@ void PrintStatusPanel::on_ui_destroyed() {
     // destroyed before the deferred delete executes, and that late event must
     // not reach a freed `this`. overlay_root_ is already null —
     // safe_delete_deferred() cleared it — hence the dedicated hook copy.
-    if (delete_hook_root_ && lv_is_initialized()) {
-        lv_obj_remove_event_cb_with_user_data(delete_hook_root_, on_root_deleted, this);
-        delete_hook_root_ = nullptr;
-    }
+    uninstall_root_delete_hook(delete_hook_root_, on_root_deleted, this);
 
     // Cancel pending deferred G-code load
     if (gcode_load_timer_) {

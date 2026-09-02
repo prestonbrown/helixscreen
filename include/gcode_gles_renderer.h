@@ -182,6 +182,18 @@ class GCodeGLESRenderer {
     // Color setters (lv_color_t interface used by gcode viewer widget)
     void set_extrusion_color(lv_color_t color);
     void set_tool_color_overrides(const std::vector<uint32_t>& ams_colors);
+
+    /// Put the color palette the geometry was BUILT with back.
+    ///
+    /// Retraction cannot be spelled as another set_tool_color_overrides() call:
+    /// that one writes into geometry_->color_palette IN PLACE, because the vertex
+    /// data indexes into that array and there is nowhere else for an override to
+    /// live. By the time the AMS answer goes empty the slicer's own colors are
+    /// already gone from it. This restores them from the snapshot taken on the
+    /// first override, and re-uploads.
+    ///
+    /// No-op when nothing has been overridden on the current geometry.
+    void clear_tool_color_overrides();
     void set_travel_color(lv_color_t) {}
     void set_brightness_factor(float) {}
 
@@ -455,6 +467,13 @@ class GCodeGLESRenderer {
     // ====== Configuration ======
 
     GCodeColorPalette palette_; ///< Tool color palette for per-vertex coloring
+
+    /// geometry_->color_palette exactly as the builder produced it, captured the
+    /// first time set_tool_color_overrides() writes into it. Empty means "no
+    /// override has been applied to the CURRENT geometry", so it is reset
+    /// whenever the geometry is replaced or released - it describes that
+    /// palette and no other. Guarded by palette_mutex_.
+    std::vector<uint32_t> baked_color_palette_;
 
     /// Selection colors from ui_xml/gcode_tokens.xml, refreshed in reset_colors().
     /// The defaults cover a frame drawn before that first refresh, and the

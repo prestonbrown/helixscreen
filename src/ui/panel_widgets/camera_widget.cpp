@@ -115,6 +115,12 @@ CameraWidget::~CameraWidget() {
 void CameraWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
+
+    // A raw lv_obj_delete() of the home page container frees this tile without
+    // any detach() call; without the hook the cached child pointers below
+    // dangle while the running MJPEG stream keeps deferring frames into them.
+    install_delete_hook(widget_obj);
+
     camera_image_ = lv_obj_find_by_name(widget_obj_, "camera_image");
     camera_overlay_ = lv_obj_find_by_name(widget_obj_, "camera_overlay");
     camera_status_ = lv_obj_find_by_name(widget_obj_, "camera_status");
@@ -160,9 +166,11 @@ void CameraWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void CameraWidget::detach() {
-    if (!widget_obj_) {
-        return; // Already detached or never attached
-    }
+    // No early return on a null widget_obj_. on_hooked_root_deleted() nulls the
+    // tile pointers when the tree dies raw, and the destructor's detach() is
+    // then the only path left that reaches the fps timer, the observers and the
+    // fullscreen overlay - so every step guards its own pointer instead, the
+    // same shape ThermistorWidget::detach() uses.
 
     // Synchronously destroy fullscreen overlay. Cannot use close_fullscreen()
     // because go_back() is deferred and 'this' may be destroyed before it fires.
@@ -180,12 +188,16 @@ void CameraWidget::detach() {
         fps_recheck_timer_ = nullptr;
     }
 
-    lv_obj_set_user_data(widget_obj_, nullptr);
-    widget_obj_ = nullptr;
-    parent_screen_ = nullptr;
-    camera_image_ = nullptr;
-    camera_overlay_ = nullptr;
-    camera_status_ = nullptr;
+    // Off before the caller condemns this tree: every detach() call site hands
+    // the container to safe_clean_children() straight after, and that late
+    // delete must not fire on_hooked_root_deleted() into a widget that has
+    // since been re-attached.
+    uninstall_delete_hook();
+
+    if (widget_obj_) {
+        lv_obj_set_user_data(widget_obj_, nullptr);
+    }
+    forget_tile_widgets();
 
     auto it = std::find(s_attached_widgets.begin(), s_attached_widgets.end(), this);
     if (it != s_attached_widgets.end()) {
@@ -193,6 +205,34 @@ void CameraWidget::detach() {
     }
 
     spdlog::debug("[CameraWidget] Detached (stream preserved)");
+}
+
+void CameraWidget::on_hooked_root_deleted() {
+    // Runs inside LVGL's delete event for the tile: drop the cached tile
+    // pointers ONLY.
+    //
+    // Do NOT invalidate lifetime_ here. It guards the MJPEG frame and status
+    // deferrals of a stream that outlives the tree, and a token the running
+    // stream captured at start_stream() never recovers from an invalidate():
+    // LifetimeToken::expired() compares its snapshot against the bumped
+    // generation, so every later frame is dropped for the life of that stream.
+    // The fullscreen overlay is a child of the screen, not of the tile, so a
+    // page-container delete leaves it live and still being fed - invalidating
+    // here freezes a fullscreen view the user is watching.
+    //
+    // Dropping camera_image_ is what makes the deferrals safe instead: the
+    // frame lambda resolves its target as
+    // `fullscreen_image_ ? fullscreen_image_ : camera_image_` and no-ops on a
+    // null target, so a frame arriving after the tile died writes nothing.
+    forget_tile_widgets();
+}
+
+void CameraWidget::forget_tile_widgets() {
+    widget_obj_ = nullptr;
+    parent_screen_ = nullptr;
+    camera_image_ = nullptr;
+    camera_overlay_ = nullptr;
+    camera_status_ = nullptr;
 }
 
 void CameraWidget::on_activate() {

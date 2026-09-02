@@ -2633,6 +2633,7 @@ translations:
   Support, documentation, and version info: Support, documentation, and version info
   Suppress periodic 'T:.../B:...' status lines: Suppress periodic 'T:.../B:...' status
     lines
+  Suppress periodic temperature status lines: Suppress periodic temperature status lines
   Suppress raw debug output from printer firmware modules: Suppress raw debug output
     from printer firmware modules
   Surfaces inherit app background tokens for light and dark modes.: Surfaces inherit

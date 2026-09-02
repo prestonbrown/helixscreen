@@ -121,7 +121,7 @@ class FilamentSensorWidget : public PanelWidget {
     // source_observer_ destructs. Without this, a queued observer callback sees
     // token.expired() == false after the observer is already gone and
     // dereferences a half-destroyed widget. Same hazard documented in
-    // thermistor_widget.h and temp_stack_widget.h (commit 45abc8c2a, bundle AX3CKAKB).
+    // thermistor_widget.h and temp_stack_widget.h.
     helix::AsyncLifetimeGuard lifetime_;
 
     /// Mirror of the selected role subject; the XML's single binding target.
