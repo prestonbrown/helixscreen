@@ -135,6 +135,10 @@ float PWMSoundBackend::min_tick_ms() const {
     return 2.0f;
 }
 
+bool PWMSoundBackend::owns_sysfs_pwm_channel() const {
+    return true;
+}
+
 bool PWMSoundBackend::is_enabled() const {
     return enabled_;
 }

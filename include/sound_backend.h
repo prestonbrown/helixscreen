@@ -66,6 +66,17 @@ class SoundBackend {
         return false;
     }
 
+    /// Whether this backend directly drives the printer's sysfs PWM channel
+    /// (pwmchipN/pwmM) — the same channel klippy's tone_player writes for
+    /// every M300/TONE it handles. SoundManager asks this when hardware
+    /// discovery reports a real M300 handler: two writers on one channel
+    /// fight, so the M300 backend takes the channel over from PWM (and only
+    /// from PWM). A capability query rather than a dynamic_cast to the
+    /// concrete backend, because the firmware builds -fno-rtti.
+    virtual bool owns_sysfs_pwm_channel() const {
+        return false;
+    }
+
     /// Set the active waveform type (only called if supports_waveforms() is true)
     virtual void set_waveform(Waveform /* w */) {}
 

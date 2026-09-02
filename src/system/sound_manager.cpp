@@ -42,6 +42,20 @@ using namespace helix;
 // SoundManager singleton
 // ============================================================================
 
+namespace {
+
+/// True when sound is off via --no-sound or the /disable_sound setting — the
+/// state in which no backend may be installed or swapped in.
+bool sound_disabled() {
+    if (get_runtime_config()->disable_sound) {
+        return true;
+    }
+    Config* cfg = Config::get_instance();
+    return cfg && cfg->get<bool>("/disable_sound", false);
+}
+
+} // namespace
+
 SoundManager& SoundManager::instance() {
     static SoundManager instance;
     return instance;
@@ -63,6 +77,25 @@ void SoundManager::set_moonraker_client(IMoonrakerClient* client) {
             sequencer_.reset();
         }
         backend_.reset();
+
+        // The dropped backend may have displaced the host backend picked at
+        // initialize() (the PWM takeover in try_install_m300_backend()):
+        // leaving backend_ null here keeps a modded AD5M silent until
+        // reboot, because its PWM backend was destroyed by the swap. Re-run
+        // the eager probe under the same disable checks initialize() uses;
+        // if the next printer also has an M300 handler, discovery swaps the
+        // channel again.
+        if (!sound_disabled()) {
+            backend_ = create_backend();
+            if (backend_) {
+                finalize_backend_setup();
+            } else {
+                // No host audio available right now — keep the late M300
+                // install reachable, mirroring initialize()'s no-backend
+                // path.
+                initialized_ = true;
+            }
+        }
     }
 }
 
@@ -109,20 +142,35 @@ void SoundManager::initialize() {
     finalize_backend_setup();
 }
 
-void SoundManager::try_install_m300_backend() {
-    if (backend_) {
+void SoundManager::try_install_m300_backend(bool detected_m300_handler) {
+    // PWM is the one backend M300 may displace: on a modded AD5M both
+    // HelixScreen's PWM sysfs backend and klippy's tone_player write the
+    // same buzzer channel, so keeping PWM installed means the two fight
+    // forever. Real detection only — a forced speaker override says the
+    // user wants sound, not that klippy answers M300, and swapping on that
+    // signal alone would aim M300 at printers that reject it (the
+    // "!! Unknown command:M300" feedback loop). SDL/ALSA/JzPwm are real
+    // host audio and are never displaced.
+    const bool displace_pwm =
+        backend_ && detected_m300_handler && backend_->owns_sysfs_pwm_channel();
+    if (backend_ && !displace_pwm) {
         return; // Real audio already winning — don't displace it.
     }
     if (!client_) {
         spdlog::debug("[SoundManager] try_install_m300_backend: no Moonraker client");
+        return; // PWM (if installed) stays — nothing to send M300 through
+    }
+    if (sound_disabled()) {
         return;
     }
-    if (get_runtime_config()->disable_sound) {
-        return;
-    }
-    Config* cfg = Config::get_instance();
-    if (cfg && cfg->get<bool>("/disable_sound", false)) {
-        return;
+
+    if (displace_pwm) {
+        spdlog::info("[SoundManager] Klippy owns M300 — replacing PWM sysfs backend with M300");
+        if (sequencer_) {
+            sequencer_->shutdown();
+            sequencer_.reset();
+        }
+        backend_.reset();
     }
 
     spdlog::info("[SoundManager] Installing M300 backend (Klipper beeper confirmed)");

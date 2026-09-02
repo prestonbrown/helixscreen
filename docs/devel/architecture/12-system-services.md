@@ -118,16 +118,16 @@ Adjacent to the updater sits **UpgradeBanner** (`::instance()`, [`include/upgrad
 
 ### Feedback channels
 
-**SoundManager** auto-detects a host-side backend in `create_backend()` ([`src/system/sound_manager.cpp:378`](../../../src/system/sound_manager.cpp#L378)), then installs M300 separately once discovery speaks:
+**SoundManager** auto-detects a host-side backend in `create_backend()` ([`src/system/sound_manager.cpp:426`](../../../src/system/sound_manager.cpp#L426)), then installs M300 separately once discovery speaks:
 
 | Backend | Picked when | Plays via |
 |---------|-------------|-----------|
 | SDL | Desktop builds where SDL audio initializes | SDL audio device |
 | ALSA PCM | Linux with `HELIX_HAS_ALSA`; a stale saved/env device retries `default` before falling through | ALSA PCM device (runtime-switchable) |
 | PWM sysfs | Platform-gated (`HELIX_HAS_PWM_SOUND`), `/sys/class/pwm/pwmchip0` present | sysfs buzzer |
-| M300 | **Lazily**, after hardware discovery confirms a speaker *and* the Klipper config defines an `M300` macro ([`sound_manager.cpp:91`](../../../src/system/sound_manager.cpp#L91)–`128`) | Klipper gcode through the injected Moonraker client |
+| M300 | **Lazily**, after hardware discovery confirms a speaker *and* the Klipper config defines an `M300` macro ([`sound_manager.cpp:124`](../../../src/system/sound_manager.cpp#L124)–`128`) | Klipper gcode through the injected Moonraker client |
 
-Installing M300 eagerly on a beeper-less printer creates a feedback loop (`M300` → `!! Unknown command` → error toast → error tone → another `M300`). The Moonraker client used by M300 is injected at [`moonraker_manager.cpp:452`](../../../src/application/moonraker_manager.cpp#L452) and dropped when the client clears ([`sound_manager.cpp:55`](../../../src/system/sound_manager.cpp#L55) — switching printers must not carry M300 over to a machine without a beeper). ALSA device choice is lockable via `HELIX_ALSA_DEVICE`; alarm-priority sounds bypass muting ([`sound_manager.cpp:266`](../../../src/system/sound_manager.cpp#L266)). Sound *themes* are JSON in `assets/config/sounds/`; on printer switch the manager is shut down and re-initialized ([`application.cpp:4437`](../../../src/application/application.cpp#L4437), `:4384`) so the backend set matches the new machine.
+Installing M300 eagerly on a beeper-less printer creates a feedback loop (`M300` → `!! Unknown command` → error toast → error tone → another `M300`). The Moonraker client used by M300 is injected at [`moonraker_manager.cpp:452`](../../../src/application/moonraker_manager.cpp#L452) and dropped when the client clears ([`sound_manager.cpp:69`](../../../src/system/sound_manager.cpp#L69) — switching printers must not carry M300 over to a machine without a beeper). ALSA device choice is lockable via `HELIX_ALSA_DEVICE`; alarm-priority sounds bypass muting ([`sound_manager.cpp:314`](../../../src/system/sound_manager.cpp#L314)). Sound *themes* are JSON in `assets/config/sounds/`; on printer switch the manager is shut down and re-initialized ([`application.cpp:4437`](../../../src/application/application.cpp#L4437), `:4384`) so the backend set matches the new machine.
 
 **LED** control is `LedController` (singleton, self-registers its `deinit_subjects`, [`src/led/led_controller.cpp:78`](../../../src/led/led_controller.cpp#L78)) fronting five backends: Native (Klipper `neopixel`/`dotstar`/`led`), LedEffect (the `led_effect` plugin), WLED (network strips via Moonraker's HTTP bridge), Macro (user-configured macros), and OutputPin (brightness-only pins). `LedAutoState` ([`include/led/led_auto_state.h`](../../../include/led/led_auto_state.h)) observes klippy-state, print-state, and extruder-target subjects and computes one of six state keys with a fixed priority — `error` first, then `printing`/`paused`/`complete`, then `heating`, finally `idle` (`compute_state_key`, [`src/led/led_auto_state.cpp:112`](../../../src/led/led_auto_state.cpp#L112)) — and applies the user's per-state mapping (`color`, `brightness`, `effect`, `wled_preset`, `macro`, or `off`). `PrinterLedState` ([`include/printer_led_state.h`](../../../include/printer_led_state.h)) is the display-side sibling: per-strip RGBW subjects that feed the LED home-panel widget.
 
@@ -192,8 +192,8 @@ Read in this order; about 30 minutes total.
 
 1. [`include/system/update_checker.h:80`](../../../include/system/update_checker.h#L80) — the class doc plus `Status`/`UpdateChannel`/`DownloadStatus`: the whole pipeline as three enums.
 2. [`src/system/update_checker.cpp:1241`](../../../src/system/update_checker.cpp#L1241) — the print-guard block and its telemetry report; then `:1317` where `download_thread_` spawns and `:1341` for the re-entry guard.
-3. [`src/system/sound_manager.cpp:378`](../../../src/system/sound_manager.cpp#L378) — `create_backend()`: the SDL → ALSA → PWM ladder and the per-platform PWM gating comment.
-4. [`src/system/sound_manager.cpp:98`](../../../src/system/sound_manager.cpp#L98) — the M300 install gate and the feedback-loop comment above it.
+3. [`src/system/sound_manager.cpp:426`](../../../src/system/sound_manager.cpp#L426) — `create_backend()`: the SDL → ALSA → PWM ladder and the per-platform PWM gating comment.
+4. [`src/system/sound_manager.cpp:131`](../../../src/system/sound_manager.cpp#L131) — the M300 install gate and the feedback-loop comment above it.
 5. [`src/led/led_auto_state.cpp:112`](../../../src/led/led_auto_state.cpp#L112) — `compute_state_key()`: the six-key priority chain in 45 lines.
 6. [`include/memory_monitor.h:37`](../../../include/memory_monitor.h#L37) — `MemoryPressureLevel` and `MemoryThresholds`: levels, tiers, hysteresis fields.
 7. [`src/application/application.cpp:1038`](../../../src/application/application.cpp#L1038) — phase 15 wiring: `start(5000)`, the warning callback, hang detection, both pressure responders.

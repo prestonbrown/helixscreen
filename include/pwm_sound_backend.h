@@ -40,6 +40,7 @@ class PWMSoundBackend : public SoundBackend {
     bool supports_amplitude() const override;
     bool supports_filter() const override;
     float min_tick_ms() const override;
+    bool owns_sysfs_pwm_channel() const override;
 
     // PCM render source support (tracker playback via duty cycle modulation)
     //

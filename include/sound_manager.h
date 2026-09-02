@@ -61,21 +61,26 @@ class SoundManager {
     /// printer's Klipper config declares a beeper output_pin.
     void initialize();
 
-    /// Install the M300 (Klipper gcode beeper) backend if no audio backend
-    /// is currently installed and a Moonraker client is available.
+    /// Install the M300 (Klipper gcode beeper) backend.
     ///
     /// Called from PrinterCapabilitiesState::set_hardware() after hardware
-    /// discovery confirms `hardware.has_speaker()`. Installing M300 only
-    /// when Klipper actually has a `[output_pin beeper]` (and matching
-    /// `[gcode_macro M300]`) prevents the feedback loop where M300 commands
-    /// to a printer without the macro produce `!! Unknown command:M300`,
-    /// surface as error toasts, and trigger the error_tone sound — which
-    /// goes back out as another M300, ad infinitum.
+    /// discovery. @p detected_m300_handler is true only when a REAL signal
+    /// says klippy answers M300 — a beeper output_pin or an M300 macro in
+    /// the Klipper config (has_speaker covers both) — and never when the
+    /// speaker capability was merely forced on: firmware-native M300
+    /// printers exist, but so do printers where M300 is unhandled and every
+    /// command surfaces as `!! Unknown command:M300`, an error toast that
+    /// plays error_tone, which sends another M300 — the loop this gate
+    /// exists to prevent.
     ///
-    /// No-op if a backend is already installed, if no client has been set,
-    /// if sounds are globally disabled, or if SoundManager has been
-    /// shutdown.
-    void try_install_m300_backend();
+    /// No-op when a backend is already installed, EXCEPT when detection was
+    /// real and the active backend is the PWM sysfs backend: klippy's
+    /// tone_player writes the same buzzer channel for every M300/TONE it
+    /// handles, so the two backends fight and M300 takes the channel over
+    /// (the PWM backend is destroyed; klippy becomes the single writer).
+    /// If M300 cannot install (no client, sound disabled) the PWM backend
+    /// stays — the box is never left soundless by the swap.
+    void try_install_m300_backend(bool detected_m300_handler);
 
     /// Stop sequencer, cleanup
     void shutdown();
@@ -143,6 +148,8 @@ class SoundManager {
     [[nodiscard]] bool can_mix() const;
 
   private:
+    friend class SoundManagerTestAccess;
+
     SoundManager() = default;
     ~SoundManager() = default;
 
