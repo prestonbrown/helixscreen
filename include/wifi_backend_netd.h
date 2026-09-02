@@ -108,6 +108,7 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     bool supports_5ghz() const override;
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;
+    bool supports_radio_toggle() const override;
 
   private:
     // ========================================================================
@@ -188,6 +189,13 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     // ========================================================================
     // Write path (any thread)
     // ========================================================================
+
+    /// True while a daemon connection is actually open. is_running() is
+    /// deliberately blind to socket loss (the reconnect timer owns that), so
+    /// anything that answers a caller from local state INSTEAD of going to
+    /// the wire has to ask this too — otherwise a dead daemon's stale
+    /// snapshot becomes a verdict nothing ever confirmed. Any thread.
+    bool connection_live();
 
     /// Non-blocking send under cmd_mutex_ for EXTERNAL threads. Commands are
     /// tiny, so a send that cannot complete immediately means a wedged

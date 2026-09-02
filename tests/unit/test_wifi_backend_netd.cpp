@@ -161,12 +161,18 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd backend interface surface", "[netd][w
     REQUIRE(backend_->is_radio_enabled());
     REQUIRE_FALSE(backend_->resolved_interface().has_value());
 
+    // NOT_SUPPORTED, not BACKEND_ERROR: the daemon owns both the radio and the
+    // saved-network store, so neither capability is broken — it is absent.
+    // WiFiManager branches on exactly this to tell the user "not here" instead
+    // of raising a failure they caused (forget) or nothing at all (the radio
+    // toggle, whose error path is suppressed while any network path is up).
+    REQUIRE_FALSE(backend_->supports_radio_toggle());
     const auto radio = backend_->set_radio_enabled(false);
-    REQUIRE(radio.result == WiFiResult::BACKEND_ERROR);
+    REQUIRE(radio.result == WiFiResult::NOT_SUPPORTED);
     REQUIRE(radio.user_msg == "WiFi radio is managed by the printer's network daemon");
 
     const auto forget = backend_->forget_network("SomeNet");
-    REQUIRE(forget.result == WiFiResult::BACKEND_ERROR);
+    REQUIRE(forget.result == WiFiResult::NOT_SUPPORTED);
 
     // Lifecycle via the base pointer.
     REQUIRE(backend_->start().success());
@@ -1107,6 +1113,168 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd drop-edge join end reopens scanning",
     REQUIRE(scan.success());
     server_->push_line("OK");
     REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+}
+
+// ============================================================================
+// A dead daemon can never produce a synthetic "Connected". The credential-free
+// reselect answers a join from the snapshot instead of going to the wire, and
+// is_running() deliberately stays true across socket loss (the reconnect timer
+// owns that) — so without a liveness check the backend would report CONNECTED
+// with a stale SSID and IP that nothing can confirm.
+//
+// The drop is made observable without a sleep: on_socket_closed() nulls io_
+// and THEN completes the scan it killed, so SCAN_COMPLETE arriving proves the
+// socket is already gone. Reconnect and watchdog are pushed past the case so
+// neither can re-open the connection or complete the scan first.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd dead socket refuses to fabricate a connect",
+                 "[netd][wifi]") {
+    backend_ = std::make_unique<WifiBackendNetd>(60000, 60000);
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    server_->push_line("MODE=WIFI");
+    server_->push_line("STATE=CONNECTED");
+    server_->push_line("SSID=" + b64("Already"));
+    server_->push_line("IP=10.0.0.4");
+    REQUIRE(wait_until([&] {
+        const auto s = backend_->get_status();
+        return s.connected && s.ssid == "Already";
+    }));
+    REQUIRE(wait_for_event("CONNECTED", 1));
+
+    // A scan in flight is the drop detector: it is completed by
+    // on_socket_closed(), after io_ has been nulled.
+    WiFiError scan{WiFiResult::UNKNOWN_ERROR};
+    std::thread scan_caller([&] { scan = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    scan_caller.join();
+    REQUIRE(scan.success());
+
+    server_->close_clients();
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1)); // io_ == nullptr from here
+
+    // The stale snapshot still says connected — that is exactly the material
+    // a fabricated verdict would be built from.
+    REQUIRE(backend_->is_running());
+    REQUIRE(backend_->get_status().connected);
+    REQUIRE(backend_->get_status().ssid == "Already");
+
+    // Reselecting that same network must report the truth: the request could
+    // not be made. No second CONNECTED, no synthetic success.
+    WiFiError reselect{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { reselect = backend_->connect_network("Already", ""); });
+    caller.join();
+    REQUIRE(reselect.result == WiFiResult::CONNECTION_FAILED);
+    REQUIRE(event_count("CONNECTED") == 1);
+}
+
+// ============================================================================
+// Scan rows the daemon broadcasts with no scan of ours outstanding are
+// dropped, not staged. netd pushes to every subscriber, so another client's
+// scan streams rows at us; staging them grew the cache for the life of the
+// process and then published someone else's results as the answer to OUR
+// next scan.
+//
+// Ordering is established without a sleep: a snapshot field pushed after the
+// foreign row is only visible through get_status() once the loop thread has
+// processed everything ahead of it, the row included.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd rows with no scan outstanding are dropped",
+                 "[netd][wifi]") {
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    // Nobody asked for this. The SSID push behind it is the ordering probe.
+    server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=PSK NETWORK=" + b64("Foreign"));
+    server_->push_line("SSID=" + b64("probe"));
+    REQUIRE(wait_until([&] { return backend_->get_status().ssid == "probe"; }));
+
+    // Our own scan, and only our own rows may come out of it.
+    WiFiError scan{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { scan = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    caller.join();
+    REQUIRE(scan.success());
+    server_->push_line("FREQUENCY=2437 SIGNAL=-40 SECURITY=PSK NETWORK=" + b64("Ours"));
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+
+    std::vector<WiFiNetwork> rows;
+    REQUIRE(backend_->get_scan_results(rows).success());
+    REQUIRE(rows.size() == 1);
+    REQUIRE(rows[0].ssid == "Ours");
+}
+
+// ============================================================================
+// A 5 GHz row still counts as evidence even when it belongs to nobody's scan:
+// the radio demonstrably saw the band. The ownership drop above must not take
+// supports_5ghz() down with it.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd unowned 5GHz row still proves band support",
+                 "[netd][wifi]") {
+    REQUIRE(backend_->start().success());
+    REQUIRE_FALSE(backend_->supports_5ghz());
+
+    server_->push_line("FREQUENCY=5180 SIGNAL=-61 SECURITY=WPA2-PSK NETWORK=" + b64("Foreign 5G"));
+    server_->push_line("SSID=" + b64("probe"));
+    REQUIRE(wait_until([&] { return backend_->get_status().ssid == "probe"; }));
+
+    REQUIRE(backend_->supports_5ghz());
+}
+
+// ============================================================================
+// Rows staged by a scan that was abandoned rather than completed must not
+// survive into the next scan's published list. stop() clears the in-flight
+// flag WITHOUT completing (the manager owns the scheduler at that boundary,
+// #1405), so the staging cache is left holding rows; the start() that follows
+// retires the orphaned scan through finish_scan(), and that is where they
+// have to be dropped.
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd abandoned scan rows do not reach the next scan",
+                 "[netd][wifi]") {
+    register_standard_events();
+    REQUIRE(backend_->start().success());
+
+    // Scan 1 completes normally and publishes one row.
+    WiFiError seed{WiFiResult::UNKNOWN_ERROR};
+    std::thread seeder([&] { seed = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
+    seeder.join();
+    REQUIRE(seed.success());
+    server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=PSK NETWORK=" + b64("Kept"));
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+
+    // Scan 2 streams a row and is then abandoned by stop() with no ack. The
+    // SSID push behind the row is the ordering probe: once it is visible, the
+    // loop thread has staged the row.
+    WiFiError orphan{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { orphan = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_count("SCAN") == 2; }));
+    caller.join();
+    REQUIRE(orphan.success());
+    server_->push_line("FREQUENCY=2437 SIGNAL=-30 SECURITY=PSK NETWORK=" + b64("Stale"));
+    server_->push_line("SSID=" + b64("probe"));
+    REQUIRE(wait_until([&] { return backend_->get_status().ssid == "probe"; }));
+
+    backend_->stop();
+    REQUIRE(backend_->start().success());
+
+    // Scan 3 RAN and found nothing: the honest answer is an empty list. A
+    // staged "Stale" surviving the abandonment would be published here
+    // instead, as a network the daemon never reported on this scan.
+    WiFiError third{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller3([&] { third = backend_->trigger_scan(); });
+    REQUIRE(wait_until([&] { return line_count("SCAN") >= 3; }));
+    caller3.join();
+    REQUIRE(third.success());
+    server_->push_line("OK");
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
+
+    std::vector<WiFiNetwork> rows;
+    REQUIRE(backend_->get_scan_results(rows).success());
+    REQUIRE(rows.empty());
 }
 
 #endif // !__APPLE__ && !__ANDROID__

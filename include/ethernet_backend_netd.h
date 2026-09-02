@@ -43,8 +43,10 @@ class EthernetBackendNetd : public EthernetBackend {
      * @param kernel_state Kernel-state reader used for adapter identity and
      *                     as the whole answer when the daemon is unreachable.
      *                     Injectable so tests are host-independent; the
-     *                     default reads the real kernel through
-     *                     EthernetBackendLinux.
+     *                     default reads the real kernel through ONE
+     *                     EthernetBackendLinux built here and kept for the
+     *                     life of this backend — a reader built per get_info()
+     *                     logs its own destruction to stderr on every poll.
      */
     explicit EthernetBackendNetd(const std::string& sysfs_root = "/sys",
                                  std::function<EthernetInfo()> kernel_state = nullptr);

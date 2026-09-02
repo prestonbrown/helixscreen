@@ -1188,3 +1188,178 @@ TEST_CASE("READY refusal path also clears a stale radio block, not just the stor
     SystemSettingsManager::instance().deinit_subjects();
     WiFiManagerTestAccess::reset_sys_root();
 }
+
+// ============================================================================
+// Absent capabilities: "this platform cannot do that" is not "your request
+// failed", and it is not silence either.
+//
+// The netd backends (Forge-X 1.4.2+ AD5M/AD5X) reach the manager with a radio
+// and a credential store the printer's own network daemon owns. Reported as
+// plain errors, both landed wrong: forget raised a red "Failed to forget WiFi
+// network 'X'", and the radio toggle raised nothing at all, because
+// report_radio_result() suppresses errors whenever a network path is up —
+// which is precisely the state a user toggling a working radio off is in.
+// ============================================================================
+
+namespace {
+
+/// A backend with no forget at all. Overrides the mock's working
+/// forget_network() back to WifiBackend's own base default, which is the code
+/// path under test: a backend that simply never implemented it.
+class NoForgetBackend : public WifiBackendMock {
+  public:
+    WiFiError forget_network(const std::string& ssid) override {
+        return WifiBackend::forget_network(ssid);
+    }
+};
+
+/// A backend whose forget really was attempted and really failed — the case
+/// that must still reach the user as an error.
+class FailingForgetBackend : public WifiBackendMock {
+  public:
+    WiFiError forget_network(const std::string&) override {
+        return WiFiError(WiFiResult::BACKEND_ERROR, "removal failed",
+                         "Could not remove the saved network");
+    }
+};
+
+/// A backend whose radio belongs to something else entirely — the
+/// WifiBackendNetd shape. The toggle cannot move and the daemon's protocol has
+/// no verb for it, so is_radio_enabled() honestly stays true.
+class DaemonOwnedRadioBackend : public WifiBackendMock {
+  public:
+    WiFiError set_radio_enabled(bool on) override {
+        (void)on;
+        radio_calls_.fetch_add(1);
+        return WiFiError(WiFiResult::NOT_SUPPORTED, "the network daemon owns the radio",
+                         "WiFi radio is managed by the printer's network daemon");
+    }
+    bool is_radio_enabled() const override {
+        return true;
+    }
+    bool supports_radio_toggle() const override {
+        return false;
+    }
+    int radio_calls() const {
+        return radio_calls_.load();
+    }
+
+  private:
+    std::atomic<int> radio_calls_{0};
+};
+
+/// Counts the user-facing toasts raised while it is alive, and uninstalls its
+/// hooks on the way out so a failed assertion cannot leak them into the next
+/// case.
+struct ToastCounter {
+    int errors = 0;
+    int infos = 0;
+
+    ToastCounter() {
+        helix::ui::set_test_notification_error_hook([this](const std::string&) { ++errors; });
+        helix::ui::set_test_notification_info_hook([this](const std::string&) { ++infos; });
+    }
+    ~ToastCounter() {
+        helix::ui::set_test_notification_error_hook(nullptr);
+        helix::ui::set_test_notification_info_hook(nullptr);
+    }
+    ToastCounter(const ToastCounter&) = delete;
+    ToastCounter& operator=(const ToastCounter&) = delete;
+};
+
+} // namespace
+
+TEST_CASE("forget on a backend that cannot forget informs, and never blames the user",
+          "[wifi][manager][forget]") {
+    {
+        auto backend = std::make_unique<NoForgetBackend>();
+        WiFiManager manager(std::move(backend));
+        helix::ui::UpdateQueue::instance().drain(); // settle the construction reassert
+
+        ToastCounter toasts;
+        bool called = false;
+        bool reported_success = true;
+        manager.forget("Anything", [&](bool ok, const std::string&) {
+            called = true;
+            reported_success = ok;
+        });
+
+        CHECK(called);
+        // Still not a success — nothing was forgotten, and saying otherwise is
+        // the lie the base default exists to prevent.
+        CHECK_FALSE(reported_success);
+        CHECK(toasts.errors == 0);
+        // And not silence either: the user tapped a button and is owed an answer.
+        CHECK(toasts.infos == 1);
+    }
+
+    // A forget that was genuinely attempted and genuinely failed still gets the
+    // error toast. Without this the case would also pass if the suppression
+    // became unconditional.
+    {
+        auto backend = std::make_unique<FailingForgetBackend>();
+        WiFiManager manager(std::move(backend));
+        helix::ui::UpdateQueue::instance().drain();
+
+        ToastCounter toasts;
+        manager.forget("Anything", nullptr);
+        CHECK(toasts.errors == 1);
+        CHECK(toasts.infos == 0);
+    }
+
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE("a radio toggle the backend cannot perform tells the user instead of going quiet",
+          "[wifi][manager][radio]") {
+    auto backend = std::make_unique<DaemonOwnedRadioBackend>();
+    DaemonOwnedRadioBackend* raw = backend.get();
+    WiFiManager manager(std::move(backend));
+    helix::ui::UpdateQueue::instance().drain();
+
+    ToastCounter toasts;
+    // set_enabled() runs report_radio_result() synchronously — the same
+    // function set_enabled_async() defers to.
+    CHECK_FALSE(manager.set_enabled(false));
+    REQUIRE(raw->radio_calls() >= 1); // the request really did reach the backend
+
+    // The switch will still snap back (the radio genuinely is still on, which
+    // reconcile_radio_toggle() is right to reflect) — but the user is told why
+    // instead of watching a control refuse to move for no stated reason.
+    CHECK(toasts.errors == 0);
+    CHECK(toasts.infos == 1);
+
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+// The startup reassert of the stored WiFi setting has TWO branches, and both
+// are wrong on a radio this backend does not own: it cannot apply a stored
+// "off", and its refusal path then CORRECTS the stored value to "on" so the UI
+// cannot show a lie. On a daemon-owned radio that correction is itself the
+// lie — it silently overwrites a choice the user made under an older release,
+// on the first boot after upgrading to a netd build.
+TEST_CASE("READY leaves the stored WiFi setting alone when the backend cannot toggle the radio",
+          "[wifi][manager][radio][persistence]") {
+    Config::get_instance();
+    SystemSettingsManager::instance().init_subjects();
+    SystemSettingsManager::instance().set_wifi_enabled(false);
+
+    // Empty tree, exactly like the CC1 case above: no non-WiFi path, so the
+    // correcting branch is the one that would otherwise run.
+    SysFixture sys;
+    WiFiManagerTestAccess::set_sys_root(sys.sys_root());
+
+    auto backend = std::make_unique<DaemonOwnedRadioBackend>();
+    DaemonOwnedRadioBackend* raw = backend.get();
+
+    WiFiManager manager(std::move(backend));
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Nothing driven, and — the part that matters — nothing rewritten.
+    CHECK(raw->radio_calls() == 0);
+    CHECK_FALSE(SystemSettingsManager::instance().get_wifi_enabled());
+
+    SystemSettingsManager::instance().set_wifi_enabled(true);
+    SystemSettingsManager::instance().deinit_subjects();
+    WiFiManagerTestAccess::reset_sys_root();
+}

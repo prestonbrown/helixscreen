@@ -165,8 +165,14 @@ TEST_CASE("WifiBackend's base forget_network default is a failure, not a silent 
     // forgotten when the base class did nothing at all — set_radio_enabled()
     // gets to be a no-op default because an unreachable toggle is harmless;
     // a fake "forgotten" is not.
+    //
+    // NOT_SUPPORTED rather than BACKEND_ERROR: still a failure to the caller,
+    // but a distinguishable one. WiFiManager::forget() branches on it to say
+    // "this platform manages saved networks itself" instead of "Failed to
+    // forget WiFi network 'X'", which blamed the user for a capability the
+    // platform never had.
     CHECK_FALSE(result.success());
-    CHECK(result.result == WiFiResult::BACKEND_ERROR);
+    CHECK(result.result == WiFiResult::NOT_SUPPORTED);
 }
 
 TEST_CASE("forget_network on the mock backend removes a connected SSID", "[wifi][forget]") {

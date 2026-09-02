@@ -155,6 +155,20 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         // the WiFi interface itself is inconclusive, fail safe: treat it the
         // same as "no known wired fallback" and do not disable the radio.
         async_lifetime_.defer("WiFiManager::reassert_stored_radio_state", [this]() {
+            if (backend_ && !backend_->supports_radio_toggle()) {
+                // The radio belongs to the printer's network daemon: there is
+                // no "off" to reassert, and no interface resolution to make
+                // the stranding check meaningful. Skipping the whole block
+                // matters because of its ELSE branch — unable to apply a
+                // stored "off", it corrects the stored value to "on" so the
+                // UI cannot show a lie. On a radio nobody here controls that
+                // correction is itself the lie, and it silently overwrites a
+                // choice the user made under an older release on the first
+                // boot after upgrading.
+                spdlog::debug("[WiFiManager] Backend does not control the radio — leaving the "
+                              "stored WiFi setting untouched");
+                return;
+            }
             const bool want_on = SystemSettingsManager::instance().get_wifi_enabled();
             if (!want_on && backend_) {
                 const auto iface = backend_->resolved_interface();
@@ -581,10 +595,20 @@ void WiFiManager::forget(const std::string& ssid,
 
     WiFiError result = backend_->forget_network(ssid);
     if (!result.success()) {
-        // NETWORK_NOT_FOUND is not a failure the user caused — nothing was
-        // there to forget, so it does not warrant an error toast the way a
-        // genuine backend failure does.
-        if (result.result != WiFiResult::NETWORK_NOT_FOUND) {
+        // Two of these are not failures the user caused, and neither may
+        // reach the red "Failed to forget" toast:
+        //
+        // NETWORK_NOT_FOUND — nothing was there to forget. Silent: the
+        //   desired state already holds.
+        // NOT_SUPPORTED — this platform has no forget at all (the printer's
+        //   network daemon owns the credential store, so there is nothing
+        //   HelixScreen persists to remove). The user did tap a button and is
+        //   owed an answer, so this one speaks — but as "not here", not as a
+        //   failure. Saying nothing would be the same silent dead control the
+        //   radio toggle used to be.
+        if (result.result == WiFiResult::NOT_SUPPORTED) {
+            NOTIFY_INFO("This printer's network service manages saved WiFi networks");
+        } else if (result.result != WiFiResult::NETWORK_NOT_FOUND) {
             // NOTIFY_ERROR ultimately reaches spdlog::error, which is persisted
             // and swept into debug bundles — redact the SSID the same as every
             // other log line in this file.
@@ -686,6 +710,18 @@ void WiFiManager::report_radio_result(bool enabled, const WiFiError& result,
                                       bool has_wired_fallback) {
     if (result.success()) {
         spdlog::debug("[WiFiManager] WiFi radio {}", enabled ? "enabled" : "disabled");
+        return;
+    }
+
+    if (result.result == WiFiResult::NOT_SUPPORTED) {
+        // Absent, not broken — and the ONE case the suppression below must
+        // not swallow. The switch flips optimistically and
+        // reconcile_radio_toggle() snaps it back the moment the real state
+        // reads unchanged, so with no message the control just refuses to
+        // move for no stated reason. A working network path is the normal
+        // condition here (the daemon owns a radio that is up), which is
+        // exactly what os_link_up() would suppress on.
+        NOTIFY_INFO("This printer's network service controls the WiFi radio");
         return;
     }
 
