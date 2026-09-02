@@ -449,6 +449,7 @@
   <translation tag="Checking..." zh="检查中..."/>
   <translation tag="Choose 12-hour or 24-hour time display" zh="选择 12 小时制或 24 小时制"/>
   <translation tag="Choose Filament" zh="选择耗材"/>
+  <translation tag="Choose Model"/>
   <translation tag="Choose an existing filament, or tap + New to create one." zh="选择已有耗材，或点击 + 新建来创建。"/>
   <translation tag="Choose display language" zh="选择显示语言"/>
   <translation tag="Choose how frames are captured during printing" zh="选择打印期间的帧捕获方式"/>

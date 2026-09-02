@@ -449,6 +449,7 @@
   <translation tag="Checking..." it="Verifica in corso..."/>
   <translation tag="Choose 12-hour or 24-hour time display" it="Scegli formato orario 12 ore o 24 ore"/>
   <translation tag="Choose Filament" it="Scegli filamento"/>
+  <translation tag="Choose Model"/>
   <translation tag="Choose an existing filament, or tap + New to create one." it="Scegli un filamento esistente, o tocca + Nuovo per crearne uno."/>
   <translation tag="Choose display language" it="Scegli lingua di visualizzazione"/>
   <translation tag="Choose how frames are captured during printing" it="Scegli come vengono catturati i fotogrammi durante la stampa"/>

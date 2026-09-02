@@ -449,6 +449,7 @@
   <translation tag="Checking..." ja="確認中..."/>
   <translation tag="Choose 12-hour or 24-hour time display" ja="12時間表示または24時間表示を選択"/>
   <translation tag="Choose Filament" ja="フィラメントを選択"/>
+  <translation tag="Choose Model"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ja="既存のフィラメントを選択するか、+ 新規をタップして作成してください。"/>
   <translation tag="Choose display language" ja="表示言語を選択"/>
   <translation tag="Choose how frames are captured during printing" ja="印刷中のフレームキャプチャ方法を選択"/>

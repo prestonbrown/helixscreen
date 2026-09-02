@@ -454,6 +454,7 @@ translations:
   Checking...: 確認中...
   Choose 12-hour or 24-hour time display: 12時間表示または24時間表示を選択
   Choose Filament: フィラメントを選択
+  Choose Model: ''
   Choose an existing filament, or tap + New to create one.: 既存のフィラメントを選択するか、+ 新規をタップして作成してください。
   Choose display language: 表示言語を選択
   Choose how frames are captured during printing: 印刷中のフレームキャプチャ方法を選択

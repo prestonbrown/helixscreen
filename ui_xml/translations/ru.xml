@@ -449,6 +449,7 @@
   <translation tag="Checking..." ru="Проверка..."/>
   <translation tag="Choose 12-hour or 24-hour time display" ru="Выберите 12-часовой или 24-часовой формат времени"/>
   <translation tag="Choose Filament" ru="Выбрать филамент"/>
+  <translation tag="Choose Model"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ru="Выберите существующий филамент или нажмите + Новый, чтобы создать."/>
   <translation tag="Choose display language" ru="Выберите язык интерфейса"/>
   <translation tag="Choose how frames are captured during printing" ru="Выберите способ захвата кадров во время печати"/>
