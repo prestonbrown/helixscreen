@@ -389,8 +389,18 @@ def main() -> int:
     args = ap.parse_args()
 
     if not args.overrides.is_dir():
-        print(f"FAIL: no override directory at {args.overrides}", file=sys.stderr)
-        return 1
+        # No forks at all is the goal state, and git does not track an empty
+        # directory, so a fresh checkout simply has nothing here. Only a
+        # baseline still naming forks makes this a failure.
+        stale = sorted(load_baseline(args.baseline))
+        if stale:
+            print("FAIL: baseline names overrides that no longer exist:", file=sys.stderr)
+            for name in stale:
+                print(f"      {name}", file=sys.stderr)
+            print("      Drop those rows with --write-baseline.", file=sys.stderr)
+            return 1
+        print("OK: no ESP32 overrides; src/ is compiled directly.")
+        return 0
 
     results = compute(args.overrides, args.src_root, args.baseline)
     stale = stale_baseline_entries(results, args.baseline)
