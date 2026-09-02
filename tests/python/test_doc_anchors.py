@@ -172,15 +172,14 @@ def test_no_segments_resolves_to_the_whole_file():
     assert r == Region(0, len(CPP))
 
 
-def _resolve(text, citation, ext):
-    lines = text.split("\n")
-    r = resolve_segments(lines, parse_citation(citation).segments, ext)
-    return lines[r.start].strip()
-
-
 def _resolve_region(text, citation, ext):
     lines = text.split("\n")
     return lines, resolve_segments(lines, parse_citation(citation).segments, ext)
+
+
+def _resolve(text, citation, ext):
+    lines, r = _resolve_region(text, citation, ext)
+    return lines[r.start].strip()
 
 
 def test_cpp_class_then_member():
@@ -324,6 +323,32 @@ def test_cpp_decl_resolves_using_and_typedef():
     # "using" and "typedef" introduce a declaration, not a statement - they
     # must not be caught by the same leading-keyword rejection as "return".
     assert names == ["Callback", "MyInt", "f"]
+
+
+def test_cpp_decl_rejects_friend_declaration():
+    # Real shape from include/application.h:88 - `friend class X;` declares
+    # nothing named X in this scope, unlike `class X {` opening one.
+    lines = ["friend class ApplicationTestAccess;", "void f();"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["f"]
+
+    lines = ["friend struct ApplicationTestAccess;", "void f();"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["f"]
+
+
+def test_cpp_decl_rejects_other_non_declaration_keyword_leaders():
+    lines = [
+        "default: foo();",
+        "co_return foo(bar);",
+        "return foo(bar);",
+        "counter_ = 0;",
+        'spdlog::info("x", t);',
+        "void f();",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # None of the five lines above declares anything; only "f" is real.
+    assert names == ["f"]
 
 
 def test_block_end_ignores_braces_inside_string_literal():

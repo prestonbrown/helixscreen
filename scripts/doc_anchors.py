@@ -177,15 +177,44 @@ _CPP_KEYWORDS = {
     "throw", "static_cast", "const_cast", "reinterpret_cast", "dynamic_cast",
 }
 
-# Statement-starters only, for rejecting a line before a name is even
-# captured. Deliberately narrower than _CPP_KEYWORDS: `using` and `typedef`
-# introduce a declaration rather than a statement, so they stay out of this
-# set even though a *captured name* equal to one of them is still rejected
-# via _CPP_KEYWORDS in _defs_cpp.
-_CPP_STATEMENT_KEYWORDS = {
-    "if", "for", "while", "switch", "return", "else", "do", "case", "throw",
-    "delete", "new", "catch", "try", "goto",
+# Every standard C++ reserved keyword, for rejecting a line before a name is
+# even captured. A blocklist of "keywords that don't introduce a
+# declaration" fails OPEN: every keyword left off it resolves silently to
+# the wrong line. Failing CLOSED instead - reject any leading keyword not
+# explicitly allowed in _CPP_DECL_KEYWORDS below - means a keyword nobody
+# thought of yields NotFound, not a silent wrong citation.
+_CPP_ALL_KEYWORDS = {
+    "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor",
+    "bool", "break", "case", "catch", "char", "char8_t", "char16_t",
+    "char32_t", "class", "compl", "concept", "const", "consteval",
+    "constexpr", "constinit", "const_cast", "continue", "co_await",
+    "co_return", "co_yield", "decltype", "default", "delete", "do",
+    "double", "dynamic_cast", "else", "enum", "explicit", "export",
+    "extern", "false", "float", "for", "friend", "goto", "if", "inline",
+    "int", "long", "mutable", "namespace", "new", "noexcept", "not",
+    "not_eq", "nullptr", "operator", "or", "or_eq", "private", "protected",
+    "public", "register", "reinterpret_cast", "requires", "return", "short",
+    "signed", "sizeof", "static", "static_assert", "static_cast", "struct",
+    "switch", "template", "this", "thread_local", "throw", "true", "try",
+    "typedef", "typeid", "typename", "union", "unsigned", "using",
+    "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq",
 }
+
+# Keywords that CAN legitimately lead a declaration: storage/cv/linkage
+# specifiers, builtin type keywords, and the class-like introducers.
+# `friend` is deliberately absent - `friend class X;` declares nothing
+# named X in this scope - and every statement-leading keyword (`return`,
+# `case`, `co_return`, ...) is absent by construction, not by enumeration.
+_CPP_DECL_KEYWORDS = {
+    "using", "typedef", "static", "const", "constexpr", "consteval",
+    "constinit", "inline", "template", "virtual", "explicit", "extern",
+    "mutable", "thread_local", "auto", "volatile", "register", "decltype",
+    "operator", "struct", "class", "enum", "union", "alignas",
+    "void", "bool", "char", "short", "int", "long", "float", "double",
+    "signed", "unsigned", "wchar_t", "char8_t", "char16_t", "char32_t",
+}
+
+_CPP_STATEMENT_KEYWORDS = _CPP_ALL_KEYWORDS - _CPP_DECL_KEYWORDS
 
 _CPP_SCOPE = re.compile(
     r"^\s*(?:template\s*<[^>]*>\s*)?"
@@ -199,10 +228,10 @@ _CPP_FUNC = re.compile(
 # A declaration needs a type token before the name, separated by whitespace
 # or a pointer/reference sigil - otherwise `spdlog::info(...)` (a qualified
 # call, no type) and `counter_ = 0;` (an assignment, nothing before the name)
-# both read as a name being declared. The leading keyword check rejects
-# `return foo(bar);` the same way: `return` is not a type. `using`/`typedef`
-# are excluded from that check - they introduce a declaration, not a
-# statement, so `using Callback = ...;` must still resolve.
+# both read as a name being declared. The leading keyword check rejects any
+# line starting with a keyword outside _CPP_DECL_KEYWORDS the same way:
+# `return foo(bar);` and `friend class Foo;` both start with a keyword that
+# is not a declaration specifier.
 _CPP_DECL = re.compile(
     r"^\s*(?!(?:" + "|".join(_CPP_STATEMENT_KEYWORDS) + r")\b)"
     r"[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
