@@ -283,10 +283,6 @@ class Application {
     // for launch_deferred_hardware_setup()'s timer to consume from the
     // instance when the user accepts.
     std::vector<helix::wizard::StepId> m_pending_hardware_setup_steps;
-    // Guards the firmware z-offset persistence enablement (see
-    // include/z_offset_persistence.h) so it is sent at most once per app session.
-    // Intentionally NOT reset on reconnect.
-    bool m_zoffset_persistence_enabled = false;
     // Hardware-shape fingerprint from the most recent on_discovery_complete.
     // When a reconnect's fingerprint matches (hardware unchanged), expensive
     // user-facing side-effects (LED chip population, hardware validation
