@@ -34,13 +34,14 @@ Reported against ZMOD on the FlashForge AD5M / AD5X.
 ## The abstraction
 
 Generic code never names a firmware (root `CLAUDE.md` § "Vendor Knowledge Stays
-Behind an Abstraction"). It asks three capability questions:
+Behind an Abstraction"). It asks four capability questions:
 
 | Question | Asked by | Answer for a plain printer |
 |----------|----------|----------------------------|
 | `required_status_objects(hw)` | `MoonrakerDiscoverySequence::build_subscription_objects()` | empty |
 | `read_persisted_offset_microns(status)` | `PrinterMotionState::update_from_status()` | `nullopt` |
 | `persistence_enable_gcode(hw)` | `Application` discovery-complete | empty string |
+| `status_refutes_persistence(hw, status)` | `PrinterState::update_from_status()` | `false` |
 
 Plus `should_enable_persistence(needs_enable, print_active, already_sent)` — the
 once-per-session, idle-only gate on sending the enable command.
@@ -72,6 +73,56 @@ equivalence is what makes the absolute form correct.
 
 ---
 
+## Latch conservatively, relax only on proof
+
+The two ways detection can be wrong are **not** symmetric, and the whole shape of
+the module follows from that.
+
+| Mistake | Cost |
+|---------|------|
+| **Over-match** — a printer that does not persist is treated as if it does | the Save Z Offset button is hidden. Annoying, recoverable, no hardware risk |
+| **Under-match** — a printer that does persist is treated as if it does not | `Z_OFFSET_APPLY_PROBE` folds the gcode offset into the probe, `SAVE_CONFIG` restarts Klipper, the firmware re-applies the same offset on top. The probe value grows by the full offset on every save cycle — observed 0.060 → 2.515mm over five cycles, **ending nozzle-on-bed** (prestonbrown/helixscreen#1401) |
+
+So detection **latches immediately**: the moment a row matches, discovery calls
+`PrinterState::set_z_offset_external_persistence()` and the strategy becomes
+`FIRMWARE_MANAGED`. There is deliberately no "detect provisionally, confirm
+later" window — that window is the dangerous direction.
+
+Most rows detect on a macro that belongs to exactly one firmware, so the match
+cannot be wrong. The Helper-Script row cannot: it keys on the **wrapper** object,
+which proves something shadows `SET_GCODE_OFFSET` but not that the shadow stores
+anything — wrapping the command for logging, clamping, or per-tool offsets is a
+standard Voron / Klippain / toolchanger pattern, and such a wrapper persists
+nothing.
+
+Rows like that carry a **refutation**: a predicate over a status frame that
+proves the row's storage is *absent*. `PrinterState::update_from_status()` asks
+`status_refutes_persistence(hw, status)` and, when it fires, calls
+`clear_z_offset_external_persistence()` — the same release path rediscovery uses
+when a module has been uninstalled. Gated on the latch flag, so it fires once per
+latch rather than re-deciding on every frame.
+
+The bar for a refutation is **positive evidence of absence**, never a missing
+value:
+
+- Helper-Script refutes on a `save_variables.variables` object that arrived
+  *complete* and carries no `zoffset` key at all. The module `SAVE_VARIABLE`s it
+  on every wrapped call and reads it back at boot, so its total absence means the
+  module is not installed.
+- `zoffset` present but seeded as `{'z': None}` is the module **installed and not
+  yet used**. The reader correctly calls that "nothing stored yet"; the refutation
+  must not, because the boot gcode will still re-apply whatever lands there. This
+  is the boundary that keeps the relaxation off the damaging side.
+- A frame that does not carry `save_variables`, or carries it without its
+  `variables` member, is *no news* — never a refutation (same rule as the reader,
+  below).
+
+**Known gap.** A benign wrapper on a printer with no `[save_variables]` section
+at all never produces a refuting frame, so the over-match stands there. That is
+the annoying direction, by design.
+
+---
+
 ## Delta-only status objects
 
 The storing object is typically delta-only: Moonraker re-sends it when it changes,
@@ -89,11 +140,14 @@ One row in the `providers()` table in `src/printer/z_offset_persistence.cpp`. No
 call site changes:
 
 ```cpp
-{"ZMOD",     "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1", &read_zmod},
+{"ZMOD",     "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
+ "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0", &read_zmod, nullptr},
 {"Forge-X",  "SET_MOD",        {"mod_params"},     "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
- &read_forge_x},
-{"Helper-Script", "SET_GCODE_OFFSET", {"save_variables"}, nullptr, &read_helper_script},
-//  name       detect macro      status objects     enable gcode (or nullptr)         reader
+ nullptr, &read_forge_x, nullptr},
+{"Helper-Script", "SET_GCODE_OFFSET", {"save_variables"}, nullptr, nullptr,
+ &read_helper_script, &refuted_helper_script},
+//  name       detect macro      status objects     enable gcode   stale-delta clear
+//                                                                 reader   refutation
 ```
 
 - **detect macro** — matched via `PrinterDiscovery::has_macro()`, case-insensitive,
@@ -109,6 +163,12 @@ call site changes:
   frame that does not carry the value, and must tolerate the firmware's
   not-yet-set placeholder. Round rather than truncate: stored values accumulate
   relative deltas, so a nominal `-0.150` arrives as `-0.1499999`.
+- **refutation** — `nullptr` unless the detect macro is ambiguous. When present,
+  it must answer `true` only on positive evidence that the row's storage is
+  absent, and `false` for every "no news" frame and for the firmware's own
+  not-yet-used placeholder. See § "Latch conservatively, relax only on proof" —
+  a refutation that fires too eagerly re-enables a save path that damages
+  hardware.
 
 `read_persisted_offset_microns()` dispatches **by schema**, not by detected
 firmware, because it runs on the status path where no `PrinterDiscovery` is in

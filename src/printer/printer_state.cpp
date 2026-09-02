@@ -40,6 +40,7 @@
 #include "timelapse_state.h"
 #include "unit_conversions.h"
 #include "width_sensor_manager.h"
+#include "z_offset_persistence.h"
 
 #include <algorithm>
 #include <cctype>
@@ -404,6 +405,21 @@ void PrinterState::update_from_status(const json& state, double eventtime,
 
     // Delegate motion updates to motion state component
     motion_state_.update_from_status(state);
+
+    // Discovery latches external z-offset persistence the moment a provider
+    // matches, because the mistake that damages hardware is the other one
+    // (#1401). One provider is keyed on the SET_GCODE_OFFSET wrapper, which
+    // proves a wrapper exists but not that it stores anything, so a frame that
+    // positively proves the store is absent is what relaxes the latch back to
+    // the type-derived strategy. Gated on the flag, so this fires at most once
+    // per latch instead of thrashing on every later frame.
+    if (z_offset_external_persistence_ &&
+        helix::zoffset::status_refutes_persistence(discovery_, state)) {
+        spdlog::info("[PrinterState] Status refutes the detected z-offset persistence provider "
+                     "({}): the wrapper stores no offset",
+                     helix::zoffset::persistence_provider_name(discovery_));
+        clear_z_offset_external_persistence_internal();
+    }
 
     // Delegate print updates to print state component
     print_domain_.update_from_status(state);
@@ -1134,7 +1150,11 @@ void PrinterState::clear_z_offset_external_persistence_internal() {
         return;
     }
     z_offset_external_persistence_ = false;
-    spdlog::info("[PrinterState] No external z-offset persistence provider on rediscovery");
+    // Two callers with different reasons - rediscovery finding no provider, and
+    // a status frame refuting one - so each logs its own reason and this stays
+    // neutral about which happened.
+    spdlog::info("[PrinterState] No external z-offset persistence provider - Save Z Offset "
+                 "returns to the type-derived strategy");
     if (!printer_type_.empty()) {
         set_printer_type_internal(printer_type_);
     }

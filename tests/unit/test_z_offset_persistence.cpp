@@ -357,3 +357,123 @@ TEST_CASE("z-offset persistence: ZMOD outranks the Helper-Script wrapper",
     PrinterDiscovery hw = printer_with_macros({"SAVE_ZMOD_DATA", "_SET_GCODE_OFFSET"});
     CHECK(helix::zoffset::persistence_provider_name(hw) == "ZMOD");
 }
+
+// ============================================================================
+// Refuting an over-matched provider (prestonbrown/helixscreen#1401)
+// ============================================================================
+//
+// The Helper-Script row detects on the WRAPPER object, which proves something
+// shadows SET_GCODE_OFFSET but not that the shadow stores anything - wrapping
+// the command to log, clamp, or fan out per-tool offsets is a standard Voron /
+// Klippain / toolchanger pattern. The match still latches immediately, because
+// the two mistakes are not symmetric: over-matching costs a benign-wrapper user
+// the Save Z Offset button, while under-matching folds a real Helper-Script
+// offset into the probe and stacks it every boot (0.060 -> 2.515mm over five
+// cycles, nozzle-on-bed). Only a frame that PROVES the store is absent relaxes
+// it.
+
+TEST_CASE("z-offset persistence: a wrapper with no zoffset store is refuted",
+          "[zoffset][persistence][1401]") {
+    // The over-match case. save_variables arrived, complete, carrying somebody
+    // else's variables and no `zoffset` key at all - save-zoffset.cfg is not
+    // installed, so the wrapper is one of the benign kinds and Save Z Offset
+    // must come back.
+    PrinterDiscovery hw = printer_with_macros({"SET_GCODE_OFFSET"});
+    REQUIRE(helix::zoffset::firmware_persists_z_offset(hw));
+
+    json frame = json{{"save_variables", json{{"variables", json{{"lan_clients", 7}}}}}};
+    CHECK(helix::zoffset::status_refutes_persistence(hw, frame));
+
+    // An empty store is the same proof: the module seeds its variable, so a
+    // delivered-and-empty variables dict cannot be an install.
+    json empty = json{{"save_variables", json{{"variables", json::object()}}}};
+    CHECK(helix::zoffset::status_refutes_persistence(hw, empty));
+}
+
+TEST_CASE("z-offset persistence: a real Helper-Script install is never refuted",
+          "[zoffset][persistence][1401]") {
+    // The dangerous direction. The store carries the module's variable with a
+    // real value: this printer persists, and Save Z Offset must stay down.
+    PrinterDiscovery hw = printer_with_macros({"SET_GCODE_OFFSET"});
+
+    json frame =
+        json{{"save_variables", json{{"variables", json{{"zoffset", json{{"z", -0.475}}}}}}}};
+    CHECK_FALSE(helix::zoffset::status_refutes_persistence(hw, frame));
+
+    // Sibling keys in the same store change nothing.
+    json with_siblings =
+        json{{"save_variables",
+              json{{"variables", json{{"lan_clients", 7}, {"zoffset", json{{"z", -0.475}}}}}}}};
+    CHECK_FALSE(helix::zoffset::status_refutes_persistence(hw, with_siblings));
+}
+
+TEST_CASE("z-offset persistence: the seeded zoffset placeholder does not refute",
+          "[zoffset][persistence][1401]") {
+    // THE boundary that protects against the damaging direction. save-zoffset.cfg
+    // seeds `zoffset` as {'z': None} at install and only fills it on the first
+    // wrapped SET_GCODE_OFFSET. The read path correctly calls that "nothing
+    // stored yet" - but the module IS installed and its boot gcode WILL re-apply
+    // whatever lands there, so treating the placeholder as a refutation would
+    // hand the user a Save button on a printer that stacks the offset.
+    PrinterDiscovery hw = printer_with_macros({"SET_GCODE_OFFSET"});
+
+    json seeded =
+        json{{"save_variables", json{{"variables", json{{"zoffset", json{{"z", nullptr}}}}}}}};
+    REQUIRE_FALSE(helix::zoffset::read_persisted_offset_microns(seeded).has_value());
+    CHECK_FALSE(helix::zoffset::status_refutes_persistence(hw, seeded));
+
+    // Any shape of the key counts as present: what refutes is the key's total
+    // absence, never our failure to parse its value.
+    CHECK_FALSE(helix::zoffset::status_refutes_persistence(
+        hw, json{{"save_variables", json{{"variables", json{{"zoffset", json::object()}}}}}}));
+    CHECK_FALSE(helix::zoffset::status_refutes_persistence(
+        hw, json{{"save_variables", json{{"variables", json{{"zoffset", nullptr}}}}}}));
+    CHECK_FALSE(helix::zoffset::status_refutes_persistence(
+        hw, json{{"save_variables", json{{"variables", json{{"zoffset", "-0.475"}}}}}}));
+}
+
+TEST_CASE("z-offset persistence: no news is not evidence of absence",
+          "[zoffset][persistence][1401]") {
+    // save_variables is delta-only: the overwhelming majority of frames do not
+    // carry it, and one that arrives without its variables member has told us
+    // nothing either. Refuting on those would drop the stand-down on a real
+    // Helper-Script box on the very next gcode_move frame.
+    PrinterDiscovery hw = printer_with_macros({"SET_GCODE_OFFSET"});
+    using helix::zoffset::status_refutes_persistence;
+
+    CHECK_FALSE(status_refutes_persistence(hw, json{{"gcode_move", json{{"speed", 100.0}}}}));
+    CHECK_FALSE(status_refutes_persistence(hw, json{{"save_variables", json::object()}}));
+    CHECK_FALSE(
+        status_refutes_persistence(hw, json{{"save_variables", json{{"variables", "nope"}}}}));
+    CHECK_FALSE(status_refutes_persistence(hw, json{{"save_variables", nullptr}}));
+    // Degenerate inputs must not throw.
+    CHECK_FALSE(status_refutes_persistence(hw, json::object()));
+    CHECK_FALSE(status_refutes_persistence(hw, json()));
+}
+
+TEST_CASE("z-offset persistence: unambiguous providers are never refutable",
+          "[zoffset][persistence][1401]") {
+    using helix::zoffset::status_refutes_persistence;
+
+    // SAVE_ZMOD_DATA and SET_MOD each belong to exactly one firmware, so the
+    // match cannot be wrong and no frame gets to argue with it. ZMOD's own
+    // store lives under a different key, so the very frame that refutes the
+    // wrapper row must leave ZMOD alone.
+    json no_zoffset_key = json{{"save_variables", json{{"variables", json{{"lan_clients", 7}}}}}};
+    CHECK_FALSE(
+        status_refutes_persistence(printer_with_macros({"SAVE_ZMOD_DATA"}), no_zoffset_key));
+    CHECK_FALSE(
+        status_refutes_persistence(printer_with_macros({"SAVE_ZMOD_DATA"}),
+                                   json{{"save_variables", json{{"variables", json::object()}}}}));
+    CHECK_FALSE(status_refutes_persistence(printer_with_macros({"SET_MOD"}), no_zoffset_key));
+    json empty_mod_params = json{{"mod_params", json{{"variables", json::object()}}}};
+    CHECK_FALSE(status_refutes_persistence(printer_with_macros({"SET_MOD"}), empty_mod_params));
+
+    // A box carrying BOTH macros resolves to ZMOD, so the wrapper row's
+    // refutation must not reach it through the back door.
+    CHECK_FALSE(status_refutes_persistence(
+        printer_with_macros({"SAVE_ZMOD_DATA", "SET_GCODE_OFFSET"}), no_zoffset_key));
+
+    // And a printer with no provider at all has nothing to refute.
+    CHECK_FALSE(status_refutes_persistence(printer_with_macros({"START_PRINT"}), no_zoffset_key));
+}

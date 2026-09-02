@@ -17,14 +17,17 @@
 
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "printer_detector.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 // ============================================================================
@@ -527,4 +530,133 @@ TEST_CASE("PrinterState: an external z-offset persistence provider forces firmwa
     REQUIRE(state.get_z_offset_calibration_strategy() !=
             ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
     REQUIRE(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 1);
+}
+
+// ============================================================================
+// Refuting an over-matched persistence provider (prestonbrown/helixscreen#1401)
+// ============================================================================
+//
+// One provider row is keyed on the SET_GCODE_OFFSET wrapper object, which
+// proves a wrapper is installed but not that it stores the offset - benign
+// wrappers (logging, clamping, per-tool offsets) are a standard pattern.
+// Discovery latches FIRMWARE_MANAGED on the match anyway, because losing the
+// Save button is recoverable and the opposite mistake is not. update_from_status
+// is where a frame that PROVES the store is absent releases the latch.
+
+namespace {
+
+/// A printer whose objects list carries the given gcode macros.
+helix::PrinterDiscovery discovery_with_macros(std::initializer_list<const char*> macros) {
+    nlohmann::json objects = nlohmann::json::array();
+    objects.push_back("gcode_move");
+    objects.push_back("toolhead");
+    for (const char* m : macros) {
+        objects.push_back(std::string("gcode_macro ") + m);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+/// A save_variables status frame carrying exactly the given variables dict.
+nlohmann::json save_variables_frame(const nlohmann::json& variables) {
+    return nlohmann::json{{"save_variables", nlohmann::json{{"variables", variables}}}};
+}
+
+} // namespace
+
+TEST_CASE("PrinterState: a status frame without the store refutes a wrapper-only match",
+          "[printer_state][capabilities][1401]") {
+    LVGLTestFixture fixture;
+
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_hardware(discovery_with_macros({"SET_GCODE_OFFSET"}));
+
+    // An unknown printer resolves to probe/endstop, so the stand-down below is
+    // visible rather than the type's own answer.
+    state.set_printer_type_sync("Unknown Printer");
+    REQUIRE(state.get_z_offset_calibration_strategy() !=
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+
+    // Discovery latches on the wrapper object - conservative by design.
+    state.set_z_offset_external_persistence_internal("Helper-Script");
+    REQUIRE(state.get_z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    REQUIRE(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 0);
+
+    // The save_variables store arrives complete, carrying someone else's
+    // variables and no `zoffset` key: save-zoffset.cfg is not installed, the
+    // wrapper stores nothing, and Save Z Offset must come back.
+    state.update_from_status(save_variables_frame(nlohmann::json{{"lan_clients", 7}}));
+
+    CHECK(state.get_z_offset_calibration_strategy() !=
+          ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 1);
+
+    // One-shot: further frames of the same shape find nothing latched and must
+    // not thrash the strategy back and forth.
+    state.update_from_status(save_variables_frame(nlohmann::json::object()));
+    CHECK(state.get_z_offset_calibration_strategy() !=
+          ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 1);
+}
+
+TEST_CASE("PrinterState: a real store, a seeded one, and no news all keep the stand-down",
+          "[printer_state][capabilities][1401]") {
+    // The damaging direction. Every frame here must leave Save Z Offset down:
+    // re-enabling it on a printer that really persists folds the offset into the
+    // probe and the firmware re-applies it at boot, growing the probe offset by
+    // the full offset on every save cycle until the nozzle is on the bed.
+    LVGLTestFixture fixture;
+
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_hardware(discovery_with_macros({"SET_GCODE_OFFSET"}));
+    state.set_printer_type_sync("Unknown Printer");
+    state.set_z_offset_external_persistence_internal("Helper-Script");
+    REQUIRE(state.get_z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+
+    SECTION("the module's variable is present with a real value") {
+        state.update_from_status(
+            save_variables_frame(nlohmann::json{{"zoffset", nlohmann::json{{"z", -0.475}}}}));
+    }
+    SECTION("seeded as {'z': None} - installed, never used") {
+        state.update_from_status(
+            save_variables_frame(nlohmann::json{{"zoffset", nlohmann::json{{"z", nullptr}}}}));
+    }
+    SECTION("save_variables is not in this delta frame at all") {
+        state.update_from_status(nlohmann::json{{"gcode_move", nlohmann::json{{"speed", 100.0}}}});
+    }
+    SECTION("save_variables arrived without its variables member") {
+        state.update_from_status(nlohmann::json{{"save_variables", nlohmann::json::object()}});
+    }
+
+    CHECK(state.get_z_offset_calibration_strategy() ==
+          ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 0);
+}
+
+TEST_CASE("PrinterState: an unambiguously detected provider is not refuted by a frame",
+          "[printer_state][capabilities][1401]") {
+    // ZMOD is matched on SAVE_ZMOD_DATA, which belongs to one firmware and means
+    // one thing, so no status frame gets to argue with it - not even the very
+    // frame shape that refutes the wrapper row. ZMOD's own store lives under a
+    // different key in the same object.
+    LVGLTestFixture fixture;
+
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_hardware(discovery_with_macros({"SAVE_ZMOD_DATA"}));
+    state.set_printer_type_sync("Unknown Printer");
+    state.set_z_offset_external_persistence_internal("ZMOD");
+    REQUIRE(state.get_z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+
+    state.update_from_status(save_variables_frame(nlohmann::json{{"lan_clients", 7}}));
+
+    CHECK(state.get_z_offset_calibration_strategy() ==
+          ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 0);
 }

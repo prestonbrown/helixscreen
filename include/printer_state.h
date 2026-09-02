@@ -2253,8 +2253,11 @@ class PrinterState {
      */
     void set_z_offset_external_persistence(const std::string& provider_name);
 
-    /// Rediscovery found no provider (module uninstalled): restore the
-    /// type-derived strategy. Thread-safe like the setter.
+    /// The provider is gone or was never really there: restore the type-derived
+    /// strategy. Two callers - rediscovery finding no provider (module
+    /// uninstalled), and update_from_status() when a frame refutes a provider
+    /// detected on an ambiguous signature (a SET_GCODE_OFFSET wrapper that
+    /// stores nothing). Thread-safe like the setter.
     void clear_z_offset_external_persistence();
 
     /// Main-thread bodies; tests reach these directly.
