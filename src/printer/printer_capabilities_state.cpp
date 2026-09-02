@@ -130,14 +130,19 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     // override arm, that forced-on setting silently no-ops: the sound settings
     // appear, but nothing ever installs a backend.
     // This MUST happen before flipping printer_has_speaker_ so any UI/handlers
-    // observing the subject see a working backend. SoundManager no-ops if
-    // a real audio backend (SDL/ALSA/PWM) is already installed. A DISABLE
-    // override means "this printer has no speaker", so it keeps the M300
-    // backend out too rather than installing a beeper the user disowned.
+    // observing the subject see a working backend. Real detection
+    // (has_speaker) additionally takes the buzzer channel away from the PWM
+    // sysfs backend: klippy's tone_player writes that same channel for every
+    // M300/TONE it handles, so the two backends fight — klippy becomes the
+    // single writer. The forced override alone never displaces an installed
+    // backend (M300 may be unhandled there → the "!! Unknown command:M300"
+    // feedback loop). A DISABLE override means "this printer has no speaker",
+    // so it keeps the M300 backend out too rather than installing a beeper
+    // the user disowned.
     const OverrideState speaker_override = overrides.get_override(capability::SPEAKER);
     if (speaker_override != OverrideState::DISABLE &&
         (hardware.has_speaker() || speaker_override == OverrideState::ENABLE)) {
-        SoundManager::instance().try_install_m300_backend();
+        SoundManager::instance().try_install_m300_backend(hardware.has_speaker());
     }
 
     // Speaker capability — uses override system so presets can disable it

@@ -51,8 +51,14 @@ class SoundManager {
     SoundManager(const SoundManager&) = delete;
     SoundManager& operator=(const SoundManager&) = delete;
 
-    /// Set Moonraker client for M300 backend
-    void set_moonraker_client(IMoonrakerClient* client);
+    /// Set Moonraker client for M300 backend. Clearing the client (nullptr)
+    /// drops an M300 backend; with @p host_recovery (default) the eager
+    /// host-backend probe re-runs so a displaced backend returns — printer
+    /// switch and transient disconnect want that, since with the client gone
+    /// the gcode path is dead and local audio is the only fallback. Full app
+    /// shutdown passes false: the manager is torn down moments later and
+    /// re-opening audio hardware there is wasted work.
+    void set_moonraker_client(IMoonrakerClient* client, bool host_recovery = true);
 
     /// Auto-detect backend, load theme, start sequencer.
     /// Only considers host-side audio backends (SDL/ALSA/PWM). The M300
@@ -61,21 +67,26 @@ class SoundManager {
     /// printer's Klipper config declares a beeper output_pin.
     void initialize();
 
-    /// Install the M300 (Klipper gcode beeper) backend if no audio backend
-    /// is currently installed and a Moonraker client is available.
+    /// Install the M300 (Klipper gcode beeper) backend.
     ///
     /// Called from PrinterCapabilitiesState::set_hardware() after hardware
-    /// discovery confirms `hardware.has_speaker()`. Installing M300 only
-    /// when Klipper actually has a `[output_pin beeper]` (and matching
-    /// `[gcode_macro M300]`) prevents the feedback loop where M300 commands
-    /// to a printer without the macro produce `!! Unknown command:M300`,
-    /// surface as error toasts, and trigger the error_tone sound — which
-    /// goes back out as another M300, ad infinitum.
+    /// discovery. @p detected_m300_handler is true only when a REAL signal
+    /// says klippy answers M300 — a beeper output_pin or an M300 macro in
+    /// the Klipper config (has_speaker covers both) — and never when the
+    /// speaker capability was merely forced on: firmware-native M300
+    /// printers exist, but so do printers where M300 is unhandled and every
+    /// command surfaces as `!! Unknown command:M300`, an error toast that
+    /// plays error_tone, which sends another M300 — the loop this gate
+    /// exists to prevent.
     ///
-    /// No-op if a backend is already installed, if no client has been set,
-    /// if sounds are globally disabled, or if SoundManager has been
-    /// shutdown.
-    void try_install_m300_backend();
+    /// No-op when a backend is already installed, EXCEPT when detection was
+    /// real and the active backend is the PWM sysfs backend: klippy's
+    /// tone_player writes the same buzzer channel for every M300/TONE it
+    /// handles, so the two backends fight and M300 takes the channel over
+    /// (the PWM backend is destroyed; klippy becomes the single writer).
+    /// If M300 cannot install (no client, sound disabled) the PWM backend
+    /// stays — the box is never left soundless by the swap.
+    void try_install_m300_backend(bool detected_m300_handler);
 
     /// Stop sequencer, cleanup
     void shutdown();
@@ -143,12 +154,26 @@ class SoundManager {
     [[nodiscard]] bool can_mix() const;
 
   private:
+    friend class SoundManagerTestAccess;
+
     SoundManager() = default;
     ~SoundManager() = default;
 
     /// Detect best available host-side audio backend (SDL/ALSA/PWM).
     /// Does NOT include M300 — see try_install_m300_backend().
     std::shared_ptr<SoundBackend> create_backend();
+
+    /// Run the eager host-backend probe and finish setup when one is found
+    /// (sequencer + theme via finalize_backend_setup()). When none is found,
+    /// mark initialized_ anyway so try_install_m300_backend() stays reachable
+    /// for the late M300 install.
+    void probe_and_install_host_backend();
+
+    /// Join the sequencer thread, then release the backend it drives — in
+    /// that order: the sequencer's tick loop calls into the backend, so the
+    /// thread must be dead before the backend it references is destroyed.
+    /// Every path that swaps or drops a backend goes through here.
+    void tear_down_active_backend();
 
     /// Common setup after a backend is installed: load theme, create and
     /// start sequencer, mark initialized. Idempotent.

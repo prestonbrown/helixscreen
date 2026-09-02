@@ -3,6 +3,8 @@
 
 #include "pwm_sound_backend.h"
 
+#include "env_knobs.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -132,7 +134,11 @@ bool PWMSoundBackend::supports_filter() const {
 }
 
 float PWMSoundBackend::min_tick_ms() const {
-    return 2.0f;
+    return min_note_ms_;
+}
+
+bool PWMSoundBackend::owns_sysfs_pwm_channel() const {
+    return true;
 }
 
 bool PWMSoundBackend::is_enabled() const {
@@ -198,6 +204,12 @@ bool PWMSoundBackend::initialize() {
 
     render_buf_.resize(PCM_RENDER_BUFFER_FRAMES);
     park_probe_buf_.resize(static_cast<size_t>(park_probe_frames()));
+
+    // Rig-tunable audible floor (see DEFAULT_MIN_NOTE_MS): env_float falls
+    // back to the default on unset/empty/non-positive/unparseable values.
+    min_note_ms_ = helix::env_float("HELIX_PWM_MIN_NOTE_MS", DEFAULT_MIN_NOTE_MS,
+                                    MIN_NOTE_MS_CLAMP_LOW, MIN_NOTE_MS_CLAMP_HIGH);
+    spdlog::debug("[PWMSoundBackend] min note floor: {} ms", min_note_ms_);
 
     initialized_ = true;
     return true;

@@ -997,8 +997,9 @@ endif
 #   SCHED_IDLE with absolute pacing, bounded catch-up, and silence auto-park, so
 #   it can no longer starve the CPU that runs a print. Originally disabled
 #   2026-04 (003c195ac) for exactly that starvation at normal priority.
-# ad5m-br/ad5x: tone-only — the SCHED_IDLE render loop has not been re-validated
-#   on their hardware, so tracker stays off there.
+# ad5m-br: tone-only — the SCHED_IDLE render loop has not been re-validated
+#   on that hardware. ad5x turns tracker on below: the jz PC-speaker path
+#   plays per-note buffers, and no ad5x backend reports supports_render_source.
 # K1/K2/MIPS: no audio hardware at all
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=

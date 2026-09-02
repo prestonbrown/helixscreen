@@ -45,6 +45,14 @@ class MockBackend : public SoundBackend {
     std::vector<SilenceEvent> silence_events;
     bool amp_support = true;
 
+    // Sequencer tick interval to report (drives its sleep): set above 1.0 to
+    // emulate a floor-limited backend like PWM (20) or M300 (50).
+    float min_tick_ms_value = 1.0f;
+
+    float min_tick_ms() const override {
+        return min_tick_ms_value;
+    }
+
     void set_tone(float freq_hz, float amplitude, float duty_cycle) override {
         std::lock_guard<std::mutex> lock(mutex);
         tone_events.push_back({freq_hz, amplitude, duty_cycle, std::chrono::steady_clock::now()});
@@ -305,6 +313,73 @@ TEST_CASE("SoundSequencer: pause step produces silence", "[sound][sequencer][slo
     CHECK(has_2000);
 
     seq.shutdown();
+}
+
+// ============================================================================
+// 3b. Audible floor: steps shorter than min_tick_ms are stretched to the tick
+// ============================================================================
+
+// The sequencer can only advance a step on a tick, and it sleeps the
+// backend's min_tick_ms() between ticks — so every step sounds for at least
+// one full tick interval. That quantization IS the audible floor the PWM
+// backend leans on (its min_tick_ms is the floor): without it, a sub-floor
+// tone+rest pair would be a click, not a beep. This pins the mechanism with
+// mock floors, so a refactor that decouples step advancement from the tick
+// interval goes red here before the piezo regresses on hardware.
+TEST_CASE("SoundSequencer: sub-floor steps are stretched to the min_tick_ms interval",
+          "[sound][sequencer][slow]") {
+    auto run_sub_floor_pair = [](float floor_ms) {
+        auto backend = std::make_shared<MockBackend>();
+        backend->min_tick_ms_value = floor_ms;
+        SoundSequencer seq(backend);
+        seq.start();
+
+        // 10 ms tone + 10 ms rest: both steps below every floor used here.
+        SoundDefinition def;
+        def.name = "sub_floor";
+        def.repeat = 1;
+
+        SoundStep tone;
+        tone.freq_hz = 1000;
+        tone.duration_ms = 10;
+        tone.velocity = 0.8f;
+        tone.envelope = {0, 0, 1.0f, 0};
+        def.steps.push_back(tone);
+
+        SoundStep rest;
+        rest.is_pause = true;
+        rest.duration_ms = 10;
+        rest.freq_hz = 0;
+        rest.envelope = {0, 0, 0, 0};
+        def.steps.push_back(rest);
+
+        seq.play(def);
+        REQUIRE(wait_until_done(seq, 10000));
+        seq.shutdown();
+
+        auto tones = backend->get_tones();
+        auto silences = backend->get_silences();
+        REQUIRE(tones.size() > 0);
+        REQUIRE(silences.size() > 0);
+
+        // The tone rings from its first set_tone until the first silence
+        // (the rest step's advance_step). With steps advancing only on
+        // ticks, that span is at least one tick interval, minus scheduling
+        // slack for the wake lateness a loaded runner adds.
+        auto span_ms = std::chrono::duration_cast<std::chrono::milliseconds>(silences[0].timestamp -
+                                                                             tones[0].timestamp)
+                           .count();
+        return static_cast<float>(span_ms);
+    };
+
+    // The PWM floor: a 10 ms tone rings for ~a full 20 ms tick.
+    float span_at_20 = run_sub_floor_pair(20.0f);
+    CHECK(span_at_20 >= 15.0f);
+
+    // Control: raising the floor must stretch the same tone further — this
+    // is what fails if step advancement stops tracking the tick interval.
+    float span_at_50 = run_sub_floor_pair(50.0f);
+    CHECK(span_at_50 >= 45.0f);
 }
 
 // ============================================================================

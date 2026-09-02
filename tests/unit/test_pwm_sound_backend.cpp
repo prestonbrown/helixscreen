@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/pwm_sound_backend_test_access.h"
+#include "../test_helpers/scoped_env.h"
 #include "pwm_sound_backend.h"
 
 #include <atomic>
@@ -164,8 +165,77 @@ TEST_CASE("PWM backend reports correct capabilities", "[sound][pwm]") {
     // PWM can't do DSP filters
     REQUIRE_FALSE(backend.supports_filter());
 
-    // Sysfs is slower than audio buffer — needs larger tick
-    REQUIRE(backend.min_tick_ms() == Approx(2.0f));
+    // The sysfs buzzer needs ~20 ms of drive before the piezo registers a
+    // tone; shorter notes collapse into clicks. The sequencer quantizes every
+    // theme step up to this tick interval, so this is the audible floor.
+    REQUIRE(backend.min_tick_ms() == Approx(20.0f));
+
+    // PWM writes the printer's buzzer channel directly — the capability the
+    // M300 gate asks about when deciding whether klippy should own it instead
+    REQUIRE(backend.owns_sysfs_pwm_channel());
+}
+
+// ============================================================================
+// Audible floor: min_tick_ms default + HELIX_PWM_MIN_NOTE_MS override
+// ============================================================================
+
+TEST_CASE("min note floor defaults to 20 ms and HELIX_PWM_MIN_NOTE_MS clamps to 10-100",
+          "[sound][pwm]") {
+    helix::ScopedEnv guard("HELIX_PWM_MIN_NOTE_MS");
+    auto base = create_mock_sysfs(0, 6);
+
+    SECTION("default floor without the env var") {
+        unsetenv("HELIX_PWM_MIN_NOTE_MS");
+        PWMSoundBackend backend(base, 0, 6);
+        REQUIRE(backend.initialize());
+        REQUIRE(backend.min_tick_ms() == Approx(20.0f));
+    }
+
+    SECTION("uninitialized backend still reports the member default") {
+        unsetenv("HELIX_PWM_MIN_NOTE_MS");
+        PWMSoundBackend backend(base, 0, 6);
+        REQUIRE(backend.min_tick_ms() == Approx(20.0f));
+    }
+
+    SECTION("in-range override applies verbatim") {
+        setenv("HELIX_PWM_MIN_NOTE_MS", "45", 1);
+        PWMSoundBackend backend(base, 0, 6);
+        REQUIRE(backend.initialize());
+        REQUIRE(backend.min_tick_ms() == Approx(45.0f));
+    }
+
+    SECTION("below-range override clamps up to 10") {
+        setenv("HELIX_PWM_MIN_NOTE_MS", "5", 1);
+        PWMSoundBackend backend(base, 0, 6);
+        REQUIRE(backend.initialize());
+        REQUIRE(backend.min_tick_ms() == Approx(10.0f));
+    }
+
+    SECTION("above-range override clamps down to 100") {
+        setenv("HELIX_PWM_MIN_NOTE_MS", "500", 1);
+        PWMSoundBackend backend(base, 0, 6);
+        REQUIRE(backend.initialize());
+        REQUIRE(backend.min_tick_ms() == Approx(100.0f));
+    }
+
+    SECTION("non-positive or garbage override keeps the default") {
+        PWMSoundBackend zero(base, 0, 6);
+        setenv("HELIX_PWM_MIN_NOTE_MS", "0", 1);
+        REQUIRE(zero.initialize());
+        REQUIRE(zero.min_tick_ms() == Approx(20.0f));
+
+        PWMSoundBackend negative(base, 0, 6);
+        setenv("HELIX_PWM_MIN_NOTE_MS", "-3", 1);
+        REQUIRE(negative.initialize());
+        REQUIRE(negative.min_tick_ms() == Approx(20.0f));
+
+        PWMSoundBackend garbage(base, 0, 6);
+        setenv("HELIX_PWM_MIN_NOTE_MS", "not-a-number", 1);
+        REQUIRE(garbage.initialize());
+        REQUIRE(garbage.min_tick_ms() == Approx(20.0f));
+    }
+
+    cleanup_mock_sysfs(base);
 }
 
 // ============================================================================
