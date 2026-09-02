@@ -482,7 +482,11 @@ def _locate(path, repo_root, relative_to):
     that names one specific file rather than "whatever happens to sit next
     to the citing document", so it is tried first and the rest are a
     fallback for a path the author wrote relative to their own document
-    (doc-dir-relative, then that directory's parent).
+    (doc-dir-relative, then that directory's parent). The parent-directory
+    fallback is unconditional: citations get checked from documents both
+    inside and outside docs/devel, and gating it on the citing doc's location
+    would make resolution depend on an accident of that path for no
+    reader-visible benefit.
     """
     candidates = [os.path.join(str(repo_root), path)]
     if relative_to is not None:
@@ -517,40 +521,71 @@ def resolve(citation_text, repo_root=".", relative_to=None):
 # what a citation looks like — check_doc_refs.py's PATH_RE matches the same
 # shape and is meant to derive from this rather than keep its own copy.
 CITE_RE = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+(?:#[^`]+)?)`")
-_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+# A fence opens on ``` or ~~~ (3 or more of either character) and closes only
+# on a marker using the SAME character, at least as long as the one that
+# opened it - CommonMark's rule, so a stray `~~~` inside a ``` block does not
+# end it early.
+_FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
-def iter_citations(paths):
+def iter_citations(paths, problems=None):
     """(doc, doc_line, citation_text) for every citation outside a fence.
 
     A fenced code block is where a doc shows citation syntax rather than
-    making a claim about the tree, so citations inside one are skipped.
+    making a claim about the tree, so citations inside one are skipped. A
+    document this cannot fully read - unopenable, or ending with a fence
+    still open - is not silently treated as clean: pass a list as `problems`
+    to receive one human-readable line per such document, in addition to
+    whatever citations were found before the problem.
     """
     out = []
     for path in paths:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            in_fence = False
+        try:
+            fh = open(path, encoding="utf-8", errors="replace")
+        except OSError as exc:
+            if problems is not None:
+                problems.append(f"{path}: cannot open: {exc}")
+            continue
+        with fh:
+            fence_marker = fence_opened_at = None
             for lineno, line in enumerate(fh, start=1):
-                if _FENCE_RE.match(line):
-                    in_fence = not in_fence
+                m = _FENCE_RE.match(line)
+                if m:
+                    marker = m.group(1)
+                    if fence_marker is None:
+                        fence_marker, fence_opened_at = marker, lineno
+                    elif marker[0] == fence_marker[0] and len(marker) >= len(fence_marker):
+                        fence_marker = None
                     continue
-                if in_fence:
+                if fence_marker is not None:
                     continue
-                for m in CITE_RE.finditer(line):
-                    out.append((str(path), lineno, m.group(1)))
+                for cm in CITE_RE.finditer(line):
+                    out.append((str(path), lineno, cm.group(1)))
+            if fence_marker is not None and problems is not None:
+                problems.append(f"{path}:{fence_opened_at}: fence never closed")
     return out
 
 
 def check(paths, repo_root="."):
-    """Advisory findings: unresolvable or ambiguous citations."""
+    """Advisory findings: unresolvable, ambiguous, or malformed citations,
+    plus any document a fenced-code problem or a read error kept from being
+    fully scanned.
+
+    Must never raise: this is `--check`'s whole implementation, and that mode
+    is advisory - it exists to report broken citations, so a citation (or a
+    document) too broken to even parse has to become a finding, not a
+    traceback that hides every OTHER finding behind it.
+    """
     findings = []
-    for doc, lineno, text in iter_citations(paths):
+    for doc, lineno, text in iter_citations(paths, problems=findings):
         if "#" not in text:
             continue
         try:
             resolve(text, repo_root=repo_root, relative_to=os.path.dirname(doc))
         except FileNotFoundError:
             findings.append(f"{doc}:{lineno}: no such file: {text}")
+        except ValueError as exc:
+            findings.append(f"{doc}:{lineno}: malformed citation {text!r}: {exc}")
         except (NotFound, Ambiguous) as exc:
             findings.append(f"{doc}:{lineno}: {text}: {exc}")
     return findings
@@ -587,8 +622,16 @@ def main(argv=None):
         print(f"{citation.path}:{line}")
         return 0
     if args.check is not None:
+        # --check is advisory: its whole purpose is surfacing broken
+        # citations, so nothing it examines - a malformed citation, an
+        # unreadable doc, a bug check() itself does not yet know about - may
+        # ever turn into a nonzero exit or an uncaught traceback in place of
+        # a finding. The except below is the backstop for the last case.
         paths = args.check or _default_doc_targets()
-        findings = check(paths)
+        try:
+            findings = check(paths)
+        except Exception as exc:
+            findings = [f"internal error while checking: {exc}"]
         for f in findings:
             print(f)
         n = len(findings)

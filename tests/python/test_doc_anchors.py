@@ -5,6 +5,7 @@ Covers the citation grammar, the region resolver's refuse-to-guess contract,
 and the per-language definition scanners.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -590,6 +591,39 @@ def test_iter_citations_skips_fenced_code_blocks(tmp_path):
     assert found == ["src/a.cpp#f", "src/c.cpp#h"]
 
 
+def test_tilde_fence_does_not_close_a_backtick_fence(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text(
+        "prose `src/a.cpp#f` here\n"
+        "```\n"
+        "~~~\n"
+        "`src/b.cpp#g`\n"
+        "```\n"
+        "and `src/c.cpp#h`\n",
+        encoding="utf-8",
+    )
+    found = [c for _, _, c in iter_citations([doc])]
+    assert found == ["src/a.cpp#f", "src/c.cpp#h"]
+
+
+def test_unclosed_fence_produces_a_problem(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text("prose\n```\nsome code, never closed\n", encoding="utf-8")
+    problems = []
+    citations = iter_citations([doc], problems=problems)
+    assert citations == []
+    assert len(problems) == 1
+    assert "fence" in problems[0]
+
+
+def test_check_reports_an_unclosed_fence(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text("prose\n```\nsome code, never closed\n", encoding="utf-8")
+    findings = check([doc], repo_root=tmp_path)
+    assert len(findings) == 1
+    assert "fence" in findings[0].lower()
+
+
 def test_check_reports_a_missing_name(tmp_path):
     (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
     doc = tmp_path / "d.md"
@@ -624,6 +658,50 @@ def test_check_cli_exits_zero_even_with_findings(tmp_path):
     )
     assert p.returncode == 0
     assert "nope" in p.stdout
+
+
+def test_check_reports_a_malformed_citation(tmp_path):
+    (tmp_path / "a.cpp").write_text("void f() {\n}\n", encoding="utf-8")
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#1bad`\n", encoding="utf-8")
+    findings = check([doc], repo_root=tmp_path)
+    assert len(findings) == 1
+    assert "malformed" in findings[0].lower()
+
+
+def test_check_cli_survives_a_malformed_citation(tmp_path):
+    (tmp_path / "d.md").write_text("see `a.cpp#1bad`\n", encoding="utf-8")
+    p = subprocess.run(
+        [sys.executable, str(SCRIPT), "--check", "d.md"],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert p.returncode == 0
+    assert "malformed" in p.stdout.lower()
+
+
+def test_check_cli_survives_a_target_that_does_not_exist(tmp_path):
+    p = subprocess.run(
+        [sys.executable, str(SCRIPT), "--check", "ghost.md"],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert p.returncode == 0
+    assert "ghost.md" in p.stdout
+
+
+@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permission bits")
+def test_check_cli_survives_an_unreadable_file(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text("see `a.cpp#f`\n", encoding="utf-8")
+    doc.chmod(0)
+    try:
+        p = subprocess.run(
+            [sys.executable, str(SCRIPT), "--check", "d.md"],
+            cwd=tmp_path, capture_output=True, text=True,
+        )
+    finally:
+        doc.chmod(0o644)
+    assert p.returncode == 0
+    assert "d.md" in p.stdout
 
 
 def test_check_resolves_a_citation_relative_to_the_citing_doc(tmp_path):
