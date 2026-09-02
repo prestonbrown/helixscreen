@@ -175,6 +175,7 @@ ThermistorWidget::~ThermistorWidget() {
 void ThermistorWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
+    install_delete_hook(widget_obj);
 
     if (widget_obj_) {
         lv_obj_set_user_data(widget_obj_, this);
@@ -435,16 +436,39 @@ void ThermistorWidget::detach() {
         temp_lifetime_.reset();
         temp_observer_.reset();
     }
+    uninstall_delete_hook();
 
     if (widget_obj_) {
         lv_obj_set_user_data(widget_obj_, nullptr);
-        widget_obj_ = nullptr;
     }
-    parent_screen_ = nullptr;
-    temp_label_ = nullptr;
-    name_label_ = nullptr;
+    forget_tile_widgets();
 
     spdlog::debug("[ThermistorWidget] Detached");
+}
+
+void ThermistorWidget::on_hooked_root_deleted() {
+    // Runs inside LVGL's delete event: expire the pending deferred observer
+    // callbacks and drop the cached pointers only. The observers themselves
+    // stay registered on their (still live) subjects until detach() or the
+    // destructor resets them — every callback checks its token first, so a
+    // drained on_temp_changed() or carousel page apply no-ops instead of
+    // writing to the freed labels.
+    lifetime_.invalidate();
+    forget_tile_widgets();
+}
+
+void ThermistorWidget::forget_tile_widgets() {
+    // Carousel page label pointers are nulled in place (not popped) so
+    // carousel_pages_ stays index-aligned with carousel_observers_; a drained
+    // page apply bounds-checks its index, finds a null label, and stops.
+    for (auto& page : carousel_pages_) {
+        page.temp_label = nullptr;
+        page.name_label = nullptr;
+    }
+    temp_label_ = nullptr;
+    name_label_ = nullptr;
+    widget_obj_ = nullptr;
+    parent_screen_ = nullptr;
 }
 
 void ThermistorWidget::handle_clicked() {

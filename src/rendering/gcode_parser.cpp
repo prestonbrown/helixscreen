@@ -586,13 +586,31 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
     }
     // Fallback: Parse single filament_colour if extruder_colour not yet found
     else if (contains_all({"filament", "col"}) && tool_color_palette_.empty()) {
-        // Check if it's a semicolon-separated list (multi-color)
-        if (value.find(';') != std::string::npos) {
+        // The shared palette parser owns every list form (';' and ','
+        // separated). Ask it: a value that parses into multiple entries is
+        // per-tool metadata, a single valid entry is a plain single color,
+        // and anything it rejects leaves the metadata untouched rather than
+        // storing an unvalidated blob in filament_color_hex.
+        std::vector<std::string> as_palette;
+        if (helix::gcode::parse_filament_color_palette(line, as_palette) && as_palette.size() > 1) {
             parse_extruder_color_metadata(line);
-        } else {
-            // Single color metadata
-            metadata_filament_color_ = value;
-            spdlog::trace("[GCode Parser] Parsed single filament color: {}", value);
+        } else if (const std::string* single = helix::gcode::first_named_color(as_palette)) {
+            // Single color metadata — the first entry that actually holds one,
+            // not index 0: a list like ",,#FF0000" parks an empty placeholder
+            // at slot 0, and storing that would drop the only color the file
+            // stated.
+            metadata_filament_color_ = *single;
+            spdlog::trace("[GCode Parser] Parsed single filament color: {}",
+                          metadata_filament_color_);
+        } else if (std::string_view cleaned = helix::gcode::clean_color_hex(value);
+                   !cleaned.empty()) {
+            // The list parser rejects this line (a colon-separated key form,
+            // say) but the value is still one real color token. Store the
+            // validated token — never the raw value, which is how a comma
+            // blob used to land here and paint everything in its first field.
+            metadata_filament_color_ = std::string(cleaned);
+            spdlog::trace("[GCode Parser] Parsed single filament color: {}",
+                          metadata_filament_color_);
         }
     } else if (contains_all({"filament", "type"})) {
         metadata_filament_type_ = value;
@@ -792,10 +810,13 @@ void GCodeParser::parse_extruder_color_metadata(const std::string& line) {
                          initial_tool_index_ < static_cast<int>(tool_color_palette_.size()) &&
                          !tool_color_palette_[initial_tool_index_].empty())
                             ? initial_tool_index_
-                            : 0;
-    if (fallback_tool < static_cast<int>(tool_color_palette_.size()) &&
-        !tool_color_palette_[fallback_tool].empty()) {
+                            : -1;
+    if (fallback_tool >= 0) {
         metadata_filament_color_ = tool_color_palette_[fallback_tool];
+    } else if (const std::string* first = helix::gcode::first_named_color(tool_color_palette_)) {
+        // No covered initial tool: the first color the file does state, not
+        // palette[0], which can be an empty placeholder for an unknown slot.
+        metadata_filament_color_ = *first;
     }
 }
 

@@ -806,7 +806,11 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: suite-report-shard-${{ matrix.shard }}
-        path: build/suite-report.xml
+        # The evidence dir exists only when the gate fired; uploading is fine
+        # without it as long as the report matches.
+        path: |
+          build/suite-report.xml
+          build/order-dependence-evidence
         retention-days: 7
 
   nightly-status:

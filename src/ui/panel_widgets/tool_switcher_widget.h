@@ -115,6 +115,13 @@ class ToolSwitcherWidget : public PanelWidget {
     void show_tool_picker();
     void handle_tool_selected(int tool_index);
 
+    /// Null every cached widget pointer (pills, compact label, container
+    /// hooks, tile root) without touching observers or the widget tree.
+    /// Shared by detach() and the raw-delete hook.
+    void forget_tile_widgets();
+
+    void on_hooked_root_deleted() override;
+
     // Layout predicates over the cached granted size — shared by the readers
     // that fire from on_size_changed() itself and the ones that fire later
     // from observers (tool_count_observer_, on_active_tool_changed()).

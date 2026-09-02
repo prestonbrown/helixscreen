@@ -282,3 +282,31 @@ require_gnu_sed() {
     fi
     skip "needs GNU sed (BSD sed differs on -i and \\n): brew install gnu-sed"
 }
+
+# ---------------------------------------------------------------------------
+# Host systemctl is shadowed for every test, by default
+#
+# Installer code reaches systemctl through paths a test never names: the
+# update-unit stop/disable sweep is not gated on INIT_SYSTEM, and
+# detect_init_system answers "systemd" on any dev desktop. Headless CI has no
+# polkit agent, so there each call is denied instantly and the installer's
+# trailing "|| true" hides it - the suite stays green while doing something
+# that must never happen. On a desktop the same call raises an auth dialog the
+# test cannot answer, once per systemctl. Shadowing the binary by default
+# makes both impossible; a test that wants scripted systemctl behaviour still
+# calls mock_command* afterwards, whose later write to the same PATH slot
+# wins. HELIX_TEST_REAL_SYSTEMCTL=1 restores the host binary for debugging
+# the helpers themselves - no test should need it.
+# ---------------------------------------------------------------------------
+install_systemctl_shim() {
+    [ -n "${_HELIX_SYSTEMCTL_SHIM:-}" ] && return 0
+    _HELIX_SYSTEMCTL_SHIM=1
+
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    printf '#!/bin/sh\n# Inert inside bats: helpers.bash shadows systemctl by default.\nexit 0\n' \
+        > "$BATS_TEST_TMPDIR/bin/systemctl"
+    chmod +x "$BATS_TEST_TMPDIR/bin/systemctl"
+    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+}
+
+[ -z "${HELIX_TEST_REAL_SYSTEMCTL:-}" ] && install_systemctl_shim

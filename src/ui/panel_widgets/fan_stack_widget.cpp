@@ -426,15 +426,58 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
                 lv_obj_set_style_flex_main_place(row, LV_FLEX_ALIGN_START, 0);
             }
         }
-    } else if (bigger) {
-        // Center the content block when the widget is wider than 1x.
-        // Each row is LV_SIZE_CONTENT so it shrink-wraps its text.
-        // Setting cross_place to CENTER on the flex-column parent centers
-        // the rows horizontally, but that causes ragged left edges.
-        // Instead: keep rows at SIZE_CONTENT and set the parent's
-        // cross_place to CENTER — but use a uniform min_width on all rows
-        // so they share the same left edge.
+    } else {
+        // Beside, both tiers: line the rows up on one shared left edge.
+        // Per-row centering puts no two icons at the same x once rows hold
+        // different-width text ("0%" vs "100%", "P" vs "Hotend"), so level
+        // all three rows to the widest line and let the flex-column parent's
+        // cross_place=center (XML) center the equal-width block on the tile.
         //
+        // Speed text keeps changing after layout ("0%" -> "100%"), but the
+        // rows are leveled once, here. Reserve every speed label at the
+        // widest string it can show so a fan ramping up later cannot outgrow
+        // its row and clip - and right-align the number inside that box, so
+        // every row ends at the same right edge and the leveled block reads
+        // as justified across the widest line's width rather than left-packed.
+        for (auto* label : {part_label_, hotend_label_, aux_label_}) {
+            if (!label)
+                continue;
+            lv_point_t worst = {0, 0};
+            lv_text_get_size(&worst, WIDEST_SPEED_TEXT, text_font,
+                             lv_obj_get_style_text_letter_space(label, LV_PART_MAIN), 0,
+                             LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+            lv_obj_set_style_min_width(label, worst.x, 0);
+            lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_RIGHT, 0);
+        }
+
+        // Level the name column the same way: per-row names differ in
+        // advance width ("P" vs "H" vs "C", "Hotend" vs "Part Cooling Fan"),
+        // which would leave the speed column's right edge ragged by a pixel
+        // or two even with the boxes reserved above. A shared name-box width
+        // pins both column edges for every row.
+        lv_obj_t* name_labels[] = {lv_obj_find_by_name(widget_obj_, "fan_stack_part_name"),
+                                   lv_obj_find_by_name(widget_obj_, "fan_stack_hotend_name"),
+                                   lv_obj_find_by_name(widget_obj_, "fan_stack_aux_name")};
+        // lv_coord_t, not int: it is compared with sz.x in std::max below, and
+        // on the xtensa ESP32 toolchain int32_t (lv_coord_t) is long - a
+        // plain int makes the max() template deduction fail there while
+        // compiling clean on desktop builds.
+        lv_coord_t name_w = 0;
+        for (lv_obj_t* lbl : name_labels) {
+            const char* text = lbl ? lv_label_get_text(lbl) : nullptr;
+            if (!text)
+                continue;
+            lv_point_t sz = {0, 0};
+            lv_text_get_size(&sz, text, text_font,
+                             lv_obj_get_style_text_letter_space(lbl, LV_PART_MAIN), 0, LV_COORD_MAX,
+                             LV_TEXT_FLAG_NONE);
+            name_w = std::max(name_w, sz.x);
+        }
+        for (lv_obj_t* lbl : name_labels) {
+            if (lbl)
+                lv_obj_set_style_min_width(lbl, name_w, 0);
+        }
+
         // First pass: set rows to content width and measure the widest
         for (const char* rn : row_names) {
             lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
@@ -460,15 +503,6 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
             lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
             if (row)
                 lv_obj_set_width(row, max_w);
-        }
-    } else {
-        // 1x1: center content within each row (labels are short: P, H, C)
-        for (const char* rn : row_names) {
-            lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-            if (row) {
-                lv_obj_set_width(row, LV_PCT(100));
-                lv_obj_set_style_flex_main_place(row, LV_FLEX_ALIGN_CENTER, 0);
-            }
         }
     }
 

@@ -37,7 +37,10 @@ TEXT_ATTRIBUTES = {"text", "label", "description", "title", "subtitle", "placeho
 
 # Attributes that ARE the translation key rather than a rendered default. They
 # are extracted unconditionally -- see the note at the extraction site.
-EXPLICIT_TAG_ATTRIBUTES = ("translation_tag", "label_tag")
+# title_tag pairs with title= the way label_tag pairs with label= (section
+# headers via setting_group_header); leaving it out kept every section title
+# out of the catalogs, so non-English devices rendered them in English.
+EXPLICIT_TAG_ATTRIBUTES = ("translation_tag", "label_tag", "title_tag")
 
 # Inline element text: <text_muted>Foo</text_muted>. The C parser
 # (lib/helix-xml/src/xml/lv_xml.c) applies this as text= + translation_tag=,

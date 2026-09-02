@@ -27,10 +27,6 @@
     <px name="metadata_clip_height_xlarge" value="156"/>
     <px name="metadata_clip_height_xxlarge" value="196"/>
   </consts>
-  <styles>
-    <!-- Fully transparent but still takes up layout space -->
-    <style name="invisible" opa="0"/>
-  </styles>
   <!-- Print Status Panel - Active print monitoring with G-code 3D viewer -->
   <!-- Uses same sizing as print_file_detail: overlay_width_transient_large, 5:4 flex ratio -->
   <view name="print_status_panel"

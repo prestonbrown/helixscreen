@@ -1617,8 +1617,10 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # for_each_in_tree from the modal teardown rework, ui_button_owns_user_data
   # and ContainerDeleteNet from the widget-pool fix,
   # wifi_signal_percent_from_dbm, and an AmsBackend forward declaration - each
-  # beside global-scope siblings in its own file.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2326 --summary >/tmp/namespace_check.out 2>&1; then
+  # beside global-scope siblings in its own file. +2 for the main-side sync:
+  # ui_gcode_viewer_set_thumbnail_parity (declaration + definition), another
+  # member of the global ui_gcode_viewer_* C-API family.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2328 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out

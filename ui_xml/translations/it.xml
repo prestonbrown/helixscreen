@@ -124,6 +124,7 @@
   <translation tag="Acceleration to deceleration limit (mm/s²)" it="Limite accelerazione a decelerazione (mm/s²)"/>
   <translation tag="Accelerometer" it="Accelerometro"/>
   <translation tag="Accelerometer communication failed. Try again." it="Comunicazione accelerometro fallita. Riprovare."/>
+  <translation tag="Accelerometers" it="Accelerometri"/>
   <translation tag="Accept" it="Accetta"/>
   <translation tag="Accepted Z Position: 0.000" it="Posizione Z accettata: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" it="Posizione Z accettata: {:.3f}"/>
@@ -205,6 +206,7 @@
   <translation tag="Auto" it="Auto"/>
   <translation tag="Auto Bed Mesh" it="Mesh piano automatica"/>
   <translation tag="Auto Cal" it="Cal. auto"/>
+  <translation tag="Auto Fans" it="Ventilatori automatici"/>
   <translation tag="Auto-Detect" it="Rilevamento auto"/>
   <translation tag="Auto-Heat on Load" it="Riscaldamento automatico al caricamento"/>
   <translation tag="Auto-detect" it="Rilevamento auto"/>
@@ -492,6 +494,7 @@
   <translation tag="Collecting debug info..." it="Raccolta info di debug..."/>
   <translation tag="Color" it="Colore"/>
   <translation tag="Color Mismatch" it="Colore non corrispondente"/>
+  <translation tag="Color Sensors" it="Sensori di colore"/>
   <translation tag="Communication Test" it="Test di comunicazione"/>
   <translation tag="Compact" it="Compatto"/>
   <translation tag="Compare"/>
@@ -571,6 +574,7 @@
   <translation tag="Continue" it="Continua"/>
   <translation tag="Control optional print start features" it="Controlla funzionalità opzionali avvio stampa"/>
   <translation tag="Control power relays and smart outlets" it="Controlla relè e prese intelligenti"/>
+  <translation tag="Controllable Fans" it="Ventilatori controllabili"/>
   <translation tag="Controlled by hardware sensor" it="Controllato da sensore hardware"/>
   <translation tag="Controller" it="Controller"/>
   <translation tag="Controls" it="Controlli"/>
@@ -680,6 +684,7 @@
   <translation tag="Dev" it="Dev"/>
   <translation tag="Dev channel requires dev_url in config" it="Il canale dev richiede dev_url nella configurazione"/>
   <translation tag="Device" it="Dispositivo"/>
+  <translation tag="Device Section" it="Sezione dispositivo"/>
   <translation tag="Device connected" it="Dispositivo connesso"/>
   <translation tag="Device name" it="Nome dispositivo"/>
   <translation tag="Device name is required" it="Il nome dispositivo è obbligatorio"/>
@@ -1174,6 +1179,7 @@
   <translation tag="Hub &amp; Cutter" it="Hub e taglierina"/>
   <translation tag="Hub Bowden Length" it="Lunghezza del bowden dell&apos;hub"/>
   <translation tag="Humidity" it="Umidità"/>
+  <translation tag="Humidity Sensors" it="Sensori di umidità"/>
   <translation tag="Humidity inside the enclosure" it="Umidità nella camera"/>
   <translation tag="Hyperlapse" it="Hyperlapse"/>
   <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." it="Hyperlapse cattura i fotogrammi a intervalli di tempo fissi. Ideale per stampe molto lunghe."/>
@@ -1515,6 +1521,7 @@
   <translation tag="Network name cannot be empty" it="Il nome della rete non può essere vuoto"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." it="Rete, schermo, suono, configurazione stampante e altro. Puoi rivedere questo tour in qualsiasi momento da Aiuto e informazioni."/>
   <translation tag="Never" it="Mai"/>
+  <translation tag="New Spool" it="Nuova bobina"/>
   <translation tag="New Spool: Step 1 of 3" it="Nuova bobina: Passo 1 di 3"/>
   <translation tag="New Spool: Step {} of {}" it="Nuova bobina: passaggio {} di {}"/>
   <translation tag="New Version Available" it="Nuova Versione Disponibile"/>
@@ -1662,7 +1669,7 @@
   <translation tag="On/Off" it="On/Off"/>
   <translation tag="On/Off (state-aware)" it="On/Off (con stato)"/>
   <translation tag="On:" it="On:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask."/>
+  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." it="Un tocco esegue questa macro senza parametri. Le macro pericolose chiedono comunque conferma."/>
   <translation tag="Ooze Reduction" it="Riduzione della fuoriuscita"/>
   <translation tag="Open" it="Apri"/>
   <translation tag="Open Source Licenses" it="Licenze open source"/>
@@ -1897,6 +1904,7 @@
   <translation tag="Probe Accuracy Failed" it="Test precisione sonda fallito"/>
   <translation tag="Probe Accuracy Test" it="Test precisione sonda"/>
   <translation tag="Probe Management" it="Gestione sonda"/>
+  <translation tag="Probe Sensors" it="Sensori a sonda"/>
   <translation tag="Probe Speed" it="Velocità sonda"/>
   <translation tag="Probe controls, accuracy test, and settings" it="Controlli sonda, test precisione e impostazioni"/>
   <translation tag="Probing Bed Mesh" it="Sondaggio mesh piano"/>
@@ -1914,7 +1922,7 @@
   <translation tag="Profile renamed" it="Profilo rinominato"/>
   <translation tag="Profiles" it="Profili"/>
   <translation tag="Progress, file, and time remaining" it="Avanzamento, file e tempo rimanente"/>
-  <translation tag="Prompt before running this macro"/>
+  <translation tag="Prompt before running this macro" it="Chiedi prima di eseguire questa macro"/>
   <translation tag="Pulling filament back" it="Retrazione filamento"/>
   <translation tag="Purge" it="Spurga"/>
   <translation tag="Purge &amp; Wipe" it="Spurgo e pulizia"/>
@@ -2023,7 +2031,7 @@
   <translation tag="Reprint" it="Ristampa"/>
   <translation tag="Reprint Last" it="Ristampa ultima"/>
   <translation tag="Request Failed" it="Richiesta fallita"/>
-  <translation tag="Require Confirmation?"/>
+  <translation tag="Require Confirmation?" it="Richiedi conferma?"/>
   <translation tag="Require confirmation before emergency stop" it="Richiedi conferma prima dell&apos;arresto di emergenza"/>
   <translation tag="Requires Moonraker power device" it="Richiede un dispositivo di alimentazione Moonraker"/>
   <translation tag="Requires Moonraker-Timelapse plugin" it="Richiede plugin Moonraker-Timelapse"/>
@@ -2398,6 +2406,7 @@
   <translation tag="Suppress raw debug output from printer firmware modules" it="Sopprime l&apos;output di debug grezzo dai moduli firmware della stampante"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." it="Le superfici ereditano i token sfondo app per modalità chiara e scura."/>
   <translation tag="Switch Printer" it="Cambia stampante"/>
+  <translation tag="Switch Sensors" it="Sensori a interruttore"/>
   <translation tag="Switch a power device on or off" it="Accendi o spegni un dispositivo"/>
   <translation tag="Switch between light and dark themes" it="Passa tra tema chiaro e scuro"/>
   <translation tag="Switch the active tool or extruder" it="Cambia utensile o estrusore attivo"/>
@@ -2761,6 +2770,7 @@
   <translation tag="Widget Labels" it="Etichette widget"/>
   <translation tag="Width" it="Larghezza"/>
   <translation tag="Width Sensor" it="Sensore di larghezza"/>
+  <translation tag="Width Sensors" it="Sensori di larghezza"/>
   <translation tag="Wifi" it="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" it="Non cambierà bobina a filamento esaurito"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" it="Pulisci l&apos;ugello sulla striscia di pulizia in silicone"/>

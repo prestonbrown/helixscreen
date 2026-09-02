@@ -69,6 +69,7 @@ bool ToolSwitcherWidget::is_narrow_tall_size() const {
 void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
+    install_delete_hook(widget_obj);
     s_active_instance = this;
 
     // SIZE_CHANGED is a layout event — cannot be registered via XML
@@ -151,20 +152,51 @@ void ToolSwitcherWidget::detach() {
     active_tool_observer_.reset();
     tool_count_observer_.reset();
     print_state_observer_.reset();
-    pill_buttons_.clear();
-    compact_label_ = nullptr;
+    uninstall_delete_hook();
+
+    // #983 shape: lv_obj_set_grid_dsc_array() stores the descriptor pointers
+    // without copying, so a condemned container still in LV_LAYOUT_GRID keeps
+    // reading grid_col_dsc_/grid_row_dsc_ after a recycled instance's next
+    // rebuild_pills() .assign() frees the old buffer (safe_clean_children
+    // reparents the tile to lv_layer_top and deletes it async, leaving exactly
+    // that cross-attach window). detach() precedes every reachable
+    // condemnation, so stripping the layout here makes a condemned container
+    // structurally unable to read the descriptors again — the same mitigation
+    // PanelWidgetManager applies to the page container. rebuild_pills()
+    // re-establishes the grid when it rebuilds one.
+    if (size_watch_container_ && lv_is_initialized()) {
+        lv_obj_set_layout(size_watch_container_, LV_LAYOUT_NONE);
+    }
+
+    forget_tile_widgets();
     if (s_active_instance == this) {
         s_active_instance = nullptr;
     }
+    grid_settled_w_px_ = -1;
+    grid_settled_h_px_ = -1;
+    in_grid_size_refresh_ = false;
+}
+
+void ToolSwitcherWidget::on_hooked_root_deleted() {
+    // Runs inside LVGL's delete event: expire the pending deferred observer
+    // callbacks and drop the cached pointers only. The observers themselves
+    // stay registered on their (still live) subjects until detach() or the
+    // destructor resets them — every callback checks its token first, so a
+    // drained refresh_print_gating() or rebuild no-ops instead of running
+    // lv_obj_add_state()/lv_obj_find_by_name() over the freed tree.
+    lifetime_.invalidate();
+    forget_tile_widgets();
+}
+
+void ToolSwitcherWidget::forget_tile_widgets() {
+    pill_buttons_.clear();
+    compact_label_ = nullptr;
     if (size_watch_container_) {
         lv_obj_remove_event_cb_with_user_data(size_watch_container_, on_widget_size_changed, this);
     }
     size_watch_container_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
-    grid_settled_w_px_ = -1;
-    grid_settled_h_px_ = -1;
-    in_grid_size_refresh_ = false;
 }
 
 void ToolSwitcherWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_px,
@@ -228,6 +260,14 @@ void ToolSwitcherWidget::rebuild_for_settled_grid_size() {
 // ============================================================================
 
 void ToolSwitcherWidget::rebuild_pills() {
+    // Drop the cached pills before anything below can early-return. If the
+    // container lookup fails while widget_obj_ is still set, the list would
+    // keep pointers to widgets a previous rebuild already condemned, and
+    // refresh_print_gating() would run unchecked lv_obj_add_state()/
+    // lv_obj_remove_state() over them.
+    pill_buttons_.clear();
+    compact_label_ = nullptr;
+
     if (!widget_obj_)
         return;
 
@@ -237,8 +277,6 @@ void ToolSwitcherWidget::rebuild_pills() {
         return;
     }
 
-    pill_buttons_.clear();
-    compact_label_ = nullptr;
     helix::ui::safe_clean_children(container);
 
     // Neutralize any grid layout left active by a previous rebuild before we
@@ -406,6 +444,13 @@ void ToolSwitcherWidget::on_active_tool_changed(int tool_index) {
 // ============================================================================
 
 void ToolSwitcherWidget::rebuild_compact() {
+    // Drop the cached pills/label before anything below can early-return, for
+    // the same reason as rebuild_pills(): a failed container lookup must not
+    // leave compact_label_ pointing at the previous build's (condemned) label,
+    // which refresh_print_gating() would then restyle.
+    pill_buttons_.clear();
+    compact_label_ = nullptr;
+
     if (!widget_obj_)
         return;
 
@@ -415,7 +460,6 @@ void ToolSwitcherWidget::rebuild_compact() {
         return;
     }
 
-    pill_buttons_.clear();
     helix::ui::safe_clean_children(container);
 
     auto& tool_state = ToolState::instance();

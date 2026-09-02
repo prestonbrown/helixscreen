@@ -458,6 +458,57 @@ TEST_CASE("MultiColor - Backward compatibility", "[gcode][multicolor][compatibil
         REQUIRE(result.layers[0].segments[0].tool_index == 0);
     }
 
+    SECTION("Comma-separated filament_colour is a palette, not one blob") {
+        // A comma-joined list must reach the per-tool palette; the whole-line
+        // blob must never land in filament_color_hex (strtol would silently
+        // read only the first field, painting the model in T0's color).
+        parser.parse_line("; filament_colour = #800080,#63A5BB,#000000,#FFFFFF");
+        parser.parse_line("G1 X0 Y0 Z0.2 E0");
+        parser.parse_line("G1 X10 Y0 E1");
+
+        auto result = parser.finalize();
+
+        REQUIRE(result.tool_color_palette.size() == 4);
+        REQUIRE(result.tool_color_palette[0] == "#800080");
+        REQUIRE(result.tool_color_palette[3] == "#FFFFFF");
+        REQUIRE(result.filament_color_hex != "#800080,#63A5BB,#000000,#FFFFFF");
+    }
+
+    SECTION("Single color behind an empty leading slot is still captured") {
+        // Slot 0 unknown: the palette's first entry is an empty placeholder,
+        // and the single-color fallback must skip it rather than store "".
+        parser.parse_line("; filament_colour = ,, #00FF00");
+        parser.parse_line("G1 X0 Y0 Z0.2 E0");
+        parser.parse_line("G1 X10 Y0 E1");
+
+        auto result = parser.finalize();
+
+        REQUIRE(result.filament_color_hex == "#00FF00");
+    }
+
+    SECTION("A colon-separated key form keeps its validated single color") {
+        // The list parser requires '='; a colon form used to reach
+        // filament_color_hex as the raw value by accident. The cleaned-token
+        // path keeps the color while still rejecting blobs.
+        parser.parse_line("; filament_colour: #FF8800");
+        parser.parse_line("G1 X0 Y0 Z0.2 E0");
+        parser.parse_line("G1 X10 Y0 E1");
+
+        auto result = parser.finalize();
+
+        REQUIRE(result.filament_color_hex == "#FF8800");
+
+        // A blob in the same form still never lands whole - on a fresh
+        // parser, so the assertion cannot lean on the color stored above.
+        GCodeParser fresh;
+        fresh.parse_line("; filament_colour: #800080,#63A5BB");
+        fresh.parse_line("G1 X0 Y0 Z0.2 E0");
+        fresh.parse_line("G1 X10 Y0 E1");
+        auto blobbed = fresh.finalize();
+        REQUIRE(blobbed.filament_color_hex != "#800080,#63A5BB");
+        REQUIRE(blobbed.filament_color_hex.empty());
+    }
+
     SECTION("No color metadata at all") {
         parser.parse_line("G1 X0 Y0 Z0.2 E0");
         parser.parse_line("G1 X10 Y0 E1");

@@ -128,7 +128,7 @@ struct LayerIndexStats {
     double build_time_ms{0.0};  ///< Time to build index
     std::string filament_color; ///< First filament color hex from metadata (palette[0]; legacy)
     std::vector<std::string>
-        filament_palette;       ///< All filament colors from semicolon-separated metadata
+        filament_palette; ///< All filament colors from separator-delimited metadata (';' or ',')
     int initial_tool_index{-1}; ///< First T-command seen in the file (-1 = none)
     /// Every distinct tool the file changes to, accumulated in the same single
     /// pass that finds the layer boundaries. The scan already visits every line,

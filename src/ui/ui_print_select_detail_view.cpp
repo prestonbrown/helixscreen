@@ -255,6 +255,13 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         helix::ui::set_preview_bottom_occluder(
             gcode_viewer_, lv_obj_find_by_name(overlay_root_, "detail_metadata_clip"));
 
+        // Frame the render the way the thumbnail beside it is framed (lifted
+        // square, model centre at 55%), so swapping thumbnail for render is
+        // not a jump in size or position. Parity mode ignores the occluder for
+        // the fit; the occluder stays set because its measurement still drives
+        // the content-offset refresh plumbing.
+        ui_gcode_viewer_set_thumbnail_parity(gcode_viewer_, true);
+
         // Start paused — will resume in on_activate()
         ui_gcode_viewer_set_paused(gcode_viewer_, true);
 

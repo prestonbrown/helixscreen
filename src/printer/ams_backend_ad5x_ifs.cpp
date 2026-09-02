@@ -4898,22 +4898,37 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
                      "subscription; the Adventurer5M.json poll and GET_ZCOLOR stand down",
                      backend_log_tag());
         // The module's own macros map T0..T3 to slots 1..4, so the identity
-        // tool map is firmware truth here. Without it every slot's mapped_tool
-        // stays -1 (plugin-less ZMOD never populates the table) and the op
-        // dispatch's change_tool rewrite has no tool to name. Refresh the
-        // registry + slot view immediately — the latch can fire on a frame
-        // that carries neither Chan nor slots, and mapped_tool would otherwise
-        // wait for the next slot-bearing frame (same loop pair the
-        // both-plugins-conflict fallback in parse_save_variables runs).
+        // tool map is firmware truth here — unless a plugin already owns the
+        // table. A rig can run the module objects with an active
+        // lessWaste/bambufy plugin (has_ifs_vars_, latched in
+        // parse_save_variables); there the plugin's parsed map is what the
+        // firmware actually replays, and installing identity over it would
+        // reroute every tool. Arrival order must not decide precedence:
+        // plugin-then-module is skipped here, module-then-plugin is
+        // overwritten by the parse. Ownership is "a mapped port exists in
+        // tool_map_", not the latch alone: has_ifs_vars_ latches on the
+        // plugin's `_colors` rows with no `_tools` array required, and a
+        // latched-but-mapless plugin must not leave every slot's mapped_tool
+        // at -1 (the op dispatch's change_tool rewrite would have no tool to
+        // name). Refresh the registry + slot view immediately — the latch can
+        // fire on a frame that carries neither Chan nor slots, and
+        // mapped_tool would otherwise wait for the next slot-bearing frame
+        // (same loop pair the both-plugins-conflict fallback in
+        // parse_save_variables runs).
         std::lock_guard<std::mutex> lock(mutex_);
-        for (int t = 0; t < NUM_PORTS; ++t) {
-            tool_map_[static_cast<size_t>(t)] = t + 1;
-        }
-        for (int i = 0; i < NUM_PORTS; ++i) {
-            slots_.set_tool_mapping(i, i);
-        }
-        for (int i = 0; i < NUM_PORTS; ++i) {
-            update_slot_from_state(i);
+        const bool plugin_owns_table =
+            std::any_of(tool_map_.begin(), tool_map_.end(),
+                        [](int port) { return port >= 1 && port <= NUM_PORTS; });
+        if (!plugin_owns_table) {
+            for (int t = 0; t < NUM_PORTS; ++t) {
+                tool_map_[static_cast<size_t>(t)] = t + 1;
+            }
+            for (int i = 0; i < NUM_PORTS; ++i) {
+                slots_.set_tool_mapping(i, i);
+            }
+            for (int i = 0; i < NUM_PORTS; ++i) {
+                update_slot_from_state(i);
+            }
         }
     }
 

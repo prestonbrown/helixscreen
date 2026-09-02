@@ -536,6 +536,7 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_start_collector_test_access.h"
+#include "../test_helpers/print_start_profile_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_client_mock.h"
 #include "print_start_collector.h"
@@ -1790,6 +1791,18 @@ class PrintStartCollectorSequentialFixture : public LVGLTestFixture {
     void send_gcode_response(const std::string& line) {
         json msg = {{"method", "notify_gcode_response"}, {"params", {line}}};
         client().dispatch_method_callback("notify_gcode_response", msg);
+        drain_async_updates();
+    }
+
+    /**
+     * @brief Feed a status frame through the real notify_status_update path
+     *
+     * dispatch_status_update wraps the object exactly as the live WebSocket
+     * does, so the collector's status subscription runs its phase-object
+     * handling on it.
+     */
+    void send_status_update(const json& object) {
+        client().dispatch_status_update(object);
         drain_async_updates();
     }
 
@@ -3583,4 +3596,273 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
 
     CHECK(get_current_message() == before);
+}
+
+// ============================================================================
+// PHASE-OBJECT STATUS SOURCE TESTS
+//
+// A profile may declare a status object whose field carries structured phase
+// state. Those frames arrive on notify_status_update (not gcode_response) and
+// feed the same match/apply pipeline a console line takes, so weights and
+// progress behave identically. Console matching is untouched - both feeds
+// coexist and weights arbitrate.
+// ============================================================================
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Phase-object status frames drive phases like console lines",
+                 "[print][collector][phase_object]") {
+    collector().start();
+    drain_async_updates();
+
+    // A state the profile has no mapping for changes nothing.
+    send_status_update({{"operation_context", {{"current_state", "STANDBY"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // The mod publishes its state machine into the object; the profile maps
+    // the string through the same weights a console line takes.
+    send_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message() == "Homing...");
+    REQUIRE(get_current_progress() == 5);
+
+    // Next state advances through the mapping - sequential progress follows
+    // the state pattern's weight, exactly as a console match would.
+    send_status_update({{"operation_context", {{"current_state", "LEVELING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed Mesh...");
+    REQUIRE(get_current_progress() == 25);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Unchanged phase-object state does not re-fire",
+                 "[print][collector][phase_object]") {
+    collector().start();
+    drain_async_updates();
+
+    send_status_update({{"operation_context", {{"current_state", "MESHING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed Mesh...");
+
+    // A console signal relabels the same phase - a real sub-phase change that
+    // the status feed must not clobber when the object re-delivers its
+    // unchanged state (Klipper notifies on every field change in the object).
+    send_gcode_response("// State: KAMP LEVELING...");
+    REQUIRE(get_current_message() == "Creating bed mesh...");
+
+    send_status_update({{"operation_context", {{"current_state", "MESHING"}}}});
+    REQUIRE(get_current_message() == "Creating bed mesh...");
+
+    // A NEW state still applies after the suppressed repeat.
+    send_status_update({{"operation_context", {{"current_state", "PRINTING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+    REQUIRE(get_current_progress() == 100);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Phase-object match gates the proactive temperature detector",
+                 "[print][collector][phase_object]") {
+    // Bed heating below target: with no real firmware signal seen, the
+    // proactive detector would relabel the phase HEATING_BED on its next
+    // check. A phase-object state IS the firmware narrating, so it must latch
+    // the same real_signal_seen_ gate a console match latches.
+    lv_subject_set_int(state().get_bed_temp_subject(), 250);
+    lv_subject_set_int(state().get_bed_target_subject(), 600);
+    collector().start();
+    collector().enable_fallbacks();
+    drain_async_updates();
+
+    send_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+
+    collector().check_fallback_completion();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Profiles without a phase object ignore phase-object frames",
+                 "[print][collector][phase_object]") {
+    collector().set_profile(PrintStartProfile::load_default());
+    collector().start();
+    drain_async_updates();
+
+    // The default profile declares no status phase source: the identical
+    // frame must be ignored entirely - phase stays at the start() baseline.
+    // This is the fallback guarantee for every profile without the field.
+    client().dispatch_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+    REQUIRE(get_current_message() == "Preparing Print...");
+}
+
+// ============================================================================
+// STATUS-SIGNAL RULE TESTS
+//
+// Profiles may declare physical phase-inference rules ("status_signals"):
+// predicates over status objects, applied on the false->true rising edge only.
+// Matches feed apply_profile_match(), so weights arbitrate against console
+// narration exactly as they do for every other source.
+// ============================================================================
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "at_cutter fires PURGING on the rising edge of both-negative position",
+                 "[print][collector][status_signals]") {
+    collector().start();
+    drain_async_updates();
+
+    // Mid-bed: neither rule holds, the latch stays disengaged.
+    send_status_update({{"toolhead", {{"position", {114.0, 110.0, 10.0}}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // Both axes negative: the head is at the cutter (IFS tool change). The
+    // rule's weight is the sequential progress, like any profile match.
+    send_status_update({{"toolhead", {{"position", {-2.0, -3.0, 10.0}}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
+    REQUIRE(get_current_message() == "Changing filament...");
+    REQUIRE(get_current_progress() == 30);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "at_chute fires PURGING from the rear-station zone",
+                 "[print][collector][status_signals]") {
+    collector().start();
+    drain_async_updates();
+
+    send_status_update({{"toolhead", {{"position", {114.0, 230.0, 10.0}}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
+    REQUIRE(get_current_message() == "Purging...");
+    REQUIRE(get_current_progress() == 20);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Status-signal holds do not re-fire; falling false re-arms",
+                 "[print][collector][status_signals]") {
+    // A BED_MESH-mapped rule makes a re-fire observable through the sub-phase
+    // relabel path: apply_profile_match() relabels BED_MESH on a message
+    // change, so an illegitimate re-fire would clobber a console label.
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"edge",)"
+        R"("response_patterns":[{"pattern":"sweep marker","phase":"BED_MESH","message":"Loading Bed Mesh...","weight":10}],)"
+        R"("status_signals":[{"name":"sweep_zone","object":"toolhead",)"
+        R"("when":[{"field":"position","index":1,"op":"gt","value":100}],)"
+        R"("phase":"BED_MESH","message":"Sweeping...","weight":10}],)"
+        R"("phase_weights":{"BED_MESH":10}})"));
+    REQUIRE(profile != nullptr);
+    collector().set_profile(profile);
+    collector().start();
+    drain_async_updates();
+
+    // Rising edge fires.
+    send_status_update({{"toolhead", {{"position", {110.0, 120.0, 5.0}}}}});
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Sweeping...");
+
+    // A console BED_MESH line relabels the same phase - existing semantics.
+    send_gcode_response("sweep marker");
+    REQUIRE(get_current_message() == "Loading Bed Mesh...");
+
+    // HOLD: a new frame while the predicate still holds must not re-fire and
+    // clobber the console relabel.
+    send_status_update({{"toolhead", {{"position", {115.0, 125.0, 5.0}}}}});
+    REQUIRE(get_current_message() == "Loading Bed Mesh...");
+
+    // Predicate falls false - the rule re-arms.
+    send_status_update({{"toolhead", {{"position", {10.0, 12.0, 5.0}}}}});
+
+    // The next rising edge fires again (BED_MESH relabel applies once more).
+    send_status_update({{"toolhead", {{"position", {110.0, 130.0, 5.0}}}}});
+    REQUIRE(get_current_message() == "Sweeping...");
+}
+
+TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+                 "Status-signal match is confirmation, not narration",
+                 "[print][collector][status_signals]") {
+    collector().start();
+    drain_async_updates();
+
+    SECTION("narration first: the rule may not clobber its label") {
+        send_gcode_response("// State: KAMP PRIMING...");
+        REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
+        REQUIRE(get_current_message() == "Priming nozzle...");
+        REQUIRE(get_current_progress() == 90);
+
+        send_status_update({{"toolhead", {{"position", {-2.0, -3.0, 10.0}}}}});
+        // PURGING is already detected: the physical signal confirms it but
+        // cannot relabel or reset progress.
+        REQUIRE(get_current_message() == "Priming nozzle...");
+        REQUIRE(get_current_progress() == 90);
+    }
+
+    SECTION("rule first: later narration supersedes the inferred label") {
+        send_status_update({{"toolhead", {{"position", {-2.0, -3.0, 10.0}}}}});
+        REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
+        REQUIRE(get_current_message() == "Changing filament...");
+
+        // Console signal formats apply through their own path, so the
+        // narration relabels the phase the rule inferred - inference is
+        // confirmation and never fights later narration.
+        send_gcode_response("// State: KAMP PRIMING...");
+        REQUIRE(get_current_message() == "Priming nozzle...");
+        REQUIRE(get_current_progress() == 90);
+    }
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Profiles without status signals ignore rule-object frames",
+                 "[print][collector][status_signals]") {
+    collector().set_profile(PrintStartProfile::load("creality_k2"));
+    collector().start();
+    drain_async_updates();
+
+    // The exact frame that fires forge_x's at_cutter rule does nothing here:
+    // an absent declaration is exactly the previous behavior, pinned.
+    client().dispatch_status_update({{"toolhead", {{"position", {-2.0, -3.0, 10.0}}}}});
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+    REQUIRE(get_current_message() == "Preparing Print...");
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Default heating rules fire on a cold heater with a target",
+                 "[print][collector][status_signals]") {
+    collector().start();
+    drain_async_updates();
+
+    // No console narration anywhere: the rising edge of "target set while
+    // still two degrees short" is the whole evidence.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+    REQUIRE(get_current_message() == "Heating Bed...");
+
+    client().dispatch_status_update({{"extruder", {{"temperature", 25.0}, {"target", 210.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
+    REQUIRE(get_current_message() == "Heating Nozzle...");
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Default heating rules stay quiet without a real edge",
+                 "[print][collector][status_signals]") {
+    collector().start();
+    drain_async_updates();
+
+    // No target: nothing is heating.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // Within two degrees of target: the rule's own margin says not heating.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 59.0}, {"target", 60.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // A delta frame without the target field cannot resolve the AND-list, so
+    // it does not fire - and it re-arms nothing.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+    REQUIRE(get_current_message() == "Preparing Print...");
 }

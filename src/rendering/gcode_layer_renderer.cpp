@@ -188,8 +188,26 @@ void GCodeLayerRenderer::set_bottom_occlusion(float occlusion) {
         return;
     }
     bottom_occlusion_ = clamped;
+    // THUMBNAIL_PARITY derives neither scale nor shift from the occlusion, so
+    // a moving occluder must not wipe the caches for a fit that comes out
+    // identical. The value is still stored: a later set_framing() back to
+    // STANDARD re-fits from it on the next draw.
+    if (framing_ == FitFraming::THUMBNAIL_PARITY) {
+        return;
+    }
     // The occlusion feeds the scale, not just the shift, so the framing has to
     // be recomputed rather than adjusted.
+    bounds_valid_ = false;
+    invalidate_cache();
+}
+
+void GCodeLayerRenderer::set_framing(FitFraming framing) {
+    if (framing_ == framing) {
+        return;
+    }
+    framing_ = framing;
+    // Scale, shift and placement all change with the mode, so recompute the
+    // fit and start the caches over rather than adjusting.
     bounds_valid_ = false;
     invalidate_cache();
 }
@@ -428,7 +446,7 @@ void GCodeLayerRenderer::auto_fit() {
     // Use shared auto-fit computation
     ViewMode current_view = get_view_mode();
     auto fit = helix::gcode::compute_auto_fit(bb, current_view, canvas_width_, canvas_height_,
-                                              0.05f, bottom_occlusion_);
+                                              0.05f, bottom_occlusion_, framing_);
     scale_ = fit.scale;
     offset_x_ = fit.offset_x;
     offset_y_ = fit.offset_y;
@@ -478,7 +496,7 @@ void GCodeLayerRenderer::fit_layer() {
     bounds_max_y_ = bb.max.y;
 
     auto fit = helix::gcode::compute_auto_fit(bb, ViewMode::TOP_DOWN, canvas_width_, canvas_height_,
-                                              0.05f, bottom_occlusion_);
+                                              0.05f, bottom_occlusion_, framing_);
     scale_ = fit.scale;
     offset_x_ = fit.offset_x;
     offset_y_ = fit.offset_y;
@@ -607,6 +625,18 @@ void GCodeLayerRenderer::invalidate_cache() {
 
     // Cancel any in-progress background ghost rendering
     cancel_background_ghost_render();
+
+    // A finished-but-uncopied build describes pre-invalidate state (old
+    // palette, old fit). Left pending, the next render's ready-check would
+    // copy it straight into the cleared buffer and mark the stale pixels
+    // valid - and a valid cache is never rebuilt. The thread is joined above,
+    // so the raw buffer has no concurrent writer.
+    // MUTANT-EXPERIMENT: fix reverted
+    ghost_thread_ready_.store(false);
+    ghost_raw_buffer_.reset();
+    ghost_raw_width_ = 0;
+    ghost_raw_height_ = 0;
+    ghost_raw_stride_ = 0;
 
     // Also invalidate ghost cache (new gcode = need new ghost)
     if (ghost_buf_) {
@@ -1937,8 +1967,16 @@ bool GCodeLayerRenderer::is_ghost_build_complete() const {
     return ghost_thread_ready_.load() || ghost_cache_valid_;
 }
 
+bool GCodeLayerRenderer::has_ghost_output() const {
+    return ghost_cache_valid_;
+}
+
 bool GCodeLayerRenderer::is_ghost_build_running() const {
     return ghost_thread_running_.load();
+}
+
+bool GCodeLayerRenderer::has_first_output() const {
+    return reveal_ready_2d(has_ghost_output(), needs_more_frames(), is_ghost_build_running());
 }
 
 void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {

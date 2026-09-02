@@ -11,6 +11,7 @@
 #include "system/crash_handler.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <glm/glm.hpp>
@@ -18,6 +19,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unistd.h>
 #include <unordered_set>
 #include <vector>
@@ -1330,4 +1332,154 @@ TEST_CASE_METHOD(LVGLTestFixture, "scrubbing back down the stack keeps the selec
     // rather than the whole render having gone away.
     REQUIRE(bottom.painted > 0);
     REQUIRE(bottom.white > 0);
+}
+
+// =============================================================================
+// First-output reveal gate
+//
+// The viewer fires its one-shot first-frame callback (which hides the slicer
+// thumbnail) once the 2D canvas holds real content. The ghost copy is that
+// moment: the ghost buffer blit is the first frame with anything on it, and
+// the solid cache keeps building visibly on top of it afterwards. Waiting for
+// the full build instead left the render drawing behind a mostly-transparent
+// OrcaSlicer thumbnail for the whole build window.
+// =============================================================================
+
+TEST_CASE("reveal_ready_2d: the ghost copy alone is enough, a pending build alone is not",
+          "[layer_renderer][reveal]") {
+    // Ghost copied while the solid build still has frames to go: ready.
+    REQUIRE(reveal_ready_2d(true, true, false));
+    REQUIRE(reveal_ready_2d(true, false, false));
+    // Completed build with no ghost involved (non-FRONT views, ghost mode
+    // off): ready, same as before parity.
+    REQUIRE(reveal_ready_2d(false, false, false));
+    // Nothing on the canvas yet — still building, or the ghost thread has not
+    // finished: wait.
+    REQUIRE_FALSE(reveal_ready_2d(false, true, false));
+    REQUIRE_FALSE(reveal_ready_2d(false, true, true));
+    REQUIRE_FALSE(reveal_ready_2d(false, false, true));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "2D reveal fires once the ghost is on the canvas while the solid build "
+                 "still needs frames",
+                 "[layer_renderer][reveal]") {
+    auto gcode = make_stacked_gcode(120);
+
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    // Ghost mode left ON (the default): the ghost build is the first real
+    // content, so the reveal gate has to key off it.
+    renderer.set_canvas_size(200, 200);
+    renderer.set_current_layer(119);
+
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t canvas_buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, canvas_buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+    lv_obj_update_layout(canvas);
+
+    auto frame = [&]() {
+        lv_layer_t layer;
+        lv_area_t clip = {0, 0, 199, 199};
+        lv_canvas_init_layer(canvas, &layer);
+        renderer.render(&layer, &clip);
+        lv_canvas_finish_layer(canvas, &layer);
+        lv_timer_handler_safe();
+    };
+
+    // Drive until the ghost has been copied in AND the solid cache has caught
+    // up to the top layer. needs_more_frames() covers both, so this loop is
+    // the deterministic completion signal.
+    int guard = 0;
+    while ((renderer.needs_more_frames() || renderer.is_ghost_build_running()) && guard++ < 500) {
+        frame();
+    }
+    REQUIRE(guard < 500); // harness bug, not a reveal bug
+    REQUIRE(renderer.has_ghost_output());
+    REQUIRE_FALSE(renderer.needs_more_frames());
+
+    // Scrub back down the stack: the solid cache is discarded and rebuilds
+    // progressively (layers_per_frame_ never exceeds 100, so layer 100 of 120
+    // stays mid-build after one frame), while the ghost stays on the canvas.
+    renderer.set_current_layer(100);
+    frame();
+
+    // The setup reached the branch this test exists for: real content already
+    // copied, progressive build still incomplete. The old rule (wait for
+    // needs_more_frames() to clear) reported "no first frame" here.
+    REQUIRE(renderer.has_ghost_output());
+    REQUIRE(renderer.needs_more_frames());
+    REQUIRE_FALSE(renderer.is_ghost_build_running());
+
+    REQUIRE(renderer.has_first_output());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "invalidation discards a built-but-uncopied ghost instead of copying it stale",
+                 "[layer_renderer][reveal]") {
+    // The ghost worker can finish between draws. If invalidation (a palette
+    // change, an occluder move) leaves that finished build pending, the next
+    // render's ready-check copies it straight into the cleared buffer and
+    // marks the pre-invalidate pixels valid - a cache that is never rebuilt.
+    // With the early reveal keying off ghost output, the thumbnail would hide
+    // onto that stale frame.
+    auto gcode = make_stacked_gcode(120);
+
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_canvas_size(200, 200);
+    renderer.set_current_layer(119);
+
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t canvas_buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, canvas_buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+    lv_obj_update_layout(canvas);
+
+    auto frame = [&]() {
+        lv_layer_t layer;
+        lv_area_t clip = {0, 0, 199, 199};
+        lv_canvas_init_layer(canvas, &layer);
+        renderer.render(&layer, &clip);
+        lv_canvas_finish_layer(canvas, &layer);
+        lv_timer_handler_safe();
+    };
+
+    // One render starts the background build. Then wait for the worker to
+    // finish WITHOUT rendering again, so the raw buffer sits built-but-uncopied
+    // (ghost_thread_ready_ true, ghost_cache_valid_ false).
+    frame();
+    int guard = 0;
+    while (renderer.is_ghost_build_running() && guard++ < 500) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    REQUIRE(guard < 500);
+    REQUIRE(renderer.is_ghost_build_complete());
+    REQUIRE_FALSE(renderer.has_ghost_output()); // built, not yet copied
+
+    // The production trigger from the bug: the palette settles after the load
+    // and the detail view pushes tool colors mid-preview. Any non-empty set
+    // invalidates the caches unconditionally.
+    renderer.set_tool_color_overrides({0xFF0000u});
+
+    frame();
+
+    // The pending pre-invalidate build must be gone: one frame after
+    // invalidation there is no ghost output. (Before the fix, this frame
+    // copied the stale buffer and reported output.) Whether the replacement
+    // build is still running at this instant is timing - a 120-layer ghost
+    // finishes in well under a frame - so the invariant is "no stale output",
+    // not "mid-build".
+    REQUIRE_FALSE(renderer.has_ghost_output());
+
+    // And the rebuild completes normally, leaving real output.
+    guard = 0;
+    while ((renderer.is_ghost_build_running() || renderer.needs_more_frames()) && guard++ < 500) {
+        frame();
+    }
+    REQUIRE(guard < 500);
+    REQUIRE(renderer.has_ghost_output());
 }

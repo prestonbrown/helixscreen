@@ -37,31 +37,19 @@
  * shaped extent, which must stay compact now that height no longer counts.
  *
  * Row geometry (`fan_stack_{part,hotend,aux}_row` width/flex alignment,
- * `fan_stack_widget.cpp` ~:294-331) is also driven by this predicate, but
- * its *width* is not a reliable cross-threshold observable and this file
- * does not assert one as such. Compact rows are pinned to `LV_PCT(100)` of
- * the widget's own granted width — which itself ranges anywhere up to
- * `w_normal() - 1` px, since that is the whole compact domain — while bigger
- * rows are sized to `LV_SIZE_CONTENT` (icon + display-name text + speed
- * value), a fixed size that does not scale with the grant at all. Measured
- * at a realistic near-threshold compact grant (harness now applies
- * width_px/height_px to the widget's own `lv_obj_t`, matching
- * `PanelWidgetManager`'s real `grid_track_extent()` allocation —
- * `panel_widget_size_harness.h`'s `resize()`): compact width ~123px
- * (`w_normal() - 1`, minus `#space_xs` padding both sides — the exact figure
- * shifts by a pixel with w_normal()'s own calibration) versus bigger width
- * 111px — compact is *wider* here, the opposite of what an
- * unconstrained harness object (which floors out at `style_min_width="80"`
- * with nothing to widen it) had shown before that fix. Neither direction
- * generalizes: a longer resolved fan name pushes the bigger row's fixed
- * content width up, and a wider compact grant pushes the compact row's
- * width up too, independently. So this file asserts the one part of that
- * relationship that IS architecturally guaranteed rather than data/grant
- * dependent — `LV_PCT(100)` resolving to the container's actual content
- * width in the compact case — plus the `flex_main_place` style
- * (`LV_FLEX_ALIGN_CENTER` compact / `LV_FLEX_ALIGN_START` bigger), which
- * `on_size_changed` sets unconditionally per branch and is true regardless
- * of any pixel measurement.
+ * `fan_stack_widget.cpp`) is no longer branch-dependent: both tiers run the
+ * same leveling pass, because per-row centering put no two icons at the
+ * same x once rows held different-width text (compact's "0%" vs "100%",
+ * bigger's "P" vs "Hotend"). Every row is set to `LV_SIZE_CONTENT`, the
+ * widest is measured, and all three are pinned to that width, so the rows
+ * share one left edge while the parent's `cross_place=center` centers the
+ * equal-width block on the tile. A raw row width is still not a reliable
+ * cross-threshold observable (it depends on the resolved fan names and the
+ * reserved speed-label box, not on the grant), so this file asserts the
+ * `flex_main_place` style — `LV_FLEX_ALIGN_START` at both tiers, set
+ * unconditionally by the leveling pass — and leaves the icons-share-one-x
+ * property to its own case below, where real fans with deliberately
+ * mismatched speeds make it a meaningful red.
  */
 
 #include "ui_fonts.h"
@@ -140,12 +128,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     CHECK(lv_obj_get_style_text_font(hotend_icon, LV_PART_MAIN) == &mdi_icons_16);
     CHECK(lv_obj_get_style_text_font(aux_icon, LV_PART_MAIN) == &mdi_icons_16);
 
-    // Compact: row fills the full column width (LV_PCT(100)) — an
-    // architectural guarantee regardless of how wide "compact" happens to be
-    // granted here, unlike a raw pixel comparison against the bigger form
-    // (see file header) — and content is centered within it.
-    CHECK(lv_obj_get_width(part_row) == lv_obj_get_content_width(h.root()));
-    CHECK(lv_obj_get_style_flex_main_place(part_row, LV_PART_MAIN) == LV_FLEX_ALIGN_CENTER);
+    // Compact: rows level to the widest and left-align content within the
+    // equal-width block, same as the bigger form — per-row centering is what
+    // this used to assert, and it is exactly what made the icons ragged.
+    CHECK(lv_obj_get_style_flex_main_place(part_row, LV_PART_MAIN) == LV_FLEX_ALIGN_START);
 
     // --- Width alone: at the width threshold, height still sub-threshold. ---
     h.resize(1, 1, w_normal(), h_tall() - 1);
@@ -199,7 +185,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     CHECK(lv_obj_get_style_text_font(hotend_icon, LV_PART_MAIN) == &mdi_icons_16);
     CHECK(lv_obj_get_style_text_font(aux_icon, LV_PART_MAIN) == &mdi_icons_16);
 
-    CHECK(lv_obj_get_style_flex_main_place(part_row, LV_PART_MAIN) == LV_FLEX_ALIGN_CENTER);
+    CHECK(lv_obj_get_style_flex_main_place(part_row, LV_PART_MAIN) == LV_FLEX_ALIGN_START);
 
     // --- XLarge-tier 1x1 (134x169): same story, taller still.
     h.resize(1, 1, 134, 169);
@@ -207,7 +193,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
 
     CHECK(lv_obj_get_style_text_font(part_name, LV_PART_MAIN) == theme_manager_get_font("font_xs"));
     CHECK(std::string(lv_label_get_text(part_name)) == lv_tr("P"));
-    CHECK(lv_obj_get_style_flex_main_place(part_row, LV_PART_MAIN) == LV_FLEX_ALIGN_CENTER);
+    CHECK(lv_obj_get_style_flex_main_place(part_row, LV_PART_MAIN) == LV_FLEX_ALIGN_START);
 
     // --- Medium-tier 1x1 (114x112): both axes below their floor anyway —
     // never promoted the old way either, kept here as a same-shape baseline.
@@ -229,6 +215,80 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
 
     CHECK(lv_obj_get_style_text_font(part_name, LV_PART_MAIN) == theme_manager_get_font("font_xs"));
     CHECK(std::string(lv_label_get_text(part_name)) == lv_tr("P"));
+}
+
+/**
+ * The user-facing property the row leveling exists for: all three fan icons
+ * sit at the same x, at every tier, even when the rows hold different-width
+ * text. The setup gives the fans deliberately mismatched speeds before the
+ * first resize (part "35%", the rest "0%") so the rows genuinely differ in
+ * width — under the old per-row centering the part icon sat measurably right
+ * of the others, which is the red this case was verified against.
+ *
+ * The second half pins the speed-label reserve: rows are leveled once at
+ * on_size_changed while speed text keeps changing afterwards, so every speed
+ * label reserves the width of the widest string the formatter can emit
+ * ("100%"). Without it, a fan ramping from "0%" to "100%" after layout
+ * would outgrow its fixed row and clip — the same defect shape the
+ * fit-the-cell case below guards against at the tier band.
+ */
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack icons line up one under the other",
+                 "[widget_size][fan_stack]") {
+    require_font_tokens_distinct();
+
+    // Real fans so all three rows stay visible and the roles resolve. The
+    // bare `fan` object maps to "Part Cooling Fan" (device_display_name.cpp
+    // DIRECT_MAPPINGS) — same trio as the fit-the-cell case below.
+    state().init_fans({"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    state().update_fan_speed("fan", 0.35);
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+
+    lv_obj_t* part_icon = h.child("fan_stack_part_icon");
+    lv_obj_t* hotend_icon = h.child("fan_stack_hotend_icon");
+    lv_obj_t* aux_icon = h.child("fan_stack_aux_icon");
+    REQUIRE(part_icon != nullptr);
+    REQUIRE(hotend_icon != nullptr);
+    REQUIRE(aux_icon != nullptr);
+    REQUIRE(!lv_obj_has_flag(h.child("fan_stack_aux_row"), LV_OBJ_FLAG_HIDDEN));
+
+    // --- Compact tier: one shared left edge despite "35%" vs "0%" rows. ---
+    h.resize(1, 1, w_normal() - 1, h_tall() - 1);
+    process_lvgl(30);
+
+    CHECK(lv_obj_get_x(part_icon) == lv_obj_get_x(hotend_icon));
+    CHECK(lv_obj_get_x(part_icon) == lv_obj_get_x(aux_icon));
+
+    // Speeds justify against the shared right edge: right-aligned inside
+    // their reserved boxes, so a "0%" row ends where the "100%" row does
+    // and the leveled block reads as justified, not left-packed.
+    lv_obj_t* part_speed = h.child("fan_stack_part_speed");
+    lv_obj_t* hotend_speed = h.child("fan_stack_hotend_speed");
+    REQUIRE(part_speed != nullptr);
+    CHECK(lv_obj_get_style_text_align(part_speed, LV_PART_MAIN) == LV_TEXT_ALIGN_RIGHT);
+    // The name column is leveled too, so the speed boxes share one x (and
+    // with equal reserved widths, one right edge) — without it the P/H/C
+    // advance-width differences rag the speed column by a pixel or two.
+    REQUIRE(hotend_speed != nullptr);
+    CHECK(lv_obj_get_x(part_speed) == lv_obj_get_x(hotend_speed));
+
+    // --- Speed ramp after layout: "0%" -> "100%" must fit the fixed row. ---
+    state().update_fan_speed("heater_fan hotend_fan", 1.0);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(30);
+
+    lv_obj_t* hotend_row = h.child("fan_stack_hotend_row");
+    REQUIRE(hotend_row != nullptr);
+    CHECK(lv_obj_get_x(hotend_speed) + lv_obj_get_width(hotend_speed) <=
+          lv_obj_get_width(hotend_row));
+
+    // --- Bigger tier: same shared edge with resolved display names. ---
+    h.resize(1, 1, w_normal(), h_tall() - 1);
+    process_lvgl(30);
+
+    CHECK(lv_obj_get_x(part_icon) == lv_obj_get_x(hotend_icon));
+    CHECK(lv_obj_get_x(part_icon) == lv_obj_get_x(aux_icon));
 }
 
 /**

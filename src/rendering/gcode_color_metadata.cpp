@@ -48,13 +48,14 @@ bool parse_filament_color_palette(std::string_view line, std::vector<std::string
         return false;
     }
 
-    // Split everything after '=' by ';' and trim each token. Empty/invalid
-    // tokens become empty strings so palette stays slot-aligned with tool
-    // indices: e.g. "#A;;#B" → ["#A", "", "#B"].
+    // Split everything after '=' by ';' or ',' and trim each token. Slicers
+    // emit both separator forms (OrcaSlicer's joined-config variant uses ',').
+    // Empty/invalid tokens become empty strings so palette stays slot-aligned
+    // with tool indices: e.g. "#A;;#B" → ["#A", "", "#B"].
     std::string_view rest = line.substr(eq + 1);
     while (!rest.empty()) {
-        size_t semi = rest.find(';');
-        std::string_view tok = (semi == std::string_view::npos) ? rest : rest.substr(0, semi);
+        size_t sep = rest.find_first_of(";,");
+        std::string_view tok = (sep == std::string_view::npos) ? rest : rest.substr(0, sep);
         tok = trim(tok);
 
         if (!tok.empty() && tok.front() == '#') {
@@ -73,15 +74,15 @@ bool parse_filament_color_palette(std::string_view line, std::vector<std::string
         } else if (!tok.empty()) {
             out_palette.emplace_back();
         }
-        // Pure-empty tokens (back-to-back semicolons) also become empty
+        // Pure-empty tokens (back-to-back separators) also become empty
         // placeholders to preserve slot alignment.
-        else if (semi != std::string_view::npos) {
+        else if (sep != std::string_view::npos) {
             out_palette.emplace_back();
         }
 
-        if (semi == std::string_view::npos)
+        if (sep == std::string_view::npos)
             break;
-        rest.remove_prefix(semi + 1);
+        rest.remove_prefix(sep + 1);
     }
 
     // "Found" requires at least one non-empty entry — a line like
@@ -93,6 +94,55 @@ bool parse_filament_color_palette(std::string_view line, std::vector<std::string
     }
     out_palette.clear();
     return false;
+}
+
+std::string_view clean_color_hex(std::string_view value) {
+    value = trim(value);
+    if (value.empty() || value.front() != '#') {
+        return {};
+    }
+    const std::string_view body = value.substr(1);
+    if (body.size() != 6 && body.size() != 8) {
+        return {};
+    }
+    for (const char c : body) {
+        if (!is_hex_digit(c)) {
+            return {};
+        }
+    }
+    return value;
+}
+
+FileColorDecision classify_file_colors(const std::vector<std::string>& palette,
+                                       const std::string& filament_color, int initial_tool_index) {
+    FileColorDecision decision;
+    decision.initial_tool = initial_tool_index;
+
+    if (palette.size() > 1) {
+        decision.palette = palette;
+        return decision;
+    }
+
+    // Single-color print: prefer palette[initial_tool_index] when the slicer
+    // emitted a multi-color metadata line and the gcode actually starts on a
+    // non-T0 tool; fall back to the leading filament_color when the palette
+    // doesn't cover the active tool or is absent.
+    decision.single_color = filament_color;
+    if (initial_tool_index >= 0 && initial_tool_index < static_cast<int>(palette.size()) &&
+        !palette[static_cast<size_t>(initial_tool_index)].empty()) {
+        decision.single_color = palette[static_cast<size_t>(initial_tool_index)];
+    }
+    return decision;
+}
+
+FileColorDecision classify_file_colors(const std::vector<std::string>& palette,
+                                       const std::string& filament_color_hex) {
+    FileColorDecision decision;
+    decision.palette = palette;
+    if (filament_color_hex.length() >= 2) {
+        decision.single_color = filament_color_hex;
+    }
+    return decision;
 }
 
 } // namespace helix::gcode

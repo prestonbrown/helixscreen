@@ -37,6 +37,95 @@
       "weight": 15
     }
   ],
+  "phase_object": {
+    "object": "operation_context",
+    "field": "current_state"
+  },
+  "state_patterns": [
+    {
+      "pattern": "HOMING",
+      "phase": "HOMING",
+      "message": "Homing...",
+      "weight": 5
+    },
+    {
+      "pattern": "HEATING",
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 15
+    },
+    {
+      "pattern": "CLEANING",
+      "phase": "CLEANING",
+      "message": "Cleaning Nozzle...",
+      "weight": 20
+    },
+    {
+      "pattern": "LEVELING",
+      "phase": "BED_MESH",
+      "message": "Bed Mesh...",
+      "weight": 25
+    },
+    {
+      "pattern": "MESHING",
+      "phase": "BED_MESH",
+      "message": "Bed Mesh...",
+      "weight": 25
+    },
+    {
+      "pattern": "PARKING",
+      "phase": "INITIALIZING",
+      "message": "Preparing...",
+      "weight": 5
+    },
+    {
+      "pattern": "PRIMING",
+      "phase": "PURGING",
+      "message": "Priming nozzle...",
+      "weight": 10
+    },
+    {
+      "pattern": "PURGING",
+      "phase": "PURGING",
+      "message": "Priming nozzle...",
+      "weight": 10
+    },
+    {
+      "pattern": "PRINTING",
+      "phase": "COMPLETE",
+      "message": "Starting print...",
+      "weight": 100
+    },
+    {
+      "pattern": "FINISHING",
+      "phase": "COMPLETE",
+      "message": "Starting print...",
+      "weight": 100
+    }
+  ],
+  "status_signals": [
+    {
+      "name": "at_cutter",
+      "object": "toolhead",
+      "when": [
+        { "field": "position", "index": 0, "op": "lt", "value": 0.0 },
+        { "field": "position", "index": 1, "op": "lt", "value": 0.0 }
+      ],
+      "phase": "PURGING",
+      "message": "Changing filament...",
+      "weight": 30
+    },
+    {
+      "name": "at_chute",
+      "object": "toolhead",
+      "when": [
+        { "field": "position", "index": 1, "op": "gt", "value": 225.0 }
+      ],
+      "phase": "PURGING",
+      "message": "Purging...",
+      "weight": 20
+    }
+  ],
   "phase_weights": {
     "INITIALIZING": 5,
     "HOMING": 5,

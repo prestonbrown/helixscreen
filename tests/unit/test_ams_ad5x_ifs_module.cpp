@@ -13,11 +13,13 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "printer_discovery.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -60,6 +62,24 @@ json module_materials_frame() {
                   {"loaded", {{"type", "PLA"}, {"color", "#A03CF7"}, {"temp", 220.0}}},
                   {"purge_first_mm", {{"1>2", 61.5}, {"2>1", 61.5}}},
                   {"temperatures", {{"PLA", 220.0}, {"PETG", 250.0}, {"ABS", 250.0}}}}}};
+}
+
+/// A materials frame with every lane labelled — the rig shape the preview's
+/// loaded-slot colours come from (#959). Distinct on purpose: the colour
+/// engine's degeneracy guard returns {} when a routing resolves every tool to
+/// one indistinguishable colour, and this frame must not trip it by accident.
+json module_labeled_materials_frame() {
+    return json{
+        {"ifs_materials",
+         {{"available", true},
+          {"channel_count", 4},
+          {"enabled", true},
+          {"slots",
+           {{"1", {{"type", "PLA"}, {"color", "#A03CF7"}, {"temp", 220.0}}},
+            {"2", {{"type", "PETG"}, {"color", "#FF8800"}, {"temp", 250.0}}},
+            {"3", {{"type", "TPU"}, {"color", "#00C8FF"}, {"temp", 230.0}}},
+            {"4", {{"type", "ABS"}, {"color", "#FFFFFF"}, {"temp", 260.0}}}}},
+          {"temperatures", {{"PLA", 220.0}, {"PETG", 250.0}, {"TPU", 230.0}, {"ABS", 260.0}}}}}};
 }
 
 /// Captures issued G-code without a live Moonraker connection, mirroring the
@@ -211,6 +231,120 @@ TEST_CASE("AD5X IFS installs the identity tool map when the module goes live",
     CHECK(backend.get_slot_info(0).mapped_tool == 0);
     CHECK(backend.get_slot_info(2).mapped_tool == 2);
     CHECK(backend.get_slot_info(3).mapped_tool == 3);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AD5X IFS module routing carries the loaded lane colours to the renderer",
+                 "[ams][ad5x_ifs][ifs_module][959]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    auto owned = std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr);
+    auto* backend = owned.get();
+    ams.set_backend(std::move(owned));
+
+    // The standalone-module contract: this firmware family carries no
+    // bambufy_*/less_waste_* save_variables, so the module's own frames are the
+    // only thing that can populate the routing.
+    Ad5xIfsTestAccess::handle_status(*backend, module_ifs_frame(1, {1, 2, 3, 4}));
+    Ad5xIfsTestAccess::handle_status(*backend, module_labeled_materials_frame());
+
+    // Backend-level: the attachment map the composition falls back to is
+    // identity, not the all -1 "no opinion" a plugin-less backend published
+    // before the module latch seeded the table.
+    const auto info = backend->get_system_info();
+    REQUIRE(info.tool_to_slot_map.size() >= 4);
+    CHECK(info.tool_to_slot_map[0] == 0);
+    CHECK(info.tool_to_slot_map[1] == 1);
+    CHECK(info.tool_to_slot_map[2] == 2);
+    CHECK(info.tool_to_slot_map[3] == 3);
+
+    // The accessor the print-status preview actually calls — the real
+    // composition, not a hand-rolled mirror of it. The routing resolves to the
+    // LANES' colours (T0 purple, T1 orange, T2 cyan, T3 white), never to the
+    // slicer's stand-ins the preview fell back to on this firmware family.
+    const auto colors = ams.routed_tool_colors();
+    REQUIRE(colors.size() >= 4);
+    CHECK(colors[0] == 0xA03CF7);
+    CHECK(colors[1] == 0xFF8800);
+    CHECK(colors[2] == 0x00C8FF);
+    CHECK(colors[3] == 0xFFFFFF);
+
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+TEST_CASE("AD5X IFS module identity installs when a latched plugin owns no tool map",
+          "[ams][ad5x_ifs][ifs_module][959]") {
+    // has_ifs_vars_ latches on the plugin's `_colors` rows alone; `_tools` is
+    // not required. A latched-but-mapless plugin must not block the identity
+    // install — every slot's mapped_tool would stay -1 and the op dispatch's
+    // change_tool rewrite would have no tool to name.
+    const json colors_only{
+        {"bambufy_colors", json::array({"#A03CF7", "#7EC8E3", "#101010", "#FFFFFF"})}};
+
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+    Ad5xIfsTestAccess::parse_vars(backend, colors_only);
+    REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+
+    const auto info = backend.get_system_info();
+    REQUIRE(info.tool_to_slot_map.size() >= 4);
+    CHECK(info.tool_to_slot_map[0] == 0);
+    CHECK(info.tool_to_slot_map[1] == 1);
+    CHECK(info.tool_to_slot_map[2] == 2);
+    CHECK(info.tool_to_slot_map[3] == 3);
+    CHECK(backend.get_slot_info(0).mapped_tool == 0);
+    CHECK(backend.get_slot_info(3).mapped_tool == 3);
+}
+
+TEST_CASE("AD5X IFS module identity yields to a parsed plugin tool map",
+          "[ams][ad5x_ifs][ifs_module][959]") {
+    // A plugin crossover: T0 -> port 2, T1 -> port 1, T2 -> port 4, T3 -> port 3.
+    // Identity would answer [0,1,2,3] and get every one of them wrong.
+    const json crossover{{"bambufy_tools", json::array({2, 1, 4, 3})}};
+
+    SECTION("plugin vars observed before the module goes live") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        // Model what on_started established before any save_variables row
+        // arrived: the plugin's `_IFS_VARS` macro exists, so the parse may
+        // trust the plugin namespace (the flag starts true — pessimistic).
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, crossover);
+        REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+
+        // The module latch must not install identity over a table the plugin
+        // already owns.
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.tool_to_slot_map.size() >= 4);
+        CHECK(info.tool_to_slot_map[0] == 1);
+        CHECK(info.tool_to_slot_map[1] == 0);
+        CHECK(info.tool_to_slot_map[2] == 3);
+        CHECK(info.tool_to_slot_map[3] == 2);
+        CHECK(backend.get_slot_info(0).mapped_tool == 1);
+        CHECK(backend.get_slot_info(1).mapped_tool == 0);
+    }
+
+    SECTION("plugin vars observed after the module goes live") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+        REQUIRE(backend.get_slot_info(0).mapped_tool == 0); // identity installed
+
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, crossover);
+        REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.tool_to_slot_map.size() >= 4);
+        CHECK(info.tool_to_slot_map[0] == 1);
+        CHECK(info.tool_to_slot_map[1] == 0);
+        CHECK(info.tool_to_slot_map[2] == 3);
+        CHECK(info.tool_to_slot_map[3] == 2);
+    }
 }
 
 TEST_CASE("AD5X IFS honors a loaded-only module diff frame", "[ams][ad5x_ifs][ifs_module]") {

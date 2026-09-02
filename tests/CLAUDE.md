@@ -245,6 +245,18 @@ issue number for bug-fix tests (`[1178]`) so the whole fix runs with
 
 ---
 
+## Shell tests never touch the host
+
+`load helpers` shadows `systemctl` with an inert exit-0 shim (`tests/shell/helpers.bash`).
+Installer code reaches systemctl through paths a test never names - the update-unit
+stop/disable sweep is not gated on INIT_SYSTEM - and on headless CI the denied call hides
+behind the installer's `|| true` while on a desktop it raises a polkit prompt per call. A
+test that wants scripted systemctl behaviour still calls `mock_command*` (its later write
+to the same PATH slot wins); `HELIX_TEST_REAL_SYSTEMCTL=1` disables the shadow for
+debugging the helpers themselves.
+
+---
+
 ## Test isolation
 
 Fixture ctor **and** dtor call `reset_all()`. Cross-test leaks through `UpdateQueue` are

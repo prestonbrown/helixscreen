@@ -125,6 +125,7 @@ translations:
   Acceleration to deceleration limit (mm/s²): 加速から減速の制限値 (mm/s²)
   Accelerometer: 加速度センサー
   Accelerometer communication failed. Try again.: 加速度センサーとの通信に失敗しました。再試行してください。
+  Accelerometers: 加速度センサー
   Accept: 承認
   'Accepted Z Position: 0.000': '確定Z位置: 0.000'
   'Accepted Z Position: {:.3f}': '確定したZ位置: {:.3f}'
@@ -209,6 +210,7 @@ translations:
   Auto: 自動
   Auto Bed Mesh: 自動ベッドメッシュ
   Auto Cal: 自動キャリブレーション
+  Auto Fans: 自動ファン
   Auto-Detect: 自動検出
   Auto-Heat on Load: 装填時に自動加熱
   Auto-detect: 自動検出
@@ -503,6 +505,7 @@ translations:
   Collecting debug info...: デバッグ情報を収集中...
   Color: 色
   Color Mismatch: 色の不一致
+  Color Sensors: カラーセンサー
   Communication Test: '通信テスト'
   Compact: コンパクト
   Compare: ''
@@ -584,6 +587,7 @@ translations:
   Continue: 続行
   Control optional print start features: オプションの印刷開始機能を制御
   Control power relays and smart outlets: 電源リレーとスマートコンセントを制御
+  Controllable Fans: 制御可能なファン
   Controlled by hardware sensor: ハードウェアセンサーで制御
   Controller: コントローラー
   Controls: コントロール
@@ -696,6 +700,7 @@ translations:
   Dev: 開発版
   Dev channel requires dev_url in config: 開発チャンネルには設定にdev_urlが必要です
   Device: デバイス
+  Device Section: デバイスセクション
   Device connected: 'デバイスが接続されました'
   Device name: デバイス名
   Device name is required: デバイス名は必須です
@@ -1210,6 +1215,7 @@ translations:
   Hub Bowden Length: 'ハブのボーデン長'
   Humidity: 湿度
   Humidity inside the enclosure: チャンバー内の湿度
+  Humidity Sensors: 湿度センサー
   Hyperlapse: ハイパーラプス
   Hyperlapse captures frames at fixed time intervals. Good for very long prints.: ハイパーラプスは一定の時間間隔でフレームを撮影します。非常に長い印刷に適しています。
   ID (optional): ID（任意）
@@ -1565,6 +1571,7 @@ translations:
   Network name cannot be empty: ネットワーク名は空にできません
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': ネットワーク、ディスプレイ、サウンド、プリンター設定など。このツアーは「ヘルプと情報」からいつでも再生できます。
   Never: なし
+  New Spool: 新規スプール
   'New Spool: Step 1 of 3': '新しいスプール: ステップ 1 / 3'
   'New Spool: Step {} of {}': '新規スプール: ステップ {} / {}'
   New Version Available: 新バージョンあり
@@ -1716,7 +1723,7 @@ translations:
   On/Off: オン/オフ
   On/Off (state-aware): オン/オフ（状態追跡）
   'On:': 'オン:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
+  One tap runs this macro with no parameters. Dangerous macros still ask.: ワンタップでこのマクロをパラメータなしで実行します。危険なマクロは確認を求めます。
   Ooze Reduction: 'にじみ低減'
   Open: 開く
   Open Source Licenses: オープンソースライセンス
@@ -1961,6 +1968,7 @@ translations:
   Probe Accuracy Failed: プローブ精度テスト失敗
   Probe Accuracy Test: プローブ精度テスト
   Probe Management: プローブ管理
+  Probe Sensors: プローブセンサー
   Probe Speed: プローブ速度
   Probe controls, accuracy test, and settings: プローブコントロール、精度テスト、設定
   Probing Bed Mesh: ベッドメッシュをプローブ中
@@ -1979,7 +1987,7 @@ translations:
   Profile renamed: プロファイル名を変更しました
   Profiles: プロファイル
   Progress, file, and time remaining: 進行状況、ファイル、残り時間
-  Prompt before running this macro: ''
+  Prompt before running this macro: このマクロの実行前に確認する
   Pulling filament back: フィラメントを引き戻し中
   Purge: パージ
   Purge & Wipe: 'パージとワイプ'
@@ -2089,7 +2097,7 @@ translations:
   Reprint: 再印刷
   Reprint Last: 前回を再印刷
   Request Failed: 要求に失敗しました
-  Require Confirmation?: ''
+  Require Confirmation?: 確認が必要ですか？
   Require confirmation before emergency stop: 緊急停止前に確認を求める
   Requires Moonraker power device: 'Moonraker電源デバイスが必要です'
   Requires Moonraker-Timelapse plugin: Moonraker-Timelapse プラグインが必要です
@@ -2475,6 +2483,7 @@ translations:
   Surfaces inherit app background tokens for light and dark modes.: サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。
   Switch Printer: プリンターを切り替え
   Switch a power device on or off: 電源デバイスのオン/オフ切り替え
+  Switch Sensors: スイッチセンサー
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
   Switch to v%s: 'v%s に切り替え'
@@ -2874,6 +2883,7 @@ translations:
   Widget Labels: ウィジェットラベル
   Width: 幅
   Width Sensor: '幅センサー'
+  Width Sensors: 幅センサー
   Wifi: Wi-Fi
   Will not switch spools on runout: フィラメント切れ時にスプールを切り替えません
   Wipe nozzle on silicone cleaning strip: 'シリコン清掃ストリップでノズルを拭く'

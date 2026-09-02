@@ -99,12 +99,33 @@ float compute_content_offset_y(float content_height_px, int canvas_height_px,
     return (top + content_h * 0.5f - canvas_h * 0.5f) / canvas_h;
 }
 
+float parity_content_offset_y(int canvas_width_px, int canvas_height_px) {
+    if (canvas_width_px <= 0 || canvas_height_px <= 0) {
+        return 0.0f;
+    }
+
+    const float canvas_w = static_cast<float>(canvas_width_px);
+    const float canvas_h = static_cast<float>(canvas_height_px);
+    const float side = std::min(canvas_w, canvas_h);
+    const float frame_top =
+        (canvas_h - side) * 0.5f - projection::thumbnail_parity::LIFT * canvas_h;
+
+    // Pin the model's centre, not its edges: the measured thumbnails put the
+    // model centre at ~55% of the frame whatever the model fills.
+    const float model_center_y = frame_top + projection::thumbnail_parity::CENTER_Y * side;
+
+    // project() adds this to the canvas-centred Y, so express it as the shift
+    // from centre rather than as an absolute position.
+    return (model_center_y - canvas_h * 0.5f) / canvas_h;
+}
+
 // ============================================================================
 // AUTO-FIT
 // ============================================================================
 
 AutoFitResult compute_auto_fit(const AABB& raw_bb, ViewMode view_mode, int canvas_width,
-                               int canvas_height, float padding, float bottom_occlusion) {
+                               int canvas_height, float padding, float bottom_occlusion,
+                               FitFraming framing) {
     AutoFitResult result;
 
     // Order any inverted axis before the emptiness test — one bad axis must not
@@ -165,6 +186,30 @@ AutoFitResult compute_auto_fit(const AABB& raw_bb, ViewMode view_mode, int canva
     if (range_y < 0.001f)
         range_y = 1.0f;
 
+    // Offsets centre the model in world space; both framings use them as-is.
+    result.offset_x = (bb.min.x + bb.max.x) / 2.0f;
+    result.offset_y = (bb.min.y + bb.max.y) / 2.0f;
+
+    if (framing == FitFraming::THUMBNAIL_PARITY) {
+        // The thumbnail's box, not the canvas: the square of the short side,
+        // centred and lifted by the same #preview_offset_y the thumbnail
+        // renders with. Fit into that square with the measured padding — no
+        // occlusion shrink, no elongation escape, because matching the
+        // thumbnail's size and placement is the whole point.
+        const float side =
+            std::min(static_cast<float>(canvas_width), static_cast<float>(canvas_height));
+
+        range_x *= (1.0f + 2.0f * projection::thumbnail_parity::PADDING);
+        range_y *= (1.0f + 2.0f * projection::thumbnail_parity::PADDING);
+
+        result.scale = std::min(side / range_x, side / range_y);
+        result.elongated = false;
+        result.content_width = range_x * result.scale;
+        result.content_height = range_y * result.scale;
+        result.content_offset_y_percent = parity_content_offset_y(canvas_width, canvas_height);
+        return result;
+    }
+
     // Add padding
     range_x *= (1.0f + 2.0f * padding);
     range_y *= (1.0f + 2.0f * padding);
@@ -185,9 +230,6 @@ AutoFitResult compute_auto_fit(const AABB& raw_bb, ViewMode view_mode, int canva
     float scale_x = static_cast<float>(canvas_width) / range_x;
     float scale_y = usable_height / range_y;
     result.scale = std::min(scale_x, scale_y);
-
-    result.offset_x = (bb.min.x + bb.max.x) / 2.0f;
-    result.offset_y = (bb.min.y + bb.max.y) / 2.0f;
 
     // Projected extent at the chosen scale. The limiting axis lands exactly on
     // its canvas dimension; the other is smaller. compute_content_offset_y()

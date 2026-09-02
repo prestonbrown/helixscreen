@@ -183,3 +183,86 @@ EOF
     [[ "$output" == *"not-run"* ]]
     [[ "$output" == *"hung past"* ]]
 }
+
+# Evidence for these tests lives beside the report (full.xml) the gate was
+# pointed at, one flattened directory per source file. The retention this
+# pins was not cosmetic: the 2026-08-31 nightly fired a finding whose isolated
+# run nobody could autopsy, because DEVNULL ate the child's output and the
+# tempdir ate its report.
+ev() { echo "$WORK/order-dependence-evidence/tests_unit_test_x.cpp"; }
+
+@test "a finding retains the isolated run's report, captured output, and spec" {
+    full_report true true
+    # Bespoke stub: writes last words on stderr so the capture is provably the
+    # child's own output, not an empty file the gate dreamed up.
+    cat > "$WORK/build/bin/helix-tests" <<'STUB'
+#!/usr/bin/env bash
+out=""
+while [ $# -gt 0 ]; do
+  case "$1" in --out) out="$2"; shift 2;; -f) spec="$2"; shift 2;; *) shift;; esac
+done
+echo "last words on stderr" >&2
+cat > "$out" <<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<Catch2TestRun name="t">
+  <TestCase name="case A" filename="tests/unit/test_x.cpp" line="1">
+    <OverallResult success="false" skips="0"/>
+  </TestCase>
+  <TestCase name="case B" filename="tests/unit/test_x.cpp" line="9">
+    <OverallResult success="true" skips="0"/>
+  </TestCase>
+</Catch2TestRun>
+XML
+STUB
+    chmod +x "$WORK/build/bin/helix-tests"
+    run gate --list
+    [[ "$output" == *"order-dependent"* ]]
+    [ -f "$(ev)/r.xml" ]
+    grep -q 'success="false"' "$(ev)/r.xml"
+    grep -q "last words on stderr" "$(ev)/output.txt"
+    # The finding says where the evidence landed.
+    [[ "$output" == *"$(ev)"* ]]
+}
+
+@test "a pollution finding retains its green run's report too" {
+    # Pollution is the mirror shape: the isolated run is GREEN, so "retain
+    # when the run fails" alone would keep nothing - and the green report is
+    # precisely the proof the case passes alone.
+    full_report false true
+    stub_binary true true
+    run gate --list
+    [[ "$output" == *"pollution"* ]]
+    [ -f "$(ev)/r.xml" ]
+    grep -q 'success="true"' "$(ev)/r.xml"
+}
+
+@test "a green isolated run leaves no evidence behind" {
+    full_report true true
+    stub_binary true true
+    run gate --list
+    [[ "$output" == *"findings: 0"* ]]
+    [ ! -e "$WORK/order-dependence-evidence" ]
+}
+
+@test "a consistently failing file keeps no evidence (its story is the suite's)" {
+    # Fails alone exactly as it fails in the suite: no ordering signal, and a
+    # red suite must not accumulate a directory per red file.
+    full_report false false
+    stub_binary false false
+    run gate --list
+    [[ "$output" == *"findings: 0"* ]]
+    [ ! -e "$WORK/order-dependence-evidence" ]
+}
+
+@test "an un-judgeable run retains whatever it managed to write" {
+    full_report true true
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/build/bin/helix-tests"
+    chmod +x "$WORK/build/bin/helix-tests"
+    run gate --list
+    [[ "$output" == *"not-run"* ]]
+    [[ "$output" == *"evidence retained at $(ev)"* ]]
+    # No report was written; the escaped spec is the remaining record of what
+    # the child was asked to run.
+    [ -f "$(ev)/names.txt" ]
+    grep -q "case A" "$(ev)/names.txt"
+}

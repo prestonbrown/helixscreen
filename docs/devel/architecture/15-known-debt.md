@@ -65,7 +65,7 @@ Four catalogues: the ledger and its ratchet, the duplication debt, the deliberat
   TOTAL         367
 ```
 
-(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1661`](../../../scripts/quality-checks.sh#L1661) runs the gate with `--max-allowed 367`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
+(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1663`](../../../scripts/quality-checks.sh#L1663) runs the gate with `--max-allowed 367`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
 
 Where the 367 lives, by directory:
 
@@ -102,8 +102,6 @@ and publish the handler by name from C++ — either a `{"name", fn}` table like 
 
 AI-assisted design and build at this project's scale produced duplicated logic in places: parallel implementations of similar behavior, forked helpers where extending a near-fit would have served. Not always actively harmful, but confusing, inelegant, and a standing target for refactoring. The review rule exists because of this — *extend the near-fit helper, never fork a twin; copy-paste-modify is a red flag* — and the examples below are the concrete worst offenders the chapter audits for this series actually tripped over. No pretense of exhaustiveness; they frame the pattern.
 
-- **Twin bind helpers in the home widgets.** `FanStackWidget::bind_fan_observer()` ([`src/ui/panel_widgets/fan_stack_widget.cpp:789`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L789)) and `LedWidget::bind_led()` ([`src/ui/panel_widgets/led_widget.cpp:109`](../../../src/ui/panel_widgets/led_widget.cpp#L109), self-bind at `:86`) each independently solve the same problem: `observe_int_sync` defers its initial fire through `ui_queue_update()`, which populate freezes — so each helper manually reads the current subject value at attach time. Same insight, two implementations, two places to fix if the freeze semantics change (chapter 09 documents the mechanism).
-- **One aspirational abstraction, three parallel wirings.** `SensorRegistry` ([`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60)) was built as a central registry for the seven sensor managers. Production never constructs it — its only constructions are its own unit tests (15 in [`tests/unit/test_sensor_registry.cpp`](../../../tests/unit/test_sensor_registry.cpp)). Instead the managers are wired directly at three call sites: `init_subsystems_from_hardware()` ([`src/printer/printer_discovery.cpp:96`](../../../src/printer/printer_discovery.cpp#L96)–131), the configfile discovery step ([`src/api/moonraker_discovery_sequence.cpp:858`](../../../src/api/moonraker_discovery_sequence.cpp#L858)–863), and `PrinterState::update_from_status()` ([`src/printer/printer_state.cpp:625`](../../../src/printer/printer_state.cpp#L625)–633). Chapter 06 documents the live wiring; the dead abstraction remains to be wired or deleted.
 - **Six state-mapped icons in XML.** [`ui_xml/components/panel_widget_network.xml:11`](../../../ui_xml/components/panel_widget_network.xml#L11)–31: six `<icon>` elements, each with its own `bind_flag_if_not_eq` against `home_network_icon_state`, differing only in `src`, `variant`, and ref value. All six are built; five are hidden at any moment:
 
   ```xml
@@ -168,7 +166,7 @@ Every port verifies the same three ways:
 
 - **Existing imperative code is not precedent.** The 367 sites are bounded debt, not an alternative style. A nearby `lv_label_set_text()` never justifies yours.
 - **No opportunistic refactors.** Do not port an imperative site as a side effect of an unrelated change — the port and the feature get reviewed separately, and the baseline drop lands in the port commit.
-- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1661`](../../../scripts/quality-checks.sh#L1661) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
+- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1663`](../../../scripts/quality-checks.sh#L1663) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
 - **A port touches both sides.** XML edits need no rebuild, but a port *removes* C++ and *adds* XML plus registrations — the binary must be rebuilt, or the new bindings silently stay dead (chapter 01's drift trap).
 - **Annotate with a reason or not at all.** `DECLARATIVE_OK` without a real justification is a lint suppressant, and reviewers should treat it that way. If you cannot name the structural reason, it does not qualify.
 - **Duplication review is cheap at commit time.** Each forked helper above cost one question at review — "does a near-fit already exist?" — and costs a refactoring project once merged. [`REVIEW_RUBRIC.md`](../REVIEW_RUBRIC.md) carries this.
@@ -188,11 +186,10 @@ Every port verifies the same three ways:
 Read in this order; about 25 minutes total.
 
 1. [`scripts/check_imperative_ui.py:10`](../../../scripts/check_imperative_ui.py#L10) — the header comment: what is flagged, what is structurally exempt, and the ratchet philosophy. The whole chapter in 40 lines.
-2. [`scripts/quality-checks.sh:1661`](../../../scripts/quality-checks.sh#L1661) — where the baseline 367 is enforced and how a port ratchets it down.
+2. [`scripts/quality-checks.sh:1663`](../../../scripts/quality-checks.sh#L1663) — where the baseline 367 is enforced and how a port ratchets it down.
 3. [`src/ui/ui_panel_gcode_test.cpp:391`](../../../src/ui/ui_panel_gcode_test.cpp#L391) — the archetype of the 67 event sites: find by name, add callback, null-check each. First project #1 is this block.
 4. [`ui_xml/gcode_test_panel.xml:61`](../../../ui_xml/gcode_test_panel.xml#L61) — the same buttons from the XML side, callback-less today; picture the `<event_cb>` the port adds.
 5. [`src/ui/ui_overlay_network_settings.cpp:701`](../../../src/ui/ui_overlay_network_settings.cpp#L701) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.
-6. [`src/ui/panel_widgets/fan_stack_widget.cpp:789`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L789) — `bind_fan_observer()`: the manual subject read that works around the deferred initial fire under populate's freeze.
 7. [`src/ui/panel_widgets/led_widget.cpp:75`](../../../src/ui/panel_widgets/led_widget.cpp#L75) — the twin: same problem, same workaround, separately evolved. Then `:109` for `bind_led()` itself.
 8. [`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60) — the registry class nothing in production constructs.
 9. [`src/printer/printer_discovery.cpp:105`](../../../src/printer/printer_discovery.cpp#L105) — the direct manager wiring that makes the registry aspirational.

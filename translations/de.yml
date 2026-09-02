@@ -136,6 +136,7 @@ translations:
   Accelerometer: Beschleunigungssensor
   Accelerometer communication failed. Try again.: Kommunikation mit Beschleunigungssensor
     fehlgeschlagen. Versuchen Sie es erneut.
+  Accelerometers: Beschleunigungssensoren
   Accept: Akzeptieren
   'Accepted Z Position: 0.000': 'Akzeptierte Z-Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Akzeptierte Z-Position: {:.3f}'
@@ -237,6 +238,7 @@ translations:
   Auto: Automatisch
   Auto Bed Mesh: Automatisches Bettnetz
   Auto Cal: Auto-Kal.
+  Auto Fans: Automatische Lüfter
   Auto-Detect: Auto-Erkennung
   Auto-Heat on Load: Automatisches Heizen beim Laden
   Auto-detect: Auto-Erkennung
@@ -571,6 +573,7 @@ translations:
   Collecting debug info...: Debug-Informationen werden gesammelt...
   Color: Farbe
   Color Mismatch: Farbabweichung
+  Color Sensors: Farbsensoren
   Communication Test: 'Kommunikationstest'
   Compact: Kompakt
   Compare: ''
@@ -659,6 +662,7 @@ translations:
   Continue: Fortfahren
   Control optional print start features: Optionale Druckstartfunktionen steuern
   Control power relays and smart outlets: Relais und smarte Steckdosen steuern
+  Controllable Fans: Steuerbare Lüfter
   Controlled by hardware sensor: Durch Hardware-Sensor gesteuert
   Controller: Controller
   Controls: Steuerung
@@ -775,6 +779,7 @@ translations:
   Dev: Dev
   Dev channel requires dev_url in config: Dev-Kanal erfordert dev_url in der Konfiguration
   Device: Gerät
+  Device Section: Geräteabschnitt
   Device connected: 'Gerät verbunden'
   Device name: Gerätename
   Device name is required: Gerätename ist erforderlich
@@ -1326,6 +1331,7 @@ translations:
   Hub Bowden Length: 'Hub-Bowden-Länge'
   Humidity: Feuchtigkeit
   Humidity inside the enclosure: Feuchtigkeit in der Kammer
+  Humidity Sensors: Feuchtigkeitssensoren
   Hyperlapse: Hyperlapse
   Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse
     erfasst Bilder in festen Zeitintervallen. Gut für sehr lange Drucke.
@@ -1717,6 +1723,7 @@ translations:
   Network name cannot be empty: Netzwerkname darf nicht leer sein
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Netzwerk, Display, Sound, Druckereinrichtung und mehr. Sie können diesen Rundgang jederzeit unter Hilfe & Über erneut abspielen.'
   Never: Nie
+  New Spool: Neue Spule
   'New Spool: Step 1 of 3': 'Neue Spule: Schritt 1 von 3'
   'New Spool: Step {} of {}': 'Neue Spule: Schritt {} von {}'
   New Version Available: Neue Version verfügbar
@@ -1874,7 +1881,7 @@ translations:
   On/Off: Ein/Aus
   On/Off (state-aware): Ein/Aus (zustandsbewusst)
   'On:': 'Ein:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: ''
+  One tap runs this macro with no parameters. Dangerous macros still ask.: Ein Tipp führt dieses Makro ohne Parameter aus. Gefährliche Makros fragen weiterhin nach.
   Ooze Reduction: 'Ooze-Reduzierung'
   Open: Öffnen
   Open Source Licenses: Open-Source-Lizenzen
@@ -2137,6 +2144,7 @@ translations:
   Probe Accuracy Failed: Taster-Genauigkeitstest fehlgeschlagen
   Probe Accuracy Test: Taster-Genauigkeitstest
   Probe Management: Taster-Verwaltung
+  Probe Sensors: Sonden-Sensoren
   Probe Speed: Taster-Geschwindigkeit
   Probe controls, accuracy test, and settings: Taster-Steuerung, Genauigkeitstest
     und Einstellungen
@@ -2156,7 +2164,7 @@ translations:
   Profile renamed: Profil umbenannt
   Profiles: Profile
   Progress, file, and time remaining: Fortschritt, Datei und Restzeit
-  Prompt before running this macro: ''
+  Prompt before running this macro: Vor dem Ausführen dieses Makros nachfragen
   Pulling filament back: Filament wird zurückgezogen
   Purge: Entlüften
   Purge & Wipe: 'Entlüften & Abwischen'
@@ -2273,7 +2281,7 @@ translations:
   Reprint: Erneut drucken
   Reprint Last: Letzten nachdrucken
   Request Failed: Anfrage fehlgeschlagen
-  Require Confirmation?: ''
+  Require Confirmation?: Bestätigung erforderlich?
   Require confirmation before emergency stop: Bestätigung vor Notaus erforderlich
   Requires Moonraker power device: 'Erfordert ein Moonraker-Stromgerät'
   Requires Moonraker-Timelapse plugin: Erfordert Moonraker-Timelapse-Plugin
@@ -2701,6 +2709,7 @@ translations:
     App-Hintergrund-Tokens für Hell- und Dunkelmodus.
   Switch Printer: Drucker wechseln
   Switch a power device on or off: Stromgerät ein- oder ausschalten
+  Switch Sensors: Schalter-Sensoren
   Switch between light and dark themes: Zwischen Hell- und Dunkelthemen wechseln
   Switch the active tool or extruder: Aktives Werkzeug oder Extruder wechseln
   Switch to v%s: 'Zu v%s wechseln'
@@ -3155,6 +3164,7 @@ translations:
   Widget Labels: Widget-Beschriftungen
   Width: Breite
   Width Sensor: 'Breitensensor'
+  Width Sensors: Breitensensoren
   Wifi: WLAN
   Will not switch spools on runout: Wechselt bei leerer Spule nicht die Spule
   Wipe nozzle on silicone cleaning strip: 'Düse am Silikon-Reinigungsstreifen abwischen'

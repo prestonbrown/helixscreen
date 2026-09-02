@@ -237,7 +237,7 @@ look for.
 ## The gate
 
 `scripts/check_gcode_error_ownership.py`, run at `--max-allowed 0` from
-`scripts/quality-checks.sh:1744-1770`.
+`scripts/quality-checks.sh:1746-1772`.
 
 It scans `src/` for `execute_gcode()` calls with an inline `[…](const MoonrakerError&)` lambda
 whose body is *entirely* logging or empty, and which pass neither `caller_surfaces_errors` nor

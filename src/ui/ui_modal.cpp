@@ -70,6 +70,20 @@ lv_subject_t g_dialog_primary_text{};
 lv_subject_t g_dialog_cancel_text{};
 constexpr const char* DEFAULT_PRIMARY_TEXT = "OK";
 constexpr const char* DEFAULT_CANCEL_TEXT = "Cancel";
+// Owned copies of whatever the caption subjects publish. modal_configure()
+// takes const char* and callers routinely hand it a loop-local std::string's
+// c_str() - the print-gate chain's GateCheckResult dies with its
+// run_gates_from() iteration - while the subject outlives the call
+// (lv_subject_set_pointer stores the pointer, no copy). Publishing the
+// caller's pointer left every later reader on freed stack: the still-live
+// previous dialog's bind_text observers, fired synchronously by the next
+// set_pointer, and ModalConfigRollback's constructor snapshot. The subjects
+// point into THESE strings instead, so they stay valid until the next
+// modal_configure() overwrites them. Reusing one buffer address across
+// configures loses nothing: LVGL cannot compare pointer subjects and always
+// notifies (ui_notification_manager's count buffer does the same).
+std::string g_dialog_primary_text_owned;
+std::string g_dialog_cancel_text_owned;
 } // namespace
 
 // Walk a widget tree depth-first, visiting every non-null object. The three
@@ -1253,11 +1267,17 @@ void helix::ui::modal_configure(ModalSeverity severity, bool show_cancel, const 
     lv_subject_set_int(&g_dialog_severity, static_cast<int>(severity));
     lv_subject_set_int(&g_dialog_show_cancel, show_cancel ? 1 : 0);
 
+    // Copy first, publish second: set_pointer fires the previous dialog's
+    // bind_text observers synchronously, and they read the buffer - so the
+    // owned copy must already hold the new text when they do. Publishing the
+    // caller's pointer here is what parked dead frame-locals in the subjects.
     if (primary_text) {
-        lv_subject_set_pointer(&g_dialog_primary_text, const_cast<char*>(primary_text));
+        g_dialog_primary_text_owned = primary_text;
+        lv_subject_set_pointer(&g_dialog_primary_text, g_dialog_primary_text_owned.data());
     }
     if (cancel_text) {
-        lv_subject_set_pointer(&g_dialog_cancel_text, const_cast<char*>(cancel_text));
+        g_dialog_cancel_text_owned = cancel_text;
+        lv_subject_set_pointer(&g_dialog_cancel_text, g_dialog_cancel_text_owned.data());
     }
 }
 
@@ -1308,10 +1328,10 @@ namespace {
 /// dialog's icon and captions. Construct this BEFORE modal_configure() so the
 /// snapshot is the previous state, and commit() on success.
 ///
-/// The captions are snapshotted as POINTERS, not copies: modal_configure()
-/// stores the pointer (lv_subject_set_pointer, no copy), so restoring a copy's
-/// c_str() would park a dangling pointer in a long-lived subject. Putting the
-/// original pointers back is exactly as safe as whatever put them there.
+/// The captions are snapshotted by VALUE, and the restore goes through
+/// modal_configure() again, which copies them into its own owned caption
+/// storage. No pointer into this transient object - or into a caller's
+/// frame - is ever left in a subject.
 class ModalConfigRollback {
   public:
     ModalConfigRollback()
@@ -1328,15 +1348,14 @@ class ModalConfigRollback {
         if (committed_) {
             return;
         }
-        // modal_configure() stores these pointers into the shared caption
-        // subjects, which fires the still-live previous dialog's bind_text
-        // observers synchronously - so the pointers must be alive HERE. The
-        // snapshot is by value because the previous dialog's caption strings
-        // are routinely frame-locals by the time a rollback runs (the
-        // print-gate chain's GateCheckResult is dead the moment its
-        // run_gates_from() iteration returns). The subjects keep pointing at
-        // these strings after this dtor finishes, but nothing reads a caption
-        // subject until the next modal_configure() replaces it.
+        // modal_configure() copies these into its owned caption storage and
+        // repoints the subjects there, so what the synchronous bind_text
+        // observers of any still-live previous dialog read outlives this
+        // rollback object. The snapshot has to be by value for the same
+        // reason the ctor above could take one: the subjects publish
+        // modal-owned copies, never a caller's buffer (the print-gate chain
+        // evaluates its gates into loop-locals, dead by the time the next
+        // gate's confirmation is built).
         helix::ui::modal_configure(static_cast<ModalSeverity>(severity_), show_cancel_ != 0,
                                    primary_.c_str(), cancel_.c_str());
     }

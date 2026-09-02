@@ -164,7 +164,6 @@ auto guard = helix::ui::observe_int_sync<FanStackWidget>(
     lifetime);
 ```
 
-(verbatim from [`src/ui/panel_widgets/fan_stack_widget.cpp:794`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L794), `bind_fan_observer()`). Note the two lifetimes in play: the `SubjectLifetime` handed to the factory tracks the *subject's* death (fans are rediscovered on reconnect), while the widget's own `lifetime_.token()` guards the deferred lambda against the *widget* dying before it runs.
 
 Two things the factory does for you that a hand-rolled `lv_subject_add_observer` does not. First, it **defers the handler through `queue_update()`** (`:371`), so the body runs after the current subject-notification batch completes — a handler that reassigns a guard or destroys a widget mid-batch is the re-entrancy crash family (#82, #174). Second, it copies the handler and panel pointer into the deferred lambda with a weak alive token, so the panel dying between queue and execute is a no-op, not a use-after-free. `observe_string`, `observe_int_immediate` (only when the callback provably never mutates observer lifecycle), and domain wrappers like `observe_connection_state` / `observe_print_state` round out the set. Every factory returns an `ObserverGuard` — RAII removal on destruction; `reset()` for cleanup, never `release()` (#579).
 

@@ -1704,6 +1704,109 @@ TEST_CASE("effective_tool_colors leaves gaps neutral without disturbing used too
 }
 
 // =============================================================================
+// routed_tool_colors — a degenerate routing must not paint over the palette
+// =============================================================================
+//
+// routed_tool_colors() answers the print-status preview's per-tool colour
+// overrides. An empty return leaves the renderer's own slicer palette in place;
+// a non-empty one replaces it. So an answer that carries no per-tool
+// information is worse than no answer: it trades a palette that may be right
+// for one that is definitely useless.
+
+TEST_CASE("routed_tool_colors: every routed tool on one head is degenerate",
+          "[filament_mapper][routing]") {
+    // Observed on a real rig: a 4-tool file whose routing sent every tool to
+    // head 0, with head 0 loaded. That resolves to [purple, purple, purple,
+    // purple] - not neutral, so it passed the all-grey guard and painted the
+    // whole model one solid colour over a perfectly good 4-entry palette.
+    const std::vector<AvailableSlot> one_loaded = {
+        {0, 0, 0xA03CF7, "PLA", false, -1},
+    };
+
+    SECTION("a multi-tool routing with one answer for all returns nothing") {
+        REQUIRE(FilamentMapper::routed_tool_colors({0, 0, 0, 0}, one_loaded).empty());
+    }
+
+    SECTION("a single-tool print legitimately routes its only tool anywhere") {
+        // One routed tool has nothing to tell apart; the lane's colour IS the
+        // answer.
+        const auto colors = FilamentMapper::routed_tool_colors({0}, one_loaded);
+        REQUIRE(colors.size() == 1);
+        CHECK(colors[0] == 0xA03CF7);
+    }
+
+    SECTION("routed tools collapsing onto one head among unrouted ones is still degenerate") {
+        // -1 entries are "no opinion" and count toward neither side; the two
+        // tools that DO route share head 0, so the answer carries no per-tool
+        // information and the slicer palette stands.
+        REQUIRE(FilamentMapper::routed_tool_colors({-1, 0, -1, 0}, one_loaded).empty());
+    }
+}
+
+TEST_CASE("routed_tool_colors: distinct heads with identical spool colours still publish",
+          "[filament_mapper][routing]") {
+    // The degeneracy signal is the ROUTING collapsing, never the colours
+    // agreeing: two lanes holding the same white spool (a runout backup
+    // pair) are a true uniform answer, and suppressing it would put the
+    // slicer's multi-colour palette up for a print that comes out solid.
+    const std::vector<AvailableSlot> two_white = {
+        {0, 0, 0xFFFFFF, "PLA", false, -1},
+        {1, 0, 0xFFFFFF, "PLA", false, -1},
+    };
+
+    SECTION("all-equal colours on distinct heads are returned, not discarded") {
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1}, two_white);
+        REQUIRE(colors.size() == 2);
+        CHECK(colors[0] == 0xFFFFFF);
+        CHECK(colors[1] == 0xFFFFFF);
+    }
+
+    SECTION("a four-lane identity routing of same-colour spools is published") {
+        const std::vector<AvailableSlot> four_white = {
+            {0, 0, 0xFFFFFF, "PLA", false, -1},
+            {1, 0, 0xFFFFFF, "PLA", false, -1},
+            {2, 0, 0xFFFFFF, "PLA", false, -1},
+            {3, 0, 0xFFFFFF, "PLA", false, -1},
+        };
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, four_white);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0xFFFFFF);
+        CHECK(colors[3] == 0xFFFFFF);
+    }
+}
+
+TEST_CASE("routed_tool_colors: a routing that distinguishes tools keeps answering",
+          "[filament_mapper][routing]") {
+    // Pins the existing behaviour either side of the degeneracy guard so the
+    // guard cannot silently widen: distinct routings answer with their lanes'
+    // colours, and a partially-unknown routing keeps its neutral gap.
+    const std::vector<AvailableSlot> slots = {
+        {0, 0, 0x080A0D, "PLA", false, -1},
+        {1, 0, 0xE2DEDB, "PLA", false, -1},
+        {2, 0, 0xE72F1D, "PLA", false, -1},
+        {3, 0, 0xF4C032, "PLA", false, -1},
+    };
+
+    SECTION("four tools on four distinct heads return the four colours") {
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0x080A0D);
+        CHECK(colors[1] == 0xE2DEDB);
+        CHECK(colors[2] == 0xE72F1D);
+        CHECK(colors[3] == 0xF4C032);
+    }
+
+    SECTION("a tool with no routing entry stays neutral, the rest answer") {
+        const auto colors = FilamentMapper::routed_tool_colors({0, -1, 1, 2}, slots);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0x080A0D);
+        CHECK(colors[1] == 0x808080);
+        CHECK(colors[2] == 0xE2DEDB);
+        CHECK(colors[3] == 0xE72F1D);
+    }
+}
+
+// =============================================================================
 // compute_defaults — a tool whose color is unknown
 // =============================================================================
 //
