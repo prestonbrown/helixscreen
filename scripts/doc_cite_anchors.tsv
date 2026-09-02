@@ -238,7 +238,7 @@ docs/devel/architecture/03-threading-lifetime.md	include/ui_update_queue.h	94	in
 docs/devel/architecture/03-threading-lifetime.md	include/ui_update_queue.h	119	include/ui_update_queue.h	18f71965fe19	6aa5497e408f
 docs/devel/architecture/03-threading-lifetime.md	include/ui_utils.h	96	include/ui_utils.h	0f234a8e9aef	98c17a126296
 docs/devel/architecture/03-threading-lifetime.md	include/ui_utils.h	200	include/ui_utils.h	508062ccc15d	ad71faa40aff
-docs/devel/architecture/03-threading-lifetime.md	src/api/wifi_manager.cpp	865	src/api/wifi_manager.cpp	ec048226cc24	34defac0545a
+docs/devel/architecture/03-threading-lifetime.md	src/api/wifi_manager.cpp	864	src/api/wifi_manager.cpp	ec048226cc24	34defac0545a
 docs/devel/architecture/03-threading-lifetime.md	src/application/application.cpp	4030	src/application/application.cpp	d01f57687fa2	02e35d842e8e
 docs/devel/architecture/03-threading-lifetime.md	src/bluetooth/bt_bus_thread.h	19	src/bluetooth/bt_bus_thread.h	c6bc333f5acf	fcbf1ca472ee
 docs/devel/architecture/03-threading-lifetime.md	src/printer/detection_manager.cpp	26	src/printer/detection_manager.cpp	f5ed4358790f	6fcdb5737545
@@ -644,7 +644,7 @@ docs/devel/architecture/13-peripherals.md	src/remote/remote_control_server.cpp	2
 docs/devel/architecture/13-peripherals.md	src/system/bt_print_utils.cpp	23	src/system/bt_print_utils.cpp	00af1e8de8d0	6c9d46d2f5b6
 docs/devel/architecture/13-peripherals.md	src/system/camera_stream.cpp	58	src/system/camera_stream.cpp	894b6bf964e2	b4abbef7d189
 docs/devel/architecture/13-peripherals.md	src/system/label_printer_utils.cpp	86	src/system/label_printer_utils.cpp	f2e40b1d7f59	702588d835da
-docs/devel/architecture/13-peripherals.md	src/ui/panel_widgets/camera_widget.cpp	533	src/ui/panel_widgets/camera_widget.cpp	463d04e0d4a5	d43979c932ed
+docs/devel/architecture/13-peripherals.md	src/ui/panel_widgets/camera_widget.cpp	532	src/ui/panel_widgets/camera_widget.cpp	463d04e0d4a5	d43979c932ed
 docs/devel/architecture/13-peripherals.md	src/ui/ui_overlay_qr_scanner.cpp	324	src/ui/ui_overlay_qr_scanner.cpp	cfb028c22b46	e5ab3874989f
 docs/devel/architecture/13-peripherals.md	src/ui/ui_overlay_qr_scanner.cpp	383	src/ui/ui_overlay_qr_scanner.cpp	a3cc85a624e8	4375a71e9c81
 docs/devel/architecture/13-peripherals.md	src/ui/ui_settings_label_printer.cpp	1117	src/ui/ui_settings_label_printer.cpp	2d9963c71f08	70f9e1f36922

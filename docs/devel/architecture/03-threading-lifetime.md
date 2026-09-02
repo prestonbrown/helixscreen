@@ -193,7 +193,7 @@ Read in this order; about 25 minutes total.
 3. [`src/printer/detection_manager.cpp:26`](../../../src/printer/detection_manager.cpp#L26) — the two-line `bg_cb` in the wild: an observer registered with a marshalled callback, nothing else to it.
 4. [`src/printer/printer_state.cpp:667`](../../../src/printer/printer_state.cpp#L667) — `set_printer_connection_state()` (defer through the guard), then `:659` `set_klippy_state()` (`call_method` flavor). The whole marshalling-setter pattern in twenty lines.
 5. [`include/ui_observer_guard.h:40`](../../../include/ui_observer_guard.h#L40) — the `SubjectLifetime` contract in the doc comment; then `reset()` (`:123`) with its two death checks: token value (`:137`) and invalidation epoch (`:150`).
-6. [`src/api/wifi_manager.cpp:865`](../../../src/api/wifi_manager.cpp#L865) — `handle_scan_complete`: parse on the backend thread, `queue_update` the mutation. THREADING.md's other reference integration.
+6. [`src/api/wifi_manager.cpp:864`](../../../src/api/wifi_manager.cpp#L864) — `handle_scan_complete`: parse on the backend thread, `queue_update` the mutation. THREADING.md's other reference integration.
 7. [`include/http_executor.h:33`](../../../include/http_executor.h#L33) — the class comment: why the pools exist (EAGAIN history), the stop-timeout-detach semantics, and the self-wait deadlock warning on `run_sync`.
 8. [`src/bluetooth/bt_bus_thread.h:19`](../../../src/bluetooth/bt_bus_thread.h#L19) — `BusWork` and the single-thread sd-bus ownership contract, including the null-bus idle-worker defense.
 9. [`include/ui_utils.h:96`](../../../include/ui_utils.h#L96) — the comment explaining why `safe_delete` (`:102`) is unsafe inside queued callbacks, then the deferred family at `:200`, `:284`, `:345`.
