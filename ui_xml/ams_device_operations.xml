@@ -155,7 +155,7 @@
              instead of silently lying. -->
         <setting_toggle_row name="row_ams_keep_spool_info_on_eject"
                             label="Keep Spool Info on Eject" label_tag="Keep Spool Info on Eject" icon="filament"
-                            description="Remember lane spool details across an eject"
+                            description="Remember slot spool details across an eject"
                             description_tag="Remember lane spool details across an eject"
                             subject="ams_keep_spool_info_on_eject" callback="on_ams_keep_spool_info_toggled"
                             disabled="ams_device_ops_printer_retains_spool_info">

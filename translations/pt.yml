@@ -242,7 +242,7 @@ translations:
   Auto-poll for weight updates: Consultar peso automaticamente
   Auto-probe or manually check screw heights: Sondagem automática ou verificação manual
     da altura dos parafusos
-  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: O reabastecimento automático está ligado, mas nenhum par de lanes tem filamento compatível, então nada trocará ao acabar o filamento
+  Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout: O reabastecimento automático está ligado, mas nenhum par de slots tem filamento compatível, então nada trocará ao acabar o filamento
   Auto-render video: Renderizar vídeo automaticamente
   Auto-tuning Shapers...: Ajuste automático de Shapers...
   Auto-uninstall only works on local Moonraker: A desinstalação automática só funciona
@@ -358,7 +358,7 @@ translations:
   Bypass disabled: Bypass desativado
   Bypass enabled: Bypass ativado
   Bypass failed: Falha no bypass
-  ? Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
+  ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : O bypass está ativo, mas esta impressão usa slots AMS. A impressora pode não conseguir carregar um slot enquanto houver filamento de bypass no cabeçote. Remova o filamento e desative o bypass antes de imprimir. Iniciar mesmo assim?
   Bypass toggle failed: Falha ao alternar bypass
   C: C
@@ -1465,10 +1465,7 @@ translations:
   Labels: Etiquetas
   Labels Per Sheet: Etiquetas por folha
   Lane: Lane
-  Lane colors, materials, and levels: Cores, materiais e níveis das lanes
   Lane tests and motor resets: 'Testes de lane e reinícios de motor'
-  Lane {} is blocked — manual intervention required: Lane {} está bloqueada — intervenção
-    manual necessária
   Language: Idioma
   Language, theme, brightness, and sound: Idioma, tema, brilho e som
   Last: Última
@@ -2244,6 +2241,7 @@ translations:
   Remap needs the HelixPrint plugin: O remapeamento precisa do plugin HelixPrint
   Remap…: Remapear…
   Remember lane spool details across an eject: Lembrar os detalhes do carretel da lane ao ejetar
+  Remember slot spool details across an eject: Lembrar os detalhes do carretel do slot ao ejetar
   Remove: Remover
   Remove PIN: Remover PIN
   Remove Spoolman?: Remover Spoolman?
@@ -2583,7 +2581,9 @@ translations:
   Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'O slot %d tem cerca de %.0fg, mas a ferramenta %d precisa de cerca de %.0fg. Iniciar mesmo assim?'
   'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg de %.0fg necessários'
   Slot 1: Slot 1
+  Slot colors, materials, and levels: Cores, materiais e níveis dos slots
   Slot {}: Slot {}
+  Slot {} is blocked — manual intervention required: Slot {} está bloqueado — intervenção manual necessária
   Slot {} matches.: 'O slot {} corresponde.'
   Slot {} spool cleared: Bobina do slot {} removida
   Slot {} updated: Slot {} atualizado
@@ -2825,9 +2825,9 @@ translations:
     mesmo assim?
   The speed of one fan you choose: A velocidade de uma ventoinha escolhida
   The time, date, and system uptime: Hora, data e tempo ativo
-  The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. Retire-o manualmente antes de imprimir. Iniciar mesmo assim?
-  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
-  : 'O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. A impressora pode não conseguir carregar um slot até que ele seja esvaziado. Iniciar mesmo assim?'
+  The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. Retire-o manualmente antes de imprimir. Iniciar mesmo assim?
+  ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
+  : O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. A impressora pode não conseguir carregar um slot até que ele seja esvaziado. Iniciar mesmo assim?
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: O
     sensor do cabeçote indica que o filamento já está carregado. Prosseguir com o
     carregamento mesmo assim?
@@ -2949,8 +2949,7 @@ translations:
   'Tool change failed: {}': 'Falha ao trocar ferramenta: {}'
   Tool mapping failed: Falha no mapeamento de ferramenta
   Tool swap: Troca de ferramenta
-  'Tool {} → Lane {}: no filament loaded.': 'Ferramenta {} → Lane {}: nenhum filamento
-    carregado.'
+  'Tool {} → Slot {}: no filament loaded.': 'Ferramenta {} → Slot {}: nenhum filamento carregado.'
   Toolhead: 'Cabeçote'
   Toolhead LED: 'LED do cabeçote'
   Toolhead Sensor: Sensor do Cabeçote
@@ -3286,7 +3285,6 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} está instalado mas sua troca para carretel reserva está desligada, então não haverá troca automática.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} está instalado, mas não foi possível ler sua configuração de carretel reserva - não conte com uma troca automática.'
   '{} is not set up on this printer': '{} não está configurado nesta impressora'
-  '{} lanes': '{} lanes'
   '{} macro not configured': Macro {} não configurado
   '{} may cause unintended changes. Are you sure?': '{} pode causar alterações não
     intencionais. Tem certeza?'
@@ -3296,6 +3294,7 @@ translations:
   '{} preset{}': '{} predefinição{}'
   '{} set to {}': '{} definido para {}'
   '{} set to {} {}': '{} definido para {} {}'
+  '{} slots': '{} slots'
   '{} started': '{} iniciado'
   '{} target set to {}°C': '{} configurado para {}°C'
   '{} widgets': '{} widgets'

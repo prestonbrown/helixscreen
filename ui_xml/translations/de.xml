@@ -213,7 +213,7 @@
   <translation tag="Auto-lock" de="Auto-Sperre"/>
   <translation tag="Auto-poll for weight updates" de="Automatisch auf Gewichtsaktualisierungen prüfen"/>
   <translation tag="Auto-probe or manually check screw heights" de="Automatisches Abtasten oder manuelle Prüfung der Schraubenhöhen"/>
-  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout" de="Automatisches Nachfüllen ist an, aber es gibt keine zwei Spuren mit passendem Filament, daher wird bei Filamentende nichts gewechselt"/>
+  <translation tag="Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout" de="Automatisches Nachfüllen ist an, aber es gibt keine zwei Slots mit passendem Filament, daher wird bei Filamentende nichts gewechselt"/>
   <translation tag="Auto-render video" de="Video automatisch rendern"/>
   <translation tag="Auto-tuning Shapers..." de="Shaper automatisch abstimmen..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" de="Auto-Deinstallation funktioniert nur bei lokalem Moonraker"/>
@@ -324,7 +324,7 @@
   <translation tag="Bypass disabled" de="Bypass deaktiviert"/>
   <translation tag="Bypass enabled" de="Bypass aktiviert"/>
   <translation tag="Bypass failed" de="Bypass fehlgeschlagen"/>
-  <translation tag="Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" de="Bypass ist aktiv, aber dieser Druck verwendet AMS-Spuren. Der Drucker verweigert möglicherweise das Laden einer Spur, solange Bypass-Filament im Werkzeugkopf ist. Entfernen Sie das Filament und deaktivieren Sie Bypass, bevor Sie drucken. Trotzdem starten?"/>
+  <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" de="Bypass ist aktiv, aber dieser Druck verwendet AMS-Slots. Der Drucker verweigert möglicherweise das Laden eines Slots, solange Bypass-Filament im Werkzeugkopf ist. Entfernen Sie das Filament und deaktivieren Sie Bypass, bevor Sie drucken. Trotzdem starten?"/>
   <translation tag="Bypass toggle failed" de="Bypass-Umschaltung fehlgeschlagen"/>
   <translation tag="C" de="K"/>
   <translation tag="CALIBRATION" de="KALIBRIERUNG"/>
@@ -1294,9 +1294,7 @@
   <translation tag="Labels" de="Etiketten"/>
   <translation tag="Labels Per Sheet" de="Etiketten pro Blatt"/>
   <translation tag="Lane" de="Spur"/>
-  <translation tag="Lane colors, materials, and levels" de="Spurfarben, Materialien und Füllstände"/>
   <translation tag="Lane tests and motor resets" de="Spurtests und Motor-Rücksetzungen"/>
-  <translation tag="Lane {} is blocked — manual intervention required" de="Spur {} ist blockiert — manueller Eingriff erforderlich"/>
   <translation tag="Language" de="Sprache"/>
   <translation tag="Language, theme, brightness, and sound" de="Sprache, Thema, Helligkeit und Ton"/>
   <translation tag="Last" de="Letzte"/>
@@ -2002,6 +2000,7 @@
   <translation tag="Remap needs the HelixPrint plugin" de="Neuzuordnung benötigt das HelixPrint-Plugin"/>
   <translation tag="Remap…" de="Neu zuordnen…"/>
   <translation tag="Remember lane spool details across an eject" de="Spulendetails der Spur über ein Auswerfen hinweg merken"/>
+  <translation tag="Remember slot spool details across an eject" de="Spulendetails des Slots über ein Auswerfen hinweg merken"/>
   <translation tag="Remove" de="Entfernen"/>
   <translation tag="Remove PIN" de="PIN entfernen"/>
   <translation tag="Remove Spoolman?" de="Spoolman entfernen?"/>
@@ -2297,7 +2296,9 @@
   <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" de="Slot %d hat etwa %.0fg, aber Werkzeug %d benötigt etwa %.0fg. Trotzdem starten?"/>
   <translation tag="Slot %d: %.0fg of %.0fg needed" de="Slot %d: %.0fg von %.0fg benötigt"/>
   <translation tag="Slot 1" de="Slot 1"/>
+  <translation tag="Slot colors, materials, and levels" de="Slotfarben, Materialien und Füllstände"/>
   <translation tag="Slot {}" de="Slot {}"/>
+  <translation tag="Slot {} is blocked — manual intervention required" de="Slot {} ist blockiert — manueller Eingriff erforderlich"/>
   <translation tag="Slot {} matches." de="Slot {} passt."/>
   <translation tag="Slot {} spool cleared" de="Slot {} Spule gelöscht"/>
   <translation tag="Slot {} updated" de="Slot {} aktualisiert"/>
@@ -2496,8 +2497,8 @@
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" de="Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?"/>
   <translation tag="The speed of one fan you choose" de="Drehzahl eines gewählten Lüfters"/>
   <translation tag="The time, date, and system uptime" de="Uhrzeit, Datum und Betriebszeit"/>
-  <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber keine AMS-Spur meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?"/>
-  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber keine AMS-Spur meldet es als geladen. Der Drucker verweigert möglicherweise das Laden einer Spur, bis er geleert ist. Trotzdem starten?"/>
+  <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?"/>
+  <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" de="Der Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem Laden fortfahren?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" de="Der Werkzeugkopfsensor zeigt an, dass kein Filament vorhanden ist. Trotzdem mit dem Entladen fortfahren?"/>
   <translation tag="Theme" de="Thema"/>
@@ -2582,7 +2583,7 @@
   <translation tag="Tool change failed: {}" de="Werkzeugwechsel fehlgeschlagen: {}"/>
   <translation tag="Tool mapping failed" de="Werkzeugzuordnung fehlgeschlagen"/>
   <translation tag="Tool swap" de="Werkzeugwechsel"/>
-  <translation tag="Tool {} → Lane {}: no filament loaded." de="Werkzeug {} → Spur {}: kein Filament geladen."/>
+  <translation tag="Tool {} → Slot {}: no filament loaded." de="Werkzeug {} → Slot {}: kein Filament geladen."/>
   <translation tag="Toolhead" de="Werkzeugkopf"/>
   <translation tag="Toolhead LED" de="Werkzeugkopf-LED"/>
   <translation tag="Toolhead Sensor" de="Werkzeugkopfsensor"/>
@@ -2885,7 +2886,6 @@
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." de="{} ist installiert, aber der Wechsel zur Ersatzspule ist ausgeschaltet, daher findet kein automatischer Wechsel statt."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." de="{} ist installiert, aber die Ersatzspulen-Einstellung konnte nicht gelesen werden - verlasse dich nicht auf einen automatischen Wechsel."/>
   <translation tag="{} is not set up on this printer" de="{} ist auf diesem Drucker nicht eingerichtet"/>
-  <translation tag="{} lanes" de="{} Spuren"/>
   <translation tag="{} macro not configured" de="{}-Makro nicht konfiguriert"/>
   <translation tag="{} may cause unintended changes. Are you sure?" de="{} kann unbeabsichtigte Änderungen verursachen. Sind Sie sicher?"/>
   <translation tag="{} more taps to {} beta features" de="{} weitere Male tippen, um Beta-Funktionen zu {}"/>
@@ -2894,6 +2894,7 @@
   <translation tag="{} preset{}" de="{} Voreinstellung{}"/>
   <translation tag="{} set to {}" de="{} auf {} gesetzt"/>
   <translation tag="{} set to {} {}" de="{} auf {} {} gesetzt"/>
+  <translation tag="{} slots" de="{} Slots"/>
   <translation tag="{} started" de="{} gestartet"/>
   <translation tag="{} target set to {}°C" de="{}-Zieltemperatur auf {}°C gesetzt"/>
   <translation tag="{} widgets" de="{} Widgets"/>

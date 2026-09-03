@@ -247,7 +247,7 @@ translations:
   Auto-poll for weight updates: Interrogation auto des mises à jour de poids
   Auto-probe or manually check screw heights: Palpage auto ou vérification manuelle
     des hauteurs de vis
-  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: 'Le réapprovisionnement automatique est activé, mais aucune paire de voies ne contient le même filament : rien ne changera en fin de filament'
+  Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout: 'Le réapprovisionnement automatique est activé, mais aucune paire de slots ne contient le même filament : rien ne changera en fin de filament'
   Auto-render video: Rendu vidéo automatique
   Auto-tuning Shapers...: Réglage automatique des Shapers...
   Auto-uninstall only works on local Moonraker: La désinstallation automatique ne
@@ -364,8 +364,8 @@ translations:
   Bypass disabled: Bypass désactivé
   Bypass enabled: Bypass activé
   Bypass failed: Échec du bypass
-  ? Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
-  : Le bypass est actif, mais cette impression utilise les voies de l'AMS. L'imprimante peut refuser de charger une voie tant que du filament bypass se trouve dans la tête d'outil. Retirez le filament et désactivez le bypass avant d'imprimer. Démarrer quand même ?
+  ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
+  : Le bypass est actif, mais cette impression utilise les slots de l'AMS. L'imprimante peut refuser de charger un slot tant que du filament bypass se trouve dans la tête d'outil. Retirez le filament et désactivez le bypass avant d'imprimer. Démarrer quand même ?
   Bypass toggle failed: Échec de la bascule du bypass
   C: C
   CALIBRATION: CALIBRATION
@@ -1476,10 +1476,7 @@ translations:
   Labels: Étiquettes
   Labels Per Sheet: Étiquettes par feuille
   Lane: Voie
-  Lane colors, materials, and levels: Couleurs, matériaux et niveaux des voies
   Lane tests and motor resets: 'Tests de voie et réinitialisations moteur'
-  Lane {} is blocked — manual intervention required: Voie {} bloquée — intervention
-    manuelle requise
   Language: Langue
   Language, theme, brightness, and sound: Langue, thème, luminosité et son
   Last: Dernière
@@ -2263,6 +2260,7 @@ translations:
   Remap needs the HelixPrint plugin: La réaffectation nécessite le plugin HelixPrint
   Remap…: Réaffecter…
   Remember lane spool details across an eject: Mémoriser les détails de la bobine de la voie après une éjection
+  Remember slot spool details across an eject: Mémoriser les détails de la bobine du slot après une éjection
   Remove: Supprimer
   Remove PIN: Supprimer le PIN
   Remove Spoolman?: Supprimer Spoolman ?
@@ -2604,7 +2602,9 @@ translations:
   Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'Le slot %d contient environ %.0fg mais l''outil %d nécessite environ %.0fg. Démarrer quand même ?'
   'Slot %d: %.0fg of %.0fg needed': 'Slot %d : %.0fg sur %.0fg requis'
   Slot 1: Slot 1
+  Slot colors, materials, and levels: Couleurs, matériaux et niveaux des slots
   Slot {}: Emplacement {}
+  Slot {} is blocked — manual intervention required: Slot {} bloqué — intervention manuelle requise
   Slot {} matches.: 'Le slot {} correspond.'
   Slot {} spool cleared: Bobine du slot {} effacée
   Slot {} updated: Slot {} mis à jour
@@ -2848,9 +2848,9 @@ translations:
     quand même ?
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The time, date, and system uptime: Heure, date et temps de fonctionnement
-  The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: La tête d'outil contient du filament mais aucune voie de l'AMS ne le signale comme chargé. Retirez-le manuellement avant d'imprimer. Démarrer quand même ?
-  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
-  : 'La tête d''outil contient du filament mais aucune voie de l''AMS ne le signale comme chargé. L''imprimante peut refuser de charger une voie tant qu''elle n''est pas vidée. Démarrer quand même ?'
+  The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: La tête d'outil contient du filament mais aucun slot de l'AMS ne le signale comme chargé. Retirez-le manuellement avant d'imprimer. Démarrer quand même ?
+  ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
+  : La tête d'outil contient du filament mais aucun slot de l'AMS ne le signale comme chargé. L'imprimante peut refuser de charger un slot tant qu'il n'est pas vidé. Démarrer quand même ?
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Le
     capteur de la tête d'outil indique que du filament est déjà chargé. Procéder au
     chargement quand même ?
@@ -2977,7 +2977,7 @@ translations:
   'Tool change failed: {}': 'Échec du changement d''outil : {}'
   Tool mapping failed: Échec de la correspondance d'outils
   Tool swap: Changement d'outil
-  'Tool {} → Lane {}: no filament loaded.': 'Outil {} → Voie {} : aucun filament chargé.'
+  'Tool {} → Slot {}: no filament loaded.': 'Outil {} → Slot {} : aucun filament chargé.'
   Toolhead: 'Tête d''outil'
   Toolhead LED: 'LED de la tête d''outil'
   Toolhead Sensor: Capteur de tête d'outil
@@ -3317,7 +3317,6 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} est installé mais son passage à la bobine de secours est désactivé, aucun changement automatique n''aura donc lieu.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} est installé, mais son réglage de bobine de secours n''a pas pu être lu - ne comptez pas sur un changement automatique.'
   '{} is not set up on this printer': "{} n'est pas configuré sur cette imprimante"
-  '{} lanes': '{} voies'
   '{} macro not configured': Macro {} non configurée
   '{} may cause unintended changes. Are you sure?': '{} peut entraîner des modifications
     non souhaitées. Êtes-vous sûr ?'
@@ -3328,6 +3327,7 @@ translations:
   '{} preset{}': '{} préréglage{}'
   '{} set to {}': '{} réglé sur {}'
   '{} set to {} {}': '{} réglé sur {} {}'
+  '{} slots': '{} slots'
   '{} started': '{} démarré'
   '{} target set to {}°C': Cible {} réglée à {}°C
   '{} widgets': '{} widgets'

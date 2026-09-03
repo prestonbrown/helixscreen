@@ -230,7 +230,7 @@ translations:
   Auto-lock: Auto-lock
   Auto-poll for weight updates: Auto-poll for weight updates
   Auto-probe or manually check screw heights: Auto-probe or manually check screw heights
-  Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout: Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout
+  Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout: Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout
   Auto-render video: Auto-render video
   'Auto-tuning Shapers...': 'Auto-tuning Shapers...'
   Auto-uninstall only works on local Moonraker: Auto-uninstall only works on local
@@ -346,8 +346,8 @@ translations:
   Bypass disabled: Bypass disabled
   Bypass enabled: Bypass enabled
   Bypass failed: Bypass failed
-  ? Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
-  : Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
+  ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
+  : Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   Bypass toggle failed: Bypass toggle failed
   C: C
   CALIBRATION: CALIBRATION
@@ -1421,10 +1421,7 @@ translations:
   Labels: Labels
   Labels Per Sheet: Labels Per Sheet
   Lane: Lane
-  Lane colors, materials, and levels: Lane colors, materials, and levels
   Lane tests and motor resets: Lane tests and motor resets
-  Lane {} is blocked — manual intervention required: Lane {} is blocked — manual intervention
-    required
   Language: Language
   Language, theme, brightness, and sound: Language, theme, brightness, and sound
   Last: Last
@@ -2188,6 +2185,7 @@ translations:
   Remap needs the HelixPrint plugin: Remap needs the HelixPrint plugin
   Remap…: Remap…
   Remember lane spool details across an eject: Remember lane spool details across an eject
+  Remember slot spool details across an eject: Remember slot spool details across an eject
   Remove: Remove
   Remove PIN: Remove PIN
   Remove Spoolman?: Remove Spoolman?
@@ -2516,7 +2514,9 @@ translations:
   Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?
   'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg of %.0fg needed'
   Slot 1: Slot 1
+  Slot colors, materials, and levels: Slot colors, materials, and levels
   Slot {}: Slot {}
+  Slot {} is blocked — manual intervention required: Slot {} is blocked — manual intervention required
   Slot {} matches.: Slot {} matches.
   Slot {} spool cleared: Slot {} spool cleared
   Slot {} updated: Slot {} updated
@@ -2750,9 +2750,9 @@ translations:
     sensor indicates no filament is loaded. Start print anyway?
   The speed of one fan you choose: The speed of one fan you choose
   The time, date, and system uptime: The time, date, and system uptime
-  The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?
-  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
-  : The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?
+  ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
+  : The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: The
     toolhead sensor indicates filament is already loaded. Proceed with load anyway?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: The
@@ -2869,7 +2869,7 @@ translations:
   'Tool change failed: {}': 'Tool change failed: {}'
   Tool mapping failed: Tool mapping failed
   Tool swap: Tool swap
-  'Tool {} → Lane {}: no filament loaded.': 'Tool {} → Lane {}: no filament loaded.'
+  'Tool {} → Slot {}: no filament loaded.': 'Tool {} → Slot {}: no filament loaded.'
   Toolhead: Toolhead
   Toolhead LED: Toolhead LED
   Toolhead Sensor: Toolhead Sensor
@@ -3202,7 +3202,6 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.'
   '{} is not set up on this printer': '{} is not set up on this printer'
-  '{} lanes': '{} lanes'
   '{} macro not configured': '{} macro not configured'
   '{} may cause unintended changes. Are you sure?': '{} may cause unintended changes.
     Are you sure?'
@@ -3212,6 +3211,7 @@ translations:
   '{} preset{}': '{} preset{}'
   '{} set to {}': '{} set to {}'
   '{} set to {} {}': '{} set to {} {}'
+  '{} slots': '{} slots'
   '{} started': '{} started'
   '{} target set to {}°C': '{} target set to {}°C'
   '{} widgets': '{} widgets'

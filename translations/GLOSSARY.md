@@ -23,9 +23,13 @@ translation agents (the relevant column is injected into their prompts).
 
 ## Ambiguous terms (resolved)
 
-- **Slot** vs **Lane**: `Slot` = a filament position in an AMS/CFS. `Lane`
-  (AFC) is a synonym and uses the same per-locale rendering as `Slot`; keep them
-  aligned.
+- **Slot** vs **Lane**: both name one filament position in a multi-material
+  unit. Generic UI says `Slot`, and every locale renders it with its own slot
+  term. AFC-specific screens keep `Lane`: they label AFC hardware and sit beside
+  AFC's own `Hub`, so "Stopped between Slot and Hub" would read as nonsense.
+  Translate a `Lane` string with the locale's lane word, not its slot word.
+  Chinese is the exception in the other direction - it has never distinguished
+  the two and uses the slot term throughout.
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.
@@ -46,7 +50,7 @@ translation agents (the relevant column is injected into their prompts).
 | Fan | Lüfter | Ventilador | Ventilateur | Ventola | ファン | Ventoinha | Вентилятор | 风扇 |
 | Fans | Lüfter | Ventiladores | Ventilateurs | Ventole | ファン | Ventoinhas | Вентиляторы | 风扇 |
 | Spool | Spule | Bobina | Bobine | Bobina | スプール | Carretel | Катушка | 料盘 |
-| Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Слот | 料仓 |
+| Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Слот | 槽位 |
 | Printer | Drucker | Impresora | Imprimante | Stampante | プリンター | Impressora | Принтер | 打印机 |
 | Vendor | Hersteller | Fabricante | Fabricant | Produttore | ベンダー | Fabricante | Производитель | 供应商 |
 

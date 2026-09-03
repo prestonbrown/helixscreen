@@ -190,9 +190,9 @@ std::string WizardAmsIdentifyStep::get_ams_details() const {
     AmsSystemInfo info = backend->get_system_info();
     std::string details;
 
-    // Start with lane count if available
+    // Start with slot count if available
     if (info.total_slots > 0) {
-        details = fmt::format(lv_tr("{} lanes"), info.total_slots);
+        details = fmt::format(lv_tr("{} slots"), info.total_slots);
     }
 
     // Add unit name if available (e.g., "• Turtle 1")
