@@ -109,7 +109,7 @@ Two binding vocabularies exist, and both end at the same lookup.
   <bind_style_if_ge name="pad_standard" subject="ui_breakpoint" ref_value="1"/>
   ```
 
-  (`bind_style*` targets a named style instead of a raw property — the style itself is declared elsewhere in the file. Both examples are verbatim from [`ui_xml/components/buffer_status_modal.xml#hh_section`](../../../ui_xml/components/buffer_status_modal.xml#L53) and [`ui_xml/setting_group_header.xml:29`](../../../ui_xml/setting_group_header.xml#L29).)
+  (`bind_style*` targets a named style instead of a raw property — the style itself is declared elsewhere in the file. Both examples are verbatim from [`ui_xml/components/buffer_status_modal.xml#hh_section`](../../../ui_xml/components/buffer_status_modal.xml#L53) and [`ui_xml/setting_group_header.xml#"<bind_style_if_ge name=\"pad_standard\" subject=\"ui_breakpoint\" ref_value=\"1\"/>"`](../../../ui_xml/setting_group_header.xml#L29).)
 
   These are implemented as pseudo-widgets registered by the engine itself (`lib/helix-xml/src/xml/lv_xml.c#lv_xml_init` — names like `lv_obj-bind_flag_if_eq`), which is why they appear in the widget table but never in layouts as `lv_*` tags. At audit time the tree uses them heavily: 489 `<bind_flag_if_eq>` elements, 207 `<bind_flag_if_not_eq>`, 173 `<bind_state_if_eq>`, and 619 `bind_text=` attribute sites.
 

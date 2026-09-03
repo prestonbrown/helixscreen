@@ -155,7 +155,7 @@ Two subtleties both widget families hit. First, `observe_int_sync` defers its in
 
   | Flag | Owner | Meaning |
   |------|-------|---------|
-  | `LV_OBJ_FLAG_USER_1` | [`src/ui/ui_dialog.cpp#ui_dialog_xml_create`](../../../src/ui/ui_dialog.cpp#L58) | "inside a dialog", read up the parent chain by [`theme_manager.cpp:2343`](../../../src/ui/theme_manager.cpp#L2343) for elevated-surface input styling |
+  | `LV_OBJ_FLAG_USER_1` | [`src/ui/ui_dialog.cpp#ui_dialog_xml_create`](../../../src/ui/ui_dialog.cpp#L58) | "inside a dialog", read up the parent chain by [`src/ui/theme_manager.cpp#"static bool is_on_elevated_surface(lv_obj_t* obj) {"`](../../../src/ui/theme_manager.cpp#L2343) for elevated-surface input styling |
   | `LV_OBJ_FLAG_USER_2` | *free* | reachable from XML (`flag_to_enum` maps `user_1`/`user_2` only, `lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c:1315`), so prefer it for anything a binding should toggle |
   | `LV_OBJ_FLAG_USER_3` | [`include/panel_widget.h#PANEL_WIDGET_TILE_FLAG`](../../../include/panel_widget.h#L28) | `PANEL_WIDGET_TILE_FLAG` — home widget tile root |
   | `LV_OBJ_FLAG_USER_4` | [`src/ui/ui_sound_preview_overlay.cpp#populate_buttons`](../../../src/ui/ui_sound_preview_overlay.cpp#L165) | suppress the button tap sound, read in [`src/ui/ui_button.cpp#button_clicked_sound_cb`](../../../src/ui/ui_button.cpp#L373) |

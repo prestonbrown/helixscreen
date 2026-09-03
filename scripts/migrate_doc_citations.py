@@ -155,14 +155,22 @@ def propose(path, line_number, repo_root="."):
         path=path,
         segments=tuple(Segment(n, False) for n in base) + (Segment(snippet, True),),
     )
-    text = format_citation(with_snip)
-    try:
-        region = resolve_segments(lines, with_snip.segments, ext)
-    except (NotFound, Ambiguous, ValueError) as exc:
-        return Proposal(path, "ambiguous", str(exc))
-    if region.start == target:
-        return Proposal(text, "needs-snippet", "name alone did not pin the line")
-    return Proposal(path, "ambiguous", "snippet resolved to a different line")
+    for segs, note in (
+        (tuple(Segment(n, False) for n in base) + (Segment(snippet, True),),
+         "name alone did not pin the line"),
+        # When the SCOPE itself is ambiguous - a class declared in a header and
+        # defined in a source file - narrowing inside it cannot help. The line's
+        # own text is usually unique in the file on its own.
+        ((Segment(snippet, True),), "scope was ambiguous, anchored on the line"),
+    ):
+        text = format_citation(Citation(path=path, segments=segs))
+        try:
+            region = resolve_segments(lines, segs, ext)
+        except (NotFound, Ambiguous, ValueError):
+            continue
+        if region.start == target:
+            return Proposal(text, "needs-snippet", note)
+    return Proposal(path, "ambiguous", "no anchor pins this line uniquely")
 
 
 def iter_line_citations(paths):

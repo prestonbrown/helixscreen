@@ -65,7 +65,7 @@ actually trips on.
 ### One Makefile, three build verbs
 
 `make -j`, `make test`, and `make test-run` build disjoint artifacts. `make -j` (the default `all`
-target, [`mk/rules.mk:123`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
+target, [`mk/rules.mk#"all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both bluetooth-plugin"`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
 splash, watchdog, the binary, stripping, and the optional Bluetooth plugin. `make test`
 ([`mk/tests.mk#test`](../../../mk/tests.mk#L420)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk`](../../../mk/tests.mk)) builds it and
 runs it as Catch2 shards across 3×cores processes with the `~[.] ~[slow]` filter. The split is a

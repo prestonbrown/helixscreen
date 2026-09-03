@@ -2,30 +2,8 @@
 # `make regen-doc-links`, never hand-edit. See scripts/doc_cite_anchors.py.
 #
 # doc	cited-path	line	resolved-path	line-hash	context-hash
-docs/devel/HELIX_XML_FORK.md	lib/helix-xml/src/xml/lv_xml.c	2147	lib/helix-xml/src/xml/lv_xml.c	a48759e2a3f6	f3c67893f3fa
-docs/devel/HELIX_XML_FORK.md	lib/helix-xml/src/xml/lv_xml_component.c	567	lib/helix-xml/src/xml/lv_xml_component.c	01138f927b8e	42b20764c475
-docs/devel/architecture/01-declarative-ui.md	ui_xml/setting_group_header.xml	29	ui_xml/setting_group_header.xml	0aab99d13ca0	9ec49a95b294
 docs/devel/architecture/01-declarative-ui.md	ui_xml/temp_graph_overlay.xml	170	ui_xml/temp_graph_overlay.xml	cab796323369	863bc3fe87b9
-docs/devel/architecture/02-subjects-dataflow.md	include/printer_state.h	364	include/printer_state.h	355b3abd90cb	af8deeebed2c
-docs/devel/architecture/02-subjects-dataflow.md	ui_xml/temp_graph_overlay.xml	268	ui_xml/temp_graph_overlay.xml	e3fe02051d83	a6bdfbe37303
-docs/devel/architecture/03-threading-lifetime.md	include/async_lifetime_guard.h	237	include/async_lifetime_guard.h	9f71d66bb610	6bed60abe0e5
-docs/devel/architecture/03-threading-lifetime.md	include/ui_modal.h	97	include/ui_modal.h	f08d448ca6ed	3d21583bd125
 docs/devel/architecture/04-moonraker.md	include/runtime_config.h	195	include/runtime_config.h	8178bb54f33e	035f42b98585
-docs/devel/architecture/06-discovery-capabilities.md	include/temperature_sensor_manager.h	64	include/temperature_sensor_manager.h	3f32e2d19007	777f817d0299
-docs/devel/architecture/07-filament-ams.md	src/printer/ams_backend.cpp	631	src/printer/ams_backend.cpp	4abd695ba41a	67bbe954f610
-docs/devel/architecture/07-filament-ams.md	src/printer/ams_state.cpp	3245	src/printer/ams_state.cpp	4256ad4aab1e	c0499dee7571
-docs/devel/architecture/08-panels-navigation.md	include/ui_info_qr_modal.h	11	include/ui_info_qr_modal.h	15c9a802e386	0a07344dd145
-docs/devel/architecture/08-panels-navigation.md	include/ui_modal.h	97	include/ui_modal.h	f08d448ca6ed	3d21583bd125
 docs/devel/architecture/09-home-widgets.md	lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c	1315	lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c	fb3a5e471983	dfc4af62345e
-docs/devel/architecture/09-home-widgets.md	theme_manager.cpp	2343	src/ui/theme_manager.cpp	7657d9c58ff9	909406c1e9d1
-docs/devel/architecture/10-theme-tokens-layout.md	src/ui/theme_manager.cpp	563	src/ui/theme_manager.cpp	eb38cb21959f	e24ef46c5f94
 docs/devel/architecture/12-system-services.md	sound_manager.cpp	290	src/system/sound_manager.cpp	7958a073d661	8dd3bd3decd2
-docs/devel/architecture/13-peripherals.md	include/mdns_discovery.h	76	include/mdns_discovery.h	ede64b805184	79b8a9796388
-docs/devel/architecture/13-peripherals.md	src/bluetooth/bt_bus_thread.h	27	src/bluetooth/bt_bus_thread.h	87d6d8b9bc0f	2f19aedb8b00
-docs/devel/architecture/13-peripherals.md	src/system/camera_stream.cpp	58	src/system/camera_stream.cpp	894b6bf964e2	b4abbef7d189
-docs/devel/architecture/14-build-platforms.md	mk/rules.mk	123	mk/rules.mk	4ec48888fdc8	fe5f79475bd7
 docs/devel/architecture/15-known-debt.md	src/ui/temperature_service.cpp	205	src/ui/temperature_service.cpp	4aa7689c054c	32121fceeee4
-docs/devel/architecture/16-gcode-pipeline.md	include/gcode_streaming_controller.h	169	include/gcode_streaming_controller.h	c12324395876	89b75f1a82c0
-docs/devel/architecture/16-gcode-pipeline.md	include/gcode_streaming_controller.h	171	include/gcode_streaming_controller.h	22027b765165	802a57d635f0
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_gcode_viewer.cpp	394	src/ui/ui_gcode_viewer.cpp	8c14c01b1f0f	332606823216
-docs/devel/architecture/16-gcode-pipeline.md	src/ui/ui_panel_print_status.cpp	402	src/ui/ui_panel_print_status.cpp	683c7d398d45	d94959216ef9

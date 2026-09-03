@@ -112,7 +112,7 @@ conflict. Before any of that, `helix_bt_get_info()` reports an `api_version` ([`
 checks, so a plugin built against a different function-table generation refuses politely instead of crashing on
 a stale pointer.
 
-Inside the plugin, `BusThread` ([`src/bluetooth/bt_bus_thread.h:27`](../../../src/bluetooth/bt_bus_thread.h#L27)) is the pattern chapter 03 describes: sd-bus
+Inside the plugin, `BusThread` ([`src/bluetooth/bt_bus_thread.h#"class BusThread {"`](../../../src/bluetooth/bt_bus_thread.h#L27)) is the pattern chapter 03 describes: sd-bus
 is not thread-safe, so one worker thread exclusively owns the `sd_bus*` connection and every call goes through
 `submit()`/`run_sync()`, woken by a pipe when work is queued. `helix_bt_init()` ([`src/bluetooth/bt_plugin.cpp`](../../../src/bluetooth/bt_plugin.cpp)) sets a
 5-second D-Bus method timeout — the 25s default froze the UI on synchronous `is_paired` checks — and registers a
@@ -168,7 +168,7 @@ A4/Letter layouts).
 behind the home-panel camera widget. One background thread connects to the webcam's stream URL —
 `configure_from_printer()` pulls webcam URLs from PrinterState and resolves relative ones through
 `IMoonrakerAPI` ([`include/camera_stream.h#CameraStream`](../../../include/camera_stream.h#L109)) — then parses multipart boundaries and decodes JPEG frames through
-libturbojpeg, dlopen'd at runtime ([`src/system/camera_stream.cpp:58`](../../../src/system/camera_stream.cpp#L58), so Android ships only `libturbojpeg.so` in
+libturbojpeg, dlopen'd at runtime ([`src/system/camera_stream.cpp#"for (const char* soname : {\"libturbojpeg.so.0\", \"libturbojpeg.so\"}) {"`](../../../src/system/camera_stream.cpp#L58), so Android ships only `libturbojpeg.so` in
 the APK) with stb_image as fallback. Three load-bearing details:
 
 - **Decode-time downscaling** (`set_target_size()`): turbojpeg decodes at the smallest scaling factor that still covers the widget, so a 1920x1080 camera feeding an 800x480 tile never decodes full resolution.
@@ -198,7 +198,7 @@ bg-callback-to-defer pattern chapter 03 prescribes.
 
 ### mDNS discovery and the remote-control server
 
-**`MdnsDiscovery`** ([`include/mdns_discovery.h:76`](../../../include/mdns_discovery.h#L76)) finds Moonraker servers on the LAN: a PIMPL class with its
+**`MdnsDiscovery`** ([`include/mdns_discovery.h#"class MdnsDiscovery : public IMdnsDiscovery {"`](../../../include/mdns_discovery.h#L76)) finds Moonraker servers on the LAN: a PIMPL class with its
 own thread, re-querying every 3 seconds, results marshaled back through `helix::ui::async_call()`. Consumers
 hold the `IMdnsDiscovery` interface (`:39`), not the concrete. Its two consumers are the first-run connection
 wizard ([`src/ui/ui_wizard_connection.cpp`](../../../src/ui/ui_wizard_connection.cpp)) and the label-printer settings screen (network Brother printers). A
@@ -264,7 +264,7 @@ Read in this order; about 30 minutes total.
 5. [`include/label_printer.h#ILabelPrinter`](../../../include/label_printer.h#L44) — `ILabelPrinter`: what every backend must provide.
 6. [`include/bt_print_utils.h#helix::bluetooth`](../../../include/bt_print_utils.h#L23) — `rfcomm_send()`'s full lifecycle (connect → chunked write → drain → disconnect) and the shared mutex; then `:46` for SDP channel caching.
 7. [`include/camera_stream.h#helix`](../../../include/camera_stream.h#L36) — the class doc: threading contract, snapshot fallback, downscaling, and the `was_detached()` leak rule.
-8. [`src/system/camera_stream.cpp:58`](../../../src/system/camera_stream.cpp#L58) — turbojpeg runtime loading; then `:190` for `stop()`'s timed-join-or-detach path.
+8. [`src/system/camera_stream.cpp#"for (const char* soname : {\"libturbojpeg.so.0\", \"libturbojpeg.so\"}) {"`](../../../src/system/camera_stream.cpp#L58) — turbojpeg runtime loading; then `:190` for `stop()`'s timed-join-or-detach path.
 9. [`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`](../../../src/ui/panel_widgets/camera_widget.cpp#L532) — the fps ladder: paused under overlays, 2fps in edit mode, configured cap otherwise.
 10. [`include/usb_scanner_monitor.h#ScannerKeymap`](../../../include/usb_scanner_monitor.h#L20) — `ScannerKeymap` rationale and the `ScannerSource` grab-vs-passive split.
 11. [`src/ui/ui_overlay_qr_scanner.cpp#start_scanning`](../../../src/ui/ui_overlay_qr_scanner.cpp#L383) — the overlay racing both scanner paths (`:312` for the snapshot viewfinder, `:383` for the evdev wedge).
