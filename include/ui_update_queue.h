@@ -83,15 +83,20 @@ struct TaggedCallback {
 /**
  * @brief Thread-safe UI update queue
  *
- * Singleton that manages pending UI updates. Call init() once at startup
- * to install a 1 ms timer that processes updates inside every
- * lv_timer_handler() cycle (LVGL 9 timers have no priority field; the timer
- * is created at init so it sits near the head of the timer list).
+ * Singleton that manages pending UI updates. Call init() once at startup to
+ * install a timer that drains the queue once per display refresh period (LVGL 9
+ * timers have no priority field; the timer is created at init so it sits near
+ * the head of the timer list).
  *
- * Key insight: Using LV_EVENT_REFR_START doesn't work because it only fires when
- * LVGL decides to render. If nothing invalidates the display, the queue never drains.
- * Instead, we use a 1 ms timer that fires every lv_timer_handler() call,
- * ensuring callbacks execute promptly regardless of render state.
+ * LV_EVENT_REFR_START is not usable here: it only fires when LVGL decides to
+ * render, so on a screen nothing has invalidated the queue would never drain. A
+ * periodic timer drains regardless of render state.
+ *
+ * The period is the refresh period rather than something shorter because
+ * lv_timer_handler() answers with the time until the soonest live timer, and the
+ * main loop sleeps for exactly that. A sub-frame period therefore holds the whole
+ * loop at its minimum sleep forever, idle or not, and no UI can consume an update
+ * sooner than the frame that draws it.
  */
 class UpdateQueue {
   public:
@@ -106,9 +111,8 @@ class UpdateQueue {
     /**
      * @brief Initialize the update queue (call once at startup)
      *
-     * Creates a 1 ms timer that processes pending updates inside every
-     * lv_timer_handler() cycle. Created at init so it runs near the head
-     * of the timer list (LVGL 9 has no timer priorities).
+     * Creates the drain timer. Created at init so it runs near the head of the
+     * timer list (LVGL 9 has no timer priorities).
      */
     void init() {
         if (initialized_)
@@ -116,10 +120,9 @@ class UpdateQueue {
 
         shut_down_ = false;
 
-        // Create a timer that fires every lv_timer_handler() cycle
-        // Period of 1ms ensures it runs frequently (LVGL processes all ready timers)
-        // Created early at init, so it's near the head of the timer list
-        timer_ = lv_timer_create(timer_cb, 1, this);
+        // One drain per rendered frame. Created early at init, so it is near the
+        // head of the timer list.
+        timer_ = lv_timer_create(timer_cb, LV_DEF_REFR_PERIOD, this);
         if (!timer_) {
             spdlog::error("[UpdateQueue] Failed to create timer!");
             return;
@@ -439,7 +442,16 @@ class UpdateQueue {
     }
 
     void process_pending() {
-        // Move pending updates to local queue to minimize lock time
+        // Move pending updates to local queue to minimize lock time.
+        //
+        // The empty check comes first because this runs on every frame whether or
+        // not anything was queued, and a default-constructed std::queue is not
+        // free: its deque allocates a map plus a node before holding anything.
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (pending_.empty())
+                return;
+        }
         std::queue<TaggedCallback> to_process;
         {
             std::lock_guard<std::mutex> lock(mutex_);

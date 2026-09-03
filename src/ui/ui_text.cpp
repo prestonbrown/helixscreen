@@ -3,6 +3,8 @@
 
 #include "ui_text.h"
 
+#include "ui_animations_pref.h"
+
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -14,6 +16,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
@@ -153,6 +156,71 @@ static void apply_stroke_attrs(lv_obj_t* label, const char** attrs) {
 }
 
 /**
+ * Whether a long mode drives an offset animation while the text overflows
+ *
+ * LVGL runs these as LV_ANIM_REPEAT_INFINITE and invalidates the label on every
+ * step, so a single overflowing label repaints its area at the display refresh
+ * rate for as long as it is on screen.
+ */
+static bool long_mode_animates(lv_label_long_mode_t mode) {
+    return mode == LV_LABEL_LONG_MODE_SCROLL || mode == LV_LABEL_LONG_MODE_SCROLL_CIRCULAR;
+}
+
+/**
+ * Observer: hold a scrolling label still while animations are switched off
+ *
+ * The long mode the XML declared is carried in the observer's user data, so the
+ * label goes back to scrolling if the preference is switched on again.
+ */
+static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    lv_obj_t* label = lv_observer_get_target_obj(observer);
+    if (!label) {
+        return;
+    }
+    auto declared = static_cast<lv_label_long_mode_t>(
+        reinterpret_cast<intptr_t>(lv_observer_get_user_data(observer)));
+    lv_label_set_long_mode(label, helix::ui::animations_enabled(subject) ? declared
+                                                                         : LV_LABEL_LONG_MODE_DOTS);
+}
+
+/**
+ * Helper to make a scrolling label obey the "Animations" preference
+ *
+ * A scrolling long mode repaints the label's area at the display refresh rate
+ * for as long as the text overflows, and the repaint costs the render and blend
+ * threads on every step. Turning animations off has to reach that, so the label
+ * ellipsizes instead for as long as the preference is off. Labels that do not
+ * scroll are left alone, and so is a label built before the preference subject
+ * exists.
+ *
+ * The observer is registered against the label, so LVGL drops it when the label
+ * is deleted.
+ *
+ * @param state XML parser state (supplies the component scope for the lookup)
+ * @param label Label whose long mode was just applied from XML
+ */
+static void bind_long_mode_to_animations_pref(lv_xml_parser_state_t* state, lv_obj_t* label) {
+    if (!label) {
+        return;
+    }
+
+    lv_label_long_mode_t declared = lv_label_get_long_mode(label);
+    if (!long_mode_animates(declared)) {
+        return;
+    }
+
+    lv_subject_t* subject = helix::ui::animations_pref_subject(&state->scope);
+    if (!subject) {
+        return;
+    }
+
+    // Fires immediately, so the label is already in the right mode when it is
+    // first drawn.
+    lv_subject_add_observer_obj(subject, animations_pref_observer_cb, label,
+                                reinterpret_cast<void*>(static_cast<intptr_t>(declared)));
+}
+
+/**
  * Shared XML apply callback for all text_* widgets
  *
  * Applies standard label properties plus custom stroke attributes.
@@ -166,6 +234,8 @@ static void ui_text_apply(lv_xml_parser_state_t* state, const char** attrs) {
     lv_xml_label_apply(state, attrs);
 
     lv_obj_t* label = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
+
+    bind_long_mode_to_animations_pref(state, label);
 
     // Apply stroke attributes (stroke_width, stroke_color, stroke_opa)
     apply_stroke_attrs(label, attrs);
@@ -259,6 +329,9 @@ static void ui_text_button_apply(lv_xml_parser_state_t* state, const char** attr
     lv_xml_label_apply(state, attrs);
 
     lv_obj_t* label = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
+
+    bind_long_mode_to_animations_pref(state, label);
+
     lv_obj_t* parent = lv_obj_get_parent(label);
 
     if (!parent) {

@@ -295,6 +295,15 @@ void ui_icon_set_color(lv_obj_t* icon, lv_color_t color, lv_opa_t opa) {
     }
 
     lv_obj_set_style_text_color(icon, color, LV_PART_MAIN);
+    ui_icon_set_opa(icon, opa);
+}
+
+void ui_icon_set_opa(lv_obj_t* icon, lv_opa_t opa) {  // NAMESPACE_OK: joins the global ui_icon_* API; the family moves together (prestonbrown/helixscreen#1443)
+    if (!icon) {
+        spdlog::error("[Icon] Invalid icon parameter to ui_icon_set_opa");
+        return;
+    }
+
     lv_obj_set_style_text_opa(icon, opa, LV_PART_MAIN);
 }
 

@@ -22,11 +22,13 @@ usage() {
     echo "  branch-name     Branch to checkout (will be created if it doesn't exist)"
     echo "  worktree-path   Path for worktree (default: .worktrees/<branch-name>)"
     echo "                  NOTE: this is a PATH, not a base branch. To branch from"
-    echo "                  something other than HEAD, use --base."
+    echo "                  something other than the upstream, use --base."
     echo ""
     echo "Options:"
     echo "  --base <ref>    Commit/branch to create the new branch from"
-    echo "                  (default: HEAD of the tree you run this from)"
+    echo "                  (default: the current branch's upstream, e.g. origin/main,"
+    echo "                  refreshed first. Use --base HEAD for the local tip.)"
+    echo "  --no-fetch      Skip refreshing the upstream before branching from it"
     echo "  --setup-only    Only set up an existing worktree, don't create it"
     echo "  --unlink        Replace lib/ symlinks with what git expects, so git"
     echo "                  status/merge/rebase/stash work in this worktree"
@@ -37,7 +39,8 @@ usage() {
     echo "Examples:"
     echo "  $0 feature/new-panel           # Create worktree in .worktrees/new-panel"
     echo "  $0 feature/foo /tmp/foo        # Create worktree in /tmp/foo"
-    echo "  $0 --base feature/a feature/b  # Branch feature/b off feature/a, not HEAD"
+    echo "  $0 --base feature/a feature/b  # Branch feature/b off feature/a"
+    echo "  $0 --base HEAD feature/c       # Branch off the local tip, not the upstream"
     echo "  $0 --setup-only feature/i18n   # Just set up existing worktree"
     echo ""
     echo "  # Merging or rebasing inside a worktree (git cannot scan symlinked submodules):"
@@ -160,6 +163,7 @@ LINK_MODE=""
 BRANCH=""
 WORKTREE_PATH=""
 BASE_REF=""
+NO_FETCH=false
 EXPLICIT_PATH=""
 
 while [[ $# -gt 0 ]]; do
@@ -179,6 +183,10 @@ while [[ $# -gt 0 ]]; do
             fi
             BASE_REF="$2"
             shift 2
+            ;;
+        --no-fetch)
+            NO_FETCH=true
+            shift
             ;;
         --unlink|--relink)
             LINK_MODE="${1#--}"
@@ -341,13 +349,33 @@ if [[ "$SETUP_ONLY" == "false" ]]; then
         if [[ "$BRANCH_EXISTS" == "true" ]]; then
             git -C "$MAIN_TREE" worktree add "$WORKTREE_PATH" "$BRANCH"
         else
-            # Default to the HEAD of whichever tree invoked us, which is NOT
-            # necessarily main — say which commit that resolved to, so a stale
-            # or unexpected base is visible now rather than three commits later.
-            BASE="${BASE_REF:-HEAD}"
+            # Branch from the tracked upstream rather than local HEAD. A main
+            # that has not been fetched today omits commits the new branch is
+            # meant to build on, and nothing surfaces that gap until the work is
+            # already under review. "--base HEAD" asks for the local tip.
+            BASE="$BASE_REF"
+            if [[ -z "$BASE" ]]; then
+                UPSTREAM="$(git -C "$MAIN_TREE" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+                if [[ -n "$UPSTREAM" ]]; then
+                    if [[ "$NO_FETCH" != "true" ]]; then
+                        echo -e "${CYAN}Refreshing $UPSTREAM...${RESET}"
+                        git -C "$MAIN_TREE" fetch --quiet "${UPSTREAM%%/*}" "${UPSTREAM#*/}" 2>/dev/null \
+                            || echo -e "${YELLOW}  fetch failed; using the $UPSTREAM already on disk${RESET}"
+                    fi
+                    BASE="$UPSTREAM"
+                else
+                    echo -e "${YELLOW}Current branch tracks no upstream; falling back to HEAD${RESET}"
+                    BASE="HEAD"
+                fi
+            fi
             BASE_DESC="$(git -C "$MAIN_TREE" log --oneline -1 "$BASE")"
             echo -e "${YELLOW}Branch '$BRANCH' doesn't exist, creating from ${BOLD}$BASE${RESET}${YELLOW}:${RESET}"
             echo -e "  ${CYAN}$BASE_DESC${RESET}"
+            LOCAL_ONLY="$(git -C "$MAIN_TREE" rev-list --count "$BASE..HEAD" 2>/dev/null || echo 0)"
+            if [[ "$LOCAL_ONLY" != "0" ]]; then
+                echo -e "${YELLOW}  local HEAD has $LOCAL_ONLY commit(s) not in $BASE, excluded from this branch${RESET}"
+                echo -e "${YELLOW}  re-run with --base HEAD if you meant to build on them${RESET}"
+            fi
             git -C "$MAIN_TREE" worktree add -b "$BRANCH" "$WORKTREE_PATH" "$BASE"
         fi
         echo -e "${GREEN}✓ Worktree created${RESET}"
