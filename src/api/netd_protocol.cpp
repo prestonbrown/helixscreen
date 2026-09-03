@@ -293,6 +293,14 @@ bool available() {
     return ::access(binary_path().c_str(), X_OK) == 0;
 }
 
+bool set_nonblocking(int fd, bool on) {
+    const int flags = ::fcntl(fd, F_GETFL, 0);
+    if (flags < 0)
+        return false;
+    const int wanted = on ? (flags | O_NONBLOCK) : (flags & ~O_NONBLOCK);
+    return ::fcntl(fd, F_SETFL, wanted) == 0;
+}
+
 int connect_unix(const std::string& path, int timeout_ms, std::string* error_out) {
     const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -300,11 +308,7 @@ int connect_unix(const std::string& path, int timeout_ms, std::string* error_out
             *error_out = std::string("socket(): ") + std::strerror(errno);
         return -1;
     }
-    // SOCK_NONBLOCK as a socket() flag is a Linux-only extension; fcntl is
-    // the portable form of the same state.
-    const int flags = ::fcntl(fd, F_GETFL, 0);
-    if (flags >= 0)
-        (void)::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    (void)set_nonblocking(fd, true);
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     if (path.size() >= sizeof(addr.sun_path)) {
@@ -352,9 +356,7 @@ QueryResult query_snapshot(int timeout_ms) {
 
     // Back to blocking mode so the SO_RCVTIMEO read loop below keeps its
     // per-read timeout semantics.
-    const int flags = ::fcntl(fd, F_GETFL, 0);
-    if (flags >= 0)
-        (void)::fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+    (void)set_nonblocking(fd, false);
 
     struct timeval tv {};
     tv.tv_sec = timeout_ms / 1000;

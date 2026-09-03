@@ -169,6 +169,15 @@ bool available();
 // --- one-shot query. ----------------------------------------------------------
 
 /**
+ * @brief Put @p fd into (or out of) non-blocking mode.
+ *
+ * SOCK_NONBLOCK as a socket() flag and accept4() are Linux-only extensions;
+ * fcntl is the portable spelling of the same state, and the macOS test build
+ * has no other. Returns false when the descriptor cannot be queried or set.
+ */
+bool set_nonblocking(int fd, bool on);
+
+/**
  * @brief Connect to the daemon's socket with a bounded, non-blocking wait.
  *
  * A daemon wedged with a full accept backlog would park a BLOCKING connect
