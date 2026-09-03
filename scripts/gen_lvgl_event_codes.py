@@ -14,7 +14,7 @@
 #
 # So the table is derived, not typed. The enum is the source of truth, the
 # committed artifact is regenerated from it, and the gate proves the two match
-# -- same contract as gen_doc_links.py / regen-tokens / regen-xml-schema.
+# -- same contract as regen-tokens / regen-xml-schema.
 #
 # Usage:
 #   gen_lvgl_event_codes.py            # rewrite the worker table in place

@@ -21,7 +21,6 @@
 1 scripts/check_panel_widget_scrollable.py
 2 scripts/check_subscription_null_safety.py
 2 scripts/check_x11_macro_collisions.py
-1 scripts/doc_cite_anchors.py
 2 scripts/gen-packaging-manifest.sh
 6 scripts/quality-checks.sh
 1 scripts/setup-worktree.sh

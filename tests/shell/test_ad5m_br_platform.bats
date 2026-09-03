@@ -84,11 +84,11 @@ load helpers
     }
 }
 
-@test "ad5x: tracker stays disabled" {
+@test "ad5x: tracker enabled for the jz PC-speaker path" {
     run make -n PLATFORM_TARGET=ad5x CROSS_COMPILE= CC=gcc CXX=g++ print-cxxflags
     [ "$status" -eq 0 ]
-    ! echo "$output" | grep -q 'DHELIX_HAS_TRACKER' || {
-        echo "Unexpected -DHELIX_HAS_TRACKER (render loop not re-validated on ad5x):"
+    echo "$output" | grep -q 'DHELIX_HAS_TRACKER' || {
+        echo "Expected -DHELIX_HAS_TRACKER in ad5x CXXFLAGS (tracker rides the jz PC-speaker path - per-note buffers through the fx-pwm daemon, no PCM render loop):"
         echo "$output"
         return 1
     }

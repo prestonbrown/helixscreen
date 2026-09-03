@@ -2,7 +2,7 @@ name: esp32-build
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
 
 # A ~25 min job. Superseded pushes to the same PR/branch are cancelled rather
 # than queued behind each other; main is keyed per-SHA so pushes there still

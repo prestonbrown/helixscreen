@@ -103,7 +103,7 @@ panels push printer state through the C setters.
 ## The Three-Layer Model
 
 Rendering is split into three layers so per-frame animation never repaints the
-expensive tube geometry (`ui_filament_path_internal.h:17-26`).
+expensive tube geometry (`src/ui/ui_filament_path_internal.h`).
 
 ```cpp
 struct LayerState {
@@ -299,7 +299,7 @@ devices without the caller branching.
 ## RenderCtx & Phase Decomposition
 
 The render pass threads a small context through every phase
-(`ui_filament_path_internal.h:387`):
+(`src/ui/ui_filament_path_internal.h#RenderCtx`):
 
 ```cpp
 struct RenderCtx {
@@ -355,7 +355,7 @@ three-function pass.
 
 ## Topology Renderers
 
-The supported topologies are `PathTopology` (`include/ams_types.h:544`):
+The supported topologies are `PathTopology` (`include/ams_types.h#PathTopology`):
 
 ```cpp
 enum class PathTopology {
@@ -367,7 +367,7 @@ enum class PathTopology {
 ```
 
 Filament position along a path is tracked by `PathSegment`
-(`include/ams_types.h:622`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
+(`include/ams_types.h#PathSegment`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
 NOZZLE`.
 
 | Topology | Renderer | Shape |
@@ -411,7 +411,7 @@ single source of truth, no geometry re-derivation.
 ### What invalidates what
 
 State setters call `layered_mark_dirty(obj, static_dirty, overlay_dirty)`
-(`ui_filament_path_layers.cpp:183`):
+(`src/ui/ui_filament_path_layers.cpp#layered_mark_dirty`):
 
 ```cpp
 void layered_mark_dirty(lv_obj_t* obj, bool static_dirty, bool overlay_dirty) {

@@ -109,7 +109,7 @@ already running.
 there was nothing else setting the action either: a swap on that fork ran with only
 HelixScreen's own optimistic dispatch driving the UI.
 
-**`feeder_open` is published by BOTH controllers** (`medusahc.py:370` in the fork,
+**`feeder_open` is published by BOTH controllers** (`medusahc.py` in the fork,
 `get_status()` in Irbis3D's), so the gripper phases are drivable on every MedusaHC.
 
 The fork is the shape that used to break detection.

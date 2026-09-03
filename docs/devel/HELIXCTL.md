@@ -385,11 +385,11 @@ connection, so the hold elapses with no client attached, and the command that fo
 re-samples the device in a way that restarts the press. `long_press` exists because the
 hold has to happen server-side. It latches the press, holds without touching the pointer
 while LVGL keeps sampling it on its own timer - exactly as under a resting finger - and
-then releases (`src/remote/remote_control_server.cpp:1971-2008`).
+then releases (`src/remote/remote_control_server.cpp#handle_set_text`).
 
 `hold_ms` is optional. Omitted, the server derives the hold from the **configured**
 long-press time (`InputSettingsManager::get_long_press_time()`, the Touch & Input
-setting) plus a margin - `pointer_long_press_hold_ms()` in `include/remote_pointer.h:38-55`.
+setting) plus a margin - `pointer_long_press_hold_ms()` in `include/remote_pointer.h#helix::remote`.
 Two reasons it is derived rather than hardcoded: LVGL starts counting from the sample
 that first reports the press, not from the moment the command ran, so a hold of exactly
 the threshold races the indev timer and intermittently lands a plain click; and raising
@@ -415,7 +415,7 @@ helix-screen ctl release
 
 Separate commands are right for those last two: what matters is where the pointer goes,
 not how long it rests, and the press stays latched between connections. `long_press`
-always ends in its own release (`src/remote/remote_control_server.cpp:2004`), so a
+always ends in its own release (`src/remote/remote_control_server.cpp#handle_state`), so a
 hold-then-slide gesture - long-press to raise a popover, then slide onto it - has no
 single-command form.
 
@@ -437,25 +437,25 @@ helix-screen ctl ls
 ```
 
 The `long_pressed` handler is registered on `carousel_host`, the grid's own container
-(`ui_xml/home_panel.xml:11`), and the press reaches it by bubbling: the carousel, its
+(`ui_xml/home_panel.xml#carousel_host`), and the press reaches it by bubbling: the carousel, its
 scroll container, its tiles and the page containers all get `LV_OBJ_FLAG_EVENT_BUBBLE`
-(`src/ui/ui_panel_home.cpp:241-256`), and `set_event_bubble_recursive()` re-flags every
+(`src/ui/ui_panel_home.cpp#build_carousel`), and `set_event_bubble_recursive()` re-flags every
 descendant of a page container after its widgets are populated
-(`src/ui/ui_panel_home.cpp:43-51`, called at `:495`). So aiming at a tile is fine - it is
+(`src/ui/ui_panel_home.cpp`, called at `:495`). So aiming at a tile is fine - it is
 not necessary to hit the gutter between tiles.
 
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** Entering Edit
 Mode already selects whatever widget was under the press and starts dragging it
-(`src/ui/ui_panel_home.cpp:951-955`), and `GridEditMode::handle_long_press` opens the
-catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp:1012-1046`) - so a
+(`src/ui/ui_panel_home.cpp#on_home_grid_long_press`), and `GridEditMode::handle_long_press` opens the
+catalog only when nothing is selected (`src/ui/grid_edit_mode.cpp#compute_resize_result`) - so a
 second long press on a tile starts a drag instead. The nav bar's `+`
-(`ui_xml/navigation_bar.xml:22-28`) goes straight to `HomePanel::open_widget_catalog()`
-(`src/xml_registration.cpp:339-340`) with no such condition. A press that lands on empty
+(`ui_xml/navigation_bar.xml#nav_btn_edit_add`) goes straight to `HomePanel::open_widget_catalog()`
+(`src/xml_registration.cpp#register_xml_components`) with no such condition. A press that lands on empty
 grid selects nothing, and *then* a second long press does open the catalog - but the
 button is the case that always works.
 
 **When the long press appears to do nothing**, check the suppressors before suspecting the
-pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:851-886`) drops it when:
+pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp#should_suppress_edit_mode`) drops it when:
 
 | Condition | How to check |
 |-----------|--------------|
@@ -465,15 +465,15 @@ pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp:851-886`) drop
 | The press target is an arc or slider | those consume drags for value adjustment - aim at a different part of the tile |
 
 Drift is not a factor with `long_press`: entering Edit Mode also requires a stationary
-hold (`src/ui/ui_panel_home.cpp:924`), and the synthetic pointer never moves during it.
+hold (`src/ui/ui_panel_home.cpp#on_home_grid_long_press`), and the synthetic pointer never moves during it.
 
 **`home_edit_mode` is a read-only reflection - do not `set` it.** `ctl set home_edit_mode 1`
 returns success and does not enter Edit Mode. The subject is written by
-`GridEditMode::enter()` / `exit()` (`src/ui/grid_edit_mode.cpp:66`, `:120`); setting it by
+`GridEditMode::enter()` / `exit()` (`src/ui/grid_edit_mode.cpp#cancel_snap_animation`, `:120`); setting it by
 hand only unhides the nav bar's edit buttons, which bind to it
-(`ui_xml/navigation_bar.xml:25`). Clicking the `+` then still does nothing, because
+(`ui_xml/navigation_bar.xml#nav_btn_edit_add`). Clicking the `+` then still does nothing, because
 `HomePanel::open_widget_catalog()` no-ops unless `grid_edit_mode_.is_active()`
-(`src/ui/ui_panel_home.cpp:1017-1021`). `long_press` is the only way in.
+(`src/ui/ui_panel_home.cpp#open_widget_catalog`). `long_press` is the only way in.
 
 A **target** is one of:
 

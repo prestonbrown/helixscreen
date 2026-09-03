@@ -209,10 +209,10 @@ because then no firmware macro can hide a `G28`.
 
 Consumers that need the *transition* - "what did we just leave?" - no longer keep
 a private previous-state variable. `PrinterPrintState` publishes
-`print_lifecycle_prev` (`include/printer_print_state.h:321`-333) from the same
+`print_lifecycle_prev` (`include/printer_print_state.h#PrinterPrintState`-333) from the same
 place that computes the transition, with three deliberate properties:
 
-- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp:1526`-1531). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
+- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp#publish_lifecycle_state`-1531). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
 - **Written *before* `print_lifecycle`**, so an observer firing on the new value already sees a consistent pair.
 - **Initialized to `Idle`**, so booting straight into a terminal state reads as `Idle -> Complete` and correctly does not notify.
 
@@ -220,7 +220,7 @@ Eight private previous-state variables existed before this subject, and they
 disagreed at the edges.
 
 The edge consumer is `should_notify_print_ended(prev, current, outcome)`
-(`include/print_completion.h:61`, `src/print/print_completion.cpp:145`), which
+(`include/print_completion.h#should_notify_print_ended`, `src/print/print_completion.cpp#should_notify_print_ended`), which
 decides whether a lifecycle transition means *a print the user was watching
 ended*. `Printing`/`Paused` -> terminal notifies. `Preparing` -> terminal is the
 interesting arm, and it gates on `outcome` in both directions:
@@ -239,7 +239,7 @@ interesting arm, and it gates on `outcome` in both directions:
   silent - otherwise abandoning a start would announce the last print's
   completion.
 
-The completion observer (`print_completion.cpp:366`) reads both halves of the
+The completion observer (`src/print/print_completion.cpp#on_print_state_changed_for_notification`) reads both halves of the
 transition from `PrinterPrintState`; it no longer owns a latch of its own.
 
 ---
@@ -293,7 +293,7 @@ when `print_ended` is true.
 `gcode_loaded` is preserved through terminal states so the 3D viewer stays visible
 showing where the print stopped. It is cleared only on transition to Idle: the
 transition computes a local `clear_gcode_loaded` from `print_ended` and applies it
-in the same pass (`src/printer/print_lifecycle_state.cpp:96`) - it is not a
+in the same pass (`src/printer/print_lifecycle_state.cpp#clear_gcode_loaded`) - it is not a
 `StateChangeResult` field. The flag can be set externally via `set_gcode_loaded()`.
 
 ### 3D Viewer visibility
