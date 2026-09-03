@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main, "claude/**", "devel/**" ]
+    branches: [ main, "claude/**", "release/**" ]
   pull_request:
-    branches: [ main, "devel/**" ]
+    branches: [ main, "release/**" ]
 
 jobs:
   compile-ubuntu:
