@@ -216,7 +216,7 @@
   <translation tag="Auto-lock" en="Auto-lock"/>
   <translation tag="Auto-poll for weight updates" en="Auto-poll for weight updates"/>
   <translation tag="Auto-probe or manually check screw heights" en="Auto-probe or manually check screw heights"/>
-  <translation tag="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout" en="Auto-refill is on but no two lanes hold matching filament, so nothing will switch on runout"/>
+  <translation tag="Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout" en="Auto-refill is on but no two slots hold matching filament, so nothing will switch on runout"/>
   <translation tag="Auto-render video" en="Auto-render video"/>
   <translation tag="Auto-tuning Shapers..." en="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" en="Auto-uninstall only works on local Moonraker"/>
@@ -322,7 +322,7 @@
   <translation tag="Bypass disabled" en="Bypass disabled"/>
   <translation tag="Bypass enabled" en="Bypass enabled"/>
   <translation tag="Bypass failed" en="Bypass failed"/>
-  <translation tag="Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" en="Bypass is active, but this print uses AMS lanes. The printer may refuse to load a lane while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?"/>
+  <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" en="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?"/>
   <translation tag="Bypass toggle failed" en="Bypass toggle failed"/>
   <translation tag="C" en="C"/>
   <translation tag="CALIBRATION" en="CALIBRATION"/>
@@ -1284,7 +1284,6 @@
   <translation tag="Labels Per Sheet" en="Labels Per Sheet"/>
   <translation tag="Lane" en="Lane"/>
   <translation tag="Lane tests and motor resets" en="Lane tests and motor resets"/>
-  <translation tag="Lane {} is blocked — manual intervention required" en="Lane {} is blocked — manual intervention required"/>
   <translation tag="Language" en="Language"/>
   <translation tag="Language, theme, brightness, and sound" en="Language, theme, brightness, and sound"/>
   <translation tag="Last" en="Last"/>
@@ -1994,7 +1993,7 @@
   <translation tag="Remap Tool" en="Remap Tool"/>
   <translation tag="Remap needs the HelixPrint plugin" en="Remap needs the HelixPrint plugin"/>
   <translation tag="Remap…" en="Remap…"/>
-  <translation tag="Remember lane spool details across an eject" en="Remember lane spool details across an eject"/>
+  <translation tag="Remember slot spool details across an eject" en="Remember slot spool details across an eject"/>
   <translation tag="Remove" en="Remove"/>
   <translation tag="Remove PIN" en="Remove PIN"/>
   <translation tag="Remove Spoolman?" en="Remove Spoolman?"/>
@@ -2286,6 +2285,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" en="Slot %d: %.0fg of %.0fg needed"/>
   <translation tag="Slot 1" en="Slot 1"/>
   <translation tag="Slot {}" en="Slot {}"/>
+  <translation tag="Slot {} is blocked — manual intervention required" en="Slot {} is blocked — manual intervention required"/>
   <translation tag="Slot {} matches." en="Slot {} matches."/>
   <translation tag="Slot {} spool cleared" en="Slot {} spool cleared"/>
   <translation tag="Slot {} updated" en="Slot {} updated"/>
@@ -2476,8 +2476,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." en="The printer rejected the filament configuration. The print was not started."/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" en="The printer&apos;s firmware chooses the backup spool itself"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" en="The runout sensor indicates no filament is loaded. Start print anyway?"/>
-  <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?"/>
-  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" en="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?"/>
+  <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?"/>
+  <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" en="The toolhead sensor indicates no filament is present. Proceed with unload anyway?"/>
   <translation tag="Theme" en="Theme"/>
@@ -2561,7 +2561,7 @@
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>
   <translation tag="Tool mapping failed" en="Tool mapping failed"/>
   <translation tag="Tool swap" en="Tool swap"/>
-  <translation tag="Tool {} → Lane {}: no filament loaded." en="Tool {} → Lane {}: no filament loaded."/>
+  <translation tag="Tool {} → Slot {}: no filament loaded." en="Tool {} → Slot {}: no filament loaded."/>
   <translation tag="Toolhead" en="Toolhead"/>
   <translation tag="Toolhead LED" en="Toolhead LED"/>
   <translation tag="Toolhead Style" en="Toolhead Style"/>
@@ -2855,7 +2855,6 @@
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." en="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." en="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap."/>
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>
-  <translation tag="{} lanes" en="{} lanes"/>
   <translation tag="{} macro not configured" en="{} macro not configured"/>
   <translation tag="{} may cause unintended changes. Are you sure?" en="{} may cause unintended changes. Are you sure?"/>
   <translation tag="{} more taps to {} beta features" en="{} more taps to {} beta features"/>
@@ -2864,6 +2863,7 @@
   <translation tag="{} preset{}" en="{} preset{}"/>
   <translation tag="{} set to {}" en="{} set to {}"/>
   <translation tag="{} set to {} {}" en="{} set to {} {}"/>
+  <translation tag="{} slots" en="{} slots"/>
   <translation tag="{} started" en="{} started"/>
   <translation tag="{} target set to {}°C" en="{} target set to {}°C"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." en="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present."/>
