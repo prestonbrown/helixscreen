@@ -141,7 +141,7 @@ bool HttpExecutor::on_thread() const noexcept {
 
 std::size_t HttpExecutor::inflight() const noexcept {
     auto state = std::atomic_load(&state_);
-    return state ? state->inflight.load(std::memory_order_relaxed) : 0;
+    return state ? state->inflight.load(std::memory_order_acquire) : 0;
 }
 
 void HttpExecutor::loop(std::shared_ptr<SharedState> state, HttpExecutor* owner, std::string name,
@@ -166,10 +166,16 @@ void HttpExecutor::loop(std::shared_ptr<SharedState> state, HttpExecutor* owner,
         // Scope-guard the decrement so a throwing item still releases its
         // inflight slot — wait_idle (and anyone else polling inflight())
         // must never see a stuck counter because a job threw.
+        //
+        // Release, paired with the acquire in inflight(): a caller that waits
+        // for the count to reach 0 and then reads what the item produced needs
+        // a happens-before edge to that item's writes. Under relaxed there is
+        // none, and the read is a data race that can also simply see the old
+        // value.
         struct InflightGuard {
             std::atomic<std::size_t>& c;
             ~InflightGuard() {
-                c.fetch_sub(1, std::memory_order_relaxed);
+                c.fetch_sub(1, std::memory_order_release);
             }
         } guard{state->inflight};
 
