@@ -183,3 +183,28 @@ jobs:
           -e CCACHE_DIR=/root/.cache/ccache \
           helixscreen/toolchain-${{ matrix.platform }} \
           ccache -s
+
+  # Drop the generation this run just superseded.
+  #
+  # actions/cache writes its cache in a post-step at job end, so no step inside
+  # the matrix above can run after its own save -- the cleanup has to be a job
+  # that needs it. Without this, the previous generation is left for GitHub's
+  # LRU to reclaim, and LRU picks the wrong victim: the warm's restore-keys
+  # lookup touches the old release caches at job start, refreshing their access
+  # time, while the Ubuntu CI ccache has sat untouched since the last push to
+  # main. So the repo goes over its 10 GB budget carrying ~4.7 GB of duplicate
+  # release caches and evicts CI's ccache to pay for them. Measured 2026-08-26:
+  # the ccache-ubuntu-22.04 entry present at 05:55 was gone by 10:14, and the
+  # next two pushes compiled at 0.00% hits -- the second timed out.
+  #
+  # `needs` alone gates this on every matrix leg succeeding. A partial warm
+  # leaves all three generations in place, which is the conservative outcome:
+  # duplicates cost budget, a missing release ccache costs a release.
+  prune-superseded:
+    name: Drop the superseded release ccache
+    needs: [warm]
+    uses: ./.github/workflows/cache-prune.yml
+    with:
+      include_release: true
+    permissions:
+      actions: write

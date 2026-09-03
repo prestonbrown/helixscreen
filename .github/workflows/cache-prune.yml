@@ -51,11 +51,24 @@ on:
         description: "List what would be deleted without deleting it"
         type: boolean
         default: false
+      include_release:
+        description: "Also drop superseded ccache-release-* generations"
+        type: boolean
+        default: false
   # Called as the first job of ccache-warm.yml, so a manual warm right before
   # cutting a release frees space before the warmer tries to save ~1.6 GB x 3.
   workflow_call:
     inputs:
       dry_run:
+        type: boolean
+        default: false
+      # Opt-in, and only ccache-warm.yml sets it, as its post-matrix job. The
+      # release families are the one case where the newest generation is written
+      # and verified in the same run that asks for the cleanup, so KEEP=1 there
+      # cannot orphan a platform: it deletes the previous generation only once a
+      # complete warm has replaced it. Every other caller leaves this false and
+      # ccache-release-* stays untouchable below.
+      include_release:
         type: boolean
         default: false
 
@@ -79,6 +92,7 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
         DRY_RUN: ${{ inputs.dry_run && 'yes' || 'no' }}
+        INCLUDE_RELEASE: ${{ inputs.include_release && 'yes' || 'no' }}
         # Families that regenerate on every push and therefore accumulate.
         # NOT listed, and therefore never touched by this job:
         #   ccache-release-*  the whole point of the exercise
@@ -99,6 +113,20 @@ jobs:
         KEEP: 1
       run: |
         set -euo pipefail
+
+        # ccache-warm.yml calls this as its post-matrix job with include_release
+        # set, i.e. only after every platform in its matrix has saved a fresh
+        # generation. Listed per platform rather than as a bare
+        # "ccache-release-" because the trailing dash is what stops
+        # ccache-release-pi- from swallowing ccache-release-pi32-. A warmed
+        # platform missing from this list keeps the old behaviour -- its
+        # generations accumulate -- rather than being mis-grouped with another.
+        if [ "$INCLUDE_RELEASE" = "yes" ]; then
+          PREFIXES=$(jq -c '. + ["ccache-release-pi-",
+                                 "ccache-release-pi32-",
+                                 "ccache-release-x86-"]' <<<"$PREFIXES")
+          echo "Release families included in this prune: $PREFIXES"
+        fi
 
         echo "::group::Cache usage before"
         gh api "repos/$GITHUB_REPOSITORY/actions/cache/usage" \
@@ -152,9 +180,19 @@ jobs:
           # bug in it once did, so refuse outright rather than trust the filter:
           # a wrongly deleted ccache-release-* is a cold, timing-out release.
           case "$key" in
-            ccache-release-*|deps-*|gradle-*|ccache-android-*)
+            deps-*|gradle-*|ccache-android-*)
               echo "::error::Refusing to delete protected cache $key - the selection logic is wrong"
               exit 1
+              ;;
+            ccache-release-*)
+              # Reachable only under include_release, where the caller has just
+              # written and saved a newer generation of this exact family, so
+              # the platform is never left without one. A release cache selected
+              # by any other caller is the bug this guard exists to catch.
+              if [ "$INCLUDE_RELEASE" != "yes" ]; then
+                echo "::error::Refusing to delete protected cache $key - the selection logic is wrong"
+                exit 1
+              fi
               ;;
           esac
 
