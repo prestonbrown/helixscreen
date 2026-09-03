@@ -565,6 +565,26 @@ def resolve(citation_text, repo_root=".", relative_to=None):
 # what a citation looks like — check_doc_refs.py's PATH_RE matches the same
 # shape and is meant to derive from this rather than keep its own copy.
 CITE_RE = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+(?:#[^`]+)?)`")
+# A follow-on shorthand: a backticked line number with no path, meaning "and
+# also line N of whatever file the sentence just named". Nothing can resolve
+# one - the file is carried in prose, and the number names a line rather than
+# a thing - so a reader cannot check it and neither can this tool. `check`
+# reports them so a citation that can be verified is written instead.
+BARE_REF_RE = re.compile(r"`:(\d+)`")
+
+# Directories holding point-in-time scaffolding: in-flight plans and specs,
+# deleted in the change that ships the work (docs/CLAUDE.md). Their bare refs
+# describe a tree that no longer exists and are never worth re-pinning, so
+# they are exempt rather than counted against the gate.
+_SCAFFOLDING_DIRS = ("docs/devel/plans/", "docs/superpowers/")
+
+
+def is_scaffolding(doc):
+    """True for a doc whose whole file is deleted when its work ships."""
+    norm = os.path.normpath(doc).replace(os.sep, "/")
+    return any(d.rstrip("/") + "/" in "/" + norm for d in _SCAFFOLDING_DIRS)
+
+
 # A fence opens on ``` or ~~~ (3 or more of either character) and closes only
 # on a marker using the SAME character, at least as long as the one that
 # opened it - CommonMark's rule, so a stray `~~~` inside a ``` block does not
@@ -604,6 +624,14 @@ def iter_citations(paths, problems=None):
     whatever citations were found before the problem.
     """
     out = []
+    for path, lineno, line in _iter_content_lines(paths, problems):
+        for cm in CITE_RE.finditer(line):
+            out.append((path, lineno, cm.group(1)))
+    return out
+
+
+def _iter_content_lines(paths, problems=None):
+    """(doc, lineno, line) for every line of every doc outside a fence."""
     for path in paths:
         try:
             fh = open(path, encoding="utf-8", errors="replace")
@@ -616,19 +644,23 @@ def iter_citations(paths, problems=None):
             for lineno, line in enumerate(fh, start=1):
                 fence_marker, fence_opened_at, is_content = _fence_advance(
                     line, fence_marker, fence_opened_at, lineno)
-                if not is_content:
-                    continue
-                for cm in CITE_RE.finditer(line):
-                    out.append((str(path), lineno, cm.group(1)))
+                if is_content:
+                    yield str(path), lineno, line
             if fence_marker is not None and problems is not None:
                 problems.append(f"{path}:{fence_opened_at}: fence never closed")
-    return out
+
+
+def iter_bare_refs(paths, problems=None):
+    """(doc, doc_line, line number) for every bare `:NNN` outside a fence."""
+    return [(doc, lineno, int(m.group(1)))
+            for doc, lineno, line in _iter_content_lines(paths, problems)
+            for m in BARE_REF_RE.finditer(line)]
 
 
 def check(paths, repo_root="."):
     """Advisory findings: unresolvable, ambiguous, or malformed citations,
-    plus any document a fenced-code problem or a read error kept from being
-    fully scanned.
+    bare `:NNN` refs in a doc that outlives its work, plus any document a
+    fenced-code problem or a read error kept from being fully scanned.
 
     Must never raise: this is `--check`'s whole implementation, and that mode
     is advisory - it exists to report broken citations, so a citation (or a
@@ -647,6 +679,10 @@ def check(paths, repo_root="."):
             findings.append(f"{doc}:{lineno}: malformed citation {text!r}: {exc}")
         except (NotFound, Ambiguous) as exc:
             findings.append(f"{doc}:{lineno}: {text}: {exc}")
+    for doc, lineno, n in iter_bare_refs([p for p in paths if not is_scaffolding(p)]):
+        findings.append(
+            f"{doc}:{lineno}: bare `:{n}` names no file and cannot be resolved; "
+            f"cite the thing it means (`path#name`)")
     return findings
 
 

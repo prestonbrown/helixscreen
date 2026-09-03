@@ -17,7 +17,10 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from doc_anchors import (  # noqa: E402
     Citation,
     Segment,
+    check,
     format_citation,
+    is_scaffolding,
+    iter_bare_refs,
     parse_citation,
 )
 
@@ -1093,3 +1096,50 @@ def test_format_quotes_a_name_that_is_not_a_bare_identifier():
 def test_format_leaves_a_bare_identifier_unquoted():
     c = Citation(path="a.cpp", segments=(Segment("update_from_status", False),))
     assert format_citation(c) == "a.cpp#update_from_status"
+
+
+def test_bare_ref_is_found_outside_a_fence(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text("joined at `:691` and `:1341`\n", encoding="utf-8")
+    assert iter_bare_refs([doc]) == [(str(doc), 1, 691), (str(doc), 1, 1341)]
+
+
+def test_bare_ref_inside_a_fence_is_a_syntax_example_not_a_claim(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text("```\nwrite it as `:691`\n```\n", encoding="utf-8")
+    assert iter_bare_refs([doc]) == []
+
+
+def test_a_line_number_that_carries_a_path_is_a_citation_not_a_bare_ref(tmp_path):
+    doc = tmp_path / "d.md"
+    doc.write_text("see `src/foo.cpp:691`\n", encoding="utf-8")
+    assert iter_bare_refs([doc]) == []
+
+
+@pytest.mark.parametrize("doc,scaffolding", [
+    ("docs/devel/plans/2026-08-19-thing.md", True),
+    ("./docs/devel/plans/2026-08-19-thing.md", True),
+    ("docs/superpowers/specs/2026-08-12-thing.md", True),
+    ("docs/devel/architecture/03-threading-lifetime.md", False),
+    ("docs/devel/HELIXCTL.md", False),
+    ("docs/devel/plans-and-notes.md", False),
+])
+def test_scaffolding_is_the_directories_deleted_when_work_ships(doc, scaffolding):
+    assert is_scaffolding(doc) is scaffolding
+
+
+def test_check_reports_a_bare_ref_in_a_doc_that_outlives_its_work(tmp_path):
+    doc = tmp_path / "docs" / "devel" / "GUIDE.md"
+    doc.parent.mkdir(parents=True)
+    doc.write_text("joined in the destructor at `:691`\n", encoding="utf-8")
+    findings = check([doc], repo_root=tmp_path)
+    assert len(findings) == 1
+    assert "bare `:691`" in findings[0]
+    assert f"{doc}:1:" in findings[0]
+
+
+def test_check_exempts_a_bare_ref_in_a_plan(tmp_path):
+    doc = tmp_path / "docs" / "devel" / "plans" / "2026-08-19-thing.md"
+    doc.parent.mkdir(parents=True)
+    doc.write_text("joined in the destructor at `:691`\n", encoding="utf-8")
+    assert check([doc], repo_root=tmp_path) == []
