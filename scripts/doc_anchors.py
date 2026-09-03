@@ -44,9 +44,10 @@ class Citation:
 
 # A segment is either a double-quoted literal (backslash escapes allowed, so a
 # snippet may contain a quote or a slash) or a bare name. Bare names keep `::`
-# and `~` so a namespace-qualified or destructor anchor stays one segment.
-_BARE_SEGMENT_RE = re.compile(r"[A-Za-z_][\w:~.-]*")
-_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*)')
+# and `~` so a namespace-qualified name stays one segment, and may open with
+# `~` because that is how a destructor is spelled.
+_BARE_SEGMENT_RE = re.compile(r"~?[A-Za-z_][\w:~.-]*")
+_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|(~?[A-Za-z_][\w:~.-]*)')
 
 
 def parse_citation(text):
@@ -312,8 +313,14 @@ def _cpp_func_definition(lines, i):
         if brace == -1:
             continue
         between = blank[close + 1 : brace]
+        # `Foo::~Foo()` and `Foo::Foo()` differ only in the tilde, so a
+        # destructor that answered to the bare class name would resolve a
+        # citation meaning the constructor onto the destructor's line.
+        name = m.group(1)
+        if blank[:start].rstrip().endswith("~"):
+            name = "~" + name
         if _CPP_FUNC_QUALIFIER.fullmatch(between):
-            return m.group(1)
+            return name
         colon = _CPP_CTOR_INIT_COLON.search(between)
         if colon:
             qualifiers, init_list = between[: colon.start()], between[colon.end() :]
@@ -321,7 +328,7 @@ def _cpp_func_definition(lines, i):
                 _CPP_FUNC_QUALIFIER.fullmatch(qualifiers)
                 and init_list.count("(") == init_list.count(")")
             ):
-                return m.group(1)
+                return name
     return None
 
 
@@ -832,7 +839,11 @@ def main(argv=None):
                         help="render docs with citations expanded to real line numbers")
     args = parser.parse_args(argv)
     if args.resolve:
-        citation = parse_citation(args.resolve)
+        try:
+            citation = parse_citation(args.resolve)
+        except ValueError as exc:
+            print(f"malformed citation {args.resolve!r}: {exc}", file=sys.stderr)
+            return 1
         try:
             line = resolve(args.resolve)
         except FileNotFoundError:
