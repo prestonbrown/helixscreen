@@ -6,6 +6,7 @@
 #include "netd_test_server.h"
 
 #include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <optional>
 #include <poll.h>
@@ -798,4 +799,41 @@ TEST_CASE("netd query_snapshot treats an empty MODE= value as not authoritative"
     REQUIRE(result.snapshot.state == "ONLINE"); // the other fields still merge
     REQUIRE_FALSE(result.saw_mode);             // empty mode decides nothing
     ::rmdir(dir_s.c_str());
+}
+
+// ============================================================================
+// set_nonblocking
+// ============================================================================
+
+TEST_CASE("netd set_nonblocking flips O_NONBLOCK both ways", "[netd][protocol]") {
+    int sv[2] = {-1, -1};
+    REQUIRE(::socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+
+    REQUIRE(helix::netd::set_nonblocking(sv[0], true));
+    REQUIRE((::fcntl(sv[0], F_GETFL, 0) & O_NONBLOCK) != 0);
+
+    // Idempotent: setting it again keeps the flag rather than toggling.
+    REQUIRE(helix::netd::set_nonblocking(sv[0], true));
+    REQUIRE((::fcntl(sv[0], F_GETFL, 0) & O_NONBLOCK) != 0);
+
+    REQUIRE(helix::netd::set_nonblocking(sv[0], false));
+    REQUIRE((::fcntl(sv[0], F_GETFL, 0) & O_NONBLOCK) == 0);
+
+    // The peer is untouched - the call is per-descriptor.
+    REQUIRE((::fcntl(sv[1], F_GETFL, 0) & O_NONBLOCK) == 0);
+
+    ::close(sv[0]);
+    ::close(sv[1]);
+}
+
+TEST_CASE("netd set_nonblocking reports failure on a bad descriptor", "[netd][protocol]") {
+    REQUIRE_FALSE(helix::netd::set_nonblocking(-1, true));
+    REQUIRE_FALSE(helix::netd::set_nonblocking(-1, false));
+
+    // A descriptor that was open and then closed is equally unusable.
+    int sv[2] = {-1, -1};
+    REQUIRE(::socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+    ::close(sv[0]);
+    ::close(sv[1]);
+    REQUIRE_FALSE(helix::netd::set_nonblocking(sv[0], true));
 }
