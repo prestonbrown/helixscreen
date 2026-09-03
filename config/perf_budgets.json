@@ -1,0 +1,43 @@
+{
+  "_comment": "CPU budgets in percent of ONE core for scripts/perf-farm-check.sh. Percent is (delta_jiffies / HZ) / window_seconds * 100 - a jiffie delta is NOT a percentage unless the window is exactly one second.",
+  "_phases": {
+    "idle": "Freshly launched instance, screen awake, no print. The floor.",
+    "print": "Mock print with a deliberately long filename and animations ON. A short filename does not overflow its label, no scroll animation starts, and the regression this gate exists to catch is invisible.",
+    "print_anim_off": "Same, animations OFF. The sharpest probe we have: with the preference off, any remaining per-frame animation is one that IGNORES it, which is the defect class of prestonbrown/helixscreen#1440. Should sit close to the short-filename floor."
+  },
+  "_calibration": "Measured on the K1C 2026-09-04 against the UNFIXED 0.99.117 build: idle 6.5, print 26.4, print-off 20.5, and a short-filename print 12.5. The print-off budget is set BELOW the unfixed 20.5 deliberately, so this gate fails on a build carrying that defect. Recalibrate every budget from a fixed build before treating a pass as meaningful.",
+  "devices": [
+    {
+      "name": "k1c",
+      "ssh": "k1c",
+      "binary": "/usr/data/helixscreen/bin/helix-screen",
+      "service_stop": "/etc/init.d/S99helixscreen stop",
+      "service_start": "/etc/init.d/S99helixscreen start",
+      "extra_flags": "--rotate=270",
+      "idle_budget_pct": 10,
+      "print_budget_pct": 30,
+      "print_anim_off_budget_pct": 16,
+      "note": "Ingenic XBurst II MIPS32, 2 cores, 256 MB. No SIMD blend path, draw loop at -Os, framebuffer is 32bpp so LV_COLOR_DEPTH 16 never applies. Shares its CPU with Klipper. Dropbear 2019.78 needs an RSA key."
+    },
+    {
+      "name": "ad5m",
+      "ssh": "root@192.168.1.67",
+      "binary": "/opt/config/mod/.bin/helixscreen/bin/helix-screen",
+      "service_stop": "",
+      "service_start": "",
+      "extra_flags": "",
+      "idle_budget_pct": 10,
+      "note": "Cortex-A7 with NEON, 110 MB - the tightest box in the fleet on memory. Klipper Mod install with no init script, so service_stop/start are unknown and it is measured idle only until its supervisor is identified. Finding that is the one thing that would complete this gate's coverage."
+    },
+    {
+      "name": "cc1",
+      "ssh": "root@192.168.1.52",
+      "binary": "/user-resource/helixscreen/bin/helix-screen",
+      "service_stop": "/etc/init.d/helixscreen stop",
+      "service_start": "/etc/init.d/helixscreen start",
+      "extra_flags": "",
+      "idle_budget_pct": 10,
+      "note": "Elegoo Centauri Carbon, armv7, 112 MB and already swapping at idle. Mocks are compiled OUT of this build (mk/cross.mk ENABLE_MOCKS := no), so the script detects their absence and measures idle only. BusyBox here rejects 'head -c' and bare 'head -N'."
+    }
+  ]
+}
