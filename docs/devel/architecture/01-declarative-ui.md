@@ -56,12 +56,12 @@ Four mechanics carry the load: the file-to-widget pipeline (including live editi
 
 At boot, `Application` runs the phases in a fixed order (phase numbers and lines from [`src/application/application.cpp`](../../../src/application/application.cpp)):
 
-1. Phase 7 — `register_widgets()` (`:1757`): registers the first 13 C++ widget types so the engine knows tags like `ui_card` and `ui_button`.
+1. Phase 7 — `register_widgets()` (`src/application/application.cpp#register_widgets`): registers the first 13 C++ widget types so the engine knows tags like `ui_card` and `ui_button`.
 2. Phase 8a — translations, before any UI exists.
 3. Phase 8b — rotation probe and layout-manager init, so per-display XML variant directories are known.
-4. Phase 8c — `register_xml_components()` (`:1790`): registers every XML component file.
+4. Phase 8c — `register_xml_components()` (`src/application/application.cpp#register_xml_components`): registers every XML component file.
 5. Phase 9a — subject initialization, so every binding can resolve.
-6. Finally `lv_xml_create(m_screen, "app_layout", nullptr)` (`:1973`) instantiates the root layout.
+6. Finally `lv_xml_create(m_screen, "app_layout", nullptr)` (`src/application/application.cpp#"lv_xml_create(m_screen"`) instantiates the root layout.
 
 `register_xml_components()` in [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp#L303) walks roughly 300 `register_xml("file.xml")` calls. Each resolves the path through `LayoutManager::resolve_xml_path()` ([`src/layout_manager.cpp#resolve_xml_path`](../../../src/layout_manager.cpp#L101)) — which prefers a per-display variant subdirectory when one is active — prefixes an LVGL filesystem drive letter, and hands it to `lv_xml_register_component_from_file()`. The result is a table of component templates: named XML fragments like
 
@@ -117,7 +117,7 @@ Every binding resolves its subject through `lv_xml_get_subject()` (`lib/helix-xm
 
 Events flow the other direction through the same registration idea: XML declares `<event_cb trigger="clicked" callback="on_thing_clicked"/>`, and C++ publishes the implementation with `lv_xml_register_event_cb()` (see the global registrations in [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp#L326)).
 
-Structural conditionals avoid building both branches: `<if cond="expr">...</if>` / `<else>` builds only the matching side, and `<repeat count="4">` clones a fragment with the loop index available as bare `$i` or embedded `${i}` (`lib/helix-xml/src/xml/lv_xml.c#resolve_params` and `:1121`). A `count` that names a subject rebuilds the fragment when that subject changes. Compound conditions stay in XML too — `<subject_expr name="x" expr="a or b gt c"/>` derives a new subject from existing ones via the integer-only evaluator in `lib/helix-xml/src/xml/lv_xml_expr.c`. Do not hand-write a C++ observer to combine subjects; the evaluator already does it.
+Structural conditionals avoid building both branches: `<if cond="expr">...</if>` / `<else>` builds only the matching side, and `<repeat count="4">` clones a fragment with the loop index available as bare `$i` or embedded `${i}` (`lib/helix-xml/src/xml/lv_xml.c#resolve_params` and `lib/helix-xml/src/xml/lv_xml.c#resolve_params/"Embedded"`). A `count` that names a subject rebuilds the fragment when that subject changes. Compound conditions stay in XML too — `<subject_expr name="x" expr="a or b gt c"/>` derives a new subject from existing ones via the integer-only evaluator in `lib/helix-xml/src/xml/lv_xml_expr.c`. Do not hand-write a C++ observer to combine subjects; the evaluator already does it.
 
 **A preset button, end to end.** One button in [`ui_xml/temp_graph_overlay.xml:170`](../../../ui_xml/temp_graph_overlay.xml#L170) exercises every vocabulary above at once:
 
@@ -199,8 +199,8 @@ Read in this order; about 25 minutes total.
 1. [`ui_xml/temp_graph_overlay.xml#temp_graph_overlay`](../../../ui_xml/temp_graph_overlay.xml#L54) — a whole live overlay in ~450 lines. Notice the orthogonal `<styles>` pairs driven by `bind_style_if cond=`, the structural `<if>` branches for portrait/landscape and the chamber-diagnostics card, `bind_text` on preset buttons (line 170), and the shared component instantiation (`<chamber_diagnostics_card/>`).
 2. [`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml) — the wrapper component those panels extend: positioning, header, and the content slot convention.
 3. [`src/xml_registration.cpp#register_xml`](../../../src/xml_registration.cpp#L287) — the `register_xml()` helper: path resolution, the LVGL drive-letter prefix, and the ESP boot-yield. Then skim `register_xml_components()` at [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp#L303) to feel the size of the sweep.
-4. [`src/application/application.cpp#register_widgets`](../../../src/application/application.cpp#L1810) — `register_widgets()` (the first wave of C++ widget registrations), then `:1790` `register_xml_components()` and its hot-reloader wiring, and finally `:1973` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
-5. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create` — `lv_xml_create`: widget-processor table first, component scope second. Then `:514` — the name-precedence rules and the default `<component>_#` fallback.
+4. [`src/application/application.cpp#register_widgets`](../../../src/application/application.cpp#L1810) — `register_widgets()` (the first wave of C++ widget registrations), then `src/application/application.cpp#register_xml_components` `register_xml_components()` and its hot-reloader wiring, and finally `src/application/application.cpp#"lv_xml_create(m_screen"` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
+5. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create` — `lv_xml_create`: widget-processor table first, component scope second. Then `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create/"Set a default indexed name"` — the name-precedence rules and the default `<component>_#` fallback.
 6. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_get_subject` — `lv_xml_get_subject`: the component-scope-then-globals walk, and the WARN on miss you will grep for.
 7. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_init` — the `bind_*` pseudo-widget registrations; the entire binding-element vocabulary in ~25 lines.
 8. [`src/ui/ui_card.cpp#ui_card_xml_create`](../../../src/ui/ui_card.cpp#L26) — one custom widget end to end: the create handler (runs once), theme style attach, and `ui_card_register()` at [`src/ui/ui_card.cpp#ui_card_register`](../../../src/ui/ui_card.cpp#L64) calling `lv_xml_register_widget("ui_card", ...)`.

@@ -188,15 +188,15 @@ end-user installer — modular POSIX shell with KIAUH and Moonraker-updater inte
 Read in this order; about 25 minutes total.
 
 1. `Makefile:1` — the header contract: always `make`, never invoke the compiler directly, and what the build system handles for you.
-2. [`mk/rules.mk:78`](../../../mk/rules.mk#L78) — the two-phase `all` target: unlimited-`-j` detection and re-invocation; then `:123` for what a build actually gates on (`apply-patches` first).
+2. [`mk/rules.mk:78`](../../../mk/rules.mk#L78) — the two-phase `all` target: unlimited-`-j` detection and re-invocation; then `mk/rules.mk#"$(TARGET) $(FBDEV_TARGET)"` for what a build actually gates on (`apply-patches` first).
 3. [`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
 4. [`mk/tests.mk#test`](../../../mk/tests.mk#L420) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
-5. [`mk/cross.mk`](../../../mk/cross.mk) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
+5. [`mk/cross.mk`](../../../mk/cross.mk) — the commented platform menu; then `mk/cross.mk#"$(PLATFORM_TARGET),pi)"` (pi: DRM+GLES, all font tiers) against `mk/cross.mk#"else ifeq ($(PLATFORM_TARGET),ad5m)"` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
 6. [`mk/cross.mk`](../../../mk/cross.mk) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
-7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:498` shows the simpler native-only shape for dev panels.
+7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `Makefile:522` shows the simpler native-only shape for dev panels.
 8. [`mk/display-lib.mk`](../../../mk/display-lib.mk) — compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
 9. [`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk`](../../../mk/patches.mk) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk`](../../../mk/cross.mk) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
+12. [`mk/cross.mk`](../../../mk/cross.mk) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `mk/cross.mk#help-cross` is the help text that renders the same menu for humans.
 13. [`scripts/setup-worktree.sh`](../../../scripts/setup-worktree.sh) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.

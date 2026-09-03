@@ -470,9 +470,9 @@ AFC_BoxTurtle.py:527  ' FAILED TO LOAD, CHECK FILAMENT AT TRIGGER\n||==>--||----
 ```
 
 **The art is a hardcoded literal per error site, not a rendering of live sensor state**, so
-parsing it buys nothing and costs precision: `:1345` (**pre** extruder gear) and `:1370` (**post**
-extruder gear) emit byte-identical bars for two faults with different remedies, and
-AFC_BoxTurtle.py writes `||------||` where AFC.py writes `||-----||`. We therefore map the
+parsing it buys nothing and costs precision: AFC.py line 1345 (**pre** extruder gear) and
+line 1370 (**post** extruder gear) emit byte-identical bars for two faults with different
+remedies, and AFC_BoxTurtle.py writes `||------||` where AFC.py writes `||-----||`. We therefore map the
 **message text**, and strip the art.
 
 `helix::afc::afc_fault_position()` (`include/afc_fault_position.h`) — a pure function, no LVGL, no

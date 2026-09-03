@@ -15,13 +15,22 @@
 # scanner recognises as a definition. Resolution never guesses: a segment that
 # matches nothing, or more than one place, is an error naming the candidates.
 #
-# What an anchor cannot express: a symbol that exists twice in a file's TEXT but
-# once in a build. Two `#ifdef`/`#else` arms, or the two branches of an XML
-# `<if>`/`<else>`, each define the name once, and only one survives. This reader
-# sees bytes, not preprocessor or render semantics, so it reports Ambiguous -
-# which is correct for what it can know. Such a citation keeps its line number
-# rather than being anchored, because picking an arm would be wrong half the
-# time.
+# What an anchor cannot express: a name defined once per BUILD ARM. Two
+# `#ifdef`/`#else` arms, the two branches of an XML `<if>`/`<else>`, and the
+# bodies of a make `ifeq` each define the name once, and only one survives.
+# This reader sees bytes, not preprocessor or render semantics, so it reports
+# Ambiguous - correct for what it can know. Such a citation keeps its line
+# number, because picking an arm would be wrong half the time. Four citations
+# in this tree are in that position.
+#
+# Ambiguity from any other cause is narrowable, and a line number is the wrong
+# answer to it:
+#
+#   overloads      a quoted snippet of the one signature
+#                  src/system/sound_manager.cpp#"play(const std::string& sound_name, SoundPriority priority)"
+#   a statement    the enclosing scope, then a snippet inside it
+#                  src/ui/temperature_service.cpp#TemperatureService/"on_heater_preset_clicked"
+#   a destructor   ~Klass, which is named apart from its class
 
 import argparse
 import os
