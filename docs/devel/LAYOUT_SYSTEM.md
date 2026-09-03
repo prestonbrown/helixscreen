@@ -476,7 +476,7 @@ So when adding a home widget:
   it costs a third to a half of a portrait row for rotating hints.
 - Mark every non-scrolling container in the widget's XML `scrollable="false"`. A tile is
   scrolled by dragging it, not by a chevron gutter, so `PageScrollAutoInject` stops its walk
-  at the tile root (`src/ui/page_scroll_auto_inject.cpp:67`) - but a scrollable container
+  at the tile root (`src/ui/page_scroll_auto_inject.cpp#walk_and_attach`) - but a scrollable container
   inside a tile still absorbs the drags the grid wants, and LVGL's scrollable default is ON
   unless you say otherwise.
 

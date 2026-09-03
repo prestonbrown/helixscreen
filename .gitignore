@@ -166,3 +166,6 @@ docs/superpowers/
 
 # Local crash artifacts (preserved across compactions for ASAN investigation)
 .crash-files/
+
+# Rendered doc copies with line numbers, generated on demand
+build/docs-pinned/

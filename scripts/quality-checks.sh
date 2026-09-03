@@ -1585,6 +1585,73 @@ echo ""
 }
 
 # ====================================================================
+# Namespace: HelixScreen declarations live under helix::
+# ====================================================================
+qc_namespace() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "📛 Checking namespace compliance (declarations outside helix::)..."
+
+if [ -f "scripts/check_namespace_compliance.py" ]; then
+  # Ratcheting baseline. docs/devel/DEVELOPMENT.md § Namespace organization says all
+  # HelixScreen code lives under helix::. The rule was written, never gated, and a
+  # third of the tree drifted out from under it (#1370). The drift runs along
+  # subsystem lines rather than by age — every ams_backend_*, every ui_panel_*,
+  # every display/wifi/usb/sound backend is global — so those areas keep taking new
+  # global-scope declarations by local precedent unless something says no.
+  # The number may go DOWN (move a declaration under helix::, then lower this
+  # baseline) but must never go up. extern "C", file-local statics in .cpp, and
+  # forward declarations of third-party types are structural and never counted.
+  # The one exception is a sync merge from main, which has neither this gate nor
+  # its script and so imports code written without it: 2296 -> 2304 covers the
+  # eight such sites the 2026-08-28 sync brought over, each following its file's
+  # dominant convention (the inline predicates beside the global AmsAction enum,
+  # two more ui_gcode_viewer_* C-style entry points, and a custom XML widget
+  # module registered by C-string name). 2304 -> 2305 is the next sync's single
+  # site: RecoverySuppression::RESTART_FLAG_TIMEOUT joins an existing global
+  # namespace whose other constants are already counted here. 2305 -> 2325 is
+  # the 2026-08-31 sync's twenty: main's netd backends (EthernetBackendNetd,
+  # WifiBackendNetd, and ethernet_backend.h's foreign-ns sysfs helpers beside
+  # the ones already counted), the Spoolman searchable-text/filter free
+  # functions, backend_owns_runout_during_job, ModalCloseReason and
+  # for_each_in_tree from the modal teardown rework, ui_button_owns_user_data
+  # and ContainerDeleteNet from the widget-pool fix,
+  # wifi_signal_percent_from_dbm, and an AmsBackend forward declaration - each
+  # beside global-scope siblings in its own file. +2 for the main-side sync:
+  # ui_gcode_viewer_set_thumbnail_parity (declaration + definition), another
+  # member of the global ui_gcode_viewer_* C-API family. 2328 -> 2334 is the
+  # 2026-09-02 sync's six: display_backend.h's display_is_rotated and
+  # display_rotation_degrees, beside the global inline rotation helpers already
+  # counted there, and ui_gcode_viewer_clear_tool_colors and
+  # ui_gcode_viewer_get_tool_colors (declaration + definition each), two more of
+  # the same global ui_gcode_viewer_* C-API family.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2334 --summary >/tmp/namespace_check.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/namespace_check.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/namespace_check.out
+    echo "   Declare new types under helix:: (or a helix:: sub-namespace)."
+    echo "   Genuinely-global sites take \`// NAMESPACE_OK: <reason>\`."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_namespace_compliance.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: see the note on qc_decl_ui — bats extracts a section body by
+#  awk-ing to the next '# ====' banner, so the body needs one after it.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Declarative UI: no XML-owned widget driven imperatively from C++
 # ====================================================================
 qc_decl_ui() {
@@ -2322,25 +2389,6 @@ if [ -f "scripts/check_doc_refs.py" ]; then
     echo ""
     cat /tmp/doc_refs.out
   else
-    # A stale / unanchored / orphaned citation anchor is mechanically
-    # repairable: the line number is DERIVED from a committed content hash, so
-    # --auto-fix (what the pre-commit hook passes) re-pins it in place and the
-    # committer only has to stage the result. It still FAILS, for the same
-    # reason qc_doc_links does — the repair lands in the working tree, not the
-    # index, and passing here would commit the stale doc behind a green run.
-    # Deliberately not auto-fixed: a "gone" or "blank" anchor, which
-    # check_doc_refs.py reports without the regen hint. There the cited line's
-    # own text changed, and no generator can decide whether the sentence around
-    # it is still true. Nor are the two integrity failures — a committed
-    # doc_cite_anchors.tsv missing from the working tree, and the
-    # unresolved-path count over its `max-unresolved:` ceiling. Neither emits
-    # the hint, so neither reaches the regen below: one wants the file
-    # restored, the other wants a citation whose path actually resolves.
-    if [ "$AUTO_FIX" = true ] && grep -q "Run: make regen-doc-links" /tmp/doc_refs.out; then
-      python3 scripts/doc_cite_anchors.py >>/tmp/doc_refs.out 2>&1
-      python3 scripts/gen_doc_links.py >>/tmp/doc_refs.out 2>&1
-      echo "   Re-pinned in place — 'git add' the docs plus scripts/doc_cite_anchors.tsv, then commit again." >>/tmp/doc_refs.out
-    fi
     section_time $SECTION_START
     echo ""
     cat /tmp/doc_refs.out
@@ -2364,50 +2412,6 @@ echo ""
 }
 
 # ====================================================================
-# Architecture-guide file links are generated, not hand-written
-# ====================================================================
-qc_doc_links() {
-  local EXIT_CODE=0
-# The guide links every backticked citation to the file (and line) it names.
-# Those links are DERIVED from the citation text by scripts/gen_doc_links.py, so
-# a hand-edited URL, a citation added without regenerating, or a renamed target
-# all show up here as "stale" rather than rotting silently in the rendered doc.
-# Same contract as regen-tokens / regen-xml-schema: the artifact is committed,
-# and the gate proves it matches its source.
-SECTION_START=$(date +%s)
-echo -n "🔗 Checking architecture-guide file links..."
-
-if [ -f "scripts/gen_doc_links.py" ]; then
-  if python3 scripts/gen_doc_links.py --diff >/tmp/doc_links.out 2>&1; then
-    :
-  else
-    EXIT_CODE=1
-    # --auto-fix (what the pre-commit hook passes) repairs the guide in place so
-    # the committer only has to stage it. It still FAILS: the fix lands in the
-    # working tree, not the index, and passing here would commit the stale doc
-    # while leaving a green run behind it. Deliberately not `git add`-ed — a
-    # hook that stages for you sweeps up whatever else sits in those files.
-    if [ "$AUTO_FIX" = true ]; then
-      python3 scripts/gen_doc_links.py >>/tmp/doc_links.out 2>&1
-      echo "   Regenerated in place — 'git add' the guide and commit again." >>/tmp/doc_links.out
-    fi
-  fi
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/doc_links.out
-else
-  section_time $SECTION_START
-  echo ""
-  echo "⚠️  gen_doc_links.py not found — skipping"
-fi
-
-echo ""
-
-# ====================================================================
-  return $EXIT_CODE
-}
-
-# ====================================================================
 # Crash-worker LVGL event-code table is generated, not hand-typed
 # ====================================================================
 qc_lvgl_event_codes() {
@@ -2426,8 +2430,9 @@ if [ -f "scripts/gen_lvgl_event_codes.py" ]; then
     :
   else
     EXIT_CODE=1
-    # Same contract as qc_doc_links: --auto-fix repairs the working tree but
-    # still fails, because passing here would commit the stale table.
+    # --auto-fix repairs the working tree but still fails: the repair lands
+    # in the tree, not the index, and passing here would commit the stale
+    # table behind a green run.
     if [ "$AUTO_FIX" = true ]; then
       python3 scripts/gen_lvgl_event_codes.py >>/tmp/lvgl_event_codes.out 2>&1
       echo "   Regenerated in place — 'git add' the worker and commit again." >>/tmp/lvgl_event_codes.out
@@ -2811,22 +2816,11 @@ echo ""
 # The checks are independent greps and linters and the script ran strictly
 # serially: 67s wall for 54s user + 15s sys, i.e. one core of 32.
 #
-# Four sections write to the tree; all but one only under --auto-fix:
+# Two sections write to the tree; one of them only under --auto-fix:
 #   qc_phase2     clang-format -i + git add   (checks only, without --auto-fix)
 #   qc_xml_linter make regen-xml-schema       (always regenerates schema.json)
-#   qc_doc_refs   doc_cite_anchors.py + gen_doc_links.py
-#   qc_doc_links  gen_doc_links.py
 # Those run alone, first - a formatter rewriting a file while another check
 # greps it is a race. Everything else fans out over $QC_JOBS workers.
-#
-# The two doc sections have a second reason to be serial, and to be serial IN
-# THIS ORDER: they repair the SAME .md files, and mk/tools.mk calls the ordering
-# load-bearing - anchors rewrite the line number INSIDE the link text, so the
-# link generator must run after, or it derives a URL from a number that is about
-# to change. Fanned out they also raced at the byte level: gen_doc_links.py reads
-# a doc, then reopens it with open(doc,'w'), which truncates. A sibling reading
-# or writing the same file across that window loses the other's repair, or in the
-# worst case commits a truncated doc.
 #
 # Output is buffered per section and replayed in declaration order, so the
 # transcript matches the serial one apart from timings.
@@ -2877,7 +2871,7 @@ qc_run_buffered() {
 # qc_xml_linter always regenerates the schema; qc_phase2 only rewrites files
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
-if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2 qc_doc_refs qc_doc_links"; fi
+if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
 qc_workflow_submodules() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)
@@ -2904,7 +2898,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2929,15 +2923,14 @@ qc_trigger_re() {
     qc_icon_font|qc_mdi_codepoints)
                         echo '\.xml$|icon|font' ;;
     qc_hidden_tests)    echo '^tests/|\.(cpp|h)$' ;;
-    qc_mem_safety|qc_null_safety|qc_l081|qc_net_pii|qc_decl_ui|qc_spdlog_only)
+    qc_mem_safety|qc_null_safety|qc_l081|qc_net_pii|qc_decl_ui|qc_namespace|qc_spdlog_only)
                         echo '\.(cpp|c|h|mm)$' ;;
     qc_design_tokens)   echo '\.(cpp|h|xml)$' ;;
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
     qc_test_tautology)  echo '^tests/|^include/|^src/|^scripts/check_test_tautology\.py$' ;;
     qc_test_widget_registry)
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
-    qc_doc_refs)        echo '\.md$|^scripts/(check_doc_refs|doc_cite_anchors)\.py$|^scripts/doc_cite_anchors\.tsv$|^scripts/doc_cite_anchor_baseline\.txt$' ;;
-    qc_doc_links)       echo '^docs/devel/ARCHITECTURE\.md$|^docs/devel/architecture/|^scripts/gen_doc_links\.py$' ;;
+    qc_doc_refs)        echo '\.md$|^scripts/check_doc_refs\.py$' ;;
     qc_lvgl_event_codes)
                         echo '^server/crash-worker/|^scripts/gen_lvgl_event_codes\.py$|^lib/lvgl$|^lv_conf\.h$' ;;
     qc_translation_fmt) echo '^translations/|^ui_xml/|\.py$' ;;
@@ -2962,22 +2955,6 @@ qc_wanted() {
   [ "$STAGED_ONLY" = true ] || return 0
   re="$(qc_trigger_re "$1")"
   [ -n "$re" ] || return 0
-  # A deletion can invalidate a doc citation, so doc_refs also wakes on any D.
-  if [ "$1" = "qc_doc_refs" ] && git diff --cached --name-only --diff-filter=D 2>/dev/null | grep -q .; then
-    return 0
-  fi
-  # A citation rots when the file it points AT moves, not when the doc changes,
-  # so a code-only commit has to wake this check or the whole content-anchor
-  # scheme never gets a chance to re-pin. The sidecar's resolved-path column is
-  # exactly the set of files a citation names — a few hundred out of ~19k — so
-  # this stays far tighter than "any .cpp" and a commit touching nothing cited
-  # still skips the check.
-  if [ "$1" = "qc_doc_refs" ] && [ -f scripts/doc_cite_anchors.tsv ]; then
-    grep -v '^#' scripts/doc_cite_anchors.tsv | cut -f4 | sort -u > "$QC_TMP/cited_paths.txt"
-    if printf '%s\n' "$QC_STAGED_ALL" | grep -qxF -f "$QC_TMP/cited_paths.txt"; then
-      return 0
-    fi
-  fi
   if printf '%s\n' "$QC_STAGED_ALL" | grep -qE "$re"; then
     return 0
   fi

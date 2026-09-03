@@ -353,7 +353,7 @@ multicolor by code.
 
 > **Stock zMod has its own switchover.** Before any plugin is installed, `ANALOG_PRUTOK`
 > (`zmod_ifs.py:cmd_ANALOG_PRUTOK`) is wired to `head_switch_sensor`'s `runout_gcode`
-> (`ad5x_display_off.cfg:39-44`). zmod's user-facing name for this is **"Infinite Spool
+> (`ad5x_display_off.cfg`). zmod's user-facing name for this is **"Infinite Spool
 > Mode"**. Same type+colour+present match rule as the plugins. Always on, no toggle.
 > Confirmed from zmod 1.7.1 source and on-device by raza616.
 
@@ -371,7 +371,7 @@ Mostly unused by HelixScreen; `variable_backup` is the exception.
 | `variable_e_feedrates` | Per-tool extrusion feedrates |
 | `variable_kamp` | KAMP (adaptive bed mesh) enabled |
 | `variable_line_purge` | Purge line at print start |
-| `PAUSE REASON=` values | `jam`, `broken`, `runout`, `empty`, `backup`, `nobackup`, `loading` (the `nobackup` reason is bambufy-only, emitted on a backup-enabled runout with no same-type+colour match — `bambufy.cfg:149`) |
+| `PAUSE REASON=` values | `jam`, `broken`, `runout`, `empty`, `backup`, `nobackup`, `loading` (the `nobackup` reason is bambufy-only, emitted on a backup-enabled runout with no same-type+colour match — `bambufy.cfg`) |
 
 ### Known Issue: Zmod Slot Renumbering
 

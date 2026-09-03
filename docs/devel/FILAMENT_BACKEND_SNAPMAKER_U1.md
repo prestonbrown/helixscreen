@@ -32,17 +32,17 @@ One unit ("SnapSwap"), four slots, one per toolhead:
 ```
 
 - `NUM_TOOLS = 4`, slot `i` carries `extruder_name` `"extruder"` / `"extruder{i}"`
-  (`ams_backend_snapmaker.cpp:259-267`).
+  (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`).
 - `PathTopology::PARALLEL` on both the unit and `get_topology()`
-  (`include/ams_backend_snapmaker.h:130-133`). Because every lane has an independent
+  (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`). Because every lane has an independent
   path, `needs_unload_before_load()` is answered by the base class — the serial
-  lane rule never applies (`include/ams_backend_snapmaker.h:135-138`).
+  lane rule never applies (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`).
 - `tip_method = TipMethod::NONE` — the U1 has no cutter and forms no discrete tip;
   unload is heat + retract, so the unload stepper renders "Heat nozzle -> Retract"
-  (`ams_backend_snapmaker.cpp:243-247`).
+  (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`).
 - `tool_to_slot_map` is seeded with identity because that is the literal truth about
   this machine's **physical attachment**: four heads, each permanently holding its own
-  spool (`ams_backend_snapmaker.cpp:273-289`). Its consumers are the ones that need
+  spool (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`). Its consumers are the ones that need
   attachment — the Load/Unload slot resolver (`filament_op_slot_resolver.h`) and the
   persisted tool-map ledger (`ams_tool_map_sync.h`).
 
@@ -55,21 +55,21 @@ One unit ("SnapSwap"), four slots, one per toolhead:
   `get_tool_mapping()` instead, so this map has no display job.)
 - A slot select IS a physical tool change: `do_select_slot()` forwards to
   `do_change_tool()`, which emits `T{n}` and moves the carriage
-  (`select_slot_moves_toolhead() = true`, `ams_backend_snapmaker.cpp:537-547`).
+  (`select_slot_moves_toolhead() = true`, `src/printer/ams_backend_snapmaker.cpp#do_select_slot`).
 
 ### Detection
 
 **Wired to one object.** `PrinterDiscovery::parse_objects()` sets `has_snapmaker_` when
 the Klipper object list contains `filament_detect` — unique to U1 firmware
-(`include/printer_discovery.h:431-434`). Registration order matters: a real aftermarket
+(`include/printer_discovery.h#parse_objects`). Registration order matters: a real aftermarket
 MMU (AFC, Happy Hare, …) always wins even on U1 hardware that also reports
 `filament_detect`; the Snapmaker backend is the fallback for a stock U1 with no MMU,
-and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h:582-610`).
+and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h#parse_objects`).
 
 ### Status the Backend Reads
 
 The subscription is the standing whole-frame `notify_status_update` hook every
-`AmsSubscriptionBackend` gets (`src/printer/ams_subscription_backend.cpp:57-68`); the
+`AmsSubscriptionBackend` gets (`src/printer/ams_subscription_backend.cpp#start`); the
 parse keys off whatever objects the frame carries:
 
 | Klipper object | Fields used | Meaning |
@@ -86,12 +86,12 @@ Slot status arbitration across those sources, in parse order: extruder pins
 when status is still UNKNOWN, then the port sensor, then `print_task_config.filament_exist`.
 The active tool is detected from extruder pin state or `toolhead.extruder`, and
 `current_slot`/`current_tool` track the picked-up tool 1:1
-(`ams_backend_snapmaker.cpp:1094-1165`, `1456-1529`).
+(`src/printer/ams_backend_snapmaker.cpp#handle_status_update`, `1456-1529`).
 
 ### RFID (filament_detect.info)
 
 `parse_rfid_info()` reads per-channel tag fields
-(`ams_backend_snapmaker.cpp:999-1054`):
+(`src/printer/ams_backend_snapmaker.cpp#parse_rfid_info`):
 
 | Tag field | Maps to | Notes |
 |-----------|---------|-------|
@@ -107,10 +107,10 @@ The RFID tag exposes no color *name* — `color_name` stays firmware-unset and i
 user-editable only. `SUB_TYPE` is recognized as a product line only when it matches one
 of eight known literals ("Basic", "Matte", "SnapSpeed", "Silk", "Support", "HF", "95A",
 "95A HF"); a free-form user `spool_name` is never round-tripped to firmware as a
-SUB_TYPE (`ams_backend_snapmaker.cpp:40-50`, `ams_backend_snapmaker.cpp:869-878`).
+SUB_TYPE (`src/printer/ams_backend_snapmaker.cpp`, `src/printer/ams_backend_snapmaker.cpp#set_slot_info`).
 
 Every row above is code-verified against `parse_rfid_info()` and the apply loop
-(`ams_backend_snapmaker.cpp:999-1054`, `1171-1204`): tag identity rides
+(`src/printer/ams_backend_snapmaker.cpp#parse_rfid_info`, `1171-1204`): tag identity rides
 `filament_detect.info[ch].CARD_UID`, and a `MAIN_TYPE == "NONE"` tag skips the field
 apply while its UID is still captured for swap detection (`:1173-1182`). Physical reads
 from real RFID spools remain rig-pending; code-verified is not field-verified.
@@ -119,7 +119,7 @@ from real RFID spools remain rig-pending; code-verified is not field-verified.
 
 | Command / call | Used for |
 |----------------|----------|
-| `AUTO_FEEDING EXTRUDER=<n> LOAD=1` | Load (`do_load_filament`, `ams_backend_snapmaker.cpp:436-462`) |
+| `AUTO_FEEDING EXTRUDER=<n> LOAD=1` | Load (`do_load_filament`, `src/printer/ams_backend_snapmaker.cpp#do_load_filament`) |
 | `AUTO_FEEDING EXTRUDER=<n> UNLOAD=1` | Unload (`do_unload_filament`, `:456-489`) |
 | `INNER_FILAMENT_UNLOAD` | Bare unload fallback only when no slot/extruder can be resolved (`:480-482`) |
 | `T<n>` | Tool change / slot select (`do_change_tool`, `:532-538`) |
@@ -128,7 +128,7 @@ from real RFID spools remain rig-pending; code-verified is not field-verified.
 | `POST /printer/filament_detect/set` | Slot-metadata writeback (paxx12 Extended Firmware REST, `:854-924`) |
 
 Why `AUTO_FEEDING ... LOAD=1` and not the obvious alternatives — the source records the
-trail (`ams_backend_snapmaker.cpp:452-461`): bare `T{n}` is a no-op when the target tool
+trail (`src/printer/ams_backend_snapmaker.cpp#do_load_filament`): bare `T{n}` is a no-op when the target tool
 is already active; `AUTO_FEEDING EXTRUDER={n}` alone is a silent no-op because
 `FEED_AUTO` falls through without a LOAD/UNLOAD parameter; `SM_PRINT_AUTO_FEED` is gated
 on `print_task_config.extruders_used`, which sits all-false during a paused print. The
@@ -144,47 +144,47 @@ The firmware exposes 39 distinct `filament_feed` channel states (captured live f
 firmware 20260608); `classify_channel_state()` maps each to
 `{action, phase, terminal, fail, sets_loaded, clears_loaded}` off one table, with a
 conservative prefix/suffix fallback for unknown future states
-(`ams_backend_snapmaker.cpp:80-228`). That single classification drives:
+(`src/printer/ams_backend_snapmaker.cpp`). That single classification drives:
 
 - **The operation step bar.** LOAD/manual/preload share a 5-step model
   (Home -> Select -> Heat -> Feed -> Purge); UNLOAD uses 4 steps ending in Retract; the
   Heat step shows a live nozzle temperature. The current index is published through the
   shared `ams_operation_phase` subject, which the sidebar consumes generically
-  (`ams_backend_snapmaker.cpp:341-380`).
+  (`src/printer/ams_backend_snapmaker.cpp`).
 - **The per-tool "loaded at toolhead" latch.** Set on `load_finish`; cleared on
   `unload_finish` / `wait_insert` / `preload_finish`; left unchanged on transient and
   fail states. This latch — not the motion sensor — is the authority for
   `slot_has_filament_at_toolhead()`, `can_unload_from_toolhead()`, and the NOZZLE path
   segment, because the per-tool encoder fails to drop to false after an unload on
-  current firmware (`include/ams_backend_snapmaker.h:395-411`,
-  `ams_backend_snapmaker.cpp:500-526`).
+  current firmware (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`,
+  `src/printer/ams_backend_snapmaker.cpp#can_unload_from_toolhead`).
 - **Action lifecycle and errors.** `*_fail` states and `channel_error` tokens surface as
   `AmsAction::ERROR` with a direction-aware message ("No filament in lane N. Load
   filament and retry." for the `no_filament` token), except when the lane is empty,
   idle, and not the active lane — the firmware reports `no_filament` for any empty lane,
   which must not latch a spurious error modal on a deliberately unloaded head in a
-  multi-color print (`ams_backend_snapmaker.cpp:58-78`, `1321-1354`).
+  multi-color print (`src/printer/ams_backend_snapmaker.cpp#friendly_channel_error`, `1321-1354`).
 - **`preload_finish` is terminal-for-latch but does not end the operation** — a re-unload
   of a staged lane keeps that state while the nozzle heats, and dropping to Idle there
-  killed the unload step display mid-heat (`ams_backend_snapmaker.cpp:1424-1439`).
+  killed the unload step display mid-heat (`src/printer/ams_backend_snapmaker.cpp#handle_status_update`).
 
 A `*_finish` that clears the latch also demotes the slot LOADED -> AVAILABLE and clears
 `filament_loaded` for the active tool, but never resets `current_slot`/`current_tool`:
 those track the picked-up tool, and resetting them mis-routed a bare unload to T0 for a
 user printing TPU without feeders (field report recorded at
-`ams_backend_snapmaker.cpp:1387-1401`). Lanes reaching `unload_finish` are reported to
+`src/printer/ams_backend_snapmaker.cpp#handle_status_update`). Lanes reaching `unload_finish` are reported to
 `AmsState::mark_slot_unloaded()` after the mutex is released so `FilamentSensorManager`
 suppresses the runout modal during the expected pull-out grace window
-(`ams_backend_snapmaker.cpp:1414-1423`, `ams_backend_snapmaker.cpp:1764-1769`) — the deferral exists because
+(`src/printer/ams_backend_snapmaker.cpp#handle_status_update`, `src/printer/ams_backend_snapmaker.cpp#handle_status_update`) — the deferral exists because
 calling into `AmsState` under our mutex inverted `add_backend()`'s lock order (TSan,
 2026-08-16).
 
 ### Runout and Resume
 
-`prepare_for_resume()` (`ams_backend_snapmaker.cpp:597-735`) classifies the pause first:
+`prepare_for_resume()` (`src/printer/ams_backend_snapmaker.cpp#prepare_for_resume`) classifies the pause first:
 dirty-bed exceptions (`{id:532, code:1}`, or the message text) are Terminal and surface
 the restart UX; runout (`{id:523, code:0}`, "e{N}_filament runout") is Recoverable
-(`include/snapmaker_resume.h:11-19` — `sdcard` state deliberately not consulted because
+(`include/snapmaker_resume.h#helix` — `sdcard` state deliberately not consulted because
 runout also clears it). With the motion sensor reading filament, RESUME needs no prep.
 With runout latched, the backend drives
 `AUTO_FEEDING EXTRUDER=<n> LOAD=1 PRINTING=1` itself — the firmware's own
@@ -194,21 +194,21 @@ plain RESUME re-pauses immediately. The chain heats, feeds, and flushes (~86 s m
 the caller dispatches RESUME; `on_ready` always fires on the main thread. What is
 recorded as live-verified (#991) is the `AUTO_FEEDING` command itself - it blocks until
 `load_finish`, is idempotent, and the ~86 s figure was measured live
-(`ams_backend_snapmaker.cpp:662-675`, `:722-724`). The full chain - runout pause ->
+(`src/printer/ams_backend_snapmaker.cpp#prepare_for_resume`, `:722-724`). The full chain - runout pause ->
 runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 
 Related capability flags: `recovers_filament_on_resume() = true` (Resume re-feeds, so
 the runout dialog presents Resume as primary) and
 `should_suppress_idle_runout_modal() = true` (the U1 drives load/unload itself, so an
-idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h:224-230`).
+idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`).
 
 `is_stuck_motion_sensor_runout()` (motion sensor false, port sensor true = stale encoder)
 currently has **no caller in tree** — the auto-recover path that consumed it was pulled
 because that signal cannot distinguish "stale encoder" from "preloaded 4 inches short of
 the gear"; it is kept as detection infrastructure for a deferred follow-up
-(`ams_backend_snapmaker.cpp:569-593`). The active tool's port-present flag it builds on
+(`src/printer/ams_backend_snapmaker.cpp`). The active tool's port-present flag it builds on
 is still published to `AmsState::set_active_tool_port_present()` on change (#991), which
-is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1741-1762`).
+is what gates Resume in the runout dialog (`src/printer/ams_backend_snapmaker.cpp#handle_status_update`).
 
 ### Pre-Print Remap (RemapStrategy::SnapmakerNative)
 
@@ -216,15 +216,15 @@ is what gates Resume in the runout dialog (`ams_backend_snapmaker.cpp:1741-1762`
 so the config must land before `PRINT_START`. `requires_preprint_send() = true` is
 **always-on, even with no remap**: `SET_PRINT_USED_EXTRUDERS` suppresses the spurious
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
-empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:260-267`,
-`src/ui/ui_print_start_controller.cpp:318-338`).
+empty head and cancels the print on runout (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`,
+`src/ui/ui_print_start_controller.cpp#execute_print_start`).
 
 Send ordering is guaranteed on our side of the wire. Both start paths gate on
 `requires_preprint_send()` and hand the real start step to
 `send_snapmaker_preprint_then()` as its completion continuation, then `return` - the
-start cannot fire first (`src/ui/ui_print_start_controller.cpp:322-336`, reprint
+start cannot fire first (`src/ui/ui_print_start_controller.cpp#execute_print_start`, reprint
 `:454-471`). The built gcode goes out as a single `printer.gcode.script` JSON-RPC with a
-15 s timeout (`:355-404`, dispatched at `src/api/moonraker_api_controls.cpp:426`); the
+15 s timeout (`:355-404`, dispatched at `src/api/moonraker_api_controls.cpp#execute_gcode`); the
 print-start request is issued only from that request's success callback, and an error or
 timeout aborts with a modal so the print never starts half-configured (`:388-403`). The
 upload/prep window that follows only widens the gap. What this does NOT settle is
@@ -236,7 +236,7 @@ doc's "Still UNCERTAIN" list.
 one `SET_PRINT_EXTRUDER_MAP` per user remap entry, then one
 `SET_PRINT_USED_EXTRUDERS` with the deduplicated, ascending physical-head CSV resolved
 through the remap. Logical tools 4-31 without an explicit remap fall to head 0, matching
-the firmware's default map (`ams_backend_snapmaker.cpp:1969-2018`). Full command
+the firmware's default map (`src/printer/ams_backend_snapmaker.cpp#build_preprint_gcode`). Full command
 semantics — logical (0-31) vs physical (0-3) index rules, persistence behavior, the
 `filament_official` FORCE gate — live in
 [Firmware API: `print_task_config`](#firmware-api-print_task_config) below.
@@ -253,26 +253,26 @@ gcode).
 
 Per-slot user overrides persist through `FilamentSlotOverrideStore` under the
 `"snapmaker"` key style, bulk-loaded in `on_started()` before any status parse
-(`ams_backend_snapmaker.cpp:298-319`). Every parse tail runs the shared convergence:
+(`src/printer/ams_backend_snapmaker.cpp#on_started`). Every parse tail runs the shared convergence:
 `check_hardware_event_clear()` first (a `CARD_UID` change means the physical spool was
 swapped — clear the stale override; empty UID is "no signal" and never clears; first
 observation only sets the baseline), then `mirror_firmware_to_lane_data()` under
 `OverwriteAlways` so OrcaSlicer's MoonrakerPrinterAgent sees the spool, then
 `apply_overrides()` layering the user's fields back over firmware truth
-(`ams_backend_snapmaker.cpp:1692-1739`, `ams_backend_snapmaker.cpp:1780-1823`).
+(`src/printer/ams_backend_snapmaker.cpp#handle_status_update`, `src/printer/ams_backend_snapmaker.cpp#apply_overrides`).
 
 Because the UID is a hardware identifier the UI cannot write, this backend registers no
 expected-echo value with the fingerprint tracker — user edits can never masquerade as a
-hardware swap (`include/ams_backend_snapmaker.h:424-440`). Clears preserve
+hardware swap (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`). Clears preserve
 firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset only
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
-identity) (`ams_backend_snapmaker.cpp:1868-1904`).
+identity) (`src/printer/ams_backend_snapmaker.cpp#clear_override_locked`).
 
 User edits round-trip to firmware through `POST /printer/filament_detect/set`
 (`channel` + `info` with `VENDOR`/`MAIN_TYPE`/`SUB_TYPE`/`RGB_1`/`ALPHA`/temps) — an
 Extended Firmware endpoint that 404s on stock firmware; the override still persists to
 `lane_data`, so HelixScreen's UI is correct either way
-(`ams_backend_snapmaker.cpp:853-933`).
+(`src/printer/ams_backend_snapmaker.cpp#set_slot_info`).
 
 ### Capabilities
 
@@ -280,12 +280,12 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
 |---------|-----------|-------|
 | Endless Spool | `Unsupported` | No `get_endless_spool_capabilities()` override — base default |
 | Tool Mapping | Per-print only | Physical attachment fixed 1:1 and non-editable (`set_tool_mapping()` = `not_supported`); per-print ROUTING is set via `SnapmakerNative` pre-print gcode and read back from `extruder_map_table` by `get_tool_mapping()` |
-| Bypass | No | `supports_bypass = false`; both entry points `not_supported` — no external spool on a toolchanger (`ams_backend_snapmaker.cpp:241`, `ams_backend_snapmaker.cpp:951-957`) |
+| Bypass | No | `supports_bypass = false`; both entry points `not_supported` — no external spool on a toolchanger (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`, `src/printer/ams_backend_snapmaker.cpp#enable_bypass`) |
 | Dryer | No | Not supported |
-| Recover / Reset / Cancel | No | All three return `not_supported` (`ams_backend_snapmaker.cpp:553-563`) |
+| Recover / Reset / Cancel | No | All three return `not_supported` (`src/printer/ams_backend_snapmaker.cpp#recover`) |
 | Operation step bar | Yes | Firmware-driven per-direction steps via `ams_operation_phase`; Heat step live |
-| Per-slot loaded authority | Override | `slot_is_actively_loaded()` returns `status == LOADED` verbatim (hub table, `ams_backend_snapmaker.cpp:528-535`) |
-| Path visualization | Yes | NOZZLE when the latch is set, OUTPUT when port/motion sensor still sees filament, NONE otherwise (`ams_backend_snapmaker.cpp:394-426`) |
+| Per-slot loaded authority | Override | `slot_is_actively_loaded()` returns `status == LOADED` verbatim (hub table, `src/printer/ams_backend_snapmaker.cpp#slot_is_actively_loaded`) |
+| Path visualization | Yes | NOZZLE when the latch is set, OUTPUT when port/motion sensor still sees filament, NONE otherwise (`src/printer/ams_backend_snapmaker.cpp#get_slot_filament_segment`) |
 | RFID | Yes | Per-channel tag read; UID change clears the slot override |
 | Spoolman | Fields only | `spoolman_id`/`spoolman_vendor_id` persist in slot overrides; no Snapmaker-specific Spoolman wiring exists in the backend |
 | Mock mode | Yes | `HELIX_MOCK_AMS=snapmaker` (aliases `snapswap`, `u1`): 4 slots, PARALLEL, non-editable mapping ([MOCK_ENVIRONMENT_VARIABLES.md](MOCK_ENVIRONMENT_VARIABLES.md)) |
@@ -311,14 +311,14 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
    classification, not the RFID read path, the resume-after-runout chain, or the
    pre-print send timing.
 2. `is_stuck_motion_sensor_runout()` has no caller — revive when a verifiable
-   "filament at the gear" signal exists (`ams_backend_snapmaker.cpp:569-593`). Checked
+   "filament at the gear" signal exists (`src/printer/ams_backend_snapmaker.cpp`). Checked
    2026-08-21: the status model carries **no dedicated feeder/gear-presence field** -
    the three presence signals are `filament_detect.state` (per channel),
    `filament_feed` per-extruder `filament_detected` (port), and the per-tool motion
    sensor. The code's own candidate is `filament_feed.channel_state`: `load_finish`
    (fed to nozzle) vs `preload_finish` (firmware assist stops short of the gear) -
    both already parsed into the channel-state machine
-   (`ams_backend_snapmaker.cpp:136-139`, `:569-576`). What is missing is rig
+   (`src/printer/ams_backend_snapmaker.cpp#classify_channel_state`, `:569-576`). What is missing is rig
    confirmation that the state reliably means "filament at the gear" before the gate
    is revived.
 3. End-to-end timing of the pre-print `SET_PRINT_USED_EXTRUDERS` is unverified live.
@@ -328,7 +328,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
    the baked `PRINT_START` block runs — flagged in
    [Firmware API: `print_task_config`](#firmware-api-print_task_config) § "Still
    UNCERTAIN".
-4. The `prepare_for_resume` doc comment in `include/ams_backend_snapmaker.h:192-199`
+4. The `prepare_for_resume` doc comment in `include/ams_backend_snapmaker.h#AmsBackendSnapmaker`
    still describes the retired sensor-disable chain; the implementation drives
    `AUTO_FEEDING` (see Runout and Resume above). Comment is stale, code is right.
 

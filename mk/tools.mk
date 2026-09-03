@@ -272,52 +272,29 @@ regen-tokens:
 	$(ECHO) "$(GREEN)✓ token table regenerated — commit src/generated/theme_token_table.cpp if it changed$(RESET)"
 
 # ==============================================================================
-# Doc citations: line numbers and links, both derived (Python)
+# Doc citations: named anchors, line numbers rendered on demand
 # ==============================================================================
-# Two derived things hang off one hand-written citation.
+# A committed citation names a place, never a line:
 #
-#   `src/printer/printer_state.cpp:622`
-#     the LINE NUMBER is derived from a content anchor (scripts/doc_cite_anchors.py)
-#     the markdown LINK is derived from the citation text (scripts/gen_doc_links.py)
+#   `src/printer/printer_state.cpp#update_from_status`
 #
-# So nobody maintains either by hand. Write the citation once, run this, commit.
-# Code that MOVED is re-pinned automatically; only a cited line whose own text
-# changed stops the run and asks a human to re-read the sentence.
-#
-# Order is load-bearing: anchors rewrite the number INSIDE the link text, so the
-# link generator has to run second or it would re-derive a URL from a number
-# that is about to change.
+# Code that moves changes nothing. Code that is RENAMED breaks the anchor, and
+# that is the one case where the sentence around the citation needs re-reading,
+# so it is the one case that gets reported.
 #
 # Targets:
-#   make regen-doc-links     — re-pin citations, then relink the guide
-#   make regen-doc-anchors   — re-pin citation line numbers only
-#   make check-doc-links     — report-only developer shortcut
-#   make check-doc-anchors   — report-only developer shortcut
-#
-# Neither check-* target is what gates a commit: quality-checks.sh runs the two
-# scripts directly (qc_doc_links calls gen_doc_links.py --diff, qc_doc_refs
-# calls check_doc_refs.py, which runs the anchor check and its unresolved-path
-# ceiling inline). They exist so a human can ask one question without waiting
-# for the whole doc section, and they must stay a strict SUBSET of what that
-# section enforces — a check reachable only from here is a check nothing runs,
-# which is what let the unresolved-path ceiling sit at its limit unenforced.
+#   make docs-pinned       — render docs with real line numbers into build/
+#   make check-doc-anchors — advisory report; what pre-push runs
 
-.PHONY: regen-doc-links check-doc-links regen-doc-anchors check-doc-anchors
+.PHONY: docs-pinned check-doc-anchors
 
-regen-doc-anchors:
-	$(ECHO) "$(BLUE)[GEN]$(RESET) re-pinning doc citation line numbers"
-	$(Q)python3 scripts/doc_cite_anchors.py
-
-regen-doc-links: regen-doc-anchors
-	$(ECHO) "$(BLUE)[GEN]$(RESET) linking architecture-guide citations"
-	$(Q)python3 scripts/gen_doc_links.py
-	$(ECHO) "$(GREEN)✓ doc citations regenerated — commit the docs, scripts/doc_cite_anchors.tsv included, if they changed$(RESET)"
-
-check-doc-links:
-	$(Q)python3 scripts/gen_doc_links.py --check
+docs-pinned:
+	$(ECHO) "$(BLUE)[GEN]$(RESET) rendering pinned docs into build/docs-pinned"
+	$(Q)python3 scripts/doc_anchors.py --render build/docs-pinned
+	$(ECHO) "$(GREEN)✓ build/docs-pinned - generated, never committed$(RESET)"
 
 check-doc-anchors:
-	$(Q)python3 scripts/doc_cite_anchors.py --check
+	$(Q)python3 scripts/doc_anchors.py --check
 
 # ==============================================================================
 # LVGL event-code table for the crash worker (Python)
