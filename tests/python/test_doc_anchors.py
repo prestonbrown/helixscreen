@@ -18,7 +18,9 @@ from doc_anchors import (  # noqa: E402
     Citation,
     Segment,
     NotFound,
+    Region,
     check,
+    definitions,
     format_citation,
     is_scaffolding,
     iter_bare_refs,
@@ -1178,3 +1180,34 @@ def test_a_constructor_citation_does_not_land_on_the_destructor(tmp_path):
 def test_resolve_reports_a_malformed_citation_instead_of_raising(capsys):
     assert main(["--resolve", "src/a.cpp#!!bad"]) == 1
     assert "malformed citation" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("decl,name", [
+    ("    [[nodiscard]] bool ready() const;", "ready"),
+    ("    [[nodiscard]] AmsBackend* get_backend() const;", "get_backend"),
+    ("    [[nodiscard]] [[maybe_unused]] int count() const noexcept;", "count"),
+    ("    [[noreturn]] void die();", "die"),
+    ("    bool ready() const;", "ready"),
+    ("    int size() const noexcept override;", "size"),
+    ("    auto span() const -> std::string_view;", "span"),
+])
+def test_a_declaration_with_attributes_or_qualifiers_is_a_citable_name(
+        decl, name, tmp_path):
+    header = tmp_path / "h.h"
+    header.write_text("class K {\n" + decl + "\n};\n", encoding="utf-8")
+    assert resolve(f"h.h#{name}", repo_root=tmp_path) == 2
+
+
+@pytest.mark.parametrize("stmt", [
+    "    counter_ = compute();",
+    "    return helper(arg);",
+    "    spdlog::info(\"x\");",
+    "    friend class Other;",
+])
+def test_a_statement_is_still_not_a_declaration(stmt, tmp_path):
+    """Widening for qualifiers must not turn ordinary statements into names."""
+    src = tmp_path / "a.cpp"
+    src.write_text("void f() {\n" + stmt + "\n}\n", encoding="utf-8")
+    lines = src.read_text(encoding="utf-8").split("\n")
+    names = {n for n, _ in definitions(lines, Region(0, len(lines)), ".cpp")}
+    assert names == {"f"}

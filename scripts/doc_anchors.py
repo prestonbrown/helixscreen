@@ -339,8 +339,14 @@ def _cpp_func_definition(lines, i):
 # rejects a line starting with a keyword outside _CPP_DECL_KEYWORDS the same
 # way: `return foo(bar);` and `friend class Foo;` both start with a keyword
 # that is not a declaration specifier.
+# The qualifier run after a member's parameter list (`const`, `noexcept`,
+# `override`, a trailing return type) is where a declaration ends; without it
+# `bool ready() const;` reads as unterminated and the member is not a name
+# anything can cite.
 _CPP_DECL = re.compile(
-    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
+    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?"
+    + _CPP_FUNC_QUALIFIER.pattern
+    + r"(?:=[^;]+)?;"
 )
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
 
@@ -385,7 +391,15 @@ def _match_cpp_define(text):
     return m.group(1) if m else None
 
 
+# A declaration may open with one or more C++ attributes. They sit where the
+# type token belongs, so `_CPP_DECL` reads `[[nodiscard]] bool ready() const;`
+# as having nothing before the name and rejects it - which hid every one of
+# the 1558 `[[nodiscard]]` members in this tree from being cited at all.
+_CPP_LEADING_ATTRS = re.compile(r"^\s*(?:\[\[[^\]]*\]\]\s*)+")
+
+
 def _match_cpp_decl(text):
+    text = _CPP_LEADING_ATTRS.sub("", text)
     if _cpp_leading_keyword_blocks_definition(text):
         return None
     m = _CPP_DECL.match(text)
