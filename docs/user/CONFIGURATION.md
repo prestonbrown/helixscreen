@@ -64,7 +64,7 @@ The configuration file is created automatically by the first-run wizard. You can
 cp config/settings.json.template config/settings.json
 ```
 
-**Note:** A `settings.json` sitting in the app root or at `/opt/helixscreen/settings.json` is moved to the location above on startup.
+**Note:** A `settings.json` sitting in the app root or at /opt/helixscreen/settings.json is moved to the location above on startup.
 
 ---
 
@@ -1846,7 +1846,7 @@ If your config is lost or corrupted:
 3. **Fresh start:** Copy `settings.json.template` to `settings.json` and re-run
    the setup wizard
 
-### If you have a `helixconfig.json`
+### If you have a helixconfig.json
 HelixScreen renames it to `settings.json` on startup — no manual action needed.
 
 ---

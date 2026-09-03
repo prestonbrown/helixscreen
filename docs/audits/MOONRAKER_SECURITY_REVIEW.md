@@ -5,15 +5,17 @@
 **Reviewer:** Critical Security Analysis (Automated)
 **Scope:** Complete Moonraker WebSocket client implementation
 
+Paths in this review name the tree as it stood on 2025-11-30.
+
 **Reviewed Files:**
 - `include/moonraker_client.h` - Abstract base class and main client interface
-- `src/moonraker_client.cpp` - Client implementation
+- src/moonraker_client.cpp - Client implementation
 - `include/moonraker_api.h` - API definitions
-- `src/moonraker_api.cpp` - API implementation
+- src/moonraker_api.cpp - API implementation
 - `include/moonraker_error.h` - Error type definitions
 - `include/moonraker_request.h` - Request type definitions
 - `include/moonraker_client_mock.h` - Mock client header
-- `src/moonraker_client_mock.cpp` - Mock client implementation
+- src/moonraker_client_mock.cpp - Mock client implementation
 
 ---
 
@@ -40,7 +42,7 @@
 
 **Original Severity:** CRITICAL
 **Status:** COMPLETE (2025-11-03)
-**Evidence:** `src/moonraker_api.cpp:54-122`, `tests/unit/test_moonraker_api_security.cpp`
+**Evidence:** src/moonraker_api.cpp:54-122, `tests/unit/test_moonraker_api_security.cpp`
 
 **Implementation Details:**
 
@@ -120,7 +122,7 @@ std::function<void(json)> success_cb;  // Pass by value
 
 **Original Severity:** CRITICAL
 **Status:** COMPLETE
-**Evidence:** `include/moonraker_client.h:560,568`, `src/moonraker_client.cpp:718`
+**Evidence:** `include/moonraker_client.h:560,568`, src/moonraker_client.cpp:718
 
 **Implementation Details:**
 
@@ -269,7 +271,7 @@ void MoonrakerClient::check_request_timeouts() {
 
 **Original Severity:** HIGH
 **Status:** COMPLETE
-**Evidence:** `src/moonraker_client.cpp:117-140`
+**Evidence:** src/moonraker_client.cpp:117-140
 
 **Implementation Details:**
 
@@ -311,7 +313,7 @@ if (callback_copy && !is_destroying_.load()) {
 
 **Severity:** HIGH
 **Type:** Input Validation
-**Location:** `src/moonraker_client.cpp:679-703`
+**Location:** src/moonraker_client.cpp:679-703
 **Status:** PARTIALLY ADDRESSED
 
 **Current State:**
@@ -388,7 +390,7 @@ int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params)
 
 **Severity:** HIGH
 **Type:** Resource Leak
-**Location:** `src/moonraker_client.cpp:566-648`
+**Location:** src/moonraker_client.cpp:566-648
 **Status:** PARTIALLY ADDRESSED
 
 **Current State:**
@@ -528,7 +530,7 @@ Add sensitive field redaction before logging, or truncate/summarize large payloa
 
 **Severity:** MEDIUM
 **Type:** Error Handling
-**Location:** `src/moonraker_client.cpp:291-296`
+**Location:** src/moonraker_client.cpp:291-296
 **Status:** PARTIALLY ADDRESSED
 
 **Current State:**

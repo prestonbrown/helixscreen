@@ -193,6 +193,35 @@ INDEX_EXEMPT = {
 # a reader hits.
 EXTRA_SCAN_DOCS = ('docs/README.md',)
 
+# ...and so is every local page that index links. Listing a page there is what
+# makes it live documentation, whatever directory it sits in: docs/audits/ and
+# docs/user/ are reached only this way, and their citations went unchecked for
+# as long as the set was a hand-written tuple. Deriving it means indexing a new
+# page is the only edit needed to get it checked.
+_INDEX_LINK_RE = re.compile(r'\[[^\]]+\]\(([^)\s]+)\)')
+
+
+def indexed_docs(index=EXTRA_SCAN_DOCS[0]):
+    """Every local .md the public docs index links to, that exists on disk."""
+    try:
+        with open(index, encoding='utf-8') as fh:
+            text = fh.read()
+    except OSError:
+        return []
+    base = os.path.dirname(index)
+    out = []
+    for m in _INDEX_LINK_RE.finditer(text):
+        target = m.group(1).split('#')[0]
+        # A scheme (https:, mailto:) names something outside the tree; only the
+        # first path segment can carry one, so `a:b/c.md` is a URL and
+        # `dir/a:b.md` is not.
+        if not target.endswith('.md') or ':' in target.split('/')[0]:
+            continue
+        path = os.path.normpath(os.path.join(base, target))
+        if os.path.exists(path):
+            out.append(path)
+    return out
+
 
 def repo_files():
     """Every file in the repo, for suffix resolution.
@@ -253,7 +282,8 @@ def scan_targets():
             if f == 'CLAUDE.md' or (rel.startswith('.claude/skills') and f.endswith('.md')):
                 targets.append(path)
     targets.extend(EXTRA_SCAN_DOCS)
-    return sorted(targets)
+    targets.extend(indexed_docs())
+    return sorted(set(targets))
 
 
 def scan_devel_targets(paths):

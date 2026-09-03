@@ -588,7 +588,7 @@ sudo systemctl restart helixscreen
    ```bash
    ls /sys/class/drm/
    ```
-   You should see something like `card0-HDMI-A-1`. If you still see only `card0` and `dmesg | grep -i drm` mentions `simpledrm`, the vc4 overlay did not load — double-check `/boot/firmware/config.txt` for typos and any conflicting `dtoverlay` lines.
+   You should see something like `card0-HDMI-A-1`. If you still see only `card0` and `dmesg | grep -i drm` mentions `simpledrm`, the vc4 overlay did not load — double-check /boot/firmware/config.txt for typos and any conflicting `dtoverlay` lines.
 
 **Check what modes the kernel knows about:**
 ```bash
@@ -702,7 +702,7 @@ The detected rotation is saved to the config file and applied on all subsequent 
 
 **Setting panel orientation in the kernel (Raspberry Pi):**
 
-Edit `/boot/firmware/cmdline.txt` and add a `video=` parameter for your display connector:
+Edit /boot/firmware/cmdline.txt and add a `video=` parameter for your display connector:
 
 ```
 video=DSI-1:panel_orientation=upside_down
@@ -1776,7 +1776,7 @@ The Flashforge Adventurer 5M (AD5M) has unique characteristics due to its embedd
 ForgeX's `headless.cfg` has a `reset_screen` delayed_gcode that sets backlight to eco mode.
 
 **Solution:**
-The HelixScreen installer automatically patches `/opt/config/mod/.shell/screen.sh` to skip backlight commands when HelixScreen is running. If you installed manually or the patch didn't apply:
+The HelixScreen installer automatically patches /opt/config/mod/.shell/screen.sh to skip backlight commands when HelixScreen is running. If you installed manually or the patch didn't apply:
 
 ```bash
 # Check if patch is present

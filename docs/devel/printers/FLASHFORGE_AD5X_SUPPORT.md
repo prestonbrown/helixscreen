@@ -233,7 +233,7 @@ All [rig-verified]:
 - **`/opt` is empty on AD5X ZMOD installs.** "No /opt/zmod" is not evidence of a
   failed install.
 - **Port signature:** stock = 22 + 8899; ZMOD = 22 + 80 + 7125 with 8899 closed.
-  Fluidd is served on 80; nginx does **not** proxy Moonraker — talk to `:7125`
+  Fluidd is served on 80; nginx does **not** proxy Moonraker — talk to port 7125
   directly.
 - **First boot takes ~140 s to reach port 80**, then runs calibration and input
   shaping autonomously. Do not poll the printer during that window (see TTC above).

@@ -204,8 +204,10 @@ while running 0.99.111):
       depth. Mutation-verified.
 
       **Four migrations are NOT idempotent**, and are pinned as current behavior
-      rather than fixed: `src/system/config.cpp#migrate_v6_to_v7` and `:505` (brightness 50→80, below
-      v7/v9), `:474` (toolhead_style 2→5/3→2, a rotation — below v8), `:841`
+      rather than fixed: `src/system/config.cpp#migrate_v6_to_v7` and
+      `src/system/config.cpp#migrate_v8_to_v9` (brightness 50→80, below
+      v7/v9), `src/system/config.cpp#migrate_v7_to_v8` (toolhead_style 2→5/3→2, a rotation — below v8),
+      `src/system/config.cpp#migrate_v17_to_v18`
       (writes `recheck_pending` unconditionally, below v18; the flag can
       invalidate a captured touch calibration at boot via
       `should_invalidate_legacy_calibration`). The jitter 15→5 retune that used to
@@ -222,7 +224,8 @@ while running 0.99.111):
       forward-compat guard (v0.99.112, `7e3d6f05d`) additionally stops a newer
       config being stamped down at all, and both 1.0 and 1.1 carry it.
 
-      If a migration below v18 ever becomes reachable again, `:812` and `:457` are
-      the two to fix first — `:457` is a rotation and cannot be made idempotent
-      without a marker.
+      If a migration below v18 ever becomes reachable again,
+      `src/system/config.cpp#migrate_v17_to_v18` and `src/system/config.cpp#migrate_v7_to_v8`
+      are the two to fix first — `migrate_v7_to_v8` is a rotation and cannot be made
+      idempotent without a marker.
 

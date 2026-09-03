@@ -441,7 +441,7 @@ The `long_pressed` handler is registered on `carousel_host`, the grid's own cont
 scroll container, its tiles and the page containers all get `LV_OBJ_FLAG_EVENT_BUBBLE`
 (`src/ui/ui_panel_home.cpp#build_carousel`), and `set_event_bubble_recursive()` re-flags every
 descendant of a page container after its widgets are populated
-(`src/ui/ui_panel_home.cpp`, called at `:495`). So aiming at a tile is fine - it is
+(`src/ui/ui_panel_home.cpp#populate_page`). So aiming at a tile is fine - it is
 not necessary to hit the gutter between tiles.
 
 **Open the catalog with `click nav_btn_edit_add`, not a second long press.** Entering Edit
@@ -469,7 +469,8 @@ hold (`src/ui/ui_panel_home.cpp#on_home_grid_long_press`), and the synthetic poi
 
 **`home_edit_mode` is a read-only reflection - do not `set` it.** `ctl set home_edit_mode 1`
 returns success and does not enter Edit Mode. The subject is written by
-`GridEditMode::enter()` / `exit()` (`src/ui/grid_edit_mode.cpp#cancel_snap_animation`, `:120`); setting it by
+`GridEditMode::enter()` (`src/ui/grid_edit_mode.cpp#enter`) / `exit()`
+(`src/ui/grid_edit_mode.cpp#exit`); setting it by
 hand only unhides the nav bar's edit buttons, which bind to it
 (`ui_xml/navigation_bar.xml#nav_btn_edit_add`). Clicking the `+` then still does nothing, because
 `HomePanel::open_widget_catalog()` no-ops unless `grid_edit_mode_.is_active()`

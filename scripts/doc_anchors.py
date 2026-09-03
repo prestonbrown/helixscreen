@@ -15,13 +15,22 @@
 # scanner recognises as a definition. Resolution never guesses: a segment that
 # matches nothing, or more than one place, is an error naming the candidates.
 #
-# What an anchor cannot express: a symbol that exists twice in a file's TEXT but
-# once in a build. Two `#ifdef`/`#else` arms, or the two branches of an XML
-# `<if>`/`<else>`, each define the name once, and only one survives. This reader
-# sees bytes, not preprocessor or render semantics, so it reports Ambiguous -
-# which is correct for what it can know. Such a citation keeps its line number
-# rather than being anchored, because picking an arm would be wrong half the
-# time.
+# What an anchor cannot express: a name defined once per BUILD ARM. Two
+# `#ifdef`/`#else` arms, the two branches of an XML `<if>`/`<else>`, and the
+# bodies of a make `ifeq` each define the name once, and only one survives.
+# This reader sees bytes, not preprocessor or render semantics, so it reports
+# Ambiguous - correct for what it can know. Such a citation keeps its line
+# number, because picking an arm would be wrong half the time. Four citations
+# in this tree are in that position.
+#
+# Ambiguity from any other cause is narrowable, and a line number is the wrong
+# answer to it:
+#
+#   overloads      a quoted snippet of the one signature
+#                  src/system/sound_manager.cpp#"play(const std::string& sound_name, SoundPriority priority)"
+#   a statement    the enclosing scope, then a snippet inside it
+#                  src/ui/temperature_service.cpp#TemperatureService/"on_heater_preset_clicked"
+#   a destructor   ~Klass, which is named apart from its class
 
 import argparse
 import os
@@ -44,9 +53,10 @@ class Citation:
 
 # A segment is either a double-quoted literal (backslash escapes allowed, so a
 # snippet may contain a quote or a slash) or a bare name. Bare names keep `::`
-# and `~` so a namespace-qualified or destructor anchor stays one segment.
-_BARE_SEGMENT_RE = re.compile(r"[A-Za-z_][\w:~.-]*")
-_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*)')
+# and `~` so a namespace-qualified name stays one segment, and may open with
+# `~` because that is how a destructor is spelled.
+_BARE_SEGMENT_RE = re.compile(r"~?[A-Za-z_][\w:~.-]*")
+_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|(~?[A-Za-z_][\w:~.-]*)')
 
 
 def parse_citation(text):
@@ -312,8 +322,14 @@ def _cpp_func_definition(lines, i):
         if brace == -1:
             continue
         between = blank[close + 1 : brace]
+        # `Foo::~Foo()` and `Foo::Foo()` differ only in the tilde, so a
+        # destructor that answered to the bare class name would resolve a
+        # citation meaning the constructor onto the destructor's line.
+        name = m.group(1)
+        if blank[:start].rstrip().endswith("~"):
+            name = "~" + name
         if _CPP_FUNC_QUALIFIER.fullmatch(between):
-            return m.group(1)
+            return name
         colon = _CPP_CTOR_INIT_COLON.search(between)
         if colon:
             qualifiers, init_list = between[: colon.start()], between[colon.end() :]
@@ -321,7 +337,7 @@ def _cpp_func_definition(lines, i):
                 _CPP_FUNC_QUALIFIER.fullmatch(qualifiers)
                 and init_list.count("(") == init_list.count(")")
             ):
-                return m.group(1)
+                return name
     return None
 
 
@@ -332,8 +348,14 @@ def _cpp_func_definition(lines, i):
 # rejects a line starting with a keyword outside _CPP_DECL_KEYWORDS the same
 # way: `return foo(bar);` and `friend class Foo;` both start with a keyword
 # that is not a declaration specifier.
+# The qualifier run after a member's parameter list (`const`, `noexcept`,
+# `override`, a trailing return type) is where a declaration ends; without it
+# `bool ready() const;` reads as unterminated and the member is not a name
+# anything can cite.
 _CPP_DECL = re.compile(
-    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
+    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?"
+    + _CPP_FUNC_QUALIFIER.pattern
+    + r"(?:=[^;]+)?;"
 )
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
 
@@ -378,7 +400,15 @@ def _match_cpp_define(text):
     return m.group(1) if m else None
 
 
+# A declaration may open with one or more C++ attributes. They sit where the
+# type token belongs, so `_CPP_DECL` reads `[[nodiscard]] bool ready() const;`
+# as having nothing before the name and rejects it - which hid every one of
+# the 1558 `[[nodiscard]]` members in this tree from being cited at all.
+_CPP_LEADING_ATTRS = re.compile(r"^\s*(?:\[\[[^\]]*\]\]\s*)+")
+
+
 def _match_cpp_decl(text):
+    text = _CPP_LEADING_ATTRS.sub("", text)
     if _cpp_leading_keyword_blocks_definition(text):
         return None
     m = _CPP_DECL.match(text)
@@ -565,6 +595,26 @@ def resolve(citation_text, repo_root=".", relative_to=None):
 # what a citation looks like — check_doc_refs.py's PATH_RE matches the same
 # shape and is meant to derive from this rather than keep its own copy.
 CITE_RE = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+(?:#[^`]+)?)`")
+# A follow-on shorthand: a backticked line number with no path, meaning "and
+# also line N of whatever file the sentence just named". Nothing can resolve
+# one - the file is carried in prose, and the number names a line rather than
+# a thing - so a reader cannot check it and neither can this tool. `check`
+# reports them so a citation that can be verified is written instead.
+BARE_REF_RE = re.compile(r"`:(\d+)`")
+
+# Directories holding point-in-time scaffolding: in-flight plans and specs,
+# deleted in the change that ships the work (docs/CLAUDE.md). Their bare refs
+# describe a tree that no longer exists and are never worth re-pinning, so
+# they are exempt rather than counted against the gate.
+_SCAFFOLDING_DIRS = ("docs/devel/plans/", "docs/superpowers/")
+
+
+def is_scaffolding(doc):
+    """True for a doc whose whole file is deleted when its work ships."""
+    norm = os.path.normpath(doc).replace(os.sep, "/")
+    return any(d.rstrip("/") + "/" in "/" + norm for d in _SCAFFOLDING_DIRS)
+
+
 # A fence opens on ``` or ~~~ (3 or more of either character) and closes only
 # on a marker using the SAME character, at least as long as the one that
 # opened it - CommonMark's rule, so a stray `~~~` inside a ``` block does not
@@ -604,6 +654,14 @@ def iter_citations(paths, problems=None):
     whatever citations were found before the problem.
     """
     out = []
+    for path, lineno, line in _iter_content_lines(paths, problems):
+        for cm in CITE_RE.finditer(line):
+            out.append((path, lineno, cm.group(1)))
+    return out
+
+
+def _iter_content_lines(paths, problems=None):
+    """(doc, lineno, line) for every line of every doc outside a fence."""
     for path in paths:
         try:
             fh = open(path, encoding="utf-8", errors="replace")
@@ -616,19 +674,23 @@ def iter_citations(paths, problems=None):
             for lineno, line in enumerate(fh, start=1):
                 fence_marker, fence_opened_at, is_content = _fence_advance(
                     line, fence_marker, fence_opened_at, lineno)
-                if not is_content:
-                    continue
-                for cm in CITE_RE.finditer(line):
-                    out.append((str(path), lineno, cm.group(1)))
+                if is_content:
+                    yield str(path), lineno, line
             if fence_marker is not None and problems is not None:
                 problems.append(f"{path}:{fence_opened_at}: fence never closed")
-    return out
+
+
+def iter_bare_refs(paths, problems=None):
+    """(doc, doc_line, line number) for every bare `:NNN` outside a fence."""
+    return [(doc, lineno, int(m.group(1)))
+            for doc, lineno, line in _iter_content_lines(paths, problems)
+            for m in BARE_REF_RE.finditer(line)]
 
 
 def check(paths, repo_root="."):
     """Advisory findings: unresolvable, ambiguous, or malformed citations,
-    plus any document a fenced-code problem or a read error kept from being
-    fully scanned.
+    bare `:NNN` refs in a doc that outlives its work, plus any document a
+    fenced-code problem or a read error kept from being fully scanned.
 
     Must never raise: this is `--check`'s whole implementation, and that mode
     is advisory - it exists to report broken citations, so a citation (or a
@@ -647,6 +709,10 @@ def check(paths, repo_root="."):
             findings.append(f"{doc}:{lineno}: malformed citation {text!r}: {exc}")
         except (NotFound, Ambiguous) as exc:
             findings.append(f"{doc}:{lineno}: {text}: {exc}")
+    for doc, lineno, n in iter_bare_refs([p for p in paths if not is_scaffolding(p)]):
+        findings.append(
+            f"{doc}:{lineno}: bare `:{n}` names no file and cannot be resolved; "
+            f"cite the thing it means (`path#name`)")
     return findings
 
 
@@ -796,7 +862,11 @@ def main(argv=None):
                         help="render docs with citations expanded to real line numbers")
     args = parser.parse_args(argv)
     if args.resolve:
-        citation = parse_citation(args.resolve)
+        try:
+            citation = parse_citation(args.resolve)
+        except ValueError as exc:
+            print(f"malformed citation {args.resolve!r}: {exc}", file=sys.stderr)
+            return 1
         try:
             line = resolve(args.resolve)
         except FileNotFoundError:

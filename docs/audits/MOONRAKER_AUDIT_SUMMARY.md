@@ -4,6 +4,8 @@
 **Auditor:** Critical Review Agent + Test Harness Agent
 **Status:** ✅ **PRODUCTION READY**
 
+Paths in this audit name the tree as it stood on 2025-11-11.
+
 ---
 
 ## Executive Summary
@@ -59,8 +61,8 @@ rpc["id"] = id;  // Use the ID we registered
 ```
 
 **Lines Changed:**
-- `src/moonraker_client.cpp:366` - Use `fetch_add(1)` for atomic read-and-increment
-- `src/moonraker_client.cpp:389-403` - Build JSON inline to use correct ID
+- src/moonraker_client.cpp:366 - Use `fetch_add(1)` for atomic read-and-increment
+- src/moonraker_client.cpp:389-403 - Build JSON inline to use correct ID
 
 ---
 
@@ -195,7 +197,7 @@ rpc["id"] = id;  // Use the ID we registered
 ## Files Modified
 
 ### Source Code Changes:
-1. ✅ `src/moonraker_client.cpp` - Fixed race condition (2 changes)
+1. ✅ src/moonraker_client.cpp - Fixed race condition (2 changes)
    - Line 366: Use `fetch_add(1)` for atomic ID generation
    - Lines 389-403: Build JSON inline to use correct ID
 
