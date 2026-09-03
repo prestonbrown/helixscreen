@@ -256,14 +256,30 @@ _CPP_FUNC_QUALIFIER = re.compile(
 # initializer list. Qualifiers (e.g. `noexcept`) may still precede it.
 _CPP_CTOR_INIT_COLON = re.compile(r"(?<!:):(?!:)")
 
+# A wrapped signature puts the candidate's closing paren, or the brace
+# opening its body, on a later physical line than its name. The bound keeps a
+# malformed or non-C++ file from turning one candidate into a scan of the
+# rest of the file.
+_CPP_FUNC_JOIN_LIMIT = 10
 
-def _cpp_func_definition(text):
-    """Name of the function whose body this line opens, or None."""
+
+def _cpp_func_definition(lines, i):
+    """Name of the function whose signature begins at lines[i], or None."""
+    text = _strip_comment(lines[i])
     if _cpp_leading_keyword_blocks_definition(text):
         return None
-    blank = _blank_literals(text)
+    # The candidate's name must appear on lines[i] itself - only its closing
+    # paren and body-opening brace are allowed to land on a later physical
+    # line. Without this bound, a blank or comment-only line joins forward
+    # into the next real signature and registers a second, wrong-line match
+    # for the same definition.
+    own_line_len = len(_blank_literals(text))
+    end = min(i + _CPP_FUNC_JOIN_LIMIT, len(lines))
+    blank = _blank_literals("\n".join(_strip_comment(lines[j]) for j in range(i, end)))
     for m in _CPP_FUNC_NAME.finditer(blank):
         start = m.start(1)
+        if start >= own_line_len:
+            break
         if not _CPP_FUNC_PREFIX_OK.fullmatch(blank[:start]):
             continue
         depth, j, close = 1, m.end(), None
@@ -365,7 +381,8 @@ def _defs_cpp(lines, region):
             if name:
                 out.append((name, Region(i, block_end(lines, i))))
                 continue
-        for matcher in (_match_cpp_define, _cpp_func_definition, _match_cpp_decl):
+        matchers = (_match_cpp_define, lambda t: _cpp_func_definition(lines, i), _match_cpp_decl)
+        for matcher in matchers:
             name = matcher(text)
             if name and name not in _CPP_KEYWORDS:
                 out.append((name, Region(i, block_end(lines, i))))

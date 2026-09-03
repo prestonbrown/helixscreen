@@ -96,6 +96,7 @@ from doc_anchors import (  # noqa: E402
     Ambiguous,
     NotFound,
     Region,
+    _CPP_FUNC_JOIN_LIMIT,
     block_end,
     definitions,
     resolve_segments,
@@ -517,11 +518,179 @@ def test_cpp_func_leading_keyword_gate_still_accepts_every_prior_shape():
         assert names == [expected], src
 
 
+def test_cpp_func_accepts_a_signature_wrapped_before_its_closing_paren():
+    lines = [
+        "void PrinterState::update_from_status(const json& state, double eventtime,",
+        "                                      bool from_cached_snapshot) {",
+        "}",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["update_from_status"]
+
+
+def test_cpp_func_accepts_a_signature_whose_brace_lands_on_the_next_line():
+    lines = ["void f(int a, int b)", "{", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["f"]
+
+
+def test_cpp_func_accepts_a_wrapped_ctor_with_member_initializer_list():
+    lines = [
+        "WiFiManager::WiFiManager(bool force_mock)",
+        "    : force_mock_(force_mock), scan_pending_(false) {",
+        "}",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == ["WiFiManager"]
+
+
+def test_cpp_func_wrapped_region_starts_at_the_signatures_first_line():
+    lines = [
+        "void f(int a,",
+        "       int b) {",
+        "    return;",
+        "}",
+    ]
+    # The region a citation resolves to is the whole definition, so it opens
+    # on the line carrying the name - not on the line that happens to hold
+    # the brace.
+    assert definitions(lines, Region(0, len(lines)), ".cpp") == [("f", Region(0, 4))]
+
+
+def test_cpp_func_join_is_bounded_by_the_limit():
+    def signature_spanning(gap):
+        return ["void f(", *["    int a,"] * gap, "    int z) {", "}"]
+
+    within = signature_spanning(_CPP_FUNC_JOIN_LIMIT - 2)
+    beyond = signature_spanning(_CPP_FUNC_JOIN_LIMIT + 5)
+    assert [n for n, _ in definitions(within, Region(0, len(within)), ".cpp")] == ["f"]
+    # Parens that never balance inside the limit end the candidate there
+    # rather than running the join to the end of the file.
+    assert [n for n, _ in definitions(beyond, Region(0, len(beyond)), ".cpp")] == []
+
+
+def test_cpp_func_blank_line_does_not_join_into_the_next_signature():
+    lines = ["void foo() {", "}", "", "void bar() {", "}"]
+    # "bar" belongs to line 3 alone. A blank line that joined forward would
+    # register it a second time at line 2, turning a sound citation into an
+    # ambiguity - and pinning the region proves which line each one owns.
+    assert definitions(lines, Region(0, len(lines)), ".cpp") == [
+        ("foo", Region(0, 2)),
+        ("bar", Region(3, 5)),
+    ]
+
+
+def test_cpp_func_comment_line_does_not_join_into_the_next_signature():
+    lines = ["// Refreshes the cached snapshot.", "void bar() {", "}"]
+    # A comment strips to an empty line, which is the blank-line case with
+    # nothing to signal it.
+    assert definitions(lines, Region(0, len(lines)), ".cpp") == [("bar", Region(1, 3))]
+
+
+def test_cpp_func_rejects_a_call_whose_lambda_opens_on_the_next_line():
+    lines = [
+        "lv_obj_add_event_cb(btn,",
+        "                    [](lv_event_t* e) {",
+        "                    }, LV_EVENT_CLICKED, nullptr);",
+    ]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # The call's own parens close only after the lambda body, with no brace
+    # left behind them - the same reasoning as the one-line form, applied to
+    # a candidate that spans lines.
+    assert names == []
+
+
+def test_cpp_func_rejects_multi_line_forms_of_the_lambda_call_shapes():
+    for src in (
+        [
+            "helix::MemoryMonitor::instance().set_hang_callback(",
+            "    [](uint32_t stalled_ms) {",
+            "    });",
+        ],
+        ["std::sort(v.begin(), v.end(),", "          [](int a, int b) {", "          });"],
+    ):
+        names = [name for name, _ in definitions(src, Region(0, len(src)), ".cpp")]
+        assert names == [], src
+
+
+_CPP_NON_DEFINITION_LINES = [
+    "helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {",
+    "lv_obj_add_event_cb(btn, [](lv_event_t* e) {",
+    "std::sort(v.begin(), v.end(), [](int a, int b) {",
+    "case foo(): {",
+    "default: bar();",
+    "return foo(bar);",
+    "counter_ = 0;",
+    'spdlog::info("temp: {}", t);',
+    "friend class Foo;",
+]
+
+
+@pytest.mark.parametrize("shape", _CPP_NON_DEFINITION_LINES)
+def test_cpp_non_definition_line_does_not_join_into_a_following_definition(shape):
+    lines = [shape, "", "void real_one() {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    # A line that defines nothing must stay defining nothing when the real
+    # signature below it is in joining range: borrowing that name would pin
+    # the citation to the wrong line.
+    assert names == ["real_one"], shape
+
+
+@pytest.mark.parametrize(
+    "shape,expected",
+    [
+        ("void f() {", "f"),
+        ("static int g(int a) const {", "g"),
+        ("auto f() -> int {", "f"),
+        ("UsbManager::UsbManager(bool force_mock) : force_mock_(force_mock) {", "UsbManager"),
+        ("Foo::Foo() noexcept : a_(1) {", "Foo"),
+        ("using Callback = int;", "Callback"),
+        ("lv_obj_t* overlay_root;", "overlay_root"),
+    ],
+)
+def test_cpp_definition_shapes_survive_a_following_signature_in_joining_range(shape, expected):
+    lines = [shape, "}", "", "void real_one() {", "}"]
+    names = [name for name, _ in definitions(lines, Region(0, len(lines)), ".cpp")]
+    assert names == [expected, "real_one"], shape
+
 import subprocess
 
 from doc_anchors import resolve  # noqa: E402
 
 SCRIPT = REPO_ROOT / "scripts" / "doc_anchors.py"
+
+
+def _repo_lines(rel_path):
+    return (REPO_ROOT / rel_path).read_text(encoding="utf-8").split("\n")
+
+
+def test_wrapped_signature_resolves_against_the_repo_itself():
+    # The module docstring offers this citation as its first example, so it
+    # has to resolve in this tree and not only in a fixture. Its signature
+    # wraps, so resolving it is what exercises the multi-line join.
+    path = "src/printer/printer_state.cpp"
+    line = resolve(f"{path}#update_from_status", repo_root=REPO_ROOT)
+    lines = _repo_lines(path)
+    text = lines[line - 1]
+    assert text.startswith("void PrinterState::update_from_status(")
+    assert not text.rstrip().endswith("{"), "this signature must wrap to be a join test"
+    assert [i for i, t in enumerate(lines, 1)
+            if t.startswith("void PrinterState::update_from_status(")] == [line]
+
+
+def test_overload_set_with_a_wrapped_member_is_ambiguous_in_the_repo_itself():
+    # Both overloads must be visible. When only the single-line one is, the
+    # citation answers confidently with that line instead of refusing, which
+    # is a wrong answer rather than an error.
+    path = "src/printer/ams_backend.cpp"
+    with pytest.raises(Ambiguous) as excinfo:
+        resolve(f"{path}#create", repo_root=REPO_ROOT)
+    hits = sorted(r.start + 1 for r in excinfo.value.candidates)
+    lines = _repo_lines(path)
+    assert len(hits) == 2, hits
+    assert all("AmsBackend::create(" in lines[n - 1] for n in hits), hits
+    assert lines[hits[0] - 1].rstrip().endswith("{")
+    assert not lines[hits[1] - 1].rstrip().endswith("{")
 
 
 def test_resolve_returns_a_one_based_line(tmp_path):
