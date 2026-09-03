@@ -9,6 +9,12 @@ SERVICE_TEMPLATE="$WORKTREE_ROOT/config/helixscreen.service"
 
 setup() {
     load helpers
+    # helix-launcher.sh runs `killall helix-watchdog helix-screen ...`, which is
+    # not scoped to this test. bats runs FILES in parallel, so an unmocked run
+    # reaches across and kills the long-lived instance test_headless_display.bats
+    # is driving - it dies cleanly mid-startup and that test fails for no reason
+    # of its own.
+    mock_command_script "killall" 'exit 0'
     # These tests substitute template placeholders with GNU-style `sed -i EXPR`.
     install_gnu_sed_shim
 }

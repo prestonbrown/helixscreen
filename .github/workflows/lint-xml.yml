@@ -2,7 +2,7 @@ name: XML Lint
 
 on:
   push:
-    branches: [ main, "claude/**" ]
+    branches: [ main, "claude/**", "release/**" ]
     paths:
       - 'ui_xml/**'
       - 'src/ui/**'
@@ -12,7 +12,7 @@ on:
       - 'mk/tools.mk'
       - '.github/workflows/lint-xml.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, "release/**" ]
     paths:
       - 'ui_xml/**'
       - 'src/ui/**'
