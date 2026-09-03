@@ -71,7 +71,7 @@ The bed mesh rendering system is a **complete 3D graphics pipeline** implemented
 
 ### Coordinate Space Transformations
 
-The renderer uses **4 distinct coordinate spaces** (see `bed_mesh_renderer.h:36-60`):
+The renderer uses **4 distinct coordinate spaces** (see `include/bed_mesh_renderer.h`):
 
 ```
 MESH SPACE (input)
@@ -491,7 +491,7 @@ lv_obj_set_user_data(obj, data_ptr.release());  // Transfer ownership
 
 **Purpose:** Identify bottlenecks empirically
 
-**Code:** `bed_mesh_renderer.cpp:576-647`
+**Code:** `src/rendering/bed_mesh_renderer.cpp#bed_mesh_renderer_render_to_buffer`
 
 ---
 

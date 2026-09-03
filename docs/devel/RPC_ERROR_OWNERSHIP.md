@@ -8,7 +8,7 @@ same event. This document is the contract for deciding which one, and the rule t
 decision computable at the call site.
 
 The decision itself is one function — `helix::rpc_error_policy::decide()`
-(`include/rpc_error_policy.h:87-121`). Nothing else may re-derive it.
+(`include/rpc_error_policy.h#decide`). Nothing else may re-derive it.
 
 ---
 
@@ -17,7 +17,7 @@ The decision itself is one function — `helix::rpc_error_policy::decide()`
 | # | Surface | Where it fires | What it can do |
 |---|---------|----------------|----------------|
 | 1 | **The caller's own error callback** | Wherever the caller passed `on_error` | Whatever it wants — a contextual toast next to the button the user pressed, a modal, a step-model failure state |
-| 2 | **The Request Tracker's generic fallback** | `MoonrakerRequestTracker::route_response()`, `src/api/moonraker_request_tracker.cpp:226-232` — emits `MoonrakerEventType::RPC_ERROR` as `"Printer command '<method>' failed: <msg>"` | One toast, raw method name and raw Klipper text. The last resort |
+| 2 | **The Request Tracker's generic fallback** | `MoonrakerRequestTracker::route_response()`, `src/api/moonraker_request_tracker.cpp#route_response` — emits `MoonrakerEventType::RPC_ERROR` as `"Printer command '<method>' failed: <msg>"` | One toast, raw method name and raw Klipper text. The last resort |
 | 3 | **`GcodeErrorRouter`**, from Klipper's `!!` broadcast | `src/application/gcode_error_router.cpp` `process_line()` → `decide_presentation()` (`:179-186`) | The richest surface: classifies severity, hands the line to every AMS backend's `classify_error()` first, and escalates a CRITICAL fault to a recovery modal with buttons |
 
 Surfaces 1 and 2 both hang off the JSON-RPC error reply. Surface 3 comes down an entirely
@@ -30,7 +30,7 @@ broadcast as `!!`, the generic fallback stands down entirely. The router's repor
 better: it knows severity, it lets the backend that owns the hardware interpret the line
 first, and mid-print it can put a Resume / Unload / Reset dialog on screen instead of a
 sentence. Only `printer.gcode.script` has that channel —
-`rpc_error_policy::method_has_broadcast_channel()` (`include/rpc_error_policy.h:64-66`) keeps
+`rpc_error_policy::method_has_broadcast_channel()` (`include/rpc_error_policy.h#method_has_broadcast_channel`) keeps
 the method-name literal in one place. Every other RPC (`server.files.*`, `machine.*`,
 `printer.objects.subscribe`, …) has no second channel, so for those the generic fallback is
 the only thing standing between a failure and silence.
@@ -99,7 +99,7 @@ plumbing. It says nothing about whether a human learned anything.
 
 So a merely-`silent` request records **nothing** for dedup. If it did, the `!!` copy — which
 in the `printer.gcode.script` case is the only remaining signal — would be suppressed for a
-failure nobody ever saw. `include/rpc_error_correlation.h:26-29` states the same rule from the
+failure nobody ever saw. `include/rpc_error_correlation.h` states the same rule from the
 ledger's side.
 
 The corollary catches people out: `silent = true` on a `gcode.script` send is not a way to
@@ -121,7 +121,7 @@ Deriving `surfaces_errors` at that point reads our own bookkeeping as a promise 
 never made, and silences surface 3 for an error that then reaches nobody.
 
 The reference shape is `helix::ensure_homed_then()`
-(`src/printer/toolhead_homing.cpp:72-98`):
+(`src/printer/toolhead_homing.cpp#ensure_homed_then`):
 
 ```cpp
 // Capture the caller's error-reporting intent BEFORE on_error is moved into
@@ -148,11 +148,11 @@ The same capture-then-forward appears at every layer that wraps:
 
 | Site | Captured at |
 |------|-------------|
-| `MoonrakerAPI::execute_gcode()` | `src/api/moonraker_api_controls.cpp:373-375` — before the activity-counter wrapping |
-| `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp:401-403` — also the site that sets `silent = (on_error != nullptr)` |
-| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:545` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
-| `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:445-448` — the G28 leg forwards the *caller's* answer, not the wrapper's |
-| `LedEffectBackend::activate_effect()` / `stop_all_effects()` | `src/led/led_controller.cpp:1023-1027`, `:1052-1054` — `caller_surfaces_errors && (on_error != nullptr)` |
+| `MoonrakerAPI::execute_gcode()` | `src/api/moonraker_api_controls.cpp#execute_gcode` — before the activity-counter wrapping |
+| `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp#execute_gcode` — also the site that sets `silent = (on_error != nullptr)` |
+| `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp#caller_surfaces` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
+| `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp#ensure_homed_then` — the G28 leg forwards the *caller's* answer, not the wrapper's |
+| `LedEffectBackend::activate_effect()` / `stop_all_effects()` | `src/led/led_controller.cpp#activate_effect`, `:1052-1054` — `caller_surfaces_errors && (on_error != nullptr)` |
 
 ### The parameter
 
@@ -161,19 +161,19 @@ The same capture-then-forward appears at every layer that wraps:
 
 | Method | Declared |
 |--------|----------|
-| `execute_gcode()` | `include/i_moonraker_api.h:211-220` |
-| `set_temperature()` | `include/i_moonraker_api.h:176-181` |
-| `set_led()` | `include/i_moonraker_api.h:190-196` |
+| `execute_gcode()` | `include/i_moonraker_api.h#IMoonrakerAPI` |
+| `set_temperature()` | `include/i_moonraker_api.h#IMoonrakerAPI` |
+| `set_led()` | `include/i_moonraker_api.h#IMoonrakerAPI` |
 
 It defaults to `true`, which is right for the common case — a UI callback that toasts. **A
 callback that only `spdlog`s, only resets internal state, or does both must pass `false`.**
 `AmsSubscriptionBackend::handle_dispatch_error()`
-(`src/printer/ams_subscription_backend.cpp:480-492`) is exactly that shape by default: with no
+(`src/printer/ams_subscription_backend.cpp#ensure_homed_then`) is exactly that shape by default: with no
 caller `on_error` it logs and sets `AmsAction::IDLE`, which no user sees.
 
 Direct `send_jsonrpc()` callers do not pass an intent at all. The tracker infers
 `CallerIntent{silent, error_cb != nullptr}` for them
-(`src/api/moonraker_request_tracker.cpp:41`), which is correct there: those are non-gcode RPCs
+(`src/api/moonraker_request_tracker.cpp#send`), which is correct there: those are non-gcode RPCs
 with no `!!` channel, so "supplied a callback" and "will report it" amount to the same thing.
 The gcode paths, which *do* have a second channel, always state their intent explicitly.
 
@@ -182,20 +182,20 @@ The gcode paths, which *do* have a second channel, always state their intent exp
 ## What the record does
 
 `Decision::record_for_dedup` writes the raw Klipper `error.message` into
-`helix::rpc_error_correlation` (`src/api/moonraker_request_tracker.cpp:250-252`). When the
+`helix::rpc_error_correlation` (`src/api/moonraker_request_tracker.cpp#route_response`). When the
 matching `!!` line arrives, `already_reported_via_rpc()`
-(`src/application/gcode_error_router.cpp:173-177`) checks it and the router stays quiet.
+(`src/application/gcode_error_router.cpp#already_reported_via_rpc`) checks it and the router stays quiet.
 
 Details that matter when reading that code:
 
-- **Exact-string match, 1.5 s window** (`src/api/rpc_error_correlation.cpp:23`). The two
+- **Exact-string match, 1.5 s window** (`src/api/rpc_error_correlation.cpp#CAUSAL_WINDOW`). The two
   channels are causally tied — the window absorbs network jitter, nothing more. Substring
   matching would mask unrelated errors sharing a phrase.
 - **The recorded identity is Klipper's raw wording**, before `clean_error_text()` rewrites it.
   The router therefore looks up `raw_detail` first and falls back to `detail`, so a message
   the cleaner touched ("Must home axis first" → "Must home axes first") still matches.
 - **Only the router's plain-TOAST arm defers and re-checks.** `present_deferred_toast()`
-  (`src/application/gcode_error_router.cpp:323-345`) re-runs the lookup when its timer fires,
+  (`src/application/gcode_error_router.cpp#present_deferred_toast`) re-runs the lookup when its timer fires,
   which is what catches an RPC reply that lands *after* the `!!` line. A CRITICAL modal fires
   immediately and does not defer — which is the other half of why the generic fallback must
   stand down for `gcode.script` unconditionally rather than racing.
@@ -220,10 +220,10 @@ the generic fallback stands down and the promised third surface never speaks.
 
 That set is small because the guards in front of the send reject those conditions *before* a
 request is ever tracked: `MoonrakerAPI::execute_gcode()` refuses gcode while Klippy is
-`SHUTDOWN`/`ERROR` (`src/api/moonraker_api_controls.cpp:228-244`), refuses app-initiated
+`SHUTDOWN`/`ERROR` (`src/api/moonraker_api_controls.cpp#connected`), refuses app-initiated
 homing during an active print, and refuses discretionary motion behind a blocking op;
 `MoonrakerMotionAPI::execute_gcode()` is stricter still and refuses any motion unless Klippy is
-`READY` (`src/api/moonraker_motion_api.cpp:406-419`). Each of those calls the caller's
+`READY` (`src/api/moonraker_motion_api.cpp#execute_gcode`). Each of those calls the caller's
 `on_error` and returns without a request, so it never reaches this decision at all.
 
 Closing the gap properly means knowing at reply time whether the `!!` actually came — a
@@ -237,7 +237,7 @@ look for.
 ## The gate
 
 `scripts/check_gcode_error_ownership.py`, run at `--max-allowed 0` from
-`scripts/quality-checks.sh:1751-1777`.
+`scripts/quality-checks.sh#qc_decl_ui`.
 
 It scans `src/` for `execute_gcode()` calls with an inline `[…](const MoonrakerError&)` lambda
 whose body is *entirely* logging or empty, and which pass neither `caller_surfaces_errors` nor
@@ -279,9 +279,9 @@ Behaviour is pinned by `tests/unit/test_rpc_error_policy.cpp` (the matrix),
    failure — it cannot.
 5. If the send is behind a helper that takes its own callbacks, thread the caller's answer
    through rather than re-deriving it (`std::optional<bool>` is the pattern
-   `AmsSubscriptionBackend` uses, `include/ams_subscription_backend.h:111-123`).
+   `AmsSubscriptionBackend` uses, `include/ams_subscription_backend.h#AmsSubscriptionBackend`).
 6. Never re-implement the matrix. Call `rpc_error_policy::decide()` — the mock's inline gcode
-   path does exactly that (`src/api/moonraker_client_mock_print.cpp:87-121`) so its behaviour
+   path does exactly that (`src/api/moonraker_client_mock_print.cpp#register_print_handlers`) so its behaviour
    cannot drift from the real tracker's.
 
 ## What was measured on hardware

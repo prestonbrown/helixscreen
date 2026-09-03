@@ -86,6 +86,19 @@ def _declared_on(lines, ext, target):
     return None
 
 
+def _expressible(lines, ext, name):
+    """`name`, or an equivalent a citation can carry, or None."""
+    if "`" not in name:
+        return name
+    if ext == ".md":
+        from doc_anchors import _github_heading_slug
+
+        slug = _github_heading_slug(name)
+        if slug and "`" not in slug:
+            return slug
+    return None
+
+
 def propose(path, line_number, repo_root="."):
     """Propose an anchor citation for `path:line_number`."""
     full = os.path.join(str(repo_root), path)
@@ -111,6 +124,14 @@ def propose(path, line_number, repo_root="."):
             candidates.append(chain + [own])
     if not candidates:
         return Proposal(path, "file-level", "no named scope contains this line")
+
+    # A citation is delimited by backticks, so a name containing one cannot be
+    # written as a citation at all. Markdown headings are the source of these;
+    # their GitHub slug says the same thing without the backticks.
+    candidates = [[_expressible(lines, ext, n) for n in names] for names in candidates]
+    candidates = [names for names in candidates if all(names)]
+    if not candidates:
+        return Proposal(path, "file-level", "name cannot be written as a citation")
 
     # An anchor names a PLACE, not a line: a citation inside a function anchors
     # to the function, whose own line differs from the cited one. The proposal is

@@ -1809,7 +1809,7 @@ from `helix_version.h`; the macro is not visible anywhere else.
 #### FONT_TIERS
 
 Font faces are the largest single chunk of `.rodata`, so each target links only the
-tiers it can actually display. Legal values are `all` (the default, `mk/fonts.mk:122`)
+tiers it can actually display. Legal values are `all` (the default, `mk/fonts.mk`)
 or any subset of `micro tiny small medium large xlarge xxlarge`. Assignments live per
 target in `mk/cross.mk`:
 
@@ -1823,7 +1823,7 @@ target in `mk/cross.mk`:
 | `snapmaker-u1` | `tiny small` |
 | `cc1`, `yocto` | `micro tiny` |
 
-`HELIX_MAX_FONT_TIER` is derived from this (`mk/cross.mk:765-787`; `micro=0` …
+`HELIX_MAX_FONT_TIER` is derived from this (`mk/cross.mk`; `micro=0` …
 `xxlarge=6`). Two consumers read it: `theme_manager` uses it to distinguish an
 expected-missing font (pruned by tier) from an unexpected-missing one (a build bug),
 and `cjk_font_manager` uses it to pick its CJK face.

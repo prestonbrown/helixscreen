@@ -65,7 +65,7 @@ Four catalogues: the ledger and its ratchet, the duplication debt, the deliberat
   TOTAL         367
 ```
 
-(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh:1668`](../../../scripts/quality-checks.sh#L1668) runs the gate with `--max-allowed 367`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
+(verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/quality-checks.sh#qc_decl_ui`](../../../scripts/quality-checks.sh#L1668) runs the gate with `--max-allowed 367`, so a change that adds even one site fails CI, and a port lowers both the count and the baseline. The debt is tracked in prestonbrown/helixscreen#1140. (An earlier revision of root [`AGENTS.md`](../../../AGENTS.md) said 387 — that number counted the report's own header and summary lines. The script's `TOTAL` is authoritative; root now cites it.)
 
 Where the 367 lives, by directory:
 
@@ -81,14 +81,14 @@ The worst files: [`src/ui/ui_overlay_network_settings.cpp`](../../../src/ui/ui_o
 
 Why the sites exist: most predate the gate, written when the XML engine could not yet express what was needed — `<if>`, `<repeat>`, `<subject_expr>` and the word-form `cond` operators all shipped after chunks of this UI were built. Those were deliberate pragmatism at the time. Others are plain mistakes that got through review before the gate existed. Both are debt. **None of it is precedent**: do not imitate a nearby imperative site just because it is there, and do not port one opportunistically inside an unrelated change — the ratchet falls through dedicated, reviewable port commits.
 
-A port looks like this. Today, [`src/ui/ui_panel_gcode_test.cpp:405`](../../../src/ui/ui_panel_gcode_test.cpp#L405) wires zoom buttons by hand:
+A port looks like this. Today, [`src/ui/ui_panel_gcode_test.cpp#setup_callbacks`](../../../src/ui/ui_panel_gcode_test.cpp#L405) wires zoom buttons by hand:
 
 ```cpp
 if (btn_zoom_in)
     lv_obj_add_event_cb(btn_zoom_in, on_zoom_clicked_static, LV_EVENT_CLICKED, this);
 ```
 
-The declarative target is the shape every [`ui_xml/temp_graph_overlay.xml`](../../../ui_xml/temp_graph_overlay.xml) preset button already uses — declare the callback where the button is declared ([`ui_xml/gcode_test_panel.xml:61`](../../../ui_xml/gcode_test_panel.xml#L61) defines `btn_zoom_in` today, callback-less):
+The declarative target is the shape every [`ui_xml/temp_graph_overlay.xml`](../../../ui_xml/temp_graph_overlay.xml) preset button already uses — declare the callback where the button is declared ([`ui_xml/gcode_test_panel.xml#btn_zoom_in`](../../../ui_xml/gcode_test_panel.xml#L61) defines `btn_zoom_in` today, callback-less):
 
 ```xml
 <ui_button name="btn_zoom_in" flex_grow="1" text="+">
@@ -96,15 +96,15 @@ The declarative target is the shape every [`ui_xml/temp_graph_overlay.xml`](../.
 </ui_button>
 ```
 
-and publish the handler by name from C++ — either a `{"name", fn}` table like [`src/ui/temperature_service.cpp:205`](../../../src/ui/temperature_service.cpp#L205) or a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp:340`](../../../src/xml_registration.cpp#L340) does. The static wrapper, the null-check, and the ledger entry all disappear.
+and publish the handler by name from C++ — either a `{"name", fn}` table like [`src/ui/temperature_service.cpp:205`](../../../src/ui/temperature_service.cpp#L205) or a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp#L340) does. The static wrapper, the null-check, and the ledger entry all disappear.
 
 ### Duplication debt: the honest part
 
 AI-assisted design and build at this project's scale produced duplicated logic in places: parallel implementations of similar behavior, forked helpers where extending a near-fit would have served. Not always actively harmful, but confusing, inelegant, and a standing target for refactoring. The review rule exists because of this — *extend the near-fit helper, never fork a twin; copy-paste-modify is a red flag* — and the examples below are the concrete worst offenders the chapter audits for this series actually tripped over. No pretense of exhaustiveness; they frame the pattern.
 
-- **Twin bind helpers in the home widgets.** `FanStackWidget::bind_fan_observer()` ([`src/ui/panel_widgets/fan_stack_widget.cpp:823`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L823)) and `LedWidget::bind_led()` ([`src/ui/panel_widgets/led_widget.cpp:109`](../../../src/ui/panel_widgets/led_widget.cpp#L109), self-bind at `:86`) each independently solve the same problem: `observe_int_sync` defers its initial fire through `ui_queue_update()`, which populate freezes — so each helper manually reads the current subject value at attach time. Same insight, two implementations, two places to fix if the freeze semantics change (chapter 09 documents the mechanism).
-- **One aspirational abstraction, three parallel wirings.** `SensorRegistry` ([`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60)) was built as a central registry for the seven sensor managers. Production never constructs it — its only constructions are its own unit tests (15 in [`tests/unit/test_sensor_registry.cpp`](../../../tests/unit/test_sensor_registry.cpp)). Instead the managers are wired directly at three call sites: `init_subsystems_from_hardware()` ([`src/printer/printer_discovery.cpp:96`](../../../src/printer/printer_discovery.cpp#L96)–131), the configfile discovery step ([`src/api/moonraker_discovery_sequence.cpp:887`](../../../src/api/moonraker_discovery_sequence.cpp#L887)–892), and `PrinterState::update_from_status()` ([`src/printer/printer_state.cpp:641`](../../../src/printer/printer_state.cpp#L641)–649). Chapter 06 documents the live wiring; the dead abstraction remains to be wired or deleted.
-- **Six state-mapped icons in XML.** [`ui_xml/components/panel_widget_network.xml:11`](../../../ui_xml/components/panel_widget_network.xml#L11)–31: six `<icon>` elements, each with its own `bind_flag_if_not_eq` against `home_network_icon_state`, differing only in `src`, `variant`, and ref value. All six are built; five are hidden at any moment:
+- **Twin bind helpers in the home widgets.** `FanStackWidget::bind_fan_observer()` ([`src/ui/panel_widgets/fan_stack_widget.cpp#bind_fan_observer`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L823)) and `LedWidget::bind_led()` ([`src/ui/panel_widgets/led_widget.cpp#bind_led`](../../../src/ui/panel_widgets/led_widget.cpp#L109), self-bind at `:86`) each independently solve the same problem: `observe_int_sync` defers its initial fire through `ui_queue_update()`, which populate freezes — so each helper manually reads the current subject value at attach time. Same insight, two implementations, two places to fix if the freeze semantics change (chapter 09 documents the mechanism).
+- **One aspirational abstraction, three parallel wirings.** `SensorRegistry` ([`include/sensor_registry.h#SensorRegistry`](../../../include/sensor_registry.h#L60)) was built as a central registry for the seven sensor managers. Production never constructs it — its only constructions are its own unit tests (15 in [`tests/unit/test_sensor_registry.cpp`](../../../tests/unit/test_sensor_registry.cpp)). Instead the managers are wired directly at three call sites: `init_subsystems_from_hardware()` ([`src/printer/printer_discovery.cpp#init_subsystems_from_hardware`](../../../src/printer/printer_discovery.cpp#L96)–131), the configfile discovery step ([`src/api/moonraker_discovery_sequence.cpp#continue_discovery_objects`](../../../src/api/moonraker_discovery_sequence.cpp#L887)–892), and `PrinterState::update_from_status()` ([`src/printer/printer_state.cpp#update_from_status`](../../../src/printer/printer_state.cpp#L641)–649). Chapter 06 documents the live wiring; the dead abstraction remains to be wired or deleted.
+- **Six state-mapped icons in XML.** [`ui_xml/components/panel_widget_network.xml#net_disconnected`](../../../ui_xml/components/panel_widget_network.xml#L11)–31: six `<icon>` elements, each with its own `bind_flag_if_not_eq` against `home_network_icon_state`, differing only in `src`, `variant`, and ref value. All six are built; five are hidden at any moment:
 
   ```xml
   <icon name="net_disconnected" src="wifi_off" size="#icon_size" variant="disabled">
@@ -117,7 +117,7 @@ AI-assisted design and build at this project's scale produced duplicated logic i
   ```
 
   [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) proposes a `state_icon` component (buildable today as a C++ custom widget) and records the bound-icon alternative the z-offset buttons already use.
-- **Four capability-gated wrapper rows.** [`ui_xml/settings_hardware_overlay.xml:62`](../../../ui_xml/settings_hardware_overlay.xml#L62)–93: four `lv_obj` wrappers whose only job is carrying a `bind_flag_if_eq` over the real row:
+- **Four capability-gated wrapper rows.** [`ui_xml/settings_hardware_overlay.xml#container_fan_settings`](../../../ui_xml/settings_hardware_overlay.xml#L62)–93: four `lv_obj` wrappers whose only job is carrying a `bind_flag_if_eq` over the real row:
 
   ```xml
   <lv_obj name="container_filament_sensors" width="100%" style_pad_all="0" scrollable="false">
@@ -129,7 +129,7 @@ AI-assisted design and build at this project's scale produced duplicated logic i
   This one is arguably *correct* — the gates are reactive, and `<if>` builds only one branch at creation time, so `bind_flag_if_eq` is the right primitive (the caveat is spelled out in [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md)). The debt is that the wrapper is retyped by hand at every gated settings surface, not that it exists.
 - **A family of sibling files stamped from one mold.** Five `ui_filament_*` files carry 44 ledger sites between them ([`ui_filament_mapping_modal.cpp`](../../../src/ui/ui_filament_mapping_modal.cpp) 15, [`ui_filament_mapping_card.cpp`](../../../src/ui/ui_filament_mapping_card.cpp) 10, [`ui_filament_catalog_selector.cpp`](../../../src/ui/ui_filament_catalog_selector.cpp) 10, [`ui_filament_slot_picker.cpp`](../../../src/ui/ui_filament_slot_picker.cpp) 6, [`ui_filament_catalog_picker.cpp`](../../../src/ui/ui_filament_catalog_picker.cpp) 3) — the same find-then-mutate patterns repeated across near-identical pickers.
 
-The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_utils.cpp:61`](../../../src/ui/ui_temperature_utils.cpp#L61)) consolidated what were two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
+The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp#L61)) consolidated what were two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
 
 ### Deliberate tolerations: C++ that is correct, not debt
 
@@ -139,9 +139,9 @@ The gate does not merely tolerate these cases — it excludes them structurally,
 |------|--------------------|
 | **Custom XML widget implementations — the 29 files calling `lv_xml_register_widget`** | The file *is* the widget; there is no XML beneath it to bind to (counted: 29 — `rg -l 'lv_xml_register_widget' src/ include/` yields 31, two of which are the validator tool's regex references, not calls) |
 | `LV_EVENT_DELETE` cleanup, draw hooks (`DRAW_MAIN`/`DRAW_POST`), `SIZE_CHANGED`, gestures/scroll | No declarative equivalent exists |
-| **Measured layout and computed fonts** — `decide_nozzle_layout()` ([`src/ui/panel_widgets/nozzle_layout.h:31`](../../../src/ui/panel_widgets/nozzle_layout.h#L31)), breakpoint fonts | Depends on runtime pixel measurement |
+| **Measured layout and computed fonts** — `decide_nozzle_layout()` ([`src/ui/panel_widgets/nozzle_layout.h#decide_nozzle_layout`](../../../src/ui/panel_widgets/nozzle_layout.h#L31)), breakpoint fonts | Depends on runtime pixel measurement |
 | Widgets created in C++ (`lv_*_create`) — canvas, procedural rendering, gcode viewer | Never had an XML layer |
-| **Per-item payload on generated collections** | `lv_obj_set_user_data()` on a `ui_button` overwrites the `UiButtonData*` it owns ([`src/ui/temperature_service.cpp:671`](../../../src/ui/temperature_service.cpp#L671) warns at the site) |
+| **Per-item payload on generated collections** | `lv_obj_set_user_data()` on a `ui_button` overwrites the `UiButtonData*` it owns ([`src/ui/temperature_service.cpp#setup_panel`](../../../src/ui/temperature_service.cpp#L671) warns at the site) |
 | `helix-screen ctl` remote control ([`src/remote/remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp)) | Its job is reaching into an arbitrary live widget tree on command |
 | CLI stdout ([`src/system/cli_args.cpp`](../../../src/system/cli_args.cpp), [`src/application/detect_printer_cmd.cpp`](../../../src/application/detect_printer_cmd.cpp), [`src/helix_splash.cpp`](../../../src/helix_splash.cpp)) | stdout *is* the product there; spdlog is for logging |
 | Widget pool recycling, chart data, animations | Churn or per-frame data a subject would not model |
@@ -152,7 +152,7 @@ When you genuinely hit a site that cannot be declarative and fits none of these 
 
 Each entry verified against the tree at this audit; counts regenerate with `python3 scripts/check_imperative_ui.py --list`.
 
-1. **Port the gcode test panel's event block** — [`src/ui/ui_panel_gcode_test.cpp:391`](../../../src/ui/ui_panel_gcode_test.cpp#L391)–430 is thirteen `lv_obj_find_by_name()` + `lv_obj_add_event_cb()` pairs. Each becomes `<event_cb trigger="..." callback="..."/>` in [`ui_xml/gcode_test_panel.xml`](../../../ui_xml/gcode_test_panel.xml) plus one registration (see the worked sketch above). Good first project because it is a self-contained developer panel (no print-state risk), purely mechanical, and exercises rule 1 end to end.
+1. **Port the gcode test panel's event block** — [`src/ui/ui_panel_gcode_test.cpp#setup_callbacks`](../../../src/ui/ui_panel_gcode_test.cpp#L391)–430 is thirteen `lv_obj_find_by_name()` + `lv_obj_add_event_cb()` pairs. Each becomes `<event_cb trigger="..." callback="..."/>` in [`ui_xml/gcode_test_panel.xml`](../../../ui_xml/gcode_test_panel.xml) plus one registration (see the worked sketch above). Good first project because it is a self-contained developer panel (no print-state risk), purely mechanical, and exercises rule 1 end to end.
 2. **Port the network settings overlay** — [`src/ui/ui_overlay_network_settings.cpp`](../../../src/ui/ui_overlay_network_settings.cpp) is the single worst file (19 sites: 9 text, 10 visibility, clustered at `:651`–791 and `:1224`–1687). Every binding is `bind_text` or `<bind_flag_if_eq>` — the cheapest vocabulary. Good because one overlay owns the whole change and the ratchet drops by 19 when it lands.
 3. **Port the filament picker family** — the five `ui_filament_*` files (44 sites) share one mold; porting them in sequence is the same learning applied five times, and each file is small (the largest, the modal, is 366 lines). Good because it converts a *family* of duplicates into one declarative pattern, addressing both ledgers at once — the imperative count and the sibling-file duplication.
 4. **Build `state_icon`** — the prop-based variant from [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) (comma-separated `icons`/`variants` lists, built as a C++ custom widget) collapses the six network icons and every future state-mapped icon row. Good because the design work is already done and measured; it only needs building.
@@ -168,7 +168,7 @@ Every port verifies the same three ways:
 
 - **Existing imperative code is not precedent.** The 367 sites are bounded debt, not an alternative style. A nearby `lv_label_set_text()` never justifies yours.
 - **No opportunistic refactors.** Do not port an imperative site as a side effect of an unrelated change — the port and the feature get reviewed separately, and the baseline drop lands in the port commit.
-- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh:1668`](../../../scripts/quality-checks.sh#L1668) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
+- **The port workflow is two edits.** Port the site, then lower the number in [`scripts/quality-checks.sh#qc_decl_ui`](../../../scripts/quality-checks.sh#L1668) (and root [`AGENTS.md`](../../../AGENTS.md), if you keep it in sync) in the same commit. The gate output tells you the new total.
 - **A port touches both sides.** XML edits need no rebuild, but a port *removes* C++ and *adds* XML plus registrations — the binary must be rebuilt, or the new bindings silently stay dead (chapter 01's drift trap).
 - **Annotate with a reason or not at all.** `DECLARATIVE_OK` without a real justification is a lint suppressant, and reviewers should treat it that way. If you cannot name the structural reason, it does not qualify.
 - **Duplication review is cheap at commit time.** Each forked helper above cost one question at review — "does a near-fit already exist?" — and costs a refactoring project once merged. [`REVIEW_RUBRIC.md`](../REVIEW_RUBRIC.md) carries this.
@@ -187,16 +187,16 @@ Every port verifies the same three ways:
 
 Read in this order; about 25 minutes total.
 
-1. [`scripts/check_imperative_ui.py:10`](../../../scripts/check_imperative_ui.py#L10) — the header comment: what is flagged, what is structurally exempt, and the ratchet philosophy. The whole chapter in 40 lines.
-2. [`scripts/quality-checks.sh:1668`](../../../scripts/quality-checks.sh#L1668) — where the baseline 367 is enforced and how a port ratchets it down.
-3. [`src/ui/ui_panel_gcode_test.cpp:391`](../../../src/ui/ui_panel_gcode_test.cpp#L391) — the archetype of the 67 event sites: find by name, add callback, null-check each. First project #1 is this block.
-4. [`ui_xml/gcode_test_panel.xml:61`](../../../ui_xml/gcode_test_panel.xml#L61) — the same buttons from the XML side, callback-less today; picture the `<event_cb>` the port adds.
-5. [`src/ui/ui_overlay_network_settings.cpp:701`](../../../src/ui/ui_overlay_network_settings.cpp#L701) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.
-6. [`src/ui/panel_widgets/fan_stack_widget.cpp:823`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L823) — `bind_fan_observer()`: the manual subject read that works around the deferred initial fire under populate's freeze.
-7. [`src/ui/panel_widgets/led_widget.cpp:75`](../../../src/ui/panel_widgets/led_widget.cpp#L75) — the twin: same problem, same workaround, separately evolved. Then `:109` for `bind_led()` itself.
-8. [`include/sensor_registry.h:60`](../../../include/sensor_registry.h#L60) — the registry class nothing in production constructs.
-9. [`src/printer/printer_discovery.cpp:105`](../../../src/printer/printer_discovery.cpp#L105) — the direct manager wiring that makes the registry aspirational.
-10. [`ui_xml/components/panel_widget_network.xml:11`](../../../ui_xml/components/panel_widget_network.xml#L11) — the six state-mapped icons; count the attributes that differ (three).
-11. [`ui_xml/settings_hardware_overlay.xml:62`](../../../ui_xml/settings_hardware_overlay.xml#L62) — the four wrapper rows; note each is reactive gating, which is why this is duplication but not a bug.
-12. [`src/ui/temperature_service.cpp:671`](../../../src/ui/temperature_service.cpp#L671) — the in-code warning that documents the `user_data` toleration row better than any doc could.
-13. [`src/ui/ui_temperature_utils.cpp:61`](../../../src/ui/ui_temperature_utils.cpp#L61) — `format_temperature_pair()`: what consolidation done right looks like, and the endpoint of first project #3's pattern.
+1. [`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) — the header comment: what is flagged, what is structurally exempt, and the ratchet philosophy. The whole chapter in 40 lines.
+2. [`scripts/quality-checks.sh#qc_decl_ui`](../../../scripts/quality-checks.sh#L1668) — where the baseline 367 is enforced and how a port ratchets it down.
+3. [`src/ui/ui_panel_gcode_test.cpp#setup_callbacks`](../../../src/ui/ui_panel_gcode_test.cpp#L391) — the archetype of the 67 event sites: find by name, add callback, null-check each. First project #1 is this block.
+4. [`ui_xml/gcode_test_panel.xml#btn_zoom_in`](../../../ui_xml/gcode_test_panel.xml#L61) — the same buttons from the XML side, callback-less today; picture the `<event_cb>` the port adds.
+5. [`src/ui/ui_overlay_network_settings.cpp#populate_network_list`](../../../src/ui/ui_overlay_network_settings.cpp#L701) — the text/visibility archetype (three sites within ten lines); first project #2 starts here.
+6. [`src/ui/panel_widgets/fan_stack_widget.cpp#bind_fan_observer`](../../../src/ui/panel_widgets/fan_stack_widget.cpp#L823) — `bind_fan_observer()`: the manual subject read that works around the deferred initial fire under populate's freeze.
+7. [`src/ui/panel_widgets/led_widget.cpp#attach`](../../../src/ui/panel_widgets/led_widget.cpp#L75) — the twin: same problem, same workaround, separately evolved. Then `:109` for `bind_led()` itself.
+8. [`include/sensor_registry.h#SensorRegistry`](../../../include/sensor_registry.h#L60) — the registry class nothing in production constructs.
+9. [`src/printer/printer_discovery.cpp#fsm`](../../../src/printer/printer_discovery.cpp#L105) — the direct manager wiring that makes the registry aspirational.
+10. [`ui_xml/components/panel_widget_network.xml#net_disconnected`](../../../ui_xml/components/panel_widget_network.xml#L11) — the six state-mapped icons; count the attributes that differ (three).
+11. [`ui_xml/settings_hardware_overlay.xml#container_fan_settings`](../../../ui_xml/settings_hardware_overlay.xml#L62) — the four wrapper rows; note each is reactive gating, which is why this is duplication but not a bug.
+12. [`src/ui/temperature_service.cpp#setup_panel`](../../../src/ui/temperature_service.cpp#L671) — the in-code warning that documents the `user_data` toleration row better than any doc could.
+13. [`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp#L61) — `format_temperature_pair()`: what consolidation done right looks like, and the endpoint of first project #3's pattern.

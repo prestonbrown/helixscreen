@@ -44,12 +44,12 @@ single file and branches in place on the `ui_is_portrait` subject:
 | Mechanism | Use when | Examples in the tree |
 |-----------|----------|----------------------|
 | `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_status_panel.xml`, `portrait/print_tune_panel.xml` |
-| `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `motion_panel.xml:70`, `bed_mesh_panel.xml:99`, `temp_graph_overlay.xml` (3 sites) |
-| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `advanced_panel.xml:264-290` (the E-stop bar goes column instead of row) |
-| `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `components/bed_mesh_current_mesh_card.xml:106-131` |
+| `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `temp_graph_overlay.xml` (3 sites) |
+| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row) |
+| `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
 
 Orientation is also composable with the breakpoint rather than separate from it:
-`bed_mesh_current_mesh_card.xml:33` hides a block on
+`ui_xml/components/bed_mesh_current_mesh_card.xml` hides a block on
 `ui_breakpoint eq 0 or (ui_is_portrait eq 1 and ui_breakpoint_v lt 5)` — the portrait clause
 is guarded because a 1024x600 landscape panel and a 480x640 portrait one land on the same
 breakpoint while only the portrait one is actually short of room.
@@ -710,7 +710,7 @@ So when adding a home widget:
   where even that minimum costs a third to a half of a row for rotating hints.
 - Mark every non-scrolling container in the widget's XML `scrollable="false"`. A tile is
   scrolled by dragging it, not by a chevron gutter, so `PageScrollAutoInject` stops its walk
-  at the tile root (`src/ui/page_scroll_auto_inject.cpp:67`) - but a scrollable container
+  at the tile root (`src/ui/page_scroll_auto_inject.cpp#walk_and_attach`) - but a scrollable container
   inside a tile still absorbs the drags the grid wants, and LVGL's scrollable default is ON
   unless you say otherwise.
 

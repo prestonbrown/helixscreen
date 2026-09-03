@@ -76,16 +76,16 @@ component — so there is no `/server/ace/*` REST bridge on this path.
 **The detection collision — this is the part that matters to us.** A U1 running multiACE
 reports *both* marker objects, and our chain resolves them the wrong way round:
 
-1. `filament_detect` (stock U1) sets `has_snapmaker_` (`include/printer_discovery.h:440`).
-2. `ace` (multiACE) sets `has_mmu_` + `mmu_type_ = ACE` (`include/printer_discovery.h:333`).
+1. `filament_detect` (stock U1) sets `has_snapmaker_` (`include/printer_discovery.h#parse_objects`).
+2. `ace` (multiACE) sets `has_mmu_` + `mmu_type_ = ACE` (`include/printer_discovery.h#parse_objects`).
 3. `has_mmu_` is checked **first**, so `has_snapmaker_` never runs
-   (`include/printer_discovery.h:642`) — by design, since a real aftermarket MMU should beat
+   (`include/printer_discovery.h#parse_objects`) — by design, since a real aftermarket MMU should beat
    the U1 fallback. Here that design fires on a stack we cannot actually read.
 4. `AmsBackendAce` then requires a **top-level non-empty `slots` array** to accept the
-   object (`src/printer/ams_backend_ace.cpp:980`). multiACE has none — its slots are nested
+   object (`src/printer/ams_backend_ace.cpp#select_slot_bearing_object`). multiACE has none — its slots are nested
    one level down, per unit, under `aces[]`. So `select_slot_bearing_object()` returns null,
    the backend logs "no status data — trying REST bridge fallback"
-   (`src/printer/ams_backend_ace.cpp:141`), and the REST bridge does not exist on a U1.
+   (`src/printer/ams_backend_ace.cpp#on_started`), and the REST bridge does not exist on a U1.
 
 Net result: the ACE backend attaches and stays empty, and the Snapmaker U1 backend — which
 would have worked for the four toolheads — is suppressed.
@@ -94,7 +94,7 @@ would have worked for the four toolheads — is suppressed.
 > [DnG-Crafts/U1-Ace](https://github.com/DnG-Crafts/U1-Ace) registers `ace_device`, which
 > matches none of our ACE patterns — so `has_mmu_` stays false and the Snapmaker backend
 > correctly keeps that printer (its bug was the unload path, #974, fixed in 0.99.72; see
-> `ams_backend_snapmaker.cpp:475`). multiACE registers plain `ace`, which is exactly what
+> `src/printer/ams_backend_snapmaker.cpp#do_unload_filament`). multiACE registers plain `ace`, which is exactly what
 > we match. Same hardware category, opposite outcome — worth checking which mod a U1
 > reporter actually has.
 

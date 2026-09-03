@@ -1123,7 +1123,7 @@ A backend fault reaches the user through one of **two independent channels**. Th
 |---|---|---|
 | Hook | `AmsBackend::classify_error(raw_line, ctx)` | `AmsBackend::current_error()` |
 | Transport | Moonraker `notify_gcode_response` | Moonraker `notify_status_update` |
-| Dispatched from | `GcodeErrorRouter::process_line()`, `src/application/gcode_error_router.cpp:474` — **exactly once per line**, before the generic `error_classify::classify()` | `AmsErrorBridge::on_action_changed()`, `src/application/ams_error_bridge.cpp:68` — **only on the rising edge** into `AmsAction::ERROR` |
+| Dispatched from | `GcodeErrorRouter::process_line()`, `src/application/gcode_error_router.cpp#on_notify_gcode_response` — **exactly once per line**, before the generic `error_classify::classify()` | `AmsErrorBridge::on_action_changed()`, `src/application/ams_error_bridge.cpp#on_action_changed` — **only on the rising edge** into `AmsAction::ERROR` |
 | Pre-filtering | **None.** Every response line is handed to every backend. Each override gates itself | The `AmsAction::ERROR` edge is the entire gate. A backend that never assigns that action is never asked, even if it overrides the hook |
 | Presentation | `decide_presentation()` → toast / modal / `MODAL_WITH_RECOVER` | `RecoveryModalPresenter::present()` directly |
 | Returning `nullopt` | Defers to `error_classify::classify()` | Falls through to the bridge's last-resort toast (`surface_unhandled_error()`) |
@@ -1154,8 +1154,8 @@ silences Channel A for a fault nobody saw. See `RPC_ERROR_OWNERSHIP.md`.
 
 | Ledger | Window | Guards | Recorded by | Checked by |
 |--------|--------|--------|-------------|------------|
-| `rpc_error_correlation` (`src/api/rpc_error_correlation.cpp`) | 1.5 s | JSON-RPC error reply ↔ the `!!` broadcast of the same rejection | `MoonrakerRequestTracker::route_response()`, only when `rpc_error_policy::decide()` says someone is definitely reporting it | `GcodeErrorRouter::already_reported_via_rpc()` (`gcode_error_router.cpp:173-177`), including a re-check when the deferred toast timer fires |
-| `fault_surface_correlation` (`src/application/fault_surface_correlation.cpp`) | 3 s | Channel A ↔ Channel B | `GcodeErrorRouter` records every detail it surfaces | `AmsErrorBridge`'s fallback toast, and the router's own toast arms (`gcode_error_router.cpp:413-418`) |
+| `rpc_error_correlation` (`src/api/rpc_error_correlation.cpp`) | 1.5 s | JSON-RPC error reply ↔ the `!!` broadcast of the same rejection | `MoonrakerRequestTracker::route_response()`, only when `rpc_error_policy::decide()` says someone is definitely reporting it | `GcodeErrorRouter::already_reported_via_rpc()` (`src/application/gcode_error_router.cpp#already_reported_via_rpc`), including a re-check when the deferred toast timer fires |
+| `fault_surface_correlation` (`src/application/fault_surface_correlation.cpp`) | 3 s | Channel A ↔ Channel B | `GcodeErrorRouter` records every detail it surfaces | `AmsErrorBridge`'s fallback toast, and the router's own toast arms (`src/application/gcode_error_router.cpp#process_line`) |
 
 A merely-`silent` request records **nothing** in the RPC ledger. `silent` means "no automatic toast from us", not "the user was told" — recording on it would mute the `!!` copy for a failure that reached no one. Only a caller that declared `caller_surfaces_errors`, or the generic fallback actually firing, earns a record. See `RPC_ERROR_OWNERSHIP.md`.
 
@@ -1201,7 +1201,7 @@ spinner on the panel). The other three surfaces share one execution layer instea
 | Filament panel | `FilamentPanel::execute_load()` / `execute_unload()` | The Load / Unload buttons on the Filament nav panel | Yes - full ladder, `ParamPolicy::Prompt`, own execution |
 | AMS operation sidebar | `AmsOperationSidebar::handle_load_with_preheat(slot)` / `handle_unload(slot)` | Slot grid + context menu on the AMS panel and the AMS Overview panel (both own a `unique_ptr` to one) | Yes - full ladder, `ParamPolicy::Prompt`, own execution |
 | Mid-print runout dialog | `FilamentRunoutHandler::dispatch_load()` | `RunoutGuidanceModal`'s Load button during a print or runout pause | Yes - full ladder, `ParamPolicy::Suppress`, via `filament_op_execute.h` |
-| Idle runout dialog | `PrintStatusWidget::show_idle_runout_modal()` | A real runout detected while STANDBY / COMPLETE / CANCELLED | Yes - `PrintStatusWidget::dispatch_load()` calls `filament_op_execute.h` directly (`print_status_widget.cpp:1199`); it does not hand off to the Filament panel |
+| Idle runout dialog | `PrintStatusWidget::show_idle_runout_modal()` | A real runout detected while STANDBY / COMPLETE / CANCELLED | Yes - `PrintStatusWidget::dispatch_load()` calls `filament_op_execute.h` directly (`src/ui/panel_widgets/print_status_widget.cpp#set_config`); it does not hand off to the Filament panel |
 | Home tile | `FilamentSensorWidget::handle_click()` | Tap on the "Filament Sensor" home-panel tile | Depends on state - disabled sensor opens `SensorSettingsOverlay` (no dispatch); printing shows `RunoutGuidanceModal` status-only (no dispatch); otherwise the full Load/Unload/Purge modal dispatches via `filament_op_execute.h`, same as the runout dialogs |
 
 None of the five surfaces navigate away to dispatch anymore. `plan_load()` /
@@ -1863,8 +1863,8 @@ The `AmsDeviceOperationsOverlay` (`ui_ams_device_operations_overlay.h`) consolid
 The table's last row names the backend calls, not the UI path. Three surfaces flip bypass,
 and all three route through one shared policy object, `BypassToggleController`
 (`src/ui/ui_bypass_toggle_controller.cpp`, extracted from the sidebar's handler in
-03f784219): the AMS sidebar's toggle (`include/ui_ams_sidebar.h:195`), the home-panel
-Bypass tile (`src/ui/panel_widgets/bypass_widget.h:33`), and this overlay's own switch
+03f784219): the AMS sidebar's toggle (`include/ui_ams_sidebar.h#bypass_toggle_`), the home-panel
+Bypass tile (`src/ui/panel_widgets/bypass_widget.h#toggle_`), and this overlay's own switch
 (`include/ui_ams_device_operations_overlay.h`). Each owns an instance and forwards its
 click to `toggle()`, which runs every guard before touching the backend:
 
@@ -1926,11 +1926,11 @@ Where the override lands, by backend:
 | Backend | `supports_bypass` | Override row shown | `enable_bypass()` with override on |
 |---------|-------------------|--------------------|------------------------------------|
 | AFC | `afc_defaults` caps, default `true` | no | Consults `bypass_available_for()` |
-| AD5X IFS | Hardcoded `false` (`ams_backend_ad5x_ifs.cpp:137`) - no bypass is fitted | yes | Writes `external=1`, but the false capability keeps every caller from offering it |
+| AD5X IFS | Hardcoded `false` (`src/printer/ams_backend_ad5x_ifs.cpp#AmsSubscriptionBackend`) - no bypass is fitted | yes | Writes `external=1`, but the false capability keeps every caller from offering it |
 | Happy Hare | Runtime from `[mmu_machine] has_bypass`; `false` until first status | Only when `has_bypass: 0` | Consults `bypass_available_for()`; `MMU_SELECT_BYPASS` runs |
 | CFS | Converges on first full box frame: true (Fork: + payload `external` entry) | no | Consults `bypass_available_for()` — real `T<external>` on Fork, sensor-derived declaration on stock |
-| ACE | Hardcoded `false` (`ams_backend_ace.cpp:45`) | yes | `not_supported` |
-| Snapmaker | Hardcoded `false` (`ams_backend_snapmaker.cpp:241`) | yes | `not_supported` |
+| ACE | Hardcoded `false` (`src/printer/ams_backend_ace.cpp#AmsSubscriptionBackend`) | yes | `not_supported` |
+| Snapmaker | Hardcoded `false` (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`) | yes | `not_supported` |
 | Tool Changer | Hardcoded `false` (`:31`) | yes | `not_supported` |
 | QIDI Box | Hardcoded `false` (`:193`) | yes | `not_supported` |
 
@@ -1961,7 +1961,7 @@ The input is `AmsState::any_bypass_active()`, which polls every backend's `is_by
 Two things it is deliberately **not**:
 
 - **Not `AmsSystemInfo::current_slot == -2`.** The AFC backend sets that at
-  `ams_backend_afc.cpp:2251` while parsing `bypass_state`, but nine later writes in the same
+  `src/printer/ams_backend_afc.cpp#parse_afc_state` while parsing `bypass_state`, but nine later writes in the same
   file can overwrite it — including the mount-state derivation from #1229, which is
   intentionally unguarded so it cannot re-latch. `is_bypass_active()` returns the firmware's own
   report and is stable.

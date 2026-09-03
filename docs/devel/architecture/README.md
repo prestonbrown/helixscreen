@@ -37,7 +37,7 @@ Added after the series was numbered (no renumbering): 16 — G-code pipeline
 ## Editing a chapter
 
 Cite files the way the chapters already do — a backticked path, optionally with a
-line: `` `src/printer/printer_state.cpp:622` ``. Do not write the markdown link
+line: `` `src/printer/printer_state.cpp#update_from_status` ``. Do not write the markdown link
 yourself, and do not go back and fix a line number by hand. `make regen-doc-links`
 derives both: it re-pins every citation's line number from a committed content
 anchor, then wraps the citation in a link to the file and line it names. A

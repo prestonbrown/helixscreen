@@ -1775,3 +1775,28 @@ schedule of its own, and because its value was measured as "free upside, never
 worse" rather than required. Decide before starting Task 6 whether to fold it
 in; if yes, it is one more step in Task 6 emitting
 `[`path#name`](path#:~:text=<urlencoded name>)`.
+
+
+## Follow-on: the bare `:NNN` continuations
+
+Roughly 435-606 bare `` `:782` `` shorthand citations remain as line numbers. They are
+NOT converted, deliberately.
+
+They were never anchored by the old pipeline either - zero of them appear in
+`doc_cite_anchors.tsv`, and `check_doc_refs.py` records them as a known gap it declined
+to fix because "11 of 12 hand-checked were wrong, so bootstrapping them would freeze
+the rot".
+
+The decisive argument is stronger than that hand-check. A maintainer hand-repinning the
+full citations on those very lines, twice, reading the prose closely enough to catch that
+`AUTOSAVE_MIN_CONFIDENCE` pointed at an alias-matching doc comment, still did not notice
+the bare `:375` sitting beside it was 39 lines off. **A bare `:N` carries no name to check
+a rewrite against**, so no automated conversion can verify itself - it would turn hundreds
+of invisible wrong answers into confident-looking anchors, which inverts the point of the
+design.
+
+The fix is prose edits, not a regex. When someone does that pass: **sort by distance from
+the antecedent, not top to bottom.** A bare ref immediately adjacent to its antecedent
+(`` `path.cpp:100`-137 `` style ranges) is usually right, because it was written and
+checked in one breath. The rot concentrates in refs far from their antecedent and in
+reading-order lists where the surrounding text moved independently.

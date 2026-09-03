@@ -755,8 +755,8 @@ def _pin_line(line, repo_root, doc_dir, dest_dir):
             text = m.group(1)
             if "#" not in text:
                 return m.group(0)
-            citation = parse_citation(text)
             try:
+                citation = parse_citation(text)
                 full, lineno = locate(text, repo_root=repo_root, relative_to=doc_dir)
             except (NotFound, Ambiguous, FileNotFoundError, ValueError):
                 return m.group(0)

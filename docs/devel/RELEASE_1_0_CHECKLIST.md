@@ -98,7 +98,7 @@ live. See `ANDROID_PLAY_STORE.md`.
 
       The pre-v0.99.31 count this item was written around is still tiny (3–5 of
       549, ~0.5–0.9%, none meaningfully self-updating) — but it was never the
-      real gate. `scripts/generate-manifest.sh:36` sets
+      real gate. `scripts/generate-manifest.sh` sets
       `ZIP_EXCLUDE_PLATFORMS="ad5m ad5x cc1 k1 k2 snapmaker-u1"`, six platforms
       deliberately served tar.gz as their **only** manifest asset because
       pre-v0.99.102 updaters verify with `unzip -tqq` and BusyBox lacks `unzip -t`
@@ -204,13 +204,13 @@ while running 0.99.111):
       depth. Mutation-verified.
 
       **Four migrations are NOT idempotent**, and are pinned as current behavior
-      rather than fixed: `config.cpp:464` and `:505` (brightness 50→80, below
+      rather than fixed: `src/system/config.cpp#migrate_v6_to_v7` and `:505` (brightness 50→80, below
       v7/v9), `:474` (toolhead_style 2→5/3→2, a rotation — below v8), `:841`
       (writes `recheck_pending` unconditionally, below v18; the flag can
       invalidate a captured touch calibration at boot via
       `should_invalidate_legacy_calibration`). The jitter 15→5 retune that used to
       make a fifth is gone: `migrate_v2_to_v3` is an empty step now
-      (`src/system/config.cpp:367`), kept only so a v2 config still walks the
+      (`src/system/config.cpp#migrate_v2_to_v3`), kept only so a v2 config still walks the
       version chain, because `/input/jitter_threshold` never reached the input
       pipeline and was removed (#1358).
 
