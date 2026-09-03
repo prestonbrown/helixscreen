@@ -17,8 +17,11 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from doc_anchors import (  # noqa: E402
     Citation,
     Segment,
+    NotFound,
     format_citation,
+    main,
     parse_citation,
+    resolve,
 )
 
 
@@ -1093,3 +1096,35 @@ def test_format_quotes_a_name_that_is_not_a_bare_identifier():
 def test_format_leaves_a_bare_identifier_unquoted():
     c = Citation(path="a.cpp", segments=(Segment("update_from_status", False),))
     assert format_citation(c) == "a.cpp#update_from_status"
+
+
+def test_destructor_parses_with_its_leading_tilde():
+    c = parse_citation("src/system/update_checker.cpp#~UpdateChecker")
+    assert c.segments == (Segment("~UpdateChecker", False),)
+
+
+def test_destructor_citation_round_trips():
+    text = "src/a.cpp#Klass/~Klass"
+    assert format_citation(parse_citation(text)) == text
+
+
+def test_destructor_is_named_apart_from_its_class(tmp_path):
+    src = tmp_path / "a.cpp"
+    src.write_text(
+        "Klass::Klass() {\n}\n"
+        "Klass::~Klass() {\n}\n", encoding="utf-8")
+    assert resolve("a.cpp#Klass", repo_root=tmp_path) == 1
+    assert resolve("a.cpp#~Klass", repo_root=tmp_path) == 3
+
+
+def test_a_constructor_citation_does_not_land_on_the_destructor(tmp_path):
+    """The two differ only in a tilde, so the class name must not answer for both."""
+    src = tmp_path / "a.cpp"
+    src.write_text("Klass::~Klass() {\n}\n", encoding="utf-8")
+    with pytest.raises(NotFound):
+        resolve("a.cpp#Klass", repo_root=tmp_path)
+
+
+def test_resolve_reports_a_malformed_citation_instead_of_raising(capsys):
+    assert main(["--resolve", "src/a.cpp#!!bad"]) == 1
+    assert "malformed citation" in capsys.readouterr().err
