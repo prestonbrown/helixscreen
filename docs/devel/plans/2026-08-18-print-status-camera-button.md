@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Work ONLY in the worktree `/home/pbrown/Code/Printing/helixscreen/.worktrees/print-status-camera` (branch `feature/print-status-camera`, based on `devel/1.1`). Bash cwd resets to the main repo between calls — always `make -C <worktree>` or pass `workdir`.
+- Work ONLY in the worktree `/home/pbrown/Code/Printing/helixscreen/.worktrees/print-status-camera` (branch `feature/print-status-camera`, based on `main`). Bash cwd resets to the main repo between calls — always `make -C <worktree>` or pass `workdir`.
 - Before any build: `pgrep -f 'make|c\+\+'` — concurrent compilations thrash the machine; wait or use `-j2` if another build is running.
 - Build program only: `make -C <worktree> -j`; build tests only: `make -C <worktree> test`; build AND run tests: `make -C <worktree> test-run` (redirect to a file and grep — never pipe through `tail`, the filter masks the exit code).
 - Run test binaries from the worktree root only (another cwd = mass fake failures).
@@ -921,8 +921,8 @@ Kill every instance you spawned: `pgrep -xl helix-screen` and kill only yours.
 - [ ] **Step 4: Self-review the diff**
 
 ```bash
-git -C <worktree> log --oneline devel/1.1..HEAD
-git -C <worktree> diff devel/1.1..HEAD --stat
+git -C <worktree> log --oneline main..HEAD
+git -C <worktree> diff main..HEAD --stat
 ```
 
 Check against the spec: subject default/update-point/threading, the one-cond gate, cross-build callback registration, all five Tier A sites + two Tier B conversions, twins deleted, env var documented, no leftover `is_local_host` references (`grep -rn "is_local_host" <worktree>/src <worktree>/include` → only `host_identity`'s internal loopback check may match by different name — it doesn't; expected result: zero hits).

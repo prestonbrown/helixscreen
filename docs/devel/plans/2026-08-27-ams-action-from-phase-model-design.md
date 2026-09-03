@@ -1,6 +1,6 @@
 # Derive AmsAction from the backend's phase model
 
-**Status:** not started. Target branch: `devel/1.1`.
+**Status:** not started. Target branch: `main`.
 **Precursor:** `f6e866600` (`fix(toolchanger): show a step bar that matches a hotend changer`), on main.
 
 ## Why
@@ -140,15 +140,14 @@ our interpretation. Until then, treat fork behavior as unverified against hardwa
 
 ## Branch strategy
 
-Branch off `devel/1.1`, not off main and not off `feature/medusahc-mock-and-steps`.
+Branch off `main`, not off `feature/medusahc-mock-and-steps`.
 
-`devel/1.1` is 233 commits ahead of main. Per the established rule, a main-based fix reaches
-`devel/1.1` by **cherry-pick, not merge** - a merge drags the entire main-to-devel delta
-along with it. This work is 1.1-shaped from the start, so it should originate there and
-never need porting backwards.
+`main` is the trunk and this work is 1.1-shaped, so it originates there and needs no
+porting. It is not a candidate for `release/1.0`, which takes only what the 1.0 fleet
+needs and receives it by cherry-pick. See `BRANCHING.md`.
 
 ```bash
-scripts/setup-worktree.sh --base devel/1.1 feature/ams-action-from-phases
+scripts/setup-worktree.sh feature/ams-action-from-phases
 ```
 
 ## Files this will touch

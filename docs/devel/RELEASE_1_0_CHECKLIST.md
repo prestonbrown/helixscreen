@@ -8,18 +8,19 @@ Upload Channels" and § "Switching Channels (and moving backward)".
 
 ---
 
-## 1. The atomic branch cut
+## 1. The atomic branch cut — DONE 2026-09-03
 
-**These two edits must land in the same change.** They are the only ordering
-constraint in this document that can strand a fleet.
+- [x] Cut `release/1.0`, which keeps `RELEASE_CHANNEL=stable`.
+- [x] Flip `RELEASE_CHANNEL` on `main` to `beta`, committed before `main` moved.
 
-- [ ] Cut `release/1.0` from the 1.0 commit. It keeps `RELEASE_CHANNEL=stable`.
-- [ ] Flip `RELEASE_CHANNEL` on `main` to `beta` **in that same change**.
+`main` is now the 1.1 trunk and `release/1.0` is the maintenance line; the
+`devel/1.1` branch it replaced is deleted. `BRANCHING.md` carries the resulting
+workflow. The ordering that made it safe is kept below because the same
+constraint governs every future cut.
 
-Why atomic: `main` currently says `stable` because it is still the only release
-line. Flip it early and the stable fleet gets no further updates. Flip it late —
-i.e. tag anything from `main` after 1.1 work starts — and that tag publishes to
-`stable`, overwriting the 1.0 manifest for every user.
+Why atomic: a `main` that still said `stable` while carrying the next line's
+content would publish over the 1.0 manifest for every user on its next tag. Flip
+it early instead and the stable fleet gets no further updates.
 
 The pre-upload downgrade guard in `release.yml` catches the *second* half of that
 mistake (it refuses to move a channel manifest backward), but not the first. It

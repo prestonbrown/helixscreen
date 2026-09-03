@@ -3,12 +3,12 @@
 **Status:** planned, not started. Written 2026-08-13 at the end of the #1017 / #1126
 session, for a fresh session to pick up.
 
-**Branch it follows:** `feature/flowguard-2x1` (off `devel/1.1`) — the FlowGuard bar,
-the grid snap-step fixes, the `UiClogMeter` fill-mode removal and the mock scenarios
-below are all already committed there.
+**Branch it follows:** `feature/flowguard-2x1` — the FlowGuard bar, the grid snap-step
+fixes, the `UiClogMeter` fill-mode removal and the mock scenarios below are all already
+committed there. That work has since reached the trunk.
 
 > Plans are point-in-time. Verify each predicate against the code before acting on it;
-> line numbers below were true at `devel/1.1` + that branch.
+> the line numbers below predate the trunk swap and will have moved.
 
 ---
 

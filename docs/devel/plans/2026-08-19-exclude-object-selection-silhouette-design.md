@@ -4,7 +4,7 @@ Give a selected exclude-object a white silhouette outline hugging its real shape
 G-code view, matching OrcaSlicer's selection treatment. Corner brackets stay as they are.
 Carry the renderer duplication cleanup that the feature touches, per the 1.1 quality process.
 
-Branch: `devel/1.1`. Status: design, pending implementation.
+Branch: `main`. Status: design, partly implemented.
 
 ---
 
@@ -303,7 +303,7 @@ full-viewport post pass on every selection change, on hardware where we already 
   single selection; excluded dimming is persistent and multi-object, which is why they differ.)
 - **`ExcludeObjectMapView`**, the top-down plan map. It discards the excluded and current-object
   distinction once its canvas exists (`ui_exclude_object_map_view.cpp:659` on main). Note this
-  file already differs on `devel/1.1`, where `CoordMapper` was extracted to
+  file differs on the trunk, where `CoordMapper` was extracted to
   `include/bed_coord_mapper.h` and bed defaults centralized into `bed_dimensions_from_volume()`.
   Re-read it on the branch before touching.
 - **Corner brackets.** Geometry unchanged in all views: 24 arms via
@@ -412,10 +412,10 @@ mixed with a feature:
 
 MAJOR work by the project's classification, so it goes in a worktree. Note
 `scripts/setup-worktree.sh` runs `git worktree add -b "$BRANCH"` with **no start point**
-(`:227`), so it would branch from the main tree's HEAD. Create the branch off `devel/1.1`
+(`:227`), so it would branch from the main tree's HEAD. Create the branch off `main`
 explicitly first:
 
 ```
-git branch feature/gcode-selection-silhouette devel/1.1
+git branch feature/gcode-selection-silhouette main
 scripts/setup-worktree.sh feature/gcode-selection-silhouette
 ```
