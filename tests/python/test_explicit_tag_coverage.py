@@ -65,10 +65,7 @@ MIN_TAGS = {
 # too, and those are plain text= so they sit outside this gate. Translating two
 # of the cluster in isolation would leave one dialog half-localized; the cluster
 # wants one pass.
-KNOWN_UNTRANSLATED = {
-    "Archive",
-    "No spools match your search",
-}
+KNOWN_UNTRANSLATED: set[str] = set()
 
 
 def _tags_by_attribute() -> dict:
