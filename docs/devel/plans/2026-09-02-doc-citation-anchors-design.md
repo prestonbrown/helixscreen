@@ -23,7 +23,20 @@ The churn is not theoretical. `e047c1cfa`, a one-line z-offset fix, rewrote 8
 doc files and 56 sidecar rows with no content change. Two of the five commits
 before this design (`bd65a0837`, `2531973e7`) are pure re-pin commits.
 
-Three costs follow from the number living in the prose:
+The strongest argument is not churn, though. `doc_cite_anchors.tsv` is keyed on
+`(doc, ref, line)`, so two different citations in one doc can collide on a single
+key. Last write wins, and both then re-pin to the same line. That happened twice in
+one sync merge (`compact_database` in chapter 06, `shutdown`'s `m_client.reset()` in
+chapter 04) and the anchor gate reported all-green on it - only the separate symbol
+check caught one of them. The current scheme can therefore be silently, confidently
+wrong, and the gate cannot see it.
+
+That failure has a second form, seen four times in three days: a citation whose line
+still hashes the same re-pins cleanly while pointing at unrelated text.
+`AUTOSAVE_MIN_CONFIDENCE` was cited at a doc-comment fragment about alias matching and
+passed every check. Deleting the sidecar removes both forms.
+
+Three further costs follow from the number living in the prose:
 
 1. **Churn.** Ordinary code commits become doc commits. Noise in diffs, merge
    conflicts across worktrees, extra staging steps.
@@ -179,7 +192,19 @@ anything. Each row gets a proposed anchor and a confidence:
   pointing at line 1 or a file header in most cases
 - **ambiguous** - resolves to more than one place; needs a human
 
-Expect to review more than the 70 collisions. The prototype mis-picks when a
+Measured against the trunk's 742 citations with the finished resolver, not
+estimated: **644 automatic (86%), 57 file-level, 41 wanting a human (5%)** - so the
+rewrite is tool-driven at ~95%, not per-citation authoring.
+
+The cases that look like hand work are not judgement calls. The chain builder picks a
+LOCAL VARIABLE as the innermost definition: `auto err = reject_if_flat_schema(...)`
+anchors to `err`, and eleven other `err` declarations in the file make it Ambiguous.
+Same for `gcode` in `led_controller.cpp`. Preferring a real scope over a one-line local
+moved it to 28 (3%), at the cost of pushing 25 citations to file-level - so neither
+extreme is right, and the chain wants a rule that keeps a declaration when the citation
+IS the declaration. Tune that here, in the report, before `--apply` runs.
+
+Expect to review more than the collisions. The prototype mis-picks when a
 cited comment sits inside a function and the walk-back lands on a nearby
 member declaration instead. That is resolver tuning, and the report is where
 it surfaces.

@@ -10,6 +10,28 @@
 
 **Spec:** `docs/devel/plans/2026-09-02-doc-citation-anchors-design.md`
 
+**State at handoff:** Tasks 1-6 are complete on `refactor/doc-citation-anchors`, rebased
+onto the trunk, 127 tests. Tasks 7-9 are NOT started. The old pipeline is still live and
+untouched, which is deliberate - Task 9 retires it.
+
+**Scope has grown since this plan was written.** The work now lands on BOTH `main` and
+`release/1.0`. Convert them close together: the window between one branch converted and
+the other is worse than either end state, because anchor-form conflicts with line-form on
+every cited line rather than only the drifted ones.
+
+**Numbers re-measured against the trunk** (the plan's original 730/41/261 were taken
+before a trunk swap): **742 citations, 42 docs, 268 cited files** on main; 731 sidecar
+rows on `release/1.0`, whose corpus differs in content though not much in size.
+
+**Known defect to fix in Task 7's chain builder**, found by measuring rather than by
+review: `_innermost_chain` picks a one-line LOCAL VARIABLE declaration over the enclosing
+function, because its region is smaller. `auto err = ...` anchors to `err`, and other
+`err` declarations in the file make it Ambiguous. The same flaw makes a wrapped
+constructor with exactly one member initializer register that member as a spurious
+definition (`Foo::Foo(int a)` / `: a_(a) {` yields `['Foo','a_']`). Both are the same
+root cause - `_CPP_DECL` matching things that are not declarations - and both belong in
+Task 7.
+
 ## Global Constraints
 
 - Python 3, standard library only. No new dependencies.
