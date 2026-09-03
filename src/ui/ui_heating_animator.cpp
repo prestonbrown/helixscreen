@@ -3,6 +3,7 @@
 
 #include "ui_heating_animator.h"
 
+#include "ui_animations_pref.h"
 #include "ui_icon.h"
 #include "ui_temperature_utils.h"
 
@@ -16,17 +17,17 @@ HeatingIconAnimator::~HeatingIconAnimator() {
     } else {
         pulse_active_ = false;
         icon_ = nullptr;
-        // theme_observer_ is an ObserverGuard — its destructor handles cleanup
+        // The observers are ObserverGuards — their destructors handle cleanup
     }
 }
 
 HeatingIconAnimator::HeatingIconAnimator(HeatingIconAnimator&& other) noexcept
     : icon_(other.icon_), state_(other.state_), current_temp_(other.current_temp_),
       target_temp_(other.target_temp_), current_color_(other.current_color_),
-      current_opacity_(other.current_opacity_), pulse_active_(other.pulse_active_),
-      theme_observer_(std::move(other.theme_observer_)) {
-    other.icon_ = nullptr;
-    other.pulse_active_ = false;
+      current_opacity_(other.current_opacity_), applied_color_(other.applied_color_),
+      applied_opacity_(other.applied_opacity_), style_written_(other.style_written_),
+      animations_enabled_(other.animations_enabled_) {
+    adopt_from(other);
 }
 
 HeatingIconAnimator& HeatingIconAnimator::operator=(HeatingIconAnimator&& other) noexcept {
@@ -38,12 +39,34 @@ HeatingIconAnimator& HeatingIconAnimator::operator=(HeatingIconAnimator&& other)
         target_temp_ = other.target_temp_;
         current_color_ = other.current_color_;
         current_opacity_ = other.current_opacity_;
-        pulse_active_ = other.pulse_active_;
-        theme_observer_ = std::move(other.theme_observer_);
-        other.icon_ = nullptr;
-        other.pulse_active_ = false;
+        applied_color_ = other.applied_color_;
+        applied_opacity_ = other.applied_opacity_;
+        style_written_ = other.style_written_;
+        animations_enabled_ = other.animations_enabled_;
+        adopt_from(other);
     }
     return *this;
+}
+
+void HeatingIconAnimator::adopt_from(HeatingIconAnimator& other) {
+    // LVGL stores the owner's address in four places — the pulse animation's
+    // `var`, the icon's LV_EVENT_DELETE user data, and each observer's user
+    // data — so a move that only carried the guards across would leave all four
+    // pointing at an object the caller is now free to destroy. Tear `other`'s
+    // registrations down and rebuild them against this object instead.
+    other.detach();
+    pulse_active_ = false;
+    // A pulse that was mid-swing left a partial opacity behind; sync_pulse_to_state()
+    // overwrites this again immediately if the pulse is due to restart.
+    current_opacity_ = LV_OPA_COVER;
+
+    if (icon_ == nullptr) {
+        return;
+    }
+
+    install_hooks();
+    sync_pulse_to_state();
+    apply_color();
 }
 
 void HeatingIconAnimator::attach(lv_obj_t* icon) {
@@ -54,7 +77,18 @@ void HeatingIconAnimator::attach(lv_obj_t* icon) {
     state_ = State::Off;
     current_color_ = get_secondary_color();
     current_opacity_ = LV_OPA_COVER;
+    // Nothing is known about the widget's existing style, so the first write
+    // must go through whatever apply_color() would otherwise skip.
+    style_written_ = false;
     apply_color();
+
+    install_hooks();
+}
+
+void HeatingIconAnimator::install_hooks() {
+    if (icon_ == nullptr) {
+        return;
+    }
 
     // Auto-detach when the icon widget is destroyed — prevents dangling pointer
     // when a shared TemperatureService outlives the overlay panel (issue #177)
@@ -71,6 +105,14 @@ void HeatingIconAnimator::attach(lv_obj_t* icon) {
         spdlog::trace("[HeatingIconAnimator] Attached to icon with theme observer");
     } else {
         spdlog::debug("[HeatingIconAnimator] Attached to icon (no theme subject found)");
+    }
+
+    // The pulse is motion, so the user's Animations preference governs it. The
+    // observer fires on subscribe, which seeds animations_enabled_ before any
+    // temperature arrives, and keeps a live icon in step when the setting is
+    // toggled. A missing subject leaves the pulse enabled.
+    if (lv_subject_t* animations = helix::ui::animations_pref_subject()) {
+        animations_observer_ = ObserverGuard(animations, animations_pref_cb, this);
     }
 }
 
@@ -95,6 +137,7 @@ void HeatingIconAnimator::detach() {
 
     // ObserverGuard::reset() removes the observer from the subject
     theme_observer_.reset();
+    animations_observer_.reset();
     spdlog::trace("[HeatingIconAnimator] Detached");
 }
 
@@ -117,22 +160,25 @@ void HeatingIconAnimator::update(int current_temp, int target_temp, helix::Chamb
 
     if (new_state != state_) {
         state_ = new_state;
-
-        // Pulse means "working toward a setpoint from below". Cooling is a
-        // transient step-down; Off and Neutral (chamber Maintaining, at/below
-        // its cooling ceiling) are idle — none of them should pulse.
-        if (new_state == State::Heating) {
-            if (!pulse_active_) {
-                start_pulse();
-            }
-        } else {
-            stop_pulse();
-        }
+        sync_pulse_to_state();
         spdlog::trace("[HeatingIconAnimator] State: {}", static_cast<int>(new_state));
     }
 
     current_color_ = helix::ui::temperature::get_heating_state_color(state_);
     apply_color();
+}
+
+void HeatingIconAnimator::sync_pulse_to_state() {
+    // Pulse means "working toward a setpoint from below". Cooling is a transient
+    // step-down; Off and Neutral (chamber Maintaining, at/below its cooling
+    // ceiling) are idle — none of them should pulse. The animations preference
+    // gates the motion alone: apply_color() still puts the state's color on the
+    // icon, so the four states stay distinguishable while it is switched off.
+    if (state_ == State::Heating && animations_enabled_) {
+        start_pulse();
+    } else {
+        stop_pulse();
+    }
 }
 
 void HeatingIconAnimator::start_pulse() {
@@ -168,24 +214,47 @@ void HeatingIconAnimator::stop_pulse() {
     spdlog::trace("[HeatingIconAnimator] Pulse animation stopped");
 }
 
+void HeatingIconAnimator::tint(lv_obj_t* obj, bool with_color) const {
+    if (with_color) {
+        ui_icon_set_color(obj, current_color_, current_opacity_);
+    } else {
+        ui_icon_set_opa(obj, current_opacity_);
+    }
+}
+
 void HeatingIconAnimator::apply_color() {
     if (icon_ == nullptr) {
         return;
     }
 
-    // Try to set color on the attached widget directly (for single icons)
-    ui_icon_set_color(icon_, current_color_, current_opacity_);
+    // Every lv_obj_set_style_* write clears any transition on the property,
+    // rewrites the local style and invalidates the widget, whether or not the
+    // value moved. A pulse step moves the opacity and nothing else, and a
+    // temperature update usually moves neither, so write only what changed.
+    const bool color_moved = !style_written_ || !lv_color_eq(applied_color_, current_color_);
+    const bool opacity_moved = !style_written_ || applied_opacity_ != current_opacity_;
+    if (!color_moved && !opacity_moved) {
+        return;
+    }
+
+    // Set the tint on the attached widget directly (for single icons)
+    tint(icon_, color_moved);
 
     // Also recolor direct children. Dead code for every current call site — they
-    // all attach to a leaf <icon> label — but kept so attaching to a wrapper
-    // component (e.g. nozzle_icon.xml) tints its glyph rather than nothing.
+    // all attach to a leaf <icon> label, where the count below is a null check
+    // and a field read — but kept so attaching to a wrapper component (e.g.
+    // nozzle_icon.xml) tints its glyph rather than nothing.
     uint32_t child_count = lv_obj_get_child_count(icon_);
     for (uint32_t i = 0; i < child_count; i++) {
         lv_obj_t* child = lv_obj_get_child(icon_, static_cast<int32_t>(i));
         if (child) {
-            ui_icon_set_color(child, current_color_, current_opacity_);
+            tint(child, color_moved);
         }
     }
+
+    applied_color_ = current_color_;
+    applied_opacity_ = current_opacity_;
+    style_written_ = true;
 }
 
 lv_color_t HeatingIconAnimator::get_secondary_color() {
@@ -223,6 +292,19 @@ void HeatingIconAnimator::theme_change_cb(lv_observer_t* observer, lv_subject_t*
     }
 }
 
+void HeatingIconAnimator::animations_pref_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* animator = static_cast<HeatingIconAnimator*>(lv_observer_get_user_data(observer));
+    if (!animator) {
+        return;
+    }
+
+    animator->animations_enabled_ = helix::ui::animations_enabled(subject);
+    animator->sync_pulse_to_state();
+    // stop_pulse() restores current_opacity_ but writes nothing, so without this
+    // the icon keeps whatever partial opacity the last pulse step left on it.
+    animator->apply_color();
+}
+
 void HeatingIconAnimator::icon_delete_cb(lv_event_t* e) {
     auto* animator = static_cast<HeatingIconAnimator*>(lv_event_get_user_data(e));
     if (!animator) {
@@ -235,6 +317,7 @@ void HeatingIconAnimator::icon_delete_cb(lv_event_t* e) {
     animator->stop_pulse();
 
     animator->theme_observer_.reset();
+    animator->animations_observer_.reset();
 
     // Null out icon_ — the widget is already being destroyed, don't touch it further
     animator->icon_ = nullptr;

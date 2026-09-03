@@ -111,6 +111,19 @@ void ui_icon_set_variant(lv_obj_t* icon, const char* variant_str);
 void ui_icon_set_color(lv_obj_t* icon, lv_color_t color, lv_opa_t opa);
 
 /**
+ * Set only an icon's opacity, leaving its color untouched.
+ *
+ * For the per-frame path of a fading or pulsing icon. Every lv_obj_set_style_*
+ * write refreshes the style and invalidates the widget whether or not the value
+ * moved, so a caller that is changing nothing but the opacity should not pay
+ * for the color write as well.
+ *
+ * @param icon  Icon widget
+ * @param opa   Opacity (0-255, use LV_OPA_COVER for full opacity)
+ */
+void ui_icon_set_opa(lv_obj_t* icon, lv_opa_t opa);  // NAMESPACE_OK: joins the global ui_icon_* API; namespacing one of the set would split it
+
+/**
  * Set clickable state for icon at runtime.
  *
  * When clickable is enabled, the icon can receive click events and be used

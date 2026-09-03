@@ -3,6 +3,8 @@
 
 #include "ui_text.h"
 
+#include "ui_animations_pref.h"
+
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -154,11 +156,6 @@ static void apply_stroke_attrs(lv_obj_t* label, const char** attrs) {
 }
 
 /**
- * Name of the global subject carrying the user's "Animations" preference.
- */
-static constexpr const char* ANIMATIONS_SUBJECT_NAME = "settings_animations_enabled";
-
-/**
  * Whether a long mode drives an offset animation while the text overflows
  *
  * LVGL runs these as LV_ANIM_REPEAT_INFINITE and invalidates the label on every
@@ -182,8 +179,8 @@ static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* s
     }
     auto declared = static_cast<lv_label_long_mode_t>(
         reinterpret_cast<intptr_t>(lv_observer_get_user_data(observer)));
-    lv_label_set_long_mode(label,
-                           lv_subject_get_int(subject) != 0 ? declared : LV_LABEL_LONG_MODE_DOTS);
+    lv_label_set_long_mode(label, helix::ui::animations_enabled(subject) ? declared
+                                                                         : LV_LABEL_LONG_MODE_DOTS);
 }
 
 /**
@@ -212,7 +209,7 @@ static void bind_long_mode_to_animations_pref(lv_xml_parser_state_t* state, lv_o
         return;
     }
 
-    lv_subject_t* subject = lv_xml_get_subject(&state->scope, ANIMATIONS_SUBJECT_NAME);
+    lv_subject_t* subject = helix::ui::animations_pref_subject(&state->scope);
     if (!subject) {
         return;
     }
