@@ -123,8 +123,11 @@ int legacy_grid_cols(int panel_w, int panel_h) {
     if (panel_w <= 0 || panel_h <= 0) {
         return 0;
     }
-    const int bp =
-        std::clamp(to_int(breakpoint_for(std::min(panel_w, panel_h))), 0, kLegacyBreakpoints - 1);
+    // Explicit template argument: to_int() yields int32_t, which is long on the
+    // xtensa toolchain, so deduction against the int literals fails there while
+    // compiling clean on desktop.
+    const int bp = std::clamp<int32_t>(to_int(breakpoint_for(std::min(panel_w, panel_h))), 0,
+                                       kLegacyBreakpoints - 1);
     const LayoutType type = detect_layout_type(panel_w, panel_h);
 
     if (type == LayoutType::ULTRAWIDE) {
