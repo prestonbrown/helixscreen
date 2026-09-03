@@ -85,7 +85,7 @@ class AnimatorPrefFixture : public XMLTestFixture {
     }
 
   private:
-    ScopedAnimationsEnabled animations_;
+    helix::ui::ScopedAnimationsEnabled animations_;
 };
 
 } // namespace

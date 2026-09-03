@@ -178,7 +178,7 @@ void commit_snap_resize(GridEditMode& em) {
 TEST_CASE_METHOD(XMLTestFixture,
                  "GridEditMode: snap animation is cancelled when its preview widget dies",
                  "[grid_edit][grid_edit_snap_anim]") {
-    ScopedAnimationsEnabled animations_on;
+    helix::ui::ScopedAnimationsEnabled animations_on;
     REQUIRE(DisplaySettingsManager::instance().get_animations_enabled());
 
     ResizeScene scene(test_screen(), "test_grid_edit_snap_anim_preview_death");
@@ -217,7 +217,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
 TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: exit() cancels an in-flight snap animation",
                  "[grid_edit][grid_edit_snap_anim]") {
-    ScopedAnimationsEnabled animations_on;
+    helix::ui::ScopedAnimationsEnabled animations_on;
     REQUIRE(DisplaySettingsManager::instance().get_animations_enabled());
 
     ResizeScene scene(test_screen(), "test_grid_edit_snap_anim_exit");
@@ -243,7 +243,7 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: exit() cancels an in-flight snap
 
 TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: destruction cancels an in-flight snap animation",
                  "[grid_edit][grid_edit_snap_anim]") {
-    ScopedAnimationsEnabled animations_on;
+    helix::ui::ScopedAnimationsEnabled animations_on;
     REQUIRE(DisplaySettingsManager::instance().get_animations_enabled());
 
     ResizeScene scene(test_screen(), "test_grid_edit_snap_anim_destruction");

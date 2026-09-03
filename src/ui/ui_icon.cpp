@@ -298,7 +298,7 @@ void ui_icon_set_color(lv_obj_t* icon, lv_color_t color, lv_opa_t opa) {
     ui_icon_set_opa(icon, opa);
 }
 
-void ui_icon_set_opa(lv_obj_t* icon, lv_opa_t opa) {  // NAMESPACE_OK: joins the global ui_icon_* API; namespacing one of the set would split it
+void ui_icon_set_opa(lv_obj_t* icon, lv_opa_t opa) {  // NAMESPACE_OK: joins the global ui_icon_* API; the family moves together (prestonbrown/helixscreen#1443)
     if (!icon) {
         spdlog::error("[Icon] Invalid icon parameter to ui_icon_set_opa");
         return;
