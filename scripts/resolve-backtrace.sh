@@ -950,11 +950,15 @@ if [[ -z "${HELIX_SYM_FILE:-}" ]]; then
     fi
 fi
 
-# Also check for a local unstripped binary (developer builds)
+# Also check for a local unstripped binary (developer builds).
+# build/bin/helix-screen is a native desktop build, so it can only answer for
+# a native-platform request (prestonbrown/helixscreen#1436) — every other
+# platform is only allowed its own build/<platform>/bin/helix-screen.
 LOCAL_BINARY=""
 for candidate in \
     "build/bin/helix-screen" \
     "build/${PLATFORM}/bin/helix-screen"; do
+    [[ "$candidate" == "build/bin/helix-screen" && "$PLATFORM" != "x86" ]] && continue
     if [[ -f "$candidate" ]]; then
         LOCAL_BINARY="$candidate"
         break
@@ -977,41 +981,9 @@ if [[ -n "$DEBUG_FILE" ]] || [[ -n "$LOCAL_BINARY" ]]; then
     fi
 fi
 
-# resolve_with_addr2line <file_offset_hex>
-# Returns "function_name at file:line" or empty string on failure
-resolve_with_addr2line() {
-    local offset_hex="$1"
-    [[ -z "$ADDR2LINE" ]] && return
-
-    local result
-    result=$("$ADDR2LINE" -e "$ADDR2LINE_TARGET" -f -C -i "0x${offset_hex}" 2>/dev/null || true)
-    [[ -z "$result" ]] && return
-
-    # addr2line returns pairs of lines: function name, then file:line
-    # With -i (inline), there may be multiple pairs
-    local func="" location="" output=""
-    while IFS= read -r line; do
-        if [[ -z "$func" ]]; then
-            func="$line"
-        else
-            location="$line"
-            # Skip unknown results
-            if [[ "$func" != "??" ]] && [[ "$location" != *"??:0"* ]]; then
-                if [[ -n "$output" ]]; then
-                    output="${output} → ${func} at ${location}"
-                else
-                    output="${func} at ${location}"
-                fi
-            fi
-            func=""
-        fi
-    done <<< "$result"
-
-    echo "$output"
-}
-
 # ─────────────────────────────────────────────────────────────────────────────
-# Batched addr2line.
+# Batched addr2line — every address in one process, never one process per
+# address.
 #
 # addr2line maps the .debug file and pulls DWARF in lazily, so a process per
 # address re-reads the same file N times and each child grows without bound —
@@ -1019,11 +991,14 @@ resolve_with_addr2line() {
 # killed run orphans children that keep growing invisibly (the binary name
 # truncates to "aarch64-linux-g", so pkill -f addr2line misses them).
 #
-# One process for every address instead. -p (pretty) makes the output safe to
-# split: each address begins a line that does NOT start with " (inlined by) ",
-# and inline frames continue with that prefix. If the parse doesn't yield
-# exactly one block per address (a non-GNU addr2line with different pretty
-# formatting), fall back to the per-address path rather than misalign frames.
+# Attempt 1 uses -p (pretty): each address begins a line that does NOT start
+# with " (inlined by) ", and inline frames continue with that prefix, so the
+# output is safe to split into one block per address. Attempt 2 — only tried
+# when attempt 1 yields nothing usable — reissues the SAME batched call
+# without -p and parses the plain func/location pair per address, which is
+# the only thing a binutils too old to support -p can produce. If neither
+# attempt yields exactly one result per address, there is no addr2line
+# supplement for this run.
 #
 # Resolving only the "reliable" frames was measured and is NOT worth it: every
 # frame in a typical trace lands in the same few CUs, so addr2line pages in the
@@ -1064,10 +1039,35 @@ if [[ -n "$ADDR2LINE" ]] && (( _a2l_count > 0 )); then
         if (( ${#A2L_RESULTS[@]} == _a2l_count )); then
             A2L_BATCHED=true
         else
-            echo "Note: batched addr2line returned ${#A2L_RESULTS[@]} blocks for ${_a2l_count} addresses;" \
-                 "falling back to per-address resolution." >&2
             A2L_RESULTS=()
         fi
+    fi
+
+    if [[ "$A2L_BATCHED" != "true" ]]; then
+        _a2l_out2=$("$ADDR2LINE" -e "$ADDR2LINE_TARGET" -f -C -i "${_offsets[@]}" 2>/dev/null || true)
+        if [[ -n "$_a2l_out2" ]]; then
+            _a2l_lines=()
+            while IFS= read -r _line; do
+                _a2l_lines+=("$_line")
+            done <<< "$_a2l_out2"
+
+            if (( ${#_a2l_lines[@]} == _a2l_count * 2 )); then
+                for (( _i = 0; _i < _a2l_count; _i++ )); do
+                    _func="${_a2l_lines[$(( _i * 2 ))]}"
+                    _loc="${_a2l_lines[$(( _i * 2 + 1 ))]}"
+                    if [[ "$_func" != "??" ]] && [[ "$_loc" != *"??:0"* ]]; then
+                        A2L_RESULTS+=("${_func} at ${_loc}")
+                    else
+                        A2L_RESULTS+=("")
+                    fi
+                done
+                A2L_BATCHED=true
+            fi
+        fi
+    fi
+
+    if [[ "$A2L_BATCHED" != "true" ]]; then
+        A2L_RESULTS=()
     fi
 fi
 
@@ -1128,24 +1128,8 @@ for addr in "$@"; do
     fi
 
     # Supplement with addr2line source info when available
-    if [[ "$A2L_BATCHED" == "true" ]]; then
-        if (( _addr_idx <= ${#A2L_RESULTS[@]} )); then
-            a2l_result="${A2L_RESULTS[$(( _addr_idx - 1 ))]}"
-            if [[ -n "$a2l_result" ]]; then
-                echo "    ${a2l_result}"
-            fi
-        fi
-    elif [[ -n "$ADDR2LINE" ]]; then
-        # Compute file offset (subtract ASLR base)
-        local_hex="${addr#0x}"
-        local_hex="${local_hex#0X}"
-        local_dec=$((16#$local_hex))
-        if (( LOAD_BASE > 0 )); then
-            local_dec=$(( local_dec - LOAD_BASE ))
-        fi
-        file_hex=$(printf '%x' "$local_dec")
-
-        a2l_result=$(resolve_with_addr2line "$file_hex")
+    if [[ "$A2L_BATCHED" == "true" ]] && (( _addr_idx <= ${#A2L_RESULTS[@]} )); then
+        a2l_result="${A2L_RESULTS[$(( _addr_idx - 1 ))]}"
         if [[ -n "$a2l_result" ]]; then
             echo "    ${a2l_result}"
         fi
