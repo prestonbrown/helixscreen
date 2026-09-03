@@ -272,45 +272,6 @@ regen-tokens:
 	$(ECHO) "$(GREEN)✓ token table regenerated — commit src/generated/theme_token_table.cpp if it changed$(RESET)"
 
 # ==============================================================================
-# Doc citations: line numbers and links, both derived (Python)
-# ==============================================================================
-# Two derived things hang off one hand-written citation.
-#
-#   `src/printer/printer_state.cpp:622`
-#     the LINE NUMBER is derived from a content anchor (scripts/doc_cite_anchors.py)
-#     the markdown LINK is derived from the citation text (scripts/gen_doc_links.py)
-#
-# So nobody maintains either by hand. Write the citation once, run this, commit.
-# Code that MOVED is re-pinned automatically; only a cited line whose own text
-# changed stops the run and asks a human to re-read the sentence.
-#
-# Order is load-bearing: anchors rewrite the number INSIDE the link text, so the
-# link generator has to run second or it would re-derive a URL from a number
-# that is about to change.
-#
-# Targets:
-#   make regen-doc-links     — re-pin citations, then relink the guide
-#   make check-doc-links     — report-only developer shortcut
-#
-# check-doc-links is not what gates a commit: quality-checks.sh runs
-# gen_doc_links.py directly (qc_doc_links calls it with --diff). It exists so a
-# human can ask one question without waiting for the whole doc section, and it
-# must stay a strict SUBSET of what that section enforces — a check reachable
-# only from here is a check nothing runs.
-
-.PHONY: regen-doc-links check-doc-links
-
-regen-doc-links:
-	$(ECHO) "$(BLUE)[GEN]$(RESET) re-pinning doc citation line numbers"
-	$(Q)python3 scripts/doc_cite_anchors.py
-	$(ECHO) "$(BLUE)[GEN]$(RESET) linking architecture-guide citations"
-	$(Q)python3 scripts/gen_doc_links.py
-	$(ECHO) "$(GREEN)✓ doc citations regenerated — commit the docs, scripts/doc_cite_anchors.tsv included, if they changed$(RESET)"
-
-check-doc-links:
-	$(Q)python3 scripts/gen_doc_links.py --check
-
-# ==============================================================================
 # Doc citations: named anchors, line numbers rendered on demand
 # ==============================================================================
 # A committed citation names a place, never a line:

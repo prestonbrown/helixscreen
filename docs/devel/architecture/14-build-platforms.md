@@ -65,9 +65,9 @@ actually trips on.
 ### One Makefile, three build verbs
 
 `make -j`, `make test`, and `make test-run` build disjoint artifacts. `make -j` (the default `all`
-target, [`mk/rules.mk:123`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
+target, [`mk/rules.mk#"all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both bluetooth-plugin"`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
 splash, watchdog, the binary, stripping, and the optional Bluetooth plugin. `make test`
-([`mk/tests.mk:420`](../../../mk/tests.mk#L420)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk:423`](../../../mk/tests.mk#L423)) builds it and
+([`mk/tests.mk#test`](../../../mk/tests.mk#L420)) builds **only** `helix-tests`; `make test-run` ([`mk/tests.mk`](../../../mk/tests.mk)) builds it and
 runs it as Catch2 shards across 3×cores processes with the `~[.] ~[slow]` filter. The split is a
 speed feature and a trap: after a C++ change, rebuild the artifact you are about to use — running a
 stale `helix-tests` against new code, or a stale `helix-screen` against new XML, silently verifies
@@ -79,16 +79,16 @@ a failed link can never leave a truncated binary that later looks up-to-date.
 The `all` target also gates on generated assets — compiled fonts, the translations XML, the splash
 binary — so a fresh clone produces a runnable binary from `make -j` alone. The generators have their
 own entry points for when you change the sources: `make regen-fonts` after adding icon codepoints
-([`mk/fonts.mk:194`](../../../mk/fonts.mk#L194)), `make translations` / `make translation-sync` for the YAML string pipeline
-([`mk/translations.mk:84`](../../../mk/translations.mk#L84)). Hand-editing a generated artifact is wasted work; the next build
+([`mk/fonts.mk#regen-fonts`](../../../mk/fonts.mk#L194)), `make translations` / `make translation-sync` for the YAML string pipeline
+([`mk/translations.mk#translations`](../../../mk/translations.mk#L84)). Hand-editing a generated artifact is wasted work; the next build
 regenerates it.
 
 Two guards in [`mk/rules.mk`](../../../mk/rules.mk) make bare `make` safe. A two-phase `all` ([`mk/rules.mk:78`](../../../mk/rules.mk#L78)) re-invokes
 itself with bounded `-j$(NPROC)` when it detects unlimited `-j`, so parallelism never crushes the
 machine. And a `build/.build-target` marker auto-cleans when the architecture changes
-([`mk/rules.mk:49`](../../../mk/rules.mk#L49)), so you cannot mix ARM and x86 objects in the one shared native `build/` dir —
+([`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49)), so you cannot mix ARM and x86 objects in the one shared native `build/` dir —
 cross builds are already isolated (`build/pi/`, `build/ad5m/`, ... via `BUILD_SUBDIR`,
-[`mk/cross.mk:741`](../../../mk/cross.mk#L741)). `make help` prints the target menu; `make help-all` adds the test, cross, and
+[`mk/cross.mk`](../../../mk/cross.mk)). `make help` prints the target menu; `make help-all` adds the test, cross, and
 remote groups.
 
 ### The platform matrix
@@ -117,14 +117,14 @@ binary — the installer detects the SBC — and the Sonic Pad installs the `pi3
 [SonicPad-Debian](../../user/INSTALL.md) (32-bit armhf userspace on an Allwinner H616). fbdev and
 evdev, which older docs called "future", are in fact the shipping path for K1/K2/AD5M/AD5X/CC1 and
 the input path on every non-SDL target. Display-backend choice is compile-time *inclusion*
-([`mk/display-lib.mk:23`](../../../mk/display-lib.mk#L23): fbdev+DRM always on Linux, SDL when `ENABLE_SDL`) but runtime *selection*:
-`DisplayBackend::create_auto()` probes DRM, then fbdev, then SDL ([`src/api/display_backend.cpp:242`](../../../src/api/display_backend.cpp#L242)),
+([`mk/display-lib.mk`](../../../mk/display-lib.mk): fbdev+DRM always on Linux, SDL when `ENABLE_SDL`) but runtime *selection*:
+`DisplayBackend::create_auto()` probes DRM, then fbdev, then SDL ([`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp#L242)),
 which is what lets one binary cover a device family.
 
 The per-target gates are where devices differ in features, not just flags: font tiers scale the
 compiled font payload from `micro tiny` (cc1, yocto — 112MB RAM) to `all` (pi, x86); sound is
 compiled out entirely on K1/K2, tone-only on AD5M/AD5X, full on Pi/x86/native; the label-printer,
-CFS, and IFS gates are off on AD5M ([`mk/cross.mk:240`](../../../mk/cross.mk#L240)). The ESP32 port (`firmware/helixscreen-esp32/`,
+CFS, and IFS gates are off on AD5M ([`mk/cross.mk`](../../../mk/cross.mk)). The ESP32 port (`firmware/helixscreen-esp32/`,
 ESP-IDF on the BTT K-Touch) is a separate CMake build that compiles LVGL and `lib/helix-xml`
 unmodified — verdict and budgets in [`../plans/ESP32_NATIVE_AUDIT.md`](../plans/ESP32_NATIVE_AUDIT.md); it does not ship yet.
 
@@ -135,7 +135,7 @@ fixes on top (NULL guards, DRM rotation, fbdev BGR/stride handling, event-stack 
 submitted upstream, tracked in [`patches/README.md`](../../../patches/README.md)). [`mk/patches.mk`](../../../mk/patches.mk) applies them through a stamp
 file, `build*/.patches-applied`, re-verified only when a patch file or submodule HEAD changes; every
 compile rule depends on that stamp. The stamp recipe also runs a both-directions wiring check
-([`mk/patches.mk:202`](../../../mk/patches.mk#L202)): a `patches/*.patch` with no apply block in [`mk/patches.mk`](../../../mk/patches.mk), or an apply block
+([`mk/patches.mk`](../../../mk/patches.mk)): a `patches/*.patch` with no apply block in [`mk/patches.mk`](../../../mk/patches.mk), or an apply block
 naming a missing patch, fails the build rather than silently linking unpatched code. When a patch
 conflicts after a submodule bump, `make reapply-patches` resets the patched files and re-applies.
 The one exception is `lib/helix-xml/`: that submodule is ours (a MIT fork of the XML engine LVGL
@@ -162,15 +162,15 @@ end-user installer — modular POSIX shell with KIAUH and Moonraker-updater inte
 ## Patterns & gotchas
 
 - **`make -j` and `make test` build different binaries.** Decide which one you are about to run and build exactly that; "works in the app, fails in tests" after skipping a rebuild is a stale-artifact artifact, not a bug.
-- **Switching `PLATFORM_TARGET` auto-cleans the native build dir** ([`mk/rules.mk:49`](../../../mk/rules.mk#L49)). Don't be surprised by a full rebuild after toggling between `native` and a cross target; cross targets are isolated in `build/<target>/` and unaffected.
+- **Switching `PLATFORM_TARGET` auto-cleans the native build dir** ([`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49)). Don't be surprised by a full rebuild after toggling between `native` and a cross target; cross targets are isolated in `build/<target>/` and unaffected.
 - **Dev panels are native-only by default; remote control is not.** Every developer build carries the helixctl server, cross included, so a test rig is drivable from your desk. Only the production packaging path drops it — `make package-*` sets `HELIX_PACKAGING=1` ([`mk/cross.mk`](../../../mk/cross.mk)), CI's release workflow passes it, and `make release-*` refuses a binary whose `.build-features` stamp says otherwise. Opt a dev build out with `make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=no` (`Makefile:463`).
 - **A new patch file must be wired into [`mk/patches.mk`](../../../mk/patches.mk)** — an apply block plus, if it touches new files, an entry in `LVGL_PATCHED_FILES`/`LIBHV_PATCHED_FILES`. The stamp's wiring check fails the build if you forget, which is the polite outcome; before that check existed, unwired patches silently never applied.
-- **Test builds reach the patch stamp only through the PCH prerequisite** ([`mk/rules.mk:223`](../../../mk/rules.mk#L223)); the `test` target does not itself gate on `apply-patches`. After a patch red-line or submodule bump, run `make -j` or `make reapply-patches` — don't assume `make test-run` re-verified the tree (#1212).
+- **Test builds reach the patch stamp only through the PCH prerequisite** ([`mk/rules.mk`](../../../mk/rules.mk)); the `test` target does not itself gate on `apply-patches`. After a patch red-line or submodule bump, run `make -j` or `make reapply-patches` — don't assume `make test-run` re-verified the tree (#1212).
 - **Never hand-edit `lib/lvgl/` or `lib/libhv/` sources directly** — changes there belong in `patches/*.patch`, because the next `git submodule update` wipes direct edits. `lib/helix-xml` is the deliberate exception: it is our own submodule, edited and committed in place, never patched.
 - **Generated assets regenerate; don't hand-edit them.** New icons mean [`include/ui_icon_codepoints.h`](../../../include/ui_icon_codepoints.h) plus `make regen-fonts` plus a rebuild; user-facing strings flow through `make translation-sync` / `make translations`. If a font or translation "won't update", you are probably editing the generated file.
 - **There is no `sonicpad` target.** The Sonic Pad runs the `pi32` binary on SonicPad-Debian; QIDI runs the `pi` binary. Device support is often a release-artifact question, not a new-platform question — check what the installer auto-detects before adding a target.
 - **Feature availability differs per target by design.** Before debugging "missing" sound, label printing, or a dev panel on a device build, check the target's gates in [`mk/cross.mk`](../../../mk/cross.mk) — `HELIX_HAS_SOUND`, `HELIX_HAS_LABEL_PRINTER`, `ENABLE_DEV_PANELS` and friends are compile-time, not runtime settings.
-- **Embedded-only code paths are invisible on the desktop build.** `LV_USE_EVDEV` is 1 only when the display backend is fbdev or DRM ([`lv_conf.h:1152`](../../../lv_conf.h#L1152)), so an evdev (or other embedded-driver) change is never exercised by `native` — a non-SDL build such as `PLATFORM_TARGET=x86-fbdev` is the cheapest way to exercise it on a dev box.
+- **Embedded-only code paths are invisible on the desktop build.** `LV_USE_EVDEV` is 1 only when the display backend is fbdev or DRM ([`lv_conf.h#LV_USE_TFT_ESPI`](../../../lv_conf.h#L1152)), so an evdev (or other embedded-driver) change is never exercised by `native` — a non-SDL build such as `PLATFORM_TARGET=x86-fbdev` is the cheapest way to exercise it on a dev box.
 
 ## Going deeper
 
@@ -189,14 +189,14 @@ Read in this order; about 25 minutes total.
 
 1. `Makefile:1` — the header contract: always `make`, never invoke the compiler directly, and what the build system handles for you.
 2. [`mk/rules.mk:78`](../../../mk/rules.mk#L78) — the two-phase `all` target: unlimited-`-j` detection and re-invocation; then `:123` for what a build actually gates on (`apply-patches` first).
-3. [`mk/rules.mk:49`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
-4. [`mk/tests.mk:420`](../../../mk/tests.mk#L420) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
-5. [`mk/cross.mk:8`](../../../mk/cross.mk#L8) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
-6. [`mk/cross.mk:681`](../../../mk/cross.mk#L681) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
+3. [`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
+4. [`mk/tests.mk#test`](../../../mk/tests.mk#L420) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
+5. [`mk/cross.mk`](../../../mk/cross.mk) — the commented platform menu; then `:58` (pi: DRM+GLES, all font tiers) against `:216` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
+6. [`mk/cross.mk`](../../../mk/cross.mk) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
 7. `Makefile:463` — `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `:498` shows the simpler native-only shape for dev panels.
-8. [`mk/display-lib.mk:23`](../../../mk/display-lib.mk#L23) — compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
-9. [`src/api/display_backend.cpp:199`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
-10. [`mk/patches.mk:194`](../../../mk/patches.mk#L194) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
+8. [`mk/display-lib.mk`](../../../mk/display-lib.mk) — compile-time backend inclusion per OS (Darwin gets SDL only; Linux always gets fbdev+DRM).
+9. [`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
+10. [`mk/patches.mk`](../../../mk/patches.mk) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk:951`](../../../mk/cross.mk#L951) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
-13. [`scripts/setup-worktree.sh:1`](../../../scripts/setup-worktree.sh#L1) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.
+12. [`mk/cross.mk`](../../../mk/cross.mk) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
+13. [`scripts/setup-worktree.sh`](../../../scripts/setup-worktree.sh) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.

@@ -187,7 +187,7 @@ unchanged.
 
 The `printer_idle` input comes from the derived lifecycle, not the wire: the
 controller computes `idle = !job_holds_machine(get_print_lifecycle())`
-(`src/ui/ui_plr_offer_controller.cpp:88`). During a host-side pre-print block
+(`src/ui/ui_plr_offer_controller.cpp#idle`). During a host-side pre-print block
 `print_stats` still reads `standby` — it describes the previous job — so an
 idle check derived from the wire would offer "Resume interrupted print?" on top
 of a start the user has already committed to, and the Resume button would start

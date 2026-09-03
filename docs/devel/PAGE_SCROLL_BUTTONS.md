@@ -24,11 +24,11 @@ on top of somebody's content.
 | `include/page_scroll_controller.h` + `src/ui/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
 | `include/page_scroll_auto_inject.h` + `src/ui/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
 | `ui_xml/components/page_scroll_gutter.xml` | The chevron column itself. Created by the controller, never placed in screen XML |
-| `src/system/display_settings_manager.cpp:235-249` | The setting and its per-platform default |
+| `src/system/display_settings_manager.cpp#init_subjects` | The setting and its per-platform default |
 
-Registration is at `src/xml_registration.cpp:322` (the component) and `:782`
+Registration is at `src/xml_registration.cpp#register_xml_components` (the component) and `:782`
 (`PageScrollAutoInject::init()`). Teardown is
-`src/application/application.cpp:4809`.
+`src/application/application.cpp#cancel_add_printer_wizard`.
 
 ---
 
@@ -64,12 +64,12 @@ re-init clears the observer list. An observer registered there would never fire.
 This is the part to read before you change anything.
 
 `on_root_shown(root)` is called from four places in `NavigationManager`, all of
-them "a root just became visible": `src/ui/ui_nav_manager.cpp:1431` (panel
+them "a root just became visible": `src/ui/ui_nav_manager.cpp#set_active` (panel
 activate), `:1870` (initial panel), `:2105` and `:2211` (overlay push). It reads
 the setting live, prunes dead controllers, forces a layout pass so overflow is
 measurable, then walks.
 
-A container qualifies when all three hold (`page_scroll_auto_inject.cpp:47-55`):
+A container qualifies when all three hold (`src/ui/page_scroll_auto_inject.cpp#qualifies`):
 
 | Condition | Why |
 |---|---|
@@ -104,7 +104,7 @@ separated by a `#space_2xl` gap, in a `#button_height`-wide column:
 The cut is a **subtree** cut, not a "is this tile scrollable" test, and that
 distinction is load-bearing. 37 of the 40 `panel_widget_*.xml` roots already set
 `scrollable="false"`, and two more inherit the clear from `ui_card`
-(`src/ui/ui_card.cpp:60`). So testing the tile root would find almost nothing -
+(`src/ui/ui_card.cpp#ui_card_xml_create`). So testing the tile root would find almost nothing -
 the walk was sailing straight through those innocent-looking roots and
 attaching to whatever was scrollable inside. Marking the root and returning
 there is what actually stops it.

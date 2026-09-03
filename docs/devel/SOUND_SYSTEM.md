@@ -67,7 +67,7 @@ LVGL thread (main)                  Sequencer thread              Audio render t
 
 **NoteEvent publishing**: At step boundaries the sequencer calls `publish_note()`, which writes a complete `NoteEvent` (frequency, amplitude, duty, waveform, ADSR, LFO, sweep, filter) into a `VoiceSlot` and bumps a generation counter. The audio callback detects the new generation, snapshots all parameters at once, and `VoiceSlot::render_sample()` computes envelope + modulation + waveform per-sample. This eliminates timing-dependent pitch variation from independent atomic writes. Backends without note-event rendering (PWM, M300) do not use `publish_note()`; the sequencer continues to drive per-tick computation for them. (PWM's PCM path is a separate render-source mechanism -- see [PWM PCM mode (ad5m)](#pwm-pcm-mode-ad5m) below.)
 
-The sequencer thread sleeps on a condition variable when idle (no sound playing, queue empty). When a sound is queued, it wakes and ticks at the backend's `min_tick_ms()` interval until playback completes. Steps advance only on ticks, so every step sounds for at least one `min_tick_ms()` interval — that quantization is the audible floor that keeps sub-floor PWM theme notes from collapsing into clicks (`src/system/sound_sequencer.cpp:89` picks the interval, `src/system/sound_sequencer.cpp:186` sleeps it).
+The sequencer thread sleeps on a condition variable when idle (no sound playing, queue empty). When a sound is queued, it wakes and ticks at the backend's `min_tick_ms()` interval until playback completes. Steps advance only on ticks, so every step sounds for at least one `min_tick_ms()` interval — that quantization is the audible floor that keeps sub-floor PWM theme notes from collapsing into clicks (`src/system/sound_sequencer.cpp#min_tick` picks the interval, `src/system/sound_sequencer.cpp#sequencer_loop` sleeps it).
 
 ---
 
@@ -107,7 +107,7 @@ AD5M both HelixScreen (PWM sysfs) and klippy's tone_player plugin (for every
 M300/TONE it handles) write `/sys/class/pwm/pwmchip0/pwm6`, so with PWM
 installed the two fight over the channel forever. `try_install_m300_backend()`
 therefore REPLACES an installed PWM backend when — and only when — the gate
-opened on a real signal (`src/system/sound_manager.cpp:134`). The type check
+opened on a real signal (`src/system/sound_manager.cpp#try_install_m300_backend`). The type check
 is the `owns_sysfs_pwm_channel()` capability probe on SoundBackend, not a
 dynamic_cast (firmware builds `-fno-rtti`). SDL/ALSA/JzPwm are real host
 audio and never displaced; the forced `enable` override alone never displaces
@@ -115,7 +115,7 @@ anything (M300 may be unhandled there — the feedback loop again). If M300
 cannot install (no Moonraker client yet, sound disabled), the PWM backend
 stays, and clearing the client drops M300 and re-runs the host probe so the
 displaced PWM backend returns instead of leaving the box soundless
-(`src/system/sound_manager.cpp:82`) — except at full app shutdown, which
+(`src/system/sound_manager.cpp#set_moonraker_client`) — except at full app shutdown, which
 clears the client with `host_recovery=false` since the manager is torn down
 moments later anyway.
 
@@ -140,7 +140,7 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 frequencies, arpeggio/portamento/vibrato applied) drives the JzPwm
 backend through `set_voice`. Each tracker row's four-voice state is
 captured only at burst starts — a 4 ms gap since the last call marks a
-new burst (`kVoiceBurstGapMs`, `src/system/jz_pwm_sound_backend.cpp:44`)
+new burst (`kVoiceBurstGapMs`, `src/system/jz_pwm_sound_backend.cpp#kVoiceBurstGapMs`)
 — and appended to a rolling row history; once that history spans a
 phrase (1900 ms, one daemon buffer), it renders into one sustained chord
 phrase. No PCM path is involved — the SCHED_IDLE
@@ -231,9 +231,9 @@ Tone efficiency: the fallback re-sends the same note every tracker tick, so `set
 
 ### PWM PCM machinery (dormant)
 
-The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp:501`):
+The PCM render path stays compiled and unit-tested for hardware that can actually demodulate duty-modulated PWM (a filtered speaker circuit) -- on the AD5M's piezo it is unreachable because nothing installs a render source. The render loop is built to be printer-safe above all (`src/system/pwm_sound_backend.cpp#render_loop`):
 
-- **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h:101`).
+- **8 kHz sample rate** -- the piezo's response rolls off around 3-4 kHz, so rendering faster adds no audible content (`PCM_SAMPLE_RATE`, `include/pwm_sound_backend.h#PCM_SAMPLE_RATE`).
 - **62.5 kHz carrier**, above the audible range; each sample becomes a duty-cycle value within that period (`PCM_CARRIER_HZ`).
 - **Render thread at SCHED_IDLE + 1 ns timerslack** (`apply_render_thread_priority()`). SCHED_IDLE means the thread runs only when nothing else wants the CPU, so its pacing can never starve klippy, and setting it needs no privileges. Timerslack affects the relative polls only (the 1 ms no-source poll, the 10 ms park poll) -- the sample loop paces with `TIMER_ABSTIME`, which timerslack does not touch.
 - **Absolute pacing with a 20 µs spin budget** -- sleep (`TIMER_ABSTIME`) to each sample deadline minus 20 µs, then spin the final stretch. This absorbs hrtimer wake lateness without burning real CPU (`PCM_SPIN_BUDGET_NS`).
