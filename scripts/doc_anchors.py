@@ -14,6 +14,14 @@
 # A quoted segment is literal text; a bare segment is a name the language
 # scanner recognises as a definition. Resolution never guesses: a segment that
 # matches nothing, or more than one place, is an error naming the candidates.
+#
+# What an anchor cannot express: a symbol that exists twice in a file's TEXT but
+# once in a build. Two `#ifdef`/`#else` arms, or the two branches of an XML
+# `<if>`/`<else>`, each define the name once, and only one survives. This reader
+# sees bytes, not preprocessor or render semantics, so it reports Ambiguous -
+# which is correct for what it can know. Such a citation keeps its line number
+# rather than being anchored, because picking an arm would be wrong half the
+# time.
 
 import argparse
 import os
