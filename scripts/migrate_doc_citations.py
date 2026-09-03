@@ -192,39 +192,8 @@ def iter_line_citations(paths):
     return out
 
 
-_RESOLVED = None
-
-
-def _resolved_path(doc, cited):
-    """The on-disk file a citation names.
-
-    The existing sidecar already carries this mapping in its resolved-path
-    column, computed by the gate that has been maintaining these citations.
-    A bare basename or a doc-relative path resolves there and would not
-    resolve against the repo root alone.
-    """
-    global _RESOLVED
-    if _RESOLVED is None:
-        _RESOLVED = {}
-        try:
-            with open("scripts/doc_cite_anchors.tsv", encoding="utf-8") as fh:
-                for row in fh:
-                    if row.startswith("#") or not row.strip():
-                        continue
-                    parts = row.rstrip("\n").split("\t")
-                    if len(parts) >= 4:
-                        _RESOLVED[(parts[0], parts[1])] = parts[3]
-        except OSError:
-            pass
-    return _RESOLVED.get((doc, cited)) or cited
-
-
 def _proposal_for(match, repo_root, doc=None):
-    cited = match.group(1)
-    real = _resolved_path(doc, cited) if doc else cited
-    p = propose(real, int(match.group(2)), repo_root=repo_root)
-    # keep the citation spelled against the file it actually names
-    return p
+    return propose(match.group(1), int(match.group(2)), repo_root=repo_root)
 
 
 def report(paths, repo_root="."):

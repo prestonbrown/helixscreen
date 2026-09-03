@@ -252,8 +252,8 @@ def test_make_variable():
 
 
 def test_make_target():
-    src = "regen-doc-links: regen-doc-anchors\n\techo hi\n"
-    assert _resolve(src, "tools.mk#regen-doc-links", ".mk").startswith("regen-doc-links:")
+    src = "docs-pinned: check-doc-anchors\n\techo hi\n"
+    assert _resolve(src, "tools.mk#docs-pinned", ".mk").startswith("docs-pinned:")
 
 
 def test_python_nested_def_scopes():

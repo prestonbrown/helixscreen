@@ -34,6 +34,12 @@ cd "$REPO_ROOT"
 
 [ -x ./scripts/quality-checks.sh ] || exit 0
 
+# A renamed or deleted symbol breaks a doc anchor. Advisory, never blocking:
+# a doc pointing at a name that moved is a stale sentence, not a broken build.
+doc_anchor_advisory() {
+    python3 scripts/doc_anchors.py --check || true
+}
+
 # stdin is "<local ref> <local sha> <remote ref> <remote sha>" per ref. An
 # all-zero local sha is a branch deletion, which publishes no content to gate.
 TARGET=""
@@ -52,7 +58,10 @@ TREE_DIFFERS="$(git diff --name-only "$TARGET" -- . ':(exclude).claude-recall' |
 
 if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
     echo "🚦 pre-push: full quality sweep (pre-commit only checked what you staged)"
-    exec ./scripts/quality-checks.sh
+    STATUS=0
+    ./scripts/quality-checks.sh || STATUS=$?
+    doc_anchor_advisory
+    exit "$STATUS"
 fi
 
 echo "🚦 pre-push: working tree differs from the commit being pushed"
@@ -102,6 +111,8 @@ done
 
 STATUS=0
 ( cd "$ISOLATED/tree" && ./scripts/quality-checks.sh ) || STATUS=$?
+
+doc_anchor_advisory
 
 if [ "$STATUS" -ne 0 ]; then
     echo ""

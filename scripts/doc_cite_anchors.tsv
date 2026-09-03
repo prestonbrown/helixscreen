@@ -1,9 +1,0 @@
-# Content anchors for `file:line` citations in docs. GENERATED — run
-# `make regen-doc-links`, never hand-edit. See scripts/doc_cite_anchors.py.
-#
-# doc	cited-path	line	resolved-path	line-hash	context-hash
-docs/devel/architecture/01-declarative-ui.md	ui_xml/temp_graph_overlay.xml	170	ui_xml/temp_graph_overlay.xml	cab796323369	863bc3fe87b9
-docs/devel/architecture/04-moonraker.md	include/runtime_config.h	195	include/runtime_config.h	8178bb54f33e	035f42b98585
-docs/devel/architecture/09-home-widgets.md	lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c	1315	lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c	fb3a5e471983	dfc4af62345e
-docs/devel/architecture/12-system-services.md	sound_manager.cpp	290	src/system/sound_manager.cpp	7958a073d661	8dd3bd3decd2
-docs/devel/architecture/15-known-debt.md	src/ui/temperature_service.cpp	205	src/ui/temperature_service.cpp	4aa7689c054c	32121fceeee4
