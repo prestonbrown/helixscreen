@@ -1,18 +1,18 @@
 # CHANGELOG draft - 1.1
 
-Working draft of the release notes for the `devel/1.1` branch. Lives here rather
-than in `CHANGELOG.md` so the release tooling owns that file uncontested; at
-release, this becomes the `## [1.1]` entry more or less verbatim.
+Working draft of the release notes for 1.1. Lives here rather than in
+`CHANGELOG.md` so the release tooling owns that file uncontested; at release,
+this becomes the `## [1.1]` entry more or less verbatim.
 
-**Scope:** everything on `devel/1.1` that is not on `main`. Work that reached
-this branch by merging `main` belongs to the release it shipped in (0.99.112 and
-earlier) and is deliberately absent.
+**Scope:** everything on `main` that is not in the 1.0 release. Work that shipped
+in 0.99.112 and earlier belongs to the release it shipped in and is deliberately
+absent.
 
-**Keeping it current:** the branch moves. To see what has landed since this file
+**Keeping it current:** the trunk moves. To see what has landed since this file
 was last touched:
 
 ```bash
-git log --no-merges --oneline <last-reviewed-sha>..devel/1.1 --not main
+git log --no-merges --oneline <last-reviewed-sha>..main --not release/1.0
 ```
 
 ---

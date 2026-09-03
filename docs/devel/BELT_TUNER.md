@@ -14,9 +14,8 @@ frequency. Replaces the deleted `TEST_RESONANCES` sweep and the strobe path.
 **Read this before changing a threshold, before promoting the feature out of beta, and
 before believing a number it prints.**
 
-This landed on `devel/1.1` in merge `e558aee3a` (2026-08-27). It is green in CI - 96/96
-shards - and it has **never measured a real belt under its own UI**. Everything below is
-open.
+It is green in CI - 96/96 shards - and it has **never measured a real belt under its own
+UI**. Everything below is open.
 
 ### The thresholds are circular
 
