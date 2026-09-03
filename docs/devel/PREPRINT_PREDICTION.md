@@ -115,7 +115,7 @@ read back as `Unknown`) count as `PrinterEdge` - not as a wildcard. Commit
 arming did not exist when they were recorded, so they can only have measured a
 printer-edge window: they stay usable for externally started prints but never
 stand in for a host-pre-start window (`entry_matches_window()`,
-`src/print/preprint_predictor.cpp:40`). Passing `Unknown` as the *filter* is
+`src/print/preprint_predictor.cpp#entry_matches_window`). Passing `Unknown` as the *filter* is
 the wildcard - it means "no window filter".
 
 ---

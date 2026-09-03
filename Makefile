@@ -464,6 +464,17 @@ else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/pwm_sound_backend.cpp,$(APP_SRCS))
 endif
 
+# AD5X piezo via the jz_pwm DMA engine, exec'd through fx-pwm - there is no
+# sysfs pwmchip on the X2600, so the sysfs PWM backend above cannot drive it.
+# Gated to ad5x AND probed at runtime (/dev/jz_pwm + the fx-pwm binary): a
+# host build that happens to carry the binary simply falls through the
+# backend ladder, and remote-UI installs keep the M300 path.
+ifneq (,$(filter ad5x,$(PLATFORM_TARGET)))
+    JZ_PWM_CXXFLAGS := -DHELIX_HAS_JZ_PWM
+else
+    APP_SRCS := $(filter-out $(SRC_DIR)/system/jz_pwm_sound_backend.cpp,$(APP_SRCS))
+endif
+
 ifneq ($(ENABLE_MOCKS),yes)
     APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp),$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
@@ -1011,15 +1022,15 @@ endif
 # Tracker player — MOD/MED file playback with PCM samples (requires HELIX_HAS_SOUND)
 #
 # HELIX_HAS_SOUND:   Pi, x86, AD5M family, native — any platform with audio output
-# HELIX_HAS_TRACKER: Pi, x86, native, ad5m — platforms cleared for tracker PCM
-# ad5m/ad5m-br/ad5x: tone-only. The SCHED_IDLE PCM render loop (b8c141b4a) is
-#   dormant on this hardware: supports_render_source() is false on the PWM
-#   backend because the piezo demodulates a duty-modulated carrier as static,
-#   so tracker playback falls to the set_voice note fallback on the sequencer
-#   thread instead - SCHED_OTHER, a 2 ms tick, and no print-state gating
-#   anywhere in the sound path. That is the starvation shape that disabled
-#   tracker in 2026-04 (003c195ac), so it stays off until the note-fallback
-#   path is measured against a running print on the hardware.
+# HELIX_HAS_TRACKER: Pi, x86, native, ad5x — platforms cleared for tracker playback
+# ad5m/ad5m-br: tone-only. The PWM backend answers supports_render_source() false —
+#   the piezo demodulates a duty-modulated carrier as static — so tracker playback
+#   falls back to the set_voice note path on the sequencer thread: SCHED_OTHER, a
+#   2 ms tick, and no print-state gating anywhere in the sound path. That is the
+#   shape that starves the CPU running a print, so tracker stays off here until the
+#   note fallback is measured against a running print on the hardware.
+# ad5x: tracker on. The jz_pwm backend drives the tracker's PC-speaker path with
+#   per-note buffers, so no PCM render loop is involved.
 # K1/K2/MIPS: no audio hardware at all
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=
@@ -1030,12 +1041,17 @@ else ifneq (,$(filter ad5m ad5m-br ad5x,$(PLATFORM_TARGET)))
     # PWM buzzer for tone-mode SFX only. Auto-export still applies to
     # ad5m/ad5m-br above; only tracker playback is withheld.
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
+    ifneq (,$(filter ad5x,$(PLATFORM_TARGET)))
+        # ad5x: the jz_pwm backend drives the tracker's PC-speaker (synth
+        # fallback) path — per-note buffers, no PCM render loop involved.
+        TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
+    endif
 else ifeq ($(PLATFORM_TARGET),native)
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
 # K1, K2, MIPS — no sound at all
-CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS)
+CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS)
 
 # Feature gates — default ON for all platforms.
 # Disabled per-platform in mk/cross.mk for memory-constrained targets.
@@ -1062,6 +1078,14 @@ HELIX_HAS_PLUGINS ?= 1
 # Capture-control (settings, render, save-frames) is plain JSON-RPC and is NOT
 # gated — printers keep capturing timelapses even where the screen can't view them.
 HELIX_HAS_TIMELAPSE_VIEWER ?= 1
+# Compile-out gate for the belt-tuning UI. It needs klippy's UDS accelerometer
+# stream, so it only works co-located with klippy, and its widgets are dropped
+# from builds that cannot reach one.
+HELIX_HAS_BELT_TUNER ?= 1
+# Compile-out gate for the font rungs above the authored tier ladder. Only the
+# high-DPI UI scale factor reaches them, so a platform with a fixed panel and no
+# scale factor above 1.0 neither packs nor links those faces.
+HELIX_HAS_HIDPI_FONTS ?= 1
 CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_CFS=$(HELIX_HAS_CFS) \
             -DHELIX_HAS_IFS=$(HELIX_HAS_IFS) \
@@ -1071,7 +1095,9 @@ CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_GCODE_VIEWER=$(HELIX_HAS_GCODE_VIEWER) \
             -DHELIX_HAS_BED_MESH_3D=$(HELIX_HAS_BED_MESH_3D) \
             -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \
-            -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER)
+            -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER) \
+            -DHELIX_HAS_BELT_TUNER=$(HELIX_HAS_BELT_TUNER) \
+            -DHELIX_HAS_HIDPI_FONTS=$(HELIX_HAS_HIDPI_FONTS)
 
 # Parallel build control
 # Auto-parallelizes builds: plain 'make' automatically uses -j$(NPROC).
@@ -1124,7 +1150,7 @@ MOCK_OBJS := $(patsubst $(TEST_MOCK_DIR)/%.cpp,$(OBJ_DIR)/tests/mocks/%.o,$(MOCK
 # Default target
 .DEFAULT_GOAL := all
 
-.PHONY: all build clean run test tests demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts regen-doc-links check-doc-links regen-doc-anchors check-doc-anchors regen-lvgl-event-codes check-lvgl-event-codes update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
+.PHONY: all build clean run test tests demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts check-doc-anchors docs-pinned regen-lvgl-event-codes check-lvgl-event-codes update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
 
 # Fast development build: -O0 skips optimization passes (~2x faster compilation)
 # Library code still builds at -O2 (via SUBMODULE_CFLAGS) since it rarely changes
@@ -1171,7 +1197,7 @@ help:
 	echo "  $${G}moonraker-inspector$${X} - Query Moonraker printer metadata"; \
 	echo "  $${G}validate-fonts$${X}    - Check all icons are in compiled fonts"; \
 	echo "  $${G}regen-fonts$${X}       - Regenerate MDI icon fonts"; \
-	echo "  $${G}regen-doc-links$${X}   - Re-pin doc citation line numbers, then relink the guide"; \
+	echo "  $${G}docs-pinned$${X}       - Render docs with real citation line numbers into build/"; \
 	echo "  $${G}regen-lvgl-event-codes$${X} - Mirror lv_event_code_t into the crash worker"; \
 	echo "  $${G}quality$${X}           - Run all quality checks"; \
 	echo "  $${G}icon$${X}              - Generate app icon from logo"; \

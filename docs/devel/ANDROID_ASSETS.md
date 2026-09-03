@@ -44,7 +44,7 @@ Three companion tasks round it out:
 
 ## Why the tree still causes trouble
 
-`android/.gitignore:5` ignores `app/src/main/assets/` wholesale, so the output of
+`android/.gitignore` ignores `app/src/main/assets/` wholesale, so the output of
 your last local Android build sits in the working directory indefinitely — and to
 anything walking the repo it looks exactly like source.
 

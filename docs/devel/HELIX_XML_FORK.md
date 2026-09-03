@@ -185,7 +185,7 @@ Two of these are dormant: no `ui_xml/` file uses `<timeline>` or `<animation>` t
 | `<preview>` contexts, Figma plugin, online viewer, C export | Editor-side tooling. Not applicable |
 
 **On slots specifically:** the roll commit claimed slot support, and the `<component-slotname>`
-*usage* syntax does parse (`lib/helix-xml/src/xml/lv_xml.c:2147-2163`). But there is no `<slot>` declaration, no
+*usage* syntax does parse (`lib/helix-xml/src/xml/lv_xml.c#"state->composed_cap = 0;"`). But there is no `<slot>` declaration, no
 validation against the component's API, no default content, and no multi-slot dispatch. It
 degrades to `lv_obj_find_by_name(parent, slot_name)` — and when that returns NULL you get the
 generic "unknown tag / STALE BINARY" error, which is a genuinely bad diagnostic. This is the one
@@ -204,7 +204,7 @@ gap that actively costs us something today.
 | `float` and `color` subjects | Upstream Pro docs, July 2026: *"Currently, only integer and string types are supported."* |
 | `bind_src` accepting STRING subjects | Upstream only accepted POINTER |
 | `HELIX_HOT_RELOAD` re-registration | Edit XML, see it in ~500ms, no restart |
-| `<subject name= type= value=>` convention | Ours; upstream uses tag-per-type (`<int name=…>`). Both parse — `type=` overrides the tag name (`lib/helix-xml/src/xml/lv_xml_component.c:567`) |
+| `<subject name= type= value=>` convention | Ours; upstream uses tag-per-type (`<int name=…>`). Both parse — `type=` overrides the tag name (`lib/helix-xml/src/xml/lv_xml_component.c#"\"scope; its style storage is held until deinit\","`) |
 
 ## Should we chase parity?
 
