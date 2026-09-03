@@ -1,14 +1,34 @@
 # Test cases exempted from check_vacuous_tests.py's no-assertion signal.
 #
 # A case belongs here ONLY when it genuinely asserts through a channel Catch2
-# cannot count -- a sanitizer, or a crash that would abort the run. "I could not
-# think of an assertion" is not a reason; add the assertion instead.
+# cannot count -- the compiler, a sanitizer, or a crash that would abort the
+# run. "I could not think of an assertion" is not a reason; add the assertion
+# instead.
 #
 # Format:  <exact test case name>  # why
 #
-# Nothing is exempted yet. The 50 no-assertion cases in the tree are real
-# findings, mostly "X does not crash" / "X is safe" tests that call a function
-# and assert nothing. Each should either grow a REQUIRE_NOTHROW (which Catch2
-# does count) or an assertion on the state the call was supposed to leave
-# behind. The VACUOUS_MAX ratchet in mk/tests.mk is what holds the line
-# meanwhile.
+# The exempted cases are all compile-time assertions (see the block at the end).
+# The remaining no-assertion findings are real, mostly "X does not crash" /
+# "X is safe" tests that call a function and assert nothing. Each should either
+# grow a REQUIRE_NOTHROW (which Catch2 does count) or an assertion on the state
+# the call was supposed to leave behind. Note SUCCEED() does NOT count: Catch2
+# emits no <Expression> for it, so a SUCCEED-only case still reads as vacuous.
+# The VACUOUS_MAX ratchet in mk/tests.mk holds the line meanwhile.
+
+# Compile-time assertions. STATIC_REQUIRE and static_assert are checked by the
+# compiler, so the property cannot break without failing the build - but Catch2
+# counts only runtime assertions, and emits no <Expression> for these at all.
+# Left unlisted they are permanent slack in the ratchet: findings that can never
+# be cleared, hiding that much real headroom.
+AFC backend get_tool_mapping returns the SlotRegistry tool_to_slot vector  # static_assert on the return type
+Geometry Builder: RibbonVertex is 8 bytes  # 3 static_asserts on layout
+GhostRenderMode is one shared type, not a per-renderer copy  # 2 static_asserts on type identity
+#1127 seeding state costs no extra bytes per layer entry  # static_assert on sizeof
+HeatingIconAnimator::State is the shared HeatState  # static_assert on type identity
+IFilesAPI exposes the file manager's root list  # 2 static_asserts on the interface
+MoonrakerAPIMock satisfies IMoonrakerAPI interface  # 2 static_asserts on the interface
+Moonraker sub-API classes satisfy their interfaces  # 20 static_asserts on the interface
+IMoonrakerAPI sub-API accessors return interface references  # 11 static_asserts on the accessors
+MoonrakerClientMock satisfies helix::IMoonrakerClient interface  # 2 static_asserts on the interface
+MockPerformanceSource satisfies IPerformanceSource interface  # 2 static_asserts on the interface
+MoonrakerPerformanceSource satisfies IPerformanceSource interface  # 2 static_asserts on the interface

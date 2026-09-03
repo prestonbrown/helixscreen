@@ -862,3 +862,28 @@ check_deinit_all_does_not_log() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ ^[0-9]+$ ]]
 }
+
+# --- the vacuous baseline can express a test name that starts with '#' ---
+# Entries are keyed by exact test-case name, and names carry issue references.
+# A parser that treats any leading '#' as a comment drops those entries in
+# silence: the case reappears as a finding and the ratchet reads one too high.
+
+@test "the vacuous baseline honours a test name beginning with a hash" {
+    local base="${BATS_TEST_TMPDIR}/baseline.txt"
+    cat > "$base" <<'EOF'
+# a real comment
+#1127 seeding state costs no extra bytes per layer entry  # static_assert on sizeof
+EOF
+    run python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from pathlib import Path
+import importlib.util
+spec = importlib.util.spec_from_file_location('cvt', 'scripts/check_vacuous_tests.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+b = m.load_baseline(Path('$base'))
+print(sorted(b))
+"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#1127 seeding state costs no extra bytes per layer entry"* ]]
+    [[ "$output" != *"a real comment"* ]]
+}
