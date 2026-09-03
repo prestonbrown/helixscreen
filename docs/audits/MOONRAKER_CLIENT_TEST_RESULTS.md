@@ -8,6 +8,8 @@
 **Failed:** 0
 **Build Status:** ✅ Tests compile and run successfully
 
+Paths in this report name the tree as it stood on 2025-11-30.
+
 ---
 
 ## Executive Summary
@@ -304,7 +306,7 @@ RequestId id = request_id_.fetch_add(1) + 1;  // Atomic read-and-increment
 
 ### Files Created:
 
-1. **`/Users/pbrown/code/helixscreen/tests/unit/test_moonraker_client_robustness.cpp`** (1000+ lines)
+1. **tests/unit/test_moonraker_client_robustness.cpp** (1000+ lines)
    - 16 test cases covering all 6 priority areas
    - Comprehensive concurrency tests
    - Timeout behavior validation
@@ -312,14 +314,14 @@ RequestId id = request_id_.fetch_add(1) + 1;  // Atomic read-and-increment
    - Callback lifecycle tests
    - Memory safety tests
 
-2. **`/Users/pbrown/code/helixscreen/mk/tests.mk`** (modified)
+2. **mk/tests.mk** (modified)
    - Added `helix_theme.o` to test binary dependencies
    - Fixed linking error
 
-3. **`/Users/pbrown/code/helixscreen/tests/unit/test_ui_icon.cpp`** (fixed)
+3. **tests/unit/test_ui_icon.cpp** (fixed)
    - Corrected `get_theme_color` to `theme_manager_get_color`
 
-4. **`/Users/pbrown/code/helixscreen/tests/unit/test_wifi_manager.cpp`** (fixed)
+4. **tests/unit/test_wifi_manager.cpp** (fixed)
    - Commented out failing Ethernet tests (API changed)
 
 ---

@@ -3,6 +3,8 @@
 **Date:** 2026-02-09
 **Scope:** User-facing safety — ways a user could damage their printer, harm themselves, or be misled about printer state. Not a cybersecurity audit.
 
+Paths in this audit name the tree as it stood on 2026-02-09.
+
 ---
 
 ## Overall Assessment
@@ -136,7 +138,7 @@ If another client (Mainsail, Fluidd, OctoPrint) changes printer state while Heli
 
 `home_axes()`, `move_axis()`, and `set_temperature()` don't check if Klipper is in SHUTDOWN before sending commands. Klipper will reject them, but the user gets a confusing error.
 
-- **Location:** `src/api/moonraker_api_motion.cpp:23-100`
+- **Location:** src/api/moonraker_api_motion.cpp:23-100
 - **Fix:** Early return with clear message if `klippy_state != READY`: "Printer is in shutdown state. Restart Klipper to continue."
 - **Effort:** Small — add guard at top of each API method
 
@@ -184,7 +186,7 @@ The largest jog distance is 100mm. On small printers, repeated 100mm jogs could 
 
 Temperature presets come from the filament database. If the database were corrupted, presets could exceed SafetyLimits. Currently all bundled values are safe (max ABS = 255°C nozzle, 100°C bed).
 
-- **Location:** `src/ui/ui_panel_temp_control.cpp:41-71`
+- **Location:** src/ui/ui_panel_temp_control.cpp:41-71
 - **Fix:** Clamp all filament database values to SafetyLimits on load.
 - **Effort:** Trivial
 

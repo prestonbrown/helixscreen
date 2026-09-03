@@ -217,7 +217,7 @@ The HelixScreen installer will:
 - Keep ForgeX in GUPPY display mode (required for backlight control)
 - Disable GuppyScreen's init scripts (so HelixScreen takes over)
 - Disable the stock Flashforge UI in auto_run.sh
-- Patch ForgeX's `screen.sh` to prevent backlight dimming conflicts
+- Patch ForgeX's screen.sh to prevent backlight dimming conflicts
 - Install HelixScreen as the replacement touchscreen UI
 
 On uninstall, all ForgeX changes are reversed and GuppyScreen is restored.
@@ -565,8 +565,8 @@ The install script automatically detects your firmware (Forge-X or Klipper Mod) 
 **What the installer does on Forge-X:**
 - Verifies ForgeX is installed and sets display mode to `GUPPY`
 - Stops and disables GuppyScreen (`chmod -x` on init scripts)
-- Disables stock Flashforge UI in `/opt/auto_run.sh`
-- Patches `/opt/config/mod/.shell/screen.sh` to skip backlight commands when HelixScreen is running (prevents ForgeX's delayed_gcode from dimming the screen)
+- Disables stock Flashforge UI in /opt/auto_run.sh
+- Patches /opt/config/mod/.shell/screen.sh to skip backlight commands when HelixScreen is running (prevents ForgeX's delayed_gcode from dimming the screen)
 - Installs HelixScreen to `/opt/helixscreen/`
 - Creates init script at `/etc/init.d/S90helixscreen`
 
@@ -852,7 +852,7 @@ Most HDMI touchscreens work automatically. If touch input isn't working:
 
 The official 7" Pi touchscreen is detected automatically via DSI connector.
 
-If using non-standard orientation, edit `/boot/config.txt`:
+If using non-standard orientation, edit /boot/config.txt:
 ```ini
 # Rotate display 180 degrees
 lcd_rotate=2
@@ -862,7 +862,7 @@ lcd_rotate=2
 
 For SPI displays (like many small LCDs):
 
-1. Enable SPI in `/boot/config.txt`
+1. Enable SPI in /boot/config.txt
 2. Install the appropriate overlay
 3. Configure framebuffer settings
 
@@ -1239,7 +1239,7 @@ sed -i 's|^# Disabled by HelixScreen: /opt/PROGRAM/ffstartup-arm|/opt/PROGRAM/ff
 reboot
 ```
 
-> **Note:** The automated uninstaller (`install.sh --uninstall`) handles all ForgeX restoration automatically, including unpatching `screen.sh`.
+> **Note:** The automated uninstaller (`install.sh --uninstall`) handles all ForgeX restoration automatically, including unpatching screen.sh.
 </details>
 
 <details>

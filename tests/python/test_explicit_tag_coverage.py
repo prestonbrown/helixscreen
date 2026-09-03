@@ -58,17 +58,7 @@ MIN_TAGS = {
 # device renders the English key. A ratchet, not an exemption: the assertion
 # below fails on a new untranslated tag AND on a listed one that has since been
 # translated, so this list can only shrink.
-#
-# Both entries belong to the Spoolman archive feature, which is untranslated as
-# a cluster -- "Archive Spool?", "Spool archived", "Failed to archive spool" and
-# "It can be un-archived in Spoolman's web UI." are empty in all nine locales
-# too, and those are plain text= so they sit outside this gate. Translating two
-# of the cluster in isolation would leave one dialog half-localized; the cluster
-# wants one pass.
-KNOWN_UNTRANSLATED = {
-    "Archive",
-    "No spools match your search",
-}
+KNOWN_UNTRANSLATED: set[str] = set()
 
 
 def _tags_by_attribute() -> dict:

@@ -31,6 +31,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cstring>
+#include <fcntl.h>
 #include <functional>
 #include <mutex>
 #include <poll.h>
@@ -135,9 +136,13 @@ class NetdFakeServer {
     bool start(const std::string& path) {
         path_ = path;
 
-        listen_fd_ = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+        listen_fd_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
         if (listen_fd_ < 0)
             return false;
+        if (!helix::netd::set_nonblocking(listen_fd_, true)) {
+            teardown();
+            return false;
+        }
 
         sockaddr_un addr{};
         addr.sun_family = AF_UNIX;
@@ -248,12 +253,16 @@ class NetdFakeServer {
     }
 
     void accept_all() {
-        // The listener is SOCK_NONBLOCK: draining the backlog ends with
-        // EAGAIN, never a blocking accept that would wedge the thread.
+        // The listener is non-blocking: draining the backlog ends with EAGAIN,
+        // never a blocking accept that would wedge the thread.
         while (true) {
-            const int cfd = ::accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK);
+            const int cfd = ::accept(listen_fd_, nullptr, nullptr);
             if (cfd < 0)
                 return; // EAGAIN: backlog drained (or transient error)
+            // accept() does not inherit the listener's flags, so the client fd
+            // needs its own: drain_client() must never park on a peer that
+            // announced readability and then sent nothing.
+            (void)helix::netd::set_nonblocking(cfd, true);
             std::lock_guard<std::mutex> lock(mtx_);
             clients_.push_back(cfd);
             assemblers_.emplace(cfd, helix::netd::LineAssembler{});

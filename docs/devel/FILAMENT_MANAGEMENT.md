@@ -1931,8 +1931,8 @@ Where the override lands, by backend:
 | CFS | Converges on first full box frame: true (Fork: + payload `external` entry) | no | Consults `bypass_available_for()` — real `T<external>` on Fork, sensor-derived declaration on stock |
 | ACE | Hardcoded `false` (`src/printer/ams_backend_ace.cpp#AmsSubscriptionBackend`) | yes | `not_supported` |
 | Snapmaker | Hardcoded `false` (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`) | yes | `not_supported` |
-| Tool Changer | Hardcoded `false` (`:31`) | yes | `not_supported` |
-| QIDI Box | Hardcoded `false` (`:193`) | yes | `not_supported` |
+| Tool Changer | Hardcoded `false` (`src/printer/ams_backend_toolchanger.cpp#AmsSubscriptionBackend`) | yes | `not_supported` |
+| QIDI Box | Hardcoded `false` (`src/printer/ams_backend_qidi.cpp#AmsSubscriptionBackend`) | yes | `not_supported` |
 
 Happy Hare is the one backend where the override changes machine behavior rather than only the
 UI: `cmd_MMU_SELECT_BYPASS` never checks `has_bypass`, it deselects the gear steppers and

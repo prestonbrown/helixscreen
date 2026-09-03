@@ -70,7 +70,6 @@
 #include <spdlog/spdlog.h>
 
 #include <string>
-#include <string_view>
 #include <vector>
 
 /**
@@ -105,11 +104,9 @@ class SubjectManager {
 
     // Movable (transfers subject ownership)
     SubjectManager(SubjectManager&& other) noexcept
-        : subjects_(std::move(other.subjects_)), subject_names_(std::move(other.subject_names_)),
-          properly_deinitialized_(other.properly_deinitialized_) {
+        : subjects_(std::move(other.subjects_)), subject_names_(std::move(other.subject_names_)) {
         other.subjects_.clear();
         other.subject_names_.clear();
-        other.properly_deinitialized_ = false;
     }
 
     SubjectManager& operator=(SubjectManager&& other) noexcept {
@@ -117,10 +114,8 @@ class SubjectManager {
             deinit_all();
             subjects_ = std::move(other.subjects_);
             subject_names_ = std::move(other.subject_names_);
-            properly_deinitialized_ = other.properly_deinitialized_;
             other.subjects_.clear();
             other.subject_names_.clear();
-            other.properly_deinitialized_ = false;
         }
         return *this;
     }
@@ -167,6 +162,13 @@ class SubjectManager {
      * Safe to call multiple times - subsequent calls are no-ops.
      *
      * @note Checks lv_is_initialized() to handle static destruction order safely
+     * @note Never logs. A SubjectManager owned by a static reaches this through
+     *       the C++ atexit chain, and spdlog's registry - a lazily built
+     *       function-local static - is torn down before any object created
+     *       during dynamic initialization, so a log call here reads a freed
+     *       logger. An app that ran Application::shutdown() arrives with an
+     *       empty subjects_ and returns above; a binary that never does (every
+     *       unit test) takes the full path.
      * @note Each subject's XML-scope name is withdrawn before the subject is freed,
      *       so a name can never outlive the storage it resolves to. Owners that do
      *       not live for the whole process (a panel held by a stack-allocated test
@@ -180,47 +182,13 @@ class SubjectManager {
             return;
         }
 
-        // Check if LVGL is still initialized (static destruction order safety)
+        // LVGL is gone, so the subjects cannot be deinitialized. Drop the
+        // bookkeeping and let their storage die with the manager.
         if (!lv_is_initialized()) {
-            // If we were properly deinitialized during shutdown, subjects being present
-            // here means they were re-added after deinit (e.g., by a re-initialization
-            // path). This is benign - silently clear without warning.
-            if (properly_deinitialized_) {
-                spdlog::debug(
-                    "[SubjectManager] Skipping {} subjects during static destruction (already "
-                    "deinitialized during shutdown)",
-                    subjects_.size());
-                subjects_.clear();
-                subject_names_.clear();
-                return;
-            }
-
-            // This is a benign condition during static destruction - LVGL is already gone
-            // but the subjects will be freed with the SubjectManager anyway. Log at debug
-            // level for diagnostics only.
-            if (spdlog::get_level() <= spdlog::level::debug) {
-                std::string owner_info = "unknown";
-                const auto* info = SubjectDebugRegistry::instance().lookup(subjects_.front());
-                if (info) {
-                    // Extract just filename from full path
-                    std::string_view file_path = info->file;
-                    auto last_slash = file_path.find_last_of('/');
-                    if (last_slash != std::string_view::npos) {
-                        file_path = file_path.substr(last_slash + 1);
-                    }
-                    owner_info = std::string(file_path) + ":" + std::to_string(info->line) + " (" +
-                                 info->name + ")";
-                }
-                spdlog::trace(
-                    "[SubjectManager] LVGL not initialized, skipping {} subject deinits from {}",
-                    subjects_.size(), owner_info);
-            }
             subjects_.clear();
             subject_names_.clear();
             return;
         }
-
-        spdlog::trace("[SubjectManager] Deinitializing {} subjects", subjects_.size());
 
         for (size_t i = 0; i < subjects_.size(); ++i) {
             auto* subject = subjects_[i];
@@ -249,10 +217,6 @@ class SubjectManager {
 
         subjects_.clear();
         subject_names_.clear();
-
-        // Mark as properly deinitialized - future calls during static destruction
-        // won't warn if subjects were re-added after this point
-        properly_deinitialized_ = true;
     }
 
     /**
@@ -276,7 +240,6 @@ class SubjectManager {
     /// XML-scope name per entry in subjects_, same index. Empty when a subject was
     /// registered without one (register_subject() called directly, not via a macro).
     std::vector<std::string> subject_names_;
-    bool properly_deinitialized_ = false; ///< Set when deinit_all() completes with LVGL running
 };
 
 /**
