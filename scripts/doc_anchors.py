@@ -664,9 +664,8 @@ def render(paths, out_dir, repo_root=".", problems=None):
     formed markdown link or image (`[text](target)`) keeps its text and
     gets its target re-based the same way. Both point at the source's real
     location in the working tree, never at a path inside the pinned tree,
-    which holds doc copies only - so a link that used to read fine from the
-    doc's original directory still resolves after the doc moves two levels
-    under `out_dir`. A citation that fails to resolve, or a link whose
+    which holds doc copies only - so a link that resolves from the doc's own
+    directory still resolves once the doc sits two levels under `out_dir`. A citation that fails to resolve, or a link whose
     target is a URL, a mailto:, or a pure #fragment, is left exactly as
     written.
 
@@ -723,8 +722,8 @@ def _rebase(real_path, dest_dir):
 def _rebase_target(target, doc_dir, dest_dir):
     """Rewrite a local relative link target to resolve from `dest_dir`.
 
-    `doc_dir` is the citing document's own real directory - what a relative
-    target was originally written against. A URL, a mailto: link, or a pure
+    `doc_dir` is the citing document's own real directory - the base a relative
+    target in it is written against. A URL, a mailto: link, or a pure
     #fragment link names nothing in the working tree and passes through
     unchanged; any other #fragment is kept on the rebased target intact.
     """
