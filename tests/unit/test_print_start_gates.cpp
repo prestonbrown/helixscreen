@@ -648,7 +648,7 @@ TEST_CASE("gate required_filament_present: empty required lane warns with Start 
         c.ams_manages_filament = true;
         c.has_active_backend = true;
         // (tool_index, 0-based slot_index); lanes display slot + 1, so tool 0
-        // -> "Lane 1".
+        // -> "Slot 1".
         c.empty_required_lanes = {{0, 0}, {2, 3}};
     });
     auto r = gate_named("required_filament_present").evaluate(ctx);
@@ -656,7 +656,7 @@ TEST_CASE("gate required_filament_present: empty required lane warns with Start 
     CHECK(r.title == "No Filament Detected"); // lv_tr identity in the test locale
     CHECK(r.proceed_label == "Start Print");
     CHECK(r.body.find("Tool 0") != std::string::npos);
-    CHECK(r.body.find("Lane 1") != std::string::npos);
+    CHECK(r.body.find("Slot 1") != std::string::npos);
 }
 
 TEST_CASE("gate required_filament_present: AMS lanes all fed -> pass",
@@ -1104,7 +1104,7 @@ TEST_CASE("gate unaccounted_toolhead_filament: advice depends on whether the bac
     REQUIRE(cutter.verdict == CheckResult::Verdict::Warn);
     CHECK(cutter.title == "Filament In The Toolhead");
     CHECK(cutter.body.find("Pull it out manually") == std::string::npos);
-    CHECK(cutter.body.find("refuse to load a lane") != std::string::npos);
+    CHECK(cutter.body.find("refuse to load a slot") != std::string::npos);
 
     auto manual = g.evaluate(make(false));
     REQUIRE(manual.verdict == CheckResult::Verdict::Warn);
