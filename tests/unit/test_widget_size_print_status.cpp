@@ -84,6 +84,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_size.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -275,6 +276,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans t
         INFO("filename=" << name_w << " row=" << row_w << " data_col=" << col_w);
         CHECK(name_w == row_w);
         CHECK(name_w > col_w);
+
+        // A scrolling long mode is gated on the animations preference, so say so
+        // here instead of inheriting whatever value another test left registered.
+        if (lv_subject_t* animations = lv_xml_get_subject(nullptr, "settings_animations_enabled")) {
+            lv_subject_set_int(animations, 1);
+            lv_obj_update_layout(test_screen());
+        }
 
         // Long names must still scroll rather than ellipsize or clip.
         CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_SCROLL_CIRCULAR);
