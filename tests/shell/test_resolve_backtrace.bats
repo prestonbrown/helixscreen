@@ -253,3 +253,75 @@ UNRESOLVED_ISSUE='## Crash Summary
     [[ "$output" == *"2 addresses"* ]]
     [[ "$output" != *"0x7fd4f57890"* ]]
 }
+
+# =============================================================================
+# Local-binary targeting and addr2line batching
+#
+# build/bin/helix-screen is a native desktop build, so it may only be offered
+# as an addr2line target for a native-platform (x86) request — every other
+# platform is restricted to its own build/<platform>/bin/helix-screen. And
+# addr2line runs at most twice per invocation, never once per address: a
+# batched -p (pretty) call first, then the same batched call without -p (for
+# a binutils too old for -p) only if the first produced nothing usable.
+#
+# Each test stubs addr2line as the cross-prefixed name find_addr2line() picks
+# for the platform under test, logging its argv so invocation count and
+# target can be asserted on.
+# =============================================================================
+
+@test "a pi request never resolves against the native build/bin/helix-screen" {
+    export HELIX_SYM_FILE="$TEST_DIR/test.sym"
+    local script_path a2l_log
+    script_path="$(pwd)/$SCRIPT"
+    a2l_log="$TEST_DIR/a2l.log"
+    mock_command_script "aarch64-linux-gnu-addr2line" "printf '%s\n' \"\$*\" >> '$a2l_log'; exit 1"
+
+    mkdir -p "$TEST_DIR/cwd/build/bin"
+    printf '#!/bin/sh\n' > "$TEST_DIR/cwd/build/bin/helix-screen"
+    chmod +x "$TEST_DIR/cwd/build/bin/helix-screen"
+
+    cd "$TEST_DIR/cwd"
+    run bash "$script_path" 0.9.9 pi 0x400150
+    [ "$status" -eq 0 ]
+    refute_grep "build/bin/helix-screen" "$a2l_log"
+}
+
+@test "addr2line resolves every address in a single invocation" {
+    export HELIX_SYM_FILE="$TEST_DIR/test.sym"
+    local script_path a2l_log
+    script_path="$(pwd)/$SCRIPT"
+    a2l_log="$TEST_DIR/a2l.log"
+    mock_command_script "x86_64-linux-gnu-addr2line" "printf '%s\n' \"\$*\" >> '$a2l_log'
+printf '%s\n' 'func_a at file.c:10' 'func_b at file.c:20' 'func_c at file.c:30' 'func_d at file.c:40' 'func_e at file.c:50'"
+
+    mkdir -p "$TEST_DIR/cwd/build/bin"
+    printf '#!/bin/sh\n' > "$TEST_DIR/cwd/build/bin/helix-screen"
+    chmod +x "$TEST_DIR/cwd/build/bin/helix-screen"
+
+    cd "$TEST_DIR/cwd"
+    run bash "$script_path" 0.9.9 x86 0x400100 0x400250 0x400900 0x400a00 0x400b00
+    [ "$status" -eq 0 ]
+    [ "$(wc -l < "$a2l_log")" -eq 1 ]
+}
+
+@test "a binutils too old for -p still yields addr2line source info" {
+    export HELIX_SYM_FILE="$TEST_DIR/test.sym"
+    local script_path a2l_log
+    script_path="$(pwd)/$SCRIPT"
+    a2l_log="$TEST_DIR/a2l.log"
+    mock_command_script "x86_64-linux-gnu-addr2line" "printf '%s\n' \"\$*\" >> '$a2l_log'
+case \" \$* \" in
+    *' -p '*) exit 1 ;;
+esac
+printf '%s\n' 'func_a' 'file.c:10' 'func_b' 'file.c:20' 'func_c' 'file.c:30' 'func_d' 'file.c:40' 'func_e' 'file.c:50'"
+
+    mkdir -p "$TEST_DIR/cwd/build/bin"
+    printf '#!/bin/sh\n' > "$TEST_DIR/cwd/build/bin/helix-screen"
+    chmod +x "$TEST_DIR/cwd/build/bin/helix-screen"
+
+    cd "$TEST_DIR/cwd"
+    run bash "$script_path" 0.9.9 x86 0x400100 0x400250 0x400900 0x400a00 0x400b00
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"func_a at file.c:10"* ]]
+    [ "$(wc -l < "$a2l_log")" -eq 2 ]
+}
