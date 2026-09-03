@@ -121,7 +121,7 @@ void ui_icon_set_color(lv_obj_t* icon, lv_color_t color, lv_opa_t opa);
  * @param icon  Icon widget
  * @param opa   Opacity (0-255, use LV_OPA_COVER for full opacity)
  */
-void ui_icon_set_opa(lv_obj_t* icon, lv_opa_t opa);  // NAMESPACE_OK: joins the global ui_icon_* API; namespacing one of the set would split it
+void ui_icon_set_opa(lv_obj_t* icon, lv_opa_t opa);  // NAMESPACE_OK: joins the global ui_icon_* API; the family moves together (prestonbrown/helixscreen#1443)
 
 /**
  * Set clickable state for icon at runtime.

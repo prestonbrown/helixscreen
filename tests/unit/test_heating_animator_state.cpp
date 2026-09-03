@@ -111,7 +111,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "HeatingIconAnimator: Maintaining mode never p
                  "[animator][heat_state][chamber_mode]") {
     // The pulse is gated on the animations preference, which the fixture forces
     // off — without this the state machine is never even consulted.
-    ScopedAnimationsEnabled animations_on;
+    helix::ui::ScopedAnimationsEnabled animations_on;
     lv_obj_t* icon = lv_obj_create(test_screen());
     HeatingIconAnimator animator;
     animator.attach(icon);
@@ -128,7 +128,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "HeatingIconAnimator: Maintaining mode never p
 // Maintaining's) would pass the test above and go unnoticed.
 TEST_CASE_METHOD(LVGLTestFixture, "HeatingIconAnimator: Heating mode still pulses",
                  "[animator][heat_state][chamber_mode]") {
-    ScopedAnimationsEnabled animations_on;
+    helix::ui::ScopedAnimationsEnabled animations_on;
     lv_obj_t* icon = lv_obj_create(test_screen());
     HeatingIconAnimator animator;
     animator.attach(icon);
