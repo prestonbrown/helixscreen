@@ -843,3 +843,22 @@ check_deinit_all_does_not_log() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"could not locate"* ]]
 }
+
+# --- the vacuous-test ceiling has one home ---
+# The nightly and mk/tests.mk both need the number. Written twice they drift,
+# and the copy that drifts is the enforcing one, so the tree silently stops
+# being held to the value it claims.
+
+@test "the nightly reads the vacuous ceiling from the makefile, not a literal" {
+    run grep -A2 'check_vacuous_tests.py' .github/workflows/nightly.yml
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"print-vacuous-max"* ]]
+    # A bare --max-allowed <number> is the shape that drifts.
+    [[ ! "$output" =~ --max-allowed[[:space:]]+[0-9]+ ]]
+}
+
+@test "print-vacuous-max resolves to a bare integer" {
+    run bash -c 'make -s print-vacuous-max 2>/dev/null | tail -1'
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ ^[0-9]+$ ]]
+}

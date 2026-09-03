@@ -138,13 +138,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Assert only the API contract: every entry, if any, is a non-empty
     // klipper name.
     auto snap = get_temp_graph_visibility_snapshot();
-    if (snap.has_value()) {
-        for (const auto& name : *snap) {
-            REQUIRE_FALSE(name.empty());
-        }
-    } else {
-        SUCCEED("Snapshot remains nullopt (overlay never opened in this run)");
-    }
+    const bool every_entry_named =
+        !snap.has_value() || std::none_of(snap->begin(), snap->end(),
+                                          [](const std::string& name) { return name.empty(); });
+    REQUIRE(every_entry_named);
 }
 
 // =============================================================================

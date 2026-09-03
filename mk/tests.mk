@@ -1371,9 +1371,14 @@ SUITE_REPORT ?= $(BUILD_DIR)/suite-report.xml
 # blocked by this, so the report excludes them and they are judged by the suite
 # itself. See prestonbrown/helixscreen#1375.
 VACUOUS_FILTER ?= ~[.]~[slow]~[subprocess]~[socket_discovery]
-# Ratchet. May fall, never rise. 50 no-assertion + 2 literal-tautology as of
-# the run that introduced this gate.
-VACUOUS_MAX ?= 52
+# Ratchet. May fall, never rise. 49 no-assertion + 2 literal-tautology.
+# The nightly reads this through print-vacuous-max rather than repeating the
+# number, so the gate cannot drift from the value the tree is held to.
+VACUOUS_MAX ?= 51
+
+.PHONY: print-vacuous-max
+print-vacuous-max:
+	@echo "$(VACUOUS_MAX)"
 
 # --out is not optional: tests that shell out print ANSI status to stdout, and
 # with the report on stdout too the XML comes back complete but unparseable.
