@@ -152,11 +152,16 @@ int register_xxlarge_tier_fonts() {
     lv_xml_register_font(nullptr, "source_code_pro_24", &source_code_pro_24);
     lv_xml_register_font(nullptr, "mdi_icons_96", &mdi_icons_96);
     lv_xml_register_font(nullptr, "mdi_icons_128", &mdi_icons_128);
+#if HELIX_HAS_HIDPI_FONTS
     // Rungs above the authored ladder, reachable only through the high-DPI UI
     // scale factor (DisplayMetrics). theme_manager only adopts one of these
     // after lv_xml_get_font_silent() confirms it is linked, so registering them
     // here is what makes the scaled font selection possible at all — without it
     // the remap silently falls back to the unscaled tier face.
+    //
+    // Taking their addresses requires the faces to be linked, so a platform that
+    // does not pack them declares HELIX_HAS_HIDPI_FONTS=0 rather than failing to
+    // link. Its panels have no scale factor above 1.0 to reach them with.
     lv_xml_register_font(nullptr, "noto_sans_48", &noto_sans_48);
     lv_xml_register_font(nullptr, "noto_sans_64", &noto_sans_64);
     lv_xml_register_font(nullptr, "noto_sans_bold_48", &noto_sans_bold_48);
@@ -164,6 +169,9 @@ int register_xxlarge_tier_fonts() {
     lv_xml_register_font(nullptr, "noto_sans_light_32", &noto_sans_light_32);
     lv_xml_register_font(nullptr, "noto_sans_light_40", &noto_sans_light_40);
     return 13;
+#else
+    return 7;
+#endif
 #else
     return 0;
 #endif

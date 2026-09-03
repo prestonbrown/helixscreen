@@ -1078,6 +1078,14 @@ HELIX_HAS_PLUGINS ?= 1
 # Capture-control (settings, render, save-frames) is plain JSON-RPC and is NOT
 # gated — printers keep capturing timelapses even where the screen can't view them.
 HELIX_HAS_TIMELAPSE_VIEWER ?= 1
+# Compile-out gate for the belt-tuning UI. It needs klippy's UDS accelerometer
+# stream, so it only works co-located with klippy, and its widgets are dropped
+# from builds that cannot reach one.
+HELIX_HAS_BELT_TUNER ?= 1
+# Compile-out gate for the font rungs above the authored tier ladder. Only the
+# high-DPI UI scale factor reaches them, so a platform with a fixed panel and no
+# scale factor above 1.0 neither packs nor links those faces.
+HELIX_HAS_HIDPI_FONTS ?= 1
 CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_CFS=$(HELIX_HAS_CFS) \
             -DHELIX_HAS_IFS=$(HELIX_HAS_IFS) \
@@ -1087,7 +1095,9 @@ CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_GCODE_VIEWER=$(HELIX_HAS_GCODE_VIEWER) \
             -DHELIX_HAS_BED_MESH_3D=$(HELIX_HAS_BED_MESH_3D) \
             -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \
-            -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER)
+            -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER) \
+            -DHELIX_HAS_BELT_TUNER=$(HELIX_HAS_BELT_TUNER) \
+            -DHELIX_HAS_HIDPI_FONTS=$(HELIX_HAS_HIDPI_FONTS)
 
 # Parallel build control
 # Auto-parallelizes builds: plain 'make' automatically uses -j$(NPROC).

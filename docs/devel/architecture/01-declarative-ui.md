@@ -82,7 +82,7 @@ At boot, `Application` runs the phases in a fixed order (phase numbers and lines
 
 Creation happens later, on demand. When navigation needs a panel, its owner calls `lv_xml_create(parent, "history_dashboard_panel", attrs)` ([`src/ui/ui_panel_history_dashboard.cpp:226`](../../../src/ui/ui_panel_history_dashboard.cpp#L226)). The engine (`lib/helix-xml/src/xml/lv_xml.c:438`) first looks the name up in the widget-processor table — the built-in `lv_label`/`lv_slider` types plus our custom `ui_*` widgets. If that misses, it looks up a registered component scope and instantiates the template: recursively creating child widgets, applying attributes, and resolving bindings as it goes.
 
-Components compose. A panel's `<view extends="overlay_panel">` inherits a registered wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), registered at [`src/xml_registration.cpp:443`](../../../src/xml_registration.cpp#L443)) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c:200`). A component file may also declare `<consts>` — named values visible to that component's bindings and styles — which is where per-panel colors and sizes live when they are not global theme tokens.
+Components compose. A panel's `<view extends="overlay_panel">` inherits a registered wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), registered at [`src/xml_registration.cpp:445`](../../../src/xml_registration.cpp#L445)) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c:200`). A component file may also declare `<consts>` — named values visible to that component's bindings and styles — which is where per-panel colors and sizes live when they are not global theme tokens.
 
 Widget naming follows a three-level precedence, set in the engine at `lib/helix-xml/src/xml/lv_xml.c:514`: an explicit `name="..."` at the instantiation site wins; otherwise a `name` the component set on its own `<view>` root is kept; otherwise the object gets a default `<component>_#`. (Older docs claimed `<view name>` never propagated and unnamed instances were unfindable — our fork fixed that; an instance-site name that displaces a `<view>` name now logs a one-time warning, `lib/helix-xml/src/xml/lv_xml.c:473`.)
 
@@ -142,7 +142,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
 
   (verbatim from [`src/system/preset_materials.cpp:115`](../../../src/system/preset_materials.cpp#L115); the null scope means globals). When preset names load from settings, C++ writes the subject once and every bound button across every panel updates.
 
-- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations — here the startup table in [`src/xml_registration.cpp:589`](../../../src/xml_registration.cpp#L589):
+- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations — here the startup table in [`src/xml_registration.cpp:591`](../../../src/xml_registration.cpp#L591):
 
   ```cpp
   lv_xml_register_event_cb(nullptr, "on_temp_graph_preset_clicked",

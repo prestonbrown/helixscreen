@@ -3,14 +3,18 @@
 
 #include "host_identity.h"
 
-#include <arpa/inet.h>
 #include <cctype>
 #include <cstring>
-#include <ifaddrs.h>
 #include <mutex>
-#include <netinet/in.h>
 #include <string>
+#if !defined(HELIX_PLATFORM_ESP32)
+// Interface enumeration only; newlib has no ifaddrs and the URL parsing below
+// needs none of it.
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
+#endif
 #include <unistd.h>
 #include <unordered_map>
 
@@ -34,13 +38,28 @@ bool is_loopback_literal(std::string_view host) {
     return h == "localhost" || h == "127.0.0.1" || h == "::1";
 }
 
+#if defined(HELIX_PLATFORM_ESP32)
+// IDF has no gethostname(). A firmware panel is never the machine klipper runs
+// on, so co-location is false there by construction rather than by measurement.
+bool matches_own_hostname(std::string_view) {
+    return false;
+}
+#else
 bool matches_own_hostname(std::string_view host) {
     char buf[256] = {};
     if (gethostname(buf, sizeof(buf)) != 0)
         return false;
     return to_lower(host) == to_lower(buf);
 }
+#endif
 
+#if defined(HELIX_PLATFORM_ESP32)
+// newlib has no ifaddrs; a single-NIC firmware cannot be reached at one of its
+// own addresses under a different name, so the hostname check above settles it.
+bool matches_local_interface_ip(std::string_view) {
+    return false;
+}
+#else
 bool matches_local_interface_ip(std::string_view host) {
     in_addr v4{};
     in6_addr v6{};
@@ -75,6 +94,7 @@ bool matches_local_interface_ip(std::string_view host) {
     freeifaddrs(ifap);
     return found;
 }
+#endif
 
 } // namespace
 

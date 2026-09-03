@@ -622,3 +622,4 @@ src/printer/probe_preparation.cpp
 # MOCK: src/api/moonraker_client_mock_queue.cpp
 # MOCK: src/api/moonraker_client_mock_server.cpp
 # MOCK: src/printer/ams_backend_mock.cpp
+src/system/host_identity.cpp

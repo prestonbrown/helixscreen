@@ -86,9 +86,6 @@ bool UsbManager::is_running() const {
 
 // --- host identity / platform info (gethostname/getifaddrs; Android JNI) ----
 namespace helix {
-bool is_moonraker_on_same_host(std::string_view) {
-    return false;
-}
 bool is_android_platform() {
     return false;
 }
@@ -394,9 +391,6 @@ void DebugBundleCollector::upload_async(const BundleOptions&, ResultCallback cal
         callback(result);
     }
 }
-
-// --- host identity cache (getifaddrs/gethostname; see round 1) ---------------
-void invalidate_host_identity_cache() {}
 
 // --- platform info (uname; see round 1) --------------------------------------
 std::string host_arch_string() {

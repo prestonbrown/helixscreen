@@ -317,19 +317,21 @@ void register_xml_components() {
 
     // Register semantic text widgets (AFTER theme init, BEFORE components that use them)
     ui_text_init();
-    ui_text_input_init();                    // <text_input> with bind_text support
-    ui_spinner_init();                       // <spinner> with responsive sizing
-    ui_button_init();                        // <ui_button> with variant styles and auto-contrast
-    ui_split_button_init();                  // <ui_split_button> with primary action + dropdown
-    ui_markdown_init();                      // <ui_markdown> with theme-aware markdown rendering
-    ui_notification_badge_init();            // <notification_badge> with auto-contrast text
-    ui_carousel_init();                      // <ui_carousel> horizontal scroll-snap carousel
-    register_xml("carousel.xml");            // <carousel> XML component wrapping ui_carousel
-    ui_confetti_init();                      // <ui_confetti> celebration animation canvas
-    helix::ui::register_belt_trace_widget(); // <belt_trace> waveform/spectrum strip, must
-                                             // precede register_xml("panel_belt_tension.xml")
+    ui_text_input_init();         // <text_input> with bind_text support
+    ui_spinner_init();            // <spinner> with responsive sizing
+    ui_button_init();             // <ui_button> with variant styles and auto-contrast
+    ui_split_button_init();       // <ui_split_button> with primary action + dropdown
+    ui_markdown_init();           // <ui_markdown> with theme-aware markdown rendering
+    ui_notification_badge_init(); // <notification_badge> with auto-contrast text
+    ui_carousel_init();           // <ui_carousel> horizontal scroll-snap carousel
+    register_xml("carousel.xml"); // <carousel> XML component wrapping ui_carousel
+    ui_confetti_init();           // <ui_confetti> celebration animation canvas
+#if HELIX_HAS_BELT_TUNER
+    helix::ui::register_belt_trace_widget();      // <belt_trace> waveform/spectrum strip, must
+                                                  // precede register_xml("panel_belt_tension.xml")
     helix::ui::register_pluck_animation_widget(); // <pluck_animation> isometric pluck
                                                   // illustration, same precedence rule
+#endif
     register_xml(
         "components/page_scroll_gutter.xml"); // <page_scroll_gutter> page scroll chevron column
 
@@ -656,7 +658,9 @@ void register_xml_components() {
     register_xml("screws_tilt_share_modal.xml");
     register_xml("input_shaper_panel.xml");
     register_xml("components/belt_result_card.xml");
+#if HELIX_HAS_BELT_TUNER
     register_xml("panel_belt_tension.xml");
+#endif
 
     // Print history panels
     register_xml("history_list_row.xml");

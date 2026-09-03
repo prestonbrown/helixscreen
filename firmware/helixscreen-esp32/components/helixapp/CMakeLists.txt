@@ -107,6 +107,12 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_GIT_HASH="esp32"
     INSTALLER_FILENAME="install.sh"
     HELIX_MAX_FONT_TIER=6
+    # Belt tuning needs klippy's UDS accel stream, which a firmware panel
+    # cannot reach; the hi-dpi rungs need a scale factor this fixed panel
+    # never has. Both are set explicitly - an undefined HELIX_HAS_X is 0 and
+    # would vanish silently rather than being a decision.
+    HELIX_HAS_BELT_TUNER=0
+    HELIX_HAS_HIDPI_FONTS=0
     HELIX_PLATFORM_ESP32=1
     HELIX_HAS_PLUGINS=0
     HELIX_HAS_TIMELAPSE_VIEWER=0

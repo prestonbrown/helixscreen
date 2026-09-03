@@ -158,7 +158,6 @@ src/system/helix_cache_dir.cpp  # firmware provides its own get_helix_cache_dir 
 src/system/helix_display_telemetry.cpp  # not in the v1 Core+AMS cut
 src/system/helix_lvgl_anomaly.cpp  # not in the v1 Core+AMS cut
 src/system/helix_version.cpp  # not in the v1 Core+AMS cut
-src/system/host_identity.cpp  # not in the v1 Core+AMS cut
 src/system/http_android.cpp  # not in the v1 Core+AMS cut
 src/system/ipp_printer.cpp  # not in the v1 Core+AMS cut
 src/system/ipp_protocol.cpp  # not in the v1 Core+AMS cut

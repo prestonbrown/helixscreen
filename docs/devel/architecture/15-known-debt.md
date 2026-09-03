@@ -96,7 +96,7 @@ The declarative target is the shape every [`ui_xml/temp_graph_overlay.xml`](../.
 </ui_button>
 ```
 
-and publish the handler by name from C++ — either a `{"name", fn}` table like [`src/ui/temperature_service.cpp:205`](../../../src/ui/temperature_service.cpp#L205) or a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp:338`](../../../src/xml_registration.cpp#L338) does. The static wrapper, the null-check, and the ledger entry all disappear.
+and publish the handler by name from C++ — either a `{"name", fn}` table like [`src/ui/temperature_service.cpp:205`](../../../src/ui/temperature_service.cpp#L205) or a direct `lv_xml_register_event_cb()` as [`src/xml_registration.cpp:340`](../../../src/xml_registration.cpp#L340) does. The static wrapper, the null-check, and the ledger entry all disappear.
 
 ### Duplication debt: the honest part
 
