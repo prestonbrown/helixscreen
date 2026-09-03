@@ -37,6 +37,7 @@ class Citation:
 # A segment is either a double-quoted literal (backslash escapes allowed, so a
 # snippet may contain a quote or a slash) or a bare name. Bare names keep `::`
 # and `~` so a namespace-qualified or destructor anchor stays one segment.
+_BARE_SEGMENT_RE = re.compile(r"[A-Za-z_][\w:~.-]*")
 _SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*)')
 
 
@@ -70,7 +71,12 @@ def format_citation(citation):
         return citation.path
     parts = []
     for seg in citation.segments:
-        parts.append(f'"{_escape(seg.text)}"' if seg.is_snippet else seg.text)
+        # A name that is not a bare identifier - a markdown heading, anything
+        # carrying spaces or punctuation - has to be quoted or it will not parse
+        # back. Quoting it keeps format and parse exact inverses for every name
+        # a scanner can produce, not only for identifier-shaped ones.
+        quoted = seg.is_snippet or not _BARE_SEGMENT_RE.fullmatch(seg.text)
+        parts.append(f'"{_escape(seg.text)}"' if quoted else seg.text)
     return citation.path + "#" + "/".join(parts)
 
 

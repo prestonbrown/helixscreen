@@ -1079,3 +1079,17 @@ def test_render_does_not_touch_a_fenced_markdown_link(tmp_path):
     out = tmp_path / "pinned"
     render([doc], out, repo_root=tmp_path)
     assert "[other](OTHER.md)" in (out / "d.md").read_text(encoding="utf-8")
+
+
+def test_format_quotes_a_name_that_is_not_a_bare_identifier():
+    # A markdown heading is a name, not an identifier: it carries spaces and
+    # punctuation, so it round-trips only when quoted.
+    heading = "Fix 2 — Persist last-known seated slot (RC2 + floor)"
+    c = Citation(path="d.md", segments=(Segment(heading, False),))
+    text = format_citation(c)
+    assert parse_citation(text).segments[0].text == heading
+
+
+def test_format_leaves_a_bare_identifier_unquoted():
+    c = Citation(path="a.cpp", segments=(Segment("update_from_status", False),))
+    assert format_citation(c) == "a.cpp#update_from_status"
