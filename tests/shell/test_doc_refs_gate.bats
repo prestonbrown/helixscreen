@@ -164,3 +164,36 @@ MD
     [ "$status" -eq 0 ]
     [[ "$output" != *"zz_definitely_missing"* ]]
 }
+
+@test "index: a local .md the docs index links becomes a scan target" {
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p docs/audits
+    printf '# Index\n\n[Audit](audits/A.md) and [User](user/U.md)\n' > docs/README.md
+    echo x > docs/audits/A.md
+    run python3 -c "
+import os, sys
+os.chdir('$BATS_TEST_TMPDIR')
+sys.path.insert(0, '$BATS_TEST_DIRNAME/../../scripts')
+import check_doc_refs as r
+print(r.indexed_docs())
+"
+    [ "$status" -eq 0 ]
+    # Listed and present on disk -> a target. Listed but absent -> not invented.
+    [[ "$output" == *"docs/audits/A.md"* ]]
+    [[ "$output" != *"docs/user/U.md"* ]]
+}
+
+@test "index: a URL in the docs index is not treated as a local doc" {
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p docs
+    printf '# Index\n\n[Up](https://example.com/x.md) and [Mail](mailto:a@b.md)\n' > docs/README.md
+    run python3 -c "
+import os, sys
+os.chdir('$BATS_TEST_TMPDIR')
+sys.path.insert(0, '$BATS_TEST_DIRNAME/../../scripts')
+import check_doc_refs as r
+print(r.indexed_docs())
+"
+    [ "$status" -eq 0 ]
+    [ "$output" = "[]" ]
+}

@@ -1,6 +1,8 @@
 # HelixScreen Memory Usage Analysis
 *Last Updated: 2026-03-04*
 
+Paths in this analysis name the tree as it stood on 2026-03-04.
+
 ## Executive Summary
 
 **Current Pattern:** Create-once, toggle visibility (all panels loaded at startup)

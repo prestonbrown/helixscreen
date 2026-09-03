@@ -285,7 +285,7 @@ This permanently removes all queued events from your device. Events that have al
 ## Data Retention and Transmission
 
 ### Local Queue
-- Events are stored locally in `telemetry_queue.json` in your config directory
+- Events are stored locally in telemetry_queue.json in your config directory
 - Maximum **100 events** in the queue; oldest events are dropped when the limit is reached
 - Queue persists across application restarts
 
@@ -327,5 +327,5 @@ For developers and the technically curious:
 - **Implementation**: handled by the telemetry and crash-handling modules built into HelixScreen itself — no external agents, scripts, or third-party trackers are involved
 - **Crash handling**: written to keep working even while the app is crashing, so a crash is still captured and queued for sending
 - **Schema version**: `2` (all events include `schema_version` for forward compatibility)
-- **Identity files**: `telemetry_device.json` (UUID + salt), `telemetry_config.json` (enabled state), `telemetry_queue.json` (event queue)
+- **Identity files**: telemetry_device.json (UUID + salt), telemetry_config.json (enabled state), telemetry_queue.json (event queue)
 - **Privacy policy**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

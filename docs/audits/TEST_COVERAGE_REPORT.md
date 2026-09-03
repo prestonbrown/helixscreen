@@ -5,6 +5,8 @@
 **Total Test Files:** 27 (39% coverage)
 **Status:** Comprehensive test suite added for critical modules
 
+Paths in this report name the tree as it stood on 2025-11-23.
+
 ---
 
 ## Executive Summary
