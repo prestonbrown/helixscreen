@@ -14,6 +14,12 @@ LAUNCHER="$WORKTREE_ROOT/scripts/helix-launcher.sh"
 
 setup() {
     load helpers
+    # helix-launcher.sh runs `killall helix-watchdog helix-screen ...`, which is
+    # not scoped to this test. bats runs FILES in parallel, so an unmocked run
+    # reaches across and kills the long-lived instance test_headless_display.bats
+    # is driving - it dies cleanly mid-startup and that test fails for no reason
+    # of its own.
+    mock_command_script "killall" 'exit 0'
 
     # Create a mock install layout so the launcher can find binaries
     export MOCK_INSTALL="$BATS_TEST_TMPDIR/helixscreen"

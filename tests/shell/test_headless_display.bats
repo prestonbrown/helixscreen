@@ -131,36 +131,79 @@ headless_socket() {
 
 @test "headless instance can be driven via ctl and capture a screenshot" {
     require_binary
-    local sock shot
+    local sock shot log
     sock="$(headless_socket)"
-    shot="/tmp/hs-bats-$$-${BATS_TEST_NUMBER}.png"
+    shot="$BATS_TEST_TMPDIR/shot.png"
+    log="$BATS_TEST_TMPDIR/ctl.log"
     rm -f "$sock" "$shot"
 
+    # Installer tests run scripts that harden PATH (bundle-installer.sh puts the
+    # stock system dirs FIRST, deliberately, so a third-party shim cannot hijack
+    # killall during an install). That also defeats bats' PATH-based mocks, so a
+    # real `killall helix-screen` from a sibling file reaches this instance and
+    # kills it mid-startup. A shared lock is the only isolation left.
+    exec {applock}>"${TMPDIR:-/tmp}/helix-bats-app.lock"
+    flock "$applock"
+
+    # Launched directly, NOT through setsid: setsid forks, so $! would be the
+    # wrapper rather than the app - the liveness check below would read the
+    # wrapper's immediate exit as the app dying, and the kill at the end would
+    # miss the app and leak it.
     env SDL_VIDEODRIVER=dummy "$BIN" --test -vv --remote-socket "$sock" \
-        > "$BATS_TEST_TMPDIR/ctl.log" 2>&1 &
+        > "$log" 2>&1 &
     local pid=$!
 
-    local i
-    for i in $(seq 1 40); do
-        [ -S "$sock" ] && break
+    # Wait for the app to ANSWER, not for the socket file to exist: the socket
+    # appears when the server binds it, which is earlier than it can serve. The
+    # liveness check separates the two failure modes that look identical in a
+    # log that simply stops - a process that died and one that is still starting.
+    local i ready=0
+    for i in $(seq 1 120); do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            local rc=0
+            wait "$pid" 2>/dev/null || rc=$?
+            echo "app EXITED ${i}s into startup with status $rc" >&2
+            case "$rc" in
+                134) echo "  -> 128+6 SIGABRT: assertion or uncaught throw" >&2 ;;
+                137) echo "  -> 128+9 SIGKILL: OOM killer or an external kill -9" >&2 ;;
+                139) echo "  -> 128+11 SIGSEGV" >&2 ;;
+                143) echo "  -> 128+15 SIGTERM: something asked it to stop" >&2 ;;
+            esac
+            cat "$log" >&2 || true
+            return 1
+        fi
+        if [ -S "$sock" ] && "$BIN" ctl --socket "$sock" ping >/dev/null 2>&1; then
+            ready=1
+            break
+        fi
         sleep 1
     done
-    [ -S "$sock" ] || { kill -9 "$pid" 2>/dev/null; false; }
+
+    if [ "$ready" -ne 1 ]; then
+        echo "app ALIVE but never answered ctl ping in 120s; log follows:" >&2
+        cat "$log" >&2 || true
+        kill -9 "$pid" 2>/dev/null || true
+        return 1
+    fi
 
     run "$BIN" ctl --socket "$sock" navigate filament
-    local nav_status=$status
+    local nav_status=$status nav_out="$output"
 
     run "$BIN" ctl --socket "$sock" screenshot "$shot"
-    local shot_status=$status
+    local shot_status=$status shot_out="$output"
 
     kill -TERM "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
     rm -f "$sock"
+    exec {applock}>&-
 
-    [ "$nav_status" -eq 0 ]
-    [ "$shot_status" -eq 0 ]
-    [ -s "$shot" ]
-    rm -f "$shot"
+    if [ "$nav_status" -ne 0 ] || [ "$shot_status" -ne 0 ] || [ ! -s "$shot" ]; then
+        echo "navigate=$nav_status ($nav_out)" >&2
+        echo "screenshot=$shot_status ($shot_out)" >&2
+        echo "png bytes=$(wc -c < "$shot" 2>/dev/null || echo 0)" >&2
+        cat "$log" >&2 || true
+        return 1
+    fi
 }
 
 @test "lv_sdl_window_create failure path deletes the display before freeing dsc" {
