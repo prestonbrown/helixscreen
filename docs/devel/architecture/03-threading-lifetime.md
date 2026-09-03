@@ -78,11 +78,11 @@ The heuristic for everything else: if you are in a callback from libhv, an `Http
 
 ### One bridge: the `UpdateQueue` contract
 
-Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`application.cpp:4154`](../../../src/application/application.cpp#L4154)) before `lv_timer_handler()` (`:4136`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; a 1 ms LVGL timer created in `init()` ([`include/ui_update_queue.h:119`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`:441`) on the main thread inside `lv_timer_handler()`.
+Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`application.cpp:4154`](../../../src/application/application.cpp#L4154)) before `lv_timer_handler()` (`:4136`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; an LVGL timer created in `init()` that drains on the display refresh period ([`include/ui_update_queue.h:125`](../../../include/ui_update_queue.h#L125)) drains `process_pending()` (`:444`) on the main thread inside `lv_timer_handler()`.
 
 The safety property is same-thread serialization: because the drain runs inside LVGL's timer walk, a queued `lv_subject_set_*()` can never interleave with an in-progress render — that is what prevents LVGL's "invalidate during rendering" assertion, which on embedded targets is an infinite loop rather than a crash. One correction absorbed from the old diagram: it called the drain "HIGHEST PRIORITY, runs first". LVGL 9 timers have no priority field; the real guarantees are the 1 ms period (work lands within a frame) and creation-order precedence over the later-created refresh timer. Trust the serialization, not per-tick ordering claims.
 
-The queue earns trust in the details: tags register with the crash handler so a crash names the guilty callback; exceptions in one callback are swallowed and logged so a batch cannot be lost to a single bad lambda; widget-guarded overloads drop work whose widget died; `ScopedFreeze` (`:249`) buffers enqueues across a drain-and-destroy window and splices them back on thaw. Canonical producer pattern: `PrinterState`'s public setters marshal themselves —
+The queue earns trust in the details: tags register with the crash handler so a crash names the guilty callback; exceptions in one callback are swallowed and logged so a batch cannot be lost to a single bad lambda; widget-guarded overloads drop work whose widget died; `ScopedFreeze` (`:255`) buffers enqueues across a drain-and-destroy window and splices them back on thaw. Canonical producer pattern: `PrinterState`'s public setters marshal themselves —
 
 ```cpp
 void PrinterState::set_printer_connection_state(int state, const char* message) {
@@ -188,7 +188,7 @@ Supporting rules that trip contributors:
 
 Read in this order; about 25 minutes total.
 
-1. [`include/ui_update_queue.h:94`](../../../include/ui_update_queue.h#L94) — the `UpdateQueue` class: timer creation in `init()` (`:119`), the tagged drain `process_pending()` (`:441`), `ScopedFreeze` (`:249`). The comments on "why not `lv_async_call`" are the design argument in three lines.
+1. [`include/ui_update_queue.h:101`](../../../include/ui_update_queue.h#L101) — the `UpdateQueue` class: timer creation in `init()` (`:125`), the tagged drain `process_pending()` (`:444`), `ScopedFreeze` (`:255`). The comments on "why not `lv_async_call`" are the design argument in three lines.
 2. [`include/async_lifetime_guard.h:115`](../../../include/async_lifetime_guard.h#L115) — `LifetimeToken::expired()` with the background-thread detector inline; then `:165` `defer()` and its pre-enqueue generation check (the doomed-callback drop), and `:354` `bg_cb()` — read the doc comment for the short-form/long-form tradeoff.
 3. [`src/printer/detection_manager.cpp:26`](../../../src/printer/detection_manager.cpp#L26) — the two-line `bg_cb` in the wild: an observer registered with a marshalled callback, nothing else to it.
 4. [`src/printer/printer_state.cpp:667`](../../../src/printer/printer_state.cpp#L667) — `set_printer_connection_state()` (defer through the guard), then `:659` `set_klippy_state()` (`call_method` flavor). The whole marshalling-setter pattern in twenty lines.

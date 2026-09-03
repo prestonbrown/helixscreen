@@ -108,7 +108,7 @@ A second, smaller intake exists: RPC replies and webhooks events (Klippy ready/s
 
 ### The UpdateQueue bridge
 
-`UpdateQueue` ([`include/ui_update_queue.h:94`](../../../include/ui_update_queue.h#L94)) is a mutex-protected `std::queue` of tagged callbacks plus a 1 ms LVGL timer created in `init()` (`:119`). Any thread calls `helix::ui::queue_update(fn)` (`:603`); the main thread executes the callbacks in `process_pending()` (`:441`) when the drain timer fires inside `lv_timer_handler()`.
+`UpdateQueue` ([`include/ui_update_queue.h:101`](../../../include/ui_update_queue.h#L101)) is a mutex-protected `std::queue` of tagged callbacks plus an LVGL timer created in `init()` that drains on the display refresh period (`:125`). Any thread calls `helix::ui::queue_update(fn)` (`:618`); the main thread executes the callbacks in `process_pending()` (`:444`) when the drain timer fires inside `lv_timer_handler()`.
 
 Why not `lv_async_call()`? Two reasons, both visible in the header. First, ordering: `lv_async_call` runs its callbacks from the refresh cycle, which only fires when LVGL decides to render — if nothing invalidates the display, queued work never runs. The 1 ms timer fires on every `lv_timer_handler()` pass instead. Second, safety: because callbacks run on the main thread inside the timer walk, they are strictly serialized with rendering and with every other timer — a queued `lv_subject_set_*()` can never interleave with an in-progress render, which is what prevents LVGL's "invalidate during rendering" assertion. One nuance the old diagram overstated: LVGL 9 timers have no priority field; ready timers run in creation order, and the display refresh timer is created at display creation, *before* `update_queue_init()` ([`src/application/display_manager.cpp:397`](../../../src/application/display_manager.cpp#L397)). The real guarantee is same-thread serialization plus the 1 ms period landing work within a frame — not a strict drains-before-render ordering in a same-tick collision.
 
@@ -117,7 +117,7 @@ The queue earns its keep in diagnostics and teardown:
 - Every callback carries a **tag**; the currently-running and last-four completed tags are registered with the crash handler (`:127`), so a crash inside or shortly after `process_pending()` names the guilty subsystem in crash.txt.
 - **Exceptions are swallowed and logged** (`:452`) — one bad callback cannot take down the batch — with a counter so tests can tell "ran" from "threw" (#1212).
 - `queue_update(widget, ...)` overloads wrap the callback in an `lv_obj_is_valid()` guard so async work that outlives its widget is dropped, not crashed (`:709`).
-- `ScopedFreeze` (`:249`) buffers enqueues during a drain-and-destroy window and splices them back on thaw, closing the race where a background thread queues work against a widget being deleted.
+- `ScopedFreeze` (`:255`) buffers enqueues during a drain-and-destroy window and splices them back on thaw, closing the race where a background thread queues work against a widget being deleted.
 - Explicit `shutdown()` drains; the destructor deliberately does **not** — at static-destruction time the objects those callbacks reference are already gone (`:380`).
 - `helix::ui::run_on_main(tag, fn)` (`:591`) runs inline when already on the main thread and queues otherwise — put it at a subsystem's public boundary rather than wrapping each internal call site (#960).
 
@@ -201,7 +201,7 @@ Read in this order; about 25 minutes total.
 4. [`src/printer/printer_network_state.cpp:109`](../../../src/printer/printer_network_state.cpp#L109) — a complete setter: change detection, `lv_subject_set_int()`, side effects only on transition.
 5. [`src/printer/printer_temperature_state.cpp:368`](../../../src/printer/printer_temperature_state.cpp#L368) — the decidegrees convention, the explicit `lv_subject_notify()` on equal values, and (at `:139`) the hand registration of `bed_temp`/`bed_target` that dynamic rebuilds re-run.
 6. `lib/lvgl/src/core/lv_observer.c:122` — `lv_subject_set_int()`: prev/current storage and `lv_subject_notify_if_changed`. Ten lines that explain half of this chapter's gotchas.
-7. [`include/ui_update_queue.h:94`](../../../include/ui_update_queue.h#L94) — the `UpdateQueue` class: timer creation at `:119`, tagged `process_pending()` at `:441`, `ScopedFreeze` at `:249`, and the widget-safe overloads at the bottom of the file.
+7. [`include/ui_update_queue.h:101`](../../../include/ui_update_queue.h#L101) — the `UpdateQueue` class: timer creation at `:125`, tagged `process_pending()` at `:444`, `ScopedFreeze` at `:255`, and the widget-safe overloads at the bottom of the file.
 8. [`include/state/subject_macros.h:65`](../../../include/state/subject_macros.h#L65) — `INIT_SUBJECT_INT` and friends, including the `name_`/`name_buf_` convention; `:129` for the volatile variant.
 9. [`src/printer/printer_state.cpp:297`](../../../src/printer/printer_state.cpp#L297) — the tail of `init_subjects()`: macro use, then the `StaticSubjectRegistry::register_deinit` self-registration at `:324`.
 10. [`src/application/subject_initializer.cpp:294`](../../../src/application/subject_initializer.cpp#L294) — `init_core_subjects()` and the phase comments; skim the ordering rationale (navigation after PrinterState, observers last).
