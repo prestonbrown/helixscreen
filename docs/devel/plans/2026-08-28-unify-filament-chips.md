@@ -1157,7 +1157,7 @@ Expected: green. Compare shard pass count and CASE count against a pre-change ru
 
 ```bash
 scripts/check_imperative_ui.py --list | wc -l
-make regen-doc-links
+make check-doc-anchors
 scripts/quality-checks.sh
 ```
 Expected: the imperative-UI count must not RISE. It should FALL — `update_color_swatches()` deleted more imperative sites than the card's render gained.

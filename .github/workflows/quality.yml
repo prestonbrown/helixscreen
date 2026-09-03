@@ -59,6 +59,14 @@ jobs:
     # with no devel/** entry at all, devel/1.1 had no quality CI whatsoever, and
     # a branch whose own CI was red merged into it unnoticed - every sync merge
     # then inherits those gates, because they are tree-wide.
+    # tests/python/ covers the script-side tooling: the doc-anchor resolver, the
+    # translation extractor and YAML manager, the ESP32 asset packer. It runs here
+    # rather than only in nightly because nightly is schedule-triggered and so only
+    # ever sees the default branch, which left a release branch's copy of these
+    # scripts with no coverage at all.
+    - name: Run Python script tests
+      run: .venv/bin/pytest tests/python/ -v --tb=short
+
     - name: Run quality checks
       id: quality
       timeout-minutes: 5
