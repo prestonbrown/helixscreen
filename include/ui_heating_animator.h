@@ -17,6 +17,11 @@
  * (muted off / red heating / green at-temp / blue cooling), and pulses (opacity
  * oscillation) only while actively heating.
  *
+ * The pulse is motion, so the user's "Animations" preference governs it: with
+ * animations switched off the icon holds still at full opacity and keeps its
+ * per-state color, so the four states remain distinguishable. Colors are never
+ * gated — only the oscillation.
+ *
  * Usage:
  *   HeatingIconAnimator animator;
  *   animator.attach(icon_widget);
@@ -123,7 +128,21 @@ class HeatingIconAnimator {
     lv_color_t current_color_; ///< Current thermal-state color
     lv_opa_t current_opacity_ = LV_OPA_COVER;
 
+    /// Last values apply_color() actually wrote to the widgets, and whether it
+    /// has written anything yet. Each lv_obj_set_style_* refreshes the style and
+    /// invalidates the widget whether or not the value moved, and a pulse step
+    /// changes nothing but the opacity — so the color write is skipped unless
+    /// the color really differs.
+    lv_color_t applied_color_{};
+    lv_opa_t applied_opacity_ = 0;
+    bool style_written_ = false;
+
     bool pulse_active_ = false;
+
+    /// Whether the user's "Animations" preference allows the pulse to run.
+    /// Seeded by the observer's subscribe-time notification; true when the
+    /// preference subject does not exist yet.
+    bool animations_enabled_ = true;
 
     /**
      * @brief Start pulse animation (opacity oscillation)
@@ -136,9 +155,42 @@ class HeatingIconAnimator {
     void stop_pulse();
 
     /**
+     * @brief Run or halt the pulse to match state_ and the animations preference
+     *
+     * The single place that decides whether the icon should be moving, so a
+     * temperature update and a preference toggle can never reach different
+     * conclusions.
+     */
+    void sync_pulse_to_state();
+
+    /**
      * @brief Apply current color and opacity to icon
      */
     void apply_color();
+
+    /**
+     * @brief Write the current tint to one widget
+     *
+     * @param obj        Icon widget or one of its children
+     * @param with_color Write the color as well as the opacity
+     */
+    void tint(lv_obj_t* obj, bool with_color) const;
+
+    /**
+     * @brief Register the icon's delete callback and both observers against `this`
+     *
+     * Shared by attach() and the move operations: LVGL stores the owner pointer
+     * inside each registration, so an animator that takes over another's icon
+     * has to re-register rather than inherit.
+     */
+    void install_hooks();
+
+    /**
+     * @brief Take over @p other's icon, leaving nothing registered against it
+     *
+     * @param other Animator being moved from; detached by the time this returns
+     */
+    void adopt_from(HeatingIconAnimator& other);
 
     /**
      * @brief Get the off-state color, shared with the temperature label (text_muted)
@@ -152,9 +204,19 @@ class HeatingIconAnimator {
     ObserverGuard theme_observer_;
 
     /**
+     * @brief RAII observer for the user's "Animations" preference
+     */
+    ObserverGuard animations_observer_;
+
+    /**
      * @brief Static callback for theme change observer
      */
     static void theme_change_cb(lv_observer_t* observer, lv_subject_t* subject);
+
+    /**
+     * @brief Static callback for the animations-preference observer
+     */
+    static void animations_pref_cb(lv_observer_t* observer, lv_subject_t* subject);
 
     /**
      * @brief Animation callback for pulse effect
