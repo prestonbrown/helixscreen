@@ -225,3 +225,44 @@ TEST_CASE_METHOD(LVGLTestFixture, "untagged queue_update has null callback tag",
 
     REQUIRE(tag_during_callback == nullptr);
 }
+
+// The drain timer is what decides how often the whole main loop wakes up:
+// lv_timer_handler() returns the shortest time until any live timer is due, and
+// the main loop sleeps for that answer. A sub-frame period therefore pins the
+// loop at its 5 ms floor — ~200 wakeups a second on a machine with nothing to
+// do — and each one pays clock reads, a notification-queue lock, and a drain.
+// Draining once per rendered frame is as often as the UI can use.
+TEST_CASE_METHOD(LVGLTestFixture, "drain timer does not wake the main loop faster than a frame",
+                 "[update_queue][1440]") {
+    auto& q = UpdateQueue::instance();
+    REQUIRE(q.timer() != nullptr);
+
+    INFO("drain timer period = " << UpdateQueueTestAccess::timer_period(q) << " ms");
+    CHECK(UpdateQueueTestAccess::timer_period(q) >= LV_DEF_REFR_PERIOD);
+}
+
+// The early-out that skips building a local queue when nothing is pending must
+// not swallow work: a drain that finds the queue empty has to leave frozen
+// callbacks buffered, and the next drain has to run everything that arrived in
+// between — including callbacks enqueued from inside another callback.
+TEST_CASE_METHOD(LVGLTestFixture, "empty drain leaves buffered and later work intact",
+                 "[update_queue][1440]") {
+    auto& q = UpdateQueue::instance();
+    bool frozen_ran = false;
+    bool nested_ran = false;
+
+    {
+        auto freeze = q.scoped_freeze();
+        q.queue("frozen", [&frozen_ran]() { frozen_ran = true; });
+        // pending_ is empty here — the work went to the frozen buffer.
+        UpdateQueueTestAccess::drain(q);
+        CHECK_FALSE(frozen_ran);
+    }
+
+    q.queue("nests",
+            [&q, &nested_ran]() { q.queue("nested", [&nested_ran]() { nested_ran = true; }); });
+    UpdateQueueTestAccess::drain_all(q);
+
+    CHECK(frozen_ran);
+    CHECK(nested_ran);
+}
