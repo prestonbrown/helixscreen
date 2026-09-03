@@ -452,6 +452,7 @@
   <translation tag="Checking..." zh="检查中..."/>
   <translation tag="Choose 12-hour or 24-hour time display" zh="选择 12 小时制或 24 小时制"/>
   <translation tag="Choose Filament" zh="选择耗材"/>
+  <translation tag="Choose Model" zh="选择型号"/>
   <translation tag="Choose an existing filament, or tap + New to create one." zh="选择已有耗材，或点击 + 新建来创建。"/>
   <translation tag="Choose display language" zh="选择显示语言"/>
   <translation tag="Choose how frames are captured during printing" zh="选择打印期间的帧捕获方式"/>
@@ -1999,7 +2000,6 @@
   <translation tag="Remap Tool" zh="重映射工具"/>
   <translation tag="Remap needs the HelixPrint plugin" zh="重新映射需要 HelixPrint 插件"/>
   <translation tag="Remap…" zh="重新映射……"/>
-  <translation tag="Remember lane spool details across an eject" zh="弹出后记住槽位的料盘详情"/>
   <translation tag="Remember slot spool details across an eject" zh="弹出后记住槽位的料盘详情"/>
   <translation tag="Remove" zh="移除"/>
   <translation tag="Remove PIN" zh="移除 PIN"/>

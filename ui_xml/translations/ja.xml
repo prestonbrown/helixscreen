@@ -452,6 +452,7 @@
   <translation tag="Checking..." ja="確認中..."/>
   <translation tag="Choose 12-hour or 24-hour time display" ja="12時間表示または24時間表示を選択"/>
   <translation tag="Choose Filament" ja="フィラメントを選択"/>
+  <translation tag="Choose Model" ja="モデルを選択"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ja="既存のフィラメントを選択するか、+ 新規をタップして作成してください。"/>
   <translation tag="Choose display language" ja="表示言語を選択"/>
   <translation tag="Choose how frames are captured during printing" ja="印刷中のフレームキャプチャ方法を選択"/>
@@ -1999,7 +2000,6 @@
   <translation tag="Remap Tool" ja="ツールを再割当"/>
   <translation tag="Remap needs the HelixPrint plugin" ja="リマップにはHelixPrintプラグインが必要です"/>
   <translation tag="Remap…" ja="リマップ…"/>
-  <translation tag="Remember lane spool details across an eject" ja="取り出し後もレーンのスプール情報を記憶します"/>
   <translation tag="Remember slot spool details across an eject" ja="取り出し後もスロットのスプール情報を記憶します"/>
   <translation tag="Remove" ja="削除"/>
   <translation tag="Remove PIN" ja="PIN を削除"/>

@@ -105,8 +105,6 @@ translations:
   AFC reset complete: AFCリセット完了
   AFC reset failed: AFCリセット失敗
   AFC retracts filament from the toolhead at end of print: AFCは印刷終了時にツールヘッドからフィラメントを引き戻します
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC の remember_spool がファームウェア側でスプール情報を保持しているため、このトグル設定より優先されます
-  AI detection: AI 検出
   ALL DEVICES: すべてのデバイス
   AMS: AMS
   'AMS Active: ': 'AMS 有効: '
@@ -447,7 +445,6 @@ translations:
   Check the filament path and try again.: フィラメント経路を確認して、もう一度お試しください。
   Check your heater's rating (typically 40-60W for hotends): ヒーターの定格を確認してください（ホットエンドは通常40〜60W）
   Checking: 確認中
-  Checking Bed Mesh...: ベッドメッシュを確認中...
   Checking Spoolman server...: Spoolman サーバーを確認中...
   Checking accelerometer...: 加速度センサーを確認中...
   Checking extruders...: エクストルーダーを確認中...
@@ -461,6 +458,7 @@ translations:
   Checking...: 確認中...
   Choose 12-hour or 24-hour time display: 12時間表示または24時間表示を選択
   Choose Filament: フィラメントを選択
+  Choose Model: モデルを選択
   Choose an existing filament, or tap + New to create one.: 既存のフィラメントを選択するか、+ 新規をタップして作成してください。
   Choose display language: 表示言語を選択
   Choose how frames are captured during printing: 印刷中のフレームキャプチャ方法を選択
@@ -1501,7 +1499,6 @@ translations:
   Minutes: 分
   Mode: モード
   Modified: 変更日時
-  Monitor for print abnormalities (K2 Plus camera-based): 印刷異常を監視 (K2 Plus カメラベース)
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 印刷の進行状況を監視します — 残り時間、現在のレイヤー、進捗。タップすれば進行中のジョブを一時停止、再開、キャンセルできます。
   Monitoring: モニタリング
   Month: 月
@@ -1718,8 +1715,8 @@ translations:
   Open: 開く
   Open Source Licenses: オープンソースライセンス
   Open color and brightness controls: 色と明るさの調整を開く
-  Open feeder: フィーダーを開く
   Open feeder macro: フィーダーを開くマクロ
+  Open feeder: フィーダーを開く
   Open motion controls for jogging: ジョグ操作を開く
   Operation already in progress: 操作がすでに進行中です
   Operations: 操作
@@ -1892,8 +1889,8 @@ translations:
   Print Tuning: 印刷チューニング
   Print Was Terminated: 印刷が中止されました
   Print cancelled: 印刷がキャンセルされました
-  Print complete: 印刷完了
   Print did not start: 印刷は開始されませんでした
+  Print complete: 印刷完了
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): 印刷が開始されませんでした
     — プリンターがビジー状態またはオフラインの可能性があります (B3 polls={}, status=0x{:02X}, error=0x{:02X})
   Print ending...: 印刷終了中...
@@ -1966,6 +1963,7 @@ translations:
   Probing Bed...: ベッドをプローブ中...
   Probing Failed: プローブ失敗
   Probing Z...: Z軸をプローブ中...
+  Checking Bed Mesh...: ベッドメッシュを確認中...
   Probing point {} of {}: 'プローブ点 {} / {}'
   Probing... ({} points): 'プローブ中... ({} 点)'
   Proceed: 続行
@@ -2053,8 +2051,8 @@ translations:
   Refresh: 更新
   Refresh Interval: 更新間隔
   Refresh RFID: 'RFIDを再読み込み'
-  Reheating...: 再加熱中...
   Relative vibration: 相対振動
+  Reheating...: 再加熱中...
   Release all stepper motors. Position will be lost.: すべてのステッピングモーターを解放します。位置情報は失われます。
   Release filament: フィラメントを解放
   Release or grip the filament by hand: 手でフィラメントを解放または把持
@@ -2064,7 +2062,6 @@ translations:
   Remap Tool: ツールを再割当
   Remap needs the HelixPrint plugin: リマップにはHelixPrintプラグインが必要です
   Remap…: リマップ…
-  Remember lane spool details across an eject: 取り出し後もレーンのスプール情報を記憶します
   Remember slot spool details across an eject: 取り出し後もスロットのスプール情報を記憶します
   Remove: 削除
   Remove PIN: PIN を削除
@@ -2970,6 +2967,9 @@ translations:
   nozzle: ノズル
   of: の
   'off': オフ
+  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC の remember_spool がファームウェア側でスプール情報を保持しているため、このトグル設定より優先されます
+  AI detection: AI 検出
+  Monitor for print abnormalities (K2 Plus camera-based): 印刷異常を監視 (K2 Plus カメラベース)
   or type a macro name: またはマクロ名を入力
   prints: 印刷
   remaining: 残り

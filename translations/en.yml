@@ -494,6 +494,7 @@ translations:
   Checking...: Checking...
   Choose 12-hour or 24-hour time display: Choose 12-hour or 24-hour time display
   Choose Filament: Choose Filament
+  Choose Model: Choose Model
   Choose an existing filament, or tap + New to create one.: Choose an existing filament,
     or tap + New to create one.
   Choose display language: Choose display language
@@ -2184,7 +2185,6 @@ translations:
   Remap Tool: Remap Tool
   Remap needs the HelixPrint plugin: Remap needs the HelixPrint plugin
   Remap…: Remap…
-  Remember lane spool details across an eject: Remember lane spool details across an eject
   Remember slot spool details across an eject: Remember slot spool details across an eject
   Remove: Remove
   Remove PIN: Remove PIN

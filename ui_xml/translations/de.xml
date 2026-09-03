@@ -452,6 +452,7 @@
   <translation tag="Checking..." de="Prüfe..."/>
   <translation tag="Choose 12-hour or 24-hour time display" de="12-Stunden- oder 24-Stunden-Zeitformat wählen"/>
   <translation tag="Choose Filament" de="Filament auswählen"/>
+  <translation tag="Choose Model" de="Modell auswählen"/>
   <translation tag="Choose an existing filament, or tap + New to create one." de="Vorhandenes Filament wählen oder + Neu tippen."/>
   <translation tag="Choose display language" de="Anzeigesprache wählen"/>
   <translation tag="Choose how frames are captured during printing" de="Wählen Sie, wie Bilder während des Drucks aufgenommen werden"/>
@@ -1999,7 +2000,6 @@
   <translation tag="Remap Tool" de="Werkzeug zuordnen"/>
   <translation tag="Remap needs the HelixPrint plugin" de="Neuzuordnung benötigt das HelixPrint-Plugin"/>
   <translation tag="Remap…" de="Neu zuordnen…"/>
-  <translation tag="Remember lane spool details across an eject" de="Spulendetails der Spur über ein Auswerfen hinweg merken"/>
   <translation tag="Remember slot spool details across an eject" de="Spulendetails des Slots über ein Auswerfen hinweg merken"/>
   <translation tag="Remove" de="Entfernen"/>
   <translation tag="Remove PIN" de="PIN entfernen"/>

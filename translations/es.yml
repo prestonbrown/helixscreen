@@ -111,8 +111,6 @@ translations:
   AFC reset failed: Error en reinicio AFC
   AFC retracts filament from the toolhead at end of print: AFC retrae el filamento
     del cabezal al finalizar la impresión
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: El parámetro remember_spool de AFC retiene la información de la bobina en el firmware; eso tiene prioridad sobre esta opción
-  AI detection: Detección AI
   ALL DEVICES: TODOS LOS DISPOSITIVOS
   AMS: AMS
   'AMS Active: ': 'AMS activo: '
@@ -500,7 +498,6 @@ translations:
   Check your heater's rating (typically 40-60W for hotends): Consulte la potencia
     de su calentador (normalmente 40-60W para hotends)
   Checking: Comprobando
-  Checking Bed Mesh...: Comprobando Malla de Cama...
   Checking Spoolman server...: Verificando servidor Spoolman...
   Checking accelerometer...: Verificando acelerómetro...
   Checking extruders...: Comprobando extrusores...
@@ -514,6 +511,7 @@ translations:
   Checking...: Comprobando...
   Choose 12-hour or 24-hour time display: Elija visualización de hora de 12 o 24 horas
   Choose Filament: Elegir Filamento
+  Choose Model: Elegir Modelo
   Choose an existing filament, or tap + New to create one.: Elige un filamento o toca
     + Nuevo para crear uno.
   Choose display language: Elija el idioma de visualización
@@ -1637,7 +1635,6 @@ translations:
   Minutes: Minutos
   Mode: Modo
   Modified: Modificado
-  Monitor for print abnormalities (K2 Plus camera-based): Monitorear anomalías de impresión (basado en cámara del K2 Plus)
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitoriza las impresiones en curso — tiempo restante, capa actual y progreso. Toca para pausar, reanudar o cancelar el trabajo activo.'
   Monitoring: Monitorizando
   Month: Mes
@@ -1865,8 +1862,8 @@ translations:
   Open: Abrir
   Open Source Licenses: Licencias de código abierto
   Open color and brightness controls: Abrir controles de color y brillo
-  Open feeder: Abrir alimentador
   Open feeder macro: Macro de apertura del alimentador
+  Open feeder: Abrir alimentador
   Open motion controls for jogging: Abrir los controles de movimiento
   Operation already in progress: Operación ya en curso
   Operations: Operaciones
@@ -2048,8 +2045,8 @@ translations:
   Print Tuning: Ajuste de Impresión
   Print Was Terminated: La impresión fue terminada
   Print cancelled: Impresión cancelada
-  Print complete: Impresión completa
   Print did not start: La impresión no se inició
+  Print complete: Impresión completa
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): La
     impresión no comenzó — la impresora puede estar ocupada o desconectada (sondeos
     B3={}, status=0x{:02X}, error=0x{:02X})
@@ -2132,6 +2129,7 @@ translations:
   Probing Bed...: Sondeando Cama...
   Probing Failed: Sondeo Fallido
   Probing Z...: Sondeando Z...
+  Checking Bed Mesh...: Comprobando Malla de Cama...
   Probing point {} of {}: 'Punto de sondeo {} de {}'
   Probing... ({} points): 'Sondeando... ({} puntos)'
   Proceed: Continuar
@@ -2225,8 +2223,8 @@ translations:
   Refresh: Actualizar
   Refresh Interval: Intervalo de Actualización
   Refresh RFID: 'Actualizar RFID'
-  Reheating...: Recalentando...
   Relative vibration: Vibración relativa
+  Reheating...: Recalentando...
   Release all stepper motors. Position will be lost.: Liberar todos los motores paso
     a paso. Se perderá la posición.
   Release filament: Liberar filamento
@@ -2237,7 +2235,6 @@ translations:
   Remap Tool: Reasignar Herramienta
   Remap needs the HelixPrint plugin: La reasignación requiere el plugin HelixPrint
   Remap…: Reasignar…
-  Remember lane spool details across an eject: Recordar los detalles de la bobina del carril tras una expulsión
   Remember slot spool details across an eject: Recordar los detalles de la bobina de la ranura tras una expulsión
   Remove: Eliminar
   Remove PIN: Eliminar PIN
@@ -3247,6 +3244,9 @@ translations:
   nozzle: boquilla
   of: de
   'off': apagado
+  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: El parámetro remember_spool de AFC retiene la información de la bobina en el firmware; eso tiene prioridad sobre esta opción
+  AI detection: Detección AI
+  Monitor for print abnormalities (K2 Plus camera-based): Monitorear anomalías de impresión (basado en cámara del K2 Plus)
   or type a macro name: o escriba un nombre de macro
   prints: impresiones
   remaining: restante

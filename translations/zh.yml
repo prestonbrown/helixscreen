@@ -104,8 +104,6 @@ translations:
   AFC reset complete: AFC重置完成
   AFC reset failed: AFC重置失败
   AFC retracts filament from the toolhead at end of print: AFC 在打印结束时将耗材从工具头退出
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC 的 remember_spool 会在固件中保留料盘信息；其优先级高于此开关
-  AI detection: AI 检测
   ALL DEVICES: 所有设备
   AMS: AMS
   'AMS Active: ': 'AMS 已激活: '
@@ -444,7 +442,6 @@ translations:
   Check the filament path and try again.: 检查耗材路径并重试。
   Check your heater's rating (typically 40-60W for hotends): 检查加热器功率（热端通常为 40-60W）
   Checking: 检查中
-  Checking Bed Mesh...: 正在检查热床网格...
   Checking Spoolman server...: 正在检查 Spoolman 服务器...
   Checking accelerometer...: 正在检查加速度计...
   Checking extruders...: 正在检查挤出机...
@@ -458,6 +455,7 @@ translations:
   Checking...: 检查中...
   Choose 12-hour or 24-hour time display: 选择 12 小时制或 24 小时制
   Choose Filament: 选择耗材
+  Choose Model: 选择型号
   Choose an existing filament, or tap + New to create one.: 选择已有耗材，或点击 + 新建来创建。
   Choose display language: 选择显示语言
   Choose how frames are captured during printing: 选择打印期间的帧捕获方式
@@ -1494,7 +1492,6 @@ translations:
   Minutes: 分钟
   Mode: 模式
   Modified: 已修改
-  Monitor for print abnormalities (K2 Plus camera-based): 监测打印异常（基于 K2 Plus 摄像头）
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 监控正在进行的打印 — 剩余时间、当前层和进度。点击可暂停、恢复或取消当前任务。
   Monitoring: 监控中
   Month: 月
@@ -1710,8 +1707,8 @@ translations:
   Open: 打开
   Open Source Licenses: 开源许可证
   Open color and brightness controls: 打开颜色和亮度控制
-  Open feeder: 打开送料器
   Open feeder macro: 打开送料器宏
+  Open feeder: 打开送料器
   Open motion controls for jogging: 打开手动移动控制
   Operation already in progress: 操作正在进行中
   Operations: 操作
@@ -1884,8 +1881,8 @@ translations:
   Print Tuning: 打印调优
   Print Was Terminated: 打印已终止
   Print cancelled: 打印已取消
-  Print complete: 打印完成
   Print did not start: 打印未启动
+  Print complete: 打印完成
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): 打印未开始
     — 打印机可能繁忙或离线 (B3 polls={}, status=0x{:02X}, error=0x{:02X})
   Print ending...: 正在结束打印...
@@ -1957,6 +1954,7 @@ translations:
   Probing Bed...: 正在探测热床...
   Probing Failed: 探测失败
   Probing Z...: 正在探测 Z...
+  Checking Bed Mesh...: 正在检查热床网格...
   Probing point {} of {}: '探测点 {} / {}'
   Probing... ({} points): '探测中...（{} 个点）'
   Proceed: 继续
@@ -2044,8 +2042,8 @@ translations:
   Refresh: 刷新
   Refresh Interval: 刷新间隔
   Refresh RFID: '刷新 RFID'
-  Reheating...: 正在重新加热...
   Relative vibration: 相对振动
+  Reheating...: 正在重新加热...
   Release all stepper motors. Position will be lost.: 释放所有步进电机。位置信息将丢失。
   Release filament: 松开耗材
   Release or grip the filament by hand: 手动松开或夹持耗材
@@ -2055,7 +2053,6 @@ translations:
   Remap Tool: 重映射工具
   Remap needs the HelixPrint plugin: 重新映射需要 HelixPrint 插件
   Remap…: 重新映射……
-  Remember lane spool details across an eject: 弹出后记住槽位的料盘详情
   Remember slot spool details across an eject: 弹出后记住槽位的料盘详情
   Remove: 移除
   Remove PIN: 移除 PIN
@@ -2959,6 +2956,9 @@ translations:
   nozzle: 喷嘴
   of: 的
   'off': 关闭
+  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC 的 remember_spool 会在固件中保留料盘信息；其优先级高于此开关
+  AI detection: AI 检测
+  Monitor for print abnormalities (K2 Plus camera-based): 监测打印异常（基于 K2 Plus 摄像头）
   or type a macro name: 或输入宏名称
   prints: 打印次数
   remaining: 剩余

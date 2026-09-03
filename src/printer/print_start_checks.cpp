@@ -90,7 +90,7 @@ CheckResult warn_result(std::string title, std::string body, std::string proceed
 std::string build_empty_lane_message(const std::vector<std::pair<int, int>>& empty) {
     // Name the offending tool(s) and the AMS lane each routes to so the user
     // knows exactly which lane to load. Lane numbers are 1-based for display
-    // (slot 0 -> "Lane 1") to match the rest of the slot UI.
+    // (slot 0 -> "Slot 1") to match the rest of the slot UI.
     std::string message;
     if (empty.size() == 1) {
         message = fmt::format(lv_tr("Tool {} → Slot {}: no filament loaded."), empty[0].first,

@@ -2881,9 +2881,9 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
     opts.on_cancel = [this] {
         // Declining is final for this saved type. Keeping the type is a
         // deliberate choice (a heavily modified printer can legitimately
-        // outvote a 70% heuristic), and the persisted flag stops the
-        // prompt from re-appearing every boot. Re-identify remains
-        // available via the full `--wizard` run.
+        // outvote a heuristic), and the persisted flag stops the
+        // prompt from re-appearing every boot. The model picker remains
+        // available from Printer Manager and the full `--wizard` run.
         settle_type_mismatch_warning();
         spdlog::info("[Application] Type mismatch warning declined");
     };
@@ -2891,7 +2891,7 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
     opts.owner_token = m_async_lifetime.token();
 
     helix::ui::modal_confirm(
-        lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Re-identify"),
+        lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Choose Model"),
         [this] {
             // Settle first: the wizard tears itself down asynchronously, and a
             // crash mid-run must not leave the prompt pending forever.

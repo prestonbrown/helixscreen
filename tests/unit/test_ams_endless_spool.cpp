@@ -910,7 +910,7 @@ TEST_CASE("endless_spool_status turns capabilities into a status line",
         CHECK(static_cast<int>(status.kind) != 0); // 0 is what the XML hides on
         CHECK(status.kind != EndlessSpoolStatusKind::Off);
         CHECK(status.text ==
-              "Auto-refill is on but no two lanes hold matching filament, so nothing will "
+              "Auto-refill is on but no two slots hold matching filament, so nothing will "
               "switch on runout\nThe printer's firmware chooses the backup spool itself");
         // The first line must not be the plain-On or plain-Off sentence.
         CHECK(status.text.find("Switches to a backup spool") == std::string::npos);

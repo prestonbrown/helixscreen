@@ -110,8 +110,6 @@ translations:
   AFC reset failed: Ошибка сброса AFC
   AFC retracts filament from the toolhead at end of print: AFC выгружает филамент
     из печатающей головки по завершении печати
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Параметр remember_spool в AFC сохраняет данные катушки в прошивке и имеет приоритет над этим переключателем
-  AI detection: AI-детекция
   ALL DEVICES: ВСЕ УСТРОЙСТВА
   AMS: AMS
   'AMS Active: ': 'AMS активен: '
@@ -492,7 +490,6 @@ translations:
   Check your heater's rating (typically 40-60W for hotends): Проверьте мощность нагревателя
     (обычно 40–60W для хотэндов)
   Checking: Проверка
-  Checking Bed Mesh...: Проверка сетки стола...
   Checking Spoolman server...: Проверка сервера Spoolman...
   Checking accelerometer...: Проверка акселерометра...
   Checking extruders...: Проверка экструдеров...
@@ -507,6 +504,7 @@ translations:
   Choose 12-hour or 24-hour time display: Выберите 12-часовой или 24-часовой формат
     времени
   Choose Filament: Выбрать филамент
+  Choose Model: Выберите модель
   Choose an existing filament, or tap + New to create one.: Выберите существующий
     филамент или нажмите + Новый, чтобы создать.
   Choose display language: Выберите язык интерфейса
@@ -1618,7 +1616,6 @@ translations:
   Minutes: Минуты
   Mode: Режим
   Modified: Изменён
-  Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Отслеживайте выполняющиеся печати — оставшееся время, текущий слой и прогресс. Нажмите, чтобы приостановить, возобновить или отменить активное задание.'
   Monitoring: Мониторинг
   Month: Месяц
@@ -1843,8 +1840,8 @@ translations:
   Open: Открыть
   Open Source Licenses: Лицензии с открытым кодом
   Open color and brightness controls: Управление цветом и яркостью
-  Open feeder: Открыть фидер
   Open feeder macro: Макрос для открытия фидера
+  Open feeder: Открыть фидер
   Open motion controls for jogging: Управление перемещением осей
   Operation already in progress: Операция уже выполняется
   Operations: Операции
@@ -2024,8 +2021,8 @@ translations:
   Print Tuning: Настройка печати
   Print Was Terminated: Печать была прекращена
   Print cancelled: Печать отменена
-  Print complete: Печать завершена
   Print did not start: Печать не началась
+  Print complete: Печать завершена
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): Печать
     не началась — принтер может быть занят или не в сети (опросы B3={}, статус=0x{:02X},
     ошибка=0x{:02X})
@@ -2107,6 +2104,7 @@ translations:
   Probing Bed...: Зондирование стола...
   Probing Failed: Ошибка зондирования
   Probing Z...: Зондирование Z...
+  Checking Bed Mesh...: Проверка сетки стола...
   Probing point {} of {}: 'Точка замера {} из {}'
   Probing... ({} points): 'Замер... ({} точек)'
   Proceed: Продолжить
@@ -2200,8 +2198,8 @@ translations:
   Refresh: Обновить
   Refresh Interval: Интервал обновления
   Refresh RFID: 'Обновить RFID'
-  Reheating...: Разогрев...
   Relative vibration: Относительная вибрация
+  Reheating...: Разогрев...
   Release all stepper motors. Position will be lost.: Отпустить все шаговые моторы.
     Позиция будет потеряна.
   Release filament: Отпустить филамент
@@ -2212,7 +2210,6 @@ translations:
   Remap Tool: Переназначить инструмент
   Remap needs the HelixPrint plugin: Для переназначения нужен плагин HelixPrint
   Remap…: Переназначить…
-  Remember lane spool details across an eject: Запоминать данные катушки слота после извлечения
   Remember slot spool details across an eject: Запоминать данные катушки слота после извлечения
   Remove: Удалить
   Remove PIN: Удалить PIN
@@ -3203,6 +3200,9 @@ translations:
   nozzle: сопло
   of: из
   'off': выкл
+  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Параметр remember_spool в AFC сохраняет данные катушки в прошивке и имеет приоритет над этим переключателем
+  AI detection: AI-детекция
+  Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   or type a macro name: или введите название макроса
   prints: печатей
   remaining: осталось

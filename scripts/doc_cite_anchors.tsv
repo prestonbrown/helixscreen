@@ -366,6 +366,7 @@ docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery
 docs/devel/architecture/06-discovery-capabilities.md	src/api/moonraker_discovery_sequence.cpp	1692	src/api/moonraker_discovery_sequence.cpp	0891c236b9de	d1bad618eaea
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3042	src/application/application.cpp	1244b16cbb0d	b61f63380b11
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3070	src/application/application.cpp	ddd4cd4e9d5a	8e1377183ec5
+docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3162	src/application/application.cpp	d90a523d8adb	32bb4296975a
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3211	src/application/application.cpp	0008878f18b7	83ba3957fd35
 docs/devel/architecture/06-discovery-capabilities.md	src/application/application.cpp	3223	src/application/application.cpp	4fe997926c93	4f083a0696f4
 docs/devel/architecture/06-discovery-capabilities.md	src/printer/printer_detector.cpp	393	src/printer/printer_detector.cpp	53d640c0eaf2	05ed1a252cdd
