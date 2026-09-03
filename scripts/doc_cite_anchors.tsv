@@ -95,7 +95,7 @@ docs/devel/HELIXCTL.md	include/remote_pointer.h	38	include/remote_pointer.h	e632
 docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	1971	src/remote/remote_control_server.cpp	78bda741eafd	1f5e0732ac8c
 docs/devel/HELIXCTL.md	src/remote/remote_control_server.cpp	2004	src/remote/remote_control_server.cpp	2e05457ec3e8	ad5c18d9a774
 docs/devel/HELIXCTL.md	src/ui/grid_edit_mode.cpp	65	src/ui/grid_edit_mode.cpp	fb0dcaca5e05	00b829be4d38
-docs/devel/HELIXCTL.md	src/ui/grid_edit_mode.cpp	1061	src/ui/grid_edit_mode.cpp	cca1a0cc4772	839aa2b215ef
+docs/devel/HELIXCTL.md	src/ui/grid_edit_mode.cpp	1064	src/ui/grid_edit_mode.cpp	cca1a0cc4772	839aa2b215ef
 docs/devel/HELIXCTL.md	src/ui/ui_panel_home.cpp	43	src/ui/ui_panel_home.cpp	caa3f0b0e11a	9e4f253e3530
 docs/devel/HELIXCTL.md	src/ui/ui_panel_home.cpp	241	src/ui/ui_panel_home.cpp	e7ff1e375088	692a71fc413f
 docs/devel/HELIXCTL.md	src/ui/ui_panel_home.cpp	851	src/ui/ui_panel_home.cpp	2bc644ab4bb0	26eaa304bd3c

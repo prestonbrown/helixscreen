@@ -934,8 +934,11 @@ GridEditMode::ResizeEdge GridEditMode::detect_resize_edge(int px, int py,
     // big enough to grab and drag always survives. A half-cell widget is ~30px
     // across, where two flat bands would overlap and every pixel would report an
     // edge.
-    const int inward_x = std::min(band, lv_area_get_width(&widget_area) / 3);
-    const int inward_y = std::min(band, lv_area_get_height(&widget_area) / 3);
+    // Explicit template argument: lv_area_get_*() yields int32_t, which is long on
+    // the xtensa toolchain, so deduction against the int band fails there while
+    // succeeding on desktop.
+    const int inward_x = std::min<int32_t>(band, lv_area_get_width(&widget_area) / 3);
+    const int inward_y = std::min<int32_t>(band, lv_area_get_height(&widget_area) / 3);
 
     bool near_right = (px >= widget_area.x2 - inward_x && px <= widget_area.x2 + band);
     bool near_left = (px >= widget_area.x1 - band && px <= widget_area.x1 + inward_x);
