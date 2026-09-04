@@ -21,6 +21,9 @@
  * latch. The watchdog bounds the wait.
  */
 
+// Subject TU is Linux-only (wifi_backend_wpa_supplicant.h guards __APPLE__ too).
+#if !defined(__APPLE__)
+
 #include "../test_helpers/wpa_fake_supplicant.h"
 #include "wifi_backend_wpa_supplicant.h"
 
@@ -171,3 +174,5 @@ TEST_CASE("wpa stop with a scan outstanding stays silent and reusable", "[networ
     fx.fake->push_event("<3>CTRL-EVENT-SCAN-RESULTS \n");
     REQUIRE(events.wait_for(1));
 }
+
+#endif // !__APPLE__
