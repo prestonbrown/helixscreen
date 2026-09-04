@@ -45,10 +45,8 @@ using namespace helix;
 
 namespace {
 
-/// One authored cell on each axis, which is TRACKS_PER_CELL tracks — spans are
-/// in tracks everywhere below.
-constexpr int COLSPAN = GridLayout::TRACKS_PER_CELL;
-constexpr int ROWSPAN = GridLayout::TRACKS_PER_CELL;
+constexpr int COLSPAN = 2;
+constexpr int ROWSPAN = 2;
 
 /// Container + one named child widget + a matching config page, sized so
 /// current_metrics() reports real cell geometry. Mirrors the setup in
@@ -70,21 +68,11 @@ struct ResizeScene {
         const int gutter = theme_manager_get_spacing("space_xs");
         REQUIRE(gutter > 0);
 
-        // The content box decides the track count, so it is fixed first and the
-        // grid derived from it — same geometry test_grid_edit_drag_path.cpp
-        // uses. 715x475 is the one size near this fixture's display that gives
-        // Medium a 12x8 grid AND divides into exact 55px tracks, so there is no
-        // LVGL remainder distribution to muddy the pixel arithmetic.
-        constexpr int CELL_PX = 55;
-        constexpr int content_w = 715;
-        constexpr int content_h = 475;
-        const auto dims = GridLayout::get_dimensions(UiBreakpoint::Medium, content_w, content_h);
-        const int ncols = dims.cols;
-        const int nrows = dims.rows;
-        REQUIRE(ncols == 12);
-        REQUIRE(nrows == 8);
-        REQUIRE(content_w == ncols * CELL_PX + (ncols - 1) * gutter);
-        REQUIRE(content_h == nrows * CELL_PX + (nrows - 1) * gutter);
+        const int ncols = GridLayout::get_cols(UiBreakpoint::Medium);
+        const int nrows = GridLayout::get_rows(UiBreakpoint::Medium);
+        constexpr int CELL_PX = 30;
+        const int content_w = ncols * CELL_PX + (ncols - 1) * gutter;
+        const int content_h = nrows * CELL_PX + (nrows - 1) * gutter;
 
         container = lv_obj_create(parent);
         lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
@@ -92,8 +80,8 @@ struct ResizeScene {
         lv_obj_set_style_border_width(container, 0, 0);
         lv_obj_set_size(container, content_w, content_h);
 
-        col_dsc = GridLayout::make_col_dsc(ncols);
-        row_dsc = GridLayout::make_row_dsc(nrows);
+        col_dsc = GridLayout::make_col_dsc(UiBreakpoint::Medium);
+        row_dsc = GridLayout::make_row_dsc(UiBreakpoint::Medium);
         lv_obj_set_grid_dsc_array(container, col_dsc.data(), row_dsc.data());
         lv_obj_set_style_pad_column(container, gutter, 0);
         lv_obj_set_style_pad_row(container, gutter, 0);
@@ -164,11 +152,9 @@ lv_obj_t* arm_resize(GridEditMode& em, ResizeScene& scene) {
 /// the animation and nulls resize_preview_, which is asserted here so that a
 /// refactor which stops doing so cannot quietly make these tests vacuous.
 void commit_snap_resize(GridEditMode& em) {
-    // Grow the widget by one whole cell — any changed span reaches the animated
-    // branch; the specific geometry is not what these tests are about. Whole
-    // cells rather than one track because "temperature" does not declare
-    // supports_half_col, so an odd track count is not a size it can hold.
-    GridEditMode::ResizeResult result{0, 0, COLSPAN + GridLayout::TRACKS_PER_CELL, ROWSPAN};
+    // Grow the widget by one column — any changed span reaches the animated
+    // branch; the specific geometry is not what these tests are about.
+    GridEditMode::ResizeResult result{0, 0, COLSPAN + 1, ROWSPAN};
     GridEditModeTestAccess::commit_resize(em, result);
     REQUIRE(GridEditModeTestAccess::resize_preview(em) == nullptr);
 }
@@ -179,6 +165,9 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "GridEditMode: snap animation is cancelled when its preview widget dies",
                  "[grid_edit][grid_edit_snap_anim]") {
     helix::ui::ScopedAnimationsEnabled animations_on;
+    // A null subject makes the preference a no-op, and the snap branch below
+    // only runs with animations ON — every assertion would pass against nothing.
+    REQUIRE(animations_on.available());
     REQUIRE(DisplaySettingsManager::instance().get_animations_enabled());
 
     ResizeScene scene(test_screen(), "test_grid_edit_snap_anim_preview_death");
@@ -218,6 +207,9 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: exit() cancels an in-flight snap animation",
                  "[grid_edit][grid_edit_snap_anim]") {
     helix::ui::ScopedAnimationsEnabled animations_on;
+    // A null subject makes the preference a no-op, and the snap branch below
+    // only runs with animations ON — every assertion would pass against nothing.
+    REQUIRE(animations_on.available());
     REQUIRE(DisplaySettingsManager::instance().get_animations_enabled());
 
     ResizeScene scene(test_screen(), "test_grid_edit_snap_anim_exit");
@@ -244,6 +236,9 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: exit() cancels an in-flight snap
 TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: destruction cancels an in-flight snap animation",
                  "[grid_edit][grid_edit_snap_anim]") {
     helix::ui::ScopedAnimationsEnabled animations_on;
+    // A null subject makes the preference a no-op, and the snap branch below
+    // only runs with animations ON — every assertion would pass against nothing.
+    REQUIRE(animations_on.available());
     REQUIRE(DisplaySettingsManager::instance().get_animations_enabled());
 
     ResizeScene scene(test_screen(), "test_grid_edit_snap_anim_destruction");
