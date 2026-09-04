@@ -428,7 +428,12 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         if (tool_status.contains("detect_state") && tool_status["detect_state"].is_string()) {
             std::string ds = tool_status["detect_state"].get<std::string>();
             DetectState new_state = DetectState::UNAVAILABLE;
-            if (ds == "present") {
+            // klipper-toolchanger spells DETECT_PRESENT "mounted"
+            // (klipper/extras/toolchanger.py). "present" is what forks that
+            // copied the older wording send; both mean the tool is on the
+            // carriage. Anything else, DETECT_UNAVAILABLE included, stays
+            // UNAVAILABLE.
+            if (ds == "mounted" || ds == "present") {
                 new_state = DetectState::PRESENT;
             } else if (ds == "absent") {
                 new_state = DetectState::ABSENT;

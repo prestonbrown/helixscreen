@@ -431,14 +431,26 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: detect_state parsed from status",
     hw.parse_objects(objects);
     ts.init_tools(hw);
 
-    nlohmann::json status = {{"tool T0", {{"detect_state", "present"}}}};
+    // klipper-toolchanger spells DETECT_PRESENT "mounted" (klipper/extras/
+    // toolchanger.py); a stock machine never sends "present".
+    nlohmann::json status = {{"tool T0", {{"detect_state", "mounted"}}}};
     ts.update_from_status(status);
     REQUIRE(ts.tools()[0].detect_state == DetectState::PRESENT);
 
-    // Also test "absent"
     nlohmann::json status2 = {{"tool T0", {{"detect_state", "absent"}}}};
     ts.update_from_status(status2);
     REQUIRE(ts.tools()[0].detect_state == DetectState::ABSENT);
+
+    // DETECT_UNAVAILABLE, and any value we do not recognise, read as unavailable.
+    nlohmann::json status3 = {{"tool T0", {{"detect_state", "unavailable"}}}};
+    ts.update_from_status(status3);
+    REQUIRE(ts.tools()[0].detect_state == DetectState::UNAVAILABLE);
+
+    // "present" is no firmware's spelling upstream, but forks that copied the
+    // older wording still send it, and it means the same thing.
+    nlohmann::json status4 = {{"tool T0", {{"detect_state", "present"}}}};
+    ts.update_from_status(status4);
+    REQUIRE(ts.tools()[0].detect_state == DetectState::PRESENT);
 
     ts.deinit_subjects();
 }
