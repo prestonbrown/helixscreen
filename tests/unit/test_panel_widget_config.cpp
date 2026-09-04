@@ -2138,3 +2138,192 @@ TEST_CASE("preset seeds: placed widgets do not overlap", "[panel_widget_config][
         }
     }
 }
+
+// ============================================================================
+// A layout that names no coordinate system
+// ============================================================================
+//
+// From config version 24 on, a panel node that places widgets also says which
+// system its numbers count in: `grid` for tracks, `layout_units` for pre-v22
+// cells. A node carrying `pages` with a placed widget and neither key is one a
+// build older than its own version stamp re-serialized — those builds write
+// `pages`/`main_page_index`/`next_page_id` and drop everything else, leaving
+// coordinates behind with nothing to read them against.
+//
+// Detection is conservative in one direction: a missed case scrambles a
+// dashboard, but a false one resets a dashboard that was fine. The negatives
+// below are the shapes that legitimately reach load() and must be left alone.
+
+namespace {
+
+/// A widget the defaults builder turns ON, so a saved layout that turns it OFF
+/// reads differently depending on whether the layout survived the load.
+std::string an_enabled_default_widget() {
+    for (const auto& e : PanelWidgetConfig::build_default_grid()) {
+        if (e.enabled) {
+            return e.id;
+        }
+    }
+    return {};
+}
+
+/// One home node in the pages format, placing @p id at (3,5) and hiding it.
+json placed_home_node(const std::string& id) {
+    json widgets = json::array({json{{"id", id},
+                                     {"enabled", false},
+                                     {"col", 3},
+                                     {"row", 5},
+                                     {"colspan", 2},
+                                     {"rowspan", 2}}});
+    return json{{"main_page_index", 0},
+                {"next_page_id", 1},
+                {"pages", json::array({json{{"id", "main"}, {"widgets", widgets}}})}};
+}
+
+} // namespace
+
+TEST_CASE("PanelWidgetConfig: a placed layout naming no coordinate system is detected",
+          "[panel_widget_config][unnamed_units]") {
+    const json node = placed_home_node("printer_image");
+    CHECK(PanelWidgetConfig::has_uninterpretable_coordinates(node, 24));
+    // The keys stay mandatory as the version climbs, so a later stamp is the
+    // same shape and not an escape from the check.
+    CHECK(PanelWidgetConfig::has_uninterpretable_coordinates(node, 30));
+}
+
+TEST_CASE("PanelWidgetConfig: a named coordinate system is left alone",
+          "[panel_widget_config][unnamed_units]") {
+    SECTION("a grid signature names the tracks") {
+        json node = placed_home_node("printer_image");
+        node["grid"] = "12x24";
+        CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(node, 24));
+    }
+    SECTION("a cells tag names pre-v22 units") {
+        json node = placed_home_node("printer_image");
+        node["layout_units"] = "cells_v21";
+        node["legacy_rows"] = 14;
+        CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(node, 24));
+    }
+}
+
+TEST_CASE("PanelWidgetConfig: a layout below version 24 names nothing and is expected to",
+          "[panel_widget_config][unnamed_units]") {
+    const json node = placed_home_node("printer_image");
+    CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(node, 23));
+    CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(node, 0));
+}
+
+TEST_CASE("PanelWidgetConfig: a node with nothing to read is not this shape",
+          "[panel_widget_config][unnamed_units]") {
+    SECTION("a fresh install has no panel node") {
+        CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(json(), 24));
+        CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(json::object(), 24));
+        CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(json::array(), 24));
+    }
+    SECTION("a layout that places nothing carries no coordinate to misread") {
+        json node = placed_home_node("printer_image");
+        node["pages"][0]["widgets"][0].erase("col");
+        node["pages"][0]["widgets"][0].erase("row");
+        CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(node, 24));
+    }
+}
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: a layout naming no coordinate system re-anchors from defaults",
+                 "[panel_widget_config][unnamed_units]") {
+    const std::string id = an_enabled_default_widget();
+    REQUIRE_FALSE(id.empty());
+
+    setup_with_widgets(placed_home_node(id));
+    get_data()["config_version"] = 24;
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+
+    // The saved layout is gone, replaced by the defaults: the widget it hid is
+    // back on, and the anchors are pending because no grid has been measured.
+    CHECK(wc.is_enabled(id));
+    CHECK(wc.has_pending_anchors());
+    CHECK(wc.grid_signature().empty());
+
+    // ...and the rebuild is what a later load reads, not a one-run repair.
+    auto root = get_saved_root();
+    REQUIRE(root.is_object());
+    CHECK(root.value("anchors", "") == "pending");
+    bool found = false;
+    for (const auto& w : get_saved_page0_widgets()) {
+        if (w.value("id", "") == id) {
+            found = true;
+            CHECK(w.value("enabled", false));
+        }
+    }
+    CHECK(found);
+}
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: a grid signature keeps the saved layout",
+                 "[panel_widget_config][unnamed_units]") {
+    const std::string id = an_enabled_default_widget();
+    REQUIRE_FALSE(id.empty());
+
+    json node = placed_home_node(id);
+    node["grid"] = "12x24";
+    setup_with_widgets(node);
+    get_data()["config_version"] = 24;
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+
+    CHECK_FALSE(wc.is_enabled(id));
+    CHECK_FALSE(wc.has_pending_anchors());
+    CHECK(wc.grid_signature() == "12x24");
+}
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: a cells tag keeps the saved layout",
+                 "[panel_widget_config][unnamed_units]") {
+    const std::string id = an_enabled_default_widget();
+    REQUIRE_FALSE(id.empty());
+
+    json node = placed_home_node(id);
+    node["layout_units"] = "cells_v21";
+    node["legacy_rows"] = 14;
+    setup_with_widgets(node);
+    get_data()["config_version"] = 24;
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+
+    CHECK_FALSE(wc.is_enabled(id));
+    CHECK(wc.has_legacy_units());
+    CHECK_FALSE(wc.has_pending_anchors());
+}
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: a layout below version 24 keeps the saved layout",
+                 "[panel_widget_config][unnamed_units]") {
+    const std::string id = an_enabled_default_widget();
+    REQUIRE_FALSE(id.empty());
+
+    setup_with_widgets(placed_home_node(id));
+    get_data()["config_version"] = 23;
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+
+    CHECK_FALSE(wc.is_enabled(id));
+    CHECK_FALSE(wc.has_pending_anchors());
+}
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: a fresh install at version 24 still seeds defaults",
+                 "[panel_widget_config][unnamed_units]") {
+    setup_empty_config();
+    get_data()["config_version"] = 24;
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+
+    CHECK(wc.entries().size() == default_grid_widget_count());
+    CHECK(wc.has_pending_anchors());
+}

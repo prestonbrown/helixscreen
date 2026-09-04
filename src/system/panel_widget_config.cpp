@@ -24,6 +24,53 @@
 
 namespace helix {
 
+namespace {
+
+/// The config version from which a panel layout that places widgets also names
+/// the system its coordinates count in — `grid` for tracks, `layout_units` for
+/// pre-v22 cells. No layout below it carries either key, so the absence of both
+/// says nothing there.
+constexpr int kCoordinateSystemNamedFrom = 24;
+
+} // namespace
+
+bool PanelWidgetConfig::has_uninterpretable_coordinates(const nlohmann::json& panel_node,
+                                                        int config_version) {
+    if (config_version < kCoordinateSystemNamedFrom || !panel_node.is_object()) {
+        return false;
+    }
+    auto pages = panel_node.find("pages");
+    if (pages == panel_node.end() || !pages->is_array()) {
+        return false;
+    }
+    if (!helix::json_util::safe_string(panel_node, "grid").empty() ||
+        !helix::json_util::safe_string(panel_node, "layout_units").empty()) {
+        return false;
+    }
+
+    // Only a placed widget carries a number whose units matter, so a layout
+    // that places nothing is not this shape whatever its keys say — rebuilding
+    // it would throw away deliberate hides to fix a coordinate that is not
+    // there. Placed means what has_grid_position() means, read off the node
+    // before any of it is parsed into entries.
+    for (const auto& page : *pages) {
+        if (!page.is_object()) {
+            continue;
+        }
+        auto widgets = page.find("widgets");
+        if (widgets == page.end() || !widgets->is_array()) {
+            continue;
+        }
+        for (const auto& entry : *widgets) {
+            if (entry.is_object() && helix::json_util::safe_int(entry, "col", -1) >= 0 &&
+                helix::json_util::safe_int(entry, "row", -1) >= 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 PanelWidgetConfig::PanelWidgetConfig(const std::string& panel_id, Config& config)
     : panel_id_(panel_id), config_(config) {}
 
@@ -163,6 +210,24 @@ void PanelWidgetConfig::load() {
             config_.save();
             saved = legacy;
         }
+    }
+
+    // A layout that places widgets but names no system for the coordinates is
+    // dropped rather than read. Adopting it would hand switch_to_grid() numbers
+    // that are not tracks and get them stamped as this grid's arrangement, so
+    // the dashboard comes back rearranged with nothing left to restore it from.
+    // Falling through to the fresh-install path below reseats the panel from
+    // its preset, or from the shipped defaults: a dashboard that visibly
+    // returns to defaults is diagnosable, one that comes back subtly wrong is
+    // not.
+    const int config_version = config_.get<int>("/config_version", 0);
+    if (has_uninterpretable_coordinates(saved, config_version)) {
+        spdlog::info("[PanelWidgetConfig] '{}': the saved layout places widgets but names no "
+                     "coordinate system (config_version {}, no 'grid', no 'layout_units', {} "
+                     "page(s)), so its coordinates cannot be read — rebuilding the panel from "
+                     "defaults",
+                     panel_id_, config_version, saved["pages"].size());
+        saved = json();
     }
 
     // Format detection: object with "pages" key = new multi-page format
