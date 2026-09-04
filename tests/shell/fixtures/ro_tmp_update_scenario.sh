@@ -22,6 +22,16 @@ set -uo pipefail
 shmwork="${1:?work dir required}"
 platform="${2:?platform.sh path required}"
 
+# The suite sandbox blocks `mount` by name, because a test that mounts over /tmp
+# on the host wrecks the machine. This script is the one caller that already has
+# a stronger guarantee - the private mount namespace named in the header - so it
+# steps out of the sandbox for the mounts below, and only for those.
+unset -f mount umount 2>/dev/null || true
+if [ -n "${HELIX_TEST_SANDBOX_BIN:-}" ]; then
+    PATH="${PATH//$HELIX_TEST_SANDBOX_BIN:/}"
+    export PATH
+fi
+
 # --- Make /tmp and /var/tmp genuinely read-only (the OrangePi Zero3 condition) ---
 if ! mount -t tmpfs -o ro tmpfs /tmp; then
     echo "MOUNT_TMP_FAIL"
