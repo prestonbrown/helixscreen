@@ -1828,6 +1828,7 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
     for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
         delete[] graph_ptr->series_meta[i].target_deci_buf;
         graph_ptr->series_meta[i].target_deci_buf = nullptr;
+        graph_ptr->series_meta[i].target_cap = 0;
     }
 
     // Defensive: free the gradient cache buffer if it somehow survived both the
@@ -1908,6 +1909,7 @@ int ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_color_
         meta->chart_series = nullptr;
         return -1;
     }
+    meta->target_cap = graph->point_count;
 
     graph->series_count++;
 
@@ -1934,7 +1936,7 @@ void ui_temp_graph_remove_series(ui_temp_graph_t* graph, int series_id) {
     // Free target history buffer
     delete[] meta->target_deci_buf;
 
-    // Clear metadata (also zeros target_deci_buf and target_head)
+    // Clear metadata (also zeros target_deci_buf, target_cap and target_head)
     memset(meta, 0, sizeof(ui_temp_series_meta_t));
     meta->chart_series = nullptr;
 
@@ -1979,16 +1981,16 @@ void ui_temp_graph_show_series(ui_temp_graph_t* graph, int series_id, bool visib
 // draw callback can walk target_deci_buf[0..target_head-1] linearly, oldest-to-newest,
 // without tracking the chart's start_point offset. Called from update_series*
 // immediately after lv_chart_set_next_value.
-static void push_target_sample(ui_temp_graph_t* graph, ui_temp_series_meta_t* meta) {
-    if (!meta->target_deci_buf || graph->point_count <= 0)
+static void push_target_sample(ui_temp_series_meta_t* meta) {
+    if (!meta->target_deci_buf || meta->target_cap <= 0)
         return;
     int16_t v = static_cast<int16_t>(meta->target_temp * TEMP_SCALE);
-    if (meta->target_head < graph->point_count) {
+    if (meta->target_head < meta->target_cap) {
         meta->target_deci_buf[meta->target_head++] = v;
     } else {
         memmove(meta->target_deci_buf, meta->target_deci_buf + 1,
-                static_cast<size_t>(graph->point_count - 1) * sizeof(int16_t));
-        meta->target_deci_buf[graph->point_count - 1] = v;
+                static_cast<size_t>(meta->target_cap - 1) * sizeof(int16_t));
+        meta->target_deci_buf[meta->target_cap - 1] = v;
     }
 }
 
@@ -2007,7 +2009,7 @@ void ui_temp_graph_update_series(ui_temp_graph_t* graph, int series_id, float te
     helix::temp_graph_internal::temp_graph_tooltip_on_sample_pushed(graph, series_id);
 
     // Mirror the push into the parallel target buffer.
-    push_target_sample(graph, meta);
+    push_target_sample(meta);
 
     // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
@@ -2066,7 +2068,7 @@ void ui_temp_graph_update_series_with_time(ui_temp_graph_t* graph, int series_id
     helix::temp_graph_internal::temp_graph_tooltip_on_sample_pushed(graph, series_id);
 
     // Mirror the push into the parallel target buffer.
-    push_target_sample(graph, meta);
+    push_target_sample(meta);
 
     // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
@@ -2147,21 +2149,22 @@ void ui_temp_graph_set_series_data_with_targets(ui_temp_graph_t* graph, int seri
 
     // Populate target buffer in lockstep. Zero-init any tail we don't fill.
     if (meta->target_deci_buf) {
-        for (int i = 0; i < points_to_copy; i++) {
+        int target_points = points_to_copy > meta->target_cap ? meta->target_cap : points_to_copy;
+        for (int i = 0; i < target_points; i++) {
             meta->target_deci_buf[i] = static_cast<int16_t>(targets[i] * TEMP_SCALE);
         }
-        if (points_to_copy < graph->point_count) {
-            memset(meta->target_deci_buf + points_to_copy, 0,
-                   static_cast<size_t>(graph->point_count - points_to_copy) * sizeof(int16_t));
+        if (target_points < meta->target_cap) {
+            memset(meta->target_deci_buf + target_points, 0,
+                   static_cast<size_t>(meta->target_cap - target_points) * sizeof(int16_t));
         }
-        meta->target_head = points_to_copy;
+        meta->target_head = target_points;
 
         // Pre-stage current target so the next push_target_sample (from a live
         // observer's update_series call) writes the correct value, not stale 0.
         // Without this, the next sample punches a 0 gap between the last replayed
         // target and the next live target, fragmenting the trace into two segments.
-        if (points_to_copy > 0) {
-            meta->target_temp = targets[points_to_copy - 1];
+        if (target_points > 0) {
+            meta->target_temp = targets[target_points - 1];
         }
     }
 
@@ -2202,7 +2205,7 @@ void ui_temp_graph_clear(ui_temp_graph_t* graph) {
             // Also wipe target history.
             if (meta->target_deci_buf) {
                 memset(meta->target_deci_buf, 0,
-                       static_cast<size_t>(graph->point_count) * sizeof(int16_t));
+                       static_cast<size_t>(meta->target_cap) * sizeof(int16_t));
             }
             meta->target_head = 0;
         }
@@ -2228,7 +2231,7 @@ void ui_temp_graph_clear_series(ui_temp_graph_t* graph, int series_id) {
 
     // Wipe target history too.
     if (meta->target_deci_buf) {
-        memset(meta->target_deci_buf, 0, static_cast<size_t>(graph->point_count) * sizeof(int16_t));
+        memset(meta->target_deci_buf, 0, static_cast<size_t>(meta->target_cap) * sizeof(int16_t));
     }
     meta->target_head = 0;
 
@@ -2335,6 +2338,7 @@ void ui_temp_graph_set_point_count(ui_temp_graph_t* graph, int count) {
             continue;
         delete[] m.target_deci_buf;
         m.target_deci_buf = new (std::nothrow) int16_t[static_cast<size_t>(count)]();
+        m.target_cap = m.target_deci_buf ? count : 0;
         m.target_head = 0;
         if (!m.target_deci_buf) {
             spdlog::error("[TempGraph] Failed to realloc target buffer for series '{}'", m.name);

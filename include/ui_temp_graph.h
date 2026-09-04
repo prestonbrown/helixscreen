@@ -105,8 +105,15 @@ struct ui_temp_series_meta_t {
     //   Must be (re)allocated to graph->point_count entries by add_series /
     //   set_point_count; freed by remove_series / destroy.
     int16_t* target_deci_buf = nullptr;
+    int target_cap = 0;  // Entries actually allocated in target_deci_buf, and the only
+                         //   authority on its length. Every write into the buffer bounds
+                         //   itself here rather than re-deriving the length from
+                         //   graph->point_count: the two agree only while each series has
+                         //   been reallocated to match, so a skipped or failed realloc
+                         //   turns a point_count-bounded memset or memmove into a heap
+                         //   overflow. 0 whenever target_deci_buf is null.
     int target_head = 0; // Count of valid samples in [0, target_head).
-                         //   Caps at point_count; shift-left on overflow.
+                         //   Caps at target_cap; shift-left on overflow.
 };
 
 /**

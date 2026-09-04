@@ -902,57 +902,89 @@ TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: set_point_count reallocs 
     ui_temp_graph_t* g = ui_temp_graph_create(screen);
     REQUIRE(g != nullptr);
 
+    const int original_count = g->point_count;
+    REQUIRE(original_count > 200); // both resizes below have to be real resizes
+
     int id_a = ui_temp_graph_add_series(g, "A", lv_color_hex(0xFF0000));
     int id_b = ui_temp_graph_add_series(g, "B", lv_color_hex(0x00FF00));
     REQUIRE(id_a >= 0);
     REQUIRE(id_b >= 0);
 
-    // Shrink: default → 100
-    ui_temp_graph_set_point_count(g, 100);
-    REQUIRE(g->point_count == 100);
-
-    for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
-        if (g->series_meta[i].chart_series) {
-            REQUIRE(g->series_meta[i].target_deci_buf != nullptr);
-            REQUIRE(g->series_meta[i].target_head == 0);
-
-            // First `count` entries are accessible and zeroed.
-            for (int j = 0; j < 100; j++) {
-                REQUIRE(g->series_meta[i].target_deci_buf[j] == 0);
-            }
+    // Run a check over every live series, asserting that both of them were seen.
+    auto for_each_live_series = [&](auto&& check) {
+        int seen = 0;
+        for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
+            if (!g->series_meta[i].chart_series)
+                continue;
+            check(g->series_meta[i]);
+            seen++;
         }
-    }
+        REQUIRE(seen == 2);
+    };
 
-    // Grow, then fill to the new capacity. A raw pointer cannot report its own
-    // length, so the resize is proved by its consequences rather than by the
-    // address changing — an address is the allocator's choice, not this code's,
-    // and free-then-malloc of the same size routinely returns the same block.
-    //
-    // Two failure modes, caught two ways: a set_point_count that does nothing
-    // at all leaves point_count at 100 and fails the assertion below; one that
-    // updates point_count but skips the reallocation writes 300 entries past
-    // the end of the old buffer, which helix-tests-asan reports as a heap
-    // overflow.
-    ui_temp_graph_set_point_count(g, 400);
-    REQUIRE(g->point_count == 400);
-
-    ui_temp_series_meta_t* ma = nullptr;
-    for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
-        if (g->series_meta[i].chart_series && g->series_meta[i].id == id_a) {
-            ma = &g->series_meta[i];
+    auto zeros_in = [](const int16_t* buf, int n) {
+        int zeros = 0;
+        for (int i = 0; i < n; i++) {
+            if (buf[i] == 0)
+                zeros++;
         }
-    }
-    REQUIRE(ma != nullptr);
-    ma->show_target = true;
+        return zeros;
+    };
 
-    for (int j = 0; j < 400; j++) {
-        ma->target_temp = 10.0f;
-        ui_temp_graph_update_series(g, id_a, 1.0f);
-    }
+    for_each_live_series([&](const ui_temp_series_meta_t& m) {
+        REQUIRE(m.target_deci_buf != nullptr);
+        REQUIRE(m.target_cap == original_count);
+        REQUIRE(m.target_head == 0);
+    });
 
-    // Head caps at point_count, so a full buffer reads exactly the new capacity.
-    REQUIRE(ma->target_head == 400);
-    REQUIRE(ma->target_deci_buf[399] == 100);
+    // Dirty both buffers with real history, so a surviving allocation is
+    // distinguishable from a fresh one by its contents alone.
+    const int dirty_samples = 150;
+    ui_temp_graph_set_current_target(g, id_a, 220.0f, true);
+    ui_temp_graph_set_current_target(g, id_b, 60.0f, true);
+    for (int i = 0; i < dirty_samples; i++) {
+        ui_temp_graph_update_series(g, id_a, 200.0f);
+        ui_temp_graph_update_series(g, id_b, 55.0f);
+    }
+    for_each_live_series([&](const ui_temp_series_meta_t& m) {
+        REQUIRE(m.target_head == dirty_samples);
+        REQUIRE(zeros_in(m.target_deci_buf, dirty_samples) == 0);
+    });
+
+    // Shrink.
+    const int shrunk = 100;
+    ui_temp_graph_set_point_count(g, shrunk);
+    REQUIRE(g->point_count == shrunk);
+
+    for_each_live_series([&](const ui_temp_series_meta_t& m) {
+        REQUIRE(m.target_deci_buf != nullptr);
+
+        // target_cap is written only where the buffer is actually allocated, so
+        // it is what proves the per-series realloc ran rather than just the
+        // graph-level bookkeeping. A pointer comparison cannot stand in for it:
+        // whether new[] hands back the block delete[] just released is an
+        // allocator coincidence, not a property of the feature.
+        REQUIRE(m.target_cap == shrunk);
+
+        // Fresh allocation, so the dirtied history is gone and the whole buffer
+        // reads as the "heater off" sentinel.
+        REQUIRE(m.target_head == 0);
+        REQUIRE(zeros_in(m.target_deci_buf, shrunk) == shrunk);
+    });
+
+    // Grow. This is the direction where a stale capacity is a heap overflow
+    // rather than a lost history, since every write into the buffer bounds
+    // itself by target_cap.
+    const int grown = 500;
+    ui_temp_graph_set_point_count(g, grown);
+    REQUIRE(g->point_count == grown);
+
+    for_each_live_series([&](const ui_temp_series_meta_t& m) {
+        REQUIRE(m.target_deci_buf != nullptr);
+        REQUIRE(m.target_cap == grown);
+        REQUIRE(m.target_head == 0);
+        REQUIRE(zeros_in(m.target_deci_buf, grown) == grown);
+    });
 
     ui_temp_graph_destroy(g);
 }
