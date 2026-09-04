@@ -104,10 +104,15 @@ def load_baseline(path: Path):
         return allowed
     for line in path.read_text(errors='replace').splitlines():
         line = line.strip()
-        if not line or line.startswith('#'):
+        # A comment is '#' followed by space or nothing. A bare '#' hugging its
+        # text starts a test name - `#1127 seeding state costs no extra bytes`
+        # is a real case, and treating it as a comment silently drops the entry.
+        if not line or line == '#' or line.startswith('# '):
             continue
-        name, _, reason = line.partition('#')
-        allowed[name.strip()] = reason.strip()
+        # The documented format separates name from reason with two spaces
+        # before the '#', so a name may contain one.
+        name, sep, reason = line.partition('  #')
+        allowed[name.strip()] = reason.strip() if sep else ''
     return allowed
 
 

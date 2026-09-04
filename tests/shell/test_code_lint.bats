@@ -843,3 +843,47 @@ check_deinit_all_does_not_log() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"could not locate"* ]]
 }
+
+# --- the vacuous-test ceiling has one home ---
+# The nightly and mk/tests.mk both need the number. Written twice they drift,
+# and the copy that drifts is the enforcing one, so the tree silently stops
+# being held to the value it claims.
+
+@test "the nightly reads the vacuous ceiling from the makefile, not a literal" {
+    run grep -A2 'check_vacuous_tests.py' .github/workflows/nightly.yml
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"print-vacuous-max"* ]]
+    # A bare --max-allowed <number> is the shape that drifts.
+    [[ ! "$output" =~ --max-allowed[[:space:]]+[0-9]+ ]]
+}
+
+@test "print-vacuous-max resolves to a bare integer" {
+    run bash -c 'make -s print-vacuous-max 2>/dev/null | tail -1'
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ ^[0-9]+$ ]]
+}
+
+# --- the vacuous baseline can express a test name that starts with '#' ---
+# Entries are keyed by exact test-case name, and names carry issue references.
+# A parser that treats any leading '#' as a comment drops those entries in
+# silence: the case reappears as a finding and the ratchet reads one too high.
+
+@test "the vacuous baseline honours a test name beginning with a hash" {
+    local base="${BATS_TEST_TMPDIR}/baseline.txt"
+    cat > "$base" <<'EOF'
+# a real comment
+#1127 seeding state costs no extra bytes per layer entry  # static_assert on sizeof
+EOF
+    run python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from pathlib import Path
+import importlib.util
+spec = importlib.util.spec_from_file_location('cvt', 'scripts/check_vacuous_tests.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+b = m.load_baseline(Path('$base'))
+print(sorted(b))
+"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#1127 seeding state costs no extra bytes per layer entry"* ]]
+    [[ "$output" != *"a real comment"* ]]
+}

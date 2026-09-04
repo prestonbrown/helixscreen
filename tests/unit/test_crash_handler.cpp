@@ -19,6 +19,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -992,11 +993,14 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: TelemetryManager ignores absent crash
     tm.shutdown();
     tm.init(temp_dir().string());
 
-    // No crash events should be enqueued
+    // No crash events should be enqueued. An empty queue is the expected
+    // result, so this has to be one assertion over the whole snapshot - a
+    // loop of REQUIREs asserts nothing at all on the path that matters.
     auto snapshot = tm.get_queue_snapshot();
-    for (const auto& event : snapshot) {
-        REQUIRE_FALSE(event["event"] == "crash");
-    }
+    const bool any_crash_event =
+        std::any_of(snapshot.begin(), snapshot.end(),
+                    [](const auto& event) { return event["event"] == "crash"; });
+    REQUIRE_FALSE(any_crash_event);
 
     tm.shutdown();
 }

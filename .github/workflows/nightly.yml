@@ -792,7 +792,7 @@ jobs:
       if: matrix.shard == 0
       run: |
         python3 scripts/check_vacuous_tests.py build/suite-report.xml \
-          --max-allowed 52
+          --max-allowed "$(make -s print-vacuous-max | tail -1)"
 
     - name: Tests that pass only because of what ran before them
       timeout-minutes: 45

@@ -1211,14 +1211,16 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: features is an array w
     tm.record_session();
     auto event = tm.get_queue_snapshot()[0];
 
-    // In test context without a real printer, features may not be present
-    // But if it IS present, it must be an array of strings
-    if (event.contains("features")) {
-        REQUIRE(event["features"].is_array());
-        for (const auto& f : event["features"]) {
-            REQUIRE(f.is_string());
-        }
-    }
+    // A test printer may report no features at all, so the contract is
+    // conditional: absent, or an array whose every element is a string. Stated
+    // as one assertion it holds on both paths - an `if` around the REQUIREs
+    // checks nothing whenever the key is missing.
+    const bool features_well_formed =
+        !event.contains("features") ||
+        (event["features"].is_array() &&
+         std::all_of(event["features"].begin(), event["features"].end(),
+                     [](const nlohmann::json& f) { return f.is_string(); }));
+    REQUIRE(features_well_formed);
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: app has theme and locale",
