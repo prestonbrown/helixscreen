@@ -182,8 +182,9 @@ class PrintHistoryManager {
      *
      * The LAZY-LOAD entry point, for a panel that needs history on activate and
      * does not care whether it or someone else triggered the request. Does
-     * nothing when the cache is loaded or a fetch is already in flight, because
-     * that fetch's response serves this caller too.
+     * nothing when the cache is loaded, when a request is in flight, or when a
+     * response has arrived and is only waiting for the main thread to apply it
+     * - in all three cases that response serves this caller too.
      *
      * Splitting this out of fetch() is the fix for a real double-fetch: the
      * panels that want history call this on activate, four such calls landed
@@ -307,6 +308,14 @@ class PrintHistoryManager {
     // completion handler re-issues exactly one more fetch. Atomic for the same
     // reason as is_fetching_: written from the WebSocket thread's parse side.
     std::atomic<bool> refetch_pending_{false};
+    // A response is downloaded and its handler is queued for the main thread.
+    // Set on the WebSocket BG thread before that handler is posted, cleared
+    // when it runs. is_fetching_ is already false across this gap - it is
+    // released BG-side on purpose - and the gap is as wide as the main thread
+    // is busy, so this is the flag that lets ensure_loaded() join a load whose
+    // bytes are already in hand. fetch() is deliberately NOT gated on it: an
+    // invalidation must still force a real re-fetch.
+    std::atomic<bool> delivery_pending_{false};
 
     /// Guard for async callback safety
     /// Prevents use-after-free when callbacks fire after destruction
