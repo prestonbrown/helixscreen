@@ -35,7 +35,7 @@ void MoonrakerJobAPI::start_print(const std::string& filename, SuccessCallback o
             spdlog::debug("[Moonraker API] Print started successfully");
             on_success();
         },
-        on_error);
+        on_error, PRINT_START_TIMEOUT_MS);
 }
 
 void MoonrakerJobAPI::pause_print(SuccessCallback on_success, ErrorCallback on_error) {
