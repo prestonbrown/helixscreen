@@ -233,3 +233,36 @@ TEST_CASE_METHOD(ScrollMotionFixture, "detailed print card stops both scrolling 
     CHECK_FALSE(is_animating(filename));
     CHECK_FALSE(is_animating(filament));
 }
+
+// A scrolling mode measures its text unwrapped, so the label is exactly one line
+// tall and the layout around it is built for that. LV_LABEL_LONG_MODE_DOTS
+// measures wrapped instead, and only draws its ellipsis once the text is taller
+// than the label — so a label free to grow becomes two or three lines and pushes
+// whatever sits below it out of its container. panel_widget_active_spool is one
+// such stack: three labels in a card that does not scroll, sized to the three
+// single lines (#1286).
+TEST_CASE_METHOD(ScrollMotionFixture, "animations off leaves an overflowing label one line tall",
+                 "[ui_text][label][scroll][1440]") {
+    lv_obj_t* label = build_probe();
+    REQUIRE(is_animating(label));
+
+    const int32_t scrolling_height = lv_obj_get_height(label);
+    const int32_t line_height = lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN));
+    REQUIRE(scrolling_height == line_height);
+
+    set_animations(false);
+    lv_obj_update_layout(label);
+
+    CHECK(lv_label_get_long_mode(label) == LV_LABEL_LONG_MODE_DOTS);
+    CHECK(lv_obj_get_height(label) == scrolling_height);
+
+    // The ellipsis is what the user gets instead of the scroll, and DOTS only
+    // writes it once the height stops the text wrapping — so this also proves
+    // the cap took, not just that the height happens to match.
+    CHECK(std::string(lv_label_get_text(label)).find("...") != std::string::npos);
+
+    // Back on, the cap is gone: nothing is left clamping a label the XML may
+    // legitimately want taller.
+    set_animations(true);
+    CHECK(lv_obj_get_style_max_height(label, LV_PART_MAIN) == LV_COORD_MAX);
+}
