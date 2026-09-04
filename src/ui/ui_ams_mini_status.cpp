@@ -706,6 +706,30 @@ static int measure_widest_material(const AmsMiniStatusData* data, lv_obj_t* sc) 
 }
 
 /**
+ * @brief Narrowest text column worth keeping in a squeezed cell (px).
+ *
+ * Measured rather than chosen, for the same reason min_spool_cell_w()'s text
+ * term is: font_small runs 10-26px across the tiers, so any flat number is
+ * wrong at one end of that ladder. A column narrower than an already-shortened
+ * name plus its ellipsis shows punctuation and no material, at which point the
+ * column is costing width and returning nothing - the cell is better off
+ * spending that width on the spool.
+ *
+ * Falls back to the same flat 34px measure_widest_material() uses when the font
+ * token cannot be resolved.
+ */
+static int min_readable_text_w(lv_obj_t* sc) {
+    const lv_font_t* font = theme_manager_get_font("font_small");
+    if (!font || !sc)
+        return 34;
+    lv_point_t size;
+    lv_text_get_size(&size, "ABC...", font, lv_obj_get_style_text_letter_space(sc, LV_PART_MAIN),
+                     lv_obj_get_style_text_line_space(sc, LV_PART_MAIN), LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+    return static_cast<int>(size.x);
+}
+
+/**
  * @brief Render the wide spool view (width_px >= w_normal()).
  *
  * Lazily creates the horizontally-scrollable spool container, then renders one
@@ -763,44 +787,110 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     if (avail_w <= 0)
         avail_w = data->width_px; // before layout resolves
     int gap = theme_manager_get_spacing("space_xxs");
+    // What create_spool_visual() adds around the graphic for the lane badge, so
+    // the wrap object is this much wider than the spool size asked for.
+    const int badge_margin = ams_draw::SPOOL_VISUAL_BADGE_MARGIN_PX;
+    const int lanes = std::max(1, data->slot_count);
     // The widest material string this render will draw, in the font that will
-    // draw it. Both the cell count and the text reservation below come from it,
-    // so the divisor and the reservation cannot disagree the way two
-    // independently-chosen constants did.
+    // draw it. Both the cell count and the text reservation come from it, so the
+    // divisor and the reservation cannot disagree the way two independently
+    // chosen constants did.
     const int min_text = measure_widest_material(data, sc);
     const int min_cell = min_spool_cell_w(min_text, gap);
     // How many spool cells fit across the row at min_cell each, capped to
     // the actual number of slots so a wide, sparsely-filled widget doesn't
     // reserve blank trailing columns for spools that don't exist.
-    int visible = (avail_w + gap) / (min_cell + gap);
-    visible = std::clamp(visible, 1, std::max(1, data->slot_count));
+    int visible = std::clamp((avail_w + gap) / (min_cell + gap), 1, lanes);
+
+    // Reserving the widest material in full on every cell is what pushes lanes
+    // off the row: one "PETG-GF" lane widens all four. A lane the user can pick
+    // out by colour and badge is what this row exists for, so when every lane
+    // would fit in a narrower cell, take that trade and find the width in the
+    // text column. Below a cell that holds the spool and its badge there is
+    // nothing left to give, and scrolling a row of legible cells is the better
+    // answer.
+    bool squeezed = false;
+    if (visible < lanes) {
+        const int fit_cell = (avail_w - (lanes - 1) * gap - 2) / lanes;
+        if (fit_cell >= MIN_SPOOL_IMG_PX + badge_margin) {
+            visible = lanes;
+            squeezed = true;
+        }
+    }
+
     // -2px safety so sub-pixel rounding can't tip the row into a spurious scrollbar
     // (a real scrollbar still appears when there are MORE than `visible` spools).
     int cell_px = (avail_w - (visible - 1) * gap - 2) / visible;
-    if (cell_px < min_cell)
+    if (cell_px < min_cell && !squeezed)
         cell_px = min_cell;
-    // What create_spool_visual() adds around the graphic for the lane badge, so
-    // the wrap object is this much wider than the spool size asked for.
-    const int badge_margin = ams_draw::SPOOL_VISUAL_BADGE_MARGIN_PX;
     int spool_size = avail_h - 4; // square spool fits the row height
     if (spool_size > MAX_SPOOL_IMG_PX)
         spool_size = MAX_SPOOL_IMG_PX;
-    // Reserve the measured text column from the cell, shrinking the spool if needed.
-    // text_w is the EXACT leftover, so a cell's content == cell_px: the material/
-    // percent never overflow (no chopped text, no scrollbar), and long names wrap
-    // within text_w instead of being clipped.
-    if (spool_size > cell_px - badge_margin - gap - min_text)
-        spool_size = cell_px - badge_margin - gap - min_text;
-    if (spool_size < MIN_SPOOL_IMG_PX)
-        spool_size = MIN_SPOOL_IMG_PX;
-    int text_w = cell_px - (spool_size + badge_margin) - gap;
-    // Defensive only, and derived rather than flat: cell_px is floored at
-    // min_cell, which IS MIN_SPOOL_IMG_PX + badge_margin + gap + min_text, so
-    // the subtraction above already leaves min_text on the tightest cell there
-    // is. Clamping to min_text keeps that a guarantee instead of a coincidence
-    // the way a flat 20 did.
-    if (text_w < min_text)
-        text_w = min_text;
+
+    int text_w = 0;
+    bool ellipsize = false;
+    bool stacked = false;
+    bool stacked_pct = true; // a stacked cell keeps its percent only if the row is tall enough
+    if (squeezed) {
+        // Beside the spool a squeezed cell has only its leftover width for the
+        // name, which is why the name is the thing that gets cut. Under the
+        // spool the name gets the whole cell instead, so a row with the height
+        // for a line of text keeps both the lane and its material.
+        //
+        // The height has to cover what the cell actually stacks - the spool's
+        // wrap is badge_margin taller than the spool itself, and the text block
+        // is the material line plus the percent line under it. Budgeting one
+        // line here is what pushes the percent out through the bottom of the
+        // cell, where nothing clips it visibly enough to notice.
+        const lv_font_t* mat_font = theme_manager_get_font("font_small");
+        const lv_font_t* pct_font = theme_manager_get_font("font_xs");
+        const int mat_h = mat_font ? static_cast<int>(lv_font_get_line_height(mat_font)) : 14;
+        const int pct_h = pct_font ? static_cast<int>(lv_font_get_line_height(pct_font)) : 12;
+        const int floor_h = MIN_SPOOL_IMG_PX + badge_margin + gap;
+        int text_block = mat_h + pct_h;
+        if (avail_h < floor_h + text_block) {
+            text_block = mat_h; // no room for the percent, keep the name
+            stacked_pct = false;
+        }
+        if (avail_h >= floor_h + text_block) {
+            stacked = true;
+            spool_size = std::min({avail_h - badge_margin - text_block - gap, MAX_SPOOL_IMG_PX,
+                                   cell_px - badge_margin});
+            if (spool_size < MIN_SPOOL_IMG_PX)
+                spool_size = MIN_SPOOL_IMG_PX;
+            text_w = cell_px; // the label owns the full cell width
+            ellipsize = true;
+        } else {
+            // Too short to stack: the spool is served first and the name lives
+            // on what is left beside it, if anything still reads.
+            if (spool_size > cell_px - badge_margin)
+                spool_size = cell_px - badge_margin;
+            if (spool_size < MIN_SPOOL_IMG_PX)
+                spool_size = MIN_SPOOL_IMG_PX;
+            const int leftover = cell_px - (spool_size + badge_margin) - gap;
+            if (leftover >= min_readable_text_w(sc)) {
+                text_w = leftover;
+                ellipsize = true;
+            }
+        }
+    } else {
+        // Reserve the measured text column from the cell, shrinking the spool if
+        // needed. text_w is the EXACT leftover, so a cell's content == cell_px:
+        // the material/percent never overflow (no chopped text, no scrollbar),
+        // and long names wrap within text_w instead of being clipped.
+        if (spool_size > cell_px - badge_margin - gap - min_text)
+            spool_size = cell_px - badge_margin - gap - min_text;
+        if (spool_size < MIN_SPOOL_IMG_PX)
+            spool_size = MIN_SPOOL_IMG_PX;
+        text_w = cell_px - (spool_size + badge_margin) - gap;
+        // Defensive only, and derived rather than flat: cell_px is floored at
+        // min_cell, which IS MIN_SPOOL_IMG_PX + badge_margin + gap + min_text, so
+        // the subtraction above already leaves min_text on the tightest cell there
+        // is. Clamping to min_text keeps that a guarantee instead of a coincidence
+        // the way a flat 20 did.
+        if (text_w < min_text)
+            text_w = min_text;
+    }
 
     // Dirty-check: the render is fully determined by the cell data, available
     // width, the spool style, and the measured text width. If none changed
@@ -843,11 +933,16 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         snprintf(nm, sizeof(nm), "spool_cell_%d", i);
         lv_obj_set_name(cell, nm);
         lv_obj_set_size(cell, cell_px, lv_pct(100));
-        lv_obj_set_flex_flow(cell, LV_FLEX_FLOW_ROW);
+        // Stacked cells put the name under the spool; wide ones sit it alongside.
+        lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN : LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
-        lv_obj_set_style_pad_column(cell, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
+        lv_obj_set_style_pad_column(cell, gap, LV_PART_MAIN);
+        // A column-flow cell spaces its children by pad_row, not pad_column, and
+        // the stacked height budget counts exactly one `gap` between the spool
+        // and the text block.
+        lv_obj_set_style_pad_row(cell, gap, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
         lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
@@ -881,13 +976,23 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             lv_obj_set_name(badge, nm);
         }
 
-        // Text column (vertically centered), material over percent.
+        // Text column (vertically centered), material over percent. A cell
+        // squeezed hard enough to fit every lane has no column at all: the
+        // spool and its lane badge carry the row on their own.
+        if (text_w <= 0)
+            continue;
+
         lv_obj_t* col = lv_obj_create(cell);
         lv_obj_set_width(col, text_w);
-        lv_obj_set_height(col, lv_pct(100));
+        // Stacked, the column is one line under the spool and must not claim the
+        // row's full height or it pushes the spool out of the cell.
+        lv_obj_set_height(col, stacked ? LV_SIZE_CONTENT : lv_pct(100));
         lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
+        // The stacked height budget counts the two label lines and nothing
+        // between them, so the row gap has to actually be zero.
+        lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
         lv_obj_remove_flag(col, LV_OBJ_FLAG_SCROLLABLE);
@@ -897,7 +1002,17 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         snprintf(nm, sizeof(nm), "spool_material_%d", i);
         lv_obj_set_name(mat, nm);
         lv_obj_set_width(mat, text_w);
-        lv_label_set_long_mode(mat, LV_LABEL_LONG_WRAP);
+        // A squeezed column is sized for a shortened name, not the widest one,
+        // so it ellipsizes rather than wrapping a name across lines the row has
+        // no height for. LV_LABEL_LONG_DOT only cuts a line once the label's
+        // height stops it wrapping, so the height has to be pinned to one line
+        // for the dots to ever appear.
+        lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_DOT : LV_LABEL_LONG_WRAP);
+        if (ellipsize) {
+            const lv_font_t* mf = theme_manager_get_font("font_small");
+            if (mf)
+                lv_obj_set_height(mat, lv_font_get_line_height(mf));
+        }
         lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         lv_obj_add_flag(mat, LV_OBJ_FLAG_EVENT_BUBBLE);
         // Same helper measure_widest_material() sized text_w from, so the
@@ -908,6 +1023,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
         lv_obj_set_style_text_color(mat, theme_manager_get_color("text"), LV_PART_MAIN);
         lv_obj_set_style_text_opa(mat, ghosted ? LV_OPA_20 : LV_OPA_COVER, LV_PART_MAIN);
+
+        if (stacked && !stacked_pct)
+            continue; // the row had height for the name only
 
         lv_obj_t* pct = lv_label_create(col);
         snprintf(nm, sizeof(nm), "spool_pct_%d", i);
