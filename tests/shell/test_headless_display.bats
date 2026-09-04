@@ -18,6 +18,7 @@
 # fallback, and the end-to-end headless ctl loop.
 
 setup() {
+    load helpers
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
     BIN="$REPO_ROOT/build/bin/helix-screen"
     # Private config dir, mirroring tests/ui/helix/app.py. bats runs FILES in
@@ -30,6 +31,13 @@ setup() {
     SW_PATCH="$REPO_ROOT/patches/lvgl_sdl_sw_android_debug.patch"
     WINDOW_SRC="$REPO_ROOT/lib/lvgl/src/drivers/sdl/lv_sdl_window.c"
     SW_SRC="$REPO_ROOT/lib/lvgl/src/drivers/sdl/lv_sdl_sw.c"
+}
+
+# Only the ctl test takes the app lock, and it gives it back on the path where
+# it succeeds. Releasing here covers the paths where it returns early, which a
+# directory lock does not survive on its own.
+teardown() {
+    helix_app_lock_release
 }
 
 require_binary() {
@@ -140,8 +148,7 @@ headless_socket() {
     # bats runs files in parallel, and installer tests drive app start/stop, so
     # only one file may own a live instance at a time. Hold the shared app lock
     # for as long as this test drives its own.
-    exec {applock}>"${TMPDIR:-/tmp}/helix-bats-app.lock"
-    flock "$applock"
+    helix_app_lock_acquire
 
     # Launched directly, NOT through setsid: setsid forks, so $! would be the
     # wrapper rather than the app - the liveness check below would read the
@@ -193,7 +200,7 @@ headless_socket() {
     kill -TERM "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
     rm -f "$sock"
-    exec {applock}>&-
+    helix_app_lock_release
 
     if [ "$nav_status" -ne 0 ] || [ "$shot_status" -ne 0 ] || [ ! -s "$shot" ]; then
         echo "navigate=$nav_status ($nav_out)" >&2

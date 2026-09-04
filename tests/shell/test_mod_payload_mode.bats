@@ -36,8 +36,7 @@ setup() {
     # The flows below stop and start the app, and bats runs files in parallel,
     # so a sibling file may have a live instance up at the same time. Hold the
     # shared app lock so only one file owns an instance at a time.
-    exec {applock}>"${TMPDIR:-/tmp}/helix-bats-app.lock"
-    flock "$applock"
+    helix_app_lock_acquire
     install_gnu_sed_shim
     install_gnu_stat_shim
 
@@ -118,6 +117,10 @@ setup() {
     TMP_DIR="$BATS_TEST_TMPDIR/tmp"
     mkdir -p "$TMP_DIR"
     INSTALL_DIR="$HOST_INSTALL_ROOT"
+}
+
+teardown() {
+    helix_app_lock_release
 }
 
 # forgex.sh sourced PRISTINE: the module derives its mod tree from the probe
