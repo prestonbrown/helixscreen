@@ -196,4 +196,20 @@ void prune_printer_image_cache(int max_files = 10, int max_keep = 5);
  */
 int invalidate_printer_image_cache(const std::string& source_image_path);
 
+/**
+ * @brief Invalidate an image's caches only when a refresh resolves elsewhere
+ *
+ * A refresh that lands on the image already displayed keeps its cache files:
+ * rebuilding one is a synchronous decode-and-resize on the main thread, seconds
+ * of it on a slow board, and the result is identical to what was deleted.
+ * Rewriting an image in place under an existing filename is invalidated by
+ * PrinterImageManager::import_image() instead, which owns the write.
+ *
+ * @param current_image_path The LVGL path currently displayed (empty on first refresh)
+ * @param new_image_path The LVGL path the refresh resolved to
+ * @return Number of cache files removed
+ */
+int invalidate_printer_image_cache_if_changed(const std::string& current_image_path,
+                                              const std::string& new_image_path);
+
 } // namespace helix
