@@ -1443,8 +1443,11 @@ cov-diff: cov-build cov-run
 	$(Q)python3 scripts/cov_diff.py $(COV_DIFF_ARGS)
 
 # ---- mutation --------------------------------------------------------------
-# Reverts each changed hunk in turn and looks for red. Costs a compile plus a
-# link per hunk, so scope it: --limit N, or --tests to narrow the suite.
+# Reverts each changed hunk in turn and looks for red. A src/ or include/ hunk
+# costs a compile plus a link; a ui_xml/, assets/config/ or scripts/ hunk costs
+# only its suite, since nothing has to be rebuilt to see it. Scope a heavy range
+# with --limit N or --tests. It answers CLEAN only when it examined the whole
+# change: a path it cannot mutate is reported NOT COVERED and the run exits 3.
 .PHONY: mutate-diff
 mutate-diff:
 	$(Q)python3 scripts/mutate_diff.py $(MUTATE_ARGS)

@@ -79,13 +79,39 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     [[ "$output" == *"SURVIVED"* ]]
 }
 
+@test "a survivor names the suite that judged it" {
+    # Which suite stayed green is the whole content of the verdict, and a hunk's
+    # suite follows its strategy. Quoting the Catch2 filter at a shell mutant
+    # would report a suite that never ran.
+    stub_tests_that_ignore
+    run mutate --tests '[some_tag]'
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"nothing in catch2 '[some_tag]' detects them"* ]]
+}
+
+@test "a surviving tooling hunk names bats and pytest, not the Catch2 filter" {
+    mkdir -p "$WORK/tests/shell" "$WORK/tests/python"
+    printf '#!/bin/sh\necho old\n' > "$WORK/scripts/gate.sh"
+    printf '@test "t" { true; }\n' > "$WORK/tests/shell/test_gate.bats"
+    printf 'def test_ok():\n    assert True\n' > "$WORK/tests/python/test_ok.py"
+    git -C "$WORK" add src/feature.cpp scripts/gate.sh tests/shell/test_gate.bats tests/python/test_ok.py
+    git -C "$WORK" commit -qm gate
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '#!/bin/sh\necho new\n' > "$WORK/scripts/gate.sh"
+    stub_tests_that_detect
+    run mutate --tests '[some_tag]'
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"nothing in bats + pytest detects them"* ]]
+    [[ "$output" != *"some_tag"* ]]
+}
+
 @test "a red baseline is refused instead of reporting every hunk killed" {
     # Without this check a broken suite makes every mutant look detected.
     printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/build/bin/helix-tests"
     chmod +x "$WORK/build/bin/helix-tests"
     run mutate
     [ "$status" -eq 2 ]
-    [[ "$output" == *"baseline suite is RED"* ]]
+    [[ "$output" == *"baseline catch2 suite is RED"* ]]
 }
 
 @test "a build that fails for the mutant is uncompilable, never a kill" {
@@ -113,12 +139,197 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     [ "$before" = "$after" ]
 }
 
-@test "only src/ and include/ are considered" {
+@test "a killed run says CLEAN in as many words" {
+    stub_tests_that_detect
+    run mutate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"VERDICT: CLEAN"* ]]
+}
+
+# --- coverage honesty -------------------------------------------------------
+#
+# The gate's answer is cited in commit bodies as evidence that a change is
+# pinned by tests, so the one thing it must never do is answer "clean" about a
+# file it did not open. Anything the mutation operator cannot reach has to
+# reach the report under its own name and take the run out of CLEAN, whether it
+# was unreachable by path, by a missing runner, or by the operator's own
+# --limit. These tests are that property.
+
+@test "a changed file no strategy covers is named and takes the run out of CLEAN" {
+    stub_tests_that_detect
+    mkdir -p "$WORK/android/app"
+    printf 'versionCode 7\n' > "$WORK/android/app/build.gradle"
+    git -C "$WORK" add -N android/app/build.gradle
+    run mutate
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"NOT COVERED"* ]]
+    [[ "$output" == *"android/app/build.gradle"* ]]
+    [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
+    [[ "$output" != *"VERDICT: CLEAN"* ]]
+}
+
+@test "--allow-incomplete accepts an incomplete run, and still says it was one" {
+    stub_tests_that_detect
+    mkdir -p "$WORK/android/app"
+    printf 'versionCode 7\n' > "$WORK/android/app/build.gradle"
+    git -C "$WORK" add -N android/app/build.gradle
+    run mutate --allow-incomplete
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
+}
+
+@test "documentation is named as not behavioural and keeps the run CLEAN" {
     stub_tests_that_detect
     printf 'x\n' > "$WORK/docs.md"
     git -C "$WORK" add -N docs.md
+    run mutate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"not behavioural"* ]]
+    [[ "$output" == *"docs.md"* ]]
+    [[ "$output" == *"VERDICT: CLEAN"* ]]
+}
+
+@test "a changed test file is NOT COVERED, with the reason it cannot be mutated" {
+    stub_tests_that_detect
+    mkdir -p "$WORK/tests/unit"
+    printf 'TEST_CASE("x") {}\n' > "$WORK/tests/unit/test_x.cpp"
+    git -C "$WORK" add -N tests/unit/test_x.cpp
+    run mutate
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"NOT COVERED"* ]]
+    [[ "$output" == *"tests/unit/test_x.cpp"* ]]
+    [[ "$output" == *"proven by mutating the code it pins"* ]]
+}
+
+@test "a submodule pointer bump is NOT COVERED rather than silently dropped" {
+    stub_tests_that_detect
+    git init -q "$WORK/lib/engine"
+    git -C "$WORK/lib/engine" config user.email t@t
+    git -C "$WORK/lib/engine" config user.name t
+    printf 'one\n' > "$WORK/lib/engine/parser.c"
+    git -C "$WORK/lib/engine" add parser.c
+    git -C "$WORK/lib/engine" commit -qm one
+    git -C "$WORK" -c protocol.file.allow=always add lib/engine
+    git -C "$WORK" commit -qm "add submodule"
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf 'int f(int n) {\n    return n + 2;   // NEW_BEHAVIOR\n}\n' > "$WORK/src/feature.cpp"
+    printf 'two\n' > "$WORK/lib/engine/parser.c"
+    git -C "$WORK/lib/engine" commit -qam two
+
+    run mutate
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"NOT COVERED"* ]]
+    [[ "$output" == *"lib/engine"* ]]
+    [[ "$output" == *"submodule"* ]]
+}
+
+@test "--limit reports what it set aside instead of narrowing in silence" {
+    stub_tests_that_detect
+    printf 'int g(int n) {\n    return n + 9;   // SECOND\n}\n' > "$WORK/src/other.cpp"
+    git -C "$WORK" add -N src/other.cpp
+    run mutate --limit 1
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"DEFERRED"* ]]
+    [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
+}
+
+@test "an uncompilable mutant leaves the run incomplete, never clean" {
+    # A compiler error proves the code is load-bearing for the build, not that
+    # any test would notice it changing, so the hunk is still unproven.
+    stub_tests_that_detect
+    printf 'test-build:\n\t@grep -q NEW_BEHAVIOR src/feature.cpp\n' > "$WORK/Makefile"
+    run mutate
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"uncompilable"* ]]
+    [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
+    [[ "$output" != *"VERDICT: CLEAN"* ]]
+}
+
+@test "a strategy whose runner is not installed becomes NOT COVERED, not a pass" {
+    stub_tests_that_detect
+    printf '#!/bin/sh\necho hi\n' > "$WORK/scripts/gate.sh"
+    git -C "$WORK" add -N scripts/gate.sh
+    run mutate --shell-tests tests/nowhere --python-tests tests/nowhere
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"NOT COVERED"* ]]
+    [[ "$output" == *"scripts/gate.sh"* ]]
+}
+
+# --- widened scope ----------------------------------------------------------
+
+@test "a runtime XML change is mutated without a build" {
+    mkdir -p "$WORK/ui_xml"
+    printf '<view><lv_label text="old"/></view>\n' > "$WORK/ui_xml/home.xml"
+    git -C "$WORK" add src/feature.cpp ui_xml/home.xml
+    git -C "$WORK" commit -qm xml
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '<view><lv_label text="new"/></view>\n' > "$WORK/ui_xml/home.xml"
+    # Reverting the XML must be visible to the suite with no compile, so the
+    # stub Makefile fails loudly if the tool reaches for one.
+    printf 'test-build:\n\t@true\n' > "$WORK/Makefile"
+    cat > "$WORK/build/bin/helix-tests" <<'EOF'
+#!/usr/bin/env bash
+grep -q 'text="new"' ui_xml/home.xml || exit 1
+exit 0
+EOF
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ui_xml/home.xml"* ]]
+    [[ "$output" == *"[data]"* ]]
+    [[ "$output" == *"killed"* ]]
+}
+
+@test "a runtime JSON change no test reads is reported SURVIVED" {
+    mkdir -p "$WORK/assets/config"
+    printf '{"mcu": "rp2040"}\n' > "$WORK/assets/config/printer_database.json"
+    git -C "$WORK" add src/feature.cpp assets/config/printer_database.json
+    git -C "$WORK" commit -qm db
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '{"mcu": "stm32"}\n' > "$WORK/assets/config/printer_database.json"
+    stub_tests_that_ignore
+    run mutate
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"assets/config/printer_database.json"* ]]
+    [[ "$output" == *"SURVIVED"* ]]
+}
+
+@test "a shell script is mutated against the bats suite" {
+    mkdir -p "$WORK/tests/shell" "$WORK/tests/python"
+    printf '#!/bin/sh\necho old\n' > "$WORK/scripts/gate.sh"
+    cat > "$WORK/tests/shell/test_gate.bats" <<'EOF'
+@test "gate says new" {
+    grep -q new "$BATS_TEST_DIRNAME/../../scripts/gate.sh"
+}
+EOF
+    printf 'def test_ok():\n    assert True\n' > "$WORK/tests/python/test_ok.py"
+    git -C "$WORK" add src/feature.cpp scripts/gate.sh tests/shell/test_gate.bats tests/python/test_ok.py
+    git -C "$WORK" commit -qm gate
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '#!/bin/sh\necho new\n' > "$WORK/scripts/gate.sh"
+    stub_tests_that_detect
+    run mutate
+    [[ "$output" == *"scripts/gate.sh"* ]]
+    [[ "$output" == *"[tooling]"* ]]
+    [[ "$output" == *"killed"* ]]
+    [ "$status" -eq 0 ]
+}
+
+@test "a hash comment in a shell script is skipped, but a parameter expansion is not" {
+    mkdir -p "$WORK/tests/shell" "$WORK/tests/python"
+    printf '#!/bin/sh\n# old note\nX=${V#a}\n' > "$WORK/scripts/gate.sh"
+    printf '@test "t" { true; }\n' > "$WORK/tests/shell/test_gate.bats"
+    printf 'def test_ok():\n    assert True\n' > "$WORK/tests/python/test_ok.py"
+    git -C "$WORK" add src/feature.cpp scripts/gate.sh tests/shell/test_gate.bats tests/python/test_ok.py
+    git -C "$WORK" commit -qm gate
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '#!/bin/sh\n# new note\nX=${V#b}\n' > "$WORK/scripts/gate.sh"
+    stub_tests_that_detect
     run mutate --list-only
-    [[ "$output" != *"docs.md"* ]]
+    # ${V#a} -> ${V#b} is a behaviour change that a naive "# starts a comment"
+    # scan would blank away, leaving two identical lines and a silent skip.
+    [[ "$output" == *"1 hunk(s) to mutate"* ]]
+    [[ "$output" != *"comment/whitespace only"* ]]
 }
 
 @test "--limit caps the number of hunks" {
