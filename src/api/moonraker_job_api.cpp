@@ -153,7 +153,7 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
         // Resilience fallback: the helix_print plugin's print_modified endpoint is
         // broken in shipped plugin v1.0.0 (fails for every field), so an already-
         // deployed plugin leaves the user unable to start ANY print until they
-        // update it. When the plugin call fails, fall back to the stock
+        // update it. When the plugin answers and refuses, fall back to the stock
         // printer.print.start on the already-uploaded temp file so the user can
         // still print. `this` is safe to capture: MoonrakerJobAPI is a long-lived
         // API wrapper owned by MoonrakerAPI (same lifetime as the client), matching
@@ -162,6 +162,22 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
         // spdlog + client_ (via start_print) — no LVGL/subject work here; the
         // caller's on_success/on_error handle their own thread bouncing.
         [this, original_filename, temp_file_path, on_success, on_error](const MoonrakerError& err) {
+            // Only an answer from the plugin justifies a second start. The endpoint
+            // starts the print before it replies, so an error carrying no reply
+            // leaves the print's fate unknown and it may already be running. Firing
+            // printer.print.start at a live machine is worse than reporting the
+            // failure: the caller's error path deletes the temp file that print is
+            // reading through the plugin's symlink.
+            if (err.type == MoonrakerErrorType::TIMEOUT ||
+                err.type == MoonrakerErrorType::CONNECTION_LOST) {
+                spdlog::warn("[Moonraker API] helix_print plugin print_modified gave no answer "
+                             "({}); NOT falling back to printer.print.start - the plugin starts "
+                             "the print before it replies, so '{}' may already be printing.",
+                             err.message, temp_file_path);
+                on_error(err);
+                return;
+            }
+
             spdlog::warn("[Moonraker API] helix_print plugin print_modified failed ({}); falling "
                          "back to direct printer.print.start on temp file '{}'. Job history will "
                          "show the temp filename (known degraded mode — update the helix_print "
@@ -187,5 +203,6 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
                 },
                 // Fallback ALSO failed — only now surface the error to the caller.
                 on_error);
-        });
+        },
+        PRINT_MODIFIED_TIMEOUT_MS);
 }

@@ -3,6 +3,8 @@
 
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
+#include "../../include/moonraker_job_api.h"
+#include "../../include/moonraker_request_tracker.h"
 #include "../../include/printer_state.h"
 #include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
@@ -118,14 +120,14 @@ class FallbackScriptedClient : public helix::MoonrakerClient {
         std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        (void)timeout_ms;
         (void)silent;
         (void)intent;
         if (method == "server.helix.print_modified") {
             ++print_modified_calls;
+            print_modified_timeout_ms = timeout_ms;
             if (error_cb) {
                 MoonrakerError err;
-                err.type = MoonrakerErrorType::VALIDATION_ERROR;
+                err.type = print_modified_error;
                 err.message = "helix_print v1.0.0 print_modified bug";
                 err.method = method;
                 error_cb(err);
@@ -143,6 +145,10 @@ class FallbackScriptedClient : public helix::MoonrakerClient {
         return 0;
     }
 
+    // Defaults to the shipped v1.0.0 endpoint bug — a prompt refusal from a
+    // plugin that did answer. Cases needing "no answer at all" set it.
+    MoonrakerErrorType print_modified_error = MoonrakerErrorType::VALIDATION_ERROR;
+    uint32_t print_modified_timeout_ms = 0;
     int print_modified_calls = 0;
     int print_start_calls = 0;
     std::string print_start_filename;
@@ -187,6 +193,69 @@ TEST_CASE("HelixPrint API - falls back to printer.print.start when plugin print_
     REQUIRE(result.status == "printing");
     REQUIRE(result.original_filename == "benchy.gcode");
     REQUIRE(result.print_filename == temp_path);
+}
+
+// ============================================================================
+// print_modified's own RPC ceiling, and what the fallback may act on
+// ============================================================================
+
+TEST_CASE("print_modified outlives a print-start macro that heats synchronously",
+          "[print][api][1451]") {
+    // The plugin answers print_modified only after awaiting SDCARD_PRINT_FILE —
+    // the same Klipper ack printer.print.start waits on, reached after the
+    // plugin has already copied metadata and created its symlink. On a machine
+    // whose print-start macro heats synchronously that ack is minutes away, so
+    // at the tracker default this RPC gives up while the print it asked for is
+    // running.
+    FallbackScriptedClient client;
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+
+    api.job().start_modified_print(
+        "benchy.gcode", ".helix_temp/mod_benchy.gcode", {},
+        [](const ModifiedPrintResult&) {}, [](const MoonrakerError&) {});
+
+    REQUIRE(client.print_modified_calls == 1);
+    CHECK(client.print_modified_timeout_ms >
+          helix::MoonrakerRequestTracker::DEFAULT_REQUEST_TIMEOUT_MS);
+    // It ends in the same ack as printer.print.start after strictly more work,
+    // so it can never deserve the shorter ceiling of the two.
+    CHECK(client.print_modified_timeout_ms >= MoonrakerJobAPI::PRINT_START_TIMEOUT_MS);
+}
+
+TEST_CASE("a print_modified that never answered does not start a second print",
+          "[print][api][1451]") {
+    // A timeout or a dropped connection says nothing about whether the print
+    // began, and the plugin starts it before it answers. Falling back on one
+    // aims printer.print.start at a machine that may already be printing, and
+    // the caller's error path then deletes the temp file that running job is
+    // reading through the plugin's symlink.
+    const auto unanswered =
+        GENERATE(MoonrakerErrorType::TIMEOUT, MoonrakerErrorType::CONNECTION_LOST);
+
+    FallbackScriptedClient client;
+    client.print_modified_error = unanswered;
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+
+    bool success_called = false;
+    bool error_called = false;
+
+    api.job().start_modified_print(
+        "benchy.gcode", ".helix_temp/mod_benchy.gcode", {"bed_leveling_disabled"},
+        [&](const ModifiedPrintResult&) { success_called = true; },
+        [&](const MoonrakerError&) { error_called = true; });
+
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(client.print_modified_calls == 1);
+    CHECK(client.print_start_calls == 0);
+    // The caller still learns the plugin call failed — it just is not told a
+    // print started, and no second start is fired.
+    CHECK(error_called);
+    CHECK_FALSE(success_called);
 }
 
 // ============================================================================
