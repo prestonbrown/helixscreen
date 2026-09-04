@@ -9757,6 +9757,40 @@ print_platform_banner() {
     esac
 }
 
+# Tell a K2 owner that stock AI failure detection is gone (#1378).
+#
+# Two independent parts of the install stop it, and neither announces itself:
+#
+#   - assets/config/platform/hooks-k2.sh platform_stop_competing_uis() stops and
+#     disables /etc/init.d/app. That procd service is the stock UI, and the same
+#     service carries Creality's capture/infer/pause daemons (Monitor,
+#     master-server, app-server). The init script re-runs the hook on every
+#     start, so the disable is re-asserted at each boot.
+#   - install_camera_k2() (camera.sh) hands /dev/video0 to ustreamer, which
+#     kills the stock cam_app grabber on every launch. The node is single-stream,
+#     so nothing else can read the chamber camera while HelixScreen runs.
+#
+# HelixScreen ships no replacement detector, so after this install the print is
+# unwatched. Silence here is the actual harm: the owner keeps believing a safety
+# feature is running, and the first sign otherwise is a failed print.
+#
+# The text stays ASCII: it lands on a BusyBox console on the printer. No-op on
+# every other platform.
+print_k2_stock_ai_notice() {
+    [ "${1:-}" = "k2" ] || return 0
+
+    log_warn "Creality's stock AI failure detection is now DISABLED on this printer."
+    log_warn "  HelixScreen replaces the stock UI service (/etc/init.d/app), which also"
+    log_warn "  runs Creality's failure detector, and takes over the chamber camera."
+    log_warn "  HelixScreen does not provide a replacement, so your prints are no longer"
+    log_warn "  watched for spaghetti or other failures."
+    log_warn "  A HelixScreen detector is tracked at:"
+    log_warn "    https://github.com/prestonbrown/helixscreen/issues/1033"
+    log_warn "  To get stock detection back, uninstall HelixScreen:"
+    log_warn "    curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall"
+    log_warn "  Uninstalling re-enables both the stock UI service and the stock camera."
+}
+
 # Refuse to run --uninstall from a script sitting inside the dir we're about to
 # delete. The release tarball ships scripts/install.sh into $INSTALL_DIR for
 # offline --local updates; users sometimes invoke that copy with --uninstall,
@@ -10133,6 +10167,9 @@ main() {
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ] || [ "$platform" = "k2" ]; then
         echo "Note: You may need to reboot for the display to update."
     fi
+
+    # Last thing on screen: the safety feature this install took away.
+    print_k2_stock_ai_notice "$platform"
 }
 
 # Run main
