@@ -111,10 +111,18 @@ jobs:
         git submodule status
         echo "Submodules initialized"
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 
@@ -361,10 +369,18 @@ jobs:
         git submodule status
         echo "Submodules initialized"
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 
@@ -517,10 +533,18 @@ jobs:
         restore-keys: |
           ccache-x86-fbdev-
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 
