@@ -727,6 +727,35 @@ inline bool has_abs_display_mismatch(int abs_max_x, int abs_max_y, int display_w
 }
 
 /**
+ * @brief Check whether an advertised ABS range is the display's own dimensions
+ * with the axes swapped
+ *
+ * Some drivers describe the panel in its native orientation rather than the
+ * framebuffer's — a Goodix controller advertising 800x480 on a 480x800 portrait
+ * framebuffer — while still emitting coordinates that span the framebuffer the
+ * normal way round. That is not a resolution mismatch: the numbers are the
+ * display's, only transposed. Scaling by them compresses one axis and clamps the
+ * other, so the caller should scale by the display size instead and leave
+ * rotation to LVGL.
+ *
+ * True requires both halves: the range does NOT describe the display the normal
+ * way round, and it DOES describe it transposed. A square display therefore
+ * never qualifies — its two readings are the same comparison, so a range either
+ * matches both or neither, and "transposed" carries no information.
+ *
+ * @param abs_max_x Maximum ABS_X value from EVIOCGABS
+ * @param abs_max_y Maximum ABS_Y value from EVIOCGABS
+ * @param display_width Display width in pixels
+ * @param display_height Display height in pixels
+ * @return true if the range matches the display only when the axes are swapped
+ */
+inline bool has_transposed_abs_range(int abs_max_x, int abs_max_y, int display_width,
+                                     int display_height) {
+    return has_abs_display_mismatch(abs_max_x, abs_max_y, display_width, display_height) &&
+           !has_abs_display_mismatch(abs_max_x, abs_max_y, display_height, display_width);
+}
+
+/**
  * @brief Decide whether a stored affine calibration should be invalidated on the
  * post-#943-fix upgrade boot. True ONLY for non-resistive panels whose ABS range
  * mismatches the display — these now ride on evdev's linear scaling, so any affine
