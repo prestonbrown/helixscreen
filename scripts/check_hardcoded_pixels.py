@@ -131,7 +131,7 @@ NON_LENGTH_TOKENS = ("opacity", "opa")
 # the fastest way to teach people the gate is noise. Spacing tokens still drive
 # the xml-pad and cpp-pad rules, where they ARE the answer.
 NON_SIZE_PREFIXES = ("space_", "spinner_arc_", "border_radius")
-NON_SIZE_SUBSTRINGS = ("padding",)
+NON_SIZE_SUBSTRINGS = ("padding", "gap")
 
 # style_pad_all="12" / style_margin_top="8". Token refs (#name), percentages and
 # "content" do not match, because the value group is digits-only.
