@@ -15,10 +15,15 @@
 #include <pthread.h>
 #include <sched.h>
 #include <string>
-#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
+
+// PR_SET_TIMERSLACK lives in prctl.h, which only Linux ships.
+#if __has_include(<sys/prctl.h>)
+#include <sys/prctl.h>
+#define HELIX_HAVE_PRCTL 1
+#endif
 
 // Floor division for signed int64. C++ '/' truncates toward zero, but sample
 // arithmetic needs floor so a partial-sample deficit counts as a full sample
@@ -47,13 +52,26 @@ static int64_t monotonic_now_ns() {
 /// without burning real CPU across the whole sample interval. CLOCK_MONOTONIC
 /// is used directly here; the now seam WRAPS this whole function (virtual
 /// clock tests replace wait_until_fn_ entirely, so this never runs there).
+///
+/// A host without clock_nanosleep sleeps the remaining interval instead. That
+/// is what the spin budget below exists to absorb, and no PWM device is driven
+/// on such a host — the backend is a device build.
 static void default_wait_until(int64_t deadline_ns, const std::function<int64_t()>& now) {
     const int64_t sleep_target = deadline_ns - PWMSoundBackend::PCM_SPIN_BUDGET_NS;
     if (now() < sleep_target) {
+#ifdef TIMER_ABSTIME
         struct timespec ts = to_timespec_ns(sleep_target);
         while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) == EINTR) {
             // retry on signal
         }
+#else
+        struct timespec ts = to_timespec_ns(sleep_target - now());
+        // nanosleep reports the unslept remainder, so a signal resumes where
+        // it left off rather than restarting the full interval.
+        while (nanosleep(&ts, &ts) == -1 && errno == EINTR) {
+            // retry on signal
+        }
+#endif
     }
     while (now() < deadline_ns) {
         // spin — at SCHED_IDLE the scheduler preempts this against any real work
@@ -419,6 +437,9 @@ void PWMSoundBackend::exit_pcm_mode() {
 }
 
 void PWMSoundBackend::apply_render_thread_priority() {
+    // Both knobs are Linux scheduling APIs. A host without them runs the render
+    // thread at its default priority, which is what a desktop test build wants.
+#ifdef SCHED_IDLE
     // SCHED_IDLE: this thread runs only when nothing else wants the CPU, so
     // its pacing can never starve klippy — the failure that got PCM playback
     // pulled from ad5m in the first place. Setting it needs no privileges.
@@ -431,9 +452,12 @@ void PWMSoundBackend::apply_render_thread_priority() {
         spdlog::debug("[PWMSoundBackend] SCHED_IDLE refused (errno {}) - staying SCHED_OTHER",
                       errno);
     }
+#endif // SCHED_IDLE
+#ifdef HELIX_HAVE_PRCTL
     // Timerslack only affects relative sleeps (the 1 ms no-source poll); the
     // render loop paces with TIMER_ABSTIME, so this is belt-and-suspenders.
     prctl(PR_SET_TIMERSLACK, 1UL);
+#endif
 }
 
 void PWMSoundBackend::park_output() {
