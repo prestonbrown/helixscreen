@@ -167,37 +167,20 @@ static bool long_mode_animates(lv_label_long_mode_t mode) {
 }
 
 /**
- * Height of one text line in this label, padding and border included
- *
- * The same number LVGL's own content sizing produces for a label holding a
- * single line, so capping a label here leaves the layout exactly where a
- * scrolling mode had it.
- */
-static int32_t one_line_height(lv_obj_t* label) {
-    const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
-    if (!font) {
-        return LV_COORD_MAX;
-    }
-    return lv_font_get_line_height(font) + lv_obj_get_style_pad_top(label, LV_PART_MAIN) +
-           lv_obj_get_style_pad_bottom(label, LV_PART_MAIN) +
-           2 * lv_obj_get_style_border_width(label, LV_PART_MAIN);
-}
-
-/**
  * Observer: hold a scrolling label still while animations are switched off
  *
  * The long mode the XML declared is carried in the observer's user data, so the
  * label goes back to scrolling if the preference is switched on again.
  *
- * A scrolling mode measures its text unwrapped, so the label is one line tall
- * and the layouts around it are built for that. LV_LABEL_LONG_MODE_DOTS
- * measures wrapped instead, and only draws the ellipsis once the text is taller
- * than the label - so a label free to grow silently becomes two or three lines
- * and pushes whatever sits below it out of its container. Capping the height at
- * one line is what makes the ellipsis appear AND keeps the one-line geometry the
- * scrolling mode promised. max_height rather than height so a height the XML set
- * is capped rather than overwritten, and LV_COORD_MAX is the style default, so
- * switching animations back on leaves nothing behind.
+ * CLIP is the still counterpart of a scrolling mode, and the only one: it sets
+ * the same LV_TEXT_FLAG_EXPAND, so the text measures unwrapped and the label
+ * stays exactly one line, which is the height every layout around a scrolling
+ * label is built for. DOTS clears that flag - the label wraps to two or three
+ * lines and pushes whatever sits below it out of its container - and it also
+ * rewrites the label's own text buffer with the ellipsized string, so
+ * lv_label_get_text() would start returning truncated text app-wide for as long
+ * as the preference is off. An ellipsis that does not lie about its own text
+ * needs a middle-truncating mode (prestonbrown/helixscreen#1441).
  */
 static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     lv_obj_t* label = lv_observer_get_target_obj(observer);
@@ -206,15 +189,9 @@ static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* s
     }
     auto declared = static_cast<lv_label_long_mode_t>(
         reinterpret_cast<intptr_t>(lv_observer_get_user_data(observer)));
-
-    if (helix::ui::animations_enabled(subject)) {
-        lv_obj_set_style_max_height(label, LV_COORD_MAX, LV_PART_MAIN);
-        lv_label_set_long_mode(label, declared);
-        return;
-    }
-
-    lv_obj_set_style_max_height(label, one_line_height(label), LV_PART_MAIN);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
+    lv_label_set_long_mode(label, helix::ui::animations_enabled(subject)
+                                      ? declared
+                                      : LV_LABEL_LONG_MODE_CLIP);
 }
 
 /**
@@ -223,9 +200,9 @@ static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* s
  * A scrolling long mode repaints the label's area at the display refresh rate
  * for as long as the text overflows, and the repaint costs the render and blend
  * threads on every step. Turning animations off has to reach that, so the label
- * ellipsizes instead for as long as the preference is off. Labels that do not
- * scroll are left alone, and so is a label built before the preference subject
- * exists.
+ * holds still and clips instead for as long as the preference is off. Labels
+ * that do not scroll are left alone, and so is a label built before the
+ * preference subject exists.
  *
  * The observer is registered against the label, so LVGL drops it when the label
  * is deleted.
