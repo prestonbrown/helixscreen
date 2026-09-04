@@ -907,21 +907,7 @@ TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: set_point_count reallocs 
     REQUIRE(id_a >= 0);
     REQUIRE(id_b >= 0);
 
-    // Capture original pointers
-    int16_t* orig_a = nullptr;
-    int16_t* orig_b = nullptr;
-    for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
-        if (g->series_meta[i].chart_series) {
-            if (g->series_meta[i].id == id_a)
-                orig_a = g->series_meta[i].target_deci_buf;
-            if (g->series_meta[i].id == id_b)
-                orig_b = g->series_meta[i].target_deci_buf;
-        }
-    }
-    REQUIRE(orig_a != nullptr);
-    REQUIRE(orig_b != nullptr);
-
-    // Shrink: default (1200) → 100
+    // Shrink: default → 100
     ui_temp_graph_set_point_count(g, 100);
     REQUIRE(g->point_count == 100);
 
@@ -930,23 +916,43 @@ TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: set_point_count reallocs 
             REQUIRE(g->series_meta[i].target_deci_buf != nullptr);
             REQUIRE(g->series_meta[i].target_head == 0);
 
-            // The buffer pointer MUST have changed — set_point_count must free
-            // the old allocation and create a fresh one. Without this assertion
-            // the test trivially passes even on a no-op implementation, since
-            // the default 1200-element buffer is also zero-initialized.
-            if (g->series_meta[i].id == id_a) {
-                REQUIRE(g->series_meta[i].target_deci_buf != orig_a);
-            }
-            if (g->series_meta[i].id == id_b) {
-                REQUIRE(g->series_meta[i].target_deci_buf != orig_b);
-            }
-
             // First `count` entries are accessible and zeroed.
             for (int j = 0; j < 100; j++) {
                 REQUIRE(g->series_meta[i].target_deci_buf[j] == 0);
             }
         }
     }
+
+    // Grow, then fill to the new capacity. A raw pointer cannot report its own
+    // length, so the resize is proved by its consequences rather than by the
+    // address changing — an address is the allocator's choice, not this code's,
+    // and free-then-malloc of the same size routinely returns the same block.
+    //
+    // Two failure modes, caught two ways: a set_point_count that does nothing
+    // at all leaves point_count at 100 and fails the assertion below; one that
+    // updates point_count but skips the reallocation writes 300 entries past
+    // the end of the old buffer, which helix-tests-asan reports as a heap
+    // overflow.
+    ui_temp_graph_set_point_count(g, 400);
+    REQUIRE(g->point_count == 400);
+
+    ui_temp_series_meta_t* ma = nullptr;
+    for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
+        if (g->series_meta[i].chart_series && g->series_meta[i].id == id_a) {
+            ma = &g->series_meta[i];
+        }
+    }
+    REQUIRE(ma != nullptr);
+    ma->show_target = true;
+
+    for (int j = 0; j < 400; j++) {
+        ma->target_temp = 10.0f;
+        ui_temp_graph_update_series(g, id_a, 1.0f);
+    }
+
+    // Head caps at point_count, so a full buffer reads exactly the new capacity.
+    REQUIRE(ma->target_head == 400);
+    REQUIRE(ma->target_deci_buf[399] == 100);
 
     ui_temp_graph_destroy(g);
 }
