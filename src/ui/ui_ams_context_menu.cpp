@@ -243,58 +243,11 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         }
     }
 
-    // Get slot info for filament presence check. Tri-state: slot_presence()
-    // reports SlotStatus::UNKNOWN as "unanswerable" rather than "empty", so a
-    // backend that publishes no per-lane presence does not grey Load.
-    std::optional<bool> slot_has_filament;
-    // LIVE load state (Task 3): firmware seated+loaded OR filament at this slot's
-    // toolhead sensor — drives Load/Unload availability instead of static RFID
-    // presence so the menu matches real load state the moment a sensor flips.
-    bool slot_is_loaded_live = false;
-    if (backend_) {
-        SlotInfo slot_info = backend_->get_slot_info(slot_index);
-        slot_has_filament = helix::ui::slot_presence(slot_info);
-        slot_is_loaded_live = backend_->slot_is_actively_loaded(slot_index) ||
-                              backend_->slot_has_filament_at_toolhead(slot_index);
-    }
-
-    // Treat the slot as loaded if EITHER the caller's snapshot (can_unload_from_
-    // toolhead, computed at open) OR the live per-slot accessors say so. The OR
-    // keeps Unload available for the firmware's active slot even after a runout
-    // clears the head sensor (#995), while live signals enable real-time accuracy.
-    const bool is_loaded = pending_is_loaded_ || slot_is_loaded_live;
-
-    // Whether this slot's unload action is a heated toolhead unload (true) or a
-    // cold per-lane eject (false). Defaults to is_loaded for most backends; AD5X
-    // IFS refines it with seated-channel authority so a NON-seated lane reads
-    // "Eject" even when the firmware dropped its active-slot pointer and
-    // is_loaded was broadened by the recovery clause (raza616, 5HR3HHS6). This
-    // drives both the button label and the dispatched action (handle_unload).
-    const bool toolhead_unload =
-        backend_ ? backend_->slot_unloads_to_toolhead(slot_index, is_loaded) : is_loaded;
-
-    // Select the Unload button's operation, most specific first. Each mode has a
-    // distinct label and a distinct dispatch; see UnloadMode and decide_unload_mode().
-    //
-    // The unload-mode decision keeps the strict reading of presence — "is there
-    // something to eject" has no useful third answer, and an unknown lane must
-    // not grow an Eject button out of nowhere. Only the Load gate treats UNKNOWN
-    // as unanswerable.
-    const bool slot_filament_present = slot_has_filament.value_or(false);
-    const bool slot_empty = !slot_filament_present;
-    const bool supports_eject = backend_ && backend_->supports_lane_eject();
-    const bool can_recover = backend_ && backend_->can_recover_lane_position(slot_index);
-    const bool recovery_attributed = backend_ && backend_->lane_recovery_is_attributed();
-    const bool supports_force_eject = backend_ && backend_->supports_force_eject();
-
-    unload_mode_ =
-        decide_unload_mode(toolhead_unload, can_recover, recovery_attributed, supports_eject,
-                           slot_filament_present, supports_force_eject, slot_empty);
-
-    const bool unload_enabled =
-        decide_unload_enabled(system_busy, unload_mode_, print_blocks_op,
-                              backend_ && backend_->cold_lane_ops_refused_during_print());
-    lv_subject_set_int(&slot_is_loaded_subject_, unload_enabled ? 1 : 0);
+    const SlotOpDecision ops =
+        decide_slot_ops(backend_, slot_index, pending_is_loaded_, system_busy, print_blocks_op);
+    // The dispatched action, not just the label: handle_unload() reads this.
+    unload_mode_ = ops.unload_mode;
+    lv_subject_set_int(&slot_is_loaded_subject_, ops.unload_enabled ? 1 : 0);
 
     lv_obj_t* btn_unload = lv_obj_find_by_name(menu_obj, "btn_unload");
     if (btn_unload) {
@@ -335,7 +288,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // when the backend has something actionable to say - "nothing is loaded" is
     // not worth a line, because there is visibly nothing to unload.
     const std::string unload_hint =
-        (!unload_enabled && backend_) ? backend_->unload_blocked_reason(slot_index) : std::string();
+        (!ops.unload_enabled && backend_) ? backend_->unload_blocked_reason(slot_index)
+                                         : std::string();
     // Already translated by the backend, which had the literal to extract.
     lv_subject_copy_string(&slot_unload_hint_subject_, unload_hint.c_str());
     lv_subject_set_int(&slot_unload_hint_visible_subject_, unload_hint.empty() ? 0 : 1);
@@ -345,31 +299,21 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // one-line hint pointing at the config instead of silently omitting the
     // action — for QIDI, !supports_eject here can only mean force_move is off
     // (the box always supports eject otherwise). See #1041.
-    if (backend_ && backend_->get_type() == AmsType::QIDI_BOX && !supports_eject &&
-        !pending_is_loaded_ && slot_filament_present) {
+    if (backend_ && backend_->get_type() == AmsType::QIDI_BOX &&
+        !backend_->supports_lane_eject() && !pending_is_loaded_ &&
+        ops.presence.value_or(false)) {
         lv_obj_t* hint = lv_obj_find_by_name(menu_obj, "eject_force_move_hint");
         if (hint) {
             lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
-    // Determine if slot has filament for Load button state.
-    // Gate on ACTUAL toolhead-loaded state (toolhead_unload), NOT the broadened
-    // is_loaded recovery signal. is_loaded folds in can_unload_from_toolhead, which
-    // reads true for the firmware's seated channel regardless of whether filament
-    // actually reached the head. A cold-lane-eject lane (filament parked in the
-    // lane but NOT at the toolhead) is a valid Load target, so it must stay
-    // enabled. For non-AD5X backends slot_unloads_to_toolhead() returns the hint
-    // unchanged, so !toolhead_unload == !is_loaded and behavior is unaffected.
-    // Disable Load if: system busy, slot empty, OR filament is already at the head.
-    bool can_load =
-        decide_can_load(system_busy, toolhead_unload, slot_has_filament, print_blocks_op);
-    lv_subject_set_int(&slot_can_load_subject_, can_load ? 1 : 0);
-    if (!can_load) {
+    lv_subject_set_int(&slot_can_load_subject_, ops.can_load ? 1 : 0);
+    if (!ops.can_load) {
         spdlog::debug("[AmsContextMenu] Load disabled for slot {}: busy={}, loaded={} "
                       "(live={}), has_filament={}, print_blocks_op={}",
-                      slot_index, system_busy, is_loaded, slot_is_loaded_live,
-                      slot_has_filament ? (*slot_has_filament ? "yes" : "no") : "unknown",
+                      slot_index, system_busy, ops.is_loaded, ops.live_loaded,
+                      ops.presence ? (*ops.presence ? "yes" : "no") : "unknown",
                       print_blocks_op);
     }
 
@@ -534,6 +478,61 @@ AmsContextMenu::decide_unload_mode(bool toolhead_unload, bool can_recover, bool 
         return UnloadMode::ForceEject;
     }
     return UnloadMode::Unavailable;
+}
+
+AmsContextMenu::SlotOpDecision AmsContextMenu::decide_slot_ops(const AmsBackend* backend,
+                                                              int slot_index,
+                                                              bool pending_is_loaded,
+                                                              bool system_busy,
+                                                              bool print_blocks_op) {
+    SlotOpDecision d;
+
+    if (backend) {
+        // Tri-state: slot_presence() reports SlotStatus::UNKNOWN as
+        // "unanswerable" rather than "empty", so a backend that publishes no
+        // per-lane presence does not grey Load.
+        d.presence = helix::ui::slot_presence(backend->get_slot_info(slot_index));
+        // Firmware seated+loaded OR filament at this slot's toolhead sensor, so
+        // the gates follow real load state the moment a sensor flips instead of
+        // static RFID presence.
+        d.live_loaded = backend->slot_is_actively_loaded(slot_index) ||
+                        backend->slot_has_filament_at_toolhead(slot_index);
+    }
+
+    // Loaded if EITHER the caller's open-time snapshot or the live accessors say
+    // so. The OR keeps Unload available for the firmware's active slot even
+    // after a runout clears the head sensor (#995).
+    d.is_loaded = pending_is_loaded || d.live_loaded;
+
+    // Whether this slot's unload is a heated toolhead unload (true) or a cold
+    // per-lane eject (false). Most backends return the hint unchanged; AD5X IFS
+    // refines it with seated-channel authority so a NON-seated lane reads
+    // "Eject" even where the recovery clause broadened is_loaded.
+    d.toolhead_unload =
+        backend ? backend->slot_unloads_to_toolhead(slot_index, d.is_loaded) : d.is_loaded;
+
+    // The unload mode keeps the STRICT reading of presence - "is there something
+    // to eject" has no useful third answer, and an unknown lane must not grow an
+    // Eject button out of nowhere. Only the Load gate below treats UNKNOWN as
+    // unanswerable.
+    const bool present = d.presence.value_or(false);
+    d.unload_mode = decide_unload_mode(d.toolhead_unload,
+                                       backend && backend->can_recover_lane_position(slot_index),
+                                       backend && backend->lane_recovery_is_attributed(),
+                                       backend && backend->supports_lane_eject(), present,
+                                       backend && backend->supports_force_eject(), !present);
+
+    d.unload_enabled =
+        decide_unload_enabled(system_busy, d.unload_mode, print_blocks_op,
+                              backend && backend->cold_lane_ops_refused_during_print());
+
+    // Load gates on the NARROWED signal (toolhead_unload), never the broadened
+    // is_loaded: is_loaded folds in the open-time snapshot, which reads true for
+    // the firmware's seated channel whether or not filament reached the head. A
+    // cold-lane-eject lane - filament parked in the lane but NOT at the toolhead
+    // - is a valid Load target and has to stay enabled.
+    d.can_load = decide_can_load(system_busy, d.toolhead_unload, d.presence, print_blocks_op);
+    return d;
 }
 
 bool AmsContextMenu::decide_can_load(bool system_busy, bool toolhead_unload,

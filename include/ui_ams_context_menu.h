@@ -279,6 +279,38 @@ class AmsContextMenu : public ContextMenu {
     static bool decide_backup_refused(int item_index, int backup_slot,
                                       const BackupEligibleFn& eligible);
 
+    /// One slot's Load/Unload decision, in the terms the menu renders from.
+    struct SlotOpDecision {
+        bool is_loaded = false;       ///< the open-time snapshot OR the live accessors
+        bool live_loaded = false;     ///< the live half alone, for the diagnostic log
+        bool toolhead_unload = false; ///< the narrowed loaded signal both gates use
+        std::optional<bool> presence; ///< slot_presence(), tri-state
+        UnloadMode unload_mode = UnloadMode::Unavailable;
+        bool unload_enabled = false;
+        bool can_load = false;
+    };
+
+    // Pure: the whole per-slot Load/Unload decision, from the backend's accessors.
+    //
+    // The single spelling of the composition: which accessors combine, in what
+    // order, and which of the two loaded signals each gate is allowed to see.
+    // on_created() renders from the result and the tests assert on it, so a case
+    // cannot pass against a chain the menu does not actually perform.
+    //
+    // `backend` may be null (the external-spool menu has none); every term then
+    // falls back to the same answer the menu gives with no backend attached.
+    //
+    // `pending_is_loaded` is the caller's open-time snapshot, which both AMS
+    // panels take from AmsBackend::can_unload_from_toolhead(). It is OR'd with
+    // the live accessors so Unload survives a runout clearing the head sensor
+    // (#995).
+    //
+    // `print_blocks_op` is helix::ui::print_blocks_filament_op() - see
+    // decide_can_load() for why the raw print_active subject is the wrong input.
+    static SlotOpDecision decide_slot_ops(const AmsBackend* backend, int slot_index,
+                                          bool pending_is_loaded, bool system_busy,
+                                          bool print_blocks_op);
+
     // Pure: selects the Unload button's operation for the open slot.
     //
     // Order encodes a deliberate priority ruling (see call site in on_created()):

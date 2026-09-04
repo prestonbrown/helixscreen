@@ -54,6 +54,15 @@ class AmsContextMenuTestAccess {
                                                      cold_ops_print_gated);
     }
 
+    using SlotOpDecision = AmsContextMenu::SlotOpDecision;
+
+    static SlotOpDecision decide_slot_ops(const AmsBackend* backend, int slot_index,
+                                          bool pending_is_loaded, bool system_busy,
+                                          bool print_blocks_op) {
+        return AmsContextMenu::decide_slot_ops(backend, slot_index, pending_is_loaded, system_busy,
+                                               print_blocks_op);
+    }
+
     static bool decide_show_backup_row(const helix::printer::EndlessSpoolCapabilities& caps,
                                        bool has_relation) {
         return AmsContextMenu::decide_show_backup_row(caps, has_relation);
@@ -759,13 +768,13 @@ TEST_CASE("The option list is built from the live backend virtual, not a local r
 // ============================================================================
 // A backend that withdraws its unmount offer has to be able to make it stick.
 //
-// AmsContextMenu composes the loaded signal as an OR (ui_ams_context_menu.cpp,
-// on_created): the snapshot taken when the menu opens
-// (can_unload_from_toolhead) OR the live pair (slot_is_actively_loaded ||
-// slot_has_filament_at_toolhead). A rule that lives in only one of those three
-// is put back by the other two, so a withdrawal that reads correct in the
-// backend never reaches the button. On a tool changer the button dispatches
-// UNSELECT_TOOL, which moves a physical machine.
+// AmsContextMenu composes the loaded signal as an OR
+// (`src/ui/ui_ams_context_menu.cpp#AmsContextMenu::decide_slot_ops`): the
+// snapshot taken when the menu opens (can_unload_from_toolhead) OR the live pair
+// (slot_is_actively_loaded || slot_has_filament_at_toolhead). A rule that lives
+// in only one of those three is put back by the other two, so a withdrawal that
+// reads correct in the backend never reaches the button. On a tool changer the
+// button dispatches UNSELECT_TOOL, which moves a physical machine.
 // ============================================================================
 
 namespace {
@@ -787,15 +796,19 @@ class DockSensorToolChanger : public AmsBackendToolChanger {
         handle_status_update(nlohmann::json{{"method", "notify_status_update"},
                                             {"params", nlohmann::json::array({status, 0.0})}});
     }
-
-    /// The menu's own composition of the three accessors, spelled as on_created()
-    /// spells it. Kept in one place so both halves of the case below ask the
-    /// same question the UI asks.
-    [[nodiscard]] bool menu_reads_slot_loaded(int slot) {
-        return can_unload_from_toolhead(slot) || slot_is_actively_loaded(slot) ||
-               slot_has_filament_at_toolhead(slot);
-    }
 };
+
+/// The AMS panels' call site, so a case supplies the inputs the UI supplies:
+/// both panels snapshot AmsBackend::can_unload_from_toolhead() for the slot and
+/// hand that to the menu as `pending_is_loaded`. The decision itself is
+/// production's - this only wires the arguments.
+[[nodiscard]] AmsContextMenuTestAccess::SlotOpDecision
+ops_for(const AmsBackend& backend, int slot, bool print_blocks_op = false) {
+    return AmsContextMenuTestAccess::decide_slot_ops(&backend, slot,
+                                                     backend.can_unload_from_toolhead(slot),
+                                                     backend.get_system_info().is_busy(),
+                                                     print_blocks_op);
+}
 
 } // namespace
 
@@ -806,7 +819,7 @@ TEST_CASE("A dock-sensor fault disables Unmount and says why", "[ams][context_me
     backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
 
     // The settled machine: tool 1 on the carriage, Unmount offered for it.
-    REQUIRE(backend.menu_reads_slot_loaded(1));
+    REQUIRE(ops_for(backend, 1).is_loaded);
 
     // -2 is the sensors saying they cannot tell which tool is mounted. The parse
     // deliberately HOLDS the last known tool, so everything derived from
@@ -818,29 +831,15 @@ TEST_CASE("A dock-sensor fault disables Unmount and says why", "[ams][context_me
     // ERROR is excluded from is_busy() (AmsSystemInfo::is_busy), so the busy
     // term cannot be what greys the button — the loaded signal has to.
     REQUIRE_FALSE(backend.get_system_info().is_busy());
-    REQUIRE_FALSE(backend.menu_reads_slot_loaded(1));
+    // Nothing is loaded and this backend has no cold lane op to fall back on, so
+    // the Unload button has no operation at all and is disabled.
+    const auto faulted = ops_for(backend, 1);
+    REQUIRE_FALSE(faulted.is_loaded);
+    CHECK(faulted.unload_mode == UnloadMode::Unavailable);
+    CHECK_FALSE(faulted.unload_enabled);
 
-    // From there the menu's own predicates: nothing is loaded, this backend has
-    // no cold lane op to fall back on, so the Unload button has no operation at
-    // all and is disabled.
-    const SlotInfo slot = backend.get_slot_info(1);
-    const std::optional<bool> presence = helix::ui::slot_presence(slot);
-    const bool is_loaded = backend.menu_reads_slot_loaded(1);
-    const bool toolhead_unload = backend.slot_unloads_to_toolhead(1, is_loaded);
-    const UnloadMode mode = AmsContextMenuTestAccess::decide_unload_mode(
-        toolhead_unload, backend.can_recover_lane_position(1),
-        backend.lane_recovery_is_attributed(), backend.supports_lane_eject(),
-        presence.value_or(false), backend.supports_force_eject(), !presence.value_or(false));
-    CHECK(mode == UnloadMode::Unavailable);
-
-    const bool unload_enabled = AmsContextMenuTestAccess::decide_unload_enabled(
-        backend.get_system_info().is_busy(), mode, /*print_active=*/false,
-        backend.cold_lane_ops_refused_during_print());
-    CHECK_FALSE(unload_enabled);
-
-    // The hint is gated on !unload_enabled, so both halves of the fix live or
-    // die together: a still-enabled button also never explains itself.
-    REQUIRE_FALSE(unload_enabled);
+    // The hint is gated on !unload_enabled, so both halves live or die together:
+    // a still-enabled button also never explains itself.
     CHECK_FALSE(backend.unload_blocked_reason(1).empty());
 }
 
@@ -850,18 +849,74 @@ TEST_CASE("The dock-sensor withdrawal is not a permanent blanking",
     // never clears would strand the user with no way to unmount at all.
     DockSensorToolChanger backend;
     backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
-    REQUIRE(backend.menu_reads_slot_loaded(2));
+    REQUIRE(ops_for(backend, 2).is_loaded);
 
     backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
-    REQUIRE_FALSE(backend.menu_reads_slot_loaded(2));
+    REQUIRE_FALSE(ops_for(backend, 2).is_loaded);
 
     backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
-    CHECK(backend.menu_reads_slot_loaded(2));
+    CHECK(ops_for(backend, 2).is_loaded);
     CHECK(backend.unload_blocked_reason(2).empty());
 
     // And the docked tools were never a target, fault or no fault.
     for (int slot : {0, 1, 3}) {
         CAPTURE(slot);
-        CHECK_FALSE(backend.menu_reads_slot_loaded(slot));
+        CHECK_FALSE(ops_for(backend, slot).is_loaded);
     }
+}
+
+// ============================================================================
+// Mount / Unmount are a carriage question, not a filament question
+// ============================================================================
+
+TEST_CASE("Mount and Unmount follow the carriage rather than filament presence",
+          "[ams][context_menu][toolchanger]") {
+    // Each tool on a changer carries its own filament permanently, so SlotInfo
+    // presence is true for all four at once and can decide nothing here. A gate
+    // reading presence alone offers Unmount on the three tools sitting in their
+    // docks and refuses Mount on every one of them. Which tool is on the
+    // carriage is the only term this axis may use.
+    DockSensorToolChanger backend;
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+
+    REQUIRE(backend.load_mounts_tool());
+    REQUIRE(backend.get_current_slot() == 1);
+    REQUIRE_FALSE(backend.get_system_info().is_busy());
+
+    // The state that makes presence useless as a discriminator.
+    for (int slot = 0; slot < 4; ++slot) {
+        CAPTURE(slot);
+        REQUIRE(backend.get_slot_info(slot).is_present());
+    }
+
+    // T1 is on the carriage: it is the only unmount target, and mounting the
+    // tool already mounted is the firmware no-op plan_load() refuses.
+    const auto mounted = ops_for(backend, 1);
+    CHECK_FALSE(mounted.can_load);
+    CHECK(mounted.unload_enabled);
+
+    for (int slot : {0, 2, 3}) {
+        CAPTURE(slot);
+        const auto docked = ops_for(backend, slot);
+        CHECK(docked.can_load);
+        CHECK_FALSE(docked.unload_enabled);
+    }
+}
+
+TEST_CASE("The mount target moves with the carriage", "[ams][context_menu][toolchanger]") {
+    // A swap must hand both buttons over: the tool that left the carriage
+    // becomes mountable, and the one that arrived becomes the unmount target.
+    DockSensorToolChanger backend;
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    REQUIRE(ops_for(backend, 1).unload_enabled);
+
+    backend.feed(nlohmann::json{{"medusahc", {{"operation", "idle"}, {"current_tool", 3}}}});
+
+    const auto arrived = ops_for(backend, 3);
+    CHECK(arrived.unload_enabled);
+    CHECK_FALSE(arrived.can_load);
+
+    const auto departed = ops_for(backend, 1);
+    CHECK_FALSE(departed.unload_enabled);
+    CHECK(departed.can_load);
 }
