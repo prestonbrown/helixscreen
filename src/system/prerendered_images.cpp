@@ -473,4 +473,12 @@ int invalidate_printer_image_cache(const std::string& source_image_path) {
     return removed;
 }
 
+int invalidate_printer_image_cache_if_changed(const std::string& current_image_path,
+                                              const std::string& new_image_path) {
+    if (current_image_path.empty() || current_image_path == new_image_path) {
+        return 0;
+    }
+    return invalidate_printer_image_cache(current_image_path);
+}
+
 } // namespace helix

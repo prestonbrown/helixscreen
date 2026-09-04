@@ -530,11 +530,14 @@ void PrinterManagerOverlay::refresh_printer_info() {
             new_path = PrinterImages::get_best_printer_image(model);
         }
 
-        // Invalidate caches so the new image displays immediately
+        // The decoded copy LVGL holds is dropped on every refresh: an import can
+        // rewrite an image in place under the same path. The scaled caches on disk
+        // are only stale when the path itself changes, and rebuilding one is a
+        // synchronous decode-and-resize.
         if (!current_image_path_.empty()) {
             lv_image_cache_drop(current_image_path_.c_str());
-            helix::invalidate_printer_image_cache(current_image_path_);
         }
+        helix::invalidate_printer_image_cache_if_changed(current_image_path_, new_path);
 
         current_image_path_ = new_path;
         lv_image_set_src(printer_image_obj_, current_image_path_.c_str());

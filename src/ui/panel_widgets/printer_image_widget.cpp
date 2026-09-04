@@ -199,12 +199,15 @@ void PrinterImageWidget::refresh_printer_image() {
         source_path = PrinterImages::get_best_printer_image(printer_type);
     }
 
-    // Invalidate caches so the new image displays immediately.
-    // Unconditional: covers both different-image and re-import-same-filename cases.
+    // The decoded copy LVGL holds is dropped on every refresh: an import can
+    // rewrite an image in place, so one path can hold different pixels over time.
+    // The scaled caches on disk are only stale when the path itself changes —
+    // check_or_generate_cache() rebuilds one synchronously on the main thread, so
+    // discarding a cache that still matches costs a visible stall per refresh.
     if (!current_source_path_.empty()) {
         lv_image_cache_drop(current_source_path_.c_str());
-        helix::invalidate_printer_image_cache(current_source_path_);
     }
+    helix::invalidate_printer_image_cache_if_changed(current_source_path_, source_path);
 
     current_source_path_ = source_path;
 
