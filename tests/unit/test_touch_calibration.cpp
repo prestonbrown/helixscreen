@@ -758,6 +758,61 @@ TEST_CASE("TouchCalibration: has_abs_display_mismatch", "[touch-calibration][abs
     }
 }
 
+// ============================================================================
+// Transposed ABS Range Detection Tests (has_transposed_abs_range)
+// ============================================================================
+
+TEST_CASE("TouchCalibration: has_transposed_abs_range", "[touch-calibration][abs-mismatch]") {
+    SECTION("Creator 5 Goodix: ABS 800x480 advertised on a 480x800 framebuffer") {
+        REQUIRE(has_transposed_abs_range(800, 480, 480, 800) == true);
+    }
+
+    SECTION("landscape display with a portrait-advertised range") {
+        REQUIRE(has_transposed_abs_range(480, 800, 800, 480) == true);
+    }
+
+    SECTION("transposed within the 5% tolerance still counts") {
+        // 810x470 reads as 480x800 the other way round, inside tolerance
+        REQUIRE(has_transposed_abs_range(810, 470, 480, 800) == true);
+    }
+
+    SECTION("range matching the display the normal way round is not transposed") {
+        REQUIRE(has_transposed_abs_range(800, 480, 800, 480) == false);
+        REQUIRE(has_transposed_abs_range(480, 800, 480, 800) == false);
+        REQUIRE(has_transposed_abs_range(832, 480, 800, 480) == false);
+    }
+
+    SECTION("a range matching neither orientation is a plain mismatch, not a transposition") {
+        // Goodix 800x480 on a 480x272 panel — the calibration wizard case
+        REQUIRE(has_transposed_abs_range(800, 480, 480, 272) == false);
+        REQUIRE(has_transposed_abs_range(1024, 768, 800, 480) == false);
+        REQUIRE(has_transposed_abs_range(800, 600, 800, 480) == false);
+    }
+
+    SECTION("square display: the two readings are the same, so nothing is transposed") {
+        REQUIRE(has_transposed_abs_range(480, 480, 480, 480) == false);
+        // A square range that misses a square display is a plain mismatch
+        REQUIRE(has_transposed_abs_range(720, 720, 480, 480) == false);
+        // A non-square range on a square display misses both readings equally
+        REQUIRE(has_transposed_abs_range(800, 480, 480, 480) == false);
+    }
+
+    SECTION("generic HID ranges are resolution-independent") {
+        REQUIRE(has_transposed_abs_range(4095, 4095, 480, 800) == false);
+        REQUIRE(has_transposed_abs_range(32767, 32767, 800, 480) == false);
+        REQUIRE(has_transposed_abs_range(65535, 65535, 480, 272) == false);
+    }
+
+    SECTION("invalid ranges and display sizes return false") {
+        REQUIRE(has_transposed_abs_range(0, 480, 480, 800) == false);
+        REQUIRE(has_transposed_abs_range(800, 0, 480, 800) == false);
+        REQUIRE(has_transposed_abs_range(-1, 480, 480, 800) == false);
+        REQUIRE(has_transposed_abs_range(800, -1, 480, 800) == false);
+        REQUIRE(has_transposed_abs_range(800, 480, 0, 800) == false);
+        REQUIRE(has_transposed_abs_range(800, 480, 480, 0) == false);
+    }
+}
+
 TEST_CASE("TouchCalibration: is_generic_hid_abs_range", "[touch-calibration][abs-mismatch]") {
     SECTION("known generic HID ranges") {
         REQUIRE(is_generic_hid_abs_range(255) == true);
