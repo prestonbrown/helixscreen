@@ -189,6 +189,61 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
     CHECK(saved);
 }
 
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "a completed z-offset save clears the pending delta, and not before",
+                 "[expectedrestart][zoffset]") {
+    // The pending delta is what the UI shows as "unsaved". Leaving it set after a
+    // successful save reports a saved offset as still pending, and the next
+    // adjustment stacks on top of a number the printer has already persisted.
+    //
+    // Clearing it must also wait for the save to be KNOWN good: SAVE_CONFIG's own
+    // rpc is dropped by the restart it causes, so the only proof is Klipper
+    // coming back READY.
+    get_printer_state().init_subjects(false);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+
+    state.add_pending_z_offset_delta(50);
+    REQUIRE(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 50);
+
+    bool saved = false;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&] { saved = true; },
+        [](const std::string&) {}, &state);
+    settle();
+
+    // The gcode is out but nothing is known yet, so the delta must still stand.
+    CHECK_FALSE(saved);
+    CHECK(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 50);
+
+    // Klipper comes back — that is what says the save worked.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    settle();
+
+    CHECK(saved);
+    CHECK(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 0);
+}
+
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "a firmware-managed z-offset save also clears the pending delta",
+                 "[expectedrestart][zoffset]") {
+    // The other success path. Firmware persists the offset itself, so nothing is
+    // sent and there is no restart to wait for — but the offset is just as saved,
+    // and the delta has to go with it.
+    state.add_pending_z_offset_delta(50);
+    REQUIRE(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 50);
+
+    bool saved = false;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::FIRMWARE_MANAGED,
+        [&] { saved = true; }, [](const std::string&) {}, &state);
+
+    CHECK(saved);
+    CHECK(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 0);
+}
+
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",
                  "[expectedrestart][bedmesh][1359]") {
     BedMeshPanel panel;
