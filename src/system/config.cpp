@@ -1419,8 +1419,13 @@ static void run_versioned_migrations(json& config, const std::string& config_pat
     // DOWN to ours. The newer build would then re-run migrations it had already
     // applied, against data already in the new shape. Leave the document alone
     // instead: unknown keys are read-through-default everywhere, and
-    // Config::save() serializes the whole in-memory document, so the newer
-    // build's settings survive a round trip through this one untouched.
+    // Config::save() serializes the whole in-memory document, so a key nothing
+    // in this build writes survives a round trip through it.
+    //
+    // That reaches only as far as the keys themselves. Any code that assigns a
+    // whole subtree over its path discards what the node held before save()
+    // ever sees it, so a subtree owner has to merge into the existing node —
+    // PanelWidgetConfig::save() is the one that carries newer keys this way.
     if (version > CURRENT_CONFIG_VERSION) {
         spdlog::warn("[Config] config_version {} was written by a newer build (this build "
                      "understands {}) — leaving the document unmigrated and unstamped",

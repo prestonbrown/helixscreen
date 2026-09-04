@@ -362,12 +362,22 @@ void PanelWidgetConfig::save() {
         pages_json.push_back(std::move(page_obj));
     }
 
-    json root;
+    // This node also carries layout state written by builds newer than this
+    // one, which arrives whenever an update channel is rolled back. Those keys
+    // are unreadable here but must survive the trip, so the node is edited
+    // rather than replaced: only the three keys owned here are rewritten
+    // (prestonbrown/helixscreen#1460). A first save, or a legacy array left by
+    // an older format, starts from an empty object.
+    const std::string panel_path = config_.df() + "panel_widgets/" + panel_id_;
+    json root = config_.get<json>(panel_path, json());
+    if (!root.is_object()) {
+        root = json::object();
+    }
     root["pages"] = std::move(pages_json);
     root["main_page_index"] = main_page_index_;
     root["next_page_id"] = next_page_id_;
 
-    config_.set<json>(config_.df() + "panel_widgets/" + panel_id_, root);
+    config_.set<json>(panel_path, root);
     config_.save();
 }
 
