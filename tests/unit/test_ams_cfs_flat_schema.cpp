@@ -351,6 +351,60 @@ TEST_CASE("CFS flat schema: slot status transitions", "[ams][cfs][flat]") {
     }
 }
 
+// --- Runout signal ---------------------------------------------------------
+//
+// filament_detected is the box gate's own presence boolean, the flat analogue
+// of stock's filament_useup. `runout` is NOT that signal: it is the
+// runout-SWAP PLAN — an ordered `chain` of fallback slots and the loaded_slot
+// they back — which the module publishes whenever runout_swap_enabled is on
+// and a lane is loaded, a healthy printing box included. Reading the plan's
+// presence as an event fires a runout on the load-completion frame of a wholly
+// successful load, and the episode that arms drops the loaded lane's
+// remembered Spoolman link the moment the bay next reads empty.
+
+TEST_CASE("CFS flat schema: runout comes from the gate, not the swap plan", "[ams][cfs][flat]") {
+    SECTION("a healthy printing box publishing a swap plan is not a runout") {
+        // The live shape from a K2 Plus running the fork: slot 0 loaded and
+        // feeding, every bay occupied, gate fed, chain naming slot 1 as backup.
+        json box = make_flat_box_json();
+        box["filament_detected"] = true;
+        box["loaded_slot"] = 0;
+        box["loaded_mask"] = 1;
+        box["slots"][0]["loaded"] = true;
+        box["runout"] = json{{"chain", json::array({1})}, {"loaded_slot", 0}};
+        box["state"] = "PRINT";
+
+        auto info = AmsBackendCfs::parse_box_status(box);
+        REQUIRE(info.filament_runout == false);
+        REQUIRE(info.units[0].slots[0].status == SlotStatus::LOADED);
+    }
+
+    SECTION("an empty gate is a runout even with no swap plan published") {
+        json box = make_flat_box_json();
+        box["filament_detected"] = false;
+        box["runout"] = nullptr;
+        REQUIRE(AmsBackendCfs::parse_box_status(box).filament_runout == true);
+    }
+
+    SECTION("a null gate reading is not a runout") {
+        // Klipper publishes a sensor field as null until its first read — the
+        // sibling filament_sensor_error ships that way on a healthy box. A
+        // gate that has published no reading has not reported a runout.
+        json box = make_flat_box_json();
+        box["filament_detected"] = nullptr;
+        box["runout"] = json{{"chain", json::array({1})}, {"loaded_slot", 0}};
+        REQUIRE_NOTHROW(AmsBackendCfs::parse_box_status(box));
+        REQUIRE(AmsBackendCfs::parse_box_status(box).filament_runout == false);
+    }
+
+    SECTION("an absent gate reading is not a runout") {
+        json box = make_flat_box_json();
+        box.erase("filament_detected");
+        box["runout"] = json{{"chain", json::array({1})}, {"loaded_slot", 0}};
+        REQUIRE(AmsBackendCfs::parse_box_status(box).filament_runout == false);
+    }
+}
+
 TEST_CASE("CFS flat schema: unit environment and path sensors", "[ams][cfs][flat]") {
     auto info = AmsBackendCfs::parse_box_status(make_flat_box_json());
     REQUIRE(info.units.size() == 1);
