@@ -33,10 +33,9 @@ setup() {
     # is driving - it dies cleanly mid-startup and that test fails for no reason
     # of its own.
     mock_command_script "killall" 'exit 0'
-    # The mock above is NOT sufficient on its own: the installer scripts under
-    # test re-harden PATH with the stock system dirs first, which is deliberate
-    # and resolves killall to the real binary regardless. Hold the shared app
-    # lock so a real killall cannot land while another file has an instance up.
+    # The flows below stop and start the app, and bats runs files in parallel,
+    # so a sibling file may have a live instance up at the same time. Hold the
+    # shared app lock so only one file owns an instance at a time.
     exec {applock}>"${TMPDIR:-/tmp}/helix-bats-app.lock"
     flock "$applock"
     install_gnu_sed_shim

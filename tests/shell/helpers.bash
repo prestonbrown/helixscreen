@@ -15,6 +15,32 @@ if [ -z "$BATS_TEST_TMPDIR" ]; then
     BATS_TEST_TMPDIR=$(mktemp -d "${BATS_TMPDIR:-/tmp}/bats-test-XXXXXX")
 fi
 
+# ---------------------------------------------------------------------------
+# Mocking a command: which mechanism, and where each one stops
+#
+# The suite has two, and they fail at different boundaries. Pick by asking what
+# runs the command, not by what reads better:
+#
+#   mock_command* (this file)   A file on PATH. Reaches a callee in any
+#                               language, which is what installer scripts need
+#                               because they are #!/bin/sh and sh does not
+#                               import bash functions. Lost the moment a callee
+#                               REPLACES PATH rather than prepending to it -
+#                               `env PATH="$bin" ...`, or a script that hardens
+#                               PATH by putting the stock system directories
+#                               first, as scripts/install.sh does.
+#
+#   name() { :; }; export -f    A bash function. Outranks PATH, so it survives
+#                               both of those. Lost at a non-bash callee, and
+#                               at `env -i`.
+#
+# Neither is a safety net. tests/shell/setup_suite.bash blocks the commands that
+# address the host by name for the whole suite, in both mechanisms at once, and
+# fails the run when a test reaches one. A mock here is how a test opts out of
+# that block for a command it means to exercise: it is found first, so the
+# sandbox shim never runs and nothing is recorded against the test.
+# ---------------------------------------------------------------------------
+
 # Create a mock command that outputs specific text
 # Usage: mock_command "systemctl" "User=biqu"
 mock_command() {

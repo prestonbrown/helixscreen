@@ -137,11 +137,9 @@ headless_socket() {
     log="$BATS_TEST_TMPDIR/ctl.log"
     rm -f "$sock" "$shot"
 
-    # Installer tests run scripts that harden PATH (bundle-installer.sh puts the
-    # stock system dirs FIRST, deliberately, so a third-party shim cannot hijack
-    # killall during an install). That also defeats bats' PATH-based mocks, so a
-    # real `killall helix-screen` from a sibling file reaches this instance and
-    # kills it mid-startup. A shared lock is the only isolation left.
+    # bats runs files in parallel, and installer tests drive app start/stop, so
+    # only one file may own a live instance at a time. Hold the shared app lock
+    # for as long as this test drives its own.
     exec {applock}>"${TMPDIR:-/tmp}/helix-bats-app.lock"
     flock "$applock"
 
