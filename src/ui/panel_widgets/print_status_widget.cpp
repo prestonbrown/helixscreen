@@ -1111,8 +1111,14 @@ void PrintStatusWidget::show_idle_runout_modal() {
         // Resume not applicable when idle
     });
 
-    runout_modal_.set_on_cancel_print([]() {
-        // Cancel not applicable when idle
+    runout_modal_.set_on_cancel_print([this, token]() {
+        if (token.expired())
+            return;
+        // Cancel is not applicable when idle, and the XML keeps btn_cancel_print
+        // hidden unless print_state_enum == 2. on_tertiary() leaves closing to
+        // the callback, so this one closes: a press here has nothing to confirm
+        // and must still dismiss the dialog.
+        runout_modal_.hide();
     });
 
     runout_modal_.show(parent_screen_);
