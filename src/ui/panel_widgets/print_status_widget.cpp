@@ -49,6 +49,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <memory>
+#include <string>
 #include <string_view>
 #include <unordered_set>
 
@@ -779,8 +781,7 @@ void PrintStatusWidget::on_print_thumbnail_path_changed(const char* path) {
     // No empty-path branch: ActivePrintMediaManager is the subject's sole writer
     // and publishes no_thumbnail_placeholder() — the very image this used to
     // substitute — when a file has no thumbnail, so the value is always an image.
-    lv_image_set_src(print_card_active_thumb_, path);
-    spdlog::info("[PrintStatusWidget] Active print thumbnail updated: {}", path);
+    defer_apply_active_thumbnail(path);
 }
 
 #if defined(HELIX_PLATFORM_ESP32)
@@ -873,6 +874,50 @@ void PrintStatusWidget::defer_reset_print_card_to_idle() {
             }
         },
         this);
+}
+
+void PrintStatusWidget::defer_apply_active_thumbnail(const char* path) {
+    // Heap-allocate the payload so lv_async_call can carry it as void*, and copy
+    // the path: the subject may publish again before the tick, and the pointer it
+    // handed us is its own buffer. The LifetimeToken (not a live_instances()
+    // lookup) is what keeps this safe - detach() invalidates it, so a pending
+    // write cannot land on a widget that has already let go of its objects.
+    struct PendingThumb {
+        helix::LifetimeToken token;
+        PrintStatusWidget* self;
+        std::string path;
+    };
+    auto* pending = new PendingThumb{lifetime_.token(), this, path ? path : ""};
+
+    // Raw lv_async_call escapes the UpdateQueue::process_pending() batch this
+    // observer body runs in, the same escape defer_reset_print_card_to_idle()
+    // makes for the idle sibling.
+    lv_async_call(
+        [](void* ud) {
+            std::unique_ptr<PendingThumb> p(static_cast<PendingThumb*>(ud));
+            if (p->token.expired())
+                return;
+            PrintStatusWidget* self = p->self;
+            if (!self->widget_obj_ || !self->print_card_active_thumb_)
+                return;
+
+            // Trigger hardening (#1001), matching reset_print_card_to_idle():
+            // by the time the tick fires, populate_page's safe_clean_children()
+            // may have reparented this subtree onto lv_layer_top() to await
+            // deletion. lv_image_set_src -> update_align -> lv_obj_update_layout
+            // would then walk the whole layer and recurse into sibling condemned
+            // grid subtrees whose children may already be freed -> SIGSEGV in
+            // grid calc().
+            if (!helix::ui::is_on_active_screen(self->print_card_active_thumb_)) {
+                spdlog::debug("[PrintStatusWidget] Skip active thumbnail: off active screen "
+                              "(mid-teardown)");
+                return;
+            }
+
+            lv_image_set_src(self->print_card_active_thumb_, p->path.c_str());
+            spdlog::info("[PrintStatusWidget] Active print thumbnail updated: {}", p->path);
+        },
+        pending);
 }
 
 void PrintStatusWidget::reset_print_card_to_idle() {
