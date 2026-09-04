@@ -71,7 +71,14 @@ class ObserverGuard {
         : observer_(std::exchange(other.observer_, nullptr)),
           alive_token_(std::move(other.alive_token_)),
           has_alive_token_(std::exchange(other.has_alive_token_, false)),
-          created_epoch_(other.created_epoch_), cleanup_(std::move(other.cleanup_)) {}
+          created_epoch_(other.created_epoch_),
+          // std::exchange, not std::move: a moved-from std::function is left in
+          // a valid but UNSPECIFIED state, and libc++ keeps the target when the
+          // callable fits its small-object buffer - which `[ctx]{ delete ctx; }`
+          // does. A source left holding the cleanup deletes the observer's
+          // context from its own destructor while this guard keeps the observer
+          // attached, so the next notify reads freed memory.
+          cleanup_(std::exchange(other.cleanup_, nullptr)) {}
 
     ObserverGuard& operator=(ObserverGuard&& other) noexcept {
         if (this != &other) {
@@ -80,7 +87,7 @@ class ObserverGuard {
             alive_token_ = std::move(other.alive_token_);
             has_alive_token_ = std::exchange(other.has_alive_token_, false);
             created_epoch_ = other.created_epoch_;
-            cleanup_ = std::move(other.cleanup_);
+            cleanup_ = std::exchange(other.cleanup_, nullptr);
         }
         return *this;
     }

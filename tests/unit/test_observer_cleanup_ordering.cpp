@@ -29,6 +29,8 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -1042,5 +1044,72 @@ TEST_CASE_METHOD(LVGLTestFixture, "SubjectLifetime: guard still removes when sub
     REQUIRE(panel.count == 0);
 
     lifetime.reset();
+    lv_subject_deinit(&subject);
+}
+
+// A moved-from ObserverGuard must not run the cleanup its destination now owns.
+//
+// std::function's moved-from state is valid but UNSPECIFIED. libc++ keeps the
+// target when the callable fits its small-object buffer, and the observer
+// factories' `[ctx]() { delete ctx; }` does - one captured pointer. A source
+// that kept the cleanup frees the observer's context from its own destructor
+// while the destination keeps the observer attached to a live subject, so the
+// next lv_subject_notify() reads freed memory inside the synchronous observer
+// body. libstdc++ empties the source and hides it (prestonbrown/helixscreen#1446).
+TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard: a moved-from guard runs no cleanup",
+                 "[observer_cleanup][crash_hardening][1446]") {
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 0);
+    auto noop = [](lv_observer_t*, lv_subject_t*) {};
+    int cleanups = 0;
+
+    SECTION("move construction") {
+        std::optional<ObserverGuard> dst;
+        {
+            ObserverGuard src(&subject, noop, &cleanups, [&cleanups]() { cleanups++; });
+            dst.emplace(std::move(src));
+        }
+        // src is gone; the context it was constructed with belongs to dst now.
+        CHECK(cleanups == 0);
+        dst.reset();
+        CHECK(cleanups == 1);
+    }
+
+    SECTION("move assignment") {
+        ObserverGuard dst;
+        {
+            ObserverGuard src(&subject, noop, &cleanups, [&cleanups]() { cleanups++; });
+            dst = std::move(src);
+        }
+        CHECK(cleanups == 0);
+        dst.reset();
+        CHECK(cleanups == 1);
+    }
+
+    lv_subject_deinit(&subject);
+}
+
+// The shape the crash actually took: a factory returns its guard by value, so
+// the context outlives every temporary along the way and is still valid when
+// the subject notifies.
+TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard: a factory-returned guard survives its temporaries",
+                 "[observer_cleanup][crash_hardening][1446]") {
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 0);
+
+    struct DummyPanel {
+        int count = 0;
+    } panel;
+
+    ObserverGuard guard = observe_int_sync<DummyPanel>(
+        &subject, &panel, [](DummyPanel* self, int) { self->count++; });
+    drain();
+
+    panel.count = 0;
+    lv_subject_set_int(&subject, 7);
+    drain();
+    CHECK(panel.count == 1);
+
+    guard.reset();
     lv_subject_deinit(&subject);
 }
