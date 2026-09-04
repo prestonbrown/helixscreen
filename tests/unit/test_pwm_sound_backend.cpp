@@ -1055,6 +1055,9 @@ TEST_CASE("a render source that fills nothing parks - stale buffer content is no
     REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::parked(*run.backend); }));
 }
 
+// SCHED_IDLE is a Linux scheduling policy. On a host that has no such policy
+// there is no behaviour here to assert.
+#ifdef SCHED_IDLE
 TEST_CASE("render thread applies SCHED_IDLE", "[sound][pwm]") {
     PwmVirtualRun run(8);
     run.backend->set_render_source([](float* buf, size_t frames, int) {
@@ -1069,6 +1072,7 @@ TEST_CASE("render thread applies SCHED_IDLE", "[sound][pwm]") {
     // loop logs that and continues at SCHED_OTHER (policy stays -1).
     CHECK(PWMSoundBackendTestAccess::applied_sched_policy(*run.backend) == SCHED_IDLE);
 }
+#endif // SCHED_IDLE
 
 // ============================================================================
 // PCM render loop (real clock) — [slow], excluded from make test-run
