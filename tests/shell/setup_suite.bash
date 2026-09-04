@@ -72,6 +72,7 @@ SHIM
     # outrank a test's own mock; the dispatcher hands control back whenever PATH
     # resolves to something under the bats run directory, which is where every
     # mock in this suite is written and nowhere a system binary can be.
+    # shellcheck disable=SC2329  # reached through the per-command wrappers below
     _helix_sandbox_dispatch() {
         local cmd="$1"; shift
         local resolved
