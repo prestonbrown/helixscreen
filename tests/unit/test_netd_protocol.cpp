@@ -650,8 +650,11 @@ TEST_CASE("netd query_snapshot is bounded against a wedged full-backlog listener
     // Fill the (minimal) backlog so the next connect cannot complete.
     std::vector<int> fillers;
     for (int i = 0; i < 4; ++i) {
-        const int c = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+        // SOCK_NONBLOCK is a Linux socket() flag; the portable spelling is the
+        // two-step form, which is what netd itself uses.
+        const int c = ::socket(AF_UNIX, SOCK_STREAM, 0);
         REQUIRE(c >= 0);
+        REQUIRE(helix::netd::set_nonblocking(c, true));
         (void)::connect(c, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
         fillers.push_back(c);
     }
