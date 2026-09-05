@@ -986,6 +986,22 @@ TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: set_point_count reallocs 
         REQUIRE(zeros_in(m.target_deci_buf, grown) == grown);
     });
 
+    // Fill to the new capacity. The assertions above prove the buffer was
+    // reallocated; writing to the top of it is what proves the write path bounds
+    // itself by the new capacity rather than the old one. target_head caps at
+    // target_cap, and the last slot holds the most recent sample.
+    ui_temp_graph_set_current_target(g, id_a, 10.0f, true);
+    ui_temp_graph_set_current_target(g, id_b, 10.0f, true);
+    for (int i = 0; i < grown; i++) {
+        ui_temp_graph_update_series(g, id_a, 1.0f);
+        ui_temp_graph_update_series(g, id_b, 1.0f);
+    }
+
+    for_each_live_series([&](const ui_temp_series_meta_t& m) {
+        REQUIRE(m.target_head == grown);
+        REQUIRE(m.target_deci_buf[grown - 1] == 100);
+    });
+
     ui_temp_graph_destroy(g);
 }
 
