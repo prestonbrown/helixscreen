@@ -99,6 +99,54 @@ LIBHV_PATCHED_FILES := \
 LIBHV_PATCHED_SRCS := $(wildcard $(addprefix $(LIBHV_DIR)/,$(LIBHV_PATCHED_FILES)))
 
 # ============================================================================
+# THIRD-PARTY HEADER ABI STAMP
+# ============================================================================
+# Our objects reach the patched LVGL and libhv headers through -isystem, and
+# DEPFLAGS is -MMD, which by design leaves system headers out of the generated
+# .d files. A patch that adds a member to a shared type therefore moves every
+# member after it without invalidating a single .o. Two of them do exactly
+# that: hv::TcpClientEventLoopTmpl and hv::WebSocketClient.
+#
+# lib/ is shared between worktrees while build/ is not, so those headers also
+# change under a build that is already in flight. The objects compiled before
+# the change and the ones compiled after then disagree about where a member
+# lives. Nothing complains: the link succeeds, and a std::mutex read at the
+# wrong offset locks bytes that were never a mutex. macOS libc++ checks the
+# mutex signature and throws EINVAL; glibc accepts a zeroed pthread_mutex_t as
+# a valid unlocked one, so the same tree passes on Linux and aborts on a Mac.
+#
+# The stamp holds a hash of those headers' CONTENT, not their mtimes:
+# reapply-patches rewrites the files whether or not the bytes change, and only
+# a real change should cost a rebuild. cksum is POSIX, so this also works on
+# the BusyBox and Buildroot hosts.
+ABI_HEADERS := $(wildcard \
+	$(addprefix $(LIBHV_DIR)/,$(filter %.h,$(LIBHV_PATCHED_FILES))) \
+	$(addprefix $(LIBHV_DIR)/include/hv/,$(notdir $(filter %.h,$(LIBHV_PATCHED_FILES)))) \
+	$(addprefix $(LVGL_DIR)/,$(filter %.h,$(LVGL_PATCHED_FILES))))
+ABI_STAMP := $(BUILD_DIR)/.thirdparty-abi
+ABI_HASH := $(shell cat $(ABI_HEADERS) 2>/dev/null | cksum)
+
+# Written at parse time so the stamp is in place before the first compile.
+$(shell mkdir -p $(BUILD_DIR); \
+	[ "$$(cat $(ABI_STAMP) 2>/dev/null)" = "$(ABI_HASH)" ] \
+		|| printf "%s" "$(ABI_HASH)" > $(ABI_STAMP))
+
+# Fail a link whose objects were not all compiled against the headers present
+# now. The stamp above only catches a change between builds; this catches one
+# that lands while this build is running, which is what a shared lib/ and two
+# busy worktrees produce.
+define check_abi_unchanged
+	$(Q)if [ "$$(cat $(ABI_HEADERS) 2>/dev/null | cksum)" != "$(ABI_HASH)" ]; then \
+		echo "$(RED)$(BOLD)Third-party headers changed while this build was running.$(RESET)"; \
+		echo "$(YELLOW)  lib/ is shared between worktrees. Objects compiled before the$(RESET)"; \
+		echo "$(YELLOW)  change disagree with the ones after about member offsets, and$(RESET)"; \
+		echo "$(YELLOW)  the binary would misbehave at runtime rather than fail here.$(RESET)"; \
+		echo "$(YELLOW)  Re-run this target once the other tree is done.$(RESET)"; \
+		exit 1; \
+	fi
+endef
+
+# ============================================================================
 # PATCH STAMP FILE - Skip checking if patches haven't changed
 # ============================================================================
 # The stamp file tracks when patches were last verified/applied.
