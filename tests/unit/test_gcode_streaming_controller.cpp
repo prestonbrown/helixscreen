@@ -3,6 +3,8 @@
 
 #include "gcode_streaming_controller.h"
 
+#include "../test_helpers/gcode_streaming_controller_test_access.h"
+
 #include <chrono>
 #include <cstdio>
 #include <fstream>
@@ -238,15 +240,36 @@ TEST_CASE("GCodeStreamingController cache management", "[gcode][streaming]") {
         GCodeStreamingController controller;
         controller.open_file(temp_file.path());
 
-        // First access - miss
+        // Warm every layer this controller will ever touch, then let the
+        // prefetch worker drain. The worker calls cache_.get_or_load() on each
+        // layer in its radius and those land in the same counters the hit rate
+        // divides, so a batch still in flight moves the denominator by however
+        // many layers it reached before the assert.
         controller.get_layer_segments(0);
-        // Second access - hit
+        controller.wait_for_prefetch_idle();
+
+        // A cold first access must have been recorded as a miss. Without this
+        // the all-hits assertion below would pass just as happily on a cache
+        // that never counts a miss at all.
+        REQUIRE(controller.get_cache_hit_rate() < 1.0f);
+
+        // Measure only the accesses this test makes.
+        GCodeStreamingControllerTestAccess::reset_cache_stats(controller);
+
         controller.get_layer_segments(0);
-        // Third access - hit
+        controller.get_layer_segments(0);
         controller.get_layer_segments(0);
 
-        // Should be 2/3 = 0.667
-        REQUIRE(controller.get_cache_hit_rate() > 0.5f);
+        // Each of those re-scheduled a prefetch. Draining again keeps the
+        // worker's own reads inside the measured window rather than letting
+        // them arrive midway through it. Everything is cached by now, so they
+        // can only add hits.
+        controller.wait_for_prefetch_idle();
+
+        const auto [hits, misses] = GCodeStreamingControllerTestAccess::cache_hit_stats(controller);
+        CHECK(misses == 0);
+        CHECK(hits >= 3);
+        CHECK(controller.get_cache_hit_rate() == 1.0f);
     }
 }
 
