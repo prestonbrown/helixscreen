@@ -1,0 +1,19 @@
+diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
+index af2f8a8bf..d8a905bca 100644
+--- a/src/indev/lv_indev.c
++++ b/src/indev/lv_indev.c
+@@ -165,6 +165,14 @@ void lv_indev_delete(lv_indev_t * indev)
+     /*Clean up the read timer first*/
+     if(indev->read_timer) lv_timer_delete(indev->read_timer);
+ 
++    /*HelixScreen: stop every animation still targeting this device. The
++     *scroll-throw animation's var is the indev itself, and both its completed
++     *and deleted callbacks write through that pointer, so one left running
++     *past the lv_free() below scribbles into whatever the allocator hands out
++     *next. Deleting here runs those callbacks while the device is still
++     *alive. lv_obj_destructor() keeps the same discipline for objects.*/
++    lv_anim_delete(indev, NULL);
++
+     /*Remove the input device from the list*/
+     lv_ll_remove(indev_ll_head, indev);
+ 

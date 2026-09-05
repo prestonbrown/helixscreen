@@ -69,6 +69,7 @@ LVGL_PATCHED_FILES := \
 	src/widgets/label/lv_label_private.h \
 	src/libs/lodepng/lodepng.c \
 	src/others/translation/lv_translation.c \
+	src/indev/lv_indev.c \
 	lv_conf_template.h
 # NOTE: src/misc/lv_check_arg.h is deliberately absent — the backport patch
 # CREATES it, so it is untracked upstream and `git checkout` cannot restore it.
@@ -711,6 +712,13 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 		echo "$(GREEN)✓ event-pop unwind-safe patch applied$(RESET)"; \
 	else \
 		echo "$(GREEN)✓ LVGL event-pop unwind-safe patch already applied$(RESET)"; \
+	fi
+	$(Q)if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl_indev_delete_cancels_anim.patch 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL indev-delete animation cancel patch...$(RESET)"; \
+		git -C $(LVGL_DIR) apply $(PATCH_DIR)/lvgl_indev_delete_cancels_anim.patch && \
+		echo "$(GREEN)✓ indev-delete animation cancel patch applied$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ LVGL indev-delete animation cancel patch already applied$(RESET)"; \
 	fi
 	$(Q)if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl_event_dispatch_depth_guard.patch 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL event-dispatch-depth guard (cluster:pstat-async-delete / #906)...$(RESET)"; \
