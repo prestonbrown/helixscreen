@@ -34,6 +34,34 @@ setup() {
     printf 'int f(int n) {\n    return n + 2;   // NEW_BEHAVIOR\n}\n' > "$WORK/src/feature.cpp"
 
     printf 'test-build:\n\t@true\n' > "$WORK/Makefile"
+
+    # A tooling hunk is judged by bats AND pytest, and the script reaches pytest
+    # through the repo venv's interpreter. Standing one up here makes pytest a
+    # property of the fixture, so a verdict does not depend on what the host
+    # happens to have installed globally.
+    stub_pytest_installed
+}
+
+# The venv interpreter the script runs pytest through, with pytest importable
+# and its suite green: `-c` answers the availability probe, `-m` runs the suite.
+# Any other invocation is one the fixture does not model, and fails loudly.
+stub_pytest_installed() {
+    mkdir -p "$WORK/.venv/bin"
+    cat > "$WORK/.venv/bin/python3" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+    -c|-m) exit 0 ;;
+esac
+exit 1
+EOF
+    chmod +x "$WORK/.venv/bin/python3"
+}
+
+# The same interpreter with no pytest installed: it runs, and every invocation
+# through it fails at the import.
+stub_pytest_absent() {
+    printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/.venv/bin/python3"
+    chmod +x "$WORK/.venv/bin/python3"
 }
 
 # A stub suite that fails when the marker is gone — i.e. a test that DETECTS
@@ -253,6 +281,25 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     [ "$status" -eq 3 ]
     [[ "$output" == *"NOT COVERED"* ]]
     [[ "$output" == *"scripts/gate.sh"* ]]
+}
+
+@test "an interpreter that cannot import pytest is a gap, not an available suite" {
+    # pytest runs as a module of an interpreter, so the interpreter existing says
+    # nothing about the suite. Reading it as available runs a suite that dies at
+    # the import, and the run blames the change for a red baseline.
+    stub_tests_that_detect
+    stub_pytest_absent
+    mkdir -p "$WORK/tests/shell" "$WORK/tests/python"
+    printf '@test "t" { true; }\n' > "$WORK/tests/shell/test_gate.bats"
+    printf 'def test_ok():\n    assert True\n' > "$WORK/tests/python/test_ok.py"
+    printf '#!/bin/sh\necho hi\n' > "$WORK/scripts/gate.sh"
+    git -C "$WORK" add -N scripts/gate.sh
+    run mutate
+    grep -qF 'NOT COVERED' <<<"$output"
+    grep -qF 'scripts/gate.sh' <<<"$output"
+    grep -qF 'pytest is not importable' <<<"$output"
+    grep -qF 'VERDICT: INCOMPLETE' <<<"$output"
+    [ "$status" -eq 3 ]
 }
 
 # --- widened scope ----------------------------------------------------------
