@@ -36,7 +36,12 @@ cd "$REPO_ROOT"
 
 # A renamed or deleted symbol breaks a doc anchor. Advisory, never blocking:
 # a doc pointing at a name that moved is a stale sentence, not a broken build.
+#
+# core.hooksPath is one absolute path for every worktree, so this hook runs
+# against branches that predate the script. Without the guard those pushes print
+# a Python traceback, which reads as a failure even though `|| true` swallows it.
 doc_anchor_advisory() {
+    [ -f scripts/doc_anchors.py ] || return 0
     python3 scripts/doc_anchors.py --check || true
 }
 
