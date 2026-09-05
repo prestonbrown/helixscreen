@@ -13,6 +13,7 @@
 
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
+#include "../../include/moonraker_history_api.h"
 #include "../../include/print_history_data.h"
 #include "../../include/print_history_manager.h"
 #include "../../include/printer_state.h"
@@ -25,6 +26,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -53,6 +55,41 @@ static LVGLInitializerHistoryManager lvgl_init;
 } // namespace
 
 // ============================================================================
+// Request-counting API
+// ============================================================================
+
+/// Counts the history requests that actually reach the client, so a test can
+/// assert on requests issued rather than on their downstream side effects.
+class HistoryCallCountingAPI : public MoonrakerHistoryAPI {
+  public:
+    explicit HistoryCallCountingAPI(helix::IMoonrakerClient& client)
+        : MoonrakerHistoryAPI(client) {}
+
+    void get_history_list(int limit, int start, double since, double before,
+                          HistoryListCallback on_success, ErrorCallback on_error) override {
+        ++calls;
+        MoonrakerHistoryAPI::get_history_list(limit, start, since, before, std::move(on_success),
+                                              std::move(on_error));
+    }
+
+    std::atomic<int> calls{0};
+};
+
+/// MoonrakerAPI that installs the counting history API in place of the real one.
+class HistoryCallCountingMoonrakerAPI : public MoonrakerAPI {
+  public:
+    HistoryCallCountingMoonrakerAPI(helix::IMoonrakerClient& client, helix::PrinterState& state)
+        : MoonrakerAPI(client, state) {
+        // history_api_ is protected; swap in the counting implementation.
+        history_api_ = std::make_unique<HistoryCallCountingAPI>(client);
+    }
+
+    [[nodiscard]] int history_list_calls() const {
+        return static_cast<HistoryCallCountingAPI*>(history_api_.get())->calls.load();
+    }
+};
+
+// ============================================================================
 // Test Fixture
 // ============================================================================
 
@@ -69,7 +106,7 @@ class HistoryManagerTestFixture {
 
         printer_state_.init_subjects(false);
         client_.connect("ws://mock/websocket", []() {}, []() {});
-        api_ = std::make_unique<MoonrakerAPI>(client_, printer_state_);
+        api_ = std::make_unique<HistoryCallCountingMoonrakerAPI>(client_, printer_state_);
         manager_ = std::make_unique<PrintHistoryManager>(api_.get(), &client_);
     }
 
@@ -125,7 +162,7 @@ class HistoryManagerTestFixture {
 
     MoonrakerClientMock client_;
     PrinterState printer_state_;
-    std::unique_ptr<MoonrakerAPI> api_;
+    std::unique_ptr<HistoryCallCountingMoonrakerAPI> api_;
     std::unique_ptr<PrintHistoryManager> manager_;
 };
 bool HistoryManagerTestFixture::queue_initialized = false;
@@ -543,6 +580,56 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
 }
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager joins a load whose response is already delivered",
+                 "[history_manager]") {
+    // A response arrives on the WebSocket thread and its handler is posted to
+    // the update queue; only the main thread draining that queue populates the
+    // cache. In between, is_fetching_ is already released and is_loaded_ is
+    // still false, and on a 2-core board painting the home panel that gap runs
+    // to hundreds of milliseconds - long enough for the rest of the startup
+    // burst to land in it. The mock client answers inline, so ensure_loaded()
+    // returns with the manager sitting in exactly that state.
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    manager_->ensure_loaded();
+    REQUIRE(api_->history_list_calls() == 1);
+    REQUIRE_FALSE(manager_->is_loaded());
+
+    // Every other panel activating asks for history while that response waits.
+    manager_->ensure_loaded();
+    manager_->ensure_loaded();
+    manager_->ensure_loaded();
+    REQUIRE(api_->history_list_calls() == 1);
+
+    pump();
+
+    // One request, one parse, one stats build.
+    REQUIRE(api_->history_list_calls() == 1);
+    REQUIRE(notified.load() == 1);
+    REQUIRE(manager_->is_loaded());
+    REQUIRE_FALSE(manager_->get_jobs().empty());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager still re-fetches for an invalidation mid-delivery",
+                 "[history_manager]") {
+    // Joining belongs to callers that only want the cache populated. fetch()
+    // means the cache is wrong, and a response already downloaded describes the
+    // printer before whatever said so - it cannot satisfy that caller.
+    manager_->ensure_loaded();
+    REQUIRE(api_->history_list_calls() == 1);
+    REQUIRE_FALSE(manager_->is_loaded());
+
+    manager_->fetch();
+    REQUIRE(api_->history_list_calls() == 2);
+
+    pump();
+    REQUIRE(manager_->is_loaded());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager ensure_loaded fetches when nothing is in flight",
                  "[history_manager]") {
     // The other half of the guard: suppressing the redundant re-issue must not
@@ -822,4 +909,28 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     }
 
     REQUIRE(manager_->is_loaded());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager reloads through ensure_loaded after an invalidate",
+                 "[history_manager]") {
+    // The delivery flag is what lets ensure_loaded() ride a response whose bytes
+    // have landed but whose handler has not run. Once that handler applies the
+    // response, is_loaded_ is what answers callers and the flag has to be back
+    // down: left raised, the next invalidate leaves ensure_loaded() joining a
+    // delivery that is never coming, and the cache never repopulates.
+    manager_->ensure_loaded();
+    pump();
+    REQUIRE(manager_->is_loaded());
+    REQUIRE(api_->history_list_calls() == 1);
+
+    manager_->invalidate();
+    REQUIRE_FALSE(manager_->is_loaded());
+
+    manager_->ensure_loaded();
+    REQUIRE(api_->history_list_calls() == 2);
+
+    pump();
+    REQUIRE(manager_->is_loaded());
+    REQUIRE_FALSE(manager_->get_jobs().empty());
 }

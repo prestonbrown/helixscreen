@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Step progress widget tokens.
+
+  All step_* responsive px tokens live here, following the same convention as
+  ams_tokens.xml and fan_tokens.xml: widget-scoped tokens go in their own file
+  rather than bloating globals.xml or living inside one consumer panel. The
+  consumers are ui_step_progress.cpp itself and the three surfaces that draw a
+  step list — the AMS sidebar, the timelapse installer and the network settings
+  overlay — so parking these in any one of them is the backward-coupling
+  ams_tokens.xml warns about.
+
+  Placement is also what makes them ship. release-copy-xml-config (mk/cross.mk)
+  deletes DEV_PANEL_XML from the staged ui_xml/, so a token declared only in a
+  dev-only panel resolves to nothing on every device and each caller silently
+  falls back to its built-in size at every breakpoint.
+
+  theme_manager scans every top-level file in ui_xml/ and registers the bare
+  base name (e.g. `step_indicator`) into the globals scope for the current
+  breakpoint, so the declaring file does not constrain who may read it.
+-->
+<component>
+  <consts>
+    <!-- Step indicator circle size -->
+    <px name="step_indicator_small" value="16"/>
+    <px name="step_indicator_medium" value="20"/>
+    <px name="step_indicator_large" value="24"/>
+    <!-- Step connector line thickness -->
+    <px name="step_connector_small" value="2"/>
+    <px name="step_connector_medium" value="2"/>
+    <px name="step_connector_large" value="3"/>
+    <!-- Step label spacing from indicator -->
+    <px name="step_label_gap_small" value="6"/>
+    <px name="step_label_gap_medium" value="8"/>
+    <px name="step_label_gap_large" value="10"/>
+    <!-- Step row gap for vertical layout -->
+    <px name="step_row_gap_small" value="8"/>
+    <px name="step_row_gap_medium" value="12"/>
+    <px name="step_row_gap_large" value="16"/>
+  </consts>
+</component>

@@ -4,27 +4,6 @@
 <!-- Test/Development Panel — accessible only via dev flags -->
 <!-- i18n: skip-file — dev-only demo strings, never shown to end users -->
 <component>
-  <!-- Local Constants -->
-  <consts>
-    <!-- Step indicator circle size (responsive) -->
-    <px name="step_indicator_small" value="16"/>
-    <px name="step_indicator_medium" value="20"/>
-    <px name="step_indicator_large" value="24"/>
-    <!-- Step connector line thickness (responsive) -->
-    <px name="step_connector_small" value="2"/>
-    <px name="step_connector_medium" value="2"/>
-    <px name="step_connector_large" value="3"/>
-    <!-- Step label spacing from indicator (responsive) -->
-    <px name="step_label_gap_small" value="6"/>
-    <px name="step_label_gap_medium" value="8"/>
-    <px name="step_label_gap_large" value="10"/>
-    <!-- Step row gap for vertical layout (responsive) -->
-    <px name="step_row_gap_small" value="8"/>
-    <px name="step_row_gap_medium" value="12"/>
-    <px name="step_row_gap_large" value="16"/>
-    <!-- Step colors: omitted to use theme token defaults (primary, success, text_subtle, etc.) -->
-    <!-- Override by adding step_pending_light/dark, step_active_light/dark, etc. consts -->
-  </consts>
   <!-- Test panel for step progress widget demonstrations -->
   <view extends="lv_obj"
         width="100%" height="100%" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="start"

@@ -1939,3 +1939,71 @@ TEST_CASE_METHOD(PanelWidgetConfigFixture,
     REQUIRE(fil->enabled);
     REQUIRE(fil->col == 3);
 }
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: save preserves panel keys this build does not know",
+                 "[panel_widget][widget_config][migration]") {
+    // A newer build keeps its layout state as siblings of "pages" in this same
+    // node, and a config it wrote reaches this build whenever someone rolls
+    // back a channel. Nothing above this level protects the subtree: the
+    // version guard leaves the document unmigrated, but save() runs on roughly
+    // the first populate of every panel, so a wholesale assignment here drops
+    // those keys with no user action at all.
+    //
+    // "grid" is the grid the stored coordinates count against — without it the
+    // newer build reads cell coordinates as track coordinates and the dashboard
+    // comes back rearranged — and "parked_grids" holds the arrangements for
+    // every grid that is not active, which nothing can reconstruct
+    // (prestonbrown/helixscreen#1460).
+    json parked_page = json{{"id", "main"},
+                            {"widgets", json::array({json{{"id", "shutdown"},
+                                                          {"enabled", true},
+                                                          {"col", 1},
+                                                          {"row", 2},
+                                                          {"colspan", 1},
+                                                          {"rowspan", 1}}})}};
+    json future_root;
+    future_root["pages"] =
+        json::array({json{{"id", "main"},
+                          {"widgets", json::array({json{{"id", "shutdown"},
+                                                        {"enabled", true},
+                                                        {"col", 0},
+                                                        {"row", 0},
+                                                        {"colspan", 1},
+                                                        {"rowspan", 1}}})}}});
+    future_root["main_page_index"] = 0;
+    future_root["next_page_id"] = 1;
+    future_root["grid"] = "8x5";
+    future_root["parked_grids"] = json{{"6x4",
+                                        {{"pages", json::array({parked_page})},
+                                         {"main_page_index", 0},
+                                         {"next_page_id", 1}}}};
+    future_root["layout_units"] = "cells_v21";
+    future_root["legacy_rows"] = 4;
+    setup_with_widgets(future_root);
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+    REQUIRE(wc.set_enabled_by_id("shutdown", false));
+    wc.save();
+
+    // Each key is proven present before it is read: nlohmann's operator[] on a
+    // missing key of a const object aborts the process, which would bury the
+    // name of the key that went missing.
+    const json saved = get_saved_root();
+    REQUIRE(saved.contains("grid"));
+    CHECK(saved["grid"] == "8x5");
+    REQUIRE(saved.contains("layout_units"));
+    CHECK(saved["layout_units"] == "cells_v21");
+    REQUIRE(saved.contains("legacy_rows"));
+    CHECK(saved["legacy_rows"] == 4);
+    REQUIRE(saved.contains("parked_grids"));
+    CHECK(saved["parked_grids"]["6x4"]["pages"][0]["widgets"][0]["col"] == 1);
+    CHECK(saved["parked_grids"]["6x4"]["pages"][0]["widgets"][0]["row"] == 2);
+
+    // The keys this build owns still come from its own state.
+    const json page0 = get_saved_page0_widgets();
+    REQUIRE(page0[0]["id"] == "shutdown");
+    CHECK(page0[0]["enabled"] == false);
+    CHECK(saved["main_page_index"] == 0);
+}

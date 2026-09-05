@@ -439,3 +439,43 @@ TEST_CASE("Cache larger than the prerendered tier is sourced from the PNG",
     std::error_code ec;
     std::filesystem::remove_all(tmp, ec);
 }
+
+// ============================================================================
+// Conditional cache invalidation
+// ============================================================================
+
+// Every navigation back to the home panel refreshes the printer image, and the
+// scaled cache it would discard is rebuilt by a synchronous decode-and-resize on
+// the main thread — 1.5-2.0s on a two-core board, plus a flash write. A refresh
+// that resolves to the image already displayed must therefore leave the cache
+// alone; only a genuine change of image discards it.
+TEST_CASE("Printer image cache survives a refresh that resolves to the same path",
+          "[assets][printer][cache]") {
+    const std::string source =
+        "A:/printers/helix_same_path_" + std::to_string(::getpid()) + "-300.bin";
+    const std::filesystem::path cached = get_cached_printer_image_path(source, 233, 209);
+
+    // Stand in for a generated cache entry: invalidation matches on filename
+    // prefix and never reads the contents.
+    std::ofstream(cached, std::ios::binary) << "cached pixels";
+    REQUIRE(std::filesystem::exists(cached));
+
+    SECTION("an unchanged path keeps the cache") {
+        CHECK(invalidate_printer_image_cache_if_changed(source, source) == 0);
+        CHECK(std::filesystem::exists(cached));
+    }
+
+    SECTION("a different image discards the old cache") {
+        const std::string other = "A:/printers/helix_other_" + std::to_string(::getpid()) + ".bin";
+        CHECK(invalidate_printer_image_cache_if_changed(source, other) == 1);
+        CHECK_FALSE(std::filesystem::exists(cached));
+    }
+
+    SECTION("the first refresh has no previous image to discard") {
+        CHECK(invalidate_printer_image_cache_if_changed("", source) == 0);
+        CHECK(std::filesystem::exists(cached));
+    }
+
+    std::error_code ec;
+    std::filesystem::remove(cached, ec);
+}

@@ -70,6 +70,12 @@ void PrintHistoryManager::fetch(int limit) {
         return;
     }
 
+    // A request going out supersedes any response still waiting for the main
+    // thread, and releases the flag if that response is never applied at all.
+    // is_fetching_ is already true here, so ensure_loaded() joins on that
+    // instead and clearing this opens no window.
+    delivery_pending_.store(false);
+
     spdlog::debug("[HistoryManager] Fetching history (limit={})", limit);
 
     auto token = lifetime_.token();
@@ -77,6 +83,11 @@ void PrintHistoryManager::fetch(int limit) {
     api_->history().get_history_list(
         limit, 0, 0.0, 0.0, // limit, start, since, before
         [this, token](const std::vector<PrintHistoryJob>& jobs, uint64_t /*total*/) {
+            // Hand the join over BEFORE releasing is_fetching_: across these two
+            // stores ensure_loaded() must still see a load it can ride on, or
+            // the whole list goes out a second time while this one sits in the
+            // queue waiting for a busy main thread.
+            delivery_pending_.store(true);
             // Clear guard BEFORE posting defer so a freeze-drop doesn't strand us.
             is_fetching_.store(false);
             // No bare expired() check — token.defer's own guard suffices, and
@@ -103,16 +114,18 @@ void PrintHistoryManager::ensure_loaded(int limit) {
     if (is_loaded_) {
         return;
     }
-    // A request is already out. Its response populates the cache and notifies
-    // every observer, which is all this caller wanted, so routing through
-    // fetch() here would only arm a redundant re-issue of the same list.
+    // A request is already out, or its response is downloaded and only waiting
+    // for the main thread to apply it. Either way that response populates the
+    // cache and notifies every observer, which is all this caller wanted, so
+    // routing through fetch() here would only arm a redundant re-issue of the
+    // same list.
     //
-    // Residual window: the success callback clears is_fetching_ on the bg
-    // thread before posting its defer, deliberately, so that a frozen queue
-    // cannot strand the guard. A call landing inside that window still issues
-    // one extra fetch. Narrow, and not the case this fixes - in the startup
-    // burst all four calls arrived while the request was genuinely outstanding.
-    if (is_fetching_.load()) {
+    // Both flags are load-bearing. is_fetching_ is released on the WebSocket
+    // thread the moment the response arrives, so on its own it reads as
+    // "nothing in flight" for as long as the main thread takes to drain the
+    // handler - hundreds of milliseconds on a 2-core board painting the home
+    // panel at startup, which is exactly when every panel activates and asks.
+    if (is_fetching_.load() || delivery_pending_.load()) {
         spdlog::debug("[HistoryManager] Load already in flight, joining it");
         return;
     }
@@ -177,6 +190,10 @@ void PrintHistoryManager::remove_observer(HistoryChangedCallback* cb) {
 // ============================================================================
 
 void PrintHistoryManager::on_history_fetched(std::vector<PrintHistoryJob>&& jobs) {
+    // The response is no longer in transit; is_loaded_ takes over as what tells
+    // ensure_loaded() the cache is populated.
+    delivery_pending_.store(false);
+
     spdlog::debug("[HistoryManager] Fetched {} jobs", jobs.size());
 
     cached_jobs_ = std::move(jobs);

@@ -131,10 +131,18 @@ jobs:
         restore-keys: |
           ccache-ubuntu-22.04-
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 
@@ -417,10 +425,18 @@ jobs:
     # restoring would download ~1.7 GB for a guaranteed 0% hit rate. The
     # 240-minute cap already covers a fully cold ASAN build.
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 
@@ -502,10 +518,18 @@ jobs:
     # restoring would download ~1.7 GB for a guaranteed 0% hit rate. The
     # 240-minute cap already covers a fully cold TSAN build.
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 
@@ -619,10 +643,18 @@ jobs:
         restore-keys: |
           ccache-macos-14-
 
+    - name: Cache npm downloads
+      uses: actions/cache@v5
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     - name: Install Node.js dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 2
+        timeout_minutes: 6
         max_attempts: 3
         command: npm install
 

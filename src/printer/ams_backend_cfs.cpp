@@ -26,6 +26,7 @@
 #include <spdlog/spdlog.h>
 
 #include <cctype>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -1102,6 +1103,25 @@ static uint32_t parse_flat_slot_color(const std::string& raw) {
     return static_cast<uint32_t>(std::stoul(s, nullptr, 16));
 }
 
+// The flat schema's box-gate presence reading, or nullopt when this frame
+// published none.
+//
+// filament_detected is the flat analogue of stock's filament_useup, inverted:
+// true means filament is at the box gate. Like every scalar in that object it
+// is nullable (the sibling filament_sensor_error ships as JSON null until the
+// sensor reads), and Moonraker subscribes `box: null`, so a delta may omit the
+// key entirely. Both cases mean "no reading", which is a different answer from
+// false — false is a runout. Returning an optional keeps that distinction at
+// the one place it is decided, so the parse and the merge gate in
+// handle_status_update cannot drift apart on it.
+static std::optional<bool> flat_gate_filament_present(const nlohmann::json& box_json) {
+    auto it = box_json.find("filament_detected");
+    if (it == box_json.end() || !it->is_boolean()) {
+        return std::nullopt;
+    }
+    return it->get<bool>();
+}
+
 AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_json) {
     AmsSystemInfo info;
     info.type = AmsType::CFS;
@@ -1125,12 +1145,23 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     info.endless_spool_enabled =
         helix::json_util::safe_bool(box_json, "runout_swap_enabled", false);
 
-    // `runout` is null while idle and carries a slot descriptor once tripped;
-    // presence of any non-null value is the runout signal. filament_loaded is
-    // left false here for the same reason as the stock parse — the toolhead
-    // sensor branch in handle_status_update is its sole writer.
-    auto runout_it = box_json.find("runout");
-    info.filament_runout = runout_it != box_json.end() && !runout_it->is_null();
+    // Runout is the box gate's own presence boolean, negated. No reading (key
+    // absent, or null before the sensor's first read) is not a runout, and the
+    // merge gate in handle_status_update tests the same optional so such a
+    // frame leaves the latch as it was.
+    //
+    // `runout` is deliberately NOT read here. It is the runout-SWAP plan — an
+    // ordered `chain` of fallback slots and the `loaded_slot` they back — which
+    // the module publishes whenever runout_swap_enabled is on and a lane is
+    // loaded, including on the load-completion frame of a wholly successful
+    // load. Treating its presence as an event arms a runout episode against the
+    // lane that just loaded, and that episode drops the lane's remembered
+    // Spoolman link the moment the bay next reads empty.
+    //
+    // filament_loaded is left false for the same reason as the stock parse —
+    // the toolhead sensor branch in handle_status_update is its sole writer.
+    const std::optional<bool> gate_present = flat_gate_filament_present(box_json);
+    info.filament_runout = gate_present.has_value() && !*gate_present;
     info.filament_loaded = false;
 
     // Per-material recommended temps. The fork publishes a materials table the
@@ -1514,7 +1545,17 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             if (!new_info.units.empty()) {
                 system_info_.units = std::move(new_info.units);
                 system_info_.total_slots = new_info.total_slots;
-                system_info_.endless_spool_enabled = new_info.endless_spool_enabled;
+                // Presence-gated like filament_runout below. Moonraker
+                // subscribes `box: null`, so a frame that changed only a slot
+                // carries no enable bit at all, and both parsers default it to
+                // off — copying that default would turn endless spool off under
+                // a user whose firmware still has it on, on every such delta.
+                // Stock spells the bit auto_refill, the flat schema
+                // runout_swap_enabled.
+                if (box.contains("auto_refill") ||
+                    (is_flat && box.contains("runout_swap_enabled"))) {
+                    system_info_.endless_spool_enabled = new_info.endless_spool_enabled;
+                }
                 system_info_.tool_to_slot_map = std::move(new_info.tool_to_slot_map);
                 // Presence-gated like filament_runout below: a stock delta
                 // frame carries a changed T1 subtree but no same_material key
@@ -1609,10 +1650,14 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             // clobber the sensor-derived value.
 
             // Update runout flag only when the field was actually present.
-            // Stock spells it filament_useup; the flat schema spells it runout
-            // (JSON null while idle, a descriptor once tripped).
+            // Stock spells it filament_useup; the flat schema spells it
+            // filament_detected, and reads it inverted (see the flat parse).
+            // A delta carrying that key as null published no reading, so it is
+            // gated out by the same optional the parse consults — the latch
+            // keeps whatever the last frame with a real reading set.
             const bool runout_field_present =
-                box.contains("filament_useup") || (is_flat && box.contains("runout"));
+                box.contains("filament_useup") ||
+                (is_flat && flat_gate_filament_present(box).has_value());
             if (runout_field_present) {
                 system_info_.filament_runout = new_info.filament_runout;
             }
@@ -3611,8 +3656,8 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
     // above. It asks for far less of the string — only that the line is about
     // refilling — and makes up the difference with machine state: the box itself
     // says there is no filament at the gate (filament_useup / the flat schema's
-    // `runout`) and the job is paused. Weaker evidence, so it surfaces the
-    // firmware's own words rather than a claim about which give-up path ran.
+    // filament_detected) and the job is paused. Weaker evidence, so it surfaces
+    // the firmware's own words rather than a claim about which give-up path ran.
     const bool weak_refill_hint = !no_matching_spool && !refill_disabled && !no_tray_available &&
                                   helix::contains_ci(detail, "refill") &&
                                   system_info_.filament_runout;
@@ -3656,6 +3701,24 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
 helix::printer::EndlessSpoolCapabilities AmsBackendCfs::get_endless_spool_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);
     using namespace helix::printer;
+
+    // No box frame has been merged yet, so endless_spool_enabled is still its
+    // constructed default. Answering Off from that default states "will not
+    // switch spools on runout" on no evidence, and the real frame a couple of
+    // seconds later then contradicts it — the user watches the line appear and
+    // vanish. Unknown says we do not know and NotReady says why, same as
+    // AmsBackendHappyHare::get_endless_spool_capabilities.
+    //
+    // units is the readiness signal because it is the same guard the merge
+    // uses: handle_status_update writes the enable bit only inside
+    // `if (!new_info.units.empty())`, so an empty units vector is exactly the
+    // state in which that bit cannot have come from firmware.
+    if (system_info_.units.empty()) {
+        return {.availability = EndlessSpoolAvailability::Available,
+                .enabled = EndlessSpoolEnabled::Unknown,
+                .editability = EndlessSpoolEditability::ReadOnly,
+                .restriction = EndlessSpoolRestriction::NotReady};
+    }
 
     // Honest enablement (#1391): auto_refill on promises a refill ATTEMPT, but
     // the box only swaps between same_material-identical spools, so when every
