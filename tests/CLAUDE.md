@@ -274,7 +274,26 @@ issue number for bug-fix tests (`[1178]`) so the whole fix runs with
 
 ## Shell tests never touch the host
 
-`load helpers` shadows `systemctl` with an inert exit-0 shim (`tests/shell/helpers.bash`).
+`tests/shell/setup_suite.bash` blocks the commands that address the host **by name** -
+`killall`, `pkill`, `pidof`, `reboot`, `mount`, `addr2line` and friends. bats loads it for
+every run of this directory, so a new test is sandboxed without opting in. A blocked call
+is recorded with the test that made it and then fails, and the run fails at the end with
+the list. `kill "$pid"` is deliberately not blocked: a pid is a handle the test already
+holds, so it is scoped by construction, while a name reaches whatever else is running -
+another bats file's app, or yours.
+
+To use one of those commands, mock it: `mock_command_script "killall" 'exit 0'` in
+`setup()`. A mock is found first, so the sandbox never sees the call.
+
+The sandbox installs itself as both a PATH shim and an exported bash function, because
+neither survives every boundary: PATH is lost when a callee **replaces** PATH instead of
+prepending (`env PATH="$bin" ...`, or a script that hardens PATH the way
+`scripts/install.sh` does), and a bash function is lost at a non-bash callee - which
+installer scripts are, since they are `#!/bin/sh`. `test_sandbox_gate.bats` proves each
+boundary and fails any test that lands in the gap between the two.
+
+`load helpers` additionally shadows `systemctl` with an inert exit-0 shim
+(`tests/shell/helpers.bash`).
 Installer code reaches systemctl through paths a test never names - the update-unit
 stop/disable sweep is not gated on INIT_SYSTEM - and on headless CI the denied call hides
 behind the installer's `|| true` while on a desktop it raises a polkit prompt per call. A

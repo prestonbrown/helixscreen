@@ -42,6 +42,10 @@
     load helpers
     # This shell already carries the shim on PATH from setup, so the opt-out
     # is proven from a hermetic shell with a controlled PATH.
+    #
+    # sandbox-gap-reviewed: the probes below ask where systemctl RESOLVES and
+    # never run it, and a hermetic environment is the thing being tested, so
+    # they are outside the suite sandbox on purpose.
     local probe='command -v systemctl'
     local source_and_probe='. "$1" >/dev/null 2>&1; command -v systemctl'
     local real resolved
