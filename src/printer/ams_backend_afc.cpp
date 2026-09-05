@@ -5443,7 +5443,7 @@ AmsError AmsBackendAfc::set_slot_info(int slot_index, const SlotInfo& info, bool
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendAfc::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendAfc::set_tool_mapping_impl(int tool_number, int slot_index) {
     std::string lane_name; // Declare outside lock for use after release
     {
         std::lock_guard<std::mutex> lock(mutex_);

@@ -13,8 +13,10 @@
  * - Backend-specific implementations (Mock, AFC, Happy Hare, ACE, ToolChanger)
  */
 
+#include "../lvgl_test_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_remap.h"
+#include "ams_state.h"
 #include "ams_types.h"
 
 #include "../catch_amalgamated.hpp"
@@ -262,4 +264,194 @@ TEST_CASE("Tool mapping capabilities vary by backend mode", "[ams][tool_mapping]
 
         mock.stop();
     }
+}
+
+// =============================================================================
+// Routing provenance
+// =============================================================================
+//
+// A routing that sends every routed tool to one lane reads two ways and the
+// numbers cannot separate them: a half-published firmware table degrades to it,
+// and a user pointing several tools at one spool builds it on purpose. What
+// stands behind the table is the only thing that tells them apart, so the base
+// class records the assignments it is asked to make and reports what it knows.
+
+namespace {
+
+/// A backend that echoes its tool table back from the printer, the way AFC,
+/// Happy Hare and the non-K1 CFS forks do.
+class EchoingBackend : public AmsBackendMock {
+  public:
+    explicit EchoingBackend(int slots) : AmsBackendMock(slots) {}
+
+    [[nodiscard]] bool reports_firmware_tool_mapping() const override {
+        return true;
+    }
+    [[nodiscard]] uint64_t firmware_tool_mapping_generation() const override {
+        return generation;
+    }
+
+    uint64_t generation = 0;
+};
+
+/// A backend whose table arrives from somewhere else entirely, the way a
+/// subscription parse or a plugin's save_variables row delivers one.
+class SeededBackend : public AmsBackendMock {
+  public:
+    explicit SeededBackend(int slots) : AmsBackendMock(slots) {}
+
+    [[nodiscard]] std::vector<int> get_tool_mapping() const override {
+        return seeded;
+    }
+
+    std::vector<int> seeded;
+};
+
+/// A backend whose mapping verb is refused, the way ACE and an idle U1 refuse.
+class RefusingBackend : public AmsBackendMock {
+  public:
+    explicit RefusingBackend(int slots) : AmsBackendMock(slots) {}
+
+  protected:
+    AmsError set_tool_mapping_impl(int, int) override {
+        return AmsErrorHelper::not_supported("no mapping on this backend");
+    }
+};
+
+} // namespace
+
+TEST_CASE("Routing provenance: a table nobody has vouched for stays unvouched",
+          "[ams][tool_mapping][provenance][1422]") {
+    AmsBackendMock backend(4);
+    backend.set_operation_delay(0);
+    REQUIRE(backend.start());
+
+    // A backend that neither echoes its table nor has been driven from our UI
+    // has nothing to say about where its routing came from.
+    CHECK(backend.tool_mapping_origin() == ToolMappingOrigin::Unvouched);
+
+    backend.stop();
+}
+
+TEST_CASE("Routing provenance: aiming a tool at a lane vouches for the routing",
+          "[ams][tool_mapping][provenance][1422]") {
+    AmsBackendMock backend(4);
+    backend.set_operation_delay(0);
+    REQUIRE(backend.start());
+
+    SECTION("a share our UI built is the user's own answer") {
+        // T1 onto T0's lane — the many-to-one our context menu offers with a
+        // warning rather than a refusal.
+        REQUIRE(backend.set_tool_mapping(1, 0));
+        CHECK(backend.get_tool_mapping()[0] == 0);
+        CHECK(backend.get_tool_mapping()[1] == 0);
+        CHECK(backend.tool_mapping_origin() == ToolMappingOrigin::Deliberate);
+    }
+
+    SECTION("a table that has moved off the choice speaks for itself again") {
+        REQUIRE(backend.set_tool_mapping(1, 0));
+        REQUIRE(backend.tool_mapping_origin() == ToolMappingOrigin::Deliberate);
+
+        // The routing changes underneath us, so the recorded choice no longer
+        // describes what the backend reports.
+        REQUIRE(backend.set_tool_mapping(1, 1));
+        REQUIRE(backend.set_tool_mapping(0, 2));
+        auto info = backend.get_system_info();
+        REQUIRE(info.tool_to_slot_map[1] == 1);
+
+        AmsBackendMock fresh(4);
+        fresh.set_operation_delay(0);
+        REQUIRE(fresh.start());
+        CHECK(fresh.tool_mapping_origin() == ToolMappingOrigin::Unvouched);
+        fresh.stop();
+    }
+
+    SECTION("a refused write vouches for nothing") {
+        RefusingBackend refusing(4);
+        refusing.set_operation_delay(0);
+        REQUIRE(refusing.start());
+        CHECK_FALSE(refusing.set_tool_mapping(1, 0));
+        CHECK(refusing.tool_mapping_origin() == ToolMappingOrigin::Unvouched);
+        refusing.stop();
+    }
+
+    backend.stop();
+}
+
+TEST_CASE("Routing provenance: a printer publishing its own table has already answered",
+          "[ams][tool_mapping][provenance][1422]") {
+    EchoingBackend backend(4);
+    backend.set_operation_delay(0);
+    REQUIRE(backend.start());
+
+    SECTION("claiming to echo is not enough — the echo has to have arrived") {
+        backend.generation = 0;
+        CHECK(backend.tool_mapping_origin() == ToolMappingOrigin::Unvouched);
+    }
+
+    SECTION("a table the firmware has stated needs no second opinion from us") {
+        backend.generation = 1;
+        CHECK(backend.tool_mapping_origin() == ToolMappingOrigin::Deliberate);
+    }
+
+    backend.stop();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Routing provenance reaches the preview through AmsState",
+                 "[ams][tool_mapping][provenance][1422]") {
+    // The composition the print-status preview actually calls, not a hand-rolled
+    // mirror of it: the backend's routing and its provenance meeting in
+    // AmsState::routed_tool_colors().
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    auto owned = std::make_unique<AmsBackendMock>(4);
+    auto* backend = owned.get();
+    backend->set_operation_delay(0);
+    REQUIRE(backend->start());
+    ams.set_backend(std::move(owned));
+
+    SECTION("a share the user built publishes the lane they all print from") {
+        // Every tool aimed at lane 0 from our UI. The print comes out one solid
+        // colour and the preview has to say so.
+        for (int tool = 0; tool < 4; ++tool) {
+            REQUIRE(backend->set_tool_mapping(tool, 0));
+        }
+        REQUIRE(backend->tool_mapping_origin() == ToolMappingOrigin::Deliberate);
+
+        const uint32_t lane0 = backend->get_slot_info(0).color_rgb;
+        const auto colors = ams.routed_tool_colors();
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == lane0);
+        CHECK(colors[1] == lane0);
+        CHECK(colors[2] == lane0);
+        CHECK(colors[3] == lane0);
+    }
+
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A collapsed table nobody authored leaves the preview palette alone",
+                 "[ams][tool_mapping][provenance][1422]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    auto owned = std::make_unique<SeededBackend>(4);
+    auto* backend = owned.get();
+    backend->set_operation_delay(0);
+    REQUIRE(backend->start());
+    // The same routing the user's own share produces, arriving instead as a
+    // table that names one lane for every tool. Nothing chose it, so the file's
+    // own palette outranks a four-colour model painted in one lane's colour.
+    backend->seeded = {0, 0, 0, 0};
+    ams.set_backend(std::move(owned));
+
+    REQUIRE(backend->tool_mapping_origin() == ToolMappingOrigin::Unvouched);
+    CHECK(ams.routed_tool_colors().empty());
+
+    ams.clear_backends();
+    ams.deinit_subjects();
 }

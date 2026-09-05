@@ -556,7 +556,7 @@ AmsError AmsBackendAce::set_slot_info(int slot_index, const SlotInfo& info, bool
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendAce::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendAce::set_tool_mapping_impl(int tool_number, int slot_index) {
     (void)tool_number;
     (void)slot_index;
     return AmsErrorHelper::not_supported("Tool mapping");

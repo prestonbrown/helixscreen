@@ -1416,7 +1416,7 @@ AmsError AmsBackendQidi::set_slot_info(int slot_index, const SlotInfo& info, boo
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendQidi::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendQidi::set_tool_mapping_impl(int tool_number, int slot_index) {
     spdlog::info("{} set_tool_mapping(tool={}, slot={})", backend_log_tag(), tool_number,
                  slot_index);
     if (tool_number < 0) {

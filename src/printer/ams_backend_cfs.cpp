@@ -2564,7 +2564,7 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
     execute_gcode("BOX_UPDATE_SAME_MATERIAL_LIST");
 }
 
-AmsError AmsBackendCfs::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendCfs::set_tool_mapping_impl(int tool_number, int slot_index) {
     // CFS exposes per-print tool→slot remap via the BOX_MODIFY_TN gcode (format
     // observed in box_wrapper.cpython-39.so: "BOX_MODIFY_TN %s=%s"). Both sides
     // use the TNN notation (T1A..T4D) that matches the box.map JSON keys/values

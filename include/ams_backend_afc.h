@@ -338,7 +338,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     // Configuration
     AmsError set_slot_info(int slot_index, const SlotInfo& info, bool persist = true) override;
-    AmsError set_tool_mapping(int tool_number, int slot_index) override;
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
     // Bypass mode
     AmsError enable_bypass() override;

@@ -741,3 +741,39 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonraker
         return nullptr;
     }
 }
+
+// ============================================================================
+// Routing provenance
+// ============================================================================
+
+AmsError AmsBackend::set_tool_mapping(int tool_number, int slot_index) {
+    AmsError result = set_tool_mapping_impl(tool_number, slot_index);
+    if (!result.success()) {
+        return result;
+    }
+    std::lock_guard<std::mutex> lock(authored_mappings_mutex_);
+    authored_mappings_[tool_number] = slot_index;
+    return result;
+}
+
+helix::printer::ToolMappingOrigin AmsBackend::tool_mapping_origin() const {
+    // A printer that publishes its own live table has already said what will
+    // print. Nothing about the shape of that answer makes it less true, so it
+    // needs no second opinion from us.
+    if (reports_firmware_tool_mapping() && firmware_tool_mapping_generation() > 0) {
+        return helix::printer::ToolMappingOrigin::Deliberate;
+    }
+
+    // Otherwise the routing is vouched for only where it still reflects a lane
+    // somebody aimed a tool at here. A table that has moved on since is back to
+    // speaking for itself.
+    const std::vector<int> routing = get_tool_mapping();
+    std::lock_guard<std::mutex> lock(authored_mappings_mutex_);
+    for (const auto& [tool, slot] : authored_mappings_) {
+        if (tool >= 0 && static_cast<size_t>(tool) < routing.size() &&
+            routing[static_cast<size_t>(tool)] == slot) {
+            return helix::printer::ToolMappingOrigin::Deliberate;
+        }
+    }
+    return helix::printer::ToolMappingOrigin::Unvouched;
+}

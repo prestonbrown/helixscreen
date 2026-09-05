@@ -940,7 +940,7 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendSnapmaker::set_tool_mapping(int /*tool_number*/, int /*slot_index*/) {
+AmsError AmsBackendSnapmaker::set_tool_mapping_impl(int /*tool_number*/, int /*slot_index*/) {
     return AmsErrorHelper::not_supported("Tool mapping not supported on Snapmaker");
 }
 

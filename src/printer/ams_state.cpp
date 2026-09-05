@@ -1122,7 +1122,8 @@ std::vector<uint32_t> AmsState::routed_tool_colors() const {
         backend->get_tool_mapping(), backend->get_system_info().tool_to_slot_map,
         /*attachment_is_routing=*/!is_tool_changer(backend->get_type()));
 
-    auto colors = helix::FilamentMapper::routed_tool_colors(routing, collect_available_slots());
+    auto colors = helix::FilamentMapper::routed_tool_colors(routing, collect_available_slots(),
+                                                            backend->tool_mapping_origin());
     spdlog::debug("[AmsState] routed_tool_colors: {} routing entries -> {} color(s)",
                   routing.size(), colors.size());
     return colors;
