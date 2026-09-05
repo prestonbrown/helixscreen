@@ -228,6 +228,8 @@ Creality K1, K1C, and K1 Max. Requires rooting and community firmware (for Moonr
 
 See the **[Creality K1C Setup Guide](guide/creality-k1c-setup.md)** for complete instructions — covers rooting, firmware options, and HelixScreen installation.
 
+> **Note:** installing HelixScreen stops the stock Creality UI, and with it the backend Creality Print and the Creality Cloud app use — so those can no longer reach the printer. Fluidd, Mainsail, Moonraker uploads and HelixScreen's own file browser are unaffected. See [Troubleshooting](TROUBLESHOOTING.md#creality-k1-series-issues).
+
 **Quick version** (if you already have root + Moonraker running):
 
 ### One-Liner Install (Recommended)

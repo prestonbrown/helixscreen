@@ -17,6 +17,7 @@ Solutions to common problems with HelixScreen.
 - [Calibration Issues](#calibration-issues)
 - [Performance Issues](#performance-issues)
 - [Configuration Issues](#configuration-issues)
+- [Creality K1 Series Issues](#creality-k1-series-issues)
 - [Flashforge Adventurer 5M Issues](#flashforge-adventurer-5m-issues)
 - [Gathering Diagnostic Information](#gathering-diagnostic-information)
   - [Enabling Debug Logging](#enabling-debug-logging)
@@ -1761,6 +1762,40 @@ Auto-detection only commits to a model when it is confident enough. Below that b
 **After setup:** if the wrong model got saved, correct it from Printer Manager — tap the printer image on the Home Panel, then the **printer model** row underneath the printer name, and pick the right model. It applies immediately, with nothing wiped. On the next connect, HelixScreen may also flag the mismatch itself and offer **Choose Model** — see [Wrong printer model identified](#wrong-printer-model-identified) above for that flow.
 
 ---
+
+## Creality K1 Series Issues
+
+Covers the K1, K1C and K1 Max on stock or Guilouz Helper Script firmware.
+
+### Creality Print can no longer find or connect to the printer
+
+**Symptoms:**
+- Creality Print stops discovering the printer on the LAN, and typing its IP directly does not work either
+- The Creality Cloud app stops reaching the printer
+- Port 80 on the printer is closed
+- HelixScreen, Fluidd, Mainsail and Moonraker all work normally
+
+**Cause:**
+This is a deliberate trade-off, not a fault. HelixScreen and the stock Creality UI cannot share the framebuffer, so the installer stops the stock UI stack. On the K1 that stack is started by `/etc/init.d/S99start_app`, which also launches `master-server`, `app-server` and `web-server` — the backend Creality Print and the Creality Cloud app talk to. Stopping the stock UI takes those with it.
+
+**What still works for sending prints:**
+- Fluidd or Mainsail in a browser
+- HelixScreen's own file browser, including USB
+- Any slicer that can upload to Moonraker — OrcaSlicer, and PrusaSlicer with the Moonraker plugin
+- Creality Print can still *slice*; it just cannot upload to the printer over the network. Export the G-code and send it by one of the routes above.
+
+**Solution:**
+If you need the stock Creality network stack back, uninstall HelixScreen:
+
+```bash
+/usr/data/helixscreen/install.sh --uninstall
+```
+
+Uninstalling re-enables the services the installer disabled and restores the stock UI.
+
+> **Do not just run `chmod +x /etc/init.d/S99start_app`.** It appears to work until the next reboot. HelixScreen's own init script runs `platform_stop_competing_uis` on every start, which re-applies `chmod a-x` to that file — and `S99helixscreen` sorts before `S99start_app`, so it runs first. To restore the stock stack without uninstalling, stop and disable the HelixScreen service first, then re-enable `S99start_app`.
+
+Tracked as [#1447](https://github.com/prestonbrown/helixscreen/issues/1447); keeping the Creality backend alive alongside HelixScreen is [#1468](https://github.com/prestonbrown/helixscreen/issues/1468).
 
 ## Flashforge Adventurer 5M Issues
 
