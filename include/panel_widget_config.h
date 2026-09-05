@@ -171,6 +171,24 @@ class PanelWidgetConfig {
     /// and seat it on top of a neighbour looking deliberate.
     static std::vector<PanelWidgetEntry> build_default_grid(int grid_cols = 0, int grid_rows = 0);
 
+    /// True when @p panel_node places widgets but names no system for the
+    /// numbers it places them at.
+    ///
+    /// A saved layout is coordinates, and a coordinate means nothing on its
+    /// own. From config version 24 on, the node says which system it counts in:
+    /// `grid` names the track grid, `layout_units` marks pre-v22 cells. A node
+    /// holding `pages` with a placed widget and neither key is one that only a
+    /// build older than its own version stamp can produce — such a build
+    /// re-serializes the panel as `pages`/`main_page_index`/`next_page_id` and
+    /// nothing else, so every key naming the system is gone while the numbers
+    /// stay. Reading them as tracks seats each widget at a coordinate it never
+    /// meant, so load() rebuilds the panel from defaults instead.
+    ///
+    /// Static and pure so the three ways a layout stays legitimate — a named
+    /// grid, a cells tag, a version below 24 — are testable without a Config.
+    static bool has_uninterpretable_coordinates(const nlohmann::json& panel_node,
+                                                int config_version);
+
     /// True while this layout is the default set with its anchors not yet
     /// applied, because no grid had been measured when it was built.
     ///
