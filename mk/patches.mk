@@ -90,6 +90,13 @@ LIBHV_PATCHED_FILES := \
 	http/client/WebSocketClient.h \
 	http/client/WebSocketClient.cpp
 
+# The patched sources themselves, for use as build prerequisites. The stamp file
+# is per-worktree but lib/libhv is SHARED (scripts/setup-worktree.sh symlinks
+# lib/ into the main tree), so one tree applying a patch rewrites the sources
+# every other tree compiles against while leaving their stamps untouched. Only
+# the source mtimes cross that boundary.
+LIBHV_PATCHED_SRCS := $(wildcard $(addprefix $(LIBHV_DIR)/,$(LIBHV_PATCHED_FILES)))
+
 # ============================================================================
 # PATCH STAMP FILE - Skip checking if patches haven't changed
 # ============================================================================

@@ -25,6 +25,19 @@ StaticSubjectRegistry::~StaticSubjectRegistry() {
 }
 
 void StaticSubjectRegistry::register_deinit(const char* name, std::function<void()> deinit_fn) {
+    // Names identify a subject source, not a registration event. A source that is
+    // torn down and rebuilt (PrintStatusWidget's DetailedFormatter, when the last
+    // print-status widget leaves the dashboard and one is added back) re-registers
+    // under the same name, and appending would leave a stale callback closed over
+    // the previous instance to run alongside the live one. Drop the old entry and
+    // re-append, so the entry keeps the "last registered, first deinitialized"
+    // position deinit_all()'s reverse walk depends on.
+    auto it = std::find_if(deinitializers_.begin(), deinitializers_.end(),
+                           [name](const DeinitEntry& e) { return e.name == name; });
+    if (it != deinitializers_.end()) {
+        deinitializers_.erase(it);
+        spdlog::trace("[StaticSubjectRegistry] Replacing existing entry: {}", name);
+    }
     deinitializers_.push_back({name, std::move(deinit_fn)});
     spdlog::trace("[StaticSubjectRegistry] Registered: {} (total: {})", name,
                   deinitializers_.size());

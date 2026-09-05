@@ -36,9 +36,10 @@ class Citation:
 
 # A segment is either a double-quoted literal (backslash escapes allowed, so a
 # snippet may contain a quote or a slash) or a bare name. Bare names keep `::`
-# and `~` so a namespace-qualified or destructor anchor stays one segment.
-_BARE_SEGMENT_RE = re.compile(r"[A-Za-z_][\w:~.-]*")
-_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|([A-Za-z_][\w:~.-]*)')
+# and `~` so a namespace-qualified name stays one segment, and may open with
+# `~` because that is how a destructor is spelled.
+_BARE_SEGMENT_RE = re.compile(r"~?[A-Za-z_][\w:~.-]*")
+_SEGMENT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"|(~?[A-Za-z_][\w:~.-]*)')
 
 
 def parse_citation(text):
@@ -304,8 +305,14 @@ def _cpp_func_definition(lines, i):
         if brace == -1:
             continue
         between = blank[close + 1 : brace]
+        # `Foo::~Foo()` and `Foo::Foo()` differ only in the tilde, so a
+        # destructor that answered to the bare class name would resolve a
+        # citation meaning the constructor onto the destructor's line.
+        name = m.group(1)
+        if blank[:start].rstrip().endswith("~"):
+            name = "~" + name
         if _CPP_FUNC_QUALIFIER.fullmatch(between):
-            return m.group(1)
+            return name
         colon = _CPP_CTOR_INIT_COLON.search(between)
         if colon:
             qualifiers, init_list = between[: colon.start()], between[colon.end() :]
@@ -313,7 +320,7 @@ def _cpp_func_definition(lines, i):
                 _CPP_FUNC_QUALIFIER.fullmatch(qualifiers)
                 and init_list.count("(") == init_list.count(")")
             ):
-                return m.group(1)
+                return name
     return None
 
 
@@ -324,8 +331,14 @@ def _cpp_func_definition(lines, i):
 # rejects a line starting with a keyword outside _CPP_DECL_KEYWORDS the same
 # way: `return foo(bar);` and `friend class Foo;` both start with a keyword
 # that is not a declaration specifier.
+# The qualifier run after a member's parameter list (`const`, `noexcept`,
+# `override`, a trailing return type) is where a declaration ends; without it
+# `bool ready() const;` reads as unterminated and the member is not a name
+# anything can cite.
 _CPP_DECL = re.compile(
-    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?\s*(?:=[^;]+)?;"
+    r"^\s*[A-Za-z_][\w:<>,&*\s\[\]]*[\s*&]([A-Za-z_]\w*)\s*(?:\([^;]*\))?"
+    + _CPP_FUNC_QUALIFIER.pattern
+    + r"(?:=[^;]+)?;"
 )
 _CPP_DEFINE = re.compile(r"^#define\s+([A-Za-z_]\w*)")
 
@@ -370,7 +383,15 @@ def _match_cpp_define(text):
     return m.group(1) if m else None
 
 
+# A declaration may open with one or more C++ attributes. They sit where the
+# type token belongs, so `_CPP_DECL` reads `[[nodiscard]] bool ready() const;`
+# as having nothing before the name and rejects it - which hid every one of
+# the 1558 `[[nodiscard]]` members in this tree from being cited at all.
+_CPP_LEADING_ATTRS = re.compile(r"^\s*(?:\[\[[^\]]*\]\]\s*)+")
+
+
 def _match_cpp_decl(text):
+    text = _CPP_LEADING_ATTRS.sub("", text)
     if _cpp_leading_keyword_blocks_definition(text):
         return None
     m = _CPP_DECL.match(text)
@@ -788,7 +809,11 @@ def main(argv=None):
                         help="render docs with citations expanded to real line numbers")
     args = parser.parse_args(argv)
     if args.resolve:
-        citation = parse_citation(args.resolve)
+        try:
+            citation = parse_citation(args.resolve)
+        except ValueError as exc:
+            print(f"malformed citation {args.resolve!r}: {exc}", file=sys.stderr)
+            return 1
         try:
             line = resolve(args.resolve)
         except FileNotFoundError:
