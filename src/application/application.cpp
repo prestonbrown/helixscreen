@@ -4893,9 +4893,11 @@ void Application::tear_down_printer_state() {
     m_history_manager.reset();
     m_temp_history_manager.reset();
 
-    // 8. Unregister the method callbacks registered from on_discovery_complete.
-    //    The about overlay is destroyed by StaticPanelRegistry::destroy_all() below,
-    //    while the client outlives it until step 18.
+    // 8. Unregister the connection-scoped method callbacks. The about overlay dies in
+    //    StaticPanelRegistry::destroy_all() below and the AMS external-spool and layer
+    //    subjects in StaticSubjectRegistry::deinit_all(), while the client survives to
+    //    step 18. external_spool_sync additionally dereferences a raw IMoonrakerAPI*
+    //    that the manager owns, straight from the WebSocket thread.
     if (m_moonraker && m_moonraker->client()) {
         m_moonraker->client()->unregister_method_callback("notify_timelapse_event",
                                                           "timelapse_state");
@@ -4903,6 +4905,9 @@ void Application::tear_down_printer_state() {
                                                           "external_update_restart");
         m_moonraker->client()->unregister_method_callback("notify_history_changed",
                                                           "AboutOverlay_print_hours");
+        m_moonraker->client()->unregister_method_callback("notify_active_spool_set",
+                                                          "external_spool_sync");
+        m_moonraker->client()->unregister_method_callback("notify_gcode_response", "layer_tracker");
     }
 
     // 8b. Unsubscribe power device and sensor state
@@ -5213,12 +5218,19 @@ void Application::shutdown() {
     m_history_manager.reset();
     m_temp_history_manager.reset();
 
-    // Unregister the method callbacks registered from on_discovery_complete
+    // Unregister the connection-scoped method callbacks whose bodies reach panels or
+    // subjects: StaticPanelRegistry::destroy_all() and StaticSubjectRegistry::deinit_all()
+    // both run well before the client is released. external_update_restart is absent by
+    // design - it captures nothing and reaches only UpdateChecker statics and the
+    // filesystem, so it has no state here to outlive.
     if (m_moonraker && m_moonraker->client()) {
         m_moonraker->client()->unregister_method_callback("notify_timelapse_event",
                                                           "timelapse_state");
         m_moonraker->client()->unregister_method_callback("notify_history_changed",
                                                           "AboutOverlay_print_hours");
+        m_moonraker->client()->unregister_method_callback("notify_active_spool_set",
+                                                          "external_spool_sync");
+        m_moonraker->client()->unregister_method_callback("notify_gcode_response", "layer_tracker");
     }
 
     // Unsubscribe power device and sensor state
