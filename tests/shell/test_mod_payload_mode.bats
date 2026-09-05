@@ -33,6 +33,9 @@ setup() {
     # is driving - it dies cleanly mid-startup and that test fails for no reason
     # of its own.
     mock_command_script "killall" 'exit 0'
+    # clean_old_installation asks pidof whether the UI is still up. Unmocked
+    # that is a host-reaching lookup, and pidof does not exist off Linux.
+    mock_command_script "pidof" 'exit 1'
     # The flows below stop and start the app, and bats runs files in parallel,
     # so a sibling file may have a live instance up at the same time. Hold the
     # shared app lock so only one file owns an instance at a time.
