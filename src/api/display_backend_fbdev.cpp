@@ -361,6 +361,20 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
                                  "coordinates to display ({}x{}), forcing calibration",
                                  screen_width_, screen_height_);
                 } else if (!needs_calibration_ &&
+                           helix::has_transposed_abs_range(abs_x.maximum, abs_y.maximum,
+                                                           screen_width_, screen_height_)) {
+                    // The advertised range is the display's own dimensions with the
+                    // axes swapped, while the coordinates the driver emits span the
+                    // framebuffer the normal way round. Scaling by the advertised
+                    // range compresses one axis and clamps the other, and no affine
+                    // can un-clamp it, so scale by the display size and leave
+                    // rotation to LVGL. The HELIX_TOUCH_MIN_X/MAX_X/MIN_Y/MAX_Y
+                    // override below still replaces this when it is set.
+                    lv_evdev_set_calibration(touch_, 0, 0, screen_width_, screen_height_);
+                    spdlog::info("[Fbdev Backend] ABS range ({},{}) is the display ({}x{}) "
+                                 "transposed — scaling touch by the display size",
+                                 abs_x.maximum, abs_y.maximum, screen_width_, screen_height_);
+                } else if (!needs_calibration_ &&
                            helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
                                                            screen_width_, screen_height_)) {
                     // Detect capacitive panels reporting a different resolution than the

@@ -847,3 +847,58 @@ TEST_CASE("commit_calibration_result: a null sink still persists the affine-only
     }
     reset_stored_calibration_keys();
 }
+
+// ============================================================================
+// A driver whose advertised ABS range is the display transposed
+// ============================================================================
+
+// The FlashForge Creator 5's Goodix controller advertises ABS_MT_POSITION_X/Y as
+// 800x480 while the framebuffer is 480x800 portrait, and emits coordinates that
+// span the framebuffer the normal way round. The advertised range is the display's
+// own dimensions with the axes swapped, so it is not a resolution mismatch the
+// wizard can fit an affine to — it is a range that is simply the wrong way up.
+TEST_CASE("A transposed declared ABS range is scaled by the display size instead",
+          "[touch][touch-calibration][range-fit][abs-transposed]") {
+    constexpr int W = 480;
+    constexpr int H = 800;
+    constexpr int DECLARED_MAX_X = 800;
+    constexpr int DECLARED_MAX_Y = 480;
+    // What the digitizer actually emits.
+    constexpr int RAW_MAX_X = 480;
+    constexpr int RAW_MAX_Y = 800;
+
+    REQUIRE(has_transposed_abs_range(DECLARED_MAX_X, DECLARED_MAX_Y, W, H));
+
+    SECTION("scaling by the advertised range loses reach on X and flattens Y") {
+        auto declared = [](int rx, int ry) {
+            return Point{evdev_calibrate(rx, 0, DECLARED_MAX_X, 0, W - 1),
+                         evdev_calibrate(ry, 0, DECLARED_MAX_Y, 0, H - 1)};
+        };
+
+        // The far corner lands 40% short across X.
+        CHECK(declared(RAW_MAX_X, RAW_MAX_Y).x == 287);
+        // Every raw Y at or past the advertised maximum clamps onto the bottom edge,
+        // so the lower 40% of the panel collapses to one row.
+        CHECK(declared(RAW_MAX_X, DECLARED_MAX_Y).y == H - 1);
+        CHECK(declared(RAW_MAX_X, RAW_MAX_Y).y == H - 1);
+        // A touch at the centre of the panel reports up and to the left of it.
+        CHECK(declared(RAW_MAX_X / 2, RAW_MAX_Y / 2).x == 143);
+        CHECK(declared(RAW_MAX_X / 2, RAW_MAX_Y / 2).y == 665);
+    }
+
+    SECTION("scaling by the display size maps the panel corner to corner") {
+        // The calibration the backend applies: lv_evdev_set_calibration(touch_, 0, 0,
+        // screen_width_, screen_height_).
+        auto by_display = [](int rx, int ry) {
+            return Point{evdev_calibrate(rx, 0, W, 0, W - 1),
+                         evdev_calibrate(ry, 0, H, 0, H - 1)};
+        };
+
+        CHECK(by_display(0, 0).x == 0);
+        CHECK(by_display(0, 0).y == 0);
+        CHECK(by_display(RAW_MAX_X, RAW_MAX_Y).x == W - 1);
+        CHECK(by_display(RAW_MAX_X, RAW_MAX_Y).y == H - 1);
+        CHECK(by_display(RAW_MAX_X / 2, RAW_MAX_Y / 2).x == 239);
+        CHECK(by_display(RAW_MAX_X / 2, RAW_MAX_Y / 2).y == 399);
+    }
+}
