@@ -39,6 +39,12 @@ class JobQueueState {
     /// Fetch queue status from API, update subjects
     void fetch();
 
+    /// Whether any load has completed. The connection-staleness watcher's
+    /// question - see observe_connection_staleness().
+    bool has_cached_data() const {
+        return is_loaded_;
+    }
+
     /// Check if data has been loaded
     bool is_loaded() const {
         return is_loaded_;

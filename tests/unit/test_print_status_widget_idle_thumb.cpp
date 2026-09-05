@@ -325,8 +325,8 @@ class PrintStatusIdleThumbHistoryFixture : public PrintStatusIdleThumbFixture {
         client_.connect("ws://mock/websocket", []() {}, []() {});
         api_ = std::make_unique<MoonrakerAPI>(client_, get_printer_state());
         history_ = std::make_unique<PrintHistoryManager>(api_.get(), &client_);
-        history_->fetch();
-        wait_until([this]() { return history_->is_loaded(); }, 3000);
+        history_->fetch(HistoryScope::COMPLETE);
+        wait_until([this]() { return history_->is_loaded(HistoryScope::RECENT); }, 3000);
         set_print_history_manager(history_.get());
         set_moonraker_api(nullptr);
     }

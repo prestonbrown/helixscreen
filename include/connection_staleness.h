@@ -33,7 +33,7 @@ namespace helix {
  * looking at. The @p Cache's invalidate() must leave cached data in place, so a
  * mid-outage reader still renders the last known list instead of blanking.
  *
- * @tparam Cache Must expose `bool is_loaded() const` and `void invalidate()`.
+ * @tparam Cache Must expose `bool has_cached_data() const` and `void invalidate()`.
  * @param state PrinterState whose connection subject to watch.
  * @param cache Cache to mark stale; must outlive the returned guard.
  * @param tag   Log tag, e.g. "HistoryManager".
@@ -47,8 +47,9 @@ template <typename Cache>
         [tag](Cache* self, int conn_state) {
             // No previous-state tracking: marking stale is idempotent, so
             // re-firing on CONNECTING or RECONNECTING costs nothing and is
-            // still true. The is_loaded() half only keeps the log quiet.
-            if (conn_state == static_cast<int>(ConnectionState::CONNECTED) || !self->is_loaded()) {
+            // still true. The has_cached_data() half only keeps the log quiet.
+            if (conn_state == static_cast<int>(ConnectionState::CONNECTED) ||
+                !self->has_cached_data()) {
                 return;
             }
             spdlog::debug("[{}] Connection down, marking cache stale", tag);

@@ -434,3 +434,49 @@ TEST_CASE("safe_size_t rejects negatives rather than wrapping", "[json_utils]") 
     j["v"] = "-1";
     CHECK(ju::safe_size_t(j, "v", 5u) == static_cast<std::size_t>(5));
 }
+
+// ============================================================================
+// Notification payload
+// ============================================================================
+// A method callback is handed the whole JSON-RPC message, and Moonraker wraps a
+// notification's payload in a single-element params array. Three subscribers
+// walk down to it, so the walk is one function.
+
+TEST_CASE("notification_payload finds the object inside params", "[json_utils][notification]") {
+    const nlohmann::json msg = {
+        {"jsonrpc", "2.0"},
+        {"method", "notify_history_changed"},
+        {"params", nlohmann::json::array({nlohmann::json{{"action", "finished"}}})}};
+
+    const nlohmann::json* payload = helix::json_util::notification_payload(msg);
+    REQUIRE(payload != nullptr);
+    CHECK(helix::json_util::safe_string(*payload, "action") == "finished");
+    CHECK(helix::json_util::notification_action(msg) == "finished");
+}
+
+TEST_CASE("notification_payload rejects frames shaped any other way",
+          "[json_utils][notification]") {
+    using helix::json_util::notification_action;
+    using helix::json_util::notification_payload;
+
+    // No params at all.
+    CHECK(notification_payload(nlohmann::json{{"method", "notify_history_changed"}}) == nullptr);
+    // params present but empty - Moonraker sends this for parameterless events.
+    CHECK(notification_payload(nlohmann::json{{"params", nlohmann::json::array()}}) == nullptr);
+    // params is an object rather than the array a notification uses.
+    CHECK(notification_payload(nlohmann::json{{"params", {{"action", "finished"}}}}) == nullptr);
+    // params[0] is a scalar, so there are no fields to read.
+    CHECK(notification_payload(nlohmann::json{{"params", nlohmann::json::array({7})}}) == nullptr);
+
+    // An unreadable frame reports no action rather than throwing, which is what
+    // lets a caller treat "not the action I want" and "not a frame I understand"
+    // the same way.
+    CHECK(notification_action(nlohmann::json{{"method", "x"}}).empty());
+    // A payload with no action field, and one whose action is JSON null.
+    CHECK(notification_action(nlohmann::json{
+              {"params", nlohmann::json::array({nlohmann::json{{"job", nlohmann::json::object()}}})}})
+              .empty());
+    CHECK(notification_action(nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{
+                                                  {"action", nullptr}}})}})
+              .empty());
+}

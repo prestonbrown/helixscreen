@@ -39,6 +39,16 @@ static char s_last_print_buf[64] = "";
 
 static bool s_subjects_initialized = false;
 
+/// Start of the weekly window. One spelling, because the cache is asked to
+/// cover this window and the numbers are then aggregated over it - a
+/// disagreement between those two would read as a silent undercount.
+static double week_ago_timestamp() {
+    const auto now = std::chrono::system_clock::now();
+    return static_cast<double>(std::chrono::duration_cast<std::chrono::seconds>(
+                                   (now - std::chrono::hours(24 * 7)).time_since_epoch())
+                                   .count());
+}
+
 static void print_stats_init_subjects() {
     if (s_subjects_initialized)
         return;
@@ -163,26 +173,29 @@ void PrintStatsWidget::on_activate() {
     if (!hm)
         return;
 
-    if (hm->is_loaded()) {
+    if (hm->is_loaded(helix::HistoryScope::RECENT)) {
         update_stats();
-    } else {
-        // Defer the load to next tick so it runs outside any ScopedFreeze.
-        // ensure_loaded(), not fetch(): fetch() means "the cached list is
-        // wrong", so asking it for a populate while a request is already out
-        // queues a second identical one.
-        auto token = lifetime_.token();
-        lv_async_call(
-            [](void* ctx) {
-                auto token_ptr = static_cast<helix::LifetimeToken*>(ctx);
-                if (!token_ptr->expired()) {
-                    if (auto* history = get_print_history_manager()) {
-                        history->ensure_loaded();
-                    }
-                }
-                delete token_ptr;
-            },
-            new helix::LifetimeToken(token));
     }
+
+    // The "N/wk" row is computed on every update, in both view modes, so the
+    // cache has to reach a week back whether or not it is already populated -
+    // a startup slice that stops short of that undercounts on a busy printer.
+    // Deferred to next tick so it runs outside any ScopedFreeze.
+    // ensure_covers_since(), not fetch(): fetch() means "the cached list is
+    // wrong", so asking it for a populate while a request is already out
+    // queues a second identical one.
+    auto token = lifetime_.token();
+    lv_async_call(
+        [](void* ctx) {
+            auto token_ptr = static_cast<helix::LifetimeToken*>(ctx);
+            if (!token_ptr->expired()) {
+                if (auto* history = get_print_history_manager()) {
+                    history->ensure_covers_since(week_ago_timestamp());
+                }
+            }
+            delete token_ptr;
+        },
+        new helix::LifetimeToken(token));
 }
 
 void PrintStatsWidget::detach() {
@@ -276,19 +289,16 @@ void PrintStatsWidget::update_stats() {
     // Determine which jobs to aggregate
     std::vector<PrintHistoryJob> filtered_jobs;
     if (weekly_mode) {
-        auto now = std::chrono::system_clock::now();
-        auto week_ago = std::chrono::duration_cast<std::chrono::seconds>(
-                            (now - std::chrono::hours(24 * 7)).time_since_epoch())
-                            .count();
-        filtered_jobs = hm->get_jobs_since(static_cast<double>(week_ago));
+        filtered_jobs = hm->get_jobs_since(week_ago_timestamp());
     }
 
     const auto& source = weekly_mode ? filtered_jobs : jobs;
 
     // Compute totals from the cached jobs. For the lifetime view this is only
-    // the fallback: the cache is capped at PrintHistoryManager::fetch()'s limit,
-    // so on a printer with a longer history it undercounts both prints and time
-    // (#1272). Server-computed totals replace it below as soon as they arrive.
+    // the fallback: the cache holds at most one page of history, and this
+    // widget asks for the startup slice, so on a printer with a longer history
+    // it undercounts both prints and time (#1272). Server-computed totals
+    // replace it below as soon as they arrive.
     uint64_t total_jobs = source.size();
     uint64_t total_time_secs = 0;
     size_t completed_count = 0;
@@ -342,12 +352,7 @@ void PrintStatsWidget::update_stats() {
     lv_subject_copy_string(&s_success_rate, s_success_rate_buf);
 
     // Weekly count (always computed for compact/activity row)
-    auto now = std::chrono::system_clock::now();
-    auto week_ago_ts = std::chrono::duration_cast<std::chrono::seconds>(
-                           (now - std::chrono::hours(24 * 7)).time_since_epoch())
-                           .count();
-    auto recent =
-        weekly_mode ? filtered_jobs : hm->get_jobs_since(static_cast<double>(week_ago_ts));
+    auto recent = weekly_mode ? filtered_jobs : hm->get_jobs_since(week_ago_timestamp());
     std::snprintf(s_weekly_buf, sizeof(s_weekly_buf), "%zu/wk", recent.size());
     lv_subject_copy_string(&s_weekly, s_weekly_buf);
 
