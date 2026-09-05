@@ -128,6 +128,10 @@ jobs:
     #
     # A SURVIVED hunk fails the job. That means no test in the scoped filter
     # detects that change, whatever test files the diff also touched.
+    #
+    # An INCOMPLETE run fails it too (exit 3): the gate answers CLEAN only when
+    # it examined the whole change, so a diff carrying paths it cannot mutate --
+    # or a run narrowed by `limit` -- is reported rather than passed.
     - name: Revert each hunk and look for red
       timeout-minutes: 330
       run: |

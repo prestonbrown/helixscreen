@@ -165,13 +165,40 @@ increasing cost, and only the last is an oracle:
 | `make test-order-dependence` | minutes | tests that pass only because of what ran before them |
 | `make mutate-diff` | ~2-4 min per hunk | **changed lines no test detects** |
 
-`make mutate-diff` reverts each changed hunk in turn, rebuilds, and runs the
-suite. A hunk that survives reversion is a change no test detects, whatever the
-diff's test files claim. It is the only tool here that sees the adjacent-invariant
-failure, so scope it (`MUTATE_ARGS="--limit 5"`, or `--tests "[ams]"`) rather
-than skipping it. Verdicts are `killed`, `SURVIVED`, and `uncompilable` -- the
-last is never counted as a kill, because a compiler error proves the code is
-load-bearing for the build, not that anything tests its behaviour.
+`make mutate-diff` reverts each changed hunk in turn, refreshes whatever the
+suite reads, and runs it. A hunk that survives reversion is a change no test
+detects, whatever the diff's test files claim. It is the only tool here that sees
+the adjacent-invariant failure, so scope it (`MUTATE_ARGS="--limit 5"`, or
+`--tests "[ams]"`) rather than skipping it.
+
+Four outcomes, and they are not interchangeable:
+
+| Verdict | Means |
+|---------|-------|
+| `killed` | a test detects the change — the outcome you want |
+| `SURVIVED` | the mutant ran and the suite stayed green: NO test detects it |
+| `uncompilable` / `unreversible` | a mutant was attempted but no test ever judged it. Never a kill: a compiler error proves the code is load-bearing for the build, not that anything tests its behaviour |
+| `NOT COVERED` | nothing here can mutate that file, so the gate did not look at it |
+
+The run answers `CLEAN` only when every changed hunk was mutated and every mutant
+died. Anything short of that is `INCOMPLETE` (exit 3) and names the paths it did
+not examine, because a clean answer about a file the tool never opened is
+precisely what a commit body would go on to cite as proof.
+
+What it mutates, and what pays for what:
+
+| Path | Refresh per mutant | Suite |
+|------|--------------------|-------|
+| `src/`, `include/` | `make test-build` | `helix-tests` |
+| `ui_xml/*.xml`, `assets/config/*.json` | none — the binary reads these off the tree at run time | `helix-tests` |
+| `scripts/*.py`, `scripts/*.sh` | none | `bats tests/shell` + `pytest tests/python` |
+
+Everything else is `NOT COVERED`, with the reason printed. Two are worth knowing:
+`tests/` itself, because a test is proven by mutating the code it pins rather
+than by reverting itself; and anything under `lib/`, because a superproject diff
+carries only a submodule's pointer and never its content. Clear one by mutating
+it by hand and naming the result in the commit body, or accept it with
+`--allow-incomplete`.
 
 `make cov-diff` is the cheap screen: a changed line the suite never runs cannot
 be tested, and finding that costs one run instead of one build per hunk. The
