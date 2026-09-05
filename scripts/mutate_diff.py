@@ -526,9 +526,16 @@ class Suites:
         # import failure as a red baseline.
         venv = root / '.venv' / 'bin' / 'python3'
         self.python = str(venv) if venv.is_file() else 'python3'
+        self._pytest_gap = None
 
     def missing(self, name):
-        """Why this suite cannot run here, or '' when it can."""
+        """Why this suite cannot run here, or '' when it can.
+
+        Each check asks after the runner the way `run()` will invoke it. `bats`
+        is executed as itself, so finding it on PATH is the whole question;
+        pytest is executed as a module of an interpreter, so an interpreter
+        existing answers nothing about it.
+        """
         if name == 'catch2':
             # The baseline build produces the binary, and a build that cannot
             # run stops the whole run at exit 2 with the build log.
@@ -538,10 +545,27 @@ class Suites:
                 return 'bats is not installed'
             return '' if (self.root / self.args.shell_tests).exists() else f'no {self.args.shell_tests}'
         if name == 'pytest':
-            if self.python == 'python3' and not shutil.which('python3'):
-                return 'python3 is not installed'
+            gap = self._pytest_gap_reason()
+            if gap:
+                return gap
             return '' if (self.root / self.args.python_tests).exists() else f'no {self.args.python_tests}'
         return f'unknown suite {name}'
+
+    def _pytest_gap_reason(self):
+        """'' when `<python> -m pytest` can actually start, else why it cannot.
+
+        An interpreter without pytest installed fails at import, which the run
+        would otherwise read as a RED BASELINE and blame on the change. The
+        answer cannot move during a run, so the probe is taken once.
+        """
+        if self._pytest_gap is None:
+            if self.python == 'python3' and not shutil.which('python3'):
+                self._pytest_gap = 'python3 is not installed'
+            elif run([self.python, '-c', 'import pytest'], cwd=self.root).returncode != 0:
+                self._pytest_gap = f'pytest is not importable by {self.python}'
+            else:
+                self._pytest_gap = ''
+        return self._pytest_gap
 
     def run(self, name):
         if name == 'catch2':
