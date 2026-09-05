@@ -19,7 +19,7 @@ Compile database
 ----------------
 Commands come from the build's own emitted compile-command fragments
 (``build/obj/**/*.ccj``, written by ``emit-compile-command`` in ``mk/rules.mk``)
-unioned with ``compile_commands.json``, fragments winning on conflict.
+unioned with ``compile_commands.json``.
 
 Reading both is not belt-and-braces, it is required. ``compile_commands.json`` is
 regenerated from the fragments only at certain build steps, so it lags: at the time
@@ -27,6 +27,26 @@ this script was written the tree had 2265 fragments but 1303 entries in the JSON
 and *none* of the 972 test TUs were in the JSON. ``tests/unit/test_json_utils.cpp``
 -- the TU that actually broke CI -- was one of the missing ones. A checker driven by
 ``compile_commands.json`` alone could not have caught the bug it exists to catch.
+
+Trusting a command
+------------------
+Several entries usually describe one source file - one per object tree, plus whatever
+``compile_commands.json`` last recorded - and they need not agree. The choice between
+them (freshest wins, orphans dropped) lives in ``scripts/merge_compile_commands.py``,
+so this gate and an editor's index resolve a file the same way.
+
+Even the freshest can be out of date. A fragment is rewritten only when its object is,
+and make rebuilds an object when a prerequisite is newer, not when the command line
+changes - so a version bump or a new ``-DHELIX_HAS_*`` leaves untouched trees frozen at
+older flags. Replaying one of those produces diagnostics about the *command*: a type
+behind a feature macro the entry never received reads as ``unknown type name``, six or
+eight times, indistinguishable in shape from a real clang finding.
+
+Those two cases must not collapse into one verdict, so trust is decided before clang
+runs and from the entry alone, never from what clang said. An entry stamped with a
+version other than ``VERSION.txt``'s was recorded by a different build; it is skipped
+with a note, exactly as an entry that does not exist already is. Only a command that
+describes today's build gets to fail the gate, and then the failure is about the code.
 
 Argument handling: entries carry either an ``arguments`` array or a ``command``
 string. A command string is split with ``shlex.split`` and never handed to a shell.
@@ -89,6 +109,15 @@ import subprocess
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
+from merge_compile_commands import (  # noqa: E402
+    current_version,
+    entry_source_path,
+    is_stale,
+    recorded_version,
+    select_freshest,
+)
 
 # C++ translation units only. The tree's .c files are generated LVGL font
 # data under assets/fonts/ (compiled -std=c11); replaying their commands
@@ -236,51 +265,57 @@ def entry_args(entry: dict) -> list[str]:
 
 
 def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:
-    """file realpath -> entry, from .ccj fragments unioned over compile_commands.json."""
-    db: dict[str, dict] = {}
+    """file realpath -> the entry describing how that file is built today.
 
-    def absorb(entry: dict) -> None:
-        f = entry.get("file")
-        if not f:
-            return
-        directory = entry.get("directory", root)
-        path = f if os.path.isabs(f) else os.path.join(directory, f)
-        db[os.path.realpath(path)] = entry
+    Both sources are read, then ranked together rather than layered: an entry
+    stamped with the tree's current version beats one that is not, whichever file
+    it came from, which is what rescues a TU whose newest fragment lives in an
+    object tree nobody has rebuilt. ``_mtime`` breaks the remaining ties, and the
+    JSON's entries carry none - so at equal version a fragment still wins, being
+    per-TU and written at compile time.
+
+    frag_root redirects the fragment glob to a caller-supplied directory: the
+    meta-test builds a throwaway database there so its fixtures can never leak
+    into (or depend on) this tree's build/obj - a leftover fixture under build/obj
+    would be unioned into every real --all audit until something cleaned it up.
+    """
+    entries: list[dict] = []
 
     cc_json = os.path.join(root, "compile_commands.json")
     if frag_root is None and os.path.exists(cc_json):
         try:
             with open(cc_json) as fh:
-                for entry in json.load(fh):
-                    absorb(entry)
+                entries.extend(e for e in json.load(fh) if isinstance(e, dict))
         except (OSError, ValueError):
             pass
 
-    # Fragments last: they are per-TU and written at compile time, so they are
-    # never staler than the aggregated JSON. frag_root redirects the fragment
-    # glob to a caller-supplied directory: the meta-test builds a throwaway
-    # database there so its fixtures can never leak into (or depend on) this
-    # tree's build/obj - a leftover fixture under build/obj would be unioned
-    # into every real --all audit until something cleaned it up.
     frag_dir = frag_root if frag_root else os.path.join(root, "build", "obj")
     for frag in glob.glob(os.path.join(frag_dir, "**", "*.ccj"), recursive=True):
         try:
             with open(frag) as fh:
-                absorb(json.load(fh))
+                entry = json.load(fh)
+            if not isinstance(entry, dict):
+                continue
+            entry["_mtime"] = os.path.getmtime(frag)
         except (OSError, ValueError):
             continue
+        entries.append(entry)
 
-    return db
+    return select_freshest(entries, current_version(root), root)
 
 
-def build_header_map(root: str) -> dict[str, set[str]]:
+def build_header_map(root: str, dep_root: str | None = None) -> dict[str, set[str]]:
     """header realpath -> set of TU realpaths, from the build's -MMD .d files.
 
     Exact and transitive: these list what the compiler actually opened. Note -MMD
     omits system headers, which is what we want -- we only resolve project headers.
+
+    dep_root redirects the glob the same way the fragment glob is redirected, so a
+    test can pin the header fan-out against its own dependency files.
     """
     mapping: dict[str, set[str]] = {}
-    for dep in glob.glob(os.path.join(root, "build", "obj", "**", "*.d"), recursive=True):
+    dep_dir = dep_root if dep_root else os.path.join(root, "build", "obj")
+    for dep in glob.glob(os.path.join(dep_dir, "**", "*.d"), recursive=True):
         try:
             with open(dep) as fh:
                 text = fh.read()
@@ -434,8 +469,41 @@ def changed_files(root: str) -> list[str]:
     return sorted(set(files))
 
 
-def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
-    """Returns (entries to check, notes to print)."""
+def partition_by_trust(selected: dict[str, dict], root: str) -> tuple[list[dict], list[dict]]:
+    """Split chosen entries into (checkable, untrusted).
+
+    Untrusted means the entry's own version stamp says a different build recorded
+    it, so its flags may not describe how the file compiles now. Decided here,
+    before clang runs, so that no verdict ever has to be judged for plausibility
+    after the fact.
+    """
+    current = current_version(root)
+    trusted, untrusted = [], []
+    for entry in sorted(selected.values(), key=lambda e: e.get("file", "")):
+        (untrusted if is_stale(entry, current) else trusted).append(entry)
+    return trusted, untrusted
+
+
+def describe_untrusted(untrusted: list[dict], root: str) -> list[str]:
+    """Notes naming what was skipped and why, at a length worth reading."""
+    if not untrusted:
+        return []
+    current = current_version(root) or "?"
+    versions = sorted({recorded_version(e) or "?" for e in untrusted})
+    head = (f"{len(untrusted)} TU(s) have a stale compile command "
+            f"(recorded at {', '.join(versions)}; tree is {current}) -- not checked. "
+            "Rebuild to refresh: make -j && make test")
+    notes = [head]
+    for entry in untrusted[:3]:
+        rel = os.path.relpath(os.path.realpath(entry_source_path(entry, root)), root)
+        notes.append(f"  stale compile command: {rel} (recorded at {recorded_version(entry)})")
+    if len(untrusted) > 3:
+        notes.append(f"  ... and {len(untrusted) - 3} more")
+    return notes
+
+
+def select_entries(args, db, root) -> tuple[list[dict], list[dict], list[str]]:
+    """Returns (entries to check, entries skipped as untrusted, notes to print)."""
     notes: list[str] = []
 
     if args.all:
@@ -443,13 +511,14 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
         # or every .c in the compile database (generated fonts, the expat
         # sources inside lib/helix-xml) gets its -std=c11 command line replayed
         # through clang++ - the exact misclassification the filter exists for.
-        return sorted((e for e in db.values()
-                       if str(e.get("file", "")).endswith(TU_EXTENSIONS)),
-                      key=lambda e: e.get("file", "")), notes
+        every = {k: e for k, e in db.items()
+                 if str(e.get("file", "")).endswith(TU_EXTENSIONS)}
+        trusted, untrusted = partition_by_trust(every, root)
+        return trusted, untrusted, notes
 
     paths = args.files or changed_files(root)
     if not paths:
-        return [], notes
+        return [], [], notes
 
     tus: list[str] = []
     headers: list[str] = []
@@ -460,7 +529,9 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
         elif p.endswith(HEADER_EXTENSIONS):
             headers.append(full)
 
+    current = current_version(root)
     selected: dict[str, dict] = {}
+    skipped: dict[str, dict] = {}
     for t in tus:
         if t in db:
             selected[t] = db[t]
@@ -468,7 +539,7 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
             notes.append(f"no compile command for {os.path.relpath(t, root)} (never built?)")
 
     if headers:
-        hmap = build_header_map(root)
+        hmap = build_header_map(root, args.compile_db_dir)
         if not hmap:
             notes.append(
                 f"{len(headers)} header(s) changed but no .d files under build/obj -- "
@@ -479,7 +550,13 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
             if not dependents:
                 notes.append(f"no known dependents for {os.path.relpath(h, root)}")
                 continue
-            usable = [d for d in dependents if d in db]
+            # Trust decides membership before the fan-out cap does, or a widely
+            # included header spends its whole budget on TUs that get skipped and
+            # the ones it could have checked never make the list.
+            usable = [d for d in dependents if d in db and not is_stale(db[d], current)]
+            for d in dependents:
+                if d in db and is_stale(db[d], current):
+                    skipped.setdefault(d, db[d])
             if len(usable) > args.max_header_tus:
                 notes.append(
                     f"{os.path.relpath(h, root)}: {len(usable)} dependent TUs, "
@@ -489,7 +566,12 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
             for d in usable:
                 selected.setdefault(d, db[d])
 
-    return sorted(selected.values(), key=lambda e: e.get("file", "")), notes
+    trusted, untrusted = partition_by_trust(selected, root)
+    for key, entry in skipped.items():
+        if key not in selected:
+            untrusted.append(entry)
+    untrusted.sort(key=lambda e: e.get("file", ""))
+    return trusted, untrusted, notes
 
 
 # --------------------------------------------------------------------------------
@@ -508,8 +590,9 @@ def main() -> int:
     ap.add_argument("--max-report", type=int, default=5, help="how many failing TUs to print in full")
     ap.add_argument("--warnings", action="store_true", help="also print clang warnings (never fatal)")
     ap.add_argument("--compile-db-dir", default=None, metavar="DIR",
-                    help="read *.ccj compile-command fragments from DIR instead of "
-                         "build/obj, and skip compile_commands.json (test isolation)")
+                    help="read *.ccj fragments and *.d dependency files from DIR "
+                         "instead of build/obj, and skip compile_commands.json "
+                         "(test isolation)")
     args = ap.parse_args()
 
     root = REPO_ROOT
@@ -524,12 +607,14 @@ def main() -> int:
         print("SKIP: clang syntax check -- no compile database (build the tree first)")
         return 0
 
-    entries, notes = select_entries(args, db, root)
-    for n in notes:
+    entries, untrusted, notes = select_entries(args, db, root)
+    for n in notes + describe_untrusted(untrusted, root):
         print(f"  note: {n}")
 
+    skipped_note = f", {len(untrusted)} skipped (stale compile command)" if untrusted else ""
+
     if not entries:
-        print("clang syntax check: no translation units to check")
+        print(f"clang syntax check: no translation units to check{skipped_note}")
         return 0
 
     print(f"clang syntax check: {len(entries)} TU(s) via {desc} (-j{args.jobs})")
@@ -549,10 +634,14 @@ def main() -> int:
             for w in r["warnings"][:5]:
                 print(f"    {w}")
 
+    # quality-checks.sh prints only this line when the gate passes, so the skip
+    # count has to ride on it or a run that checked almost nothing reads as a
+    # clean bill of health.
     print(
         f"\nchecked {len(results)} TU(s): "
         f"{len(results) - len(failed)} clean, {len(failed)} with errors, "
         f"{len(warned)} with warnings (not fatal)"
+        f"{skipped_note}"
     )
 
     if not failed:

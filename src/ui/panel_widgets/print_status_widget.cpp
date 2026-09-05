@@ -377,7 +377,7 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         // is served by whatever response is already in flight, while fetch()
         // would read this ask as an invalidation and queue a second identical
         // request.
-        hm->ensure_loaded();
+        hm->ensure_loaded(HistoryScope::RECENT);
     }
 
     // Observe connection state to fetch history once connected (widget may
@@ -387,7 +387,7 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         [](PrintStatusWidget* /*self*/, int state) {
             if (state == static_cast<int>(ConnectionState::CONNECTED)) {
                 if (auto* hm = get_print_history_manager()) {
-                    hm->ensure_loaded();
+                    hm->ensure_loaded(HistoryScope::RECENT);
                 }
             }
         },
@@ -699,7 +699,7 @@ void PrintStatusWidget::handle_library_last() {
     }
 
     auto* history = get_print_history_manager();
-    if (!history || !history->is_loaded()) {
+    if (!history || !history->is_loaded(HistoryScope::RECENT)) {
         spdlog::info("[PrintStatusWidget] Library: Print Last - no history available");
         return;
     }
@@ -2144,7 +2144,7 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         // ensure_loaded(), not fetch(): the response already in flight serves
         // this caller through the observer above, and fetch() would read the
         // ask as an invalidation and queue a second identical request.
-        hm->ensure_loaded();
+        hm->ensure_loaded(HistoryScope::RECENT);
     }
     update_idle_fields();
 

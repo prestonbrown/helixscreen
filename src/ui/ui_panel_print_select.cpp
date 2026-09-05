@@ -1870,6 +1870,14 @@ void PrintSelectPanel::on_activate() {
         }
     }
 
+    // The per-file badges aggregate every job the printer has ever run, so this
+    // is the one consumer that needs the whole list. ensure_loaded(), not
+    // fetch(): fetch() means "the cached list is wrong", so calling it while a
+    // request is already out queues a second identical one.
+    if (auto* history_manager = get_print_history_manager()) {
+        history_manager->ensure_loaded(HistoryScope::COMPLETE);
+    }
+
     // On first activation: skip refresh if files already loaded (connection observer did it)
     // On subsequent activations: refresh to pick up external changes
     bool is_usb_active = usb_source_ && usb_source_->is_usb_active();
@@ -2382,10 +2390,12 @@ void PrintSelectPanel::merge_history_into_file_list() {
         return;
     }
 
-    // Populate the cache if nobody has yet. ensure_loaded(), not fetch():
-    // fetch() means "the cached list is wrong", so calling it while a request
-    // is already out queues a second identical one.
-    history_manager->ensure_loaded();
+    // No load is triggered here. This runs from the file-list refresh, which
+    // fires at startup and every five seconds whether or not the panel is on
+    // screen, and the whole-history load these badges need is the most
+    // expensive request the app makes. on_activate() asks for it; until it
+    // lands the merge simply finds no stats, and the history observer
+    // re-merges when it does.
 
     // Get currently printing filename (if any)
     std::string current_print_filename;

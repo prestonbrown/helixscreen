@@ -436,3 +436,35 @@ helix_app_lock_release() {
     HELIX_APP_LOCK_HELD=""
     return 0
 }
+
+# A SUDO stand-in that runs everything for real except an rm outside $1.
+#
+# clean_old_installation rm -f's real /etc paths (polkit and udev rules) that a
+# test user cannot touch and that no test here asserts on. Letting those through
+# fails the run on permissions; dropping every rm would also drop the sandbox
+# writes the tests do assert on. So an rm whose arguments name a path under the
+# given root runs, any other rm is a no-op, and everything else runs.
+#
+# The dispatch is `exec "$@"`, never `exec rm "$@"`: the incoming argv already
+# begins with rm, so naming it again passes rm its own name as the first
+# operand. GNU rm permutes options that follow an operand and -f suppresses the
+# nonexistent one, which hides the duplicate on Linux; BSD rm stops option
+# parsing at the first operand, so -rf is read as a filename and the directory
+# survives.
+install_sudo_rm_shim() {
+    local root="$1"
+    local shim="$BATS_TEST_TMPDIR/sudo-rm-neutral"
+    cat > "$shim" <<SHIM
+#!/bin/sh
+if [ "\$1" = "rm" ]; then
+    case " \$* " in
+        *"$root"/*) exec "\$@" ;;
+        *) exit 0 ;;
+    esac
+fi
+exec "\$@"
+SHIM
+    chmod +x "$shim"
+    SUDO="$shim"
+    export SUDO
+}

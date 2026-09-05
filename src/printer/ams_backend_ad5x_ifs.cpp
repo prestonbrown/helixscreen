@@ -404,7 +404,7 @@ void AmsBackendAd5xIfs::on_started() {
                                                  "macro not found — clearing has_ifs_vars_ "
                                                  "(tool-mapping from save_variables disabled)",
                                                  backend_log_tag(), var_prefix_);
-                                    has_ifs_vars_ = false;
+                                    demote_ifs_vars_locked();
                                 }
                             }
 
@@ -871,14 +871,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
                          "— stale data from a deactivated plugin; falling back to default "
                          "1:1 tool mapping",
                          backend_log_tag());
-            tool_map_.fill(UNMAPPED_PORT);
-            for (int t = 0; t < NUM_PORTS; ++t) {
-                tool_map_[static_cast<size_t>(t)] = t + 1;
-            }
-            rebuild_slot_tool_mapping_locked();
-            for (int i = 0; i < NUM_PORTS; ++i) {
-                update_slot_from_state(i);
-            }
+            install_identity_tool_map_locked();
             return;
         }
 
@@ -973,6 +966,47 @@ void AmsBackendAd5xIfs::rebuild_slot_tool_mapping_locked() {
     // the UI reads. Caller holds mutex_.
     for (int i = 0; i < NUM_PORTS; ++i) {
         slots_.set_tool_mapping(i, find_first_tool_for_port(i + 1)); // port is 1-based
+    }
+}
+
+void AmsBackendAd5xIfs::install_identity_tool_map_locked() {
+    // Clear first: `_tools` is a 16-entry tool-indexed array, and a tool left
+    // aimed at a lane past T3 still shows up in get_system_info()'s attachment
+    // map, which carries no contract gate.
+    tool_map_.fill(UNMAPPED_PORT);
+    for (int t = 0; t < NUM_PORTS; ++t) {
+        tool_map_[static_cast<size_t>(t)] = t + 1;
+    }
+    rebuild_slot_tool_mapping_locked();
+    for (int i = 0; i < NUM_PORTS; ++i) {
+        update_slot_from_state(i);
+    }
+}
+
+void AmsBackendAd5xIfs::apply_ifs_vars_macro_absent_locked() {
+    if (!ifs_macro_confirmed_missing_ || has_ifs_vars_) {
+        spdlog::warn("{} _IFS_VARS macro no longer present (post FIRMWARE_RESTART) — "
+                     "disabling _IFS_VARS writes",
+                     backend_log_tag());
+    }
+    ifs_macro_confirmed_missing_ = true;
+    demote_ifs_vars_locked();
+    // The plugin went away with the macro; a remembered variable_backup would be
+    // a claim about software that is no longer installed.
+    ifs_backup_variable_.reset();
+    system_info_.endless_spool_enabled = false;
+}
+
+void AmsBackendAd5xIfs::demote_ifs_vars_locked() {
+    has_ifs_vars_ = false;
+
+    // The wire table keeps itself current by subscription, and a routing the
+    // user set with IFS_MAP_TOOL is live firmware state — neither is the
+    // withdrawn plugin's to hand back. Only a module-live rig with no wire
+    // contract is left holding a table nothing owns, and there the module's own
+    // macros are the firmware truth the latch would have installed.
+    if (ifs_module_live_.load() && !ifs_tool_map_live_) {
+        install_identity_tool_map_locked();
     }
 }
 
@@ -4138,7 +4172,7 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                          "disabling has_ifs_vars_ for the session "
                          "(plugin macro not loaded)",
                          backend_log_tag());
-            has_ifs_vars_ = false;
+            demote_ifs_vars_locked();
             ifs_macro_confirmed_missing_ = true;
         }
         return false;
@@ -4372,18 +4406,7 @@ void AmsBackendAd5xIfs::recheck_ifs_vars_macro() {
                                     ifs_macro_confirmed_missing_ = false;
                                 }
                             } else {
-                                if (!ifs_macro_confirmed_missing_ || has_ifs_vars_) {
-                                    spdlog::warn("{} _IFS_VARS macro no longer present (post "
-                                                 "FIRMWARE_RESTART) — disabling _IFS_VARS writes",
-                                                 backend_log_tag());
-                                }
-                                ifs_macro_confirmed_missing_ = true;
-                                has_ifs_vars_ = false;
-                                // The plugin went away with the macro; a remembered
-                                // variable_backup would be a claim about software that is
-                                // no longer installed.
-                                ifs_backup_variable_.reset();
-                                system_info_.endless_spool_enabled = false;
+                                apply_ifs_vars_macro_absent_locked();
                             }
                         });
         });
@@ -4920,15 +4943,7 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
             std::any_of(tool_map_.begin(), tool_map_.end(),
                         [](int port) { return port >= 1 && port <= NUM_PORTS; });
         if (!plugin_owns_table) {
-            for (int t = 0; t < NUM_PORTS; ++t) {
-                tool_map_[static_cast<size_t>(t)] = t + 1;
-            }
-            for (int i = 0; i < NUM_PORTS; ++i) {
-                slots_.set_tool_mapping(i, i);
-            }
-            for (int i = 0; i < NUM_PORTS; ++i) {
-                update_slot_from_state(i);
-            }
+            install_identity_tool_map_locked();
         }
     }
 

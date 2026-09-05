@@ -11,6 +11,7 @@
 #include "locale_formats.h"
 #include "moonraker_api_internal.h"
 #include "moonraker_client.h"
+#include "print_history_parse.h"
 
 #include <spdlog/spdlog.h>
 
@@ -77,10 +78,9 @@ template <typename T> T json_number_or(const nlohmann::json& j, const char* key,
     return default_val;
 }
 
-/**
- * @brief Parse a single job from Moonraker history response
- */
-PrintHistoryJob parse_history_job(const json& job_json) {
+} // anonymous namespace
+
+PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
     PrintHistoryJob job;
 
     // String fields. json::value() is safe for a MISSING key but NOT for a key
@@ -152,8 +152,6 @@ PrintHistoryJob parse_history_job(const json& job_json) {
 
     return job;
 }
-
-} // anonymous namespace
 
 // ============================================================================
 // MoonrakerHistoryAPI Implementation

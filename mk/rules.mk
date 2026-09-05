@@ -128,15 +128,10 @@ endif
 	$(ECHO) "$(CYAN)Run with: $(YELLOW)./$(TARGET)$(RESET)"
 ifndef SKIP_COMPILE_COMMANDS
 	@# Auto-generate compile_commands.json from fragments (fast, <0.3s)
-	@# Uses Python to produce properly indented JSON that VS Code can parse
 	@# Skip with SKIP_COMPILE_COMMANDS=1 (used by pre-commit to avoid LSP churn)
-	@if [ -d "$(BUILD_DIR)" ]; then \
-		CCJ_COUNT=$$(find $(BUILD_DIR) -name '*.ccj' 2>/dev/null | wc -l | tr -d ' '); \
-		if [ "$$CCJ_COUNT" -gt 0 ]; then \
-			find $(BUILD_DIR) -name '*.ccj' -print0 2>/dev/null | xargs -0 cat | \
-				python3 -c "import sys,json; entries=[json.loads(l) for l in sys.stdin if l.strip()]; json.dump(entries, open('compile_commands.json','w'), indent=2)"; \
-			echo "$(CYAN)→ compile_commands.json updated ($$CCJ_COUNT entries)$(RESET)"; \
-		fi; \
+	@if [ -d "$(BUILD_DIR)" ] && [ -f scripts/merge_compile_commands.py ]; then \
+		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR) 2>/dev/null) && \
+			echo "$(CYAN)→ compile_commands.json updated ($$SUMMARY)$(RESET)"; \
 	fi
 endif
 endif
@@ -523,6 +518,8 @@ $(OBJ_DIR)/lvgl/demos/%.o: $(LVGL_DIR)/demos/%.c
 # Generate compile_commands.json for IDE/LSP support
 # Fast incremental approach: merges .ccj fragments generated during compilation
 # First build creates fragments, subsequent 'make compile_commands' is instant
+# The merge itself lives in scripts/merge_compile_commands.py so this target and
+# the one that runs after every build cannot drift apart.
 compile_commands:
 	$(ECHO) "$(CYAN)Generating compile_commands.json from build fragments...$(RESET)"
 	@CCJ_FILES=$$(find $(BUILD_DIR) -name '*.ccj' 2>/dev/null | head -1); \
@@ -530,13 +527,8 @@ compile_commands:
 		echo "$(YELLOW)No .ccj fragments found. Running build first...$(RESET)"; \
 		$(MAKE) all test-build; \
 	fi
-	@echo "[" > compile_commands.json
-	@find $(BUILD_DIR) -name '*.ccj' -print0 2>/dev/null | xargs -0 cat | \
-		sed 's/}$$/},/' | \
-		sed '$$ s/,$$//' >> compile_commands.json
-	@echo "]" >> compile_commands.json
-	@CCJ_COUNT=$$(find $(BUILD_DIR) -name '*.ccj' 2>/dev/null | wc -l | tr -d ' '); \
-	echo "$(GREEN)✓ compile_commands.json generated ($$CCJ_COUNT entries)$(RESET)"
+	@SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
+		echo "$(GREEN)✓ compile_commands.json generated ($$SUMMARY)$(RESET)"
 	$(ECHO) ""
 	$(ECHO) "$(CYAN)IDE/LSP integration ready. Restart your editor to pick up changes.$(RESET)"
 

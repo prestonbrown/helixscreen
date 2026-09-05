@@ -11,6 +11,7 @@
 // down. Frame shapes are taken from the module's get_status() implementations
 // (ifs.py / ifs_materials.py on feat/ad5x-142).
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_state.h"
@@ -345,6 +346,153 @@ TEST_CASE("AD5X IFS module identity yields to a parsed plugin tool map",
         CHECK(info.tool_to_slot_map[2] == 3);
         CHECK(info.tool_to_slot_map[3] == 2);
     }
+}
+
+TEST_CASE("AD5X IFS module identity returns when the plugin contract demotes",
+          "[ams][ad5x_ifs][ifs_module][1420]") {
+    // The module latch is one-shot, so it cannot correct the table a second
+    // time. A plugin whose contract is withdrawn mid-session must therefore
+    // hand the table back at the demote, or the removed plugin's routing is
+    // what the UI and the preview keep resolving for the rest of the session.
+    // Crossover: T0 -> lane 2, T1 -> lane 1, T2 -> lane 4, T3 -> lane 3 — every
+    // entry differs from the identity the module's own macros route.
+    const json crossover{{"bambufy_tools", json::array({2, 1, 4, 3})}};
+
+    SECTION("Klipper rejects _IFS_VARS as an unknown command") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, crossover);
+
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+        REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+        // The latch correctly yields to the plugin while the plugin still owns
+        // the table — this is the state the demote has to undo.
+        REQUIRE(backend.get_system_info().tool_to_slot_map[0] == 1);
+
+        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Unknown command:\"_IFS_VARS\"");
+        REQUIRE_FALSE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.tool_to_slot_map.size() >= 4);
+        CHECK(info.tool_to_slot_map[0] == 0);
+        CHECK(info.tool_to_slot_map[1] == 1);
+        CHECK(info.tool_to_slot_map[2] == 2);
+        CHECK(info.tool_to_slot_map[3] == 3);
+        CHECK(backend.get_slot_info(0).mapped_tool == 0);
+        CHECK(backend.get_slot_info(3).mapped_tool == 3);
+    }
+
+    SECTION("FIRMWARE_RESTART unloads the plugin under a running session") {
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, crossover);
+
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+        REQUIRE(backend.get_system_info().tool_to_slot_map[0] == 1);
+
+        Ad5xIfsTestAccess::apply_ifs_vars_macro_absent(backend);
+        REQUIRE_FALSE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.tool_to_slot_map.size() >= 4);
+        CHECK(info.tool_to_slot_map[0] == 0);
+        CHECK(info.tool_to_slot_map[1] == 1);
+        CHECK(info.tool_to_slot_map[2] == 2);
+        CHECK(info.tool_to_slot_map[3] == 3);
+        CHECK(backend.get_slot_info(1).mapped_tool == 1);
+    }
+
+    SECTION("tools the plugin mapped past the lane count are released too") {
+        // `_tools` is a 16-entry tool-indexed array. Leaving a high tool aimed
+        // at a lane keeps it in get_system_info()'s attachment map, which is
+        // published without the contract gate get_tool_mapping() applies.
+        json high = crossover;
+        high["bambufy_tools"] = json::array({2, 1, 4, 3, 5, 5, 2, 5});
+
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, high);
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+        REQUIRE(Ad5xIfsTestAccess::tool_map(backend)[6] == 2);
+
+        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Unknown command:\"_IFS_VARS\"");
+
+        CHECK(Ad5xIfsTestAccess::tool_map(backend)[6] == AmsBackendAd5xIfs::UNMAPPED_PORT);
+    }
+
+    SECTION("a live wire table owns the map and survives the demote") {
+        // The module echoes its own tool_map by subscription, so it is already
+        // current — identity would overwrite a deliberate IFS_MAP_TOOL routing.
+        const json wire{
+            {"ifs", json{{"tool_map", json{{"0", 3}, {"1", 4}, {"2", 1}, {"3", 2}}}}}};
+
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, crossover);
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+        Ad5xIfsTestAccess::handle_status(backend, wire);
+        REQUIRE(backend.get_system_info().tool_to_slot_map[0] == 2);
+
+        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Unknown command:\"_IFS_VARS\"");
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.tool_to_slot_map.size() >= 4);
+        CHECK(info.tool_to_slot_map[0] == 2);
+        CHECK(info.tool_to_slot_map[1] == 3);
+        CHECK(info.tool_to_slot_map[2] == 0);
+        CHECK(info.tool_to_slot_map[3] == 1);
+    }
+
+    SECTION("without the module there is no firmware default to restore") {
+        // Native ZMOD routes through the plugin's table alone. Nothing else
+        // claims T0..T3 map to lanes 1..4 there, so the demote has no better
+        // answer to install.
+        AmsBackendAd5xIfs backend(nullptr, nullptr);
+        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+        Ad5xIfsTestAccess::parse_vars(backend, crossover);
+        REQUIRE_FALSE(Ad5xIfsTestAccess::module_live(backend));
+
+        Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Unknown command:\"_IFS_VARS\"");
+
+        CHECK(Ad5xIfsTestAccess::tool_map(backend)[0] == 2);
+        CHECK(Ad5xIfsTestAccess::tool_map(backend)[1] == 1);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AD5X IFS macro recheck re-derives the tool map when the plugin is gone",
+                 "[ams][ad5x_ifs][ifs_module][1420]") {
+    // The whole path a plugin uninstall takes: notify_klippy_ready fires the
+    // macro re-query, Klipper answers that `_ifs_vars` is not there, and the
+    // reply lands on the main thread through the update queue.
+    helix::test::FakeMoonrakerClient client;
+    AmsBackendAd5xIfs backend(nullptr, &client);
+
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+    Ad5xIfsTestAccess::parse_vars(backend,
+                                  json{{"bambufy_tools", json::array({2, 1, 4, 3})}});
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+    REQUIRE(backend.get_system_info().tool_to_slot_map[0] == 1);
+
+    Ad5xIfsTestAccess::recheck_ifs_vars_macro(backend);
+    REQUIRE_FALSE(client.rpc_calls.empty());
+    const auto& call = client.rpc_calls.back();
+    REQUIRE(call.method == "printer.objects.query");
+    REQUIRE(call.success_cb);
+
+    // Klipper's webhooks query returns the key with an empty dict for an object
+    // the printer does not have — presence alone never means the macro loaded.
+    call.success_cb(json{{"result", {{"status", {{"gcode_macro _ifs_vars", json::object()}}}}}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE_FALSE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+    const auto info = backend.get_system_info();
+    REQUIRE(info.tool_to_slot_map.size() >= 4);
+    CHECK(info.tool_to_slot_map[0] == 0);
+    CHECK(info.tool_to_slot_map[1] == 1);
+    CHECK(info.tool_to_slot_map[2] == 2);
+    CHECK(info.tool_to_slot_map[3] == 3);
+    CHECK(backend.get_slot_info(2).mapped_tool == 2);
 }
 
 TEST_CASE("AD5X IFS honors a loaded-only module diff frame", "[ams][ad5x_ifs][ifs_module]") {

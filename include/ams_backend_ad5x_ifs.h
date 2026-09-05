@@ -607,6 +607,23 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// reads. Shared by both adapters' edges and set_tool_mapping(). Caller
     /// must hold mutex_.
     void rebuild_slot_tool_mapping_locked();
+    /// Install the 1:1 table T0..T3 -> lanes 1..4 and unmap every higher tool,
+    /// then project it onto the slot model. This is what the standalone [ifs]
+    /// module's own macros route with, and the fallback when two plugin
+    /// prefixes disagree. Caller must hold mutex_.
+    void install_identity_tool_map_locked();
+    /// Withdraw the lessWaste/bambufy contract and hand the tool map back to
+    /// whatever still owns it. The plugin's `_tools` rows stay in
+    /// save_variables after the macro goes away, so tool_map_ keeps routing
+    /// through them unless it is re-derived here; the module latch is one-shot
+    /// and cannot do it a second time. Caller must hold mutex_.
+    void demote_ifs_vars_locked();
+    /// Apply the "the plugin's `_ifs_vars` macro is gone" verdict: latch it
+    /// missing, drop the contract, and forget the settings the macro carried.
+    /// A FIRMWARE_RESTART can unload the plugin under a running session, so
+    /// this is reachable long after startup decided otherwise. Caller must
+    /// hold mutex_.
+    void apply_ifs_vars_macro_absent_locked();
     void parse_port_sensor(int port_1based, bool detected);
     void parse_head_sensor(bool detected);
     // Belt-and-suspenders head-loaded derivation from GET_ZCOLOR's "Extruder:"

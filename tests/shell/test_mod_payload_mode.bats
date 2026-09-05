@@ -1025,23 +1025,7 @@ esac
 
 @test "an armed --clean --payload-root does not orphan the record a later flagless uninstall needs" {
 
-    # An rm-neutral SUDO shim: clean_old_installation also rm -f's real /etc
-    # paths (polkit/udev rules) a test user cannot touch and that are
-    # irrelevant to the record lifecycle under test; everything else passes
-    # through so the sandbox writes happen for real.
-    SUDO="$BATS_TEST_TMPDIR/sudo-rm-neutral"
-    cat > "$SUDO" <<SHIM
-#!/bin/sh
-if [ "\$1" = "rm" ]; then
-    case " \$* " in
-        *"$SANDBOX"/*) exec rm "\$@" ;;
-        *) exit 0 ;;
-    esac
-fi
-exec "\$@"
-SHIM
-    chmod +x "$SUDO"
-    export SUDO
+    install_sudo_rm_shim "$SANDBOX"
 
     ASSUME_YES=true
     HELIX_MOD_PAYLOAD=1
@@ -1083,23 +1067,7 @@ SHIM
 
 @test "a plain armed --clean leaves the record naming the root the fresh install populates" {
 
-    # An rm-neutral SUDO shim: clean_old_installation also rm -f's real /etc
-    # paths (polkit/udev rules) a test user cannot touch and that are
-    # irrelevant to the record lifecycle under test; everything else passes
-    # through so the sandbox writes happen for real.
-    SUDO="$BATS_TEST_TMPDIR/sudo-rm-neutral"
-    cat > "$SUDO" <<SHIM
-#!/bin/sh
-if [ "\$1" = "rm" ]; then
-    case " \$* " in
-        *"$SANDBOX"/*) exec rm "\$@" ;;
-        *) exit 0 ;;
-    esac
-fi
-exec "\$@"
-SHIM
-    chmod +x "$SUDO"
-    export SUDO
+    install_sudo_rm_shim "$SANDBOX"
 
     ASSUME_YES=true
     HELIX_MOD_PAYLOAD=1
@@ -1381,19 +1349,7 @@ seed_legacy_install() {
 # is "remove old installation completely".
 
 @test "--clean sweeps the previously recorded custom root, not just the re-recorded default" {
-    SUDO="$BATS_TEST_TMPDIR/sudo-rm-neutral"
-    cat > "$SUDO" <<SHIM
-#!/bin/sh
-if [ "\$1" = "rm" ]; then
-    case " \$* " in
-        *"$SANDBOX"/*) exec rm "\$@" ;;
-        *) exit 0 ;;
-    esac
-fi
-exec "\$@"
-SHIM
-    chmod +x "$SUDO"
-    export SUDO
+    install_sudo_rm_shim "$SANDBOX"
     ASSUME_YES=true
     HELIX_MOD_PAYLOAD=1
     local custom="$SANDBOX/usr/data/helixscreen-custom"

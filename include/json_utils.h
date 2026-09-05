@@ -286,4 +286,27 @@ inline std::size_t safe_size_t(const nlohmann::json& j, const char* key, std::si
     return narrowed;
 }
 
+/// The payload object of a Moonraker notification frame, or nullptr.
+///
+/// Notifications carry their payload as the single element of a `params` array
+/// - `notify_history_changed` and `notify_filelist_changed` both do - and a
+/// method callback is handed the whole JSON-RPC message, so every reader has to
+/// walk down to it. Returns nullptr for a frame shaped any other way, which is
+/// what a caller must treat as "nothing to act on"; reading the fields is left
+/// to the caller, because each notification names different ones.
+inline const nlohmann::json* notification_payload(const nlohmann::json& msg) {
+    const auto params_it = msg.find("params");
+    if (params_it == msg.end() || !params_it->is_array() || params_it->empty()) {
+        return nullptr;
+    }
+    const nlohmann::json& payload = (*params_it)[0];
+    return payload.is_object() ? &payload : nullptr;
+}
+
+/// The `action` field of a Moonraker notification payload, or an empty string.
+inline std::string notification_action(const nlohmann::json& msg) {
+    const nlohmann::json* payload = notification_payload(msg);
+    return payload ? safe_string(*payload, "action") : std::string();
+}
+
 } // namespace helix::json_util
