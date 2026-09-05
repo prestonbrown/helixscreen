@@ -22,6 +22,7 @@
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "moonraker_job_api.h"
+#include "moonraker_request_tracker.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
 #include "test_helpers/printer_state_test_access.h"
@@ -273,4 +274,33 @@ TEST_CASE_METHOD(PreStartGateFixture, "A start with no preparing job still runs"
     drain();
 
     CHECK(jobs.start_print_calls == 1);
+}
+
+// ============================================================================
+// printer.print.start's own RPC ceiling
+// ============================================================================
+
+TEST_CASE("start_print outlives a print-start macro that heats synchronously",
+          "[moonraker][job][pre_start][1451]") {
+    // Moonraker confirms printer.print.start only once Klipper acknowledges
+    // SDCARD_PRINT_FILE. A print-start macro that blocks on M109/M190 holds
+    // that ack for the whole heat-up, so on a cold machine the RPC answers
+    // minutes after the print is already running. At the tracker's default
+    // ceiling the app reports a timeout over a print that started fine.
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    client.connect("ws://mock/websocket", []() {}, []() {});
+
+    MoonrakerJobAPI job(client);
+
+    bool started = false;
+    job.start_print(
+        "part.gcode", [&started]() { started = true; }, [](const MoonrakerError&) {});
+
+    REQUIRE(started);
+    REQUIRE(client.last_send_method() == "printer.print.start");
+    CHECK(client.last_send_timeout_ms() == MoonrakerJobAPI::PRINT_START_TIMEOUT_MS);
+    CHECK(MoonrakerJobAPI::PRINT_START_TIMEOUT_MS == 600000u);
+    // The ceiling only helps while it clears the default — pin the relation too.
+    CHECK(MoonrakerJobAPI::PRINT_START_TIMEOUT_MS >
+          helix::MoonrakerRequestTracker::DEFAULT_REQUEST_TIMEOUT_MS);
 }
