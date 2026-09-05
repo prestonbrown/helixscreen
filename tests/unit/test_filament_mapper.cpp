@@ -1706,6 +1706,9 @@ TEST_CASE("effective_tool_colors leaves gaps neutral without disturbing used too
 // =============================================================================
 // routed_tool_colors — a degenerate routing must not paint over the palette
 // =============================================================================
+
+constexpr auto Unvouched = helix::printer::ToolMappingOrigin::Unvouched;
+constexpr auto Deliberate = helix::printer::ToolMappingOrigin::Deliberate;
 //
 // routed_tool_colors() answers the print-status preview's per-tool colour
 // overrides. An empty return leaves the renderer's own slicer palette in place;
@@ -1724,13 +1727,13 @@ TEST_CASE("routed_tool_colors: every routed tool on one head is degenerate",
     };
 
     SECTION("a multi-tool routing with one answer for all returns nothing") {
-        REQUIRE(FilamentMapper::routed_tool_colors({0, 0, 0, 0}, one_loaded).empty());
+        REQUIRE(FilamentMapper::routed_tool_colors({0, 0, 0, 0}, one_loaded, Unvouched).empty());
     }
 
     SECTION("a single-tool print legitimately routes its only tool anywhere") {
         // One routed tool has nothing to tell apart; the lane's colour IS the
         // answer.
-        const auto colors = FilamentMapper::routed_tool_colors({0}, one_loaded);
+        const auto colors = FilamentMapper::routed_tool_colors({0}, one_loaded, Unvouched);
         REQUIRE(colors.size() == 1);
         CHECK(colors[0] == 0xA03CF7);
     }
@@ -1739,7 +1742,7 @@ TEST_CASE("routed_tool_colors: every routed tool on one head is degenerate",
         // -1 entries are "no opinion" and count toward neither side; the two
         // tools that DO route share head 0, so the answer carries no per-tool
         // information and the slicer palette stands.
-        REQUIRE(FilamentMapper::routed_tool_colors({-1, 0, -1, 0}, one_loaded).empty());
+        REQUIRE(FilamentMapper::routed_tool_colors({-1, 0, -1, 0}, one_loaded, Unvouched).empty());
     }
 }
 
@@ -1755,7 +1758,7 @@ TEST_CASE("routed_tool_colors: distinct heads with identical spool colours still
     };
 
     SECTION("all-equal colours on distinct heads are returned, not discarded") {
-        const auto colors = FilamentMapper::routed_tool_colors({0, 1}, two_white);
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1}, two_white, Unvouched);
         REQUIRE(colors.size() == 2);
         CHECK(colors[0] == 0xFFFFFF);
         CHECK(colors[1] == 0xFFFFFF);
@@ -1768,7 +1771,7 @@ TEST_CASE("routed_tool_colors: distinct heads with identical spool colours still
             {2, 0, 0xFFFFFF, "PLA", false, -1},
             {3, 0, 0xFFFFFF, "PLA", false, -1},
         };
-        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, four_white);
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, four_white, Unvouched);
         REQUIRE(colors.size() == 4);
         CHECK(colors[0] == 0xFFFFFF);
         CHECK(colors[3] == 0xFFFFFF);
@@ -1788,7 +1791,7 @@ TEST_CASE("routed_tool_colors: a routing that distinguishes tools keeps answerin
     };
 
     SECTION("four tools on four distinct heads return the four colours") {
-        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots);
+        const auto colors = FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots, Unvouched);
         REQUIRE(colors.size() == 4);
         CHECK(colors[0] == 0x080A0D);
         CHECK(colors[1] == 0xE2DEDB);
@@ -1797,13 +1800,57 @@ TEST_CASE("routed_tool_colors: a routing that distinguishes tools keeps answerin
     }
 
     SECTION("a tool with no routing entry stays neutral, the rest answer") {
-        const auto colors = FilamentMapper::routed_tool_colors({0, -1, 1, 2}, slots);
+        const auto colors = FilamentMapper::routed_tool_colors({0, -1, 1, 2}, slots, Unvouched);
         REQUIRE(colors.size() == 4);
         CHECK(colors[0] == 0x080A0D);
         CHECK(colors[1] == 0x808080);
         CHECK(colors[2] == 0xE2DEDB);
         CHECK(colors[3] == 0xE72F1D);
     }
+}
+
+TEST_CASE("routed_tool_colors: a deliberate one-head routing is the answer, not an artifact",
+          "[filament_mapper][routing][1422]") {
+    // Pointing several tools at one lane is something our own UI offers, with a
+    // toast rather than a refusal. The print then comes out one solid colour,
+    // and the uniform lane colour is the only honest preview of it. The shape is
+    // identical to a table nobody chose, so provenance is the whole difference.
+    const std::vector<AvailableSlot> one_loaded = {
+        {0, 0, 0xA03CF7, "PLA", false, -1},
+    };
+
+    SECTION("four tools deliberately sharing one lane publish that lane's colour") {
+        const auto colors = FilamentMapper::routed_tool_colors({0, 0, 0, 0}, one_loaded, Deliberate);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0xA03CF7);
+        CHECK(colors[1] == 0xA03CF7);
+        CHECK(colors[2] == 0xA03CF7);
+        CHECK(colors[3] == 0xA03CF7);
+    }
+
+    SECTION("the same routing with nothing behind it still stands aside") {
+        REQUIRE(FilamentMapper::routed_tool_colors({0, 0, 0, 0}, one_loaded, Unvouched).empty());
+    }
+
+    SECTION("a deliberate share among unrouted tools publishes too") {
+        const auto colors =
+            FilamentMapper::routed_tool_colors({-1, 0, -1, 0}, one_loaded, Deliberate);
+        REQUIRE(colors.size() == 4);
+        CHECK(colors[0] == 0x808080);
+        CHECK(colors[1] == 0xA03CF7);
+        CHECK(colors[2] == 0x808080);
+        CHECK(colors[3] == 0xA03CF7);
+    }
+}
+
+TEST_CASE("routed_tool_colors: provenance cannot conjure a colour out of nothing",
+          "[filament_mapper][routing][1422]") {
+    // Deliberate says who chose the routing, never what the lanes hold. An
+    // all-neutral answer is still nothing worth pushing at the renderer.
+    const std::vector<AvailableSlot> empty_lane = {
+        {0, 0, 0xA03CF7, "PLA", true, -1},
+    };
+    REQUIRE(FilamentMapper::routed_tool_colors({0, 0}, empty_lane, Deliberate).empty());
 }
 
 // =============================================================================

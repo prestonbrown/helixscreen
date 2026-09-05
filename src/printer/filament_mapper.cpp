@@ -455,8 +455,10 @@ FilamentMapper::reprint_remap(const std::vector<int>& last_routing,
     return remap;
 }
 
-std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
-                                                         const std::vector<AvailableSlot>& slots) {
+std::vector<uint32_t>
+FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
+                                   const std::vector<AvailableSlot>& slots,
+                                   helix::printer::ToolMappingOrigin origin) {
     if (tool_to_head.empty()) {
         return {};
     }
@@ -505,14 +507,16 @@ std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>&
     const bool nothing_known =
         std::all_of(colors.begin(), colors.end(), [](uint32_t c) { return c == 0x808080; });
 
-    // A routing that sends every ROUTED tool to ONE head carries no per-tool
-    // information - observed as a partially-published plugin table resolving a
-    // whole 4-tool print to head 0's color, painting the model one solid color
-    // over the file's own palette. The degenerate signal is the ROUTING
-    // collapsing, not the colors agreeing: distinct heads that happen to hold
-    // same-color spools (a runout backup pair) are a true uniform answer and
-    // must still be published, and a single routed tool legitimately goes
-    // wherever it goes. Unrouted tools (-1) count toward neither side.
+    // A routing that sends every ROUTED tool to ONE head is read two ways, and
+    // the numbers cannot separate them: a table published only in part degrades
+    // to it, and a user pointing several tools at one spool builds it on
+    // purpose. @p origin is the whole difference - a deliberate share prints one
+    // solid color, and the uniform lane color is the only honest preview of it.
+    // The degenerate signal is the ROUTING collapsing, not the colors agreeing:
+    // distinct heads that happen to hold same-color spools (a runout backup
+    // pair) are a true uniform answer and must still be published, and a single
+    // routed tool legitimately goes wherever it goes. Unrouted tools (-1) count
+    // toward neither side.
     int first_routed_head = -2;
     int routed_count = 0;
     bool heads_distinct = false;
@@ -529,7 +533,13 @@ std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>&
         }
     }
     const bool one_head_for_every_tool = routed_count > 1 && !heads_distinct;
-    if (nothing_known || one_head_for_every_tool) {
+    const bool unexplained_collapse =
+        one_head_for_every_tool && origin == helix::printer::ToolMappingOrigin::Unvouched;
+
+    // nothing_known stays unconditional: provenance says who chose the routing,
+    // never what the lanes hold. An all-neutral answer is still nothing worth
+    // pushing at the renderer, whoever authored it.
+    if (nothing_known || unexplained_collapse) {
         return {};
     }
     return colors;

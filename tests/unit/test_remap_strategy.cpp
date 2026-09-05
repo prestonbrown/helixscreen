@@ -105,7 +105,7 @@ class BaseProbe : public AmsBackend {
     AmsError set_slot_info(int, const SlotInfo&, bool) override {
         return AmsErrorHelper::success();
     }
-    AmsError set_tool_mapping(int, int) override {
+    AmsError set_tool_mapping_impl(int, int) override {
         return AmsErrorHelper::success();
     }
     AmsError enable_bypass() override {

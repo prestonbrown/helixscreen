@@ -427,7 +427,7 @@ TEST_CASE("Routing: both tools resolve to their real head, not the identity answ
     routing[3] = 0; // bits  -> head 0 (black)
 
     const auto slots = u1_lanes();
-    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, slots);
+    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, slots, helix::printer::ToolMappingOrigin::Unvouched);
 
     REQUIRE(colors.size() == 4);
     // Correct render: body red, bits black.
@@ -446,7 +446,7 @@ TEST_CASE("Routing: a single-tool file takes the SAME path, with no special case
     std::vector<int> routing(4, -1);
     routing[0] = 2; // the only tool the file uses -> head 2 (red)
 
-    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes());
+    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched);
 
     REQUIRE(colors.size() == 4);
     REQUIRE(colors[0] == 0xE72F1D); // red, from the head that prints it
@@ -461,7 +461,7 @@ TEST_CASE("Routing: a filament system resolves through its own map, unchanged",
     const auto slots = u1_lanes();
     const std::vector<int> routing = {2, 0, 1}; // T0<-lane2, T1<-lane0, T2<-lane1
 
-    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, slots);
+    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, slots, helix::printer::ToolMappingOrigin::Unvouched);
 
     REQUIRE(colors.size() == 3);
     REQUIRE(colors[0] == slots[2].color_rgb);
@@ -474,11 +474,11 @@ TEST_CASE("Routing: says nothing when it knows nothing", "[gcode][toolchanger][r
         // The idle trap: with no print task the firmware holds a default identity
         // map. The backend answers empty there, and empty must stay empty rather
         // than being read as 'T0->head0'.
-        REQUIRE(helix::FilamentMapper::routed_tool_colors({}, u1_lanes()).empty());
+        REQUIRE(helix::FilamentMapper::routed_tool_colors({}, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched).empty());
     }
     SECTION("a tool with no routing entry stays unknown, not head 0") {
         std::vector<int> routing = {2, -1};
-        const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes());
+        const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched);
         REQUIRE(colors.size() == 2);
         REQUIRE(colors[0] == 0xE72F1D);
         REQUIRE(colors[1] == 0x808080);
@@ -488,12 +488,12 @@ TEST_CASE("Routing: says nothing when it knows nothing", "[gcode][toolchanger][r
         for (auto& s : slots) {
             s.color_rgb = 0x808080;
         }
-        REQUIRE(helix::FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots).empty());
+        REQUIRE(helix::FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots, helix::printer::ToolMappingOrigin::Unvouched).empty());
     }
     SECTION("a routing entry pointing at a slot that does not exist keeps the others") {
         auto slots = u1_lanes();
         slots.resize(2);
-        const auto colors = helix::FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots);
+        const auto colors = helix::FilamentMapper::routed_tool_colors({0, 1, 2, 3}, slots, helix::printer::ToolMappingOrigin::Unvouched);
         REQUIRE(colors.size() == 4);
         REQUIRE(colors[0] == slots[0].color_rgb);
         REQUIRE(colors[1] == slots[1].color_rgb);
@@ -510,7 +510,7 @@ TEST_CASE("Routing: a tool routed to an EMPTY lane resolves unknown, not to its 
     auto slots = u1_lanes();
     slots[2].is_empty = true; // red spool pulled; colour field still says E72F1D
 
-    const auto colors = helix::FilamentMapper::routed_tool_colors({2, 0}, slots);
+    const auto colors = helix::FilamentMapper::routed_tool_colors({2, 0}, slots, helix::printer::ToolMappingOrigin::Unvouched);
 
     REQUIRE(colors.size() == 2);
     REQUIRE(colors[0] == 0x808080); // routed to the empty head -> unknown
@@ -543,21 +543,21 @@ TEST_CASE("effective_routing: a tool changer's attachment map is not routing",
     SECTION("and therefore no colours are pushed over the slicer palette") {
         const auto routing = helix::FilamentMapper::effective_routing(
             {}, attachment, /*attachment_is_routing=*/false);
-        REQUIRE(helix::FilamentMapper::routed_tool_colors(routing, u1_lanes()).empty());
+        REQUIRE(helix::FilamentMapper::routed_tool_colors(routing, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched).empty());
     }
 
     SECTION("the inversion this prevents, stated explicitly") {
         // Had the attachment map stood in, T0 would resolve to head 0 (black)
         // and T2 to head 2 (red) — exactly backwards for a file whose T0 is red
         // and T2 is black, which is what was seen on the printer.
-        const auto wrong = helix::FilamentMapper::routed_tool_colors(attachment, u1_lanes());
+        const auto wrong = helix::FilamentMapper::routed_tool_colors(attachment, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched);
         REQUIRE(wrong.size() == 4);
         REQUIRE(wrong[0] == 0x080A0D); // black — the wrong answer for a red T0
         REQUIRE(wrong[2] == 0xE72F1D); // red   — the wrong answer for a black T2
 
         const auto routing = helix::FilamentMapper::effective_routing(
             {}, attachment, /*attachment_is_routing=*/false);
-        REQUIRE(helix::FilamentMapper::routed_tool_colors(routing, u1_lanes()).empty());
+        REQUIRE(helix::FilamentMapper::routed_tool_colors(routing, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched).empty());
     }
 }
 
@@ -572,7 +572,7 @@ TEST_CASE("effective_routing: a filament system still answers from its own map",
         helix::FilamentMapper::effective_routing({}, attachment, /*attachment_is_routing=*/true);
 
     REQUIRE(routing == attachment);
-    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes());
+    const auto colors = helix::FilamentMapper::routed_tool_colors(routing, u1_lanes(), helix::printer::ToolMappingOrigin::Unvouched);
     REQUIRE(colors.size() == 3);
     REQUIRE(colors[0] == 0xE72F1D); // lane 2
 }

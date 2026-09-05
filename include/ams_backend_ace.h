@@ -139,7 +139,7 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // The hardware-event detector calls this internally once an EMPTY -> present
     // transition confirms a physical swap.
     void clear_slot_override(int slot_index) override;
-    AmsError set_tool_mapping(int tool_number, int slot_index) override;
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
     // ACE has fixed 1:1 mapping (tools ARE slots), not configurable — it
     // declares RemapStrategy::None and owns no tool->slot table.

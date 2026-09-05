@@ -101,7 +101,7 @@ TEST_CASE("Mock Snapmaker with no task leaves the slicer palette alone", "[ams][
     // for a routing — with nothing published the app has no routing at all and
     // the file's own tool colours survive.
     REQUIRE(app_routing(mock).empty());
-    CHECK(FilamentMapper::routed_tool_colors(app_routing(mock), lanes_of(mock)).empty());
+    CHECK(FilamentMapper::routed_tool_colors(app_routing(mock), lanes_of(mock), helix::printer::ToolMappingOrigin::Unvouched).empty());
 }
 
 // ============================================================================
@@ -123,7 +123,7 @@ TEST_CASE("Mock Snapmaker publishes the configured task routing", "[ams][snapmak
     // And it reaches the renderer as the task's colours, not the lanes' order:
     // T0 gets head 2's filament and T2 gets head 0's. Identity would hand each
     // tool its own lane, so a crossover is what tells the two answers apart.
-    const auto colors = FilamentMapper::routed_tool_colors(app_routing(mock), lanes_of(mock));
+    const auto colors = FilamentMapper::routed_tool_colors(app_routing(mock), lanes_of(mock), helix::printer::ToolMappingOrigin::Unvouched);
     REQUIRE(colors.size() == 4);
     CHECK(colors[0] == mock.get_slot_info(2).color_rgb);
     CHECK(colors[2] == mock.get_slot_info(0).color_rgb);
