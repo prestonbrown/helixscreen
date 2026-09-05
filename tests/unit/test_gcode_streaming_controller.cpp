@@ -236,17 +236,40 @@ TEST_CASE("GCodeStreamingController cache management", "[gcode][streaming]") {
 
     SECTION("cache hit rate is tracked") {
         GCodeStreamingController controller;
-        controller.open_file(temp_file.path());
+        REQUIRE(controller.open_file(temp_file.path()));
 
-        // First access - miss
-        controller.get_layer_segments(0);
-        // Second access - hit
-        controller.get_layer_segments(0);
-        // Third access - hit
-        controller.get_layer_segments(0);
+        // The prefetch worker's loads go through the same cache_.get_or_load()
+        // as a caller's, so they land in the same hit and miss counters. Only
+        // load_layer_segments_no_prefetch() leaves the worker unstarted, which
+        // is what makes the count below the caller's alone.
+        REQUIRE(controller.load_layer_segments_no_prefetch(0) != nullptr);
+        REQUIRE(controller.load_layer_segments_no_prefetch(0) != nullptr);
+        REQUIRE(controller.load_layer_segments_no_prefetch(0) != nullptr);
 
-        // Should be 2/3 = 0.667
-        REQUIRE(controller.get_cache_hit_rate() > 0.5f);
+        // One load of layer 0 followed by two reads of the resident copy.
+        REQUIRE(controller.get_cache_hit_rate() == Catch::Approx(2.0f / 3.0f));
+    }
+
+    SECTION("prefetch loads count toward the hit rate") {
+        GCodeStreamingController controller;
+        REQUIRE(controller.open_file(temp_file.path()));
+
+        // A prefetch run from centre 0 reaches every layer of this file, so each
+        // run touches all of them exactly once.
+        const size_t layer_count = controller.get_layer_count();
+        REQUIRE(layer_count == 3);
+        REQUIRE(GCodeStreamingController::DEFAULT_PREFETCH_RADIUS + 1 >= layer_count);
+
+        // Syncing after each call pins how many runs happen: the worker takes
+        // one centre at a time and drops a queued centre in favour of a newer
+        // one, so back-to-back calls would coalesce into an unknown number.
+        controller.get_layer_segments(0); // miss 0
+        controller.wait_for_prefetch_idle(); // hit 0, miss 1, miss 2
+        controller.get_layer_segments(0); // hit 0
+        controller.wait_for_prefetch_idle(); // hit 0, hit 1, hit 2
+
+        // 5 hits against 3 misses.
+        REQUIRE(controller.get_cache_hit_rate() == Catch::Approx(5.0f / 8.0f));
     }
 }
 
