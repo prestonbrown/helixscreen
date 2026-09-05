@@ -1843,20 +1843,22 @@ void FilamentPanel::populate_extruder_dropdown() {
         return;
 
     auto& ts = helix::ToolState::instance();
-    bool has_ams = (lv_subject_get_int(AmsState::instance().get_ams_type_subject()) != 0);
-    if (!ts.is_multi_tool() || !has_ams) {
-        if (extruder_selector_group_)
-            lv_obj_add_flag(extruder_selector_group_, LV_OBJ_FLAG_HIDDEN);
-        if (btn_manage_slots_)
-            lv_obj_remove_flag(btn_manage_slots_, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
 
-    // Multi-tool with AMS: show dropdown group, hide Manage button
+    // The manage row holds one control or the other, and the tool count alone
+    // decides which. Manage navigates to the AMS panel, so it is the single-tool
+    // affordance. Every multi-tool printer gets the selector instead: the options
+    // come from ToolState, and handle_extruder_changed() issues a gcode Tn when no
+    // AMS backend claims the tool, so the selector works without one.
+    // update_multi_filament_card_visibility() hides the whole row when the printer
+    // has neither an AMS nor a second tool.
+    const bool multi_tool = ts.is_multi_tool();
     if (extruder_selector_group_)
-        lv_obj_remove_flag(extruder_selector_group_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_flag(extruder_selector_group_, LV_OBJ_FLAG_HIDDEN, !multi_tool);
     if (btn_manage_slots_)
-        lv_obj_add_flag(btn_manage_slots_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_flag(btn_manage_slots_, LV_OBJ_FLAG_HIDDEN, multi_tool);
+
+    if (!multi_tool)
+        return;
 
     // Build options string ("T0\nT1\nT2")
     std::string options;
