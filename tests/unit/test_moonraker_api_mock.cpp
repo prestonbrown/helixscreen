@@ -298,9 +298,11 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     std::atomic<bool> error_called{false};
     std::string received_path;
 
-    // Use a temp file for the destination
-    std::string dest_path = "/tmp/helix_test_download_" +
-                            std::to_string(std::hash<std::string>{}("3DBenchy.gcode")) + ".gcode";
+    // Per-process path, like the three download cases below it. Hashing a fixed
+    // filename yields the same path in every process, so two runs of this shard
+    // at once delete and re-create one another's destination and fail on a
+    // file_size that races a std::remove.
+    std::string dest_path = "/tmp/helix_test_download_" + std::to_string(getpid()) + ".gcode";
 
     // Clean up any existing file
     std::remove(dest_path.c_str());
