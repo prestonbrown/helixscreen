@@ -6,15 +6,15 @@
  * @brief The "Lifetime Print Stats" widget must report the SERVER's totals,
  *        not the sum of the capped local job cache (#1272).
  *
- * PrintHistoryManager::fetch() pulls at most `limit` jobs (500 in production).
+ * A COMPLETE load pulls at most PrintHistoryManager::kCompleteJobLimit jobs.
  * Summing that cache silently truncates every printer with a longer history —
  * the reporter saw 500 prints / 209h next to Mainsail's 764.
  *
- * The cap is reproduced here in miniature: fetch(3) against a mock whose
- * history holds more than three jobs, so the cache sum and the server totals
- * disagree exactly the way they do at 500. Weekly mode has no server-side
- * equivalent (`server.history.totals` is lifetime-only) and must keep using
- * the filtered cache.
+ * The cap is reproduced here in miniature: a whole-list load that came back
+ * exactly full at three jobs, against a mock whose history holds more, so the
+ * cache sum and the server totals disagree the way they do at 500. Weekly mode
+ * has no server-side equivalent (`server.history.totals` is lifetime-only) and
+ * must keep using the filtered cache.
  */
 
 #include "../../include/app_globals.h"
@@ -25,9 +25,12 @@
 #include "../../include/print_history_manager.h"
 #include "../../include/printer_state.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/history_call_counting_api.h"
+#include "../test_helpers/print_history_manager_test_access.h"
 #include "src/ui/panel_widgets/print_stats_widget.h"
 
 #include <atomic>
+#include <ctime>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -63,7 +66,7 @@ class PrintStatsLifetimeFixture : public LVGLTestFixture {
     PrintStatsLifetimeFixture() : client_(MoonrakerClientMock::PrinterType::VORON_24, 1000.0) {
         printer_state_.init_subjects(false);
         client_.connect("ws://mock/websocket", []() {}, []() {});
-        api_ = std::make_unique<MoonrakerAPI>(client_, printer_state_);
+        api_ = std::make_unique<helix::HistoryCallCountingMoonrakerAPI>(client_, printer_state_);
         manager_ = std::make_unique<PrintHistoryManager>(api_.get(), &client_);
 
         set_moonraker_api(api_.get());
@@ -99,9 +102,23 @@ class PrintStatsLifetimeFixture : public LVGLTestFixture {
         return totals;
     }
 
+    /// Install a whole-list load that came back exactly full: the printer has
+    /// more jobs than the response returned, which is what a history longer
+    /// than kCompleteJobLimit looks like to the cache.
+    void load_capped_cache(size_t n) {
+        manager_->fetch(HistoryScope::COMPLETE);
+        REQUIRE(wait_until([&]() { return manager_->is_loaded(HistoryScope::RECENT); }));
+        REQUIRE(manager_->get_jobs().size() > n);
+        std::vector<PrintHistoryJob> capped(manager_->get_jobs().begin(),
+                                            manager_->get_jobs().begin() +
+                                                static_cast<std::ptrdiff_t>(n));
+        helix::PrintHistoryManagerTestAccess::set_loaded_jobs(
+            *manager_, std::move(capped), HistoryScope::COMPLETE, static_cast<int>(n));
+    }
+
     MoonrakerClientMock client_;
     PrinterState printer_state_;
-    std::unique_ptr<MoonrakerAPI> api_;
+    std::unique_ptr<helix::HistoryCallCountingMoonrakerAPI> api_;
     std::unique_ptr<PrintHistoryManager> manager_;
 };
 
@@ -114,8 +131,7 @@ TEST_CASE_METHOD(PrintStatsLifetimeFixture,
     REQUIRE(server.total_jobs > 3); // otherwise the cap below can't bite
 
     // Cache capped below the real history size — same shape as >500 jobs.
-    manager_->fetch(3);
-    REQUIRE(wait_until([&]() { return manager_->is_loaded(); }));
+    load_capped_cache(3);
     REQUIRE(manager_->get_jobs().size() == 3);
 
     uint64_t cached_time = 0;
@@ -156,8 +172,7 @@ TEST_CASE_METHOD(PrintStatsLifetimeFixture,
     PrintHistoryTotals server = fetch_server_totals();
     REQUIRE(server.total_jobs > 3);
 
-    manager_->fetch(3);
-    REQUIRE(wait_until([&]() { return manager_->is_loaded(); }));
+    load_capped_cache(3);
 
     PrintStatsWidget widget;
 
@@ -191,8 +206,7 @@ TEST_CASE_METHOD(PrintStatsLifetimeFixture,
     PrintHistoryTotals server = fetch_server_totals();
     REQUIRE(server.total_jobs > 3);
 
-    manager_->fetch(3);
-    REQUIRE(wait_until([&]() { return manager_->is_loaded(); }));
+    load_capped_cache(3);
 
     lv_subject_t* view_mode = lv_xml_get_subject(nullptr, "print_stats_view_mode");
     REQUIRE(view_mode != nullptr);
@@ -213,6 +227,47 @@ TEST_CASE_METHOD(PrintStatsLifetimeFixture,
           std::to_string(server.total_jobs));
 
     lv_subject_set_int(view_mode, 0);
+    widget.detach();
+    lv_obj_delete(obj);
+}
+
+TEST_CASE_METHOD(PrintStatsLifetimeFixture,
+                 "print_stats escalates when the cached slice stops short of a week",
+                 "[print_stats][history][coverage]") {
+    // The "N/wk" row aggregates the last seven days on every update. A startup
+    // slice that filled its page inside three days leaves the rest of that week
+    // on the printer, so activating has to pull the whole list.
+    const double now = static_cast<double>(std::time(nullptr));
+    std::vector<PrintHistoryJob> page;
+    for (int i = 0; i < PrintHistoryManager::kRecentJobLimit; ++i) {
+        PrintHistoryJob job;
+        job.job_id = "job" + std::to_string(i);
+        job.filename = "a.gcode";
+        job.status = PrintJobStatus::COMPLETED;
+        job.start_time = now - static_cast<double>(i) * 3600; // one an hour
+        page.push_back(job);
+    }
+    // The staleness watcher is queued with the socket down and stales any cache
+    // it finds when it runs, so drain it and bring the socket up first.
+    process_lvgl(20);
+    lv_subject_set_int(printer_state_.get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    process_lvgl(20);
+    helix::PrintHistoryManagerTestAccess::set_loaded_jobs(
+        *manager_, page, HistoryScope::RECENT, PrintHistoryManager::kRecentJobLimit);
+    REQUIRE_FALSE(manager_->covers_since(now - 7 * 24 * 3600));
+
+    PrintStatsWidget widget;
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    widget.attach(obj, test_screen());
+    widget.on_activate();
+
+    // Assert on the request, not on the cache: this mock's history is short
+    // enough that any load at all would leave the cache complete, so a
+    // cache-shaped assertion could not tell the escalation from a no-op.
+    REQUIRE(wait_until(
+        [&]() { return api_->history_last_limit() == PrintHistoryManager::kCompleteJobLimit; }));
+
     widget.detach();
     lv_obj_delete(obj);
 }

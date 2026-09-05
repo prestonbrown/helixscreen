@@ -360,9 +360,9 @@ void HistoryDashboardPanel::refresh_data() {
 
     // If manager hasn't loaded data yet, trigger a fetch
     // The observer callback will call refresh_data() again when data arrives
-    if (!history_manager_->is_loaded()) {
+    if (!history_manager_->is_loaded(HistoryScope::COMPLETE)) {
         spdlog::debug("[{}] History not loaded, triggering load", get_name());
-        history_manager_->ensure_loaded();
+        history_manager_->ensure_loaded(HistoryScope::COMPLETE);
         return;
     }
 

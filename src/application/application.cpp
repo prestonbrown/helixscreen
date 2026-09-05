@@ -197,6 +197,7 @@
 #include "detection_manager.h"
 #include "filament_consumption_tracker.h"
 #include "filament_sensor_manager.h"
+#include "json_utils.h"
 #include "gcode_file_modifier.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_translation.h"
@@ -3152,7 +3153,13 @@ void Application::setup_discovery_callbacks() {
             helix::settings::get_about_settings_overlay().fetch_print_hours();
             client->register_method_callback(
                 "notify_history_changed", "AboutOverlay_print_hours",
-                [](const nlohmann::json& /*data*/) {
+                [](const nlohmann::json& data) {
+                    // Moonraker accumulates its job totals only when a job
+                    // finishes, so the "added" half of this notification cannot
+                    // move print hours and must not cost a round-trip.
+                    if (helix::json_util::notification_action(data) != "finished") {
+                        return;
+                    }
                     helix::ui::queue_update([]() {
                         helix::settings::get_about_settings_overlay().fetch_print_hours();
                     });

@@ -302,7 +302,7 @@ void HistoryListPanel::on_activate() {
 
             spdlog::debug("[{}] History manager notified - refreshing", get_name());
             // Get fresh data from manager and re-apply filters
-            if (history_manager_->is_loaded()) {
+            if (history_manager_->is_loaded(HistoryScope::COMPLETE)) {
                 jobs_ = history_manager_->get_jobs();
                 apply_filters_and_sort();
             }
@@ -311,7 +311,7 @@ void HistoryListPanel::on_activate() {
     }
 
     // Try to use manager data first (shared cache - DRY)
-    if (history_manager_ && history_manager_->is_loaded()) {
+    if (history_manager_ && history_manager_->is_loaded(HistoryScope::COMPLETE)) {
         jobs_ = history_manager_->get_jobs();
         jobs_received_ = true;
         spdlog::debug("[{}] Using {} jobs from shared manager cache", get_name(), jobs_.size());
@@ -323,7 +323,7 @@ void HistoryListPanel::on_activate() {
         // Trigger manager fetch if available, otherwise direct API call
         if (history_manager_) {
             spdlog::debug("[{}] Manager not loaded, triggering load", get_name());
-            history_manager_->ensure_loaded();
+            history_manager_->ensure_loaded(HistoryScope::COMPLETE);
         } else {
             // Fallback: Jobs weren't set by dashboard, fetch from API
             refresh_from_api();
