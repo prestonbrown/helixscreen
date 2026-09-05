@@ -2,15 +2,17 @@
 
 /**
  * @file test_update_channel_beta_gate.cpp
- * @brief The effective update channel must fall back to Stable when beta is locked.
+ * @brief Dev is the only update channel that needs beta features; Beta is not.
  *
- * /update/channel and /beta_features persist independently, but the dropdown that
- * writes the channel is gated on show_beta_features (about_settings_overlay.xml).
- * Unlock beta with the 7-tap easter egg, pick Dev, re-lock: the dropdown vanishes
- * while the app keeps fetching from /update/dev_url, with no UI route back.
+ * Stable and Beta are both offered on a stock install (about_settings_overlay.xml),
+ * so the effective channel must honour a stored Beta whatever /beta_features says.
+ * Dev fetches from the arbitrary /update/dev_url in config and is offered only with
+ * beta unlocked, so a stored Dev on a locked install has to fall back — to Stable,
+ * not to Beta, since Beta is a neighbouring choice the user never made.
  *
- * The clamp is deliberately at READ time, not a rewrite of the stored value —
- * these tests pin that, since a rewrite would silently discard the user's pick.
+ * /update/channel and /beta_features persist independently. The fallback is at READ
+ * time, not a rewrite of the stored value — these tests pin that, since a rewrite
+ * would silently discard the user's pick across a lock/unlock round trip.
  */
 
 #include "../helix_test_fixture.h"
@@ -49,7 +51,7 @@ constexpr bool BETA_DEFAULT = false;
 
 } // namespace
 
-TEST_CASE_METHOD(HelixTestFixture, "Update channel falls back to Stable when beta is locked",
+TEST_CASE_METHOD(HelixTestFixture, "Only the Dev update channel needs beta features",
                  "[update_checker][channel][beta]") {
     REQUIRE(helix::Config::get_instance() != nullptr);
     auto& checker = UpdateChecker::instance();
@@ -62,11 +64,24 @@ TEST_CASE_METHOD(HelixTestFixture, "Update channel falls back to Stable when bet
         CHECK(std::string(UpdateChecker::channel_name(checker.get_channel())) == "stable");
     }
 
-    SECTION("Beta channel with beta locked reports Stable") {
+    SECTION("Dev channel with beta locked does not degrade to its Beta neighbour") {
+        // Falling back one step would move the install onto a channel it was
+        // never opted into, and the dropdown that appears on a locked install
+        // would then read Beta for a value the user set to Dev.
+        ScopedConfigValue<bool> beta("/beta_features", false, BETA_DEFAULT);
+        ScopedConfigValue<int> chan("/update/channel", 2, CHANNEL_DEFAULT);
+
+        CHECK_FALSE(checker.get_channel() == UpdateChecker::UpdateChannel::Beta);
+    }
+
+    SECTION("Beta channel is honoured with beta locked") {
+        // Stable/Beta is the picker every install gets, so a stored Beta has to
+        // reach the checker without the beta-features unlock.
         ScopedConfigValue<bool> beta("/beta_features", false, BETA_DEFAULT);
         ScopedConfigValue<int> chan("/update/channel", 1, CHANNEL_DEFAULT);
 
-        CHECK(checker.get_channel() == UpdateChecker::UpdateChannel::Stable);
+        CHECK(checker.get_channel() == UpdateChecker::UpdateChannel::Beta);
+        CHECK(std::string(UpdateChecker::channel_name(checker.get_channel())) == "beta");
     }
 
     SECTION("Stable channel with beta locked is unaffected") {

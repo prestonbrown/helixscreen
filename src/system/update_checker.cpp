@@ -2757,16 +2757,16 @@ UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
     }
     int channel = config->get<int>("/update/channel", 0);
 
-    // /update/channel persists independently of /beta_features, but the dropdown
-    // that sets it is gated on show_beta_features (about_settings_overlay.xml).
-    // A user who unlocks beta with the 7-tap easter egg, picks Dev, then re-locks
-    // keeps fetching from the arbitrary /update/dev_url with the dropdown hidden
-    // and no route back to Stable. Clamp the EFFECTIVE channel here rather than
-    // rewriting the stored value, so re-unlocking beta restores the channel the
-    // user actually picked instead of silently resetting it to Stable.
-    if (channel != 0 && !config->is_beta_features_enabled()) {
-        spdlog::info("[UpdateChecker] Channel {} needs beta features (disabled) — using stable",
-                     channel);
+    // /update/channel persists independently of /beta_features. Stable and Beta
+    // are both offered on a stock install (about_settings_overlay.xml), so only
+    // Dev is gated here: it fetches from the arbitrary /update/dev_url rather
+    // than a published channel, and its picker appears only with beta unlocked.
+    // Fall back to Stable, not to the Beta neighbour, since Beta is a choice the
+    // user never made. Clamp the EFFECTIVE channel rather than rewriting the
+    // stored value, so re-unlocking beta restores the channel the user picked.
+    if (channel == static_cast<int>(UpdateChannel::Dev) &&
+        !config->is_beta_features_enabled()) {
+        spdlog::info("[UpdateChecker] Dev channel needs beta features (disabled) — using stable");
         return UpdateChannel::Stable;
     }
 

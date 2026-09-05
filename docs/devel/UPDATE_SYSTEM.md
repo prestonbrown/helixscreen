@@ -163,9 +163,27 @@ Three channels are available. The channel is stored in config at `/update/channe
 
 ### Channel Selection in UI
 
-The Update Channel dropdown is gated behind **beta features** (7-tap version easter egg in About). It appears in the About Settings overlay (`about_settings_overlay.xml`) and is bound to the `update_channel` LVGL subject managed by `SettingsManager`.
+The About Settings overlay (`about_settings_overlay.xml`) carries **two** Update
+Channel rows with complementary conditions, because a dropdown's `options` is a
+static string and the entries on offer differ per install:
 
-Options string: `"Stable\nBeta\nDev"`
+| Row | Options | Visible when |
+|-----|---------|--------------|
+| `row_update_channel` | `"Stable\nBeta"` | `show_beta_features eq 0 and show_update_settings eq 1` |
+| `row_update_channel_dev` | `"Stable\nBeta\nDev"` | `show_beta_features eq 1 and show_update_settings eq 1` |
+
+Index 0 is Stable and index 1 is Beta in both lists, so `/update/channel` and the
+single `on_about_update_channel_changed` callback behind both rows mean the same
+thing whichever row is on screen. Index 2 is reachable only from the beta row.
+
+Dev stays behind the beta gate because it fetches from an arbitrary
+`/update/dev_url` rather than a published channel, and because `main` publishes to
+both the beta and dev channels — the two deliver identical builds, so a third
+entry would offer a stable-line user a duplicate of its neighbour.
+
+Neither row binds its selection to a subject; `lv_dropdown` has no such binding in
+the XML engine. `AboutSettingsOverlay::sync_update_channel_rows()` seeds both from
+`UpdateChecker::get_channel()` on activate and whenever the 7-tap toggles beta.
 
 ### Switching Channels (and moving backward)
 
@@ -502,7 +520,7 @@ Located under Settings (tap the "About" action row), the About Settings overlay 
 - **Current Version** row (7-tap to enable beta features)
 - **Check for Updates** row (triggers manual check, description bound to `update_version_text` subject)
 - **Install Update** row (visible only when `update_status == UpdateAvailable`)
-- **Update Channel** dropdown (visible only when beta features enabled)
+- **Update Channel** dropdown — Stable/Beta on any install, Stable/Beta/Dev with beta features enabled
 
 ### Update Notification Modal (`update_notify_modal.xml`)
 

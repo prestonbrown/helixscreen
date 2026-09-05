@@ -3,25 +3,23 @@
 
 /**
  * @file test_about_update_channel_gate.cpp
- * @brief The Update Channel dropdown must vanish wherever update checking does.
+ * @brief Which Update Channel picker the About overlay shows, and what it reads.
  *
- * about_settings_overlay.xml gates every update surface on show_update_settings
- * (= !update_checks_suppressed()), EXCEPT that the channel dropdown used to be
- * gated on show_beta_features alone. On a firmware-managed install
- * (HELIX_DISABLE_AUTO_UPDATES) that left a live-looking Stable/Beta/Dev picker
- * sitting directly above the "Managed by your firmware" notice, with
- * "Check for Updates" and "Install Update" both correctly gone. Picking a
- * channel there persists a setting nothing reads: on_channel_changed() calls
- * check_for_updates(), which short-circuits on the same predicate.
+ * A dropdown's options are a static string, so about_settings_overlay.xml carries
+ * two channel rows with complementary conditions: Stable/Beta for every install,
+ * Stable/Beta/Dev only with beta features unlocked. Index 1 is Beta in both lists,
+ * so the shared callback and the stored /update/channel mean the same thing
+ * whichever row is visible.
+ *
+ * Both rows are also gated on show_update_settings, because a firmware-managed
+ * install (HELIX_DISABLE_AUTO_UPDATES) has nothing to pick between: picking a
+ * channel there persists a setting nothing reads, since on_channel_changed()
+ * calls check_for_updates(), which short-circuits on the same predicate.
  *
  * The subjects are driven directly rather than through the environment because
  * updates_externally_managed() caches getenv() for the life of the process. What
  * needs pinning is the XML binding's reaction to the two subject values, and that
  * is exactly what these cases exercise.
- *
- * Reverting the binding to beta-only fails "firmware-managed hides the channel
- * dropdown" while every other case still passes — which is precisely how the
- * original escaped review.
  */
 
 #include "ui_panel_settings.h"
@@ -33,8 +31,11 @@
 
 #include <lvgl.h>
 
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
+using helix::settings::AboutSettingsOverlay;
 using helix::ui::UpdateQueue;
 
 namespace {
@@ -93,6 +94,23 @@ struct AboutUpdateGateFixture : public LVGLUITestFixture {
         return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
     }
 
+    lv_obj_t* dropdown(const char* row_name) const {
+        REQUIRE(root_ != nullptr);
+        lv_obj_t* row = lv_obj_find_by_name(root_, row_name);
+        REQUIRE(row != nullptr);
+        lv_obj_t* dd = lv_obj_find_by_name(row, "dropdown");
+        REQUIRE(dd != nullptr);
+        return dd;
+    }
+
+    /// The option label at `index`, read back off the widget rather than the XML.
+    static std::string option_at(lv_obj_t* dd, uint32_t index) {
+        lv_dropdown_set_selected(dd, index);
+        char buf[32] = {};
+        lv_dropdown_get_selected_str(dd, buf, sizeof(buf));
+        return std::string(buf);
+    }
+
     lv_obj_t* root_ = nullptr;
 };
 
@@ -102,31 +120,112 @@ TEST_CASE_METHOD(AboutUpdateGateFixture, "About overlay update-surface visibilit
                  "[settings][about][update][channel]") {
     REQUIRE(root_ != nullptr);
 
-    SECTION("normal install with beta unlocked shows the channel dropdown") {
-        set_gates(/*beta=*/1, /*update_settings=*/1);
+    SECTION("a stock install gets the Stable/Beta picker") {
+        // The whole point of the split: with beta locked there is still a channel
+        // control, so a stable-line user can move to beta without the 7-tap egg.
+        set_gates(/*beta=*/0, /*update_settings=*/1);
         CHECK_FALSE(hidden("container_update_channel"));
+        CHECK(hidden("container_update_channel_dev"));
         CHECK_FALSE(hidden("container_check_updates"));
     }
 
-    SECTION("firmware-managed hides the channel dropdown") {
-        // The regression. Checking is suppressed, so the picker has nothing to
-        // pick between — it must go with the rest of the update surface.
+    SECTION("beta unlocked swaps in the picker that carries Dev") {
+        set_gates(/*beta=*/1, /*update_settings=*/1);
+        CHECK(hidden("container_update_channel"));
+        CHECK_FALSE(hidden("container_update_channel_dev"));
+        CHECK_FALSE(hidden("container_check_updates"));
+    }
+
+    SECTION("firmware-managed hides both channel pickers") {
+        // Checking is suppressed, so neither picker has anything to pick between —
+        // they must go with the rest of the update surface.
         set_gates(/*beta=*/1, /*update_settings=*/0);
         CHECK(hidden("container_update_channel"));
+        CHECK(hidden("container_update_channel_dev"));
         CHECK(hidden("container_check_updates"));
     }
 
-    SECTION("beta locked still hides the channel dropdown on a normal install") {
-        // Pre-existing behaviour, unchanged: the dropdown is beta-only, and
-        // UpdateChecker::get_channel() clamps to Stable to match.
-        set_gates(/*beta=*/0, /*update_settings=*/1);
-        CHECK(hidden("container_update_channel"));
-        CHECK_FALSE(hidden("container_check_updates"));
-    }
-
-    SECTION("beta locked AND firmware-managed hides both") {
+    SECTION("firmware-managed with beta locked hides both channel pickers") {
         set_gates(/*beta=*/0, /*update_settings=*/0);
         CHECK(hidden("container_update_channel"));
+        CHECK(hidden("container_update_channel_dev"));
         CHECK(hidden("container_check_updates"));
+    }
+
+    SECTION("exactly one picker is ever on screen") {
+        for (int beta = 0; beta <= 1; ++beta) {
+            set_gates(beta, /*update_settings=*/1);
+            CHECK(hidden("container_update_channel") != hidden("container_update_channel_dev"));
+        }
+    }
+}
+
+TEST_CASE_METHOD(AboutUpdateGateFixture, "Update channel pickers agree on what an index means",
+                 "[settings][about][update][channel]") {
+    REQUIRE(root_ != nullptr);
+
+    lv_obj_t* basic = dropdown("row_update_channel");
+    lv_obj_t* with_dev = dropdown("row_update_channel_dev");
+
+    SECTION("the stock picker offers Stable and Beta only") {
+        CHECK(lv_dropdown_get_option_count(basic) == 2);
+    }
+
+    SECTION("the beta picker adds Dev as a third entry") {
+        CHECK(lv_dropdown_get_option_count(with_dev) == 3);
+    }
+
+    SECTION("index 0 and index 1 mean the same thing in both") {
+        // /update/channel is an integer index shared by both rows and by the one
+        // callback behind them, so a disagreement here silently moves a user's
+        // channel when the pickers swap.
+        CHECK(option_at(basic, 0) == option_at(with_dev, 0));
+        CHECK(option_at(basic, 1) == option_at(with_dev, 1));
+        CHECK(option_at(with_dev, 1) == "Beta");
+    }
+}
+
+TEST_CASE_METHOD(AboutUpdateGateFixture, "Update channel picker shows the channel it is given",
+                 "[settings][about][update][channel]") {
+    REQUIRE(root_ != nullptr);
+
+    // The channel arrives as a parameter, so these pin the widget rule on its own.
+    // That the value is UpdateChecker's effective channel rather than the stored
+    // /update/channel is pinned separately, in test_update_channel_beta_gate.cpp.
+
+    SECTION("Beta shows as Beta on the stock picker") {
+        set_gates(/*beta=*/0, /*update_settings=*/1);
+        AboutSettingsOverlay::sync_update_channel_rows(root_, 1);
+        CHECK(lv_dropdown_get_selected(dropdown("row_update_channel")) == 1);
+    }
+
+    SECTION("Stable shows as Stable on the stock picker") {
+        set_gates(/*beta=*/0, /*update_settings=*/1);
+        AboutSettingsOverlay::sync_update_channel_rows(root_, 0);
+        CHECK(lv_dropdown_get_selected(dropdown("row_update_channel")) == 0);
+    }
+
+    SECTION("Dev never renders as Beta on the two-entry picker") {
+        // LVGL clamps an out-of-range selection to the last option, so handing
+        // Dev's index 2 to the stock picker would read Beta — a channel the user
+        // did not choose. A row too short for the value is left alone instead.
+        set_gates(/*beta=*/1, /*update_settings=*/1);
+        lv_obj_t* basic = dropdown("row_update_channel");
+        lv_dropdown_set_selected(basic, 0);
+        AboutSettingsOverlay::sync_update_channel_rows(root_, 2);
+        CHECK(lv_dropdown_get_selected(basic) == 0);
+    }
+
+    SECTION("Dev shows as Dev on the beta picker") {
+        set_gates(/*beta=*/1, /*update_settings=*/1);
+        AboutSettingsOverlay::sync_update_channel_rows(root_, 2);
+        CHECK(lv_dropdown_get_selected(dropdown("row_update_channel_dev")) == 2);
+    }
+
+    SECTION("both pickers move together so a swap shows no stale value") {
+        set_gates(/*beta=*/0, /*update_settings=*/1);
+        AboutSettingsOverlay::sync_update_channel_rows(root_, 1);
+        CHECK(lv_dropdown_get_selected(dropdown("row_update_channel")) == 1);
+        CHECK(lv_dropdown_get_selected(dropdown("row_update_channel_dev")) == 1);
     }
 }

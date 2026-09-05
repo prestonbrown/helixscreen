@@ -36,7 +36,7 @@ When beta features are enabled, the following appear in the UI with an orange "B
 | **HelixPrint Plugin** | Advanced panel | Install/uninstall the HelixPrint Klipper plugin for advanced print start control | Functional; plugin manages bed mesh, QGL, z-tilt skipping |
 | **Configure PRINT_START** | Advanced panel | Make bed mesh and QGL skippable in your print start macro | Functional; needs only Beta Features enabled — writes your Klipper config directly via Moonraker, no plugin required |
 | **Plugins** | Settings panel | View installed plugins and their status | Functional; plugin system is early-stage |
-| **Update Channel** | Settings panel | Switch between Stable, Beta, and Dev update channels | Functional; Beta/Dev channels may have less-tested releases |
+| **Dev Update Channel** | Settings panel | Adds **Dev** to the Update Channel selector, which otherwise offers Stable and Beta to everyone | Functional; needs `update.dev_url` set in the config file |
 | **Macro Browser** | Advanced panel | Browse and execute custom Klipper macros | Functional; hides system macros, confirms dangerous ones |
 | **Z Calibration** | Controls panel | Quick-access `PROBE_CALIBRATE` button (probe Z endstop) — distinct from the graduated Z-Offset Calibration flow | Functional; requires probe hardware |
 | **MPC Calibration** | Heater Calibration panel | Model Predictive Control calibration as an alternative to PID | Functional; requires Kalico firmware |
@@ -69,15 +69,18 @@ There is no release download yet — the firmware is built from the source tree 
 
 ## Update Channel Selection
 
-When beta features are enabled, a channel selector appears in **Settings** → **About**:
+The channel selector in **Settings** → **About** offers **Stable** and **Beta** on
+every install. Enabling beta features adds a third entry:
 
-| Channel | Description |
-|---------|-------------|
-| **Stable** | Production releases (default) |
-| **Beta** | Pre-release builds for testing upcoming features |
-| **Dev** | Development builds — latest code, may be unstable |
+| Channel | Description | Needs beta features |
+|---------|-------------|---------------------|
+| **Stable** | Production releases (default) | No |
+| **Beta** | Pre-release builds for testing upcoming features | No |
+| **Dev** | Development builds — latest code, may be unstable | Yes |
 
 The update channel can also be set via `update.channel` in the config file (0=Stable, 1=Beta, 2=Dev).
+A stored Dev falls back to Stable while beta features are off; the stored value is
+kept, so turning beta back on restores Dev.
 
 ---
 
