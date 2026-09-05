@@ -18,6 +18,7 @@
 #include "ams_types.h"
 #include "error_event.h"
 #include "firmware_routing.h"
+#include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
 
 class IMoonrakerAPI;
@@ -37,6 +38,7 @@ typedef struct _lv_subject_t lv_subject_t;
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -1509,16 +1511,34 @@ class AmsBackend {
     }
 
     /**
-     * @brief Set tool-to-slot mapping
+     * @brief Aim a tool at a slot, on purpose.
      *
-     * Configures which slot a tool number maps to.
-     * Happy Hare specific - may not be supported on all backends.
+     * The one entry point for a deliberate tool-to-lane assignment. Every
+     * caller reaching a backend's mapping verb comes through here, so this is
+     * also where the choice is recorded: a routing a user built is worth
+     * believing even when its shape looks degenerate, and nothing downstream
+     * can recover that from the numbers alone.
+     *
+     * Backends implement set_tool_mapping_impl(); this wrapper is deliberately
+     * not virtual so no backend can take the write without the record.
      *
      * @param tool_number Tool number (0-based)
      * @param slot_index Slot to map to (0-based)
      * @return AmsError indicating if mapping was set
      */
-    virtual AmsError set_tool_mapping(int tool_number, int slot_index) = 0;
+    AmsError set_tool_mapping(int tool_number, int slot_index);
+
+    /**
+     * @brief What stands behind the routing get_tool_mapping() reports.
+     *
+     * The default composes the two things the base class can already see: a
+     * printer that echoes its own table (reports_firmware_tool_mapping()) has
+     * stated what will print, and a tool aimed from our UI that still sits
+     * where it was put is the user's own answer. A backend that neither echoes
+     * nor has been driven reports Unvouched, which keeps consumers on whatever
+     * they do when nobody can vouch.
+     */
+    [[nodiscard]] virtual helix::printer::ToolMappingOrigin tool_mapping_origin() const;
 
     /**
      * @brief Erase the user-provided override for a slot.
@@ -2277,6 +2297,14 @@ class AmsBackend {
     }
 
   protected:
+    /**
+     * @brief Send this backend's tool-mapping verb.
+     *
+     * The backend half of set_tool_mapping(). Reached only through that
+     * wrapper, which records the assignment as the user's own before returning.
+     */
+    virtual AmsError set_tool_mapping_impl(int tool_number, int slot_index) = 0;
+
     /// @name Own-write spool-id expectations (Rule-1 echo-race suppression)
     ///
     /// When HelixScreen itself writes a spool id to firmware (AFC's
@@ -2601,4 +2629,12 @@ class AmsBackend {
      * @return Unique pointer to mock backend instance
      */
     static std::unique_ptr<AmsBackend> create_mock(int slot_count = 4);
+
+  private:
+    /// Tool -> slot aimed from our UI, for as long as this backend lives.
+    /// tool_mapping_origin() reads an entry as the user's answer only while the
+    /// live routing still agrees with it, so a table that moves on stops being
+    /// vouched for by a choice it no longer reflects.
+    mutable std::mutex authored_mappings_mutex_;
+    std::map<int, int> authored_mappings_;
 };

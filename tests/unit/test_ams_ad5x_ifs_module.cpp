@@ -529,3 +529,32 @@ TEST_CASE("AD5X IFS module colour normalisation", "[ams][ad5x_ifs][ifs_module]")
     CHECK(Ad5xIfsTestAccess::normalize_module_color("#GGGGGG").empty());
     CHECK(Ad5xIfsTestAccess::normalize_module_color(std::string()).empty());
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AD5X IFS: a table collapsing every tool onto one lane says nothing",
+                 "[ams][ad5x_ifs][ifs_module][provenance][1422]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    auto owned = std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr);
+    auto* backend = owned.get();
+    ams.set_backend(std::move(owned));
+
+    // A plugin table that names port 1 for every tool. This backend does not
+    // echo its table back from the printer and no tool has been aimed at a lane
+    // from our UI, so nothing stands behind the shape — and a routing carrying
+    // no per-tool information must leave the file's own palette alone rather
+    // than paint a four-colour model in one lane's purple.
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(*backend, false);
+    Ad5xIfsTestAccess::parse_vars(*backend, json{{"bambufy_tools", json::array({1, 1, 1, 1})}});
+    Ad5xIfsTestAccess::handle_status(*backend, module_ifs_frame(1, {1, 2, 3, 4}));
+    Ad5xIfsTestAccess::handle_status(*backend, module_labeled_materials_frame());
+
+    const std::vector<int> collapsed{0, 0, 0, 0};
+    REQUIRE(backend->get_tool_mapping() == collapsed);
+    REQUIRE(backend->tool_mapping_origin() == helix::printer::ToolMappingOrigin::Unvouched);
+    CHECK(ams.routed_tool_colors().empty());
+
+    ams.clear_backends();
+    ams.deinit_subjects();
+}

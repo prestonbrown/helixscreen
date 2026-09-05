@@ -163,7 +163,7 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     }
 
     AmsError set_slot_info(int slot_index, const SlotInfo& info, bool persist = true) override;
-    AmsError set_tool_mapping(int tool_number, int slot_index) override;
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
     void clear_slot_override(int slot_index) override;
 
     AmsError enable_bypass() override;

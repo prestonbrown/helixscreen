@@ -52,7 +52,7 @@ class CountingAfcBackend : public AmsBackendAfc {
   public:
     CountingAfcBackend() : AmsBackendAfc(nullptr, nullptr) {}
 
-    AmsError set_tool_mapping(int tool_number, int slot_index) override {
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override {
         calls.push_back({tool_number, slot_index});
         return AmsErrorHelper::success();
     }

@@ -2984,7 +2984,7 @@ std::vector<int> AmsBackendAd5xIfs::get_tool_mapping() const {
     return result;
 }
 
-AmsError AmsBackendAd5xIfs::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_index) {
     if (tool_number < 0 || tool_number >= TOOL_MAP_SIZE) {
         return AmsErrorHelper::invalid_parameter("Invalid tool number");
     }

@@ -1286,7 +1286,7 @@ AmsError AmsBackendToolChanger::set_slot_info(int slot_index, const SlotInfo& in
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendToolChanger::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_index) {
     // Remap G-code tool number to a different physical tool via klipper-toolchanger's
     // ASSIGN_TOOL command. This makes Klipper's T<tool_number> command activate the
     // physical tool at slot_index instead of tool_number.

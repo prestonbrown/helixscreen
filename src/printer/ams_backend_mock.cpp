@@ -1044,7 +1044,7 @@ AmsError AmsBackendMock::set_slot_info(int slot_index, const SlotInfo& info, boo
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendMock::set_tool_mapping(int tool_number, int slot_index) {
+AmsError AmsBackendMock::set_tool_mapping_impl(int tool_number, int slot_index) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     // Tools can have a higher index than the number of slots — multi-tool

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "firmware_routing.h"
+#include "tool_mapping_origin.h"
 
 #include <cstdint>
 #include <map>
@@ -245,12 +246,20 @@ class FilamentMapper {
     ///        lives; an EMPTY vector means the backend has no opinion and this
     ///        returns empty rather than assuming identity.
     /// @param slots Current lane state.
+    /// @param origin What stands behind @p tool_to_head. A routing that sends
+    ///        every routed tool to one head is read two ways and the numbers
+    ///        cannot tell them apart: Unvouched makes it a table nobody chose
+    ///        and the slicer palette stands, Deliberate makes it somebody's
+    ///        answer and the uniform lane colour is published. Required, so a
+    ///        new caller has to state what it knows instead of inheriting a
+    ///        default that silently suppresses a real answer.
     /// @return Dense tool-indexed colors, or EMPTY when nothing is knowable —
     ///         including when every resolved color is the neutral default, since
     ///         pushing an all-grey vector would only overwrite the slicer palette
     ///         the renderer already has. Pure; no LVGL/AMS.
     static std::vector<uint32_t> routed_tool_colors(const std::vector<int>& tool_to_head,
-                                                    const std::vector<AvailableSlot>& slots);
+                                                    const std::vector<AvailableSlot>& slots,
+                                                    helix::printer::ToolMappingOrigin origin);
 
     /// Which routing to colour by, given what a backend published and what its
     /// physical map says. Named and pure because getting it wrong is silent: an
