@@ -4886,12 +4886,16 @@ void Application::tear_down_printer_state() {
     m_history_manager.reset();
     m_temp_history_manager.reset();
 
-    // 8. Unregister timelapse event callback
+    // 8. Unregister the method callbacks registered from on_discovery_complete.
+    //    The about overlay is destroyed by StaticPanelRegistry::destroy_all() below,
+    //    while the client outlives it until step 18.
     if (m_moonraker && m_moonraker->client()) {
         m_moonraker->client()->unregister_method_callback("notify_timelapse_event",
                                                           "timelapse_state");
         m_moonraker->client()->unregister_method_callback("notify_update_response",
                                                           "external_update_restart");
+        m_moonraker->client()->unregister_method_callback("notify_history_changed",
+                                                          "AboutOverlay_print_hours");
     }
 
     // 8b. Unsubscribe power device and sensor state
@@ -5202,10 +5206,12 @@ void Application::shutdown() {
     m_history_manager.reset();
     m_temp_history_manager.reset();
 
-    // Unregister timelapse event callback
+    // Unregister the method callbacks registered from on_discovery_complete
     if (m_moonraker && m_moonraker->client()) {
         m_moonraker->client()->unregister_method_callback("notify_timelapse_event",
                                                           "timelapse_state");
+        m_moonraker->client()->unregister_method_callback("notify_history_changed",
+                                                          "AboutOverlay_print_hours");
     }
 
     // Unsubscribe power device and sensor state

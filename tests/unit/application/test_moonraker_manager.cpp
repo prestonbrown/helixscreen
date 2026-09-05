@@ -20,6 +20,8 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "../../catch_amalgamated.hpp"
 
@@ -586,12 +588,12 @@ std::set<std::string> extract_observer_guard_members(const std::string& header) 
     return members;
 }
 
-std::set<std::string> extract_released_members_in_method(const std::string& impl,
-                                                         const std::string& class_name,
-                                                         const std::string& method_name) {
-    // Find the body of <ClassName>::<methodName>() and extract `member.release();`
-    // calls. Body starts at the function signature and ends at the matching
-    // closing brace via a simple brace-balance state machine.
+// Body of <ClassName>::<methodName>(), from the signature's opening brace to its
+// match via a brace-balance state machine. Empty when the signature is not found.
+// Nested lambdas are included, which is what callers parsing registration sites
+// need — those live inside the discovery lambdas, not at statement level.
+std::string extract_method_body(const std::string& impl, const std::string& class_name,
+                                const std::string& method_name) {
     std::regex sig_re("(?:void|bool|int)\\s+" + class_name + "::" + method_name +
                       R"(\s*\(\s*\)\s*(?:noexcept)?\s*\{)");
     std::smatch m;
@@ -608,7 +610,17 @@ std::set<std::string> extract_released_members_in_method(const std::string& impl
             --depth;
         ++pos;
     }
-    std::string body = impl.substr(start, pos - start - 1);
+    return impl.substr(start, pos - start - 1);
+}
+
+std::set<std::string> extract_released_members_in_method(const std::string& impl,
+                                                         const std::string& class_name,
+                                                         const std::string& method_name) {
+    // Extract `member.release();` calls from the method body.
+    std::string body = extract_method_body(impl, class_name, method_name);
+    if (body.empty()) {
+        return {};
+    }
 
     std::set<std::string> released;
     std::regex rel_re(R"(([A-Za-z][A-Za-z0-9_]*)\.release\s*\(\s*\)\s*;)");
@@ -640,6 +652,38 @@ const std::vector<ShutdownObserverContract>& shutdown_observer_classes() {
     return contracts;
 }
 
+// A (method, handler) pair as written at a register/unregister_method_callback site.
+using MethodHandler = std::pair<std::string, std::string>;
+
+std::set<MethodHandler> extract_method_callback_pairs(const std::string& body, bool unregister) {
+    // The \b keeps the register scan from also matching unregister_method_callback:
+    // the 'n' preceding "register" there is a word character, so no boundary exists.
+    std::regex re(std::string(unregister ? R"(\bunregister)" : R"(\bregister)") +
+                  R"RX(_method_callback\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)")RX");
+    std::set<MethodHandler> pairs;
+    auto begin = std::sregex_iterator(body.begin(), body.end(), re);
+    auto end = std::sregex_iterator();
+    for (auto it = begin; it != end; ++it) {
+        pairs.insert({(*it)[1].str(), (*it)[2].str()});
+    }
+    return pairs;
+}
+
+// Handlers installed from Application::setup_discovery_callbacks whose callback
+// reaches a static panel or singleton that teardown destroys before it releases
+// the MoonrakerClient. Both teardown paths must drop these.
+//
+// This is the enforced subset, not the full registration set: a passing run is not
+// a claim that every handler in the file is covered. Add a pair here when a new
+// discovery-time handler reaches state that teardown rebuilds.
+const std::vector<MethodHandler>& discovery_handlers_requiring_teardown() {
+    static const std::vector<MethodHandler> handlers = {
+        {"notify_timelapse_event", "timelapse_state"},
+        {"notify_history_changed", "AboutOverlay_print_hours"},
+    };
+    return handlers;
+}
+
 } // namespace
 
 TEST_CASE("Shutdown observer release contract — every ObserverGuard member is released",
@@ -669,6 +713,65 @@ TEST_CASE("Shutdown observer release contract — every ObserverGuard member is 
                                           "dtor calling lv_observer_remove() on freed memory "
                                           "crashes (issue #888 family).");
                 REQUIRE(released.count(member) == 1);
+            }
+        }
+    }
+}
+
+TEST_CASE("Discovery method callbacks are unregistered on both teardown paths",
+          "[application][shutdown][regression]") {
+    // The unit is the (method, handler) pair, not the method. notify_history_changed
+    // carries AboutOverlay_print_hours alongside PrintHistoryManager's own handler,
+    // released by that manager's destructor, so the method appearing in an unregister
+    // call is no evidence that a particular handler is released.
+    //
+    // Registration runs from on_discovery_complete, so it repeats on every reconnect.
+    // MoonrakerClient::register_method_callback inserts into a std::map keyed by handler
+    // name, and std::map::insert does not overwrite, so a repeat is a no-op rather than
+    // a second live handler.
+    //
+    // Neither teardown path can be driven at runtime (see application_test_access.h),
+    // so this is a source-level contract in the same shape as the ObserverGuard release
+    // contract above.
+    const std::string impl = read_file("src/application/application.cpp");
+    REQUIRE_FALSE(impl.empty());
+
+    const std::string setup =
+        extract_method_body(impl, "Application", "setup_discovery_callbacks");
+    const std::string tear_down =
+        extract_method_body(impl, "Application", "tear_down_printer_state");
+    const std::string shutdown = extract_method_body(impl, "Application", "shutdown");
+    REQUIRE_FALSE(setup.empty());
+    REQUIRE_FALSE(tear_down.empty());
+    REQUIRE_FALSE(shutdown.empty());
+
+    const auto registered = extract_method_callback_pairs(setup, /*unregister=*/false);
+    const auto dropped_on_switch = extract_method_callback_pairs(tear_down, /*unregister=*/true);
+    const auto dropped_on_exit = extract_method_callback_pairs(shutdown, /*unregister=*/true);
+
+    // Guard the parser: a regex matching nothing would satisfy every check below.
+    REQUIRE(registered.size() >= discovery_handlers_requiring_teardown().size());
+    REQUIRE_FALSE(dropped_on_switch.empty());
+    REQUIRE_FALSE(dropped_on_exit.empty());
+
+    for (const auto& handler : discovery_handlers_requiring_teardown()) {
+        DYNAMIC_SECTION(handler.first << " / " << handler.second) {
+            {
+                INFO("Not registered in Application::setup_discovery_callbacks. The table "
+                     "in discovery_handlers_requiring_teardown() is stale.");
+                CHECK(registered.count(handler) == 1);
+            }
+            {
+                INFO("Application::tear_down_printer_state must unregister this handler. A "
+                     "printer switch destroys the panels its callback reaches while the "
+                     "client stays alive until step 18.");
+                CHECK(dropped_on_switch.count(handler) == 1);
+            }
+            {
+                INFO("Application::shutdown must unregister this handler. "
+                     "StaticPanelRegistry::destroy_all() runs before the client is "
+                     "released.");
+                CHECK(dropped_on_exit.count(handler) == 1);
             }
         }
     }
