@@ -577,8 +577,6 @@ class GCodeStreamingController {
     // prevent use-after-free when MemoryMonitor invokes a copied callback
     // after this object is destroyed (prestonbrown/helixscreen#733)
     std::shared_ptr<bool> prevent_uaf_sentinel_{std::make_shared<bool>(true)};
-
-    friend class GCodeStreamingControllerTestAccess;
 };
 
 } // namespace gcode
