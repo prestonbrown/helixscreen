@@ -570,4 +570,17 @@ class Ad5xIfsTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.backup_state_locked();
     }
+    // Drive the "the macro is gone" verdict recheck_ifs_vars_macro() applies
+    // after a FIRMWARE_RESTART. Its own callback needs a live client to reach,
+    // so this is how a test exercises a plugin uninstalled mid-session.
+    static void apply_ifs_vars_macro_absent(AmsBackendAd5xIfs& b) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.apply_ifs_vars_macro_absent_locked();
+    }
+    // Fire the post-FIRMWARE_RESTART macro re-query. The reply lands on
+    // whatever client the backend was built with, so pair this with a
+    // FakeMoonrakerClient and invoke the recorded success callback.
+    static void recheck_ifs_vars_macro(AmsBackendAd5xIfs& b) {
+        b.recheck_ifs_vars_macro();
+    }
 };
