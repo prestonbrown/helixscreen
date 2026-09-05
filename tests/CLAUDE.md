@@ -171,6 +171,33 @@ detects, whatever the diff's test files claim. It is the only tool here that see
 the adjacent-invariant failure, so scope it (`MUTATE_ARGS="--limit 5"`, or
 `--tests "[ams]"`) rather than skipping it.
 
+**Read the first two lines: they say what the run is about.**
+
+```
+base d9f1c0a4e7b2  <- merge-base with origin/release/1.0 (nearest of 4 candidate upstream(s))
+diff 3 hunk(s) across 2 file(s)
+```
+
+The base is the nearest fork point among the refs this branch could have been cut
+from - its configured upstream, then the release branches, then main - because
+`main` alone is wrong on anything growing out of a maintenance branch. A branch
+cut from `release/1.0` shares with main only where those two parted, so measured
+against main it inherits everything `release/1.0` has done since as its own
+change: dozens of foreign hunks, a build apiece, and verdicts about other
+people's code. Those mostly come back `uncompilable`, which is correctly not a
+kill, so a mis-scoped run has no symptom of its own - it just looks slow and
+stubborn.
+
+A hunk count well above the size of your change is therefore the thing to
+notice, and the run stops and says so rather than spending the builds
+(`--max-hunks`, default 25; exit 4). Settle it with
+`MUTATE_ARGS="--base origin/release/1.0"`, which is taken as given and never
+second-guessed.
+
+Stop a run with **Ctrl-C**, never `kill`. Each mutant is put back by a `finally:`
+that needs the interpreter to keep running; SIGINT unwinds it, SIGTERM does not
+and leaves that hunk reverted in your working tree.
+
 Four outcomes, and they are not interchangeable:
 
 | Verdict | Means |
