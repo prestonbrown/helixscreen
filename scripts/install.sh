@@ -758,22 +758,52 @@ host_profile_probe() {
 # True when path (symlinks resolved) is managed by the mod: the probed tree,
 # the probed chroot, or one of the canonical mod roots. Never mv, rm, or chmod
 # these outside --mod-payload's in-place contract.
+# Canonicalize a path for comparison: symlinks resolved, or the input unchanged
+# when nothing on the host can resolve it.
+#
+# realpath first, then readlink -f: BusyBox (K2/AD5M) ships readlink without -f,
+# and some minimal images carry no realpath at all. The `|| out=""` on each
+# substitution is required under set -e - a missing tool exits 127, which would
+# abort the installer before the next fallback runs.
+host_canonical_path() {
+    [ -n "$1" ] || return 1
+    local out
+    out=$(realpath "$1" 2>/dev/null) || out=""
+    [ -n "$out" ] || out=$(readlink -f "$1" 2>/dev/null) || out=""
+    [ -n "$out" ] || out="$1"
+    printf '%s\n' "$out"
+}
+
+# True when $1 sits at or under $2. Both sides are compared as written and as
+# resolved, because resolving only one of them silently fails wherever the root
+# is reached through a symlink: macOS resolves /var to /private/var, so a
+# candidate under a temp root stops matching that root and this gate - which
+# refuses operations on a mod-owned tree - fails OPEN.
+host_path_under() {
+    [ -n "$2" ] || return 1
+    local cand_raw="$1" root_raw="$2" cand_canon root_canon
+    case "$cand_raw" in
+        "$root_raw"|"$root_raw"/*) return 0 ;;
+    esac
+    cand_canon=$(host_canonical_path "$cand_raw")
+    root_canon=$(host_canonical_path "$root_raw")
+    case "$cand_canon" in
+        "$root_canon"|"$root_canon"/*) return 0 ;;
+    esac
+    return 1
+}
+
 host_path_is_mod_owned() {
     [ -n "$1" ] || return 1
-    local p
-    p=$(readlink -f "$1" 2>/dev/null) || p="$1"
+    local p="$1"
     # Each probed root matches only when the probe found one — an empty
     # "$HOST_MOD_ROOT"/* pattern degenerates to /* and would claim every
     # absolute path on a host with no mod.
-    if [ -n "$HOST_MOD_ROOT" ]; then
-        case "$p" in
-            "$HOST_MOD_ROOT"|"$HOST_MOD_ROOT"/*) return 0 ;;
-        esac
+    if [ -n "$HOST_MOD_ROOT" ] && host_path_under "$p" "$HOST_MOD_ROOT"; then
+        return 0
     fi
-    if [ -n "$HOST_MOD_CHROOT" ]; then
-        case "$p" in
-            "$HOST_MOD_CHROOT"|"$HOST_MOD_CHROOT"/*) return 0 ;;
-        esac
+    if [ -n "$HOST_MOD_CHROOT" ] && host_path_under "$p" "$HOST_MOD_CHROOT"; then
+        return 0
     fi
     # The canonical roots are hard-coded, like HELIX_INSTALL_DIRS: those
     # namespaces are the mod's whether or not a probe found them. The probe's
