@@ -732,6 +732,28 @@ MOCK
     [ -e "$TMP_DIR/helixscreen.tar.gz" ]
 }
 
+@test "use_local_tarball: a relative source is staged as an absolute symlink" {
+    # ln -sf resolves its target relative to the LINK's directory, so staging a
+    # relative source verbatim points $TMP_DIR/helixscreen.tar.gz at a sibling
+    # that is not there. The copy fallback then hides it: cp resolves the same
+    # relative path against the caller's cwd and succeeds, leaving a staged
+    # archive that is real and a resolution step that never ran.
+    create_valid_gzip "$BATS_TEST_TMPDIR/rel_release.tar.gz" 2048
+    cd "$BATS_TEST_TMPDIR"
+
+    run use_local_tarball "./rel_release.tar.gz"
+    [ "$status" -eq 0 ] || fail "use_local_tarball failed: $output"
+    [ -L "$TMP_DIR/helixscreen.tar.gz" ] || fail "staged as a copy, not a symlink"
+    [ -r "$TMP_DIR/helixscreen.tar.gz" ] || fail "staged symlink does not resolve"
+
+    local target
+    target=$(readlink "$TMP_DIR/helixscreen.tar.gz")
+    case "$target" in
+        /*) ;;
+        *) fail "staged symlink target is not absolute: $target" ;;
+    esac
+}
+
 @test "use_local_tarball: exits with error for missing file" {
     run use_local_tarball "$BATS_TEST_TMPDIR/no_such_file.tar.gz"
     [ "$status" -ne 0 ]
