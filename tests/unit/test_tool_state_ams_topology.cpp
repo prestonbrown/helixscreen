@@ -270,7 +270,7 @@ TEST_CASE_METHOD(ToolStateFixture,
 
     // Feed status that includes per-tool keys ("tool T0", "tool T1", ...).
     // The toolchanger.tool_number block MUST be ignored (topology owns active),
-    // but the per-tool loop MUST update .mounted / .gcode_x_offset.
+    // but the per-tool loop MUST update .mounted, and the offsets pass the X/Y offsets.
     nlohmann::json status = {
         {"toolchanger", {{"tool_number", 99}}}, // Should be ignored — out-of-range proves it
         {"tool T0",
@@ -297,8 +297,8 @@ TEST_CASE_METHOD(ToolStateFixture,
     // Per-tool loop must have updated mounted + offsets.
     REQUIRE(ts.tools()[0].mounted == true);
     REQUIRE(ts.tools()[1].mounted == true);
-    REQUIRE(ts.tools()[1].gcode_x_offset == Catch::Approx(12.5));
-    REQUIRE(ts.tools()[1].gcode_y_offset == Catch::Approx(-3.25));
+    REQUIRE(ts.tools()[1].gcode_offset(helix::Axis::X).mm == Catch::Approx(12.5));
+    REQUIRE(ts.tools()[1].gcode_offset(helix::Axis::Y).mm == Catch::Approx(-3.25));
     REQUIRE(ts.tools()[2].mounted == false);
 
     // Active-tool guard must still hold: toolchanger.tool_number=99 was ignored.

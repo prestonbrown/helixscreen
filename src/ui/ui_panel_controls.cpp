@@ -1092,7 +1092,8 @@ void ControlsPanel::handle_save_z_offset() {
     // machine-wide offset here would refuse the save on exactly the case the
     // button is now shown for: a tool adjusted while the global stayed 0.
     const bool tools_dirty =
-        lv_subject_get_int(helix::ToolState::instance().get_any_tool_z_dirty_subject()) == 1;
+        lv_subject_get_int(
+            helix::ToolState::instance().get_any_tool_axis_dirty_subject(helix::Axis::Z)) == 1;
     if (offset_microns == 0 && !tools_dirty) {
         spdlog::debug("[{}] No Z-offset adjustment to save", get_name());
         return;

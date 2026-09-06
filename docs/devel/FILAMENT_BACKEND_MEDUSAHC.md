@@ -313,7 +313,11 @@ Not yet reconciled, and worth knowing before extending this:
   (`t{N}_gcode_{x,y,z}_offset`) is the persistent source, loaded into `TOOL_OFFSET` at
   startup, and MedusaHC works off the runtime `TOOL_OFFSET` values. A temporary nudge means
   writing `TOOL_OFFSET`; a permanent one means writing both. klipper-toolchanger's own
-  offset model is not the authority. We still touch neither.
+  offset model is not the authority. The Z half is handled: the `TOOL_OFFSET macro` row in
+  `src/printer/tool_offsets.cpp` reads `t{N}_off_z` and writes both stores. X and Y are
+  deliberately **declined** (`supports_axis()` is false for them) until the macro's X/Y
+  variable shape is verified against a machine — guessing a name would write a value nothing
+  reads, and the tool object's `gcode_x_offset` is not consulted on this printer either.
 - **`layer`, `PRIME_FLAGS_*`, `MHC_CLEAN`** - per-tool priming and cleaning scheduled
   against layer number. No analogue in the toolchanger model, unused today.
 

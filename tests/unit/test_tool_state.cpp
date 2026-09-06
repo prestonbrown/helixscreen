@@ -49,9 +49,11 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolInfo: default construction", "[tool][too
     REQUIRE(info.extruder_name.value() == "extruder");
     REQUIRE_FALSE(info.heater_name.has_value());
     REQUIRE_FALSE(info.fan_name.has_value());
-    REQUIRE(info.gcode_x_offset == 0.0f);
-    REQUIRE(info.gcode_y_offset == 0.0f);
-    REQUIRE(info.gcode_z_offset == 0.0f);
+    for (helix::Axis axis : helix::kAllAxes) {
+        REQUIRE(info.gcode_offset(axis).mm == 0.0f);
+        REQUIRE_FALSE(info.gcode_offset(axis).known);
+        REQUIRE_FALSE(info.gcode_offset(axis).dirty());
+    }
     REQUIRE_FALSE(info.active);
     REQUIRE_FALSE(info.mounted);
     REQUIRE(info.detect_state == DetectState::UNAVAILABLE);
@@ -340,9 +342,9 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: update_from_status parses offsets
         {"tool T1", {{"gcode_x_offset", 1.5}, {"gcode_y_offset", -2.3}, {"gcode_z_offset", 0.15}}}};
     ts.update_from_status(status);
 
-    REQUIRE(ts.tools()[1].gcode_x_offset == Catch::Approx(1.5f));
-    REQUIRE(ts.tools()[1].gcode_y_offset == Catch::Approx(-2.3f));
-    REQUIRE(ts.tools()[1].gcode_z_offset == Catch::Approx(0.15f));
+    REQUIRE(ts.tools()[1].gcode_offset(helix::Axis::X).mm == Catch::Approx(1.5f));
+    REQUIRE(ts.tools()[1].gcode_offset(helix::Axis::Y).mm == Catch::Approx(-2.3f));
+    REQUIRE(ts.tools()[1].gcode_offset(helix::Axis::Z).mm == Catch::Approx(0.15f));
 }
 
 TEST_CASE_METHOD(ToolStateFixture, "ToolState: update_from_status with no tools is safe",
@@ -1665,4 +1667,200 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: saving through a symlink preserve
     CHECK_FALSE(std::filesystem::exists(real_file.string() + ".tmp"));
 
     ts.deinit_subjects();
+}
+
+// ============================================================================
+// Per-tool offsets: X/Y/Z bookkeeping and subjects
+// ============================================================================
+
+namespace {
+
+/// A stock klipper-toolchanger with @p tool_count tools, plus the extra objects.
+helix::PrinterDiscovery toolchanger_hw(int tool_count = 2,
+                                       std::initializer_list<const char*> extra = {}) {
+    nlohmann::json objects = nlohmann::json::array({"toolchanger", "gcode_move"});
+    for (int i = 0; i < tool_count; ++i) {
+        objects.push_back("tool T" + std::to_string(i));
+        objects.push_back(i == 0 ? "extruder" : "extruder" + std::to_string(i));
+    }
+    for (const char* o : extra) {
+        objects.push_back(o);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+ToolState& fresh_tool_state(const helix::PrinterDiscovery& hw) {
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+    ts.init_tools(hw);
+    return ts;
+}
+
+int subj(lv_subject_t* s) {
+    return lv_subject_get_int(s);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a toolchanger supports all three axes",
+                 "[tool][tool-state][tool-offsets]") {
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw());
+
+    for (Axis axis : kAllAxes) {
+        CAPTURE(axis_letter(axis));
+        CHECK(subj(ts.get_per_tool_axis_supported_subject(axis)) == 1);
+        // Nothing reported yet: not valid, not dirty, reads as 0.
+        CHECK(subj(ts.get_active_tool_offset_valid_subject(axis)) == 0);
+        CHECK_FALSE(ts.tool_offset_known(0, axis));
+        CHECK(ts.tool_offset_mm(0, axis) == 0.0f);
+    }
+    CHECK(subj(ts.get_any_tool_offset_dirty_subject()) == 0);
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a frame seeds every axis as persisted",
+                 "[tool][tool-state][tool-offsets]") {
+    // The first value seen is the config value, so a fresh connect must not
+    // claim unsaved work - on any axis.
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw());
+
+    ts.update_from_status(
+        {{"tool T0",
+          {{"gcode_x_offset", 1.5}, {"gcode_y_offset", -0.25}, {"gcode_z_offset", 0.1}}}});
+
+    CHECK(ts.tool_offset_known(0, Axis::X));
+    CHECK(ts.tool_offset_mm(0, Axis::X) == Catch::Approx(1.5f));
+    CHECK(ts.tool_offset_mm(0, Axis::Y) == Catch::Approx(-0.25f));
+    CHECK(ts.tool_offset_mm(0, Axis::Z) == Catch::Approx(0.1f));
+    // T0 is the active tool, so the active-tool subjects follow, in microns.
+    CHECK(subj(ts.get_active_tool_offset_subject(Axis::X)) == 1500);
+    CHECK(subj(ts.get_active_tool_offset_valid_subject(Axis::X)) == 1);
+    CHECK(subj(ts.get_active_tool_offset_subject(Axis::Y)) == -250);
+    CHECK(subj(ts.get_active_tool_offset_subject(Axis::Z)) == 100);
+    // Seeded, not dirty.
+    CHECK(ts.dirty_tool_indices().empty());
+    CHECK(subj(ts.get_any_tool_offset_dirty_subject()) == 0);
+    CHECK(subj(ts.get_any_tool_axis_dirty_subject(Axis::X)) == 0);
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a local X change dirties X and only X",
+                 "[tool][tool-state][tool-offsets]") {
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw());
+    ts.update_from_status(
+        {{"tool T1", {{"gcode_x_offset", 0.0}, {"gcode_y_offset", 0.0}, {"gcode_z_offset", 0.0}}}});
+
+    ts.set_tool_offset_local(1, Axis::X, 500);
+
+    CHECK(ts.tool_offset_mm(1, Axis::X) == Catch::Approx(0.5f));
+    CHECK(ts.dirty_tool_indices() == std::vector<int>{1});
+    CHECK(ts.tool_offset_dirty(1, Axis::X));
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Y));
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
+    // Per-axis and any-axis subjects: the Z one must NOT light up, or the
+    // "Save Z-Offset" button would offer to save a Z that has not changed.
+    CHECK(subj(ts.get_any_tool_axis_dirty_subject(Axis::X)) == 1);
+    CHECK(subj(ts.get_any_tool_axis_dirty_subject(Axis::Z)) == 0);
+    CHECK(subj(ts.get_any_tool_offset_dirty_subject()) == 1);
+
+    // Saving the tool clears every axis of it.
+    ts.mark_tool_offsets_saved(1);
+    CHECK(ts.dirty_tool_indices().empty());
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::X));
+    CHECK(subj(ts.get_any_tool_axis_dirty_subject(Axis::X)) == 0);
+    CHECK(subj(ts.get_any_tool_offset_dirty_subject()) == 0);
+}
+
+TEST_CASE_METHOD(
+    ToolStateFixture,
+    "ToolState offsets: a tool with an unreported axis reads invalid on that axis only",
+    "[tool][tool-state][tool-offsets]") {
+    // Validity is per axis: switching to a tool whose X was never reported must
+    // drop X to invalid while its Z, which was, stays valid - otherwise the
+    // previous tool's X would sit on screen beside the new tool's Z.
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw());
+    ts.update_from_status({{"tool T0", {{"gcode_x_offset", 1.5}, {"gcode_z_offset", 0.1}}},
+                           {"tool T1", {{"gcode_z_offset", -0.2}}}});
+    REQUIRE(subj(ts.get_active_tool_offset_valid_subject(Axis::X)) == 1);
+
+    ts.update_from_status({{"toolchanger", {{"tool_number", 1}}}});
+
+    REQUIRE(ts.active_tool_index() == 1);
+    CHECK(subj(ts.get_active_tool_offset_valid_subject(Axis::X)) == 0);
+    CHECK(subj(ts.get_active_tool_offset_subject(Axis::X)) == 0);
+    CHECK(subj(ts.get_active_tool_offset_valid_subject(Axis::Z)) == 1);
+    CHECK(subj(ts.get_active_tool_offset_subject(Axis::Z)) == -200);
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a Z-only delta frame leaves X alone",
+                 "[tool][tool-state][tool-offsets]") {
+    // Moonraker republishes per field. A frame that only carries Z must not
+    // reset X's value, its known flag, or its saved baseline.
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw());
+    ts.update_from_status({{"tool T0", {{"gcode_x_offset", 1.5}, {"gcode_z_offset", 0.1}}}});
+    ts.set_tool_offset_local(0, Axis::X, 1750);
+    REQUIRE(ts.tool_offset_dirty(0, Axis::X));
+
+    ts.update_from_status({{"tool T0", {{"gcode_z_offset", 0.15}}}});
+
+    CHECK(ts.tool_offset_mm(0, Axis::X) == Catch::Approx(1.75f));
+    CHECK(ts.tool_offset_dirty(0, Axis::X));
+    CHECK(ts.tool_offset_mm(0, Axis::Z) == Catch::Approx(0.15f));
+    // Z was seeded at 0.1 and moved by the printer, not by us, so it is dirty
+    // too - a runtime change is a runtime change whoever made it.
+    CHECK(ts.tool_offset_dirty(0, Axis::Z));
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a Z-only firmware never learns X or Y",
+                 "[tool][tool-state][tool-offsets]") {
+    // The MedusaHC shape: klipper-toolchanger objects plus the TOOL_OFFSET
+    // macro, whose provider row keeps only Z. The tool object still carries
+    // gcode_x_offset, and it must be ignored: that store is not the authority
+    // on this machine, and offering X controls would promise a write the
+    // module refuses to emit.
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw(2, {"gcode_macro TOOL_OFFSET"}));
+
+    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::X)) == 0);
+    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::Y)) == 0);
+    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::Z)) == 1);
+
+    ts.update_from_status({{"gcode_macro TOOL_OFFSET", {{"t0_off_z", -0.2}}},
+                           {"tool T0", {{"gcode_x_offset", 1.5}, {"gcode_z_offset", 0.1}}}});
+
+    CHECK_FALSE(ts.tool_offset_known(0, Axis::X));
+    CHECK(subj(ts.get_active_tool_offset_valid_subject(Axis::X)) == 0);
+    CHECK(ts.tool_offset_mm(0, Axis::Z) == Catch::Approx(-0.2f));
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a topology rebuild carries every axis",
+                 "[tool][tool-state][tool-offsets]") {
+    // set_ams_topology() rebuilds tools_ from the backend's view; the offsets
+    // and their bookkeeping are facts about the toolhead and must survive it.
+    lv_init_safe();
+    ToolState& ts = fresh_tool_state(toolchanger_hw(4));
+    ts.update_from_status(
+        {{"tool T1",
+          {{"gcode_x_offset", 1.5}, {"gcode_y_offset", -0.25}, {"gcode_z_offset", 0.1}}}});
+    ts.set_tool_offset_local(1, Axis::Y, -500);
+
+    ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    ts.set_ams_topology(topo);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    REQUIRE(ts.tools().size() == 4);
+    CHECK(ts.tool_offset_mm(1, Axis::X) == Catch::Approx(1.5f));
+    CHECK(ts.tool_offset_mm(1, Axis::Y) == Catch::Approx(-0.5f));
+    CHECK(ts.tool_offset_dirty(1, Axis::Y));
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::X));
+    CHECK(ts.tool_offset_known(1, Axis::Z));
 }

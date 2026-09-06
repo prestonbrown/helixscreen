@@ -62,9 +62,8 @@ struct ToolInfo {
     std::optional<std::string> extruder_name = "extruder"; // Linked extruder ("extruder", "extruder1")
     std::optional<std::string> heater_name;           // Explicit heater override (nullopt = use extruder)
     std::optional<std::string> fan_name;              // Part cooling fan ("fan", "fan_generic fan1")
-    float gcode_x_offset = 0.0f;                     // Gcode X offset for tool
-    float gcode_y_offset = 0.0f;                     // Gcode Y offset
-    float gcode_z_offset = 0.0f;                     // Gcode Z offset
+    std::array<ToolAxisOffset, 3> gcode_offsets{};   // The tool's own X/Y/Z offsets, by axis_index()
+                                                     //   each: mm, known, saved_mm, dirty()
     bool active = false;                              // Klipper "active" state
     bool mounted = false;                             // Physically mounted on carriage
     DetectState detect_state = DetectState::UNAVAILABLE; // Physical presence detection
@@ -203,13 +202,24 @@ Each tool's status is keyed as `"tool <name>"`:
 | `active` | bool | Klipper's active state for this tool |
 | `mounted` | bool | Physically mounted on carriage |
 | `detect_state` | string | `"present"`, `"absent"`, or absent key = UNAVAILABLE |
-| `gcode_x_offset` | float | Tool X offset (mm) |
-| `gcode_y_offset` | float | Tool Y offset (mm) |
-| `gcode_z_offset` | float | Tool Z offset (mm) |
+| `gcode_x_offset` | float | Tool X offset (mm) — see below |
+| `gcode_y_offset` | float | Tool Y offset (mm) — see below |
+| `gcode_z_offset` | float | Tool Z offset (mm) — see below |
 | `extruder` | string | Extruder assignment (can change at runtime) |
 | `fan` | string | Fan assignment |
 
 Any change bumps `tools_version` subject to trigger UI rebuilds.
+
+The three offsets are **not** parsed in the generic per-tool loop. Which store is
+authoritative for a tool's offset is a per-firmware question (`include/tool_offsets.h`):
+klipper-toolchanger keeps all three on the `tool T{n}` object and edits them with
+`SET_TOOL_PARAMETER`, while a MedusaHC-style machine keeps Z on a macro and never reads the
+tool object's copy. `ToolState::update_from_status()` therefore asks
+`helix::tool_offsets::read_tool_offset_microns()` per tool and per axis, and only for the
+axes `supports_axis()` says the firmware keeps. `ToolInfo::gcode_offset(Axis)` returns the
+value with its `known` / `saved_mm` bookkeeping; the per-axis subjects
+(`per_tool_{x,y,z}_supported`, `active_tool_{x,y,z}_offset`, `active_tool_{x,y,z}_offset_valid`,
+`any_tool_{x,y,z}_dirty`, `any_tool_offset_dirty`) follow from it.
 
 ---
 
