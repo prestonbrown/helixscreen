@@ -700,8 +700,12 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         static const std::regex cred_url_re(R"(://[^@/\s]+:[^@/\s]+@)");
         result = std::regex_replace(result, cred_url_re, "://[REDACTED_CREDENTIALS]@");
 
-        // Redact email addresses
-        static const std::regex email_re(R"(\b[\w.+-]+@[\w-]+\.[\w.]+\b)");
+        // Redact email addresses. The last label must be alphabetic, because a
+        // bare `<word>@<number>.<number><unit>` is a diagnostic value, not an
+        // address: an input shaper logs its result as `mzv@40.2Hz`, and a
+        // pattern that accepts a numeric final label eats it. No TLD is a
+        // single character, so requiring two costs no real address.
+        static const std::regex email_re(R"(\b[\w.+-]+@[\w-]+(\.[\w-]+)*\.[A-Za-z]{2,}\b)");
         result = std::regex_replace(result, email_re, "[REDACTED_EMAIL]");
 
         // Redact MAC addresses (aa:bb:cc:dd:ee:ff or AA-BB-CC-DD-EE-FF)

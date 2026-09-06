@@ -712,6 +712,31 @@ echo ""
 }
 
 # ====================================================================
+# Every icon name in ui_xml/ resolves to a registered codepoint
+# ====================================================================
+qc_icon_names() {
+  local EXIT_CODE=0
+# `<icon src="NAME">` resolves NAME at runtime and substitutes
+# image_broken_variant on a miss, with one log warning and no build error, so a
+# typo ships as a broken glyph the user reads as intentional. Absent from
+# qc_trigger_re on purpose: deleting a codepoint from the header breaks XML that
+# is nowhere near the diff, so this cannot be gated on staged .xml files.
+echo "🖼️  Checking icon names resolve to codepoints..."
+if [ -f "scripts/check_icon_names.py" ]; then
+  if python3 scripts/check_icon_names.py --summary >/tmp/icon_names.out 2>&1; then
+    tail -1 /tmp/icon_names.out
+  else
+    cat /tmp/icon_names.out
+    echo "   Run: python3 scripts/check_icon_names.py --list"
+    EXIT_CODE=1
+  fi
+else
+  echo "⚠️  check_icon_names.py not found — skipping"
+fi
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Spacing and sizing go through design tokens, not raw pixel literals
 # ====================================================================
 qc_design_pixels() {
@@ -2898,7 +2923,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do

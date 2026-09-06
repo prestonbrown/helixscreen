@@ -34,14 +34,17 @@ static constexpr uint32_t SHORT = 5000;   ///< Brief operations (settings switch
 static constexpr uint32_t NORMAL = 10000; ///< Standard restarts (firmware restart, power toggle)
 /// Extended operations (calibration, service install).
 ///
-/// Deliberately short. Widening this to cover printers that chain a second
-/// config write + restart (Creality K2 + CFS writes the CFS Tn_data via
-/// CXSAVE_CONFIG tens of seconds after SAVE_CONFIG) was tried and reverted: the
-/// suppression check is edge-triggered on the klippy state transition, so a
-/// window long enough to cover the chained restart also swallows a genuine
-/// unrecoverable shutdown landing in the same span — observed at 57s after
-/// SAVE_CONFIG, which a 60s window would have hidden from the user entirely.
-/// Prefer a spurious dialog over a silently-eaten shutdown.
+/// Sized to cover one ordinary config-write restart and no more. A K2 Plus
+/// takes ~17s from SAVE_CONFIG to klippy READY, which is the longest such
+/// restart measured on the fleet; below that the user gets a "Printer Shutdown"
+/// dialog in the middle of a Save that succeeded.
+///
+/// It deliberately does NOT cover a printer that chains a second config write
+/// (Creality K2 + CFS writes the CFS Tn_data via CXSAVE_CONFIG tens of seconds
+/// after SAVE_CONFIG), and must not be widened until it does: every second here
+/// is a second a genuine unrecoverable shutdown sits unreported, and one has
+/// been seen landing 57s after SAVE_CONFIG. Prefer a spurious dialog over a
+/// hidden one.
 ///
 /// That preference is enforced now, not merely aimed at by keeping the window
 /// short: a suppressed reason is latched and re-checked when the window expires
@@ -53,7 +56,7 @@ static constexpr uint32_t NORMAL = 10000; ///< Standard restarts (firmware resta
 /// of each. Widening a duration is no longer a way to lose a real shutdown, but
 /// it is still a way to make the user wait for one, so the reasoning above
 /// stands.
-static constexpr uint32_t LONG = 15000;
+static constexpr uint32_t LONG = 20000;
 static constexpr uint32_t EXTRA = 30000; ///< Multi-step operations (PID→MPC migration)
 
 /// Backstop on a user-initiated restart being treated as still in flight.
