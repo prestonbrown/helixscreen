@@ -28,7 +28,10 @@ make test-run                        # Build AND run tests in parallel
 make pi-test                         # Build on thelio + deploy + run
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
-scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
+scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
+#   lib/lvgl, lib/libhv and lib/helix-xml get a PRIVATE checkout per worktree,
+#   so patches/ (which is per-branch) reaches no other tree. Everything else in
+#   lib/ is symlinked from the main tree and shared.
 #   Also writes .claude/settings.local.json (gitignored) with PROJECT_DIR set to
 #   the MAIN tree, so claude-recall writes lessons and stats there instead of to
 #   a per-worktree .claude-recall/ that `git worktree remove` would discard.

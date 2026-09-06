@@ -30,8 +30,9 @@ usage() {
     echo "                  refreshed first. Use --base HEAD for the local tip.)"
     echo "  --no-fetch      Skip refreshing the upstream before branching from it"
     echo "  --setup-only    Only set up an existing worktree, don't create it"
-    echo "  --unlink        Replace lib/ symlinks with what git expects, so git"
-    echo "                  status/merge/rebase/stash work in this worktree"
+    echo "  --unlink        Replace the remaining lib/ symlinks with what git expects,"
+    echo "                  so git status/merge/rebase/stash work in this worktree."
+    echo "                  Private checkouts (lvgl, libhv, helix-xml) are untouched."
     echo "  --relink        Restore the lib/ symlinks after --unlink"
     echo "  --no-build      Skip the initial build after setup"
     echo "  -h, --help      Show this help message"
@@ -57,7 +58,9 @@ usage() {
     echo "    objects are not all invalidated by the fresh checkout timestamp)"
     echo "  - Configures ccache for cross-worktree reuse (no cold rebuild per worktree)"
     echo "  - Clones build/obj/ from main tree (APFS copy-on-write — instant, zero disk)"
-    echo "  - Symlinks lib/ from main tree (all submodule sources + generated headers)"
+    echo "  - Symlinks the unpatched lib/ submodules from the main tree (sources +"
+    echo "    generated headers), and gives lvgl/libhv/helix-xml a PRIVATE checkout"
+    echo "    copied from it, so this branch's patches/ stay inside this worktree"
     echo "  - Clones compiled libraries (libhv.a) and the PCH — copies, not symlinks,"
     echo "    so a rebuild here can never write back into the main tree"
     echo "  - Copies compile_commands.json with rewritten paths for clangd"
@@ -66,10 +69,11 @@ usage() {
 }
 
 # --- lib/ link management ---------------------------------------------------
-# A worktree shares the main tree's submodule checkouts, and their IN-TREE build
-# artifacts, by symlinking each lib/ entry. That sharing is the whole point: it
-# is why a fresh worktree builds in seconds instead of recompiling every
-# submodule from cold.
+# A worktree shares the main tree's checkout of every submodule NOT listed in
+# LIB_PRIVATE_SUBMODULES, and their IN-TREE build artifacts, by symlinking each
+# lib/ entry. That sharing is the whole point: it is why a fresh worktree builds
+# in seconds instead of recompiling every submodule from cold. It is safe for
+# exactly the submodules no tree rewrites — nothing patches or edits these.
 #
 # The cost is that git refuses to scan a tree where a gitlink path is a symlink:
 #   error: expected submodule path 'lib/cpp-terminal' not to be a symbolic link
@@ -77,7 +81,8 @@ usage() {
 #
 # So: --unlink before a merge/rebase, --relink after. Relinking is NOT optional;
 # the empty submodule dirs left by --unlink have no headers, so the build fails
-# with 'lvgl.h file not found' until the symlinks are back.
+# with a missing-header error until the symlinks are back. Private checkouts are
+# untouched by both — they are what git expects and never blocked a scan.
 #
 # Do NOT unlink to commit. `git add <paths>` and `git commit` both work fine with
 # the symlinks in place, and the pre-commit hook compiles the tree — so committing
@@ -95,10 +100,18 @@ LIB_NON_SUBMODULE_ITEMS=("tuibox.h" "mdns")
 # every worktree would be editing the MAIN tree's submodule working tree, so two
 # branches could not hold different engine versions, and an edit made here would
 # surface as dirt in main's `git status` for another session to sweep up.
-# Cloning it costs ~2.6 MB and a couple of seconds, against the ~GB and minutes
-# that make symlinking lvgl/libhv worthwhile. A real checkout is also what git
-# expects, so these need no --unlink/--relink dance.
-LIB_PRIVATE_SUBMODULES=("lib/helix-xml")
+#
+# lib/lvgl and lib/libhv are here for a second reason: they are the two
+# submodules patches/ rewrites, and patches/ is per-branch. One shared checkout
+# cannot satisfy two branches carrying different patch sets — each tree's
+# `make reapply-patches` redefines what every other tree compiles, and each
+# correct action invalidates the other. A private checkout per worktree is what
+# makes the patch set a property of the branch again
+# (prestonbrown/helixscreen#1471).
+#
+# A real checkout is also what git expects, so these need no --unlink/--relink
+# dance; the submodules still symlinked below do.
+LIB_PRIVATE_SUBMODULES=("lib/helix-xml" "lib/lvgl" "lib/libhv")
 
 is_private_submodule() {
     local candidate="$1" p
@@ -119,6 +132,15 @@ clone_file() {
         || cp --reflink=auto "$src" "$dst" 2>/dev/null \
         || cp "$src" "$dst"
     touch -r "$src" "$dst"
+}
+
+# clone_file for a whole directory. Every fallback preserves mtimes: GNU cp -R
+# does not on its own, so the reflink form has to carry -a as well.
+clone_tree() {
+    local src="$1" dst="$2"
+    cp -Rc "$src" "$dst" 2>/dev/null \
+        || cp -a --reflink=auto "$src" "$dst" 2>/dev/null \
+        || cp -a "$src" "$dst"
 }
 
 # Symlinked submodules only. A private checkout is a normal submodule as far as
@@ -445,41 +467,229 @@ link_lib_from_main() {
     done
 
     checkout_private_submodules
+    warn_if_docker_mount_probes_lvgl
+}
+
+# mk/cross.mk bind-mounts the directory the symlinked lib/ entries point into, so
+# a Docker cross-build resolves them the same way inside the container. A tree
+# that works out whether it is a worktree by asking where lib/lvgl really lives
+# gets the wrong answer once lvgl is a private checkout under this worktree: it
+# concludes there is nothing to mount, and the entries that ARE still symlinks
+# dangle. Native builds are unaffected.
+warn_if_docker_mount_probes_lvgl() {
+    local cross="$WORKTREE_PATH/mk/cross.mk"
+    [[ -f "$cross" ]] || return 0
+    grep -q 'realpath lib/lvgl' "$cross" || return 0
+    echo -e "  ${YELLOW}mk/cross.mk on this branch detects a worktree by probing lib/lvgl,${RESET}"
+    echo -e "  ${YELLOW}which is now a private checkout here — Docker cross-builds from this${RESET}"
+    echo -e "  ${YELLOW}worktree will not mount the main tree's lib/. Merge the branch that${RESET}"
+    echo -e "  ${YELLOW}generalizes that detection, or cross-build from the main tree.${RESET}"
+}
+
+# The patch-drift stamp check_patch_drift.py keeps in a submodule's git dir. It
+# records which revision of each patch went in, so it belongs to the checkout it
+# describes and has to travel with a copied one.
+PATCH_DRIFT_STAMP="helix-patches-applied.json"
+
+# Set when a private submodule ends up somewhere the main tree's patches do not
+# describe, so the patch reconcile below knows it has real work to do.
+PRIVATE_SUBMODULES_NEED_PATCHES=false
+
+# Git names a submodule's git dir after its .gitmodules SECTION, which is not
+# always its path: lib/lvgl is section "lvgl", so its git dir is modules/lvgl
+# while lib/helix-xml's is modules/lib/helix-xml.
+submodule_section_name() {
+    local want="$1"
+    git -C "$MAIN_TREE" config --file .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null \
+        | awk -v p="$want" '$2 == p { n = $1; sub(/^submodule\./, "", n); sub(/\.path$/, "", n); print n; exit }'
+}
+
+submodule_origin_url() {
+    git -C "$MAIN_TREE" config --file .gitmodules --get "submodule.$1.url" 2>/dev/null || true
+}
+
+# True when a directory holds anything besides its own .git.
+has_worktree_content() {
+    local dir="$1" entry
+    for entry in "$dir"/* "$dir"/.[!.]*; do
+        [[ -e "$entry" || -L "$entry" ]] || continue
+        [[ "$(basename "$entry")" == ".git" ]] && continue
+        return 0
+    done
+    return 1
+}
+
+# Materialize one private submodule by COPYING the main tree's checkout rather
+# than checking it out fresh. A fresh checkout writes fresh mtimes, and every
+# object in the cloned build/obj/ that was compiled against those headers is
+# then out of date — a new worktree would pay a full cold rebuild for a
+# submodule whose content it already has. The copy-on-write primitive keeps the
+# mtimes, so those objects stay valid.
+#
+# Three pieces have to be separated for this to be a private checkout rather
+# than a second view of a shared one:
+#   - the FILES are copied, so this tree's patches only ever rewrite its own;
+#   - the GIT DIR is a local clone, which hardlinks the object store: no network,
+#     no second copy of 500 MB of packs, and independent refs, HEAD and index;
+#   - the `.git` file is written fresh. Copying the source's would name the
+#     source's git dir, which is precisely the sharing being removed here.
+# Returns non-zero when there is nothing to copy from, leaving the caller to
+# fall back to a fresh clone.
+materialize_private_submodule() {
+    local submod="$1"
+    local src="$MAIN_TREE/$submod" dst="$WORKTREE_PATH/$submod"
+    local name url src_gitdir wt_gitdir pinned src_head entry base
+
+    src_gitdir="$(git -C "$src" rev-parse --absolute-git-dir 2>/dev/null || true)"
+    src_head="$(git -C "$src" rev-parse --verify --quiet HEAD 2>/dev/null || true)"
+    [[ -n "$src_gitdir" && -n "$src_head" && -d "$src_gitdir" ]] || return 1
+
+    name="$(submodule_section_name "$submod")"
+    [[ -n "$name" ]] || name="$submod"
+    wt_gitdir="$WORKTREE_GIT_DIR/modules/$name"
+    pinned="$(git -C "$WORKTREE_PATH" rev-parse --verify --quiet "HEAD:$submod" 2>/dev/null || true)"
+
+    rm -rf "$wt_gitdir"
+    mkdir -p "$(dirname "$wt_gitdir")" "$(dirname "$dst")"
+    git clone --quiet --local --no-checkout --separate-git-dir "$wt_gitdir" \
+        "$src_gitdir" "$dst" 2>/dev/null || return 1
+    git -C "$wt_gitdir" config core.worktree "$dst"
+    url="$(submodule_origin_url "$submod")"
+    # origin is the public remote, not the neighbouring checkout it was cloned
+    # from, so committing and pushing from in here works as it does in main.
+    [[ -n "$url" ]] && git -C "$dst" remote set-url origin "$url"
+
+    for entry in "$src"/* "$src"/.[!.]*; do
+        [[ -e "$entry" ]] || continue
+        base="$(basename "$entry")"
+        [[ "$base" == ".git" ]] && continue
+        clone_tree "$entry" "$dst/"
+    done
+
+    # HEAD and the index describe the commit the files were copied FROM, so the
+    # checkout reads exactly as the main tree's does: clean apart from the patch
+    # hunks in its working tree.
+    git -C "$dst" update-ref --no-deref HEAD "$src_head"
+    git -C "$dst" read-tree HEAD
+    if [[ -f "$src_gitdir/$PATCH_DRIFT_STAMP" ]]; then
+        clone_file "$src_gitdir/$PATCH_DRIFT_STAMP" "$wt_gitdir/$PATCH_DRIFT_STAMP"
+    fi
+
+    # Reconcile the pin. The main tree sits at ITS branch's commit, which this
+    # branch need not share. Checking out the pinned commit rewrites only the
+    # files that actually differ between the two, so everything else keeps the
+    # mtime that keeps its object valid — which is what makes copy-then-fix
+    # cheaper than a fresh checkout rather than merely different. --force
+    # discards the copied patch hunks, and can discard nothing else: this
+    # working tree was created from a copy seconds ago and no one has seen it.
+    if [[ -n "$pinned" && "$pinned" != "$src_head" ]]; then
+        echo -e "  $submod: ${YELLOW}pin differs from the main tree ($(echo "$src_head" | cut -c1-8) -> $(echo "$pinned" | cut -c1-8))${RESET}"
+        git -C "$dst" checkout --detach --force --quiet "$pinned"
+        PRIVATE_SUBMODULES_NEED_PATCHES=true
+    fi
+    return 0
 }
 
 # Give each private submodule its own working tree at the commit this branch
-# points at. The gitdir lands under .git/worktrees/<name>/modules/, so the
-# checkout is independent of the main tree's and of every other worktree's, and
-# `git submodule status` reports it clean. origin stays the public GitHub remote,
-# so committing and pushing from in here works exactly as it does in main.
+# points at. The git dir lands under .git/worktrees/<name>/modules/, so the
+# checkout is independent of the main tree's and of every other worktree's.
 checkout_private_submodules() {
-    local submod
+    local submod dst wt_gitdir name
+    WORKTREE_GIT_DIR="$(git -C "$WORKTREE_PATH" rev-parse --absolute-git-dir)"
+
     for submod in "${LIB_PRIVATE_SUBMODULES[@]}"; do
-        [[ -e "$MAIN_TREE/$submod/.git" ]] || continue
-        if [[ -L "$WORKTREE_PATH/$submod" ]]; then
-            rm "$WORKTREE_PATH/$submod"
+        dst="$WORKTREE_PATH/$submod"
+        name="$(submodule_section_name "$submod")"
+        [[ -n "$name" ]] || name="$submod"
+        wt_gitdir="$WORKTREE_GIT_DIR/modules/$name"
+
+        if [[ -L "$dst" ]]; then
+            rm "$dst"
         fi
-        if [[ -e "$WORKTREE_PATH/$submod/.git" ]]; then
+
+        # An interrupted run leaves a git dir with no checkout beside it, or a
+        # checkout gutted down to its .git — a state that does not self-heal and
+        # surfaces as a build error naming a missing object file rather than a
+        # submodule. Both are ours and both are safe to redo, because the only
+        # thing in either is what this script put there.
+        if [[ -d "$wt_gitdir" ]] && { [[ ! -e "$dst/.git" ]] || ! has_worktree_content "$dst"; }; then
+            echo -e "  $submod: ${YELLOW}interrupted materialization — redoing it${RESET}"
+            rm -rf "$dst" "$wt_gitdir"
+        fi
+
+        if [[ -e "$dst/.git" ]]; then
             echo -e "  $submod: ${GREEN}already a private checkout${RESET}"
             continue
         fi
-        echo -e "  $submod: ${CYAN}private checkout (ours — edited directly, not patched)${RESET}"
-        if ! git -C "$WORKTREE_PATH" submodule update --init "$submod" >/dev/null 2>&1; then
-            echo -e "  $submod: ${YELLOW}checkout failed${RESET}"
-            # Only a partial clone may be swept: anything with a .git returned
-            # above, and a directory holding files but no .git is something a
-            # person put there, not ours to delete.
-            if [[ -d "$WORKTREE_PATH/$submod" ]] \
-               && [[ -n "$(ls -A "$WORKTREE_PATH/$submod" 2>/dev/null)" ]]; then
-                echo -e "  ${RED}$submod has content but is not a checkout — leaving it alone.${RESET}"
-                echo -e "  ${YELLOW}Resolve by hand, then re-run with --setup-only.${RESET}"
-                continue
-            fi
-            echo -e "  ${YELLOW}falling back to a symlink — edits here will land in the MAIN tree's submodule${RESET}"
-            rmdir "$WORKTREE_PATH/$submod" 2>/dev/null || true
-            ln -s "$MAIN_TREE/$submod" "$WORKTREE_PATH/$submod"
+
+        # Files with no .git and no git dir of ours beside them are something a
+        # person put there, not ours to delete. Everything past this point may
+        # clear the path, so the check has to come first.
+        if [[ -d "$dst" ]] && has_worktree_content "$dst"; then
+            echo -e "  ${RED}$submod has content but is not a checkout — leaving it alone.${RESET}"
+            echo -e "  ${YELLOW}Resolve by hand, then re-run with --setup-only.${RESET}"
+            continue
+        fi
+
+        rm -rf "$dst"
+        if materialize_private_submodule "$submod"; then
+            echo -e "  $submod: ${GREEN}private checkout (copied from the main tree, mtimes kept)${RESET}"
+            continue
+        fi
+
+        # No usable checkout to copy from: fall back to a fresh clone, which
+        # needs the network and arrives unpatched.
+        echo -e "  $submod: ${CYAN}private checkout (fresh clone — nothing to copy from)${RESET}"
+        rm -rf "$dst" "$wt_gitdir"
+        mkdir -p "$dst"
+        if git -C "$WORKTREE_PATH" submodule update --init "$submod" >/dev/null 2>&1; then
+            PRIVATE_SUBMODULES_NEED_PATCHES=true
+            continue
+        fi
+
+        echo -e "  $submod: ${YELLOW}checkout failed${RESET}"
+        echo -e "  ${YELLOW}falling back to a symlink — patches applied here will land in the MAIN tree's submodule${RESET}"
+        rmdir "$dst" 2>/dev/null || true
+        ln -s "$MAIN_TREE/$submod" "$dst"
+    done
+}
+
+# Assert every lib/ submodule sits at the commit this branch pins. `git
+# submodule status` cannot answer this in a worktree — it refuses to scan a tree
+# where a gitlink path is a symlink — so ask each checkout directly.
+#
+# A private submodule at the wrong revision is fatal: it compiles, it links, and
+# it is not the code this branch describes. A symlinked one can only ever be at
+# the main tree's revision, so a mismatch there is a warning about a difference
+# nothing in this worktree can fix.
+check_submodule_pins() {
+    local submod pinned actual fatal=false
+    echo -e "${CYAN}Verifying submodule revisions...${RESET}"
+    for submod in $(git -C "$MAIN_TREE" config --file .gitmodules --get-regexp path \
+                        | grep "^submodule\." | awk '{print $2}' | grep "^lib/"); do
+        pinned="$(git -C "$WORKTREE_PATH" rev-parse --verify --quiet "HEAD:$submod" 2>/dev/null || true)"
+        actual="$(git -C "$WORKTREE_PATH/$submod" rev-parse --verify --quiet HEAD 2>/dev/null || true)"
+        [[ -n "$pinned" && -n "$actual" ]] || continue
+        [[ "$pinned" == "$actual" ]] && continue
+        if is_private_submodule "$submod"; then
+            echo -e "  ${RED}${BOLD}$submod is at $actual, this branch pins $pinned${RESET}"
+            fatal=true
+        else
+            echo -e "  ${YELLOW}$submod is at $actual, this branch pins $pinned${RESET}"
+            echo -e "  ${YELLOW}  (shared with the main tree — it holds whichever revision that tree checked out)${RESET}"
         fi
     done
+    if [[ "$fatal" == "true" ]]; then
+        echo ""
+        echo -e "${RED}${BOLD}================================================================${RESET}"
+        echo -e "${RED}${BOLD}  A private submodule is not at the revision this branch pins.${RESET}"
+        echo -e "${RED}${BOLD}================================================================${RESET}"
+        echo -e "${YELLOW}Building now would compile a different version of that library than"
+        echo -e "the branch describes, and nothing downstream would say so.${RESET}"
+        echo -e "Fix with: ${CYAN}git -C <submodule> checkout <pinned-sha>${RESET}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Submodules match this branch's pins${RESET}"
 }
 
 # --unlink / --relink operate on lib/ only and then stop. They must NOT fall
@@ -898,8 +1108,15 @@ done
 echo -e "${CYAN}Marking symlinks as skip-worktree...${RESET}"
 cd "$WORKTREE_PATH"
 
-# Mark all lib/ submodules
+# Symlinked submodules only. The mark exists to hide the symlink's typechange,
+# and a private checkout has none — marking one would instead hide a real change
+# of its pinned revision from `git status`, `git add` and the revision check
+# below, which is the one thing that must stay visible.
 for submod in $SUBMODULES; do
+    if is_private_submodule "$submod"; then
+        git update-index --no-skip-worktree "$submod" 2>/dev/null || true
+        continue
+    fi
     git update-index --skip-worktree "$submod" 2>/dev/null || true
 done
 
@@ -1077,6 +1294,34 @@ else
     echo ""
 fi
 
+# Step 9d: Make the private submodules carry THIS branch's patches
+#
+# patches/ is per-branch, and a private checkout is what lets two branches hold
+# different patch sets at once. The copy above arrives carrying the main tree's
+# patches, so it is already correct whenever the two trees agree on patches/ —
+# and reapplying anyway is not free: build/.patches-applied is a prerequisite of
+# the PCH, and therefore of every object, so re-stamping it turns a warm worktree
+# cold. Reapply exactly when the copy cannot be trusted to describe this branch.
+cd "$WORKTREE_PATH"
+if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" != "true" ]] \
+   && ! diff -rq "$MAIN_TREE/patches" "$WORKTREE_PATH/patches" >/dev/null 2>&1; then
+    PRIVATE_SUBMODULES_NEED_PATCHES=true
+    echo -e "${YELLOW}patches/ differs from the main tree's${RESET}"
+fi
+if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" == "true" ]]; then
+    echo -e "${CYAN}Applying this branch's patches to the private submodules...${RESET}"
+    if make reapply-patches; then
+        echo -e "${GREEN}✓ Patches match this branch${RESET}"
+    else
+        echo -e "${RED}✗ make reapply-patches failed — this worktree's submodules do not match patches/${RESET}"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}✓ Patches match the main tree's — private checkouts already carry them${RESET}"
+fi
+
+check_submodule_pins
+
 # Step 10: Build (optional)
 if [[ "$NO_BUILD" == "false" ]]; then
     echo ""
@@ -1114,5 +1359,6 @@ echo -e "  ${CYAN}./build/bin/helix-screen --test -vv --remote-socket \"\$HELIX_
 echo -e "  ${CYAN}./build/bin/helix-screen ctl -s \"\$HELIX_SOCK\" navigate settings${RESET}"
 echo -e "See ${CYAN}docs/devel/HELIXCTL.md${RESET} § \"Running a fully isolated second instance\"."
 echo ""
-echo -e "${YELLOW}Note: lib/ is symlinked from main tree. If you need to modify"
-echo -e "library code, un-symlink that specific directory first.${RESET}"
+echo -e "${YELLOW}Note: lib/lvgl, lib/libhv and lib/helix-xml are private to this worktree —"
+echo -e "patches applied here reach no other tree. The remaining lib/ submodules are"
+echo -e "symlinked from the main tree; un-symlink one before modifying it.${RESET}"

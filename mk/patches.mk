@@ -91,11 +91,8 @@ LIBHV_PATCHED_FILES := \
 	http/client/WebSocketClient.h \
 	http/client/WebSocketClient.cpp
 
-# The patched sources themselves, for use as build prerequisites. The stamp file
-# is per-worktree but lib/libhv is SHARED (scripts/setup-worktree.sh symlinks
-# lib/ into the main tree), so one tree applying a patch rewrites the sources
-# every other tree compiles against while leaving their stamps untouched. Only
-# the source mtimes cross that boundary.
+# The patched sources themselves, for use as build prerequisites, so an applied
+# patch invalidates the objects built from it and not only the stamp.
 LIBHV_PATCHED_SRCS := $(wildcard $(addprefix $(LIBHV_DIR)/,$(LIBHV_PATCHED_FILES)))
 
 # ============================================================================
@@ -108,10 +105,9 @@ PATCH_FILES := $(wildcard patches/*.patch)
 
 # Absolute path to this repo's patches/. It MUST be absolute. The apply rules
 # below run as `git -C $(LVGL_DIR) apply <path>`, and git resolves that path
-# after chdir'ing into the submodule. scripts/setup-worktree.sh symlinks lib/
-# into the main tree, so from a worktree `lib/lvgl` really is the main tree's
-# lib/lvgl, and the old relative `../../patches/` landed on the MAIN tree's
-# patches/ — a patch that existed only in the worktree was invisible.
+# after chdir'ing into the submodule, so a relative `../../patches/` names
+# whatever sits two levels above the submodule's real location rather than the
+# patches/ of the tree make is running in.
 PATCH_DIR := $(abspath patches)
 
 # Patches applied outside this file. Keep this list empty if you can; an entry
@@ -121,18 +117,25 @@ PATCH_DIR := $(abspath patches)
 # either wire it up or delete it.
 PATCH_EXEMPT := libnl-socket-time-include.patch
 
-# Submodule HEAD files - changes when submodule is updated
-# Note: In regular repos, submodules use .git/modules/<name>/HEAD
-# In worktrees, .git is a file pointing to main repo's .git/worktrees/<name>/
-# So we need to resolve the actual git modules path
-# In Docker/non-git contexts (rsync'd source), these won't exist — that's fine,
+# Submodule HEAD files - the stamp is stale once a submodule is moved to another
+# revision. Ask each submodule where its own git dir is rather than composing a
+# path: a worktree gives lvgl and libhv a PRIVATE checkout under
+# .git/worktrees/<name>/modules/, so a path built from --git-common-dir names the
+# MAIN tree's HEAD, which is a different revision on a different schedule.
+#
+# A pre-commit hook exports GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE pointing at
+# the superproject, and those leak into any git spawned under it — `git -C
+# lib/lvgl rev-parse` would then answer with the superproject's git dir, whose
+# HEAD moves on every commit. Scrub them so the question is answered by the -C
+# path.
+# In Docker/non-git contexts (rsync'd source), there is no git dir — that's fine,
 # patches will be re-checked based on patch file changes only.
+GIT_NOENV := env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY git
 GIT_DIR := $(shell git rev-parse --git-dir 2>/dev/null || echo ".git")
-GIT_COMMON_DIR := $(shell git rev-parse --git-common-dir 2>/dev/null || echo ".git")
-LVGL_HEAD_CANDIDATE := $(GIT_COMMON_DIR)/modules/lvgl/HEAD
-LIBHV_HEAD_CANDIDATE := $(GIT_COMMON_DIR)/modules/libhv/HEAD
-LVGL_HEAD := $(wildcard $(LVGL_HEAD_CANDIDATE))
-LIBHV_HEAD := $(wildcard $(LIBHV_HEAD_CANDIDATE))
+LVGL_GIT_DIR := $(shell $(GIT_NOENV) -C $(LVGL_DIR) rev-parse --absolute-git-dir 2>/dev/null)
+LIBHV_GIT_DIR := $(shell $(GIT_NOENV) -C $(LIBHV_DIR) rev-parse --absolute-git-dir 2>/dev/null)
+LVGL_HEAD := $(if $(LVGL_GIT_DIR),$(wildcard $(LVGL_GIT_DIR)/HEAD))
+LIBHV_HEAD := $(if $(LIBHV_GIT_DIR),$(wildcard $(LIBHV_GIT_DIR)/HEAD))
 
 # Restore one submodule's patched files to upstream state.
 #   $(1) submodule dir, $(2) file list (paths relative to it)
