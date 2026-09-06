@@ -65,6 +65,21 @@
 # only a compiled hunk pays for a build, and only a hunk whose strategy names a
 # suite pays for that suite.
 #
+# THE BASE
+#
+# The diff base decides what the run is ABOUT, and getting it wrong is silent:
+# a branch cut from a maintenance branch, measured against main, hands the run
+# that whole divergence as the change under test -- dozens of foreign hunks, a
+# build apiece, every verdict about somebody else's code. Most come back
+# `uncompilable`, which is correctly not a kill, so the only symptom is a long
+# run of verdicts that reads as a property of the change rather than of the base.
+#
+# scripts/diff_base.py picks it, and scripts/cov_diff.py asks the same module the
+# same question. What is mutate-diff's own is the price of being wrong: the base
+# is printed first with the hunk count, and an implausible count on an
+# automatically chosen base stops the run instead of spending an hour proving it.
+# `--base` overrides all of it and is never second-guessed.
+#
 # SAFETY
 #
 # The working tree is restored by writing back the bytes saved in memory before
@@ -74,6 +89,13 @@
 # make nothing to do and the NEXT run silently tests the previous mutant's
 # binary.
 #
+# That restore is a `finally:` in the per-hunk loop, so it needs the interpreter
+# to keep running long enough to execute it. Interrupt this script with SIGINT
+# (Ctrl-C, or `kill -INT`) and the hunk in flight is put back. SIGTERM (a bare
+# `kill`, or a harness reaping the process) kills Python without unwinding, and
+# leaves that hunk REVERTED in the working tree -- a silent, plausible-looking
+# edit that gets committed. SIGKILL likewise, and cannot be helped.
+#
 # EXIT CODES
 #
 #   0  every changed hunk was examined and every mutant was killed
@@ -81,11 +103,14 @@
 #   2  the baseline is broken (a red suite makes every mutant read as killed)
 #   3  nothing survived, but the run did not examine the whole change
 #      (--allow-incomplete downgrades this to 0 once a human has read why)
+#   4  refused to start: the automatically chosen base yields more hunks than
+#      --max-hunks, and nothing confirmed it. Not a verdict; nothing ran.
 #
 # Usage:
 #   python3 scripts/mutate_diff.py --list-only          # what would be mutated
 #   python3 scripts/mutate_diff.py                      # full run vs merge-base
 #   python3 scripts/mutate_diff.py --tests "[ams]"      # scope the suite
+#   python3 scripts/mutate_diff.py --base origin/release/1.0
 #   make mutate-diff
 
 import argparse
@@ -97,6 +122,13 @@ import sys
 import time
 from fnmatch import fnmatch
 from pathlib import Path
+
+# The diff base is the same question scripts/cov_diff.py asks, and two
+# hand-written copies of one rule agree by convention until they silently do
+# not. scripts/diff_base.py is the single answer, and a fixture that copies this
+# script has to copy that module beside it.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from diff_base import base_line, resolve_base  # noqa: E402
 
 HUNK_RE = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*\t(.*)$')
@@ -215,15 +247,6 @@ def repo_root():
     if r.returncode != 0:
         sys.exit('not a git repository')
     return Path(r.stdout.strip())
-
-
-def default_base(root):
-    """Merge base with main, so a feature branch mutates only its own work."""
-    for ref in ('origin/main', 'main'):
-        r = run(['git', 'merge-base', 'HEAD', ref], cwd=root)
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    return 'HEAD'
 
 
 def changed_files(root, base):
@@ -589,7 +612,14 @@ class Suites:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--base', default=None, help='diff base (default: merge-base with main)')
+    ap.add_argument('--base', default=None,
+                    help='diff base (default: nearest fork point among the branch upstream, '
+                         'release branches and main)')
+    # 58 hunks out of a 3-hunk change is what a base from the wrong trunk looks
+    # like, and it costs a build each to find that out one verdict at a time.
+    ap.add_argument('--max-hunks', type=int, default=25,
+                    help='confirm before mutating more than N hunks off an auto-chosen '
+                         'base (0 disables the check)')
     ap.add_argument('--tests', default='~[.]~[slow]', help='Catch2 filter for the scoped suite')
     ap.add_argument('--jobs', type=int, default=6, help='make -j (link is memory-gated; 6 is safe here)')
     ap.add_argument('--shards', type=int, default=8, help='parallel test shards per mutant')
@@ -611,13 +641,21 @@ def main():
     args = ap.parse_args()
 
     root = repo_root()
-    base = args.base or default_base(root)
+    base, base_why = resolve_base(root, args.base)
     hunks = collect_hunks(root, base)
+    files = changed_files(root, base)
     untestable = load_untestable(root)
+
+    # First, before anything is built: the base is what the run is about, and a
+    # wrong one is otherwise invisible until an hour of verdicts has gone by.
+    # Flushed: stdout to a pipe is block-buffered while stderr is not, so an
+    # unflushed heading reaches a log file BELOW the epilogue it heads.
+    print(base_line(root, base, base_why), flush=True)
+    print(f'diff {len(hunks)} hunk(s) across {len(files)} file(s)')
 
     # ---- classify the whole change -------------------------------------
     verdict_of = {}       # path -> ('mutate', strategy) | ('inert'|'uncovered', reason)
-    for path, is_gitlink in changed_files(root, base):
+    for path, is_gitlink in files:
         verdict_of[path] = classify(path, is_gitlink)
     for h in hunks:                       # a hunk git names but --raw did not
         verdict_of.setdefault(h['file'], classify(h['file'], False))
@@ -714,6 +752,23 @@ def main():
             return 0 if args.allow_incomplete else 3
         print('\nVERDICT: nothing in this change is mutatable, and nothing was skipped.')
         return 0
+
+    # A count far above the size of the change means the base is wrong, and the
+    # bill for finding out later is a build per hunk. An explicit --base is the
+    # author saying what they mean, so it is never questioned.
+    if not args.base and args.max_hunks and len(mutable) > args.max_hunks:
+        print(f'\n{len(mutable)} hunk(s) is more than --max-hunks {args.max_hunks}, '
+              f'off a base nothing confirmed:')
+        print(f'  {base_line(root, base, base_why)}')
+        print('  A count far above the size of your own change means the base is '
+              'wrong: name\n  the branch you cut from with --base <ref>, or pass '
+              '--max-hunks 0 to accept it.')
+        if not sys.stdin.isatty():
+            print('FAIL: refusing to spend a build per hunk on an unconfirmed base.',
+                  file=sys.stderr)
+            return 4
+        if input('  Continue anyway? [y/N] ').strip().lower() not in ('y', 'yes'):
+            return 4
 
     needs_build = any(STRATEGIES[verdict_of[h['file']][1]]['build'] for h in mutable)
 

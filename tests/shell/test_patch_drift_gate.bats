@@ -384,3 +384,53 @@ print('ok')
     [ "$status" -eq 1 ]
     [[ "$output" == *"patch-edited"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# Reachability. The gate above is only worth what the build actually runs, and
+# mk/patches.mk runs it from the $(PATCHES_STAMP) recipe - which is skipped
+# whenever that stamp is up to date. The stamp is per-worktree; lib/ and the
+# .git/modules that hold the applied-stamp are shared. So when ANOTHER worktree
+# re-applies a different branch's patches, nothing in this tree's own patches/
+# or submodule HEADs moves, the recipe is skipped, every apply guard greps a
+# marker the foreign revision also has, and the tree compiles against a patch
+# revision that is not the one in its patches/ - silently.
+#
+# These two run against the real repo rather than the fixture, because what
+# they pin is this repo's wiring. Both are read-only: `make -pn` prints the
+# database without running a recipe, and nothing here writes to lib/.
+
+@test "the per-worktree patch stamp depends on the shared applied-stamp" {
+    cd "$BATS_TEST_DIRNAME/../.." || return 1
+    local problems=""
+
+    grep -qE '^\$\(PATCHES_STAMP\):.*\$\(APPLIED_STAMP_ID\)' mk/patches.mk \
+        || problems="the stamp rule does not list \$(APPLIED_STAMP_ID); "
+    # The id is only a proxy: it has to be hashed FROM the applied-stamps, or it
+    # never moves when another worktree re-patches.
+    grep -qE '^APPLIED_STAMP_HASH := \$\(shell cat \$\(APPLIED_STAMPS\)' mk/patches.mk \
+        || problems="${problems}the id is not derived from \$(APPLIED_STAMPS); "
+
+    local db
+    db="$(make -pn 2>/dev/null)"
+    # Anchored: a path that merely starts with the name is a different file,
+    # and make would be watching something the gate never writes.
+    grep -qE 'modules/lvgl/helix-patches-applied\.json( |$)' <<<"$db" \
+        || problems="${problems}no lvgl applied-stamp in the make database; "
+    grep -qE 'modules/libhv/helix-patches-applied\.json( |$)' <<<"$db" \
+        || problems="${problems}no libhv applied-stamp in the make database"
+
+    [ -z "$problems" ] || { echo "$problems"; false; }
+}
+
+@test "make and the gate agree on the applied-stamp filename" {
+    cd "$BATS_TEST_DIRNAME/../.." || return 1
+    local name
+    name="$(sed -n 's/^STAMP_NAME = "\(.*\)"$/\1/p' "$GATE")"
+    [ -n "$name" ] || { echo "STAMP_NAME not found in $GATE"; false; }
+    # mk/patches.mk spells the name out; a rename on either side would leave
+    # make watching a path the gate never writes, and the recipe would go back
+    # to being unreachable without anything failing.
+    local esc="${name//./\\.}"
+    grep -qE "/${esc}\$" mk/patches.mk \
+        || { echo "mk/patches.mk does not end a path with $name"; false; }
+}

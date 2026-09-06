@@ -91,12 +91,79 @@ LIBHV_PATCHED_FILES := \
 	http/client/WebSocketClient.h \
 	http/client/WebSocketClient.cpp
 
-# The patched sources themselves, for use as build prerequisites. The stamp file
-# is per-worktree but lib/libhv is SHARED (scripts/setup-worktree.sh symlinks
-# lib/ into the main tree), so one tree applying a patch rewrites the sources
-# every other tree compiles against while leaving their stamps untouched. Only
-# the source mtimes cross that boundary.
+# The patched sources themselves, for use as build prerequisites, so an applied
+# patch invalidates the objects built from it and not only the stamp.
 LIBHV_PATCHED_SRCS := $(wildcard $(addprefix $(LIBHV_DIR)/,$(LIBHV_PATCHED_FILES)))
+
+# ============================================================================
+# THIRD-PARTY HEADER ABI STAMP
+# ============================================================================
+# Our objects reach the patched LVGL and libhv headers through -isystem, and
+# DEPFLAGS is -MMD, which by design leaves system headers out of the generated
+# .d files. A patch that adds a member to a shared type therefore moves every
+# member after it without invalidating a single .o. Two of them do exactly
+# that: hv::TcpClientEventLoopTmpl and hv::WebSocketClient.
+#
+# lib/ is shared between worktrees while build/ is not, so those headers also
+# change under a build that is already in flight. The objects compiled before
+# the change and the ones compiled after then disagree about where a member
+# lives. Nothing complains: the link succeeds, and a std::mutex read at the
+# wrong offset locks bytes that were never a mutex. macOS libc++ checks the
+# mutex signature and throws EINVAL; glibc accepts a zeroed pthread_mutex_t as
+# a valid unlocked one, so the same tree passes on Linux and aborts on a Mac.
+#
+# The stamp holds a hash of those headers' CONTENT, not their mtimes:
+# reapply-patches rewrites the files whether or not the bytes change, and only
+# a real change should cost a rebuild. cksum is POSIX, so this also works on
+# the BusyBox and Buildroot hosts.
+ABI_HEADERS := $(wildcard \
+	$(addprefix $(LIBHV_DIR)/,$(filter %.h,$(LIBHV_PATCHED_FILES))) \
+	$(addprefix $(LIBHV_DIR)/include/hv/,$(notdir $(filter %.h,$(LIBHV_PATCHED_FILES)))) \
+	$(addprefix $(LVGL_DIR)/,$(filter %.h,$(LVGL_PATCHED_FILES))))
+ABI_STAMP := $(BUILD_DIR)/.thirdparty-abi
+ABI_HASH := $(shell cat $(ABI_HEADERS) 2>/dev/null | cksum)
+
+# The stamp makes make decide to recompile; it does not make the compiler
+# produce a different object. ccache sits between the two, and in depend mode
+# it keys an entry on the source plus the files -MMD names - which is exactly
+# the set that omits these -isystem headers. Make reruns the compile, ccache
+# answers it from the entry built against the previous layout, and the stamp
+# buys nothing.
+#
+# Carrying the hash as a -D closes that, because ccache hashes the command line
+# in every mode. Nothing reads HELIX_TP_ABI; its only job is to be part of the
+# key. cksum prints a checksum and a byte count, so the separating space is
+# folded to an underscore to keep the value a single token.
+ABI_EMPTY :=
+ABI_SPACE := $(ABI_EMPTY) $(ABI_EMPTY)
+ABI_DEFINE := -DHELIX_TP_ABI=$(subst $(ABI_SPACE),_,$(strip $(ABI_HASH)))
+
+# Every rule carrying $(ABI_STAMP) draws its flags from one of these four, so
+# they move together or a path recompiles into the same stale cache entry.
+CFLAGS += $(ABI_DEFINE)
+CXXFLAGS += $(ABI_DEFINE)
+SUBMODULE_CFLAGS += $(ABI_DEFINE)
+SUBMODULE_CXXFLAGS += $(ABI_DEFINE)
+
+# Written at parse time so the stamp is in place before the first compile.
+$(shell mkdir -p $(BUILD_DIR); \
+	[ "$$(cat $(ABI_STAMP) 2>/dev/null)" = "$(ABI_HASH)" ] \
+		|| printf "%s" "$(ABI_HASH)" > $(ABI_STAMP))
+
+# Fail a link whose objects were not all compiled against the headers present
+# now. The stamp above only catches a change between builds; this catches one
+# that lands while this build is running, which is what a shared lib/ and two
+# busy worktrees produce.
+define check_abi_unchanged
+	$(Q)if [ "$$(cat $(ABI_HEADERS) 2>/dev/null | cksum)" != "$(ABI_HASH)" ]; then \
+		echo "$(RED)$(BOLD)Third-party headers changed while this build was running.$(RESET)"; \
+		echo "$(YELLOW)  lib/ is shared between worktrees. Objects compiled before the$(RESET)"; \
+		echo "$(YELLOW)  change disagree with the ones after about member offsets, and$(RESET)"; \
+		echo "$(YELLOW)  the binary would misbehave at runtime rather than fail here.$(RESET)"; \
+		echo "$(YELLOW)  Re-run this target once the other tree is done.$(RESET)"; \
+		exit 1; \
+	fi
+endef
 
 # ============================================================================
 # PATCH STAMP FILE - Skip checking if patches haven't changed
@@ -108,10 +175,9 @@ PATCH_FILES := $(wildcard patches/*.patch)
 
 # Absolute path to this repo's patches/. It MUST be absolute. The apply rules
 # below run as `git -C $(LVGL_DIR) apply <path>`, and git resolves that path
-# after chdir'ing into the submodule. scripts/setup-worktree.sh symlinks lib/
-# into the main tree, so from a worktree `lib/lvgl` really is the main tree's
-# lib/lvgl, and the old relative `../../patches/` landed on the MAIN tree's
-# patches/ — a patch that existed only in the worktree was invisible.
+# after chdir'ing into the submodule, so a relative `../../patches/` names
+# whatever sits two levels above the submodule's real location rather than the
+# patches/ of the tree make is running in.
 PATCH_DIR := $(abspath patches)
 
 # Patches applied outside this file. Keep this list empty if you can; an entry
@@ -121,18 +187,54 @@ PATCH_DIR := $(abspath patches)
 # either wire it up or delete it.
 PATCH_EXEMPT := libnl-socket-time-include.patch
 
-# Submodule HEAD files - changes when submodule is updated
-# Note: In regular repos, submodules use .git/modules/<name>/HEAD
-# In worktrees, .git is a file pointing to main repo's .git/worktrees/<name>/
-# So we need to resolve the actual git modules path
-# In Docker/non-git contexts (rsync'd source), these won't exist — that's fine,
+# Submodule HEAD files - the stamp is stale once a submodule is moved to another
+# revision. Ask each submodule where its own git dir is rather than composing a
+# path: a worktree gives lvgl and libhv a PRIVATE checkout under
+# .git/worktrees/<name>/modules/, so a path built from --git-common-dir names the
+# MAIN tree's HEAD, which is a different revision on a different schedule.
+#
+# A pre-commit hook exports GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE pointing at
+# the superproject, and those leak into any git spawned under it — `git -C
+# lib/lvgl rev-parse` would then answer with the superproject's git dir, whose
+# HEAD moves on every commit. Scrub them so the question is answered by the -C
+# path.
+# In Docker/non-git contexts (rsync'd source), there is no git dir — that's fine,
 # patches will be re-checked based on patch file changes only.
+GIT_NOENV := env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY git
 GIT_DIR := $(shell git rev-parse --git-dir 2>/dev/null || echo ".git")
-GIT_COMMON_DIR := $(shell git rev-parse --git-common-dir 2>/dev/null || echo ".git")
-LVGL_HEAD_CANDIDATE := $(GIT_COMMON_DIR)/modules/lvgl/HEAD
-LIBHV_HEAD_CANDIDATE := $(GIT_COMMON_DIR)/modules/libhv/HEAD
-LVGL_HEAD := $(wildcard $(LVGL_HEAD_CANDIDATE))
-LIBHV_HEAD := $(wildcard $(LIBHV_HEAD_CANDIDATE))
+LVGL_GIT_DIR := $(shell $(GIT_NOENV) -C $(LVGL_DIR) rev-parse --absolute-git-dir 2>/dev/null)
+LIBHV_GIT_DIR := $(shell $(GIT_NOENV) -C $(LIBHV_DIR) rev-parse --absolute-git-dir 2>/dev/null)
+LVGL_HEAD := $(if $(LVGL_GIT_DIR),$(wildcard $(LVGL_GIT_DIR)/HEAD))
+LIBHV_HEAD := $(if $(LIBHV_GIT_DIR),$(wildcard $(LIBHV_GIT_DIR)/HEAD))
+
+# The record of WHICH patch revision is currently applied, written by
+# check_patch_drift.py --write-stamp after the apply blocks below run. It lives
+# in each submodule's git directory, which scripts/setup-worktree.sh shares
+# between worktrees along with the checkout it describes.
+#
+# It has to be a prerequisite of the stamp, because it is the only prerequisite
+# that moves when ANOTHER worktree re-patches lib/. The others are this tree's
+# own patches/ and submodule HEADs, and a foreign apply touches neither: the
+# verification below is then skipped, every apply guard greps a marker string
+# that the foreign revision also contains and reports "already applied", and the
+# tree compiles against a patch revision that is not the one in its patches/.
+# That is silent, and on a branch whose patches differ it is a different binary
+# than the branch describes.
+LVGL_APPLIED_STAMP_CANDIDATE := $(GIT_COMMON_DIR)/modules/lvgl/helix-patches-applied.json
+LIBHV_APPLIED_STAMP_CANDIDATE := $(GIT_COMMON_DIR)/modules/libhv/helix-patches-applied.json
+APPLIED_STAMPS := $(wildcard $(LVGL_APPLIED_STAMP_CANDIDATE) $(LIBHV_APPLIED_STAMP_CANDIDATE))
+
+# Hashed rather than depended on directly, for the same reason as ABI_STAMP: the
+# record is rewritten on every apply whether or not its contents move, and a
+# same-branch worktree re-applying an identical patch set must not cost every
+# other worktree a full rebuild. The JSON is derived purely from file hashes -
+# no timestamp - so identical patch sets produce identical bytes.
+APPLIED_STAMP_ID := $(BUILD_DIR)/.patches-applied-id
+APPLIED_STAMP_HASH := $(shell cat $(APPLIED_STAMPS) 2>/dev/null | cksum)
+
+$(shell mkdir -p $(BUILD_DIR); \
+	[ "$$(cat $(APPLIED_STAMP_ID) 2>/dev/null)" = "$(APPLIED_STAMP_HASH)" ] \
+		|| printf "%s" "$(APPLIED_STAMP_HASH)" > $(APPLIED_STAMP_ID))
 
 # Restore one submodule's patched files to upstream state.
 #   $(1) submodule dir, $(2) file list (paths relative to it)
@@ -210,7 +312,7 @@ force-apply-patches:
 	@$(MAKE) $(PATCHES_STAMP)
 
 # The actual stamp file - only rebuilt when patches or submodules change
-$(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
+$(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(APPLIED_STAMP_ID)
 	@mkdir -p $(BUILD_DIR)
 	$(ECHO) "$(CYAN)Verifying patch wiring...$(RESET)"
 	@# Both directions, because every failure mode here is silent. The apply

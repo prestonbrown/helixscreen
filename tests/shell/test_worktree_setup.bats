@@ -5,10 +5,12 @@
 #
 # The script symlinks each lib/ submodule into the main tree so a worktree
 # builds in seconds instead of recompiling ~GB of submodules. That is right for
-# the third-party ones, which we never edit (changes go through patches/), and
-# wrong for lib/helix-xml, which is ours and is edited directly: a symlink makes
-# every worktree edit land in the MAIN tree's submodule working copy, shared
-# with every other worktree and visible as dirt in main's `git status`.
+# the submodules nothing rewrites, and wrong for the three that are rewritten
+# per branch: lib/helix-xml is ours and is edited directly, and lib/lvgl and
+# lib/libhv are rewritten by patches/, which is per-branch. Sharing one checkout
+# between branches that disagree about either is unsatisfiable — each tree's
+# correct action invalidates the other's — so those three get a private checkout
+# per worktree.
 
 load helpers
 
@@ -21,6 +23,22 @@ setup() {
     run grep -E '^LIB_PRIVATE_SUBMODULES=' "$SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *'lib/helix-xml'* ]]
+}
+
+@test "every submodule patches/ rewrites gets a private checkout" {
+    # A patched submodule left symlinked is the whole defect: patches/ is
+    # per-branch and the checkout would not be, so one tree's reapply-patches
+    # silently redefines what every other tree compiles.
+    patched=$(grep -oE '^(LVGL|LIBHV)_PATCHED_FILES' mk/patches.mk | sort -u)
+    [ -n "$patched" ] || return 1
+    private=$(grep -E '^LIB_PRIVATE_SUBMODULES=' "$SCRIPT")
+    for p in $patched; do
+        case "$p" in
+            LVGL_PATCHED_FILES) path="lib/lvgl" ;;
+            LIBHV_PATCHED_FILES) path="lib/libhv" ;;
+        esac
+        [[ "$private" == *"$path"* ]] || { echo "patched but shared: $path" >&2; return 1; }
+    done
 }
 
 @test "the symlink loop skips private submodules" {
@@ -79,6 +97,143 @@ setup() {
     # root. Using that unresolved would cd to the CWD's parent, not the repo's.
     run bash -c "grep -c 'GIT_COMMON_DIR\" != /\*' '$SCRIPT'"
     [ "$output" -ge 1 ]
+}
+
+# --- the private checkout, end to end -----------------------------------------
+#
+# Everything above reads the script's text. These build a miniature repo with one
+# submodule named lib/lvgl — a name LIB_PRIVATE_SUBMODULES covers — run the real
+# script over it, and assert on what lands on disk.
+
+# Builds $1/upstream (two commits) and $1/main (a repo with it at lib/lvgl),
+# with just enough of the tree for the script to run. Echoes nothing; the caller
+# uses $1/main.
+build_fixture_repo() {
+    local root="$1"
+    git init -q "$root/upstream"
+    git -C "$root/upstream" config user.email "t@example.invalid"
+    git -C "$root/upstream" config user.name "t"
+    mkdir -p "$root/upstream/src"
+    echo "int v = 1;" > "$root/upstream/src/lv_thing.c"
+    git -C "$root/upstream" add src/lv_thing.c
+    git -C "$root/upstream" commit -qm first
+    echo "int v = 2;" > "$root/upstream/src/lv_thing.c"
+    git -C "$root/upstream" add src/lv_thing.c
+    git -C "$root/upstream" commit -qm second
+
+    git init -q "$root/main"
+    git -C "$root/main" config user.email "t@example.invalid"
+    git -C "$root/main" config user.name "t"
+    mkdir -p "$root/main/scripts" "$root/main/patches" "$root/main/mk"
+    cp scripts/setup-worktree.sh "$root/main/scripts/"
+    cp scripts/sync-worktree-mtimes.py "$root/main/scripts/"
+    : > "$root/main/patches/.keep"
+    # git refuses a file:// submodule unless the transport is allowed on the
+    # command line; the repo-config form is not consulted for the inner clone.
+    git -C "$root/main" -c protocol.file.allow=always submodule add -q "$root/upstream" lib/lvgl
+    git -C "$root/main" add scripts patches .gitmodules lib/lvgl
+    git -C "$root/main" commit -qm init
+}
+
+@test "a private submodule is a real checkout with its own git dir" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"   # never touch the real one
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    wt="$tmp/main/.worktrees/iso"
+    [ ! -L "$wt/lib/lvgl" ] || { echo "still a symlink" >&2; return 1; }
+    [ -d "$wt/lib/lvgl" ] || return 1
+    # The git dir must be this worktree's own. Inheriting the main tree's is the
+    # sharing the private checkout exists to remove.
+    run cat "$wt/lib/lvgl/.git"
+    [[ "$output" == *"worktrees/iso/modules/"*"lvgl" ]] || { echo "$output" >&2; return 1; }
+    rm -rf "$tmp"
+}
+
+@test "patching a private submodule leaves the main tree's copy alone" {
+    # The property the whole change exists to create.
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    wt="$tmp/main/.worktrees/iso"
+    echo "int v = 99;" > "$wt/lib/lvgl/src/lv_thing.c"
+    run cat "$tmp/main/lib/lvgl/src/lv_thing.c"
+    [ "$output" = "int v = 2;" ] || { echo "main tree was rewritten: $output" >&2; return 1; }
+
+    # And the reverse: the main tree cannot rewrite the worktree's.
+    echo "int v = 7;" > "$tmp/main/lib/lvgl/src/lv_thing.c"
+    run cat "$wt/lib/lvgl/src/lv_thing.c"
+    [ "$output" = "int v = 99;" ] || { echo "worktree was rewritten: $output" >&2; return 1; }
+    rm -rf "$tmp"
+}
+
+@test "a private submodule is not marked skip-worktree, before or after migration" {
+    # skip-worktree hides the symlink typechange for the shared submodules. On a
+    # private checkout there is no typechange to hide, and the mark would instead
+    # hide a real change of pinned revision from `git status`, `git add` and the
+    # revision check — the one thing that has to stay visible.
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    wt="$tmp/main/.worktrees/iso"
+    run git -C "$wt" ls-files -v lib/lvgl
+    [[ "$output" != S* ]] || { echo "marked skip-worktree: $output" >&2; return 1; }
+
+    # A worktree set up before the submodule became private carries the mark
+    # already; re-running has to clear it, not leave it.
+    git -C "$wt" update-index --skip-worktree lib/lvgl
+    run bash "$tmp/main/scripts/setup-worktree.sh" --setup-only --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+    run git -C "$wt" ls-files -v lib/lvgl
+    [[ "$output" != S* ]] || { echo "mark not cleared: $output" >&2; return 1; }
+    rm -rf "$tmp"
+}
+
+@test "an interrupted materialization is redone rather than left broken" {
+    # The state an interrupted init leaves: a git dir with a gutted checkout
+    # beside it. It does not self-heal, and the symptom is a build error naming
+    # a missing object file, which points nowhere near submodules.
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    wt="$tmp/main/.worktrees/iso"
+    rm -rf "$wt/lib/lvgl/src"
+    [ ! -f "$wt/lib/lvgl/src/lv_thing.c" ] || return 1
+
+    run bash "$tmp/main/scripts/setup-worktree.sh" --setup-only --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+    [ -f "$wt/lib/lvgl/src/lv_thing.c" ] || { echo "not recovered" >&2; return 1; }
+    rm -rf "$tmp"
+}
+
+@test "setup fails loudly when a private submodule is not at the pinned revision" {
+    # A submodule at the wrong revision compiles, links, and is not the code the
+    # branch describes. Nothing downstream reports it, so setup has to.
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    wt="$tmp/main/.worktrees/iso"
+    first=$(git -C "$tmp/upstream" rev-list --max-parents=0 HEAD)
+    git -C "$wt/lib/lvgl" checkout -q --detach "$first"
+
+    run bash "$tmp/main/scripts/setup-worktree.sh" --setup-only --no-build feat/iso
+    [ "$status" -ne 0 ] || { echo "accepted a wrong revision" >&2; echo "$output" >&2; return 1; }
+    [[ "$output" == *"this branch pins"* ]] || { echo "$output" >&2; return 1; }
+    rm -rf "$tmp"
 }
 
 @test "refuses to set up a worktree on top of the main tree, and destroys nothing" {

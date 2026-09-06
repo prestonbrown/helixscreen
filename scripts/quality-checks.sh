@@ -745,7 +745,7 @@ if [ -f "scripts/check_hardcoded_pixels.py" ]; then
   else
     cat /tmp/hardcoded_pixels.out
     echo "   Run: python3 scripts/check_hardcoded_pixels.py --list"
-    echo "   Use a token; see CLAUDE.md § Design Tokens (MANDATORY)."
+    echo "   Use a token; see .claude/rules/declarative-ui.md § Design Tokens."
     EXIT_CODE=1
   fi
 else
@@ -1674,7 +1674,7 @@ if [ -f "scripts/check_imperative_ui.py" ]; then
     echo ""
     cat /tmp/imperative_ui.out
     echo "   Run: python3 scripts/check_imperative_ui.py --list"
-    echo "   Bind subjects in XML; see CLAUDE.md § CRITICAL RULES - Declarative UI."
+    echo "   Bind subjects in XML; see .claude/rules/declarative-ui.md."
     EXIT_CODE=1
   fi
 else
@@ -1799,7 +1799,7 @@ if [ -f "scripts/check_timer_destructor_cancel.py" ]; then
     echo ""
     cat /tmp/timer_dtor.out
     echo "   Run: python3 scripts/check_timer_destructor_cancel.py --list"
-    echo "   Cancel from the destructor via lv_timer_cancel_safe(); see CLAUDE.md § Threading."
+    echo "   Cancel from the destructor via lv_timer_cancel_safe(); see .claude/rules/threading.md (rule 5)."
     EXIT_CODE=1
   fi
 else

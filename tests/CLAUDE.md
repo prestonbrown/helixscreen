@@ -4,7 +4,7 @@
 
 | Path | Contents |
 |------|----------|
-| `tests/unit/` | Catch2 unit tests. **Auto-globbed** (`Makefile:904`) — drop a `.cpp` in and it builds |
+| `tests/unit/` | Catch2 unit tests. **Auto-globbed** (`Makefile#TEST_UNIT_DIR`) — drop a `.cpp` in and it builds |
 | `tests/unit/application/` | App-lifecycle tests (separate glob, own include path) |
 | `tests/mocks/` | Mock implementations |
 | `tests/shell/` | `bats` tests — installer, lint gates, packaging |
@@ -146,16 +146,12 @@ refactors of the widget layer.
 
 ### Proving a test can fail
 
-"A test must FAIL if the feature is removed" is the rule. It was stated as a
-principle with no mechanism, and the result was 11 production changes in one
-release range that can be reverted with the suite staying green. Every one
-shipped with a test commit. The tests pin an *adjacent invariant* instead of the
-changed line -- they have real assertions, execute the changed function, and
-still cannot fail when it breaks.
-
-Syntax cannot find these. Measured on this tree, 18% of cases look "all-weak" by
-assertion shape and the worst-looking files are all good tests. Four tools, in
-increasing cost, and only the last is an oracle:
+"A test must FAIL if the feature is removed" is the rule, and a green suite is not
+evidence of it. A test can have real assertions, execute the changed function, and
+still pin an *adjacent invariant* instead of the changed line, so the change reverts
+green with a test commit beside it. Assertion shape cannot find these; the
+worst-looking files are often good tests. Five tools, in increasing cost, and only
+the last is an oracle:
 
 | Command | Cost | Answers |
 |---------|------|---------|
@@ -170,6 +166,33 @@ suite reads, and runs it. A hunk that survives reversion is a change no test
 detects, whatever the diff's test files claim. It is the only tool here that sees
 the adjacent-invariant failure, so scope it (`MUTATE_ARGS="--limit 5"`, or
 `--tests "[ams]"`) rather than skipping it.
+
+**Read the first two lines: they say what the run is about.**
+
+```
+base d9f1c0a4e7b2  <- merge-base with origin/release/1.0 (nearest of 4 candidate upstream(s))
+diff 3 hunk(s) across 2 file(s)
+```
+
+The base is the nearest fork point among the refs this branch could have been cut
+from - its configured upstream, then the release branches, then main - because
+`main` alone is wrong on anything growing out of a maintenance branch. A branch
+cut from `release/1.0` shares with main only where those two parted, so measured
+against main it inherits everything `release/1.0` has done since as its own
+change: dozens of foreign hunks, a build apiece, and verdicts about other
+people's code. Those mostly come back `uncompilable`, which is correctly not a
+kill, so a mis-scoped run has no symptom of its own - it just looks slow and
+stubborn.
+
+A hunk count well above the size of your change is therefore the thing to
+notice, and the run stops and says so rather than spending the builds
+(`--max-hunks`, default 25; exit 4). Settle it with
+`MUTATE_ARGS="--base origin/release/1.0"`, which is taken as given and never
+second-guessed.
+
+Stop a run with **Ctrl-C**, never `kill`. Each mutant is put back by a `finally:`
+that needs the interpreter to keep running; SIGINT unwinds it, SIGTERM does not
+and leaves that hunk reverted in your working tree.
 
 Four outcomes, and they are not interchangeable:
 
@@ -202,7 +225,9 @@ it by hand and naming the result in the commit body, or accept it with
 
 `make cov-diff` is the cheap screen: a changed line the suite never runs cannot
 be tested, and finding that costs one run instead of one build per hunk. The
-converse does not hold, so a clean coverage report is not a substitute.
+converse does not hold, so a clean coverage report is not a substitute. It heads
+its report with the same `base ... <- ...` line, resolved by the same module, so
+the two tools cannot disagree about what the change under test is.
 
 ### A test must pass on its own
 
@@ -214,15 +239,13 @@ This is the one class none of the other tools can see. Such a test asserts real
 computed values, its lines are covered, and reverting the production hunk would
 report it killed -- it simply is not testing what it claims. It stays invisible
 until an unrelated change perturbs ordering, which is the worst moment to find
-it: adding nine test cases elsewhere changed the case count, which changed shard
-composition, which moved one test's accidental prerequisite into another shard,
-and a 96/96 green suite went red with nothing wrong in the changed code.
+it: any change to the case count reshuffles the shards, a test's accidental
+prerequisite lands in another shard, and a green suite goes red with nothing wrong
+in the changed code.
 
-The specimen it was built against is `test_grid_edit_mode.cpp` "build_default_grid
-only sets positions for anchor widgets", which passes in the suite and fails 5/5
-alone. The gate also reports the opposite sign as `pollution` (fails in the
-suite, passes alone) -- same root cause, different fix: the polluter needs
-cleanup, the dependent needs its own setup.
+The gate also reports the opposite sign as `pollution` (fails in the suite, passes
+alone): same root cause, different fix. The polluter needs cleanup, the dependent
+needs its own setup.
 
 ### Assert that the setup reached the branch, first
 
@@ -246,10 +269,9 @@ cannot fail either, for exactly the same reason.
 That case is the one to keep in mind, because it defeats three of the four
 tools above. `make test-vacuous` sees a real assertion (Catch2 expands it to
 `1024 <= 1024`, which differs from the source text). `make cov-diff` is green,
-because the changed line does execute. `-Werror=type-limits` only ever caught
-the version written as `>= 0` on a `size_t` -- fixing the compiler-visible
-tautology moved it to a semantic one, which hides better. Only reverting the
-hunk and watching for red finds it.
+because the changed line does execute. `-Werror=type-limits` catches only the
+compiler-visible form (`>= 0` on a `size_t`); the semantic tautology hides better.
+Only reverting the hunk and watching for red finds it.
 
 ### Name the mutation in the commit body
 

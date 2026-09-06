@@ -6,7 +6,18 @@
 
 **macOS is a development platform only — never a deployment target.** The app ships to embedded Linux (MIPS, ARM, aarch64) and Raspberry Pi. A Mac exists to build, run `--test`, and iterate on UI; nothing is released for it and no user runs it there. Host-portability work is justified by *a developer being able to build and run the suite*, never by production correctness — so fix a portability break when it blocks your own iteration, and don't add CI jobs or abstractions to defend macOS as a runtime.
 
-**Before compiling:** Check for existing build processes (`pgrep -x -d' ' 'make|cc1plus'`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits. And `pgrep` takes ONE pattern: `pgrep -x make cc1plus` errors with "only one pattern can be provided", so with stderr suppressed it prints nothing and reads as an all-clear. Use the alternation form above, or one `pgrep -x` per name. **Check `free -h`'s Mem AND Swap rows together:** the `helix-tests` link is gated by memory headroom, not cores, and neither row decides on its own. An exhausted swap row is NOT a throttle signal while `Mem:` `available` is still tens of GB: a full `make -j6` built clean at 80Gi available with 14Mi free swap. The failure case is both tight at once, low `available` *and* swap near 0, where `-j8` dies mid-link with *no* `oom-kill` line while load average still looks healthy. `-j6` clears it. Dying at the *same* step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary, because `prune-orphan-test-objs` (`mk/tests.mk`) runs `rm -f $(TEST_BIN)` whenever it finds one orphan object, and it is a *sibling* prerequisite of the link, so `-j` gives them no order. The tell is in the log: `[LD] helix-tests` followed by `✓ Unit test binary ready` and NO `✗ Test linking failed!` means the linker exited 0 and something else removed the output. Every shard then reports `No such file or directory` and the suite reads RED with nothing wrong in your code. Memory is not the cause there - a starved link fails loudly and stops make. Under pressure, the peer is often another Claude session you can TALK to, not just a `pgrep` hit: `ListAgents` lists the other Claude sessions on this machine (the name is the address) and `SendMessage` asks directly — which tree, what target, how long — so you coordinate (wait for theirs, drop to `-j2`, take turns at the link) instead of racing blind; send with `notify_when_idle: true` to get ONE notice when that session goes idle instead of polling `free -h`. The symmetric duty: when the box is yours — no peer build, `available` in the tens of GB — MAXIMIZE. `-j` at full `nproc`, every core and all headroom spent, nothing rationed out of caution, and ramp back to full the moment a peer finishes. A stale `-j2` left running after pressure clears is just a slower way to waste the same machine.
+**Planned work lives in GitHub issues** (`gh issue list --milestone Backlog`; milestone = scheduling axis, labels = kind: docs-debt, hw-verify, tech-debt). In-flight plans and specs live in `docs/devel/plans/`: point-in-time scaffolding, deleted in the change that ships the work (convention: `docs/CLAUDE.md`).
+
+**Before compiling, check for a build already running** — concurrent compilations thrash the machine:
+
+```bash
+pgrep -x -d' ' 'make|cc1plus'   # ONE pattern. Never pgrep -f: it matches its own command line
+free -h                          # read the Mem AND Swap rows together
+```
+
+- Throttle to `-j6` only when BOTH are tight: low `available` *and* swap near 0. That is the case where `-j8` dies mid-link with no `oom-kill` line while load average looks healthy. Tens of GB `available` beside an exhausted swap row is not a throttle signal. With the box to yourself, `-j` at full `nproc`, and ramp back up the moment a peer finishes.
+- Dying at the same step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary (`prune-orphan-test-objs` in `mk/tests.mk` runs `rm -f $(TEST_BIN)` as a sibling prerequisite of the link, so `-j` gives them no order). The tell: `[LD] helix-tests`, then `✓ Unit test binary ready`, NO `✗ Test linking failed!`, then every shard reports `No such file or directory`. Nothing is wrong with your code; a starved link fails loudly and stops make.
+- Who else is building, and in which tree, is a question you ask them: `ListAgents` + `SendMessage` (global CLAUDE.md § Peer Sessions), not a `pgrep` guess.
 
 ```bash
 make -j                              # Build ONLY the program binary (NOT tests)
@@ -28,25 +39,28 @@ make test-run                        # Build AND run tests in parallel
 make pi-test                         # Build on thelio + deploy + run
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
-scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
-#   Also writes .claude/settings.local.json (gitignored) with PROJECT_DIR set to
-#   the MAIN tree, so claude-recall writes lessons and stats there instead of to
-#   a per-worktree .claude-recall/ that `git worktree remove` would discard.
-#   A worktree made by hand (plain `git worktree add`) does NOT get this.
+scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
+#   lib/lvgl, lib/libhv and lib/helix-xml get a PRIVATE checkout per worktree
+#   (patches/ is per-branch); everything else in lib/ is a symlink shared with
+#   the main tree. Also writes .claude/settings.local.json with PROJECT_DIR set
+#   to the MAIN tree so claude-recall writes lessons and stats there.
+#   A worktree the harness makes on its own (EnterWorktree → .claude/worktrees/)
+#   gets NONE of this: no lib/ symlinks, no submodules, no build. Prefer this
+#   script; if you are already in one, `git submodule update --init --recursive`
+#   and a full build before trusting anything it produces.
 ```
 
-**XML changes need no rebuild:** `ui_xml/*.xml` is loaded at runtime — edit XML, then **relaunch** the binary to see changes (no `make` needed). Better: hot reload is **on by default for native dev builds** (cross-compiled release builds default it off) — the running app re-registers components within ~500ms of a save and rebuilds the active panel/overlay/modal in place. `HELIX_HOT_RELOAD=1`/`0` overrides the default either way. Invalid XML (mid-write truncation, syntax errors) is silently skipped on the polling thread — the existing UI stays live and the next poll retries.
+**XML changes need no rebuild:** `ui_xml/*.xml` is loaded at runtime. Hot reload is **on by default for native dev builds** (cross-compiled release builds default it off): the running app re-registers components within ~500ms of a save and rebuilds the active panel/overlay/modal in place. `HELIX_HOT_RELOAD=1`/`0` overrides the default either way. Invalid XML (mid-write truncation, syntax errors) is silently skipped on the polling thread; the existing UI stays live and the next poll retries.
 
 **Screenshots:** Press 'S' in UI, or `./scripts/screenshot.sh helix-screen output-name [token]` (drives a fresh instance via `helix-screen ctl`; token = panel/overlay/`demo` screen from `scripts/screenshot-recipes.sh`).
 
-**Driving the UI (screenshots, debugging, bringing up any panel/overlay/modal):** `helix-screen ctl` remote-controls a running instance — `navigate`/`click`/`ls`/`text`/`geom`/`set_value`/`scroll`/`demo`/`screenshot`, or a `helix-screen repl` REPL. The server auto-starts in `--test` (or `--remote`). See `docs/devel/HELIXCTL.md`. (Replaces the removed `-p`/`--panel` flags.)
+**Driving the UI (screenshots, debugging, bringing up any panel/overlay/modal):** `helix-screen ctl` remote-controls a running instance — `navigate`/`click`/`ls`/`text`/`geom`/`set_value`/`scroll`/`demo`/`screenshot`, or a `helix-screen repl` REPL. The server auto-starts in `--test` (or `--remote`). See `docs/devel/HELIXCTL.md`.
 
 > **Always pin the socket — never run a bare `ctl`.** The default path is per-user and
 > fixed, so with two instances up, `ctl` silently drives **whichever started first** and
-> still reports success. That is how you "verify" a change against another session's app.
-> Derive both the socket and the config dir from the worktree so parallel agents can't
-> collide — and you need *both*, since `--remote-socket` alone still contends on the
-> config flock:
+> still reports success. Derive both the socket and the config dir from the worktree so
+> parallel agents can't collide — you need *both*, since `--remote-socket` alone still
+> contends on the config flock:
 > ```bash
 > TREE=$(basename "$(git rev-parse --show-toplevel)")
 > export HELIX_SOCK="/tmp/helix-$TREE.sock" HELIX_CONFIG_DIR="/tmp/helix-config-$TREE"
@@ -56,16 +70,25 @@ scripts/setup-worktree.sh feature/my-branch  # Symlinks deps, builds fast
 > ```
 > **An empty `HELIX_CONFIG_DIR` is isolated for the lock and socket, not for the printer
 > address.** Finding no `settings.json` there, `Config` bootstraps one from
-> `~/.helixscreen/settings.json.backup` — look for `[Config] Config missing — restoring
-> from backup:` in the log. That inherits the real `moonraker_host`, so a run **without**
-> `--test` opens a WebSocket to the actual printer. Keep `--test` (the mock client ignores
-> the host entirely), or name the target explicitly with `--moonraker ws://HOST:7125`, which
-> **does** take precedence over the saved `moonraker_host` (the flag is `--moonraker`, not
-> `--moonraker-url`; verified 2026-08-27 — a seeded config defaulting to port 7125 connected
-> to `ws://127.0.0.1:7199/websocket` when the flag named it).
+> `~/.helixscreen/settings.json.backup` (`[Config] Config missing — restoring from backup:`
+> in the log). That inherits the real `moonraker_host`, so a run **without** `--test`
+> opens a WebSocket to the actual printer. Keep `--test` (the mock client ignores the host
+> entirely), or name the target explicitly with `--moonraker ws://HOST:7125`, which takes
+> precedence over the saved host. The flag is `--moonraker`; there is no `--moonraker-url`.
 >
 > Prefer `ctl text <name>` / `ctl geom <name>` over reading a screenshot — they are exact,
 > and a screenshot only proves what a scroll position happened to expose.
+
+---
+
+## Sharing This Tree With Other Sessions
+
+The protocol is global CLAUDE.md § Peer Sessions. What is shared here:
+
+- **The main working tree is live.** Other sessions commit in it. `git status --short | grep '^MM'` means someone is mid-commit: wait, never merge into that, and never let git autostash (`-c merge.autoStash=false`). Commit your own edits promptly, with explicit pathspecs.
+- **`build/bin/helix-tests` and `helix-screen` can be one inode across worktrees**: whoever linked last set the bytes both trees run. Compare `stat` inodes before trusting a control run against a sibling tree.
+- **The default `ctl` socket is per-user, not per-instance.** Pin it (box above) or you drive a peer's app and it reports success.
+- **One session per physical printer at a time.** Ask who holds a device before pointing anything at it.
 
 ---
 
@@ -88,6 +111,18 @@ Most commonly needed:
 | `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` | Mock printer config for `--test` runs (`HELIX_MOCK_*`, replay) |
 | `docs/devel/LOGGING.md` | spdlog levels: info vs debug vs trace |
 | `docs/devel/BUILD_SYSTEM.md` | Makefile, cross-compilation |
+
+## Path-Scoped Rules (`.claude/rules/`)
+
+These load automatically when you work on matching files. They are the contract, not background reading; every one is lint-gated.
+
+| Rule | Loads for | Covers |
+|------|-----------|--------|
+| `.claude/rules/declarative-ui.md` | `src/ui/`, `ui_xml/`, `include/ui_*.h` | DATA in C++, APPEARANCE in XML: the eight declarative rules, the structural exceptions, design tokens |
+| `.claude/rules/vendor-abstraction.md` | `src/`, `include/` | A vendor name appears in ONE module per capability; generic code asks capability questions |
+| `.claude/rules/threading.md` | `src/`, `include/`, `tests/unit/` | The five lifecycle invariants; `docs/devel/THREADING.md` is the full text |
+| `.claude/rules/submodules.md` | `lib/`, `patches/`, `mk/patches.mk` | `lib/helix-xml/` is ours and edited directly; everything else goes through `patches/` |
+| `.claude/rules/filament-backends.md` | `src/printer/ams_*`, `include/ams_*`, `*filament_*` | Which doc to read before touching a filament backend |
 
 ---
 
@@ -113,34 +148,27 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe_int_sync<Panel>()` from `observer_factory.h` |
 | **Icon sync** | Add icon, forget fonts | `include/ui_icon_codepoints.h` + `make regen-fonts` + rebuild |
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
-| **Doc citations** | Citing a line number (`src/printer/printer_state.cpp:638`), or hand-writing the markdown link | Cite a PLACE: `` `src/printer/printer_state.cpp#update_from_status` `` - a path, then a `#` fragment naming the enclosing scopes. Line numbers are never committed; `scripts/doc_anchors.py` resolves the name to a line on demand, so code that moves rots nothing. `make check-doc-anchors` reports any citation whose name no longer resolves (advisory - `.githooks/pre-push` runs it and never blocks on it), and `make docs-pinned` renders every doc with real line numbers into `build/docs-pinned/` for reading. `quality-checks.sh` still fails a doc citing a file that does not exist. The one thing you must fix by hand: a RENAMED symbol, because the sentence around the citation may no longer be true. **Never write a bare `` `:NNN` ``** (a line number with no path, meaning "and also line N of whatever file this sentence just named") - it carries nothing a reader or a tool can check, and `--check` reports it. Name the thing instead. |
+| **Doc citations** | A line number (`src/printer/printer_state.cpp:638`), or a bare `:NNN` with no path | A place: `` `src/printer/printer_state.cpp#update_from_status` `` - path, then a `#` fragment naming the enclosing scopes. `scripts/doc_anchors.py` resolves it to a line on demand (`make check-doc-anchors`, advisory), so code that moves rots nothing. A RENAMED symbol is the one case you fix by hand, because the sentence around it may no longer be true |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
 | **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"` (libhv's bundled version) |
 | **Build system** | `cmake`, `ninja` | `make -j` (pure Makefile) |
 | **No RTTI** | `dynamic_cast`, `typeid`, `std::type_index`, `any.type()` | `helix::type_tag<T>()` keys, virtual kind queries (`HELIX_CONTEXT_MENU_KIND`), pointer-form `any_cast`. Firmware builds `-fno-rtti`; lint-gated, escape hatch `// RTTI_OK: <reason>` |
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite the issue when one already exists: `fix(scope): thing (prestonbrown/helixscreen#123)`. No issue? `fix(scope): thing` is complete on its own — the commit body carries the explanation. |
-| **Unproven tests** | Claiming "tests pass" as evidence the change is tested | `make mutate-diff` (reverts each hunk, looks for red) and one line in the commit body naming the mutation. A green suite is not evidence: 11 changes in one release range revert green. It answers `CLEAN` only when it examined the WHOLE change — a path no strategy can mutate is reported `NOT COVERED` and the run is `INCOMPLETE` (exit 3), which you clear by hand-mutating that part and naming the result in the body, or accept with `--allow-incomplete`. See `tests/CLAUDE.md` § "Proving a test can fail" |
-| **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph (cf. `feat(z-offset)` 25e1505e7). Reserve the long form for genuine state-machine fixes that touch multiple subsystems (cf. `fix(ams): DRY unload API` 504905a2). |
-| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas`, `// #1401 grew the offset to 2.515mm`, `// pre-fix the stream wrote into freed memory` | State the constraint, not the history: `// Invalidating here freezes a fullscreen view the user is watching`. See § "Comments describe the code, not its past" |
-| **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | Add/amend `patches/*.patch` — `mk/patches.mk` auto-applies. **Exception: `lib/helix-xml/` is our own submodule** ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)) — edit it directly, commit and push *in the submodule*, then commit the bumped pointer in this repo. Never write a patch for it. A worktree gets its own checkout of it (not a symlink), so engine edits stay in that branch. |
+| **Unproven tests** | "Tests pass" as evidence the change is tested | `make mutate-diff` (reverts each hunk, looks for red) and one line in the commit body naming the mutation. A green suite is not evidence. `tests/CLAUDE.md` § "Proving a test can fail" |
+| **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph. Reserve the long form for genuine state-machine fixes that touch multiple subsystems |
+| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas`, `// pre-fix the stream wrote into freed memory` | State the constraint, not the history: `// Invalidating here freezes a fullscreen view the user is watching`. § below |
+| **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | `patches/*.patch`; `lib/helix-xml/` is ours and edited directly. `.claude/rules/submodules.md` |
 
 **ALWAYS:** Search the SAME FILE you're editing for similar patterns before implementing.
 
 ### Comments describe the code, not its past
 
-A comment earns its place by helping someone understand the code **as it is now**.
-Development history — what it used to do, which commit changed it, what bug prompted
-it, what a review found, what a mutation run proved — belongs in the commit message,
-which is exactly where `git log` and `git blame` will surface it when someone asks
-"why is this here?". Putting it in the source means every future reader pays for it
-forever, and it rots: the commit gets squashed, the issue gets closed, the "recent"
-fix becomes ancient, and the comment now misleads.
-
-**The deletion test.** Cut the historical clause. Does the comment still explain the
-code to someone reading this file for the first time who will never look at git
-history? If yes, the clause was archaeology — leave it cut. If the sentence collapses,
-you were relying on history to carry an explanation that should stand on its own, so
-rewrite it as a present-tense fact about the code.
+A comment earns its place by helping someone understand the code **as it is now**. How it
+got here — what it used to do, which commit changed it, what bug or review or mutation run
+prompted it — belongs in the commit message, where `git blame` surfaces it on demand.
+**The deletion test:** cut the historical clause. If the comment still explains the code to
+a first-time reader, leave it cut. If the sentence collapses, rewrite it as a present-tense
+fact about the system.
 
 | Keep — a constraint that still binds | Cut — how we got here |
 |---|---|
@@ -149,164 +177,17 @@ rewrite it as a present-tense fact about the code.
 | `// A wrapper existing does not prove it persists anything` | `// #1401 grew a probe offset 0.060 -> 2.515mm over five save cycles` |
 | `// Rows arriving with no scan pending would accumulate unbounded` | `// this file used to have several data races` |
 
-Specific forms that are almost always archaeology: a commit SHA; `used to`,
-`previously`, `originally`, `before this`, `no longer`, `pre-fix`; a narrated issue
-(`#123 found that…`) as opposed to a bare cite; "the bug where…"; and in tests, a
-recap of what a review or mutation run discovered.
+Almost always archaeology: a commit SHA; `used to`, `previously`, `originally`, `before
+this`, `no longer`, `pre-fix`; a narrated issue as opposed to a bare cite; "the bug
+where…"; and in tests, a recap of what a review or mutation run discovered. Tests, shell
+scripts, gates and Makefiles included.
 
-**This applies to tests, shell scripts, gates and Makefiles too**, not just C++. A
-bats file's header comment is the most common offender — describe what the gate
-checks and why that matters, not the sweep that motivated writing it.
-
-**The legitimate need is real, and it is narrower than it feels.** When a
-counter-intuitive line exists because the obvious alternative is wrong, say what
-breaks — in the present tense, as a property of the system. "Do not invalidate here:
-a token the running stream already captured never recovers" is a constraint the next
-reader must respect. "3d0875bff invalidates here but we can't" is trivia about a
-different file.
-
-**Issue references are welcome — keep them short.** `(prestonbrown/helixscreen#1394)`
-appended to a sentence that already stands on its own is exactly right: it points at
-the full story for anyone who wants it, costs one reader half a second, and cannot
-rot. Do not strip these. What to avoid is *narrating* the issue inline — the cite is
-a pointer, not a summary:
+Issue references are welcome as pointers, not summaries:
 
 - ✅ `// A wrapper existing does not prove it persists anything (prestonbrown/helixscreen#1401)`
 - ❌ `// #1401: a Helper-Script box folded the offset into the probe, SAVE_CONFIG restarted klipper, and the boot gcode re-applied it, growing 0.060 -> 2.515mm over five cycles`
 
-**Submodule patch workflow** — third-party submodules ONLY (`lib/lvgl/`, `lib/libhv/`, …). **Never run it on `lib/helix-xml/`**: that repo is ours, its edits are meant to be committed, and the `git restore .` below would destroy them.
-
-Edit the file under `lib/<sub>/`, then `cd lib/<sub> && git diff -- <the files you touched> > ../../patches/<name>.patch && git restore -- <those files>`. **Scope the diff** — a bare `git diff` captures every patch currently applied. And if two patches touch the same file (a dozen-plus files are; `src/misc/lv_event.c` has seven) even a scoped diff folds the others in, so use the pristine-file method in `patches/README.md` § "Regenerating a patch whose file is shared". The patch in `patches/` is the source of truth — direct edits get wiped on the next `git submodule update`. Check `mk/patches.mk` (`LVGL_PATCHED_FILES`, `LIBHV_PATCHED_FILES`, etc.) and existing `patches/*.patch` before creating a new one — amend an existing patch when the change is in the same area (e.g., `lvgl_sdl_window.patch` already owns `lv_sdl_window.c`).
-
----
-
-## CRITICAL RULES - Declarative UI
-
-**DATA in C++, APPEARANCE in XML, Subjects connect them.**
-
-**Absolute for new code.** The tree still has 367 sites that break these rules
-(`scripts/check_imperative_ui.py --list`). Some were deliberate pragmatism from when the XML
-engine could not express what was needed; some are plain mistakes that got through review.
-Both are debt, tracked in prestonbrown/helixscreen#1140 and being ported. **Existing imperative
-code is not precedent** — do not imitate a nearby site just because it is there, and do not
-opportunistically refactor one as a side effect of an unrelated change. The gate ratchets: the
-count may fall, never rise.
-
-| # | Rule | ❌ NEVER | ✅ ALWAYS |
-|---|------|----------|----------|
-| 1 | **NO lv_obj_add_event_cb()** | `lv_obj_add_event_cb(btn, cb)` | XML `<event_cb trigger="clicked" callback="name"/>` + `lv_xml_register_event_cb()` |
-| 2 | **NO imperative visibility** | `lv_obj_add_flag(obj, HIDDEN)` | XML `<bind_flag_if_eq subject="state" flag="hidden" ref_value="0"/>` for cheap show/hide of an already-built subtree. `<if cond="X">…<else/>…</if>` is the structural sibling — use it when the *creation* itself is expensive (a whole card, an alternate layout); it builds only the matching branch instead of both. See `docs/devel/LVGL9_XML_GUIDE.md` § "Structural conditionals with `<if>` / `<else>`". |
-| 3 | **NO lv_label_set_text** | `lv_label_set_text(lbl, val)` | Subject binding: `<text_body bind_text="my_subject"/>` |
-| 4 | **NO C++ styling** | `lv_obj_set_style_bg_color()` | XML: `style_bg_color="#card_bg"` |
-| 5 | **NO manual LVGL cleanup** | `lv_display_delete()`, `lv_group_delete()` | Just `lv_deinit()` - handles everything |
-| 6 | **bind_style priority** | `style_bg_color` + `bind_style` | Inline attrs override - use TWO bind_styles |
-| 7 | **NO C++ derived subject for compound conditions** | Hand-written observer that combines 2+ subjects (`a \|\| b > c`) | XML `<subject_expr name="x" expr="a or b gt c"/>` or inline `cond="a or b gt c"` on `bind_flag_if`/`bind_state_if`/`bind_style_if` (word forms — `&&`/`<` need XML escaping). |
-| 8 | **NO C++ create-and-wire loop for repeated fragments** | `for(int i=0;i<n;i++) { lv_obj_create(...); ... }` in C++ | XML `<repeat count="4">…$i…</repeat>` (fixed) or `<repeat count="a_subject">…${i}…</repeat>` (reactive rebuild on subject change) — see `docs/devel/LVGL9_XML_GUIDE.md` § "Repeating fragments with `<repeat>`". Measured layout, computed callbacks, and data population still belong in C++ — `<repeat>` only replaces the widget-creation loop itself. |
-
-**Structural exceptions — C++ is correct here, permanently:**
-
-| Case | Why |
-|------|-----|
-| Custom XML widget implementations — the 29 files calling `lv_xml_register_widget` | The file *is* the widget; there is no XML beneath it to bind to |
-| `LV_EVENT_DELETE` cleanup, draw hooks (`DRAW_MAIN`/`DRAW_POST`), `SIZE_CHANGED`, gestures/scroll | No declarative equivalent exists |
-| Measured layout and computed fonts (`decide_nozzle_layout()`, breakpoint fonts) | Depends on runtime pixel measurement — see rule 8 |
-| Widgets created in C++ (`lv_*_create`) — canvas and procedural rendering | Never had an XML layer |
-| Per-item payload on generated collections | `lv_obj_set_user_data()` on a `ui_button` overwrites `UiButtonData*` (`src/ui/temperature_service.cpp#setup_panel`) |
-| `helix-screen ctl` remote control (`remote_control_server.cpp`) | Its job is reaching into an arbitrary live widget tree on command |
-| CLI stdout (`cli_args.cpp`, `detect_printer_cmd.cpp`, `helix_splash.cpp`) | stdout *is* the product there; spdlog is for logging |
-| Widget pool recycling, chart data, animations | Churn or per-frame data that a subject would not model |
-
-Genuinely un-declarative site? Annotate it: `// DECLARATIVE_OK: <reason>`.
-
----
-
-## CRITICAL RULES - Vendor Knowledge Stays Behind an Abstraction
-
-**A vendor, firmware, or mod name may appear in ONE module per capability. Generic code asks
-that module a capability question and never names the vendor.**
-
-Generic code is anything whose job is not "support vendor X": `PrinterState` and its
-sub-states, the discovery/subscription builder, `Application` startup, panels, widgets,
-formatters. When one of those grows an `if (zmod) … else if (creality) …`, the vendor matrix
-is now spread across every layer and the next firmware means editing all of them.
-
-| ❌ WRONG | ✅ CORRECT |
-|----------|-----------|
-| `zmod::parse_persisted_z_offset(status)` in `PrinterMotionState::update_from_status` | `zoffset::read_persisted_offset_microns(status)` — the module owns which firmwares and which schema |
-| `if (hw.has_macro("SAVE_ZMOD_DATA")) subs["save_variables"] = nullptr;` in the subscription builder | `for (auto& o : zoffset::required_status_objects(hw)) subs[o] = nullptr;` |
-| `api->execute_gcode("SAVE_ZMOD_DATA LOAD_ZOFFSET=1")` in `Application` | `zoffset::persistence_enable_gcode(hw)` — empty string when the printer needs none |
-
-**The test: adding a second firmware with the same capability must touch exactly one file.**
-If it would touch the status parser *and* the subscription builder *and* startup, the
-abstraction is missing. Model it as a provider table keyed on a detection predicate, with the
-capability questions as free functions over it — `include/z_offset_persistence.h` +
-`src/printer/z_offset_persistence.cpp` is the reference shape (~40 lines of table, three
-questions: what to subscribe, how to read it, how to enable it).
-
-**Naming follows the same rule.** Subjects, accessors, and headers name the *capability*
-(`persisted_z_offset`, `firmware_persists_z_offset`), never the vendor (`zmod_z_offset`). A
-vendor-named symbol reachable from generic code is the smell even when the call site looks
-clean.
-
-Existing vendor-dispatch that already lives behind an interface is the pattern working, not an
-exception: `AmsBackend*` (one class per filament system, `AmsState` never names one),
-`ZOffsetCalibrationStrategy`, `PrinterDetector` capability lookups. Follow those.
-
-Genuinely unavoidable vendor branch in generic code? Annotate it: `// VENDOR_OK: <reason>`.
-
----
-
-## Design Tokens (MANDATORY)
-
-| Category | ❌ WRONG | ✅ CORRECT |
-|----------|----------|-----------|
-| **Colors** | `lv_color_hex(0xE0E0E0)` | `theme_manager_get_color("card_bg")` |
-| **Spacing** | `style_pad_all="12"` | `style_pad_all="#space_md"` |
-| **Typography** | `<lv_label style_text_font="...">` | `<text_heading>`, `<text_body>`, `<text_small>` |
-
-Note: `theme_manager_get_color()` for tokens, `theme_manager_parse_hex_color()` for hex strings only (NOT tokens).
-
----
-
-## Threading & Lifecycle
-
-> **Full rules: `docs/devel/THREADING.md`** (routed by the `helix-threading` skill). Read it
-> before writing code that crosses a thread boundary, observes a subject, or destroys a widget.
-> The invariants below are the always-loaded safety net — each one fails silently at compile
-> time and crashes later, usually on a customer's printer.
-
-1. **Never touch LVGL from a background thread.** WebSocket/libhv, HTTP, and timer callbacks
-   are background threads; `lv_subject_set_*()` counts, because it fires observers that call
-   widget APIs. Route through `ui_queue_update()` (`ui_update_queue.h`). Pattern:
-   `printer_state.cpp` `set_*_internal()`.
-2. **Never write bare `if (tok.expired()) return;` on a background thread** and then touch
-   `this` — TOCTOU use-after-free (L081 Mechanism C, #707). Use `lifetime_.bg_cb(tag, fn)`, or
-   `tok.defer(tag, fn)` when you have bg-side parsing worth keeping off the main thread.
-   `lifetime_.defer()` is main-thread only. Gate: `scripts/check_l081_anti_pattern.py`.
-3. **Never delete synchronously inside a queued callback.** `safe_delete()`,
-   `lv_obj_delete()`, and `lv_obj_clean()` corrupt LVGL's event list mid-batch (#776, #190,
-   #80). Use `safe_delete_deferred()`, `lv_obj_delete_async()`, `safe_clean_children()`.
-   **`lifetime_.defer` does NOT escape the batch** — it fires in the next `process_pending`
-   tick, which is still a batch.
-4. **If you fetch a `SubjectLifetime`, you must hand it to `observe_*`.** The factories take it
-   as a defaulted 4th parameter (`const SubjectLifetime& lifetime = {}`), so omitting it is
-   silent: the guard gets no token, never sees the subject die, and `reset()` calls
-   `lv_observer_remove()` on freed memory (#705). Local vs member is *not* what decides
-   correctness — the `get_*_subject(name, lifetime)` accessors assign the owner's own
-   `shared_ptr`, so a caller's copy dying never expires the guard.
-5. **A raw `lv_timer_t*` cancelled in `cleanup()` must also be cancelled in the destructor.**
-   `StaticPanelRegistry::destroy_all()` runs *before* `lv_deinit()`, so any teardown that
-   skips the explicit stop leaves the timer armed on a freed `this` (#1173, twice). Share one
-   `cancel_*_timer()` between both paths and use `lv_timer_cancel_safe()` — it self-guards on
-   `lv_is_initialized()` and neuters instead of unlinking, so it is safe from a destructor and
-   from inside `lv_timer_handler` (#750, #751). A `LifetimeToken`-guarded callback is the other
-   valid answer; annotate those `// TIMER_DTOR_OK: <reason>`. Gate:
-   `scripts/check_timer_destructor_cancel.py`.
-
-Also: no `std::thread(...).detach()` for one-shot work — `EAGAIN` → `std::terminate` on
-AD5M/CC1 (#724, #837); use `HttpExecutor::fast()/slow()` or `BusThread`. `ObserverGuard::reset()`
-for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-registers its
-`deinit_subjects()` with `StaticSubjectRegistry`.
+`scripts/check_comment_archaeology.py` ratchets the SHA half; the phrasing half is the reviewer's.
 
 ---
 
@@ -315,7 +196,7 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 | Pattern | Key Point | Exemplar |
 |---------|-----------|----------|
 | Subject init order | Register components → init subjects → create XML | `src/application/subject_initializer.cpp`, called from `Application::register_xml_components()` |
-| Widget lookup | `lv_obj_find_by_name()` not `lv_obj_get_child()` — indices break when layout changes | any panel; 1100+ call sites |
+| Widget lookup | `lv_obj_find_by_name()` not `lv_obj_get_child()` — indices break when layout changes | any panel |
 | Overlays | `NavigationManager::instance().push_overlay(root)` / `.go_back()` (`ui_nav_manager.h`) — pair every push with `register_overlay_instance(root, this)` or `on_deactivate()` never fires (tests abort; `HELIX_STRICT_OVERLAY_CHECK=1`) | `src/ui/ui_settings_safety.cpp` |
 | Modals (simple) | `Modal::show("component_name")` / `Modal::hide(dialog)` | `src/ui/ui_job_queue_modal.cpp` |
 | Modals (subclass) | Extend `Modal`, implement `get_name()` + `component_name()`, override `on_ok()`/`on_cancel()` | `include/ui_info_qr_modal.h` + `src/ui/ui_info_qr_modal.cpp` (42 + 62 lines — the whole pattern, nothing else) |
@@ -329,7 +210,7 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 ## Where Things Live
 
 **Singletons** (classic `::instance()` unless noted):
-`SettingsManager` (persistent settings), `NavigationManager` (panel/overlay stack), `UpdateQueue` (thread-safe UI updates), `SoundManager`, `DisplayManager`, `ModalStack`, `ToolState` (multi-tool tracking), `AmsState` (multi-backend filament systems). Two look like singletons but are not: `PrinterState` (all printer data/subjects) is a Meyers singleton reached via `get_printer_state()` (`include/app_globals.h#get_printer_state`) — there is no `PrinterState::instance()`; `PrinterDetector` (printer DB + capabilities) is a static class, no instance exists. Full census (76 `::instance()` singletons plus four other access shapes): `docs/devel/architecture/05-printer-state.md`.
+`SettingsManager` (persistent settings), `NavigationManager` (panel/overlay stack), `UpdateQueue` (thread-safe UI updates), `SoundManager`, `DisplayManager`, `ModalStack`, `ToolState` (multi-tool tracking), `AmsState` (multi-backend filament systems). Two look like singletons but are not: `PrinterState` (all printer data/subjects) is a Meyers singleton reached via `get_printer_state()` (`include/app_globals.h#get_printer_state`) — there is no `PrinterState::instance()`; `PrinterDetector` (printer DB + capabilities) is a static class, no instance exists. Full census: `docs/devel/architecture/05-printer-state.md`.
 
 `TemperatureController` — single authority for ALL nozzle/bed/chamber target sends (NOT a `::instance()` singleton: owned by `SubjectInitializer`, reached via `get_temperature_controller()` in `app_globals.h`). New temp-setting UI MUST call `TemperatureController::set_target()`, never raw `MoonrakerAPI::set_temperature()` — lint-enforced by `tests/shell/test_code_lint.bats`. See the TemperatureController section of `docs/devel/architecture/05-printer-state.md`.
 
@@ -352,7 +233,7 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 
 **Mock-facing interfaces**: `IMoonrakerAPI` (`include/i_moonraker_api.h`), `helix::IMoonrakerClient` (`include/i_moonraker_client.h`), and the ten sub-API interfaces in `include/i_moonraker_sub_apis.h` are the consumer contract for the Moonraker network layer — consumers depend on these interfaces ONLY, never the concrete classes. The concretes (`MoonrakerAPI`, `helix::MoonrakerClient`, the ten `Moonraker*API` sub-classes) live behind `MoonrakerManager` (`include/moonraker_manager.h`), which owns them via `std::unique_ptr<MoonrakerAPI>` (the concrete façade — the mock inherits it) / `std::unique_ptr<helix::IMoonrakerClient>` and constructs them in `create_api()` / `create_client()`. Mocks still inherit the concretes. Drift protection in `tests/unit/test_interface_drift_*.cpp` (`[compile][drift]` tag). Lint-enforced by `tests/shell/test_code_lint.bats` — naming a concrete type outside the network layer fails CI.
 
-**Test isolation**: `HelixTestFixture` (`tests/helix_test_fixture.h`) is the base for every test fixture. Ctor + dtor call `reset_all()` which drains `UpdateQueue`, resets `SystemSettingsManager` language, clears `ModalStack`. `LVGLTestFixture` inherits it. `XMLTestFixture` owns per-instance `PrinterState` / `MoonrakerClient` / `MoonrakerAPI` (no more static test state). XML subjects still register into LVGL's global scope — per-test scopes were blocked by LVGL internals; subjects are refreshed by each test's `init_subjects(true)`.
+**Test isolation**: `HelixTestFixture` (`tests/helix_test_fixture.h`) is the base for every test fixture. Ctor + dtor call `reset_all()` which drains `UpdateQueue`, resets `SystemSettingsManager` language, clears `ModalStack`. `LVGLTestFixture` inherits it. `XMLTestFixture` owns per-instance `PrinterState` / `MoonrakerClient` / `MoonrakerAPI`. XML subjects still register into LVGL's global scope — per-test scopes were blocked by LVGL internals; subjects are refreshed by each test's `init_subjects(true)`.
 
 ---
 
@@ -361,13 +242,12 @@ for all normal cleanup, never `release()` (#579). Every `init_subjects()` self-r
 **NEVER debug without flags!** Use `-vv` minimum.
 Trust debug output. Impossible values = bug is UPSTREAM. Ask "what ELSE?" not "did first fix work?"
 
-**A plain `> file` redirect drops the console log — but `--test` is exempt.** The console
-sink attaches for a TTY always, for a PIPE only with an explicit `-v`/`--log-level`, and for a
-regular file or socket never (a plain redirect is indistinguishable from the daemon redirect).
-`--test` overrides all of it and logs to any stdout kind, which is why most runs never hit
-this. A **non-`--test`** background run needs `2>&1 | tee /tmp/x.log` or
-`HELIX_LOG_DEST=console` — measured on one binary, identical flags: 645 lines through `tee`,
-3 through `>`. Full decision table: `docs/devel/LOGGING.md` § "Console sink".
+**A plain `> file` redirect drops the console log, except under `--test`.** The console
+sink attaches for a TTY always, for a pipe only with an explicit `-v`/`--log-level`, and for
+a regular file or socket never (a plain redirect is indistinguishable from the daemon's).
+`--test` logs to any stdout kind. A **non-`--test`** background run needs
+`2>&1 | tee /tmp/x.log` or `HELIX_LOG_DEST=console`. Decision table: `docs/devel/LOGGING.md`
+§ "Console sink".
 
 **Debug bundles**: `--save` writes `debug-bundle-<code>.json` to the **current working directory** — run it from `/tmp` so the bundle never lands in the repo: `cd /tmp && <repo>/scripts/debug-bundle.sh <SHARE_CODE> --save`. Investigate there, never commit a bundle. (If one ends up in the repo, move it to `/tmp`.)
 
@@ -379,7 +259,7 @@ this look right"), and even then drive to the state first and tell him exactly w
 at. `ctl text` / `state` / `geom` are exact; a screenshot only proves what a scroll position
 happened to expose.
 
-**Local mock — always allowed, no permission needed.** Use the pinned-socket recipe in Quick
+**Local mock — always allowed, no permission needed.** The pinned-socket recipe in Quick
 Start with `--test`, `SDL_VIDEODRIVER=dummy`, and `--sim-speed 4-10` when you need an active
 print. This is the default answer to "does my change work".
 
@@ -387,20 +267,15 @@ print. This is the default answer to "does my change work".
 command that touches a real machine. After that, read-only commands (`ping`, `status`,
 `current`, `ls`, `text`, `state`, `geom`, `screenshot`) need no further asking. Anything that
 moves the machine or changes a print — gcode, home, heat, move, print/cancel,
-`FIRMWARE_RESTART`, emergency stop — is confirmed **every** time; one unconfirmed call cost a
-26-minute print. `ctl current` before you navigate and navigate back when you are done: that
-is his printer's screen, and he is standing in front of it.
+`FIRMWARE_RESTART`, emergency stop — is confirmed **every** time. `ctl current` before you
+navigate and navigate back when you are done: that is his printer's screen, and he may be
+standing in front of it.
 
 Two shapes, and they are not the same thing:
 
 | Shape | What it is | How |
 |-------|-----------|-----|
-| desktop UI → real Moonraker | your local build, real printer data, no device walk | `--moonraker ws://HOST:7125` |
-
-Both shapes are verified. Pointing a local `SDL_VIDEODRIVER=dummy` build at the CB1/Voron
-discovered its real hardware (`AFC_BoxTurtle Turtle_1`, 4 lanes, 10 AFC objects,
-quad_gantry_level) and `ctl` drove the resulting UI, so an AFC question does not need a
-device deploy - only the printer's Moonraker port on the LAN.
+| desktop UI → real Moonraker | your local build, real printer data, no device walk | `--moonraker ws://HOST:7125`. Enough for most hardware questions: a local `SDL_VIDEODRIVER=dummy` build pointed at a printer discovers its real hardware (AFC lanes, QGL, …) and `ctl` drives the result |
 | `ctl` → app on the device | the app actually running on the printer | ssh, then `<install>/bin/helix-screen ctl <cmd>` |
 
 **The device build gate — check the binary, never the help text.** `ENABLE_REMOTE_CONTROL`
@@ -412,12 +287,9 @@ supported and buy nothing:
 strings -a <install>/bin/helix-screen | grep -c list_callbacks   # 0 = no server compiled in
 ```
 
-Verified 2026-08-27: CB1/Voron running packaged 0.99.116 → `0`, and `ctl` was rejected as an
-unknown argument. K2 Plus running dev cross-build 0.99.117 → `2`, with `ctl ping` answering
-`pong` over `/tmp/helixscreen-control.sock`, plus `navigate`/`ls`/`state`/`geom`/`screenshot`
-all working against the live machine. A device also needs `HELIX_REMOTE_CONTROL=1` in its
-`helixscreen.env` for the server to listen; `make deploy-*` sets that from the
-`.build-features` stamp `mk/rules.mk` writes beside the binary.
+A device also needs `HELIX_REMOTE_CONTROL=1` in its `helixscreen.env` for the server to
+listen; `make deploy-*` sets that from the `.build-features` stamp `mk/rules.mk` writes
+beside the binary.
 
 ---
 

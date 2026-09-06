@@ -331,10 +331,10 @@ LVGL_DIR := lib/lvgl
 # LVGL config discovery. Defined here (not further down) so it can travel inside
 # $(LVGL_INC): every flag set that compiles LVGL-dependent code then reaches
 # lv_conf.h via -I. (project root) + -DLV_CONF_INCLUDE_SIMPLE, instead of LVGL's
-# fragile '#include "../../lv_conf.h"' fallback. That fallback only resolves by
-# accident in a normal checkout and BREAKS when lib/lvgl is a symlink (git
-# worktrees — see scripts/setup-worktree.sh), which silently broke every
-# cross-compile from a worktree (splash + display-backend + watchdog sub-builds).
+# fragile '#include "../../lv_conf.h"' fallback. That fallback resolves only by
+# accident in a normal checkout and not at all wherever lib/lvgl does not sit two
+# levels below the tree holding lv_conf.h, which takes out the splash,
+# display-backend and watchdog sub-builds with it.
 # Carrying it in LVGL_INC means new LVGL sub-builds inherit correct discovery
 # automatically rather than each having to remember to append $(LV_CONF).
 LV_CONF := -DLV_CONF_INCLUDE_SIMPLE

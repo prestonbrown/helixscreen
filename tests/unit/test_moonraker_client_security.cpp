@@ -489,9 +489,10 @@ TEST_CASE("MoonrakerClient destructor waits for in-flight callbacks (issue #357)
 // Integration Tests - Multiple Security Properties
 // ============================================================================
 
-// Previously disabled due to segfault (SIGSEGV) - fixed by adding lifetime_guard_
-// to MoonrakerClient. Callbacks now capture weak_ptr<bool> to safely detect
-// when the client is being destroyed, preventing use-after-free.
+// Destroys a client with 50 pending requests whose error callbacks throw and re-enter
+// it to send more. The destructor's two-phase cleanup, its callback drain, and the
+// exception guards around each invocation all have to hold at once for this to finish
+// without a use-after-free.
 TEST_CASE("MoonrakerClient security properties work together correctly",
           "[connection][security][integration][eventloop][slow]") {
     SECTION("Cleanup with exceptions, large IDs, and nested requests") {

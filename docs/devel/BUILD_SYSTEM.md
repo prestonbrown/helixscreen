@@ -95,10 +95,13 @@ Docker images are **automatically built** on first use - no manual setup require
    `tests/shell/test_build_provenance.bats` fails the build if one does not. It carries two
    things, both of which exist because a **git worktree** is not self-contained:
 
-   - `DOCKER_WORKTREE_MOUNT` — `scripts/setup-worktree.sh` symlinks `lib/<submodule>` to the
-     main checkout by absolute path, so those links dangle inside a container that mounts only
-     `$(CURDIR)`. The real submodule tree is bind-mounted at its own absolute path so every
-     `lib/*` link resolves identically inside and out.
+   - `DOCKER_WORKTREE_MOUNT` — `scripts/setup-worktree.sh` symlinks the shared
+     `lib/<submodule>` entries to the main checkout by absolute path, so those links dangle
+     inside a container that mounts only `$(CURDIR)`. The real submodule tree is bind-mounted
+     at its own absolute path so every `lib/*` link resolves identically inside and out. The
+     detection asks every `lib/` entry where it really lives rather than probing one of them:
+     `lib/lvgl` is a private checkout under `$(CURDIR)`, so a single-entry probe would read a
+     worktree full of symlinks as a normal checkout and mount nothing.
    - `DOCKER_GIT_HASH_ENV` — a worktree's `.git` is a *file* reading
      `gitdir: $(MAIN)/.git/worktrees/<name>`, a path outside the mount, so git cannot resolve
      `HEAD` in the container and `scripts/gen-git-hash.sh` used to stamp
@@ -514,14 +517,26 @@ path inside the repo outside `.worktrees/`.
 
 The script optimizes for **fast builds** by sharing artifacts from the main tree:
 
-1. **Symlinks lib/** — third-party submodules symlinked (no clone/configure time).
-   `lib/helix-xml` is the exception: it is **ours** and CLAUDE.md says to edit it directly
-   rather than carry a patch, so a symlink would put every worktree's engine edits into the
-   *main* tree's submodule working copy — shared with every other worktree, and showing up as
-   dirt in main's `git status` for another session to sweep. It gets a private per-worktree
-   checkout instead (~2.6 MB, seconds), listed in `LIB_PRIVATE_SUBMODULES`. Its gitdir lands
-   under `.git/worktrees/<name>/modules/`, `origin` stays the public GitHub remote, and
-   because a real checkout is what git already expects it needs no `--unlink`/`--relink`.
+1. **Symlinks the shared lib/ submodules, copies the rewritten ones** — the third-party
+   submodules nothing edits are symlinked (no clone/configure time). The three in
+   `LIB_PRIVATE_SUBMODULES` get a private per-worktree checkout instead: `lib/helix-xml`
+   because it is **ours** and CLAUDE.md says to edit it directly rather than carry a patch,
+   and `lib/lvgl` + `lib/libhv` because `patches/` rewrites them and `patches/` is
+   per-branch. Sharing one checkout across branches that disagree about either is
+   unsatisfiable — `make reapply-patches` in one tree redefines what every other tree
+   compiles, and each tree's correct action invalidates the other's
+   (prestonbrown/helixscreen#1471). Each private git dir lands under
+   `.git/worktrees/<name>/modules/`, `origin` stays the public GitHub remote, and because a
+   real checkout is what git already expects they need no `--unlink`/`--relink`.
+
+   The checkout is **copied from the main tree**, not cloned fresh: a fresh checkout writes
+   fresh mtimes, which invalidates every cloned object built against those headers and turns
+   a warm worktree cold. `cp -Rc` (clonefile on APFS, `--reflink=auto` on btrfs/xfs, a plain
+   copy elsewhere) keeps the mtimes; the git dir is a `git clone --local`, which hardlinks
+   the object store, so no network and no second copy of ~500 MB of packs. The pin is then
+   reconciled with a `git checkout` of the commit *this* branch names, which rewrites only
+   the files that actually differ. Setup ends by asserting every `lib/` submodule sits at
+   this branch's pin, and refuses to build when a private one does not.
 2. **Adopts the main tree's mtimes** for every byte-identical file — without this, nothing below actually saves you anything (see next section)
 3. **Clones compiled libraries** — `libhv.a`, `libwpa_client.a` from main tree
 4. **Clones the precompiled header** — `lvgl_pch.h.gch` (27MB)
@@ -529,9 +544,10 @@ The script optimizes for **fast builds** by sharing artifacts from the main tree
 6. **Clones build objects** — copies `build/obj/` and `build/generated/` from the main tree (APFS clonefile on macOS; plain copy on Linux)
 7. **Configures ccache for cross-worktree reuse** — so the worktree builds against the *same* ccache the main tree populated, when ccache is installed (see below)
 8. **Validates architecture** — wrong-arch `.o`/`.a` files (left by a prior cross-compile) are detected and cleared so `make` rebuilds them correctly
-9. **Configures git** — `.git/info/exclude` + `--skip-worktree` keep `git status` clean despite the symlinks
+9. **Configures git** — `.git/info/exclude` + `--skip-worktree` keep `git status` clean despite the symlinks. `--skip-worktree` covers the symlinked submodules only: on a private checkout it would hide a real change of pinned revision from `git status`, `git add` and the revision check.
+10. **Reconciles patches** — `make reapply-patches` runs in the new worktree when this branch's `patches/` differs from the main tree's, or when a private submodule landed somewhere the main tree's patches do not describe. Otherwise the copy already carries them, and reapplying is not free: `build/.patches-applied` is a prerequisite of the PCH and therefore of every object.
 
-**Trade-off**: If you need to modify library code (`lib/`), un-symlink that specific directory first (`rm lib/<name> && cp -a $MAIN/lib/<name> lib/`).
+**Trade-off**: `lib/lvgl`, `lib/libhv` and `lib/helix-xml` are yours to modify in place. For any other `lib/` entry, un-symlink that specific directory first (`rm lib/<name> && cp -a $MAIN/lib/<name> lib/`) or you are editing the main tree's copy.
 
 > **Build outputs are cloned, never symlinked.** `libhv.a` and `lvgl_pch.h.gch` used to be
 > symlinks into the main tree. They are build *outputs*, so make rewrites them — and both `cp`
@@ -576,16 +592,18 @@ edit made after setup — keeps its fresh mtime and rebuilds normally:
 What it inherits rather than fixes: if the main tree's own build is stale, the worktree
 reproduces that staleness. The object clone always had that property.
 
-> **If a fresh worktree still takes minutes, this is almost always why.** `lib/` is symlinked
-> from the main tree, so the libhv submodule is *shared by every tree*. Rebuilding libhv anywhere
-> regenerates `lib/libhv/include/hv/json.hpp`, which is a `$(PCH)` prerequisite — so the PCH, and
-> with it all ~1970 objects, goes out of date in the main tree and in every worktree at once. The
-> mtime sync cannot repair it: the script deliberately never follows the `lib/` symlinks, and
-> `git ls-files` does not reach inside a submodule. Observed during this work: a worktree that
-> should have built in 5s took 462s (680 objects + PCH) purely because an unrelated tree had
-> rebuilt libhv twenty minutes earlier. The fix is to let one tree rebuild once — after that
-> every tree is fast again. Un-sharing `lib/` would remove the coupling entirely, but that is the
-> core of the current worktree design.
+> **If a fresh worktree still takes minutes, this is almost always inherited staleness.**
+> A worktree copies the main tree's objects and mtimes, so it starts as up to date as the main
+> tree is and no more. When the main tree's `build/.patches-applied` is newer than its objects —
+> which any `make reapply-patches` there makes true — the PCH and with it all ~2400 objects are
+> already out of date at the moment they are cloned, and the new worktree recompiles them. The
+> fix is to let one tree rebuild once. Measured on one such main tree, two worktrees off the
+> same commit both recompiled ~1280 objects, the symlinked one and the private-checkout one
+> alike: the staleness is the main tree's, not the worktree scheme's.
+>
+> `lib/libhv` and `lib/lvgl` no longer add to this. They are a private checkout per worktree,
+> so rebuilding libhv in one tree regenerates only that tree's `lib/libhv/include/hv/json.hpp`
+> — a `$(PCH)` prerequisite — instead of putting every tree's PCH out of date at once.
 
 ### The ccache config the script sets
 

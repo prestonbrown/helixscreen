@@ -1124,17 +1124,14 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
         }
     }
 
-    // Clear panel stack and all overlay tracking maps.
-    // overlay_instances_ must be cleared here — not all overlays are deleted by
-    // their close callbacks (some are only hidden), leaving stale entries that
-    // cause has_open_overlays() to return true and break subsequent home-button
-    // "go to page 0" logic. Persistent overlay registrations are preserved.
+    // Clear the panel stack and the per-open bookkeeping, but NOT the overlay
+    // registrations. overlay_instances_ pairs a widget with its lifecycle for as
+    // long as that widget exists; ensure_delete_hook() arms every registration so
+    // scrub_deleted_widget() drops the entry when LVGL deletes the widget.
+    // Clearing the map here unpairs every cached overlay, and the next push of one
+    // then arrives with no lifecycle, so its on_deactivate() never runs. Whether
+    // an overlay is open is answered by panel_stack_, not by this map.
     panel_stack_.clear();
-    overlay_instances_.clear();
-    // Restore persistent overlay registrations so they survive the clear
-    for (auto& [widget, lifecycle] : persistent_overlay_instances_) {
-        overlay_instances_[widget] = lifecycle;
-    }
     overlay_close_callbacks_.clear();
     // Delete any remaining dynamic backdrops the loop above didn't reach
     // (orphaned entries not in panel_stack_), then clear the map.
