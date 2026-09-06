@@ -422,8 +422,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
      *
      * Factored out of query_heater_config_from_config() for testability.
      * @param settings The configfile.settings JSON object
+     * @param live_mmu_machine The live mmu_machine status object. Happy Hare v4
+     *        publishes filament_heater / environment_sensor there, per unit,
+     *        and leaves configfile carrying only the version; v3 has them in
+     *        settings and passes an empty object here.
      */
-    void apply_heater_config(const nlohmann::json& settings);
+    void apply_heater_config(const nlohmann::json& settings,
+                             const nlohmann::json& live_mmu_machine = nlohmann::json::object());
 
     /**
      * @brief Parse live heater_generic temperature/target from a status update
