@@ -95,6 +95,26 @@ class AboutSettingsOverlay : public OverlayBase {
      */
     void populate_info_rows();
 
+    /**
+     * @brief Point both Update Channel rows at the channel the updater is using
+     *
+     * about_settings_overlay.xml carries a Stable/Beta row and a Stable/Beta/Dev
+     * row. Neither binds its selection to update_channel, because a row must show
+     * the *effective* channel rather than the stored one: Dev needs beta features,
+     * so a locked install runs on Stable while /update/channel still reads Dev,
+     * and the two-entry row has no index that renders a stored Dev at all.
+     *
+     * A row with too few options for the value is left alone rather than clamped,
+     * since LVGL would render Dev's index 2 as Beta on the two-entry row.
+     *
+     * Both the tree and the channel are parameters so this is testable without
+     * an overlay instance, a Config, or an UpdateChecker.
+     *
+     * @param root Overlay root to search, or nullptr for a no-op
+     * @param effective_channel Channel index to show (UpdateChannel's enumerators)
+     */
+    static void sync_update_channel_rows(lv_obj_t* root, int effective_channel);
+
     // Update download modal management.
     // When start_immediately is true, skip the Confirming state and begin the
     // download directly — used when the user already confirmed on the "New

@@ -70,7 +70,7 @@ Tap the **About** row at the bottom of the Settings panel to open the About over
 | **HelixScreen Logo & Branding** | HelixScreen logo, "by Preston Brown", copyright notice, and a scrolling contributor marquee |
 | **Printer Name** | The name of your connected printer (set during setup wizard) |
 | **Current Version** | Your installed HelixScreen version |
-| **Update Channel** | Stable, Beta, or Dev — only visible when beta features are enabled |
+| **Update Channel** | Stable or Beta; **Dev** is added when beta features are enabled |
 | **Check for Updates** | Check for and install new versions (hidden on Android) |
 | **Klipper** | Installed Klipper version (fetched from Moonraker) |
 | **Moonraker** | Installed Moonraker version |
@@ -107,7 +107,7 @@ This row is hidden on Android, where updates are managed through the Play Store.
 Tap the **Current Version** row seven times in Settings → About to toggle beta features.
 
 When beta features are enabled:
-- **Update Channel** selector appears (Stable / Beta / Dev)
+- **Update Channel** selector gains a third entry, **Dev**
 - Additional items appear in the Advanced panel (Macro Browser, Timelapse, etc.)
 - **Plugins** section appears in Settings
 - Tap seven more times to disable
@@ -118,7 +118,7 @@ When beta features are enabled:
 |---------|-------------|
 | **Stable** | Recommended. Tested releases only. |
 | **Beta** | Preview builds with new features. May have rough edges. |
-| **Dev** | Development builds. Requires a `dev_url` configured under the `update` section of your config file. |
+| **Dev** | Development builds. Appears only with beta features enabled, and requires a `dev_url` configured under the `update` section of your config file. |
 
 > **Note:** Selecting the **Dev** channel without a `dev_url` set in your configuration shows a "Dev channel requires dev_url in config" message and won't check for updates. Dev builds are intended for HelixScreen contributors — most users should stay on **Stable** or **Beta**.
 
