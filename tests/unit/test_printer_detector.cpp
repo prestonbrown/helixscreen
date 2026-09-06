@@ -5432,6 +5432,110 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: a 500mm Geralkom keep
 }
 
 // ============================================================================
+// Class evidence vs model evidence
+// ============================================================================
+//
+// A chamber thermistor and an MCU part number describe a CLASS of printer, not a
+// model. Scored as identifying they outrank every signal a simpler machine has:
+// a Voron 0.2 with a chamber probe and an SKR Pico was reported as a Qidi X-Max 3
+// at 78%, because "chamber sensor" (70) and "rp2040" (45) both beat the Voron's
+// best evidence, plain CoreXY at 40.
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a chamber sensor does not make a Voron a Qidi",
+                 "[printer][build_volume][detector]") {
+    // The reporter's rig: enclosed V0.2 on an RP2040 board, chamber thermistor,
+    // no hostname that names anything.
+    PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                 .sensors = {"chamber_temp", "MCU_temp"},
+                                 .hostname = "printer",
+                                 .printer_objects = {"neopixel bed_light", "bed_mesh"},
+                                 .steppers = {"stepper_x", "stepper_y", "stepper_z"},
+                                 .kinematics = "corexy",
+                                 .mcu = "rp2040",
+                                 .build_volume = BuildVolume{0, 120, 0, 120, 0}};
+    auto result = PrinterDetector::detect(hardware);
+    CAPTURE(result.type_name, result.confidence, result.reason);
+
+    REQUIRE(result.type_name == "Voron 0.2");
+    // The Qidi entries can still corroborate, but none of them may lead.
+    REQUIRE(result.type_name.find("Qidi") == std::string::npos);
+    // Well clear of the runner-up rather than a coin toss.
+    REQUIRE(result.confidence > result.runner_up_confidence + 20);
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: class evidence alone identifies nothing",
+                 "[printer][detector]") {
+    SECTION("a chamber sensor on a nameless corexy rig names no printer") {
+        // Every enclosed machine has these two. If they can identify, they pick
+        // whichever vendor happens to score the chamber sensor highest.
+        PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                     .sensors = {"chamber_temp"},
+                                     .hostname = "printer",
+                                     .printer_objects = {"bed_mesh"},
+                                     .steppers = {"stepper_x", "stepper_y", "stepper_z"},
+                                     .kinematics = "corexy",
+                                     .build_volume = BuildVolume{0, 250, 0, 250, 0}};
+        auto result = PrinterDetector::detect(hardware);
+        INFO("got " << result.type_name << " @" << result.confidence);
+        // CoreXY (40) may still lead somewhere, but the chamber sensor must not
+        // lift anyone to a confident answer.
+        REQUIRE(result.confidence < 70);
+    }
+
+    SECTION("an MCU part number on a nameless rig names no printer") {
+        PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                     .hostname = "printer",
+                                     .printer_objects = {"bed_mesh"},
+                                     .steppers = {"stepper_x", "stepper_y", "stepper_z"},
+                                     .kinematics = "cartesian",
+                                     .mcu = "stm32f103",
+                                     .build_volume = BuildVolume{0, 235, 0, 235, 0}};
+        auto result = PrinterDetector::detect(hardware);
+        INFO("got " << result.type_name << " @" << result.confidence);
+        REQUIRE(result.confidence < 70);
+    }
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: an identifying volume still needs corroboration",
+                 "[printer][build_volume][detector]") {
+    // The Voron 0 window is the one volume distinctive enough to lead. It must
+    // still not identify on its own, or a 120mm cartesian rig becomes a Voron 0
+    // the same way a 500mm Geralkom became a Sovol.
+    PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                 .hostname = "printer",
+                                 .printer_objects = {},
+                                 .steppers = {"stepper_x", "stepper_y", "stepper_z"},
+                                 .kinematics = "cartesian",
+                                 .build_volume = BuildVolume{0, 120, 0, 120, 0}};
+    auto result = PrinterDetector::detect(hardware);
+    CAPTURE(result.type_name, result.confidence);
+    REQUIRE(result.type_name != "Voron 0.2");
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a real Qidi X-Max 3 is still identified",
+                 "[printer][detector]") {
+    // The demotion must cost the Qidi nothing when its own evidence is present:
+    // the chamber HEATER, the M141/M191 macros and the hostname all name it.
+    PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                 .sensors = {"chamber"},
+                                 .hostname = "qidi-x-max-3",
+                                 .printer_objects = {"heater_generic chamber", "bed_mesh",
+                                                     "gcode_macro M141", "gcode_macro M191"},
+                                 .steppers = {"stepper_x", "stepper_y", "stepper_z"},
+                                 .kinematics = "corexy",
+                                 .mcu = "rp2040",
+                                 .build_volume = BuildVolume{0, 325, 0, 250, 0}};
+    auto result = PrinterDetector::detect(hardware);
+    CAPTURE(result.type_name, result.confidence);
+    REQUIRE(result.type_name == "Qidi X-Max 3");
+    REQUIRE(result.confidence >= 85);
+}
+
+// ============================================================================
 // Saved-vs-detected type mismatch: the decline reason
 // ============================================================================
 //

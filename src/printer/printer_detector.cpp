@@ -391,8 +391,25 @@ int count_z_steppers(const std::vector<std::string>& steppers) {
 // one. Build volume is shared by dozens of printers - it narrows a field, it
 // does not name a machine - so a printer whose ONLY evidence is its bed size
 // is not identified at all.
-bool is_corroborating_only(const std::string& type) {
-    return type == "build_volume_range";
+// Corroborating evidence can support an identification made on other grounds
+// but can never make one by itself.
+//
+// Build volumes are corroborating by default because dozens of printers share a
+// band. An entry whose volume really is distinctive opts back in with
+// "identifying": true -- a 120mm cube has no neighbours the way 220-250mm does.
+//
+// A heuristic naming something shared across vendors -- a chamber thermistor, an
+// MCU part number -- opts out with "corroborating": true. Those describe a class
+// of printer, not a model, and at identifying strength they outscore every real
+// signal a simpler machine has (prestonbrown/helixscreen#1489).
+bool is_corroborating_only(const json& heuristic) {
+    if (heuristic.value("corroborating", false)) {
+        return true;
+    }
+    if (heuristic.value("type", "") == "build_volume_range") {
+        return !heuristic.value("identifying", false);
+    }
+    return false;
 }
 
 // Check if build volume is within specified range
@@ -693,10 +710,16 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
         int confidence;
         std::string reason;
         bool corroborating; // may support a match, may never establish one
+        bool volume_based;  // came from a build_volume_range window
     };
     std::vector<HeuristicMatch> matches;
+    bool declares_kinematics = false;
+    bool kinematics_matched = false;
 
     for (const auto& heuristic : printer["heuristics"]) {
+        const bool is_kinematics = heuristic.value("type", "") == "kinematics_match";
+        declares_kinematics = declares_kinematics || is_kinematics;
+
         int confidence = execute_heuristic(heuristic, hardware);
         if (confidence == HEURISTIC_EXCLUDE) {
             spdlog::debug("[PrinterDetector] {} excluded by heuristic: {}", printer_name,
@@ -704,8 +727,10 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
             return {"", 0, "", 0};
         }
         if (confidence > 0) {
+            kinematics_matched = kinematics_matched || is_kinematics;
             matches.push_back({confidence, heuristic.value("reason", ""),
-                               is_corroborating_only(heuristic.value("type", ""))});
+                               is_corroborating_only(heuristic),
+                               heuristic.value("type", "") == "build_volume_range"});
         }
     }
 
@@ -717,16 +742,31 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
     std::sort(matches.begin(), matches.end(),
               [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    // A build volume is shared by dozens of printers - at 215-235mm up to 15
-    // database windows cover the same point. It can support an identification
-    // made on other evidence, but it can never make one on its own, so the base
-    // score must come from a heuristic that actually names this printer. With
-    // nothing but volume matching, the printer scores nothing at all.
+    // The base score must come from a heuristic that actually names this printer,
+    // never from corroborating evidence alone: a build volume is shared by dozens
+    // of models (at 215-235mm up to 15 database windows cover the same point), and
+    // a chamber sensor or MCU part number is shared across whole vendors. With
+    // nothing but corroborating matches, the printer scores nothing at all.
     auto identifying = std::find_if(matches.begin(), matches.end(),
                                     [](const auto& m) { return !m.corroborating; });
     if (identifying == matches.end()) {
         spdlog::debug("[PrinterDetector] {} matched only corroborating evidence "
-                      "(build volume) - not identifying, scoring 0",
+                      "(build volume, chamber sensor, MCU) - not identifying, scoring 0",
+                      printer_name);
+        return {"", 0, "", 0};
+    }
+
+    // An opted-in volume may lead, but never on its own and never on the wrong
+    // motion system. A bed size is not an identification: a bare 120mm cartesian
+    // rig shares the Voron 0's window and is not a Voron 0. Requiring both another
+    // match and the entry's own kinematics keeps the opt-in from reintroducing the
+    // identify-on-size-alone failure that made a 500mm Geralkom auto-save as a
+    // Sovol.
+    if (identifying->volume_based &&
+        (matches.size() < 2 || (declares_kinematics && !kinematics_matched))) {
+        spdlog::debug("[PrinterDetector] {} led on an identifying volume without "
+                      "matching kinematics or any second match - a bed size alone is "
+                      "not an identification, scoring 0",
                       printer_name);
         return {"", 0, "", 0};
     }
