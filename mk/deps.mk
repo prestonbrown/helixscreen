@@ -404,6 +404,9 @@ endif
 	$(Q)cp $(LIBHV_OBJDIR)/lib/libhv.a $(BUILD_DIR)/lib/libhv.a 2>/dev/null || \
 		cp $(LIBHV_DIR)/lib/libhv.a $(BUILD_DIR)/lib/libhv.a 2>/dev/null || \
 		cp $(LIBHV_DIR)/libhv.a $(BUILD_DIR)/lib/libhv.a
+	@# libhv's own build installs the include/hv/ copies our -isystem path
+	@# resolves to, so the tracked header set is only complete once this ran.
+	$(call record_abi_stamp)
 	$(ECHO) "$(GREEN)✓ libhv built: $(BUILD_DIR)/lib/libhv.a$(RESET)"
 
 # Build libnl from submodule (autotools)

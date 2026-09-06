@@ -116,12 +116,27 @@ LIBHV_PATCHED_SRCS := $(wildcard $(addprefix $(LIBHV_DIR)/,$(LIBHV_PATCHED_FILES
 # reapply-patches rewrites the files whether or not the bytes change, and only
 # a real change should cost a rebuild. cksum is POSIX, so this also works on
 # the BusyBox and Buildroot hosts.
-ABI_HEADERS := $(wildcard \
+#
+# The list is spelled out rather than globbed. libhv's own build installs the
+# include/hv/ copies our -isystem path resolves to, so on a checkout that has
+# not been built they do not exist yet, and a glob would silently stop watching
+# the very headers the objects compile against.
+ABI_HEADERS := \
 	$(addprefix $(LIBHV_DIR)/,$(filter %.h,$(LIBHV_PATCHED_FILES))) \
 	$(addprefix $(LIBHV_DIR)/include/hv/,$(notdir $(filter %.h,$(LIBHV_PATCHED_FILES)))) \
-	$(addprefix $(LVGL_DIR)/,$(filter %.h,$(LVGL_PATCHED_FILES))))
+	$(addprefix $(LVGL_DIR)/,$(filter %.h,$(LVGL_PATCHED_FILES)))
 ABI_STAMP := $(BUILD_DIR)/.thirdparty-abi
-ABI_HASH := $(shell cat $(ABI_HEADERS) 2>/dev/null | cksum)
+
+# Defined here rather than beside PATCHES_STAMP because the hash below needs it:
+# on a checkout whose patches are not applied yet, the headers on disk are
+# upstream's, and the layout the compilers will see is those headers plus these
+# patches. Two patch sets over one upstream tree must not share a hash.
+PATCH_FILES := $(wildcard patches/*.patch)
+
+# /dev/null leads the list so cat always has a file: given no arguments at all
+# it reads standard input instead, and make blocks there forever on a terminal.
+ABI_HASH_CMD = cat /dev/null $(ABI_HEADERS) $(PATCH_FILES) 2>/dev/null | cksum
+ABI_HASH := $(shell $(ABI_HASH_CMD))
 
 # The stamp makes make decide to recompile; it does not make the compiler
 # produce a different object. ccache sits between the two, and in depend mode
@@ -145,17 +160,45 @@ CXXFLAGS += $(ABI_DEFINE)
 SUBMODULE_CFLAGS += $(ABI_DEFINE)
 SUBMODULE_CXXFLAGS += $(ABI_DEFINE)
 
-# Written at parse time so the stamp is in place before the first compile.
+# Written at parse time so the stamp is in place before the first compile, and
+# only by the make that started this BUILD_DIR's build.
+#
+# A build re-reads this file over and over: `all` re-invokes itself to fix up
+# -j, libhv and SDL2 and the translations come through sub-makes, and the
+# cross-compile targets re-invoke with a PLATFORM_TARGET. Letting a descendant
+# re-stamp would record a header a second worktree rewrote mid-build as if it
+# had been there from the start, and the link guard below would then find
+# nothing to complain about. The one below that must still stamp is the
+# cross-compile re-invocation, which is a different BUILD_DIR and so a build of
+# its own - which is what this names, rather than depth.
 $(shell mkdir -p $(BUILD_DIR); \
+	{ [ "$(ABI_STAMPED_FOR)" = "$(BUILD_DIR)" ] && [ -f $(ABI_STAMP) ]; } && exit 0; \
 	[ "$$(cat $(ABI_STAMP) 2>/dev/null)" = "$(ABI_HASH)" ] \
 		|| printf "%s" "$(ABI_HASH)" > $(ABI_STAMP))
+export ABI_STAMPED_FOR := $(BUILD_DIR)
+
+# Record the headers as they stand now. Applying the patches and installing
+# libhv's headers both change them, and both happen inside the build, after the
+# parse-time value above was computed and before the first object that sees the
+# result is compiled, so the recipes that make those changes call this once
+# they are done, and the stamp names the layout the objects actually get.
+#
+# Rewritten only when the value moves: every object depends on this file, so a
+# fresh mtime carrying an unchanged value would buy a full rebuild for nothing.
+define record_abi_stamp
+	$(Q)mkdir -p $(BUILD_DIR); \
+	abi_now="$$($(ABI_HASH_CMD))"; \
+	[ "$$(cat $(ABI_STAMP) 2>/dev/null)" = "$$abi_now" ] \
+		|| printf "%s" "$$abi_now" > $(ABI_STAMP)
+endef
 
 # Fail a link whose objects were not all compiled against the headers present
-# now. The stamp above only catches a change between builds; this catches one
-# that lands while this build is running, which is what a shared lib/ and two
-# busy worktrees produce.
+# now. The reference is the stamp rather than the parse-time value, because the
+# build changes these headers itself and re-records the stamp when it does.
+# What is left over is a change nothing in this build made: a second worktree
+# re-patching a shared lib/, which is exactly what has to fail here.
 define check_abi_unchanged
-	$(Q)if [ "$$(cat $(ABI_HEADERS) 2>/dev/null | cksum)" != "$(ABI_HASH)" ]; then \
+	$(Q)if [ "$$($(ABI_HASH_CMD))" != "$$(cat $(ABI_STAMP) 2>/dev/null)" ]; then \
 		echo "$(RED)$(BOLD)Third-party headers changed while this build was running.$(RESET)"; \
 		echo "$(YELLOW)  lib/ is shared between worktrees. Objects compiled before the$(RESET)"; \
 		echo "$(YELLOW)  change disagree with the ones after about member offsets, and$(RESET)"; \
@@ -171,7 +214,6 @@ endef
 # The stamp file tracks when patches were last verified/applied.
 # Re-check only when: patch files change, submodule HEAD changes, or stamp missing.
 PATCHES_STAMP := $(BUILD_DIR)/.patches-applied
-PATCH_FILES := $(wildcard patches/*.patch)
 
 # Absolute path to this repo's patches/. It MUST be absolute. The apply rules
 # below run as `git -C $(LVGL_DIR) apply <path>`, and git resolves that path
@@ -209,8 +251,10 @@ LIBHV_HEAD := $(if $(LIBHV_GIT_DIR),$(wildcard $(LIBHV_GIT_DIR)/HEAD))
 
 # The record of WHICH patch revision is currently applied, written by
 # check_patch_drift.py --write-stamp after the apply blocks below run. It lives
-# in each submodule's git directory, which scripts/setup-worktree.sh shares
-# between worktrees along with the checkout it describes.
+# in each submodule's git directory, beside the checkout it describes, and is
+# named the way the gate names it: the gate asks the submodule for its own
+# --absolute-git-dir, so make has to ask the same question rather than compose
+# a path, or it watches a file nothing ever writes.
 #
 # It has to be a prerequisite of the stamp, because it is the only prerequisite
 # that moves when ANOTHER worktree re-patches lib/. The others are this tree's
@@ -220,21 +264,44 @@ LIBHV_HEAD := $(if $(LIBHV_GIT_DIR),$(wildcard $(LIBHV_GIT_DIR)/HEAD))
 # tree compiles against a patch revision that is not the one in its patches/.
 # That is silent, and on a branch whose patches differ it is a different binary
 # than the branch describes.
-LVGL_APPLIED_STAMP_CANDIDATE := $(GIT_COMMON_DIR)/modules/lvgl/helix-patches-applied.json
-LIBHV_APPLIED_STAMP_CANDIDATE := $(GIT_COMMON_DIR)/modules/libhv/helix-patches-applied.json
-APPLIED_STAMPS := $(wildcard $(LVGL_APPLIED_STAMP_CANDIDATE) $(LIBHV_APPLIED_STAMP_CANDIDATE))
+#
+# Named unconditionally rather than globbed: a clean checkout has no record yet,
+# and a glob would drop the path make is meant to watch for the moment one
+# appears. In Docker/non-git contexts there is no git dir to name at all.
+ifneq ($(LVGL_GIT_DIR),)
+LVGL_APPLIED_STAMP := $(LVGL_GIT_DIR)/helix-patches-applied.json
+endif
+ifneq ($(LIBHV_GIT_DIR),)
+LIBHV_APPLIED_STAMP := $(LIBHV_GIT_DIR)/helix-patches-applied.json
+endif
+APPLIED_STAMPS := $(LVGL_APPLIED_STAMP) $(LIBHV_APPLIED_STAMP)
 
 # Hashed rather than depended on directly, for the same reason as ABI_STAMP: the
 # record is rewritten on every apply whether or not its contents move, and a
 # same-branch worktree re-applying an identical patch set must not cost every
 # other worktree a full rebuild. The JSON is derived purely from file hashes -
 # no timestamp - so identical patch sets produce identical bytes.
+#
+# /dev/null leads the list for the same reason as the ABI hash: with no
+# arguments cat reads standard input, and a checkout that has never been
+# patched has no record for it to read.
 APPLIED_STAMP_ID := $(BUILD_DIR)/.patches-applied-id
-APPLIED_STAMP_HASH := $(shell cat $(APPLIED_STAMPS) 2>/dev/null | cksum)
+APPLIED_STAMP_HASH_CMD = cat /dev/null $(APPLIED_STAMPS) 2>/dev/null | cksum
+APPLIED_STAMP_HASH := $(shell $(APPLIED_STAMP_HASH_CMD))
 
 $(shell mkdir -p $(BUILD_DIR); \
 	[ "$$(cat $(APPLIED_STAMP_ID) 2>/dev/null)" = "$(APPLIED_STAMP_HASH)" ] \
 		|| printf "%s" "$(APPLIED_STAMP_HASH)" > $(APPLIED_STAMP_ID))
+
+# The apply recipe writes the record it is a proxy for, so it re-reads it once
+# the apply is done. Without that the id lags a build behind and the whole
+# verification runs a second time for nothing.
+define record_applied_stamp_id
+	$(Q)mkdir -p $(BUILD_DIR); \
+	id_now="$$($(APPLIED_STAMP_HASH_CMD))"; \
+	[ "$$(cat $(APPLIED_STAMP_ID) 2>/dev/null)" = "$$id_now" ] \
+		|| printf "%s" "$$id_now" > $(APPLIED_STAMP_ID)
+endef
 
 # Restore one submodule's patched files to upstream state.
 #   $(1) submodule dir, $(2) file list (paths relative to it)
@@ -1030,4 +1097,9 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(APPLIED_STAMP_ID)
 	$(Q)if command -v python3 >/dev/null 2>&1; then \
 		python3 scripts/check_patch_drift.py --write-stamp; \
 	fi
+	$(call record_applied_stamp_id)
+	@# The headers just moved from upstream's bytes to ours. Everything compiled
+	@# from here on sees the patched layout, so that is what the link must be
+	@# checked against.
+	$(call record_abi_stamp)
 	@touch $@
