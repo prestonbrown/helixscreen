@@ -19,6 +19,10 @@
 #      (so a missing branch fails unit tests instead of silently shipping).
 #   3. Every platform key returned by get_platform_key() is also in the
 #      known_platforms allowlist (catches typos in the return string).
+#   4. The crash worker's KNOWN_PLATFORMS allowlist matches get_platform_key()
+#      exactly. The worker refuses crash reports from platforms outside that
+#      set, so a key missing there silently drops a real platform's reports,
+#      and a stale extra key lets a fork keep filing issues.
 
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 CROSS_MK="$WORKTREE_ROOT/mk/cross.mk"
@@ -26,6 +30,7 @@ UPDATE_CHECKER_CPP="$WORKTREE_ROOT/src/system/update_checker.cpp"
 TEST_UPDATE_CHECKER_CPP="$WORKTREE_ROOT/tests/unit/test_update_checker.cpp"
 RELEASE_YML="$WORKTREE_ROOT/.github/workflows/release.yml"
 PLATFORM_SH="$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
+CRASH_WORKER_TS="$WORKTREE_ROOT/server/crash-worker/src/index.ts"
 
 # Space-separated release matrix platforms from release.yml.
 _release_matrix_platforms() {
@@ -134,6 +139,53 @@ _release_matrix_platforms() {
         echo ""
         echo "Either fix the typo in the return string or add the key to"
         echo "known_platforms in tests/unit/test_update_checker.cpp."
+        false
+    fi
+}
+
+@test "crash worker KNOWN_PLATFORMS matches get_platform_key() exactly" {
+    # get_platform_key() is the single source of truth for what a build can
+    # report. The worker refuses crash reports whose platform is outside its
+    # own allowlist, so the two must agree in BOTH directions: a key missing
+    # from the worker drops that platform's real reports on the floor, and a
+    # key the app can no longer emit leaves the door open.
+    local returns
+    returns=$(awk '/std::string UpdateChecker::get_platform_key\(\)/,/^}/' \
+              "$UPDATE_CHECKER_CPP" | grep -oE 'return "[a-z0-9_-]+"' \
+              | grep -oE '"[a-z0-9_-]+"' | tr -d '"' | sort -u)
+
+    [ -n "$returns" ]
+
+    local worker
+    worker=$(awk '/const KNOWN_PLATFORMS = new Set\(\[/,/\]\);/' \
+             "$CRASH_WORKER_TS" | grep -oE '"[a-z0-9_-]+"' | tr -d '"' | sort -u)
+
+    # An empty extraction means the literal was reformatted and this gate is
+    # reading nothing -- fail rather than silently pass over no corpus.
+    [ -n "$worker" ]
+
+    local only_cpp="" only_worker=""
+    for r in $returns; do
+        echo "$worker" | grep -qx "$r" || only_cpp="$only_cpp $r"
+    done
+    for w in $worker; do
+        echo "$returns" | grep -qx "$w" || only_worker="$only_worker $w"
+    done
+
+    if [ -n "$only_cpp" ] || [ -n "$only_worker" ]; then
+        echo "get_platform_key() and the crash worker's KNOWN_PLATFORMS disagree."
+        [ -n "$only_cpp" ] && {
+            echo "  in get_platform_key() but NOT in the worker:$only_cpp"
+            echo "  -> the worker would refuse real crash reports from these."
+        }
+        [ -n "$only_worker" ] && {
+            echo "  in the worker but NOT in get_platform_key():$only_worker"
+            echo "  -> no build emits these; drop them from the allowlist."
+        }
+        echo ""
+        echo "Fix KNOWN_PLATFORMS in server/crash-worker/src/index.ts, and"
+        echo "remember the worker must be deployed for a new platform to be"
+        echo "able to file crash reports at all."
         false
     fi
 }
