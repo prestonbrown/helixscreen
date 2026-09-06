@@ -21,6 +21,11 @@ WHO MAY CALL THE UNCONDITIONAL FORM
   really is unchanged - that is the one case the guarded form would wrongly
   skip. The definition itself also lives there.
 
+WHY A LINT AND NOT A UNIT TEST
+  The helper's own test cannot see a call site that re-inlines the
+  unconditional form, and a revert of either UI caller to it survives the
+  whole suite. Only reading the call sites catches that.
+
 Exit 0 when no UI caller uses the unconditional form, 1 otherwise.
 """
 
