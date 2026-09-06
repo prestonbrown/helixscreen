@@ -30,17 +30,38 @@
 
 #include "../catch_amalgamated.hpp"
 
+namespace {
+
+/// Live entries in LVGL timer list. One request must cost one timer however
+/// many frames ask, which is the allocation claim the recompute counter cannot
+/// make: the stored callback is consumed by the first firing, so surplus timers
+/// fire into an empty slot and go unseen.
+int live_timer_count() {
+    int n = 0;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        n++;
+    }
+    return n;
+}
+
+} // namespace
+
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraph: per-frame recompute requests coalesce to one",
                  "[ui][temp_graph][coalesced_timer]") {
     ui_temp_graph_t* graph = ui_temp_graph_create(test_screen());
     REQUIRE(graph != nullptr);
 
     int recomputes = 0;
+    const int before = live_timer_count();
     // Ten frames' worth of requests, none of them allowed to run yet.
     for (int i = 0; i < 10; i++) {
         graph->gradient_refresh.schedule_once([&recomputes]() { recomputes++; });
     }
     REQUIRE(graph->gradient_refresh.pending());
+
+    // Ten requests, one timer. This is the assertion that fails when the
+    // coalescing is removed; against lv_async_call it reads ten.
+    REQUIRE(live_timer_count() - before == 1);
 
     process_lvgl(50);
     REQUIRE(recomputes == 1);
