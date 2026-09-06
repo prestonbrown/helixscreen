@@ -13,8 +13,8 @@
 // (helix::tool_offsets, ToolState's dirty tracking) already handles.
 //
 // This module is the ONLY place that knows the macro's name. The panel asks
-// these questions and never names the firmware. There is no per-tool entry point: the macro is all-or-nothing,
-// so this module offers exactly one gcode.
+// these questions and never names the firmware. There is no per-tool entry point: the macro is
+// all-or-nothing, so this module offers exactly one gcode.
 //
 // Nothing is parsed off the console. Everything the screen needs is already in
 // subscribed status: which tool is on the carriage (`toolchanger`.tool_number,
