@@ -17,7 +17,9 @@
     "macro_match": "Match against G-code macro names (gcode_macro objects)",
     "macro_exclude": "Exclude this printer if a G-code macro is present",
     "tool_count": "Count of extruder tools (tool_count_1, tool_count_2, tool_count_4)",
-    "cpu_arch_match": "Match against host CPU architecture string"
+    "cpu_arch_match": "Match against host CPU architecture string",
+    "_modifier_corroborating": "Set true on a heuristic whose evidence names a CLASS of printer rather than a model: a chamber thermistor (every enclosed machine has one) or an MCU claimed by more than one manufacturer. It still adds to the match bonus but can never be the base score, so it cannot identify a printer on its own. A chip only one vendor uses stays identifying.",
+    "_modifier_identifying": "Set true on a build_volume_range whose window is distinctive enough to lead. Volumes are corroborating by default because models overlap in the common bands; this opts an unusual size back in. It still needs the entry's kinematics to match, so a size alone never names a printer."
   },
   "console_filter_sets": {
     "creality_rs485": {
@@ -741,7 +743,8 @@
           "max_x": 130,
           "max_y": 130,
           "confidence": 70,
-          "reason": "Small build volume (~120mm, Voron 0 size)"
+          "reason": "Small build volume (~120mm, Voron 0 size)",
+          "identifying": true
         },
         {
           "type": "object_exists",
@@ -1003,7 +1006,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "fan_match",
@@ -1094,7 +1098,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "fan_match",
@@ -1192,7 +1197,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "fan_match",
@@ -1290,7 +1296,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "fan_match",
@@ -1405,7 +1412,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor"
+          "reason": "Chamber temperature sensor",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -1540,7 +1548,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor"
+          "reason": "Chamber temperature sensor",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -1668,7 +1677,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "fan_match",
@@ -1745,7 +1755,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "fan_match",
@@ -1825,7 +1836,8 @@
           "field": "sensors",
           "pattern": "chamber_temp",
           "confidence": 70,
-          "reason": "Chamber temperature sensor"
+          "reason": "Chamber temperature sensor",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -1920,7 +1932,8 @@
           "field": "mcu",
           "pattern": "GD32F303",
           "confidence": 30,
-          "reason": "GD32F303 main MCU (Creality CR4NU board)"
+          "reason": "GD32F303 main MCU (Creality CR4NU board)",
+          "corroborating": true
         }
       ]
     },
@@ -2132,7 +2145,8 @@
           "field": "mcu",
           "pattern": "STM32F103",
           "confidence": 30,
-          "reason": "STM32F103 MCU (common Creality board)"
+          "reason": "STM32F103 MCU (common Creality board)",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -2797,7 +2811,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -2863,7 +2878,8 @@
           "field": "mcu",
           "pattern": "rp2040",
           "confidence": 45,
-          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)"
+          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)",
+          "corroborating": true
         }
       ]
     },
@@ -2888,7 +2904,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -2958,7 +2975,8 @@
           "field": "mcu",
           "pattern": "rp2040",
           "confidence": 45,
-          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)"
+          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)",
+          "corroborating": true
         }
       ]
     },
@@ -2982,7 +3000,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -3048,7 +3067,8 @@
           "field": "mcu",
           "pattern": "rp2040",
           "confidence": 45,
-          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)"
+          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)",
+          "corroborating": true
         }
       ]
     },
@@ -3072,7 +3092,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -3121,7 +3142,8 @@
           "field": "mcu",
           "pattern": "rp2040",
           "confidence": 45,
-          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)"
+          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)",
+          "corroborating": true
         }
       ]
     },
@@ -3183,7 +3205,8 @@
           "field": "mcu",
           "pattern": "rp2040",
           "confidence": 45,
-          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)"
+          "reason": "RP2040 toolhead MCU (QIDI dual-MCU design)",
+          "corroborating": true
         }
       ]
     },
@@ -3267,7 +3290,8 @@
           "field": "sensors",
           "pattern": "Chamber_Thermal_Protection",
           "confidence": 50,
-          "reason": "Chamber thermal protection sensor (QIDI Max 4 stock config)"
+          "reason": "Chamber thermal protection sensor (QIDI Max 4 stock config)",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -3321,7 +3345,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 70,
-          "reason": "Chamber temperature sensor (enclosed printer)"
+          "reason": "Chamber temperature sensor (enclosed printer)",
+          "corroborating": true
         },
         {
           "type": "object_exists",
@@ -3440,7 +3465,8 @@
           "field": "mcu",
           "pattern": "GD32F303",
           "confidence": 40,
-          "reason": "GD32F303 MCU (MKS Robin Nano V2 clone)"
+          "reason": "GD32F303 MCU (MKS Robin Nano V2 clone)",
+          "corroborating": true
         }
       ]
     },
@@ -3504,7 +3530,8 @@
           "field": "mcu",
           "pattern": "GD32F303",
           "confidence": 40,
-          "reason": "GD32F303 MCU (MKS Robin Nano)"
+          "reason": "GD32F303 MCU (MKS Robin Nano)",
+          "corroborating": true
         }
       ]
     },
@@ -4092,7 +4119,8 @@
           "field": "mcu",
           "pattern": "STM32F103",
           "confidence": 25,
-          "reason": "STM32F103 MCU (stock Sovol SV08 board)"
+          "reason": "STM32F103 MCU (stock Sovol SV08 board)",
+          "corroborating": true
         }
       ]
     },
@@ -5890,7 +5918,8 @@
           "field": "mcu",
           "pattern": "rp2040",
           "confidence": 40,
-          "reason": "RP2040 MCU (SKR Pico board)"
+          "reason": "RP2040 MCU (SKR Pico board)",
+          "corroborating": true
         },
         {
           "type": "build_volume_range",
@@ -6084,7 +6113,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 60,
-          "reason": "Chamber temperature sensor (enclosed Nebula)"
+          "reason": "Chamber temperature sensor (enclosed Nebula)",
+          "corroborating": true
         }
       ]
     },
@@ -6133,7 +6163,8 @@
           "field": "sensors",
           "pattern": "chamber",
           "confidence": 60,
-          "reason": "Chamber temperature sensor (enclosed Nebula)"
+          "reason": "Chamber temperature sensor (enclosed Nebula)",
+          "corroborating": true
         }
       ]
     },
