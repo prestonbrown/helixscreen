@@ -557,9 +557,21 @@ def locate(citation_text, repo_root=".", relative_to=None):
         raise FileNotFoundError(citation.path)
     with open(full, encoding="utf-8", errors="replace") as fh:
         lines = fh.read().split("\n")
-    ext = os.path.splitext(citation.path)[1]
-    region = resolve_segments(lines, citation.segments, ext)
+    region = resolve_segments(lines, citation.segments, _lang_ext(citation.path))
     return full, region.start + 1
+
+
+# A make file with no extension: the scanner keys on extension, so without
+# this a `Makefile#target` citation is read with the C++ grammar and never
+# resolves.
+_EXTENSIONLESS_MAKE = {"Makefile", "GNUmakefile", "makefile"}
+
+
+def _lang_ext(path):
+    """The extension `definitions()` keys on; a bare Makefile counts as `.mk`."""
+    if os.path.basename(path) in _EXTENSIONLESS_MAKE:
+        return ".mk"
+    return os.path.splitext(path)[1]
 
 
 def resolve(citation_text, repo_root=".", relative_to=None):
@@ -577,7 +589,11 @@ def resolve(citation_text, repo_root=".", relative_to=None):
 # A backticked citation, optionally with a `#fragment`. The one definition of
 # what a citation looks like — check_doc_refs.py's PATH_RE matches the same
 # shape and is meant to derive from this rather than keep its own copy.
-CITE_RE = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+(?:#[^`]+)?)`")
+# A path is a dotted filename, or a bare Makefile/GNUmakefile as its last
+# component - the one citable file shape with no extension.
+CITE_RE = re.compile(
+    r"`((?:[A-Za-z0-9_./-]+\.[A-Za-z0-9]+|(?:[A-Za-z0-9_./-]+/)?(?:GNUmakefile|[Mm]akefile))"
+    r"(?:#[^`]+)?)`")
 # A fence opens on ``` or ~~~ (3 or more of either character) and closes only
 # on a marker using the SAME character, at least as long as the one that
 # opened it - CommonMark's rule, so a stray `~~~` inside a ``` block does not
