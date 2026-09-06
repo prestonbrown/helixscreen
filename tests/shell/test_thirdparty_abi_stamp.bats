@@ -38,6 +38,16 @@ compile_rule_targets() {
     ' $ABI_MAKEFILES
 }
 
+# The make database, without asking make whether the default goal is buildable.
+# What these cases pin is wiring, and they run wherever bats runs, a host with
+# no SDL2, no libnl and no compiled dependencies included. `help` has no
+# prerequisites, so make prints the database and stops; the bare default goal
+# walks the whole graph first and exits 2 on the first prerequisite the host
+# cannot supply, taking the case down with it under bats' `set -e`.
+make_database() {
+    make -pn help "$@" 2>/dev/null
+}
+
 @test "every rule compiling into helix-screen or helix-tests depends on ABI_STAMP" {
     local missing=""
     while IFS= read -r rule; do
@@ -60,7 +70,7 @@ compile_rule_targets() {
 # Every rule pinned above draws its flags from one of these four variables.
 @test "the ABI hash is on the compiler command line, not only in the dependency graph" {
     local db missing=""
-    db="$(make -pn 2>/dev/null)"
+    db="$(make_database)"
     for var in CFLAGS CXXFLAGS SUBMODULE_CFLAGS SUBMODULE_CXXFLAGS; do
         printf '%s\n' "$db" | grep -m1 "^${var} :\{0,1\}= " | grep -q -- '-DHELIX_TP_ABI=' \
             || missing="${missing}${var} "
@@ -76,7 +86,7 @@ compile_rule_targets() {
 
     define_for() {
         printf '%s' "$1" > "$work/tracked.h"
-        make -pn BUILD_DIR="$work" ABI_HEADERS="$work/tracked.h" 2>/dev/null \
+        make_database BUILD_DIR="$work" ABI_HEADERS="$work/tracked.h" \
             | grep -m1 '^ABI_DEFINE :\{0,1\}= ' | cut -d= -f2-
     }
 
@@ -99,7 +109,7 @@ compile_rule_targets() {
 
 @test "ABI_HEADERS covers the layout-bearing libhv headers in both locations" {
     local line missing=""
-    line="$(make -pn 2>/dev/null | grep -m1 '^ABI_HEADERS :=')"
+    line="$(make_database | grep -m1 '^ABI_HEADERS :=')"
     # The patch rewrites evpp/TcpClient.h; -isystem lib/libhv/include resolves
     # to the copy libhv installs beside it. Both have to be watched.
     for header in lib/libhv/evpp/TcpClient.h \
@@ -125,22 +135,28 @@ compile_rule_targets() {
     printf 'not-a-hash' > "$sandbox/.thirdparty-abi"
 
     local hash problems=""
-    hash="$(make -pn BUILD_DIR="$sandbox" 2>/dev/null | grep -m1 '^ABI_HASH :=' | cut -d' ' -f3-)"
+    hash="$(make_database BUILD_DIR="$sandbox" | grep -m1 '^ABI_HASH :=' | cut -d' ' -f3-)"
     [ -n "$hash" ] || problems="ABI_HASH is empty; "
     [ "$(cat "$sandbox/.thirdparty-abi")" = "$hash" ] \
         || problems="${problems}stamp still reads '$(cat "$sandbox/.thirdparty-abi")', want '$hash'"
     [ -z "$problems" ] || { echo "$problems"; false; }
 }
 
-# The guard's own shell logic, driven against a fixture header. Lifting the
-# define out of mk/patches.mk keeps this honest: gutting the recipe there fails
-# here, where asserting against a copy would not.
-@test "check_abi_unchanged fails when a tracked header changes mid-build" {
-    local work="${BATS_TEST_TMPDIR:-$(mktemp -d)}/abi-guard"
+# A fixture tree carrying the real definitions of the guard and the recorder,
+# lifted out of mk/patches.mk. Copies would let the two drift: gutting either
+# recipe there has to fail here.
+#
+#   steady    the headers have not moved since the stamp was written
+#   flipped   a header changes under the running build and nothing re-records
+#   recorded  a header changes and the build records the new value, the shape a
+#             clean checkout takes when it applies its own patches
+write_guard_fixture() {
+    local work="$1"
     rm -rf "$work" && mkdir -p "$work"
 
     sed -n '/^define check_abi_unchanged$/,/^endef$/p' mk/patches.mk > "$work/guard.mk"
-    [ -s "$work/guard.mk" ]
+    sed -n '/^define record_abi_stamp$/,/^endef$/p' mk/patches.mk >> "$work/guard.mk"
+    [ -s "$work/guard.mk" ] || fail "check_abi_unchanged / record_abi_stamp not found in mk/patches.mk"
 
     printf 'struct S { int a; };' > "$work/tracked.h"
     cat > "$work/Makefile" <<'MK'
@@ -149,8 +165,11 @@ RED :=
 BOLD :=
 RESET :=
 YELLOW :=
+BUILD_DIR := .
 ABI_HEADERS := tracked.h
-ABI_HASH := $(shell cat $(ABI_HEADERS) 2>/dev/null | cksum)
+ABI_STAMP := thirdparty-abi
+ABI_HASH_CMD = cat /dev/null $(ABI_HEADERS) 2>/dev/null | cksum
+$(shell $(ABI_HASH_CMD) > $(ABI_STAMP))
 include guard.mk
 steady:
 	$(call check_abi_unchanged)
@@ -159,7 +178,17 @@ flipped:
 	@printf 'struct S { int b; int a; };' > tracked.h
 	$(call check_abi_unchanged)
 	@echo LINKED
+recorded:
+	@printf 'struct S { int b; int a; };' > tracked.h
+	$(call record_abi_stamp)
+	$(call check_abi_unchanged)
+	@echo LINKED
 MK
+}
+
+@test "check_abi_unchanged fails when a tracked header changes mid-build" {
+    local work="${BATS_TEST_TMPDIR:-$(mktemp -d)}/abi-guard"
+    write_guard_fixture "$work"
 
     local problems=""
 
@@ -172,6 +201,42 @@ MK
     [[ "$output" != *LINKED* ]] || problems="${problems}link ran anyway; "
     [[ "$output" == *"changed while this build was running"* ]] \
         || problems="${problems}no explanation for the failure"
+
+    [ -z "$problems" ] || { echo "$problems"; false; }
+}
+
+# A checkout that has not been patched yet holds upstream's headers while make
+# is parsing, and ours by the time the first object is compiled. Comparing the
+# link against the parse-time value rejects every clean checkout there is, so
+# the reference has to be the stamp the build re-records.
+@test "check_abi_unchanged follows the recorded stamp, not the parse-time value" {
+    local work="${BATS_TEST_TMPDIR:-$(mktemp -d)}/abi-recorded"
+    write_guard_fixture "$work"
+
+    local problems=""
+    run make -C "$work" recorded
+    [ "$status" -eq 0 ] || problems="a re-recorded header set was rejected; "
+    [[ "$output" == *LINKED* ]] || problems="${problems}the link did not run"
+
+    [ -z "$problems" ] || { echo "$problems"; echo "$output"; false; }
+}
+
+# Which is only true while the two recipes that move these headers inside the
+# build still record it. The patch step rewrites them; libhv's build installs
+# the include/hv/ copies. Drop either call and every clean checkout fails at the
+# link again.
+@test "the recipes that change the tracked headers re-record the stamp" {
+    local problems=""
+
+    # Each range runs from the target line to the recipe's own last line, so a
+    # call that moved out of the recipe and into a comment or a neighbouring
+    # rule reads as missing, which is what it would be.
+    awk '/^\$\(PATCHES_STAMP\):/{r=1} r{print} r && index($0,"\t@touch $@")==1{exit}' mk/patches.mk \
+        | grep -q 'call record_abi_stamp' \
+        || problems="the patch-stamp recipe does not re-record the ABI stamp; "
+    awk '/^libhv-build:/{r=1} r{print} r && /libhv built/{exit}' mk/deps.mk \
+        | grep -q 'call record_abi_stamp' \
+        || problems="${problems}libhv-build does not re-record the ABI stamp"
 
     [ -z "$problems" ] || { echo "$problems"; false; }
 }

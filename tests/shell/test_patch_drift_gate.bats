@@ -405,11 +405,16 @@ print('ok')
         || problems="the stamp rule does not list \$(APPLIED_STAMP_ID); "
     # The id is only a proxy: it has to be hashed FROM the applied-stamps, or it
     # never moves when another worktree re-patches.
-    grep -qE '^APPLIED_STAMP_HASH := \$\(shell cat \$\(APPLIED_STAMPS\)' mk/patches.mk \
+    grep -qE '^APPLIED_STAMP_HASH_CMD = cat .*\$\(APPLIED_STAMPS\)' mk/patches.mk \
         || problems="${problems}the id is not derived from \$(APPLIED_STAMPS); "
+    grep -qE '^APPLIED_STAMP_HASH := \$\(shell \$\(APPLIED_STAMP_HASH_CMD\)\)' mk/patches.mk \
+        || problems="${problems}the id is not the hash of that command; "
 
+    # `help` has no prerequisites: it prints the database without make first
+    # deciding whether the default goal can be built, which on a host with no
+    # compiled dependencies it cannot.
     local db
-    db="$(make -pn 2>/dev/null)"
+    db="$(make -pn help 2>/dev/null)"
     # Anchored: a path that merely starts with the name is a different file,
     # and make would be watching something the gate never writes.
     grep -qE 'modules/lvgl/helix-patches-applied\.json( |$)' <<<"$db" \
