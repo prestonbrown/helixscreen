@@ -83,6 +83,9 @@ stub_tests_that_ignore() {
 
 mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shards 1 "$@" ); }
 
+# No --base: the script has to work out for itself what this branch was cut from.
+mutate_auto() { ( cd "$WORK" && python3 scripts/mutate_diff.py --shards 1 "$@" ); }
+
 @test "--list-only names the hunks and changes nothing" {
     stub_tests_that_detect
     run mutate --list-only
@@ -544,4 +547,180 @@ int f(int n) { return n + 1; }
     run mutate
     [ "$status" -eq 0 ]
     [[ "$output" == *"comment/whitespace only"* ]]
+}
+
+# --- diff base ------------------------------------------------------------
+#
+# The base decides what the run is ABOUT. Taking main when the branch was cut
+# from a release branch hands the run everything that release branch has done
+# since the two diverged, as though it were the change under test: dozens of
+# foreign hunks, a build each, and verdicts about other people's code. Most come
+# back `uncompilable`, which is correctly not a kill, so nothing about the output
+# says "wrong base" -- it just reads as a stubborn change.
+#
+# The fixture below is that shape in miniature: a trunk and a release branch that
+# both moved after they parted, and a feature branch cut from each in turn. A run
+# measured against the wrong one of the two carries the other's work, which is
+# what these tests look for.
+
+# bash 3.2, which is what macOS ships and therefore what half this suite runs
+# under, does not apply `set -e` to a failing [[ ]]. A mid-body [[ ]] assertion
+# is inert there and the test passes on its last line alone. Going through a
+# function makes the failure a failing simple command, which every shell honours.
+contains() {
+    case "$2" in
+        *"$1"*) return 0 ;;
+        *) printf 'expected to find: %s\nin:\n%s\n' "$1" "$2" >&2; return 1 ;;
+    esac
+}
+
+lacks() {
+    case "$2" in
+        *"$1"*) printf 'expected NOT to find: %s\nin:\n%s\n' "$1" "$2" >&2; return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+two_trunks() {
+    git -C "$WORK" branch -M main
+    git -C "$WORK" checkout -q -b release/1.0
+    printf 'int r(void) { return 10; }\n' > "$WORK/src/rel.cpp"
+    git -C "$WORK" add src/rel.cpp
+    git -C "$WORK" commit -qm "release-only work"
+    git -C "$WORK" checkout -q main
+    printf 'int m(void) { return 1; }\n' > "$WORK/src/trunk.cpp"
+    git -C "$WORK" add src/trunk.cpp
+    git -C "$WORK" commit -qm "trunk work"
+    git -C "$WORK" checkout -q -b fix/on-release release/1.0
+}
+
+@test "a branch cut from a release branch measures against it, not against main" {
+    stub_tests_that_detect
+    two_trunks
+    run mutate_auto --list-only
+    [ "$status" -eq 0 ]
+    contains "release/1.0" "${lines[0]}"
+    # The release branch's own work is not this branch's change.
+    lacks "src/rel.cpp" "$output"
+    contains "1 hunk(s) to mutate" "$output"
+}
+
+@test "a branch cut from main is not dragged back to an older release branch" {
+    # Preference order alone would answer release/1.0 here, and be wrong: this
+    # branch forked from main long after release/1.0 parted from it. Only the
+    # nearest fork point tells the two apart.
+    stub_tests_that_detect
+    two_trunks
+    git -C "$WORK" checkout -q -b feature/from-main main
+    run mutate_auto --list-only
+    [ "$status" -eq 0 ]
+    contains "with main" "${lines[0]}"
+    lacks "src/trunk.cpp" "$output"
+    contains "1 hunk(s) to mutate" "$output"
+}
+
+@test "the base and the hunk count are the first two lines of output" {
+    stub_tests_that_detect
+    two_trunks
+    run mutate_auto --list-only
+    contains "base " "${lines[0]}"
+    contains "release/1.0" "${lines[0]}"
+    [ "${lines[1]}" = "diff 1 hunk(s) across 1 file(s)" ]
+}
+
+@test "an explicit --base is reported as given and not second-guessed" {
+    stub_tests_that_detect
+    two_trunks
+    run mutate --list-only
+    contains "--base $BASE" "${lines[0]}"
+}
+
+@test "a branch tracking its own remote copy still measures against its fork point" {
+    # `git push -u` leaves the upstream pointing at this same branch. Believing
+    # it would scope the run to whatever is not pushed yet, so the branch's own
+    # committed work drops out of its own mutation run.
+    stub_tests_that_detect
+    two_trunks
+    printf 'int mine(void) { return 4; }\n' > "$WORK/src/mine.cpp"
+    git -C "$WORK" add src/mine.cpp
+    git -C "$WORK" commit -qm "work on this branch, already pushed"
+    git -C "$WORK" config remote.origin.url .
+    git -C "$WORK" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+    git -C "$WORK" update-ref refs/remotes/origin/fix/on-release HEAD
+    git -C "$WORK" config branch.fix/on-release.remote origin
+    git -C "$WORK" config branch.fix/on-release.merge refs/heads/fix/on-release
+    run mutate_auto --list-only
+    [ "$status" -eq 0 ]
+    contains "release/1.0" "${lines[0]}"
+    contains "src/mine.cpp" "$output"
+}
+
+@test "an upstream naming another branch outranks the release branches and main" {
+    # A branch stacked on a branch: neither release/1.0 nor main is the fork
+    # point, and only the recorded upstream knows that.
+    stub_tests_that_detect
+    two_trunks
+    git -C "$WORK" checkout -q -b feature/a main
+    printf 'int a(void) { return 2; }\n' > "$WORK/src/stack.cpp"
+    git -C "$WORK" add src/stack.cpp
+    git -C "$WORK" commit -qm "stacked work"
+    git -C "$WORK" checkout -q -b feature/b
+    git -C "$WORK" branch --set-upstream-to=feature/a feature/b >/dev/null
+    run mutate_auto --list-only
+    [ "$status" -eq 0 ]
+    contains "feature/a" "${lines[0]}"
+    lacks "src/stack.cpp" "$output"
+}
+
+@test "on the trunk itself, the base is the pushed tip and not HEAD" {
+    # A branch is not its own fork point: main forks from main at HEAD, and a
+    # base of HEAD narrows the run to uncommitted work. Committing straight onto
+    # main is how this tree is often worked, and that commit has to stay in its
+    # own mutation run.
+    stub_tests_that_detect
+    git -C "$WORK" branch -M main
+    git -C "$WORK" config remote.origin.url .
+    git -C "$WORK" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+    git -C "$WORK" update-ref refs/remotes/origin/main HEAD     # the pushed tip
+    printf 'int local(void) { return 3; }\n' > "$WORK/src/local.cpp"
+    git -C "$WORK" add src/local.cpp
+    git -C "$WORK" commit -qm "committed straight onto main"
+    run mutate_auto --list-only
+    [ "$status" -eq 0 ]
+    contains "origin/main" "${lines[0]}"
+    contains "src/local.cpp" "$output"
+}
+
+@test "an implausible hunk count off an auto-chosen base stops before any build" {
+    # The refusal comes before the baseline build, so a wrong base is an instant
+    # answer rather than an hour of verdicts.
+    stub_tests_that_detect
+    two_trunks
+    printf 'int g(int n) {\n    return n + 9;   // SECOND\n}\n' > "$WORK/src/other.cpp"
+    git -C "$WORK" add -N src/other.cpp
+    run mutate_auto --max-hunks 1
+    [ "$status" -eq 4 ]
+    contains "more than --max-hunks 1" "$output"
+    contains "--base" "$output"
+    lacks "baseline" "$output"
+}
+
+@test "--max-hunks 0 disables the check" {
+    stub_tests_that_detect
+    two_trunks
+    printf 'int g(int n) {\n    return n + 9;   // SECOND\n}\n' > "$WORK/src/other.cpp"
+    git -C "$WORK" add -N src/other.cpp
+    run mutate_auto --max-hunks 0 --list-only
+    [ "$status" -eq 0 ]
+    contains "2 hunk(s) to mutate" "$output"
+}
+
+@test "the hunk-count guard leaves an explicit --base alone" {
+    stub_tests_that_detect
+    two_trunks
+    printf 'int g(int n) {\n    return n + 9;   // SECOND\n}\n' > "$WORK/src/other.cpp"
+    git -C "$WORK" add -N src/other.cpp
+    run mutate --max-hunks 1
+    [ "$status" -ne 4 ]
+    lacks "--max-hunks" "$output"
 }
