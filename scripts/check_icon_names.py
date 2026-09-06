@@ -35,10 +35,12 @@
 #   see favorite_macro_widget.cpp — which is the C++-side equivalent.
 #
 # CORPUS ASSERTION
-#   --summary prints how many references were scanned and fails when the direct
-#   corpus is empty. A gate whose pattern silently stops matching reports "0
-#   problems" forever and reads exactly like a passing gate; the count is the
-#   only thing that tells the two apart.
+#   The output carries how many <icon> tags were seen, and finding none at all
+#   is a hard error rather than a pass. A gate whose pattern silently stops
+#   matching reports "0 problems" forever and reads exactly like a passing gate;
+#   the count is the only thing that tells the two apart. Tags rather than
+#   resolved names, because a tree whose icons all arrive through $params has no
+#   literals to count and is not thereby broken.
 
 import argparse
 import re
@@ -48,6 +50,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CODEPOINTS_H = PROJECT_ROOT / "include" / "ui_icon_codepoints.h"
 UI_XML = PROJECT_ROOT / "ui_xml"
+
+
+def set_root(root: Path) -> None:
+    """Point the scan at a different tree — the meta-tests drive fixtures this way."""
+    global PROJECT_ROOT, CODEPOINTS_H, UI_XML
+    PROJECT_ROOT = root.resolve()
+    CODEPOINTS_H = PROJECT_ROOT / "include" / "ui_icon_codepoints.h"
+    UI_XML = PROJECT_ROOT / "ui_xml"
 
 # {"name", "\xF3..."} in the codepoint table.
 RE_REGISTERED = re.compile(r'\{\s*"([a-z0-9_]+)"\s*,')
@@ -74,11 +84,12 @@ def is_literal(value: str) -> bool:
 
 
 def scan():
-    """Return (direct, prop_defaults, instance_sites) reference lists.
+    """Return (direct, prop_defaults, instance_sites, icon_tag_count).
 
     Each entry is (name, path, line, how).
     """
     direct, prop_defaults, instance_sites = [], [], []
+    icon_tags = 0
     # component stem -> set of prop names that feed an <icon src=>
     icon_props: dict = {}
     files = sorted(UI_XML.rglob("*.xml"))
@@ -87,6 +98,7 @@ def scan():
         text = path.read_text(encoding="utf-8")
         for m in RE_ICON_TAG.finditer(text):
             attrs = dict(RE_ATTR.findall(m.group(0)))
+            icon_tags += 1
             src = attrs.get("src")
             if src is None:
                 continue
@@ -123,17 +135,21 @@ def scan():
                             )
                         )
 
-    return direct, prop_defaults, instance_sites
+    return direct, prop_defaults, instance_sites, icon_tags
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--summary", action="store_true", help="one-line result plus counts")
     ap.add_argument("--list", action="store_true", help="list every scanned reference")
+    ap.add_argument("--root", type=Path, help="scan this tree instead of the repository")
     args = ap.parse_args()
 
+    if args.root:
+        set_root(args.root)
+
     known = registered_icons()
-    direct, prop_defaults, instance_sites = scan()
+    direct, prop_defaults, instance_sites, icon_tags = scan()
     everything = direct + prop_defaults + instance_sites
 
     if args.list:
@@ -143,26 +159,29 @@ def main() -> int:
             print(f"{mark} {name:28} {rel}:{line} ({how})")
 
     print(
-        f"Scanned {len(everything)} icon references across {len(set(r[1] for r in everything))} "
-        f"files: {len(direct)} direct, {len(prop_defaults)} prop defaults, "
-        f"{len(instance_sites)} instance sites"
+        f"Scanned {len(everything)} icon references ({icon_tags} <icon> tags) across "
+        f"{len(set(r[1] for r in everything))} files: {len(direct)} direct, "
+        f"{len(prop_defaults)} prop defaults, {len(instance_sites)} instance sites"
     )
     print(f"Codepoint table: {len(known)} registered names")
     # stdout block-buffers to a pipe and stderr does not, so without this the
     # failure list below lands ABOVE the counts it is supposed to follow.
     sys.stdout.flush()
 
-    # An empty direct corpus means the tag pattern stopped matching, not that
-    # the tree is clean. Fail rather than report a vacuous pass.
-    if not direct:
+    # Zero <icon> tags anywhere means the tag pattern stopped matching, not that
+    # the tree is clean. Checked on tags rather than on resolved names, because a
+    # tree whose icons all arrive through $params has no literals to count and is
+    # not thereby broken. Findings are reported first: real hits prove the
+    # matcher works, so they are never masked by this.
+    bad = [r for r in everything if r[0] not in known]
+    if not bad and icon_tags == 0:
         print(
-            "\n❌ No <icon src=\"...\"> references found at all.\n"
+            "\n❌ No <icon> tags found at all.\n"
             "   The scan pattern no longer matches the XML. Fix this script, not the tree.",
             file=sys.stderr,
         )
         return 2
 
-    bad = [r for r in everything if r[0] not in known]
     if not bad:
         print("✅ Every icon name resolves to a registered codepoint")
         return 0
