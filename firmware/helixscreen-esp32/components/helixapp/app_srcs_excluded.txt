@@ -110,7 +110,6 @@ src/printer/screws_tilt_share_text.cpp  # not in the v1 Core+AMS cut
 src/printer/spoolman_manager.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/printer/spoolman_types.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/printer/timelapse_state.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
-src/printer/tool_offset_calibration.cpp  # not in the v1 Core+AMS cut
 src/printer/u1_stock_detection_source.cpp  # not in the v1 Core+AMS cut
 src/rendering/bed_mesh_buffer.cpp  # not in the v1 Core+AMS cut
 src/rendering/bed_mesh_coordinate_transform.cpp  # not in the v1 Core+AMS cut
