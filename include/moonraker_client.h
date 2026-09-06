@@ -634,10 +634,10 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * the shared_ptr is reset first, so weak_ptr::lock() returns nullptr.
      * Used by SubscriptionGuard to avoid calling into a destroyed client.
      *
-     * This is distinct from the internal WebSocket-callback guard (which is
-     * also reset on disconnect to cancel in-flight libhv callbacks). Clients
-     * of SubscriptionGuard only care about *object* destruction, not
-     * disconnect/reconnect cycles.
+     * The guard is reset in exactly one place, the destructor, so it answers
+     * "the client object is gone" and never "the client dropped a connection".
+     * disconnect() leaves it intact, which is what keeps a reconnect cycle from
+     * reading as destruction to SubscriptionGuard.
      */
     std::weak_ptr<bool> lifetime_weak() const override {
         return destruction_guard_;
@@ -856,15 +856,13 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     std::atomic<bool> initial_failure_notified_{false};
     uint32_t initial_connect_failure_ms_{60000};
 
-    // WebSocket callback cancellation guard. Reset on BOTH disconnect and
-    // destruction so in-flight libhv callbacks (onopen/onmessage/onclose)
-    // early-return on either event. Internal use only.
-    std::shared_ptr<bool> lifetime_guard_ = std::make_shared<bool>(true);
-
-    // Object-destruction guard. Reset ONLY in the destructor. Exposed via
-    // lifetime_weak() for SubscriptionGuard and other holders that need to
-    // detect that the MoonrakerClient instance itself is gone — not that it
-    // merely dropped a WebSocket connection.
+    // Object-destruction guard, and the only liveness guard this client has. Reset
+    // ONLY in the destructor. The install-once WS trampolines capture a weak_ptr to
+    // it and check it before touching `this`; lifetime_weak() exposes it to
+    // SubscriptionGuard and other holders that need to detect that the
+    // MoonrakerClient instance itself is gone. There is no second, disconnect-scoped
+    // guard beside it: disconnect() does not stop callback dispatch, so there would
+    // be nothing for one to signal.
     std::shared_ptr<bool> destruction_guard_ = std::make_shared<bool>(true);
 
     friend class MoonrakerClientTestAccess;
