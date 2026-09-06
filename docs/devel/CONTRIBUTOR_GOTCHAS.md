@@ -335,7 +335,7 @@ api->fetch([this, tok]() {
 });
 ```
 
-Reference: CLAUDE.md § "Async callback safety", issue #707.
+Reference: `THREADING.md` § "2. Async callback safety", issue #707.
 
 ---
 
@@ -347,7 +347,7 @@ Reference: CLAUDE.md § "Async callback safety", issue #707.
 
 **Fix:** Use a managed pool. For HTTP work, use `helix::http::HttpExecutor::fast()` or `::slow()`. For sd-bus/BlueZ, use `helix::bluetooth::BusThread::run_sync()`. For the narrow cases where you genuinely need a one-shot thread (device discovery, QR decode, USB print), wrap in `try { std::thread([...]{}).detach(); } catch (const std::system_error&) { /* toast + error callback */ }`.
 
-Reference: CLAUDE.md § "Threading & Lifecycle", lesson **L083**.
+Reference: `THREADING.md` § "No `std::thread(...).detach()` for fire-and-forget work", lesson **L083**.
 
 ---
 
@@ -363,7 +363,7 @@ Reference: CLAUDE.md § "Threading & Lifecycle", lesson **L083**.
 | `lv_obj_delete(obj)` | `lv_obj_delete_async(obj)` |
 | `lv_obj_clean(container)` | `helix::ui::safe_clean_children(container)` |
 
-Reference: CLAUDE.md § "No sync widget deletion in queued callbacks", **L081**.
+Reference: `THREADING.md` § "3. No synchronous widget deletion inside queued callbacks", **L081**.
 
 ---
 

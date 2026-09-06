@@ -4,7 +4,7 @@
 # Lint gate: XML-owned widgets must not be driven imperatively from C++.
 #
 # HelixScreen's UI contract is DATA in C++, APPEARANCE in XML, subjects connecting
-# them (CLAUDE.md § CRITICAL RULES - Declarative UI). The signature of a violation
+# them (.claude/rules/declarative-ui.md). The signature of a violation
 # is specific and detectable: a widget fetched out of an XML tree with
 # lv_obj_find_by_name() is then mutated with an imperative setter instead of being
 # driven by a subject binding.
