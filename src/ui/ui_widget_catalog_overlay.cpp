@@ -39,24 +39,55 @@ struct CatalogState {
 
 CatalogState g_catalog_state;
 
-void close_catalog() {
-    if (g_catalog_state.overlay_root) {
-        auto on_close = std::move(g_catalog_state.on_close);
-        // Unregister close callback to prevent double-firing via go_back
-        NavigationManager::instance().unregister_overlay_close_callback(
-            g_catalog_state.overlay_root);
-        NavigationManager::instance().go_back();
-        // Defer backdrop deletion — close_catalog() can be called from
-        // LV_EVENT_CLICKED handlers, and synchronous deletion during event
-        // processing corrupts LVGL's event linked list
-        helix::ui::safe_delete_deferred(g_catalog_state.backdrop);
-        g_catalog_state.overlay_root = nullptr;
-        g_catalog_state.on_select = nullptr;
-        g_catalog_state.on_close = nullptr;
-        if (on_close) {
-            on_close();
-        }
+/// Drop the catalog state and tell the opener it closed.
+///
+/// The backdrop delete is deferred because callers reach here from
+/// LV_EVENT_CLICKED and LV_EVENT_DELETE handlers, where a synchronous delete
+/// corrupts LVGL's event list. Idempotent for the caller notification: on_close
+/// is moved out, so a second call fires nothing.
+void release_catalog_state() {
+    helix::ui::safe_delete_deferred(g_catalog_state.backdrop);
+    auto on_close = std::move(g_catalog_state.on_close);
+    g_catalog_state.overlay_root = nullptr;
+    g_catalog_state.on_select = nullptr;
+    g_catalog_state.on_close = nullptr;
+    if (on_close) {
+        on_close();
     }
+}
+
+/// Retire a popped catalog overlay: unregister it and hand the widget to the
+/// deferred deleter.
+///
+/// Call this immediately after the go_back() that popped it, in the same
+/// synchronous scope. go_back() only hides an overlay, NavigationManager never
+/// deletes one, so without this the tree stays parented to the screen for the
+/// life of the process and an edit session leaks one whole overlay per open:
+/// the panel, its scroll container, and a row per widget definition, each
+/// carrying its own observers. The delete is queued rather than issued directly
+/// so the reclaim lands in the batch after go_back()'s own queued body has
+/// finished reading the widget it is unwinding.
+void retire_overlay(lv_obj_t* overlay, const char* tag) {
+    if (!overlay) {
+        return;
+    }
+    NavigationManager::instance().unregister_overlay_instance(overlay);
+    helix::ui::queue_update(tag, [overlay]() {
+        lv_obj_t* condemned = overlay;
+        helix::ui::safe_delete_deferred(condemned);
+    });
+}
+
+void close_catalog() {
+    if (!g_catalog_state.overlay_root) {
+        return;
+    }
+    lv_obj_t* root = g_catalog_state.overlay_root;
+    // Unregister close callback to prevent double-firing via go_back
+    NavigationManager::instance().unregister_overlay_close_callback(root);
+    NavigationManager::instance().go_back();
+    retire_overlay(root, "catalog_root_reclaim");
+    release_catalog_state();
 }
 
 void on_catalog_reset(lv_event_t* /*e*/) {
@@ -334,11 +365,21 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     }
     g_catalog_state.backdrop = backdrop;
 
+    // Park the callbacks before the first thing that can fail. GridEditMode has
+    // already set catalog_open_ and hidden the dots overlay by the time it calls
+    // us, and it learns otherwise only through on_close, so an early return that
+    // drops the callback leaves edit mode believing the catalog is open forever
+    // with the backdrop stranded over the panel. release_catalog_state() below
+    // is only able to notify once they are stored here.
+    g_catalog_state.on_select = std::move(on_select);
+    g_catalog_state.on_close = std::move(on_close);
+
     // Create overlay from XML
     auto* overlay =
         static_cast<lv_obj_t*>(lv_xml_create(parent_screen, "widget_catalog_overlay", nullptr));
     if (!overlay) {
         spdlog::error("[WidgetCatalog] Failed to create widget_catalog_overlay from XML");
+        release_catalog_state();
         return;
     }
 
@@ -350,26 +391,16 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     // Initially hidden (NavigationManager will unhide during push)
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
 
-    // Store state
+    // Store state. on_select/on_close were parked above, before the first thing
+    // that can fail, so re-moving them here would assign the moved-from empties.
     g_catalog_state.overlay_root = overlay;
-    g_catalog_state.on_select = std::move(on_select);
-    g_catalog_state.on_close = std::move(on_close);
 
     // DELETE cleanup exception: detect when NavigationManager pops the overlay
     // without going through close_catalog() (e.g., system back navigation)
     lv_obj_add_event_cb(
         overlay,
         [](lv_event_t* /*e*/) {
-            // Clean up backdrop if still present — defer deletion since
-            // this runs inside LV_EVENT_DELETE processing
-            helix::ui::safe_delete_deferred(g_catalog_state.backdrop);
-            auto on_close_cb = std::move(g_catalog_state.on_close);
-            g_catalog_state.overlay_root = nullptr;
-            g_catalog_state.on_select = nullptr;
-            g_catalog_state.on_close = nullptr;
-            if (on_close_cb) {
-                on_close_cb();
-            }
+            release_catalog_state();
         },
         LV_EVENT_DELETE, nullptr);
 
@@ -377,9 +408,12 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     lv_obj_t* scroll = lv_obj_find_by_name(overlay, "catalog_scroll");
     if (!scroll) {
         spdlog::error("[WidgetCatalog] catalog_scroll not found in XML");
+        // The delete re-enters the LV_EVENT_DELETE handler, which releases the
+        // state while overlay_root still matches. Releasing again is deliberate:
+        // it is idempotent for on_close, and leaving the notification to depend
+        // on a re-entrant delete is too subtle to rely on.
         lv_obj_delete(overlay);
-        g_catalog_state.overlay_root = nullptr;
-        g_catalog_state.on_select = nullptr;
+        release_catalog_state();
         return;
     }
 
@@ -396,14 +430,11 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     // overlays rather than deleting them, so LV_EVENT_DELETE alone is insufficient.
     NavigationManager::instance().register_overlay_close_callback(overlay, [overlay]() {
         if (g_catalog_state.overlay_root == overlay) {
-            helix::ui::safe_delete_deferred(g_catalog_state.backdrop);
-            auto on_close_cb = std::move(g_catalog_state.on_close);
-            g_catalog_state.overlay_root = nullptr;
-            g_catalog_state.on_select = nullptr;
-            g_catalog_state.on_close = nullptr;
-            if (on_close_cb) {
-                on_close_cb();
-            }
+            release_catalog_state();
+            // The pop that triggered this callback has already run, so the widget
+            // is off the stack and safe to reclaim. Without this the header back
+            // button leaks the whole tree the way close_catalog() used to.
+            retire_overlay(overlay, "catalog_root_reclaim");
             spdlog::debug("[WidgetCatalog] Closed via navigation go_back");
         }
     });

@@ -369,3 +369,59 @@ TEST_CASE_METHOD(XMLTestFixture, "Catalog placement moves a limbo entry instead 
     // must not drop what the user configured on it.
     CHECK(placed->config.value("marker", 0) == 42);
 }
+
+// ============================================================================
+// Overlay reclaim
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Catalog: closing reclaims the overlay instead of leaving it on the screen",
+                 "[widget_catalog][overlay][1461]") {
+    // NavigationManager hides an overlay on go_back(), it never deletes one, so
+    // whoever pushed it owns the reclaim. A catalog is cheap to reopen, which is
+    // what makes the omission expensive: one whole tree per open stays parented
+    // to the screen for the life of the process.
+    PanelWidgetConfig config("test_catalog_reclaim", *Config::get_instance());
+    config.load();
+
+    const uint32_t baseline = lv_obj_get_child_count(test_screen());
+
+    for (int open = 0; open < 5; open++) {
+        WidgetCatalogOverlay::show(test_screen(), config,
+                                   [](const std::string &) {});
+        process_lvgl(10);
+        REQUIRE(lv_obj_find_by_name(test_screen(), "catalog_scroll") != nullptr);
+
+        NavigationManager::instance().go_back();
+        process_lvgl(20);
+    }
+
+    // Five opens, nothing left behind. Without the reclaim this is baseline + 5
+    // (or + 10, counting each stranded backdrop).
+    REQUIRE(lv_obj_get_child_count(test_screen()) == baseline);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Catalog: a second show() after a close is not a no-op",
+                 "[widget_catalog][overlay][1461]") {
+    // The reclaim runs through the deferred deleter while g_catalog_state has
+    // already been cleared. If the two ever get out of order, overlay_root stays
+    // set and every later show() returns early on its duplicate guard, leaving
+    // edit mode with a button that does nothing.
+    PanelWidgetConfig config("test_catalog_reclaim", *Config::get_instance());
+    config.load();
+
+    WidgetCatalogOverlay::show(test_screen(), config, [](const std::string &) {});
+    process_lvgl(10);
+    REQUIRE(lv_obj_find_by_name(test_screen(), "catalog_scroll") != nullptr);
+
+    NavigationManager::instance().go_back();
+    process_lvgl(20);
+    REQUIRE(lv_obj_find_by_name(test_screen(), "catalog_scroll") == nullptr);
+
+    WidgetCatalogOverlay::show(test_screen(), config, [](const std::string &) {});
+    process_lvgl(10);
+    REQUIRE(lv_obj_find_by_name(test_screen(), "catalog_scroll") != nullptr);
+
+    NavigationManager::instance().go_back();
+    process_lvgl(20);
+}
