@@ -404,8 +404,10 @@ TEST_CASE("tool offsets: klipper-toolchanger keeps all three axes", "[tool_offse
 }
 
 TEST_CASE("tool offsets: the TOOL_OFFSET macro keeps only Z", "[tool_offsets]") {
-    // Only the Z variable shape has been verified against a machine. Claiming
-    // X/Y would guess a variable name and write a value nothing reads.
+    // Not a capability of the machine, a gap in ours: only the Z variable
+    // names have been checked against a MedusaHC. Claiming X/Y would guess a
+    // name and write a value nothing reads. Once the names are confirmed this
+    // test flips to expecting true - see supports_axis_tool_offset_macro().
     PrinterDiscovery hw = tool_offset_macro_printer();
 
     CHECK(to_::supports_axis(hw, Axis::Z));
