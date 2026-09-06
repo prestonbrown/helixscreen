@@ -2778,6 +2778,34 @@ echo ""
 # the desktop suite stayed green - `make test` skips patch application and
 # lv_evdev.c is compiled out of desktop builds, so nothing here could see it.
 # Which is exactly why this one runs on desktop.
+qc_bats_inert() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🫥 Checking bats assertions bash 3.2 swallows..."
+
+if [ -f "scripts/check_bats_inert_assertions.py" ]; then
+  if python3 scripts/check_bats_inert_assertions.py >/tmp/bats_inert.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/bats_inert.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/bats_inert.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_bats_inert_assertions.py not found - skipping"
+fi
+
+echo ""
+
+# ====================================================================
+  return $EXIT_CODE
+}
+
 qc_patch_drift() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)
@@ -2898,7 +2926,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2943,6 +2971,7 @@ qc_trigger_re() {
     qc_installer_reachability)
                         echo '^scripts/lib/installer/|^scripts/install-dev\.sh$|^scripts/bundle-(un)?installer\.sh$|^scripts/check_installer_step_reachability\.py$' ;;
     qc_patch_drift)     echo '^patches/|mk/patches\.mk|check_patch_drift\.py' ;;
+    qc_bats_inert)      echo '\.bats$|^tests/shell/helpers\.bash$|check_bats_inert_assertions\.py$' ;;
     qc_workflow_submodules)
                         echo '^\.github/workflows/|^\.github/actions/|check_workflow_submodules\.py$' ;;
     *)                  echo '' ;;
