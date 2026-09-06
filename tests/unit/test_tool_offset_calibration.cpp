@@ -189,9 +189,9 @@ TEST_CASE("tool offset calibration: an abort blames nobody", "[tool_offset_cal]"
     CHECK_FALSE(run.active());
 }
 
-TEST_CASE("tool offset calibration: console lines outside a run are ignored", "[tool_offset_cal]") {
-    // The toolchanger prints "Selected tool" on every tool change, run or no
-    // run; a print's tool changes must not paint the calibration rows.
+TEST_CASE("tool offset calibration: tool changes outside a run are ignored", "[tool_offset_cal]") {
+    // The active-tool subject moves on every tool change, run or no run; a
+    // print's tool changes must not paint the calibration rows.
     cal::Run run;
     run.on_tool_selected(1);
     run.on_tool_measured(1);

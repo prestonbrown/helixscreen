@@ -115,7 +115,7 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 
 | Piece | Where |
 |-------|-------|
-| Capability, gcode, console parsing, run bookkeeping | `include/tool_offset_calibration.h` (`helix::tool_offset_calibration`) — capability is `has_tool_changer()` + the macro; the only gcode is the bare macro |
+| Capability, gcode, run bookkeeping | `include/tool_offset_calibration.h` (`helix::tool_offset_calibration`) — capability is `has_tool_changer()` + the macro; the only gcode is the bare macro |
 | Capability subject for XML | `printer_has_tool_offset_cal` (`PrinterCapabilitiesState`) |
 | Screen | `include/ui_panel_calibration_tool_offset.h` — Controls ▸ Tool Offsets, and the Advanced row |
 | Results | never parsed off the console: the macro's `SET_TOOL_PARAMETER` writes land on the `tool T<n>` objects and reach `ToolState` through `helix::tool_offsets`, exactly as a manual adjustment would |
