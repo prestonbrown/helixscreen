@@ -342,6 +342,9 @@
                        height="100%" flex_grow="1" icon="z_closer" text="Z Calibration" translation_tag="Z Calibration"
                        icon_position="top" style_bg_opa="0" style_border_width="0">
               <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+              <!-- The paper test is the manual fallback; a tool changer with automatic
+                   tool offset calibration measures Z along with X/Y, so it is hidden there. -->
+              <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_zoffset"/>
             </ui_button>
 

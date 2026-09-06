@@ -226,7 +226,10 @@
         <setting_action_row name="row_z_offset"
                             label="Z-Offset Calibration" label_tag="Z-Offset Calibration" icon="z_closer"
                             description="Interactive probe calibration" description_tag="Interactive probe calibration">
-          <bind_flag_if_eq subject="printer_has_probe" flag="hidden" ref_value="0"/>
+          <!-- One binding, both tests (two flag bindings on a widget fight):
+               needs a probe, and steps aside for automatic tool offset
+               calibration, which measures Z along with X/Y. -->
+          <bind_flag_if cond="printer_has_probe eq 0 or printer_has_tool_offset_cal eq 1" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_zoffset_row_clicked"/>
         </setting_action_row>
         <!-- PID Tuning -->
