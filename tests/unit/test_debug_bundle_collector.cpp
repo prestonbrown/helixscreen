@@ -346,6 +346,22 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts email addresses",
     auto result = helix::DebugBundleCollector::sanitize_value("notify user@example.com on error");
     REQUIRE(result.find("user@example.com") == std::string::npos);
     REQUIRE(result.find("[REDACTED_EMAIL]") != std::string::npos);
+
+    SECTION("multi-label domains and a bare two-letter TLD still redact") {
+        for (const char* addr : {"a@b.co", "first.last+tag@mail.example.co.uk", "x@y-z.io",
+                                 "admin@123.com"}) {
+            auto redacted = helix::DebugBundleCollector::sanitize_value(addr);
+            CAPTURE(addr);
+            REQUIRE(redacted == "[REDACTED_EMAIL]");
+        }
+    }
+
+    SECTION("a <name>@<freq><unit> diagnostic value is not an address") {
+        // The input shaper logs its live config this way; redacting it throws
+        // away the reading the bundle was collected to show.
+        const std::string line = "Input shaper config: X=mzv@40.2Hz, Y=ei@52.0Hz";
+        REQUIRE(helix::DebugBundleCollector::sanitize_value(line) == line);
+    }
 }
 
 TEST_CASE("DebugBundleCollector: sanitize_value redacts URLs with credentials",
