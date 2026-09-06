@@ -655,6 +655,61 @@ TEST_CASE("z-offset persistence: the enable is claimed once and never again",
     CHECK_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
 }
 
+TEST_CASE("z-offset persistence: a send that never landed gives the claim back",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+    using helix::zoffset::release_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    REQUIRE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    REQUIRE_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+
+    // The claim is recorded before the gcode goes out, so a send that fails -
+    // klippy not ready, socket dropped - would otherwise leave the firmware
+    // never told and the one shot spent for the life of the install.
+    release_persistence_enable(cfg);
+    CHECK(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: releasing an unclaimed one-shot changes nothing",
+          "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+    using helix::zoffset::release_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    // Idempotent in the direction that matters: a stray release must not hand
+    // out a second send on a printer that was already told.
+    release_persistence_enable(cfg);
+    REQUIRE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    release_persistence_enable(cfg);
+    release_persistence_enable(cfg);
+    REQUIRE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    CHECK_FALSE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+}
+
+TEST_CASE("z-offset persistence: the release reaches disk", "[zoffset][persistence][1432]") {
+    using helix::zoffset::claim_persistence_enable;
+    using helix::zoffset::release_persistence_enable;
+
+    Config* cfg = fresh_config();
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+    json status = forge_x_enable_frame(0);
+
+    REQUIRE(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+    release_persistence_enable(cfg);
+
+    // Same reasoning as the claim: a release held only in memory is no release
+    // at all, and the next launch would read the spent claim back.
+    reload_from_disk(cfg);
+    CHECK(claim_persistence_enable(cfg, hw, &status, /*print_active=*/false));
+}
+
 TEST_CASE("z-offset persistence: the claim survives a restart", "[zoffset][persistence][1432]") {
     using helix::zoffset::claim_persistence_enable;
 

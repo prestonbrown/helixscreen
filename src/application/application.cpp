@@ -3032,6 +3032,16 @@ void Application::setup_discovery_callbacks() {
                         [](const MoonrakerError& err) {
                             spdlog::warn("[ZOffset] Failed to enable z-offset persistence: {}",
                                          err.message);
+                            // The claim was recorded before the send so a second
+                            // discovery could not inject the same gcode. It did not
+                            // land, so hand the one shot back or this printer is
+                            // never told for the life of the install. Marshalled:
+                            // this runs on the response thread and Config is not
+                            // synchronised.
+                            helix::ui::queue_update("zoffset_release_claim", []() {
+                                helix::zoffset::release_persistence_enable(
+                                    Config::get_instance());
+                            });
                         },
                         0, /*silent=*/true, /*on_queued=*/nullptr,
                         /*caller_surfaces_errors=*/false);
