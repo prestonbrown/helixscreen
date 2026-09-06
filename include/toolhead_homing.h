@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "axis.h"
+
 #include <functional>
 
 class IMoonrakerAPI;
@@ -22,8 +24,6 @@ class AsyncLifetimeGuard;
  * @warning Main thread only. This reads an LVGL subject.
  */
 [[nodiscard]] bool toolhead_is_homed(const PrinterState& ps);
-
-enum class Axis { X, Y, Z };
 
 /**
  * @brief Whether one axis reports homed.

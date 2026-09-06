@@ -142,10 +142,10 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // Initialize tool changer state from discovered hardware
     helix::ToolState::instance().init_tools(hardware);
 
-    // Seed the per-tool z-offsets. Must follow init_tools(): the initial status
+    // Seed the per-tool offsets. Must follow init_tools(): the initial status
     // snapshot arrived before tools_ existed, so it was dropped, and Moonraker
     // republishes only what changes afterwards.
-    helix::ToolState::instance().query_tool_z_offsets(client, hardware);
+    helix::ToolState::instance().query_tool_offsets(client, hardware);
 
     // Restore persisted spool assignments (Moonraker DB primary, local JSON fallback)
     helix::ToolState::instance().load_spool_assignments(api);

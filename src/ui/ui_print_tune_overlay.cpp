@@ -16,15 +16,14 @@
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "tool_offsets.h"
+#include "tool_state.h"
 #include "tune_controller.h"
 #include "z_offset_utils.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include "tool_offsets.h"
-#include "tool_state.h"
-
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -289,11 +288,11 @@ void PrintTuneOverlay::setup_panel() {
         auto& ts = helix::ToolState::instance();
         const auto ts_lifetime = ts.get_subjects_lifetime();
         tool_z_offset_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
-            ts.get_active_tool_z_offset_subject(), this,
+            ts.get_active_tool_offset_subject(helix::Axis::Z), this,
             [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
             ts_lifetime);
         tool_z_valid_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
-            ts.get_active_tool_z_offset_valid_subject(), this,
+            ts.get_active_tool_offset_valid_subject(helix::Axis::Z), this,
             [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
             ts_lifetime);
         active_tool_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
@@ -528,8 +527,10 @@ void PrintTuneOverlay::update_tool_z_displays() {
     }
     auto& ts = helix::ToolState::instance();
     const int tool_index = lv_subject_get_int(ts.get_active_tool_subject());
-    const bool per_tool = lv_subject_get_int(ts.get_per_tool_z_supported_subject()) == 1;
-    const bool tool_known = lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) == 1;
+    const bool per_tool =
+        lv_subject_get_int(ts.get_per_tool_axis_supported_subject(helix::Axis::Z)) == 1;
+    const bool tool_known =
+        lv_subject_get_int(ts.get_active_tool_offset_valid_subject(helix::Axis::Z)) == 1;
 
     std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "T%d", tool_index);
     lv_subject_copy_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
@@ -540,8 +541,8 @@ void PrintTuneOverlay::update_tool_z_displays() {
     char tool_mm[16] = {};
     if (tool_known) {
         helix::format::format_distance_mm(
-            lv_subject_get_int(ts.get_active_tool_z_offset_subject()) / 1000.0, 3, tool_mm,
-            sizeof(tool_mm));
+            lv_subject_get_int(ts.get_active_tool_offset_subject(helix::Axis::Z)) / 1000.0, 3,
+            tool_mm, sizeof(tool_mm));
     }
 
     // The HEADING carries whichever target the buttons drive. Showing the
@@ -594,26 +595,26 @@ void PrintTuneOverlay::handle_tool_z_offset_changed(double delta) {
     // anything else would land somewhere the user did not ask for. Without a
     // reported value there is no base to adjust from, so refuse rather than
     // assume zero and overwrite whatever the tool actually holds.
-    if (lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) != 1) {
+    if (lv_subject_get_int(ts.get_active_tool_offset_valid_subject(helix::Axis::Z)) != 1) {
         spdlog::warn("[PrintTuneOverlay] No reported offset for T{} — refusing to adjust",
                      tool_index);
         return;
     }
-    const int base_microns = lv_subject_get_int(ts.get_active_tool_z_offset_subject());
+    const int base_microns = lv_subject_get_int(ts.get_active_tool_offset_subject(helix::Axis::Z));
     const int new_microns = base_microns + static_cast<int>(std::lround(delta * 1000.0));
 
-    const std::string gcode = helix::tool_offsets::set_tool_z_gcode(printer_state_->get_discovery(),
-                                                                    tool_index, new_microns);
+    const std::string gcode = helix::tool_offsets::set_tool_offset_gcode(
+        printer_state_->get_discovery(), helix::Axis::Z, tool_index, new_microns);
     if (gcode.empty()) {
         return;
     }
     api_->execute_gcode(gcode, nullptr, nullptr);
 
     // Through ToolState, not straight at the subject: tools_ is what
-    // dirty_tool_z_indices() and the save path read, so poking only the
+    // dirty_tool_indices() and the save path read, so poking only the
     // published subject left this adjustment invisible to Save until the
     // firmware echoed back — and a save in that window discarded it silently.
-    ts.set_tool_z_offset_local(tool_index, new_microns);
+    ts.set_tool_offset_local(tool_index, helix::Axis::Z, new_microns);
     update_tool_z_displays();
 
     if (tune_panel_) {

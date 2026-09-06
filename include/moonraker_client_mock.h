@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "axis.h"
 #include "moonraker_client.h"
 #include "moonraker_types.h"
 
@@ -926,12 +927,42 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     std::string chamber_filter_pin_object() const;
 
-    /// Current mock z-offset for a tool, in mm. Seeded distinct per tool and
-    /// updated by SET_TOOL_PARAMETER, so a value set earlier in the session
-    /// survives into a later status snapshot instead of silently reverting.
-    /// Public because the object handlers are free-function lambdas taking a
-    /// MoonrakerClientMock*, not members.
-    double tool_z_offset(int tool) const;
+    /// Current mock offset for a tool on one axis, in mm. Seeded distinct per
+    /// tool AND per axis and updated by SET_TOOL_PARAMETER, so a value set
+    /// earlier in the session survives into a later status snapshot instead of
+    /// silently reverting. Public because the object handlers are
+    /// free-function lambdas taking a MoonrakerClientMock*, not members.
+    double tool_offset(int tool, helix::Axis axis) const;
+
+    /// klipper-toolchanger's parameter (and status field) name for an axis:
+    /// gcode_x_offset / gcode_y_offset / gcode_z_offset.
+    static const char* tool_offset_param(helix::Axis axis);
+
+    /**
+     * @brief Simulate CALIBRATE_TOOL_OFFSETS (klipper-toolchanger's example
+     *        macro), when @p script is that command
+     *
+     * Blocking like the real macro: the rpc is answered only when the run is
+     * over, and the run takes a few seconds of mock time on an lv_timer. On the
+     * way it prints what the firmware prints - the toolchanger's "Selected tool
+     * N (TN)" per tool, the probe's contact lines, "Sensor location at x,y,z"
+     * for T0 and "Tool offset is x,y,z" for every other tool - and republishes
+     * `toolchanger`.tool_number as the carriage changes tool. Each measured
+     * tool's offsets are written exactly as the macro's _SAVE_TOOL_OFFSET does:
+     * runtime value live and republished per axis, then staged for SAVE_CONFIG.
+     *
+     * HELIX_MOCK_TOOL_CAL_FAIL=<n> makes tool n's pass fail with the probe
+     * tolerance error, so the failure path is reachable in --test.
+     *
+     * @return true if the script was handled here (the callbacks are owned)
+     */
+    bool simulate_tool_offset_calibration(const std::string& script,
+                                          std::function<void(const nlohmann::json&)> success_cb,
+                                          std::function<void(const MoonrakerError&)> error_cb);
+
+    /// The inverse: which axis a PARAMETER= names, or nullopt for any other
+    /// tool parameter (the mock models only the three offsets).
+    static std::optional<helix::Axis> tool_offset_axis(const std::string& param);
 
     /// Klipper's configfile.save_config_pending - whether a SAVE_CONFIG is owed.
     /// Set by anything routed through configfile.set() (here:
@@ -1187,8 +1218,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @brief Dispatch gcode_move status update (for Z offset changes)
      */
     void dispatch_gcode_move_update();
-    /// Republish one tool's gcode_z_offset after SET_TOOL_PARAMETER.
-    void dispatch_tool_update(int tool);
+    /// Republish one tool's offset on one axis after SET_TOOL_PARAMETER.
+    void dispatch_tool_update(int tool, helix::Axis axis);
+
+    /// What the macro's _SAVE_TOOL_OFFSET does for one tool: SET_TOOL_PARAMETER
+    /// on each axis (live + republished) then SAVE_TOOL_PARAMETER (staged).
+    void apply_calibrated_tool_offset(int tool, double x, double y, double z);
+
+    /// Republish `toolchanger`.tool_number, as a tool change does.
+    void dispatch_toolchanger_tool(int tool);
 
     /// Klipper's configfile.set(): stage one option for the next SAVE_CONFIG.
     /// Does NOT change any runtime value - on a real printer the runtime write
@@ -1559,12 +1597,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // G-code offset tracking
     std::atomic<double> gcode_offset_z_{0.0}; // Z offset from SET_GCODE_OFFSET
-    /// Per-tool z-offsets, indexed by tool number, driven by
-    /// SET_TOOL_PARAMETER. Seeded DISTINCT rather than all-zero: an all-zero
-    /// seed makes "every tool reads the same value" — the exact bug a per-tool
-    /// display can have — look correct.
-    mutable std::mutex tool_z_offsets_mutex_;
-    std::map<int, double> tool_z_offsets_;
+    /// Per-tool offsets, indexed by tool number then axis, driven by
+    /// SET_TOOL_PARAMETER. Seeded DISTINCT rather than all-zero, per tool and
+    /// per axis: an all-zero seed makes "every tool reads the same value" (or
+    /// "X shows Z's number") — the exact bugs a per-tool display can have —
+    /// look correct.
+    mutable std::mutex tool_offsets_mutex_;
+    std::map<int, std::map<helix::Axis, double>> tool_offsets_;
     /// The durable copy - what printer.cfg holds, i.e. what the tool comes back
     /// with after a restart. SAVE_CONFIG commits the staged values into here.
     ///
@@ -1572,7 +1611,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// it an offset that was set and never saved survived a restart too, so the
     /// mock could not tell a persisted save from a forgotten one and no test of
     /// the persist path could fail.
-    std::map<int, double> tool_z_offsets_saved_;
+    std::map<int, std::map<helix::Axis, double>> tool_offsets_saved_;
 
     /// Klipper's configfile.save_config_pending_items - {section: {option:
     /// value}}, values stringified as configfile.set() does.

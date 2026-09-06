@@ -46,6 +46,7 @@
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
 #include "ui_panel_calibration_pid.h"
+#include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_input_shaper.h"
 #include "ui_panel_screws_tilt.h"
@@ -221,6 +222,28 @@ void init_zoffset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_zoffset_row_clicked", esp32_staged_feature_row_cb);
 }
 void init_zoffset_event_callbacks() {}
+
+// src/ui/ui_panel_calibration_tool_offset.cpp — same staged-row treatment: the
+// row's visibility already tracks a real capability (printer_has_tool_offset_cal
+// is written for real by the KEPT tool_offset_calibration::supported()), so on
+// hardware where it would show, the tap must still give feedback rather than
+// silently doing nothing.
+namespace helix::ui {
+void init_tool_offset_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_tool_offset_row_clicked", esp32_staged_feature_row_cb);
+}
+
+// src/ui/ui_panel_calibration_tool_offset.cpp (DEFINE_GLOBAL_PANEL) — the
+// Controls-panel quick-access button (ui_panel_controls.cpp, KEPT) reaches
+// this the same way handle_calibration_zoffset() reaches
+// get_global_zoffset_cal_panel() above: only non-virtual access is safe on
+// this storage, so that call site must never actually construct/activate it.
+ToolOffsetCalibrationPanel& get_global_tool_offset_cal_panel() {
+    alignas(ToolOffsetCalibrationPanel)
+        EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(ToolOffsetCalibrationPanel)];
+    return *reinterpret_cast<ToolOffsetCalibrationPanel*>(storage);
+}
+} // namespace helix::ui
 
 // ===========================================================================
 // ColorSensorManager (src/sensors/color_sensor_manager.cpp).

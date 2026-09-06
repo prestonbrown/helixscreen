@@ -154,6 +154,33 @@ HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE
 
 > **Quick access:** A **Z Calibration** button is also available on the Controls panel for one-tap access.
 
+> **Tool changer?** On a printer with [automatic Tool Offsets calibration](#tool-offsets-beta), this paper-test flow is hidden in favor of that screen, since it measures Z along with X and Y in one pass.
+
+---
+
+## Tool Offsets *(Beta)*
+
+![Tool Offsets Panel](../../images/user/advanced-tool-offsets.png)
+
+For tool-changer printers that can measure their own tool positions: one tap calibrates every tool's X, Y, and Z offset in a single automated pass, instead of adjusting each tool by hand.
+
+### Requirements
+
+This screen only appears on a tool changer whose firmware exposes the calibration macro. If your printer doesn't have it, use the regular [Z-Offset Calibration](#z-offset-calibration) flow instead — it still works per-tool.
+
+### Running a Calibration
+
+1. Navigate to **Advanced > Tool Offsets**, or tap **Tool Offsets** on the Controls panel
+2. Clean every nozzle first — the confirmation dialog reminds you
+3. Tap **Calibrate all tools**. The printer measures each tool in turn against its sensor; the current tool is shown as **Measuring** while the rest wait as **Queued**
+
+![Tool Offsets Panel while running](../../images/user/advanced-tool-offsets-running.png)
+
+4. When every tool reads **Done**, tap **Save offsets** to write the results to your Klipper config (this briefly restarts Klipper, same as any other offset save)
+5. If a tool fails to measure, it's marked **Failed** and the run stops there — clean that tool's nozzle and try again
+
+Tapping **Stop** during a run performs an emergency stop, since the calibration macro can't be paused partway through — only cancelled outright.
+
 ---
 
 ## Belt Tension *(Beta)*

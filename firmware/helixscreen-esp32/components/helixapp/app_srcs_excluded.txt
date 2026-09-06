@@ -227,6 +227,7 @@ src/ui/ui_overlay_timelapse_videos.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_bed_mesh.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_belt_tension.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_calibration_pid.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_calibration_tool_offset.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_gcode_test.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_glyphs.cpp  # not in the v1 Core+AMS cut

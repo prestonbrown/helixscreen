@@ -350,11 +350,14 @@
   <translation tag="Calibrate Gear" ja="ギアをキャリブレート"/>
   <translation tag="Calibrate X" ja="X軸をキャリブレート"/>
   <translation tag="Calibrate Y" ja="Y軸をキャリブレート"/>
+  <translation tag="Calibrate all tools" ja="すべてのツールをキャリブレート"/>
   <translation tag="Calibrate and tune scroll feel" ja="キャリブレーションとスクロール感度の調整"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ja="入力シェーピングをキャリブレートして印刷のリンギングを軽減します"/>
+  <translation tag="Calibrate tool offsets?" ja="ツールオフセットをキャリブレートしますか？"/>
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
   <translation tag="Calibrated" ja="キャリブレーション済み"/>
   <translation tag="Calibrating Probe..." ja="プローブをキャリブレーション中..."/>
+  <translation tag="Calibrating T{}..." ja="T{} をキャリブレート中..."/>
   <translation tag="Calibrating bed mesh..." ja="ベッドメッシュをキャリブレーション中..."/>
   <translation tag="Calibrating {} axis..." ja="{} 軸をキャリブレーション中..."/>
   <translation tag="Calibrating..." ja="キャリブレーション中..."/>
@@ -364,8 +367,10 @@
   <translation tag="Calibration and system configuration" ja="キャリブレーションとシステム設定"/>
   <translation tag="Calibration cancelled." ja="キャリブレーションをキャンセルしました。"/>
   <translation tag="Calibration complete" ja="キャリブレーション完了"/>
+  <translation tag="Calibration complete - save to keep the offsets" ja="キャリブレーション完了 - 保存してオフセットを保持してください"/>
   <translation tag="Calibration complete!" ja="キャリブレーション完了！"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ja="&quot;キャリブレーション完了！「次へ」を押して続行してください。&quot;"/>
+  <translation tag="Calibration failed" ja="キャリブレーション失敗"/>
   <translation tag="Calibration failed - touch targets more precisely." ja="キャリブレーション失敗 – ターゲットをより正確にタッチしてください。"/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." ja="キャリブレーションが繰り返しタイムアウトしました。以前の設定を維持しました。"/>
   <translation tag="Calibration may still be running — response timed out" ja="キャリブレーションがまだ実行中の可能性があります — 応答タイムアウト"/>
@@ -834,6 +839,7 @@
   <translation tag="Ethernet" ja="イーサネット"/>
   <translation tag="Events appear here after sessions and prints" ja="セッションと印刷の後にイベントがここに表示されます"/>
   <translation tag="Every extruder&apos;s temperature at once" ja="全エクストルーダーの温度を一覧表示"/>
+  <translation tag="Every tool&apos;s offsets are measured again and replace the current ones. Save afterwards to keep the result." ja="すべてのツールのオフセットを再測定し、現在の値を置き換えます。結果を保持するには、その後保存してください。"/>
   <translation tag="Excellent Accuracy" ja="非常に高精度"/>
   <translation tag="Exception: {}" ja="例外: {}"/>
   <translation tag="Exclude" ja="除外"/>
@@ -1408,6 +1414,7 @@
   <translation tag="Make %s Optional?" ja="%sをオプションにしますか？"/>
   <translation tag="Make Optional" ja="オプションにする"/>
   <translation tag="Make bed mesh and QGL skippable" ja="ベッドメッシュと QGL をスキップ可能にする"/>
+  <translation tag="Make sure every nozzle is clean." ja="すべてのノズルが清潔であることを確認してください。"/>
   <translation tag="MakeID (Bluetooth)" ja="MakeID (Bluetooth)"/>
   <translation tag="Manage" ja="管理"/>
   <translation tag="Manage Printers" ja="プリンター管理"/>
@@ -1440,11 +1447,13 @@
   <translation tag="Maximum toolhead speed (mm/s)" ja="ツールヘッドの最大速度 (mm/s)"/>
   <translation tag="Measure and compare belt path frequencies" ja="ベルトパスの周波数を測定・比較"/>
   <translation tag="Measure belt path frequencies" ja="ベルトパスの周波数を測定"/>
+  <translation tag="Measure every tool&apos;s XYZ offset automatically" ja="各ツールの XYZ オフセットを自動で測定します"/>
   <translation tag="Measured (shaper off)" ja="測定値（シェーパーオフ時）"/>
   <translation tag="Measured filament diameter" ja="測定したフィラメント直径"/>
   <translation tag="Measurement Failed" ja="測定失敗"/>
   <translation tag="Measuring accelerometer noise..." ja="加速度センサーのノイズを測定中..."/>
   <translation tag="Measuring vibrations... {}%" ja="振動を測定中... {}%"/>
+  <translation tag="Measuring... {}s" ja="測定中... {}秒"/>
   <translation tag="Median %.0f Hz" ja="中央値 %.0f Hz"/>
   <translation tag="Memory" ja="メモリ"/>
   <translation tag="Memory (MB)" ja="メモリ (MB)"/>
@@ -1654,6 +1663,7 @@
   <translation tag="Objects" ja="オブジェクト"/>
   <translation tag="Off" ja="オフ"/>
   <translation tag="Off:" ja="オフ:"/>
+  <translation tag="Offsets saved" ja="オフセットを保存しました"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" ja="旧設定を今日のデータに適用: 残留 {} - 現在: {}"/>
   <translation tag="On" ja="オン"/>
   <translation tag="On and Off macros must be different" ja="オンとオフのマクロは異なるものにしてください"/>
@@ -1937,6 +1947,7 @@
   <translation tag="Quad Gantry Level started..." ja="QGL を開始しました..."/>
   <translation tag="Queue: Paused" ja="キュー: 一時停止"/>
   <translation tag="Queue: Ready" ja="キュー: 準備完了"/>
+  <translation tag="Queued" ja="待機中"/>
   <translation tag="Queued {}h {}m ago" ja="{} 時間 {} 分前にキューへ追加"/>
   <translation tag="Queued {}m ago" ja="{} 分前にキューへ追加"/>
   <translation tag="Quick" ja="簡易"/>
@@ -1961,6 +1972,7 @@
   <translation tag="Ready" ja="準備完了"/>
   <translation tag="Ready for filament operations" ja="フィラメント操作の準備ができています"/>
   <translation tag="Ready to Apply" ja="適用の準備完了"/>
+  <translation tag="Ready to calibrate" ja="キャリブレーション準備完了"/>
   <translation tag="Ready to pluck" ja="はじく準備完了"/>
   <translation tag="Reason" ja="理由"/>
   <translation tag="Reason: {}&#10;&#10;The printer cannot resume this print. Restart from the beginning?" ja="理由: {}&#10;&#10;プリンターはこの印刷を再開できません。最初からやり直しますか？"/>
@@ -2114,6 +2126,7 @@
   <translation tag="Running {}..." ja="{} を実行中..."/>
   <translation tag="Runout" ja="フィラメント切れ"/>
   <translation tag="Runout Sensor" ja="フィラメント切れセンサー"/>
+  <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ja="プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。"/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ja="SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。"/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." ja="SAVE_CONFIG に失敗しました: {}。Zオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時にオフセットが失われます。"/>
   <translation tag="SETTINGS" ja="設定"/>
@@ -2142,6 +2155,8 @@
   <translation tag="Save Z-Offset?" ja="Z-Offset を保存しますか？"/>
   <translation tag="Save changes to persist them across restarts?" ja="再起動後も変更を保持するために保存しますか？"/>
   <translation tag="Save failed: {}" ja="保存に失敗しました: {}"/>
+  <translation tag="Save offsets" ja="オフセットを保存"/>
+  <translation tag="Save offsets?" ja="オフセットを保存しますか？"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
   <translation tag="Saved Z-Offset" ja="保存されたZ-Offset"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ja="crash_report.txt に保存しました（QR 利用不可）"/>
@@ -2150,6 +2165,7 @@
   <translation tag="Saving Configuration..." ja="設定を保存中..."/>
   <translation tag="Saving Z-offset..." ja="Zオフセットを保存中..."/>
   <translation tag="Saving config... Klipper will restart." ja="設定を保存中... Klipper が再起動します。"/>
+  <translation tag="Saving offsets..." ja="オフセットを保存中..."/>
   <translation tag="Saving will restart Klipper and CANCEL any active print!" ja="保存すると Klipper が再起動し、アクティブな印刷がキャンセルされます！"/>
   <translation tag="Scan" ja="スキャン"/>
   <translation tag="Scan Cal" ja="スキャンキャリブレーション"/>
@@ -2383,6 +2399,7 @@
   <translation tag="Stop Print?" ja="印刷を停止しますか？"/>
   <translation tag="Stop failed" ja="停止に失敗"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." ja="&quot;{}&quot; の印刷を停止しますか？&#10;&#10;5秒後は取り消せません。"/>
+  <translation tag="Stopped" ja="停止しました"/>
   <translation tag="Stopped between Hub and Toolhead" ja="ハブとツールヘッドの間で停止"/>
   <translation tag="Stopped between Lane and Hub" ja="レーンとハブの間で停止"/>
   <translation tag="Stopped between Spool and Lane" ja="スプールとレーンの間で停止"/>
@@ -2527,6 +2544,7 @@
   <translation tag="This may take up to 30 seconds" ja="最大30秒かかる場合があります"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." ja="このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。インストール後、以下の「PRINT_START を設定」を使用してオプションの手順を有効にしてください。"/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ja="この印刷には約 %.0fg 必要ですが、スプールの残量は約 %.0fg です。それでも開始しますか？"/>
+  <translation tag="This printer cannot calibrate tool offsets automatically" ja="このプリンターはツールオフセットを自動でキャリブレートできません"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>
@@ -2540,6 +2558,7 @@
   <translation tag="This will restart Klipper firmware. Any active operations will be interrupted." ja="Klipperファームウェアを再起動します。実行中の操作は中断されます。"/>
   <translation tag="This will restart Klipper." ja="これにより Klipper が再起動します。"/>
   <translation tag="This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect." ja="Z-offset を保存し、設定を書き込むために Klipper を再起動します。プリンターは一時的に切断されます。"/>
+  <translation tag="This writes the tool offsets to the printer&apos;s config and restarts Klipper, which takes a few seconds. Until then they apply only to this session." ja="ツールオフセットをプリンターの設定に書き込み、Klipper を再起動します。数秒かかります。それまでは、このセッションにのみ適用されます。"/>
   <translation tag="Thorough" ja="徹底的"/>
   <translation tag="Thumbnail Only" ja="サムネイルのみ"/>
   <translation tag="Thumbnail: " ja="サムネイル: "/>
@@ -2579,9 +2598,12 @@
   <translation tag="Too soft - pluck harder" ja="弱すぎます - もっと強くはじいてください"/>
   <translation tag="Tool" ja="ツール"/>
   <translation tag="Tool Changer" ja="ツールチェンジャー"/>
+  <translation tag="Tool Offsets" ja="ツールオフセット"/>
   <translation tag="Tool Switcher" ja="ツール切り替え"/>
   <translation tag="Tool change failed: {}" ja="ツール変更に失敗しました: {}"/>
   <translation tag="Tool mapping failed" ja="ツールマッピングに失敗しました"/>
+  <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
+  <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>
   <translation tag="Tool {} → Slot {}: no filament loaded." ja="ツール {} → スロット {}: フィラメントが装填されていません。"/>
   <translation tag="Toolhead" ja="ツールヘッド"/>

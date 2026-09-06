@@ -6,8 +6,10 @@
 #include "ui_observer_guard.h" // SubjectLifetime
 
 #include "async_lifetime_guard.h"
+#include "axis.h"
 #include "subject_managed_panel.h"
 
+#include <array>
 #include <functional>
 #include <lvgl.h>
 #include <memory>
@@ -36,23 +38,43 @@ enum class DetectState {
     UNAVAILABLE = 2,
 };
 
+/// One axis of a tool's own offset (helix::tool_offsets), with the bookkeeping
+/// the save path needs. The rules are the same on every axis, which is why
+/// this is one record rather than three sets of fields.
+struct ToolAxisOffset {
+    float mm = 0.0f;
+    /// Whether a value has ever been reported for this axis. 0.000 is a
+    /// legitimate offset, so the value alone cannot say "not known yet".
+    bool known = false;
+    /// The offset as last persisted (or as first seen, which is the config
+    /// value on a fresh connect). `mm` differing from this is what makes the
+    /// axis dirty — a runtime SET_TOOL_PARAMETER is lost on the next Klipper
+    /// restart unless it is saved.
+    float saved_mm = 0.0f;
+
+    [[nodiscard]] bool dirty() const {
+        return known && mm != saved_mm;
+    }
+};
+
 struct ToolInfo {
     int index = 0;
     std::string name = "T0";
     std::optional<std::string> extruder_name = "extruder";
     std::optional<std::string> heater_name;
     std::optional<std::string> fan_name;
-    float gcode_x_offset = 0.0f;
-    float gcode_y_offset = 0.0f;
-    float gcode_z_offset = 0.0f;
-    /// Whether gcode_z_offset has ever been reported for this tool. 0.000 is a
-    /// legitimate offset, so the value alone cannot say "not known yet".
-    bool gcode_z_offset_known = false;
-    /// The offset as last persisted (or as first seen, which is the config
-    /// value on a fresh connect). gcode_z_offset differing from this is what
-    /// makes the tool dirty — a runtime SET_TOOL_PARAMETER is lost on the next
-    /// Klipper restart unless it is saved.
-    float gcode_z_offset_saved = 0.0f;
+    /// The tool's own X/Y/Z offsets, indexed by axis_index(). Read and written
+    /// only through helix::tool_offsets — which store is authoritative is a
+    /// per-firmware question that module owns.
+    std::array<ToolAxisOffset, 3> gcode_offsets{};
+
+    [[nodiscard]] ToolAxisOffset& gcode_offset(Axis axis) {
+        return gcode_offsets[static_cast<size_t>(axis_index(axis))];
+    }
+    [[nodiscard]] const ToolAxisOffset& gcode_offset(Axis axis) const {
+        return gcode_offsets[static_cast<size_t>(axis_index(axis))];
+    }
+
     bool active = false;
     bool mounted = false;
     DetectState detect_state = DetectState::UNAVAILABLE;
@@ -225,70 +247,109 @@ class ToolState {
         return &show_tool_badge_;
     }
 
-    /// Whether this printer keeps a z-offset per toolhead (1) or a single
-    /// machine-wide one (0). Gates the tune panel's tool selector.
-    lv_subject_t* get_per_tool_z_supported_subject() {
-        return &per_tool_z_supported_;
+    // ---- Per-tool offsets (helix::tool_offsets) -----------------------------
+    //
+    // Every subject below comes in an X/Y/Z trio, registered for XML as
+    // per_tool_{x,y,z}_supported, active_tool_{x,y,z}_offset,
+    // active_tool_{x,y,z}_offset_valid and any_tool_{x,y,z}_dirty. A firmware
+    // that keeps only Z leaves the X and Y trio members at 0 forever.
+
+    /// Whether this printer keeps @p axis's offset per toolhead (1) or not (0).
+    /// Gates whether a UI may offer controls for that axis at all.
+    lv_subject_t* get_per_tool_axis_supported_subject(Axis axis) {
+        return axis_member(axis, per_tool_x_supported_, per_tool_y_supported_,
+                           per_tool_z_supported_);
     }
-    /// The active tool's own z-offset, in microns. Independent of
-    /// gcode_z_offset — a tool changer applies both.
-    lv_subject_t* get_active_tool_z_offset_subject() {
-        return &active_tool_z_offset_;
+    /// The active tool's own offset on @p axis, in microns. Independent of the
+    /// machine-wide gcode_move offset — a tool changer applies both.
+    lv_subject_t* get_active_tool_offset_subject(Axis axis) {
+        return axis_member(axis, active_tool_x_offset_, active_tool_y_offset_,
+                           active_tool_z_offset_);
     }
-    /// 1 once an offset has been reported for the active tool. Separate because
-    /// 0 microns is a legitimate offset and cannot double as "nothing known".
-    lv_subject_t* get_active_tool_z_offset_valid_subject() {
-        return &active_tool_z_offset_valid_;
+    /// 1 once an offset has been reported for the active tool on @p axis.
+    /// Separate because 0 microns is a legitimate offset and cannot double as
+    /// "nothing known".
+    lv_subject_t* get_active_tool_offset_valid_subject(Axis axis) {
+        return axis_member(axis, active_tool_x_offset_valid_, active_tool_y_offset_valid_,
+                           active_tool_z_offset_valid_);
     }
-    /// 1 when ANY tool's z-offset differs from what is persisted. Drives the
-    /// save affordance together with the machine-wide gcode_z_offset.
-    lv_subject_t* get_any_tool_z_dirty_subject() {
-        return &any_tool_z_dirty_;
+    /// 1 when ANY tool's @p axis offset differs from what is persisted. The Z
+    /// one drives the Z save affordance together with the machine-wide
+    /// gcode_z_offset.
+    lv_subject_t* get_any_tool_axis_dirty_subject(Axis axis) {
+        return axis_member(axis, any_tool_x_dirty_, any_tool_y_dirty_, any_tool_z_dirty_);
+    }
+    /// 1 when any tool's offset on ANY axis differs from what is persisted.
+    /// What a save affordance that covers all three axes binds to.
+    lv_subject_t* get_any_tool_offset_dirty_subject() {
+        return &any_tool_offset_dirty_;
     }
 
-    /// One-shot query for the per-tool z-offsets after init_tools().
+    /// One-shot query for the per-tool offsets after init_tools().
     ///
     /// The subscription alone is not enough: Moonraker sends the tool objects
     /// once in the initial snapshot, which arrives BEFORE tools_ exists (so
     /// update_from_status() drops it), and thereafter republishes only what
     /// CHANGED. Without this the selector would sit at "no value reported"
     /// until someone happened to move an offset.
-    void query_tool_z_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
+    void query_tool_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
 
-    /// Tools whose z-offset differs from what is persisted, lowest index first.
-    /// Empty when nothing needs saving.
-    [[nodiscard]] std::vector<int> dirty_tool_z_indices() const;
+    /// Tools with at least one axis whose offset differs from what is
+    /// persisted, lowest index first. Empty when nothing needs saving. Ask
+    /// tool_offset_dirty() which axes.
+    [[nodiscard]] std::vector<int> dirty_tool_indices() const;
 
-    /// A tool's current z-offset in mm, or 0 when the index is out of range or
-    /// nothing has been reported for it.
-    [[nodiscard]] float tool_z_offset_mm(int tool_index) const;
+    /// Whether @p tool_index's @p axis offset differs from what is persisted.
+    /// False when the index is out of range or nothing has been reported.
+    [[nodiscard]] bool tool_offset_dirty(int tool_index, Axis axis) const;
 
-    /// Apply a locally-issued z-offset change for @p tool_index, in microns.
+    /// A tool's current @p axis offset in mm, or 0 when the index is out of
+    /// range or nothing has been reported for it.
+    [[nodiscard]] float tool_offset_mm(int tool_index, Axis axis) const;
+
+    /// Whether a value has ever been reported for @p tool_index's @p axis.
+    /// What lets a UI tell a tool sitting at 0.000 from one it knows nothing
+    /// about — for the active tool the *_valid subjects say the same thing.
+    [[nodiscard]] bool tool_offset_known(int tool_index, Axis axis) const;
+
+    /// Apply a locally-issued offset change for @p tool_index's @p axis, in
+    /// microns.
     ///
     /// The UI writes the value here rather than poking the published subject,
-    /// so tools_ — the sole input to dirty_tool_z_indices() and
-    /// tool_z_offset_mm() — stays the single source of truth. Poking the
-    /// subject alone left the tool invisible to the save path until the
-    /// firmware echoed back, so a save in that window silently discarded it.
-    void set_tool_z_offset_local(int tool_index, int microns);
+    /// so tools_ — the sole input to dirty_tool_indices() and
+    /// tool_offset_mm() — stays the single source of truth. Poking the subject
+    /// alone left the tool invisible to the save path until the firmware
+    /// echoed back, so a save in that window silently discarded it.
+    void set_tool_offset_local(int tool_index, Axis axis, int microns);
 
-    /// Record that tool @p tool_index's current offset is now the persisted one.
-    /// Call after the save gcode has been accepted, not before — an optimistic
-    /// clear would hide a save that failed.
-    void mark_tool_z_saved(int tool_index);
+    /// Record that every axis of tool @p tool_index is now persisted as it
+    /// stands. Per tool rather than per axis because a save flushes every
+    /// dirty axis of a tool in the same SAVE_CONFIG — a Z-only save would
+    /// restart Klipper and silently drop an unsaved X. Call after the save
+    /// gcode has been accepted, not before — an optimistic clear would hide a
+    /// save that failed.
+    void mark_tool_offsets_saved(int tool_index);
 
   private:
     friend class ToolStateTestAccess;
 
-    /// Republish the active tool's z-offset subjects from tools_. Handles both
-    /// a new value arriving and the active tool changing.
-    void refresh_active_tool_z_offset();
+    /// The X, Y or Z member of a subject trio.
+    static lv_subject_t* axis_member(Axis axis, lv_subject_t& x, lv_subject_t& y, lv_subject_t& z) {
+        lv_subject_t* members[] = {&x, &y, &z};
+        return members[axis_index(axis)];
+    }
 
-    /// Recompute any_tool_z_dirty from tools_.
-    void refresh_any_tool_z_dirty();
+    /// Whether init_tools() found a per-tool offset on any axis.
+    [[nodiscard]] bool per_tool_offsets_supported() const;
+
+    /// Republish the active tool's offset subjects from tools_. Handles both
+    /// a new value arriving and the active tool changing.
+    void refresh_active_tool_offsets();
+
+    /// Recompute the four dirty subjects from tools_.
+    void refresh_any_tool_dirty();
 
     ToolState() = default;
-
 
     SubjectManager subjects_;
     /// See get_subjects_lifetime(). Created with the object and REPLACED (never
@@ -313,13 +374,23 @@ class ToolState {
     char tool_badge_text_buf_[16] = {};
     lv_subject_t show_tool_badge_{};
 
-    // Per-tool z-offset (helix::tool_offsets). Only a tool changer has one;
-    // on every other printer per_tool_z_supported_ stays 0 and the rest are
-    // never published.
+    // Per-tool offsets (helix::tool_offsets). Only a tool changer has any; on
+    // every other printer the *_supported trio stays 0 and the rest are never
+    // published. Individual members rather than arrays because INIT_SUBJECT_INT
+    // derives the XML name from the member name.
+    lv_subject_t per_tool_x_supported_{};
+    lv_subject_t per_tool_y_supported_{};
     lv_subject_t per_tool_z_supported_{};
+    lv_subject_t active_tool_x_offset_{};
+    lv_subject_t active_tool_y_offset_{};
     lv_subject_t active_tool_z_offset_{};
+    lv_subject_t active_tool_x_offset_valid_{};
+    lv_subject_t active_tool_y_offset_valid_{};
     lv_subject_t active_tool_z_offset_valid_{};
+    lv_subject_t any_tool_x_dirty_{};
+    lv_subject_t any_tool_y_dirty_{};
     lv_subject_t any_tool_z_dirty_{};
+    lv_subject_t any_tool_offset_dirty_{};
 
     std::vector<ToolInfo> tools_;
     int active_tool_index_ = 0;

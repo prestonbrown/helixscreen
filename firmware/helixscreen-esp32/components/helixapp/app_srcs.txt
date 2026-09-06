@@ -180,6 +180,7 @@ src/printer/plr_offer.cpp
 src/printer/standard_macros.cpp
 src/printer/toolchanger_addon.cpp
 src/printer/toolhead_homing.cpp
+src/printer/tool_offset_calibration.cpp
 src/printer/tool_offsets.cpp
 src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp

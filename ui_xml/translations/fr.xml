@@ -350,11 +350,14 @@
   <translation tag="Calibrate Gear" fr="Calibrer l&apos;engrenage"/>
   <translation tag="Calibrate X" fr="Calibrer X"/>
   <translation tag="Calibrate Y" fr="Calibrer Y"/>
+  <translation tag="Calibrate all tools" fr="Calibrer tous les outils"/>
   <translation tag="Calibrate and tune scroll feel" fr="Calibrer et ajuster le défilement"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" fr="Calibrer l&apos;input shaping pour réduire les artefacts d&apos;ondulation"/>
+  <translation tag="Calibrate tool offsets?" fr="Calibrer les offsets d&apos;outil ?"/>
   <translation tag="Calibrate your touchscreen for accurate input" fr="Calibrer votre écran tactile pour une saisie précise"/>
   <translation tag="Calibrated" fr="Calibré"/>
   <translation tag="Calibrating Probe..." fr="Calibration de la sonde..."/>
+  <translation tag="Calibrating T{}..." fr="Calibration de T{}..."/>
   <translation tag="Calibrating bed mesh..." fr="Calibration du maillage du plateau..."/>
   <translation tag="Calibrating {} axis..." fr="Calibration de l&apos;axe {}..."/>
   <translation tag="Calibrating..." fr="Calibration..."/>
@@ -364,8 +367,10 @@
   <translation tag="Calibration and system configuration" fr="Calibration et configuration système"/>
   <translation tag="Calibration cancelled." fr="Calibration annulée."/>
   <translation tag="Calibration complete" fr="Calibration terminée"/>
+  <translation tag="Calibration complete - save to keep the offsets" fr="Calibration terminée - enregistrez pour conserver les offsets"/>
   <translation tag="Calibration complete!" fr="Calibration terminée !"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." fr="Calibration terminée ! Appuyez sur &apos;Suivant&apos; pour continuer."/>
+  <translation tag="Calibration failed" fr="Échec de la calibration"/>
   <translation tag="Calibration failed - touch targets more precisely." fr="Échec de calibration – touchez les cibles plus précisément."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." fr="La calibration a expiré à plusieurs reprises. Vos paramètres précédents ont été conservés."/>
   <translation tag="Calibration may still be running — response timed out" fr="Calibration peut-être encore en cours — délai dépassé"/>
@@ -834,6 +839,7 @@
   <translation tag="Ethernet" fr="Ethernet"/>
   <translation tag="Events appear here after sessions and prints" fr="Les événements apparaissent ici après les sessions et impressions"/>
   <translation tag="Every extruder&apos;s temperature at once" fr="Température de chaque extrudeur"/>
+  <translation tag="Every tool&apos;s offsets are measured again and replace the current ones. Save afterwards to keep the result." fr="Les offsets de tous les outils sont mesurés à nouveau et remplacent les actuels. Enregistrez ensuite pour conserver le résultat."/>
   <translation tag="Excellent Accuracy" fr="Excellente précision"/>
   <translation tag="Exception: {}" fr="Exception : {}"/>
   <translation tag="Exclude" fr="Exclure"/>
@@ -1408,6 +1414,7 @@
   <translation tag="Make %s Optional?" fr="Rendre %s optionnel ?"/>
   <translation tag="Make Optional" fr="Rendre optionnel"/>
   <translation tag="Make bed mesh and QGL skippable" fr="Rendre le maillage du plateau et QGL ignorables"/>
+  <translation tag="Make sure every nozzle is clean." fr="Assurez-vous que toutes les buses sont propres."/>
   <translation tag="MakeID (Bluetooth)" fr="MakeID (Bluetooth)"/>
   <translation tag="Manage" fr="Gérer"/>
   <translation tag="Manage Printers" fr="Gérer les imprimantes"/>
@@ -1440,11 +1447,13 @@
   <translation tag="Maximum toolhead speed (mm/s)" fr="Vitesse maximale de la tête d&apos;outil (mm/s)"/>
   <translation tag="Measure and compare belt path frequencies" fr="Mesurer et comparer les fréquences des chemins de courroie"/>
   <translation tag="Measure belt path frequencies" fr="Mesurer les fréquences des chemins de courroie"/>
+  <translation tag="Measure every tool&apos;s XYZ offset automatically" fr="Mesure automatiquement l&apos;offset XYZ de chaque outil"/>
   <translation tag="Measured (shaper off)" fr="Mesuré (shaper désactivé)"/>
   <translation tag="Measured filament diameter" fr="Diamètre du filament mesuré"/>
   <translation tag="Measurement Failed" fr="Échec de la mesure"/>
   <translation tag="Measuring accelerometer noise..." fr="Mesure du bruit de l&apos;accéléromètre..."/>
   <translation tag="Measuring vibrations... {}%" fr="Mesure des vibrations... {}%"/>
+  <translation tag="Measuring... {}s" fr="Mesure... {}s"/>
   <translation tag="Median %.0f Hz" fr="Médiane %.0f Hz"/>
   <translation tag="Memory" fr="Mémoire"/>
   <translation tag="Memory (MB)" fr="Mémoire (Mo)"/>
@@ -1654,6 +1663,7 @@
   <translation tag="Objects" fr="Objets"/>
   <translation tag="Off" fr="Éteint"/>
   <translation tag="Off:" fr="Arrêt :"/>
+  <translation tag="Offsets saved" fr="Offsets enregistrés"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" fr="Ancien réglage sur les données du jour : {} résiduel - maintenant : {}"/>
   <translation tag="On" fr="Allumé"/>
   <translation tag="On and Off macros must be different" fr="Les macros On et Off doivent être différentes"/>
@@ -1937,6 +1947,7 @@
   <translation tag="Quad Gantry Level started..." fr="Quad Gantry Level démarré..."/>
   <translation tag="Queue: Paused" fr="File : En pause"/>
   <translation tag="Queue: Ready" fr="File : Prête"/>
+  <translation tag="Queued" fr="En attente"/>
   <translation tag="Queued {}h {}m ago" fr="Mis en file il y a {} h {} min"/>
   <translation tag="Queued {}m ago" fr="Mis en file il y a {} min"/>
   <translation tag="Quick" fr="Rapide"/>
@@ -1961,6 +1972,7 @@
   <translation tag="Ready" fr="Prêt"/>
   <translation tag="Ready for filament operations" fr="Prêt pour les opérations filament"/>
   <translation tag="Ready to Apply" fr="Prêt à appliquer"/>
+  <translation tag="Ready to calibrate" fr="Prêt à calibrer"/>
   <translation tag="Ready to pluck" fr="Prêt à pincer"/>
   <translation tag="Reason" fr="Raison"/>
   <translation tag="Reason: {}&#10;&#10;The printer cannot resume this print. Restart from the beginning?" fr="Raison : {}&#10;&#10;L&apos;imprimante ne peut pas reprendre cette impression. Recommencer depuis le début ?"/>
@@ -2114,6 +2126,7 @@
   <translation tag="Running {}..." fr="Exécution de {}..."/>
   <translation tag="Runout" fr="Fin de filament"/>
   <translation tag="Runout Sensor" fr="Capteur de fin de filament"/>
+  <translation tag="Runs the printer&apos;s tool offset calibration for every tool." fr="Lance la calibration des offsets d&apos;outil de l&apos;imprimante pour tous les outils."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." fr="SAVE_CONFIG a échoué : {}. Les décalages d&apos;outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." fr="SAVE_CONFIG a échoué : {}. Le décalage Z a été appliqué mais non enregistré. Lancez SAVE_CONFIG manuellement, sinon il sera perdu au redémarrage."/>
   <translation tag="SETTINGS" fr="PARAMÈTRES"/>
@@ -2142,6 +2155,8 @@
   <translation tag="Save Z-Offset?" fr="Enregistrer le Z-Offset ?"/>
   <translation tag="Save changes to persist them across restarts?" fr="Enregistrer les modifications pour les conserver après redémarrage ?"/>
   <translation tag="Save failed: {}" fr="Échec de l&apos;enregistrement : {}"/>
+  <translation tag="Save offsets" fr="Enregistrer les offsets"/>
+  <translation tag="Save offsets?" fr="Enregistrer les offsets ?"/>
   <translation tag="Save to Spoolman" fr="Enregistrer dans Spoolman"/>
   <translation tag="Saved Z-Offset" fr="Z-Offset enregistré"/>
   <translation tag="Saved to crash_report.txt (QR not available)" fr="Enregistré dans crash_report.txt (QR non disponible)"/>
@@ -2150,6 +2165,7 @@
   <translation tag="Saving Configuration..." fr="Enregistrement de la configuration..."/>
   <translation tag="Saving Z-offset..." fr="Enregistrement du Z-offset..."/>
   <translation tag="Saving config... Klipper will restart." fr="Enregistrement de la config... Klipper va redémarrer."/>
+  <translation tag="Saving offsets..." fr="Enregistrement des offsets..."/>
   <translation tag="Saving will restart Klipper and CANCEL any active print!" fr="L&apos;enregistrement redémarrera Klipper et ANNULERA toute impression active !"/>
   <translation tag="Scan" fr="Scanner"/>
   <translation tag="Scan Cal" fr="Cal balayage"/>
@@ -2383,6 +2399,7 @@
   <translation tag="Stop Print?" fr="Arrêter l&apos;impression ?"/>
   <translation tag="Stop failed" fr="Échec de l&apos;arrêt"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." fr="Arrêter l&apos;impression de &quot;{}&quot; ?&#10;&#10;Cette action sera irréversible après 5 secondes."/>
+  <translation tag="Stopped" fr="Arrêté"/>
   <translation tag="Stopped between Hub and Toolhead" fr="Arrêté entre le Hub et la tête d&apos;outil"/>
   <translation tag="Stopped between Lane and Hub" fr="Arrêté entre la voie et le Hub"/>
   <translation tag="Stopped between Spool and Lane" fr="Arrêté entre la bobine et la voie"/>
@@ -2527,6 +2544,7 @@
   <translation tag="This may take up to 30 seconds" fr="Cela peut prendre jusqu&apos;à 30 secondes"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." fr="Ce plugin permet à HelixScreen de contrôler les options de démarrage d&apos;impression comme le maillage du plateau et QGL. Une fois installé, utilisez Configurer PRINT_START ci-dessous pour activer les étapes optionnelles."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" fr="Cette impression nécessite environ %.0fg mais il reste environ %.0fg sur la bobine. Démarrer quand même ?"/>
+  <translation tag="This printer cannot calibrate tool offsets automatically" fr="Cette imprimante ne peut pas calibrer les offsets d&apos;outil automatiquement"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." fr="Cet outil palpe chaque vis du plateau et vous indique combien ajuster."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." fr="Cela appliquera le Z-offset à votre butée et redémarrera Klipper pour enregistrer la configuration. L&apos;imprimante se déconnectera brièvement."/>
@@ -2540,6 +2558,7 @@
   <translation tag="This will restart Klipper firmware. Any active operations will be interrupted." fr="Le firmware Klipper sera redémarré. Les opérations actives seront interrompues."/>
   <translation tag="This will restart Klipper." fr="Cela redémarrera Klipper."/>
   <translation tag="This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect." fr="Cela enregistrera le Z-offset et redémarrera Klipper pour enregistrer la configuration. L&apos;imprimante se déconnectera brièvement."/>
+  <translation tag="This writes the tool offsets to the printer&apos;s config and restarts Klipper, which takes a few seconds. Until then they apply only to this session." fr="Ceci écrit les offsets d&apos;outil dans la configuration de l&apos;imprimante et redémarre Klipper, ce qui prend quelques secondes. D&apos;ici là, ils ne s&apos;appliquent qu&apos;à cette session."/>
   <translation tag="Thorough" fr="Approfondi"/>
   <translation tag="Thumbnail Only" fr="Miniature uniquement"/>
   <translation tag="Thumbnail: " fr="Miniature : "/>
@@ -2579,9 +2598,12 @@
   <translation tag="Too soft - pluck harder" fr="Trop faible - pincez plus fort"/>
   <translation tag="Tool" fr="Outil"/>
   <translation tag="Tool Changer" fr="Changeur d&apos;outils"/>
+  <translation tag="Tool Offsets" fr="Offsets d&apos;outil"/>
   <translation tag="Tool Switcher" fr="Sélecteur d&apos;outil"/>
   <translation tag="Tool change failed: {}" fr="Échec du changement d&apos;outil : {}"/>
   <translation tag="Tool mapping failed" fr="Échec de la correspondance d&apos;outils"/>
+  <translation tag="Tool offsets (mm)" fr="Offsets d&apos;outil (mm)"/>
+  <translation tag="Tool offsets saved" fr="Offsets d&apos;outil enregistrés"/>
   <translation tag="Tool swap" fr="Changement d&apos;outil"/>
   <translation tag="Tool {} → Slot {}: no filament loaded." fr="Outil {} → Slot {} : aucun filament chargé."/>
   <translation tag="Toolhead" fr="Tête d&apos;outil"/>

@@ -924,6 +924,11 @@ void MoonrakerClientMock::populate_capabilities() {
         for (int i = 0; i < 4; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
+        // klipper-toolchanger's example config: the nozzle-contact probe and
+        // the all-in-one calibration macro it drives. The macro's presence is
+        // what makes the Tool Offsets calibration screen reachable.
+        mock_objects.push_back("tools_calibrate");
+        mock_objects.push_back("gcode_macro CALIBRATE_TOOL_OFFSETS");
     }
 
     // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-fork]): a hotend changer
@@ -3043,49 +3048,63 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         }
     }
 
-    // Per-tool z-offset - SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.05
-    // Only gcode_z_offset is modelled; the real command takes any tool
-    // parameter, but nothing else is read back anywhere in the app.
-    if (gcode.find("SET_TOOL_PARAMETER") != std::string::npos &&
-        gcode.find("PARAMETER=gcode_z_offset") != std::string::npos) {
+    // Per-tool offset - SET_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset VALUE=-0.05
+    // Only the three gcode_*_offset parameters are modelled; the real command
+    // takes any tool parameter, but nothing else is read back anywhere in the
+    // app. One parameter per command, as in the firmware.
+    if (gcode.find("SET_TOOL_PARAMETER") != std::string::npos) {
         auto t_pos = gcode.find("T=");
+        auto p_pos = gcode.find("PARAMETER=");
         auto v_pos = gcode.find("VALUE=");
-        if (t_pos != std::string::npos && v_pos != std::string::npos) {
+        if (t_pos != std::string::npos && p_pos != std::string::npos &&
+            v_pos != std::string::npos) {
             try {
-                int tool = std::stoi(gcode.substr(t_pos + 2));
-                double value = std::stod(gcode.substr(v_pos + 6));
-                {
-                    std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
-                    tool_z_offsets_[tool] = value;
+                const int tool = std::stoi(gcode.substr(t_pos + 2));
+                const std::string param =
+                    gcode.substr(p_pos + 10, gcode.find(' ', p_pos) - (p_pos + 10));
+                const double value = std::stod(gcode.substr(v_pos + 6));
+                if (auto axis = tool_offset_axis(param)) {
+                    {
+                        std::lock_guard<std::mutex> lock(tool_offsets_mutex_);
+                        tool_offsets_[tool][*axis] = value;
+                    }
+                    spdlog::info("[MoonrakerClientMock] SET_TOOL_PARAMETER T={} {}={:.3f}", tool,
+                                 param, value);
+                    dispatch_tool_update(tool, *axis);
+                } else {
+                    spdlog::debug("[MoonrakerClientMock] SET_TOOL_PARAMETER T={} {}: not modelled",
+                                  tool, param);
                 }
-                spdlog::info("[MoonrakerClientMock] SET_TOOL_PARAMETER T={} gcode_z_offset={:.3f}",
-                             tool, value);
-                dispatch_tool_update(tool);
             } catch (...) {
             }
         }
     }
 
-    // Per-tool z-offset, durable half - SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset
+    // Per-tool offset, durable half - SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset
     //
     // klipper-toolchanger's Tool.save_parameter() is configfile.set(self.name,
     // name, self.params[name]): it persists whatever the tool ALREADY holds and
     // takes no VALUE=. So this stages the current runtime value and changes
     // nothing live - the change only lands when SAVE_CONFIG writes it out.
-    if (gcode.find("SAVE_TOOL_PARAMETER") != std::string::npos &&
-        gcode.find("PARAMETER=gcode_z_offset") != std::string::npos) {
+    if (gcode.find("SAVE_TOOL_PARAMETER") != std::string::npos) {
         auto t_pos = gcode.find("T=");
-        if (t_pos != std::string::npos) {
+        auto p_pos = gcode.find("PARAMETER=");
+        if (t_pos != std::string::npos && p_pos != std::string::npos) {
             try {
-                int tool = std::stoi(gcode.substr(t_pos + 2));
-                char value[32];
-                std::snprintf(value, sizeof(value), "%.6g", tool_z_offset(tool));
-                // Section is Klipper's config section verbatim, which for
-                // [tool T1] is "tool T1" - the same key the status object uses.
-                stage_config_change("tool T" + std::to_string(tool), "gcode_z_offset", value);
-                spdlog::info("[MoonrakerClientMock] SAVE_TOOL_PARAMETER T={} gcode_z_offset={} "
-                             "- staged, awaiting SAVE_CONFIG",
-                             tool, value);
+                const int tool = std::stoi(gcode.substr(t_pos + 2));
+                const std::string param =
+                    gcode.substr(p_pos + 10, gcode.find(' ', p_pos) - (p_pos + 10));
+                if (auto axis = tool_offset_axis(param)) {
+                    char value[32];
+                    std::snprintf(value, sizeof(value), "%.6g", tool_offset(tool, *axis));
+                    // Section is Klipper's config section verbatim, which for
+                    // [tool T1] is "tool T1" - the same key the status object
+                    // uses.
+                    stage_config_change("tool T" + std::to_string(tool), param, value);
+                    spdlog::info("[MoonrakerClientMock] SAVE_TOOL_PARAMETER T={} {}={} "
+                                 "- staged, awaiting SAVE_CONFIG",
+                                 tool, param, value);
+                }
             } catch (...) {
             }
         }
@@ -5456,32 +5475,196 @@ void MoonrakerClientMock::dispatch_gcode_move_update() {
     dispatch_status_update(gcode_move);
 }
 
-void MoonrakerClientMock::dispatch_tool_update(int tool) {
+void MoonrakerClientMock::dispatch_toolchanger_tool(int tool) {
+    json update = {{"toolchanger", {{"tool_number", tool}, {"tool", "T" + std::to_string(tool)}}}};
+    dispatch_status_update(update);
+    // The mock AMS backend does not read toolchanger.tool_number (a production
+    // backend does); it follows the simulator through this hook instead, the
+    // same one a print's tool changes use. Without it ToolState's active tool
+    // never moves under --test and no row ever reads Measuring.
+    notify_active_gcode_tool_observers(tool);
+}
+
+void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, double y, double z) {
+    const double values[] = {x, y, z};
+    for (helix::Axis axis : helix::kAllAxes) {
+        const double value = values[helix::axis_index(axis)];
+        {
+            std::lock_guard<std::mutex> lock(tool_offsets_mutex_);
+            tool_offsets_[tool][axis] = value;
+        }
+        dispatch_tool_update(tool, axis);
+        char text[32];
+        std::snprintf(text, sizeof(text), "%.6g", value);
+        stage_config_change("tool T" + std::to_string(tool), tool_offset_param(axis), text);
+    }
+    spdlog::info("[MoonrakerClientMock] T{} offsets calibrated: x={:.4f} y={:.4f} z={:.4f} "
+                 "(staged, awaiting SAVE_CONFIG)",
+                 tool, x, y, z);
+}
+
+bool MoonrakerClientMock::simulate_tool_offset_calibration(
+    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
+    std::function<void(const MoonrakerError&)> error_cb) {
+    // Whole-line match: the macro takes no parameters worth modelling.
+    std::string cmd = script;
+    while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r' || cmd.back() == ' ')) {
+        cmd.pop_back();
+    }
+    if (cmd.rfind("CALIBRATE_TOOL_OFFSETS", 0) != 0) {
+        return false;
+    }
+
+    const int tool_count = static_cast<int>(discovery_.hardware().tool_names().size());
+    if (tool_count < 1) {
+        if (error_cb) {
+            MoonrakerError err;
+            err.message = "Unknown command:\"CALIBRATE_TOOL_OFFSETS\"";
+            error_cb(err);
+        }
+        return true;
+    }
+
+    int fail_tool = -1;
+    if (const char* env = std::getenv("HELIX_MOCK_TOOL_CAL_FAIL")) {
+        try {
+            fail_tool = std::stoi(env);
+        } catch (const std::exception&) {
+            fail_tool = -1;
+        }
+    }
+    spdlog::info(
+        "[MoonrakerClientMock] CALIBRATE_TOOL_OFFSETS: {} tools{}", tool_count,
+        fail_tool >= 0 ? fmt::format(", T{} will fail (HELIX_MOCK_TOOL_CAL_FAIL)", fail_tool) : "");
+
+    // Two ticks per tool - select, then measure - and a final park on T0.
+    struct CalSimState {
+        MoonrakerClientMock* mock;
+        int tool_count;
+        int fail_tool;
+        int tick = 0;
+        std::function<void(const nlohmann::json&)> success_cb;
+        std::function<void(const MoonrakerError&)> error_cb;
+    };
+    auto* sim =
+        new CalSimState{this, tool_count, fail_tool, 0, std::move(success_cb), std::move(error_cb)};
+    const int total_ticks = tool_count * 2 + 1;
+
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* s = static_cast<CalSimState*>(lv_timer_get_user_data(t));
+            const int tick = s->tick++;
+            const int tool = tick / 2;
+            const bool selecting = (tick % 2) == 0;
+
+            auto finish = [&](bool ok, const std::string& error) {
+                if (ok) {
+                    if (s->success_cb) {
+                        s->success_cb(json{{"result", "ok"}});
+                    }
+                } else {
+                    s->mock->dispatch_gcode_response("!! " + error);
+                    if (s->error_cb) {
+                        MoonrakerError err;
+                        err.message = error;
+                        s->error_cb(err);
+                    }
+                }
+                s->success_cb = nullptr;
+                s->error_cb = nullptr;
+                lv_timer_set_repeat_count(t, 0);
+            };
+
+            if (tool >= s->tool_count) {
+                // Park on the reference tool, as the macro's last SELECT_TOOL does.
+                s->mock->dispatch_gcode_response("Selected tool 0 (T0)");
+                s->mock->dispatch_toolchanger_tool(0);
+                finish(true, "");
+                return;
+            }
+            if (selecting) {
+                s->mock->dispatch_gcode_response(fmt::format("Selected tool {} (T{})", tool, tool));
+                s->mock->dispatch_toolchanger_tool(tool);
+                return;
+            }
+            // Measuring. The probe prints a contact per sample; the numbers only
+            // need to look like a nozzle near the sensor.
+            const double sensor_x = 229.0, sensor_y = 2.5, sensor_z = 1.25;
+            const double dx = 0.12 * tool, dy = -0.05 * tool, dz = -0.03 * tool;
+            for (int sample = 0; sample < 3; ++sample) {
+                s->mock->dispatch_gcode_response(
+                    fmt::format("Probe made contact at {:.6f},{:.6f},{:.6f}",
+                                sensor_x + dx + 0.001 * sample, sensor_y + dy, sensor_z + dz));
+            }
+            if (tool == s->fail_tool) {
+                finish(false, "Probe samples exceed samples_tolerance");
+                return;
+            }
+            if (tool == 0) {
+                s->mock->dispatch_gcode_response(fmt::format(
+                    "Sensor location at {:.6f},{:.6f},{:.6f}", sensor_x, sensor_y, sensor_z));
+                return;
+            }
+            s->mock->dispatch_gcode_response(
+                fmt::format("Tool offset is {:.6f},{:.6f},{:.6f}", dx, dy, dz));
+            s->mock->apply_calibrated_tool_offset(tool, dx, dy, dz);
+        },
+        600, sim);
+    lv_timer_set_repeat_count(timer, total_ticks);
+    calibration_timers_.push_back({timer, [sim] { delete sim; }});
+    return true;
+}
+
+void MoonrakerClientMock::dispatch_tool_update(int tool, helix::Axis axis) {
     double value = 0.0;
     {
-        std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
-        auto it = tool_z_offsets_.find(tool);
-        if (it == tool_z_offsets_.end()) {
+        std::lock_guard<std::mutex> lock(tool_offsets_mutex_);
+        auto tool_it = tool_offsets_.find(tool);
+        if (tool_it == tool_offsets_.end()) {
             return;
         }
-        value = it->second;
+        auto axis_it = tool_it->second.find(axis);
+        if (axis_it == tool_it->second.end()) {
+            return;
+        }
+        value = axis_it->second;
     }
     // Only the field that changed, matching Moonraker: it republishes just the
     // deltas, and code that assumes a full object here is code that would break
     // against a real printer.
-    json update = {{"tool T" + std::to_string(tool), {{"gcode_z_offset", value}}}};
+    json update = {{"tool T" + std::to_string(tool), {{tool_offset_param(axis), value}}}};
     dispatch_status_update(update);
 }
 
-double MoonrakerClientMock::tool_z_offset(int tool) const {
-    std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
-    auto it = tool_z_offsets_.find(tool);
-    if (it != tool_z_offsets_.end()) {
-        return it->second;
+const char* MoonrakerClientMock::tool_offset_param(helix::Axis axis) {
+    static constexpr const char* names[] = {"gcode_x_offset", "gcode_y_offset", "gcode_z_offset"};
+    return names[helix::axis_index(axis)];
+}
+
+std::optional<helix::Axis> MoonrakerClientMock::tool_offset_axis(const std::string& param) {
+    for (helix::Axis axis : helix::kAllAxes) {
+        if (param == tool_offset_param(axis)) {
+            return axis;
+        }
     }
-    // Distinct per-tool seed. All-zero would make "every tool shows the same
-    // number" — the characteristic per-tool display bug — look correct.
-    return -0.025 * tool;
+    return std::nullopt;
+}
+
+double MoonrakerClientMock::tool_offset(int tool, helix::Axis axis) const {
+    std::lock_guard<std::mutex> lock(tool_offsets_mutex_);
+    auto tool_it = tool_offsets_.find(tool);
+    if (tool_it != tool_offsets_.end()) {
+        auto axis_it = tool_it->second.find(axis);
+        if (axis_it != tool_it->second.end()) {
+            return axis_it->second;
+        }
+    }
+    // Distinct per-tool AND per-axis seed. All-zero would make "every tool
+    // shows the same number" — the characteristic per-tool display bug — look
+    // correct, and equal X/Y/Z would hide an axis mix-up the same way. T0 is
+    // the reference tool and sits at zero on every axis.
+    static constexpr double seed_per_tool[] = {0.100, -0.050, -0.025};
+    return seed_per_tool[helix::axis_index(axis)] * tool;
 }
 
 bool MoonrakerClientMock::save_config_pending() const {
@@ -5527,15 +5710,17 @@ void MoonrakerClientMock::commit_pending_config() {
         if (section.rfind("tool T", 0) != 0) {
             continue;
         }
-        auto opt = options.find("gcode_z_offset");
-        if (opt == options.end()) {
-            continue;
-        }
-        try {
-            int tool = std::stoi(section.substr(6));
-            std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
-            tool_z_offsets_saved_[tool] = std::stod(opt->second);
-        } catch (...) {
+        for (const auto& [option, value] : options) {
+            auto axis = tool_offset_axis(option);
+            if (!axis) {
+                continue;
+            }
+            try {
+                int tool = std::stoi(section.substr(6));
+                std::lock_guard<std::mutex> lock(tool_offsets_mutex_);
+                tool_offsets_saved_[tool][*axis] = std::stod(value);
+            } catch (...) {
+            }
         }
     }
     spdlog::info("[MoonrakerClientMock] SAVE_CONFIG committed {} pending section(s)",
@@ -6005,13 +6190,13 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
     // Reset PRINT_START simulation phase
     simulated_print_start_phase_.store(static_cast<uint8_t>(SimulatedPrintStartPhase::NONE));
 
-    // Per-tool z-offsets come back from printer.cfg, so anything SET_TOOL_PARAMETER
+    // Per-tool offsets come back from printer.cfg, so anything SET_TOOL_PARAMETER
     // wrote but SAVE_TOOL_PARAMETER + SAVE_CONFIG never committed is lost here -
-    // as on a real printer. Tools with no saved entry fall back to the distinct
-    // seed in tool_z_offset().
+    // as on a real printer. Axes with no saved entry fall back to the distinct
+    // seed in tool_offset().
     {
-        std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
-        tool_z_offsets_ = tool_z_offsets_saved_;
+        std::lock_guard<std::mutex> lock(tool_offsets_mutex_);
+        tool_offsets_ = tool_offsets_saved_;
     }
 
     // Dispatch klippy state change notification

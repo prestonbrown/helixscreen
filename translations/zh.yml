@@ -353,11 +353,14 @@ translations:
   Calibrate Gear: '校准齿轮'
   Calibrate X: 校准 X 轴
   Calibrate Y: 校准 Y 轴
+  Calibrate all tools: 校准所有工具
   Calibrate and tune scroll feel: "校准并调整滚动手感"
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
+  Calibrate tool offsets?: 校准工具偏移？
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
   Calibrated: 已校准
   Calibrating Probe...: 正在校准探针...
+  Calibrating T{}...: 正在校准 T{}...
   Calibrating bed mesh...: 正在校准热床网格...
   Calibrating {} axis...: '正在校准 {} 轴...'
   Calibrating...: 正在校准...
@@ -367,8 +370,10 @@ translations:
   Calibration and system configuration: '校准与系统配置'
   Calibration cancelled.: 校准已取消。
   Calibration complete: 校准完成
+  Calibration complete - save to keep the offsets: 校准完成 - 保存以保留偏移
   Calibration complete!: 校准完成！
   Calibration complete! Press 'Next' to continue.: 校准完成！按“下一步”继续。
+  Calibration failed: 校准失败
   Calibration failed - touch targets more precisely.: 校准失败 – 请更精确地触摸目标。
   Calibration kept timing out. Your previous settings were kept.: 校准反复超时，已保留您之前的设置。
   Calibration may still be running — response timed out: 校准可能仍在运行 — 响应超时
@@ -845,6 +850,7 @@ translations:
   Ethernet: 以太网
   Events appear here after sessions and prints: 会话和打印后事件将显示在此处
   Every extruder's temperature at once: 同时查看所有挤出机温度
+  Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: 所有工具的偏移将重新测量并替换当前值。之后请保存以保留结果。
   Excellent Accuracy: 精度极佳
   'Exception: {}': '异常: {}'
   Exclude: 排除
@@ -1442,6 +1448,7 @@ translations:
   Make %s Optional?: 将 %s 设为可选？
   Make Optional: 设为可选
   Make bed mesh and QGL skippable: 使热床网格和 QGL 可跳过
+  Make sure every nozzle is clean.: 请确保所有喷嘴都干净。
   MakeID (Bluetooth): MakeID（蓝牙）
   Manage: 管理
   Manage Printers: 管理打印机
@@ -1474,11 +1481,13 @@ translations:
   Maximum toolhead speed (mm/s): 打印头最大速度 (mm/s)
   Measure and compare belt path frequencies: 测量和比较皮带路径频率
   Measure belt path frequencies: 测量皮带路径频率
+  Measure every tool's XYZ offset automatically: 自动测量每个工具的 XYZ 偏移
   Measured (shaper off): 实测（关闭整形）
   Measured filament diameter: 测量的耗材直径
   Measurement Failed: 测量失败
   Measuring accelerometer noise...: '正在测量加速度计噪声...'
   Measuring vibrations... {}%: '正在测量振动... {}%'
+  Measuring... {}s: 测量中... {}秒
   Median %.0f Hz: 中值 %.0f Hz
   Memory: 内存
   Memory (MB): 内存 (MB)
@@ -1695,6 +1704,7 @@ translations:
   Objects: 对象
   'Off': 关
   'Off:': '关:'
+  Offsets saved: 偏移已保存
   "Old setting on today's data: {} residual - now: {}": 旧设置（今日数据）：残余 {} — 当前：{}
   'On': 开
   On and Off macros must be different: 开和关的宏必须不同
@@ -1989,6 +1999,7 @@ translations:
   Quad Gantry Level started...: QGL 已开始...
   'Queue: Paused': '队列：已暂停'
   'Queue: Ready': 队列：就绪
+  Queued: 排队中
   Queued {}h {}m ago: '{} 小时 {} 分钟前加入队列'
   Queued {}m ago: '{} 分钟前加入队列'
   Quick: 快速
@@ -2013,6 +2024,7 @@ translations:
   Ready: 就绪
   Ready for filament operations: 可进行耗材操作
   Ready to Apply: 准备应用
+  Ready to calibrate: 准备校准
   Ready to pluck: 准备拨动
   Reason: 原因
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
@@ -2168,6 +2180,7 @@ translations:
   Running {}...: 正在运行 {}...
   Runout: '用尽'
   Runout Sensor: 断料传感器
+  Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'SAVE_CONFIG 失败：{}。Z 偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后偏移将丢失。'
@@ -2199,6 +2212,8 @@ translations:
   Save Z-Offset?: 保存 Z 偏移？
   Save changes to persist them across restarts?: 保存更改以便在重启后保留？
   'Save failed: {}': '保存失败: {}'
+  Save offsets: 保存偏移
+  Save offsets?: 保存偏移？
   Save to Spoolman: 保存到 Spoolman
   Saved Z-Offset: 已保存 Z 偏移
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
@@ -2207,6 +2222,7 @@ translations:
   Saving Configuration...: 正在保存配置...
   Saving Z-offset...: 正在保存 Z 偏移...
   Saving config... Klipper will restart.: 正在保存配置... Klipper 将重启。
+  Saving offsets...: 正在保存偏移...
   Saving will restart Klipper and CANCEL any active print!: 保存将重启 Klipper 并取消任何正在进行的打印！
   Scan: 扫描
   Scan Cal: 扫描校准
@@ -2446,6 +2462,7 @@ translations:
   Stop failed: 停止失败
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "停止打印 \"{}\"？\n\n5秒后将无法撤销。"
+  Stopped: 已停止
   Stopped between Hub and Toolhead: 停在集线器与工具头之间
   Stopped between Lane and Hub: 停在槽位与集线器之间
   Stopped between Spool and Lane: 停在料盘与槽位之间
@@ -2610,6 +2627,7 @@ translations:
   : 此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。安装后，使用下面的配置 PRINT_START 启用可选步骤。
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: 本次打印需要约
     %.0fg，但料盘仅剩约 %.0fg。仍要开始吗？
+  This printer cannot calibrate tool offsets automatically: 此打印机无法自动校准工具偏移
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
@@ -2631,6 +2649,8 @@ translations:
   This will restart Klipper firmware. Any active operations will be interrupted.: 将重启Klipper固件。所有正在进行的操作将被中断。
   This will restart Klipper.: 这将重启 Klipper。
   This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: 这将保存 Z 偏移并重启 Klipper 以写入配置。打印机将短暂断开连接。
+  ? This writes the tool offsets to the printer's config and restarts Klipper, which takes a few seconds. Until then they apply only to this session.
+  : 这会将工具偏移写入打印机配置并重启 Klipper，需要几秒钟。在此之前，它们仅在本次会话中生效。
   Thorough: 全面
   Thumbnail Only: 仅缩略图
   'Thumbnail: ': '缩略图: '
@@ -2670,9 +2690,12 @@ translations:
   Too soft - pluck harder: 力度太轻 - 请用力拨动
   Tool: 工具
   Tool Changer: 换刀器
+  Tool Offsets: 工具偏移
   Tool Switcher: '工具切换器'
   'Tool change failed: {}': '工具切换失败: {}'
   Tool mapping failed: 工具映射失败
+  Tool offsets (mm): 工具偏移 (mm)
+  Tool offsets saved: 工具偏移已保存
   Tool swap: 工具切换
   'Tool {} → Slot {}: no filament loaded.': '工具 {} → 槽位 {}: 未加载耗材。'
   Toolhead: '工具头'

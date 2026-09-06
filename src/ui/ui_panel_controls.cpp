@@ -14,6 +14,7 @@
 #include "ui_notification.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_bed_mesh.h"
+#include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_motion.h"
 #include "ui_panel_screws_tilt.h"
@@ -252,6 +253,7 @@ void ControlsPanel::init_subjects() {
         // Calibration button event callbacks (direct buttons in card, no modal)
         {"on_calibration_bed_mesh", on_calibration_bed_mesh},
         {"on_calibration_zoffset", on_calibration_zoffset},
+        {"on_calibration_tool_offsets", on_calibration_tool_offsets},
         {"on_calibration_screws", on_calibration_screws},
         {"on_calibration_motors", on_calibration_motors},
 
@@ -1092,7 +1094,8 @@ void ControlsPanel::handle_save_z_offset() {
     // machine-wide offset here would refuse the save on exactly the case the
     // button is now shown for: a tool adjusted while the global stayed 0.
     const bool tools_dirty =
-        lv_subject_get_int(helix::ToolState::instance().get_any_tool_z_dirty_subject()) == 1;
+        lv_subject_get_int(
+            helix::ToolState::instance().get_any_tool_axis_dirty_subject(helix::Axis::Z)) == 1;
     if (offset_microns == 0 && !tools_dirty) {
         spdlog::debug("[{}] No Z-offset adjustment to save", get_name());
         return;
@@ -1710,6 +1713,16 @@ void ControlsPanel::handle_calibration_bed_mesh() {
         get_global_bed_mesh_panel, bed_mesh_panel_, parent_screen_, "Bed Mesh", get_name(), true);
 }
 
+void ControlsPanel::handle_calibration_tool_offsets() {
+#if defined(HELIX_PLATFORM_ESP32)
+    helix::ui::show_feature_unavailable_toast();
+    return;
+#endif
+    helix::ui::lazy_create_and_push_overlay<helix::ui::ToolOffsetCalibrationPanel>(
+        helix::ui::get_global_tool_offset_cal_panel, tool_offset_panel_, parent_screen_,
+        "Tool Offset Calibration", get_name());
+}
+
 void ControlsPanel::handle_calibration_zoffset() {
 #if defined(HELIX_PLATFORM_ESP32)
     helix::ui::show_feature_unavailable_toast();
@@ -1758,6 +1771,7 @@ PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, chamber_target_edit)
 
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_bed_mesh)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_zoffset)
+PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_tool_offsets)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_screws)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_motors)
 

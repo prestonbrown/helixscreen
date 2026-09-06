@@ -12,22 +12,25 @@
 namespace helix::tool_offsets {
 namespace {
 
-/// One firmware's per-tool z-offset model.
+/// One firmware's per-tool offset model.
 struct Provider {
     const char* name;
     /// Whether this printer uses this model.
     bool (*detect)(const PrinterDiscovery& hw);
+    /// Which axes this model keeps. A false here makes read/set/save answer
+    /// nothing for that axis, so a caller can loop kAllAxes blindly.
+    bool (*supports_axis)(Axis axis);
     /// Status objects beyond what the tool-changer subscription already asks
     /// for. Takes the printer because an object's name can depend on how the
     /// config spells it.
     std::vector<std::string> (*status_objects)(const PrinterDiscovery& hw);
-    /// Pull one tool's offset, in microns, out of a status frame.
-    std::optional<int> (*read)(const nlohmann::json& status, int tool_index,
+    /// Pull one axis of one tool's offset, in microns, out of a status frame.
+    std::optional<int> (*read)(const nlohmann::json& status, Axis axis, int tool_index,
                                const std::string& tool_name);
     /// Runtime write - takes effect now, not persisted.
-    std::string (*set_gcode)(const PrinterDiscovery& hw, int tool_index, int microns);
+    std::string (*set_gcode)(const PrinterDiscovery& hw, Axis axis, int tool_index, int microns);
     /// Durable write. Self-sufficient and idempotent after set_gcode().
-    std::string (*save_gcode)(const PrinterDiscovery& hw, int tool_index, int microns);
+    std::string (*save_gcode)(const PrinterDiscovery& hw, Axis axis, int tool_index, int microns);
     /// Whether save_gcode() only stages the change, awaiting SAVE_CONFIG.
     bool persist_needs_save_config;
     /// Whether this provider's store appears in the frame at all, regardless of
@@ -79,7 +82,7 @@ bool iequals(const std::string& a, const std::string& b) {
 /// `[gcode_macro Tool_Offset]` publishes "gcode_macro Tool_Offset" while the
 /// command it registers is the uppercased alias TOOL_OFFSET. Elsewhere we ask
 /// PrinterDiscovery::macro_config_name() for the real spelling, but the read
-/// path deliberately has no PrinterDiscovery (see read_tool_z_microns), so it
+/// path deliberately has no PrinterDiscovery (see read_tool_offset_microns), so it
 /// falls back to a scan.
 ///
 /// The scan is unambiguous: two sections differing only in case would register
@@ -124,7 +127,7 @@ bool detect_tool_offset_macro(const PrinterDiscovery& hw) {
     // for a hand-written macro on a single-extruder machine, and matching on it
     // alone put the tool selector on such a printer and pointed its buttons at
     // `t0_off_z` in a macro that has no such variable and a [save_variables]
-    // section that need not exist. supports_per_tool_z() promises false on
+    // section that need not exist. supports_per_tool_offsets() promises false on
     // every single-toolhead printer; this is what keeps that promise.
     return hw.has_macro("TOOL_OFFSET") && hw.tool_names().size() > 1;
 }
@@ -142,8 +145,23 @@ std::vector<std::string> status_objects_tool_offset_macro(const PrinterDiscovery
     return {"gcode_macro " + name};
 }
 
-std::optional<int> read_tool_offset_macro(const nlohmann::json& status, int tool_index,
+// Z only - NOT because the machine cannot do X/Y. This row was written by
+// someone unfamiliar with MedusaHC, from its Z variables alone
+// (t<n>_off_z / t<n>_gcode_z_offset); its docs say the durable store holds
+// t<n>_gcode_{x,y,z}_offset, so an X/Y pair very likely exists in the same
+// shape. Nobody has yet checked the runtime variable names against a machine,
+// and a guessed name would write a value nothing reads. Extending this to X/Y
+// is a matter of confirming those names and flipping this predicate; nothing
+// else in the row is Z-specific by design.
+bool supports_axis_tool_offset_macro(Axis axis) {
+    return axis == Axis::Z;
+}
+
+std::optional<int> read_tool_offset_macro(const nlohmann::json& status, Axis axis, int tool_index,
                                           const std::string& /*tool_name*/) {
+    if (!supports_axis_tool_offset_macro(axis)) {
+        return std::nullopt;
+    }
     const nlohmann::json* macro = status_macro(status, "TOOL_OFFSET");
     if (!macro || tool_index < 0) {
         return std::nullopt;
@@ -155,7 +173,11 @@ std::optional<int> read_tool_offset_macro(const nlohmann::json& status, int tool
     return to_microns(*it);
 }
 
-std::string set_tool_offset_macro(const PrinterDiscovery& hw, int tool_index, int microns) {
+std::string set_tool_offset_macro(const PrinterDiscovery& hw, Axis axis, int tool_index,
+                                  int microns) {
+    if (!supports_axis_tool_offset_macro(axis)) {
+        return {};
+    }
     // MACRO= is a mux key registered on the CONFIG-case name, not the alias
     // (klippy/extras/gcode_macro.py registers `name`, not `self.alias`), so a
     // capitalised MACRO= is rejected outright on a `[gcode_macro Tool_Offset]`
@@ -168,11 +190,12 @@ std::string set_tool_offset_macro(const PrinterDiscovery& hw, int tool_index, in
            "_off_z VALUE=" + mm_literal(microns);
 }
 
-std::string save_tool_offset_macro(const PrinterDiscovery& hw, int tool_index, int microns) {
+std::string save_tool_offset_macro(const PrinterDiscovery& hw, Axis axis, int tool_index,
+                                   int microns) {
     // Both stores, so the save stands alone: SAVE_VARIABLE is the durable copy,
     // the macro variable is what the machine actually prints with. SAVE_VARIABLE
     // lands immediately - no SAVE_CONFIG, no restart.
-    const std::string runtime = set_tool_offset_macro(hw, tool_index, microns);
+    const std::string runtime = set_tool_offset_macro(hw, axis, tool_index, microns);
     if (runtime.empty()) {
         // No macro to write the runtime half into. Persisting alone would leave
         // the durable store and the value the machine prints with disagreeing
@@ -186,7 +209,7 @@ std::string save_tool_offset_macro(const PrinterDiscovery& hw, int tool_index, i
 // --- viesturz/klipper-toolchanger -------------------------------------------
 //
 // Each `tool T<n>` object publishes gcode_x/y/z_offset, and ToolGcodeTransform
-// adds them to every move:
+// adds all three to every move:
 //
 //     transformed_pos = [newpos[0] + self.tool.gcode_x_offset,
 //                        newpos[1] + self.tool.gcode_y_offset,
@@ -194,8 +217,11 @@ std::string save_tool_offset_macro(const PrinterDiscovery& hw, int tool_index, i
 //
 // Because the transform reads the attribute per move, SET_TOOL_PARAMETER takes
 // effect on the next move - no re-select needed and no gcode_move involvement.
-// SAVE_TOOL_PARAMETER goes through configfile.set(), i.e. a pending config
-// change awaiting SAVE_CONFIG.
+// It is absolute and one parameter per command, so X, Y and Z are three
+// separate writes. SAVE_TOOL_PARAMETER goes through configfile.set(), i.e. a
+// pending config change awaiting SAVE_CONFIG, and persists whatever the tool
+// currently holds - it must follow a SET_TOOL_PARAMETER for the same name in
+// the same Klipper session or the firmware rejects it.
 //
 // Only the offset model from the 2025.12 gcode-transform rework is supported.
 // Older builds folded tool offsets into the user's gcode_move offset, where a
@@ -209,7 +235,17 @@ bool detect_toolchanger(const PrinterDiscovery& hw) {
     return hw.has_tool_changer();
 }
 
-std::optional<int> read_toolchanger(const nlohmann::json& status, int /*tool_index*/,
+bool supports_axis_toolchanger(Axis /*axis*/) {
+    return true;
+}
+
+/// The tool parameter (and status field - they are the same name) for an axis.
+const char* toolchanger_param(Axis axis) {
+    static constexpr const char* names[] = {"gcode_x_offset", "gcode_y_offset", "gcode_z_offset"};
+    return names[axis_index(axis)];
+}
+
+std::optional<int> read_toolchanger(const nlohmann::json& status, Axis axis, int /*tool_index*/,
                                     const std::string& tool_name) {
     if (tool_name.empty()) {
         return std::nullopt;
@@ -218,7 +254,7 @@ std::optional<int> read_toolchanger(const nlohmann::json& status, int /*tool_ind
     if (!tool) {
         return std::nullopt;
     }
-    auto it = tool->find("gcode_z_offset");
+    auto it = tool->find(toolchanger_param(axis));
     if (it == tool->end()) {
         return std::nullopt;
     }
@@ -229,17 +265,19 @@ std::vector<std::string> status_objects_none(const PrinterDiscovery& /*hw*/) {
     return {};
 }
 
-std::string set_toolchanger(const PrinterDiscovery& /*hw*/, int tool_index, int microns) {
+std::string set_toolchanger(const PrinterDiscovery& /*hw*/, Axis axis, int tool_index,
+                            int microns) {
     return "SET_TOOL_PARAMETER T=" + std::to_string(tool_index) +
-           " PARAMETER=gcode_z_offset VALUE=" + mm_literal(microns);
+           " PARAMETER=" + toolchanger_param(axis) + " VALUE=" + mm_literal(microns);
 }
 
-std::string save_toolchanger(const PrinterDiscovery& hw, int tool_index, int microns) {
+std::string save_toolchanger(const PrinterDiscovery& hw, Axis axis, int tool_index, int microns) {
     // SAVE_TOOL_PARAMETER persists whatever the tool currently holds, so set the
     // value first and the pair is both self-sufficient and idempotent after a
-    // set_tool_z_gcode() with the same value.
-    return set_toolchanger(hw, tool_index, microns) +
-           "\nSAVE_TOOL_PARAMETER T=" + std::to_string(tool_index) + " PARAMETER=gcode_z_offset";
+    // set_tool_offset_gcode() with the same value.
+    return set_toolchanger(hw, axis, tool_index, microns) +
+           "\nSAVE_TOOL_PARAMETER T=" + std::to_string(tool_index) +
+           " PARAMETER=" + toolchanger_param(axis);
 }
 
 const std::vector<Provider>& providers() {
@@ -247,11 +285,12 @@ const std::vector<Provider>& providers() {
     // FIRST: it is a klipper-toolchanger printer too, so it matches both rows,
     // and the second one would write a store its macros never read.
     static const std::vector<Provider> table = {
-        {"TOOL_OFFSET macro", &detect_tool_offset_macro, &status_objects_tool_offset_macro,
-         &read_tool_offset_macro, &set_tool_offset_macro, &save_tool_offset_macro, false,
-         &tool_offset_macro_present},
-        {"klipper-toolchanger", &detect_toolchanger, &status_objects_none, &read_toolchanger,
-         &set_toolchanger, &save_toolchanger, true, nullptr},
+        {"TOOL_OFFSET macro", &detect_tool_offset_macro, &supports_axis_tool_offset_macro,
+         &status_objects_tool_offset_macro, &read_tool_offset_macro, &set_tool_offset_macro,
+         &save_tool_offset_macro, false, &tool_offset_macro_present},
+        {"klipper-toolchanger", &detect_toolchanger, &supports_axis_toolchanger,
+         &status_objects_none, &read_toolchanger, &set_toolchanger, &save_toolchanger, true,
+         nullptr},
     };
     return table;
 }
@@ -267,8 +306,13 @@ const Provider* match(const PrinterDiscovery& hw) {
 
 } // namespace
 
-bool supports_per_tool_z(const PrinterDiscovery& hw) {
+bool supports_per_tool_offsets(const PrinterDiscovery& hw) {
     return match(hw) != nullptr;
+}
+
+bool supports_axis(const PrinterDiscovery& hw, Axis axis) {
+    const Provider* p = match(hw);
+    return p != nullptr && p->supports_axis(axis);
 }
 
 std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
@@ -278,8 +322,8 @@ std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
     return {};
 }
 
-std::optional<int> read_tool_z_microns(const nlohmann::json& status, int tool_index,
-                                       const std::string& tool_name) {
+std::optional<int> read_tool_offset_microns(const nlohmann::json& status, Axis axis, int tool_index,
+                                            const std::string& tool_name) {
     // Read by schema rather than by detected firmware, because this runs on the
     // status path, which has no PrinterDiscovery to hand.
     //
@@ -294,7 +338,7 @@ std::optional<int> read_tool_z_microns(const nlohmann::json& status, int tool_in
     // row's store is present in the frame AT ALL — absent is "no news", not
     // "ask someone else".
     for (const auto& p : providers()) {
-        if (auto microns = p.read(status, tool_index, tool_name)) {
+        if (auto microns = p.read(status, axis, tool_index, tool_name)) {
             return microns;
         }
         if (p.store_present && p.store_present(status)) {
@@ -306,20 +350,22 @@ std::optional<int> read_tool_z_microns(const nlohmann::json& status, int tool_in
     return std::nullopt;
 }
 
-std::string set_tool_z_gcode(const PrinterDiscovery& hw, int tool_index, int microns) {
+std::string set_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index,
+                                  int microns) {
     const Provider* p = match(hw);
-    if (!p || tool_index < 0) {
+    if (!p || !p->supports_axis(axis) || tool_index < 0) {
         return {};
     }
-    return p->set_gcode(hw, tool_index, microns);
+    return p->set_gcode(hw, axis, tool_index, microns);
 }
 
-std::string save_tool_z_gcode(const PrinterDiscovery& hw, int tool_index, int microns) {
+std::string save_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index,
+                                   int microns) {
     const Provider* p = match(hw);
-    if (!p || tool_index < 0) {
+    if (!p || !p->supports_axis(axis) || tool_index < 0) {
         return {};
     }
-    return p->save_gcode(hw, tool_index, microns);
+    return p->save_gcode(hw, axis, tool_index, microns);
 }
 
 bool persist_requires_save_config(const PrinterDiscovery& hw) {
