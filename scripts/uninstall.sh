@@ -610,13 +610,12 @@ print_post_install_commands() {
 # HELIX_STATE_VAR_LIB in common.sh). Production leaves them unset.
 #
 # THE BOTH-PLACES RULE: a mod tree location appears in this file TWICE, in the
-# probe candidate lists right here (env-overridable, marker-gated) AND in the
-# hard-coded canonical literals inside host_path_is_mod_owned below (not
-# overridable, marker-free). The two shapes are deliberate: the probe may be
-# redirected or miss a half-uninstalled marker, while ownership of the
-# namespace must not depend on either. Adding a new mod location means adding
-# it to BOTH lists -- one without the other is either a path the guard does
-# not recognize or a path the probe can never find.
+# probe candidate lists right here (env-overridable, marker-gated) AND in
+# HOST_CANONICAL_MOD_ROOTS below (not overridable, marker-free). The two shapes
+# are deliberate: the probe may be redirected or miss a half-uninstalled marker,
+# while ownership of the namespace must not depend on either. Adding a new mod
+# location means adding it to BOTH lists -- one without the other is either a
+# path the guard does not recognize or a path the probe can never find.
 # Blank at source time on purpose: this variable is the ONE switch that arms
 # the mod-owned destruct exemption (host_mod_destruct_blocked below), so it
 # must never be inherited from the environment - a stale HELIX_MOD_PAYLOAD=1
@@ -744,37 +743,73 @@ host_profile_probe() {
     fi
 }
 
+# Canonicalize a path for comparison: symlinks resolved, or the input unchanged
+# when nothing on the host can resolve it.
+#
+# realpath first, then readlink -f: BusyBox (K2/AD5M) ships readlink without -f,
+# and some minimal images carry no realpath at all. The `|| out=""` on each
+# substitution is required under set -e - a missing tool exits 127, which would
+# abort the installer before the next fallback runs.
+host_canonical_path() {
+    [ -n "$1" ] || return 1
+    local out
+    out=$(realpath "$1" 2>/dev/null) || out=""
+    [ -n "$out" ] || out=$(readlink -f "$1" 2>/dev/null) || out=""
+    [ -n "$out" ] || out="$1"
+    printf '%s\n' "$out"
+}
+
+# True when $1 sits at or under $2. Both sides are compared as written and as
+# resolved, because resolving only one of them silently fails wherever the root
+# is reached through a symlink: macOS resolves /var to /private/var, so a
+# candidate under a temp root stops matching that root and this gate - which
+# refuses operations on a mod-owned tree - fails OPEN.
+host_path_under() {
+    [ -n "$2" ] || return 1
+    local cand_raw="$1" root_raw="$2" cand_canon root_canon
+    case "$cand_raw" in
+        "$root_raw"|"$root_raw"/*) return 0 ;;
+    esac
+    cand_canon=$(host_canonical_path "$cand_raw")
+    root_canon=$(host_canonical_path "$root_raw")
+    case "$cand_canon" in
+        "$root_canon"|"$root_canon"/*) return 0 ;;
+    esac
+    return 1
+}
+
+# The canonical mod namespaces, hard-coded like HELIX_INSTALL_DIRS: these trees
+# are the mod's whether or not a probe found them. The probe's marker
+# (.shell/platform.sh) is refactorable, and a half-uninstall can remove it while
+# the payload still sits in the tree — recognition must not depend on it, so
+# unlike the probe's candidate lists this one is deliberately not overridable.
+# Space-separated because host_path_is_mod_owned iterates it with word
+# splitting; no entry may contain a space or a glob character.
+HOST_CANONICAL_MOD_ROOTS="/usr/data/.mod /data/.mod /usr/data/config/mod /opt/config/mod"
+
 # True when path (symlinks resolved) is managed by the mod: the probed tree,
 # the probed chroot, or one of the canonical mod roots. Never mv, rm, or chmod
 # these outside --mod-payload's in-place contract.
 host_path_is_mod_owned() {
     [ -n "$1" ] || return 1
-    local p
-    p=$(readlink -f "$1" 2>/dev/null) || p="$1"
+    local p="$1" root
     # Each probed root matches only when the probe found one — an empty
     # "$HOST_MOD_ROOT"/* pattern degenerates to /* and would claim every
     # absolute path on a host with no mod.
-    if [ -n "$HOST_MOD_ROOT" ]; then
-        case "$p" in
-            "$HOST_MOD_ROOT"|"$HOST_MOD_ROOT"/*) return 0 ;;
-        esac
+    if [ -n "$HOST_MOD_ROOT" ] && host_path_under "$p" "$HOST_MOD_ROOT"; then
+        return 0
     fi
-    if [ -n "$HOST_MOD_CHROOT" ]; then
-        case "$p" in
-            "$HOST_MOD_CHROOT"|"$HOST_MOD_CHROOT"/*) return 0 ;;
-        esac
+    if [ -n "$HOST_MOD_CHROOT" ] && host_path_under "$p" "$HOST_MOD_CHROOT"; then
+        return 0
     fi
-    # The canonical roots are hard-coded, like HELIX_INSTALL_DIRS: those
-    # namespaces are the mod's whether or not a probe found them. The probe's
-    # marker (.shell/platform.sh) is refactorable, and a half-uninstall can
-    # remove it while the payload still sits in the tree — recognition must
-    # not depend on it.
-    case "$p" in
-        /usr/data/.mod|/usr/data/.mod/*)                 return 0 ;;
-        /data/.mod|/data/.mod/*)                         return 0 ;;
-        /usr/data/config/mod|/usr/data/config/mod/*)     return 0 ;;
-        /opt/config/mod|/opt/config/mod/*)               return 0 ;;
-    esac
+    # The canonical roots take the same symlink-aware comparison as the probed
+    # ones: a rig reaching /usr/data through a link on its data partition
+    # spells the same tree two ways, and matching the literal alone answers
+    # "not mod-owned" for one of them.
+    # shellcheck disable=SC2086  # word splitting is how the list is consumed
+    for root in $HOST_CANONICAL_MOD_ROOTS; do
+        host_path_under "$p" "$root" && return 0
+    done
     return 1
 }
 

@@ -1001,15 +1001,11 @@ use_local_tarball() {
     dest=$(_archive_tmp_path)
     if [ "$src" != "$dest" ]; then
         # Resolve to absolute path so a symlink created in $TMP_DIR doesn't
-        # become dangling if the user passed a relative path.
-        # (BusyBox readlink may not support -f, so try realpath first.)
-        # NOTE: `|| abs_src=""` on each substitution is REQUIRED under `set -e`:
-        # on BusyBox (K2/AD5M) `realpath` is often absent, so the substitution
-        # exits 127 and would abort the whole installer before the fallback runs.
+        # become dangling if the user passed a relative path. host_profile.sh
+        # owns the realpath/readlink-f fallback the BusyBox hosts need; the
+        # `|| abs_src="$src"` covers its empty-input refusal under `set -e`.
         local abs_src
-        abs_src=$(realpath "$src" 2>/dev/null) || abs_src=""
-        [ -n "$abs_src" ] || abs_src=$(readlink -f "$src" 2>/dev/null) || abs_src=""
-        [ -n "$abs_src" ] || abs_src="$src"
+        abs_src=$(host_canonical_path "$src") || abs_src="$src"
 
         # Prefer a symlink to avoid copying large files on constrained devices,
         # but *verify* the staged tarball is readable. Fall back to copying.
