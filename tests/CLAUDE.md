@@ -4,7 +4,7 @@
 
 | Path | Contents |
 |------|----------|
-| `tests/unit/` | Catch2 unit tests. **Auto-globbed** (`Makefile:904`) — drop a `.cpp` in and it builds |
+| `tests/unit/` | Catch2 unit tests. **Auto-globbed** (`Makefile#TEST_UNIT_DIR`) — drop a `.cpp` in and it builds |
 | `tests/unit/application/` | App-lifecycle tests (separate glob, own include path) |
 | `tests/mocks/` | Mock implementations |
 | `tests/shell/` | `bats` tests — installer, lint gates, packaging |
@@ -146,16 +146,12 @@ refactors of the widget layer.
 
 ### Proving a test can fail
 
-"A test must FAIL if the feature is removed" is the rule. It was stated as a
-principle with no mechanism, and the result was 11 production changes in one
-release range that can be reverted with the suite staying green. Every one
-shipped with a test commit. The tests pin an *adjacent invariant* instead of the
-changed line -- they have real assertions, execute the changed function, and
-still cannot fail when it breaks.
-
-Syntax cannot find these. Measured on this tree, 18% of cases look "all-weak" by
-assertion shape and the worst-looking files are all good tests. Four tools, in
-increasing cost, and only the last is an oracle:
+"A test must FAIL if the feature is removed" is the rule, and a green suite is not
+evidence of it. A test can have real assertions, execute the changed function, and
+still pin an *adjacent invariant* instead of the changed line, so the change reverts
+green with a test commit beside it. Assertion shape cannot find these; the
+worst-looking files are often good tests. Five tools, in increasing cost, and only
+the last is an oracle:
 
 | Command | Cost | Answers |
 |---------|------|---------|
@@ -243,15 +239,13 @@ This is the one class none of the other tools can see. Such a test asserts real
 computed values, its lines are covered, and reverting the production hunk would
 report it killed -- it simply is not testing what it claims. It stays invisible
 until an unrelated change perturbs ordering, which is the worst moment to find
-it: adding nine test cases elsewhere changed the case count, which changed shard
-composition, which moved one test's accidental prerequisite into another shard,
-and a 96/96 green suite went red with nothing wrong in the changed code.
+it: any change to the case count reshuffles the shards, a test's accidental
+prerequisite lands in another shard, and a green suite goes red with nothing wrong
+in the changed code.
 
-The specimen it was built against is `test_grid_edit_mode.cpp` "build_default_grid
-only sets positions for anchor widgets", which passes in the suite and fails 5/5
-alone. The gate also reports the opposite sign as `pollution` (fails in the
-suite, passes alone) -- same root cause, different fix: the polluter needs
-cleanup, the dependent needs its own setup.
+The gate also reports the opposite sign as `pollution` (fails in the suite, passes
+alone): same root cause, different fix. The polluter needs cleanup, the dependent
+needs its own setup.
 
 ### Assert that the setup reached the branch, first
 
@@ -275,10 +269,9 @@ cannot fail either, for exactly the same reason.
 That case is the one to keep in mind, because it defeats three of the four
 tools above. `make test-vacuous` sees a real assertion (Catch2 expands it to
 `1024 <= 1024`, which differs from the source text). `make cov-diff` is green,
-because the changed line does execute. `-Werror=type-limits` only ever caught
-the version written as `>= 0` on a `size_t` -- fixing the compiler-visible
-tautology moved it to a semantic one, which hides better. Only reverting the
-hunk and watching for red finds it.
+because the changed line does execute. `-Werror=type-limits` catches only the
+compiler-visible form (`>= 0` on a `size_t`); the semantic tautology hides better.
+Only reverting the hunk and watching for red finds it.
 
 ### Name the mutation in the commit body
 
