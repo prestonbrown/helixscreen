@@ -349,6 +349,125 @@ EOF
     [[ "$output" == *"SURVIVED"* ]]
 }
 
+# --- the suite binary behind a build-free strategy --------------------------
+#
+# A `data` hunk is visible with no build -- the binary reads ui_xml/ off the
+# source tree -- but the suite that judges it is still a compiled program, so
+# every catch2 run has to answer for the binary whether or not this hunk paid
+# for a build. The binary can be absent without this run having removed it:
+# `make test-build` drops it in prune-orphan-test-objs, a sibling prerequisite
+# of the link rather than a step before it, so a peer make in the same tree
+# removes what this one linked and still exits 0.
+#
+# The zero-build property is the constraint on the answer. Giving `data` a build
+# would make the suite reachable and cost every XML hunk a compile and a
+# whole-program link, which is what makes the widened scope affordable, so a
+# build here has to be conditional on the binary actually being gone.
+
+# Re-point the fixture at a data-only change: the C++ edit goes into the base, so
+# the only hunk left is an XML attribute, whose strategy needs no build.
+data_only_change() {
+    mkdir -p "$WORK/ui_xml"
+    printf '<view><lv_label text="old"/></view>\n' > "$WORK/ui_xml/home.xml"
+    git -C "$WORK" add src/feature.cpp ui_xml/home.xml
+    git -C "$WORK" commit -qm xml
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '<view><lv_label text="new"/></view>\n' > "$WORK/ui_xml/home.xml"
+}
+
+# A `make test-build` that links the stub suite from $WORK/.suite and records
+# every invocation, so a test can assert how many builds a run cost.
+stub_make_links_suite() {
+    BUILD_LOG="$(dirname "$WORK")/builds"
+    : > "$BUILD_LOG"
+    printf 'test-build:\n\t@echo build >> %s\n\t@cp %s/.suite build/bin/helix-tests\n\t@chmod +x build/bin/helix-tests\n' \
+        "$BUILD_LOG" "$WORK" > "$WORK/Makefile"
+}
+
+# A `make test-build` that exits 0 and leaves no binary — the shape the prune
+# race produces, where the link succeeded and something else took the output.
+stub_make_leaves_no_binary() {
+    BUILD_LOG="$(dirname "$WORK")/builds"
+    : > "$BUILD_LOG"
+    printf 'test-build:\n\t@echo build >> %s\n' "$BUILD_LOG" > "$WORK/Makefile"
+}
+
+builds_run() { awk 'END { print NR }' "$BUILD_LOG"; }
+
+# The stub suite detects the XML change, and a peer make prunes the binary once
+# the first suite run is over: the next run finds nothing to exec.
+stub_tests_pruned_after_first_run() {
+    cat > "$WORK/.suite" <<'EOF'
+#!/usr/bin/env bash
+[ -e .pruned ] || { : > .pruned; rm -f build/bin/helix-tests; }
+grep -q 'text="new"' ui_xml/home.xml || exit 1
+exit 0
+EOF
+    cp "$WORK/.suite" "$WORK/build/bin/helix-tests"
+    chmod +x "$WORK/.suite" "$WORK/build/bin/helix-tests"
+}
+
+@test "a data hunk costs no build when the binary is already there" {
+    data_only_change
+    stub_make_links_suite
+    cat > "$WORK/.suite" <<'EOF'
+#!/usr/bin/env bash
+grep -q 'text="new"' ui_xml/home.xml || exit 1
+exit 0
+EOF
+    cp "$WORK/.suite" "$WORK/build/bin/helix-tests"
+    chmod +x "$WORK/.suite" "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 0 ]
+    lacks "test binary rebuilt" "$output"
+    # The one build is the baseline's, which establishes green before any hunk
+    # is touched. The hunk itself must add none.
+    [ "$(builds_run)" -eq 1 ]
+}
+
+@test "a data hunk rebuilds a test binary that went missing mid-run" {
+    data_only_change
+    stub_make_links_suite
+    stub_tests_pruned_after_first_run
+    run mutate
+    [ "$status" -eq 0 ]
+    contains "test binary rebuilt" "$output"
+    contains "killed" "$output"
+    lacks "Traceback" "$output"
+}
+
+@test "a build that leaves no test binary is diagnosed, never a traceback" {
+    data_only_change
+    stub_make_leaves_no_binary
+    run mutate
+    [ "$status" -eq 2 ]
+    contains "build/bin/helix-tests" "$output"
+    contains "prune-orphan-test-objs" "$output"
+    lacks "Traceback" "$output"
+}
+
+@test "a suite that could not start is a harness stop, not a verdict" {
+    # The binary goes missing after the baseline run, so the failure lands on the
+    # hunk. Reporting that as killed would launder a mutant nothing judged.
+    data_only_change
+    stub_make_leaves_no_binary
+    stub_tests_pruned_after_first_run
+    run mutate
+    [ "$status" -eq 2 ]
+    lacks "killed" "$output"
+    lacks "VERDICT" "$output"
+}
+
+@test "the tree is restored when a suite cannot start mid-run" {
+    data_only_change
+    stub_make_leaves_no_binary
+    stub_tests_pruned_after_first_run
+    before=$(sha256sum "$WORK/ui_xml/home.xml" | cut -d' ' -f1)
+    run mutate
+    after=$(sha256sum "$WORK/ui_xml/home.xml" | cut -d' ' -f1)
+    [ "$before" = "$after" ]
+}
+
 @test "a shell script is mutated against the bats suite" {
     mkdir -p "$WORK/tests/shell" "$WORK/tests/python"
     printf '#!/bin/sh\necho old\n' > "$WORK/scripts/gate.sh"

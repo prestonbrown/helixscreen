@@ -63,7 +63,9 @@
 # a strategy; its DEFAULT is "not covered", so a path nobody has classified is
 # reported rather than dropped. Cost follows the strategy, not the file count:
 # only a compiled hunk pays for a build, and only a hunk whose strategy names a
-# suite pays for that suite.
+# suite pays for that suite. The one build a build-free strategy can still pay
+# for is a C++ suite binary that is not on disk, since the suite judging a
+# runtime data file is itself a compiled program.
 #
 # THE BASE
 #
@@ -100,7 +102,9 @@
 #
 #   0  every changed hunk was examined and every mutant was killed
 #   1  at least one hunk SURVIVED
-#   2  the baseline is broken (a red suite makes every mutant read as killed)
+#   2  the harness could not produce a verdict: the baseline build failed, a
+#      baseline suite is red (which would make every mutant read as killed), or
+#      the C++ suite has no binary and a build did not leave one
 #   3  nothing survived, but the run did not examine the whole change
 #      (--allow-incomplete downgrades this to 0 once a human has read why)
 #   4  refused to start: the automatically chosen base yields more hunks than
@@ -499,6 +503,15 @@ def apply_reverse(root, patch_text):
     return p.returncode == 0, p.stdout
 
 
+class BuildUnavailable(RuntimeError):
+    """The Catch2 binary is not there, so no verdict about a mutant is possible.
+
+    Raised rather than reported as a red suite: a suite that could not start is
+    not evidence about the change, and letting it read as a kill is the
+    laundering this gate exists to stop.
+    """
+
+
 def build(root, jobs, log):
     t = time.time()
     r = run(['make', f'-j{jobs}', 'test-build'], cwd=root)
@@ -560,8 +573,8 @@ class Suites:
         existing answers nothing about it.
         """
         if name == 'catch2':
-            # The baseline build produces the binary, and a build that cannot
-            # run stops the whole run at exit 2 with the build log.
+            # Always available: the binary is a thing this machine can make, and
+            # ensure_catch2_binary() makes it for any hunk that finds it absent.
             return ''
         if name == 'bats':
             if not shutil.which('bats'):
@@ -590,8 +603,45 @@ class Suites:
                 self._pytest_gap = ''
         return self._pytest_gap
 
+    def ensure_catch2_binary(self):
+        """Build the binary when it is absent, and say so. Returns seconds, or None.
+
+        The Catch2 suite needs the binary even for a hunk whose strategy needs no
+        build: a `data` mutant is live off the source tree, but the suite that
+        judges it is still a compiled program. The binary can also go missing for
+        reasons this run did not cause, at any point in a run that lasts hours,
+        so the question is asked before every Catch2 run rather than once.
+
+        Rebuilding is the recovery, not just a check. `make test-build` drops the
+        binary in prune-orphan-test-objs, a sibling prerequisite of the link
+        rather than a step before it, so a concurrent make can remove what this
+        one linked and still exit 0; the orphan is gone by then, and the next
+        build links and keeps it.
+        """
+        if self.catch2_bin.is_file():
+            return None
+        _, secs = build(self.root, self.jobs, self.log)
+        if not self.catch2_bin.is_file():
+            raise BuildUnavailable(
+                f'{self.catch2_bin} is not there after a build, so the Catch2 '
+                f'suite cannot start.\n'
+                f'  In {self.args.log}, "[LD] helix-tests" then "Unit test binary '
+                f'ready" with no\n'
+                f'  "Test linking failed!" means the link succeeded and something '
+                f'else took the\n'
+                f'  output: prune-orphan-test-objs (mk/tests.mk) in a peer make '
+                f'against this tree.\n'
+                f'  Rerun with no other make running here.\n'
+                f'  Anything else in that log means the build itself failed, and '
+                f'it says how.')
+        # Named where it happens: a hunk whose strategy is meant to cost no build
+        # paying for one is a fact about the tree, not about the hunk.
+        print(f'[test binary rebuilt, {secs:.0f}s] ', end='', flush=True)
+        return secs
+
     def run(self, name):
         if name == 'catch2':
+            self.ensure_catch2_binary()
             return run_catch2(self.root, self.catch2_bin, self.args.tests,
                               self.args.shards, self.log)
         if name == 'bats':
@@ -883,4 +933,13 @@ def report_incomplete(uncovered, deferred, unproven=()):
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BuildUnavailable as e:
+        # Exit 2 is the harness-stopped code, alongside a broken or red baseline:
+        # the run produced no verdict, which is not the same as a clean one.
+        # Flushed first: stdout is block-buffered to a pipe while stderr is not,
+        # so an unflushed progress line otherwise lands below the failure.
+        sys.stdout.flush()
+        print(f'\nFAIL: {e}', file=sys.stderr)
+        sys.exit(2)
