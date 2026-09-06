@@ -83,6 +83,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -280,10 +281,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans t
 
         // A scrolling long mode is gated on the animations preference, so say so
         // here instead of inheriting whatever value another test left registered.
-        if (lv_subject_t* animations = lv_xml_get_subject(nullptr, "settings_animations_enabled")) {
-            lv_subject_set_int(animations, 1);
-            lv_obj_update_layout(test_screen());
-        }
+        // The guard is what puts it back: the preference is a process-global
+        // subject that the global PrintStatusPanel watches through
+        // observe_int_sync, and HelixTestFixture restores it AFTER its own drain,
+        // so a value left flipped queues an apply callback nothing runs.
+        ScopedAnimationsEnabled animations(true);
+        REQUIRE(animations.available());
+        lv_obj_update_layout(test_screen());
 
         // Long names must still scroll rather than ellipsize or clip.
         CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_SCROLL_CIRCULAR);
