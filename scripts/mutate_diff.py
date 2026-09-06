@@ -67,21 +67,18 @@
 #
 # THE BASE
 #
-# The diff base decides what the run is ABOUT, and getting it wrong is silent.
-# It is not "merge-base with main": main is one long-lived branch among several,
-# and a branch cut from a maintenance branch forks from THAT recently while
-# sharing with main only where the two last agreed. Measured against main, such
-# a branch hands the run the entire maintenance-vs-trunk divergence as the
-# change under test -- dozens of foreign hunks, a build apiece, every verdict
-# about somebody else's code. Most of them come back `uncompilable`, which is
-# correctly not a kill, so the only symptom is a long run of verdicts that reads
-# as a property of the change rather than of the base.
+# The diff base decides what the run is ABOUT, and getting it wrong is silent:
+# a branch cut from a maintenance branch, measured against main, hands the run
+# that whole divergence as the change under test -- dozens of foreign hunks, a
+# build apiece, every verdict about somebody else's code. Most come back
+# `uncompilable`, which is correctly not a kill, so the only symptom is a long
+# run of verdicts that reads as a property of the change rather than of the base.
 #
-# So the base is the NEAREST fork point among the refs this branch could have
-# been cut from: its configured upstream, then the release branches, then the
-# trunk. It is printed first, with the hunk count, and an implausible count on
-# an automatically chosen base stops the run instead of spending an hour proving
-# it. `--base` overrides all of it and is never second-guessed.
+# scripts/diff_base.py picks it, and scripts/cov_diff.py asks the same module the
+# same question. What is mutate-diff's own is the price of being wrong: the base
+# is printed first with the hunk count, and an implausible count on an
+# automatically chosen base stops the run instead of spending an hour proving it.
+# `--base` overrides all of it and is never second-guessed.
 #
 # SAFETY
 #
@@ -125,6 +122,13 @@ import sys
 import time
 from fnmatch import fnmatch
 from pathlib import Path
+
+# The diff base is the same question scripts/cov_diff.py asks, and two
+# hand-written copies of one rule agree by convention until they silently do
+# not. scripts/diff_base.py is the single answer, and a fixture that copies this
+# script has to copy that module beside it.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from diff_base import base_line, resolve_base  # noqa: E402
 
 HUNK_RE = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*\t(.*)$')
@@ -243,91 +247,6 @@ def repo_root():
     if r.returncode != 0:
         sys.exit('not a git repository')
     return Path(r.stdout.strip())
-
-
-def short_sha(root, rev):
-    """12-char sha for `rev`, or `rev` itself when it does not resolve."""
-    r = run(['git', 'rev-parse', '--short=12', rev], cwd=root)
-    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else rev
-
-
-def tracked_upstream(root):
-    """The branch's configured upstream, when it names a DIFFERENT branch.
-
-    `git checkout -b fix/x origin/release/1.0` records the branch this work was
-    cut from, which is the strongest evidence there is. A branch tracking its
-    OWN remote copy -- what `git push -u` leaves behind -- is not that: the ref
-    is this same branch, and taking it as the base would scope the run to
-    whatever has not been pushed yet, so a fully-pushed branch would measure its
-    change against itself and report a clean run over an empty diff.
-    """
-    r = run(['git', 'symbolic-ref', '--quiet', '--short', 'HEAD'], cwd=root)
-    if r.returncode != 0:
-        return None                       # detached HEAD tracks nothing
-    branch = r.stdout.strip()
-    up = run(['git', 'rev-parse', '--abbrev-ref', '@{u}'], cwd=root)
-    if up.returncode != 0 or not up.stdout.strip():
-        return None
-    merge = run(['git', 'config', f'branch.{branch}.merge'], cwd=root)
-    if merge.stdout.strip() == f'refs/heads/{branch}':
-        return None
-    return up.stdout.strip()
-
-
-def base_candidates(root):
-    """Refs this branch could have been cut from, in preference order.
-
-    Order breaks ties between refs that fork at the same commit, so the branch's
-    own upstream outranks a release branch, which outranks the trunk.
-
-    The branch you are ON is dropped, which matters when that branch is main or
-    a release branch: a ref forks from itself at HEAD, and a base of HEAD shrinks
-    the run to uncommitted work, so commits made straight onto the trunk would
-    drop out of their own mutation run. Its remote-tracking copy stays, and that
-    is the useful answer -- everything since the last push. tracked_upstream()
-    turns the same mistake away in its other spelling.
-    """
-    cands = []
-    upstream = tracked_upstream(root)
-    if upstream:
-        cands.append(upstream)
-    r = run(['git', 'for-each-ref', '--format=%(refname:short)',
-             'refs/remotes/*/release/*', 'refs/heads/release/*'], cwd=root)
-    if r.returncode == 0:
-        cands += r.stdout.split()
-    cands += ['origin/main', 'main']
-    here = run(['git', 'symbolic-ref', '--quiet', '--short', 'HEAD'], cwd=root).stdout.strip()
-    return [c for c in dict.fromkeys(cands) if c != here]   # first spelling of a ref wins
-
-
-def auto_base(root):
-    """(base, why): the nearest fork point among the candidate upstreams.
-
-    Nearest, rather than main first, because a branch cut from a long-lived
-    maintenance branch shares with main only where those two diverged, and
-    everything the maintenance branch has done since would land in the diff as
-    the change under test. See "THE BASE" above.
-    """
-    candidates = base_candidates(root)
-    best_ref = best = None
-    for ref in candidates:
-        r = run(['git', 'merge-base', 'HEAD', ref], cwd=root)
-        if r.returncode != 0 or not r.stdout.strip():
-            continue                      # ref does not exist here, or no common history
-        mb = r.stdout.strip()
-        if best is None:
-            best_ref, best = ref, mb
-            continue
-        # A later fork point is a descendant of an earlier one. An equal one is
-        # its own ancestor, so requiring a difference keeps the incumbent and
-        # lets preference order settle the tie.
-        if mb != best and run(['git', 'merge-base', '--is-ancestor', best, mb],
-                              cwd=root).returncode == 0:
-            best_ref, best = ref, mb
-    if best is None:
-        return 'HEAD', 'no candidate upstream resolved; diff is uncommitted work only'
-    return best, (f'merge-base with {best_ref} '
-                  f'(nearest of {len(candidates)} candidate upstream(s))')
 
 
 def changed_files(root, base):
@@ -722,17 +641,16 @@ def main():
     args = ap.parse_args()
 
     root = repo_root()
-    if args.base:
-        base, base_why = args.base, f'--base {args.base}'
-    else:
-        base, base_why = auto_base(root)
+    base, base_why = resolve_base(root, args.base)
     hunks = collect_hunks(root, base)
     files = changed_files(root, base)
     untestable = load_untestable(root)
 
     # First, before anything is built: the base is what the run is about, and a
     # wrong one is otherwise invisible until an hour of verdicts has gone by.
-    print(f'base {short_sha(root, base)}  <- {base_why}')
+    # Flushed: stdout to a pipe is block-buffered while stderr is not, so an
+    # unflushed heading reaches a log file BELOW the epilogue it heads.
+    print(base_line(root, base, base_why), flush=True)
     print(f'diff {len(hunks)} hunk(s) across {len(files)} file(s)')
 
     # ---- classify the whole change -------------------------------------
@@ -841,7 +759,7 @@ def main():
     if not args.base and args.max_hunks and len(mutable) > args.max_hunks:
         print(f'\n{len(mutable)} hunk(s) is more than --max-hunks {args.max_hunks}, '
               f'off a base nothing confirmed:')
-        print(f'  base {short_sha(root, base)}  <- {base_why}')
+        print(f'  {base_line(root, base, base_why)}')
         print('  A count far above the size of your own change means the base is '
               'wrong: name\n  the branch you cut from with --base <ref>, or pass '
               '--max-hunks 0 to accept it.')

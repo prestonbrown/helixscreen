@@ -30,6 +30,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+# The diff base is the same question `make mutate-diff` asks, and two
+# hand-written copies of one rule agree by convention until they silently do
+# not. scripts/diff_base.py is the single answer, and a fixture that copies this
+# script has to copy that module beside it.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from diff_base import base_line, resolve_base, short_sha  # noqa: E402
+
 HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 
 # Files the suite physically cannot execute (no headless GL, no device). Shared
@@ -65,14 +72,6 @@ def repo_root():
     if r.returncode:
         sys.exit('not a git repository')
     return Path(r.stdout.strip())
-
-
-def default_base(root):
-    for ref in ('origin/main', 'main'):
-        r = sh(['git', 'merge-base', 'HEAD', ref], cwd=root)
-        if not r.returncode and r.stdout.strip():
-            return r.stdout.strip()
-    return 'HEAD'
 
 
 def changed_lines(root, base):
@@ -130,20 +129,29 @@ def gcov_lines(root, objdir, src_rel, tmp):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--base', default=None)
+    ap.add_argument('--base', default=None,
+                    help='diff base (default: nearest fork point among the branch '
+                         'upstream, release branches and main)')
     ap.add_argument('--objdir', default='build/obj-cov')
     ap.add_argument('--list', action='store_true')
     args = ap.parse_args()
 
     root = repo_root()
-    base = args.base or default_base(root)
+    base, base_why = resolve_base(root, args.base)
+
+    # First, before any gcov work: the base is what the report is about, and a
+    # wrong one otherwise shows up only as somebody else's files being named.
+    # Flushed, because stdout to a pipe is block-buffered while stderr is not,
+    # so an unflushed heading reaches a log file BELOW the epilogue it heads.
+    print(base_line(root, base, base_why), flush=True)
+
     objdir = root / args.objdir
     if not objdir.is_dir():
         sys.exit(f'{objdir} missing - run `make cov-build` first')
 
     changed = changed_lines(root, base)
     if not changed:
-        print(f'No changed src/ lines vs {base[:12]}.')
+        print(f'No changed src/ lines vs {short_sha(root, base)}.')
         return 0
 
     untestable = load_untestable(root)
@@ -168,7 +176,7 @@ def main():
             if dead:
                 uncovered[src_rel] = dead
 
-    print(f'Diff coverage vs {base[:12]}: {len(changed)} file(s), '
+    print(f'Diff coverage vs {short_sha(root, base)}: {len(changed)} file(s), '
           f'{total_changed} changed line(s)\n')
     for src_rel, n, reason in excluded:
         print(f'  {src_rel}: {n} changed line(s) EXCLUDED - {reason}')
@@ -185,6 +193,7 @@ def main():
     print(f'\n{total_exec} changed line(s) executed, {bad} never executed, '
           f'{len(unbuilt)} file(s) not linked into tests')
     if bad or unbuilt:
+        sys.stdout.flush()          # keep the report above its own epilogue
         print('\nA changed line the suite never executes cannot be tested. '
               'Note the converse does NOT hold: run `make mutate-diff` to find '
               'lines that ARE executed but still untested.', file=sys.stderr)

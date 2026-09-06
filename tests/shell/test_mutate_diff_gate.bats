@@ -21,6 +21,9 @@ setup() {
     WORK="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
     rm -rf "$WORK"; mkdir -p "$WORK/scripts" "$WORK/src" "$WORK/build/bin"
     cp "$REPO_ROOT/scripts/mutate_diff.py" "$WORK/scripts/"
+    # mutate_diff.py imports its base resolution from beside itself, so a fixture
+    # that copies one without the other has no script to run at all.
+    cp "$REPO_ROOT/scripts/diff_base.py" "$WORK/scripts/"
 
     printf 'int f(int n) {\n    return n + 1;\n}\n' > "$WORK/src/feature.cpp"
     git -C "$WORK" init -q

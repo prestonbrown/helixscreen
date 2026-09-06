@@ -229,7 +229,9 @@ it by hand and naming the result in the commit body, or accept it with
 
 `make cov-diff` is the cheap screen: a changed line the suite never runs cannot
 be tested, and finding that costs one run instead of one build per hunk. The
-converse does not hold, so a clean coverage report is not a substitute.
+converse does not hold, so a clean coverage report is not a substitute. It heads
+its report with the same `base ... <- ...` line, resolved by the same module, so
+the two tools cannot disagree about what the change under test is.
 
 ### A test must pass on its own
 
