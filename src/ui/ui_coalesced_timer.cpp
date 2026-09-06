@@ -35,6 +35,11 @@ CoalescedTimer& CoalescedTimer::operator=(CoalescedTimer&& other) noexcept {
     return *this;
 }
 
+void CoalescedTimer::arm() {
+    timer_ = lv_timer_create(timer_cb, period_ms_, this);
+    lv_timer_set_repeat_count(timer_, 1);
+}
+
 void CoalescedTimer::schedule(std::function<void()> cb) {
     callback_ = std::move(cb);
 
@@ -42,9 +47,19 @@ void CoalescedTimer::schedule(std::function<void()> cb) {
         lv_timer_reset(timer_);
         lv_timer_set_repeat_count(timer_, 1); // Re-apply one-shot after reset
     } else {
-        timer_ = lv_timer_create(timer_cb, period_ms_, this);
-        lv_timer_set_repeat_count(timer_, 1);
+        arm();
     }
+}
+
+void CoalescedTimer::schedule_once(std::function<void()> cb) {
+    // Work is already queued — leave both the deadline and the stored callback
+    // alone. Resetting either is what turns a per-frame caller into a starved
+    // one (the deadline) or a torn one (a callback swapped under a live request).
+    if (timer_)
+        return;
+
+    callback_ = std::move(cb);
+    arm();
 }
 
 void CoalescedTimer::cancel() {

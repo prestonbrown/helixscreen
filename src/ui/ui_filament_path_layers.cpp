@@ -7,8 +7,8 @@
 // backed by cached ARGB8888 draw_bufs. LVGL composites them natively; the
 // per-frame animation pass paints separately in DRAW_POST so animation ticks
 // never repaint the heavyweight tube geometry. Setters mark static_dirty /
-// overlay_dirty via layered_mark_dirty(), which schedules layered_refresh_async
-// to (re)allocate buffers on resize and repaint whichever surfaces are dirty.
+// overlay_dirty via layered_mark_dirty(), which schedules layered_refresh() to
+// (re)allocate buffers on resize and repaint whichever surfaces are dirty.
 // See ui_filament_path_internal.h for the full architecture.
 
 #include "ui_filament_path_internal.h"
@@ -122,12 +122,11 @@ void layered_render_overlay(lv_obj_t* obj, FilamentPathData* data) {
     lv_canvas_finish_layer(data->layers.overlay_canvas, &layer);
 }
 
-// Async refresh — runs OUTSIDE the LVGL render pass, so it's safe to call
+// Deferred refresh — runs OUTSIDE the LVGL render pass, so it's safe to call
 // lv_canvas_init_layer / finish_layer (which invalidate the canvas, illegal
-// during rendering). LVGL dedups same cb+ud, so multiple invalidations in
-// one tick collapse to one refresh.
-void layered_refresh_async(void* arg) {
-    auto* obj = static_cast<lv_obj_t*>(arg);
+// during rendering). Scheduled through LayerState::refresh_timer; see
+// layered_mark_dirty() below for how a burst of setters collapses onto it.
+void layered_refresh(lv_obj_t* obj) {
     auto* data = get_data(obj);
     if (!data || !data->layers.static_canvas)
         return;
@@ -174,8 +173,10 @@ void layered_refresh_async(void* arg) {
 //
 // LV_EVENT_INVALIDATE_AREA is a display-level event (not dispatched to
 // objects), so we cannot piggyback on lv_obj_invalidate to schedule canvas
-// refresh — we schedule the async directly. lv_async_call dedups same
-// cb+ud, so multiple setters in the same tick collapse to one refresh.
+// refresh — we schedule it directly. schedule_once() drops the request when a
+// refresh is already pending, so the ten setters a state update pushes in one
+// tick arm one timer and repaint once. (lv_async_call would not: it allocates
+// an info struct and a timer per call, with no dedup on cb+user_data.)
 //
 // Animation callbacks call lv_obj_invalidate(obj) directly without going
 // through this helper — their per-frame paint happens via the DRAW_POST
@@ -192,7 +193,7 @@ void layered_mark_dirty(lv_obj_t* obj, bool static_dirty, bool overlay_dirty) {
         if (overlay_dirty)
             data->path_cache.valid = false;
         if (data->layers.static_canvas)
-            lv_async_call(layered_refresh_async, obj);
+            data->layers.refresh_timer.schedule_once([obj]() { layered_refresh(obj); });
     }
     lv_obj_invalidate(obj);
 }
@@ -243,17 +244,17 @@ bool layered_setup_canvases(lv_obj_t* obj, FilamentPathData* data) {
     lv_canvas_fill_bg(data->layers.overlay_canvas, lv_color_black(), LV_OPA_TRANSP);
 
     // Schedule initial render — layout may not be complete yet at create
-    // time; async callback retries when layout has settled.
-    lv_async_call(layered_refresh_async, obj);
+    // time; the deferred callback retries when layout has settled.
+    data->layers.refresh_timer.schedule_once([obj]() { layered_refresh(obj); });
     return true;
 }
 
 // The initial refresh scheduled at create time runs before layout assigns the
-// widget a real size; layered_refresh_async() then early-returns on its w<=0
-// guard and nothing else retries it, leaving the canvases permanently blank.
-// When layout finally gives the widget a non-zero size, re-mark both layers
-// dirty and re-schedule the async refresh so it paints. layered_refresh_async
-// handles the canvas buffer (re)allocation for the new size itself.
+// widget a real size; layered_refresh() then early-returns on its w<=0 guard
+// and nothing else retries it, leaving the canvases permanently blank. When
+// layout finally gives the widget a non-zero size, re-mark both layers dirty
+// and re-schedule the refresh so it paints. layered_refresh() handles the
+// canvas buffer (re)allocation for the new size itself.
 void layered_size_changed_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     if (lv_obj_get_width(obj) <= 0 || lv_obj_get_height(obj) <= 0)
@@ -261,11 +262,13 @@ void layered_size_changed_cb(lv_event_t* e) {
     layered_mark_dirty(obj, true, true);
 }
 
-// Widget teardown: cancel any pending refresh (the async cb would fire with a
-// stale obj) and free the canvas buffers. The lv_canvas children themselves
-// are deleted by LVGL as the parent tears down.
+// Widget teardown: cancel any pending refresh (it would fire with a stale obj)
+// and free the canvas buffers. The lv_canvas children themselves are deleted by
+// LVGL as the parent tears down. ~LayerState cancels the timer too — this is the
+// explicit half of the pair, so teardown order stays readable at the call site.
 void layered_teardown(lv_obj_t* obj, FilamentPathData* data) {
-    lv_async_call_cancel(layered_refresh_async, obj);
+    LV_UNUSED(obj);
+    data->layers.refresh_timer.cancel();
     layered_destroy_buffers(data);
     data->layers.static_canvas = nullptr;
     data->layers.overlay_canvas = nullptr;

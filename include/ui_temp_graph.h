@@ -33,6 +33,8 @@
 
 #pragma once
 
+#include "ui_coalesced_timer.h"
+
 #include "lvgl/lvgl.h"
 
 struct temp_graph_tooltip_t; // owned by src/ui/temp_graph_tooltip.cpp
@@ -155,6 +157,14 @@ struct ui_temp_graph_t {
     int32_t gradient_cache_w;          // cached content width  (realloc buf when viewport changes)
     int32_t gradient_cache_h;          // cached content height
     bool gradient_cache_dirty;         // true => recompute on next draw; false => blit cached buf
+
+    // Carries the pending out-of-render-pass gradient recompute requested by the
+    // draw callback. Leading-edge, because that callback re-requests on every
+    // frame the cache is stale: a debounce would keep pushing the deadline out
+    // and the cache would never rebuild. Owning the timer here is also the
+    // lifetime guarantee: ~CoalescedTimer cancels it, so a pending recompute
+    // cannot fire into a freed graph.
+    helix::ui::CoalescedTimer gradient_refresh{0};
     // Content signature of the last gradient actually rendered into the buffer.
     // A pushed sample shifts the curve and so dirties the cache, but the RENDERED
     // result is frequently identical - most obviously on an idle printer, where a

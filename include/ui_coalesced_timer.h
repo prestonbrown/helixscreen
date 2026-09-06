@@ -9,20 +9,33 @@
 namespace helix::ui {
 
 /**
- * @brief RAII one-shot timer that coalesces multiple rapid schedule() calls
+ * @brief RAII one-shot timer that collapses a burst of requests into one callback
  *
- * Multiple calls to schedule() within the timer period result in a single
- * callback firing after the period elapses with no new schedule() calls.
- * Each schedule() resets the timer, so the callback always reflects the
- * most recent request.
+ * Two coalescing policies, and picking the wrong one is the whole hazard:
  *
- * Typical use: batching observer-driven rebuilds that fire many times
- * per LVGL tick during startup discovery.
+ * - schedule() is a **trailing-edge debounce**. Every call resets the timer and
+ *   replaces the callback, so the work fires `period_ms` after the burst *stops*
+ *   and reflects the most recent request. A caller that re-requests faster than
+ *   the period never lets the timer come due — the work is starved indefinitely.
+ * - schedule_once() is **leading-edge**. The first call arms the timer; calls
+ *   while that one is pending are dropped without touching the timer or the
+ *   callback. The work fires `period_ms` after the *first* request, at a bounded
+ *   rate, whatever the request rate.
+ *
+ * Anything driven by a render or animation path wants schedule_once(): those
+ * re-request every frame, which is exactly the pattern schedule() starves on.
+ * schedule() is for bursty-then-quiet producers (observer storms during startup
+ * discovery) where the last value is the only one that matters.
+ *
+ * The timer is owned by this object and cancelled by its destructor, so a
+ * pending callback cannot outlive whatever the timer is a member of.
  *
  * @code
  * CoalescedTimer timer(1);  // 1ms — coalesce within same LVGL frame
  * // In observer callbacks:
  * timer.schedule([this]() { rebuild(); });
+ * // In a per-frame draw callback:
+ * timer.schedule_once([this]() { recompute_cache(); });
  * @endcode
  */
 class CoalescedTimer {
@@ -40,12 +53,24 @@ class CoalescedTimer {
     CoalescedTimer& operator=(CoalescedTimer&& other) noexcept;
 
     /**
-     * @brief Schedule a callback. Resets timer if already pending.
+     * @brief Trailing-edge debounce: schedule @p cb, resetting the timer if one
+     *        is already pending.
      *
-     * If called multiple times before the timer fires, only the last
-     * callback is invoked (after period_ms of quiet).
+     * Called n times before the timer fires, only the last @p cb runs, and it
+     * runs period_ms after the *last* call. A caller that re-schedules faster
+     * than period_ms defers the work forever — use schedule_once() there.
      */
     void schedule(std::function<void()> cb);
+
+    /**
+     * @brief Leading-edge coalescing: schedule @p cb only if nothing is pending.
+     *
+     * Called n times before the timer fires, only the first @p cb runs, and it
+     * runs period_ms after the *first* call. Calls made while pending() are
+     * dropped: neither the timer nor the stored callback is touched, so the
+     * fire time cannot be pushed out by a caller that requests every frame.
+     */
+    void schedule_once(std::function<void()> cb);
 
     /// Cancel any pending callback
     void cancel();
@@ -55,6 +80,8 @@ class CoalescedTimer {
 
   private:
     static void timer_cb(lv_timer_t* t);
+    /// Create the one-shot LVGL timer. Callers must have checked !timer_.
+    void arm();
 
     lv_timer_t* timer_ = nullptr;
     std::function<void()> callback_;

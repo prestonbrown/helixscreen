@@ -559,10 +559,10 @@ static bool gradient_skip_enabled() {
 // is ILLEGAL during an active render pass (disp->rendering_in_progress) — doing it
 // from the DRAW_MAIN_END draw callback produced an empty/undrawn buffer, so the
 // blit rendered nothing (the LVGL 9.5 gradient regression; same rule the filament
-// path layers obey, see ui_filament_path_layers.cpp). This runs as an lv_async_call
-// OUTSIDE the render pass, so the canvas layer round-trip is legal here.
-static void gradient_recompute_async(void* arg) {
-    ui_temp_graph_t* graph = static_cast<ui_temp_graph_t*>(arg);
+// path layers obey, see ui_filament_path_layers.cpp). This runs from the
+// gradient_refresh timer, OUTSIDE the render pass, so the canvas layer round-trip
+// is legal here.
+static void gradient_recompute(ui_temp_graph_t* graph) {
     if (!graph || !graph->chart)
         return;
     if (!(graph->features & TEMP_GRAPH_FEATURE_GRADIENTS))
@@ -686,10 +686,11 @@ static void draw_gradient_cb(lv_event_t* e) {
     // Cache is stale, mis-sized, or not yet built. Draw straight into the event
     // layer this frame so the gradient is never invisible (the proven direct path,
     // L079), and schedule an out-of-render-pass recompute so subsequent frames hit
-    // the cheap blit path above. lv_async_call dedups on (cb, arg), so repeated
-    // dirty frames collapse to a single recompute.
+    // the cheap blit path above. This callback runs per drawn frame, so the
+    // request is leading-edge: frames that arrive while a recompute is pending
+    // ride the one already queued instead of allocating another timer for it.
     gradient_render_columns(graph, g, event_layer, g.cx1, g.cy1);
-    lv_async_call(gradient_recompute_async, graph);
+    graph->gradient_refresh.schedule_once([graph]() { gradient_recompute(graph); });
 }
 
 // Draw legend chips in the upper-left of the chart content area.
@@ -1437,8 +1438,10 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
         return nullptr;
     }
 
+    // make_unique value-initializes, which zeroes every trivial member before
+    // running the members that have constructors. Blanket-memsetting the result
+    // would overwrite those constructed members.
     ui_temp_graph_t* graph = graph_ptr.get();
-    memset(graph, 0, sizeof(ui_temp_graph_t));
 
     // Initialize defaults
     graph->point_count = UI_TEMP_GRAPH_DEFAULT_POINTS;
@@ -1593,10 +1596,10 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
     // Transfer ownership to RAII wrapper - automatic cleanup
     std::unique_ptr<ui_temp_graph_t> graph_ptr(graph);
 
-    // Cancel any pending out-of-render-pass gradient recompute keyed on this graph
-    // (lv_async_call(gradient_recompute_async, graph)). Without this the async could
-    // fire after the struct below is freed → UAF. Keyed cancel matches (cb, arg).
-    lv_async_call_cancel(gradient_recompute_async, graph);
+    // Retract any pending out-of-render-pass gradient recompute. Without this it
+    // could fire after the struct below is freed, a UAF. ~ui_temp_graph_t cancels
+    // the timer as well; this is the explicit half, ahead of the teardown below.
+    graph_ptr->gradient_refresh.cancel();
 
     // Drop this graph's over-range save slot so the keyed map doesn't retain a
     // stale key (the pointer is about to be freed).

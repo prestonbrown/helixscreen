@@ -3,9 +3,9 @@
 //
 // Rendering guards for the filament_path_canvas detail panel.
 //
-// The widget paints its content into two lv_canvas children from an
-// lv_async_call (layered_refresh_async), which early-returns while the widget
-// still has a zero layout size. The widget must re-schedule that refresh once
+// The widget paints its content into two lv_canvas children from a deferred
+// refresh (layered_refresh), which early-returns while the widget still has a
+// zero layout size. The widget must re-schedule that refresh once
 // layout assigns a non-zero size (LV_EVENT_SIZE_CHANGED handler); otherwise the
 // canvas stays permanently blank when the async outruns the first layout pass.
 //
@@ -160,9 +160,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "MIXED detail canvas renders pixels (hub_only=
 }
 
 // Pins the blank-canvas race fix. Reproduces the live ordering where the
-// initial async refresh (scheduled at create time) runs BEFORE layout assigns
-// the widget a real size: layered_refresh_async() early-returns on its `w <= 0`
-// guard and the dedup'd async is consumed. The only thing that can repaint the
+// initial refresh (scheduled at create time) runs BEFORE layout assigns the
+// widget a real size: layered_refresh() early-returns on its `w <= 0` guard and
+// the pending refresh is consumed. The only thing that can repaint the
 // canvas afterwards is the widget re-scheduling the refresh when layout finally
 // gives it a non-zero size (LV_EVENT_SIZE_CHANGED handler). Without that
 // handler the canvas stays blank forever — the freshly laid-out widget has no

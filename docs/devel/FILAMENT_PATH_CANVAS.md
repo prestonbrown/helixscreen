@@ -421,7 +421,8 @@ void layered_mark_dirty(lv_obj_t* obj, bool static_dirty, bool overlay_dirty) {
         if (overlay_dirty) data->layers.overlay_dirty = true;
         if (overlay_dirty) data->path_cache.valid = false;  // force re-record
         if (data->layers.static_canvas)
-            lv_async_call(layered_refresh_async, obj);       // deduped repaint
+            data->layers.refresh_timer.schedule_once(        // one repaint per burst
+                [obj]() { layered_refresh(obj); });
     }
     lv_obj_invalidate(obj);  // schedule the cheap DRAW_POST pass
 }
@@ -433,7 +434,7 @@ void layered_mark_dirty(lv_obj_t* obj, bool static_dirty, bool overlay_dirty) {
 | Filament color / segment / per-slot / active-slot / bypass / buffer change | overlay | Overlay canvas repaint; `path_cache` invalidated for re-record |
 | Animation tick (flow / heat / segment tip) | *(neither)* | `lv_obj_invalidate(obj)` only → DRAW_POST pass, no canvas work |
 
-`layered_refresh_async()` runs outside the render phase: it early-returns until
+`layered_refresh()` runs outside the render phase: it early-returns until
 the widget has a real size (`w>0 && h>0`), reallocates buffers on size change
 (`layered_ensure_buffers()`), repaints only the dirty layers, then clears the
 flags. A `SIZE_CHANGED` event (`layered_size_changed_cb()`) re-marks both layers
