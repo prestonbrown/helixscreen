@@ -167,7 +167,7 @@
                     style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" hidden="true">
               <bind_flag_if_eq subject="ams_env_overlay_no_dryer_visible" flag="hidden" ref_value="0"/>
 
-              <icon src="information" size="md" variant="secondary"/>
+              <icon src="info" size="md" variant="secondary"/>
               <text_small width="100%"
                           text="No dryer available. Store filament in a sealed dry box with desiccant for best results."
                           translation_tag="No dryer available. Store filament in a sealed dry box with desiccant for best results."

@@ -58,7 +58,7 @@
       <lv_obj width="100%"
               height="content" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_sm"
               style_pad_all="0">
-        <icon src="check_circle_outline" size="lg" variant="success"/>
+        <icon src="check_circle" size="lg" variant="success"/>
         <text_body text="Review your changes" translation_tag="Review your changes" style_text_align="center"/>
       </lv_obj>
       <!-- Summary list container -->
