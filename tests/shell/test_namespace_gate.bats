@@ -40,7 +40,7 @@ fixture() {
 };')
     run python3 "$GATE" --list "$f"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"[type]"* ]]
+    contains "[type]" "$output"
     [[ "$output" == *"Widget"* ]]
 }
 
@@ -186,10 +186,10 @@ int compute(int a,
 }')
     run python3 "$GATE" --list "$f"
     # `parse` itself is a genuine global function and stays flagged.
-    [[ "$output" == *"[function]"* ]]
-    [[ "$output" == *"parse"* ]]
+    contains "[function]" "$output"
+    contains "parse" "$output"
     # The two locals must not be, and are the first casualties of brace drift.
-    [[ "$output" != *"another_local"* ]]
+    lacks "another_local" "$output"
     [[ "$output" != *"inner_local"* ]]
 }
 

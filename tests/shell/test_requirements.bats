@@ -136,8 +136,8 @@ run_check_requirements_with_path() {
 
     run_check_requirements_with_path "$rbin"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"curl, wget, or python3"* ]]
-    [[ "$output" == *"tar"* ]]
+    contains "curl, wget, or python3" "$output"
+    contains "tar" "$output"
     [[ "$output" == *"gunzip"* ]]
 }
 
@@ -325,7 +325,7 @@ esac
 
     run check_disk_space "ad5x"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"${data}"* ]]      # measured the data mount
+    contains "${data}" "$output"      # measured the data mount
     [[ "$output" != *"Insufficient"* ]]
 }
 
@@ -341,7 +341,7 @@ echo "/dev/mmcblk0p7 4831838 4816000 10240 99% $2"
 
     run check_disk_space "ad5x"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"Insufficient disk space"* ]]
+    contains "Insufficient disk space" "$output"
     [[ "$output" == *"${data}"* ]]      # names the partition that is full
 }
 
@@ -469,7 +469,7 @@ echo "/dev/mmcblk0p7 4831838 4816000 10240 99% $2"
 
     run install_runtime_deps "pi"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Checking runtime dependencies"* ]]
+    contains "Checking runtime dependencies" "$output"
     [[ "$output" == *"already installed"* ]]
 }
 
@@ -541,8 +541,8 @@ fi
 
     run verify_binary_deps "pi"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"libssl.so.1.1 not found"* ]]
-    [[ "$output" == *"Installing libssl1.1"* ]]
+    contains "libssl.so.1.1 not found" "$output"
+    contains "Installing libssl1.1" "$output"
     [[ "$output" == *"resolved"* ]]
 }
 
@@ -557,7 +557,7 @@ echo "	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x7f1230000000)"
 
     run verify_binary_deps "pi"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"libssl1.1 package not available"* ]]
+    contains "libssl1.1 package not available" "$output"
     [[ "$output" == *"OpenSSL 3"* ]]
 }
 
@@ -570,8 +570,8 @@ echo "	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x7f1230000000)"
 
     run verify_binary_deps "pi"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"Missing shared libraries"* ]]
-    [[ "$output" == *"libfoo.so.42"* ]]
+    contains "Missing shared libraries" "$output"
+    contains "libfoo.so.42" "$output"
     [[ "$output" == *"Could not resolve"* ]]
 }
 
@@ -583,7 +583,7 @@ echo "	libfoo.so.1 => not found"
 
     run verify_binary_deps "ad5m"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Missing shared libraries"* ]]
+    contains "Missing shared libraries" "$output"
     [[ "$output" == *"may not start correctly"* ]]
 }
 
@@ -614,8 +614,8 @@ echo "	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x7f1230000000)"
     # (We can't easily change mock mid-test, so the re-check will still show both)
 
     run verify_binary_deps "pi"
-    [[ "$output" == *"Missing shared libraries"* ]]
-    [[ "$output" == *"libssl.so.1.1"* ]]
+    contains "Missing shared libraries" "$output"
+    contains "libssl.so.1.1" "$output"
     [[ "$output" == *"libcrypto.so.1.1"* ]]
 }
 
@@ -679,7 +679,7 @@ echo "	libc.so.0 => not found"
     grep -q "chroot $CHROOT ldd /opt/config/mod/.bin/helixscreen/bin/helix-screen" \
         "$BATS_TEST_TMPDIR/chroot-calls" \
         || fail "chroot-side ldd not invoked: $(cat "$BATS_TEST_TMPDIR/chroot-calls")"
-    [[ "$output" == *"verified inside the mod chroot"* ]]
+    contains "verified inside the mod chroot" "$output"
     [[ "$output" != *"not found"* ]]
 }
 
@@ -706,7 +706,7 @@ echo "	libc.so.0 => not found"
     run verify_binary_deps "ad5x"
     [ "$status" -eq 0 ]
     [ ! -s "$BATS_TEST_TMPDIR/chroot-calls" ]  # nothing to verify against
-    [[ "$output" != *"libstdc++.so.6"* ]]     # host-side false error suppressed
+    lacks "libstdc++.so.6" "$output"     # host-side false error suppressed
     [[ "$output" == *"chroot"* ]]             # the hint names the chroot
 }
 
@@ -719,6 +719,6 @@ echo "	libdrm.so.2 => /usr/lib/aarch64-linux-gnu/libdrm.so.2 (0x7f1234000000)"
 
     run verify_binary_deps "pi"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"All shared library dependencies satisfied"* ]]
+    contains "All shared library dependencies satisfied" "$output"
     [[ "$output" != *"CHROOT-LDD"* ]]
 }

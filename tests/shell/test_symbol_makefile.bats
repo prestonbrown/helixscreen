@@ -5,6 +5,8 @@
 # Split from test_symbol_extraction.bats for parallel execution.
 
 # Cache make -n -p output once per file (expensive: parses entire Makefile tree)
+
+load helpers
 setup_file() {
     export MAKE_DB_CACHE="$BATS_FILE_TMPDIR/make_db.txt"
     export MAKE_DB_STRIP_CACHE="$BATS_FILE_TMPDIR/make_db_strip.txt"
@@ -24,7 +26,7 @@ setup_file() {
 @test "symbols and strip are in .PHONY" {
     local phony_lines
     phony_lines=$(grep '^\.PHONY:' "$MAKE_DB_CACHE")
-    [[ "$phony_lines" == *"symbols"* ]]
+    contains "symbols" "$phony_lines"
     [[ "$phony_lines" == *"strip"* ]]
 }
 

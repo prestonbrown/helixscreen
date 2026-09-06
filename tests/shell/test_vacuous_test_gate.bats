@@ -17,6 +17,8 @@
 # helper records its assertions against the calling case. Any of those firing
 # would make the gate noise on every run and it would be switched off.
 
+load helpers
+
 GATE="scripts/check_vacuous_tests.py"
 
 setup() {
@@ -48,7 +50,7 @@ expr_elem() {  # $1 type, $2 original, $3 expanded
 EOF
     run python3 "$GATE" "$WORK/a.xml" --list
     [ "$status" -eq 0 ]
-    [[ "$output" == *"no-assertion"* ]]
+    contains "no-assertion" "$output"
     [[ "$output" == *"asserts nothing"* ]]
 }
 
@@ -96,7 +98,7 @@ $(expr_elem REQUIRE_NOTHROW "loader.is_available()" "loader.is_available()")
   </TestCase>
 EOF
     run python3 "$GATE" "$WORK/e.xml" --list
-    [[ "$output" != *"literal-tautology"* ]]
+    lacks "literal-tautology" "$output"
     [[ "$output" != *"no-assertion"* ]]
 }
 

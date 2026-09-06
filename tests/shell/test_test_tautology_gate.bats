@@ -15,6 +15,8 @@
 # case is a shape that a looser gate reported and that a reviewer confirmed was
 # a real test.
 
+load helpers
+
 TAUT="scripts/check_test_tautology.py"
 MIRROR="scripts/check_test_mirrors.py"
 
@@ -146,7 +148,7 @@ TEST_CASE("strip") {
 }
 EOF
     run mirror
-    [[ "$output" == *"redefined-symbol"* ]]
+    contains "redefined-symbol" "$output"
     [[ "$output" == *"strip_version_prefix"* ]]
 }
 

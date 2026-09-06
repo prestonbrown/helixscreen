@@ -142,7 +142,7 @@ EOF
 @test "help flag shows usage and exits 0" {
     run bash "$SCRIPT_PATH" --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage: telemetry-pull.sh"* ]]
+    contains "Usage: telemetry-pull.sh" "$output"
     [[ "$output" == *"HELIX_TELEMETRY_ADMIN_KEY"* ]]
 }
 

@@ -114,7 +114,7 @@ EOF
     TMP="$BATS_TEST_TMPDIR" TRACE="$BATS_TEST_TMPDIR/trace" \
         run sh "$BATS_TEST_TMPDIR/run.sh"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"started (PID"* ]]
+    contains "started (PID" "$output"
     [ ! -f "$BATS_TEST_TMPDIR/trace" ]
 }
 

@@ -40,11 +40,11 @@ setup_file() {
     tar_excludes=$(grep '^DEPLOY_TAR_EXCLUDES' "$MAKE_DB_CACHE" | head -1)
 
     # Both should exclude .c font files
-    [[ "$rsync_excludes" == *"assets/fonts/*.c"* ]]
-    [[ "$tar_excludes" == *"assets/fonts/*.c"* ]]
+    contains "assets/fonts/*.c" "$rsync_excludes"
+    contains "assets/fonts/*.c" "$tar_excludes"
 
     # Both should exclude .icns
-    [[ "$rsync_excludes" == *"*.icns"* ]]
+    contains "*.icns" "$rsync_excludes"
     [[ "$tar_excludes" == *"*.icns"* ]]
 }
 

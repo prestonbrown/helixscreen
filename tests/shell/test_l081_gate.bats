@@ -121,7 +121,8 @@ run_gate() {
         });
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *'uaf'* || "$output" == *'member access'* ]]
+    [[ "$output" == *'uaf'* || "$output" == *'member access'* ]] \
+        || fail "neither wording appeared: $output"
     # The report must quote the guard the author wrote. Calling this a bare
     # `tok.expired()` reads as a false positive and gets dismissed.
     [[ "$output" == *'ctx.is_valid()'* ]]

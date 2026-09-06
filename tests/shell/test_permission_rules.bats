@@ -94,7 +94,7 @@ SUDOEOF
     output="$(install_permission_rules "pi" 2>&1)" || status=$?
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"NoNewPrivileges"* ]]
+    contains "NoNewPrivileges" "$output"
     [[ "$output" != *"need repair"* ]]
 }
 
@@ -107,7 +107,7 @@ SUDOEOF
     output="$(install_permission_rules "pi" 2>&1)" || status=$?
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"need repair"* ]]
+    contains "need repair" "$output"
     [[ "$output" == *"Wi-Fi may not work"* ]]
 }
 

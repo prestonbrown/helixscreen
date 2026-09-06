@@ -153,8 +153,8 @@ setup() {
 @test "gate wakes on the worker, the enum config, and the generator" {
     run bash -c "sed -n '/qc_lvgl_event_codes)/,/;;/p' scripts/quality-checks.sh"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"^server/crash-worker/"* ]]
-    [[ "$output" == *"gen_lvgl_event_codes"* ]]
+    contains "^server/crash-worker/" "$output"
+    contains "gen_lvgl_event_codes" "$output"
     [[ "$output" == *"lv_conf"* ]]
 }
 

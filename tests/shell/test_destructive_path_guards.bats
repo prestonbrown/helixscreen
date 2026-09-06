@@ -107,7 +107,7 @@ setup() {
 @test "validate_install_dir: refusal names the offending value and the rule" {
     run validate_install_dir "/home/pi"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"Refusing to use INSTALL_DIR='/home/pi'"* ]]
+    contains "Refusing to use INSTALL_DIR='/home/pi'" "$output"
     [[ "$output" == *"must contain 'helixscreen'"* ]]
 }
 
@@ -189,7 +189,7 @@ load_uninstall_module() {
     # `curl … | sh -s -- --clean` shape.
     run confirm_clean_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"Refusing to run --clean without confirmation"* ]]
+    contains "Refusing to run --clean without confirmation" "$output"
     [[ "$output" == *"--yes"* ]]
 }
 

@@ -18,6 +18,8 @@
 # that fired on the prose mentions of the key in those files' own comments would
 # be red on every commit and would get switched off.
 
+load helpers
+
 GATE="scripts/check_touch_rotation_source.py"
 
 setup() {
@@ -83,7 +85,7 @@ void create_input_pointer() {
 EOF
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"reads /display/rotate"* ]]
+    contains "reads /display/rotate" "$output"
     [[ "$output" == *"display_backend_fbdev.cpp"* ]]
 }
 
@@ -96,7 +98,7 @@ void create_input_pointer() {
 EOF
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"no call to display_rotation_degrees"* ]]
+    contains "no call to display_rotation_degrees" "$output"
     [[ "$output" == *"display_backend_drm.cpp"* ]]
 }
 

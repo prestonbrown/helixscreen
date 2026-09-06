@@ -172,6 +172,6 @@ _watchdog_runs() {
 
     run sh "$probe"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"hello world"* ]]
+    contains "hello world" "$output"
     [[ "$output" == *"SURVIVED"* ]]
 }

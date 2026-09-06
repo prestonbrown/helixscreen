@@ -450,7 +450,7 @@ esac
 
     run check_disk_space "ad5x"
     [ "$status" -eq 0 ] || fail "disk check refused a payload root on a walk to /: $output"
-    [[ "$output" == *"${data}"* ]]
+    contains "${data}" "$output"
     [[ "$output" != *"Insufficient"* ]]
 }
 
@@ -480,8 +480,8 @@ esac
     run mod_payload_mode_block
     [ "$status" -eq 0 ]
     [ "$INSTALL_DIR" = "$HOST_INSTALL_ROOT" ]
-    [[ "$output" == *"inside the firmware mod's git tree"* ]]
-    [[ "$output" == *"OTA"* ]]
+    contains "inside the firmware mod's git tree" "$output"
+    contains "OTA" "$output"
     # The suggested durable root is derived from the rig's own data mount
     # (M2): this fixture is the AD5X shape, whose mount is the sandbox's
     # /usr/data - the parent of the probed .mod namespace.
@@ -562,9 +562,9 @@ esac
 
     run mod_payload_mode_block
     [ "$status" -eq 0 ]
-    [[ "$output" == *"owns the UI service"* ]]
-    [[ "$output" == *"not be started automatically"* ]]
-    [[ "$output" == *"picks the root, not the contract"* ]]
+    contains "owns the UI service" "$output"
+    contains "not be started automatically" "$output"
+    contains "picks the root, not the contract" "$output"
     # It is a warning, not a refusal: the install proceeds.
     [[ "$output" != *"Refusing"* ]]
 }
@@ -738,9 +738,9 @@ esac
 
     run mod_payload_mode_block
     [ "$status" -eq 0 ]
-    [[ "$output" == *"owns the UI service"* ]]
-    [[ "$output" == *"not be started automatically"* ]]
-    [[ "$output" == *"--standalone"* ]]
+    contains "owns the UI service" "$output"
+    contains "not be started automatically" "$output"
+    contains "--standalone" "$output"
     [[ "$output" != *"OTA"* ]]
 }
 
@@ -1434,8 +1434,8 @@ seed_legacy_install() {
     INIT_SCRIPT_DEST="/data/.mod/.forge-x/etc/init.d/S90helixscreen"
     run print_post_install_commands "mod-managed"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Reboot"* ]]
-    [[ "$output" == *"$INIT_SCRIPT_DEST"* ]]
+    contains "Reboot" "$output"
+    contains "$INIT_SCRIPT_DEST" "$output"
     [[ "$output" == *"${INSTALL_DIR}/logs/launcher.log"* ]]
 }
 
@@ -1446,7 +1446,7 @@ seed_legacy_install() {
     INIT_SCRIPT_DEST="/data/.mod/.forge-x/etc/init.d/S90helixscreen"
     run print_post_install_commands "mod-managed"
     [ "$status" -eq 0 ]
-    [[ "$output" != *"systemctl"* ]]
+    lacks "systemctl" "$output"
     [[ "$output" != *"service helixscreen"* ]]
 }
 
@@ -1480,7 +1480,7 @@ STUB
         echo SURVIVED-SET-E
     ' _ "$WORKTREE_ROOT" "$HOST_MOD_CHROOT" "$INSTALL_DIR/bin/helix-screen"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"SURVIVED-SET-E"* ]]
+    contains "SURVIVED-SET-E" "$output"
     [[ "$output" == *"cannot be dependency-checked"* ]]
 }
 

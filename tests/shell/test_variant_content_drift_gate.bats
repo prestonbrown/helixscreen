@@ -23,6 +23,8 @@
 # tweak is exactly the kind of gate this project's own philosophy says gets
 # switched off.
 
+load helpers
+
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 GATE="$REPO_ROOT/scripts/check_variant_content_drift.py"
 
@@ -54,8 +56,8 @@ commit_baseline() {
     git add ui_xml/print_status_panel.xml
 
     run "$GATE"
-    [[ "$output" == *"ui_xml/print_status_panel.xml"* ]]
-    [[ "$output" == *"ui_xml/portrait/print_status_panel.xml"* ]]
+    contains "ui_xml/print_status_panel.xml" "$output"
+    contains "ui_xml/portrait/print_status_panel.xml" "$output"
     [[ "$output" == *"src="* ]]
 }
 
@@ -68,8 +70,8 @@ commit_baseline() {
     git add ui_xml/print_status_panel.xml
 
     run "$GATE"
-    [[ "$output" == *"ui_xml/print_status_panel.xml"* ]]
-    [[ "$output" == *"ui_xml/portrait/print_status_panel.xml"* ]]
+    contains "ui_xml/print_status_panel.xml" "$output"
+    contains "ui_xml/portrait/print_status_panel.xml" "$output"
     [[ "$output" == *"translation_tag="* ]]
 }
 
@@ -84,7 +86,7 @@ commit_baseline() {
     git add ui_xml/portrait/print_status_panel.xml
 
     run "$GATE"
-    [[ "$output" == *"ui_xml/portrait/print_status_panel.xml"* ]]
+    contains "ui_xml/portrait/print_status_panel.xml" "$output"
     [[ "$output" == *"ui_xml/print_status_panel.xml"* ]]
 }
 

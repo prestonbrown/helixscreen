@@ -3,6 +3,8 @@
 #
 # Code lint tests: enforce architectural rules on the codebase.
 
+load helpers
+
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 }
@@ -475,9 +477,9 @@ EOF
     run rtti_offenders "$(rtti_forbidden_pattern)" "$f"
     [ "$status" -eq 0 ]
     [ "${#lines[@]}" -eq 4 ]
-    [[ "$output" == *"dynamic_cast"* ]]
-    [[ "$output" == *"typeid"* ]]
-    [[ "$output" == *"type_index"* ]]
+    contains "dynamic_cast" "$output"
+    contains "typeid" "$output"
+    contains "type_index" "$output"
     [[ "$output" == *"target_type"* ]]
 }
 
@@ -514,7 +516,7 @@ EOF
     run rtti_offenders "$(rtti_any_pattern)" "$f"
     [ "$status" -eq 0 ]
     [ "${#lines[@]}" -eq 3 ]
-    [[ "$output" != *"LayoutManager"* ]]
+    lacks "LayoutManager" "$output"
     [[ "$output" != *"any_cast"* ]]
 }
 
@@ -572,7 +574,7 @@ EOF
   run grep -n 'translation_sync.py sync' scripts/quality-checks.sh
   [ "$status" -eq 0 ]
   while IFS= read -r line; do
-    [[ "$line" == *"--dry-run"* ]]
+    contains "--dry-run" "$line"
   done <<< "$output"
 }
 
@@ -582,7 +584,7 @@ EOF
   # the commit that introduces one.
   run bash -c "sed -n '/qc_translation_coverage)/,/;;/p' scripts/quality-checks.sh"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"^ui_xml/"* ]]
+  contains "^ui_xml/" "$output"
   [[ "$output" == *"^src/"* ]]
 }
 
@@ -767,7 +769,7 @@ EOF
 EOF
     run history_lazy_fetch_offenders "$d"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"hm->fetch("* ]]
+    contains "hm->fetch(" "$output"
     [[ "$output" == *"history->fetch("* ]]
 }
 
@@ -852,7 +854,7 @@ check_deinit_all_does_not_log() {
 @test "the nightly reads the vacuous ceiling from the makefile, not a literal" {
     run grep -A2 'check_vacuous_tests.py' .github/workflows/nightly.yml
     [ "$status" -eq 0 ]
-    [[ "$output" == *"print-vacuous-max"* ]]
+    contains "print-vacuous-max" "$output"
     # A bare --max-allowed <number> is the shape that drifts.
     [[ ! "$output" =~ --max-allowed[[:space:]]+[0-9]+ ]]
 }
@@ -884,7 +886,7 @@ b = m.load_baseline(Path('$base'))
 print(sorted(b))
 "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"#1127 seeding state costs no extra bytes per layer entry"* ]]
+    contains "#1127 seeding state costs no extra bytes per layer entry" "$output"
     [[ "$output" != *"a real comment"* ]]
 }
 

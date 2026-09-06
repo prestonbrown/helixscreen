@@ -775,9 +775,9 @@ EOF
     # buffers the endless MJPEG stream to a temp file on the same tmpfs at
     # ~950 KB/s, which fills it in about two minutes.
     run awk '/location \/webcam\/ \{/,/\}/' "$conf"
-    [[ "$output" == *"access_log off;"* ]]
-    [[ "$output" == *"proxy_buffering off;"* ]]
-    [[ "$output" == *"helix-managed"* ]]
+    contains "access_log off;" "$output"
+    contains "proxy_buffering off;" "$output"
+    contains "helix-managed" "$output"
 
     # Marker recorded for reversal.
     [ -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
@@ -799,7 +799,7 @@ EOF
 
     # /webcam2/ did not get the directive.
     run awk '/location \/webcam2\/ \{/,/\}/' "$conf"
-    [[ "$output" != *"access_log off;"* ]]
+    lacks "access_log off;" "$output"
 
     # Exactly one insertion tree-wide.
     [ "$(grep -c 'helix-managed' "$conf")" -eq 2 ]
@@ -1013,7 +1013,7 @@ EOF
     [ "$status" -eq 0 ]
 
     run awk '/location \/webcam\/ \{/,/\}/' "$conf"
-    [[ "$output" == *"access_log off;"* ]]
+    contains "access_log off;" "$output"
     [[ "$output" == *"proxy_buffering off;"* ]]
 }
 

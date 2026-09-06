@@ -13,6 +13,8 @@
 # start" shipped as untranslated English in all eight non-English locales, and
 # the only symptom was a ruamel traceback at the bottom of one bats failure.
 
+load helpers
+
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     PY=".venv/bin/python"
@@ -55,8 +57,8 @@ except DuplicateTranslationKey as e:
     print('REJECTED', e)
 "
     [ "$status" -eq 0 ]
-    [[ "$output" == REJECTED* ]]
-    [[ "$output" == *"Print cancelled"* ]]
+    [[ "$output" == REJECTED* ]] || fail "loader did not reject the file: $output"
+    contains "Print cancelled" "$output"
     # The line number is what makes the message actionable in a 2800-key file.
     [[ "$output" == *"line 5"* ]]
 }
@@ -87,7 +89,7 @@ except ym.DuplicateTranslationKey as e:
     print('REJECTED', e)
 "
     [ "$status" -eq 0 ]
-    [[ "$output" == REJECTED* ]]
+    [[ "$output" == REJECTED* ]] || fail "loader did not reject the file: $output"
     [[ "$output" == *"Print cancelled"* ]]
 }
 
@@ -204,8 +206,8 @@ except ym.DuplicateTranslationKey as e:
 "
         [ "$status" -eq 0 ]
         if [[ "$output" == SKIP* ]]; then continue; fi
-        [[ "$output" == REJECTED* ]]
-        [[ "$output" == *"Print cancelled"* ]]
+        [[ "$output" == REJECTED* ]] || fail "loader did not reject the file: $output"
+        contains "Print cancelled" "$output"
         [[ "$output" == *"line 5"* ]]
     done
 }

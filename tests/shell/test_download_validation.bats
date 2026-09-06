@@ -1156,7 +1156,7 @@ $unwired"
 
     run download_release "v9.9.9" "ad5m"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"SHA256 MISMATCH"* ]]
+    contains "SHA256 MISMATCH" "$output"
     [[ "$output" == *"Failed to download release"* ]]
 }
 

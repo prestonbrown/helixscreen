@@ -21,6 +21,8 @@
 # at all. A gate that demanded XML for those would fire on every release and get
 # switched off.
 
+load helpers
+
 GATE="scripts/check_shipped_spacing_tokens.py"
 
 setup() {
@@ -58,7 +60,7 @@ run_gate() {
     cpp widget 'int32_t s = theme_manager_get_spacing("step_indicator");'
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"step_indicator_small"* ]]
+    contains "step_indicator_small" "$output"
     [[ "$output" == *"step_test_panel.xml"* ]]
 }
 
@@ -94,7 +96,7 @@ int32_t g = theme_manager_get_spacing("gizmo");'
     cpp gizmo 'int32_t g = theme_manager_get_spacing("gizmo");'
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"gizmo_large"* ]]
+    contains "gizmo_large" "$output"
     [[ "$output" != *"gizmo_small"* ]]
 }
 
@@ -121,7 +123,7 @@ int32_t g = theme_manager_get_spacing("gizmo");'
     cpp gizmo 'int32_t g = theme_manager_get_spacing("gizmo");'
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"falls back"* ]]
+    contains "falls back" "$output"
     [[ "$output" == *"globals.xml"* ]]
 }
 

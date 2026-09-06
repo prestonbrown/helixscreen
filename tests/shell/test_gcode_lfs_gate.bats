@@ -138,7 +138,7 @@ EOF
 EOF
     run python3 "$GATE" --rules "$FIXTURE/rules.mk" --source "$FIXTURE/empty.cpp"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"no target-specific"* ]]
+    contains "no target-specific" "$output"
     [[ "$output" == *"backstop is gone"* ]]
 }
 

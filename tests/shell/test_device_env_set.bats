@@ -25,7 +25,7 @@ setup() {
     printf 'HELIX_REMOTE_CONTROL=1\n' > "$WORK/a.env"
     run sh "$ENVSET" "$WORK/a.env" HELIX_REMOTE_CONTROL 1
     [ "$status" -eq 0 ]
-    [[ "$output" == *"already set"* ]]
+    contains "already set" "$output"
     # No backup: nothing was modified, so there is no pristine copy to preserve.
     [ ! -f "$WORK/a.env.helix-bak" ]
     run grep -c '^HELIX_REMOTE_CONTROL=' "$WORK/a.env"

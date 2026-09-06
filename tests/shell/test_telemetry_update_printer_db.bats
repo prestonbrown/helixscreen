@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Tests for telemetry-update-printer-db.py
 
+load helpers
+
 setup() {
     TEST_DIR="$(mktemp -d)"
 
@@ -89,7 +91,7 @@ teardown() {
 @test "help flag works" {
     run python3 scripts/telemetry-update-printer-db.py --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"analysis_json"* ]]
+    contains "analysis_json" "$output"
     [[ "$output" == *"--dry-run"* ]]
 }
 
@@ -112,7 +114,7 @@ teardown() {
     run python3 scripts/telemetry-update-printer-db.py "$TEST_DIR/analysis.json" \
         --db "$TEST_DIR/printer_database.json" --dry-run --skip-existing --skip-new
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Modified entries: 0"* ]]
+    contains "Modified entries: 0" "$output"
     [[ "$output" == *"New entries: 0"* ]]
 }
 
@@ -130,8 +132,8 @@ teardown() {
     run python3 scripts/telemetry-update-printer-db.py "$TEST_DIR/analysis.json" \
         --db "$TEST_DIR/printer_database.json" --dry-run --skip-existing --skip-new
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Telemetry profiles: 100"* ]]
-    [[ "$output" == *"90 detected"* ]]
-    [[ "$output" == *"10 undetected"* ]]
+    contains "Telemetry profiles: 100" "$output"
+    contains "90 detected" "$output"
+    contains "10 undetected" "$output"
     [[ "$output" == *"DRY RUN"* ]]
 }

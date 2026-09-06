@@ -107,9 +107,9 @@ MOCK_OUTER
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15" --dry-run
     [ "$status" -eq 0 ]
-    [[ "$output" == *"dry run"* ]]
-    [[ "$output" == *"Would download"* ]]
-    [[ "$output" == *"nothing was actually downloaded"* ]]
+    contains "dry run" "$output"
+    contains "Would download" "$output"
+    contains "nothing was actually downloaded" "$output"
 
     # No files should have been created in the data dir
     [ ! -d "$TEST_PROJECT/.telemetry-data/events/2025/01/15" ]
@@ -136,7 +136,7 @@ events/2025/01/15/1705312000000-bbb222.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Skipped (cached):  1"* ]]
+    contains "Skipped (cached):  1" "$output"
 
     # File should still have original content (not overwritten)
     local content
@@ -154,7 +154,7 @@ events/2025/01/15/1705312000000-bbb222.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Downloaded:        1"* ]]
+    contains "Downloaded:        1" "$output"
     [[ "$output" == *"Skipped (cached):  0"* ]]
 }
 
@@ -170,9 +170,9 @@ events/2025/01/15/1705312000000-bbb222.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15" --force
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Downloaded:        1"* ]]
+    contains "Downloaded:        1" "$output"
     # Should NOT show skipped
-    [[ "$output" == *"Skipped (cached):  0"* ]]
+    contains "Skipped (cached):  0" "$output"
 
     # File should be overwritten with mock data
     local content
@@ -191,7 +191,7 @@ events/2025/01/15/1705312000000-bbb222.json"
     # Should contain today's date as the until date
     local today
     today=$(date +%Y-%m-%d)
-    [[ "$output" == *"$today"* ]]
+    contains "$today" "$output"
 
     # Compute expected since date (30 days ago)
     local since
@@ -210,8 +210,8 @@ events/2025/01/15/1705312000000-bbb222.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-14" --until "2025-01-16"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"events/2025/01/14/"* ]]
-    [[ "$output" == *"events/2025/01/15/"* ]]
+    contains "events/2025/01/14/" "$output"
+    contains "events/2025/01/15/" "$output"
     [[ "$output" == *"events/2025/01/16/"* ]]
 }
 
@@ -224,7 +224,7 @@ events/2025/01/15/1705312000000-ccc333.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Total files found: 3"* ]]
+    contains "Total files found: 3" "$output"
     [[ "$output" == *"Downloaded:        3"* ]]
 }
 
@@ -233,7 +233,7 @@ events/2025/01/15/1705312000000-ccc333.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"No events found"* ]]
+    contains "No events found" "$output"
     [[ "$output" == *"Total files found: 0"* ]]
 }
 
@@ -263,8 +263,8 @@ events/2025/01/15/1705312000000-ccc333.json"
 
     run bash "$SCRIPT_PATH" --since "2025-01-15" --until "2025-01-15" --force --dry-run
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Would download"* ]]
-    [[ "$output" == *"nothing was actually downloaded"* ]]
+    contains "Would download" "$output"
+    contains "nothing was actually downloaded" "$output"
 
     # Original file should be untouched
     local content

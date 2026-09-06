@@ -73,8 +73,8 @@ teardown() {
     export HELIX_SYM_FILE="$TEST_DIR/test.sym"
     run bash "$SCRIPT" 0.9.9 pi 0x400100 0x400250 0x400900
     [ "$status" -eq 0 ]
-    [[ "$output" == *"main"* ]]
-    [[ "$output" == *"PrinterState::update()"* ]]
+    contains "main" "$output"
+    contains "PrinterState::update()" "$output"
     [[ "$output" == *"lv_obj_create"* ]]
 }
 
@@ -161,9 +161,9 @@ UNRESOLVED_ISSUE='## Crash Summary
     stub_gh_issue "$UNRESOLVED_ISSUE"
     run bash "$SCRIPT" --issue 1240 --repo owner/repo
     [ "$status" -eq 0 ]
-    [[ "$output" == *"3 addresses"* ]]
-    [[ "$output" == *"PrinterState::update()"* ]]
-    [[ "$output" == *"WebSocketClient::connect"* ]]
+    contains "3 addresses" "$output"
+    contains "PrinterState::update()" "$output"
+    contains "WebSocketClient::connect" "$output"
     [[ "$output" == *"lv_obj_create"* ]]
 }
 
@@ -207,7 +207,7 @@ UNRESOLVED_ISSUE='## Crash Summary
     run bash "$SCRIPT" --issue 1239 --repo owner/repo
     [ "$status" -eq 0 ]
     # Two table rows — not the four register cells above them
-    [[ "$output" == *"2 addresses"* ]]
+    contains "2 addresses" "$output"
     [[ "$output" != *"0x4d1"* ]]
 }
 
@@ -230,8 +230,8 @@ UNRESOLVED_ISSUE='## Crash Summary
 '
     run bash "$SCRIPT" --issue 1239 --repo owner/repo
     [ "$status" -eq 0 ]
-    [[ "$output" == *"2 addresses"* ]]
-    [[ "$output" == *"reliable frames"* ]]
+    contains "2 addresses" "$output"
+    contains "reliable frames" "$output"
     [[ "$output" == *"stack-scan candidates"* ]]
 }
 
@@ -250,7 +250,7 @@ UNRESOLVED_ISSUE='## Crash Summary
 '
     run bash "$SCRIPT" --issue 1239 --repo owner/repo
     [ "$status" -eq 0 ]
-    [[ "$output" == *"2 addresses"* ]]
+    contains "2 addresses" "$output"
     [[ "$output" != *"0x7fd4f57890"* ]]
 }
 
@@ -322,6 +322,6 @@ printf '%s\n' 'func_a' 'file.c:10' 'func_b' 'file.c:20' 'func_c' 'file.c:30' 'fu
     cd "$TEST_DIR/cwd"
     run bash "$script_path" 0.9.9 x86 0x400100 0x400250 0x400900 0x400a00 0x400b00
     [ "$status" -eq 0 ]
-    [[ "$output" == *"func_a at file.c:10"* ]]
+    contains "func_a at file.c:10" "$output"
     [ "$(wc -l < "$a2l_log")" -eq 2 ]
 }

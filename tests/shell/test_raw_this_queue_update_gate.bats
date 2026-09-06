@@ -43,7 +43,7 @@ void MoonrakerAPI::notify_build_volume_changed() {
     });
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *'[this]'* ]]
+    contains '[this]' "$output"
     [[ "$output" == *':3:'* ]]
 }
 
@@ -56,8 +56,9 @@ void B::g() {
     queue_update([this, x]() { apply(x); });
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *'TOTAL'* || "$output" == *'2 site'* ]]
-    [[ "$output" == *':3:'* ]]
+    [[ "$output" == *'TOTAL'* || "$output" == *'2 site'* ]] \
+        || fail "no site count in the summary: $output"
+    contains ':3:' "$output"
     [[ "$output" == *':6:'* ]]
 }
 
@@ -124,7 +125,7 @@ void A::f(int x) {
     helix::ui::queue_update([=, &x]() { member_ = x; });
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *'[&]'* ]]
+    contains '[&]' "$output"
     [[ "$output" == *'[=]'* ]]
 }
 
@@ -147,7 +148,7 @@ void A::f(Ctx ctx) {
     [ "$status" -eq 1 ]
     run python3 "$GATE" --list "$FIXTURE_DIR/nested.cpp"
     [ "$status" -eq 1 ]
-    [[ "$output" == *'TOTAL       1'* ]]
+    contains 'TOTAL       1' "$output"
     [[ "$output" == *':3:'* ]]
 }
 
@@ -288,7 +289,7 @@ void A::f() {
     helix::ui::queue_update([this]() { apply_again(); });
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *':4:'* ]]
+    contains ':4:' "$output"
     [[ "$output" != *':3:'* ]]
 }
 
@@ -347,7 +348,7 @@ void A::f() {
 }' > "$FIXTURE_DIR/summary.cpp"
     run python3 "$GATE" --max-allowed 2 --summary "$FIXTURE_DIR/summary.cpp"
     [ "$status" -eq 0 ]
-    [[ "$output" == *'TOTAL       2'* ]]
+    contains 'TOTAL       2' "$output"
     [[ "$output" == *'[&]'* ]]
 }
 

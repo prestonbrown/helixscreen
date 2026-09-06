@@ -24,6 +24,8 @@
 # would be noise on every firmware commit and would get switched off, defeating
 # the purpose.
 
+load helpers
+
 GATE="scripts/check_esp32_app_srcs.py"
 
 setup() {
@@ -58,8 +60,8 @@ decide_all() {
 @test "flags a src/ file in neither manifest nor exclusions (the drift case)" {
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"secretly_new.cpp"* ]]
-    [[ "$output" == *"app_srcs.txt"* ]]
+    contains "secretly_new.cpp" "$output"
+    contains "app_srcs.txt" "$output"
     [[ "$output" == *"app_srcs_excluded.txt"* ]]
 }
 
@@ -92,9 +94,9 @@ decide_all() {
         > "$ROOT/manifest.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"CMake will NOT compile"* ]]
-    [[ "$output" == *"line 2"* ]]
-    [[ "$output" == *"secretly_new.cpp"* ]]
+    contains "CMake will NOT compile" "$output"
+    contains "line 2" "$output"
+    contains "secretly_new.cpp" "$output"
     # and it must NOT be counted as compiled: the file is not silently "decided"
     [[ "$output" == *"DROPPED"* ]]
 }
@@ -103,7 +105,7 @@ decide_all() {
     printf 'src/printer/compiled.cpp\nsrc/printer/secretly_new.cpp   \n' > "$ROOT/manifest.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"CMake will NOT compile"* ]]
+    contains "CMake will NOT compile" "$output"
     [[ "$output" == *"trailing whitespace"* ]]
 }
 
@@ -111,7 +113,7 @@ decide_all() {
     printf 'src/printer/compiled.cpp\n  src/printer/secretly_new.cpp\n' > "$ROOT/manifest.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"CMake will NOT compile"* ]]
+    contains "CMake will NOT compile" "$output"
     [[ "$output" == *"leading whitespace"* ]]
 }
 
@@ -120,7 +122,7 @@ decide_all() {
         > "$ROOT/manifest.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"oops.h"* ]]
+    contains "oops.h" "$output"
     [[ "$output" == *"does not end in .cpp/.c"* ]]
 }
 
@@ -142,8 +144,8 @@ decide_all() {
         > "$ROOT/excluded.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"stale app_srcs_excluded.txt"* ]]
-    [[ "$output" == *"deleted_long_ago.cpp"* ]]
+    contains "stale app_srcs_excluded.txt" "$output"
+    contains "deleted_long_ago.cpp" "$output"
     [[ "$output" == *"file no longer exists"* ]]
 }
 
@@ -153,8 +155,8 @@ decide_all() {
         > "$ROOT/excluded.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"stale app_srcs_excluded.txt"* ]]
-    [[ "$output" == *"src/gone/"* ]]
+    contains "stale app_srcs_excluded.txt" "$output"
+    contains "src/gone/" "$output"
     [[ "$output" == *"no src/ files remain"* ]]
 }
 
@@ -166,7 +168,7 @@ decide_all() {
         > "$ROOT/excluded.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"BOTH app_srcs.txt and app_srcs_excluded.txt"* ]]
+    contains "BOTH app_srcs.txt and app_srcs_excluded.txt" "$output"
     [[ "$output" == *"src/printer/compiled.cpp"* ]]
 }
 
@@ -177,8 +179,8 @@ decide_all() {
         > "$ROOT/manifest.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"BOTH app_srcs.txt and app_srcs_excluded.txt"* ]]
-    [[ "$output" == *"src/camera/cam.cpp"* ]]
+    contains "BOTH app_srcs.txt and app_srcs_excluded.txt" "$output"
+    contains "src/camera/cam.cpp" "$output"
     [[ "$output" == *"via the 'src/camera/' directory entry"* ]]
 }
 
@@ -198,7 +200,7 @@ decide_all() {
     # camera/cam.cpp is covered by the src/camera/ dir exclusion, so the tree is
     # fully decided — no findings at all, and cam.cpp is named nowhere.
     [ "$status" -eq 0 ]
-    [[ "$output" == *"OK"* ]]
+    contains "OK" "$output"
     [[ "$output" != *"cam.cpp"* ]]
 }
 
@@ -225,7 +227,7 @@ decide_all() {
     # The remedy for a file you just added is the manifest. --write-exclusions
     # answers "exclude it" for every undecided file at once, which is the wrong
     # answer here; the message must steer away from it, not toward it.
-    [[ "$output" == *"Add the bare path to"* ]]
+    contains "Add the bare path to" "$output"
     [[ "$output" == *"Do NOT reach for --write-exclusions"* ]]
 }
 
@@ -250,7 +252,7 @@ decide_all() {
         --exclusions "$ROOT/excluded.txt" \
         --src-root "$ROOT/src"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"--force"* ]]
+    contains "--force" "$output"
     # the hand-written baseline is untouched
     [[ "$(cat "$ROOT/excluded.txt")" == *"hand-written baseline"* ]]
 }
@@ -266,10 +268,12 @@ decide_all() {
         --src-root "$ROOT/src"
     [ "$status" -eq 0 ]
     written="$(cat "$ROOT/excluded.txt")"
-    [[ "$written" == *"src/printer/excluded_one.cpp"*"AMS-only, needs libhv"* ]]
-    [[ "$written" == *"src/camera/"*"camera is gated off"* ]]
+    [[ "$written" == *"src/printer/excluded_one.cpp"*"AMS-only, needs libhv"* ]] \
+        || fail "excluded_one.cpp is not listed with its reason: $written"
+    [[ "$written" == *"src/camera/"*"camera is gated off"* ]] \
+        || fail "src/camera/ is not listed with its reason: $written"
     # the undecided file was added
-    [[ "$written" == *"src/printer/secretly_new.cpp"* ]]
+    contains "src/printer/secretly_new.cpp" "$written"
     run_gate
     [ "$status" -eq 0 ]
 }
@@ -287,11 +291,11 @@ decide_all() {
     [ "$status" -eq 0 ]
     written="$(cat "$ROOT/excluded.txt")"
     # one line for the whole tree, not one per subdirectory
-    [[ "$written" == *"src/gated/"* ]]
-    [[ "$written" != *"src/gated/sub/"* ]]
-    [[ "$written" != *"src/gated/sub/deeper/"* ]]
+    contains "src/gated/" "$written"
+    lacks "src/gated/sub/" "$written"
+    lacks "src/gated/sub/deeper/" "$written"
     # and the count describes files beneath, not the number of choosers
-    [[ "$written" == *"all 3 src/ files beneath"* ]]
+    contains "all 3 src/ files beneath" "$written"
     run_gate
     [ "$status" -eq 0 ]
 }

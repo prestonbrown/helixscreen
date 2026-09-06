@@ -43,7 +43,7 @@ setup() {
 @test "print_k2_stock_ai_notice: says stock failure detection is disabled" {
     run print_k2_stock_ai_notice "k2"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"AI failure detection"* ]]
+    contains "AI failure detection" "$output"
     # Shouted, because it is the one line that has to survive being skimmed.
     [[ "$output" == *"DISABLED"* ]]
 }
@@ -52,7 +52,7 @@ setup() {
     run print_k2_stock_ai_notice "k2"
     [ "$status" -eq 0 ]
     # The stock UI service that carries the detect loop...
-    [[ "$output" == *"/etc/init.d/app"* ]]
+    contains "/etc/init.d/app" "$output"
     # ...and the camera the detector would need.
     [[ "$output" == *"camera"* ]]
 }
@@ -69,8 +69,8 @@ setup() {
     # The whole point of the notice is that prints are now unwatched. Wording
     # that implies a substitute is in place would restore the false sense of
     # safety this notice exists to remove.
-    [[ "$output" != *"HelixScreen now monitors"* ]]
-    [[ "$output" != *"replaced by HelixScreen"* ]]
+    lacks "HelixScreen now monitors" "$output"
+    lacks "replaced by HelixScreen" "$output"
     [[ "$output" == *"does not"* ]]
 }
 

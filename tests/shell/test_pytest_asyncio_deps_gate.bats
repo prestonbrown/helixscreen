@@ -24,6 +24,8 @@
 # pytest would never collect — otherwise it fires on correct code and gets
 # switched off.
 
+load helpers
+
 GATE="scripts/check_pytest_asyncio_deps.py"
 
 setup() {
@@ -54,8 +56,8 @@ run_gate() {
     printf 'pytest>=8.0\n' > "$ROOT/requirements.txt"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"pytest-asyncio"* ]]
-    [[ "$output" == *"async def functions are not natively supported"* ]]
+    contains "pytest-asyncio" "$output"
+    contains "async def functions are not natively supported" "$output"
     [[ "$output" == *"test_async_case"* ]]
 }
 
@@ -80,8 +82,8 @@ async def test_unmarked():
 EOF
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"lack @pytest.mark.asyncio"* ]]
-    [[ "$output" == *"SKIPS"* ]]
+    contains "lack @pytest.mark.asyncio" "$output"
+    contains "SKIPS" "$output"
     [[ "$output" == *"test_unmarked"* ]]
 }
 
@@ -104,7 +106,7 @@ async def test_unmarked():
 EOF
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"does not declare it"* ]]
+    contains "does not declare it" "$output"
     [[ "$output" == *"lack @pytest.mark.asyncio"* ]]
 }
 
@@ -280,7 +282,7 @@ async def test_bare():
     assert True
 EOF
     run python3 "$GATE" --root "$ROOT" --test-dir suite --list
-    [[ "$output" == *"test_marked (marked)"* ]]
+    contains "test_marked (marked)" "$output"
     [[ "$output" == *"test_bare (UNMARKED)"* ]]
 }
 

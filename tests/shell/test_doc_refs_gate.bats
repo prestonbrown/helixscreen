@@ -4,6 +4,8 @@
 # Meta-tests for check_doc_refs.py --devel: the docs/devel dead-path and
 # dead-link gate added for the architecture overhaul.
 
+load helpers
+
 setup() {
     CHECK="$BATS_TEST_DIRNAME/../../scripts/check_doc_refs.py"
     FIX="$BATS_TEST_TMPDIR/devel"
@@ -141,9 +143,9 @@ MD
     run python3 "$CHECK" --list
     [ "$status" -eq 0 ]
     # The skills doc is deliberately in scope...
-    [[ "$output" == *".claude/skills/thing/SKILL.md"* ]]
+    contains ".claude/skills/thing/SKILL.md" "$output"
     # ...and the agent worktree is deliberately not.
-    [[ "$output" != *"agent-deadbeef"* ]]
+    lacks "agent-deadbeef" "$output"
     # The repo's own CLAUDE.md is still scanned, exactly once.
     [ "$(printf '%s\n' "$output" | grep -c 'scanned: CLAUDE.md$')" -eq 1 ]
 }
@@ -179,7 +181,7 @@ print(r.indexed_docs())
 "
     [ "$status" -eq 0 ]
     # Listed and present on disk -> a target. Listed but absent -> not invented.
-    [[ "$output" == *"docs/audits/A.md"* ]]
+    contains "docs/audits/A.md" "$output"
     [[ "$output" != *"docs/user/U.md"* ]]
 }
 

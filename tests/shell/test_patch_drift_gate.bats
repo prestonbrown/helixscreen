@@ -18,6 +18,8 @@
 # Every test runs against a throwaway fixture repo under BATS_TEST_TMPDIR. None
 # of them touch lib/ in this checkout: those are shared submodule checkouts.
 
+load helpers
+
 GATE="scripts/check_patch_drift.py"
 
 # Build a miniature repo shaped like this one: a Makefile that names a submodule
@@ -168,8 +170,8 @@ in_sync() {
 
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"alpha.patch"* ]]
-    [[ "$output" == *"edited since"* ]]
+    contains "alpha.patch" "$output"
+    contains "edited since" "$output"
     [[ "$output" == *"make reapply-patches"* ]]
 }
 
@@ -183,7 +185,7 @@ in_sync() {
 
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"delta.patch"* ]]
+    contains "delta.patch" "$output"
     [[ "$output" == *"never applied"* ]]
 }
 
@@ -193,7 +195,7 @@ in_sync() {
 
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"one.txt"* ]]
+    contains "one.txt" "$output"
     [[ "$output" == *"changed since"* ]]
 }
 
@@ -213,7 +215,7 @@ in_sync() {
 
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"one.txt"* ]]
+    contains "one.txt" "$output"
     [[ "$output" == *"two.txt"* ]]
 }
 
@@ -223,7 +225,7 @@ in_sync() {
     apply_all
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"no-stamp"* ]]
+    contains "no-stamp" "$output"
     [[ "$output" == *"make reapply-patches"* ]]
 }
 
@@ -243,7 +245,7 @@ in_sync() {
 
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"beta.patch"* ]]
+    contains "beta.patch" "$output"
     [[ "$output" == *"gone from patches/"* ]]
 }
 
@@ -300,8 +302,8 @@ in_sync() {
 
     run_gate --list
     [ "$status" -eq 1 ]
-    [[ "$output" == *"patch-edited lib/fake alpha.patch"* ]]
-    [[ "$output" == *"file-changed lib/fake two.txt"* ]]
+    contains "patch-edited lib/fake alpha.patch" "$output"
+    contains "file-changed lib/fake two.txt" "$output"
     # No decoration, no remedy paragraph.
     [[ "$output" != *"make reapply-patches"* ]]
 }

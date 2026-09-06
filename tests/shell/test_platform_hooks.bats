@@ -62,7 +62,7 @@ REQUIRED_FUNCTIONS="platform_stop_competing_uis platform_enable_backlight platfo
     [ "$status" -eq 0 ]
 
     # The file sink must be explicitly selected — "auto" never resolves to File.
-    [[ "$output" == *"dest=file"* ]]
+    contains "dest=file" "$output"
 
     log_file=$(echo "$output" | sed -n 's/^file=//p')
     [ -n "$log_file" ]
@@ -95,7 +95,7 @@ REQUIRED_FUNCTIONS="platform_stop_competing_uis platform_enable_backlight platfo
         echo "bytes=$HELIX_LOG_ROTATE_BYTES files=$HELIX_LOG_ROTATE_FILES"
     '
     [ "$status" -eq 0 ]
-    [[ "$output" == *"bytes=1048576"* ]]
+    contains "bytes=1048576" "$output"
     [[ "$output" == *"files=3"* ]]
 }
 
@@ -415,8 +415,8 @@ INIT_SCRIPT="config/helixscreen.init"
         rm -f "$f"
     '
     [ "$status" -eq 0 ]
-    [[ "$output" == *"--backend drm"* ]]
-    [[ "$output" == *"--drm-device /dev/dri/card0"* ]]
+    contains "--backend drm" "$output"
+    contains "--drm-device /dev/dri/card0" "$output"
     [[ "$output" == *"--drm-wait 60"* ]]
 }
 
@@ -431,7 +431,7 @@ INIT_SCRIPT="config/helixscreen.init"
         rm -f "$f"
     '
     [ "$status" -eq 0 ]
-    [[ "$output" != *"--backend"* ]]
+    lacks "--backend" "$output"
     [[ "$output" != *"UNEXPECTED"* ]]
 }
 
@@ -453,7 +453,7 @@ INIT_SCRIPT="config/helixscreen.init"
         exit $rc
     '
     [ "$status" -eq 0 ]
-    [[ "$output" == *"SURVIVED"* ]]      # unrelated process must NOT be killed
+    contains "SURVIVED" "$output"      # unrelated process must NOT be killed
     [[ "$output" != *"PIDFILE-LEFT"* ]]  # stale pidfile is still cleaned up
 }
 
@@ -538,6 +538,6 @@ INIT_SCRIPT="config/helixscreen.init"
         echo "file=$HELIX_LOG_FILE"
     '
     [ "$status" -eq 0 ]
-    [[ "$output" == *"cache=/opt/config/mod_data/helixscreen/cache"* ]]
+    contains "cache=/opt/config/mod_data/helixscreen/cache" "$output"
     [[ "$output" == *"file=/opt/config/mod_data/log/helix.log"* ]]
 }

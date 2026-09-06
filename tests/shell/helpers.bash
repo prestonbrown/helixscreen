@@ -269,6 +269,46 @@ refute_grep() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Positive assertions
+#
+# bash 3.2 is what macOS ships, and it does not apply errexit to a failing
+# `[[ ]]` or `(( ))`. bats runs each @test body under `set -e`, so a mid-body
+# `[[ ]]` assertion is inert on a Mac: when it should fail, the status is
+# swallowed and whichever statement runs LAST decides the test result. Under
+# bash 5 in CI the same line fails the test, so the two hosts disagree about
+# what a test pins, and the Mac is the one that reports green.
+#
+#     [[ "$output" == *"ready"* ]]     # inert unless it is the last statement
+#     contains "ready" "$output"       # fails the test, as intended
+#
+# Going through a function makes the failure a failing simple command, which
+# every shell honours. A `[[ ]]` that genuinely IS the last statement of its
+# body works everywhere and needs no wrapper.
+#
+# The needle is matched as a LITERAL substring - the case patterns quote it, so
+# a `*` or `?` inside it means itself. An assertion that needs a real glob
+# (anchored at either end, or several ordered segments) or any other compound
+# condition keeps its `[[ ]]` and appends `|| fail "..."`, which ends the list
+# in a simple command and is therefore honoured too.
+# ---------------------------------------------------------------------------
+
+# Assert that $2 contains the literal substring $1.
+contains() {
+    case "$2" in
+        *"$1"*) return 0 ;;
+        *) printf 'expected to find: %s\nin:\n%s\n' "$1" "$2" >&2; return 1 ;;
+    esac
+}
+
+# Assert that $2 does NOT contain the literal substring $1.
+lacks() {
+    case "$2" in
+        *"$1"*) printf 'expected NOT to find: %s\nin:\n%s\n' "$1" "$2" >&2; return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
 # --- GNU sed on a BSD host (macOS) ----------------------------------------
 #
 # BSD sed differs from GNU/BusyBox sed in two ways this suite trips over: it

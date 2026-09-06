@@ -20,6 +20,8 @@
 # commit and gets switched off. That distinction (naming the path vs. writing to
 # it) is the whole design, so it is what these tests guard.
 
+load helpers
+
 GATE="scripts/check_android_asset_staging.py"
 STAGED="android/app/src/main/assets"
 
@@ -113,7 +115,7 @@ EOF
         > "$WORK/mk/filaments.mk"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"write into"* ]]
+    contains "write into" "$output"
     [[ "$output" == *"filaments.mk"* ]]
 }
 

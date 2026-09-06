@@ -133,7 +133,7 @@ SAMPLE_MANIFEST='{
     # "pi" grep should NOT match "pi32" lines - pi32 line contains "helixscreen-pi32-"
     # which does NOT match "helixscreen-pi-"
     result=$(echo "$SAMPLE_MANIFEST" | parse_manifest_platform_url "pi")
-    [[ "$result" != *"pi32"* ]]
+    lacks "pi32" "$result"
     [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-pi-v0.9.5.tar.gz" ]
 }
 
@@ -158,7 +158,7 @@ COMPACT_MANIFEST='{"version":"0.9.5","tag":"v0.9.5","notes":"Only as \"Indochina
 
 @test "parse_json_string_field does not leak release notes into the tag" {
     result=$(echo "$COMPACT_RELEASE" | parse_json_string_field tag_name)
-    [[ "$result" != *"Vietnam"* ]]
+    lacks "Vietnam" "$result"
     [[ "$result" != *"palette"* ]]
 }
 

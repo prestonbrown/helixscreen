@@ -336,8 +336,8 @@ ad5m_sandbox() {
 
     run set_install_paths "ad5x" "forge_x"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
-    [[ "$output" == *"--payload-root"* ]]   # the current lever, not the retired --mod-payload
+    contains "refusing" "$output"
+    contains "--payload-root" "$output"   # the current lever, not the retired --mod-payload
 
     # --mod-payload's contract is an in-place update inside the mod layout:
     # the guard must stand down for it.
@@ -364,7 +364,7 @@ ad5m_sandbox() {
 
     run set_install_paths "pi"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
+    contains "refusing" "$output"
     [[ "$output" == *"--payload-root"* ]]   # the current lever, not the retired --mod-payload
 }
 
@@ -381,8 +381,8 @@ ad5m_sandbox() {
     TMP_DIR="$SANDBOX/usr/data/config/mod/helixscreen-install"
     run detect_tmp_dir
     [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
-    [[ "$output" == *"--payload-root"* ]]   # the current lever, not the retired --mod-payload
+    contains "refusing" "$output"
+    contains "--payload-root" "$output"   # the current lever, not the retired --mod-payload
 
     HELIX_MOD_PAYLOAD=1
     detect_tmp_dir
@@ -437,7 +437,7 @@ ad5m_sandbox() {
 
     run backup_install_dir_for_update
     [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
+    contains "refusing" "$output"
     [ -d "$INSTALL_DIR" ]              # untouched
     [ ! -d "${INSTALL_DIR}.old" ]      # nothing moved aside
 }
@@ -473,7 +473,7 @@ ad5m_sandbox() {
 
     run add_update_manager_section "$conf"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
+    contains "refusing" "$output"
     refute_grep 'update_manager helixscreen' "$conf"
     [ ! -f "${conf}.bak.helixscreen" ]   # not even the backup write happened
 }

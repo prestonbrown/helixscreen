@@ -17,6 +17,8 @@
 # leaks it must still catch. The second half is the property most at risk, because
 # every step that buys stability here buys it by ignoring something.
 
+load helpers
+
 GATE="scripts/check_update_queue_leaks.py"
 BASELINE="scripts/update_queue_leak_baseline.txt"
 
@@ -85,7 +87,7 @@ run_gate() { run python3 "$GATE" --baseline "$BASE" "$LOG"; }
     printf 'max-untagged-callbacks: 2\ntest:known leaker\n' > "$BASE"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *'test:brand new test nobody baselined'* ]]
+    contains 'test:brand new test nobody baselined' "$output"
     [[ "$output" != *'test:known leaker'* ]]
 }
 
@@ -110,7 +112,7 @@ run_gate() { run python3 "$GATE" --baseline "$BASE" "$LOG"; }
     printf 'max-untagged-callbacks: 3\ntest:known leaker\n' > "$BASE"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *'exceeds the baseline ceiling'* ]]
+    contains 'exceeds the baseline ceiling' "$output"
     [[ "$output" == *'4 untagged'* ]]
 }
 
@@ -136,13 +138,13 @@ run_gate() { run python3 "$GATE" --baseline "$BASE" "$LOG"; }
     printf 'max-untagged-callbacks: 2\ntest:mixed victim\n' > "$BASE"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *'tag:LedController::led_cmd_settled'* ]]
+    contains 'tag:LedController::led_cmd_settled' "$output"
 
     # Baseline missing the untagged half -> fails on the victim.
     printf 'max-untagged-callbacks: 2\ntag:LedController::led_cmd_settled\n' > "$BASE"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *'test:mixed victim'* ]]
+    contains 'test:mixed victim' "$output"
 
     # Both halves listed -> passes.
     printf 'max-untagged-callbacks: 2\ntest:mixed victim\ntag:LedController::led_cmd_settled\n' > "$BASE"
@@ -175,7 +177,7 @@ run_gate() { run python3 "$GATE" --baseline "$BASE" "$LOG"; }
     printf 'max-untagged-callbacks: 2\ntest:known leaker\n' > "$BASE"
     run_gate
     [ "$status" -eq 0 ]
-    [[ "$output" != *'ISOLATION-LEAK-SITES'* ]]
+    lacks 'ISOLATION-LEAK-SITES' "$output"
     [[ "$output" != *'observer_factory'* ]]
 }
 
@@ -200,7 +202,7 @@ run_gate() { run python3 "$GATE" --baseline "$BASE" "$LOG"; }
     printf '# old format\nAll panels are accessible\nknown leaker\n' > "$BASE"
     run_gate
     [ "$status" -eq 2 ]
-    [[ "$output" == *'bare-name format'* ]]
+    contains 'bare-name format' "$output"
     [[ "$output" == *'--write-baseline'* ]]
 }
 

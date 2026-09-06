@@ -14,6 +14,8 @@
 # before theme init where a token read returns 0 and would collapse the layout to
 # nothing. A gate that fired on those would be noise and get switched off.
 
+load helpers
+
 GATE="scripts/check_hardcoded_pixels.py"
 
 setup() {
@@ -54,7 +56,7 @@ run_gate() {
   <lv_obj width="36" height="36"/>
 </view></component>'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"[xml-size]"* ]]
+    contains "[xml-size]" "$output"
     [[ "$output" == *"icon_button_size_lg"* ]]
 }
 
@@ -350,7 +352,7 @@ setup_tmp_repo() {
     git add ui_xml/base.xml
     run python3 "$GATE_ABS" --staged-only --list
     [ "$status" -eq 1 ]
-    [[ "$output" == *"[xml-pad]"* ]]
+    contains "[xml-pad]" "$output"
     [[ "$output" == *"ui_xml/base.xml"* ]]
 }
 
@@ -362,7 +364,7 @@ setup_tmp_repo() {
     printf '<component><view>\n  <lv_obj style_pad_all="12"/>\n</view></component>\n' > ui_xml/dirty.xml
     run python3 "$GATE_ABS" --staged-only --list
     [ "$status" -eq 0 ]
-    [[ "$output" != *"dirty.xml"* ]]
+    lacks "dirty.xml" "$output"
     [[ "$output" != *"[xml-pad]"* ]]
 }
 

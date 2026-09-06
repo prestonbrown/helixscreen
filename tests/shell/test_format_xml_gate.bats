@@ -27,6 +27,8 @@
 # turned the shell suite red on main. These tests pin the script's exit codes regardless
 # of how the hook chooses to act on them.
 
+load helpers
+
 FORMATTER="scripts/format-xml.py"
 PY=".venv/bin/python"
 
@@ -84,7 +86,7 @@ write_and_run() {
 </component>
 ' --check
     [ "$status" -eq 0 ]
-    [[ "$output" != *"Namespace prefix"* ]]
+    lacks "Namespace prefix" "$output"
     [[ "$output" != *"could not be processed"* ]]
 }
 
@@ -182,7 +184,7 @@ write_and_run() {
     # A live `git diff` at decision time is the same bug in a different dress.
     run bash -c "sed -n '/XML_RESTAGE=\"\"; XML_HELD=\"\"/,/^          done/p' scripts/quality-checks.sh"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"XML_PRE_DIRTY"* ]]
+    contains "XML_PRE_DIRTY" "$output"
     [[ "$output" != *"git diff"* ]]
 }
 

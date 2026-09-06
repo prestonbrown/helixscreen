@@ -251,7 +251,7 @@ mock_has_privs() {
     [ -d "${INSTALL_DIR}.old" ]
     [ -f "$INSTALL_DIR/bin/helix-screen" ]
     # Should NOT mention parent dir test (skips NoNewPrivileges block entirely)
-    [[ "$output" != *"Parent dir writable"* ]]
+    lacks "Parent dir writable" "$output"
     [[ "$output" != *"parent read-only"* ]]
 }
 

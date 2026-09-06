@@ -8,6 +8,8 @@
 # HELIX_FIRMWARE_MANAGED_MARKER overrides the marker root for testing.
 # HELIX_IGNORE_FIRMWARE_MANAGED=1 forces past the guard.
 
+load helpers
+
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
@@ -29,7 +31,7 @@ setup() {
     mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/oem/apps/helixscreen"
     run _refuse_if_firmware_managed
     [ "$status" -ne 0 ]
-    [[ "$output" == *"managed by your firmware"* ]]
+    contains "managed by your firmware" "$output"
     [[ "$output" == *"HELIX_IGNORE_FIRMWARE_MANAGED=1"* ]]
 }
 

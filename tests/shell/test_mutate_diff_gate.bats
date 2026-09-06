@@ -15,6 +15,8 @@
 # If "the tree is byte-identical afterwards" ever stops holding, the tool is
 # dangerous rather than merely wrong.
 
+load helpers
+
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     REPO_ROOT="$PWD"
@@ -87,7 +89,7 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     stub_tests_that_detect
     run mutate --list-only
     [ "$status" -eq 0 ]
-    [[ "$output" == *"src/feature.cpp"* ]]
+    contains "src/feature.cpp" "$output"
     run git -C "$WORK" diff --quiet -- src/feature.cpp
     [ "$status" -eq 1 ]   # still the modified version, untouched by the tool
 }
@@ -96,7 +98,7 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     stub_tests_that_detect
     run mutate
     [ "$status" -eq 0 ]
-    [[ "$output" == *"killed"* ]]
+    contains "killed" "$output"
     [[ "$output" != *"SURVIVED"* ]]
 }
 
@@ -129,7 +131,7 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     stub_tests_that_detect
     run mutate --tests '[some_tag]'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"nothing in bats + pytest detects them"* ]]
+    contains "nothing in bats + pytest detects them" "$output"
     [[ "$output" != *"some_tag"* ]]
 }
 
@@ -146,7 +148,7 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     stub_tests_that_detect
     printf 'test-build:\n\t@grep -q NEW_BEHAVIOR src/feature.cpp\n' > "$WORK/Makefile"
     run mutate
-    [[ "$output" == *"uncompilable"* ]]
+    contains "uncompilable" "$output"
     [[ "$output" != *"killed"* ]]
 }
 
@@ -190,9 +192,9 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     git -C "$WORK" add -N android/app/build.gradle
     run mutate
     [ "$status" -eq 3 ]
-    [[ "$output" == *"NOT COVERED"* ]]
-    [[ "$output" == *"android/app/build.gradle"* ]]
-    [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
+    contains "NOT COVERED" "$output"
+    contains "android/app/build.gradle" "$output"
+    contains "VERDICT: INCOMPLETE" "$output"
     [[ "$output" != *"VERDICT: CLEAN"* ]]
 }
 
@@ -212,8 +214,8 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     git -C "$WORK" add -N docs.md
     run mutate
     [ "$status" -eq 0 ]
-    [[ "$output" == *"not behavioural"* ]]
-    [[ "$output" == *"docs.md"* ]]
+    contains "not behavioural" "$output"
+    contains "docs.md" "$output"
     [[ "$output" == *"VERDICT: CLEAN"* ]]
 }
 
@@ -224,8 +226,8 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     git -C "$WORK" add -N tests/unit/test_x.cpp
     run mutate
     [ "$status" -eq 3 ]
-    [[ "$output" == *"NOT COVERED"* ]]
-    [[ "$output" == *"tests/unit/test_x.cpp"* ]]
+    contains "NOT COVERED" "$output"
+    contains "tests/unit/test_x.cpp" "$output"
     [[ "$output" == *"proven by mutating the code it pins"* ]]
 }
 
@@ -246,8 +248,8 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
 
     run mutate
     [ "$status" -eq 3 ]
-    [[ "$output" == *"NOT COVERED"* ]]
-    [[ "$output" == *"lib/engine"* ]]
+    contains "NOT COVERED" "$output"
+    contains "lib/engine" "$output"
     [[ "$output" == *"submodule"* ]]
 }
 
@@ -257,7 +259,7 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     git -C "$WORK" add -N src/other.cpp
     run mutate --limit 1
     [ "$status" -eq 3 ]
-    [[ "$output" == *"DEFERRED"* ]]
+    contains "DEFERRED" "$output"
     [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
 }
 
@@ -268,8 +270,8 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     printf 'test-build:\n\t@grep -q NEW_BEHAVIOR src/feature.cpp\n' > "$WORK/Makefile"
     run mutate
     [ "$status" -eq 3 ]
-    [[ "$output" == *"uncompilable"* ]]
-    [[ "$output" == *"VERDICT: INCOMPLETE"* ]]
+    contains "uncompilable" "$output"
+    contains "VERDICT: INCOMPLETE" "$output"
     [[ "$output" != *"VERDICT: CLEAN"* ]]
 }
 
@@ -279,7 +281,7 @@ mutate() { ( cd "$WORK" && python3 scripts/mutate_diff.py --base "$BASE" --shard
     git -C "$WORK" add -N scripts/gate.sh
     run mutate --shell-tests tests/nowhere --python-tests tests/nowhere
     [ "$status" -eq 3 ]
-    [[ "$output" == *"NOT COVERED"* ]]
+    contains "NOT COVERED" "$output"
     [[ "$output" == *"scripts/gate.sh"* ]]
 }
 
@@ -322,8 +324,8 @@ EOF
     chmod +x "$WORK/build/bin/helix-tests"
     run mutate
     [ "$status" -eq 0 ]
-    [[ "$output" == *"ui_xml/home.xml"* ]]
-    [[ "$output" == *"[data]"* ]]
+    contains "ui_xml/home.xml" "$output"
+    contains "[data]" "$output"
     [[ "$output" == *"killed"* ]]
 }
 
@@ -337,7 +339,7 @@ EOF
     stub_tests_that_ignore
     run mutate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"assets/config/printer_database.json"* ]]
+    contains "assets/config/printer_database.json" "$output"
     [[ "$output" == *"SURVIVED"* ]]
 }
 
@@ -356,9 +358,9 @@ EOF
     printf '#!/bin/sh\necho new\n' > "$WORK/scripts/gate.sh"
     stub_tests_that_detect
     run mutate
-    [[ "$output" == *"scripts/gate.sh"* ]]
-    [[ "$output" == *"[tooling]"* ]]
-    [[ "$output" == *"killed"* ]]
+    contains "scripts/gate.sh" "$output"
+    contains "[tooling]" "$output"
+    contains "killed" "$output"
     [ "$status" -eq 0 ]
 }
 
@@ -375,7 +377,7 @@ EOF
     run mutate --list-only
     # ${V#a} -> ${V#b} is a behaviour change that a naive "# starts a comment"
     # scan would blank away, leaving two identical lines and a silent skip.
-    [[ "$output" == *"1 hunk(s) to mutate"* ]]
+    contains "1 hunk(s) to mutate" "$output"
     [[ "$output" != *"comment/whitespace only"* ]]
 }
 
@@ -396,10 +398,10 @@ EOF
     printf 'int h(int n) {\n    return n + 3;   // OTHER\n}\n' > "$WORK/src/other/thing.cpp"
     git -C "$WORK" add -N src/other/thing.cpp
     run mutate --list-only
-    [[ "$output" == *"other/thing.cpp"* ]]
-    [[ "$output" == *"src/feature.cpp"* ]]
+    contains "other/thing.cpp" "$output"
+    contains "src/feature.cpp" "$output"
     run mutate --list-only --only feature.cpp
-    [[ "$output" == *"src/feature.cpp"* ]]
+    contains "src/feature.cpp" "$output"
     [[ "$output" != *"other/thing.cpp"* ]]
 }
 
@@ -407,8 +409,8 @@ EOF
     stub_tests_that_detect
     printf 'src/feature.cpp  # cannot run headless\n' > "$WORK/scripts/untestable_paths.txt"
     run mutate --list-only
-    [[ "$output" == *"EXCLUDED"* ]]
-    [[ "$output" == *"cannot run headless"* ]]
+    contains "EXCLUDED" "$output"
+    contains "cannot run headless" "$output"
     [[ "$output" == *"0 hunk(s) to mutate"* ]]
 }
 
@@ -416,10 +418,10 @@ EOF
     stub_tests_that_detect
     printf 'src/feat  # deliberately a partial path\n' > "$WORK/scripts/untestable_paths.txt"
     run mutate --list-only
-    [[ "$output" == *"EXCLUDED"* ]]
+    contains "EXCLUDED" "$output"
     printf 'feature.cpp  # not anchored at the start\n' > "$WORK/scripts/untestable_paths.txt"
     run mutate --list-only
-    [[ "$output" != *"EXCLUDED"* ]]
+    lacks "EXCLUDED" "$output"
     [[ "$output" == *"1 hunk(s) to mutate"* ]]
 }
 
@@ -457,7 +459,7 @@ reset_to() {
 '
     run mutate
     [ "$status" -eq 0 ]
-    [[ "$output" == *"comment/whitespace only"* ]]
+    contains "comment/whitespace only" "$output"
     [[ "$output" != *"SURVIVED"* ]]
 }
 
@@ -502,7 +504,7 @@ reset_to() {
 '
     run mutate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"SURVIVED"* ]]
+    contains "SURVIVED" "$output"
     [[ "$output" != *"comment/whitespace only"* ]]
 }
 

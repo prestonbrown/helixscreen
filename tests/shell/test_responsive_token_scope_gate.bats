@@ -22,6 +22,8 @@
 # fine through the component's own scope. A gate that fired on those would be
 # noise on every component commit and would get switched off.
 
+load helpers
+
 GATE="scripts/check_responsive_token_scope.py"
 
 setup() {
@@ -49,8 +51,8 @@ run_gate() {
   <view name="card" extends="lv_obj"/>
 </component>'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"card_gutter_small"* ]]
-    [[ "$output" == *"card.xml"* ]]
+    contains "card_gutter_small" "$output"
+    contains "card.xml" "$output"
     [[ "$output" == *"globals.xml"* ]]
 }
 

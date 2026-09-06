@@ -17,6 +17,8 @@
 # and values that merely quote/fold differently than their key are fine as
 # long as the parsed strings match.
 
+load helpers
+
 GATE="scripts/check_translation_identity.py"
 
 setup() {
@@ -59,7 +61,7 @@ translations:
   a.key.two: Two
   prints: prints'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"a.key.one"* ]]
+    contains "a.key.one" "$output"
     [[ "$output" == *"a.key.two"* ]]
 }
 

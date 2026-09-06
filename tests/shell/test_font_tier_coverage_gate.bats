@@ -94,7 +94,7 @@ EOF
     run python3 "$FAKE/scripts/check_font_tier_coverage.py"
 
     [ "$status" -eq 1 ]
-    [[ "$output" == *"testplat"* ]]
+    contains "testplat" "$output"
     [[ "$output" == *"noto_sans_26"* ]]
 }
 

@@ -51,8 +51,8 @@ setup() {
     # Hardware FIRST so the user sees their own device reflected back.
     [ "${lines[0]}" = "[INFO] Detected hardware: QIDI-class SBC (likely Q2/Plus, hostname: linaro-alip, user: mks)" ]
     # "pi" reframed as the install package, not a hardware claim.
-    [[ "${lines[1]}" == "[INFO] Install package: pi"* ]]
-    [[ "${lines[1]}" == *"compatible with your SBC"* ]]
+    [[ "${lines[1]}" == "[INFO] Install package: pi"* ]] || fail "line 2 does not lead with the package framing: ${lines[1]}"
+    contains "compatible with your SBC" "${lines[1]}"
     # The bare "Detected platform: pi" string MUST NOT appear — that's the
     # phrase that confused the QIDI user in the original bug report.
     [[ "${output}" != *"Detected platform: pi"* ]]

@@ -10,6 +10,8 @@
 # every worktree edit land in the MAIN tree's submodule working copy, shared
 # with every other worktree and visible as dirt in main's `git status`.
 
+load helpers
+
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     SCRIPT="scripts/setup-worktree.sh"
@@ -96,7 +98,7 @@ setup() {
     run bash "$tmp/scripts/setup-worktree.sh" somebranch .
 
     [ "$status" -ne 0 ]
-    [[ "$output" == *"same directory"* ]]
+    contains "same directory" "$output"
     # The real assertion: the destructive path never executed.
     [ -f "$tmp/lib/keepme/file.txt" ]
     [ "$(cat "$tmp/lib/keepme/file.txt")" = "precious" ]

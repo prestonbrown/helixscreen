@@ -111,8 +111,8 @@ setup() {
     export -f log_error
     run validate_binary_architecture "$binary" "ad5m"
     [ "$status" -eq 1 ]
-    [[ "${output}" == *"Architecture mismatch"* ]]
-    [[ "${output}" == *"ARM 32-bit"* ]]
+    contains "Architecture mismatch" "${output}"
+    contains "ARM 32-bit" "${output}"
     [[ "${output}" == *"AARCH64"* ]]
 }
 

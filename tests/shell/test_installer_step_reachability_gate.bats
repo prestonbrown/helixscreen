@@ -91,7 +91,7 @@ MAIN_EOF
 @test "flags a step function with no call site (the #1343 case)" {
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"step_orphan"* ]]
+    contains "step_orphan" "$output"
     [[ "$output" == *"no production call site"* ]]
 }
 
@@ -116,7 +116,7 @@ MAIN_EOF
 @test "--list prints just the uncalled names" {
     run python3 "$GATE" --lib-root "$ROOT/lib" --caller "$ROOT/entry.sh" --list
     [ "$status" -eq 1 ]
-    [[ "$output" == *"step_orphan"* ]]
+    contains "step_orphan" "$output"
     [[ "$output" != *"no production call site"* ]]
 }
 
@@ -152,7 +152,7 @@ MAIN_EOF
     wire_everything
     run_gate
     [ "$status" -eq 0 ]
-    [[ "$output" != *"step_annotated"* ]]
+    lacks "step_annotated" "$output"
     [[ "$output" == *"1 annotated"* ]]
 }
 

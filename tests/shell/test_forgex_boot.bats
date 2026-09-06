@@ -491,7 +491,7 @@ wpa_fixture() {
     rm -f "$FORGEX_NETD_BIN"
     run platform_start_wpa_supplicant
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Starting wpa_supplicant"* ]]
+    contains "Starting wpa_supplicant" "$output"
     [[ "$output" == *"FAKE_WPA_RAN"* ]]
 }
 
@@ -501,7 +501,7 @@ wpa_fixture() {
     chmod +x "$FORGEX_NETD_BIN"
     run platform_start_wpa_supplicant
     [ "$status" -eq 0 ]
-    [[ "$output" != *"Starting wpa_supplicant"* ]]
+    lacks "Starting wpa_supplicant" "$output"
     [[ "$output" != *"FAKE_WPA_RAN"* ]]
 }
 

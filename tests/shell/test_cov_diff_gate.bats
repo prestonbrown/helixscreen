@@ -15,6 +15,8 @@
 # handling, and a hand-written fixture would only test the parser against
 # itself.
 
+load helpers
+
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     REPO_ROOT="$PWD"
@@ -64,7 +66,7 @@ EOF
     build_and_run
     cd "$WORK" && run python3 scripts/cov_diff.py --base "$BASE" --list
     [ "$status" -eq 1 ]
-    [[ "$output" == *"never executed"* ]]
+    contains "never executed" "$output"
     [[ "$output" == *"calc.cpp"* ]]
 }
 
@@ -109,7 +111,7 @@ EOF
     build_and_run
     cd "$WORK" && run python3 scripts/cov_diff.py --base "$BASE" --list
     [ "$status" -eq 1 ]
-    [[ "$output" == *"NOT LINKED"* ]]
+    contains "NOT LINKED" "$output"
     [[ "$output" == *"orphan.cpp"* ]]
 }
 
@@ -144,8 +146,8 @@ EOF
     build_and_run
     cd "$WORK" && run python3 scripts/cov_diff.py --base "$BASE" --list
     [ "$status" -eq 0 ]
-    [[ "$output" == *"EXCLUDED"* ]]
-    [[ "$output" == *"no headless path for this"* ]]
+    contains "EXCLUDED" "$output"
+    contains "no headless path for this" "$output"
     # The summary line always carries the words "never executed" ("0 never
     # executed"), so assert the count, not the substring.
     [[ "$output" == *"0 never executed"* ]]

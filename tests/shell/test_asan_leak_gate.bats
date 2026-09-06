@@ -19,6 +19,8 @@
 # These tests pin the property whose absence broke the nightly: the same leak
 # site, symbolized by either compiler, is ONE key.
 
+load helpers
+
 GATE="scripts/check_asan_leaks.py"
 
 setup() {
@@ -130,7 +132,7 @@ gcc_ui_button_log() {
     frame 1 'MoonrakerClientMock::dispatch_shaper_calibrate_response(char) src/api/moonraker_client_mock.cpp:4749:17'
     finish_run 80 1
     run python3 "$GATE" --list "$LOG"
-    [[ "$output" == *'src/api/moonraker_client_mock.cpp::MoonrakerClientMock::dispatch_shaper_calibrate_response'* ]]
+    contains 'src/api/moonraker_client_mock.cpp::MoonrakerClientMock::dispatch_shaper_calibrate_response' "$output"
 
     : > "$LOG"
     leak_header

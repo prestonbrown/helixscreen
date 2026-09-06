@@ -85,7 +85,7 @@ setup() {
     sleep 1  # mtime resolution is 1s on most filesystems
     HOME="$BATS_TEST_TMPDIR/fakehome" run install_kiauh_extension ""
     [ "$status" -eq 0 ]
-    [[ "$output" == *"already up to date"* ]]
+    contains "already up to date" "$output"
 
     # mtime unchanged → file was not rewritten
     local after_init_mtime

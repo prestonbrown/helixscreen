@@ -117,7 +117,7 @@ EOF
 
     run_klipper_check "ad5m" "$ps_file" 0
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Klipper does not appear to be running"* ]]
+    contains "Klipper does not appear to be running" "$output"
     [[ "$output" == *"Non-interactive mode"* ]]
 }
 
@@ -130,7 +130,7 @@ EOF
 
     run_klipper_check "ad5m" "$ps_file" 0
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Moonraker does not appear to be running"* ]]
+    contains "Moonraker does not appear to be running" "$output"
     [[ "$output" == *"Non-interactive mode"* ]]
 }
 
@@ -143,7 +143,7 @@ EOF
 
     run_klipper_check "ad5m" "$ps_file" 0
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Klipper does not appear to be running"* ]]
+    contains "Klipper does not appear to be running" "$output"
     [[ "$output" == *"Moonraker does not appear to be running"* ]]
 }
 
@@ -157,7 +157,7 @@ EOF
 
     run_klipper_check "ad5m" "$ps_file" 1
     [ "$status" -eq 0 ]
-    [[ "$output" == *"not responding on http://127.0.0.1:7125"* ]]
+    contains "not responding on http://127.0.0.1:7125" "$output"
     [[ "$output" == *"Non-interactive mode"* ]]
 }
 

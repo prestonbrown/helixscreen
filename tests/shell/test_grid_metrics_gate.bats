@@ -47,7 +47,7 @@ int g(UiBreakpoint bp) {
     return GridLayout::get_cols(bp);
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"3 grid-dimension call sites"* ]]
+    contains "3 grid-dimension call sites" "$output"
     [[ "$output" == *"case.cpp"* || "$output" == *"grid_edit_mode.cpp"* ]]
 }
 

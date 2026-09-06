@@ -46,7 +46,7 @@ run_gate() {
   </view>
 </component>'
     [ "$status" -eq 1 ]
-    [[ "$output" == *'endless_arrows'* ]]
+    contains 'endless_arrows' "$output"
     [[ "$output" == *'2 elements'* ]]
 }
 
@@ -74,7 +74,7 @@ run_gate() {
   </view>
 </component>'
     [ "$status" -eq 1 ]
-    [[ "$output" == *'slot_card'* ]]
+    contains 'slot_card' "$output"
     [[ "$output" == *'<repeat>'* ]]
 }
 
@@ -308,7 +308,7 @@ run_gate() {
 @test "--list enumerates the baselined sites and exits 0" {
     run python3 "$GATE" --list
     [ "$status" -eq 0 ]
-    [[ "$output" == *'about_settings_overlay.xml'* ]]
+    contains 'about_settings_overlay.xml' "$output"
     [[ "$output" == *'[baselined]'* ]]
 }
 

@@ -296,7 +296,7 @@ _setup_zmod_ad5x_sandbox() {
 
     run set_install_paths "ad5x" "forge_x"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"refusing"* ]]
+    contains "refusing" "$output"
     [[ "$output" == *"--payload-root"* ]]
 }
 

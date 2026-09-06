@@ -18,6 +18,8 @@
 # there is far worse than failing, because git will happily commit whatever it
 # writes. Exiting non-zero hands the conflict back to the user instead.
 
+load helpers
+
 SCRIPT="scripts/recall_stats_merge.py"
 
 setup() {
@@ -51,7 +53,7 @@ print(json.load(open(sys.argv[1]))[sys.argv[2]][sys.argv[3]])" "$1" "$2" "$3"
 @test "wiring: .gitattributes routes the counter files to this driver" {
     run git check-attr merge -- .claude-recall/stats.json
     [ "$status" -eq 0 ]
-    [[ "$output" == *"merge: recall-stats"* ]]
+    contains "merge: recall-stats" "$output"
 
     run git check-attr merge -- .claude-recall/injection-stats.json
     [ "$status" -eq 0 ]
@@ -266,7 +268,7 @@ make_diverged_repo() {
 
     run git merge branchA -m merged
     [ "$status" -eq 0 ]
-    [[ "$output" != *"CONFLICT"* ]]
+    lacks "CONFLICT" "$output"
     [ "$(field .claude-recall/stats.json L1 uses)" -eq 12 ]
 }
 

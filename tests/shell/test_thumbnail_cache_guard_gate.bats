@@ -52,7 +52,7 @@ void Panel::load() {
                                 nullptr);
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *':3:'* ]]
+    contains ':3:' "$output"
     [[ "$output" == *"unguarded ThumbnailCache::fetch()"* ]]
 }
 
@@ -68,7 +68,7 @@ void Panel::load() {
         on_err);
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *':3:'* ]]
+    contains ':3:' "$output"
     [[ "$output" == *"unguarded ThumbnailCache::fetch()"* ]]
 }
 
@@ -81,8 +81,8 @@ void Panel::b() {
     auto y = get_thumbnail_cache().get_if_cached(relative_path, source_modified);
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *':3:'* ]]
-    [[ "$output" == *':6:'* ]]
+    contains ':3:' "$output"
+    contains ':6:' "$output"
     [[ "$output" == *"2 site(s)"* ]]
 }
 
@@ -95,7 +95,7 @@ void Overlay::load() {
     std::string cached = cache.get_if_cached(thumb_rel_path);
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *':4:'* ]]
+    contains ':4:' "$output"
     [[ "$output" == *"unguarded ThumbnailCache::get_if_cached()"* ]]
 }
 
@@ -126,8 +126,8 @@ void Panel::load() {
     get_thumbnail_cache().get_if_cached(relative_path, mtime);
 }'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"diagnostic.cpp:3:"* ]]
-    [[ "$output" == *"ThumbnailLoadContext"* ]]
+    contains "diagnostic.cpp:3:" "$output"
+    contains "ThumbnailLoadContext" "$output"
     [[ "$output" == *"THUMB_LEGACY_OK"* ]]
 }
 

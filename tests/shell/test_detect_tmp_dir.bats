@@ -196,7 +196,7 @@ echo '/dev/sda1   1048576  0  512000  0% /'
     # a bare "status != 0" is undiagnosable without the scenario's stdout.
     [ "$status" -eq 0 ] || echo "# ro_tmp scenario status=$status output=<<$output>>" >&3
     [ "$status" -eq 0 ]
-    [[ "$output" == *"REPRO_OK"* ]]   # reproduced the bundle mkdir-on-read-only-/tmp failure
+    contains "REPRO_OK" "$output"   # reproduced the bundle mkdir-on-read-only-/tmp failure
     [[ "$output" == *"FIX_OK"* ]]     # sibling staging dir + real extraction succeeded
 }
 

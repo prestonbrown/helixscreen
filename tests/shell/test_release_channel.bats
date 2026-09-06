@@ -5,6 +5,8 @@
 # Verifies the explicit RELEASE_CHANNEL -> R2 channel mapping that replaced the
 # old "tag contains a hyphen" rule.
 
+load helpers
+
 SCRIPT="scripts/release-channel.sh"
 
 setup() {
@@ -40,8 +42,8 @@ write_channel() {
     write_channel "stable"
     run "$SCRIPT" --file "$CHANNEL_FILE"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"channel=stable"* ]]
-    [[ "$output" == *"channels=stable"* ]]
+    contains "channel=stable" "$output"
+    contains "channels=stable" "$output"
     [[ "$output" == *"prerelease=false"* ]]
 }
 
@@ -58,8 +60,8 @@ write_channel() {
     write_channel "beta"
     run "$SCRIPT" --file "$CHANNEL_FILE"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"channel=beta"* ]]
-    [[ "$output" == *"channels=beta dev"* ]]
+    contains "channel=beta" "$output"
+    contains "channels=beta dev" "$output"
     [[ "$output" == *"prerelease=true"* ]]
 }
 
@@ -67,8 +69,8 @@ write_channel() {
     write_channel "dev"
     run "$SCRIPT" --file "$CHANNEL_FILE"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"channel=dev"* ]]
-    [[ "$output" == *"channels=dev"* ]]
+    contains "channel=dev" "$output"
+    contains "channels=dev" "$output"
     [[ "$output" == *"prerelease=true"* ]]
 }
 
@@ -78,7 +80,7 @@ write_channel() {
     [ "$status" -eq 0 ]
     # Every line must be KEY=value; the workflow appends this to $GITHUB_OUTPUT
     while IFS= read -r line; do
-        [[ "$line" =~ ^[a-z_]+=.*$ ]]
+        [[ "$line" =~ ^[a-z_]+=.*$ ]] || fail "not a KEY=value line: $line"
     done <<< "$output"
 }
 
@@ -143,7 +145,7 @@ write_channel() {
     write_channel "nightly"
     run "$SCRIPT" --file "$CHANNEL_FILE"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"unknown channel"* ]]
+    contains "unknown channel" "$output"
     # Must not fall through to publishing anything
     [[ "$output" != *"channels="* ]]
 }

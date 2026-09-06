@@ -8,6 +8,8 @@
 # evidence you collected on a printer turns out to be unattributable, or when
 # `helix-screen ctl` cannot reach a device you deliberately built ctl into.
 
+load helpers
+
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 }
@@ -95,7 +97,7 @@ setup() {
 @test "DOCKER_HOST_CONTEXT carries both the worktree mount and the git hash" {
     run grep -E '^DOCKER_HOST_CONTEXT *=' mk/cross.mk
     [ "$status" -eq 0 ]
-    [[ "$output" == *'DOCKER_WORKTREE_MOUNT'* ]]
+    contains 'DOCKER_WORKTREE_MOUNT' "$output"
     [[ "$output" == *'DOCKER_GIT_HASH_ENV'* ]]
 }
 
@@ -186,15 +188,15 @@ PY
     # was emitted is what proves make expanded the recipe before it stopped —
     # without it, a makefile that failed EARLIER would read green.
     run make -n package-k2
-    [[ "$output" == *'toolchain-k2'* ]]
-    [[ "$output" == *'ENABLE_REMOTE_CONTROL=no'* ]]
+    contains 'toolchain-k2' "$output"
+    contains 'ENABLE_REMOTE_CONTROL=no' "$output"
     [[ "$output" != *'ENABLE_REMOTE_CONTROL=yes'* ]]
 }
 
 @test "an explicit ENABLE_REMOTE_CONTROL still wins over the default" {
     run make -n k2-docker ENABLE_REMOTE_CONTROL=no
     [ "$status" -eq 0 ]
-    [[ "$output" == *'ENABLE_REMOTE_CONTROL=no'* ]]
+    contains 'ENABLE_REMOTE_CONTROL=no' "$output"
     [[ "$output" != *'ENABLE_REMOTE_CONTROL=yes'* ]]
 }
 

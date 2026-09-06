@@ -15,6 +15,8 @@
 # flags, on recipe lines, or on the `override` form it is asking for would be red
 # constantly and would get switched off.
 
+load helpers
+
 GATE="scripts/check_target_specific_override.py"
 
 setup() {
@@ -85,7 +87,7 @@ LDFLAGS += -lm'
     write_mk '$(OBJ_DIR)/rendering/gcode_data_source.o: CXXFLAGS += -D_FILE_OFFSET_BITS=64'
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"without \`override\`"* ]]
+    contains "without \`override\`" "$output"
     [[ "$output" == *"gcode_data_source.o"* ]]
 }
 
@@ -100,7 +102,7 @@ LDFLAGS += -lm'
     write_mk '$(BIN): LDFLAGS += -lfoo'
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"LDFLAGS"* ]]
+    contains "LDFLAGS" "$output"
 
     write_mk '$(OBJ_DIR)/foo.o: CPPFLAGS += -DBAR'
     run_gate
@@ -126,7 +128,7 @@ LDFLAGS += -lm'
 $(OBJ_DIR)/b.o: CXXFLAGS += -DB'
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"a.o"* ]]
+    contains "a.o" "$output"
     [[ "$output" == *"b.o"* ]]
 }
 

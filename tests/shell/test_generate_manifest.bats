@@ -4,6 +4,8 @@
 # Tests for scripts/generate-manifest.sh
 # Verifies manifest JSON generation from release tarballs.
 
+load helpers
+
 SCRIPT="scripts/generate-manifest.sh"
 
 setup() {
@@ -114,12 +116,12 @@ teardown() {
     # Legacy url still points at the tarball — pre-v0.99.31 clients read this.
     run jq -re '.assets.pi.url' "$TEST_DIR/manifest.json"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"helixscreen-pi-v0.9.5.tar.gz" ]]
+    [[ "$output" == *"helixscreen-pi-v0.9.5.tar.gz" ]] || fail "url does not end in the versioned pi tarball: $output"
 
     # zip_url is the preferred asset for v0.99.31+ clients.
     run jq -re '.assets.pi.zip_url' "$TEST_DIR/manifest.json"
     [ "$status" -eq 0 ]
-    [[ "$output" == "https://releases.helixscreen.org/dev/helixscreen-pi.zip" ]]
+    [ "$output" = "https://releases.helixscreen.org/dev/helixscreen-pi.zip" ]
 
     run jq -re '.assets.pi.zip_sha256' "$TEST_DIR/manifest.json"
     [ "$status" -eq 0 ]
@@ -200,7 +202,7 @@ teardown() {
     # or the client has nothing at all to download.
     run jq -re '.assets.k1.url' "$TEST_DIR/manifest.json"
     [ "$status" -eq 0 ]
-    [[ "$output" == "https://releases.helixscreen.org/dev/helixscreen-k1-v0.9.5.tar.gz" ]]
+    [ "$output" = "https://releases.helixscreen.org/dev/helixscreen-k1-v0.9.5.tar.gz" ]
 
     run jq -re '.assets.k1.sha256' "$TEST_DIR/manifest.json"
     [ "$status" -eq 0 ]
@@ -294,7 +296,7 @@ teardown() {
         --output "$TEST_DIR/manifest.json"
     [ "$status" -eq 0 ]
     # A gate that hides what it dropped reads as "everything shipped".
-    [[ "$output" == *"k1"* ]]
+    contains "k1" "$output"
     [[ "$output" == *"zip"* ]]
 }
 

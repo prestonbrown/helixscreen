@@ -16,6 +16,8 @@
 # noise and would get switched off. Precision comes from asking git to resolve the
 # token rather than pattern-matching it.
 
+load helpers
+
 GATE="scripts/check_comment_archaeology.py"
 
 setup() {
@@ -74,7 +76,7 @@ run_gate() {
         > "$ROOT/src/clean.cpp"
     run_gate
     [ "$status" -eq 1 ]
-    [[ "$output" == *"cites a commit SHA"* ]]
+    contains "cites a commit SHA" "$output"
     [[ "$output" == *"clean.cpp"* ]]
 }
 

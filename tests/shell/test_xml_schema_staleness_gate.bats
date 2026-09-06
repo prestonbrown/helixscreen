@@ -415,7 +415,7 @@ trigger_re() {
     # Guards every assertion below it.
     run trigger_re widget
     [ "$status" -eq 0 ]
-    [[ "$output" == *"lv_xml_register_widget"* ]]
+    contains "lv_xml_register_widget" "$output"
     run trigger_re const
     [ "$status" -eq 0 ]
     [[ "$output" == *"lv_xml_register_const"* ]]
