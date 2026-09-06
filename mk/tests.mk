@@ -917,6 +917,7 @@ $(TEST_BIN): $(TEST_CORE_DEPS) \
              $(LIBHV_LIB) \
              $(LIBHV_JSON_HEADER) \
              $(TEST_PLATFORM_DEPS)
+	$(call check_abi_unchanged)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) helix-tests"
 	$(Q)$(CXX) $(CXXFLAGS) $(filter-out %.a %.h %.hh %.hpp %.hxx,$(sort $^)) -o $@ $(LDFLAGS) || { \
@@ -934,7 +935,7 @@ FORCE:
 
 # Compile test main (Catch2 runner)
 # Note: No DEPFLAGS for Catch2 infrastructure - rarely changes
-$(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp
+$(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-MAIN]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_DIR) -c $< -o $@
@@ -952,28 +953,28 @@ $(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
 #
 # Compile UI test utilities
 # Uses DEPFLAGS to track header dependencies
-$(UI_TEST_UTILS_OBJ): $(TEST_DIR)/ui_test_utils.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(UI_TEST_UTILS_OBJ): $(TEST_DIR)/ui_test_utils.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-TEST]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile LVGL test fixture (shared base class for UI tests)
 # Uses DEPFLAGS to track header dependencies
-$(LVGL_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(LVGL_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[LVGL-FIXTURE]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile HelixScreen test fixture (base class that resets process singletons)
 # Uses DEPFLAGS to track header dependencies
-$(HELIX_TEST_FIXTURE_OBJ): $(TEST_DIR)/helix_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(HELIX_TEST_FIXTURE_OBJ): $(TEST_DIR)/helix_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[HELIX-FIXTURE]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 # Compile test fixtures (reusable fixtures with mock initialization helpers)
 # Uses DEPFLAGS to track header dependencies
-$(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[TEST-FIXTURE]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
@@ -981,7 +982,7 @@ $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HE
 # Compile LVGL UI test fixture (full UI integration test fixture)
 # Uses DEPFLAGS to track header dependencies
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(LVGL_UI_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_ui_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(LVGL_UI_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_ui_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-FIXTURE]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
@@ -1004,7 +1005,7 @@ TEST_WARN_FLAGS := -Werror=type-limits
 # Compile test sources
 # Uses DEPFLAGS to track header dependencies for incremental rebuilds
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
@@ -1012,7 +1013,7 @@ $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $
 
 # Compile application subdirectory test sources
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-APP]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF) -c $< -o $@
@@ -1028,7 +1029,7 @@ $(DNS_RESOLV_OBJ): $(LIBHV_DIR)/base/dns_resolv.c
 # Compile mock sources
 # Uses DEPFLAGS to track header dependencies
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH)
+$(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PCH) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(YELLOW)[MOCK]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@

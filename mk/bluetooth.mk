@@ -66,7 +66,7 @@ $(BT_SO): $(BT_OBJS) $(MINILZO_OBJ) | $(BUILD_DIR)/lib
 	$(ECHO) "$(GREEN)[LD] $@$(RESET)"
 	$(Q)$(CXX) -o $@ $^ $(BT_LDFLAGS)
 
-$(OBJ_DIR)/bluetooth/%.o: src/bluetooth/%.cpp | $(OBJ_DIR)/bluetooth
+$(OBJ_DIR)/bluetooth/%.o: src/bluetooth/%.cpp $(ABI_STAMP) | $(OBJ_DIR)/bluetooth
 	$(ECHO) "$(CYAN)[CXX] $<$(RESET)"
 	$(Q)$(CXX) $(BT_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
