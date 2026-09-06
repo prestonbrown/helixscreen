@@ -159,10 +159,10 @@ MoonrakerClient::~MoonrakerClient() {
         std::unique_lock<std::shared_mutex> lk(callback_lifecycle_mutex_);
     } // Release immediately — just needed to wait for in-flight callbacks
 
-    // Now safe to reset lifetime guards (no callbacks can be mid-execution).
-    // destruction_guard_ signals object destruction to SubscriptionGuard and
-    // other external holders; lifetime_guard_ covers WS callbacks.
-    lifetime_guard_.reset();
+    // Now safe to reset the guard (no callbacks can be mid-execution). This is the
+    // only place it is reset, so resetting it here is what signals object destruction
+    // to everything that gates on it: the WS trampolines, which hold a weak_ptr, and
+    // SubscriptionGuard and other external holders, which reach it via lifetime_weak().
     destruction_guard_.reset();
 
     // Disable auto-reconnect BEFORE closing - prevents libhv from attempting
@@ -292,21 +292,19 @@ void MoonrakerClient::disconnect() {
 
     // Arm a short suppression window so the close that THIS intentional disconnect
     // triggers does not produce a "connection lost / reconnecting" toast. on_ws_close()
-    // checks is_disconnect_modal_suppressed() to gate the reconnect side-effects. This
-    // replicates the old lifetime_guard_-reset suppression for the common case.
+    // checks is_disconnect_modal_suppressed() to gate the reconnect side-effects.
+    // Nothing here cancels the close callback, so suppressing its side effects is the
+    // only way an intentional disconnect stays quiet.
     suppress_disconnect_modal(2000);
 
-    // Disable auto-reconnect BEFORE invalidation to prevent spurious reconnection
+    // Disable auto-reconnect before closing, so libhv does not immediately undo the
+    // close() below with a retry.
     setReconnect(nullptr);
 
-    // Invalidate lifetime guard so any in-flight or future callbacks on the event loop
-    // thread will see weak_guard.lock() fail and early-return. Then create a fresh guard
-    // for the next connect() call.
-    // NOTE: Do NOT replace onopen/onmessage/onclose with no-op lambdas here — that's a
-    // data race with the event loop thread which may be mid-call on the std::function.
-    // The invalidated weak_ptr is the safe cancellation mechanism.
-    lifetime_guard_.reset();
-    lifetime_guard_ = std::make_shared<bool>(true);
+    // Do NOT replace onopen/onmessage/onclose with no-op lambdas here. Reassigning an
+    // inherited std::function that the event loop thread may be mid-call on frees the
+    // running lambda's storage. The trampolines are installed once and stay installed
+    // for the life of the client; a later connect() reuses them as they are.
 
     // Wait for any in-flight callbacks to finish before we modify shared state.
     // Callbacks hold a shared lock; acquiring exclusive waits until they complete.
@@ -327,17 +325,21 @@ void MoonrakerClient::disconnect() {
     // A callback still running after this long is wedged, not slow, and blocking
     // on it forever is the worse failure either way.
     //
-    // Proceeding after a timeout does race that callback. lifetime_guard_ was
-    // already invalidated above, so it early-returns at its next guard check, but
-    // the window is real — hence the error log rather than a silent carry-on.
+    // On timeout the drain gives up and disconnect() proceeds while that callback is
+    // still running — and nothing below stops it. The trampolines gate only on
+    // destruction_guard_ (reset in the destructor), callback_lifecycle_mutex_ and
+    // is_destroying_; disconnect() changes none of the three, so a callback that
+    // outlasts the drain keeps running straight through the close() below and a
+    // dispatch arriving afterwards is admitted as usual. The error log is the only
+    // signal that happened, which is why it is an error rather than a silent carry-on.
     if (!helix::drain_shared_holders(callback_lifecycle_mutex_, CALLBACK_DRAIN_TIMEOUT)) {
         spdlog::error("[Moonraker Client] In-flight callbacks still running after {}ms — "
                       "proceeding with disconnect anyway",
                       CALLBACK_DRAIN_TIMEOUT.count());
     }
 
-    // Now safe to stop timer and close — no callbacks can restart the timer or
-    // access our state because the lifetime guard is invalidated.
+    // Stop the timer and close. A successful drain means no callback is running at
+    // this point; a timed-out drain means one still is, and close() races it.
     stop_health_timer();
     close();
 

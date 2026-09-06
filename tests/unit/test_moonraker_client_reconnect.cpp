@@ -31,7 +31,10 @@
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "hv/EventLoopThread.h"
 
+#include <atomic>
 #include <chrono>
+#include <future>
+#include <memory>
 #include <thread>
 
 #include "../catch_amalgamated.hpp"
@@ -150,4 +153,108 @@ TEST_CASE("MoonrakerClient install-once: destruction during pending connect is s
         loop_thread->stop(true);
         REQUIRE(true);
     }
+}
+
+// ============================================================================
+// What disconnect() does and does not stop
+// ============================================================================
+//
+// disconnect() drops a WebSocket connection; it does not retire the client. The three
+// trampolines gate on destruction_guard_, callback_lifecycle_mutex_ and is_destroying_,
+// and disconnect() changes none of the three, so it is not a barrier for the message
+// path: only destruction is. These cases pin that scope in both directions — what still
+// gets through, and what the bounded drain does when a callback outlasts it — so a
+// rework of teardown that moves the boundary has to move them with it.
+
+TEST_CASE("disconnect() leaves the guard the WS trampolines gate on intact",
+          "[moonraker][connection][reconnect][disconnect][1474]") {
+    auto client = std::make_unique<MoonrakerClient>();
+
+    // The trampolines capture a weak_ptr to this guard and check it before any
+    // `this` deref; SubscriptionGuard reaches the same guard via lifetime_weak().
+    std::weak_ptr<bool> guard = client->lifetime_weak();
+    REQUIRE_FALSE(guard.expired());
+
+    client->disconnect();
+
+    // Disconnect is a connection event, not an object event. A callback arriving now
+    // still finds the guard alive and proceeds.
+    REQUIRE_FALSE(guard.expired());
+
+    // Destruction is what retires it — the single event that stops dispatch.
+    client.reset();
+    REQUIRE(guard.expired());
+}
+
+TEST_CASE("a message arriving after disconnect() still reaches its registered handler",
+          "[moonraker][connection][reconnect][disconnect][1474]") {
+    MoonrakerClient client;
+
+    // Install the real trampolines, then drive onmessage through them. No socket is
+    // involved: the point is what the trampoline itself lets through.
+    MoonrakerClientTestAccess::install_ws_callbacks(client);
+    REQUIRE(MoonrakerClientTestAccess::callbacks_installed(client) == true);
+    REQUIRE(static_cast<bool>(client.onmessage));
+
+    int handler_calls = 0;
+    client.register_method_callback("notify_gcode_response", "disconnect_scope_probe",
+                                    [&handler_calls](const nlohmann::json&) { ++handler_calls; });
+
+    const std::string notification =
+        R"({"jsonrpc":"2.0","method":"notify_gcode_response","params":["ok"]})";
+
+    client.onmessage(notification);
+    REQUIRE(handler_calls == 1);
+
+    client.disconnect();
+
+    // Registrations survive disconnect and the trampoline still admits the dispatch, so
+    // unregistering a handler on a teardown path is load-bearing work that disconnect()
+    // does not do on the caller's behalf.
+    client.onmessage(notification);
+    REQUIRE(handler_calls == 2);
+}
+
+TEST_CASE("disconnect()'s callback drain is bounded by a running callback, not blocked by it",
+          "[moonraker][connection][reconnect][disconnect][1474][slow]") {
+    using namespace std::chrono;
+
+    MoonrakerClient client;
+
+    std::atomic<bool> holding{false};
+    std::atomic<bool> release{false};
+    std::thread holder([&] {
+        auto lk = MoonrakerClientTestAccess::hold_callback_lock(client);
+        holding.store(true);
+        while (!release.load()) {
+            std::this_thread::sleep_for(milliseconds(2));
+        }
+    });
+    while (!holding.load()) {
+        std::this_thread::sleep_for(milliseconds(1));
+    }
+
+    // disconnect() runs on its own thread: a shared_mutex is not upgradeable, so the
+    // holder cannot be the thread that calls it. The future is the failure channel — an
+    // unbounded drain would park here forever rather than reporting anything.
+    auto elapsed_ms = std::async(std::launch::async, [&] {
+        auto started = steady_clock::now();
+        client.disconnect();
+        return duration_cast<milliseconds>(steady_clock::now() - started).count();
+    });
+
+    const auto status = elapsed_ms.wait_for(seconds(30));
+
+    // Release the holder before asserting, so a failure reports instead of hanging.
+    release.store(true);
+    holder.join();
+
+    REQUIRE(status == std::future_status::ready);
+    const auto waited = elapsed_ms.get();
+
+    // It waits for the callback to finish...
+    REQUIRE(waited >= 1000);
+    // ...and then proceeds anyway, because a UI thread parked in pthread_rwlock_wrlock
+    // is a lit screen that ignores touch.
+    REQUIRE(waited < 20000);
 }
