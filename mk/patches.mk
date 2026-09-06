@@ -160,19 +160,22 @@ CXXFLAGS += $(ABI_DEFINE)
 SUBMODULE_CFLAGS += $(ABI_DEFINE)
 SUBMODULE_CXXFLAGS += $(ABI_DEFINE)
 
-# Written at parse time so the stamp is in place before the first compile.
+# Written at parse time so the stamp is in place before the first compile, and
+# only by the make that started this BUILD_DIR's build.
 #
-# Only by the make the user invoked, though. A build spawns sub-makes - libhv,
-# SDL2, translations - and each re-reads this file somewhere in the middle of
-# it. Letting one of those re-stamp would record a header a second worktree
-# rewrote mid-build as if it had been there from the start, and the link guard
-# below would find nothing to complain about. MAKELEVEL is 0 in exactly one of
-# these invocations. A sub-make that finds no stamp at all still writes one, so
-# a tree first entered through a sub-make is not left without a reference.
+# A build re-reads this file over and over: `all` re-invokes itself to fix up
+# -j, libhv and SDL2 and the translations come through sub-makes, and the
+# cross-compile targets re-invoke with a PLATFORM_TARGET. Letting a descendant
+# re-stamp would record a header a second worktree rewrote mid-build as if it
+# had been there from the start, and the link guard below would then find
+# nothing to complain about. The one below that must still stamp is the
+# cross-compile re-invocation, which is a different BUILD_DIR and so a build of
+# its own - which is what this names, rather than depth.
 $(shell mkdir -p $(BUILD_DIR); \
-	[ "$(MAKELEVEL)" = "0" ] || [ ! -f $(ABI_STAMP) ] || exit 0; \
+	{ [ "$(ABI_STAMPED_FOR)" = "$(BUILD_DIR)" ] && [ -f $(ABI_STAMP) ]; } && exit 0; \
 	[ "$$(cat $(ABI_STAMP) 2>/dev/null)" = "$(ABI_HASH)" ] \
 		|| printf "%s" "$(ABI_HASH)" > $(ABI_STAMP))
+export ABI_STAMPED_FOR := $(BUILD_DIR)
 
 # Record the headers as they stand now. Applying the patches and installing
 # libhv's headers both change them, and both happen inside the build, after the

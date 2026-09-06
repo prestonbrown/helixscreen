@@ -142,6 +142,31 @@ make_database() {
     [ -z "$problems" ] || { echo "$problems"; false; }
 }
 
+# The other half of that: a build re-enters this makefile repeatedly, through
+# the -j fixup, libhv, SDL2 and the translations. A descendant that re-stamped
+# would record a header a peer rewrote mid-build as the value the objects were
+# compiled against, and the link guard would then pass. The cross-compile
+# re-invocation is the one that must still stamp, and it is told apart by the
+# BUILD_DIR it is building, not by how deep it is.
+@test "a make inside another build re-stamps only for a different BUILD_DIR" {
+    local sandbox="${BATS_TEST_TMPDIR:-$(mktemp -d)}/abi-nested"
+    rm -rf "$sandbox" && mkdir -p "$sandbox"
+
+    local problems=""
+
+    printf 'not-a-hash' > "$sandbox/.thirdparty-abi"
+    env ABI_STAMPED_FOR="$sandbox" make -pn help BUILD_DIR="$sandbox" >/dev/null 2>&1
+    [ "$(cat "$sandbox/.thirdparty-abi")" = "not-a-hash" ] \
+        || problems="a make inside this BUILD_DIR's own build re-stamped it; "
+
+    printf 'not-a-hash' > "$sandbox/.thirdparty-abi"
+    env ABI_STAMPED_FOR="$sandbox/other" make -pn help BUILD_DIR="$sandbox" >/dev/null 2>&1
+    [ "$(cat "$sandbox/.thirdparty-abi")" != "not-a-hash" ] \
+        || problems="${problems}a make starting a different BUILD_DIR left the stale stamp"
+
+    [ -z "$problems" ] || { echo "$problems"; false; }
+}
+
 # A fixture tree carrying the real definitions of the guard and the recorder,
 # lifted out of mk/patches.mk. Copies would let the two drift: gutting either
 # recipe there has to fail here.
