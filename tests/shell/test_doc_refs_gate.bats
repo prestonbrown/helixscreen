@@ -32,6 +32,15 @@ EOF
     [[ "$output" == *"zz_fixture_missing_thing.cpp"* ]]
 }
 
+@test "devel: a Makefile citation is path-checked despite having no extension" {
+    cat > "$FIX/mk.md" <<'EOF'
+Cites `mk/zz_missing/Makefile#all` which does not exist.
+EOF
+    run python3 "$CHECK" --devel "$FIX/mk.md"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"zz_missing/Makefile"* ]]
+}
+
 @test "devel: dead relative markdown link fails" {
     echo x > "$FIX/target.md"
     cat > "$FIX/badlink.md" <<'EOF'
@@ -120,7 +129,7 @@ MD
     [ "$status" -eq 0 ]
 }
 
-@test "scope: .claude/worktrees is skipped, .claude/skills is not" {
+@test "scope: .claude/worktrees is skipped, .claude/skills and .claude/rules are not" {
     # The harness keeps its live agent checkouts under .claude/worktrees/, each
     # a COMPLETE copy of this repo — CLAUDE.md, docs/ and all. A by-name prune
     # cannot express "skip that but keep .claude/skills", so the walk descended
@@ -130,18 +139,21 @@ MD
     # them with. Nothing asserted the walk's scope, which is why it survived.
     REPO="$BATS_TEST_TMPDIR/scoperepo"
     mkdir -p "$REPO/.claude/worktrees/agent-deadbeef" "$REPO/.claude/skills/thing" \
-             "$REPO/docs/devel" "$REPO/src"
+             "$REPO/.claude/rules" "$REPO/docs/devel" "$REPO/src"
     echo 'Root doc.' > "$REPO/CLAUDE.md"
     echo 'A live agent copy of the root doc.' \
         > "$REPO/.claude/worktrees/agent-deadbeef/CLAUDE.md"
     printf -- '---\nname: thing\n---\nA real skill doc.\n' \
         > "$REPO/.claude/skills/thing/SKILL.md"
+    printf -- '---\npaths:\n  - "src/**/*"\n---\nA path-scoped rule.\n' \
+        > "$REPO/.claude/rules/rule.md"
     cd "$REPO"
 
     run python3 "$CHECK" --list
     [ "$status" -eq 0 ]
     # The skills doc is deliberately in scope...
     [[ "$output" == *".claude/skills/thing/SKILL.md"* ]]
+    [[ "$output" == *".claude/rules/rule.md"* ]]
     # ...and the agent worktree is deliberately not.
     [[ "$output" != *"agent-deadbeef"* ]]
     # The repo's own CLAUDE.md is still scanned, exactly once.

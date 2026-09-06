@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from doc_anchors import (  # noqa: E402
+    CITE_RE,
     Citation,
     Segment,
     NotFound,
@@ -1211,3 +1212,24 @@ def test_a_statement_is_still_not_a_declaration(stmt, tmp_path):
     lines = src.read_text(encoding="utf-8").split("\n")
     names = {n for n, _ in definitions(lines, Region(0, len(lines)), ".cpp")}
     assert names == {"f"}
+
+
+def test_bare_makefile_is_scanned_with_the_make_grammar(tmp_path):
+    (tmp_path / "Makefile").write_text(
+        "TEST_UNIT_DIR := $(TEST_DIR)/unit\nall:\n\techo hi\n", encoding="utf-8")
+    assert resolve("Makefile#TEST_UNIT_DIR", repo_root=str(tmp_path)) == 1
+    assert resolve("Makefile#all", repo_root=str(tmp_path)) == 2
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("see `Makefile#TEST_UNIT_DIR`", "Makefile#TEST_UNIT_DIR"),
+    ("see `mk/sub/GNUmakefile#all`", "mk/sub/GNUmakefile#all"),
+    ("see `mk/tests.mk#test-build`", "mk/tests.mk#test-build"),
+])
+def test_cite_re_accepts_a_bare_makefile_path(text, expected):
+    assert CITE_RE.search(text).group(1) == expected
+
+
+def test_cite_re_still_needs_a_filename_shape():
+    """An extensionless word is prose, not a citation, unless it is a make file."""
+    assert CITE_RE.search("run `make` then read `build/output`") is None

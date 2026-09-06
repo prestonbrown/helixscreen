@@ -143,7 +143,7 @@ CITED_EXTENSIONS = ('md', 'cpp', 'cc', 'h', 'hpp', 'c', 'xml', 'py', 'sh',
 _EXT = '|'.join(CITED_EXTENSIONS)
 
 PATH_RE = re.compile(
-    r'`([A-Za-z0-9_./-]+\.(?:' + _EXT + r')'
+    r'`((?:[A-Za-z0-9_./-]+\.(?:' + _EXT + r')|(?:[A-Za-z0-9_./-]+/)?(?:GNUmakefile|[Mm]akefile))'
     r'(?:#[^`\n]+|:\d+(?:[-–]\d+)?|:[A-Za-z0-9_]+\(\))?)`')
 
 # Markdown [text](target) links. Link text must be non-empty — `[](...)` is a
@@ -269,8 +269,8 @@ def uninitialized_submodules():
 
 
 def scan_targets():
-    """Agent-facing docs: every CLAUDE.md, everything under .claude/skills/,
-    plus the extra scanned docs (the public docs index)."""
+    """Agent-facing docs: every CLAUDE.md, everything under .claude/skills/ and
+    .claude/rules/, plus the extra scanned docs (the public docs index)."""
     targets = []
     for root, dirs, files in os.walk('.'):
         prune_dirs(root, dirs)
@@ -279,7 +279,8 @@ def scan_targets():
             continue
         for f in files:
             path = os.path.join(rel, f) if rel else f
-            if f == 'CLAUDE.md' or (rel.startswith('.claude/skills') and f.endswith('.md')):
+            agent_dir = rel.startswith('.claude/skills') or rel.startswith('.claude/rules')
+            if f == 'CLAUDE.md' or (agent_dir and f.endswith('.md')):
                 targets.append(path)
     targets.extend(EXTRA_SCAN_DOCS)
     targets.extend(indexed_docs())
