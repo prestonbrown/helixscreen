@@ -348,6 +348,9 @@
         "bind_value": {
           "type": "string"
         },
+        "bind_selected": {
+          "type": "string"
+        },
         "options_tag": {
           "type": "string"
         }
