@@ -222,6 +222,8 @@ void AboutSettingsOverlay::on_activate() {
     // Refresh info rows with current data
     populate_info_rows();
     fetch_print_hours();
+    sync_update_channel_rows(overlay_root_,
+                             static_cast<int>(UpdateChecker::instance().get_channel()));
 
     // Re-trigger marquee scroll animation now that the overlay is visible and laid out.
     // The label may have been created while the overlay was hidden, so LVGL couldn't
@@ -481,6 +483,13 @@ void AboutSettingsOverlay::on_about_version_clicked(lv_event_t*) {
                 lv_subject_set_int(subject, new_value ? 1 : 0);
             }
 
+            // The two Update Channel rows swap on that subject, and toggling
+            // beta also moves the effective channel whenever Dev is stored, so
+            // the row arriving on screen needs its selection re-seeded.
+            sync_update_channel_rows(
+                get_about_settings_overlay().get_root(),
+                static_cast<int>(UpdateChecker::instance().get_channel()));
+
             ToastManager::instance().show(
                 ToastSeverity::SUCCESS,
                 new_value ? lv_tr("Beta features: ON") : lv_tr("Beta features: OFF"), 1500);
@@ -488,6 +497,31 @@ void AboutSettingsOverlay::on_about_version_clicked(lv_event_t*) {
                          new_value ? "ON" : "OFF");
         }
         tap_count = 0;
+    }
+}
+
+void AboutSettingsOverlay::sync_update_channel_rows(lv_obj_t* root, int effective_channel) {
+    if (!root || effective_channel < 0) {
+        return;
+    }
+
+    const auto selected = static_cast<uint32_t>(effective_channel);
+
+    for (const char* row_name : {"row_update_channel", "row_update_channel_dev"}) {
+        lv_obj_t* row = lv_obj_find_by_name(root, row_name);
+        if (!row) {
+            continue;
+        }
+        lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+        if (!dropdown) {
+            continue;
+        }
+        // A row too short for this channel is the one that is hidden right now.
+        // Skipping it rather than letting LVGL clamp keeps Dev's index 2 from
+        // rendering as Beta on the two-entry row if it ever became visible.
+        if (selected < lv_dropdown_get_option_count(dropdown)) {
+            lv_dropdown_set_selected(dropdown, selected);
+        }
     }
 }
 

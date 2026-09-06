@@ -223,7 +223,7 @@ This is different from `sounds_enabled` — that toggle mutes playback but still
 ### `beta_features`
 **Type:** boolean
 **Default:** `false`
-**Description:** Enable beta features that are still under testing. Gates several Advanced panel features (Macro Browser, Input Shaping, Z-Offset Calibration, HelixPrint plugin management, PRINT_START configuration, Timelapse), the Plugins section in Settings, and the Update Channel selector. Always enabled automatically when running in `--test` mode. Can also be toggled by tapping the version button 7 times in Settings → About. See the [Beta Features](guide/beta-features.md) guide for the full list.
+**Description:** Enable beta features that are still under testing. Gates several Advanced panel features (Macro Browser, Input Shaping, Z-Offset Calibration, HelixPrint plugin management, PRINT_START configuration, Timelapse), the Plugins section in Settings, and the **Dev** entry in the Update Channel selector (Stable and Beta are offered without it). Always enabled automatically when running in `--test` mode. Can also be toggled by tapping the version button 7 times in Settings → About. See the [Beta Features](guide/beta-features.md) guide for the full list.
 
 ---
 
@@ -1673,7 +1673,8 @@ Located in the `update` section:
 - `1` - **Beta**: Tries R2 CDN first (`{r2_url}/beta/manifest.json`), falls back to GitHub pre-releases API
 - `2` - **Dev**: Uses `dev_url` if set (backward compat), otherwise uses R2 CDN (`{r2_url}/dev/manifest.json`)
 
-Can also be changed from the Settings panel when `beta_features` is enabled.
+Can also be changed from the Settings panel. Stable and Beta are offered on any
+install; **Dev** appears only when `beta_features` is enabled.
 
 ### `dev_url`
 **Type:** string

@@ -57,20 +57,35 @@
         </lv_obj>
         <event_cb trigger="clicked" callback="on_about_version_clicked"/>
       </ui_button>
-      <!-- Update Channel (beta_features, and only where checking is possible).
-           show_update_settings is part of the condition because a firmware-managed
+      <!-- Update Channel, in two rows with complementary conditions. A dropdown's
+           options are a static string, so the entries a user may choose from are
+           picked by which row is on screen: everyone gets Stable/Beta, and Dev is
+           added only with beta features unlocked, because it fetches from the
+           arbitrary /update/dev_url in config rather than from a published channel.
+           Index 1 is Beta in both lists, so the shared callback and the stored
+           /update/channel mean the same thing whichever row is visible.
+           show_update_settings is part of both conditions because a firmware-managed
            install has no channel to pick: on_channel_changed() re-checks, and
            check_for_updates() short-circuits there, so the dropdown would persist a
            setting nothing reads and sit directly above "Managed by your firmware".
-           ONE expression rather than two stacked bind_flag_if_eq — see the note on
-           container_install_update below for why stacking silently loses. -->
+           ONE expression per row rather than two stacked bind_flag_if_eq — see the
+           note on container_install_update below for why stacking silently loses.
+           AboutSettingsOverlay::sync_update_channel_rows() seeds the selection from
+           the effective channel instead of binding it to update_channel, because a
+           locked install runs on Stable while the stored value may still say Dev. -->
       <lv_obj name="container_update_channel" width="100%" style_pad_all="0">
-        <bind_flag_if cond="show_beta_features eq 1 and show_update_settings eq 1" flag="hidden" invert="true"/>
+        <bind_flag_if cond="show_beta_features eq 0 and show_update_settings eq 1" flag="hidden" invert="true"/>
         <setting_dropdown_row name="row_update_channel"
                               label="Update Channel" label_tag="Update Channel" icon="swap_vertical"
-                              options="Stable&#10;Beta&#10;Dev" options_tag="Stable&#10;Beta&#10;Dev"
-                              bind_selected="update_channel" hide_description="true"
+                              options="Stable&#10;Beta" options_tag="Stable&#10;Beta" hide_description="true"
                               callback="on_about_update_channel_changed"/>
+      </lv_obj>
+      <lv_obj name="container_update_channel_dev" width="100%" style_pad_all="0">
+        <bind_flag_if cond="show_beta_features eq 1 and show_update_settings eq 1" flag="hidden" invert="true"/>
+        <setting_dropdown_row name="row_update_channel_dev"
+                              label="Update Channel" label_tag="Update Channel" icon="swap_vertical"
+                              options="Stable&#10;Beta&#10;Dev" options_tag="Stable&#10;Beta&#10;Dev"
+                              hide_description="true" callback="on_about_update_channel_changed"/>
       </lv_obj>
       <!-- Check for Updates (reactive description shows available version) -->
       <lv_obj name="container_check_updates" width="100%" style_pad_all="0" scrollable="false">
