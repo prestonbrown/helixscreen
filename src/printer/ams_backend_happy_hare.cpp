@@ -31,6 +31,47 @@ namespace {
 constexpr int HAPPY_HARE_POS_UNKNOWN = -1;
 constexpr int HAPPY_HARE_POS_UNLOADED = 0;
 
+/// The object carrying [mmu_machine] machine-level fields (selector_type,
+/// filament_heater, environment_sensor, and their per-gate list forms).
+///
+/// Two layouts exist and only one of them is in configfile. Happy Hare v3 puts
+/// the fields directly on `configfile.settings.mmu_machine`. v4 leaves that
+/// object holding only `happy_hare_version` and `units`, and publishes the real
+/// values in the LIVE `mmu_machine` status object, one sub-object per unit
+/// (`unit_0`, `unit_1`, ...). Reading configfile alone therefore finds a
+/// populated-looking object with none of the fields in it, which is why the
+/// miss is silent rather than loud.
+///
+/// Every reader asks here instead of testing the version itself, so a later
+/// layout move lands in one place rather than at each call site.
+///
+/// @param live_mmu_machine   the live `mmu_machine` status object (may be empty)
+/// @param config_mmu_machine `configfile.settings.mmu_machine` (may be empty)
+/// @param unit_index         which unit's fields are wanted (v4 only)
+/// @return the field-bearing object, or nullptr when neither shape supplies one
+const nlohmann::json* hh_machine_fields(const nlohmann::json& live_mmu_machine,
+                                        const nlohmann::json& config_mmu_machine,
+                                        int unit_index) {
+    if (live_mmu_machine.is_object()) {
+        const std::string unit_key = "unit_" + std::to_string(unit_index);
+        const auto it = live_mmu_machine.find(unit_key);
+        if (it != live_mmu_machine.end() && it->is_object()) {
+            return &(*it);
+        }
+    }
+    if (config_mmu_machine.is_object() && !config_mmu_machine.empty()) {
+        return &config_mmu_machine;
+    }
+    return nullptr;
+}
+
+/// Shared empty object so the resolver can be handed a missing source without
+/// every caller minting its own temporary.
+const nlohmann::json& hh_empty_object() {
+    static const nlohmann::json empty = nlohmann::json::object();
+    return empty;
+}
+
 } // namespace
 
 // ============================================================================
@@ -1456,7 +1497,11 @@ void AmsBackendHappyHare::query_selector_type_from_config() {
     // Query configfile.settings.mmu_machine to read selector_type.
     // VirtualSelector = Type B (hub topology: 3MS, Box Turtle, Night Owl, Angry Beaver)
     // LinearSelector/RotarySelector/ServoSelector = Type A (linear: ERCF, Tradrack)
-    nlohmann::json params = {{"objects", nlohmann::json::object({{"configfile", {"settings"}}})}};
+    // The live mmu_machine object comes along because v4 keeps selector_type
+    // there, per unit, and leaves configfile carrying only the version.
+    nlohmann::json params = {
+        {"objects", nlohmann::json::object({{"configfile", {"settings"}},
+                                            {"mmu_machine", nlohmann::json(nullptr)}})}};
 
     auto token = lifetime_.token();
     client_->send_jsonrpc(
@@ -1487,7 +1532,17 @@ void AmsBackendHappyHare::query_selector_type_from_config() {
                         return;
                     }
 
-                    const auto& mmu_machine = settings["mmu_machine"];
+                    const nlohmann::json* live_mm = &hh_empty_object();
+                    if (response["result"]["status"].contains("mmu_machine")) {
+                        live_mm = &response["result"]["status"]["mmu_machine"];
+                    }
+                    const nlohmann::json* machine =
+                        hh_machine_fields(*live_mm, settings["mmu_machine"], 0);
+                    if (!machine) {
+                        spdlog::debug("[AMS HappyHare] No mmu_machine fields for selector type");
+                        return;
+                    }
+                    const auto& mmu_machine = *machine;
                     if (mmu_machine.contains("selector_type") &&
                         mmu_machine["selector_type"].is_string()) {
                         std::string type = mmu_machine["selector_type"].get<std::string>();
@@ -1678,10 +1733,16 @@ static std::vector<std::string> parse_hh_config_list(const nlohmann::json& v) {
     return out;
 }
 
-void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings) {
+void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings,
+                                             const nlohmann::json& live_mmu_machine) {
     // Parse [mmu_machine] filament_heater — the Klipper heater_generic object name.
-    if (settings.contains("mmu_machine") && settings["mmu_machine"].is_object()) {
-        const auto& mmu_machine = settings["mmu_machine"];
+    const nlohmann::json* machine =
+        hh_machine_fields(live_mmu_machine,
+                          settings.contains("mmu_machine") ? settings["mmu_machine"]
+                                                           : hh_empty_object(),
+                          0);
+    if (machine != nullptr) {
+        const auto& mmu_machine = *machine;
         if (mmu_machine.contains("filament_heater") && mmu_machine["filament_heater"].is_string()) {
             std::lock_guard<std::mutex> lock(mutex_);
             filament_heater_name_ = mmu_machine["filament_heater"].get<std::string>();
@@ -1754,7 +1815,11 @@ void AmsBackendHappyHare::query_heater_config_from_config() {
     // Query configfile.settings for [mmu_machine] filament_heater and [mmu] heater_max_temp.
     // filament_heater names the heater_generic object driven by MMU_HEATER.
     // heater_max_temp is the hardware safety ceiling for the dryer UI.
-    nlohmann::json params = {{"objects", nlohmann::json::object({{"configfile", {"settings"}}})}};
+    // The live mmu_machine object comes along because v4 keeps filament_heater
+    // and environment_sensor there, per unit, not in configfile.
+    nlohmann::json params = {
+        {"objects", nlohmann::json::object({{"configfile", {"settings"}},
+                                            {"mmu_machine", nlohmann::json(nullptr)}})}};
 
     auto token = lifetime_.token();
     client_->send_jsonrpc(
@@ -1778,7 +1843,11 @@ void AmsBackendHappyHare::query_heater_config_from_config() {
                     }
 
                     const auto& settings = response["result"]["status"]["configfile"]["settings"];
-                    apply_heater_config(settings);
+                    const nlohmann::json* live_mm = &hh_empty_object();
+                    if (response["result"]["status"].contains("mmu_machine")) {
+                        live_mm = &response["result"]["status"]["mmu_machine"];
+                    }
+                    apply_heater_config(settings, *live_mm);
                     emit_event(EVENT_STATE_CHANGED);
                 } catch (const nlohmann::json::exception& e) {
                     spdlog::warn("[AMS HappyHare] Failed to parse configfile for heater: {}",

@@ -263,6 +263,12 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         apply_heater_config(settings);
     }
 
+    /// Same, with the live mmu_machine object Happy Hare v4 carries the fields in.
+    void test_apply_heater_config(const nlohmann::json& settings,
+                                  const nlohmann::json& live_mmu_machine) {
+        apply_heater_config(settings, live_mmu_machine);
+    }
+
     /// Expose apply_filament_heater_status for testing
     bool test_apply_filament_heater_status(const nlohmann::json& params) {
         return apply_filament_heater_status(params);
@@ -3837,4 +3843,105 @@ TEST_CASE("Happy Hare enable_bypass refuses unless the filament is parked",
         REQUIRE(std::find(helper.captured_gcodes.begin(), helper.captured_gcodes.end(),
                           "MMU_SELECT_BYPASS") != helper.captured_gcodes.end());
     }
+}
+
+// ============================================================================
+// Happy Hare v4 machine-field layout
+//
+// v3 puts filament_heater / environment_sensor directly on [mmu_machine] in
+// configfile.settings. v4 leaves that object holding only happy_hare_version
+// and units, and publishes the real values per unit in the LIVE mmu_machine
+// status object. Reading configfile alone finds a populated-looking object with
+// none of the fields in it, so the miss is silent: no warning, no log, just an
+// environment indicator that never fills in.
+// ============================================================================
+
+TEST_CASE("Happy Hare v4 takes machine fields from live status, not configfile",
+          "[ams][happy_hare][1479]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    // Exactly the shape a v4 machine reports: configfile carries the version and
+    // the unit list and nothing else usable.
+    nlohmann::json configfile_settings = {
+        {"mmu_machine",
+         {{"happy_hare_version", "4.0.0"}, {"units", nlohmann::json::array({"unit0"})}}}};
+
+    nlohmann::json live_mmu_machine = {
+        {"happy_hare_version", "4.0.0"},
+        {"num_units", 1},
+        {"unit_0",
+         {{"name", "unit0"},
+          {"environment_sensor", "aht10 unit0_Env"},
+          {"filament_heater", "heater_generic box1_heater"}}}};
+
+    helper.test_apply_heater_config(configfile_settings, live_mmu_machine);
+    helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"", "", "", ""})}});
+
+    // Feeding a status keyed on the live name is the proof the name resolved:
+    // nothing surfaces unless environment_sensor_name_ was assigned from unit_0.
+    helper.test_apply_environment_sensor_status(
+        {{"aht10 unit0_Env", {{"temperature", 26.5}, {"humidity", 41.0}}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE_FALSE(info.units.empty());
+    REQUIRE(info.units[0].environment.has_value());
+    CHECK(info.units[0].environment->temperature_c == Catch::Approx(26.5f));
+    CHECK(info.units[0].environment->has_humidity);
+    CHECK(info.units[0].environment->humidity_pct == Catch::Approx(41.0f));
+}
+
+TEST_CASE("Happy Hare v4 resolves the filament heater from live status",
+          "[ams][happy_hare][1479]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    nlohmann::json configfile_settings = {
+        {"mmu_machine",
+         {{"happy_hare_version", "4.0.0"}, {"units", nlohmann::json::array({"unit0"})}}},
+        {"mmu", {{"heater_max_temp", 65.0}}}};
+
+    nlohmann::json live_mmu_machine = {
+        {"num_units", 1},
+        {"unit_0", {{"name", "unit0"}, {"filament_heater", "heater_generic box1_heater"}}}};
+
+    helper.test_apply_heater_config(configfile_settings, live_mmu_machine);
+    helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"", "", "", ""})}});
+    helper.test_apply_filament_heater_status(
+        {{"heater_generic box1_heater", {{"temperature", 52.0}}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE_FALSE(info.units.empty());
+    REQUIRE(info.units[0].environment.has_value());
+    CHECK(info.units[0].environment->temperature_c == Catch::Approx(52.0f));
+
+    // heater_max_temp still comes from [mmu], which v4 did not move.
+    CHECK(helper.get_dryer_info().max_temp_c == Catch::Approx(65.0f));
+}
+
+TEST_CASE("Happy Hare v3 config still resolves when no live unit object exists",
+          "[ams][happy_hare][1479]") {
+    // The fallback half. A v3 machine publishes no unit_N sub-object, so the
+    // resolver has to keep answering from configfile or this change would break
+    // every existing install to fix the new one.
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    nlohmann::json configfile_settings = {
+        {"mmu_machine", {{"environment_sensor", "bme280 mmu_box"}}}};
+
+    // Live object present but carrying no per-unit fields, which is what a v3
+    // machine looks like when the query asks for it anyway.
+    nlohmann::json live_mmu_machine = {{"happy_hare_version", "3.3.0"}};
+
+    helper.test_apply_heater_config(configfile_settings, live_mmu_machine);
+    helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"", "", "", ""})}});
+    helper.test_apply_environment_sensor_status(
+        {{"bme280 mmu_box", {{"temperature", 24.5}, {"humidity", 38.0}}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE_FALSE(info.units.empty());
+    REQUIRE(info.units[0].environment.has_value());
+    CHECK(info.units[0].environment->temperature_c == Catch::Approx(24.5f));
+    CHECK(info.units[0].environment->humidity_pct == Catch::Approx(38.0f));
 }
