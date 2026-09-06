@@ -294,7 +294,10 @@ class NavigationManager {
      * When overlays are pushed/popped, the corresponding on_activate() and
      * on_deactivate() methods will be called automatically.
      *
-     * Call this after create() returns the overlay's root widget.
+     * Call this after create() returns the overlay's root widget. The pairing
+     * lives as long as the widget does: a navbar panel switch does not drop it,
+     * and the widget's delete hook removes it. One call per created overlay is
+     * enough, and repeat calls are harmless.
      *
      * @param widget Root widget of the overlay (from create())
      * @param overlay Pointer to IPanelLifecycle-implementing instance (OverlayBase or PanelBase)
