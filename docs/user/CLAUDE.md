@@ -54,7 +54,6 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `TROUBLESHOOTING.md` | Common problems and solutions |
 | `FAQ.md` | Quick answers to common questions |
 | `UPGRADING.md` | Version upgrade instructions |
-| *(Plugin development guide moved to `devel/PLUGIN_DEVELOPMENT.md`)* | |
 | `TESTING_INSTALLATION.md` | Post-install verification steps |
 | `TELEMETRY.md` | What telemetry collects, privacy controls, opt-in/out |
 | `PRIVACY_POLICY.md` | Privacy policy for telemetry data |
