@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <sched.h>
 #include <string>
+#include <system_error>
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
@@ -490,7 +491,18 @@ void PWMSoundBackend::start_render_thread() {
         return;
 
     render_running_.store(true);
-    render_thread_ = std::thread(&PWMSoundBackend::render_loop, this);
+    // Wrap — EAGAIN under thread exhaustion throws std::system_error, and this
+    // backend runs on the two-core boards where that is the documented failure.
+    // An escaping exception would terminate the process from inside a sound
+    // call; sound is optional, the printer is not. Clearing the flag also keeps
+    // stop_render_thread() away from a thread that was never created.
+    try {
+        render_thread_ = std::thread(&PWMSoundBackend::render_loop, this);
+    } catch (const std::system_error& e) {
+        render_running_.store(false);
+        spdlog::error("[PWMSoundBackend] Failed to spawn PCM render thread: {}", e.what());
+        return;
+    }
     spdlog::info("[PWMSoundBackend] PCM render thread started");
 }
 
