@@ -126,6 +126,28 @@ ABI_HEADERS := $(wildcard \
 ABI_STAMP := $(BUILD_DIR)/.thirdparty-abi
 ABI_HASH := $(shell cat $(ABI_HEADERS) 2>/dev/null | cksum)
 
+# The stamp makes make decide to recompile; it does not make the compiler
+# produce a different object. ccache sits between the two, and in depend mode
+# it keys an entry on the source plus the files -MMD names - which is exactly
+# the set that omits these -isystem headers. Make reruns the compile, ccache
+# answers it from the entry built against the previous layout, and the stamp
+# buys nothing.
+#
+# Carrying the hash as a -D closes that, because ccache hashes the command line
+# in every mode. Nothing reads HELIX_TP_ABI; its only job is to be part of the
+# key. cksum prints a checksum and a byte count, so the separating space is
+# folded to an underscore to keep the value a single token.
+ABI_EMPTY :=
+ABI_SPACE := $(ABI_EMPTY) $(ABI_EMPTY)
+ABI_DEFINE := -DHELIX_TP_ABI=$(subst $(ABI_SPACE),_,$(strip $(ABI_HASH)))
+
+# Every rule carrying $(ABI_STAMP) draws its flags from one of these four, so
+# they move together or a path recompiles into the same stale cache entry.
+CFLAGS += $(ABI_DEFINE)
+CXXFLAGS += $(ABI_DEFINE)
+SUBMODULE_CFLAGS += $(ABI_DEFINE)
+SUBMODULE_CXXFLAGS += $(ABI_DEFINE)
+
 # Written at parse time so the stamp is in place before the first compile.
 $(shell mkdir -p $(BUILD_DIR); \
 	[ "$$(cat $(ABI_STAMP) 2>/dev/null)" = "$(ABI_HASH)" ] \

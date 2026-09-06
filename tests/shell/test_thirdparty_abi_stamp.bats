@@ -52,6 +52,46 @@ compile_rule_targets() {
     }
 }
 
+# A stamp prerequisite decides that make reruns the compile; it does not decide
+# what the compiler produces. ccache stands between the two, and its depend mode
+# keys an entry on the source plus the paths -MMD lists - the set that omits
+# these -isystem headers. Without the hash on the command line the rerun resolves
+# to the entry built against the previous layout, and the stamp buys nothing.
+# Every rule pinned above draws its flags from one of these four variables.
+@test "the ABI hash is on the compiler command line, not only in the dependency graph" {
+    local db missing=""
+    db="$(make -pn 2>/dev/null)"
+    for var in CFLAGS CXXFLAGS SUBMODULE_CFLAGS SUBMODULE_CXXFLAGS; do
+        printf '%s\n' "$db" | grep -m1 "^${var} :\{0,1\}= " | grep -q -- '-DHELIX_TP_ABI=' \
+            || missing="${missing}${var} "
+    done
+    [ -z "$missing" ] || { echo "flag sets carrying no -DHELIX_TP_ABI: $missing"; false; }
+}
+
+# cksum prints a checksum AND a byte count, so the value has to be folded into a
+# single token or the second field arrives as a stray source-file argument.
+@test "the define is one token and tracks the tracked headers' content" {
+    local work="${BATS_TEST_TMPDIR:-$(mktemp -d)}/abi-define"
+    rm -rf "$work" && mkdir -p "$work"
+
+    define_for() {
+        printf '%s' "$1" > "$work/tracked.h"
+        make -pn BUILD_DIR="$work" ABI_HEADERS="$work/tracked.h" 2>/dev/null \
+            | grep -m1 '^ABI_DEFINE :\{0,1\}= ' | cut -d= -f2-
+    }
+
+    local before after problems=""
+    before="$(define_for 'struct S { int a; };')"
+    after="$(define_for 'struct S { int b; int a; };')"
+
+    [ -n "$before" ] || problems="ABI_DEFINE is empty; "
+    [ "$before" != "$after" ] || problems="${problems}changing a tracked header left the define at '$before'; "
+    [ "$(printf '%s' "$before" | wc -w)" -eq 1 ] \
+        || problems="${problems}define is not a single token: '$before'"
+
+    [ -z "$problems" ] || { echo "$problems"; false; }
+}
+
 @test "both link recipes call check_abi_unchanged" {
     grep -q 'check_abi_unchanged' mk/rules.mk
     grep -q 'check_abi_unchanged' mk/tests.mk
