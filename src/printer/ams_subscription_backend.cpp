@@ -365,7 +365,9 @@ AmsError
 AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void()> on_complete,
                                           std::function<void(const MoonrakerError&)> on_error,
                                           uint32_t timeout_ms, bool skip_homing, bool silent,
-                                          std::optional<bool> caller_surfaces_errors) {
+                                          std::optional<bool> caller_surfaces_errors,
+                                          std::function<void(const MoonrakerError&)>
+                                              on_predispatch_error) {
     // The homed answer comes from the live homed_axes subject, not an RPC:
     // toolhead is in the standing objects.subscribe set, so querying it again
     // was a redundant round trip. skip_homing short-circuits the check
@@ -395,8 +397,11 @@ AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void(
     // pre-existing test relies on -- so the two branches below still run in
     // this same call for all of them.
     auto token = lifetime_.token();
-    auto send_g28_then_dispatch = [this, token, gcode_copy, on_complete, on_error, timeout_ms,
-                                   silent, caller_surfaces_errors]() {
+    // A failure anywhere in this lambda happens BEFORE the payload ships, so it
+    // routes to on_predispatch_error when the caller supplied one.
+    auto pre_err = on_predispatch_error ? on_predispatch_error : on_error;
+    auto send_g28_then_dispatch = [this, token, gcode_copy, on_complete, on_error, pre_err,
+                                   timeout_ms, silent, caller_surfaces_errors]() {
         // Runs either inline in this call (no prompter, or a synchronous
         // test prompter) or later from an LVGL confirm-button event
         // callback. Both cases are on the main thread -- the modal only
@@ -425,7 +430,7 @@ AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void(
                 MoonrakerError synthetic;
                 synthetic.type = MoonrakerErrorType::UNKNOWN;
                 synthetic.message = g28_result.technical_msg;
-                handle_dispatch_error(synthetic, on_error);
+                handle_dispatch_error(synthetic, pre_err);
                 return;
             }
             dispatch_payload(gcode_copy, on_complete, on_error, timeout_ms, silent,
@@ -450,15 +455,16 @@ AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void(
                                                  silent, caller_surfaces_errors);
                             });
             },
-            [this, token, on_error](const MoonrakerError& err) {
+            [this, token, pre_err](const MoonrakerError& err) {
                 token.defer("AmsSubscriptionBackend::ensure_homed_then_g28_error",
-                            [this, err, on_error]() { handle_dispatch_error(err, on_error); });
+                            [this, err, pre_err]() { handle_dispatch_error(err, pre_err); });
             },
             IMoonrakerAPI::HOMING_TIMEOUT_MS, /*silent=*/false, /*on_queued=*/nullptr,
             // The G28 error leg lands in handle_dispatch_error(), which without
-            // a caller on_error only logs and resets the action to IDLE. Its
-            // ownership answer is the caller's, not this wrapper's.
-            caller_surfaces_errors.value_or(on_error != nullptr));
+            // a caller callback only logs and resets the action to IDLE. Its
+            // ownership answer is the caller's, not this wrapper's — and on this
+            // leg the caller's callback is pre_err.
+            caller_surfaces_errors.value_or(pre_err != nullptr));
     };
 
     // Single-shot consume: a UI surface that already asked "home printer

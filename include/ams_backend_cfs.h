@@ -883,6 +883,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // Reset phase tracker on op completion. Caller must hold mutex_.
     void end_phase_tracking();
 
+    // Body of dispatch_action_script's failure callbacks: log, settle to IDLE so
+    // the UI does not sit on a "loading" spinner, and stop phase tracking. Takes
+    // mutex_ itself. Shared by both failure dispositions, which differ only in
+    // whether the envelope's unwind gcode follows.
+    void abort_action_state(const MoonrakerError& err);
+
     // Body of dispatch_action_script's success callback: verify the operation
     // achieved what it was asked to, then settle to IDLE (or ERROR when it did
     // not). Takes mutex_ itself. Named rather than inline so tests drive the
