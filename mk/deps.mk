@@ -529,6 +529,34 @@ $(SDL2_LIB):
 # NOTE: Make conditionals (ifneq/else/endif) CANNOT be used inside recipes!
 # They are processed at parse time, not run time. Use shell conditionals instead.
 
+# wpa_supplicant builds its objects INSIDE the submodule tree, which every target
+# in this checkout shares, and nothing on that path is platform-qualified. So the
+# second target to build re-archives the first one's objects: an ARM object lands
+# in an x86 libwpa_client.a and ld reports "relocations in generic ELF (EM: 40)",
+# or links quietly when the two arches are close enough to fool it.
+#
+# The stamp records who owns the objects currently in the tree; a different owner
+# cleans before building. The key is PLATFORM_TARGET *and* the compiler triple,
+# and it needs both halves: pi, pi-fbdev and pi-both all resolve to
+# aarch64-linux-gnu so the triple alone would let them inherit each other's
+# objects built under different -march flags, while PLATFORM_TARGET alone would
+# not notice the toolchain under one platform name being swapped.
+# (prestonbrown/helixscreen#1481)
+WPA_TOOLCHAIN_STAMP := $(WPA_DIR)/.helix-toolchain
+define wpa-clean-if-foreign
+	$(Q)want="$(PLATFORM_TARGET)|$$($(CC) -dumpmachine 2>/dev/null || echo unknown)"; \
+	have=$$(cat $(WPA_TOOLCHAIN_STAMP) 2>/dev/null || echo none); \
+	if [ "$$want" != "$$have" ]; then \
+		if [ "$$have" != none ]; then \
+			echo "$(YELLOW)→ wpa_supplicant objects belong to $$have — cleaning for $$want$(RESET)"; \
+		fi; \
+		$(MAKE) -C $(WPA_DIR)/wpa_supplicant clean >/dev/null 2>&1 || true; \
+		rm -rf $(WPA_DIR)/build; \
+		rm -f $(WPA_DIR)/wpa_supplicant/libwpa_client.a; \
+		echo "$$want" > $(WPA_TOOLCHAIN_STAMP); \
+	fi
+endef
+
 # Linux native build (not macOS, not cross-compiling)
 ifeq ($(UNAME_S),Linux)
 ifndef CROSS_COMPILE
@@ -544,6 +572,7 @@ $(WPA_CLIENT_LIB): | $(BUILD_DIR)/lib
 			exit 1; \
 		fi; \
 	fi
+	$(call wpa-clean-if-foreign)
 	$(Q)$(MAKE) -C $(WPA_DIR)/wpa_supplicant libwpa_client.a
 	$(Q)rm -f $(BUILD_DIR)/lib/libwpa_client.a 2>/dev/null || true
 	$(Q)cp $(WPA_DIR)/wpa_supplicant/libwpa_client.a $(BUILD_DIR)/lib/libwpa_client.a
@@ -576,11 +605,7 @@ $(WPA_CLIENT_LIB): | $(BUILD_DIR)/lib libnl-build
 			exit 1; \
 		fi; \
 	fi
-	$(Q)if [ -f "$(WPA_DIR)/wpa_supplicant/libwpa_client.a" ] || [ -d "$(WPA_DIR)/build" ]; then \
-		echo "$(YELLOW)→ Cleaning wpa_supplicant in-tree artifacts for cross-compilation...$(RESET)"; \
-		$(MAKE) -C $(WPA_DIR)/wpa_supplicant clean; \
-		rm -rf $(WPA_DIR)/build; \
-	fi
+	$(call wpa-clean-if-foreign)
 	@# Use env -u to unset inherited CFLAGS from parent make, then set clean values
 	@# wpa_supplicant uses EXTRA_CFLAGS for additional flags
 	@# LIBNL_INC/LIBNL_LIB point to our cross-compiled libnl

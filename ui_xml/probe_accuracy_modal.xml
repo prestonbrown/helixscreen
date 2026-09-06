@@ -38,7 +38,7 @@
       <icon src="check_circle" size="lg" variant="success" hidden="true">
         <bind_flag_if_not_eq subject="probe_acc_quality" flag="hidden" ref_value="1"/>
       </icon>
-      <icon src="alert_triangle" size="lg" variant="warning" hidden="true">
+      <icon src="alert" size="lg" variant="warning" hidden="true">
         <bind_flag_if_not_eq subject="probe_acc_quality" flag="hidden" ref_value="0"/>
       </icon>
 
