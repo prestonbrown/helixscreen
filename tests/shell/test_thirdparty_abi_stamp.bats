@@ -75,13 +75,20 @@ compile_rule_targets() {
 
 # A stamp left over from an earlier header revision is what lets stale objects
 # look current, so the parse-time hook has to overwrite one that disagrees.
+#
+# Driven against a private BUILD_DIR. Corrupting the real build/.thirdparty-abi
+# would leave it repaired but with a fresh mtime, and every object in the tree
+# depends on it - the gate would hand whoever ran it a full rebuild.
 @test "a stamp that disagrees with the headers is rewritten at parse time" {
+    local sandbox="${BATS_TEST_TMPDIR:-$(mktemp -d)}/abi-stamp"
+    rm -rf "$sandbox" && mkdir -p "$sandbox"
+    printf 'not-a-hash' > "$sandbox/.thirdparty-abi"
+
     local hash problems=""
-    printf 'not-a-hash' > build/.thirdparty-abi
-    hash="$(make -pn 2>/dev/null | grep -m1 '^ABI_HASH :=' | cut -d' ' -f3-)"
+    hash="$(make -pn BUILD_DIR="$sandbox" 2>/dev/null | grep -m1 '^ABI_HASH :=' | cut -d' ' -f3-)"
     [ -n "$hash" ] || problems="ABI_HASH is empty; "
-    [ "$(cat build/.thirdparty-abi)" = "$hash" ] \
-        || problems="${problems}stamp still reads '$(cat build/.thirdparty-abi)', want '$hash'"
+    [ "$(cat "$sandbox/.thirdparty-abi")" = "$hash" ] \
+        || problems="${problems}stamp still reads '$(cat "$sandbox/.thirdparty-abi")', want '$hash'"
     [ -z "$problems" ] || { echo "$problems"; false; }
 }
 
