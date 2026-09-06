@@ -345,6 +345,15 @@
               <event_cb trigger="clicked" callback="on_calibration_zoffset"/>
             </ui_button>
 
+            <!-- Tool Offsets - tool changers with the calibration macro only -->
+            <ui_button name="btn_tool_offsets"
+                       height="100%" flex_grow="1" icon="axis_arrow" text="Tool Offsets" translation_tag="Tool Offsets"
+                       icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
+              <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_calibration_tool_offsets"/>
+            </ui_button>
+
             <!-- QGL button - visible only if printer has quad_gantry_level -->
             <ui_button name="btn_qgl"
                        height="100%" flex_grow="1" icon="spirit_level" text="QGL" translation_tag="QGL"

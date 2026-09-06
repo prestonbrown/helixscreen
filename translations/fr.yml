@@ -389,13 +389,16 @@ translations:
   Calibrate Gear: 'Calibrer l''engrenage'
   Calibrate X: Calibrer X
   Calibrate Y: Calibrer Y
+  Calibrate all tools: Calibrer tous les outils
   Calibrate and tune scroll feel: "Calibrer et ajuster le défilement"
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrer l'input
     shaping pour réduire les artefacts d'ondulation
+  Calibrate tool offsets?: Calibrer les offsets d'outil ?
   Calibrate your touchscreen for accurate input: Calibrer votre écran tactile pour
     une saisie précise
   Calibrated: Calibré
   Calibrating Probe...: Calibration de la sonde...
+  Calibrating T{}...: Calibration de T{}...
   Calibrating bed mesh...: Calibration du maillage du plateau...
   Calibrating {} axis...: 'Calibration de l''axe {}...'
   Calibrating...: Calibration...
@@ -405,9 +408,11 @@ translations:
   Calibration and system configuration: 'Calibration et configuration système'
   Calibration cancelled.: Calibration annulée.
   Calibration complete: Calibration terminée
+  Calibration complete - save to keep the offsets: Calibration terminée - enregistrez pour conserver les offsets
   Calibration complete!: Calibration terminée !
   Calibration complete! Press 'Next' to continue.: Calibration terminée ! Appuyez
     sur 'Suivant' pour continuer.
+  Calibration failed: Échec de la calibration
   Calibration failed - touch targets more precisely.: Échec de calibration – touchez
     les cibles plus précisément.
   Calibration kept timing out. Your previous settings were kept.: La calibration a expiré à plusieurs reprises. Vos paramètres précédents ont été conservés.
@@ -943,6 +948,7 @@ translations:
   Events appear here after sessions and prints: Les événements apparaissent ici après
     les sessions et impressions
   Every extruder's temperature at once: Température de chaque extrudeur
+  Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Les offsets de tous les outils sont mesurés à nouveau et remplacent les actuels. Enregistrez ensuite pour conserver le résultat.
   Excellent Accuracy: Excellente précision
   'Exception: {}': 'Exception : {}'
   Exclude: Exclure
@@ -1598,6 +1604,7 @@ translations:
   Make %s Optional?: Rendre %s optionnel ?
   Make Optional: Rendre optionnel
   Make bed mesh and QGL skippable: Rendre le maillage du plateau et QGL ignorables
+  Make sure every nozzle is clean.: Assurez-vous que toutes les buses sont propres.
   MakeID (Bluetooth): MakeID (Bluetooth)
   Manage: Gérer
   Manage Printers: Gérer les imprimantes
@@ -1633,11 +1640,13 @@ translations:
   Measure and compare belt path frequencies: Mesurer et comparer les fréquences des
     chemins de courroie
   Measure belt path frequencies: Mesurer les fréquences des chemins de courroie
+  Measure every tool's XYZ offset automatically: Mesure automatiquement l'offset XYZ de chaque outil
   Measured (shaper off): Mesuré (shaper désactivé)
   Measured filament diameter: Diamètre du filament mesuré
   Measurement Failed: Échec de la mesure
   Measuring accelerometer noise...: 'Mesure du bruit de l''accéléromètre...'
   Measuring vibrations... {}%: 'Mesure des vibrations... {}%'
+  Measuring... {}s: Mesure... {}s
   Median %.0f Hz: Médiane %.0f Hz
   Memory: Mémoire
   Memory (MB): Mémoire (Mo)
@@ -1866,6 +1875,7 @@ translations:
   Objects: Objets
   'Off': Éteint
   'Off:': 'Arrêt :'
+  Offsets saved: Offsets enregistrés
   "Old setting on today's data: {} residual - now: {}": 'Ancien réglage sur les données du jour : {} résiduel - maintenant : {}'
   'On': Allumé
   On and Off macros must be different: Les macros On et Off doivent être différentes
@@ -2186,6 +2196,7 @@ translations:
   Quad Gantry Level started...: Quad Gantry Level démarré...
   'Queue: Paused': 'File : En pause'
   'Queue: Ready': 'File : Prête'
+  Queued: En attente
   Queued {}h {}m ago: 'Mis en file il y a {} h {} min'
   Queued {}m ago: 'Mis en file il y a {} min'
   Quick: Rapide
@@ -2211,6 +2222,7 @@ translations:
   Ready: Prêt
   Ready for filament operations: Prêt pour les opérations filament
   Ready to Apply: Prêt à appliquer
+  Ready to calibrate: Prêt à calibrer
   Ready to pluck: Prêt à pincer
   Reason: Raison
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
@@ -2380,6 +2392,7 @@ translations:
   Running {}...: Exécution de {}...
   Runout: 'Fin de filament'
   Runout Sensor: Capteur de fin de filament
+  Runs the printer's tool offset calibration for every tool.: Lance la calibration des offsets d'outil de l'imprimante pour tous les outils.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': "SAVE_CONFIG a échoué : {}. Les décalages d'outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'SAVE_CONFIG a échoué : {}. Le décalage Z a été appliqué mais non enregistré. Lancez SAVE_CONFIG manuellement, sinon il sera perdu au redémarrage.'
@@ -2413,6 +2426,8 @@ translations:
   Save changes to persist them across restarts?: Enregistrer les modifications pour
     les conserver après redémarrage ?
   'Save failed: {}': 'Échec de l''enregistrement : {}'
+  Save offsets: Enregistrer les offsets
+  Save offsets?: Enregistrer les offsets ?
   Save to Spoolman: Enregistrer dans Spoolman
   Saved Z-Offset: Z-Offset enregistré
   Saved to crash_report.txt (QR not available): Enregistré dans crash_report.txt (QR
@@ -2424,6 +2439,7 @@ translations:
   Saving Z-offset...: Enregistrement du Z-offset...
   Saving config... Klipper will restart.: Enregistrement de la config... Klipper va
     redémarrer.
+  Saving offsets...: Enregistrement des offsets...
   Saving will restart Klipper and CANCEL any active print!: L'enregistrement redémarrera
     Klipper et ANNULERA toute impression active !
   Scan: Scanner
@@ -2696,6 +2712,7 @@ translations:
   Stop failed: Échec de l'arrêt
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Arrêter l'impression de \"{}\" ?\n\nCette action sera irréversible après 5 secondes."
+  Stopped: Arrêté
   Stopped between Hub and Toolhead: Arrêté entre le Hub et la tête d'outil
   Stopped between Lane and Hub: Arrêté entre la voie et le Hub
   Stopped between Spool and Lane: Arrêté entre la bobine et la voie
@@ -2896,6 +2913,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Cette
     impression nécessite environ %.0fg mais il reste environ %.0fg sur la bobine.
     Démarrer quand même ?
+  This printer cannot calibrate tool offsets automatically: Cette imprimante ne peut pas calibrer les offsets d'outil automatiquement
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
   This tool probes each bed screw and tells you how much to adjust.: Cet outil palpe
@@ -2929,6 +2947,8 @@ translations:
     firmware Klipper sera redémarré. Les opérations actives seront interrompues.
   This will restart Klipper.: Cela redémarrera Klipper.
   This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: Cela enregistrera le Z-offset et redémarrera Klipper pour enregistrer la configuration. L'imprimante se déconnectera brièvement.
+  ? This writes the tool offsets to the printer's config and restarts Klipper, which takes a few seconds. Until then they apply only to this session.
+  : Ceci écrit les offsets d'outil dans la configuration de l'imprimante et redémarre Klipper, ce qui prend quelques secondes. D'ici là, ils ne s'appliquent qu'à cette session.
   Thorough: Approfondi
   Thumbnail Only: Miniature uniquement
   'Thumbnail: ': 'Miniature : '
@@ -2970,9 +2990,12 @@ translations:
   Too soft - pluck harder: Trop faible - pincez plus fort
   Tool: Outil
   Tool Changer: Changeur d'outils
+  Tool Offsets: Offsets d'outil
   Tool Switcher: 'Sélecteur d''outil'
   'Tool change failed: {}': 'Échec du changement d''outil : {}'
   Tool mapping failed: Échec de la correspondance d'outils
+  Tool offsets (mm): Offsets d'outil (mm)
+  Tool offsets saved: Offsets d'outil enregistrés
   Tool swap: Changement d'outil
   'Tool {} → Slot {}: no filament loaded.': 'Outil {} → Slot {} : aucun filament chargé.'
   Toolhead: 'Tête d''outil'

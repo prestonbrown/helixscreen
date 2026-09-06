@@ -103,3 +103,24 @@ Hotend changers (MedusaHC) run on this backend with add-ons layered on top - see
 [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md).
 
 Part of the filament system - see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) for the shared architecture, slot metadata, and endless spool model.
+
+## Automatic tool offset calibration
+
+klipper-toolchanger's example config (`examples/calibrate-offsets.cfg`) defines a
+`CALIBRATE_TOOL_OFFSETS` macro that measures every tool on a nozzle-contact sensor and writes
+the result with `SET_TOOL_PARAMETER` + `SAVE_TOOL_PARAMETER` on `gcode_x/y/z_offset`. HelixScreen
+runs that macro and follows it; it does not drive the individual `TOOL_LOCATE_SENSOR` /
+`TOOL_CALIBRATE_TOOL_OFFSET` steps itself, and it makes no assumption about which tool the
+macro measures against, how it heats, or where the sensor is — all of that is the macro's.
+
+| Piece | Where |
+|-------|-------|
+| Capability, gcode, console parsing, run bookkeeping | `include/tool_offset_calibration.h` (`helix::tool_offset_calibration`) — capability is `has_tool_changer()` + the macro; the only gcode is the bare macro |
+| Capability subject for XML | `printer_has_tool_offset_cal` (`PrinterCapabilitiesState`) |
+| Screen | `include/ui_panel_calibration_tool_offset.h` — Controls ▸ Tool Offsets, and the Advanced row |
+| Results | never parsed off the console: the macro's `SET_TOOL_PARAMETER` writes land on the `tool T<n>` objects and reach `ToolState` through `helix::tool_offsets`, exactly as a manual adjustment would |
+| Progress | status only, never the console: `ToolState`'s active tool (from `toolchanger.tool_number`) says which tool is under the probe, a tool whose offsets change during the run has been measured, and the rpc's completion ends it. `tool_offset_calibration::Run` turns those into per-tool Queued / Measuring / Done / Failed. The tool mounted when the run starts is assumed under the probe, since re-selecting it changes no status |
+| Save | the macro persists nothing; `SAVE_TOOL_PARAMETER` only stages. The panel's Save is the shared `save_dirty_offsets()` path (`src/ui/z_offset_utils.cpp`): re-send SET+SAVE for every dirty axis, then one `SAVE_CONFIG` through `SaveConfigWatch` |
+| Stop | the macro blocks Klipper's gcode queue, so Stop is M112 + `FIRMWARE_RESTART` with the disconnect suppressed as expected |
+| Mock | `HELIX_MOCK_AMS=toolchanger` advertises the macro and simulates the run (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`) |
+

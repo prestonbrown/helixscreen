@@ -938,6 +938,28 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// gcode_x_offset / gcode_y_offset / gcode_z_offset.
     static const char* tool_offset_param(helix::Axis axis);
 
+    /**
+     * @brief Simulate CALIBRATE_TOOL_OFFSETS (klipper-toolchanger's example
+     *        macro), when @p script is that command
+     *
+     * Blocking like the real macro: the rpc is answered only when the run is
+     * over, and the run takes a few seconds of mock time on an lv_timer. On the
+     * way it prints what the firmware prints - the toolchanger's "Selected tool
+     * N (TN)" per tool, the probe's contact lines, "Sensor location at x,y,z"
+     * for T0 and "Tool offset is x,y,z" for every other tool - and republishes
+     * `toolchanger`.tool_number as the carriage changes tool. Each measured
+     * tool's offsets are written exactly as the macro's _SAVE_TOOL_OFFSET does:
+     * runtime value live and republished per axis, then staged for SAVE_CONFIG.
+     *
+     * HELIX_MOCK_TOOL_CAL_FAIL=<n> makes tool n's pass fail with the probe
+     * tolerance error, so the failure path is reachable in --test.
+     *
+     * @return true if the script was handled here (the callbacks are owned)
+     */
+    bool simulate_tool_offset_calibration(const std::string& script,
+                                          std::function<void(const nlohmann::json&)> success_cb,
+                                          std::function<void(const MoonrakerError&)> error_cb);
+
     /// The inverse: which axis a PARAMETER= names, or nullopt for any other
     /// tool parameter (the mock models only the three offsets).
     static std::optional<helix::Axis> tool_offset_axis(const std::string& param);
@@ -1198,6 +1220,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void dispatch_gcode_move_update();
     /// Republish one tool's offset on one axis after SET_TOOL_PARAMETER.
     void dispatch_tool_update(int tool, helix::Axis axis);
+
+    /// What the macro's _SAVE_TOOL_OFFSET does for one tool: SET_TOOL_PARAMETER
+    /// on each axis (live + republished) then SAVE_TOOL_PARAMETER (staged).
+    void apply_calibrated_tool_offset(int tool, double x, double y, double z);
+
+    /// Republish `toolchanger`.tool_number, as a tool change does.
+    void dispatch_toolchanger_tool(int tool);
 
     /// Klipper's configfile.set(): stage one option for the next SAVE_CONFIG.
     /// Does NOT change any runtime value - on a real printer the runtime write

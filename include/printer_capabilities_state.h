@@ -271,6 +271,13 @@ class PrinterCapabilitiesState {
         return const_cast<lv_subject_t*>(&printer_has_screws_tilt_);
     }
 
+    /// 1 if the printer can calibrate its tool offsets automatically (a tool
+    /// changer with the CALIBRATE_TOOL_OFFSETS macro, see
+    /// include/tool_offset_calibration.h)
+    lv_subject_t* get_printer_has_tool_offset_cal_subject() const {
+        return const_cast<lv_subject_t*>(&printer_has_tool_offset_cal_);
+    }
+
     /// 1 if printer has an enabled webcam configured
     lv_subject_t* get_printer_has_webcam_subject() const {
         return const_cast<lv_subject_t*>(&printer_has_webcam_);
@@ -378,6 +385,7 @@ class PrinterCapabilitiesState {
     lv_subject_t printer_has_spoolman_{};            // spoolman filament manager
     lv_subject_t printer_has_speaker_{};             // speaker for M300
     lv_subject_t printer_has_timelapse_{};           // moonraker-timelapse plugin
+    lv_subject_t printer_has_tool_offset_cal_{};     // automatic tool offset calibration
     lv_subject_t printer_has_purge_line_{};          // purge/priming capability
     lv_subject_t printer_has_firmware_retraction_{}; // firmware retraction (G10/G11)
     lv_subject_t printer_bed_moves_{};               // 0=gantry moves on Z, 1=bed moves on Z

@@ -283,6 +283,7 @@ class ControlsPanel : public PanelBase {
     lv_obj_t* fan_control_panel_ = nullptr;
     lv_obj_t* bed_mesh_panel_ = nullptr;
     lv_obj_t* zoffset_panel_ = nullptr;
+    lv_obj_t* tool_offset_panel_ = nullptr;
     lv_obj_t* screws_panel_ = nullptr;
 
     /// LED quick-toggle for the Calibration & Tools grid cell. Reuses the same
@@ -552,6 +553,7 @@ class ControlsPanel : public PanelBase {
     void handle_calibration_bed_mesh();
     void handle_calibration_zoffset();
     void handle_calibration_screws();
+    void handle_calibration_tool_offsets();
     void handle_calibration_motors();
 
     //
@@ -575,6 +577,7 @@ class ControlsPanel : public PanelBase {
     static void on_calibration_bed_mesh(lv_event_t* e);
     static void on_calibration_zoffset(lv_event_t* e);
     static void on_calibration_screws(lv_event_t* e);
+    static void on_calibration_tool_offsets(lv_event_t* e);
     static void on_calibration_motors(lv_event_t* e);
 
     //

@@ -29,6 +29,13 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
             script = params["script"].get<std::string>();
         }
 
+        // The all-in-one tool offset calibration blocks until it is done, so
+        // its rpc cannot be answered by the line loop below: the simulation
+        // owns the callbacks and fires them when the run ends.
+        if (self->simulate_tool_offset_calibration(script, success_cb, error_cb)) {
+            return true;
+        }
+
         // Real Klipper executes a multi-line script line-by-line; the per-command
         // parsers in gcode_script() assume a SINGLE command (e.g. they `find('S')`
         // globally, which a multi-line script would point at the wrong token and

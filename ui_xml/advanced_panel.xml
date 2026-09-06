@@ -196,6 +196,14 @@
           <bind_flag_if_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_input_shaper_row_clicked"/>
         </setting_action_row>
+        <!-- Tool Offsets (tool changers with the calibration macro only) -->
+        <setting_action_row name="row_tool_offsets"
+                            label="Tool Offsets" label_tag="Tool Offsets" icon="axis_arrow"
+                            description="Measure every tool's XYZ offset automatically"
+                            description_tag="Measure every tool's XYZ offset automatically">
+          <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_tool_offset_row_clicked"/>
+        </setting_action_row>
         <!-- Belt Tension (hidden if no accelerometer) -->
         <beta_feature>
           <setting_action_row name="row_belt_tension"

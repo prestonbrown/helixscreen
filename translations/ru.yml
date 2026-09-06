@@ -378,13 +378,16 @@ translations:
   Calibrate Gear: 'Калибровать шестерню'
   Calibrate X: Калибровать X
   Calibrate Y: Калибровать Y
+  Calibrate all tools: Калибровать все инструменты
   Calibrate and tune scroll feel: "Калибровка и настройка прокрутки"
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации
     вибраций для уменьшения артефактов звона
+  Calibrate tool offsets?: Калибровать смещения инструментов?
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для
     точного ввода
   Calibrated: Откалиброван
   Calibrating Probe...: Калибровка зонда...
+  Calibrating T{}...: Калибровка T{}...
   Calibrating bed mesh...: Калибровка сетки стола...
   Calibrating {} axis...: 'Калибровка оси {}...'
   Calibrating...: Калибровка...
@@ -394,9 +397,11 @@ translations:
   Calibration and system configuration: 'Калибровка и настройка системы'
   Calibration cancelled.: Калибровка отменена.
   Calibration complete: Калибровка завершена
+  Calibration complete - save to keep the offsets: Калибровка завершена - сохраните, чтобы оставить смещения
   Calibration complete!: Калибровка завершена!
   Calibration complete! Press 'Next' to continue.: Калибровка завершена! Нажмите «Далее»
     для продолжения.
+  Calibration failed: Калибровка не удалась
   Calibration failed - touch targets more precisely.: Калибровка не удалась – нажимайте
     на цели точнее.
   Calibration kept timing out. Your previous settings were kept.: Калибровка постоянно завершалась по тайм-ауту. Прежние настройки сохранены.
@@ -919,6 +924,7 @@ translations:
   Events appear here after sessions and prints: События появятся здесь после сессий
     и печатей
   Every extruder's temperature at once: Температура всех экструдеров
+  Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Смещения всех инструментов измеряются заново и заменяют текущие. После этого сохраните, чтобы оставить результат.
   Excellent Accuracy: Отличная точность
   'Exception: {}': 'Исключение: {}'
   Exclude: Исключить
@@ -1565,6 +1571,7 @@ translations:
   Make %s Optional?: Сделать %s необязательным?
   Make Optional: Сделать опциональным
   Make bed mesh and QGL skippable: Сделать сетку стола и QGL пропускаемыми
+  Make sure every nozzle is clean.: Убедитесь, что все сопла чистые.
   MakeID (Bluetooth): MakeID (Bluetooth)
   Manage: Управление
   Manage Printers: Управление принтерами
@@ -1598,11 +1605,13 @@ translations:
   Maximum toolhead speed (mm/s): Максимальная скорость печатающей головки (мм/с)
   Measure and compare belt path frequencies: Измерить и сравнить частоты путей ремня
   Measure belt path frequencies: Измерить частоты путей ремня
+  Measure every tool's XYZ offset automatically: Автоматически измеряет смещение XYZ каждого инструмента
   Measured (shaper off): Измерено (шейпер выключен)
   Measured filament diameter: Измеренный диаметр филамента
   Measurement Failed: Измерение не удалось
   Measuring accelerometer noise...: 'Измерение шума акселерометра...'
   Measuring vibrations... {}%: 'Измерение вибраций... {}%'
+  Measuring... {}s: Измерение... {} с
   Median %.0f Hz: Медиана %.0f Гц
   Memory: Память
   Memory (MB): Память (МБ)
@@ -1828,6 +1837,7 @@ translations:
   Objects: Объекты
   'Off': Выкл
   'Off:': 'Выкл:'
+  Offsets saved: Смещения сохранены
   "Old setting on today's data: {} residual - now: {}": 'Прежняя настройка на сегодняшних данных: остаточная вибрация {} — сейчас: {}'
   'On': Вкл
   On and Off macros must be different: Макросы включения и выключения должны отличаться
@@ -2141,6 +2151,7 @@ translations:
   Quad Gantry Level started...: QGL запущен...
   'Queue: Paused': 'Очередь: Пауза'
   'Queue: Ready': 'Очередь: Готово'
+  Queued: В очереди
   Queued {}h {}m ago: 'В очереди {} ч {} мин'
   Queued {}m ago: 'В очереди {} мин'
   Quick: Быстро
@@ -2166,6 +2177,7 @@ translations:
   Ready: Готов
   Ready for filament operations: Готово к операциям с филаментом
   Ready to Apply: Готово к применению
+  Ready to calibrate: Готов к калибровке
   Ready to pluck: Готово к щипку
   Reason: Причина
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
@@ -2332,6 +2344,7 @@ translations:
   Running {}...: Выполнение {}...
   Runout: 'Окончание'
   Runout Sensor: Датчик окончания
+  Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'Ошибка SAVE_CONFIG: {}. Z-смещение применено, но не сохранено. Выполните SAVE_CONFIG вручную, иначе смещение будет потеряно при перезапуске.'
@@ -2366,6 +2379,8 @@ translations:
   Save changes to persist them across restarts?: Сохранить изменения, чтобы они сохранились
     после перезапуска?
   'Save failed: {}': 'Ошибка сохранения: {}'
+  Save offsets: Сохранить смещения
+  Save offsets?: Сохранить смещения?
   Save to Spoolman: Сохранить в Spoolman
   Saved Z-Offset: Сохранённый Z-Offset
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
@@ -2375,6 +2390,7 @@ translations:
   Saving Configuration...: Сохранение конфигурации...
   Saving Z-offset...: Сохранение Z-offset...
   Saving config... Klipper will restart.: Сохранение конфигурации... Klipper перезапустится.
+  Saving offsets...: Сохранение смещений...
   Saving will restart Klipper and CANCEL any active print!: Сохранение перезапустит
     Klipper и ОТМЕНИТ любую активную печать!
   Scan: Поиск
@@ -2638,6 +2654,7 @@ translations:
   Stop failed: Ошибка остановки
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Остановить печать \"{}\"?\n\nЭто нельзя будет отменить через 5 секунд."
+  Stopped: Остановлено
   Stopped between Hub and Toolhead: Остановка между хабом и печатающей головкой
   Stopped between Lane and Hub: Остановка между слотом и хабом
   Stopped between Spool and Lane: Остановка между катушкой и слотом
@@ -2828,6 +2845,7 @@ translations:
     включения опциональных шагов.
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Для
     этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?
+  This printer cannot calibrate tool offsets automatically: Этот принтер не может калибровать смещения инструментов автоматически
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент
@@ -2857,6 +2875,8 @@ translations:
     Klipper будет перезапущена. Активные операции будут прерваны.
   This will restart Klipper.: Это перезапустит Klipper.
   This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: Z-offset будет сохранён, и Klipper перезапустится для записи конфигурации. Принтер ненадолго отключится.
+  ? This writes the tool offsets to the printer's config and restarts Klipper, which takes a few seconds. Until then they apply only to this session.
+  : Смещения инструментов будут записаны в конфигурацию принтера, и Klipper перезапустится, это займёт несколько секунд. До этого они действуют только в текущем сеансе.
   Thorough: Тщательно
   Thumbnail Only: Только миниатюра
   'Thumbnail: ': 'Миниатюра: '
@@ -2897,9 +2917,12 @@ translations:
   Too soft - pluck harder: Слишком слабо - щипните сильнее
   Tool: Инструмент
   Tool Changer: Сменщик инструментов
+  Tool Offsets: Смещения инструментов
   Tool Switcher: 'Переключатель инструментов'
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'
   Tool mapping failed: Ошибка сопоставления инструмента
+  Tool offsets (mm): Смещения инструментов (мм)
+  Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента
   'Tool {} → Slot {}: no filament loaded.': 'Инструмент {} → Слот {}: филамент не загружен.'
   Toolhead: 'Печатающая головка'

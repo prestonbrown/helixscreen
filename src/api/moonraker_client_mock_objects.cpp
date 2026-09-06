@@ -457,6 +457,24 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
     // printer.objects.subscribe - Subscribe to printer object updates
     // Returns initial state with eventtime (subsequent updates come via notify_status_update)
+    // printer.gcode.help - {command: description}. Only what the calibration
+    // screens read: a macro's `description:` is its on-screen instruction, and
+    // Klipper's placeholder for an undocumented macro is "G-Code macro".
+    registry["printer.gcode.help"] =
+        [](MoonrakerClientMock* self, const json& /*params*/,
+           std::function<void(const json&)> success_cb,
+           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+        json help = json::object();
+        if (self->hardware().has_tool_changer()) {
+            help["CALIBRATE_TOOL_OFFSETS"] =
+                "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first.";
+        }
+        if (success_cb) {
+            success_cb(json{{"result", help}});
+        }
+        return true;
+    };
+
     registry["printer.objects.subscribe"] =
         [](MoonrakerClientMock* self, const json& params,
            std::function<void(const json&)> success_cb,

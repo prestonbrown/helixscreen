@@ -305,6 +305,18 @@ HELIX_MOCK_AMS=ifs-module ./build/bin/helix-screen --test -vv
 
 **Per-tool offsets:** each `tool T{n}` serves live `gcode_x_offset` / `gcode_y_offset` / `gcode_z_offset`, seeded distinct per tool *and* per axis (T{n}: x = 0.100·n, y = −0.050·n, z = −0.025·n; T0 is zero everywhere) so a display that shows every tool the same number, or X where Z belongs, cannot look right. `SET_TOOL_PARAMETER T=<n> PARAMETER=gcode_{x,y,z}_offset VALUE=<mm>` moves one axis live and republishes only that field; `SAVE_TOOL_PARAMETER` stages it under `configfile.save_config_pending_items["tool T<n>"]`; `SAVE_CONFIG` commits and restarts; a restart (`RESTART` or `printer.restart`) reverts anything not committed. `tests/unit/test_mock_save_config.cpp` pins all of it.
 
+**Automatic tool offset calibration:** the toolchanger persona also advertises
+`gcode_macro CALIBRATE_TOOL_OFFSETS` (and `tools_calibrate`), so the Tool Offsets calibration
+screen is reachable. Sending that macro through `printer.gcode.script` runs a simulated
+calibration on an `lv_timer`: the rpc is answered only when the run is over (the real macro
+blocks Klipper), and along the way the mock prints what the firmware prints — `Selected tool
+N (TN)` per tool with a `toolchanger.tool_number` republish, the probe's `Probe made contact`
+lines, `Sensor location at x,y,z` for the first tool and `Tool offset is x,y,z` for the
+others — and writes each measured tool's X/Y/Z exactly as `_SAVE_TOOL_OFFSET` does (live +
+staged for SAVE_CONFIG). `printer.gcode.help` returns a description for the macro.
+`HELIX_MOCK_TOOL_CAL_FAIL=<n>` makes tool `n`'s pass fail with the probe tolerance error, for
+the failure path. `tests/unit/test_mock_tool_offset_calibration.cpp` pins it.
+
 ### `HELIX_MOCK_AMS_STATE`
 
 Select the mock AMS visual scenario.

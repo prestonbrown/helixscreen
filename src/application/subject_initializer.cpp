@@ -21,6 +21,7 @@
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
 #include "ui_panel_calibration_pid.h"
+#include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_console.h"
 #include "ui_panel_controls.h"
@@ -426,6 +427,7 @@ void SubjectInitializer::init_panel_subjects(IMoonrakerAPI* api) {
     init_input_shaper_row_handler();
     init_belt_tension_row_handler();
     init_zoffset_row_handler();
+    helix::ui::init_tool_offset_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();
 

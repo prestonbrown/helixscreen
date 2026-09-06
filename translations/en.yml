@@ -373,13 +373,16 @@ translations:
   Calibrate Gear: Calibrate Gear
   Calibrate X: Calibrate X
   Calibrate Y: Calibrate Y
+  Calibrate all tools: Calibrate all tools
   Calibrate and tune scroll feel: Calibrate and tune scroll feel
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrate input shaping
     to reduce ringing artifacts in prints
+  Calibrate tool offsets?: Calibrate tool offsets?
   Calibrate your touchscreen for accurate input: Calibrate your touchscreen for accurate
     input
   Calibrated: Calibrated
   'Calibrating Probe...': 'Calibrating Probe...'
+  Calibrating T{}...: Calibrating T{}...
   'Calibrating bed mesh...': 'Calibrating bed mesh...'
   Calibrating {} axis...: Calibrating {} axis...
   Calibrating...: Calibrating...
@@ -389,9 +392,11 @@ translations:
   Calibration and system configuration: Calibration and system configuration
   Calibration cancelled.: Calibration cancelled.
   Calibration complete: Calibration complete
+  Calibration complete - save to keep the offsets: Calibration complete - save to keep the offsets
   Calibration complete!: Calibration complete!
   Calibration complete! Press 'Next' to continue.: Calibration complete! Press 'Next'
     to continue.
+  Calibration failed: Calibration failed
   Calibration failed - touch targets more precisely.: Calibration failed - touch targets
     more precisely.
   Calibration kept timing out. Your previous settings were kept.: Calibration kept timing out. Your previous settings were kept.
@@ -905,6 +910,7 @@ translations:
   Events appear here after sessions and prints: Events appear here after sessions
     and prints
   Every extruder's temperature at once: Every extruder's temperature at once
+  Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.
   Excellent Accuracy: Excellent Accuracy
   'Exception: {}': 'Exception: {}'
   Exclude: Exclude
@@ -1543,6 +1549,7 @@ translations:
   Make %s Optional?: Make %s Optional?
   Make Optional: Make Optional
   Make bed mesh and QGL skippable: Make bed mesh and QGL skippable
+  Make sure every nozzle is clean.: Make sure every nozzle is clean.
   MakeID (Bluetooth): MakeID (Bluetooth)
   Manage: Manage
   Manage Printers: Manage Printers
@@ -1576,11 +1583,13 @@ translations:
   Maximum toolhead speed (mm/s): Maximum toolhead speed (mm/s)
   Measure and compare belt path frequencies: Measure and compare belt path frequencies
   Measure belt path frequencies: Measure belt path frequencies
+  Measure every tool's XYZ offset automatically: Measure every tool's XYZ offset automatically
   Measured (shaper off): Measured (shaper off)
   Measured filament diameter: Measured filament diameter
   Measurement Failed: Measurement Failed
   Measuring accelerometer noise...: Measuring accelerometer noise...
   Measuring vibrations... {}%: Measuring vibrations... {}%
+  Measuring... {}s: Measuring... {}s
   Median %.0f Hz: Median %.0f Hz
   Memory: Memory
   Memory (MB): Memory (MB)
@@ -1806,6 +1815,7 @@ translations:
   Objects: Objects
   'Off': 'Off'
   'Off:': 'Off:'
+  Offsets saved: Offsets saved
   "Old setting on today's data: {} residual - now: {}": "Old setting on today's data: {} residual - now: {}"
   'On': 'On'
   On and Off macros must be different: On and Off macros must be different
@@ -2116,6 +2126,7 @@ translations:
   Quad Gantry Level started...: Quad Gantry Level started...
   'Queue: Paused': 'Queue: Paused'
   'Queue: Ready': 'Queue: Ready'
+  Queued: Queued
   Queued {}h {}m ago: Queued {}h {}m ago
   Queued {}m ago: Queued {}m ago
   Quick: Quick
@@ -2141,6 +2152,7 @@ translations:
   Ready: Ready
   Ready for filament operations: Ready for filament operations
   Ready to Apply: Ready to Apply
+  Ready to calibrate: Ready to calibrate
   Ready to pluck: Ready to pluck
   Reason: Reason
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
@@ -2307,6 +2319,7 @@ translations:
   Running {}...: Running {}...
   Runout: Runout
   Runout Sensor: Runout Sensor
+  Runs the printer's tool offset calibration for every tool.: Runs the printer's tool offset calibration for every tool.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -2340,6 +2353,8 @@ translations:
   Save changes to persist them across restarts?: Save changes to persist them across
     restarts?
   'Save failed: {}': 'Save failed: {}'
+  Save offsets: Save offsets
+  Save offsets?: Save offsets?
   Save to Spoolman: Save to Spoolman
   Saved Z-Offset: Saved Z-Offset
   Saved to crash_report.txt (QR not available): Saved to crash_report.txt (QR not
@@ -2350,6 +2365,7 @@ translations:
   Saving Configuration...: Saving Configuration...
   Saving Z-offset...: Saving Z-offset...
   Saving config... Klipper will restart.: Saving config... Klipper will restart.
+  Saving offsets...: Saving offsets...
   Saving will restart Klipper and CANCEL any active print!: Saving will restart Klipper
     and CANCEL any active print!
   Scan: Scan
@@ -2608,6 +2624,7 @@ translations:
   Stop failed: Stop failed
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
+  Stopped: Stopped
   Stopped between Hub and Toolhead: Stopped between Hub and Toolhead
   Stopped between Lane and Hub: Stopped between Lane and Hub
   Stopped between Spool and Lane: Stopped between Spool and Lane
@@ -2794,6 +2811,7 @@ translations:
     Once installed, use Configure PRINT_START below to enable optional steps.
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: This
     print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?
+  This printer cannot calibrate tool offsets automatically: This printer cannot calibrate tool offsets automatically
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   This tool probes each bed screw and tells you how much to adjust.: This tool probes
@@ -2825,6 +2843,8 @@ translations:
     will restart Klipper firmware. Any active operations will be interrupted.
   This will restart Klipper.: This will restart Klipper.
   This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.: This will save the Z-offset and restart Klipper to write the configuration. The printer will briefly disconnect.
+  ? This writes the tool offsets to the printer's config and restarts Klipper, which takes a few seconds. Until then they apply only to this session.
+  : This writes the tool offsets to the printer's config and restarts Klipper, which takes a few seconds. Until then they apply only to this session.
   Thorough: Thorough
   Thumbnail Only: Thumbnail Only
   'Thumbnail: ': 'Thumbnail: '
@@ -2865,9 +2885,12 @@ translations:
   Too soft - pluck harder: Too soft - pluck harder
   Tool: Tool
   Tool Changer: Tool Changer
+  Tool Offsets: Tool Offsets
   Tool Switcher: Tool Switcher
   'Tool change failed: {}': 'Tool change failed: {}'
   Tool mapping failed: Tool mapping failed
+  Tool offsets (mm): Tool offsets (mm)
+  Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
   'Tool {} → Slot {}: no filament loaded.': 'Tool {} → Slot {}: no filament loaded.'
   Toolhead: Toolhead
