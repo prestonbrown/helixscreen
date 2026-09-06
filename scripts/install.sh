@@ -621,13 +621,12 @@ print_post_install_commands() {
 # HELIX_STATE_VAR_LIB in common.sh). Production leaves them unset.
 #
 # THE BOTH-PLACES RULE: a mod tree location appears in this file TWICE, in the
-# probe candidate lists right here (env-overridable, marker-gated) AND in the
-# hard-coded canonical literals inside host_path_is_mod_owned below (not
-# overridable, marker-free). The two shapes are deliberate: the probe may be
-# redirected or miss a half-uninstalled marker, while ownership of the
-# namespace must not depend on either. Adding a new mod location means adding
-# it to BOTH lists -- one without the other is either a path the guard does
-# not recognize or a path the probe can never find.
+# probe candidate lists right here (env-overridable, marker-gated) AND in
+# HOST_CANONICAL_MOD_ROOTS below (not overridable, marker-free). The two shapes
+# are deliberate: the probe may be redirected or miss a half-uninstalled marker,
+# while ownership of the namespace must not depend on either. Adding a new mod
+# location means adding it to BOTH lists -- one without the other is either a
+# path the guard does not recognize or a path the probe can never find.
 # Blank at source time on purpose: this variable is the ONE switch that arms
 # the mod-owned destruct exemption (host_mod_destruct_blocked below), so it
 # must never be inherited from the environment - a stale HELIX_MOD_PAYLOAD=1
@@ -755,9 +754,6 @@ host_profile_probe() {
     fi
 }
 
-# True when path (symlinks resolved) is managed by the mod: the probed tree,
-# the probed chroot, or one of the canonical mod roots. Never mv, rm, or chmod
-# these outside --mod-payload's in-place contract.
 # Canonicalize a path for comparison: symlinks resolved, or the input unchanged
 # when nothing on the host can resolve it.
 #
@@ -793,9 +789,21 @@ host_path_under() {
     return 1
 }
 
+# The canonical mod namespaces, hard-coded like HELIX_INSTALL_DIRS: these trees
+# are the mod's whether or not a probe found them. The probe's marker
+# (.shell/platform.sh) is refactorable, and a half-uninstall can remove it while
+# the payload still sits in the tree — recognition must not depend on it, so
+# unlike the probe's candidate lists this one is deliberately not overridable.
+# Space-separated because host_path_is_mod_owned iterates it with word
+# splitting; no entry may contain a space or a glob character.
+HOST_CANONICAL_MOD_ROOTS="/usr/data/.mod /data/.mod /usr/data/config/mod /opt/config/mod"
+
+# True when path (symlinks resolved) is managed by the mod: the probed tree,
+# the probed chroot, or one of the canonical mod roots. Never mv, rm, or chmod
+# these outside --mod-payload's in-place contract.
 host_path_is_mod_owned() {
     [ -n "$1" ] || return 1
-    local p="$1"
+    local p="$1" root
     # Each probed root matches only when the probe found one — an empty
     # "$HOST_MOD_ROOT"/* pattern degenerates to /* and would claim every
     # absolute path on a host with no mod.
@@ -805,17 +813,14 @@ host_path_is_mod_owned() {
     if [ -n "$HOST_MOD_CHROOT" ] && host_path_under "$p" "$HOST_MOD_CHROOT"; then
         return 0
     fi
-    # The canonical roots are hard-coded, like HELIX_INSTALL_DIRS: those
-    # namespaces are the mod's whether or not a probe found them. The probe's
-    # marker (.shell/platform.sh) is refactorable, and a half-uninstall can
-    # remove it while the payload still sits in the tree — recognition must
-    # not depend on it.
-    case "$p" in
-        /usr/data/.mod|/usr/data/.mod/*)                 return 0 ;;
-        /data/.mod|/data/.mod/*)                         return 0 ;;
-        /usr/data/config/mod|/usr/data/config/mod/*)     return 0 ;;
-        /opt/config/mod|/opt/config/mod/*)               return 0 ;;
-    esac
+    # The canonical roots take the same symlink-aware comparison as the probed
+    # ones: a rig reaching /usr/data through a link on its data partition
+    # spells the same tree two ways, and matching the literal alone answers
+    # "not mod-owned" for one of them.
+    # shellcheck disable=SC2086  # word splitting is how the list is consumed
+    for root in $HOST_CANONICAL_MOD_ROOTS; do
+        host_path_under "$p" "$root" && return 0
+    done
     return 1
 }
 

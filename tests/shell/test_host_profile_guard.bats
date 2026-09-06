@@ -258,6 +258,37 @@ ad5m_sandbox() {
     [ "$status" -eq 0 ] || fail "symlink into the mod tree not resolved: $output"
 }
 
+@test "host_path_is_mod_owned: a canonical root reached through a symlink is still owned" {
+    # The canonical roots are absolute production paths, so the resolver is the
+    # only seam a sandbox can drive. Shim realpath to answer the way a rig whose
+    # /usr/data is a link onto its data partition does: two spellings, one tree,
+    # and the guard must own both or the --auto-update refusal fails open on the
+    # spelling it did not recognize.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    local partition="$SANDBOX/mnt/UDISK/config/mod"
+    mkdir -p "$partition/.bin/helixscreen" "$SANDBOX/mnt/UDISK/config/other"
+
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/realpath" <<RESOLVER
+#!/bin/sh
+case "\$1" in
+    /usr/data/config/mod*) printf '%s\n' "$partition\${1#/usr/data/config/mod}" ;;
+    *)                     printf '%s\n' "\$1" ;;
+esac
+RESOLVER
+    chmod +x "$BATS_TEST_TMPDIR/bin/realpath"
+    PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+
+    run host_path_is_mod_owned "$partition/.bin/helixscreen"
+    [ "$status" -eq 0 ] || fail "canonical root reached through a link not owned: $output"
+
+    # A neighbour on the same partition is not the mod's namespace: resolving
+    # must widen the match to one tree, not to everything beside it.
+    run host_path_is_mod_owned "$SANDBOX/mnt/UDISK/config/other/helixscreen"
+    [ "$status" -ne 0 ] || fail "unrelated path on the resolved partition reported owned"
+}
+
 @test "host_path_is_mod_owned: with no mod on the host nothing is owned" {
     HOST_MOD_ROOT=""
     HOST_MOD_CHROOT=""
@@ -295,24 +326,36 @@ ad5m_sandbox() {
     [ "$status" -ne 0 ] || fail "unrelated /opt/config path reported owned"
 }
 
-@test "the AD5M chroot location is in BOTH lists: probe default and canonical literal" {
+@test "the AD5M chroot location is in BOTH lists: probe default and canonical root" {
     # The BOTH-PLACES RULE (host_profile.sh): a mod location appears in the
-    # env-overridable probe candidates AND in the canonical literals, or it is
+    # env-overridable probe candidates AND in HOST_CANONICAL_MOD_ROOTS, or it is
     # either a path the guard does not recognize or one the probe can never
     # find without help. The AD5M's chroot is /data/.mod/.forge-x - one
     # derivation off its DATA_MNT, the same rule the AD5X's
-    # /usr/data/.mod/.forge-x follows. The sandbox tests above override the
-    # candidates, so the PRODUCTION default list is pinned here by shape, the
-    # same way the mode tests pin their dispatch arms.
+    # /usr/data/.mod/.forge-x follows.
     local profile="$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
 
-    # The probe default (production runs leave the env unset).
+    # The probe default is inline in host_profile_probe and the sandbox tests
+    # override it, so nothing can reach it but its shape.
     grep -q 'usr/data/.mod/.forge-x /usr/data/.mod/.zmod /data/.mod/.forge-x' "$profile" \
         || fail "the AD5M chroot is missing from the probe's default candidate list"
-    # The canonical literal (canonical /data/.mod ownership is pinned
-    # behaviorally in the test above; this catches the arm being re-scoped).
-    grep -q '/data/.mod|/data/.mod/\*' "$profile" \
-        || fail "the canonical mod-owned case is missing its /data/.mod arm"
+
+    # The canonical half is a list the module exports, so pin the ENTRY rather
+    # than its source text: /data/.mod exactly, not a re-scoped
+    # /data/.mod/.forge-x and not a sibling that merely contains the string.
+    case " $HOST_CANONICAL_MOD_ROOTS " in
+        *" /data/.mod "*) ;;
+        *) fail "HOST_CANONICAL_MOD_ROOTS lost its /data/.mod entry: $HOST_CANONICAL_MOD_ROOTS" ;;
+    esac
+
+    # ...and that the entry is consulted, so a list nothing iterates cannot
+    # satisfy the rule by existing.
+    HOST_MOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    run host_path_is_mod_owned "/data/.mod"
+    [ "$status" -eq 0 ] || fail "/data/.mod itself is not owned: $output"
+    run host_path_is_mod_owned "/data/.mod/.forge-x/usr/bin/bash"
+    [ "$status" -eq 0 ] || fail "a path under /data/.mod is not owned: $output"
 }
 
 # ===========================================================================
