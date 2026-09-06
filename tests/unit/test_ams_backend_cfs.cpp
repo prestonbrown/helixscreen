@@ -4462,3 +4462,115 @@ TEST_CASE("CFS flat: a slot delta does not clear the endless-spool enable bit",
     CHECK(backend.get_system_info().endless_spool_enabled);
     CHECK(backend.get_endless_spool_capabilities().enabled == EndlessSpoolEnabled::On);
 }
+
+// ============================================================================
+// Pre-dispatch failure does not fire the envelope unwind
+// ============================================================================
+
+namespace {
+
+/// Records every gcode the backend sends through IMoonrakerAPI, and fails G28
+/// through the error callback the way Klipper reports a homing failure.
+class GcodeRecordingApi : public MoonrakerAPIMock {
+  public:
+    using MoonrakerAPIMock::MoonrakerAPIMock;
+
+    void execute_gcode(const std::string& gcode, SuccessCallback on_success,
+                       ErrorCallback on_error, uint32_t timeout_ms = 0, bool silent = false,
+                       SuccessCallback on_queued = nullptr,
+                       bool caller_surfaces_errors = true) override {
+        (void)timeout_ms;
+        (void)silent;
+        (void)on_queued;
+        (void)caller_surfaces_errors;
+        sent.push_back(gcode);
+        if (gcode == "G28" && fail_homing) {
+            if (on_error) {
+                MoonrakerError err;
+                err.type = MoonrakerErrorType::UNKNOWN;
+                err.message = "No trigger on y after full movement";
+                on_error(err);
+            }
+            return;
+        }
+        if (on_success) {
+            on_success();
+        }
+    }
+
+    bool contains(const std::string& needle) const {
+        for (const auto& g : sent) {
+            if (g.find(needle) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool fail_homing = true;
+    std::vector<std::string> sent;
+};
+
+/// CFS backend that reports the toolhead unhomed so ensure_homed_then() sends
+/// its G28, and that skips the confirmation prompt the UI would normally raise.
+class UnhomedCfsBackend : public AmsBackendCfs {
+  public:
+    UnhomedCfsBackend(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
+        : AmsBackendCfs(api, client) {}
+
+    bool toolhead_homed() const override {
+        return false;
+    }
+
+};
+
+} // namespace
+
+TEST_CASE("CFS: a failed pre-op G28 does not send the envelope unwind",
+          "[ams][cfs][homing]") {
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::CREALITY_K1};
+    helix::PrinterState state;
+    GcodeRecordingApi api{client, state};
+
+    UnhomedCfsBackend backend{&api, &client};
+    backend.arm_home_preconfirmed(); // skip the "home first?" modal
+
+    CfsTestAccess::dispatch_action_script(backend, "CR_BOX_LOAD TNN=0");
+    // token.defer() can queue from inside a drain, so drain until quiet or the
+    // callback is left behind and the isolation-leak gate names this test.
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    // The G28 went out and failed, so the payload never shipped.
+    REQUIRE(api.contains("G28"));
+    REQUIRE_FALSE(api.contains("CR_BOX_LOAD"));
+
+    // Nothing was saved, so nothing may be restored. Sending the restore anyway
+    // draws a Klipper rejection that surfaces as a second error toast beside the
+    // homing failure the user actually needs to read.
+    CHECK_FALSE(api.contains("RESTORE_GCODE_STATE"));
+    CHECK_FALSE(api.contains("BOX_RESTORE_FAN"));
+}
+
+TEST_CASE("CFS: a failed payload still sends the envelope unwind", "[ams][cfs][homing]") {
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::CREALITY_K1};
+    helix::PrinterState state;
+    GcodeRecordingApi api{client, state};
+    api.fail_homing = false; // G28 succeeds; the body is what fails
+
+    UnhomedCfsBackend backend{&api, &client};
+    backend.arm_home_preconfirmed();
+
+    // The mock acks the payload, so drive the failure through the same callback
+    // Klipper's rejection would reach.
+    CfsTestAccess::dispatch_action_script(backend, "CR_BOX_LOAD TNN=0");
+    // token.defer() can queue from inside a drain, so drain until quiet or the
+    // callback is left behind and the isolation-leak gate names this test.
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    REQUIRE(api.contains("G28"));
+    REQUIRE(api.contains("CR_BOX_LOAD"));
+}

@@ -112,15 +112,28 @@ class AmsSubscriptionBackend : public AmsBackend {
     ///                   something. Unset means "derive from @p on_error";
     ///                   pass false when the callback only logs and unwinds
     ///                   state, so GcodeErrorRouter keeps the report.
+    /// @param on_predispatch_error Used INSTEAD of @p on_error when the failure
+    ///                   happens before the payload is sent — today that is the
+    ///                   G28, plus the no-API case on the same leg. A caller
+    ///                   whose @p on_error unwinds state the payload
+    ///                   establishes needs this: nothing was established yet,
+    ///                   so the unwind gcode is sent into a printer that will
+    ///                   reject it, and Klipper broadcasts that rejection on
+    ///                   the `!!` stream where GcodeErrorRouter turns it into a
+    ///                   second error toast beside the real one. Null (the
+    ///                   default) means "use @p on_error for both", which is
+    ///                   every caller that has no such unwind.
     ///
     /// @warning Call from the main thread only — checks toolhead_homed(),
     /// which (in the production override) reads an LVGL subject, and may
     /// synchronously create a confirmation modal.
-    AmsError ensure_homed_then(std::string gcode, std::function<void()> on_complete = nullptr,
-                               std::function<void(const MoonrakerError&)> on_error = nullptr,
-                               uint32_t timeout_ms = IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
-                               bool skip_homing = false, bool silent = true,
-                               std::optional<bool> caller_surfaces_errors = std::nullopt);
+    AmsError
+    ensure_homed_then(std::string gcode, std::function<void()> on_complete = nullptr,
+                      std::function<void(const MoonrakerError&)> on_error = nullptr,
+                      uint32_t timeout_ms = IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
+                      bool skip_homing = false, bool silent = true,
+                      std::optional<bool> caller_surfaces_errors = std::nullopt,
+                      std::function<void(const MoonrakerError&)> on_predispatch_error = nullptr);
 
     /// See AmsBackend::arm_home_preconfirmed(). Consumed single-shot by the
     /// NEXT ensure_homed_then() call that finds the toolhead genuinely
