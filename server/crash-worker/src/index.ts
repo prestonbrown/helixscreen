@@ -181,6 +181,21 @@ async function handleCrashReport(request: Request, env: Env): Promise<Response> 
     return jsonResponse(400, { error: "Invalid app_version" });
   }
 
+  // A HelixScreen build can only ever report one of the platforms
+  // UpdateChecker::get_platform_key() compiles in, so a value outside that set
+  // means the binary is not one we produced. Its addresses resolve against no
+  // symbol file we publish, so the issue it would file is unactionable by
+  // construction. Absent is allowed: only a present-and-unrecognized value is
+  // refused, so a client that omits the field is still heard.
+  const reportedPlatform = String(body.platform ?? body.app_platform ?? "");
+  if (reportedPlatform !== "" && !isKnownPlatform(reportedPlatform)) {
+    console.warn(`Refusing crash report from unknown platform: ${reportedPlatform}`);
+    return jsonResponse(202, {
+      status: "ignored",
+      reason: "platform is not one a published HelixScreen build reports",
+    });
+  }
+
   // --- Create GitHub issue (or add comment to existing) ---
   try {
     const issue = await createGitHubIssue(env, body);
@@ -221,6 +236,35 @@ const VERSION_SHAPE = /^\d{1,4}\.\d{1,4}\.\d{1,5}([-+][0-9A-Za-z.-]{1,32})?$/;
 
 export function isVersionShapeValid(version: string): boolean {
   return VERSION_SHAPE.test(version);
+}
+
+/**
+ * Every platform key a HelixScreen build can report.
+ *
+ * This mirrors the return values of UpdateChecker::get_platform_key() in
+ * src/system/update_checker.cpp, which is compile-time except for the one
+ * runtime k1/ad5x split, so a genuine build cannot report anything else.
+ * tests/shell/test_update_platform_coverage.bats fails if the two lists drift,
+ * which is what keeps this from becoming a stale second copy.
+ *
+ * Adding a platform means deploying this worker as well as shipping the app,
+ * or the new platform's first crash reports are refused.
+ */
+const KNOWN_PLATFORMS = new Set([
+  "ad5m",
+  "ad5x",
+  "cc1",
+  "esp32",
+  "k1",
+  "k2",
+  "pi",
+  "pi32",
+  "snapmaker-u1",
+  "x86",
+]);
+
+export function isKnownPlatform(platform: string): boolean {
+  return KNOWN_PLATFORMS.has(platform);
 }
 
 /** Trim and escape a client-supplied string destined for the issue title. */
