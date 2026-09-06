@@ -87,8 +87,21 @@ live. See `ANDROID_PLAY_STORE.md`.
       21:46), and the Nightly Full Test Suite passed 2026-08-15 04:28 -
       including the `test_recovery_dialog_threading.cpp` SIGSEGV that had been
       unreproduced. Watch whether it recurs rather than treating it as fixed.
-- [ ] `VERSION.txt`: `0.99.113` → `1.0.0`. Every existing install is on `0.99.x`,
-      so this is an ordinary forward step for the updater — no special handling.
+- [x] `VERSION.txt`: `0.99.118` → `1.0.0`, and the changelog heading with it.
+      Every existing install is on `0.99.x`, so this is an ordinary forward step
+      for the updater — no special handling. **Tag plain `v1.0.0`**: this branch
+      declares `RELEASE_CHANNEL=stable` and `release-channel.sh` refuses a
+      prerelease-suffixed tag there, because `helix::version::Version` discards
+      the suffix and `v1.0.0-rc.1` would compare equal to `v1.0.0`.
+- [ ] **The Android build loads and works.** Build the APK (`android/`, gradle)
+      and confirm on a device or emulator that it starts, reaches the dashboard,
+      and connects to a printer — the desktop and device builds passing says
+      nothing about it, since it is the one target with its own toolchain and
+      packaging.
+- [ ] The Play Store "What's new" text is written. `scripts/generate-whatsnew.sh`
+      renders it from the changelog's `<!-- whatsnew -->` block and **refuses a
+      block over 500 characters**, so an over-long block means the release ships
+      with no Play changelog at all. Run the script and read its byte count.
 - [x] Confirm the `ALLOW_CHANNEL_DOWNGRADE` repository variable is **unset**. It
       is the escape hatch for the downgrade guard and must be off by default.
       *Verified 2026-08-14 (`gh variable list`): not set.*

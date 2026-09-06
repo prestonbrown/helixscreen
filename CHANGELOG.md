@@ -5,18 +5,17 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0-rc.1] - 2026-09-04
+## [1.0.0] - 2026-09-06
 
 <!-- whatsnew
-The 1.0 release candidate. Highlights:
+The first stable release. Highlights:
 
 - Wi-Fi and Ethernet now drive the printer's own network daemon on Forge-X AD5M
 - The AD5M's buzzer plays melodies as clean notes, and works after every boot
 - The AD5X buzzer now works; its filament path is drawn as the machine is built
-- USB mice work on 64-bit machines; touch calibration is fixed on rotated displays
-- Random crashes on multi-tool home panels are fixed
-- A memory bug in confirmation dialogs found by the nightly sanitizer is fixed
-- Idle CPU drops sharply on two-core machines, and animations off now means off
+- USB mice work on 64-bit machines; touch calibration fixed on rotated displays
+- Fixes home-panel crashes and a memory bug in confirmation dialogs
+- Idle CPU drops on two-core machines; animations off now means off
 -->
 
 **Upgrading from 0.99?** Sound on the AD5M and AD5X now works properly - the AD5M's
@@ -24,11 +23,10 @@ buzzer plays melodies cleanly where static was the best it could manage before, 
 AD5X's buzzer, silent until this release, is heard too. If you prefer a quiet machine,
 the speaker on/off override in Settings now genuinely silences it.
 
-The 1.0 release candidate - the stabilization pass over the tail of the 0.99 line, ahead
-of the first version to call itself stable. The work since v0.99.118 went to three places.
-Sound on the
-FlashForge machines: the AD5M's buzzer plays music now instead of static, and the AD5X's
-silent buzzer was found and fixed. Networking: on printers whose firmware runs its own
+The first stable release - the stabilization pass over the tail of the 0.99 line. The
+work since v0.99.118 went to three places. Sound on the FlashForge machines: the AD5M's
+buzzer plays music now instead of static, and the AD5X's silent buzzer was found and
+fixed. Networking: on printers whose firmware runs its own
 network daemon, the Wi-Fi and Ethernet page now drives that daemon instead of sitting
 beside it. And the AD5X's filament system, which is drawn the way the machine is actually
 built and now understands the IFS module split out of Z-Mod. Around those: USB mice on
@@ -290,6 +288,16 @@ the nightly sanitizer run caught before any field report.
   toolhead itself - that is what the canvas draws now, one continuous tube from the hub
   down to the nozzle, and no bypass stub, because the machine has none. The toolhead
   style picker in Settings also offers all eight styles instead of five.
+
+### Known Issues
+
+- **Changing the UI scale rearranges the home screen** - the widgets you placed on the
+  home screen are laid out again for the new scale, and your previous arrangement is not
+  kept. Setting the scale back to what it was does not restore it either. A saved widget
+  position is a coordinate in grid tracks, and the UI scale changes the grid those tracks
+  are counted against, so the positions are re-seated for the new grid rather than parked
+  and restored. If you have a home screen arranged the way you want it, pick the UI scale
+  first and arrange the widgets afterwards. (prestonbrown/helixscreen#1484)
 
 ## [0.99.118] - 2026-08-30
 
@@ -6227,7 +6235,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
-[1.0.0-rc.1]: https://github.com/prestonbrown/helixscreen/compare/v0.99.118...v1.0.0-rc.1
+[1.0.0]: https://github.com/prestonbrown/helixscreen/compare/v0.99.118...v1.0.0
 [0.99.118]: https://github.com/prestonbrown/helixscreen/compare/v0.99.117...v0.99.118
 [0.99.117]: https://github.com/prestonbrown/helixscreen/compare/v0.99.116...v0.99.117
 [0.99.116]: https://github.com/prestonbrown/helixscreen/compare/v0.99.115...v0.99.116
