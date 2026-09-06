@@ -301,6 +301,8 @@ TEST_CASE("no toolhead-guarding XML binding is left on the raw print_active subj
     }
 
     // The census count. If a binding is legitimately added or removed, update
-    // this - the number existing is what makes a silent drop visible.
-    REQUIRE(derived_bindings == 21);
+    // this - the number existing is what makes a silent drop visible. Includes
+    // one bind each from controls_panel.xml and its micro variant for the Tool
+    // Offsets quick-access button, same guard as every other button in that row.
+    REQUIRE(derived_bindings == 23);
 }
