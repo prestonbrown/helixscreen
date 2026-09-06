@@ -51,7 +51,7 @@ flowchart TB
 | [`mk/patches.mk`](../../../mk/patches.mk) | Submodule patch stamp, both-directions wiring check, `reset-patches` / `reapply-patches` |
 | [`mk/display-lib.mk`](../../../mk/display-lib.mk) | Which display backends compile per OS; builds `libhelix-display.a` shared by splash and app |
 | [`patches/README.md`](../../../patches/README.md) | Per-patch purpose table, upstream PR status, patch-regeneration recipes |
-| [`scripts/setup-worktree.sh`](../../../scripts/setup-worktree.sh) | Worktree one-shot: creates `.worktrees/<branch>`, symlinks `lib/`, configures ccache |
+| [`scripts/setup-worktree.sh`](../../../scripts/setup-worktree.sh) | Worktree one-shot: creates `.worktrees/<branch>`, symlinks the shared `lib/` submodules and privately checks out the patched ones, configures ccache |
 | [`src/api/display_backend.cpp`](../../../src/api/display_backend.cpp) | `DisplayBackend` factory and the runtime DRM→fbdev→SDL auto-detect |
 | `firmware/helixscreen-esp32/` | ESP-IDF port for BTT K-Touch (ESP32-S3) — in progress, not shipping yet |
 
@@ -144,9 +144,11 @@ removed in 9.5), so it is edited and committed directly — never patched.
 ### Worktrees, deployment, and packaging
 
 For any major work, `scripts/setup-worktree.sh feature/my-branch` creates `.worktrees/<branch>` with
-`lib/` submodules symlinked from the main tree (so no re-clone, no re-patch, ccache stays hot) —
-BUILD_SYSTEM.md § "Git Worktrees" covers the `--unlink`/`--relink` dance git sometimes needs around
-those symlinks, plus the typical create / iterate / merge / tear-down workflow. The rule of thumb:
+the shared `lib/` submodules symlinked from the main tree and the patched ones (`lvgl`, `libhv`,
+`helix-xml`) copied into a private checkout, so no re-clone and ccache stays hot while this
+branch's `patches/` reach no other tree — BUILD_SYSTEM.md § "Git Worktrees" covers the
+`--unlink`/`--relink` dance git needs around the remaining symlinks, plus the typical
+create / iterate / merge / tear-down workflow. The rule of thumb:
 anything bigger than a one-file fix gets a worktree — parallel sessions each get their own branch,
 build dir, and ccache view instead of fighting over one `build/`. Deployment is per-device make targets: `deploy-pi` / `deploy-ad5m` / `deploy-cc1` /
 `deploy-k1` / `deploy-k2` / `deploy-snapmaker-u1` (plus `-fg` foreground and `-bin` binaries-only
@@ -198,5 +200,5 @@ Read in this order; about 25 minutes total.
 9. [`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp#L199) — `create_auto()`'s DRM→fbdev→SDL probe: the runtime half of the backend story.
 10. [`mk/patches.mk`](../../../mk/patches.mk#L187) — the stamp recipe: wiring check both directions, then apply-if-needed; skim a few apply blocks to see the sentinel patterns.
 11. `patches/lvgl-evdev-protocol-a.patch` — a small, real patch that ships on every evdev device and is upstream as PR #9829.
-12. [`mk/cross.mk`](../../../mk/cross.mk#L951) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `:1410` is the help text that renders the same menu for humans.
-13. [`scripts/setup-worktree.sh`](../../../scripts/setup-worktree.sh#L1) — the worktree one-shot: symlink strategy, ccache setup, and the `--unlink`/`--relink` options.
+12. [`mk/cross.mk`](../../../mk/cross.mk) — the `.PHONY` roster of convenience, Docker, and deploy targets; then `mk/cross.mk#help-cross` is the help text that renders the same menu for humans.
+13. [`scripts/setup-worktree.sh`](../../../scripts/setup-worktree.sh) — the worktree one-shot: what is symlinked vs privately checked out, ccache setup, and the `--unlink`/`--relink` options.

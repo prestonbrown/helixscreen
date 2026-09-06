@@ -133,9 +133,9 @@ Practical consequences:
   a conf-guards job that proves the `#if LV_USE_XML` / `LV_USE_TRANSLATION` / `LV_USE_OBJ_NAME`
   guards still hold. Details and the here-vs-there test split: `TESTING.md` § "helix-xml Engine
   Tests".
-- In a worktree, `lib/` is symlinked to the main tree — so editing `lib/helix-xml/` from a
-  worktree edits the main checkout, exactly as for `lib/lvgl/`. Make engine changes in the main
-  tree, or unlink first (`scripts/setup-worktree.sh --unlink`).
+- A worktree gets its own checkout of `lib/helix-xml` (and of `lib/lvgl` and `lib/libhv`), so
+  engine changes made in one stay in that branch. The remaining `lib/` submodules are
+  symlinked to the main tree and editing one there edits the main checkout.
 
 ### Clean-room rule
 

@@ -959,20 +959,22 @@ docker-ccache-args = -v "$(DOCKER_CCACHE_BASE)/$(1)":/ccache -e CCACHE_DIR=/ccac
 ensure-ccache-dir = @mkdir -p "$(DOCKER_CCACHE_BASE)/$(1)"
 
 # Worktree cross-build support.
-# scripts/setup-worktree.sh symlinks lib/<submodule> to the main checkout (absolute
-# paths) so a worktree builds fast without duplicating ~GB of submodules. But Docker
-# only bind-mounts $(CURDIR) at /src, so those absolute symlinks dangle inside the
-# container — the dependency check reports "LVGL not found" and relative LVGL includes
-# resolve to the wrong tree. When building from a worktree, also bind-mount the real
-# submodule tree at its own absolute path so every lib/* symlink resolves identically
-# inside and outside the container. Empty for a normal checkout, where lib/ already
-# lives under $(CURDIR). Detection: realpath of lib/lvgl is outside $(CURDIR).
-WORKTREE_LIB_REAL := $(patsubst %/,%,$(dir $(realpath lib/lvgl)))
-ifeq ($(findstring $(CURDIR)/,$(WORKTREE_LIB_REAL)/),)
-DOCKER_WORKTREE_MOUNT := $(if $(WORKTREE_LIB_REAL),-v "$(WORKTREE_LIB_REAL)":"$(WORKTREE_LIB_REAL)")
-else
-DOCKER_WORKTREE_MOUNT :=
-endif
+# scripts/setup-worktree.sh symlinks the unpatched lib/<submodule> entries to the
+# main checkout (absolute paths) so a worktree builds fast without duplicating ~GB
+# of submodules. But Docker only bind-mounts $(CURDIR) at /src, so those absolute
+# symlinks dangle inside the container — the dependency check reports a missing
+# library and relative includes resolve to the wrong tree. Also bind-mount the real
+# directory each of them points into, so every lib/* symlink resolves identically
+# inside and outside the container.
+#
+# Ask every lib/ entry where it really lives rather than probing one of them:
+# lvgl, libhv and helix-xml are private per-worktree checkouts that live under
+# $(CURDIR), so a single-entry probe reads a worktree full of symlinks as a normal
+# checkout and mounts nothing. Empty for a normal checkout, where every entry is
+# already under $(CURDIR).
+WORKTREE_LIB_REAL := $(sort $(foreach e,$(wildcard lib/*),\
+    $(if $(findstring $(CURDIR)/,$(realpath $(e))/),,$(patsubst %/,%,$(dir $(realpath $(e)))))))
+DOCKER_WORKTREE_MOUNT := $(foreach p,$(WORKTREE_LIB_REAL),-v "$(p)":"$(p)")
 
 # Build provenance. The same mount boundary hides the git metadata: a worktree's
 # .git is a FILE reading "gitdir: $(MAIN)/.git/worktrees/<name>", and that path

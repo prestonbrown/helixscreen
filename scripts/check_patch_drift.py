@@ -87,11 +87,11 @@ REMEDY = (
     "   Fix: make reapply-patches\n"
     "   (Restoring single files by hand is not equivalent -- several patches\n"
     "    touch one file, so a targeted restore drops the other patches' hunks.)\n"
-    "   Run it ONCE, from any tree. setup-worktree.sh symlinks lib/ into the main\n"
-    "   checkout and the stamp lives in the shared .git/modules, so every worktree\n"
-    "   sharing those submodules is satisfied by the same run. It will touch files\n"
-    "   outside the tree you run it from; that is expected, not a bug.\n"
-    "   Check for live builds first -- it rewrites headers other builds are reading:\n"
+    "   Run it in the tree that reported this, and only that tree. lib/lvgl and\n"
+    "   lib/libhv are a private checkout per worktree, so the run repairs this\n"
+    "   tree's submodules against this branch's patches/ and reaches no other.\n"
+    "   Check for a live build in THIS tree first -- it rewrites headers a compile\n"
+    "   here may be reading:\n"
     "     pgrep -x -d\' \' \'make|cc1plus\'"
 )
 
@@ -157,11 +157,10 @@ class Submodule:
     def git_dir(self) -> Path | None:
         """Absolute git dir, or None when this is not a git checkout.
 
-        A submodule's working tree holds a `.git` FILE pointing at
-        .git/modules/<name>, and scripts/setup-worktree.sh symlinks lib/ into
-        the main tree, so a worktree resolves to the same place the main tree
-        does. That is correct: the patched checkout is genuinely shared between
-        them, so its stamp must be too.
+        A submodule's working tree holds a `.git` FILE pointing at its git dir,
+        which for a worktree's private lvgl/libhv checkout is that worktree's own
+        .git/worktrees/<name>/modules/<name>. Asking the checkout is what keeps
+        the stamp with the files it describes, since each tree patches its own.
         """
         try:
             out = subprocess.run(

@@ -40,14 +40,17 @@ make pi-test                         # Build on thelio + deploy + run
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
 scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
-#   lib/helix-xml gets a PRIVATE checkout per worktree (it is ours and edited
-#   directly); everything else in lib/ is a symlink shared with the main tree.
-#   Also writes .claude/settings.local.json with PROJECT_DIR set to the MAIN
-#   tree so claude-recall writes lessons and stats there.
-#   A worktree the harness makes on its own (EnterWorktree → .claude/worktrees/)
-#   gets NONE of this: no lib/ symlinks, no submodules, no build. Prefer this
-#   script; if you are already in one, `git submodule update --init --recursive`
-#   and a full build before trusting anything it produces.
+#   lib/lvgl, lib/libhv and lib/helix-xml get a PRIVATE checkout per worktree,
+#   so patches/ (which is per-branch) reaches no other tree. Everything else in
+#   lib/ is symlinked from the main tree and shared.
+#   Also writes .claude/settings.local.json (gitignored) with PROJECT_DIR set to
+#   the MAIN tree, so claude-recall writes lessons and stats there instead of to
+#   a per-worktree .claude-recall/ that `git worktree remove` would discard.
+#   A worktree made by hand (plain `git worktree add`), or one the harness makes
+#   on its own (EnterWorktree -> .claude/worktrees/), gets NONE of this: no lib/
+#   symlinks, no submodules, no build. Prefer this script; if you are already in
+#   one, `git submodule update --init --recursive` and a full build before
+#   trusting anything it produces.
 ```
 
 **XML changes need no rebuild:** `ui_xml/*.xml` is loaded at runtime. Hot reload is **on by default for native dev builds** (cross-compiled release builds default it off): the running app re-registers components within ~500ms of a save and rebuilds the active panel/overlay/modal in place. `HELIX_HOT_RELOAD=1`/`0` overrides the default either way. Invalid XML (mid-write truncation, syntax errors) is silently skipped on the polling thread; the existing UI stays live and the next poll retries.
