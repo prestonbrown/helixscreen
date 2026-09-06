@@ -439,3 +439,31 @@ TEST_CASE_METHOD(ConnectionGatingFixture, "Expected-disconnect latch is consumed
     REQUIRE(nav.get_active() == PanelId::Home);
     REQUIRE_FALSE(nav.has_open_overlays());
 }
+
+TEST_CASE_METHOD(OverlayActivationFixture,
+                 "A cached overlay pushed after a navbar switch still gets on_deactivate",
+                 "[navigation][overlay][lifecycle][1469]") {
+    auto& nav = NavigationManager::instance();
+
+    open_overlay();
+    nav.go_back();
+    drain();
+    REQUIRE(overlay_lifecycle_.deactivates == 1);
+
+    // A navbar tap tears the overlay stack down. The widget itself survives, so a
+    // lazily created overlay is pushed again straight from its cache, with no
+    // create() call and so no second register_overlay_instance().
+    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Controls);
+    drain();
+
+    // Pushed without re-registering. The registration has to survive the switch,
+    // or this push arrives unpaired: the fixture runs with
+    // overlay_registration_strict() on, which aborts, and in production
+    // on_deactivate() would simply never be called.
+    nav.push_overlay(overlay_);
+    drain();
+    nav.go_back();
+    drain();
+
+    REQUIRE(overlay_lifecycle_.deactivates == 2);
+}
