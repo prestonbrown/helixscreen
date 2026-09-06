@@ -182,6 +182,35 @@ LIBHV_HEAD_CANDIDATE := $(GIT_COMMON_DIR)/modules/libhv/HEAD
 LVGL_HEAD := $(wildcard $(LVGL_HEAD_CANDIDATE))
 LIBHV_HEAD := $(wildcard $(LIBHV_HEAD_CANDIDATE))
 
+# The record of WHICH patch revision is currently applied, written by
+# check_patch_drift.py --write-stamp after the apply blocks below run. It lives
+# in each submodule's git directory, which scripts/setup-worktree.sh shares
+# between worktrees along with the checkout it describes.
+#
+# It has to be a prerequisite of the stamp, because it is the only prerequisite
+# that moves when ANOTHER worktree re-patches lib/. The others are this tree's
+# own patches/ and submodule HEADs, and a foreign apply touches neither: the
+# verification below is then skipped, every apply guard greps a marker string
+# that the foreign revision also contains and reports "already applied", and the
+# tree compiles against a patch revision that is not the one in its patches/.
+# That is silent, and on a branch whose patches differ it is a different binary
+# than the branch describes.
+LVGL_APPLIED_STAMP_CANDIDATE := $(GIT_COMMON_DIR)/modules/lvgl/helix-patches-applied.json
+LIBHV_APPLIED_STAMP_CANDIDATE := $(GIT_COMMON_DIR)/modules/libhv/helix-patches-applied.json
+APPLIED_STAMPS := $(wildcard $(LVGL_APPLIED_STAMP_CANDIDATE) $(LIBHV_APPLIED_STAMP_CANDIDATE))
+
+# Hashed rather than depended on directly, for the same reason as ABI_STAMP: the
+# record is rewritten on every apply whether or not its contents move, and a
+# same-branch worktree re-applying an identical patch set must not cost every
+# other worktree a full rebuild. The JSON is derived purely from file hashes -
+# no timestamp - so identical patch sets produce identical bytes.
+APPLIED_STAMP_ID := $(BUILD_DIR)/.patches-applied-id
+APPLIED_STAMP_HASH := $(shell cat $(APPLIED_STAMPS) 2>/dev/null | cksum)
+
+$(shell mkdir -p $(BUILD_DIR); \
+	[ "$$(cat $(APPLIED_STAMP_ID) 2>/dev/null)" = "$(APPLIED_STAMP_HASH)" ] \
+		|| printf "%s" "$(APPLIED_STAMP_HASH)" > $(APPLIED_STAMP_ID))
+
 # Restore one submodule's patched files to upstream state.
 #   $(1) submodule dir, $(2) file list (paths relative to it)
 #
@@ -258,7 +287,7 @@ force-apply-patches:
 	@$(MAKE) $(PATCHES_STAMP)
 
 # The actual stamp file - only rebuilt when patches or submodules change
-$(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
+$(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(APPLIED_STAMP_ID)
 	@mkdir -p $(BUILD_DIR)
 	$(ECHO) "$(CYAN)Verifying patch wiring...$(RESET)"
 	@# Both directions, because every failure mode here is silent. The apply
