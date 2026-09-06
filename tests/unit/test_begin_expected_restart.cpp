@@ -131,6 +131,29 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
     CHECK(notifications.empty()); // direct toast - no history row
 }
 
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "the recovery window outlasts a real config-write restart",
+                 "[recovery][expectedrestart]") {
+    // A K2 Plus takes ~17s from SAVE_CONFIG to klippy READY. A window that
+    // expires first puts a "Printer Shutdown" dialog on screen in the middle of
+    // a Save that succeeded, then dismisses it a couple of seconds later when
+    // klippy reports ready.
+    //
+    // lv_tick_inc() rather than process_lvgl(): is_recovery_suppressed() only
+    // reads the tick, so no timer needs to come due and 17s of virtual time
+    // costs nothing here.
+    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    settle();
+    REQUIRE(EmergencyStopOverlay::instance().is_recovery_suppressed());
+
+    lv_tick_inc(17000);
+    CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
+
+    // ...and still lets go, so a host that goes down and stays down is reported.
+    lv_tick_inc(4000);
+    CHECK_FALSE(EmergencyStopOverlay::instance().is_recovery_suppressed());
+}
+
 TEST_CASE_METHOD(ExpectedRestartFixture, "z-offset apply-and-save initiates the restart contract",
                  "[expectedrestart][zoffset][1359]") {
     helix::ui::SaveConfigWatch save_watch;
