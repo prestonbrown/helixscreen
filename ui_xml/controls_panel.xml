@@ -343,8 +343,10 @@
                        icon_position="top" style_bg_opa="0" style_border_width="0">
               <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <!-- The paper test is the manual fallback; a tool changer with automatic
-                   tool offset calibration measures Z along with X/Y, so it is hidden there. -->
-              <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="1"/>
+                   tool offset calibration measures Z along with X/Y, so it steps aside,
+                   but only while that (beta) screen is actually shown, or turning beta
+                   features off would hide both. -->
+              <bind_flag_if cond="printer_has_tool_offset_cal eq 1 and show_beta_features eq 1" flag="hidden"/>
               <event_cb trigger="clicked" callback="on_calibration_zoffset"/>
             </ui_button>
 
@@ -352,7 +354,8 @@
             <ui_button name="btn_tool_offsets"
                        height="100%" flex_grow="1" icon="axis_arrow" text="Tool Offsets" translation_tag="Tool Offsets"
                        icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
-              <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="0"/>
+              <!-- Beta: hidden unless both the printer supports it and beta features are on. -->
+              <bind_flag_if cond="printer_has_tool_offset_cal eq 0 or show_beta_features eq 0" flag="hidden"/>
               <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_tool_offsets"/>
             </ui_button>
