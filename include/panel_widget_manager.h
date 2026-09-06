@@ -95,8 +95,8 @@ class PanelWidgetManager {
 
     // -- Gate observers --
 
-    /// Observe hardware gate subjects and klippy_state so that widgets
-    /// appear/disappear when capabilities change. Calls rebuild_cb on change.
+    /// Observe every hardware gate subject so that widgets appear/disappear
+    /// when capabilities change. Calls rebuild_cb on change.
     void setup_gate_observers(const std::string& panel_id, RebuildCallback rebuild_cb);
 
     /// Release gate observers for a panel (call during deinit/shutdown).
