@@ -24,6 +24,7 @@
 #include "system/telemetry_manager.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -2284,9 +2285,20 @@ TEST_CASE_METHOD(TelemetryTestFixture, "New events do not leak PII", "[telemetry
 
         INFO("Checking event: " << event_type << " (index " << i << ")");
 
-        // Must NOT contain hostname of the test machine
+        // Must NOT contain the hostname of the test machine, matched as a whole
+        // token: a hostname like "vm" is also a substring of field names such as
+        // "vm_size_kb", and a key is not a leak. A hostname leaking as a value,
+        // a path segment or a URL host is still surrounded by non-word bytes.
         if (!machine_hostname.empty()) {
-            REQUIRE(event_str.find(machine_hostname) == std::string::npos);
+            std::string escaped;
+            for (char c : machine_hostname) {
+                if (!std::isalnum(static_cast<unsigned char>(c))) {
+                    escaped += '\\';
+                }
+                escaped += c;
+            }
+            std::regex host_regex("(^|[^A-Za-z0-9_])" + escaped + "($|[^A-Za-z0-9_])");
+            REQUIRE_FALSE(std::regex_search(event_str, host_regex));
         }
 
         // Must NOT contain IP address patterns
