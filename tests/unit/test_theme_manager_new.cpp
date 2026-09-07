@@ -10,10 +10,14 @@
  * - StyleEntry struct: binds a role to a configure function
  */
 
+#include "theme_loader.h"
 #include "theme_manager.h"
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 
 #include "../catch_amalgamated.hpp"
 
@@ -489,4 +493,49 @@ TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every accent it is gi
         CAPTURE(hex, ratio);
         CHECK(ratio >= 4.5);
     }
+}
+
+// Every shipped theme, every mode it supports, every accent a badge or button
+// can be filled with: the foreground must clear WCAG AA. The palette's own text
+// colour fails this on 143 of the 160 combinations, which is why the fills do
+// not use it.
+TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every shipped theme accent",
+          "[theme][contrast]") {
+    static const char* const kAccents[] = {"primary", "secondary", "success", "warning", "danger"};
+
+    int combinations = 0;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(helix::get_default_themes_directory())) {
+        if (entry.path().extension() != ".json")
+            continue;
+        const std::string filename = entry.path().filename().string();
+        std::ifstream in(entry.path());
+        std::stringstream buf;
+        buf << in.rdbuf();
+        helix::ThemeData theme = helix::parse_theme_json(buf.str(), filename);
+        CAPTURE(filename);
+        REQUIRE(theme.is_valid());
+
+        auto check_palette = [&](const helix::ModePalette& palette, const char* mode) {
+            for (const char* accent : kAccents) {
+                const std::string& hex =
+                    accent == std::string("primary")     ? palette.primary
+                    : accent == std::string("secondary") ? palette.secondary
+                    : accent == std::string("success")   ? palette.success
+                    : accent == std::string("warning")   ? palette.warning
+                                                         : palette.danger;
+                lv_color_t fill = theme_manager_parse_hex_color(hex.c_str());
+                double ratio = wcag_contrast(theme_manager_get_readable_on(fill), fill);
+                CAPTURE(mode, accent, hex, ratio);
+                CHECK(ratio >= 4.5);
+                ++combinations;
+            }
+        };
+        if (theme.supports_dark())
+            check_palette(theme.dark, "dark");
+        if (theme.supports_light())
+            check_palette(theme.light, "light");
+    }
+    // A wrong directory would pass vacuously; the shipped set is 18 themes.
+    REQUIRE(combinations >= 18 * 5);
 }

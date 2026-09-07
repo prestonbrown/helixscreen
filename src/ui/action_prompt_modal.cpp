@@ -319,7 +319,7 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
     lv_label_set_text(label, btn.label.c_str());
     lv_obj_center(label);
     lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
-    lv_obj_set_style_text_color(label, theme_manager_get_contrast_color(bg_color), LV_PART_MAIN);
+    lv_obj_set_style_text_color(label, theme_manager_get_readable_on(bg_color), LV_PART_MAIN);
 
     // Create callback data with owned copy of gcode string and lifetime token.
     //

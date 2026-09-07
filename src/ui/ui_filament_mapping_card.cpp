@@ -418,7 +418,7 @@ void FilamentMappingCard::rebuild_compact_view() {
                     // Contrast is computed against the fill; with no fill there is
                     // nothing to contrast against, so take the normal text colour.
                     lv_obj_set_style_text_color(tool_lbl,
-                                                tool.color_known ? theme_manager_get_contrast_color(
+                                                tool.color_known ? theme_manager_get_readable_on(
                                                                        lv_color_hex(tool.color_rgb))
                                                                  : theme_manager_get_color("text"),
                                                 0);
@@ -457,7 +457,7 @@ void FilamentMappingCard::rebuild_compact_view() {
                     lv_obj_set_style_text_color(slot_lbl,
                                                 slot_empty
                                                     ? theme_manager_get_color("warning")
-                                                    : theme_manager_get_contrast_color(slot_color),
+                                                    : theme_manager_get_readable_on(slot_color),
                                                 0);
                     lv_obj_remove_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);
                 } else {
@@ -473,7 +473,7 @@ void FilamentMappingCard::rebuild_compact_view() {
             const lv_color_t top_color = tool.color_known ? lv_color_hex(tool.color_rgb) : neutral;
             lv_obj_set_style_bg_color(
                 divider,
-                theme_manager_get_contrast_color(lv_color_mix(top_color, slot_color, LV_OPA_50)),
+                theme_manager_get_readable_on(lv_color_mix(top_color, slot_color, LV_OPA_50)),
                 0); // DECLARATIVE_OK: see above
         }
     }

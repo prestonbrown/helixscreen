@@ -2154,17 +2154,16 @@ static bool is_muted_text_font(const lv_font_t* font);
 /**
  * Helper to update button label text with contrast-aware color
  *
- * Uses theme_manager_get_contrast_color() which correctly picks dark text
- * (from light palette) for light backgrounds, and light text (from dark
- * palette) for dark backgrounds.
+ * A filled button is an accent surface, so its text is black or white by
+ * luminance (theme_manager_get_readable_on()), never the palette's muted text.
  */
 static void apply_button_text_contrast(lv_obj_t* btn) {
     if (!btn)
         return;
 
-    // Get button's background color and pick contrast text via theme system
+    // Get button's background color and pick a readable foreground for it
     lv_color_t bg_color = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
-    lv_color_t text_color = theme_manager_get_contrast_color(bg_color);
+    lv_color_t text_color = theme_manager_get_readable_on(bg_color);
 
     // Check for disabled state - use muted color
     bool btn_disabled = lv_obj_has_state(btn, LV_STATE_DISABLED);
@@ -2182,10 +2181,13 @@ static void apply_button_text_contrast(lv_obj_t* btn) {
     lv_color_t dark_text = tm.dark_palette().text;
     lv_color_t light_text = tm.light_palette().text;
 
-    // Helper lambda to check if icon color is a "text-like" color that should get contrast
+    // Helper lambda to check if icon color is a "text-like" color that should get contrast.
+    // Pure black and white count: they are what a previous pass of this helper
+    // wrote, and a re-preview against a different fill must be free to flip them.
     auto is_text_variant_color = [&](lv_color_t c) {
         return lv_color_eq(c, current_text) || lv_color_eq(c, current_muted) ||
-               lv_color_eq(c, dark_text) || lv_color_eq(c, light_text);
+               lv_color_eq(c, dark_text) || lv_color_eq(c, light_text) ||
+               lv_color_eq(c, lv_color_black()) || lv_color_eq(c, lv_color_white());
     };
 
     // Update all label children in the button

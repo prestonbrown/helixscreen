@@ -93,7 +93,7 @@ void update_split_button_contrast(lv_obj_t* sb) {
         text_color = theme_manager_get_color("text");
     } else {
         lv_color_t bg = lv_obj_get_style_bg_color(sb, LV_PART_MAIN);
-        text_color = theme_manager_get_contrast_color(bg);
+        text_color = theme_manager_get_readable_on(bg);
     }
 
     auto set_contrast = [&](lv_obj_t* obj) {
@@ -176,7 +176,7 @@ void style_dropdown_list(lv_obj_t* sb, lv_obj_t* list) {
         return;
 
     lv_color_t bg_color = lv_obj_get_style_bg_color(sb, LV_PART_MAIN);
-    lv_color_t text_color = theme_manager_get_contrast_color(bg_color);
+    lv_color_t text_color = theme_manager_get_readable_on(bg_color);
 
     lv_obj_set_style_bg_color(list, bg_color, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(list, LV_OPA_COVER, LV_PART_MAIN);
@@ -477,7 +477,7 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_size(divider, 1, lv_pct(60));
     lv_obj_set_style_bg_opa(divider, LV_OPA_30, LV_PART_MAIN);
     lv_obj_set_style_bg_color(
-        divider, theme_manager_get_contrast_color(lv_obj_get_style_bg_color(sb, LV_PART_MAIN)),
+        divider, theme_manager_get_readable_on(lv_obj_get_style_bg_color(sb, LV_PART_MAIN)),
         LV_PART_MAIN);
     lv_obj_set_style_border_width(divider, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(divider, 0, LV_PART_MAIN);

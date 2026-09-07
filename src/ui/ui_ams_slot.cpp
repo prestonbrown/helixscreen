@@ -371,9 +371,9 @@ static void apply_slot_status(AmsSlotData* data, int status_int) {
         lv_obj_remove_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
         lv_obj_set_style_bg_color(data->status_badge_bg, badge_bg, LV_PART_MAIN);
 
-        // Auto-contrast text color based on badge background brightness
+        // Status fills are accents, so the label is black-or-white, not palette text
         if (data->slot_badge) {
-            lv_color_t text_color = theme_manager_get_contrast_color(badge_bg);
+            lv_color_t text_color = theme_manager_get_readable_on(badge_bg);
             lv_obj_set_style_text_color(data->slot_badge, text_color, LV_PART_MAIN);
         }
     } else {
@@ -600,10 +600,10 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
             lv_obj_set_style_bg_color(data->tool_badge_bg, muted_color, LV_PART_MAIN);
         }
 
-        // Auto-contrast text color based on badge background
+        // Both fills are accents, so the label is black-or-white, not palette text
         if (data->tool_badge) {
             lv_color_t bg = lv_obj_get_style_bg_color(data->tool_badge_bg, LV_PART_MAIN);
-            lv_color_t text_color = theme_manager_get_contrast_color(bg);
+            lv_color_t text_color = theme_manager_get_readable_on(bg);
             lv_obj_set_style_text_color(data->tool_badge, text_color, LV_PART_MAIN);
         }
         spdlog::trace("[AmsSlot] Slot {} tool badge: {} (override={})", data->slot_index, tool_text,

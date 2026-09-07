@@ -475,11 +475,11 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     lv_obj_add_flag(x_btn, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(x_btn, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Trash icon with contrast color for readability on the text-colored bg
+    // The pill is a solid fill, so its icon takes black-or-white rather than palette text
     lv_obj_t* x_label = lv_label_create(x_btn);
     lv_label_set_text(x_label, ICON_TRASH);
     lv_obj_set_style_text_font(x_label, chrome_icon_font, 0);
-    lv_obj_set_style_text_color(x_label, theme_manager_get_contrast_color(btn_bg), 0);
+    lv_obj_set_style_text_color(x_label, theme_manager_get_readable_on(btn_bg), 0);
     lv_obj_center(x_label);
 
     // (X) button click handler — exception: dynamic overlay chrome uses lv_obj_add_event_cb
@@ -513,7 +513,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
             lv_obj_t* cfg_label = lv_label_create(cfg_btn);
             lv_label_set_text(cfg_label, ICON_SETTINGS);
             lv_obj_set_style_text_font(cfg_label, chrome_icon_font, 0);
-            lv_obj_set_style_text_color(cfg_label, theme_manager_get_contrast_color(btn_bg), 0);
+            lv_obj_set_style_text_color(cfg_label, theme_manager_get_readable_on(btn_bg), 0);
             lv_obj_center(cfg_label);
 
             lv_obj_add_event_cb(

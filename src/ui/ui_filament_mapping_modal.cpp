@@ -152,7 +152,7 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
             char tool_buf[8];
             snprintf(tool_buf, sizeof(tool_buf), "T%d", tool.tool_index);
             lv_label_set_text(tool_label, tool_buf);
-            lv_obj_set_style_text_color(tool_label, theme_manager_get_contrast_color(gcode_color),
+            lv_obj_set_style_text_color(tool_label, theme_manager_get_readable_on(gcode_color),
                                         0);
             lv_obj_remove_flag(tool_label, LV_OBJ_FLAG_HIDDEN);
         }

@@ -135,6 +135,33 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button can be created via XML",
     REQUIRE(lv_obj_is_valid(btn));
 }
 
+// A solid variant is an accent fill: the label takes black-or-white by
+// luminance, never the palette's muted text colour.
+TEST_CASE_METHOD(UiButtonTestFixture, "ui_button solid variant label is readable on its fill",
+                 "[ui_button][contrast][quick]") {
+    for (const char* variant : {"primary", "warning", "success"}) {
+        const char* attrs[] = {"text", "Go", "variant", variant, nullptr};
+        lv_obj_t* btn = create_button(attrs);
+        REQUIRE(btn != nullptr);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+        lv_obj_t* label = nullptr;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(btn); ++i) {
+            lv_obj_t* child = lv_obj_get_child(btn, i);
+            if (lv_obj_check_type(child, &lv_label_class)) {
+                label = child;
+                break;
+            }
+        }
+        REQUIRE(label != nullptr);
+
+        lv_color_t fill = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
+        lv_color_t text = lv_obj_get_style_text_color(label, LV_PART_MAIN);
+        CAPTURE(variant, lv_color_to_u32(fill) & 0xFFFFFF, lv_color_to_u32(text) & 0xFFFFFF);
+        CHECK(lv_color_eq(text, theme_manager_get_readable_on(fill)));
+    }
+}
+
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon basic creation works",
                  "[ui_button][xml][quick]") {
     // Just test that we can create a button with bind_icon without hanging
