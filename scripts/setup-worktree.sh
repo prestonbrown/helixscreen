@@ -540,6 +540,11 @@ materialize_private_submodule() {
     local src="$MAIN_TREE/$submod" dst="$WORKTREE_PATH/$submod"
     local name url src_gitdir wt_gitdir pinned src_head entry base
 
+    # A checked-out submodule always carries its own `.git`. A deinitialized one
+    # is a bare empty directory, and rev-parse inside it answers the
+    # SUPERPROJECT's git dir and HEAD — copying from that would fill lib/<sub>
+    # with a clone of helixscreen itself and report success.
+    [[ -e "$src/.git" ]] || return 1
     src_gitdir="$(git -C "$src" rev-parse --absolute-git-dir 2>/dev/null || true)"
     src_head="$(git -C "$src" rev-parse --verify --quiet HEAD 2>/dev/null || true)"
     [[ -n "$src_gitdir" && -n "$src_head" && -d "$src_gitdir" ]] || return 1
@@ -584,7 +589,9 @@ materialize_private_submodule() {
     # working tree was created from a copy seconds ago and no one has seen it.
     if [[ -n "$pinned" && "$pinned" != "$src_head" ]]; then
         echo -e "  $submod: ${YELLOW}pin differs from the main tree ($(echo "$src_head" | cut -c1-8) -> $(echo "$pinned" | cut -c1-8))${RESET}"
-        git -C "$dst" checkout --detach --force --quiet "$pinned"
+        # The function runs as an `if` condition, where `set -e` is suppressed,
+        # so a failure here has to be returned rather than left to abort.
+        git -C "$dst" checkout --detach --force --quiet "$pinned" || return 1
         PRIVATE_SUBMODULES_NEED_PATCHES=true
     fi
     return 0
@@ -594,7 +601,7 @@ materialize_private_submodule() {
 # points at. The git dir lands under .git/worktrees/<name>/modules/, so the
 # checkout is independent of the main tree's and of every other worktree's.
 checkout_private_submodules() {
-    local submod dst wt_gitdir name
+    local submod dst wt_gitdir name clone_err line
     WORKTREE_GIT_DIR="$(git -C "$WORKTREE_PATH" rev-parse --absolute-git-dir)"
 
     for submod in "${LIB_PRIVATE_SUBMODULES[@]}"; do
@@ -642,12 +649,22 @@ checkout_private_submodules() {
         echo -e "  $submod: ${CYAN}private checkout (fresh clone — nothing to copy from)${RESET}"
         rm -rf "$dst" "$wt_gitdir"
         mkdir -p "$dst"
-        if git -C "$WORKTREE_PATH" submodule update --init "$submod" >/dev/null 2>&1; then
+        # git refuses the file transport for submodules unless
+        # protocol.file.allow says otherwise, and only the command-line form is
+        # consulted for the inner clone. The URLs come from this tree's own
+        # .gitmodules, which is already the code about to be compiled.
+        if clone_err="$(git -C "$WORKTREE_PATH" -c protocol.file.allow=always \
+                            submodule update --init "$submod" 2>&1)"; then
             PRIVATE_SUBMODULES_NEED_PATCHES=true
             continue
         fi
 
+        # A fallback that hides why it fell back leaves the symlink looking like
+        # a choice rather than a defeat, so say what git said.
         echo -e "  $submod: ${YELLOW}checkout failed${RESET}"
+        while IFS= read -r line; do
+            if [[ -n "$line" ]]; then echo -e "    ${YELLOW}git: $line${RESET}"; fi
+        done <<< "$clone_err"
         echo -e "  ${YELLOW}falling back to a symlink — patches applied here will land in the MAIN tree's submodule${RESET}"
         rmdir "$dst" 2>/dev/null || true
         ln -s "$MAIN_TREE/$submod" "$dst"
@@ -1246,13 +1263,28 @@ if [[ -n "$CCACHE_BIN" ]]; then
     # The shared cache thrashes hard once a couple of worktrees + cross-compiles
     # pile in (default 5 GiB fills and evicts constantly, re-causing cold misses).
     # Raise the ceiling so objects survive between builds. Only ever raise it.
+    #
+    # ccache spells this three ways depending on version and value: human
+    # readable ("5.0 GiB"), parsable ("5.0G"), and a bare byte count below a
+    # megabyte, where 0 means unlimited. A unit is therefore optional, so
+    # neither grep may decide the script's exit status — under `set -o
+    # pipefail` a non-matching grep in an assignment aborts the whole run.
     CUR_MAX="$(ccache --get-config max_size 2>/dev/null || true)"
-    MAX_NUM="$(echo "$CUR_MAX" | grep -oE '[0-9]+' | head -1)"
-    MAX_UNIT="$(echo "$CUR_MAX" | grep -oiE '[KMGT]i?B' | head -1)"
-    if [[ "$MAX_UNIT" =~ ^[Kk] || "$MAX_UNIT" =~ ^[Mm] ]] || \
-       { [[ "$MAX_UNIT" =~ ^[Gg] ]] && [[ -n "$MAX_NUM" ]] && [[ "$MAX_NUM" -lt 25 ]]; }; then
-        ccache --max-size=25G >/dev/null 2>&1 \
-            && echo -e "  max_size: ${GREEN}raised to 25G (was $CUR_MAX)${RESET}"
+    MAX_NUM="$(printf '%s' "$CUR_MAX" | grep -oE '[0-9]+' | head -1 || true)"
+    MAX_UNIT="$(printf '%s' "$CUR_MAX" | grep -oiE '[KMGT]' | head -1 || true)"
+    raise_max=false
+    case "$MAX_UNIT" in
+        [Kk]|[Mm]) raise_max=true ;;
+        [Gg]) if [[ -n "$MAX_NUM" && "$MAX_NUM" -lt 25 ]]; then raise_max=true; fi ;;
+        [Tt]) ;;
+        *) if [[ -n "$MAX_NUM" && "$MAX_NUM" -ne 0 ]]; then raise_max=true; fi ;;
+    esac
+    if [[ "$raise_max" == true ]]; then
+        if ccache --max-size=25G >/dev/null 2>&1; then
+            echo -e "  max_size: ${GREEN}raised to 25G (was $CUR_MAX)${RESET}"
+        else
+            echo -e "  max_size: ${YELLOW}could not raise it from $CUR_MAX${RESET}"
+        fi
     else
         echo -e "  max_size: ${GREEN}already ample ($CUR_MAX)${RESET}"
     fi

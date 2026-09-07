@@ -236,6 +236,31 @@ build_fixture_repo() {
     rm -rf "$tmp"
 }
 
+@test "a ccache that reports max_size without a unit does not abort setup" {
+    # ccache answers --get-config max_size in two spellings: the parsable
+    # "5.0G" and the human-readable "5.0 GiB". Under `set -o pipefail` a
+    # unit-matching grep whose result decides an assignment's exit status
+    # aborts the whole run on the first spelling, and the last thing printed is
+    # an unrelated line about sloppiness.
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    mock_command_script "ccache" 'case "$1" in
+  --get-config)
+    case "$2" in
+      max_size) echo "5.0G" ;;
+      hash_dir) echo "true" ;;
+      *) echo "" ;;
+    esac ;;
+esac
+exit 0'
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/iso
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+    # Survival is half of it; the ceiling still has to be read correctly.
+    contains "raised to 25G (was 5.0G)" "$output"
+    rm -rf "$tmp"
+}
+
 @test "refuses to set up a worktree on top of the main tree, and destroys nothing" {
     tmp="$(mktemp -d)"
     git -C "$tmp" init -q
