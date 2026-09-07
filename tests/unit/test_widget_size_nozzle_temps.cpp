@@ -89,6 +89,28 @@ void add_second_extruder(PrinterState& state) {
     helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 }
 
+/// Adds a third physical extruder, so a rebuild can be provoked after the
+/// widget has already settled into its two-column layout. Same ordering rule as
+/// add_second_extruder(): ToolState first, then the version bump, then drain.
+void add_third_extruder(PrinterState& state) {
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "tool T2",
+                                            "extruder", "extruder1", "extruder2", "heater_bed",
+                                            "gcode_move"}));
+    ToolState::instance().init_tools(hw);
+
+    state.init_extruders({"extruder", "extruder1", "extruder2"});
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+}
+
+/// The nth row's declared width. Two-column layout sets lv_pct(48); the XML
+/// template's own default is 100%, which is what an un-laid-out row keeps.
+int32_t nth_row_width(lv_obj_t* container, int index) {
+    lv_obj_t* row = lv_obj_get_child(container, index);
+    REQUIRE(row != nullptr);
+    return lv_obj_get_style_width(row, LV_PART_MAIN);
+}
+
 /// The nth extruder/bed row's tool_label, found by container child index
 /// (rows share the "tool_label" name, so a container-wide find_by_name would
 /// only ever return the first).
@@ -186,5 +208,50 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     // fit (nozzle_layout.h: avail_px >= 2*short_row_px + gap_px).
     h.resize(1, 1, 600, 300);
 
+    CHECK(lv_obj_get_style_flex_flow(container, LV_PART_MAIN) == LV_FLEX_FLOW_ROW_WRAP);
+}
+
+/**
+ * The label decision already survives a late rebuild (the two cases above). The
+ * COLUMN decision did not: on_size_changed() sets each row's width to lv_pct(48)
+ * for a two-column layout, but a row created afterwards comes from the XML
+ * template at 100% and spans the whole container, overlapping its neighbour.
+ *
+ * A real touchscreen never issues a second on_size_changed (screens do not
+ * resize at runtime), so late tool discovery on a toolchanger is exactly when
+ * this happens: the reporter's 2x2 tile "sometimes" expanded, depending on
+ * whether the tools arrived before or after the grid announced the size
+ * (prestonbrown/helixscreen#1490).
+ */
+TEST_CASE_METHOD(NozzleTempsFixture,
+                 "nozzle_temps: a row built by a late rebuild joins the two-column layout",
+                 "[widget_size][nozzle_temps][1490]") {
+    configure_one_extruder(state());
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    lv_obj_t* container = h.child("nozzle_temps_container");
+    REQUIRE(container != nullptr);
+
+    // Two extruders BEFORE the size pass, so the layout really is two-column
+    // when the late rebuild lands.
+    add_second_extruder(state());
+    REQUIRE(lv_obj_get_child_count(container) == 3); // 2 extruders + bed
+
+    h.resize(1, 1, 600, 300);
+    REQUIRE(lv_obj_get_style_flex_flow(container, LV_PART_MAIN) == LV_FLEX_FLOW_ROW_WRAP);
+    const int32_t half = lv_obj_get_style_width(lv_obj_get_child(container, 0), LV_PART_MAIN);
+    REQUIRE(half == lv_pct(48)); // sanity: the two-column width really was applied
+
+    // Late tool discovery. No second on_size_changed() follows, exactly as on a
+    // real screen.
+    add_third_extruder(state());
+    REQUIRE(lv_obj_get_child_count(container) == 4); // 3 extruders + bed
+
+    // Every row, including the one that did not exist when the size arrived,
+    // must carry the two-column width. Without the replay the new row keeps the
+    // template's 100% and overlaps.
+    for (int i = 0; i < 4; i++) {
+        INFO("row " << i << " width " << nth_row_width(container, i) << " want " << half);
+        CHECK(nth_row_width(container, i) == half);
+    }
     CHECK(lv_obj_get_style_flex_flow(container, LV_PART_MAIN) == LV_FLEX_FLOW_ROW_WRAP);
 }

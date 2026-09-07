@@ -896,8 +896,10 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
             if (slot.instance && !slot.hardware_gated) {
                 slot.instance->attach(widget, lv_scr_act());
 
-                // Notify widget of its grid allocation and approximate pixel size
-                slot.instance->on_size_changed(
+                // Notify widget of its grid allocation and approximate pixel size.
+                // notify_size_changed() records it first, so a widget that rebuilds
+                // its contents later can lay them out against the same cell.
+                slot.instance->notify_size_changed(
                     p.colspan, p.rowspan,
                     static_cast<int>(grid_track_extent(metrics.cell_w, metrics.gutter, p.colspan)),
                     static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter, p.rowspan)));

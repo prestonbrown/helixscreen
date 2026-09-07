@@ -79,7 +79,10 @@ template <typename W> class PanelWidgetHarness {
     void resize(int colspan, int rowspan, int width_px, int height_px) {
         lv_obj_set_size(obj_, width_px, height_px);
         lv_obj_update_layout(obj_);
-        widget_.on_size_changed(colspan, rowspan, width_px, height_px);
+        // notify_size_changed(), not on_size_changed(): PanelWidgetManager calls
+        // the recording entry point, and a widget that replays the last granted
+        // size on rebuild only sees one if the harness records it too.
+        widget_.notify_size_changed(colspan, rowspan, width_px, height_px);
         lv_obj_update_layout(obj_);
     }
 

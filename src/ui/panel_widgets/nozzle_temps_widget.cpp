@@ -284,6 +284,13 @@ void NozzleTempsWidget::rebuild_rows() {
 
     rebuilding_ = false;
     spdlog::debug("[NozzleTempsWidget] Rebuilt with {} extruder rows + bed", extruder_rows_.size());
+
+    // These rows are new objects. on_size_changed() decides one column or two, and
+    // long labels or short, by measuring against the granted width; rows created
+    // after that decision would otherwise keep the XML default and overlap. On a
+    // toolchanger the tools arrive over the network, so this rebuild routinely
+    // runs after the size pass.
+    relayout_for_granted_size();
 }
 
 namespace {
