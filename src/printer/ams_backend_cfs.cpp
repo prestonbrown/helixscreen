@@ -3202,6 +3202,16 @@ std::string AmsBackendCfs::swap_gcode(int idx, CfsMacroVariant variant) {
                           /*wipe_after=*/true);
 }
 
+void AmsBackendCfs::abort_action_state(const MoonrakerError& err) {
+    // Klipper rejection (key849, busy, etc.) and timeouts both land here. Either
+    // way the driver isn't running our script anymore, so flip back to IDLE so
+    // the UI doesn't get stuck on a "loading" spinner.
+    spdlog::error("[AMS CFS] Action script failed: {}", err.message);
+    std::lock_guard<std::mutex> lock(mutex_);
+    system_info_.action = AmsAction::IDLE;
+    end_phase_tracking();
+}
+
 AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
     if (!api_) {
         return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
@@ -3212,18 +3222,21 @@ AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
     auto on_complete = [this]() { finish_action(); };
 
     auto token = lifetime_.token();
+
+    // A failure before the payload ships leaves nothing to unwind: the
+    // envelope's SAVE_GCODE_STATE and BOX_SAVE_FAN never reached the printer.
+    // Sending the restore anyway earns a rejection that Klipper broadcasts on
+    // the `!!` stream, which GcodeErrorRouter renders as a second error toast
+    // stacked on the real one.
+    auto on_predispatch_error = [this, token](const MoonrakerError& err) {
+        token.defer("AmsBackendCfs::predispatch_err",
+                    [this, err]() { abort_action_state(err); });
+    };
+
     auto on_error = [this, token](const MoonrakerError& err) {
         // L081 Mechanism C: marshal member writes (system_info_) to main.
         token.defer("AmsBackendCfs::action_err", [this, err]() {
-            // Klipper rejection (key849, busy, etc.) and timeouts both land here.
-            // Either way the driver isn't running our script anymore, so flip back
-            // to IDLE so the UI doesn't get stuck on a "loading" spinner.
-            spdlog::error("[AMS CFS] Action script failed: {}", err.message);
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                system_info_.action = AmsAction::IDLE;
-                end_phase_tracking();
-            }
+            abort_action_state(err);
 
             // Best-effort unwind. The wrap_with_park envelope emits
             // BOX_SAVE_FAN + SAVE_GCODE_STATE upfront and relies on the
@@ -3276,7 +3289,8 @@ AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
     return ensure_homed_then(std::move(gcode), std::move(on_complete), std::move(on_error),
                              IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
                              /*skip_homing=*/macro_variant_ == CfsMacroVariant::Fork,
-                             /*silent=*/false, /*caller_surfaces_errors=*/false);
+                             /*silent=*/false, /*caller_surfaces_errors=*/false,
+                             std::move(on_predispatch_error));
 }
 
 // ============================================================================

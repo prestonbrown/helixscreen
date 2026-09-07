@@ -575,7 +575,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     GridSpyWidget::s_attach_count = 0;
     GridSpyWidget::s_attached_widget = nullptr;
 
-    // Keep Klipper READY so no firmware_restart widget is injected.
+    // A populate while Klipper is not READY does not persist its layout, so keep
+    // it READY for tests that assert on what reached disk.
     lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_connection_state"),
                        static_cast<int>(ConnectionState::CONNECTED));
     lv_subject_set_int(lv_xml_get_subject(nullptr, "klippy_state"),
@@ -994,5 +995,33 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     helix::register_widget_factory("clock", orig_clock);
     helix::register_widget_factory("shutdown", orig_shutdown);
+    mgr.clear_panel_config(panel_id);
+}
+
+// The set of visible widgets must not depend on klippy_state. Nothing observes
+// that subject for panel rebuilds any more, so a widget that DID vary with it
+// would change on screen only when some unrelated gate happened to fire.
+TEST_CASE_METHOD(XMLTestFixture, "Visible widget ids do not depend on klippy_state",
+                 "[panel_widget][manager]") {
+    helix::init_widget_registrations();
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_connection_state"),
+                       static_cast<int>(ConnectionState::CONNECTED));
+
+    const std::string panel_id = "test_klippy_independent_ids";
+    auto& mgr = PanelWidgetManager::instance();
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "klippy_state"),
+                       static_cast<int>(KlippyState::READY));
+    const std::vector<std::string> when_ready = mgr.compute_visible_widget_ids(panel_id);
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "klippy_state"),
+                       static_cast<int>(KlippyState::SHUTDOWN));
+    const std::vector<std::string> when_shutdown = mgr.compute_visible_widget_ids(panel_id);
+
+    // Non-empty, or this compares two empty vectors and proves nothing.
+    REQUIRE_FALSE(when_ready.empty());
+    CHECK(when_ready == when_shutdown);
+
     mgr.clear_panel_config(panel_id);
 }

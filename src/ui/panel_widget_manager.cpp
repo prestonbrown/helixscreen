@@ -4,7 +4,6 @@
 #include "panel_widget_manager.h"
 
 #include "ui_ams_mini_status.h"
-#include "ui_emergency_stop.h"
 #include "ui_notification.h"
 #include "ui_utils.h"
 
@@ -295,49 +294,6 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         enabled_widgets.push_back(std::move(slot));
     }
 
-    // If firmware_restart is NOT already in the list (user disabled it),
-    // conditionally inject it as the LAST widget when Klipper is NOT READY.
-    // This ensures the restart button is always reachable during shutdown, error,
-    // or startup (e.g., stuck trying to connect to an MCU).
-    bool has_firmware_restart = false;
-    for (const auto& slot : enabled_widgets) {
-        if (slot.widget_id == "firmware_restart") {
-            has_firmware_restart = true;
-            break;
-        }
-    }
-    bool fw_restart_injected = false;
-    if (!has_firmware_restart) {
-        // Suppress injection until Moonraker has actually reported state — the
-        // klippy_state subject defaults to SHUTDOWN, which produced a brief
-        // firmware_restart widget flash on every launch once UpdateQueue began
-        // buffering (rather than dropping) freeze-window callbacks (1d13ed6b4).
-        lv_subject_t* conn = lv_xml_get_subject(nullptr, "printer_connection_state");
-        bool connected =
-            conn && lv_subject_get_int(conn) == static_cast<int>(ConnectionState::CONNECTED);
-        lv_subject_t* klippy = lv_xml_get_subject(nullptr, "klippy_state");
-        if (connected && klippy) {
-            int state = lv_subject_get_int(klippy);
-            // Don't inject the restart button for a transient SHUTDOWN caused by a
-            // SAVE_CONFIG or user-initiated restart — Klipper returns to READY on
-            // its own within seconds. is_expected_restart() is the same window the
-            // status icon and nav manager consult.
-            bool expected_restart = EmergencyStopOverlay::instance().is_expected_restart();
-            if (state != static_cast<int>(KlippyState::READY) && !expected_restart) {
-                const char* state_names[] = {"READY", "STARTUP", "SHUTDOWN", "ERROR"};
-                const char* name = (state >= 0 && state <= 3) ? state_names[state] : "UNKNOWN";
-                WidgetSlot slot;
-                slot.widget_id = "firmware_restart";
-                slot.component_name = "panel_widget_firmware_restart";
-                // Insert at front so auto-placement puts it upper-left (first in
-                // the free cell list), not bottom-right where it blocks real widgets.
-                enabled_widgets.insert(enabled_widgets.begin(), std::move(slot));
-                fw_restart_injected = true;
-                spdlog::debug("[PanelWidgetManager] Injected firmware_restart (Klipper {})", name);
-            }
-        }
-    }
-
     // Check if widget list is unchanged — skip teardown+rebuild if nothing changed.
     // Gate status is part of the key: a widget transitioning from gated→ungated
     // must trigger a rebuild so its cancel-icon overlay + OPA_40 are removed and
@@ -455,13 +411,21 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
     // one. Ordering them anyway keeps the invariant that nothing reads a
     // coordinate before the pass that owns its units has run.
     //
-    // Neither runs while Klipper is not READY. A transient firmware_restart
-    // widget is occupying a cell then, so this is not the user's layout, and
-    // both of these persist — one stamps the grid, the other can reseat every
-    // coordinate. Freezing either from a transient arrangement is the same
-    // mistake the write-back below refuses to make; deferring costs nothing,
-    // because the next READY populate resolves it cleanly.
-    if (fw_restart_injected) {
+    // Neither runs while a connected printer reports Klipper not READY: that is
+    // not a view of the user's layout, and both of these persist — one stamps
+    // the grid, the other can reseat every coordinate. Freezing either from
+    // such an arrangement is the same mistake the write-back below refuses to
+    // make; deferring costs nothing, because the next READY populate resolves
+    // it cleanly. Both halves of the condition are load-bearing — see the
+    // write-back for why klippy_state alone is not enough.
+    lv_subject_t* conn_layout = lv_xml_get_subject(nullptr, "printer_connection_state");
+    lv_subject_t* klippy_layout = lv_xml_get_subject(nullptr, "klippy_state");
+    const bool layout_state_transient =
+        conn_layout &&
+        lv_subject_get_int(conn_layout) == static_cast<int>(ConnectionState::CONNECTED) &&
+        klippy_layout &&
+        lv_subject_get_int(klippy_layout) != static_cast<int>(KlippyState::READY);
+    if (layout_state_transient) {
         spdlog::debug("[PanelWidgetManager] '{}': deferring layout resolution — Klipper is not "
                       "READY, so this arrangement is transient",
                       panel_id);
@@ -514,15 +478,12 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
             std::find_if(entries.begin(), entries.end(),
                          [&](const PanelWidgetEntry& e) { return e.id == slot.widget_id; });
 
-        // entry_it->enabled matters here even though enabled_widgets was built
-        // from enabled entries only: the temporary firmware_restart tile is
-        // SYNTHESIZED into that list, so its config entry can be disabled while
-        // still carrying a stale col/row from a previous placement. Front-
-        // inserted, it is the first widget this pass examines - so without this
-        // check it re-anchors on that stale cell and a user-anchored widget
-        // whose saved rectangle overlaps it collides and falls to auto-place.
-        // Every GridEditMode occupancy loop already filters on enabled; this
-        // pass was the one that did not.
+        // enabled_widgets is built from enabled entries only, so this is a guard
+        // on that invariant rather than a live filter. A disabled entry keeps
+        // whatever col/row it last held, and anchoring on that cell would let it
+        // outrank a user-anchored widget whose saved rectangle overlaps it.
+        // Every GridEditMode occupancy loop filters on enabled for the same
+        // reason.
         if (entry_it != entries.end() && entry_it->enabled && entry_it->has_grid_position()) {
             // Clamp the SPAN to the grid before clamping the position. A span
             // saved on a 6-column landscape grid cannot exist on a 2-column
@@ -790,14 +751,7 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
     }
 
     for (const auto& f : failures) {
-        if (fw_restart_injected) {
-            // Grid is full only because the temporary firmware_restart widget is
-            // occupying a slot. Don't disable the widget or warn — it will get
-            // its space back once Klipper returns to READY.
-            spdlog::info("[PanelWidgetManager] Skipping widget '{}' — grid full due to "
-                         "temporary firmware_restart injection",
-                         f.widget_id);
-        } else if (f.reason == GridLayout::PlacementFailure::GridFull) {
+        if (f.reason == GridLayout::PlacementFailure::GridFull) {
             evict_for_full_grid(f.widget_id);
         } else {
             disable_unplaceable(f.widget_id, f.reason);
@@ -813,26 +767,30 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         }
     }
 
-    // Write computed positions back to config entries and persist to disk.
-    // This ensures auto-placed positions survive the next load() call
-    // (get_widget_config reloads from the JSON store after mark_dirty).
-    // Only write positions for widgets that are enabled in config — skip
-    // temporarily injected widgets (e.g., firmware_restart during Klipper error)
-    // whose positions would block cells for real widgets on subsequent layouts.
-    // Never write back OR persist a layout computed while Klipper is not READY.
-    // When fw_restart_injected is true a temporary firmware_restart widget is
-    // occupying a grid cell, so this placement is not the user's intended layout.
-    //   - Saving it freezes the transient arrangement to disk, so it survives the
-    //     next boot (raza616: "tiles revert to a previous layout after any reset").
-    //   - Even just mutating the in-memory entries locks the transient slot in:
-    //     the gate observer rebuilds on the next klippy_state transition WITHOUT
-    //     reloading the cached config, so the following READY populate would see
-    //     an explicit position, never re-derive it, and never persist it.
-    // The widgets for THIS frame are placed from `placed` regardless (the per-cell
-    // assignment below uses it, not entry.col), so skipping the write-back only
-    // defers auto-placed positions to the next READY populate, which re-derives
-    // and persists them cleanly.
-    if (!fw_restart_injected) {
+    // Write computed positions back to config entries and persist to disk, so
+    // auto-placed positions survive the next load() call (get_widget_config
+    // reloads from the JSON store after mark_dirty). Only widgets that are
+    // enabled in config get a position written.
+    //
+    // Never persist a layout computed while a CONNECTED printer reports Klipper
+    // not READY. A populate in that state is not a view of the user's intended
+    // arrangement, and freezing it to disk is what makes tiles revert to a
+    // previous layout after a power cycle or a FIRMWARE_RESTART. The widgets for
+    // THIS frame are placed from `placed` regardless, so skipping the write-back
+    // only defers auto-placed positions to the next READY populate, which
+    // re-derives and persists them.
+    //
+    // The connection half is load-bearing: klippy_state reads SHUTDOWN before
+    // Moonraker has reported anything, so gating on it alone would also refuse
+    // the first write-back of every launch, and an auto-placed layout would
+    // never reach disk at all.
+    lv_subject_t* conn_now = lv_xml_get_subject(nullptr, "printer_connection_state");
+    lv_subject_t* klippy_now = lv_xml_get_subject(nullptr, "klippy_state");
+    const bool connected =
+        conn_now && lv_subject_get_int(conn_now) == static_cast<int>(ConnectionState::CONNECTED);
+    const bool klippy_not_ready =
+        klippy_now && lv_subject_get_int(klippy_now) != static_cast<int>(KlippyState::READY);
+    if (!(connected && klippy_not_ready)) {
         auto& mut_entries = widget_config.page_entries_mut(page_index);
         bool any_written = false;
         for (const auto& p : placed) {
@@ -1287,15 +1245,6 @@ std::vector<std::string> PanelWidgetManager::compute_visible_widget_ids(const st
         ids.push_back(gated ? entry.id + "~gated" : entry.id);
     }
 
-    // Conditional firmware_restart injection (same logic as populate_widgets)
-    bool has_fw_restart = std::find(ids.begin(), ids.end(), "firmware_restart") != ids.end();
-    if (!has_fw_restart) {
-        lv_subject_t* klippy = lv_xml_get_subject(nullptr, "klippy_state");
-        if (klippy && lv_subject_get_int(klippy) != static_cast<int>(KlippyState::READY)) {
-            ids.push_back("firmware_restart");
-        }
-    }
-
     return ids;
 }
 
@@ -1308,8 +1257,7 @@ void PanelWidgetManager::setup_gate_observers(const std::string& panel_id,
 
     // Walk the registry and observe every distinct hardware_gate_subject —
     // these are the same names compute_visible_widget_ids consults, so this
-    // automatically tracks any new gated widget added in the future. Plus
-    // klippy_state, which drives firmware_restart conditional injection.
+    // automatically tracks any new gated widget added in the future.
     //
     // Each observer schedules a coalesced rebuild via lv_async_call:
     //   * The first gate firing in a tick sets rebuild_pending_[panel_id]=true
@@ -1363,7 +1311,6 @@ void PanelWidgetManager::setup_gate_observers(const std::string& panel_id,
         if (!dup)
             gate_names.push_back(def.hardware_gate_subject);
     }
-    gate_names.push_back("klippy_state");
 
     for (const char* name : gate_names) {
         lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
