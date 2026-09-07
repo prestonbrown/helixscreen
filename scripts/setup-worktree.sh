@@ -825,10 +825,96 @@ if [[ -d "$MAIN_GEN" && ! -d "$WORKTREE_PATH/build/generated" ]]; then
 fi
 
 # Step 3c: Copy compile_commands.json for clangd support
+#
+# Both halves of the compile database are inherited from the main tree, and both
+# describe ITS branch. Any source that exists there and not here — main runs
+# hundreds of commits ahead of a release branch — arrives as an entry naming a
+# file this worktree does not have. Nothing notices until a gate walks the
+# database: quality-checks.sh's clang-divergence pass hands every entry to
+# clang++, which reports `no such file or directory` and fails the run, so the
+# pre-push hook rejects a push over files the branch never contained.
+#
+# Drop those on both sides. The .ccj fragments matter as much as the assembled
+# JSON: the build reassembles the JSON from whatever fragments are present, so
+# fixing only the JSON lets the next build put the phantoms straight back.
+if [[ -d "$WORKTREE_OBJ" ]]; then
+    PRUNED=$(python3 - "$WORKTREE_PATH" "$MAIN_TREE" <<'PRUNE_CCJ'
+import json, os, pathlib, sys
+worktree, main_tree = sys.argv[1], sys.argv[2]
+# Both spellings of each root: on macOS /var and /private/var name the same
+# directory, and a fragment can carry either, so a single string replace misses.
+def spellings(path):
+    """Every way this directory can be written. On macOS /var is a symlink to
+    /private/var, so a fragment and $MAIN_TREE can name one directory two ways
+    and a single string replace silently matches neither."""
+    out = [path, os.path.realpath(path)]
+    for p in list(out):
+        out.append(p[len("/private"):] if p.startswith("/private/") else "/private" + p)
+    seen = []
+    for p in out:
+        if p and p not in seen:
+            seen.append(p)
+    # Longest first, so /private/var/x is consumed before /var/x.
+    return sorted(seen, key=len, reverse=True)
+
+roots = spellings(main_tree)
+removed = 0
+for frag in (pathlib.Path(worktree) / "build").rglob("*.ccj"):
+    text = frag.read_text()
+    # A cloned fragment describes the MAIN tree. Repoint it here first — the
+    # objects it goes with were just cloned and are perfectly good — and only
+    # then decide whether its source exists on this branch.
+    fixed = text
+    for r in roots:
+        fixed = fixed.replace(r, worktree)
+    try:
+        entry = json.loads(fixed.strip().splitlines()[0])
+    except Exception:
+        frag.unlink()
+        removed += 1
+        continue
+    if not os.path.exists(entry.get("file", "")):
+        frag.unlink()
+        removed += 1
+    elif fixed != text:
+        frag.write_text(fixed)
+print(removed)
+PRUNE_CCJ
+    ) || PRUNED=0
+    [[ "${PRUNED:-0}" -gt 0 ]] \
+        && echo -e "  build/obj: ${YELLOW}pruned $PRUNED .ccj fragment(s) for sources absent on this branch${RESET}"
+fi
+
 if [[ -f "$MAIN_TREE/compile_commands.json" ]]; then
-    # Use sed to rewrite paths from main tree to worktree
-    sed "s|${MAIN_TREE}|${WORKTREE_PATH}|g" "$MAIN_TREE/compile_commands.json" > "$WORKTREE_PATH/compile_commands.json"
-    echo -e "  compile_commands.json: ${GREEN}copied and paths rewritten${RESET}"
+    # Rewrite main-tree paths to this worktree, then drop entries whose file is
+    # not actually here. Counts come back on one line; `read` rather than
+    # `set --`, which would clobber the script's own positional parameters.
+    CCJSON_COUNTS=$(
+        sed "s|${MAIN_TREE}|${WORKTREE_PATH}|g" "$MAIN_TREE/compile_commands.json" \
+        | python3 -c '
+import json, os, sys
+out = sys.argv[1]
+raw = sys.stdin.read().strip()
+try:
+    entries = json.loads(raw) if raw else []
+except json.JSONDecodeError:
+    entries = []          # unusable database: emit an empty one, never a broken one
+kept = [e for e in entries if os.path.exists(e.get("file", ""))]
+json.dump(kept, open(out, "w"), indent=2)
+print(len(kept), len(entries) - len(kept))
+' "$WORKTREE_PATH/compile_commands.json"
+    ) || CCJSON_COUNTS=""
+
+    if [[ -n "$CCJSON_COUNTS" ]]; then
+        read -r CC_KEPT CC_DROPPED <<< "$CCJSON_COUNTS"
+        if [[ "${CC_DROPPED:-0}" -gt 0 ]]; then
+            echo -e "  compile_commands.json: ${GREEN}$CC_KEPT entries${RESET} (${YELLOW}dropped $CC_DROPPED for sources absent on this branch${RESET})"
+        else
+            echo -e "  compile_commands.json: ${GREEN}copied and paths rewritten${RESET}"
+        fi
+    else
+        echo -e "  compile_commands.json: ${YELLOW}could not be filtered — skipped${RESET}"
+    fi
 fi
 
 # Step 3d: Point claude-recall at the MAIN tree's .claude-recall/

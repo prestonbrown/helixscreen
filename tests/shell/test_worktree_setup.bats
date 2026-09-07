@@ -13,6 +13,7 @@
 # per worktree.
 
 setup() {
+    load helpers
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     SCRIPT="scripts/setup-worktree.sh"
 }
@@ -256,4 +257,75 @@ build_fixture_repo() {
     [ -f "$tmp/lib/keepme/file.txt" ]
     [ "$(cat "$tmp/lib/keepme/file.txt")" = "precious" ]
     rm -rf "$tmp"
+}
+
+# The compile database is inherited from the main tree and describes ITS branch.
+# A source that exists there and not on the worktree's branch arrives as an entry
+# naming a file that is not here, and quality-checks.sh hands every entry to
+# clang++ — so the pre-push hook rejects a push over files the branch never had.
+# Both halves have to be pruned: the build reassembles the JSON from the .ccj
+# fragments, so cleaning only the JSON lets the next build restore the phantoms.
+
+@test "a compile_commands entry for a file absent on this branch is dropped" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+
+    # main-tree database naming one real source and one that only exists there
+    cat > "$tmp/main/compile_commands.json" <<JSON
+[
+  {"directory": "$tmp/main", "file": "$tmp/main/scripts/setup-worktree.sh", "command": "cc -c real"},
+  {"directory": "$tmp/main", "file": "$tmp/main/src/only_on_main.c", "command": "cc -c src/only_on_main.c"}
+]
+JSON
+
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/ccj
+    [ "$status" -eq 0 ] || fail "setup failed: $output"
+
+    wt="$tmp/main/.worktrees/ccj"
+    [ -f "$wt/compile_commands.json" ] || fail "no compile_commands.json produced"
+
+    # The absent source must be gone; the present one must survive, or the
+    # filter is just deleting the database.
+    run grep -c "only_on_main.c" "$wt/compile_commands.json"
+    [ "$output" = "0" ] || fail "phantom entry survived: $(cat "$wt/compile_commands.json")"
+    grep -q "setup-worktree.sh" "$wt/compile_commands.json" \
+        || fail "real entry was dropped too: $(cat "$wt/compile_commands.json")"
+}
+
+@test "a .ccj fragment for a file absent on this branch is dropped" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+
+    mkdir -p "$tmp/main/build/obj"
+    printf '{"directory":"%s","file":"%s/scripts/setup-worktree.sh","command":"cc"}\n' \
+        "$tmp/main" "$tmp/main" > "$tmp/main/build/obj/mainpath.ccj"
+    printf '{"directory":"%s","file":"%s/src/only_on_main.c","command":"cc"}\n' \
+        "$tmp/main" "$tmp/main" > "$tmp/main/build/obj/phantom.ccj"
+
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/frag
+    [ "$status" -eq 0 ] || fail "setup failed: $output"
+
+    wt="$tmp/main/.worktrees/frag"
+    # Prove the clone and the prune both actually ran. Without this the two
+    # assertions below pass on files that were never copied in the first place.
+    [ -d "$wt/build/obj" ] || fail "build/obj was never cloned: $output"
+    echo "$output" | grep -q "pruned" \
+        || fail "prune step never reported: $output"
+
+    # A fragment for a source this branch lacks is dropped, or the next build
+    # reassembles the database with it and the gate fails again.
+    [ ! -f "$wt/build/obj/phantom.ccj" ] \
+        || fail "phantom fragment survived; the next build would restore it"
+
+    # One whose source DOES exist here is kept and repointed at this worktree —
+    # dropping it would throw away the cloned-object benefit, and leaving the
+    # main-tree path would put another tree's source in this database.
+    [ -f "$wt/build/obj/mainpath.ccj" ] \
+        || fail "a usable fragment was pruned; clangd would start empty"
+    # Assert on the shape, not the absolute prefix: /var and /private/var name
+    # the same directory on macOS and either spelling can appear.
+    grep -q "\.worktrees/frag/scripts/setup-worktree\.sh" "$wt/build/obj/mainpath.ccj" \
+        || fail "fragment was not repointed: $(cat "$wt/build/obj/mainpath.ccj")"
 }
