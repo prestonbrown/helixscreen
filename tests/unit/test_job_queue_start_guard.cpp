@@ -25,6 +25,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/job_queue_modal_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -152,11 +153,18 @@ TEST_CASE_METHOD(JobQueueStartFixture, "JobQueueModal refuses to start while a p
     }
     settle();
 
+    // The refusal is answered: the row tap must not look ignored.
+    std::vector<std::string> warnings;
+    helix::ui::set_test_notification_warning_hook(
+        [&warnings](const std::string& message) { warnings.push_back(message); });
     JobQueueModal modal;
     JobQueueModalTestAccess::start_job(modal, "job-1", "benchy.gcode");
     settle();
+    helix::ui::set_test_notification_warning_hook(nullptr);
 
     CHECK(client.count(DELETE_JOB) == 0);
+    REQUIRE(warnings.size() == 1);
+    CHECK(warnings[0].find("benchy.gcode") != std::string::npos);
 }
 
 TEST_CASE_METHOD(JobQueueStartFixture,

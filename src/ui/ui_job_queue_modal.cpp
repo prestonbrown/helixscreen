@@ -4,6 +4,7 @@
 #include "ui_job_queue_modal.h"
 
 #include "ui_button.h"
+#include "ui_error_reporting.h"
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_utils.h"
@@ -390,8 +391,9 @@ void JobQueueModal::start_job(const std::string& job_id, const std::string& file
     // which is the whole of a host-side pre-print block.
     auto& ps = get_printer_state();
     if (!ps.can_start_new_print()) {
-        spdlog::info("[JobQueueModal] Printer busy, cannot start '{}' now", filename);
-        // TODO: Moonraker doesn't have a reorder API — could delete+re-add at position 0
+        // Moonraker has no reorder call, so the entry cannot be promoted to the
+        // front either; the tap is answered rather than swallowed.
+        NOTIFY_WARNING(lv_tr("Printer is busy - {} stays in the queue"), filename);
         return;
     }
 
