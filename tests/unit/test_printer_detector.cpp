@@ -7,6 +7,8 @@
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "app_globals.h"
+#include "wizard_config_paths.h"
 
 #include <algorithm>
 #include <cctype>
@@ -5683,4 +5685,33 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.reason);
     REQUIRE(result.type_name == "Voron Trident");
     REQUIRE(PrinterDetector::meets_autosave_threshold(result));
+}
+
+// A saved printer type must still reach PrinterState. The type resolves the
+// pre-print option set, the z-offset calibration strategy, the purge-line
+// capability and the probe-type override, and the only other startup caller of
+// set_printer_type_sync() is PrinterImageWidget — so without this, removing that
+// tile from the home screen changes the calibration surface.
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save applies an already-saved type to PrinterState",
+                 "[printer_detector][regression]") {
+    SetUp();
+
+    get_printer_state().set_printer_type_sync("");
+    REQUIRE(get_printer_state().get_printer_type().empty());
+
+    config.set<std::string>(config.df() + helix::wizard::PRINTER_TYPE, "Voron 2.4");
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"extruder", "heater_bed", "quad_gantry_level"});
+
+    // Returns false: it short-circuited rather than running detection. That is
+    // the branch under test, not a failure.
+    const bool detected = PrinterDetector::auto_detect_and_save(hw, &config);
+    CHECK_FALSE(detected);
+
+    CHECK(get_printer_state().get_printer_type() == "Voron 2.4");
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
 }

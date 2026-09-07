@@ -1942,6 +1942,14 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         if (!saved_preset.empty()) {
             config->apply_preset_file(saved_preset);
         }
+        // Apply the saved type to PrinterState for the same reason the
+        // detected-type path does: it is what resolves the pre-print option
+        // set, the z-offset calibration strategy, the purge-line capability and
+        // the probe-type override. Skipping it leaves every one of those at its
+        // default, and the only other startup caller is PrinterImageWidget —
+        // so a user who takes that tile off the home screen silently gets a
+        // different calibration surface from one who keeps it.
+        get_printer_state().set_printer_type_sync(saved_type);
         // Still compact if database was loaded (e.g., by list building)
         compact_database();
         return false;
