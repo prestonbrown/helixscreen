@@ -16,6 +16,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <iterator>
+
 namespace helix::ui {
 
 // Subject for source tab state: 0 = Printer (default), 1 = USB
@@ -207,13 +209,19 @@ void PrintSelectUsbSource::set_moonraker_has_usb_access(bool has_access) {
 void PrintSelectUsbSource::on_drive_removed() {
     spdlog::info("[UsbSource] USB drive removed");
 
-    // No drive is present now — matches the old imperative behavior of
-    // hiding unconditionally on ANY removal event without checking whether
-    // other drives remain connected (multi-drive isn't otherwise supported;
-    // see the TODO in refresh_files()). Not a new limitation, just ported
-    // as-is rather than silently improved.
+    // The removal event does not say which drive went, so ask the manager
+    // what is still mounted: the source stays available while any drive is.
+    const bool drives_remain = usb_manager_ && !usb_manager_->get_drives().empty();
     if (s_source_subject_initialized) {
-        lv_subject_set_int(&s_print_source_usb_present, 0);
+        lv_subject_set_int(&s_print_source_usb_present, drives_remain ? 1 : 0);
+    }
+
+    if (drives_remain) {
+        if (current_source_ == FileSource::USB) {
+            spdlog::debug("[UsbSource] Other drives remain - rescanning USB source");
+            refresh_files();
+        }
+        return;
     }
 
     // If USB source is currently active, switch to Printer source
@@ -258,12 +266,15 @@ void PrintSelectUsbSource::refresh_files() {
         return;
     }
 
-    // Scan first drive for G-code files
-    // TODO: If multiple drives, show a drive selector
-    usb_files_ = usb_manager_->scan_for_gcode(drives[0].mount_path);
-
-    spdlog::info("[UsbSource] Found {} G-code files on USB drive '{}'", usb_files_.size(),
-                 drives[0].label);
+    // Every drive contributes to one flat list: a file's path already carries
+    // its mount point, so a second stick needs no selector to be reachable.
+    for (const auto& drive : drives) {
+        auto files = usb_manager_->scan_for_gcode(drive.mount_path);
+        spdlog::info("[UsbSource] Found {} G-code files on USB drive '{}'", files.size(),
+                     drive.label);
+        usb_files_.insert(usb_files_.end(), std::make_move_iterator(files.begin()),
+                          std::make_move_iterator(files.end()));
+    }
 
     if (on_files_ready_) {
         on_files_ready_(convert_to_print_file_data());
