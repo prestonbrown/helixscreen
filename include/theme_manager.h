@@ -672,6 +672,27 @@ lv_color_t theme_get_accent_color();
 lv_color_t theme_manager_get_contrast_color(lv_color_t bg_color);
 
 /**
+ * @brief Get a foreground guaranteed readable on a saturated fill
+ *
+ * Returns pure black or pure white, whichever has the higher WCAG contrast
+ * ratio against @p fill. Use this for content drawn on an accent fill — a
+ * primary-filled button or pill, a colored badge — where the fill is chosen for
+ * emphasis rather than as a background tone.
+ *
+ * Deliberately NOT theme_manager_get_contrast_color(). That one answers a
+ * different question: it hands back the palette's own text color for the
+ * lightness of the background, which keeps a surface visually consistent with
+ * the theme. Palette text colors are muted on purpose, so against a saturated
+ * mid-tone accent they land far below readable — over the shipped theme set,
+ * that choice bottoms out near 1.7:1 on a primary fill, while black-or-white
+ * never drops below 4.66:1.
+ *
+ * @param fill Background fill the content sits on
+ * @return Black or white, whichever reads better on @p fill
+ */
+lv_color_t theme_manager_get_readable_on(lv_color_t fill);
+
+/**
  * @brief Apply palette colors to a single widget based on its type
  *
  * Styles the widget appropriately for its class type using colors from the

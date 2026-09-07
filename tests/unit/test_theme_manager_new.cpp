@@ -12,6 +12,9 @@
 
 #include "theme_manager.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "../catch_amalgamated.hpp"
 
 // ============================================================================
@@ -429,4 +432,61 @@ TEST_CASE_METHOD(LVGLTestFixture,
     d = make_test_display(800, 480);
     REQUIRE(std::string(theme_manager_get_breakpoint_suffix(responsive_dimension(d))) == "_medium");
     lv_display_delete(d);
+}
+
+// ============================================================================
+// theme_manager_get_readable_on: contrast on an accent fill
+// ============================================================================
+
+namespace {
+
+/// WCAG relative luminance, independent of the implementation under test.
+double wcag_luminance(lv_color_t c) {
+    auto chan = [](uint8_t v) {
+        const double s = v / 255.0;
+        return (s <= 0.03928) ? s / 12.92 : std::pow((s + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * chan(c.red) + 0.7152 * chan(c.green) + 0.0722 * chan(c.blue);
+}
+
+double wcag_contrast(lv_color_t a, lv_color_t b) {
+    const double la = wcag_luminance(a), lb = wcag_luminance(b);
+    const double hi = std::max(la, lb), lo = std::min(la, lb);
+    return (hi + 0.05) / (lo + 0.05);
+}
+
+} // namespace
+
+TEST_CASE("theme_manager_get_readable_on returns white on a dark fill", "[theme]") {
+    lv_color_t fg = theme_manager_get_readable_on(lv_color_hex(0x1B3A5C));
+    CHECK(fg.red == 0xFF);
+    CHECK(fg.green == 0xFF);
+    CHECK(fg.blue == 0xFF);
+}
+
+TEST_CASE("theme_manager_get_readable_on returns black on a light fill", "[theme]") {
+    lv_color_t fg = theme_manager_get_readable_on(lv_color_hex(0xFFCC66));
+    CHECK(fg.red == 0x00);
+    CHECK(fg.green == 0x00);
+    CHECK(fg.blue == 0x00);
+}
+
+// The point of the helper: whatever it returns must actually be readable. A
+// fixed choice cannot satisfy this — pure black fails on a dark navy accent and
+// the palette's own text color fails on a saturated mid-tone.
+TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every accent it is given",
+          "[theme]") {
+    // Accents drawn from the shipped theme presets, spanning dark navy through
+    // saturated mid-tone to bright yellow.
+    const uint32_t accents[] = {
+        0x1B3A5C, 0x1e2f5c, 0x000000, 0x2E2E2E, // dark: black-on-these is unreadable
+        0x8DA101, 0x6693BF, 0x907AA9, 0x2E7DE9, // mid-tone: palette text is unreadable
+        0x8AB4F8, 0xFFCC66, 0xFFD100, 0xA7C080, // light
+    };
+    for (uint32_t hex : accents) {
+        lv_color_t fill = lv_color_hex(hex);
+        double ratio = wcag_contrast(theme_manager_get_readable_on(fill), fill);
+        CAPTURE(hex, ratio);
+        CHECK(ratio >= 4.5);
+    }
 }

@@ -918,7 +918,9 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
         lv_obj_set_style_text_color(
             label,
-            is_active ? theme_manager_get_color("on_primary") : theme_manager_get_color("text"), 0);
+            is_active ? theme_manager_get_readable_on(theme_manager_get_color("primary"))
+                      : theme_manager_get_color("text"),
+            0);
         lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_center(label); // center the digit within the grown pill
