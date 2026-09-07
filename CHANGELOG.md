@@ -265,14 +265,20 @@ the nightly sanitizer run caught before any field report.
   candidate naming a different one, and the Qidi entries no longer claim a shared macro
   identifies a single model.
 
+**Filament**
+
+- **A second, wrong error after a failed CFS load** - when the homing move before a load or
+  unload failed, the real error arrived with a spurious "Unknown g-code state" stacked on
+  top of it. The cleanup step ran even though the operation it was meant to undo had never
+  started, and Klipper rejected it. Only the actual failure is reported now.
+
 **Home screen**
 
-- **The home screen rearranging itself during a firmware restart** - when Klipper leaves
-  ready unexpectedly the screen inserts a firmware-restart tile at the front of the layout.
-  That pass matched saved positions by name without checking whether the entry was still
-  enabled, so a disabled widget's leftover cell was handed to the new tile, and a widget
-  you had placed yourself then failed to land and fell back to automatic placement - the
-  home screen visibly reshuffling at exactly the moment a firmware fault is being reported.
+- **The home screen rearranging itself when Klipper drops out** - a layout worked out while
+  the printer was down got written back to disk as though you had arranged it that way, so
+  widgets you had placed yourself reverted to an automatic arrangement after a power cycle
+  or a firmware restart. Your positions are now only saved once the printer is actually
+  reporting ready, so a fault no longer rewrites the layout underneath you.
 
 **Setup**
 
@@ -281,6 +287,12 @@ the nightly sanitizer run caught before any field report.
   actually opens.
 
 ### Changed
+
+- **The temporary Firmware Restart tile is gone from the home screen** - it was added to the
+  grid whenever Klipper was down, but placed automatically after every widget with a saved
+  position, so on a full home screen it was silently dropped and never appeared at all. The
+  recovery dialog that opens on a Klipper shutdown carries the restart action, and Firmware
+  Restart is still in the widget catalog if you want a permanent button for it.
 
 - **The AD5X filament path drawing** - the picture showed a machine the AD5X is not: a
   merge unit mid-machine, or a selector with a single output line. The IFS is really four
