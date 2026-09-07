@@ -41,7 +41,7 @@ endif
 # Remote Sync Targets
 # =============================================================================
 
-.PHONY: remote-sync remote-fetch remote-fetch-full remote-clean remote-fetch-pi remote-fetch-ad5m remote-fetch-native remote-fetch-pi-full remote-fetch-ad5m-full
+.PHONY: remote-native remote-test remote-sync remote-fetch remote-fetch-full remote-clean remote-fetch-pi remote-fetch-ad5m remote-fetch-native remote-fetch-pi-full remote-fetch-ad5m-full
 
 # Sync source code to remote host
 # Note: We explicitly exclude build artifacts rather than using .gitignore filtering
@@ -185,16 +185,21 @@ remote-ad5m: remote-sync
 	@$(MAKE) --no-print-directory remote-fetch-ad5m
 	@echo "$(GREEN)$(BOLD)✓ AD5M build complete - binaries in build/ad5m/$(RESET)"
 
-# Build native Linux on remote host (no Docker needed)
-remote-native: remote-sync
-	@echo "$(CYAN)$(BOLD)Building native Linux on $(REMOTE_HOST)...$(RESET)"
-	@START_TIME=$$(date +%s); \
-	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && $(REMOTE_MAKE_ENV)make -j" || exit $$?; \
-	END_TIME=$$(date +%s); \
-	ELAPSED=$$((END_TIME - START_TIME)); \
-	echo "$(GREEN)✓ Remote build completed in $${ELAPSED}s$(RESET)"
-	@$(MAKE) --no-print-directory remote-fetch-native
-	@echo "$(GREEN)$(BOLD)✓ Native Linux build complete - binaries in build/$(RESET)"
+# Build native Linux on the remote host.
+#
+# Does NOT depend on remote-sync. The remote keeps its own git clone and pulls
+# committed history from GitHub itself; the only thing that crosses YOUR link is
+# a patch of whatever is not pushed yet, typically a few KB over one multiplexed
+# SSH connection. rsync stays for the Docker cross targets below, which need a
+# full mirror of the working tree on the remote.
+#
+# scripts/remote-build.sh carries the details and the flags (--run, --host, --dir).
+remote-native:
+	$(Q)scripts/remote-build.sh -j all
+
+# Build the unit tests remotely, then run a tag: make remote-test TAG='[ams]'
+remote-test:
+	$(Q)scripts/remote-build.sh $(if $(TAG),--run '$(TAG)',) test
 
 # Build all targets on remote (parallel Docker builds)
 remote-all: remote-sync
@@ -279,7 +284,9 @@ help-remote:
 	echo "  $${G}remote-all$${X}            - Build all cross-compile targets"; \
 	echo ""; \
 	echo "$${C}Sync & Fetch:$${X}"; \
-	echo "  $${G}remote-sync$${X}           - Sync source code to remote (no build)"; \
+	echo "  $${G}remote-native$${X}         - Build natively on remote (git + patch, no rsync)"; \
+	echo "  $${G}remote-test$${X}           - Build tests remotely; TAG='[ams]' also runs them"; \
+	echo "  $${G}remote-sync$${X}           - rsync the tree to remote (Docker cross builds need this)"; \
 	echo "  $${G}remote-fetch$${X}          - Fetch all binaries from remote"; \
 	echo "  $${G}remote-fetch-pi$${X}       - Fetch Pi binaries only (fast)"; \
 	echo "  $${G}remote-fetch-ad5m$${X}     - Fetch AD5M binaries only (fast)"; \

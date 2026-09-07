@@ -38,6 +38,14 @@ make test-run                        # Build AND run tests in parallel
 ./build/bin/helix-tests "[tag]"      # Run specific test tags
 make pi-test                         # Build on thelio + deploy + run
 
+# Building on a remote host: send the DELTA, not the tree.
+make remote-test TAG='[ams]'         # build tests on $REMOTE_HOST, run one tag
+make remote-native                   # build the app there
+#   The host clones and fetches from GitHub itself; your link carries one patch
+#   (unpushed commits AND uncommitted edits) plus untracked files — a few KB.
+#   `make remote-sync` rsyncs the whole tree and is for the Docker cross targets
+#   only; a fresh REMOTE_DIR costs ~260MB, so never make one per branch.
+
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
 scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
 #   lib/lvgl, lib/libhv and lib/helix-xml get a PRIVATE checkout per worktree,

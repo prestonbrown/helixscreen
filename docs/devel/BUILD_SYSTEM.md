@@ -1508,7 +1508,18 @@ These get their own deep section above — see **[Cross-Compilation](#cross-comp
 - **Build:** `make <target>-docker` (recommended, no local toolchain) or `make <target>` (needs host toolchain). Targets: `pi`, `pi32`, `ad5m`, `ad5x`, `cc1`, `k1`, `k1-dynamic`, `k2`, `snapmaker-u1`, `x86`.
 - **Deploy + run on device:** `make <target>-test` (build + deploy + run fg), `make deploy-<target>` (background), `deploy-<target>-fg` (foreground), `deploy-<target>-bin` (binaries only, fast iteration), `<target>-ssh`.
 - **Host override:** `make deploy-pi PI_HOST=192.168.1.50`. Defaults live in `mk/cross.mk` — note `PI_HOST` actually defaults to `192.168.1.113` (the `make help-cross` text saying `helixpi.local` is stale, and `helixpi.local` does not resolve). `K2_HOST` has **no** default and must be supplied.
-- **Remote build:** `make remote-pi` / `remote-ad5m` / `remote-native` build on a fast Linux host (`REMOTE_HOST`, default `thelio.local`) and fetch the binaries back. `make remote-status` checks readiness.
+- **Remote build:** two transports, and the choice matters on a slow link.
+  - `make remote-native` / `make remote-test TAG='[ams]'` send **only the local delta**
+    (`scripts/remote-build.sh`). The build host keeps its own clone and fetches committed
+    history from GitHub itself; your link carries one patch covering unpushed commits *and*
+    uncommitted edits, plus a tar of untracked files — a few KB over one multiplexed SSH
+    connection. Use this for every native build and test run.
+  - `make remote-pi` / `remote-ad5m` / `remote-all` rsync the whole working tree
+    (`make remote-sync`) because the Docker cross builds need a real mirror on the remote.
+    rsync is delta-based, but it still exchanges metadata for every file under `lib/` and
+    `assets/` before deciding nothing changed, and a **fresh destination directory transfers
+    ~260 MB** — so reuse one `REMOTE_DIR` rather than a new one per branch or worktree.
+  - `REMOTE_HOST` defaults to `thelio.local`; `make remote-status` checks readiness.
 
 ### Utilities
 
