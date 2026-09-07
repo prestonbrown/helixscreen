@@ -611,9 +611,9 @@ void ScrewsTiltPanel::create_screw_indicator(size_t index, const ScrewTiltResult
                   screw.screw_name, (bg_color.red << 16) | (bg_color.green << 8) | bg_color.blue,
                   is_worst);
 
-    // Create centered icon/text label
+    // The severity fill is an accent, so the glyph is black-or-white, not palette text
     lv_obj_t* label = lv_label_create(indicator);
-    lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
+    lv_obj_set_style_text_color(label, theme_manager_get_readable_on(bg_color), 0);
     lv_obj_center(label);
 
     if (screw_is_settled(screw, in_spec)) {

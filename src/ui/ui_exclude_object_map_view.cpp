@@ -620,7 +620,7 @@ lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, int index,
     snprintf(num_buf, sizeof(num_buf), "%d", index + 1);
     lv_label_set_text(num_label, num_buf);
     lv_obj_set_style_text_font(num_label, theme_manager_get_font("font_small"), 0);
-    lv_obj_set_style_text_color(num_label, lv_color_black(), 0);
+    lv_obj_set_style_text_color(num_label, theme_manager_get_readable_on(color), 0);
     lv_obj_align(num_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_remove_flag(num_label, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(num_label, LV_OBJ_FLAG_EVENT_BUBBLE);

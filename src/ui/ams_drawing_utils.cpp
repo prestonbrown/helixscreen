@@ -974,7 +974,8 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
     const lv_font_t* f = theme_manager_get_font("font_xs");
     if (f)
         lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);
-    lv_obj_set_style_text_color(lbl, theme_manager_get_color("text"), LV_PART_MAIN);
+    // Both fills are accents, so the number is black-or-white, not palette text
+    lv_obj_set_style_text_color(lbl, theme_manager_get_readable_on(bg), LV_PART_MAIN);
     lv_obj_center(lbl);
     lv_obj_add_flag(lbl, LV_OBJ_FLAG_EVENT_BUBBLE);
     return badge;

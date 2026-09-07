@@ -34,19 +34,28 @@ static lv_color_t color_active;
 static lv_color_t color_completed;
 static lv_color_t color_number_pending;
 static lv_color_t color_number_active;
+static lv_color_t color_checkmark;
 static lv_color_t color_label_active;
 static lv_color_t color_label_inactive;
 
-// Helper to read a scope color with theme token fallback
+// Helper to read a scope color, falling back to a computed color
 static lv_color_t get_step_color(lv_xml_component_scope_t* scope, bool dark,
                                  const char* scope_light, const char* scope_dark,
-                                 const char* token_fallback) {
+                                 lv_color_t fallback) {
     if (scope) {
         const char* val = lv_xml_get_const(scope, dark ? scope_dark : scope_light);
         if (val)
             return theme_manager_parse_hex_color(val);
     }
-    return theme_manager_get_color(token_fallback);
+    return fallback;
+}
+
+// Helper to read a scope color with theme token fallback
+static lv_color_t get_step_color(lv_xml_component_scope_t* scope, bool dark,
+                                 const char* scope_light, const char* scope_dark,
+                                 const char* token_fallback) {
+    return get_step_color(scope, dark, scope_light, scope_dark,
+                          theme_manager_get_color(token_fallback));
 }
 
 // Initialize colors from component scope or theme tokens
@@ -59,10 +68,17 @@ static void init_step_progress_colors(const char* scope_name) {
     color_active = get_step_color(scope, dark, "step_active_light", "step_active_dark", "primary");
     color_completed =
         get_step_color(scope, dark, "step_completed_light", "step_completed_dark", "success");
-    color_number_pending = get_step_color(scope, dark, "step_number_pending_light",
-                                          "step_number_pending_dark", "card_bg");
-    color_number_active = get_step_color(scope, dark, "step_number_active_light",
-                                         "step_number_active_dark", "card_bg");
+    // The circles are accent fills, so the glyphs on them are black-or-white by
+    // luminance unless the component scope names its own colours.
+    color_number_pending =
+        get_step_color(scope, dark, "step_number_pending_light", "step_number_pending_dark",
+                       theme_manager_get_readable_on(color_pending));
+    color_number_active =
+        get_step_color(scope, dark, "step_number_active_light", "step_number_active_dark",
+                       theme_manager_get_readable_on(color_active));
+    color_checkmark =
+        get_step_color(scope, dark, "step_number_active_light", "step_number_active_dark",
+                       theme_manager_get_readable_on(color_completed));
     color_label_active =
         get_step_color(scope, dark, "step_label_active_light", "step_label_active_dark", "text");
     color_label_inactive = get_step_color(scope, dark, "step_label_inactive_light",
@@ -456,7 +472,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_label_set_text(checkmark, "\xF3\xB0\x84\xAC"); // MDI check icon (F012C)
         lv_obj_align(checkmark, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_font(checkmark, &mdi_icons_16, 0);
-        lv_obj_set_style_text_color(checkmark, color_number_active, 0);
+        lv_obj_set_style_text_color(checkmark, color_checkmark, 0);
         lv_obj_add_flag(checkmark, LV_OBJ_FLAG_HIDDEN);
 
         // Create step label

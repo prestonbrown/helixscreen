@@ -546,3 +546,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: shows 1-based number", "[u
     REQUIRE(std::string(lv_label_get_text(lbl)) == "3");
     lv_obj_delete(host);
 }
+
+// The number sits on a success or grey fill; the palette's text colour is not
+// chosen against either, so the label must take the fill's black-or-white.
+TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: number is readable on its fill",
+                 "[ui][ams][badge]") {
+    lv_obj_t* host = lv_obj_create(test_screen());
+    for (bool active : {true, false}) {
+        lv_obj_t* badge = ams_draw::create_lane_badge(host, 1, 16, active);
+        REQUIRE(badge != nullptr);
+        lv_obj_t* lbl = lv_obj_get_child(badge, 0);
+        REQUIRE(lbl != nullptr);
+        lv_color_t fill = lv_obj_get_style_bg_color(badge, LV_PART_MAIN);
+        lv_color_t text = lv_obj_get_style_text_color(lbl, LV_PART_MAIN);
+        CAPTURE(active, lv_color_to_u32(fill) & 0xFFFFFF, lv_color_to_u32(text) & 0xFFFFFF);
+        CHECK(lv_color_eq(text, theme_manager_get_readable_on(fill)));
+    }
+    lv_obj_delete(host);
+}

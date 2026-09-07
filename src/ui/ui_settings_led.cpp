@@ -796,7 +796,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
 
     auto* save_lbl = lv_label_create(save_btn);
     lv_label_set_text(save_lbl, lv_tr("Save"));
-    lv_obj_set_style_text_color(save_lbl, lv_color_white(), 0);
+    lv_obj_set_style_text_color(save_lbl, theme_manager_get_readable_on(primary_color), 0);
     lv_obj_center(save_lbl);
 
     auto* save_idx = new int(index);
