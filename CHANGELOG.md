@@ -272,6 +272,14 @@ the nightly sanitizer run caught before any field report.
   top of it. The cleanup step ran even though the operation it was meant to undo had never
   started, and Klipper rejected it. Only the actual failure is reported now.
 
+- **The runout dialog appearing when you pull filament out yourself** - on a printer with a
+  plain filament sensor and no filament system, taking filament out while the printer was
+  idle raised the "Filament Runout" dialog, reporting a fault for something you had just
+  done with your own hands. Nothing is being extruded while the printer sits idle, so
+  filament leaving the sensor in that state is someone standing at the machine; the screen
+  now just shows the filament as empty and stays out of the way. A sensor already reading
+  empty when the screen arrives still offers to load, which is the case worth asking about.
+
 **Home screen**
 
 - **The home screen rearranging itself when Klipper drops out** - a layout worked out while

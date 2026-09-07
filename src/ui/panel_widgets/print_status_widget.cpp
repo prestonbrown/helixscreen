@@ -321,6 +321,7 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                 self->check_and_show_idle_runout_modal();
             } else {
                 self->runout_modal_shown_ = false;
+                self->saw_filament_present_ = true;
             }
         });
 
@@ -1006,6 +1007,17 @@ void PrintStatusWidget::check_and_show_idle_runout_modal() {
     auto& fsm = helix::FilamentSensorManager::instance();
     if (fsm.is_in_startup_grace_period()) {
         spdlog::debug("[PrintStatusWidget] In startup grace period - skipping runout modal");
+        return;
+    }
+
+    // Nothing extrudes while the printer is idle, so filament that leaves the
+    // sensor in this state was pulled out by whoever is standing at the machine.
+    // Announcing it back to them under a warning icon reports a fault that cannot
+    // have happened. An empty sensor found on arrival is the case worth raising:
+    // that operator may not know, and Load is what they need.
+    // (prestonbrown/helixscreen#1497)
+    if (saw_filament_present_) {
+        spdlog::debug("[PrintStatusWidget] Filament left the sensor while idle - no dialog");
         return;
     }
 

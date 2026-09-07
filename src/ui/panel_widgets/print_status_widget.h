@@ -388,6 +388,11 @@ class PrintStatusWidget : public PanelWidget {
     RunoutGuidanceModal runout_modal_;
     bool runout_modal_shown_ = false;
 
+    /// Set once this widget has seen the runout sensor report filament present.
+    /// It separates the two ways the sensor can read empty while idle: an edge
+    /// this widget watched happen, and a state it found on arrival.
+    bool saw_filament_present_ = false;
+
     // Job queue
     helix::JobQueueModal job_queue_modal_;
 
