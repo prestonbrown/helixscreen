@@ -40,13 +40,23 @@ struct SlotPatterns {
 
 // clang-format off
 const std::vector<SlotPatterns> DETECTION_PATTERNS = {
-    {StandardMacroSlot::LoadFilament,   {"LOAD_FILAMENT", "LOAD_MATERIAL", "M701"}},
+    // M604 ranks last: it is QIDI's stock load, the macro their own screen
+    // drives, and it means nothing in Marlin (which has no M604 at all). A
+    // printer that defines a conventionally-named load macro keeps it — this
+    // only reaches printers where nothing else matched, which on stock Q2
+    // firmware is every one of them: it ships no LOAD_FILAMENT, LOAD_MATERIAL
+    // or M701 for the earlier patterns to find (bundle in #1030).
+    {StandardMacroSlot::LoadFilament,   {"LOAD_FILAMENT", "LOAD_MATERIAL", "M701", "M604"}},
     // HELIX_UNLOAD_FILAMENT (from our macro pack) deliberately outranks
     // Creality's QUIT_MATERIAL — that stock macro purges filament forward and
     // retracts only part of it (a melt-zone clearer for manually-cut
     // filament), not a true unload. A printer's own native unload macros and
     // the MMU M702 keep priority over the override.
-    {StandardMacroSlot::UnloadFilament, {"UNLOAD_FILAMENT", "UNLOAD_MATERIAL", "M702", "HELIX_UNLOAD_FILAMENT", "QUIT_MATERIAL"}},
+    //
+    // M603 is M604's counterpart and ranks last for the same reason. Marlin's
+    // M603 configures a filament change rather than running one, so the tail
+    // position also keeps that reading from ever winning a slot.
+    {StandardMacroSlot::UnloadFilament, {"UNLOAD_FILAMENT", "UNLOAD_MATERIAL", "M702", "HELIX_UNLOAD_FILAMENT", "QUIT_MATERIAL", "M603"}},
     {StandardMacroSlot::Purge,          {"PURGE", "PURGE_LINE", "PRIME_LINE", "PURGE_FILAMENT", "LINE_PURGE"}},
     {StandardMacroSlot::Pause,          {"PAUSE", "M601"}},
     {StandardMacroSlot::Resume,         {"RESUME", "M602"}},
