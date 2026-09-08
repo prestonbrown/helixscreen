@@ -296,9 +296,17 @@ TEST_CASE("HttpExecutor: singletons are usable and idempotent", "[http_executor]
     HttpExecutor::stop_all();
     HttpExecutor::stop_all(); // Idempotent.
 
-    // After stop_all, submits reject. Restart so we don't poison other tests.
+    // fast() and slow() are process-wide and nothing else in a test run starts
+    // them, so a stopped lane stays stopped for every test ordered after this
+    // one. Their submit() then rejects silently - broken promise, work never
+    // run, inflight() reading 0 - and a test waiting on async work sees it
+    // complete instantly having done nothing. Restart the lanes, and run work
+    // on both to prove the restart took.
     HttpExecutor::start_all();
-    HttpExecutor::stop_all();
+    HttpExecutor::fast().run_sync([&]() { fast_runs.fetch_add(1); });
+    HttpExecutor::slow().run_sync([&]() { slow_runs.fetch_add(1); });
+    CHECK(fast_runs.load() == 2);
+    CHECK(slow_runs.load() == 2);
 }
 
 TEST_CASE("HttpExecutor: submit after stop breaks promise immediately", "[http_executor][slow]") {
