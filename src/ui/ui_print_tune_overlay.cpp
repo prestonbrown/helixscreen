@@ -613,7 +613,8 @@ void PrintTuneOverlay::handle_save_z_offset() {
             [](const std::string& error) {
                 spdlog::error("[PrintTuneOverlay] Save failed: {}", error);
                 NOTIFY_ERROR(lv_tr("Save failed: {}"), error);
-            });
+            },
+            printer_state_);
     });
     save_z_offset_modal_.show(lv_screen_active());
 }

@@ -84,9 +84,12 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
 /// @param strategy      Calibration strategy determining command sequence
 /// @param on_success    Called once the save is known to have succeeded
 /// @param on_error      Called with user-facing message on a REAL failure
+/// @param ps            When non-null, cleared via clear_pending_z_offset_delta()
+///                      once the save actually succeeds (either success path).
 void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
-                    std::function<void(const std::string& error)> on_error);
+                    std::function<void(const std::string& error)> on_error,
+                    PrinterState* ps = nullptr);
 
 /// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.
 ///
