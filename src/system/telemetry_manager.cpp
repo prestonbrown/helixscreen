@@ -864,6 +864,10 @@ nlohmann::json TelemetryManager::get_queue_snapshot() const {
 void TelemetryManager::clear_queue() {
     std::lock_guard<std::mutex> lock(mutex_);
     queue_.clear();
+    // A purge ends the window the count describes. Carrying it forward would
+    // mark the first batch after the next opt-in as incomplete when nothing
+    // from that window was ever discarded.
+    events_dropped_since_send_ = 0;
     spdlog::info("[TelemetryManager] Queue cleared");
 }
 
@@ -883,6 +887,17 @@ void TelemetryManager::remove_sent_events(size_t count) {
     queue_.erase(queue_.begin(), queue_.begin() + static_cast<long>(to_remove));
     spdlog::debug("[TelemetryManager] Removed {} sent events, {} remaining", to_remove,
                   queue_.size());
+
+    // The server has no way to tell a quiet window from a lossy one, so a
+    // batch that follows a discard is an incomplete record of the span it
+    // covers. Reporting it here rather than in enqueue_event() costs one line
+    // per send window instead of one per discarded event.
+    if (events_dropped_since_send_ > 0) {
+        spdlog::warn("[TelemetryManager] {} events were discarded unsent before this batch — "
+                     "the window it covers is incomplete",
+                     events_dropped_since_send_);
+        events_dropped_since_send_ = 0;
+    }
 }
 
 void TelemetryManager::try_send(bool force) {
@@ -897,18 +912,11 @@ void TelemetryManager::try_send(bool force) {
         return;
     }
 
-    // Check send interval with backoff
     auto now = std::chrono::steady_clock::now();
     int backoff = backoff_multiplier_.load();
-    auto interval = SEND_INTERVAL * backoff;
-    // Cap backoff at 7 days
-    auto max_interval = std::chrono::hours{24 * 7};
-    if (interval > max_interval) {
-        interval = max_interval;
-    }
+    auto interval = next_attempt_delay(backoff);
 
-    if (!force && last_send_time_.time_since_epoch().count() > 0 &&
-        now - last_send_time_ < interval) {
+    if (!force && send_attempted_ && now - last_send_time_ < interval) {
         spdlog::debug("[TelemetryManager] try_send: too soon (backoff={}x), skipping", backoff);
         return;
     }
@@ -924,6 +932,7 @@ void TelemetryManager::try_send(bool force) {
     }
 
     last_send_time_ = now;
+    send_attempted_ = true;
 
     spdlog::info("[TelemetryManager] Sending batch of {} events", batch.size());
 
@@ -966,39 +975,59 @@ void TelemetryManager::do_send(const nlohmann::json& batch) {
             return;
         }
 
-        // Use libhv HTTP client (same pattern as UpdateChecker and Moonraker API)
-        auto req = std::make_shared<HttpRequest>();
-        req->method = HTTP_POST;
-        req->url = ENDPOINT_URL;
-        req->timeout = 30;
-        req->content_type = APPLICATION_JSON;
-        req->headers["User-Agent"] = std::string("HelixScreen/") + HELIX_VERSION;
-        req->headers["X-API-Key"] = API_KEY;
-        req->body = batch.dump();
+        // One send window drains the whole queue. Sending a single batch per
+        // window caps throughput at MAX_BATCH_SIZE per SEND_INTERVAL, which is
+        // below the rate the periodic producers enqueue at, so the queue sits
+        // saturated and enqueue_event() discards the oldest events for good
+        // (prestonbrown/helixscreen#1476). The bound stops a producer that
+        // outruns the drain from spinning this thread.
+        nlohmann::json pending = batch;
 
-        auto resp = requests::request(req);
+        for (size_t attempt = 0; attempt < MAX_BATCHES_PER_SEND; ++attempt) {
+            // Use libhv HTTP client (same pattern as UpdateChecker and Moonraker API)
+            auto req = std::make_shared<HttpRequest>();
+            req->method = HTTP_POST;
+            req->url = ENDPOINT_URL;
+            req->timeout = 30;
+            req->content_type = APPLICATION_JSON;
+            req->headers["User-Agent"] = std::string("HelixScreen/") + HELIX_VERSION;
+            req->headers["X-API-Key"] = API_KEY;
+            req->body = pending.dump();
 
-        if (shutting_down_.load()) {
-            spdlog::debug("[TelemetryManager] Shutting down, aborting send result processing");
-            return;
-        }
+            auto resp = requests::request(req);
 
-        int status_code = resp ? static_cast<int>(resp->status_code) : 0;
+            if (shutting_down_.load()) {
+                spdlog::debug("[TelemetryManager] Shutting down, aborting send result processing");
+                return;
+            }
 
-        if (resp && status_code >= 200 && status_code < 300) {
+            int status_code = resp ? static_cast<int>(resp->status_code) : 0;
+
+            if (!resp || status_code < 200 || status_code >= 300) {
+                // Failure: keep events, increase backoff
+                int new_backoff = std::min(backoff_multiplier_.load() * 2, 7);
+                spdlog::warn(
+                    "[TelemetryManager] Send failed (HTTP {}), will retry with backoff={}x",
+                    status_code, new_backoff);
+                backoff_multiplier_.store(new_backoff);
+                return;
+            }
+
             // Success: remove sent events from queue and persist
-            spdlog::info("[TelemetryManager] Successfully sent {} events (HTTP {})", batch.size(),
+            spdlog::info("[TelemetryManager] Successfully sent {} events (HTTP {})", pending.size(),
                          status_code);
-            remove_sent_events(batch.size());
+            remove_sent_events(pending.size());
             save_queue();
             backoff_multiplier_.store(1);
-        } else {
-            // Failure: keep events, increase backoff
-            int new_backoff = std::min(backoff_multiplier_.load() * 2, 7);
-            spdlog::warn("[TelemetryManager] Send failed (HTTP {}), will retry with backoff={}x",
-                         status_code, new_backoff);
-            backoff_multiplier_.store(new_backoff);
+
+            pending = build_batch();
+            if (pending.empty()) {
+                return;
+            }
         }
+
+        spdlog::debug("[TelemetryManager] Drain bound reached, {} events left for the next send",
+                      queue_size());
     } catch (const std::exception& e) {
         spdlog::error("[TelemetryManager] Send exception: {}", e.what());
         backoff_multiplier_.store(std::min(backoff_multiplier_.load() * 2, 7));
@@ -1385,6 +1414,7 @@ void TelemetryManager::enqueue_event(nlohmann::json event) {
 
     // Drop oldest if at capacity
     if (queue_.size() >= MAX_QUEUE_SIZE) {
+        events_dropped_since_send_++;
         spdlog::debug("[TelemetryManager] Queue at capacity ({}), dropping oldest event",
                       MAX_QUEUE_SIZE);
         queue_.erase(queue_.begin());

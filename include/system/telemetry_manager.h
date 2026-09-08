@@ -771,8 +771,34 @@ class TelemetryManager {
     /** @brief Minimum interval between transmission attempts */
     static constexpr auto SEND_INTERVAL = std::chrono::hours{24};
 
+    /** @brief Retry spacing after a failed send, multiplied by the backoff.
+     *  A failure is spaced off this rather than SEND_INTERVAL so one unreachable
+     *  moment costs hours instead of a day, while the backoff still applies. */
+    static constexpr auto RETRY_INTERVAL = std::chrono::hours{1};
+
     /** @brief Maximum events per HTTPS POST batch */
     static constexpr size_t MAX_BATCH_SIZE = 20;
+
+    /** @brief Batches one send window will POST before giving the thread back.
+     *  Must cover a full queue, or the drain cannot outrun the producers and
+     *  the oldest events are discarded unsent. */
+    static constexpr size_t MAX_BATCHES_PER_SEND = (MAX_QUEUE_SIZE / MAX_BATCH_SIZE) + 1;
+
+    /**
+     * @brief Spacing required before the next transmission attempt.
+     *
+     * A backoff above 1 means the previous attempt failed. Those retries are
+     * spaced off RETRY_INTERVAL rather than the full SEND_INTERVAL, and the
+     * result is capped at seven days.
+     *
+     * @param backoff Current backoff multiplier (1 when the last send succeeded)
+     * @return Minimum delay since the last attempt before another is allowed
+     */
+    static constexpr std::chrono::hours next_attempt_delay(int backoff) {
+        auto interval = (backoff > 1) ? RETRY_INTERVAL * backoff : SEND_INTERVAL;
+        constexpr auto max_interval = std::chrono::hours{24 * 7};
+        return interval > max_interval ? max_interval : interval;
+    }
 
     /** @brief Interval between periodic performance snapshots */
     static constexpr uint32_t SNAPSHOT_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -786,8 +812,15 @@ class TelemetryManager {
     /** @brief Frame time floor below which a frame is considered idle (no rendering work) */
     static constexpr uint32_t IDLE_FRAME_THRESHOLD_US = 500;
 
-    /** @brief Interval between frame performance snapshots (5 minutes) */
-    static constexpr uint32_t FRAME_PERF_INTERVAL_MS = 5 * 60 * 1000;
+    /** @brief Interval between frame performance snapshots.
+     *  The queue drains once per SEND_INTERVAL, so every periodic producer
+     *  spends from one MAX_QUEUE_SIZE budget for the whole window; this is the
+     *  hottest of them and a shorter period pushes
+     *  UNATTENDED_EVENTS_PER_SEND_WINDOW over that budget. The event is an
+     *  aggregate over the last FRAME_RING_SIZE qualifying frames either way —
+     *  the ring wraps well inside a window at any interactive frame rate — so a
+     *  wider period costs resolution, not samples. */
+    static constexpr uint32_t FRAME_PERF_INTERVAL_MS = 60 * 60 * 1000;
 
     /** @brief Delay after session start before recording feature adoption */
     static constexpr uint32_t FEATURE_ADOPTION_DELAY_MS = 5 * 60 * 1000;
@@ -795,7 +828,27 @@ class TelemetryManager {
     /** @brief Debounce window for aggregating settings changes before recording */
     static constexpr uint32_t SETTINGS_DEBOUNCE_MS = 30 * 1000;
 
+    /** @brief SEND_INTERVAL in milliseconds, to compare against the timer periods */
+    static constexpr uint32_t SEND_INTERVAL_MS = static_cast<uint32_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(SEND_INTERVAL).count());
+
+    /**
+     * @brief Events the periodic producers enqueue in one send window with
+     *        nobody touching the device.
+     *
+     * The auto-send timer's hourly memory snapshot, the frame performance
+     * snapshot, and the three events fire_periodic_snapshot() emits. The queue
+     * is drained once per SEND_INTERVAL and holds MAX_QUEUE_SIZE, so a total
+     * above that is the count enqueue_event() discards unsent every day, on
+     * every platform (prestonbrown/helixscreen#1476).
+     */
+    static constexpr size_t UNATTENDED_EVENTS_PER_SEND_WINDOW =
+        SEND_INTERVAL_MS / AUTO_SEND_INTERVAL_MS + SEND_INTERVAL_MS / FRAME_PERF_INTERVAL_MS +
+        3 * (SEND_INTERVAL_MS / SNAPSHOT_INTERVAL_MS);
+
   private:
+    friend class TelemetryManagerTestAccess;
+
     TelemetryManager() = default;
     ~TelemetryManager();
 
@@ -1064,11 +1117,16 @@ class TelemetryManager {
     // EVENT QUEUE (mutex-protected)
     // =========================================================================
 
-    /// Protects queue_, device_uuid_, device_salt_, error_rate_limit_
+    /// Protects queue_, events_dropped_since_send_, device_uuid_, device_salt_,
+    /// error_rate_limit_
     mutable std::mutex mutex_;
 
     /// Pending events awaiting transmission
     std::vector<nlohmann::json> queue_;
+
+    /// Events enqueue_event() discarded since the last batch reached the
+    /// server. Non-zero means the next batch under-reports its window.
+    size_t events_dropped_since_send_ = 0;
 
     // =========================================================================
     // CONFIGURATION
@@ -1108,8 +1166,15 @@ class TelemetryManager {
     // TRANSMISSION STATE (Phase 3)
     // =========================================================================
 
-    /// Timestamp of last successful (or attempted) send
+    /// Timestamp of last successful (or attempted) send. Only meaningful once
+    /// send_attempted_ is set — steady_clock's epoch is boot, so a stamp can
+    /// legitimately be negative and its sign says nothing about whether a send
+    /// has happened.
     std::chrono::steady_clock::time_point last_send_time_{};
+
+    /// Whether try_send() has ever cleared its gate. The first attempt has no
+    /// interval to wait out.
+    bool send_attempted_ = false;
 
     /// Exponential backoff multiplier (resets to 1 on success).
     /// Atomic: read on LVGL thread (try_send), written on send thread (do_send).
