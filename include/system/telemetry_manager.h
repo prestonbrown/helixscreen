@@ -1166,8 +1166,15 @@ class TelemetryManager {
     // TRANSMISSION STATE (Phase 3)
     // =========================================================================
 
-    /// Timestamp of last successful (or attempted) send
+    /// Timestamp of last successful (or attempted) send. Only meaningful once
+    /// send_attempted_ is set — steady_clock's epoch is boot, so a stamp can
+    /// legitimately be negative and its sign says nothing about whether a send
+    /// has happened.
     std::chrono::steady_clock::time_point last_send_time_{};
+
+    /// Whether try_send() has ever cleared its gate. The first attempt has no
+    /// interval to wait out.
+    bool send_attempted_ = false;
 
     /// Exponential backoff multiplier (resets to 1 on success).
     /// Atomic: read on LVGL thread (try_send), written on send thread (do_send).

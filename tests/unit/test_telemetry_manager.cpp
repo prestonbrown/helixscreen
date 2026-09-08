@@ -945,6 +945,32 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Send window: a healthy sender still wait
     REQUIRE(TelemetryManagerTestAccess::last_send_time(tm) == three_hours_ago);
 }
 
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Send window: the gate reads the elapsed time, not the clock's sign",
+                 "[telemetry][send][1476]") {
+    // steady_clock's epoch is boot, so on a machine up less than the stamp's
+    // age a perfectly ordinary "sent a while ago" time point is negative.
+    // Deciding "never sent" from that sign would let the gate pass on every
+    // try_send() a freshly booted device makes, which is the opposite of the
+    // spacing the window exists to keep. Half a send interval is under the
+    // healthy cadence on any uptime, and is negative on a young clock, so this
+    // exercises the sentinel wherever it is exercisable.
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+    tm.record_session();
+    REQUIRE(tm.queue_size() > 0);
+
+    const auto half_a_window =
+        std::chrono::steady_clock::now() - (TelemetryManager::SEND_INTERVAL / 2);
+    TelemetryManagerTestAccess::set_last_send_time(tm, half_a_window);
+    TelemetryManagerTestAccess::set_backoff(tm, 1);
+
+    tm.try_send();
+
+    REQUIRE(TelemetryManagerTestAccess::last_send_time(tm) == half_a_window);
+}
+
 // ============================================================================
 // Singleton behavior [telemetry]
 // ============================================================================

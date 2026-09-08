@@ -916,8 +916,7 @@ void TelemetryManager::try_send(bool force) {
     int backoff = backoff_multiplier_.load();
     auto interval = next_attempt_delay(backoff);
 
-    if (!force && last_send_time_.time_since_epoch().count() > 0 &&
-        now - last_send_time_ < interval) {
+    if (!force && send_attempted_ && now - last_send_time_ < interval) {
         spdlog::debug("[TelemetryManager] try_send: too soon (backoff={}x), skipping", backoff);
         return;
     }
@@ -933,6 +932,7 @@ void TelemetryManager::try_send(bool force) {
     }
 
     last_send_time_ = now;
+    send_attempted_ = true;
 
     spdlog::info("[TelemetryManager] Sending batch of {} events", batch.size());
 

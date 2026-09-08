@@ -47,6 +47,7 @@ class TelemetryManagerTestAccess {
     static void set_last_send_time(TelemetryManager& t,
                                    std::chrono::steady_clock::time_point when) {
         t.last_send_time_ = when;
+        t.send_attempted_ = true;
     }
 
     /// try_send() stamps this when it clears the interval gate and leaves it
