@@ -40,3 +40,51 @@ TEST_CASE("token table matches runtime scan (suffix maps)", "[theme][tokens]") {
         }
     }
 }
+
+TEST_CASE("uncovered token types still reach the live scanner", "[theme][tokens]") {
+    // ui_xml defines <str>, <int> and <percentage> tokens that the generator
+    // does not emit, so the table holds nothing for them and a scan is the only
+    // source of an answer.
+    for (const char* type : {"str", "int", "percentage"}) {
+        INFO("type=" << type);
+        REQUIRE_FALSE(helix::theme_tokens::covers(type));
+        REQUIRE_FALSE(theme_manager_parse_all_xml_for_element("ui_xml", type).empty());
+    }
+
+    // The three the table does carry, so the fast path is reachable at all.
+    for (const char* type : TYPES) {
+        INFO("type=" << type);
+        REQUIRE(helix::theme_tokens::covers(type));
+    }
+}
+
+TEST_CASE("the table answers only covered types in the canonical dir", "[theme][tokens]") {
+    // enabled() is false in every test build, so the aggregation guard's own
+    // behaviour is only reachable through the pure predicate. Each term below
+    // is a way the fast path could wrongly answer from the table.
+    using helix::theme_tokens::answers_from_table;
+    const char* canonical = "ui_xml";
+
+    for (const char* type : TYPES) {
+        INFO("type=" << type);
+        REQUIRE(answers_from_table(true, type, canonical, canonical));
+    }
+
+    // Answering these from the table returns an empty map, not the ~300 tokens
+    // ui_xml actually defines for them.
+    for (const char* type : {"str", "int", "percentage"}) {
+        INFO("type=" << type);
+        REQUIRE_FALSE(answers_from_table(true, type, canonical, canonical));
+    }
+
+    // A caller naming another directory wants that directory scanned.
+    REQUIRE_FALSE(answers_from_table(true, "color", "/tmp/some-other-dir", canonical));
+
+    // Disabled scans regardless.
+    REQUIRE_FALSE(answers_from_table(false, "color", canonical, canonical));
+
+    // No input is trusted to be non-null.
+    REQUIRE_FALSE(answers_from_table(true, nullptr, canonical, canonical));
+    REQUIRE_FALSE(answers_from_table(true, "color", nullptr, canonical));
+    REQUIRE_FALSE(answers_from_table(true, "color", canonical, nullptr));
+}

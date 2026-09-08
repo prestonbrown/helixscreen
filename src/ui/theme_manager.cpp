@@ -3054,10 +3054,10 @@ std::vector<std::string> theme_manager_find_xml_files(const char* directory) {
 std::unordered_map<std::string, std::string>
 theme_manager_parse_all_xml_for_element(const char* directory, const char* element_type) {
     // Build-time token table: skip the ~28-scan boot storm when the table is
-    // enabled and the caller wants the canonical ui_xml dir (tests and
-    // alternate dirs always scan live).
-    if (helix::theme_tokens::enabled() && directory &&
-        std::strcmp(directory, tm_ui_xml_dir()) == 0) {
+    // enabled, carries this element type, and the caller wants the canonical
+    // ui_xml dir (tests, alternate dirs and uncovered types always scan live).
+    if (helix::theme_tokens::answers_from_table(helix::theme_tokens::enabled(), element_type,
+                                                directory, tm_ui_xml_dir())) {
         return helix::theme_tokens::for_element(element_type);
     }
     std::unordered_map<std::string, std::string> token_values;
@@ -3072,8 +3072,8 @@ std::unordered_map<std::string, std::string>
 theme_manager_parse_all_xml_for_suffix(const char* directory, const char* element_type,
                                        const char* suffix) {
     // Build-time token table: same fast-path guard as _for_element above.
-    if (helix::theme_tokens::enabled() && directory &&
-        std::strcmp(directory, tm_ui_xml_dir()) == 0) {
+    if (helix::theme_tokens::answers_from_table(helix::theme_tokens::enabled(), element_type,
+                                                directory, tm_ui_xml_dir())) {
         return helix::theme_tokens::for_suffix(element_type, suffix);
     }
 
