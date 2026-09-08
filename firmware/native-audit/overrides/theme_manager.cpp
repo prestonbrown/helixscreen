@@ -72,6 +72,7 @@ static UiBreakpoint compute_breakpoint_from_height(int32_t ver_res) {
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
@@ -368,6 +369,22 @@ lv_color_t theme_manager_get_contrast_color(lv_color_t bg_color) {
     // Dark background needs light text (dark palette has light-colored text for readability)
     // Light background needs dark text (light palette has dark-colored text for readability)
     return (brightness < 140) ? tm.dark_palette().text : tm.light_palette().text;
+}
+
+/// WCAG relative luminance of one 8-bit channel.
+static double srgb_channel_luminance(uint8_t v) {
+    const double c = v / 255.0;
+    return (c <= 0.03928) ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
+}
+
+lv_color_t theme_manager_get_readable_on(lv_color_t fill) {
+    const double lum = 0.2126 * srgb_channel_luminance(fill.red) +
+                       0.7152 * srgb_channel_luminance(fill.green) +
+                       0.0722 * srgb_channel_luminance(fill.blue);
+    // Contrast against white is (1.05 / (lum + 0.05)); against black it is
+    // ((lum + 0.05) / 0.05). They cross where lum == sqrt(1.05 * 0.05) - 0.05.
+    constexpr double kCrossover = 0.1791; // sqrt(0.0525) - 0.05
+    return (lum > kCrossover) ? lv_color_hex(0x000000) : lv_color_hex(0xFFFFFF);
 }
 
 // ============================================================================

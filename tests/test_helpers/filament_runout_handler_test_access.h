@@ -23,6 +23,16 @@ class FilamentRunoutHandlerTestAccess {
     static void dispatch_purge(FilamentRunoutHandler& handler) {
         handler.dispatch_purge();
     }
+    /// Raises the real guidance dialog with its real button callbacks wired, so
+    /// a test can press Cancel Print rather than call a dispatch helper. The
+    /// cancel path has no private dispatch method of its own - its whole
+    /// behaviour is the callback wired here plus the confirmation it raises.
+    static void show_guidance_modal(FilamentRunoutHandler& handler) {
+        handler.show_runout_guidance_modal();
+    }
+    static RunoutGuidanceModal& guidance_modal(FilamentRunoutHandler& handler) {
+        return handler.runout_modal_;
+    }
 };
 
 } // namespace helix::ui
