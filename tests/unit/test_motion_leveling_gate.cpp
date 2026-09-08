@@ -29,6 +29,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/xml_bind_test_utils.h"
 #include "printer_state.h"
 
 #include <fstream>
@@ -40,27 +41,15 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::ui::UpdateQueue;
+using helix::test::PanelSubjectOwner;
+using helix::test::require_named;
+using helix::test::xml_subject;
 
 namespace {
 
 /// controls_operation_in_progress belongs to ControlsPanel's operation guard,
-/// not to PrinterState, so XMLTestFixture does not publish it. Build the real
-/// owner: a stand-in subject registered under the same name would prove only
-/// that lv_xml resolves a name, not that the panel and the XML agree on one.
-class ControlsPanelSubjects {
-  public:
-    explicit ControlsPanelSubjects(helix::PrinterState& st) : panel_(st, nullptr) {
-        panel_.init_subjects();
-    }
-    ~ControlsPanelSubjects() {
-        panel_.deinit_subjects();
-    }
-    ControlsPanelSubjects(const ControlsPanelSubjects&) = delete;
-    ControlsPanelSubjects& operator=(const ControlsPanelSubjects&) = delete;
-
-  private:
-    ControlsPanel panel_;
-};
+/// not to PrinterState, so XMLTestFixture does not publish it.
+using ControlsPanelSubjects = PanelSubjectOwner<ControlsPanel>;
 
 /// Both leveling buttons carry the same guard, so every case asserts on both.
 constexpr const char* kLevelingButtons[] = {"btn_qgl", "btn_z_tilt"};
@@ -68,23 +57,6 @@ constexpr const char* kLevelingButtons[] = {"btn_qgl", "btn_z_tilt"};
 /// Panels that can be built in-process. See the file header for why the micro
 /// variant is not in this list.
 constexpr const char* kBuildablePanels[] = {"motion_panel", "controls_panel"};
-
-lv_obj_t* require_named(lv_obj_t* root, const char* name) {
-    REQUIRE(root != nullptr);
-    lv_obj_t* found = lv_obj_find_by_name(root, name);
-    INFO("looking for widget named '" << name << "'");
-    REQUIRE(found != nullptr);
-    return found;
-}
-
-/// Fetch a subject from the registry the XML actually binds against, rather
-/// than from a getter that may hand back a different instance.
-lv_subject_t* xml_subject(const char* name) {
-    lv_subject_t* s = lv_xml_get_subject(nullptr, name);
-    INFO("looking for subject '" << name << "'");
-    REQUIRE(s != nullptr);
-    return s;
-}
 
 std::string read_file(const std::string& path) {
     std::ifstream f(path);

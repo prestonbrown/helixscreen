@@ -323,25 +323,22 @@
           <ui_button name="btn_load"
                      height="#button_height" flex_grow="1" icon="arrow_down" text="Load" translation_tag="Load"
                      style_text_font="#font_small" bind_op_state="filament_op_load_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
+            <bind_state_if cond="filament_safety_warning_visible eq 1 or filament_operation_in_progress eq 1 or filament_load_disabled eq 1"
+                           state="disabled"/>
             <event_cb trigger="clicked" callback="on_filament_load"/>
           </ui_button>
           <ui_button name="btn_unload"
                      height="#button_height" flex_grow="1" icon="arrow_up" text="Unload" translation_tag="Unload"
                      style_text_font="#font_small" bind_op_state="filament_op_unload_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+            <bind_state_if cond="filament_safety_warning_visible eq 1 or filament_operation_in_progress eq 1 or filament_unload_disabled eq 1"
+                           state="disabled"/>
             <event_cb trigger="clicked" callback="on_filament_unload"/>
           </ui_button>
           <ui_button name="btn_purge"
                      height="#button_height" flex_grow="1" icon="trash_can_outline" text="Purge" translation_tag="Purge"
                      style_text_font="#font_small" bind_op_state="filament_op_purge_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+            <bind_state_if cond="filament_safety_warning_visible eq 1 or filament_operation_in_progress eq 1 or filament_unload_disabled eq 1"
+                           state="disabled"/>
             <event_cb trigger="clicked" callback="on_filament_purge"/>
           </ui_button>
         </lv_obj>
@@ -376,15 +373,15 @@
           <ui_button name="btn_extrude"
                      height="#button_height" flex_grow="1" icon="arrow_down" text="Extrude" translation_tag="Extrude"
                      style_text_font="#font_small" bind_op_state="filament_op_extrude_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <bind_state_if cond="filament_safety_warning_visible eq 1 or filament_operation_in_progress eq 1"
+                           state="disabled"/>
             <event_cb trigger="clicked" callback="on_filament_extrude"/>
           </ui_button>
           <ui_button name="btn_retract"
                      height="#button_height" flex_grow="1" icon="arrow_up" text="Retract" translation_tag="Retract"
                      style_text_font="#font_small" bind_op_state="filament_op_retract_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <bind_state_if cond="filament_safety_warning_visible eq 1 or filament_operation_in_progress eq 1"
+                           state="disabled"/>
             <event_cb trigger="clicked" callback="on_filament_retract"/>
           </ui_button>
         </lv_obj>
