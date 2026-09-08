@@ -38,8 +38,9 @@
                while a finished or aborted print holds its final number. The
                percentage label below and the linear bars read the same pair
                (prestonbrown/helixscreen#1510). -->
-          <helix_progress_arc name="detailed_progress_arc" width="80" height="80" align="center"
-                              bind_value="print_progress_display" event_bubble="true"/>
+          <helix_progress_arc name="detailed_progress_arc"
+                              width="80" height="80" align="center" bind_value="print_progress_display"
+                              event_bubble="true"/>
           <text_body name="detailed_progress_pct"
                      align="center" bind_text="print_progress_text" clickable="false" event_bubble="true"/>
         </lv_obj>
