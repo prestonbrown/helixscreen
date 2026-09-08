@@ -2085,7 +2085,6 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         s_formatter_->nozzle_target_observer_.reset();
         s_formatter_->tools_version_observer_.reset();
         s_formatter_->active_tool_observer_.reset();
-        s_formatter_->arc_value_observer_.reset();
         s_formatter_->nozzle_temp_lifetime_.reset();
         s_formatter_->nozzle_target_lifetime_.reset();
         s_formatter_->subjects_.deinit_all();
@@ -2143,17 +2142,6 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     update_multi_tool();
     update_tool_label();
 
-    // Arc value observer — keeps lv_arc value in sync with print progress.
-    // arc_widget_ is nulled by an LV_EVENT_DELETE callback registered in
-    // attach_arc(), so a non-null pointer here is always live (L075: no
-    // lv_obj_is_valid in observer cbs).
-    arc_value_observer_ = observe_int_sync<DetailedFormatter>(
-        ps.get_print_progress_subject(), this, [](DetailedFormatter* self, int pct) {
-            if (self->arc_widget_) {
-                lv_arc_set_value(self->arc_widget_, pct);
-            }
-        });
-
     // Idle hero — populate from print history and refresh on history-changed notifications.
     // PrintHistoryManager fires observers on the main thread (defer-wrapped in on_history_fetched),
     // so direct lv_subject_* writes here are safe; no AsyncLifetimeGuard needed.
@@ -2193,7 +2181,6 @@ PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
     nozzle_target_observer_.reset();
     tools_version_observer_.reset();
     active_tool_observer_.reset();
-    arc_value_observer_.reset();
     nozzle_temp_lifetime_.reset();
     nozzle_target_lifetime_.reset();
     subjects_.deinit_all();
@@ -2202,19 +2189,17 @@ PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
 void PrintStatusWidget::DetailedFormatter::attach_arc(lv_obj_t* arc) {
     arc_widget_ = arc;
     if (arc) {
-        // Range + angles + styling come from helix_progress_arc; just seed the
-        // initial value.
-        int pct = lv_subject_get_int(get_printer_state().get_print_progress_subject());
-        lv_arc_set_value(arc, pct);
-        // Null arc_widget_ when LVGL destroys the arc — lets the progress
-        // observer null-check without lv_obj_is_valid (L075). Guard against
-        // the layout-rebuild race: the home panel attaches widget A → detaches A
-        // → attaches B in quick succession; A's deferred LV_EVENT_DELETE fires
-        // AFTER B has already overwritten arc_widget_ with its own arc. An
-        // unconditional null here clobbers B's live arc and leaves the
-        // progress observer with no widget to update — the arc renders the
-        // grey track only, forever. Only clear when the deleted object is
-        // still the one we're tracking.
+        // Range, angles, styling and the value binding all come from the XML
+        // (helix_progress_arc + bind_value="print_progress_display"); this
+        // helper only owns what has no declarative equivalent.
+        //
+        // Null arc_widget_ when LVGL destroys the arc, so resize_arc() cannot
+        // reach a freed object. Guard against the layout-rebuild race: the home
+        // panel attaches widget A → detaches A → attaches B in quick
+        // succession; A's deferred LV_EVENT_DELETE fires AFTER B has already
+        // overwritten arc_widget_ with its own arc. An unconditional null here
+        // clobbers B's live arc and leaves resize_arc() with nothing to fit.
+        // Only clear when the deleted object is still the one we're tracking.
         lv_obj_add_event_cb(
             arc,
             [](lv_event_t* e) {
