@@ -117,8 +117,22 @@ scp build-pi/bin/helix-screen root@<qidi-ip>:/usr/local/bin/
 
 # SSH into the printer and run
 ssh root@<qidi-ip>
+
+# Stop the stock screen FIRST (see below) -- the unit is makerbase-client on
+# firmware 1.1.1 and older, qidi-client on 01.01.02+
+systemctl stop makerbase-client qidi-client
+
 helix-screen
 ```
+
+**Stop the stock screen before running HelixScreen by hand.** `/dev/fb0` is not exclusive and
+HelixScreen does not grab the touchscreen, so a stock screen left running shares both: the two
+UIs paint over each other in the same framebuffer and both act on every touch. Nothing errors,
+which makes it look like a HelixScreen rendering bug rather than two programs on one display.
+
+The one-line installer stops and disables the stock screen for you, and records it so
+`uninstall.sh` puts it back. By hand, `systemctl stop` lasts until reboot; add `systemctl
+disable` to make it stick, and `systemctl enable` to restore the stock UI when you are done.
 
 For verbose output during first-time setup, add `-vv` for DEBUG-level logging:
 
