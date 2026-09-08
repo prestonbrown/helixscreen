@@ -675,6 +675,11 @@ std::atomic<bool> gcode_renderer_loaded{false};
 // The status callback is never invoked.
 void UpdateChecker::refresh_config_snapshot() {}
 void UpdateChecker::check_for_updates(Callback) {}
+// The About overlay seeds its channel rows from the effective channel. This
+// slice has no updater, so the effective channel is always the default.
+UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
+    return UpdateChannel::Stable;
+}
 // Release-channel switch: the real body re-checks and re-stamps the config from
 // the network, which this slice has no updater for.
 void UpdateChecker::on_channel_changed() {}
