@@ -17,6 +17,7 @@
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "display_manager.h"
 #include "first_run_tour.h"
 #include "input_settings_manager.h"
 #include "lock_manager.h"
@@ -255,10 +256,13 @@ void HomePanel::build_carousel() {
         }
     }
 
-    // Create arrow buttons for page navigation
-    // Only shown on SDL (test mode) or resistive touchscreens where swipe is unreliable
-    // TODO: Add proper resistive touch detection; for now use test_mode as proxy for SDL
-    bool show_arrows = get_runtime_config()->test_mode;
+    // Create arrow buttons for page navigation. Shown where a swipe is
+    // unreliable: a mouse-driven SDL window (test mode) and resistive panels,
+    // which are exactly the input devices the display backend classifies as
+    // needing affine calibration.
+    auto* display = DisplayManager::instance();
+    bool show_arrows = get_runtime_config()->test_mode ||
+                       (display != nullptr && display->needs_touch_calibration());
     if (show_arrows) {
         auto arrow_size = theme_manager_get_spacing("button_height");
         auto create_arrow = [&](const char* icon_name, lv_align_t align) -> lv_obj_t* {

@@ -2080,6 +2080,7 @@ translations:
     o serviço esperado — dispositivo incorreto?
   Printer hardware detected: Hardware da impressora detectado
   Printer image set to auto-detect: Imagem da impressora configurada para auto-detectar
+  Printer is busy - {} stays in the queue: 'A impressora está ocupada – {} permanece na fila'
   Printer is not paired — pair it first: A impressora não está pareada — pareie-a
     primeiro
   Printer name: Nome da impressora

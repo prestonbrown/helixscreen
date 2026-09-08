@@ -2075,6 +2075,7 @@ translations:
     il servizio previsto — dispositivo errato?
   Printer hardware detected: Hardware stampante rilevato
   Printer image set to auto-detect: Immagine stampante impostata su rilevamento auto
+  Printer is busy - {} stays in the queue: 'La stampante è occupata – {} resta in coda'
   Printer is not paired — pair it first: La stampante non è associata — associala
     prima
   Printer name: Nome stampante

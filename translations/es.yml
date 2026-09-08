@@ -2078,6 +2078,7 @@ translations:
     el servicio esperado — ¿dispositivo equivocado?
   Printer hardware detected: Hardware de impresora detectado
   Printer image set to auto-detect: Imagen de impresora configurada en auto-detectar
+  Printer is busy - {} stays in the queue: 'La impresora está ocupada: {} permanece en la cola'
   Printer is not paired — pair it first: La impresora no está emparejada — empareja
     primero
   Printer name: Nombre de impresora
