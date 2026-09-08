@@ -86,7 +86,26 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
 
 void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
-                    std::function<void(const std::string& error)> on_error) {
+                    std::function<void(const std::string& error)> on_error, PrinterState* ps) {
+    // Both success paths below (the FIRMWARE_MANAGED early return and the
+    // APPLY -> SAVE_CONFIG chain settled by SaveConfigWatch) funnel through this
+    // wrapper, so the pending Z-offset delta is cleared exactly once, wherever
+    // the save actually completed - including firmware-managed printers, where
+    // the offset is genuinely persisted even though HelixScreen sent nothing.
+    // Only success clears it: a delta dropped after a failed save would tell the
+    // user an offset is persisted when it is not.
+    //
+    // Main thread only, which both paths satisfy - the early return is on the
+    // caller's thread and SaveConfigWatch settles from its klippy observer.
+    auto on_saved = [ps, on_success = std::move(on_success)]() {
+        if (ps) {
+            ps->clear_pending_z_offset_delta();
+        }
+        if (on_success) {
+            on_success();
+        }
+    };
+
     if (!api) {
         spdlog::error("[ZOffsetUtils] apply_and_save called with null API");
         if (on_error)
@@ -97,8 +116,7 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Firmware/macros handle persistence — nothing for us to do
         spdlog::debug("[ZOffsetUtils] apply_and_save: firmware_managed strategy — auto-saved");
-        if (on_success)
-            on_success();
+        on_saved();
         return;
     }
 
@@ -118,7 +136,7 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
     // callback body, where that hand-off looks like logging and nothing else.
     api->execute_gcode(
         apply_cmd,
-        [api, apply_cmd, &save_watch, on_success, on_error]() {
+        [api, apply_cmd, &save_watch, on_saved, on_error]() {
             spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
 
             // The watch owns the whole SAVE_CONFIG contract: it arms the
@@ -130,7 +148,7 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
             // This callback lands on the WebSocket thread and begin() installs an
             // observer, hence the _from_background form.
             save_watch.begin_from_background(
-                api, "Saving config... Klipper will restart.", on_success,
+                api, "Saving config... Klipper will restart.", on_saved,
                 [on_error](const std::string& err) {
                     // Log in English (developer-facing), hand the user a
                     // translated copy. The message used to be one bare

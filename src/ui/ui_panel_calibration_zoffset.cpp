@@ -754,7 +754,8 @@ void ZOffsetCalibrationPanel::send_accept() {
                         accept_token.defer(
                             "ZOffsetCalibrationPanel::on_calibration_result(accept_save_fail)",
                             [this, msg = std::move(msg)]() { on_calibration_result(false, msg); });
-                    });
+                    },
+                    &get_printer_state());
             },
             [this, token = lifetime_.token()](const MoonrakerError& err) {
                 // No bg-thread token.expired() — token.defer() gates on the main thread (L081).

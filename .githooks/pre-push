@@ -109,8 +109,14 @@ for submodule_path in "$REPO_ROOT"/lib/*/; do
     ln -s "${submodule_path%/}" "$ISOLATED/tree/lib/$submodule_name"
 done
 
+# Patch drift describes a working tree, not a commit. The throwaway checkout
+# borrows lib/ from the primary tree above, so its submodules carry whatever
+# patches the primary tree's branch applied; measured against a different
+# branch's patches/ that reads as drift neither tree is guilty of, and the push
+# is rejected for a mismatch the pusher cannot fix from here. Ask it below,
+# where lib/ is owned rather than borrowed.
 STATUS=0
-( cd "$ISOLATED/tree" && ./scripts/quality-checks.sh ) || STATUS=$?
+( cd "$ISOLATED/tree" && HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh ) || STATUS=$?
 
 doc_anchor_advisory
 
@@ -118,6 +124,17 @@ if [ "$STATUS" -ne 0 ]; then
     echo ""
     echo "❌ The sweep failed against the commit you are pushing, not against your"
     echo "   working tree - so this is a real finding in ${TARGET:0:9}."
+fi
+
+if [ -f "$REPO_ROOT/scripts/check_patch_drift.py" ]; then
+    echo ""
+    echo "🩹 Checking patch drift in your working tree (it owns lib/)..."
+    if ! ( cd "$REPO_ROOT" && python3 scripts/check_patch_drift.py ); then
+        echo ""
+        echo "❌ Patch drift is in YOUR WORKING TREE, not in ${TARGET:0:9}."
+        echo "   Repair it where it lives:  make reapply-patches"
+        STATUS=1
+    fi
 fi
 
 exit "$STATUS"

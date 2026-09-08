@@ -143,6 +143,56 @@ setup() {
     ! grep -v '@@""HELIX_USER""@@' "$BATS_TEST_TMPDIR/test.service" | grep -q '@@'
 }
 
+# --- Platform hook invocation ---
+#
+# The hook contract is shared with the SysV init script, which calls
+# platform_stop_competing_uis on every start. A systemd platform whose unit
+# never calls it leaves a vendor stock UI running against HelixScreen.
+
+@test "service template sources the platform hooks in ExecStartPre" {
+    grep -q 'ExecStartPre=.*platform/hooks.sh' "$SERVICE_TEMPLATE"
+}
+
+@test "service template calls platform_stop_competing_uis in ExecStartPre" {
+    grep -q 'ExecStartPre=.*platform_stop_competing_uis' "$SERVICE_TEMPLATE"
+}
+
+@test "platform hook ExecStartPre runs as root" {
+    # Stopping a vendor unit needs privilege, so the line must carry the +
+    # prefix that exempts it from User=.
+    grep 'platform_stop_competing_uis' "$SERVICE_TEMPLATE" | grep -q 'ExecStartPre=+'
+}
+
+@test "platform hook ExecStartPre survives a missing hooks file" {
+    # Platforms that ship no hook file must not fail the unit's start. Run the
+    # template's own command body against an install dir that has no hooks.sh.
+    local body
+    body=$(grep 'platform_stop_competing_uis' "$SERVICE_TEMPLATE" \
+           | sed -e "s|^ExecStartPre=+/bin/sh -c '||" -e "s|'$||" \
+                 -e "s|@@INSTALL_DIR@@|$BATS_TEST_TMPDIR/nonexistent|g")
+    [ -n "$body" ]
+
+    run sh -c "$body"
+    [ "$status" -eq 0 ]
+}
+
+@test "platform hook ExecStartPre calls the hook a platform does define" {
+    local hooks_dir="$BATS_TEST_TMPDIR/inst/platform"
+    mkdir -p "$hooks_dir"
+    cat > "$hooks_dir/hooks.sh" <<EOF
+platform_stop_competing_uis() { echo ran > "$BATS_TEST_TMPDIR/ran"; }
+EOF
+
+    local body
+    body=$(grep 'platform_stop_competing_uis' "$SERVICE_TEMPLATE" \
+           | sed -e "s|^ExecStartPre=+/bin/sh -c '||" -e "s|'$||" \
+                 -e "s|@@INSTALL_DIR@@|$BATS_TEST_TMPDIR/inst|g")
+
+    run sh -c "$body"
+    [ "$status" -eq 0 ]
+    grep -q ran "$BATS_TEST_TMPDIR/ran"
+}
+
 # --- Update watcher pause/resume (#470) ---
 
 @test "service template stops update watcher in ExecStartPre" {
