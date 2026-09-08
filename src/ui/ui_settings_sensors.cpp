@@ -15,6 +15,7 @@
 
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
+#include "chamber_assignment_options.h"
 #include "color_sensor_manager.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -734,6 +735,16 @@ void SensorSettingsOverlay::update_temperature_sensor_count() {
 // CHAMBER ASSIGNMENT
 // ============================================================================
 
+namespace {
+
+/// Labels shared by both chamber assignment dropdowns.
+ChamberAssignmentLabels assignment_labels() {
+    return ChamberAssignmentLabels{lv_tr("Auto"), lv_tr("(none detected)"), lv_tr("not detected"),
+                                   lv_tr("None (disable)")};
+}
+
+} // namespace
+
 void SensorSettingsOverlay::populate_chamber_assignment() {
     if (!overlay_root_)
         return;
@@ -744,53 +755,24 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
     // --- Chamber Heater Dropdown ---
     lv_obj_t* heater_dd = lv_obj_find_by_name(overlay_root_, "chamber_heater_dropdown");
     if (heater_dd) {
-        std::string auto_label = lv_tr("Auto");
-        std::string detected = discovery.chamber_heater_name();
-        if (!detected.empty()) {
-            std::string display = detected;
-            if (display.rfind("heater_generic ", 0) == 0) {
-                display = display.substr(15);
-            }
-            auto_label += " (" + display + ")";
-        } else {
-            auto_label += " " + std::string(lv_tr("(none detected)"));
-        }
-
-        std::string options = auto_label;
-        std::vector<std::string> heater_names;
-
+        std::vector<std::string> assignable;
         for (const auto& heater : discovery.heaters()) {
             // Skip bed and extruder heaters — only show generic heaters
             if (heater == "heater_bed" || heater.rfind("extruder", 0) == 0) {
                 continue;
             }
-            std::string display = heater;
-            if (display.rfind("heater_generic ", 0) == 0) {
-                display = display.substr(15);
-            }
-            options += "\n" + display;
-            heater_names.push_back(heater);
+            assignable.push_back(heater);
         }
-        options += "\n" + std::string(lv_tr("None (disable)"));
 
-        lv_dropdown_set_options(heater_dd, options.c_str());
+        auto built = build_chamber_assignment_options(assignable, discovery.chamber_heater_name(),
+                                                      settings.get_chamber_heater_assignment(),
+                                                      "heater_generic ", assignment_labels());
 
-        std::string current = settings.get_chamber_heater_assignment();
-        if (current == "auto") {
-            lv_dropdown_set_selected(heater_dd, 0);
-        } else if (current == "none") {
-            lv_dropdown_set_selected(heater_dd, static_cast<uint32_t>(heater_names.size() + 1));
-        } else {
-            for (size_t i = 0; i < heater_names.size(); i++) {
-                if (heater_names[i] == current) {
-                    lv_dropdown_set_selected(heater_dd, static_cast<uint32_t>(i + 1));
-                    break;
-                }
-            }
-        }
+        lv_dropdown_set_options(heater_dd, built.options.c_str());
+        lv_dropdown_set_selected(heater_dd, built.selected);
 
         // Store heater names for the callback via user_data
-        auto* names = new std::vector<std::string>(std::move(heater_names));
+        auto* names = new std::vector<std::string>(std::move(built.names));
         lv_obj_set_user_data(heater_dd, names);
 
         // Cleanup on delete
@@ -838,49 +820,15 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
     // --- Chamber Sensor Dropdown ---
     lv_obj_t* sensor_dd = lv_obj_find_by_name(overlay_root_, "chamber_sensor_dropdown");
     if (sensor_dd) {
-        std::string auto_label = lv_tr("Auto");
-        std::string detected = discovery.chamber_sensor_name();
-        if (!detected.empty()) {
-            std::string display = detected;
-            if (display.rfind("temperature_sensor ", 0) == 0) {
-                display = display.substr(19);
-            }
-            auto_label += " (" + display + ")";
-        } else {
-            auto_label += " " + std::string(lv_tr("(none detected)"));
-        }
+        auto built = build_chamber_assignment_options(
+            discovery.sensors(), discovery.chamber_sensor_name(),
+            settings.get_chamber_sensor_assignment(), "temperature_sensor ", assignment_labels());
 
-        std::string options = auto_label;
-        std::vector<std::string> sensor_names;
-
-        for (const auto& sensor : discovery.sensors()) {
-            std::string display = sensor;
-            if (display.rfind("temperature_sensor ", 0) == 0) {
-                display = display.substr(19);
-            }
-            options += "\n" + display;
-            sensor_names.push_back(sensor);
-        }
-        options += "\n" + std::string(lv_tr("None (disable)"));
-
-        lv_dropdown_set_options(sensor_dd, options.c_str());
-
-        std::string current = settings.get_chamber_sensor_assignment();
-        if (current == "auto") {
-            lv_dropdown_set_selected(sensor_dd, 0);
-        } else if (current == "none") {
-            lv_dropdown_set_selected(sensor_dd, static_cast<uint32_t>(sensor_names.size() + 1));
-        } else {
-            for (size_t i = 0; i < sensor_names.size(); i++) {
-                if (sensor_names[i] == current) {
-                    lv_dropdown_set_selected(sensor_dd, static_cast<uint32_t>(i + 1));
-                    break;
-                }
-            }
-        }
+        lv_dropdown_set_options(sensor_dd, built.options.c_str());
+        lv_dropdown_set_selected(sensor_dd, built.selected);
 
         // Store sensor names for the callback via user_data
-        auto* names = new std::vector<std::string>(std::move(sensor_names));
+        auto* names = new std::vector<std::string>(std::move(built.names));
         lv_obj_set_user_data(sensor_dd, names);
 
         // Cleanup on delete

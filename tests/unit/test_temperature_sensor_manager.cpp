@@ -20,6 +20,7 @@
 #include "temperature_sensor_manager.h"
 #include "temperature_sensor_types.h"
 
+#include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
 
 #include <vector>
@@ -534,4 +535,86 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture, "TemperatureSensorManager - edge 
         lv_subject_t* subj = mgr().get_temp_subject("temperature_sensor nonexistent");
         REQUIRE(subj == nullptr);
     }
+}
+
+// ============================================================================
+// Chamber Override Log Level
+// ============================================================================
+
+namespace {
+
+/// RAII spdlog capture that keeps each record's level, so "this is not a
+/// warning" is an assertion rather than an intention.
+class OverrideLogCapture {
+  public:
+    OverrideLogCapture() : sink_(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(256)) {
+        logger_ = spdlog::default_logger();
+        prev_level_ = logger_->level();
+        sink_->set_level(spdlog::level::trace);
+        logger_->sinks().push_back(sink_);
+        logger_->set_level(spdlog::level::trace);
+    }
+
+    ~OverrideLogCapture() {
+        auto& sinks = logger_->sinks();
+        for (auto it = sinks.begin(); it != sinks.end(); ++it) {
+            if (*it == sink_) {
+                sinks.erase(it);
+                break;
+            }
+        }
+        logger_->set_level(prev_level_);
+    }
+
+    OverrideLogCapture(const OverrideLogCapture&) = delete;
+    OverrideLogCapture& operator=(const OverrideLogCapture&) = delete;
+
+    /// Levels of every captured record whose text contains @p needle.
+    std::vector<spdlog::level::level_enum> levels_for(const std::string& needle) const {
+        std::vector<spdlog::level::level_enum> out;
+        for (const auto& msg : sink_->last_raw(256)) {
+            std::string text(msg.payload.data(), msg.payload.size());
+            if (text.find(needle) != std::string::npos) {
+                out.push_back(msg.level);
+            }
+        }
+        return out;
+    }
+
+  private:
+    std::shared_ptr<spdlog::sinks::ringbuffer_sink_mt> sink_;
+    std::shared_ptr<spdlog::logger> logger_;
+    spdlog::level::level_enum prev_level_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - unmatched chamber override is not a warning",
+                 "[temperature][chamber][logging]") {
+    // A chamber-named object auto-takes the CHAMBER role. Overriding onto a
+    // different, absent object is what reaches the unmatched branch: without an
+    // incumbent CHAMBER sensor the call early-outs and logs nothing at all.
+    mgr().discover({"temperature_fan chamber_fan", "temperature_sensor mcu_temp"});
+    bool had_chamber = false;
+    for (const auto& config : mgr().get_sensors()) {
+        if (config.role == TemperatureSensorRole::CHAMBER) {
+            had_chamber = true;
+        }
+    }
+    REQUIRE(had_chamber);
+
+    OverrideLogCapture log;
+    mgr().apply_chamber_sensor_override("temperature_sensor chamber_temp");
+
+    // The override names nothing that was discovered, so the role is left unfilled.
+    for (const auto& config : mgr().get_sensors()) {
+        REQUIRE(config.role != TemperatureSensorRole::CHAMBER);
+    }
+
+    // Discovery re-runs on every reconnect, so a warning here repeats forever
+    // for a printer whose config omits the object its preset names.
+    auto levels = log.levels_for("Manual chamber override");
+    REQUIRE(levels.size() == 1);
+    REQUIRE(levels[0] == spdlog::level::debug);
 }

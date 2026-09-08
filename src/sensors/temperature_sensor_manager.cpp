@@ -456,9 +456,13 @@ void TemperatureSensorManager::apply_chamber_sensor_override(const std::string& 
             spdlog::info("[TemperatureSensorManager] Manual chamber sensor override: {}",
                          klipper_name);
         } else {
-            spdlog::warn("[TemperatureSensorManager] Manual chamber override '{}' not found in "
-                         "discovered sensors",
-                         klipper_name);
+            // A configured sensor with no live match is an expected state: presets
+            // seed objects a printer's own config may leave commented out, and this
+            // fires on every discovery pass when it does. Keep it at debug so it
+            // isn't noise; the sensor settings overlay surfaces the stale value.
+            spdlog::debug("[TemperatureSensorManager] Manual chamber override '{}' not found in "
+                          "discovered sensors",
+                          klipper_name);
         }
     }
 

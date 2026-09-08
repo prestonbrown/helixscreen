@@ -126,6 +126,19 @@ class PresetConfigFixture {
         f << preset_json.dump(2);
     }
 
+    /// Copy a preset HelixScreen actually ships into the sandbox, so a test can
+    /// assert on the shipped data rather than on a hand-written stand-in.
+    /// Runs from the repo root, like every other asset-reading test.
+    void copy_shipped_preset(const std::string& name) {
+        fs::path shipped = fs::current_path() / "assets" / "config" / "presets" / (name + ".json");
+        INFO("reading " << shipped.string() << " (tests must run from the repo root)");
+        REQUIRE(fs::exists(shipped));
+        std::error_code ec;
+        fs::copy_file(shipped, fs::path(temp_dir) / "presets" / (name + ".json"),
+                      fs::copy_options::overwrite_existing, ec);
+        REQUIRE_FALSE(ec);
+    }
+
     json& printer_data() {
         return ConfigTestAccess::data(config)["printers"]["default"];
     }
@@ -650,6 +663,40 @@ TEST_CASE_METHOD(PresetConfigFixture,
 
     REQUIRE(data()["display"]["rotate"] == 270);
     REQUIRE(data()["display"]["rotation_probed"] == true);
+
+    TearDown();
+}
+
+// The k1 preset seeds a printer whose stock config leaves the aux fan and the
+// chamber temperature sensor commented out. Naming absent Klipper objects costs
+// the owner a hardware warning to hand-silence and a discovery-time miss on
+// every pass, so the preset must claim neither. mutate-diff does not mutate
+// assets/*.json, which leaves this the only guard over that data.
+TEST_CASE_METHOD(PresetConfigFixture, "k1 preset claims no aux fan and no fixed chamber sensor",
+                 "[config][preset][k1]") {
+    SetUp();
+
+    copy_shipped_preset("k1");
+    REQUIRE(config.apply_preset_file("k1") == true);
+
+    auto& pd = printer_data();
+
+    // resolve_aux_fan() picks the aux slot out of discovered fans at runtime and
+    // prefers a user-commandable one, so a mapping here only ever adds a claim.
+    REQUIRE(pd.contains("fans"));
+    REQUIRE_FALSE(pd["fans"].contains("aux"));
+
+    // "auto" hands the chamber sensor to discovery; "" would mean "no chamber".
+    REQUIRE(pd["temp_sensors"]["chamber"] == "auto");
+
+    // The exhaust fan is a live role feeding the fan UI and stays mapped.
+    REQUIRE(pd["fans"]["exhaust"] == "output_pin fan2");
+
+    // Nothing the preset expects may name an object it no longer maps.
+    for (const auto& expected : pd["hardware"]["expected"]) {
+        REQUIRE(expected.get<std::string>() != "output_pin fan1");
+        REQUIRE(expected.get<std::string>() != "temperature_sensor chamber_temp");
+    }
 
     TearDown();
 }
