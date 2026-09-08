@@ -35,24 +35,44 @@ diff --git a/src/core/lv_obj_event.c b/src/core/lv_obj_event.c
 diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 --- a/src/misc/lv_event.c
 +++ b/src/misc/lv_event.c
-@@ -17,6 +17,12 @@
- /* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
+@@ -18,6 +18,12 @@
   * to TelemetryManager with a hex backtrace. Weak so unit tests link without it. */
  extern void helix_lvgl_anomaly(const char * code, const char * context) __attribute__((weak));
-+
+ 
 +/* HelixScreen: bridge to the binary's text segment bounds, populated by
 + * crash_handler::install(). Used by the dispatch-cb gate below to detect a
 + * corrupted dsc->cb pointer (heap address instead of text). Weak so non-
 + * helixscreen builds (splash/watchdog/tests) link without it. */
 +extern int helix_get_text_bounds(unsigned long * lo, unsigned long * hi) __attribute__((weak));
-
++
  /*********************
   *      DEFINES
-@@ -213,6 +219,36 @@ lv_result_t lv_event_send(lv_event_list_t * list, lv_event_t * e, bool preprocess)
-             e->user_data = dsc->user_data;
+  *********************/
+@@ -196,6 +202,19 @@
+     const uint32_t size = event_array_size(list);
+     for(uint32_t i = 0; i < size && !e->deleted; i++) {
+         lv_event_dsc_t * dsc = *event_array_at(list, i);
++        /* HelixScreen: a torn (NULL) list entry has to surface as an anomaly
++         * naming the widget and slot rather than a fault at address 0. Skip
++         * it so the remaining callbacks still run. This treats the symptom;
++         * whatever corrupted the list is not addressed here. */
++        if(dsc == NULL) {
++            if(helix_lvgl_anomaly) {
++                char ctx[96];
++                snprintf(ctx, sizeof(ctx), "obj=%p i=%u code=%d",
++                         (void *)e->current_target, (unsigned)i, (int)e->code);
++                helix_lvgl_anomaly("event_dsc_null", ctx);
++            }
++            continue;
++        }
+         if(dsc->cb == NULL) continue;
+         if(event_is_marked_deleting(dsc)) continue;
+         const bool is_preprocessed = (dsc->filter & LV_EVENT_PREPROCESS) != 0;
+@@ -206,7 +225,37 @@
  #if LV_USE_EXT_DATA
              e->ext_data.data = dsc->ext_data.data;
  #endif
+-            dsc->cb(e);
 +            /* HelixScreen: gate dsc->cb against the binary's text segment.
 +             * Bundle 3XNZQB2R crashed at the call below via R3==PC indirect
 +             * call to a heap address — the per-widget event_dsc_t->cb slot
@@ -83,7 +103,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 +                    continue;
 +                }
 +            }
--            dsc->cb(e);
 +            cb_snap(e);
              if(e->stop_processing) break;
-
+ 
+             /*Stop if the object is deleted*/
