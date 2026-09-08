@@ -29,6 +29,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Configure apt to retry on transient network errors (deb.debian.org resets)
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 
+# Bullseye is past end of life: deb.debian.org still advertises bullseye-security
+# but serves an expired Release file and 404s the .deb files that index lists,
+# and archive.debian.org carries no bullseye-security at all. The base image
+# ships commented snapshot.debian.org sources pinned to its own build date, and
+# those hold exactly the package set the image was built from. Snapshot Release
+# files are historical, so the Valid-Until check comes off with them.
+RUN grep -q '^# deb http://snapshot\.debian\.org' /etc/apt/sources.list \
+      || { echo "base image does not ship snapshot.debian.org sources"; exit 1; }; \
+    sed -i -e 's|^deb http://deb\.debian\.org|# deb http://deb.debian.org|' \
+           -e 's|^# deb http://snapshot\.debian\.org|deb http://snapshot.debian.org|' \
+           /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/80-eol-suite
+
 # Install build dependencies
 # Note: autotools required for building libnl submodule
 # NOTE: nlohmann-json is bundled with libhv (lib/libhv/cpputil/json.hpp)
