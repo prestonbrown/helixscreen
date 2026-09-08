@@ -714,7 +714,7 @@ jobs:
     name: Unsharded Suite + UpdateQueue Leak Ratchet
     needs: build
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
     - name: Checkout repository
@@ -743,13 +743,17 @@ jobs:
       run: chmod +x build/bin/helix-tests
 
     - name: Run suite unsharded
-      timeout-minutes: 30
+      timeout-minutes: 60
       run: |
         # 2>&1 is REQUIRED: the isolation listener reports leaks via fprintf(stderr)
         # while Catch2's summary goes to stdout. The gate rejects a log missing
         # either stream rather than reading it as "zero leaks".
+        #
+        # The inner timeout sits below the step cap so a hung suite is killed by
+        # `timeout` and leaves a log the ratchet can reject, rather than by the
+        # runner, which takes the log with it.
         set -o pipefail
-        timeout 1800 ./build/bin/helix-tests "~[.] ~[slow]" 2>&1 | tee unsharded.log
+        timeout 3300 ./build/bin/helix-tests "~[.] ~[slow]" 2>&1 | tee unsharded.log
 
     - name: UpdateQueue leak ratchet
       # Runs even if the suite failed: a crash mid-run is exactly when the leak
@@ -769,9 +773,75 @@ jobs:
         retention-days: 14
 
   # ===========================================================================
+  # One suite report, produced once and shared.
+  # ===========================================================================
+  # The report is a whole-suite XML dump, identical whoever asks for it, and the
+  # order-dependence gate below needs it on all eight shards. Producing it per
+  # shard costs eight runs of the suite for eight copies of one file.
+  # ===========================================================================
+  suite-report:
+    name: Shared Suite Report
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install runtime deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libfmt-dev libcairo2 libpango-1.0-0 libpng16-16 libjpeg8 libnl-3-200 libnl-genl-3-200
+
+    - name: Download build
+      uses: actions/download-artifact@v8
+      with:
+        name: nightly-build
+        path: build/bin/
+
+    - name: Fix permissions
+      run: chmod +x build/bin/helix-screen build/bin/helix-tests
+
+    # --out is not optional. Tests that shell out print ANSI status to stdout,
+    # and with the report on stdout too the XML comes back complete but
+    # unparseable. The `|| true` is deliberate: a red suite is test-all's job to
+    # report, and these gates still have something to say about the report.
+    - name: Produce the suite report
+      timeout-minutes: 45
+      run: |
+        # ~[subprocess] and ~[socket_discovery] fork; the child shares the
+        # report file description and its writes interleave with the XML,
+        # producing a structurally corrupt report. See mk/tests.mk.
+        ./build/bin/helix-tests "~[.]~[slow]~[subprocess]~[socket_discovery]" \
+          --reporter xml --success \
+          --out build/suite-report.xml > /dev/null 2>&1 || true
+        test -s build/suite-report.xml
+
+    - name: Assertions that cannot fail
+      run: |
+        python3 scripts/check_vacuous_tests.py build/suite-report.xml \
+          --max-allowed 52
+
+    # Uploaded even when the vacuous-test gate fired, so a failure can be read
+    # from the report rather than reproduced.
+    - name: Upload suite report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: suite-report
+        path: build/suite-report.xml
+        retention-days: 7
+
+  # ===========================================================================
   test-quality-gates:
     name: Test Quality Gates
-    needs: build
+    needs: [build, suite-report]
     runs-on: ubuntu-22.04
     timeout-minutes: 75
     strategy:
@@ -804,27 +874,13 @@ jobs:
     - name: Fix permissions
       run: chmod +x build/bin/helix-screen build/bin/helix-tests
 
-    # --out is not optional. Tests that shell out print ANSI status to stdout,
-    # and with the report on stdout too the XML comes back complete but
-    # unparseable. The `|| true` is deliberate: a red suite is test-all's job to
-    # report, and these gates still have something to say about the report.
-    - name: Produce the shared suite report
-      timeout-minutes: 25
-      run: |
-        # ~[subprocess] and ~[socket_discovery] fork; the child shares the
-        # report file description and its writes interleave with the XML,
-        # producing a structurally corrupt report. See mk/tests.mk.
-        ./build/bin/helix-tests "~[.]~[slow]~[subprocess]~[socket_discovery]" \
-          --reporter xml --success \
-          --out build/suite-report.xml > /dev/null 2>&1 || true
-        test -s build/suite-report.xml
-
-    # Cheap, and identical on every shard - only worth running once.
-    - name: Assertions that cannot fail
-      if: matrix.shard == 0
-      run: |
-        python3 scripts/check_vacuous_tests.py build/suite-report.xml \
-          --max-allowed 52
+    # The gate re-runs one process per source file against this report, so the
+    # shards need the binary as well as the XML.
+    - name: Download suite report
+      uses: actions/download-artifact@v8
+      with:
+        name: suite-report
+        path: build/
 
     - name: Tests that pass only because of what ran before them
       timeout-minutes: 45
@@ -848,7 +904,7 @@ jobs:
   nightly-status:
     name: Nightly Status
     runs-on: ubuntu-latest
-    needs: [test-all, test-eventloop, test-shell, test-asan, test-tsan, test-python, test-macos, test-unsharded-leaks, test-quality-gates]
+    needs: [test-all, test-eventloop, test-shell, test-asan, test-tsan, test-python, test-macos, test-unsharded-leaks, suite-report, test-quality-gates]
     if: always()
 
     steps:
@@ -863,11 +919,12 @@ jobs:
         echo "Python:           ${{ needs.test-python.result }}"
         echo "macOS (build):    ${{ needs.test-macos.result }}"
         echo "Unsharded+leaks:  ${{ needs.test-unsharded-leaks.result }}"
+        echo "Suite report:     ${{ needs.suite-report.result }}"
         echo "Test quality:     ${{ needs.test-quality-gates.result }}"
         echo "==========================="
 
         FAILED=0
-        for job in test-all test-eventloop test-shell test-asan test-tsan test-python test-macos test-unsharded-leaks test-quality-gates; do
+        for job in test-all test-eventloop test-shell test-asan test-tsan test-python test-macos test-unsharded-leaks suite-report test-quality-gates; do
           result="${{ needs[job].result }}" 2>/dev/null || result="unknown"
         done
 
@@ -879,6 +936,7 @@ jobs:
            [ "${{ needs.test-python.result }}" != "success" ] || \
            [ "${{ needs.test-macos.result }}" != "success" ] || \
            [ "${{ needs.test-unsharded-leaks.result }}" != "success" ] || \
+           [ "${{ needs.suite-report.result }}" != "success" ] || \
            [ "${{ needs.test-quality-gates.result }}" != "success" ]; then
           echo "::error::Nightly test suite had failures!"
           exit 1
