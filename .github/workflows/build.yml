@@ -2,7 +2,13 @@ name: Build
 
 on:
   push:
-    branches: [ main, "claude/**", "release/**" ]
+    branches:
+      - main
+      - "claude/**"
+      # Report branches carry a worker's STATUS.md over a full tree. Nothing
+      # in them is code, and each push otherwise queues a whole build.
+      - "!claude/report-*"
+      - "release/**"
   pull_request:
     branches: [ main, "release/**" ]
 

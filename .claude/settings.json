@@ -68,5 +68,19 @@
     "deny": [],
     "ask": []
   },
-  "outputStyle": "~/.claude/output-styles/real.md"
+  "outputStyle": "~/.claude/output-styles/real.md",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "scripts/cloud/session-start.sh",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
 }
