@@ -15,7 +15,28 @@ _HELIX_COMPETING_UIS_SOURCED=1
 # firmware 01.01.02+: systemd unit `qidi-client` runs the `qidiclient` binary with
 # Restart=always, so the systemd stop+disable in the loop below is what actually keeps it
 # down; the bare `qidiclient` entry is the process-kill backstop) (#1047).
-COMPETING_UIS="guppyscreen GuppyScreen grumpyscreen Grumpyscreen KlipperScreen klipperscreen featherscreen FeatherScreen mksclient qidi-client qidiclient"
+# `makerbase-client` is the stock screen unit on QIDI firmware 1.1.1 and older;
+# the loop is is-active gated, so it is a no-op on a host that does not run it.
+COMPETING_UIS="guppyscreen GuppyScreen grumpyscreen Grumpyscreen KlipperScreen klipperscreen featherscreen FeatherScreen mksclient qidi-client qidiclient makerbase-client"
+
+# The stock screen unit is `makerbase-client` on firmware 1.1.1 and older and
+# `qidi-client` on 01.01.02+, and both are in COMPETING_UIS above. Two shapes
+# stay out of a name list's reach:
+#
+#   - The unit runs /home/<klipper-user>/QD_Q2/bin/client, which outlives the
+#     unit as a bare process. Its basename is `client`, so pidof would match
+#     unrelated processes on a general-purpose SBC; it is matched by full path.
+#   - A unit a later firmware renames still has to exec a QIDI path, so units
+#     are discovered by what their ExecStart runs rather than by what they are
+#     called. This arm is not is-active gated, so a stock screen that is enabled
+#     but stopped is disabled too instead of returning at the next boot, and it
+#     folds case because a unit name's capitalisation is the vendor's to change.
+#
+# Nothing either arm matches can exist off a QIDI box, so the handler needs no
+# hostname gate. Both arms are reversible and recorded, so uninstall's
+# reenable_disabled_services() puts the stock screen back.
+QIDI_STOCK_UI_BINS="/home/mks/QD_Q2/bin/client /home/qidi/QD_Q2/bin/client"
+QIDI_STOCK_UI_EXEC_PATTERN='QD_Q2|qidiclient|qidi-client|makerbase-client'
 
 # Wayland compositors that hold the DRM/KMS master. On Armbian/Pi-class boards
 # (e.g. BTT CB1) KlipperScreen commonly runs *inside* one of these; the
@@ -164,6 +185,38 @@ stop_sovol_competing_uis() {
     if [ -e /sys/class/gpio/gpio67 ]; then
         echo 67 > /sys/class/gpio/unexport 2>/dev/null || true
     fi
+}
+
+# Stop the QIDI stock screen in the two shapes COMPETING_UIS cannot name.
+# Sets found_any in the caller's scope, like the sibling handlers.
+stop_qidi_competing_uis() {
+    local bin unit unit_path
+
+    for bin in $QIDI_STOCK_UI_BINS; do
+        [ -f "$bin" ] || continue
+        log_info "Stopping stock QIDI UI ($bin)..."
+        kill_process_by_path "$bin" || true
+        # Persistent disable: without the execute bit whatever launches it at
+        # boot fails to exec. Recorded so uninstall's chmod +x restores it.
+        $SUDO chmod a-x "$bin" 2>/dev/null || true
+        record_disabled_service "sysv-chmod" "$bin"
+        found_any=true
+    done
+
+    for unit_path in /etc/systemd/system/*.service /lib/systemd/system/*.service; do
+        [ -f "$unit_path" ] || continue
+        unit=$(basename "$unit_path")
+        # Our own unit runs out of an install directory that can sit under the
+        # same home as the stock UI, so its ExecStart matches the pattern too.
+        case "$unit" in ${SERVICE_NAME:-helixscreen}*) continue ;; esac
+        grep -E '^ExecStart=' "$unit_path" 2>/dev/null \
+            | grep -qiE "$QIDI_STOCK_UI_EXEC_PATTERN" || continue
+        log_info "Stopping stock QIDI UI unit ($unit)..."
+        $SUDO systemctl stop "$unit" 2>/dev/null || true
+        $SUDO systemctl disable "$unit" 2>/dev/null || true
+        record_disabled_service "systemd" "$unit"
+        found_any=true
+    done
 }
 
 # Ensure SSH (dropbear) is running and will start on boot.
@@ -400,6 +453,10 @@ stop_competing_uis() {
     if [ -f /home/sovol/printer_data/build/mksclient ] || ls /home/*/printer_data/build/mksclient >/dev/null 2>&1; then
         stop_sovol_competing_uis
     fi
+
+    # QIDI: the generic loop below covers the 01.01.02+ unit names; this reaches
+    # the path-named 1.1.x binary and any unit a later firmware renames.
+    stop_qidi_competing_uis
 
     # CC1 / COSMOS: use gui-switcher handoff instead of disabling peers.
     # Early-return so the generic loop below doesn't chmod out grumpyscreen/guppyscreen/atomscreen.

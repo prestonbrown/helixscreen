@@ -409,6 +409,41 @@ cleanup_on_success() {
     fi
 }
 
+# Kill the process(es) running one exact executable path.
+# A stock UI whose binary has a generic basename cannot go through
+# kill_process_by_name: the QIDI Q2's stock screen is literally `client`, and
+# `pidof client` on a general-purpose SBC matches whatever else answers to that
+# name. Resolving /proc/<pid>/exe identifies the binary instead of trusting its
+# name. SIGTERM first, then SIGKILL any survivor, matching the sibling above.
+# Args: /absolute/path/to/binary
+# Returns: 0 if any process was killed, 1 if none found
+kill_process_by_path() {
+    local target="$1"
+    local killed_any=false
+    local procdir pid exe
+
+    [ -n "$target" ] || return 1
+
+    for procdir in /proc/[0-9]*; do
+        exe=$(readlink "$procdir/exe" 2>/dev/null) || continue
+        [ "$exe" = "$target" ] || continue
+        pid="${procdir#/proc/}"
+        $SUDO kill "$pid" 2>/dev/null || true
+        killed_any=true
+    done
+
+    [ "$killed_any" = true ] || return 1
+
+    sleep 1
+    for procdir in /proc/[0-9]*; do
+        exe=$(readlink "$procdir/exe" 2>/dev/null) || continue
+        [ "$exe" = "$target" ] || continue
+        $SUDO kill -9 "${procdir#/proc/}" 2>/dev/null || true
+    done
+
+    return 0
+}
+
 # Kill process(es) by name — SIGTERM first, then SIGKILL any survivors.
 # helix-watchdog and helix-screen catch SIGTERM but don't always exit (e.g.
 # during splash handoff or when blocked on I/O), so the installer must
