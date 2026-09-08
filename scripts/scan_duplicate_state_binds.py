@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Report widgets whose XML carries two or more bind_state_* writing one state.
+"""Report widgets whose XML carries two or more bind_state_*/bind_flag_* on one target.
 
 LVGL's state observer asserts BOTH polarities on every fire: it adds or removes
 the state unconditionally, based only on its own subject. Two bindings aimed at
@@ -12,6 +12,9 @@ last notifier is the satisfied one.
 The correct form for a union is a single expression binding:
 
     <bind_state_if cond="a eq 1 or b eq 1" state="disabled"/>
+    <bind_flag_if  cond="a eq 1 or b eq 1" flag="hidden"/>
+
+Both families clobber identically; only the attribute naming the target differs.
 
 This is a REPORTING tool, not a gate: it exits 0 whatever it finds, because the
 inventory still needs triage per widget. Some hits may be benign by
@@ -43,8 +46,14 @@ def _parse(path):
     return ET.fromstring(_STATE_QUALIFIED_ATTR.sub(r"\1__\2=", src))
 
 
+# Both families clobber the same way: the observer sets or clears its target
+# unconditionally on every fire, based only on its own subject. The attribute
+# naming the target differs, so each family is tallied against its own key.
+FAMILIES = (("bind_state_", "state"), ("bind_flag_", "flag"))
+
+
 def scan_file(path):
-    """Yield (widget, state, [(tag, subject_or_cond), ...]) for each hit."""
+    """Yield (widget, family, target, [(tag, subject_or_cond), ...]) per hit."""
     try:
         root = _parse(path)
     except (ET.ParseError, OSError, UnicodeDecodeError) as exc:
@@ -56,17 +65,18 @@ def scan_file(path):
     for el in root.iter():
         # Direct children only. A nested widget's bindings are its own, and
         # counting descendants would merge unrelated widgets into one tally.
-        binds = [c for c in el if c.tag.startswith("bind_state_")]
-        counts = Counter(c.get("state") for c in binds if c.get("state"))
-        for state, n in counts.items():
-            if n < 2:
-                continue
-            detail = [
-                (c.tag, c.get("subject") or c.get("cond") or "?")
-                for c in binds
-                if c.get("state") == state
-            ]
-            yield el.get("name") or el.tag, state, detail
+        for prefix, attr in FAMILIES:
+            binds = [c for c in el if c.tag.startswith(prefix)]
+            counts = Counter(c.get(attr) for c in binds if c.get(attr))
+            for target, n in counts.items():
+                if n < 2:
+                    continue
+                detail = [
+                    (c.tag, c.get("subject") or c.get("cond") or "?")
+                    for c in binds
+                    if c.get(attr) == target
+                ]
+                yield el.get("name") or el.tag, attr, target, detail
 
 
 def main():
@@ -79,11 +89,12 @@ def main():
     hits = []
     scanned = 0
     for path in sorted(pathlib.Path(args.root).rglob("*.xml")):
-        for widget, state, detail in scan_file(path):
+        for widget, attr, target, detail in scan_file(path):
             hits.append({
                 "file": str(path),
                 "widget": widget,
-                "state": state,
+                "kind": attr,
+                "target": target,
                 "bindings": [{"tag": t, "on": s} for t, s in detail],
             })
         scanned += 1
@@ -92,11 +103,12 @@ def main():
         print(json.dumps(hits, indent=2))
     else:
         for h in hits:
-            print(f"{h['file']}  <{h['widget']}>  {len(h['bindings'])}x state={h['state']}")
+            print(f"{h['file']}  <{h['widget']}>  "
+                  f"{len(h['bindings'])}x {h['kind']}={h['target']}")
             for b in h["bindings"]:
                 print(f"      {b['tag']}  {b['on']}")
-        print(f"\n{len(hits)} widget(s) with two or more bind_state_* writing one state"
-              f" across {scanned} file(s) scanned")
+        print(f"\n{len(hits)} widget(s) with two or more bind_state_*/bind_flag_* "
+              f"writing one target across {scanned} file(s) scanned")
 
     return 0
 
