@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
   <translation tag="Calibrated" ru="Откалиброван"/>
   <translation tag="Calibrating Probe..." ru="Калибровка зонда..."/>
-  <translation tag="Calibrating T{}..." ru="Калибровка T{}..."/>
   <translation tag="Calibrating bed mesh..." ru="Калибровка сетки стола..."/>
   <translation tag="Calibrating {} axis..." ru="Калибровка оси {}..."/>
   <translation tag="Calibrating..." ru="Калибровка..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" ru="Не удалось переназначить: внутренняя ошибка"/>
   <translation tag="Cannot reprint: not connected to printer" ru="Невозможно перепечатать: не подключено к принтеру"/>
   <translation tag="Cannot restart — no filename" ru="Не удалось перезапустить — нет имени файла"/>
+  <translation tag="Cannot save offsets while printing" ru="Нельзя сохранить смещения во время печати"/>
   <translation tag="Cannot start print: internal error" ru="Невозможно начать печать: внутренняя ошибка"/>
   <translation tag="Cannot start print: not connected to printer" ru="Невозможно начать печать: не подключено к принтеру"/>
   <translation tag="Cannot start print: printer is {}" ru="Невозможно начать печать: принтер {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" ru="Измерение не удалось"/>
   <translation tag="Measuring accelerometer noise..." ru="Измерение шума акселерометра..."/>
   <translation tag="Measuring vibrations... {}%" ru="Измерение вибраций... {}%"/>
-  <translation tag="Measuring... {}s" ru="Измерение... {} с"/>
   <translation tag="Median %.0f Hz" ru="Медиана %.0f Гц"/>
   <translation tag="Memory" ru="Память"/>
   <translation tag="Memory (MB)" ru="Память (МБ)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
+  <translation tag="No tools to calibrate" ru="Нет инструментов для калибровки"/>
   <translation tag="No vendors found" ru="Производители не найдены"/>
   <translation tag="No video player installed - showing the timelapse library" ru="Видеоплеер не установлен – показана библиотека таймлапсов"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." ru="Веб-камера не обнаружена.&#10;Для таймлапса необходима веб-камера."/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." ru="QGL запущен..."/>
   <translation tag="Queue: Paused" ru="Очередь: Пауза"/>
   <translation tag="Queue: Ready" ru="Очередь: Готово"/>
-  <translation tag="Queued" ru="В очереди"/>
   <translation tag="Queued {}h {}m ago" ru="В очереди {} ч {} мин"/>
   <translation tag="Queued {}m ago" ru="В очереди {} мин"/>
   <translation tag="Quick" ru="Быстро"/>

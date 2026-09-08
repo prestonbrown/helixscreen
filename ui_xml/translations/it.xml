@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" it="Calibra il touchscreen per un input preciso"/>
   <translation tag="Calibrated" it="Calibrato"/>
   <translation tag="Calibrating Probe..." it="Calibrazione sonda..."/>
-  <translation tag="Calibrating T{}..." it="Calibrazione di T{}..."/>
   <translation tag="Calibrating bed mesh..." it="Calibrazione mesh piano..."/>
   <translation tag="Calibrating {} axis..." it="Calibrazione dell&apos;asse {}..."/>
   <translation tag="Calibrating..." it="Calibrazione in corso..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" it="Impossibile rimappare: errore interno"/>
   <translation tag="Cannot reprint: not connected to printer" it="Impossibile ristampare: non connesso alla stampante"/>
   <translation tag="Cannot restart — no filename" it="Impossibile riavviare — nessun nome file"/>
+  <translation tag="Cannot save offsets while printing" it="Impossibile salvare gli offset durante la stampa"/>
   <translation tag="Cannot start print: internal error" it="Impossibile avviare stampa: errore interno"/>
   <translation tag="Cannot start print: not connected to printer" it="Impossibile avviare stampa: non connesso alla stampante"/>
   <translation tag="Cannot start print: printer is {}" it="Impossibile avviare stampa: stampante è {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" it="Misurazione fallita"/>
   <translation tag="Measuring accelerometer noise..." it="Misurazione del rumore dell&apos;accelerometro..."/>
   <translation tag="Measuring vibrations... {}%" it="Misurazione delle vibrazioni... {}%"/>
-  <translation tag="Measuring... {}s" it="Misurazione... {}s"/>
   <translation tag="Median %.0f Hz" it="Mediana %.0f Hz"/>
   <translation tag="Memory" it="Memoria"/>
   <translation tag="Memory (MB)" it="Memoria (MB)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" it="Nessuna stampante di destinazione configurata"/>
   <translation tag="No temperature sensors detected" it="Nessun sensore di temperatura rilevato"/>
   <translation tag="No timelapse videos found" it="Nessun video timelapse trovato"/>
+  <translation tag="No tools to calibrate" it="Nessuno strumento da calibrare"/>
   <translation tag="No vendors found" it="Nessun fornitore trovato"/>
   <translation tag="No video player installed - showing the timelapse library" it="Nessun lettore video installato – viene mostrata la libreria timelapse"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." it="Nessuna webcam rilevata.&#10;Una webcam è necessaria per il timelapse."/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." it="QGL avviato..."/>
   <translation tag="Queue: Paused" it="Coda: In pausa"/>
   <translation tag="Queue: Ready" it="Coda: Pronta"/>
-  <translation tag="Queued" it="In coda"/>
   <translation tag="Queued {}h {}m ago" it="In coda da {} h {} min"/>
   <translation tag="Queued {}m ago" it="In coda da {} min"/>
   <translation tag="Quick" it="Rapido"/>

@@ -2,7 +2,6 @@
 #pragma once
 
 #include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "helix/xml/indexed_subject_pool.h"
@@ -13,10 +12,8 @@
 #include "subject_managed_panel.h"
 #include "tool_offset_calibration.h"
 
-#include <array>
 #include <lvgl.h>
 #include <string>
-#include <vector>
 
 /**
  * @file ui_panel_calibration_tool_offset.h
@@ -39,13 +36,12 @@
  * are heated and what the sensor is are the macro's business: nothing here
  * assumes a reference tool, and no sensor position is shown.
  *
- * During a run each row's whole appearance follows one int subject
- * (ToolStep, mirrored 1:1 into tool_cal_state_N): the measuring row
- * highlights in place, later rows read Queued, finished rows read Done.
- * Progress comes from status the app already subscribes to, never from the
- * console: ToolState's active tool says which tool is on the carriage, and a
- * tool whose offsets change during the run has been measured. Both feed
- * helix::tool_offset_calibration::Run.
+ * A run is one blocking gcode, and its completion is the only progress this
+ * screen follows: the status line reads Calibrating until the rpc answers,
+ * and the rows keep showing the offsets as the macro writes them (ToolState
+ * publishes every write). No row says which tool is under the probe: status
+ * only says which tool is mounted, and the tool the macro measures the
+ * others against is mounted without being probed, so the two differ.
  *
  * ## Subject Bindings
  *
@@ -53,8 +49,6 @@
  * - tool_cal_hint (string) - the macro's `description:`, or a built-in note
  * - tool_cal_active (int) - a run is in flight
  * - tool_cal_tool_count (int) - rows the <repeat> builds, one per tool
- * - tool_cal_state_N (int) - ToolStep for tool N
- * - tool_cal_state_text_N (string) - "Queued" / "Measuring... 4s" / "Done" / "Failed"
  * - tool_cal_x_N / _y_N / _z_N (string) - the tool's offsets, mm
  *
  * Save binds ToolState's own any_tool_offset_dirty: an offset the macro wrote
@@ -64,7 +58,9 @@
  *
  * The macro blocks Klipper's gcode queue, so there is no clean cancel: Stop
  * is M112 + FIRMWARE_RESTART, with the disconnect it causes suppressed as an
- * expected one. Tools measured before the stop keep their (unsaved) offsets.
+ * expected one. The restart re-reads printer.cfg, so the offsets measured
+ * before the stop are discarded with it - as the bed mesh and PID panels
+ * discard an interrupted run.
  */
 namespace helix::ui {
 
@@ -118,10 +114,7 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
     // State access for tests
     [[nodiscard]] bool is_calibration_active() const {
-        return run_.active();
-    }
-    [[nodiscard]] const helix::tool_offset_calibration::Run& run() const {
-        return run_;
+        return run_active_;
     }
     lv_subject_t* get_status_subject() {
         return &status_;
@@ -135,20 +128,13 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     lv_subject_t* get_hint_subject() {
         return &hint_;
     }
-    lv_subject_t* get_row_state_subject(int tool) {
-        return row_state_.at(static_cast<size_t>(tool));
-    }
 
   private:
     void on_run_finished(bool ok, const std::string& error);
-    /// Repaint every row from ToolState (values, visibility) and run_ (state)
+    /// Repaint every row from ToolState
     void refresh_rows();
-    void refresh_row_state(int tool);
     void refresh_row_values(int tool);
-    /// ToolState's active tool changed: during a run, that tool is Measuring
-    void on_active_tool_changed(int tool);
-    /// ToolState's tools changed: during a run, a tool whose offsets moved
-    /// since the run began has been measured
+    /// ToolState's tools changed: the rows follow its offsets
     void on_tools_changed();
     /// The rpc timed out under a still-busy printer: finish on the idle edge,
     /// with one more ceiling as the backstop
@@ -162,12 +148,9 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     static void on_stop_clicked(lv_event_t* e);
     static void on_save_clicked(lv_event_t* e);
 
-    helix::tool_offset_calibration::Run run_;
-    /// Every tool's offsets as they stood when the run began, so a change
-    /// during the run reads as "this tool was measured". One entry per tool
-    /// in the run.
-    std::vector<std::array<float, 3>> run_baseline_mm_;
-    std::vector<std::array<bool, 3>> run_baseline_known_;
+    /// A calibration rpc is in flight (or being waited out, see
+    /// begin_idle_wait). Cleared by its completion, a failure, or Stop.
+    bool run_active_ = false;
     /// Text of the failure that ended the last run; empty when it succeeded.
     std::string last_error_;
 
@@ -183,10 +166,6 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     lv_subject_t tool_count_;
 
     // === Per-row subject pools (grow-only; reclaimed when the UI goes) ===
-    helix::xml::IndexedSubjectPool row_state_{"tool_cal_state",
-                                              helix::xml::IndexedSubjectPool::Type::Int};
-    helix::xml::IndexedSubjectPool row_state_text_{"tool_cal_state_text",
-                                                   helix::xml::IndexedSubjectPool::Type::String};
     helix::xml::IndexedSubjectPool row_x_{"tool_cal_x",
                                           helix::xml::IndexedSubjectPool::Type::String, 16};
     helix::xml::IndexedSubjectPool row_y_{"tool_cal_y",
@@ -197,9 +176,6 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     SubjectManager subjects_;
     /// Follows ToolState's tools_version so the values track the printer.
     ObserverGuard tools_observer_;
-    /// Follows ToolState's active tool: the row under the probe during a run.
-    ObserverGuard active_tool_observer_;
-    helix::ui::ElapsedLabelTimer elapsed_;
     helix::ui::SaveConfigWatch save_watch_;
     /// The wait for the busy->idle edge after the rpc ceiling expired under a
     /// macro that was still running (see on_run_rpc_error).

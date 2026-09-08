@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" de="Touchscreen für präzise Eingabe kalibrieren"/>
   <translation tag="Calibrated" de="Kalibriert"/>
   <translation tag="Calibrating Probe..." de="Sonde kalibrieren..."/>
-  <translation tag="Calibrating T{}..." de="Kalibriere T{}..."/>
   <translation tag="Calibrating bed mesh..." de="Bettnetz kalibrieren..."/>
   <translation tag="Calibrating {} axis..." de="Kalibriere Achse {}..."/>
   <translation tag="Calibrating..." de="Kalibriere..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" de="Neuzuordnung nicht möglich: interner Fehler"/>
   <translation tag="Cannot reprint: not connected to printer" de="Nachdruck nicht möglich: nicht mit Drucker verbunden"/>
   <translation tag="Cannot restart — no filename" de="Neustart nicht möglich — kein Dateiname"/>
+  <translation tag="Cannot save offsets while printing" de="Offsets können während des Drucks nicht gespeichert werden"/>
   <translation tag="Cannot start print: internal error" de="Druck kann nicht gestartet werden: interner Fehler"/>
   <translation tag="Cannot start print: not connected to printer" de="Druck kann nicht gestartet werden: nicht mit Drucker verbunden"/>
   <translation tag="Cannot start print: printer is {}" de="Druck kann nicht gestartet werden: Drucker ist {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" de="Messung fehlgeschlagen"/>
   <translation tag="Measuring accelerometer noise..." de="Messe Beschleunigungssensor-Rauschen..."/>
   <translation tag="Measuring vibrations... {}%" de="Messe Vibrationen... {}%"/>
-  <translation tag="Measuring... {}s" de="Messe... {}s"/>
   <translation tag="Median %.0f Hz" de="Median %.0f Hz"/>
   <translation tag="Memory" de="Speicher"/>
   <translation tag="Memory (MB)" de="Speicher (MB)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" de="Kein Zieldrucker konfiguriert"/>
   <translation tag="No temperature sensors detected" de="Keine Temperatursensoren erkannt"/>
   <translation tag="No timelapse videos found" de="Keine Zeitraffer-Videos gefunden"/>
+  <translation tag="No tools to calibrate" de="Keine Werkzeuge zum Kalibrieren"/>
   <translation tag="No vendors found" de="Keine Hersteller gefunden"/>
   <translation tag="No video player installed - showing the timelapse library" de="Kein Videoplayer installiert – Zeitraffer-Bibliothek wird angezeigt"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." de="Keine Webcam erkannt.&#10;Eine Webcam wird für Zeitraffer benötigt."/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." de="Quad Gantry Level gestartet..."/>
   <translation tag="Queue: Paused" de="Warteschlange: Pausiert"/>
   <translation tag="Queue: Ready" de="Warteschlange: Bereit"/>
-  <translation tag="Queued" de="In Warteschlange"/>
   <translation tag="Queued {}h {}m ago" de="Vor {} Std. {} Min. eingereiht"/>
   <translation tag="Queued {}m ago" de="Vor {} Min. eingereiht"/>
   <translation tag="Quick" de="Schnell"/>

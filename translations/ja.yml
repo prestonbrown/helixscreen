@@ -362,7 +362,6 @@ translations:
   Calibrate your touchscreen for accurate input: タッチスクリーンの入力精度をキャリブレートします
   Calibrated: キャリブレーション済み
   Calibrating Probe...: プローブをキャリブレーション中...
-  Calibrating T{}...: T{} をキャリブレート中...
   Calibrating bed mesh...: ベッドメッシュをキャリブレーション中...
   Calibrating {} axis...: '{} 軸をキャリブレーション中...'
   Calibrating...: キャリブレーション中...
@@ -1503,7 +1502,6 @@ translations:
   Measurement Failed: 測定失敗
   Measuring accelerometer noise...: '加速度センサーのノイズを測定中...'
   Measuring vibrations... {}%: '振動を測定中... {}%'
-  Measuring... {}s: 測定中... {}秒
   Median %.0f Hz: 中央値 %.0f Hz
   Memory: メモリ
   Memory (MB): メモリ (MB)
@@ -2021,7 +2019,6 @@ translations:
   Quad Gantry Level started...: QGL を開始しました...
   'Queue: Paused': 'キュー: 一時停止'
   'Queue: Ready': 'キュー: 準備完了'
-  Queued: 待機中
   Queued {}h {}m ago: '{} 時間 {} 分前にキューへ追加'
   Queued {}m ago: '{} 分前にキューへ追加'
   Quick: 簡易

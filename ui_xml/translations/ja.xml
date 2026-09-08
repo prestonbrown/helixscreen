@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
   <translation tag="Calibrated" ja="キャリブレーション済み"/>
   <translation tag="Calibrating Probe..." ja="プローブをキャリブレーション中..."/>
-  <translation tag="Calibrating T{}..." ja="T{} をキャリブレート中..."/>
   <translation tag="Calibrating bed mesh..." ja="ベッドメッシュをキャリブレーション中..."/>
   <translation tag="Calibrating {} axis..." ja="{} 軸をキャリブレーション中..."/>
   <translation tag="Calibrating..." ja="キャリブレーション中..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" ja="リマップできません: 内部エラー"/>
   <translation tag="Cannot reprint: not connected to printer" ja="再印刷できません: プリンター未接続"/>
   <translation tag="Cannot restart — no filename" ja="再起動できません — ファイル名がありません"/>
+  <translation tag="Cannot save offsets while printing" ja="印刷中はオフセットを保存できません"/>
   <translation tag="Cannot start print: internal error" ja="印刷を開始できません: 内部エラー"/>
   <translation tag="Cannot start print: not connected to printer" ja="印刷を開始できません: プリンター未接続"/>
   <translation tag="Cannot start print: printer is {}" ja="印刷を開始できません: プリンターは {} 状態です"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" ja="測定失敗"/>
   <translation tag="Measuring accelerometer noise..." ja="加速度センサーのノイズを測定中..."/>
   <translation tag="Measuring vibrations... {}%" ja="振動を測定中... {}%"/>
-  <translation tag="Measuring... {}s" ja="測定中... {}秒"/>
   <translation tag="Median %.0f Hz" ja="中央値 %.0f Hz"/>
   <translation tag="Memory" ja="メモリ"/>
   <translation tag="Memory (MB)" ja="メモリ (MB)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
+  <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
   <translation tag="No vendors found" ja="ベンダーが見つかりません"/>
   <translation tag="No video player installed - showing the timelapse library" ja="動画プレーヤーがありません – タイムラプス一覧を表示します"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." ja="ウェブカメラが検出されませんでした。&#10;タイムラプスにはウェブカメラが必要です。"/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." ja="QGL を開始しました..."/>
   <translation tag="Queue: Paused" ja="キュー: 一時停止"/>
   <translation tag="Queue: Ready" ja="キュー: 準備完了"/>
-  <translation tag="Queued" ja="待機中"/>
   <translation tag="Queued {}h {}m ago" ja="{} 時間 {} 分前にキューへ追加"/>
   <translation tag="Queued {}m ago" ja="{} 分前にキューへ追加"/>
   <translation tag="Quick" ja="簡易"/>

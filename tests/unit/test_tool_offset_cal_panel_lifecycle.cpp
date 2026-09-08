@@ -22,7 +22,6 @@
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
-#include "tool_offset_calibration.h"
 #include "tool_state.h"
 
 #include <cstdlib>
@@ -32,7 +31,6 @@
 #include "../catch_amalgamated.hpp"
 
 using nlohmann::json;
-namespace cal = helix::tool_offset_calibration;
 
 namespace {
 
@@ -93,7 +91,6 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: a run finishes after B
     panel.on_activate();
     // One row per tool the printer has - no fixed cap, the pools grew to fit.
     REQUIRE(lv_subject_get_int(panel.get_tool_count_subject()) == 4);
-    REQUIRE(panel.get_row_state_subject(3) != nullptr);
 
     panel.begin_run();
     REQUIRE(panel.is_calibration_active());
@@ -107,11 +104,10 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: a run finishes after B
     // and its completion still lands: nothing is left reading "active".
     REQUIRE(pump_until([&] { return !panel.is_calibration_active(); }));
     CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
-    CHECK_FALSE(panel.run().failed());
-    CHECK(panel.run().step(1) == cal::ToolStep::Done);
-    CHECK(panel.run().step(3) == cal::ToolStep::Done);
+    CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) ==
+          "Calibration complete - save to keep the offsets");
 
-    panel.on_activate(); // back on screen: the rows repaint from that state
+    panel.on_activate(); // back on screen: the rows repaint from ToolState
     panel.on_deactivate();
     panel.cleanup();
 }
@@ -132,7 +128,6 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: Stop drops the run's c
 
     pump_until([] { return false; }, 120);
     CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) == "Stopped");
-    CHECK_FALSE(panel.run().failed());
 
     panel.on_deactivate();
     panel.cleanup();
@@ -169,8 +164,8 @@ TEST_CASE_METHOD(ToolCalPanelFixture,
     }
     CHECK_FALSE(panel.is_calibration_active());
     CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
-    CHECK_FALSE(panel.run().failed());
-    CHECK(panel.run().step(2) == cal::ToolStep::Done);
+    CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) ==
+          "Calibration complete - save to keep the offsets");
 
     panel.on_deactivate();
     panel.cleanup();
@@ -193,7 +188,9 @@ TEST_CASE_METHOD(ToolCalPanelFixture,
     panel.on_run_rpc_error(MoonrakerError::timeout("printer.gcode.script", 1));
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(panel.is_calibration_active());
-    CHECK(panel.run().failed());
+    CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
+    CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) !=
+          "Calibration complete - save to keep the offsets");
 
     panel.on_deactivate();
     panel.cleanup();
@@ -202,8 +199,7 @@ TEST_CASE_METHOD(ToolCalPanelFixture,
 TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: no tools is a refusal, not a run",
                  "[ui_integration][toolchanger][tool_offset_cal]") {
     // ToolState is empty between an AMS topology clear and the next
-    // init_tools(). Run::begin(0) stays inactive, so starting anyway left the
-    // panel reading active with a Stop that did nothing.
+    // init_tools(): nothing to calibrate, so no run may start.
     helix::ToolState::instance().clear_ams_topology();
     REQUIRE(helix::ToolState::instance().tools().empty());
 

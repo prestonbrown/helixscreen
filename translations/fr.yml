@@ -399,7 +399,6 @@ translations:
     une saisie précise
   Calibrated: Calibré
   Calibrating Probe...: Calibration de la sonde...
-  Calibrating T{}...: Calibration de T{}...
   Calibrating bed mesh...: Calibration du maillage du plateau...
   Calibrating {} axis...: 'Calibration de l''axe {}...'
   Calibrating...: Calibration...
@@ -1655,7 +1654,6 @@ translations:
   Measurement Failed: Échec de la mesure
   Measuring accelerometer noise...: 'Mesure du bruit de l''accéléromètre...'
   Measuring vibrations... {}%: 'Mesure des vibrations... {}%'
-  Measuring... {}s: Mesure... {}s
   Median %.0f Hz: Médiane %.0f Hz
   Memory: Mémoire
   Memory (MB): Mémoire (Mo)
@@ -2209,7 +2207,6 @@ translations:
   Quad Gantry Level started...: Quad Gantry Level démarré...
   'Queue: Paused': 'File : En pause'
   'Queue: Ready': 'File : Prête'
-  Queued: En attente
   Queued {}h {}m ago: 'Mis en file il y a {} h {} min'
   Queued {}m ago: 'Mis en file il y a {} min'
   Quick: Rapide

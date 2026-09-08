@@ -388,7 +388,6 @@ translations:
     точного ввода
   Calibrated: Откалиброван
   Calibrating Probe...: Калибровка зонда...
-  Calibrating T{}...: Калибровка T{}...
   Calibrating bed mesh...: Калибровка сетки стола...
   Calibrating {} axis...: 'Калибровка оси {}...'
   Calibrating...: Калибровка...
@@ -1620,7 +1619,6 @@ translations:
   Measurement Failed: Измерение не удалось
   Measuring accelerometer noise...: 'Измерение шума акселерометра...'
   Measuring vibrations... {}%: 'Измерение вибраций... {}%'
-  Measuring... {}s: Измерение... {} с
   Median %.0f Hz: Медиана %.0f Гц
   Memory: Память
   Memory (MB): Память (МБ)
@@ -2164,7 +2162,6 @@ translations:
   Quad Gantry Level started...: QGL запущен...
   'Queue: Paused': 'Очередь: Пауза'
   'Queue: Ready': 'Очередь: Готово'
-  Queued: В очереди
   Queued {}h {}m ago: 'В очереди {} ч {} мин'
   Queued {}m ago: 'В очереди {} мин'
   Quick: Быстро

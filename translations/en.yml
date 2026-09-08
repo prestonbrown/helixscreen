@@ -383,7 +383,6 @@ translations:
     input
   Calibrated: Calibrated
   'Calibrating Probe...': 'Calibrating Probe...'
-  Calibrating T{}...: Calibrating T{}...
   'Calibrating bed mesh...': 'Calibrating bed mesh...'
   Calibrating {} axis...: Calibrating {} axis...
   Calibrating...: Calibrating...
@@ -1598,7 +1597,6 @@ translations:
   Measurement Failed: Measurement Failed
   Measuring accelerometer noise...: Measuring accelerometer noise...
   Measuring vibrations... {}%: Measuring vibrations... {}%
-  Measuring... {}s: Measuring... {}s
   Median %.0f Hz: Median %.0f Hz
   Memory: Memory
   Memory (MB): Memory (MB)
@@ -2139,7 +2137,6 @@ translations:
   Quad Gantry Level started...: Quad Gantry Level started...
   'Queue: Paused': 'Queue: Paused'
   'Queue: Ready': 'Queue: Ready'
-  Queued: Queued
   Queued {}h {}m ago: Queued {}h {}m ago
   Queued {}m ago: Queued {}m ago
   Quick: Quick

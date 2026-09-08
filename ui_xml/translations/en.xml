@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" en="Calibrate your touchscreen for accurate input"/>
   <translation tag="Calibrated" en="Calibrated"/>
   <translation tag="Calibrating Probe..." en="Calibrating Probe..."/>
-  <translation tag="Calibrating T{}..." en="Calibrating T{}..."/>
   <translation tag="Calibrating bed mesh..." en="Calibrating bed mesh..."/>
   <translation tag="Calibrating {} axis..." en="Calibrating {} axis..."/>
   <translation tag="Calibrating..." en="Calibrating..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" en="Cannot remap: internal error"/>
   <translation tag="Cannot reprint: not connected to printer" en="Cannot reprint: not connected to printer"/>
   <translation tag="Cannot restart — no filename" en="Cannot restart — no filename"/>
+  <translation tag="Cannot save offsets while printing" en="Cannot save offsets while printing"/>
   <translation tag="Cannot start print: internal error" en="Cannot start print: internal error"/>
   <translation tag="Cannot start print: not connected to printer" en="Cannot start print: not connected to printer"/>
   <translation tag="Cannot start print: printer is {}" en="Cannot start print: printer is {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" en="Measurement Failed"/>
   <translation tag="Measuring accelerometer noise..." en="Measuring accelerometer noise..."/>
   <translation tag="Measuring vibrations... {}%" en="Measuring vibrations... {}%"/>
-  <translation tag="Measuring... {}s" en="Measuring... {}s"/>
   <translation tag="Median %.0f Hz" en="Median %.0f Hz"/>
   <translation tag="Memory" en="Memory"/>
   <translation tag="Memory (MB)" en="Memory (MB)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
+  <translation tag="No tools to calibrate" en="No tools to calibrate"/>
   <translation tag="No vendors found" en="No vendors found"/>
   <translation tag="No video player installed - showing the timelapse library" en="No video player installed - showing the timelapse library"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." en="No webcam detected.&#10;A webcam is required for timelapse."/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." en="Quad Gantry Level started..."/>
   <translation tag="Queue: Paused" en="Queue: Paused"/>
   <translation tag="Queue: Ready" en="Queue: Ready"/>
-  <translation tag="Queued" en="Queued"/>
   <translation tag="Queued {}h {}m ago" en="Queued {}h {}m ago"/>
   <translation tag="Queued {}m ago" en="Queued {}m ago"/>
   <translation tag="Quick" en="Quick"/>

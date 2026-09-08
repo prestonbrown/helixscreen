@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
   <translation tag="Calibrated" zh="已校准"/>
   <translation tag="Calibrating Probe..." zh="正在校准探针..."/>
-  <translation tag="Calibrating T{}..." zh="正在校准 T{}..."/>
   <translation tag="Calibrating bed mesh..." zh="正在校准热床网格..."/>
   <translation tag="Calibrating {} axis..." zh="正在校准 {} 轴..."/>
   <translation tag="Calibrating..." zh="正在校准..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" zh="无法重新映射：内部错误"/>
   <translation tag="Cannot reprint: not connected to printer" zh="无法重新打印: 未连接打印机"/>
   <translation tag="Cannot restart — no filename" zh="无法重启 — 没有文件名"/>
+  <translation tag="Cannot save offsets while printing" zh="打印时无法保存偏移"/>
   <translation tag="Cannot start print: internal error" zh="无法开始打印: 内部错误"/>
   <translation tag="Cannot start print: not connected to printer" zh="无法开始打印: 未连接打印机"/>
   <translation tag="Cannot start print: printer is {}" zh="无法开始打印: 打印机状态为 {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" zh="测量失败"/>
   <translation tag="Measuring accelerometer noise..." zh="正在测量加速度计噪声..."/>
   <translation tag="Measuring vibrations... {}%" zh="正在测量振动... {}%"/>
-  <translation tag="Measuring... {}s" zh="测量中... {}秒"/>
   <translation tag="Median %.0f Hz" zh="中值 %.0f Hz"/>
   <translation tag="Memory" zh="内存"/>
   <translation tag="Memory (MB)" zh="内存 (MB)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
+  <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
   <translation tag="No vendors found" zh="未找到供应商"/>
   <translation tag="No video player installed - showing the timelapse library" zh="未安装视频播放器 – 显示延时摄影库"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." zh="未检测到摄像头。&#10;延时摄影需要摄像头。"/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." zh="QGL 已开始..."/>
   <translation tag="Queue: Paused" zh="队列：已暂停"/>
   <translation tag="Queue: Ready" zh="队列：就绪"/>
-  <translation tag="Queued" zh="排队中"/>
   <translation tag="Queued {}h {}m ago" zh="{} 小时 {} 分钟前加入队列"/>
   <translation tag="Queued {}m ago" zh="{} 分钟前加入队列"/>
   <translation tag="Quick" zh="快速"/>

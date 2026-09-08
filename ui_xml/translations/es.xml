@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" es="Calibrar la pantalla táctil para una entrada precisa"/>
   <translation tag="Calibrated" es="Calibrado"/>
   <translation tag="Calibrating Probe..." es="Calibrando sonda..."/>
-  <translation tag="Calibrating T{}..." es="Calibrando T{}..."/>
   <translation tag="Calibrating bed mesh..." es="Calibrando malla de cama..."/>
   <translation tag="Calibrating {} axis..." es="Calibrando el eje {}..."/>
   <translation tag="Calibrating..." es="Calibrando..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" es="No se puede reasignar: error interno"/>
   <translation tag="Cannot reprint: not connected to printer" es="No se puede reimprimir: no conectado a la impresora"/>
   <translation tag="Cannot restart — no filename" es="No se puede reiniciar — sin nombre de archivo"/>
+  <translation tag="Cannot save offsets while printing" es="No se pueden guardar los offsets durante la impresión"/>
   <translation tag="Cannot start print: internal error" es="No se puede iniciar impresión: error interno"/>
   <translation tag="Cannot start print: not connected to printer" es="No se puede iniciar impresión: no conectado a la impresora"/>
   <translation tag="Cannot start print: printer is {}" es="No se puede iniciar impresión: la impresora está {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" es="Medición fallida"/>
   <translation tag="Measuring accelerometer noise..." es="Midiendo el ruido del acelerómetro..."/>
   <translation tag="Measuring vibrations... {}%" es="Midiendo vibraciones... {}%"/>
-  <translation tag="Measuring... {}s" es="Midiendo... {}s"/>
   <translation tag="Median %.0f Hz" es="Mediana %.0f Hz"/>
   <translation tag="Memory" es="Memoria"/>
   <translation tag="Memory (MB)" es="Memoria (MB)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" es="Ninguna impresora de destino configurada"/>
   <translation tag="No temperature sensors detected" es="No se detectaron sensores de temperatura"/>
   <translation tag="No timelapse videos found" es="No se encontraron videos timelapse"/>
+  <translation tag="No tools to calibrate" es="No hay herramientas para calibrar"/>
   <translation tag="No vendors found" es="No se encontraron proveedores"/>
   <translation tag="No video player installed - showing the timelapse library" es="No hay reproductor de vídeo instalado: se muestra la biblioteca de timelapse"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." es="No se detectó webcam.&#10;Se necesita webcam para timelapse."/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." es="QGL iniciado..."/>
   <translation tag="Queue: Paused" es="Cola: Pausada"/>
   <translation tag="Queue: Ready" es="Cola: Lista"/>
-  <translation tag="Queued" es="En cola"/>
   <translation tag="Queued {}h {}m ago" es="En cola desde hace {} h {} min"/>
   <translation tag="Queued {}m ago" es="En cola desde hace {} min"/>
   <translation tag="Quick" es="Rápido"/>

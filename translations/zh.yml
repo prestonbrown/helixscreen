@@ -361,7 +361,6 @@ translations:
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
   Calibrated: 已校准
   Calibrating Probe...: 正在校准探针...
-  Calibrating T{}...: 正在校准 T{}...
   Calibrating bed mesh...: 正在校准热床网格...
   Calibrating {} axis...: '正在校准 {} 轴...'
   Calibrating...: 正在校准...
@@ -1496,7 +1495,6 @@ translations:
   Measurement Failed: 测量失败
   Measuring accelerometer noise...: '正在测量加速度计噪声...'
   Measuring vibrations... {}%: '正在测量振动... {}%'
-  Measuring... {}s: 测量中... {}秒
   Median %.0f Hz: 中值 %.0f Hz
   Memory: 内存
   Memory (MB): 内存 (MB)
@@ -2012,7 +2010,6 @@ translations:
   Quad Gantry Level started...: QGL 已开始...
   'Queue: Paused': '队列：已暂停'
   'Queue: Ready': 队列：就绪
-  Queued: 排队中
   Queued {}h {}m ago: '{} 小时 {} 分钟前加入队列'
   Queued {}m ago: '{} 分钟前加入队列'
   Quick: 快速

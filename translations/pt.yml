@@ -393,7 +393,6 @@ translations:
     precisa
   Calibrated: Calibrado
   Calibrating Probe...: Calibrando a Sonda...
-  Calibrating T{}...: Calibrando T{}...
   Calibrating bed mesh...: Calibrando malha da mesa...
   Calibrating {} axis...: 'Calibrando o eixo {}...'
   Calibrating...: Calibrando...
@@ -1642,7 +1641,6 @@ translations:
   Measurement Failed: Medição falhou
   Measuring accelerometer noise...: 'Medindo o ruído do acelerômetro...'
   Measuring vibrations... {}%: 'Medindo vibrações... {}%'
-  Measuring... {}s: Medindo... {}s
   Median %.0f Hz: Mediana %.0f Hz
   Memory: Memória
   Memory (MB): Memória (MB)
@@ -2191,7 +2189,6 @@ translations:
   Quad Gantry Level started...: QGL iniciado...
   'Queue: Paused': 'Fila: Pausada'
   'Queue: Ready': 'Fila: Pronta'
-  Queued: Na fila
   Queued {}h {}m ago: 'Na fila há {} h {} min'
   Queued {}m ago: 'Na fila há {} min'
   Quick: Rápido

@@ -26,7 +26,6 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
-#include <algorithm>
 #include <memory>
 
 namespace helix::ui {
@@ -34,12 +33,6 @@ namespace helix::ui {
 namespace cal = helix::tool_offset_calibration;
 
 namespace {
-
-/// tool_cal_state_N carries the ToolStep enum verbatim; the XML's ref_values
-/// are these numbers.
-int step_value(cal::ToolStep step) {
-    return static_cast<int>(step);
-}
 
 std::unique_ptr<ToolOffsetCalibrationPanel> g_panel;
 
@@ -63,12 +56,7 @@ ToolOffsetCalibrationPanel::ToolOffsetCalibrationPanel() {
 }
 
 ToolOffsetCalibrationPanel::~ToolOffsetCalibrationPanel() {
-    // The row timer is cancelled on every normal path; a teardown that
-    // destroys the panel mid-run skips them, and StaticPanelRegistry runs
-    // before lv_deinit() (#1173). ElapsedLabelTimer cancels itself on
-    // destruction.
     idle_wait_observer_.reset();
-    active_tool_observer_.reset();
     tools_observer_.reset();
     subjects_.deinit_all();
     subjects_initialized_ = false;
@@ -123,8 +111,6 @@ lv_obj_t* ToolOffsetCalibrationPanel::create(lv_obj_t* parent) {
 void ToolOffsetCalibrationPanel::on_ui_destroyed() {
     // The rows are gone; reclaim their name-registered subjects while LVGL is
     // still live, as the macros panel does for its list.
-    row_state_.reclaim();
-    row_state_text_.reclaim();
     row_x_.reclaim();
     row_y_.reclaim();
     row_z_.reclaim();
@@ -143,16 +129,12 @@ void ToolOffsetCalibrationPanel::on_activate() {
         tools.get_tools_version_subject(), this,
         [](ToolOffsetCalibrationPanel* self, int /*version*/) { self->on_tools_changed(); },
         tools.get_subjects_lifetime());
-    active_tool_observer_ = helix::ui::observe_int_sync<ToolOffsetCalibrationPanel>(
-        tools.get_active_tool_subject(), this,
-        [](ToolOffsetCalibrationPanel* self, int tool) { self->on_active_tool_changed(tool); },
-        tools.get_subjects_lifetime());
 
     // The subject follows the run, never the other way round: a run that
     // ended while the panel was away has already cleared it, and one that
     // could not start never set it.
-    lv_subject_set_int(&active_, run_.active() ? 1 : 0);
-    if (!run_.active()) {
+    lv_subject_set_int(&active_, run_active_ ? 1 : 0);
+    if (!run_active_) {
         lv_subject_copy_string(&status_, last_error_.empty() ? lv_tr("Ready to calibrate")
                                                              : last_error_.c_str());
     }
@@ -181,9 +163,7 @@ void ToolOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
 void ToolOffsetCalibrationPanel::cleanup() {
     run_lifetime_.invalidate();
     finish_idle_wait();
-    active_tool_observer_.reset();
     tools_observer_.reset();
-    elapsed_.cancel();
     if (overlay_root_) {
         NavigationManager::instance().unregister_overlay_instance(overlay_root_);
     }
@@ -203,14 +183,11 @@ void ToolOffsetCalibrationPanel::refresh_rows() {
     // Pools first, count last: the <repeat> rebuilds on the count and binds
     // each new row to tool_cal_*_<i> by name, so every slot must exist and
     // hold its value before the rows are built.
-    row_state_.ensure_size(count);
-    row_state_text_.ensure_size(count);
     row_x_.ensure_size(count);
     row_y_.ensure_size(count);
     row_z_.ensure_size(count);
     for (size_t i = 0; i < count; ++i) {
         refresh_row_values(static_cast<int>(i));
-        refresh_row_state(static_cast<int>(i));
     }
     lv_subject_set_int(&tool_count_, static_cast<int>(count));
 }
@@ -229,43 +206,6 @@ void ToolOffsetCalibrationPanel::refresh_row_values(int tool) {
         // the whole point of an offset.
         pools[idx]->set_string(slot, fmt::format("{:+.3f}", tools.tool_offset_mm(tool, axis)));
     }
-}
-
-void ToolOffsetCalibrationPanel::refresh_row_state(int tool) {
-    const auto slot = static_cast<size_t>(tool);
-    if (slot >= row_state_.size()) {
-        return; // a row refresh_rows() has not sized yet
-    }
-    const cal::ToolStep step = run_.step(tool);
-    row_state_.set_int(slot, step_value(step));
-
-    // The Measuring row's text is the elapsed counter's; everyone else's is
-    // static. The counter is (re)armed only when a row ENTERS Measuring, so a
-    // repaint mid-count does not restart it.
-    if (step == cal::ToolStep::Measuring) {
-        elapsed_.begin(&row_state_text_[tool], [](uint32_t seconds) {
-            return fmt::format(fmt::runtime(lv_tr("Measuring... {}s")), seconds);
-        });
-        return;
-    }
-    const char* text = "";
-    switch (step) {
-    case cal::ToolStep::Idle:
-        text = "";
-        break;
-    case cal::ToolStep::Queued:
-        text = lv_tr("Queued");
-        break;
-    case cal::ToolStep::Done:
-        text = lv_tr("Done");
-        break;
-    case cal::ToolStep::Failed:
-        text = lv_tr("Failed");
-        break;
-    case cal::ToolStep::Measuring:
-        break;
-    }
-    row_state_text_.set_string(slot, text);
 }
 
 // ============================================================================
@@ -291,7 +231,7 @@ std::string ToolOffsetCalibrationPanel::start_prompt() const {
 }
 
 void ToolOffsetCalibrationPanel::start_calibration() {
-    if (run_.active()) {
+    if (run_active_) {
         return;
     }
     if (!printer_supports_calibration()) {
@@ -305,7 +245,7 @@ void ToolOffsetCalibrationPanel::start_calibration() {
 }
 
 void ToolOffsetCalibrationPanel::begin_run() {
-    if (run_.active()) {
+    if (run_active_) {
         return;
     }
     auto* api = get_moonraker_api();
@@ -319,37 +259,17 @@ void ToolOffsetCalibrationPanel::begin_run() {
         return;
     }
 
-    auto& tools = helix::ToolState::instance();
-    const int tool_count = static_cast<int>(tools.tools().size());
+    const size_t tool_count = helix::ToolState::instance().tools().size();
     if (tool_count == 0) {
         // ToolState is empty between an AMS topology clear and the next
-        // init_tools(). Run::begin(0) would stay inactive while the subject
-        // below read active: Stop dead, Start hidden, until the process ends.
+        // init_tools(): nothing to calibrate, and nothing to show a result on.
         NOTIFY_ERROR("{}", lv_tr("No tools to calibrate"));
         return;
     }
-    // What every tool holds now: a tool whose offsets differ from this later
-    // in the run has been measured.
-    run_baseline_known_.assign(static_cast<size_t>(tool_count), {});
-    run_baseline_mm_.assign(static_cast<size_t>(tool_count), {});
-    for (int i = 0; i < tool_count; ++i) {
-        for (helix::Axis axis : helix::kAllAxes) {
-            const auto idx = static_cast<size_t>(helix::axis_index(axis));
-            run_baseline_known_[static_cast<size_t>(i)][idx] = tools.tool_offset_known(i, axis);
-            run_baseline_mm_[static_cast<size_t>(i)][idx] = tools.tool_offset_mm(i, axis);
-        }
-    }
-    run_.begin(tool_count, tools.active_tool_index());
+    run_active_ = true;
     last_error_.clear();
     lv_subject_set_int(&active_, 1);
-    if (run_.measuring_tool() >= 0) {
-        lv_subject_copy_string(
-            &status_,
-            fmt::format(fmt::runtime(lv_tr("Calibrating T{}...")), run_.measuring_tool()).c_str());
-    } else {
-        lv_subject_copy_string(&status_, lv_tr("Calibrating..."));
-    }
-    refresh_rows();
+    lv_subject_copy_string(&status_, lv_tr("Calibrating..."));
 
     spdlog::info("[ToolOffsetCal] Running {} over {} tools", gcode, tool_count);
     // Moonraker's printer.gcode.script answers when the script finishes, so
@@ -363,7 +283,7 @@ void ToolOffsetCalibrationPanel::begin_run() {
 }
 
 void ToolOffsetCalibrationPanel::on_run_rpc_error(const MoonrakerError& err) {
-    if (!run_.active()) {
+    if (!run_active_) {
         return; // a Stop already settled it
     }
     // The rpc ceiling is not the printer's: Moonraker never times out
@@ -431,27 +351,21 @@ void ToolOffsetCalibrationPanel::finish_idle_wait() {
 }
 
 void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& error) {
-    if (!run_.active()) {
+    if (!run_active_) {
         return; // a Stop already settled it
     }
-<<<<<<< HEAD
-    elapsed_.cancel();
-=======
     finish_idle_wait();
->>>>>>> 4960c6cf5 (fix(tool-offsets): own rpc ceiling, and a timeout under a busy printer waits)
-    run_.finish(ok);
+    run_active_ = false;
     lv_subject_set_int(&active_, 0);
 
     if (ok) {
         spdlog::info("[ToolOffsetCal] Calibration finished");
         lv_subject_copy_string(&status_, lv_tr("Calibration complete - save to keep the offsets"));
-        refresh_rows();
         return;
     }
     last_error_ = error.empty() ? lv_tr("Calibration failed") : error;
     spdlog::error("[ToolOffsetCal] Calibration failed: {}", last_error_);
     lv_subject_copy_string(&status_, last_error_.c_str());
-    refresh_rows();
     // The refusal is a one-time event with a verbatim firmware message; a
     // dismissible alert, not a permanent card. Off screen it is a toast: the
     // status line carries last_error_ when the panel comes back.
@@ -464,7 +378,7 @@ void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& err
 }
 
 bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
-    if (!run_.active()) {
+    if (!run_active_) {
         return false;
     }
     spdlog::info("[ToolOffsetCal] Aborting calibration (M112 + firmware restart)");
@@ -477,15 +391,10 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
     // Drop the in-flight execute_gcode callbacks: they would report the M112
     // shutdown as the run's failure.
     run_lifetime_.invalidate();
-<<<<<<< HEAD
-    elapsed_.cancel();
-=======
     finish_idle_wait();
->>>>>>> 4960c6cf5 (fix(tool-offsets): own rpc ceiling, and a timeout under a busy printer waits)
-    run_.abort();
+    run_active_ = false;
     lv_subject_set_int(&active_, 0);
     lv_subject_copy_string(&status_, lv_tr("Stopped"));
-    refresh_rows();
 
     if (api) {
         api->emergency_stop(
@@ -509,7 +418,7 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
 // ============================================================================
 
 void ToolOffsetCalibrationPanel::save_offsets() {
-    if (run_.active()) {
+    if (run_active_) {
         spdlog::warn("[ToolOffsetCal] Ignoring Save while a calibration is running");
         return;
     }
@@ -581,54 +490,17 @@ void ToolOffsetCalibrationPanel::send_save() {
 }
 
 // ============================================================================
-// PROGRESS (from status, never the console)
+// ROWS FOLLOW TOOLSTATE
 // ============================================================================
 
-void ToolOffsetCalibrationPanel::on_active_tool_changed(int tool) {
-    if (!run_.active()) {
-        return;
-    }
-    run_.on_tool_selected(tool);
-    if (run_.measuring_tool() == tool) {
-        elapsed_.cancel(); // the previous row's counter; the new row arms its own
-        lv_subject_copy_string(
-            &status_, fmt::format(fmt::runtime(lv_tr("Calibrating T{}...")), tool).c_str());
-    }
-    // The bookkeeping above runs whether or not the panel is on screen; the
-    // repaint is only for a visible panel - on_activate() redraws every row
-    // from the same state when it comes back (as the bed mesh panel stops its
-    // renderer while hidden and reloads on return).
-    if (!is_visible()) {
-        return;
-    }
-    for (int i = 0; i < run_.tool_count(); ++i) {
-        refresh_row_state(i);
-    }
-}
-
 void ToolOffsetCalibrationPanel::on_tools_changed() {
-    if (run_.active()) {
-        auto& tools = helix::ToolState::instance();
-        const int tracked = std::min(run_.tool_count(), static_cast<int>(run_baseline_mm_.size()));
-        for (int i = 0; i < tracked; ++i) {
-            bool moved = false;
-            for (helix::Axis axis : helix::kAllAxes) {
-                const auto idx = static_cast<size_t>(helix::axis_index(axis));
-                const auto row = static_cast<size_t>(i);
-                const bool known = tools.tool_offset_known(i, axis);
-                if (known != run_baseline_known_[row][idx] ||
-                    (known && tools.tool_offset_mm(i, axis) != run_baseline_mm_[row][idx])) {
-                    moved = true;
-                    break;
-                }
-            }
-            if (moved) {
-                run_.on_tool_measured(i);
-            }
-        }
-    }
+    // The macro's SET_TOOL_PARAMETER writes land here mid-run, so the rows
+    // fill in as it goes. The repaint is only for a visible panel:
+    // on_activate() redraws every row from ToolState when it comes back (as
+    // the bed mesh panel stops its renderer while hidden and reloads on
+    // return).
     if (is_visible()) {
-        refresh_rows(); // hidden: on_activate() repaints from the same state
+        refresh_rows();
     }
 }
 

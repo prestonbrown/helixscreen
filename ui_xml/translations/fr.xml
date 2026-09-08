@@ -358,7 +358,6 @@
   <translation tag="Calibrate your touchscreen for accurate input" fr="Calibrer votre écran tactile pour une saisie précise"/>
   <translation tag="Calibrated" fr="Calibré"/>
   <translation tag="Calibrating Probe..." fr="Calibration de la sonde..."/>
-  <translation tag="Calibrating T{}..." fr="Calibration de T{}..."/>
   <translation tag="Calibrating bed mesh..." fr="Calibration du maillage du plateau..."/>
   <translation tag="Calibrating {} axis..." fr="Calibration de l&apos;axe {}..."/>
   <translation tag="Calibrating..." fr="Calibration..."/>
@@ -400,6 +399,7 @@
   <translation tag="Cannot remap: internal error" fr="Impossible de remapper : erreur interne"/>
   <translation tag="Cannot reprint: not connected to printer" fr="Impossible de réimprimer : non connecté à l&apos;imprimante"/>
   <translation tag="Cannot restart — no filename" fr="Impossible de redémarrer — pas de nom de fichier"/>
+  <translation tag="Cannot save offsets while printing" fr="Impossible d&apos;enregistrer les offsets pendant l&apos;impression"/>
   <translation tag="Cannot start print: internal error" fr="Impossible de démarrer l&apos;impression : erreur interne"/>
   <translation tag="Cannot start print: not connected to printer" fr="Impossible de démarrer l&apos;impression : non connecté à l&apos;imprimante"/>
   <translation tag="Cannot start print: printer is {}" fr="Impossible de démarrer l&apos;impression : l&apos;imprimante est {}"/>
@@ -1461,7 +1461,6 @@
   <translation tag="Measurement Failed" fr="Échec de la mesure"/>
   <translation tag="Measuring accelerometer noise..." fr="Mesure du bruit de l&apos;accéléromètre..."/>
   <translation tag="Measuring vibrations... {}%" fr="Mesure des vibrations... {}%"/>
-  <translation tag="Measuring... {}s" fr="Mesure... {}s"/>
   <translation tag="Median %.0f Hz" fr="Médiane %.0f Hz"/>
   <translation tag="Memory" fr="Mémoire"/>
   <translation tag="Memory (MB)" fr="Mémoire (Mo)"/>
@@ -1612,6 +1611,7 @@
   <translation tag="No target printer configured" fr="Aucune imprimante cible configurée"/>
   <translation tag="No temperature sensors detected" fr="Aucun capteur de température détecté"/>
   <translation tag="No timelapse videos found" fr="Aucune vidéo timelapse trouvée"/>
+  <translation tag="No tools to calibrate" fr="Aucun outil à calibrer"/>
   <translation tag="No vendors found" fr="Aucun fournisseur trouvé"/>
   <translation tag="No video player installed - showing the timelapse library" fr="Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." fr="Aucune webcam détectée.&#10;Une webcam est requise pour le timelapse."/>
@@ -1958,7 +1958,6 @@
   <translation tag="Quad Gantry Level started..." fr="Quad Gantry Level démarré..."/>
   <translation tag="Queue: Paused" fr="File : En pause"/>
   <translation tag="Queue: Ready" fr="File : Prête"/>
-  <translation tag="Queued" fr="En attente"/>
   <translation tag="Queued {}h {}m ago" fr="Mis en file il y a {} h {} min"/>
   <translation tag="Queued {}m ago" fr="Mis en file il y a {} min"/>
   <translation tag="Quick" fr="Rapide"/>

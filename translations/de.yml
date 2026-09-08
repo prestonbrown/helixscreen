@@ -399,7 +399,6 @@ translations:
   Calibrate your touchscreen for accurate input: Touchscreen für präzise Eingabe kalibrieren
   Calibrated: Kalibriert
   Calibrating Probe...: Sonde kalibrieren...
-  Calibrating T{}...: Kalibriere T{}...
   Calibrating bed mesh...: Bettnetz kalibrieren...
   Calibrating {} axis...: 'Kalibriere Achse {}...'
   Calibrating...: Kalibriere...
@@ -1649,7 +1648,6 @@ translations:
   Measurement Failed: Messung fehlgeschlagen
   Measuring accelerometer noise...: 'Messe Beschleunigungssensor-Rauschen...'
   Measuring vibrations... {}%: 'Messe Vibrationen... {}%'
-  Measuring... {}s: Messe... {}s
   Median %.0f Hz: Median %.0f Hz
   Memory: Speicher
   Memory (MB): Speicher (MB)
@@ -2197,7 +2195,6 @@ translations:
   Quad Gantry Level started...: Quad Gantry Level gestartet...
   'Queue: Paused': 'Warteschlange: Pausiert'
   'Queue: Ready': 'Warteschlange: Bereit'
-  Queued: In Warteschlange
   Queued {}h {}m ago: 'Vor {} Std. {} Min. eingereiht'
   Queued {}m ago: 'Vor {} Min. eingereiht'
   Quick: Schnell
