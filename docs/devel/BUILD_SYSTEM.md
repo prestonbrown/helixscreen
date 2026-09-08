@@ -810,7 +810,7 @@ make check-deps
 This checks for:
 - **System tools**: C/C++ compiler, cmake, make, python3, npm
 - **Code formatters**: clang-format (C/C++), xmllint (XML validation/formatting)
-- **Libraries**: pkg-config
+- **Libraries**: pkg-config, OpenSSL, libnl, libusb (required on Linux: the build links `-lusb-1.0` unconditionally; optional on macOS), ALSA (Linux, warns when the headers are missing because the sound backend is then compiled out)
 - **Canvas dependencies**: cairo, pango, libpng, libjpeg, librsvg (for lv_img_conv)
 - **npm packages**: lv_font_conv, lv_img_conv
 - **Optional libraries**: SDL2, spdlog, libhv (uses system if available, otherwise builds from submodules)
@@ -936,10 +936,10 @@ make format-staged
 
 Formatting is automatically checked by the pre-commit hook (`.git/hooks/pre-commit`), which calls `scripts/quality-checks.sh --staged-only`:
 
-1. **Checks staged files** for formatting issues
-2. **Reports files** that need formatting
-3. **Prevents commit** if formatting issues are found
-4. **Suggests fix**: Run `make format-staged` or `clang-format -i <file>`
+1. **Resolves the pinned formatter**: the `clang-format` wheel pinned in `requirements.txt`, installed into `.venv` by `make venv-setup` (`scripts/quality-checks.sh#qc_resolve_clang_format`). Nothing on `PATH` is consulted, and a tree without the wheel cannot commit C++ until it runs `make venv-setup` - one formatter everywhere is what keeps files from ping-ponging between machines
+2. **Checks staged files** with it and auto-formats the ones that need it
+3. **Prevents commit** if a formatted file could not be re-staged (partially staged hunks)
+4. **Full sweeps (pre-push, CI) fail** on any unformatted file outside `CLANG_FORMAT_BASELINE`, the list of files that predate the gate; an entry leaves the list once the file is auto-formatted on its next staging
 
 To bypass (not recommended):
 ```bash
@@ -1862,6 +1862,13 @@ target's tiers silently fails to register on that target, and the token falls ba
 down the ladder. If you add a font token for a large tier, check it against the
 tier list of the smallest device that will run it.
 
+`FONTS_XXLARGE` additionally carries six faces above the authored ladder —
+`noto_sans_48/64`, `noto_sans_bold_48/64`, `noto_sans_light_32/40` — which exist only
+for the high-DPI UI scale factor to step into on phone-class panels. No printer target
+declares the `xxlarge` tier, so none of them links these (~11MB of `.rodata`). Android
+does not build through this Makefile at all: `android/app/jni/CMakeLists.txt` globs
+`assets/fonts/*.c` wholesale, so it picks them up without a tier declaration.
+
 ### Feature gates
 
 | Variable | Default | Purpose |
@@ -1977,6 +1984,134 @@ Only use `make clean && make` when:
 - Create patches for submodule changes
 - Document patches in `patches/README.md`
 - Test patch application on clean checkouts
+
+## Cloud sessions: the warm environment
+
+Claude Code cloud sessions run on a fresh Ubuntu 24.04 VM per environment, and a cold one pays
+apt + submodule init + a full program and test build before it can do anything — on the order of
+hours. `scripts/cloud/env-setup.sh` and `scripts/cloud/session-start.sh` exist to make that a
+one-time cost per environment rather than a per-session one.
+
+**The setup script.** The cloud platform runs `scripts/cloud/env-setup.sh` once, as root, **before**
+the repo is cloned — there is no checkout for it to operate on, only system and network paths — and
+then snapshots the whole filesystem as the starting point of every later session on that
+environment. It must exit 0 and finish in a few minutes, so every step is best-effort and logged
+to `/var/log/helix-env-setup.log`: apt-installing the native build's dependencies
+(`scripts/cloud/env-setup.sh#install_apt_packages` names the single package list shared with CI),
+downloading and extracting a prebuilt ccache, seeding a full clone at `/opt/helixscreen-seed` for
+submodule alternates, and prebuilding a Python venv at `/opt/helix-venv`.
+`/opt/helix-cloud-env/READY` records what landed and gates everything downstream.
+
+**The snapshot's lifetime.** The platform reuses the snapshot until either ~7 days pass or the
+text pasted into the environment dialog changes. Pushing a new `scripts/cloud/env-setup.sh` to
+`main` does not refresh it on its own: the pasted three-liner re-fetches that file only when the
+snapshot is being rebuilt. To force a rebuild before the timer would, change the dialog text — a
+dated comment line there is a legitimate one-line edit purely for that.
+
+**The session hook.** `scripts/cloud/session-start.sh` runs as a `SessionStart` hook
+(`.claude/settings.json#SessionStart`) in every session, cloud or not. On a machine that never
+wrote the READY marker — a laptop, thelio — it exits silently on its first line, by design: the
+pieces below must never run uninvited. On a warmed cloud VM, once the repo exists, it wires
+`/opt/helixscreen-seed`'s objects in as a submodule alternate (so `git submodule update` borrows
+objects instead of fetching them), runs that submodule init, and symlinks `.venv` to the prebuilt
+one before reconciling it with `make venv-setup`.
+
+**Nothing prefetches a ccache, and the measurement is why.** `.github/workflows/build-cache.yml`
+still publishes a `ccache-linux-x64.tar.zst` asset on the `build-cache` release tag, but
+`env-setup.sh` no longer downloads it. Measured on a cloud box: of the calls a first build made
+against that cache, 18.75% hit; of the 955 compilations in a rebuild after 191 files moved under a
+new namespace, **none** did. The percentage a session reads from `ccache -s` at startup is the
+tarball's own banked history — it never grows from that number, it only dilutes as the box builds.
+A full `make test` took about 85 minutes with 98% on screen.
+
+The asset is left published for anyone who wants to fetch one by hand; it is simply not worth 1.4 GB
+and a failure path on every provisioning. ccache itself is still installed and configured, and earns
+its keep within a session.
+
+`ccache-warm.yml` / `cache-prune.yml` are a different pipeline entirely — they warm and prune the
+Actions-cache ccache behind this repo's cross-compile CI, where the cache is restored from the
+previous run on the same branch rather than from a snapshot, so the staleness above does not apply.
+Nothing here touches those. The `compiler_check = content` setting stays in the generated
+`ccache.conf`: a cached object is reused only when the compiler that made it is byte-identical to
+the one asking.
+
+**Pasting the setup script into the environment dialog.** The platform wants the script inline, not
+a path, so the pasted script re-fetches the real one and never blocks environment creation on a
+network hiccup:
+
+```bash
+#!/bin/bash
+curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/cloud/env-setup.sh -o /tmp/helix-env-setup.sh || exit 0
+bash /tmp/helix-env-setup.sh || true
+```
+
+**Known cache invalidation.** `Makefile#VERSION_DEFINES` puts `-DHELIX_VERSION` on every
+translation unit's command line, and ccache's direct mode hashes the full command line — so a
+`VERSION.txt` bump misses the *entire* project's cache exactly once, the same way it does for
+regular CI (see the comment above `VERSION_DEFINES`). `HELIX_GIT_HASH` deliberately avoids this by
+reaching only one generated header instead of every TU.
+
+**The `build-cache` tag is not a version.** It is a release only in the GitHub sense — a place to
+attach a binary asset — never a HelixScreen release. The update checker discards any release whose
+tag does not parse as a semantic version
+(`src/system/update_checker.cpp#"parse_github_release(const json& j"`, via
+`src/util/version.cpp#parse_version`),
+so `build-cache` is invisible to it.
+
+## Briefing a cloud worker
+
+A coordinator session spawns worker sessions, hands each a scope, and merges their branches. What
+follows is the part of that protocol which is a property of this repo rather than of any one
+coordinator's plan.
+
+**Give a worker a queue, not a ticket.** On a 4-core cloud box the program binary takes about 44
+minutes and the test binary another 55 before a worker can run anything — an hour and a half of
+machine time that a one-issue scope pays in full and then throws away. Nothing removes that cost:
+a prebuilt ccache measured 18.75% of calls hitting on a first build and 0.00% after a wide header
+moved, so a session that starts by building pays roughly the same either way (see the warm
+environment section). What a queue saves is the second cost, which is real: a worker that has
+already read a subsystem answers the next question in it far faster than a fresh session does.
+
+So scope a worker to an *area* with two to four related issues in dependency order, and say which
+may be dropped if time runs short. Sequence anything touching the same files behind the change that
+moves them, and keep shared counters — the ratchet baselines in `scripts/quality-checks.sh` — to one
+worker at a time, since two workers each ratcheting the same number is a guaranteed merge conflict
+over a line neither of them cares about.
+
+**A small finding in the diff's own neighbourhood is fixed, not filed.** Workers surface more than
+they were sent for, and an issue is the reflex — but an issue costs triage, a milestone, a label, a
+brief and a box, which for a twenty-minute refactor is more than the fix. If the finding is small and
+sits in code the worker has already read, tell it to fix it in the same branch and say so in the
+report. File one only when the work genuinely does not belong to that worker: it needs a decision
+somebody else owns, it is blocked on something external, it is large enough to want its own scope, or
+it lands in files another worker is holding. A queue that closes four issues and opens three has not
+moved as far as the count suggests.
+
+**Never leave a worker blocked on the coordinator.** A worker waiting for a merge to appear on
+`main` is an idle box. When a scope depends on work still in review, say so in the brief, name what
+it should do meanwhile, and send the unblock as soon as it lands.
+
+**The reply channel is git.** Cross-session chat does not resolve from a worker container, so a
+worker reports by pushing a short status file early and a full report at the end to a throwaway
+`claude/report-<issue>` branch, never onto its work branch and never as a PR. The push
+triggers in `.github/workflows/build.yml` and `quality.yml` exclude that branch pattern, so status
+pushes cost no CI.
+
+**Tell a worker the formatter rule explicitly.** `scripts/quality-checks.sh` accepts only the
+pinned `clang-format` from `.venv`, so a worker runs `make venv-setup` before `make quality` and
+formats only the files its own diff touched. The sweep's `--auto-fix` reformats every file in
+`CLANG_FORMAT_BASELINE`, which belong to whoever is retiring them, not to the worker.
+
+**A push to a work branch costs a full CI run.** Build, Code Quality and XML Lint all fire on the
+`claude/**` namespace, and Build alone budgets 200 minutes. Push when the gates are green locally,
+never to find out whether they are — a red run on a work branch is a signal the worker skipped a
+check it could have run itself, and it queues behind everyone else's work. A coordinator asking for
+an early push to review in parallel is accepting that cost deliberately; a worker iterating against
+CI is not.
+
+**One OPT flavor per tree.** The pre-commit hook builds at the default optimization level, so a
+worker that builds with `OPT=0` makes every later hook run rewrite the objects it just wrote.
+Default everywhere, and never two `make` invocations in one tree at once.
 
 ## See Also
 

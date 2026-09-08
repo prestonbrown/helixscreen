@@ -1,0 +1,134 @@
+name: build-cache
+
+# Produces the ccache tarball that scripts/cloud/env-setup.sh downloads to
+# warm a Claude Code cloud session VM before the repo is even cloned there.
+# That is a different consumer from ccache-warm.yml / cache-prune.yml, which
+# manage the GitHub Actions cache (actions/cache) behind this repo's own CI —
+# a plain VM setup script has no Actions-cache access, only network fetch, so
+# this workflow publishes to a GitHub release asset instead. Same underlying
+# ccache, two unrelated delivery mechanisms; don't merge the two.
+#
+# ubuntu-24.04 matches the cloud VM image and its clang package byte-for-byte
+# (compiler_check = content in the ccache config both sides write), which is
+# why this does not reuse ubuntu-22.04 compile-ubuntu's cache.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+# Queued, not cancelled: main takes a push every few minutes on a busy day,
+# and a cold run (~2.5 h) that gets cancelled by each one never publishes.
+# Warm runs are short, so a queue behind a cold one drains quickly.
+concurrency:
+  group: build-cache
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-cache:
+    name: Build + publish the cloud ccache
+    runs-on: ubuntu-24.04
+    # A cold run (no prior tarball to restore) is ~2.5h on 4 vCPU; a warm run
+    # that only compiles what changed since the last publish is ~10 min.
+    timeout-minutes: 200
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install dependencies
+      uses: nick-fields/retry@v4
+      with:
+        timeout_minutes: 20
+        max_attempts: 3
+        command: sudo scripts/cloud/env-setup.sh --deps-only
+
+    # base_dir = the parent of $GITHUB_WORKSPACE, i.e. /home/runner/work/helixscreen
+    # rather than /home/runner/work/helixscreen/helixscreen: actions/checkout
+    # lands the repo at .../helixscreen/helixscreen, so stripping at the PARENT
+    # leaves "helixscreen/..." as the relative path ccache hashes — the same
+    # relative path a cloud VM's checkout at /home/user/helixscreen produces
+    # when scripts/cloud/env-setup.sh strips at /home/user. Same keys as the VM
+    # otherwise, so an object built here is byte-identical to one this repo's
+    # own build would produce, and either side can hit the other's entries.
+    - name: Configure ccache
+      run: |
+        mkdir -p ~/.config/ccache
+        cat > ~/.config/ccache/ccache.conf <<EOF
+        cache_dir = $HOME/.cache/ccache
+        base_dir = $(dirname "$GITHUB_WORKSPACE")
+        hash_dir = false
+        sloppiness = pch_defines,time_macros
+        compiler_check = content
+        max_size = 5G
+        EOF
+
+    - name: Restore the previous ccache
+      run: |
+        mkdir -p ~/.cache
+        curl -fsSL "https://github.com/${{ github.repository }}/releases/download/build-cache/ccache-linux-x64.tar.zst" \
+          | tar --zstd -x -C ~/.cache || echo "cold start — no previous ccache tarball to restore"
+
+    - name: Setup Python venv
+      run: make venv-setup
+
+    - name: Reset ccache stats for this run
+      run: ccache -z
+
+    - name: Build HelixScreen
+      run: make -j"$(nproc)"
+      continue-on-error: true
+
+    # Builds build/bin/helix-tests; does not run the suite. Cloud sessions
+    # build this binary far more often than they run it, and this cache
+    # exists for the build half.
+    - name: Build tests
+      run: make test -j"$(nproc)"
+      continue-on-error: true
+
+    - name: Show ccache stats
+      run: ccache -s
+
+    - name: Trim the cache to its configured size
+      run: ccache --cleanup
+
+    - name: Package the ccache tarball
+      run: tar -C ~/.cache --zstd -cf ccache-linux-x64.tar.zst ccache
+
+    - name: Write the cache manifest
+      run: |
+        {
+          echo "commit: ${{ github.sha }}"
+          echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "clang: $(clang --version | head -1)"
+          echo "tarball_size: $(stat -c%s ccache-linux-x64.tar.zst) bytes"
+          echo "---- ccache -s ----"
+          ccache -s
+        } > build-cache-manifest.txt
+
+    # if: always() so a build or test step failing above (continue-on-error
+    # already keeps the job itself green) still ships whatever the cache
+    # gained this run — a partial cache still warms a cloud VM's rebuild.
+    - name: Publish the release asset
+      if: always()
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release view build-cache || gh release create build-cache \
+          --prerelease --latest=false \
+          --title "Cloud build cache (not a HelixScreen release)" \
+          --notes "Rolling ccache for cloud dev sessions. The updater ignores this tag because it is not a version."
+        gh release upload build-cache ccache-linux-x64.tar.zst build-cache-manifest.txt --clobber
