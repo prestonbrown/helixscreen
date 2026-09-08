@@ -19,8 +19,10 @@ package-lock.json
 # dependency can turn CI red overnight with no code change.
 !server/*/package-lock.json
 
-# Python virtual environment
-.venv/
+# Python virtual environment. No trailing slash: a cloud session links .venv
+# at a prebuilt interpreter outside the tree, and a directory-only pattern
+# leaves that symlink showing as untracked.
+.venv
 
 # Python bytecode
 __pycache__/
