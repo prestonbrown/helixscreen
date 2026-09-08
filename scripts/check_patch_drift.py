@@ -87,12 +87,33 @@ REMEDY = (
     "   Fix: make reapply-patches\n"
     "   (Restoring single files by hand is not equivalent -- several patches\n"
     "    touch one file, so a targeted restore drops the other patches' hunks.)\n"
-    "   Run it in the tree that reported this, and only that tree. lib/lvgl and\n"
-    "   lib/libhv are a private checkout per worktree, so the run repairs this\n"
-    "   tree's submodules against this branch's patches/ and reaches no other.\n"
+    "   Run it in the tree that reported this, and only that tree. The drifted\n"
+    "   submodules are private checkouts here, so the run repairs this tree's\n"
+    "   submodules against this branch's patches/ and reaches no other.\n"
     "   Check for a live build in THIS tree first -- it rewrites headers a compile\n"
     "   here may be reading:\n"
     "     pgrep -x -d\' \' \'make|cc1plus\'"
+)
+
+# `make reapply-patches` repairs whatever checkout a submodule path RESOLVES to.
+# Where that path is a symlink into another tree, the run rewrites THAT tree's
+# submodule against this branch's patches/ -- and patches/ is per-branch, so a
+# shared checkout is also the usual reason there is drift to report here at all.
+# Offering the private-checkout remedy would aim it at exactly the trees it breaks.
+SHARED_REMEDY_HEAD = (
+    "   Do NOT run `make reapply-patches` in this tree. These drifted submodules\n"
+    "   are symlinks into another checkout:"
+)
+
+SHARED_REMEDY_TAIL = (
+    "   Reapplying here rewrites THAT tree's submodules against this branch's\n"
+    "   patches/, which is not the set its own branch expects -- it would repair\n"
+    "   this tree by breaking the other one.\n"
+    "\n"
+    "   Fix: give this worktree its own checkouts, then reapply inside it:\n"
+    "     scripts/setup-worktree.sh --setup-only --no-build {branch}\n"
+    "   That swaps each symlink for a private checkout copied from the main tree\n"
+    "   and reconciles patches against this branch's patches/, reaching no other."
 )
 
 
@@ -422,6 +443,35 @@ def clear_stamps(subs: list[Submodule]) -> int:
     return cleared
 
 
+def current_branch(root: str | Path) -> str:
+    """Branch name for the remedy command, or a placeholder when detached."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+            env=git_env(),
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "<branch>"
+    name = out.stdout.strip()
+    return name if name and name != "HEAD" else "<branch>"
+
+
+def remedy(subs: list[Submodule], findings: list[Finding], root: str | Path) -> str:
+    """Repair text for these findings, which turns on how this tree holds them."""
+    drifted = {f.sub for f in findings}
+    shared = [s for s in subs if s.rel in drifted and s.path.is_symlink()]
+    if not shared:
+        return REMEDY
+    lines = [SHARED_REMEDY_HEAD]
+    lines.extend(f"     {s.rel} -> {os.readlink(s.path)}" for s in shared)
+    lines.append("")
+    lines.append(SHARED_REMEDY_TAIL.format(branch=current_branch(root)))
+    return "\n".join(lines)
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--repo-root", default=str(REPO_ROOT))
@@ -477,7 +527,7 @@ def main(argv: list[str]) -> int:
             print(f"   [{f.kind}] {f.sub} {f.item}")
             print(f"      {f.detail}")
         print()
-        print(REMEDY)
+        print(remedy(subs, findings, root))
         return 1
 
     total_patches = sum(len(s.patches) for s in subs)
