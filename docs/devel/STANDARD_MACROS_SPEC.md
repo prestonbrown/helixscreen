@@ -119,12 +119,22 @@ struct StandardMacroInfo {
     std::string slot_name;        // "load_filament"
     std::string display_name;     // "Load Filament"
     std::string configured_macro; // User override (or empty)
+    std::string shipped_macro;    // Sequence the printer database ships (or empty)
     std::string detected_macro;   // Auto-detected (or empty)
     std::string fallback_macro;   // HELIX_* fallback (or empty)
 
     bool is_empty() const;        // No macro available
-    std::string get_macro() const; // Returns first non-empty: configured > detected > fallback
+    // Returns first non-empty: configured > shipped > detected > fallback
+    std::string get_macro() const;
 };
+
+The shipped tier carries a whole sequence rather than a macro name, so a printer
+that needs pre-probe housekeeping expresses it as data in `printer_database.json`
+instead of a branch in the panel that runs the operation. `resolve_macro_script()`
+turns a slot into something runnable: it substitutes `{profile}`, reports whether
+the winner brings its own preparation (only the shipped tier does), and can be
+told to refuse the `HELIX_*` fallback — those are "if needed" macros that return
+without acting, which is wrong for a button that means "do it now".
 
 class StandardMacros {
 public:

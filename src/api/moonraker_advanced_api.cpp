@@ -1775,7 +1775,7 @@ namespace {
 /// Build "<preparation>\n<command>" for a probing operation, reporting the extra
 /// time budget the preparation costs. One script on purpose: a failed
 /// preparation aborts before the probe runs.
-std::string with_probe_preparation(const char* command, helix::probe_prep::Operation op,
+std::string with_probe_preparation(const std::string& command, helix::probe_prep::Operation op,
                                    uint32_t& extra_timeout_ms) {
     std::string script;
     extra_timeout_ms = helix::probe_prep::append_preparation(script, op, command);
@@ -1785,7 +1785,8 @@ std::string with_probe_preparation(const char* command, helix::probe_prep::Opera
 
 } // namespace
 
-void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(BedMeshProgressCallback on_progress,
+void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(const BedMeshCommand& command,
+                                                    BedMeshProgressCallback on_progress,
                                                     SuccessCallback on_complete,
                                                     ErrorCallback on_error, int expected_probes,
                                                     int probe_samples) {
@@ -1800,11 +1801,14 @@ void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(BedMeshProgressCallback on_p
 
     collector->start();
 
-    // Execute the calibration command
-    // Note: No PROFILE= parameter - user will name the mesh after completion
+    // No PROFILE= parameter — the user names the mesh after completion, and
+    // save_profile_with_name() writes it then.
     uint32_t prep_timeout_ms = 0;
-    const std::string script = with_probe_preparation(
-        "BED_MESH_CALIBRATE", helix::probe_prep::Operation::BedMesh, prep_timeout_ms);
+    const std::string script =
+        command.self_prepares
+            ? command.script
+            : with_probe_preparation(command.script, helix::probe_prep::Operation::BedMesh,
+                                     prep_timeout_ms);
 
     api_.execute_gcode(
         script,
@@ -1827,7 +1831,8 @@ void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(BedMeshProgressCallback on_p
                 on_error(err);
             }
         },
-        CALIBRATION_TIMEOUT_MS + prep_timeout_ms);
+        command.self_prepares ? SELF_PREPARED_CALIBRATION_TIMEOUT_MS
+                              : CALIBRATION_TIMEOUT_MS + prep_timeout_ms);
 }
 
 void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
@@ -1837,7 +1842,8 @@ void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
     // make the slot a silent no-op. Falls back to the stock command when the slot
     // is empty, which is every printer that predates this setting.
     const StandardMacroInfo& slot = StandardMacros::instance().get(StandardMacroSlot::ScrewsTilt);
-    const std::string command = slot.is_empty() ? "SCREWS_TILT_CALCULATE" : slot.get_macro();
+    const ResolvedMacroScript resolved = resolve_macro_script(slot, /*profile=*/"");
+    const std::string command = resolved.script.empty() ? "SCREWS_TILT_CALCULATE" : resolved.script;
     spdlog::info("[Moonraker API] Starting {}", command);
 
     // Create a collector to handle async response parsing
@@ -1848,9 +1854,14 @@ void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
     // Send the G-code command
     // printer.gcode.script blocks until the command finishes, so the success callback
     // fires after all probing is done and all notify_gcode_response lines have been sent.
+    // Honours self_prepares for the same reason the mesh path does: a shipped
+    // sequence opens with its own tare, and prepending another would tare twice.
     uint32_t prep_timeout_ms = 0;
-    const std::string script = with_probe_preparation(
-        command.c_str(), helix::probe_prep::Operation::ScrewsTilt, prep_timeout_ms);
+    const std::string script =
+        resolved.self_prepares
+            ? command
+            : with_probe_preparation(command, helix::probe_prep::Operation::ScrewsTilt,
+                                     prep_timeout_ms);
 
     api_.execute_gcode(
         script,

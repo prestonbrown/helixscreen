@@ -349,12 +349,14 @@ class PrinterDetector {
      * with a single macro slot — notably the Elegoo Centauri Carbon whose
      * mainline-Klipper `[load_cell_probe]` requires `LOAD_CELL_SAVE_TARE` and
      * a nozzle-wipe wrapper before `BED_MESH_CALIBRATE`. The database entry
-     * may supply a multi-line template under `calibration.bed_mesh_gcode`;
-     * the Bed Mesh panel substitutes `{profile}` with the temporary profile
-     * name and sends the whole block as a single gcode script.
+     * may supply a multi-line template under `calibration.bed_mesh_gcode`.
+     *
+     * Read through StandardMacros rather than directly: this feeds the SHIPPED
+     * tier, so the user's own Settings override still outranks it and
+     * resolve_macro_script() handles the `{profile}` substitution.
      *
      * @return Template with `{profile}` placeholder, or empty string if the
-     *         printer has no override (callers fall back to `StandardMacros`).
+     *         printer ships no sequence for this operation.
      */
     static std::string get_bed_mesh_calibrate_gcode(const std::string& printer_name);
 

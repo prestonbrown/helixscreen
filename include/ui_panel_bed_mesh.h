@@ -7,6 +7,7 @@
 #include "ui_subscription_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "i_moonraker_api.h"
 #include "moonraker_types.h" // For BedMeshProfile
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
@@ -18,8 +19,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-class IMoonrakerAPI;
 
 namespace helix {
 namespace ui {
@@ -89,7 +88,6 @@ class BedMeshPanel : public OverlayBase {
     void start_calibration();
 
     // Modal actions
-    void show_calibrate_modal();
     void show_rename_modal(const std::string& profile_name);
     void show_delete_confirm_modal(const std::string& profile_name);
     void show_save_config_modal();
@@ -99,7 +97,6 @@ class BedMeshPanel : public OverlayBase {
     void confirm_delete_profile();
     void decline_save_config();
     void confirm_save_config();
-    void start_calibration_with_name(const std::string& profile_name);
     void confirm_rename(const std::string& new_name);
 
     // Calibration progress handlers (called by BedMeshProbeCollector)
@@ -116,7 +113,6 @@ class BedMeshPanel : public OverlayBase {
     // textarea and call these; the policy lives here, the decision in
     // helix::ui::bed_mesh::check_profile_name().
     void save_profile_checked(std::string_view typed);
-    void start_calibration_checked(std::string_view typed);
     void rename_profile_checked(std::string_view typed);
 
     /// Profiles the printer currently stores, minus the internal "_hs_temp".
@@ -127,6 +123,11 @@ class BedMeshPanel : public OverlayBase {
     void cancel_overwrite();
 
   private:
+    /// The gcode this printer's mesh calibration runs, resolved through
+    /// StandardMacros so a printer-shipped sequence, a user's Settings override
+    /// and a plain BED_MESH_CALIBRATE are all reached the same way.
+    [[nodiscard]] IAdvancedAPI::BedMeshCommand resolve_calibration_command();
+
     void launch_calibration(IMoonrakerAPI* api, int expected_probes, int probe_samples = 1);
     // ========== Subject Manager (RAII cleanup) ==========
     SubjectManager subjects_;
@@ -166,7 +167,6 @@ class BedMeshPanel : public OverlayBase {
     std::array<std::string, BED_MESH_MAX_PROFILES> profile_names_;
 
     // ========== Modal State Subjects (NOT visibility - internal state) ==========
-    lv_subject_t bed_mesh_calibrating_;     // 0=idle, 1=calibrating (controls form vs spinner)
     lv_subject_t bed_mesh_rename_old_name_; // Display the old name in rename modal
 
     char rename_old_name_buf_[64];
@@ -307,7 +307,6 @@ class BedMeshPanel : public OverlayBase {
     // Profile operation implementations
     void execute_delete_profile(const std::string& name);
     void execute_rename_profile(const std::string& old_name, const std::string& new_name);
-    void execute_calibration(const std::string& profile_name);
     void execute_save_config();
 
     static void on_profile_dropdown_changed(lv_event_t* e);
