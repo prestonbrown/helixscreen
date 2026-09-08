@@ -1179,7 +1179,8 @@ void ControlsPanel::handle_save_z_offset_confirm() {
                 NOTIFY_ERROR("{}", error);
                 save_z_offset_guard_.end();
             });
-        });
+        },
+        &printer_state_);
 }
 
 void ControlsPanel::handle_save_z_offset_cancel() {

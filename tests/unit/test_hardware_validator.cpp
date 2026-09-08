@@ -18,6 +18,9 @@
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -1459,4 +1462,56 @@ TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
     auto result = validator.validate(&config, client.hardware());
 
     REQUIRE(has_newly_discovered(result, "filament_switch_sensor filament_sensor"));
+}
+
+// The bespoke aux-fan check in validate_configured_hardware() turns any fans/aux
+// mapping into an expected-missing warning when discovery does not return that
+// object. Feed it the fans block HelixScreen actually ships for the k1 so the
+// preset data and the check are held to the same contract.
+TEST_CASE_METHOD(HardwareValidatorConfigFixture,
+                 "HardwareValidator - shipped k1 preset maps no aux fan to warn about",
+                 "[hardware][validator][k1]") {
+    std::filesystem::path shipped =
+        std::filesystem::current_path() / "assets" / "config" / "presets" / "k1.json";
+    INFO("reading " << shipped.string() << " (tests must run from the repo root)");
+    REQUIRE(std::filesystem::exists(shipped));
+    std::ifstream in(shipped);
+    REQUIRE(in.good());
+    json preset = json::parse(in);
+    REQUIRE(preset["printer"].contains("fans"));
+    json fans = preset["printer"]["fans"];
+
+    // A printer whose config comments the aux and exhaust output pins out.
+    MoonrakerClientMock client;
+    client.set_heaters({"extruder", "heater_bed"});
+    client.set_fans({"output_pin fan0", "heater_fan hotend_fan", "temperature_fan chamber_fan"});
+
+    auto missing_fan_names = [&](const json& fans_block) {
+        setup_printer_data({{"moonraker_host", "127.0.0.1"},
+                            {"moonraker_port", 7125},
+                            {"fans", fans_block},
+                            {"hardware",
+                             {{"optional", json::array()},
+                              {"expected", json::array()},
+                              {"last_snapshot", json::object()}}}});
+        HardwareValidator validator;
+        auto result = validator.validate(&config, client.hardware());
+        std::vector<std::string> names;
+        for (const auto& issue : result.expected_missing) {
+            names.push_back(issue.hardware_name);
+        }
+        return names;
+    };
+
+    // Known positive first: an aux mapping onto an absent object IS reported, so a
+    // clean result below means the preset claims nothing, not that the check is dead.
+    json with_aux = fans;
+    with_aux["aux"] = "output_pin fan1";
+    auto reported = missing_fan_names(with_aux);
+    REQUIRE(std::find(reported.begin(), reported.end(), "output_pin fan1") != reported.end());
+
+    for (const auto& name : missing_fan_names(fans)) {
+        INFO("unexpected missing-hardware warning: " << name);
+        REQUIRE(name != "output_pin fan1");
+    }
 }

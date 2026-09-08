@@ -203,6 +203,53 @@ EOF
     [ ! -f "$DISABLED_SERVICES_FILE" ]
 }
 
+# --- the empty-sweep report ---
+#
+# log_warn is a no-op stub from helpers, so these capture it locally to assert
+# which arm ran.
+
+capture_logs() {
+    log_warn() { echo "WARN $*" >> "$BATS_TEST_TMPDIR/log"; }
+    log_info() { echo "INFO $*" >> "$BATS_TEST_TMPDIR/log"; }
+    export -f log_warn log_info
+}
+
+@test "empty sweep warns on a QIDI-class host" {
+    mock_command_script "systemctl" "exit 1"
+    capture_logs
+    _is_qidi_class_sbc() { return 0; }
+    export -f _is_qidi_class_sbc
+
+    run stop_competing_uis
+    [ "$status" -eq 0 ]
+    grep -q "WARN No competing UIs found, but this device normally ships one." "$BATS_TEST_TMPDIR/log"
+}
+
+@test "empty sweep warns on a vendor-firmware platform" {
+    mock_command_script "systemctl" "exit 1"
+    capture_logs
+    _is_qidi_class_sbc() { return 1; }
+    export -f _is_qidi_class_sbc
+    platform="k1"
+
+    run stop_competing_uis
+    [ "$status" -eq 0 ]
+    grep -q "WARN No competing UIs found" "$BATS_TEST_TMPDIR/log"
+}
+
+@test "empty sweep stays quiet on a generic pi" {
+    mock_command_script "systemctl" "exit 1"
+    capture_logs
+    _is_qidi_class_sbc() { return 1; }
+    export -f _is_qidi_class_sbc
+    platform="pi"
+
+    run stop_competing_uis
+    [ "$status" -eq 0 ]
+    grep -q "INFO No competing UIs found" "$BATS_TEST_TMPDIR/log"
+    refute_grep "WARN" "$BATS_TEST_TMPDIR/log"
+}
+
 # --- wiring ---
 
 @test "qidi: stop_competing_uis reaches the handler" {

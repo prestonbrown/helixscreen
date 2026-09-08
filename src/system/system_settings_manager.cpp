@@ -95,14 +95,17 @@ void SystemSettingsManager::init_subjects() {
                            subjects_);
     spdlog::debug("[SystemSettingsManager] wifi_enabled: {}", wifi_enabled);
 
-    // Log level (default from current spdlog level)
+    // Log level. With nothing saved, report the level the persistent sinks
+    // actually run at. spdlog::get_level() is the logger's floor, which sits at
+    // debug whenever the ring-buffer sink is capturing debug for the debug
+    // bundle, so it reads "debug" on a device logging at warn.
     std::string config_log_level = config->get<std::string>("/log_level", "");
     int log_level_index;
     if (!config_log_level.empty()) {
         auto level = helix::logging::parse_level(config_log_level, spdlog::level::warn);
         log_level_index = spdlog_level_to_index(level);
     } else {
-        log_level_index = spdlog_level_to_index(spdlog::get_level());
+        log_level_index = spdlog_level_to_index(helix::logging::effective_log_level());
     }
     UI_MANAGED_SUBJECT_INT(log_level_subject_, log_level_index, "settings_log_level", subjects_);
     spdlog::debug("[SystemSettingsManager] log_level: {} (index {})",

@@ -228,9 +228,13 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         if (token.expired())
             return;
 
-        spdlog::info("[FilamentRunoutHandler] User chose to cancel print after runout");
+        spdlog::info("[FilamentRunoutHandler] User pressed Cancel Print after runout");
 
-        // Check if cancel slot is available
+        // Refused before the prompt, not after: asking "are you sure?" about an
+        // action that will then refuse for a reason the user could not have
+        // known is worse than refusing up front. The check is also what keeps
+        // the button from silently doing nothing on a printer with no
+        // CANCEL_PRINT.
         const auto& cancel_info = StandardMacros::instance().get(StandardMacroSlot::Cancel);
         if (cancel_info.is_empty()) {
             spdlog::warn("[FilamentRunoutHandler] Cancel macro slot is empty");
@@ -238,10 +242,27 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
             return;
         }
 
-        // Cancel the print via StandardMacros
-        if (api_) {
-            spdlog::info("[FilamentRunoutHandler] Using StandardMacros cancel: {}",
-                         cancel_info.get_macro());
+        // Cancelling a print is destructive and unrecoverable, and this button
+        // sits in a dialog whose every other button is harmless - the shape a
+        // misplaced tap ruins a print with. PrintCancelModal is the same
+        // confirmation the print-status panel's Stop button raises, so both
+        // cancel affordances show one dialog and cannot drift apart.
+        //
+        // The guidance dialog stays up behind this one - on_tertiary() leaves
+        // closing to the callback - so declining returns the user to it with
+        // every button working. Only the accepted path closes it.
+        cancel_confirm_modal_.set_on_confirm([this, token]() {
+            if (token.expired())
+                return;
+            if (!api_) {
+                spdlog::error("[FilamentRunoutHandler] Cancel confirmed but api is null");
+                return;
+            }
+            const auto& confirmed_info = StandardMacros::instance().get(StandardMacroSlot::Cancel);
+            spdlog::info("[FilamentRunoutHandler] User confirmed cancel; using StandardMacros "
+                         "cancel: {}",
+                         confirmed_info.get_macro());
+            hide_runout_guidance_modal();
             StandardMacros::instance().execute(
                 StandardMacroSlot::Cancel, api_,
                 []() { spdlog::info("[FilamentRunoutHandler] Print cancelled after runout"); },
@@ -250,6 +271,15 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
                                   err.message);
                     NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), err.user_message());
                 });
+        });
+
+        if (!cancel_confirm_modal_.show(lv_screen_active())) {
+            // Never silently swallow the intent: with no dialog there is nothing
+            // to confirm against, so refuse loudly rather than cancelling a print
+            // the user was never actually asked about.
+            spdlog::error("[FilamentRunoutHandler] Failed to create cancel confirmation - not "
+                          "cancelling");
+            NOTIFY_ERROR(lv_tr("Failed to show confirmation dialog"));
         }
     });
 

@@ -2808,7 +2808,14 @@ qc_patch_drift() {
 SECTION_START=$(date +%s)
 echo -n "🩹 Checking patch drift..."
 
-if [ -f "scripts/check_patch_drift.py" ]; then
+if [ -n "${HELIX_QC_SKIP_PATCH_DRIFT:-}" ]; then
+  # Set by a caller that runs this sweep somewhere lib/ is borrowed rather than
+  # owned, where the answer would describe the lending tree's branch. That caller
+  # asks the question again where it is answerable.
+  section_time $SECTION_START
+  echo ""
+  echo "⏭️  patch drift: deferred to the tree that owns lib/"
+elif [ -f "scripts/check_patch_drift.py" ]; then
   if python3 scripts/check_patch_drift.py >/tmp/patch_drift.out 2>&1; then
     section_time $SECTION_START
     echo ""

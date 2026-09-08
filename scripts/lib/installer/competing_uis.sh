@@ -187,6 +187,17 @@ stop_sovol_competing_uis() {
     fi
 }
 
+# True when this device's firmware ships a screen UI of its own, so finding no
+# competing UI is a sign we failed to recognise it rather than a clean host.
+# pi/pi32 and x86 are excluded: a generic SBC with no stock UI is the normal
+# case. QIDI-class boxes resolve to pi, so they are matched by fingerprint.
+_host_ships_a_stock_ui() {
+    case "${platform:-}" in
+        ad5m|ad5x|k1|k2|cc1|m1|snapmaker-u1) return 0 ;;
+    esac
+    command -v _is_qidi_class_sbc >/dev/null 2>&1 && _is_qidi_class_sbc
+}
+
 # Stop the QIDI stock screen in the two shapes COMPETING_UIS cannot name.
 # Sets found_any in the caller's scope, like the sibling handlers.
 stop_qidi_competing_uis() {
@@ -527,6 +538,14 @@ stop_competing_uis() {
     if [ "$found_any" = true ]; then
         log_info "Waiting for competing UIs to stop..."
         sleep 2
+    elif _host_ships_a_stock_ui; then
+        # Finding nothing on a device whose firmware ships a screen means we did
+        # not recognise it, not that there is none. /dev/fb0 is not exclusive and
+        # the touchscreen is not grabbed, so the install completes, both UIs
+        # share the display, and nothing downstream reports a problem.
+        log_warn "No competing UIs found, but this device normally ships one."
+        log_warn "If the stock screen is still running after install, please report it:"
+        log_warn "  https://github.com/prestonbrown/helixscreen/issues"
     else
         log_info "No competing UIs found"
     fi

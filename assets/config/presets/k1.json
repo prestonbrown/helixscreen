@@ -14,14 +14,13 @@
     "temp_sensors": {
       "bed": "heater_bed",
       "hotend": "extruder",
-      "chamber": "temperature_sensor chamber_temp"
+      "chamber": "auto"
     },
     "fans": {
       "chamber": "temperature_fan chamber_fan",
       "exhaust": "output_pin fan2",
       "hotend": "heater_fan hotend_fan",
-      "part": "output_pin fan0",
-      "aux": "output_pin fan1"
+      "part": "output_pin fan0"
     },
     "leds": {
       "strip": "output_pin LED"

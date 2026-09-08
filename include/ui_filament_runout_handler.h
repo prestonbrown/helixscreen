@@ -22,6 +22,7 @@
  */
 
 #include "ui_observer_guard.h"
+#include "ui_print_cancel_modal.h"
 #include "ui_runout_guidance_modal.h"
 
 #include "async_lifetime_guard.h"
@@ -136,6 +137,12 @@ class FilamentRunoutHandler {
 
     /// Runout guidance modal (RAII - auto-hides when destroyed)
     RunoutGuidanceModal runout_modal_;
+
+    /// Confirmation raised by the dialog's Cancel Print button. The same modal
+    /// the print-status panel's Stop button uses, so both cancel affordances
+    /// show one dialog and cannot drift apart in copy or severity. Shown on top
+    /// of runout_modal_, which stays up behind it so declining returns there.
+    PrintCancelModal cancel_confirm_modal_;
 
     /// Flag to track if runout modal was shown for current pause
     /// Reset when print resumes or ends, prevents repeated modal popups
