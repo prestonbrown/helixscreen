@@ -422,7 +422,6 @@ class PrintStatusWidget : public PanelWidget {
         void resize_arc();
 
       private:
-        ObserverGuard arc_value_observer_;
         lv_obj_t* arc_widget_ = nullptr;
         std::string current_nozzle_override_ = "auto";
 

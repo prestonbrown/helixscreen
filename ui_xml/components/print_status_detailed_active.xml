@@ -31,8 +31,15 @@
                shared helix_progress_arc component. Stroke is wired in C++
                via helix::ui::attach_progress_arc() (see PrintStatusWidget
                DetailedFormatter::attach_arc), publishing tier 0..4 to the
-               print_status_arc_thickness_tier_subject_ this widget owns. -->
-          <helix_progress_arc name="detailed_progress_arc" width="80" height="80" align="center" event_bubble="true"/>
+               print_status_arc_thickness_tier_subject_ this widget owns.
+
+               print_progress_display, not print_progress: the display subject
+               is the one every render surface fills from, and it is pinned
+               while a finished or aborted print holds its final number. The
+               percentage label below and the linear bars read the same pair
+               (prestonbrown/helixscreen#1510). -->
+          <helix_progress_arc name="detailed_progress_arc" width="80" height="80" align="center"
+                              bind_value="print_progress_display" event_bubble="true"/>
           <text_body name="detailed_progress_pct"
                      align="center" bind_text="print_progress_text" clickable="false" event_bubble="true"/>
         </lv_obj>
