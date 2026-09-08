@@ -522,6 +522,13 @@ class PrintStatusWidget : public PanelWidget {
     // grid; if populate_page is mid-rebuild, grid_update reads freed track data
     // and SIGSEGVs (J2URYGSM AD5M / SY6JLLKJ / FFATPQWB Pi5).
     void defer_reset_print_card_to_idle();
+    // Schedule the active-print thumbnail write on the next LVGL tick. Same
+    // reasoning as defer_reset_print_card_to_idle() above - the observer body
+    // runs inside UpdateQueue::process_pending(), and lv_image_set_src there
+    // cascades into lv_obj_update_layout across a page grid populate_page may
+    // still be rebuilding. The path is copied because the subject can publish
+    // again before the tick fires.
+    void defer_apply_active_thumbnail(const char* path);
     void update_idle_compact_mode();
     void update_active_layout_mode();
     // Apply the imperative print-card row/column flex layout for is_column_.
