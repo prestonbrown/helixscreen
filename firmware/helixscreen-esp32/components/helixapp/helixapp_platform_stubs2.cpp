@@ -441,6 +441,10 @@ spdlog::level::level_enum parse_level(const std::string&, spdlog::level::level_e
     return default_level;
 }
 void set_runtime_level(spdlog::level::level_enum) {}
+spdlog::level::level_enum effective_log_level() {
+    // No file/syslog sinks here, so the logger's own level is the level that runs.
+    return spdlog::get_level();
+}
 std::string effective_destination() {
     return std::string("console");
 }
