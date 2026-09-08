@@ -74,6 +74,14 @@ ExecStartPre=+/bin/sh -c '[ -x "@@INSTALL_DIR@@/config/refresh-service-units.sh"
 # when X11 isn't running (it polls xset, fails, and interprets that as "Off").
 ExecStartPre=+/bin/sh -c 'systemctl stop display-sleep.service 2>/dev/null || true'
 
+# Run the platform's stock-UI stop on every start, from the same hook file the
+# SysV init script sources. A vendor UI that a firmware update re-enables comes
+# back down here rather than fighting HelixScreen for the framebuffer.
+# Root (+prefix): stopping vendor units needs it, and it runs before the User=
+# drop. Platforms that ship no hook file, or whose hook leaves the function at
+# its default no-op, make this a no-op.
+ExecStartPre=+/bin/sh -c '[ -f "@@INSTALL_DIR@@/platform/hooks.sh" ] || exit 0; . "@@INSTALL_DIR@@/platform/hooks.sh"; command -v platform_stop_competing_uis >/dev/null 2>&1 && platform_stop_competing_uis; exit 0'
+
 # Fix un-substituted polkit template if present (self-heal from broken initial install).
 # The grep/sed patterns use quote-splitting so the installer's own sed pass
 # doesn't substitute them — they must remain literal to match a broken deployed file.

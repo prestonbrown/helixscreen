@@ -189,13 +189,26 @@ class RunoutGuidanceModal : public Modal {
     /**
      * @brief Called when user clicks Cancel Print button
      *
-     * Invokes the cancel print callback if set, then hides the modal.
+     * Invokes the cancel print callback if set. Does NOT hide the modal - the
+     * callback owns that, and only on the confirmed path.
+     *
+     * Cancel Print raises a confirmation, so this press asks a question rather
+     * than deciding anything, and this dialog has to stay up behind that
+     * confirmation: declining returns the user to it with every button still
+     * working. On the runout path there is no second chance if it closes -
+     * check_and_show_runout_guidance() early-returns while
+     * runout_modal_shown_for_pause_ is set, and that clears only on a transition
+     * to Printing/Idle/Complete/Cancelled/Error, so a user who reconsidered
+     * would lose Load, Unload, Purge and Resume for the rest of the pause.
+     *
+     * A caller that wires on_cancel_print_ without closing anything leaves the
+     * dialog open on press; that is only reachable where the XML shows
+     * btn_cancel_print at all, i.e. print_state_enum == 2.
      */
     void on_tertiary() override {
         if (on_cancel_print_) {
             on_cancel_print_();
         }
-        hide();
     }
 
     /**

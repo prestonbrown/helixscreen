@@ -461,3 +461,34 @@ edit_an_applied_patch() {
             ;;
     esac
 }
+
+# --- where the pre-push hook asks the question (prestonbrown/helixscreen#1471) ---
+#
+# The hook's throwaway checkout symlinks lib/ back to the primary tree, so its
+# submodules carry the primary branch's applied patches. Running the gate there
+# measures one branch's patches/ against another branch's lib/.
+
+@test "qc_patch_drift defers when the caller says lib/ is borrowed" {
+    eval "$(sed -n "/^qc_patch_drift() {/,/^}/p" scripts/quality-checks.sh)"
+    section_time() { :; }
+    HELIX_QC_SKIP_PATCH_DRIFT=1 run qc_patch_drift
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "deferred to the tree that owns lib/"
+}
+
+@test "qc_patch_drift runs the real gate when nothing defers it" {
+    eval "$(sed -n "/^qc_patch_drift() {/,/^}/p" scripts/quality-checks.sh)"
+    section_time() { :; }
+    run qc_patch_drift
+    ! echo "$output" | grep -q "deferred to the tree that owns lib/"
+    echo "$output" | grep -q "patch drift"
+}
+
+@test "pre-push defers drift in the isolated sweep and re-asks in the primary tree" {
+    grep -q 'HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh' .githooks/pre-push
+    grep -q 'cd "$REPO_ROOT" && python3 scripts/check_patch_drift.py' .githooks/pre-push
+}
+
+@test "pre-push blames the working tree, not the pushed commit, for drift" {
+    grep -q 'Patch drift is in YOUR WORKING TREE' .githooks/pre-push
+}

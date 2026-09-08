@@ -424,6 +424,41 @@ cleanup_on_success() {
     fi
 }
 
+# Kill the process(es) running one exact executable path.
+# A stock UI whose binary has a generic basename cannot go through
+# kill_process_by_name: the QIDI Q2's stock screen is literally `client`, and
+# `pidof client` on a general-purpose SBC matches whatever else answers to that
+# name. Resolving /proc/<pid>/exe identifies the binary instead of trusting its
+# name. SIGTERM first, then SIGKILL any survivor, matching the sibling above.
+# Args: /absolute/path/to/binary
+# Returns: 0 if any process was killed, 1 if none found
+kill_process_by_path() {
+    local target="$1"
+    local killed_any=false
+    local procdir pid exe
+
+    [ -n "$target" ] || return 1
+
+    for procdir in /proc/[0-9]*; do
+        exe=$(readlink "$procdir/exe" 2>/dev/null) || continue
+        [ "$exe" = "$target" ] || continue
+        pid="${procdir#/proc/}"
+        $SUDO kill "$pid" 2>/dev/null || true
+        killed_any=true
+    done
+
+    [ "$killed_any" = true ] || return 1
+
+    sleep 1
+    for procdir in /proc/[0-9]*; do
+        exe=$(readlink "$procdir/exe" 2>/dev/null) || continue
+        [ "$exe" = "$target" ] || continue
+        $SUDO kill -9 "${procdir#/proc/}" 2>/dev/null || true
+    done
+
+    return 0
+}
+
 # Kill process(es) by name — SIGTERM first, then SIGKILL any survivors.
 # helix-watchdog and helix-screen catch SIGTERM but don't always exit (e.g.
 # during splash handoff or when blocked on I/O), so the installer must
@@ -3169,7 +3204,28 @@ uninstall_forgex() {
 # firmware 01.01.02+: systemd unit `qidi-client` runs the `qidiclient` binary with
 # Restart=always, so the systemd stop+disable in the loop below is what actually keeps it
 # down; the bare `qidiclient` entry is the process-kill backstop) (#1047).
-COMPETING_UIS="guppyscreen GuppyScreen grumpyscreen Grumpyscreen KlipperScreen klipperscreen featherscreen FeatherScreen mksclient qidi-client qidiclient"
+# `makerbase-client` is the stock screen unit on QIDI firmware 1.1.1 and older;
+# the loop is is-active gated, so it is a no-op on a host that does not run it.
+COMPETING_UIS="guppyscreen GuppyScreen grumpyscreen Grumpyscreen KlipperScreen klipperscreen featherscreen FeatherScreen mksclient qidi-client qidiclient makerbase-client"
+
+# The stock screen unit is `makerbase-client` on firmware 1.1.1 and older and
+# `qidi-client` on 01.01.02+, and both are in COMPETING_UIS above. Two shapes
+# stay out of a name list's reach:
+#
+#   - The unit runs /home/<klipper-user>/QD_Q2/bin/client, which outlives the
+#     unit as a bare process. Its basename is `client`, so pidof would match
+#     unrelated processes on a general-purpose SBC; it is matched by full path.
+#   - A unit a later firmware renames still has to exec a QIDI path, so units
+#     are discovered by what their ExecStart runs rather than by what they are
+#     called. This arm is not is-active gated, so a stock screen that is enabled
+#     but stopped is disabled too instead of returning at the next boot, and it
+#     folds case because a unit name's capitalisation is the vendor's to change.
+#
+# Nothing either arm matches can exist off a QIDI box, so the handler needs no
+# hostname gate. Both arms are reversible and recorded, so uninstall's
+# reenable_disabled_services() puts the stock screen back.
+QIDI_STOCK_UI_BINS="/home/mks/QD_Q2/bin/client /home/qidi/QD_Q2/bin/client"
+QIDI_STOCK_UI_EXEC_PATTERN='QD_Q2|qidiclient|qidi-client|makerbase-client'
 
 # Wayland compositors that hold the DRM/KMS master. On Armbian/Pi-class boards
 # (e.g. BTT CB1) KlipperScreen commonly runs *inside* one of these; the
@@ -3318,6 +3374,49 @@ stop_sovol_competing_uis() {
     if [ -e /sys/class/gpio/gpio67 ]; then
         echo 67 > /sys/class/gpio/unexport 2>/dev/null || true
     fi
+}
+
+# True when this device's firmware ships a screen UI of its own, so finding no
+# competing UI is a sign we failed to recognise it rather than a clean host.
+# pi/pi32 and x86 are excluded: a generic SBC with no stock UI is the normal
+# case. QIDI-class boxes resolve to pi, so they are matched by fingerprint.
+_host_ships_a_stock_ui() {
+    case "${platform:-}" in
+        ad5m|ad5x|k1|k2|cc1|m1|snapmaker-u1) return 0 ;;
+    esac
+    command -v _is_qidi_class_sbc >/dev/null 2>&1 && _is_qidi_class_sbc
+}
+
+# Stop the QIDI stock screen in the two shapes COMPETING_UIS cannot name.
+# Sets found_any in the caller's scope, like the sibling handlers.
+stop_qidi_competing_uis() {
+    local bin unit unit_path
+
+    for bin in $QIDI_STOCK_UI_BINS; do
+        [ -f "$bin" ] || continue
+        log_info "Stopping stock QIDI UI ($bin)..."
+        kill_process_by_path "$bin" || true
+        # Persistent disable: without the execute bit whatever launches it at
+        # boot fails to exec. Recorded so uninstall's chmod +x restores it.
+        $SUDO chmod a-x "$bin" 2>/dev/null || true
+        record_disabled_service "sysv-chmod" "$bin"
+        found_any=true
+    done
+
+    for unit_path in /etc/systemd/system/*.service /lib/systemd/system/*.service; do
+        [ -f "$unit_path" ] || continue
+        unit=$(basename "$unit_path")
+        # Our own unit runs out of an install directory that can sit under the
+        # same home as the stock UI, so its ExecStart matches the pattern too.
+        case "$unit" in ${SERVICE_NAME:-helixscreen}*) continue ;; esac
+        grep -E '^ExecStart=' "$unit_path" 2>/dev/null \
+            | grep -qiE "$QIDI_STOCK_UI_EXEC_PATTERN" || continue
+        log_info "Stopping stock QIDI UI unit ($unit)..."
+        $SUDO systemctl stop "$unit" 2>/dev/null || true
+        $SUDO systemctl disable "$unit" 2>/dev/null || true
+        record_disabled_service "systemd" "$unit"
+        found_any=true
+    done
 }
 
 # Ensure SSH (dropbear) is running and will start on boot.
@@ -3555,6 +3654,10 @@ stop_competing_uis() {
         stop_sovol_competing_uis
     fi
 
+    # QIDI: the generic loop below covers the 01.01.02+ unit names; this reaches
+    # the path-named 1.1.x binary and any unit a later firmware renames.
+    stop_qidi_competing_uis
+
     # CC1 / COSMOS: use gui-switcher handoff instead of disabling peers.
     # Early-return so the generic loop below doesn't chmod out grumpyscreen/guppyscreen/atomscreen.
     if [ "${platform:-}" = "cc1" ]; then
@@ -3624,6 +3727,14 @@ stop_competing_uis() {
     if [ "$found_any" = true ]; then
         log_info "Waiting for competing UIs to stop..."
         sleep 2
+    elif _host_ships_a_stock_ui; then
+        # Finding nothing on a device whose firmware ships a screen means we did
+        # not recognise it, not that there is none. /dev/fb0 is not exclusive and
+        # the touchscreen is not grabbed, so the install completes, both UIs
+        # share the display, and nothing downstream reports a problem.
+        log_warn "No competing UIs found, but this device normally ships one."
+        log_warn "If the stock screen is still running after install, please report it:"
+        log_warn "  https://github.com/prestonbrown/helixscreen/issues"
     else
         log_info "No competing UIs found"
     fi
