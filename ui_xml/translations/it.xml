@@ -1866,6 +1866,7 @@
   <translation tag="Printer doesn&apos;t expose the expected service — wrong device?" it="La stampante non espone il servizio previsto — dispositivo errato?"/>
   <translation tag="Printer hardware detected" it="Hardware stampante rilevato"/>
   <translation tag="Printer image set to auto-detect" it="Immagine stampante impostata su rilevamento auto"/>
+  <translation tag="Printer is busy - {} stays in the queue" it="La stampante è occupata – {} resta in coda"/>
   <translation tag="Printer is not paired — pair it first" it="La stampante non è associata — associala prima"/>
   <translation tag="Printer name" it="Nome stampante"/>
   <translation tag="Printer not ready" it="Stampante non pronta"/>

@@ -1914,6 +1914,7 @@ translations:
     — デバイスが違う可能性があります
   Printer hardware detected: プリンターのハードウェアを検出
   Printer image set to auto-detect: プリンター画像を自動検出に設定しました
+  Printer is busy - {} stays in the queue: 'プリンターは使用中です – {} はキューに残ります'
   Printer is not paired — pair it first: プリンターがペアリングされていません — 先にペアリングしてください
   Printer name: プリンター名
   Printer not ready: プリンターの準備ができていません

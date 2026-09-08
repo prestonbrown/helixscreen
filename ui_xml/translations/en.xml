@@ -1866,6 +1866,7 @@
   <translation tag="Printer doesn&apos;t expose the expected service — wrong device?" en="Printer doesn&apos;t expose the expected service — wrong device?"/>
   <translation tag="Printer hardware detected" en="Printer hardware detected"/>
   <translation tag="Printer image set to auto-detect" en="Printer image set to auto-detect"/>
+  <translation tag="Printer is busy - {} stays in the queue" en="Printer is busy - {} stays in the queue"/>
   <translation tag="Printer is not paired — pair it first" en="Printer is not paired — pair it first"/>
   <translation tag="Printer name" en="Printer name"/>
   <translation tag="Printer not ready" en="Printer not ready"/>

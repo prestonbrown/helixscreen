@@ -1866,6 +1866,7 @@
   <translation tag="Printer doesn&apos;t expose the expected service — wrong device?" ja="プリンターが想定されるサービスを公開していません — デバイスが違う可能性があります"/>
   <translation tag="Printer hardware detected" ja="プリンターのハードウェアを検出"/>
   <translation tag="Printer image set to auto-detect" ja="プリンター画像を自動検出に設定しました"/>
+  <translation tag="Printer is busy - {} stays in the queue" ja="プリンターは使用中です – {} はキューに残ります"/>
   <translation tag="Printer is not paired — pair it first" ja="プリンターがペアリングされていません — 先にペアリングしてください"/>
   <translation tag="Printer name" ja="プリンター名"/>
   <translation tag="Printer not ready" ja="プリンターの準備ができていません"/>

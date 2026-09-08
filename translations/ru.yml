@@ -2053,6 +2053,7 @@ translations:
     ожидаемый сервис — не то устройство?
   Printer hardware detected: Обнаружено оборудование принтера
   Printer image set to auto-detect: Изображение принтера — автоопределение
+  Printer is busy - {} stays in the queue: 'Принтер занят – {} остаётся в очереди'
   Printer is not paired — pair it first: Принтер не сопряжён — сначала выполните сопряжение
   Printer name: Название принтера
   Printer not ready: Принтер не готов

@@ -1905,6 +1905,7 @@ translations:
   Printer doesn't expose the expected service — wrong device?: 打印机未提供预期的服务 — 设备是否有误？
   Printer hardware detected: 检测到打印机硬件
   Printer image set to auto-detect: 打印机图片已设为自动检测
+  Printer is busy - {} stays in the queue: '打印机忙碌中 – {} 保留在队列中'
   Printer is not paired — pair it first: 打印机未配对 — 请先进行配对
   Printer name: 打印机名称
   Printer not ready: 打印机未就绪

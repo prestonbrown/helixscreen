@@ -2026,6 +2026,7 @@ translations:
     the expected service — wrong device?
   Printer hardware detected: Printer hardware detected
   Printer image set to auto-detect: Printer image set to auto-detect
+  Printer is busy - {} stays in the queue: Printer is busy - {} stays in the queue
   Printer is not paired — pair it first: Printer is not paired — pair it first
   Printer name: Printer name
   Printer not ready: Printer not ready

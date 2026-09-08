@@ -1866,6 +1866,7 @@
   <translation tag="Printer doesn&apos;t expose the expected service — wrong device?" fr="L&apos;imprimante n&apos;expose pas le service attendu — mauvais appareil ?"/>
   <translation tag="Printer hardware detected" fr="Matériel d&apos;imprimante détecté"/>
   <translation tag="Printer image set to auto-detect" fr="Image de l&apos;imprimante en auto-détection"/>
+  <translation tag="Printer is busy - {} stays in the queue" fr="L&apos;imprimante est occupée – {} reste dans la file"/>
   <translation tag="Printer is not paired — pair it first" fr="L&apos;imprimante n&apos;est pas appairée — appairez-la d&apos;abord"/>
   <translation tag="Printer name" fr="Nom de l&apos;imprimante"/>
   <translation tag="Printer not ready" fr="Imprimante non prête"/>

@@ -2097,6 +2097,7 @@ translations:
     pas le service attendu — mauvais appareil ?
   Printer hardware detected: Matériel d'imprimante détecté
   Printer image set to auto-detect: Image de l'imprimante en auto-détection
+  Printer is busy - {} stays in the queue: 'L''imprimante est occupée – {} reste dans la file'
   Printer is not paired — pair it first: L'imprimante n'est pas appairée — appairez-la
     d'abord
   Printer name: Nom de l'imprimante
