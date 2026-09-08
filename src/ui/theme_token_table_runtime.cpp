@@ -11,18 +11,44 @@ bool enabled() {
         if (const char* env = std::getenv("HELIX_TOKEN_TABLE")) {
             return env[0] == '1';
         }
-        // ESP32 ships ui_xml as a read-only frogfs image, so the compiled table
-        // can never disagree with what the device would have parsed. Every other
-        // platform — including cross-built embedded Linux — keeps live parsing:
-        // editing ~/helixscreen/ui_xml and relaunching is the only way to adjust
-        // tokens on a device that cannot rebuild.
-#if defined(HELIX_PLATFORM_ESP32) || defined(HELIX_TOKEN_TABLE_DEFAULT_ON)
+        // Installed builds read the table; dev builds scan.
+        //
+        // Aggregating tokens live reopens every top-level ui_xml file once per
+        // aggregation call, ~28 times a boot, and that scan is most of what
+        // theme_manager_init spends: 7.2s of a 16.8s splash on a 480x272 QIDI Q2
+        // reading from eMMC. The table answers the same queries with no I/O.
+        //
+        // ESP32 ships ui_xml as a read-only frogfs image and cross-built release
+        // targets install files nobody edits in place, which is already why hot
+        // reload defaults off there (RuntimeConfig::hot_reload_enabled). A native
+        // dev build keeps scanning so edit-XML-and-relaunch still moves tokens,
+        // and HELIX_TOKEN_TABLE=0 restores scanning on a device that needs it.
+#if defined(HELIX_PLATFORM_ESP32) || defined(HELIX_RELEASE_BUILD) ||                               \
+    defined(HELIX_TOKEN_TABLE_DEFAULT_ON)
         return true;
 #else
         return false;
 #endif
     }();
     return on;
+}
+
+bool covers(const char* element_type) {
+    for (size_t i = 0; i < k_token_table_count; ++i) {
+        if (std::strcmp(k_token_table[i].type, element_type) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool answers_from_table(bool table_enabled, const char* element_type, const char* directory,
+                        const char* canonical_dir) {
+    if (!table_enabled || element_type == nullptr || directory == nullptr ||
+        canonical_dir == nullptr) {
+        return false;
+    }
+    return covers(element_type) && std::strcmp(directory, canonical_dir) == 0;
 }
 
 std::unordered_map<std::string, std::string> for_element(const char* element_type) {
