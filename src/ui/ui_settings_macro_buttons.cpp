@@ -264,9 +264,15 @@ void MacroButtonsOverlay::populate_dropdowns() {
 
         const auto& info = StandardMacros::instance().get(slot);
 
-        // Build options string - first option shows auto-detected or empty
+        // Build options string - first option shows what "no override" resolves to.
+        // Must follow StandardMacroInfo's own priority, or the row claims one
+        // thing while dispatch runs another.
         std::string options;
-        if (!info.detected_macro.empty()) {
+        if (!info.shipped_macro.empty()) {
+            // A shipped sequence is multi-line gcode, not a name — printing it
+            // raw would fill the dropdown with a script.
+            options = std::string("(Auto: ") + lv_tr("printer default") + ")";
+        } else if (!info.detected_macro.empty()) {
             options = "(Auto: " + info.detected_macro + ")";
         } else if (!info.fallback_macro.empty()) {
             options = "(Auto: " + info.fallback_macro + ")";

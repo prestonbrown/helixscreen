@@ -2824,6 +2824,7 @@
   <translation tag="of" de="von" en="of" es="de" fr="de" it="di" ja="の" pt="de" ru="из" zh="的"/>
   <translation tag="off" de="aus" en="off" es="apagado" fr="éteint" it="spento" ja="オフ" pt="desligado" ru="выкл" zh="关闭"/>
   <translation tag="or type a macro name" de="oder Makronamen eingeben" en="or type a macro name" es="o escriba un nombre de macro" fr="ou saisissez un nom de macro" it="oppure digita un nome di macro" ja="またはマクロ名を入力" pt="ou digite um nome de macro" ru="или введите название макроса" zh="或输入宏名称"/>
+  <translation tag="printer default" de="Druckerstandard" en="printer default" es="valor por defecto de la impresora" fr="par défaut de l’imprimante" it="predefinito stampante" ja="プリンター既定" pt="padrão da impressora" ru="по умолчанию для принтера" zh="打印机默认"/>
   <translation tag="prints" de="Drucke" en="prints" es="impresiones" fr="impressions" it="stampe" ja="印刷" pt="impressões" ru="печатей" zh="打印次数"/>
   <translation tag="remaining" de="verbleibend" en="remaining" es="restante" fr="restant" it="rimanente" ja="残り" pt="restante" ru="осталось" zh="剩余"/>
   <translation tag="remaining before clog detection triggers" de="verbleibend bis Verstopfungserkennung auslöst" en="remaining before clog detection triggers" es="restante antes de que se active la detección de obstrucción" fr="restant avant le déclenchement de la détection de bouchon" it="rimanente prima che si attivi il rilevamento intasamento" ja="残りで詰まり検出が作動します" pt="restante antes da detecção de obstrução ser acionada" ru="осталось до срабатывания обнаружения засора" zh="剩余即触发堵料检测"/>

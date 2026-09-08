@@ -2824,6 +2824,7 @@
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>
   <translation tag="or type a macro name" ru="или введите название макроса"/>
+  <translation tag="printer default" ru="по умолчанию для принтера"/>
   <translation tag="prints" ru="печатей"/>
   <translation tag="remaining" ru="осталось"/>
   <translation tag="remaining before clog detection triggers" ru="осталось до срабатывания обнаружения засора"/>

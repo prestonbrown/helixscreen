@@ -3214,6 +3214,7 @@ translations:
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: O remember_spool do AFC retém informações do carretel no firmware; isso tem precedência sobre esta opção
   AI detection: Detecção por AI
   or type a macro name: ou digite um nome de macro
+  printer default: padrão da impressora
   prints: impressões
   remaining: restante
   remaining before clog detection triggers: restante antes da detecção de obstrução

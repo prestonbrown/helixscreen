@@ -2929,6 +2929,7 @@ translations:
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC の remember_spool がファームウェア側でスプール情報を保持しているため、このトグル設定より優先されます
   AI detection: AI 検出
   or type a macro name: またはマクロ名を入力
+  printer default: プリンター既定
   prints: 印刷
   remaining: 残り
   remaining before clog detection triggers: 残りで詰まり検出が作動します

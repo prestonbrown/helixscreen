@@ -53,6 +53,11 @@ using namespace helix;
 #include <cstring>
 #include <limits>
 
+/// Calibration probes into this profile rather than clobbering a stored one;
+/// save_profile_with_name() renames it once the user names the mesh. Shared so
+/// the name written and the name cleaned up cannot drift apart.
+static constexpr const char* TEMP_PROFILE = "_hs_temp";
+
 // ============================================================================
 // Forward declarations for static event callbacks
 // ============================================================================
@@ -61,7 +66,6 @@ static void on_profile_rename_cb(lv_event_t* e);
 static void on_profile_delete_cb(lv_event_t* e);
 static void on_calibrate_header_clicked_cb(lv_event_t* e);
 static void on_calibrate_cancel_cb(lv_event_t* e);
-static void on_calibrate_start_cb(lv_event_t* e);
 static void on_rename_cancel_cb(lv_event_t* e);
 static void on_rename_confirm_cb(lv_event_t* e);
 static void on_delete_cancel_cb(lv_event_t* e);
@@ -208,7 +212,6 @@ void BedMeshPanel::init_subjects() {
         }
 
         // Modal state subjects (NOT visibility - internal state only)
-        UI_MANAGED_SUBJECT_INT(bed_mesh_calibrating_, 0, "bed_mesh_calibrating", subjects_);
         UI_MANAGED_SUBJECT_STRING(bed_mesh_rename_old_name_, rename_old_name_buf_, "",
                                   "bed_mesh_rename_old_name", subjects_);
         // Note: All modals now use helix::ui::modal_show() pattern instead of visibility subjects
@@ -657,7 +660,6 @@ void BedMeshPanel::register_callbacks() {
 
         // Calibrate modal
         {"on_bed_mesh_calibrate_cancel", on_calibrate_cancel_cb},
-        {"on_bed_mesh_calibrate_start", on_calibrate_start_cb},
 
         // Rename modal
         {"on_bed_mesh_rename_cancel", on_rename_cancel_cb},
@@ -780,7 +782,7 @@ void BedMeshPanel::update_profile_list_subjects() {
     std::vector<std::string> profiles;
     profiles.reserve(raw_profiles.size());
     for (const auto& p : raw_profiles) {
-        if (p != "_hs_temp")
+        if (p != TEMP_PROFILE)
             profiles.push_back(p);
     }
 
@@ -1436,11 +1438,33 @@ void BedMeshPanel::start_calibration_probing() {
         });
 }
 
+IAdvancedAPI::BedMeshCommand BedMeshPanel::resolve_calibration_command() {
+    // One ladder, StandardMacros': configured > shipped > detected > fallback.
+    // The Elegoo Centauri Carbon arrives through the shipped tier, whose sequence
+    // tares the load cell and runs the vendor wipe wrapper first; a plain
+    // BED_MESH_CALIBRATE probes untared there. The probe_preparation tare rule
+    // does not cover it either — that keys on LOAD_CELL_TARE and this machine
+    // spells it LOAD_CELL_SAVE_TARE.
+    const auto& info = StandardMacros::instance().get(StandardMacroSlot::BedMesh);
+    // accept_fallback=false: HELIX_BED_MESH_IF_NEEDED returns without probing
+    // when a recent mesh exists, so a Calibrate button resolving to it would
+    // advance the modal to naming and offer to save a mesh nothing re-measured.
+    ResolvedMacroScript resolved =
+        resolve_macro_script(info, TEMP_PROFILE, /*accept_fallback=*/false);
+    if (resolved.script.empty()) {
+        resolved = {"BED_MESH_CALIBRATE", /*self_prepares=*/false};
+    }
+
+    spdlog::info("[BedMeshPanel] Calibrating with: {}", resolved.script);
+    return {resolved.script, resolved.self_prepares};
+}
+
 void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, int probe_samples) {
     // Start calibration with progress tracking. All three callbacks fire on the
     // WebSocket thread; bg_cb defers the body to main and re-checks the lifetime
     // generation atomically before invoking.
     api->advanced().start_bed_mesh_calibrate(
+        resolve_calibration_command(),
         lifetime_.bg_cb("BedMeshPanel::probe_progress",
                         [this](int current, int total) { on_probe_progress(current, total); }),
         lifetime_.bg_cb("BedMeshPanel::calibrate_done", [this]() { on_calibration_complete(); }),
@@ -1452,13 +1476,6 @@ void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, i
 // ============================================================================
 // Modal Management
 // ============================================================================
-
-void BedMeshPanel::show_calibrate_modal() {
-    lv_subject_set_int(&bed_mesh_calibrating_, 0);
-
-    calibrate_modal_widget_ = helix::ui::modal_show("bed_mesh_calibrate_modal");
-    spdlog::debug("[{}] Showing calibrate modal", get_name());
-}
 
 void BedMeshPanel::show_rename_modal(const std::string& profile_name) {
     pending_rename_old_ = profile_name;
@@ -1503,7 +1520,6 @@ void BedMeshPanel::hide_all_modals() {
     operation_guard_.end();
 
     // Reset calibration state machine
-    lv_subject_set_int(&bed_mesh_calibrating_, 0);
     lv_subject_set_int(&bed_mesh_calibrate_state_, static_cast<int>(BedMeshCalibrationState::IDLE));
 
     // Hide all modals (all use ui_modal_hide pattern now)
@@ -1540,11 +1556,6 @@ void BedMeshPanel::confirm_save_config() {
     hide_all_modals();
     execute_save_config();
     pending_operation_ = PendingOperation::None;
-}
-
-void BedMeshPanel::start_calibration_with_name(const std::string& profile_name) {
-    hide_all_modals();
-    execute_calibration(profile_name);
 }
 
 void BedMeshPanel::confirm_rename(const std::string& new_name) {
@@ -1663,70 +1674,6 @@ void BedMeshPanel::execute_rename_profile(const std::string& old_name,
             spdlog::error("[{}] Failed to load profile for rename: {}", get_name(), err.message);
             NOTIFY_ERROR(lv_tr("Rename failed at load step"));
         }));
-}
-
-void BedMeshPanel::execute_calibration(const std::string& /*profile_name*/) {
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (!api)
-        return;
-
-    // Probe into a temporary profile so we don't clobber an existing "default"
-    // mesh. save_profile_with_name() renames this to the user's chosen name
-    // after probing completes.
-    static constexpr const char* TEMP_PROFILE = "_hs_temp";
-
-    // A printer may declare a multi-line gcode template in the database
-    // (calibration.bed_mesh_gcode). Used today by the Elegoo Centauri Carbon,
-    // whose mainline-Klipper [load_cell_probe] aborts on stale tare; the
-    // template tares first, runs the vendor's wipe wrapper, then saves the
-    // current mesh under {profile}.
-    const std::string& printer_name = get_printer_state().get_printer_type();
-    std::string cmd = PrinterDetector::get_bed_mesh_calibrate_gcode(printer_name);
-
-    std::string macro_name;
-    if (!cmd.empty()) {
-        const std::string placeholder = "{profile}";
-        for (size_t pos = cmd.find(placeholder); pos != std::string::npos;
-             pos = cmd.find(placeholder, pos + 1)) {
-            cmd.replace(pos, placeholder.size(), TEMP_PROFILE);
-        }
-        macro_name = "<calibration.bed_mesh_gcode>";
-    } else {
-        // Resolve the calibration macro via StandardMacros (user-configurable,
-        // defaults to auto-detected BED_MESH_CALIBRATE or G29)
-        const auto& macro_info = StandardMacros::instance().get(StandardMacroSlot::BedMesh);
-        macro_name = macro_info.get_macro();
-        if (macro_name.empty()) {
-            macro_name = "BED_MESH_CALIBRATE"; // Fallback if nothing configured/detected
-        }
-        cmd = macro_name + " PROFILE=" + std::string(TEMP_PROFILE);
-    }
-
-    spdlog::info("[{}] Starting calibration (temp profile: {}, macro: {})", get_name(),
-                 TEMP_PROFILE, macro_name);
-    lv_subject_set_int(&bed_mesh_calibrating_, 1);
-
-    api->execute_gcode(
-        cmd,
-        lifetime_.bg_cb("BedMeshPanel::calibrate_gcode_done",
-                        [this]() {
-                            spdlog::info("[{}] Calibration started", get_name());
-                            NOTIFY_INFO(lv_tr("Calibration started"));
-                        }),
-        lifetime_.bg_cb(
-            "BedMeshPanel::calibrate_gcode_error",
-            [this](const MoonrakerError& err) {
-                if (err.type == MoonrakerErrorType::TIMEOUT) {
-                    spdlog::warn("[{}] Calibration response timed out (may still be running)",
-                                 get_name());
-                    NOTIFY_WARNING(lv_tr("Calibration may still be running — response timed out"));
-                } else {
-                    spdlog::error("[{}] Failed to start calibration: {}", get_name(), err.message);
-                    NOTIFY_ERROR(lv_tr("Failed to start calibration"));
-                    lv_subject_set_int(&bed_mesh_calibrating_, 0);
-                }
-            }),
-        CALIBRATION_TIMEOUT_MS);
 }
 
 void BedMeshPanel::execute_save_config() {
@@ -1870,9 +1817,9 @@ std::vector<std::string> BedMeshPanel::stored_profile_names() const {
     }
     std::vector<std::string> names;
     for (const auto& p : api->advanced().get_bed_mesh_profiles()) {
-        // "_hs_temp" is where calibration probes before the user names the
+        // _hs_temp is where calibration probes before the user names the
         // mesh; it is not a profile anyone can overwrite on purpose.
-        if (p != "_hs_temp") {
+        if (p != TEMP_PROFILE) {
             names.push_back(p);
         }
     }
@@ -1894,18 +1841,6 @@ void BedMeshPanel::save_profile_checked(std::string_view typed) {
         save_profile_with_name(check.name);
         return;
     }
-}
-
-void BedMeshPanel::start_calibration_checked(std::string_view typed) {
-    const auto check = helix::ui::bed_mesh::check_profile_name(typed, stored_profile_names());
-    if (check.verdict == helix::ui::bed_mesh::ProfileNameVerdict::Empty) {
-        NOTIFY_WARNING(lv_tr("Enter a name for this profile"));
-        return;
-    }
-    // An existing name is not confirmed here: calibration probes into the
-    // temporary profile and nothing is written under this name until the user
-    // taps Save, which asks then.
-    start_calibration_with_name(check.name);
 }
 
 void BedMeshPanel::rename_profile_checked(std::string_view typed) {
@@ -1979,10 +1914,9 @@ void BedMeshPanel::save_profile_with_name(const std::string& name) {
         return;
     }
 
-    // The calibration probed into "_hs_temp" to avoid clobbering existing
+    // The calibration probed into the temporary profile to avoid clobbering existing
     // profiles. Now save the mesh under the user's chosen name and remove
     // the temporary profile.
-    static constexpr const char* TEMP_PROFILE = "_hs_temp";
 
     std::string cmd = "BED_MESH_PROFILE SAVE=" + name;
     api->execute_gcode(
@@ -2061,18 +1995,6 @@ static void on_calibrate_header_clicked_cb(lv_event_t* /*e*/) {
 
 static void on_calibrate_cancel_cb(lv_event_t* /*e*/) {
     get_global_bed_mesh_panel().hide_all_modals();
-}
-
-static void on_calibrate_start_cb(lv_event_t* /*e*/) {
-    // Find the textarea
-    lv_obj_t* input = lv_obj_find_by_name(lv_layer_top(), "calibrate_profile_name_input");
-    if (!input) {
-        // Try from parent screen
-        input = lv_obj_find_by_name(lv_screen_active(), "calibrate_profile_name_input");
-    }
-
-    const char* text = input ? lv_textarea_get_text(input) : nullptr;
-    get_global_bed_mesh_panel().start_calibration_checked(text ? text : "");
 }
 
 static void on_rename_cancel_cb(lv_event_t* /*e*/) {

@@ -3165,6 +3165,7 @@ translations:
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Параметр remember_spool в AFC сохраняет данные катушки в прошивке и имеет приоритет над этим переключателем
   AI detection: AI-детекция
   or type a macro name: или введите название макроса
+  printer default: по умолчанию для принтера
   prints: печатей
   remaining: осталось
   remaining before clog detection triggers: осталось до срабатывания обнаружения засора

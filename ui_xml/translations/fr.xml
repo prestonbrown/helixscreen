@@ -2824,6 +2824,7 @@
   <translation tag="of" fr="de"/>
   <translation tag="off" fr="éteint"/>
   <translation tag="or type a macro name" fr="ou saisissez un nom de macro"/>
+  <translation tag="printer default" fr="par défaut de l’imprimante"/>
   <translation tag="prints" fr="impressions"/>
   <translation tag="remaining" fr="restant"/>
   <translation tag="remaining before clog detection triggers" fr="restant avant le déclenchement de la détection de bouchon"/>

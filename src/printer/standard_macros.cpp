@@ -7,6 +7,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_patterns.h"
+#include "printer_detector.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
@@ -14,6 +15,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstring>
 
 using namespace helix;
 
@@ -135,6 +137,46 @@ StandardMacros& StandardMacros::instance() {
 
 StandardMacros::StandardMacros() {
     init_slot_definitions();
+}
+
+namespace {
+
+/// The sequence the printer database ships for @p slot on @p printer, or empty.
+///
+/// One row per slot a printer may override. Adding a row is the entire cost of
+/// letting printers ship their own sequence for that operation: the priority
+/// rule, the Settings UI and every dispatch site already handle the tier.
+std::string shipped_sequence_for(const std::string& printer, StandardMacroSlot slot) {
+    if (printer.empty()) {
+        return {};
+    }
+    switch (slot) {
+    case StandardMacroSlot::BedMesh:
+        return PrinterDetector::get_bed_mesh_calibrate_gcode(printer);
+    default:
+        return {};
+    }
+}
+
+} // namespace
+
+ResolvedMacroScript resolve_macro_script(const StandardMacroInfo& info, const std::string& profile,
+                                         bool accept_fallback) {
+    ResolvedMacroScript out;
+    const MacroSource source = info.get_source();
+    if (!accept_fallback && source == MacroSource::FALLBACK) {
+        return out;
+    }
+    out.script = info.get_macro();
+    out.self_prepares = source == MacroSource::SHIPPED;
+
+    static constexpr const char* PLACEHOLDER = "{profile}";
+    const size_t len = std::strlen(PLACEHOLDER);
+    for (size_t pos = out.script.find(PLACEHOLDER); pos != std::string::npos;
+         pos = out.script.find(PLACEHOLDER, pos + profile.size())) {
+        out.script.replace(pos, len, profile);
+    }
+    return out;
 }
 
 void StandardMacros::init_slot_definitions() {
@@ -344,12 +386,14 @@ bool StandardMacros::execute(StandardMacroSlot slot, IMoonrakerAPI* api,
     return true;
 }
 
-void StandardMacros::init(const helix::PrinterDiscovery& hardware) {
+void StandardMacros::init(const helix::PrinterDiscovery& hardware,
+                          const std::string& printer_type) {
     spdlog::debug("[StandardMacros] Initializing with hardware discovery");
 
     // Reset detected macros and restore fallbacks from static table
     for (auto& slot : slots_) {
         slot.detected_macro.clear();
+        slot.shipped_macro = shipped_sequence_for(printer_type, slot.slot);
 
         // Restore fallback from static definition
         auto fallback_it = FALLBACK_MACROS.find(slot.slot);
@@ -381,11 +425,14 @@ void StandardMacros::init(const helix::PrinterDiscovery& hardware) {
     initialized_ = true;
 
     // Log summary
-    int configured = 0, detected = 0, fallback = 0, empty = 0;
+    int configured = 0, shipped = 0, detected = 0, fallback = 0, empty = 0;
     for (const auto& slot : slots_) {
         switch (slot.get_source()) {
         case MacroSource::CONFIGURED:
             configured++;
+            break;
+        case MacroSource::SHIPPED:
+            shipped++;
             break;
         case MacroSource::DETECTED:
             detected++;
@@ -398,8 +445,10 @@ void StandardMacros::init(const helix::PrinterDiscovery& hardware) {
             break;
         }
     }
-    spdlog::debug("[StandardMacros] Initialized: {} configured, {} detected, {} fallback, {} empty",
-                  configured, detected, fallback, empty);
+    spdlog::debug(
+        "[StandardMacros] Initialized: {} configured, {} shipped, {} detected, {} fallback, {} "
+        "empty",
+        configured, shipped, detected, fallback, empty);
 
     bump_version();
 }

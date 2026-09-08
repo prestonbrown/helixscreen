@@ -1,8 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "config.h"
 #include "printer_discovery.h"
 #include "standard_macros.h"
+#include "wizard_config_paths.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -518,4 +520,181 @@ TEST_CASE("StandardMacros - ScrewsTilt slot", "[standard_macros][screws_tilt]") 
         REQUIRE(macros.get(StandardMacroSlot::BedMesh).detected_macro == "BED_MESH_CALIBRATE");
         REQUIRE(macros.get(StandardMacroSlot::ScrewsTilt).is_empty());
     }
+}
+
+// ============================================================================
+// Shipped tier — the sequence the printer database ships for one machine
+// ============================================================================
+
+TEST_CASE("StandardMacroInfo - shipped outranks detection, configured outranks shipped",
+          "[standard_macros][shipped_macro]") {
+    StandardMacroInfo info;
+    info.fallback_macro = "HELIX_BED_MESH_IF_NEEDED";
+
+    SECTION("fallback alone") {
+        CHECK(info.get_macro() == "HELIX_BED_MESH_IF_NEEDED");
+        CHECK(info.get_source() == MacroSource::FALLBACK);
+    }
+
+    SECTION("detection beats the fallback") {
+        info.detected_macro = "BED_MESH_CALIBRATE";
+        CHECK(info.get_macro() == "BED_MESH_CALIBRATE");
+        CHECK(info.get_source() == MacroSource::DETECTED);
+    }
+
+    SECTION("a shipped sequence beats detection") {
+        // The case this tier exists for: detection resolves to something that
+        // runs, but not to the sequence the machine needs — which tares its
+        // load cell before the mesh means anything.
+        info.detected_macro = "BED_MESH_CALIBRATE";
+        info.shipped_macro = "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE";
+        CHECK(info.get_macro() == "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE");
+        CHECK(info.get_source() == MacroSource::SHIPPED);
+    }
+
+    SECTION("the user's own choice beats everything") {
+        // A printer whose shipped sequence is wrong for this user's setup is
+        // exactly why the Settings override exists.
+        info.detected_macro = "BED_MESH_CALIBRATE";
+        info.shipped_macro = "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE";
+        info.configured_macro = "MY_MESH";
+        CHECK(info.get_macro() == "MY_MESH");
+        CHECK(info.get_source() == MacroSource::CONFIGURED);
+    }
+
+    SECTION("a shipped sequence alone is not an empty slot") {
+        StandardMacroInfo shipped_only;
+        shipped_only.shipped_macro = "BED_MESH_CALIBRATE_WITH_WIPE";
+        CHECK_FALSE(shipped_only.is_empty());
+    }
+}
+
+TEST_CASE("StandardMacros - init fills the shipped tier from the printer database",
+          "[standard_macros][shipped_macro]") {
+    auto& macros = StandardMacros::instance();
+    helix::PrinterDiscovery hardware;
+    json objects = {"extruder", "heater_bed", "gcode_macro BED_MESH_CALIBRATE"};
+    hardware.parse_objects(objects);
+
+    SECTION("a printer with no shipped sequence keeps detection") {
+        macros.init(hardware, "Some Random Printer");
+        const auto& info = macros.get(StandardMacroSlot::BedMesh);
+        CHECK(info.shipped_macro.empty());
+        CHECK(info.get_source() == MacroSource::DETECTED);
+    }
+
+    SECTION("an unnamed printer fills nothing") {
+        // Tests and early startup both reach init() before the printer is known.
+        macros.init(hardware, "");
+        CHECK(macros.get(StandardMacroSlot::BedMesh).shipped_macro.empty());
+    }
+
+    SECTION("the Centauri Carbon's mesh sequence reaches the slot") {
+        macros.init(hardware, "Elegoo Centauri Carbon");
+        const auto& info = macros.get(StandardMacroSlot::BedMesh);
+        REQUIRE_FALSE(info.shipped_macro.empty());
+        // The tare is the whole point: mainline-Klipper load_cell_probe aborts
+        // on a stale one, and probing plain BED_MESH_CALIBRATE never tares.
+        CHECK(info.shipped_macro.find("LOAD_CELL_SAVE_TARE") != std::string::npos);
+        CHECK(info.get_source() == MacroSource::SHIPPED);
+        CHECK(info.get_macro() == info.shipped_macro);
+    }
+
+    macros.reset();
+}
+
+TEST_CASE("resolve_macro_script - substitution and self-preparation",
+          "[standard_macros][shipped_macro]") {
+    StandardMacroInfo info;
+
+    SECTION("a plain macro name passes through and prepares nothing itself") {
+        info.detected_macro = "BED_MESH_CALIBRATE";
+        const auto r = resolve_macro_script(info, "_hs_temp");
+        CHECK(r.script == "BED_MESH_CALIBRATE");
+        // Not self-preparing: probe_preparation still gets to prepend its tare,
+        // which is the whole reason ZMOD machines probe successfully.
+        CHECK_FALSE(r.self_prepares);
+    }
+
+    SECTION("a shipped sequence keeps its own preparation") {
+        info.detected_macro = "BED_MESH_CALIBRATE";
+        info.shipped_macro = "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE";
+        const auto r = resolve_macro_script(info, "_hs_temp");
+        CHECK(r.script == "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE");
+        CHECK(r.self_prepares);
+    }
+
+    SECTION("{profile} is substituted everywhere it appears") {
+        info.shipped_macro = "BED_MESH_PROFILE LOAD={profile}\nBED_MESH_PROFILE SAVE={profile}";
+        const auto r = resolve_macro_script(info, "_hs_temp");
+        CHECK(r.script == "BED_MESH_PROFILE LOAD=_hs_temp\nBED_MESH_PROFILE SAVE=_hs_temp");
+        CHECK(r.script.find("{profile}") == std::string::npos);
+    }
+
+    SECTION("a profile name containing the placeholder does not loop forever") {
+        info.shipped_macro = "SAVE={profile}";
+        const auto r = resolve_macro_script(info, "{profile}x");
+        CHECK(r.script == "SAVE={profile}x");
+    }
+
+    SECTION("a user override is never treated as self-preparing") {
+        // The user picked a bare macro name; assuming it tares would skip the
+        // preparation their machine still needs.
+        info.shipped_macro = "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE";
+        info.configured_macro = "MY_MESH";
+        const auto r = resolve_macro_script(info, "_hs_temp");
+        CHECK(r.script == "MY_MESH");
+        CHECK_FALSE(r.self_prepares);
+    }
+
+    SECTION("an empty slot resolves to nothing, and the caller decides") {
+        const auto r = resolve_macro_script(info, "_hs_temp");
+        CHECK(r.script.empty());
+        CHECK_FALSE(r.self_prepares);
+    }
+}
+
+TEST_CASE("resolve_macro_script - a conditional fallback is refused when the op must happen",
+          "[standard_macros][shipped_macro]") {
+    // HELIX_BED_MESH_IF_NEEDED reports "using existing mesh" and returns without
+    // probing when a recent one exists. Correct at print start; for a Calibrate
+    // button it would advance the UI to naming and offer to save a mesh nothing
+    // re-measured. Callers that mean "now" must not receive it.
+    StandardMacroInfo info;
+    info.fallback_macro = "HELIX_BED_MESH_IF_NEEDED";
+
+    CHECK(resolve_macro_script(info, "", /*accept_fallback=*/true).script ==
+          "HELIX_BED_MESH_IF_NEEDED");
+    CHECK(resolve_macro_script(info, "", /*accept_fallback=*/false).script.empty());
+
+    SECTION("refusing the fallback does not refuse the tiers above it") {
+        info.detected_macro = "BED_MESH_CALIBRATE";
+        CHECK(resolve_macro_script(info, "", /*accept_fallback=*/false).script ==
+              "BED_MESH_CALIBRATE");
+
+        info.shipped_macro = "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE";
+        const auto r = resolve_macro_script(info, "", /*accept_fallback=*/false);
+        CHECK(r.script == "LOAD_CELL_SAVE_TARE\nBED_MESH_CALIBRATE_WITH_WIPE");
+        CHECK(r.self_prepares);
+    }
+}
+
+TEST_CASE("get_saved_printer_type - the source populated during discovery",
+          "[standard_macros][shipped_macro]") {
+    // StandardMacros::init() runs inside the discovery callback, BEFORE
+    // auto_detect_and_save sets PrinterState's copy. Reading PrinterState there
+    // yields "" on every run and the shipped tier silently never fills, so the
+    // production call site must read config instead.
+    helix::Config* config = helix::Config::get_instance();
+    REQUIRE(config != nullptr);
+    const std::string saved =
+        config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
+
+    config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "Elegoo Centauri Carbon");
+    CHECK(helix::get_saved_printer_type() == "Elegoo Centauri Carbon");
+
+    config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
+    CHECK(helix::get_saved_printer_type().empty());
+
+    config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, saved);
 }
