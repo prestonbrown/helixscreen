@@ -155,6 +155,28 @@ TEST_CASE_METHOD(NavigationTestFixture, "lv_indev_reset(NULL, NULL) clears in-fl
 #include "../lvgl_ui_test_fixture.h"
 #include "printer_state.h"
 
+/// Puts an int subject back the way it was found, on every exit path. Catch2
+/// aborts a case at its first failed REQUIRE, so a restore written as the last
+/// statement of the case is skipped exactly when it matters and leaves the
+/// subject raised for every test that follows in the shard.
+class ScopedSubjectInt {
+  public:
+    explicit ScopedSubjectInt(lv_subject_t* subject)
+        : subject_(subject), saved_(subject ? lv_subject_get_int(subject) : 0) {}
+    ~ScopedSubjectInt() {
+        if (subject_ != nullptr) {
+            lv_subject_set_int(subject_, saved_);
+        }
+    }
+
+    ScopedSubjectInt(const ScopedSubjectInt&) = delete;
+    ScopedSubjectInt& operator=(const ScopedSubjectInt&) = delete;
+
+  private:
+    lv_subject_t* subject_;
+    int32_t saved_;
+};
+
 /**
  * @brief Test fixture for navbar XML binding tests
  *
@@ -331,7 +353,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: icon visibility holds in portra
 
     lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(portrait != nullptr);
-    const int32_t saved = lv_subject_get_int(portrait);
+    ScopedSubjectInt restore_portrait(portrait);
     lv_subject_set_int(portrait, 1);
 
     set_nav_buttons_enabled(true);
@@ -350,8 +372,6 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: icon visibility holds in portra
     set_active_panel(PanelId::Controls);
     REQUIRE(is_visible("nav_icon_controls_active"));
     REQUIRE(is_hidden("nav_icon_controls_inactive"));
-
-    lv_subject_set_int(portrait, saved);
 }
 
 TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_portrait",
@@ -360,48 +380,59 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_p
 
     lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(portrait != nullptr);
-    const int32_t saved = lv_subject_get_int(portrait);
+    ScopedSubjectInt restore_portrait(portrait);
+
+    // nav_btn_controls is the next visible child after nav_btn_home: the two
+    // edit-mode buttons ahead of them and the printer badge behind them are
+    // hidden until their subjects say otherwise.
+    lv_obj_t* home = lv_obj_find_by_name(navbar_, "nav_btn_home");
+    lv_obj_t* controls = lv_obj_find_by_name(navbar_, "nav_btn_controls");
+    REQUIRE(home != nullptr);
+    REQUIRE(controls != nullptr);
 
     // Orientation reaches the bar as two complementary bound styles. An inline
     // width/height/flex_flow on the view would be a local style, which outranks
     // both and pins the bar to one axis while every other assertion still
-    // passes. Measuring the box is what catches that.
+    // passes. Measuring the boxes is what catches that.
     lv_subject_set_int(portrait, 0);
     lv_obj_update_layout(navbar_);
     const int32_t land_w = lv_obj_get_width(navbar_);
     const int32_t land_h = lv_obj_get_height(navbar_);
+    const int32_t land_btn_w = lv_obj_get_width(home);
+    const int32_t land_btn_h = lv_obj_get_height(home);
+    const int32_t land_step = lv_obj_get_y(controls) - lv_obj_get_y(home);
 
     lv_subject_set_int(portrait, 1);
     lv_obj_update_layout(navbar_);
     const int32_t port_w = lv_obj_get_width(navbar_);
     const int32_t port_h = lv_obj_get_height(navbar_);
+    const int32_t port_btn_w = lv_obj_get_width(home);
+    const int32_t port_btn_h = lv_obj_get_height(home);
+    const int32_t port_step = lv_obj_get_x(controls) - lv_obj_get_x(home);
 
-    lv_subject_set_int(portrait, saved);
+    INFO("bar: landscape " << land_w << "x" << land_h << ", portrait " << port_w << "x" << port_h);
+    INFO("home button: landscape " << land_btn_w << "x" << land_btn_h << " step " << land_step
+                                   << ", portrait " << port_btn_w << "x" << port_btn_h << " step "
+                                   << port_step);
 
-    INFO("landscape " << land_w << "x" << land_h << ", portrait " << port_w << "x" << port_h);
     REQUIRE(land_h > land_w); // vertical strip down one edge
     REQUIRE(port_w > port_h); // horizontal bar across the bottom
     REQUIRE(port_w > land_w);
     REQUIRE(port_h < land_h);
 
-    // The buttons follow the bar: a grow item takes the bar's main axis and
-    // spans its cross axis, so the home button's box swaps with it.
-    lv_obj_t* home = lv_obj_find_by_name(navbar_, "nav_btn_home");
-    REQUIRE(home != nullptr);
+    // A grow item spans the bar's cross axis and takes a share of its main axis,
+    // so the home button's box swaps with the bar's.
+    REQUIRE(land_btn_w == land_w);
+    REQUIRE(port_btn_h == port_h);
+    REQUIRE(land_btn_h < land_h);
+    REQUIRE(port_btn_w < port_w);
 
-    lv_subject_set_int(portrait, 0);
-    lv_obj_update_layout(navbar_);
-    const int32_t btn_land_w = lv_obj_get_width(home);
-
-    lv_subject_set_int(portrait, 1);
-    lv_obj_update_layout(navbar_);
-    const int32_t btn_port_h = lv_obj_get_height(home);
-
-    lv_subject_set_int(portrait, saved);
-
-    INFO("home button: landscape width " << btn_land_w << ", portrait height " << btn_port_h);
-    REQUIRE(btn_land_w == land_w);
-    REQUIRE(btn_port_h == port_h);
+    // Only a flex container distributes its children along an axis. Without a
+    // layout every child sits at the content origin, so the next button starting
+    // where this one ends is what proves the bar is laying them out at all, and
+    // on the axis the live orientation style asks for.
+    REQUIRE(land_step >= land_btn_h);
+    REQUIRE(port_step >= port_btn_w);
 }
 
 // ============================================================================
