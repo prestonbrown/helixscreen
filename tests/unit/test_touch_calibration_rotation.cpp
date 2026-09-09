@@ -160,3 +160,165 @@ TEST_CASE_METHOD(LVGLTestFixture, "a rotation the display never applied leaves t
     REQUIRE(panel.get_state() == TouchCalibrationPanel::State::VERIFY);
     CHECK(panel.get_range_fit().valid);
 }
+
+// ============================================================================
+// Affine composition with display rotation
+//
+// The affine runs in the read callback, BEFORE lv_display_rotate_point(), so it
+// receives panel-space coordinates. The wizard solves it against logical-space
+// targets. Everything below pins the two together.
+// ============================================================================
+
+TEST_CASE("rotate_panel_to_logical matches lv_display_rotate_point",
+          "[touch-calibration][rotation]") {
+    // Panel 480x800 (K2 shape): hor_res=480, ver_res=800.
+    const int pw = 480;
+    const int ph = 800;
+
+    SECTION("0 degrees is identity") {
+        REQUIRE(rotate_panel_to_logical({100, 200}, 0, pw, ph).x == 100);
+        REQUIRE(rotate_panel_to_logical({100, 200}, 0, pw, ph).y == 200);
+    }
+
+    SECTION("270: x becomes y, y becomes hor_res - x - 1") {
+        const Point out = rotate_panel_to_logical({100, 200}, 270, pw, ph);
+        REQUIRE(out.x == 200);
+        REQUIRE(out.y == 480 - 100 - 1);
+    }
+
+    SECTION("90: x becomes ver_res - y - 1, y becomes x") {
+        const Point out = rotate_panel_to_logical({100, 200}, 90, pw, ph);
+        REQUIRE(out.x == 800 - 200 - 1);
+        REQUIRE(out.y == 100);
+    }
+
+    SECTION("180 mirrors both axes") {
+        const Point out = rotate_panel_to_logical({100, 200}, 180, pw, ph);
+        REQUIRE(out.x == 480 - 100 - 1);
+        REQUIRE(out.y == 800 - 200 - 1);
+    }
+}
+
+TEST_CASE("panel/logical rotation round-trips exactly", "[touch-calibration][rotation]") {
+    const int pw = 480;
+    const int ph = 800;
+    const Point points[] = {{0, 0}, {1, 1}, {100, 200}, {479, 799}, {0, 799}, {479, 0}};
+
+    for (int deg : {0, 90, 180, 270}) {
+        for (const Point& p : points) {
+            const Point there = rotate_panel_to_logical(p, deg, pw, ph);
+            const Point back = rotate_logical_to_panel(there, deg, pw, ph);
+            INFO("rotation " << deg << " point (" << p.x << "," << p.y << ")");
+            REQUIRE(back.x == p.x);
+            REQUIRE(back.y == p.y);
+        }
+    }
+}
+
+TEST_CASE("logical_extent swaps the axes at 90 and 270", "[touch-calibration][rotation]") {
+    int w = 0;
+    int h = 0;
+    logical_extent(0, 480, 800, w, h);
+    REQUIRE(w == 480);
+    REQUIRE(h == 800);
+    logical_extent(90, 480, 800, w, h);
+    REQUIRE(w == 800);
+    REQUIRE(h == 480);
+    logical_extent(180, 480, 800, w, h);
+    REQUIRE(w == 480);
+    REQUIRE(h == 800);
+    logical_extent(270, 480, 800, w, h);
+    REQUIRE(w == 800);
+    REQUIRE(h == 480);
+}
+
+TEST_CASE("a logical affine lands where it was solved, on a rotated display",
+          "[touch-calibration][rotation]") {
+    // K2 shape: 480x800 panel presented as 800x480 by a 270-degree rotation.
+    const int pw = 480;
+    const int ph = 800;
+
+    // A calibration solved in LOGICAL space that shifts x by +10.
+    TouchCalibration cal;
+    cal.valid = true;
+    cal.a = 1.0f;
+    cal.b = 0.0f;
+    cal.c = 10.0f;
+    cal.d = 0.0f;
+    cal.e = 1.0f;
+    cal.f = 0.0f;
+
+    const Point panel_in{100, 200};
+
+    // What the wizard's solve promises: apply the matrix to the LOGICAL point.
+    const Point logical_in = rotate_panel_to_logical(panel_in, 270, pw, ph);
+    const Point promised = transform_point(cal, logical_in, 800 - 1, 480 - 1);
+
+    // What the pipeline produces: our panel-space placement, then LVGL's rotation.
+    const Point panel_out = apply_calibration_in_panel_space(cal, panel_in, 270, pw, ph);
+    const Point delivered = rotate_panel_to_logical(panel_out, 270, pw, ph);
+
+    INFO("promised (" << promised.x << "," << promised.y << ") delivered (" << delivered.x << ","
+                      << delivered.y << ")");
+    REQUIRE(delivered.x == promised.x);
+    REQUIRE(delivered.y == promised.y);
+
+    // And it is genuinely different from evaluating the matrix in panel space,
+    // which is what makes this worth pinning.
+    const Point naive = transform_point(cal, panel_in, pw - 1, ph - 1);
+    const Point naive_delivered = rotate_panel_to_logical(naive, 270, pw, ph);
+    REQUIRE_FALSE((naive_delivered.x == promised.x && naive_delivered.y == promised.y));
+}
+
+TEST_CASE("an unrotated display is unaffected by the placement", "[touch-calibration][rotation]") {
+    TouchCalibration cal;
+    cal.valid = true;
+    cal.a = 1.02f;
+    cal.b = 0.01f;
+    cal.c = -3.0f;
+    cal.d = 0.0f;
+    cal.e = 0.99f;
+    cal.f = 2.0f;
+
+    const Point p{321, 123};
+    const Point placed = apply_calibration_in_panel_space(cal, p, 0, 800, 480);
+    const Point direct = transform_point(cal, p, 800 - 1, 480 - 1);
+    REQUIRE(placed.x == direct.x);
+    REQUIRE(placed.y == direct.y);
+}
+
+TEST_CASE("a calibration survives the display being rotated after it was solved",
+          "[touch-calibration][rotation]") {
+    // Solved while the display was NOT rotated, then a printer definition lands
+    // and the preset rotates the display to 270. The stored matrix still has to
+    // put a physical touch on the same logical target it was taught.
+    const int pw = 480;
+    const int ph = 800;
+
+    TouchCalibration cal;
+    cal.valid = true;
+    cal.a = 1.0f;
+    cal.b = 0.0f;
+    cal.c = 10.0f;
+    cal.d = 0.0f;
+    cal.e = 1.0f;
+    cal.f = -5.0f;
+    cal.capture_rotation = 0;
+
+    const Point panel_in{100, 200};
+
+    // Taught at rotation 0: the logical point WAS the panel point.
+    const Point promised = transform_point(cal, panel_in, pw - 1, ph - 1);
+
+    const Point panel_out =
+        apply_calibration_in_panel_space(cal, panel_in, cal.capture_rotation, pw, ph);
+    const Point delivered = rotate_panel_to_logical(panel_out, 270, pw, ph);
+
+    // The rotation now sits between the matrix and the screen, so the delivered
+    // logical point is the taught point carried through that rotation.
+    const Point expected = rotate_panel_to_logical(promised, 270, pw, ph);
+    INFO("expected (" << expected.x << "," << expected.y << ") delivered (" << delivered.x << ","
+                      << delivered.y << ")");
+    REQUIRE(delivered.x == expected.x);
+    REQUIRE(delivered.y == expected.y);
+}

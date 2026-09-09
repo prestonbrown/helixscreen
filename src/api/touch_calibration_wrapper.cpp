@@ -3,6 +3,7 @@
 #include "touch_calibration_wrapper.h"
 
 #include "config.h"
+#include "display_backend.h"
 #include "helix_display_telemetry.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -122,9 +123,13 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
 
     // Apply affine calibration if valid (for both PRESSED and RELEASED states)
     if (ctx->calibration.valid) {
+        // data->point is PANEL space: this callback runs before
+        // lv_display_rotate_point(). The affine was solved against logical,
+        // post-rotation targets, so it is placed rather than applied directly.
         helix::Point raw{static_cast<int>(data->point.x), static_cast<int>(data->point.y)};
-        helix::Point transformed = helix::transform_point(
-            ctx->calibration, raw, ctx->screen_width - 1, ctx->screen_height - 1);
+        helix::Point transformed = helix::apply_calibration_in_panel_space(
+            ctx->calibration, raw, ctx->calibration.capture_rotation, ctx->screen_width,
+            ctx->screen_height);
         data->point.x = transformed.x;
         data->point.y = transformed.y;
 
@@ -267,6 +272,11 @@ TouchCalibration load_touch_calibration() {
     }
 
     cal.valid = cfg->get<bool>("/input/calibration/valid", false);
+    // A record written before the rotation was stored carries no provenance. The
+    // rotation in effect now is the best available guess, and it is right whenever
+    // the display has not been re-rotated since - which is every case that works
+    // today, including the whole unrotated fleet.
+    cal.capture_rotation = cfg->get<int>("/input/calibration/rotation", display_rotation_degrees());
     if (!cal.valid) {
         // A stored evdev range IS a stored user calibration, even when it left no
         // affine behind - the common outcome on a panel square to the display, where

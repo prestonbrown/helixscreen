@@ -20,6 +20,9 @@ void write_affine(Config& cfg, const TouchCalibration& cal) {
     cfg.set<double>("/input/calibration/d", static_cast<double>(cal.d));
     cfg.set<double>("/input/calibration/e", static_cast<double>(cal.e));
     cfg.set<double>("/input/calibration/f", static_cast<double>(cal.f));
+    // Without this the matrix is unplaceable: it was solved against logical,
+    // post-rotation targets, so it only means anything relative to a rotation.
+    cfg.set<int>("/input/calibration/rotation", cal.capture_rotation);
 }
 
 } // namespace

@@ -168,6 +168,12 @@ void TouchCalibrationPanel::capture_point(Point raw, const Point* device_raw) {
         // This swaps touch_points_ in-place and recomputes calibration_ if needed
         detect_and_correct_axis_swap(calibration_, screen_points_, touch_points_);
 
+        // The targets and the taps are both logical, post-rotation coordinates, so
+        // the matrix just solved is only meaningful against this rotation. The
+        // runtime needs it to place the matrix in the pre-rotation space it
+        // actually executes in.
+        calibration_.capture_rotation = display_rotation_degrees();
+
         if (is_touch_debug_enabled()) {
             spdlog::warn("[TouchDebug] calibration computed for all 3 points:");
             for (int i = 0; i < 3; i++) {
