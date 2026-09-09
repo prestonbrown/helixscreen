@@ -1816,6 +1816,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tools to calibrate: Keine Werkzeuge zum Kalibrieren
   No vendors found: Keine Hersteller gefunden
   No video player installed - showing the timelapse library: 'Kein Videoplayer installiert – Zeitraffer-Bibliothek wird angezeigt'
   ? "No webcam detected.\nA webcam is required for timelapse."

@@ -1661,6 +1661,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tools to calibrate: キャリブレートするツールがありません
   No vendors found: ベンダーが見つかりません
   No video player installed - showing the timelapse library: '動画プレーヤーがありません – タイムラプス一覧を表示します'
   ? "No webcam detected.\nA webcam is required for timelapse."

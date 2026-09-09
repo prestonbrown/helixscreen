@@ -195,3 +195,28 @@ TEST_CASE_METHOD(ToolCalPanelFixture,
     panel.on_deactivate();
     panel.cleanup();
 }
+
+TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: no tools is a refusal, not a run",
+                 "[ui_integration][toolchanger][tool_offset_cal]") {
+    // ToolState is empty between an AMS topology clear and the next
+    // init_tools(). Run::begin(0) stays inactive, so starting anyway left the
+    // panel reading active with a Stop that did nothing.
+    helix::ToolState::instance().clear_ams_topology();
+    REQUIRE(helix::ToolState::instance().tools().empty());
+
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    panel.begin_run();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(panel.is_calibration_active());
+    CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
+
+    // And coming back to the panel never leaves the subject ahead of the run.
+    panel.on_deactivate();
+    panel.on_activate();
+    CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
+    panel.on_deactivate();
+    panel.cleanup();
+}

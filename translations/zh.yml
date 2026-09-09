@@ -1653,6 +1653,7 @@ translations:
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
   No timelapse videos found: 未找到延时视频
+  No tools to calibrate: 没有可校准的工具
   No vendors found: 未找到供应商
   No video player installed - showing the timelapse library: '未安装视频播放器 – 显示延时摄影库'
   ? "No webcam detected.\nA webcam is required for timelapse."

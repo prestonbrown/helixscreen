@@ -1786,6 +1786,7 @@ translations:
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
   No timelapse videos found: Таймлапс-видео не найдены
+  No tools to calibrate: Нет инструментов для калибровки
   No vendors found: Производители не найдены
   No video player installed - showing the timelapse library: 'Видеоплеер не установлен – показана библиотека таймлапсов'
   ? "No webcam detected.\nA webcam is required for timelapse."

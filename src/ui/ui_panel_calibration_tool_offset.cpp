@@ -141,6 +141,10 @@ void ToolOffsetCalibrationPanel::on_activate() {
         [](ToolOffsetCalibrationPanel* self, int tool) { self->on_active_tool_changed(tool); },
         tools.get_subjects_lifetime());
 
+    // The subject follows the run, never the other way round: a run that
+    // ended while the panel was away has already cleared it, and one that
+    // could not start never set it.
+    lv_subject_set_int(&active_, run_.active() ? 1 : 0);
     if (!run_.active()) {
         lv_subject_copy_string(&status_, last_error_.empty() ? lv_tr("Ready to calibrate")
                                                              : last_error_.c_str());
@@ -305,6 +309,13 @@ void ToolOffsetCalibrationPanel::begin_run() {
 
     auto& tools = helix::ToolState::instance();
     const int tool_count = std::min(static_cast<int>(tools.tools().size()), MAX_TOOLS);
+    if (tool_count == 0) {
+        // ToolState is empty between an AMS topology clear and the next
+        // init_tools(). Run::begin(0) would stay inactive while the subject
+        // below read active: Stop dead, Start hidden, until the process ends.
+        NOTIFY_ERROR("{}", lv_tr("No tools to calibrate"));
+        return;
+    }
     // What every tool holds now: a tool whose offsets differ from this later
     // in the run has been measured.
     for (int i = 0; i < tool_count; ++i) {

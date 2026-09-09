@@ -1764,6 +1764,7 @@ translations:
   No target printer configured: No target printer configured
   No temperature sensors detected: No temperature sensors detected
   No timelapse videos found: No timelapse videos found
+  No tools to calibrate: No tools to calibrate
   No vendors found: No vendors found
   No video player installed - showing the timelapse library: No video player installed - showing the timelapse library
   ? "No webcam detected.\nA webcam is required for timelapse."
