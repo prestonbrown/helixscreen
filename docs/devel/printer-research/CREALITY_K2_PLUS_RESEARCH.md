@@ -428,9 +428,42 @@ The stock config set is the same on both variants: `printer.cfg`, `box.cfg`,
 `/mnt/UDISK/printer_data/config/`. The Pro we reached carries `box.cfg`, so that machine has a
 CFS attached and the `box` object our database entry expects is present.
 
-Still outstanding: the contents of `printer.cfg`, since bed size and macro set are what the
-database entry keys on. The one machine we have reached adds community packages (k2-KAMP and a
-`custom/` folder), so its macro set does not establish what a stock K2 Pro ships, and its
+`printer.cfg` confirms the size difference and little else:
+
+| Field | K2 Pro | K2 Plus |
+|-------|--------|---------|
+| `bed_mesh` `mesh_max` | `295,295` | `345,345` |
+| `stepper_x` / `_y` / `_z` `position_max` | 302 / 332 / 303 | 352.5 / 400 / 360 |
+| `max_accel` | 20000 | 30000 |
+| kinematics, `max_velocity`, `probe_count`, `nozzle_diameter` | corexy, 800, 9x9, 0.4 | same |
+| Stock includes | `sensorless`, `gcode_macro`, `printer_params`, `box`, `motor_control` | same |
+
+Both `build_volume_range` heuristics in the database are therefore confirmed against real
+hardware: the Plus's 340-360 band contains 345, the Pro's 290-310 contains 295. The heuristic
+reads `bed_mesh`, so `mesh_max` is the field that decides it, not the stepper limits - and on
+both machines the Y stepper travels well past the bed to reach the nozzle-clean position.
+
+`START_PRINT`, `PRINT_PREPARED` and `PRINT_PREPARE_CLEAR` are all present on the Pro, which is
+what the entry's `pre_print_options` drive.
+
+Every object the `creality_k2_pro` entry scores on is present: `box`, `motor_control`,
+`fan_feedback`, `load_ai`, `filament_rack`, `heater_generic chamber_heater`,
+`temperature_sensor chamber_temp` and corexy kinematics, alongside `prtouch_v3`, `z_align`,
+`belt_mdl mdlx`/`mdly` and `exclude_object`. Detection needs nothing added.
+
+**`objects/list` only ever names `gcode_macro` objects, so a command implemented by a klipper
+extra is absent from it whether or not it exists.** `BOX_NOZZLE_CLEAN` is missing from both a
+K2 Plus and a K2 Pro for that reason, while still appearing in the gcode response stream as
+`[GCODE]BOX_NOZZLE_CLEAN`. Use `/printer/gcode/help` to ask whether a command is registered;
+`objects/list` cannot answer it.
+
+`LOAD_AI_RUN` is genuinely absent - it appears in neither list on a K2 Plus - so the
+`ai_detect` option's `requires_macro` gate hides a toggle whose command does not exist. That is
+the gate working, not a defect, and it matches the AI stack being inert under HelixScreen
+anyway.
+
+Note that the one machine we have reached adds community packages (k2-KAMP and a `custom/`
+folder), so its macro set does not establish what a stock K2 Pro ships, and its
 `print_start_default_phases` cannot serve as a stock baseline.
 
 Detection already covers the model. `creality_k2_pro` in `assets/config/printer_database.json`
