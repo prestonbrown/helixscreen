@@ -41,7 +41,7 @@
         <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="0"/>
       </icon>
       <!-- Inactive icon (gray) - shown when active_panel != 0 -->
-      <icon name="nav_icon_home_inactive" src="home" size="#icon_size" variant="secondary">
+      <icon name="nav_icon_home_inactive" src="home_outline" size="#icon_size_nav_inactive" variant="secondary">
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="0"/>
       </icon>
     </ui_button>
@@ -56,7 +56,7 @@
         <icon name="nav_icon_controls_active" src="fine_tune" size="#icon_size" variant="primary" hidden="true">
           <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="2"/>
         </icon>
-        <icon name="nav_icon_controls_inactive" src="fine_tune" size="#icon_size" variant="secondary">
+        <icon name="nav_icon_controls_inactive" src="fine_tune" size="#icon_size_nav_inactive" variant="secondary">
           <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="2"/>
         </icon>
       </lv_obj>
@@ -75,7 +75,8 @@
         <icon name="nav_icon_filament_active" src="filament" size="#icon_size" variant="primary" hidden="true">
           <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="3"/>
         </icon>
-        <icon name="nav_icon_filament_inactive" src="filament" size="#icon_size" variant="secondary">
+        <icon name="nav_icon_filament_inactive"
+              src="filament_outline" size="#icon_size_nav_inactive" variant="secondary">
           <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="3"/>
         </icon>
       </lv_obj>
@@ -91,7 +92,7 @@
       <icon name="nav_icon_settings_active" src="settings" size="#icon_size" variant="primary" hidden="true">
         <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="4"/>
       </icon>
-      <icon name="nav_icon_settings_inactive" src="settings" size="#icon_size" variant="secondary">
+      <icon name="nav_icon_settings_inactive" src="settings_outline" size="#icon_size_nav_inactive" variant="secondary">
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="4"/>
       </icon>
     </ui_button>
@@ -103,7 +104,7 @@
       <icon name="nav_icon_advanced_active" src="dots_vertical" size="#icon_size" variant="primary" hidden="true">
         <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="5"/>
       </icon>
-      <icon name="nav_icon_advanced_inactive" src="dots_vertical" size="#icon_size" variant="secondary">
+      <icon name="nav_icon_advanced_inactive" src="dots_vertical" size="#icon_size_nav_inactive" variant="secondary">
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="5"/>
       </icon>
     </ui_button>
