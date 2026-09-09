@@ -330,6 +330,11 @@ the nightly sanitizer run caught before any field report.
 
 **Installing and updating**
 
+- **The Snapmaker U1 ships with its crash supervisor again** - the U1 was the only
+  platform whose release never packaged `helix-watchdog`, so a crash left the screen
+  dead with nothing to restart it. That matters most on this machine, because the
+  installer also stands the stock touchscreen UI down.
+
 - **A stock UI that reports itself missing** - the installer now warns when a device known
   to ship a vendor UI reports none, rather than continuing quietly and leaving two screens
   competing for the display.
