@@ -5,7 +5,7 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-09-06
+## [1.0.0] - 2026-09-09
 
 <!-- whatsnew
 The first stable release. Highlights:
@@ -69,6 +69,12 @@ the nightly sanitizer run caught before any field report.
   polled through the older Z-Mod-era macros - which stand down on their own once the
   module is present.
 
+- **QIDI's stock load and unload macros** - QIDI ships M604/M603 rather than the names
+  HelixScreen looked for, so load and unload did nothing on a stock QIDI machine.
+- **Cancelling a print from the runout dialog now asks first** - the cancel button on the
+  filament-runout dialog ended the print immediately, with no confirmation.
+- **Lanes of unknown type report their real fill** (#1367) - a lane whose type could not
+  be determined reported empty rather than the level it actually had.
 **Pairing**
 
 - **Denied pairing requests stop coming back** (#1376) - denying a slicer or phone app's
@@ -142,6 +148,18 @@ the nightly sanitizer run caught before any field report.
   kind of range only on unrotated displays, and a bad range stored by the previous release
   is ignored rather than applied.
 
+- **Touch calibration on a rotated display, properly this time** (#1394) - completing the
+  wizard on a rotated panel left every later touch a quarter turn out, because the affine
+  was solved against logical targets but applied before the display rotation, and its
+  clamp box was the transpose of the one it was solved against. The axis-swap check made
+  it worse by re-solving against transposed samples and installing a matrix nothing feeds.
+  Both are fixed, and the wizard now re-reads the screen size each time it is shown, so a
+  display rotated part-way through setup no longer lays the targets out at the wrong
+  ratios. Unrotated panels behave exactly as before.
+- **Touchscreens that report their type in the other bit** - the probe tested the wrong
+  bit for a direct-input device, so some panels were classified as pointing devices.
+- **Page arrows on resistive panels** - the home screen's page arrows never appeared on
+  resistive touchscreens, leaving the other pages unreachable.
 **Crashes**
 
 - **Random crashes on the home panel** - the widgets that make up the home panel (nozzle
@@ -156,6 +174,8 @@ the nightly sanitizer run caught before any field report.
   text. It shipped in the previous release and was caught by the nightly sanitizer run,
   before any field report.
 
+- **A null event descriptor in the dispatch loop** (#1470) - a null descriptor reaching
+  the event dispatcher took the app down; it is now guarded rather than dereferenced.
 **Z offset**
 
 - **Save Z Offset stacking with Helper-Script's save-zoffset** (#1401) - with the Helper
@@ -171,6 +191,8 @@ the nightly sanitizer run caught before any field report.
   SET_GCODE_OFFSET was read as evidence the firmware saves the offset, so the screen
   claimed a persistence it did not have.
 
+- **A saved offset that would not clear** - the pending delta stayed on screen after a
+  successful save, so the adjustment looked unapplied and inviting a second one.
 **Print screen**
 
 - **The last print's result dialog closes when the next print starts** - "Print complete"
@@ -182,6 +204,13 @@ the nightly sanitizer run caught before any field report.
   did it never applied, so the bar stayed fully visible through the whole preparation. It
   behaves now.
 
+- **The progress arc on the print screen** (#1510) - the arc bound to a value that was
+  not the one being displayed, so it could disagree with the percentage beside it.
+- **Speed and flow on narrow screens** - the speed/flow row was shown on both narrow
+  breakpoints, where it had nowhere to go and crowded the rest of the panel.
+- **A stutter when a print starts** - the active-print thumbnail was written inside the
+  UI update batch, so a large image stalled the frame it landed on. It is written after
+  the batch now.
 **File detail and preview**
 
 - **Monochrome previews on routed multi-tool prints** - a routing that sent every tool of a
@@ -265,6 +294,11 @@ the nightly sanitizer run caught before any field report.
   candidate naming a different one, and the Qidi entries no longer claim a shared macro
   identifies a single model.
 
+- **A K1 no longer advertises hardware it does not have** - the K1 preset seeded
+  hardware entries the machine does not ship, which then showed up as controls for
+  equipment that is not there.
+- **Bed mesh calibration runs the sequence the printer ships** - the mesh calibration ran
+  a generic sequence rather than the one the printer's own configuration defines.
 **Filament**
 
 - **A second, wrong error after a failed CFS load** - when the homing move before a load or
@@ -293,6 +327,37 @@ the nightly sanitizer run caught before any field report.
 - **The printer-mismatch button says what it opens** - the button offered when the detected
   printer disagrees with the saved one was labelled for something other than the screen it
   actually opens.
+
+**Installing and updating**
+
+- **A stock UI that reports itself missing** - the installer now warns when a device known
+  to ship a vendor UI reports none, rather than continuing quietly and leaving two screens
+  competing for the display.
+- **QIDI's stock screen across firmware generations** - the installer stopped only the
+  screen process one firmware generation used; it now stops it on every generation.
+
+**Files and USB**
+
+- **Every mounted USB drive is scanned** (#1373) - only the first mounted drive was
+  searched for printable files, so a second stick appeared empty.
+
+**Job queue**
+
+- **A Print-now tap while the printer is busy** (#1373) - the tap did nothing and said
+  nothing; it now answers.
+
+**Settings**
+
+- **The log level shown is the one the sinks run at** - the settings screen displayed the
+  ring buffer's floor rather than the level actually being written, so it could claim a
+  verbosity that was not in effect.
+
+**Telemetry**
+
+- **The send window no longer depends on the clock's direction** (#1476) - the periodic
+  send gate was decided from a wall-clock comparison, so a clock stepping backwards (NTP
+  settling at boot is the usual cause) could hold sends off indefinitely. It is decided
+  from elapsed time now, and the periodic producers are sized to fit inside one window.
 
 ### Changed
 

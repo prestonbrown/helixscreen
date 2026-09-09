@@ -50,6 +50,47 @@ network-interface naming support, and tuned SDL display performance (#116).
 
 ---
 
+### Borillion
+**Portrait layouts** - a stacked `print_status` for portrait screens, the temperature
+graph moved above its control strip, and speed/flow stacked in `print_tune`. Portrait
+machines got a layout of their own instead of a squeezed landscape one.
+
+### Jacob10383 - [@Jacob10383](https://github.com/Jacob10383)
+**Community K2 Box firmware for the CFS** - support for the community Box firmware,
+gating the Fork dialect on the Box API, and routing Box profile clears explicitly.
+
+### TheLegendTubaGuy
+**QIDI Max 4 support**, and taught the box handling to cope with more than one QIDI
+box at a time.
+
+### Thomas Dixon
+**Native QIDI 3MF print previews** - thumbnails read from the format QIDI actually
+ships, rather than none at all.
+
+### Gaston Alexis Garcia Carli - [@lelalexi](https://github.com/lelalexi)
+**Snapmaker U1 touch ergonomics** - a collapsible history filter row with an
+active-filter funnel for small screens, and a temperature tool selector sized for
+fingers instead of cursors.
+
+### physicsG
+**LAN pairing** - answering the firmware's pairing prompt, so the screen stops being
+the thing standing between you and the printer.
+
+### DST - [@plandevida](https://github.com/plandevida)
+**Network state events** - CONNECTED/DISCONNECTED emitted on status-poll transitions
+(#1059), so the UI is told the link changed instead of inferring it.
+
+### Henri van der Riet
+Stopped a scroll registering as a click (`PRESS_LOCK`, #1074) - the kind of fix you
+only find by using the thing on a real touchscreen.
+
+### LIsennn - [@LIsennn](https://github.com/LIsennn)
+**Translations to 100% coverage across all nine languages.**
+
+### cubewhy
+**CFS RFID** - probing a bay's RFID when a spool is inserted, plus documenting
+`BOX_INFO_REFRESH` and the vender field states.
+
 ## Hardware & field testing
 
 The people who put builds on printers I don't have, captured the logs, and stayed
