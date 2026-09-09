@@ -33,20 +33,20 @@
     "temp_sensors": {
       "bed": "heater_bed",
       "hotend": "extruder",
-      "chamber": "temperature_sensor box"
+      "chamber": "temperature_sensor chamber"
     },
     "fans": {
       "part": "fan",
       "hotend": "heater_fan extruder",
-      "aux": "fan_generic model_helper_fan",
-      "chamber": "fan_generic box_fan"
+      "aux": "fan_generic aux_fan",
+      "chamber": "fan_generic case_fan"
     },
     "leds": {
       "strip": "led case",
       "selected_strips": ["led case", "led hotend"]
     },
     "filament_sensors": {
-      "_comment": "CC1 has a physical filament switch on the chassis wired to main MCU pin PC0 (active-low). Stock COSMOS firmware does not yet declare a Klipper section for it; OpenCentauri/cosmos PR #152 proposes '[filament_switch_sensor filament_sensor]' and is the expected name once merged. Until then this entry binds to nothing and the UI shows the sensor as offline.",
+      "_comment": "CC1 has a physical filament switch on the chassis wired to main MCU pin PC0 (active-low), declared by COSMOS firmware as [filament_switch_sensor filament_sensor].",
       "master_enabled": true,
       "sensors": [
         {
@@ -63,15 +63,16 @@
         "extruder",
         "fan",
         "heater_fan extruder",
-        "fan_generic model_helper_fan",
-        "fan_generic box_fan",
+        "fan_generic aux_fan",
+        "fan_generic case_fan",
         "temperature_fan mainboard",
-        "temperature_sensor box",
+        "temperature_sensor chamber",
         "temperature_sensor mcu_toolhead",
         "temperature_sensor mcu_bed",
         "led case",
         "led hotend",
-        "load_cell_probe"
+        "load_cell_probe",
+        "filament_switch_sensor filament_sensor"
       ]
     },
     "default_macros": {

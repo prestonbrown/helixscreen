@@ -26,7 +26,7 @@
         "output_pin fan0": "Part Cooling",
         "output_pin fan1": "Chamber (manual)",
         "output_pin fan2": "Auxiliary",
-        "heater_fan chamber_fan": "Chamber Heater Fan",
+        "heater_fan chamber_heater_fan": "Chamber Heater Fan",
         "temperature_fan chamber_fan": "Chamber Circulation"
       }
     },
@@ -51,7 +51,7 @@
         "heater_generic chamber_heater",
         "temperature_sensor chamber_temp",
         "temperature_sensor mcu_temp",
-        "heater_fan chamber_fan",
+        "heater_fan chamber_heater_fan",
         "heater_fan hotend_fan",
         "temperature_fan chamber_fan",
         "output_pin LED",
