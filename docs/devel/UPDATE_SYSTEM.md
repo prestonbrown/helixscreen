@@ -254,13 +254,16 @@ consumes its output; nothing is inferred from the tag string.
 Each maintenance line carries its own value, so cutting a release is just tagging
 the right branch (`release/1.0` holds `stable`, `main` holds `beta`).
 
-**Why not derive it from the tag.** The old rule was "tag contains a hyphen ->
-prerelease", which forced every devel build to carry a `-devN` suffix. But
-`helix::version::Version` (`include/version.h`) parses major/minor/patch and
-**discards the prerelease suffix**, so `v1.1.0-dev1` and `v1.1.0-dev2` compare
-EQUAL — `is_update_available()` returns false and the devel channel goes silent
-after the first install. Declaring the channel out-of-band lets the devel track use
-plain monotonic versions (`1.1.0`, `1.1.1`, ...) that the updater actually orders.
+**Why not derive it from the tag.** Routing is a property of the branch, not of the
+version string. Three things break when the tag decides: the `dev` channel cannot
+be spelled in a version at all; a plain `v1.1.0` tag cut from the trunk would reach
+the stable fleet, and the pre-upload guard cannot refuse it because `1.1.0 > 1.0.0`
+is a forward move; and a stable-line release candidate (`1.0.1-rc.1`) could not be
+tested on a prerelease channel while still belonging to the stable line. Declaring
+the channel in a tracked file per branch makes cutting a release nothing but tagging
+the right branch. The version string is then free to say only what it means:
+`1.1.0-beta.3` is the third beta of 1.1, and `helix::version::Version` orders it
+below `1.1.0` on precedence. See `RELEASE_PROCESS.md` § "The trunk's beta line".
 
 **Stable does not publish to `dev`.** The `dev` channel follows the devel line
 alone so its manifest only ever moves forward; a `1.0.x` hotfix publishing to `dev`

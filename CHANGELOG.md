@@ -5,6 +5,31 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.1] - UNRELEASED
+
+<!-- whatsnew
+The first beta of the 1.1 line. Highlights:
+
+- The home screen is one square-cell grid on every panel, and your layout is carried onto it
+- Widgets place and size at half-cell resolution, with the snap lattice shown while editing
+- The widget catalog opens by category instead of one flat scroll of thirty-seven
+- Belt tension is measured by plucking the belt, not by a driven sweep
+- The clog meter, FlowGuard and filament sensor tiles are readable and tappable
+-->
+
+The first beta of the 1.1 line. It carries everything in 1.0.0 plus the 1.1 work to
+date: a home screen rebuilt on a square-cell grid, half-cell widget placement, a
+categorised widget catalog, and a belt tuner that listens to a hand pluck instead of
+driving a sweep.
+
+**Why the version has a `-beta.1` on it.** Beta builds carry the release they are
+heading for plus a prerelease suffix, which sorts below the plain `1.1.0` that the
+stable 1.1 release will use, and above every `1.0.x` fix on the stable line. So a
+hotfix on 1.0 never looks like an upgrade to you, and `1.1.0` arriving does.
+
+**The belt tuner has never measured a real belt.** It stays beta-gated until the
+hardware matrix in `BELT_TUNER.md` § Validation status has been run.
+
 ## [1.0.0] - 2026-09-09
 
 <!-- whatsnew

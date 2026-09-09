@@ -2,7 +2,14 @@
 
 Working draft of the release notes for 1.1. Lives here rather than in
 `CHANGELOG.md` so the release tooling owns that file uncontested; at release,
-this becomes the `## [1.1]` entry more or less verbatim.
+this becomes the `## [1.1.0]` entry more or less verbatim. The heading has to be
+the exact string in `VERSION.txt` at that point, because
+`scripts/generate-whatsnew.sh` looks the section up by it and hard-fails when it
+is absent.
+
+Each `1.1.0-beta.N` tag from the trunk gets its own short `CHANGELOG.md` entry for
+what that build changed. This file is the cumulative story of the release, not a
+running log of the betas.
 
 **Scope:** everything on `main` that is not in the 1.0 release. Work that shipped
 in 0.99.112 and earlier belongs to the release it shipped in and is deliberately
@@ -17,7 +24,7 @@ git log --no-merges --oneline <last-reviewed-sha>..main --not release/1.0
 
 ---
 
-## [1.1] - UNRELEASED
+## [1.1.0] - UNRELEASED
 
 **Upgrading?** The home screen moves to a square-cell grid, and your layout comes
 with it. Positions are converted onto the new grid in proportion: a widget that

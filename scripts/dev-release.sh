@@ -124,7 +124,16 @@ fi
 if [[ -z "$VERSION" ]]; then
     BASE_VERSION=$(cat "$REPO_ROOT/VERSION.txt" | tr -d '\n')
     TIMESTAMP=$(date +%Y%m%d%H%M%S)
-    VERSION="${BASE_VERSION}-dev.${TIMESTAMP}"
+    # The dev marker is appended as extra prerelease identifiers, and only the
+    # first one introduces the suffix. VERSION.txt already carries a prerelease on
+    # the trunk (1.1.0-beta.1), so a second "-" would put the two markers in one
+    # identifier and order the dev build against its own base by string rules.
+    # Extra identifiers rank above a shared prefix, which is what a dev build off
+    # that base should do.
+    case "$BASE_VERSION" in
+        *-*) VERSION="${BASE_VERSION}.dev.${TIMESTAMP}" ;;
+        *)   VERSION="${BASE_VERSION}-dev.${TIMESTAMP}" ;;
+    esac
 fi
 
 echo -e "${GREEN}Version: $VERSION${NC}"

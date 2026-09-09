@@ -28,32 +28,60 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 | **MAJOR** | Breaking changes (config format, API, incompatible UI changes) |
 | **MINOR** | New features, backwards-compatible |
 | **PATCH** | Bug fixes, documentation, minor improvements |
-| **PRERELEASE** | **Do not use.** See below. |
+| **PRERELEASE** | Trunk builds heading for the next MINOR: `-beta.N` |
 
-> ### Never ship a prerelease suffix
+> ### A prerelease sorts below its release, and the whole scheme rests on that
 >
-> `helix::version::Version` **discards** the prerelease suffix when parsing
-> (`include/version.h`). `v1.0.0-rc.1`, `v1.0.0-beta` and `v1.0.0` all parse to
-> `1.0.0` and compare **equal**.
+> `helix::version::Version` implements Semantic Versioning 2.0.0 precedence
+> (`src/util/version.cpp`), so `1.1.0-beta.1 < 1.1.0-beta.2 < 1.1.0-rc.1 < 1.1.0`.
+> That ordering is what lets the trunk ship `1.1.0-beta.N` while `release/1.0`
+> still ships `1.0.x`: a beta outranks every 1.0 hotfix and is still superseded by
+> the real `1.1.0` when it publishes.
 >
-> So a user who installs `v1.0.0-rc.1` has an app that believes it is already on
-> `1.0.0`. When the real `1.0.0` publishes, the updater sees no newer version and
-> **never offers it**. Your testers are stranded on the release candidate.
+> The same question gets asked in three languages, so three implementations exist:
+> the app (`src/util/version.cpp`), CI's pre-upload channel guard
+> (`scripts/version-compare.sh`), and the Android versionCode
+> (`scripts/android-version-code.sh`). They share one set of cases in
+> `tests/fixtures/version_precedence.txt`, and adding a version there fails every
+> suite that disagrees with it. Change one comparator and you change all three.
 >
-> Use a plain monotonic version instead, and pick the audience with the branch's
-> `RELEASE_CHANNEL` file rather than with the tag string. That is exactly why
-> `RELEASE_CHANNEL` exists - read its header comment. A release candidate that
-> everyone should test is just the next `PATCH` on the line they are already on
-> (v0.99.114 was the 1.0 RC, shipped on the stable 0.99.x line).
+> `sort -V` is not one of them and must not be used: GNU version sort orders
+> `1.1.0` **before** `1.1.0-beta.1`, the opposite of semver.
+
+### Suffixes the tooling accepts
+
+`-alpha.N`, `-beta.N`, `-rc.N`, with N from 1 to 29. The Android versionCode packs
+the suffix into a 100-wide lane and errors on anything it does not recognise rather
+than guess an ordinal, so a novel suffix fails the release build instead of
+shipping an unpublishable APK. Build metadata (`+sha`) does not affect precedence
+and is not used.
 
 ### Examples
 
 - `v1.0.0` - First stable release
-- `v1.1.0` - New features added
-- `v1.1.1` - Bug fix
+- `v1.1.0-beta.1` - First beta of the 1.1 line, from `main`
+- `v1.1.0-rc.1` - Release candidate, same line, higher precedence than any beta
+- `v1.1.0` - The 1.1 stable release, from `release/1.1`
+- `v1.1.1` - Bug fix on the 1.1 line
 - `v2.0.0` - Breaking changes
-- `v0.99.114` - a release candidate: a plain PATCH bump, audience chosen by
-  `RELEASE_CHANNEL`, **not** by a `-rc` suffix
+
+### The trunk's beta line
+
+`main` carries `RELEASE_CHANNEL=beta`, so its tags reach the beta and dev channels
+while `release/1.0` keeps stable:
+
+| Branch | Versions | Channel |
+|--------|----------|---------|
+| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
+| `main` | `1.1.0-beta.1`, `1.1.0-beta.2` ... | beta + dev |
+| `release/1.1` (future) | `1.1.0`, then `1.1.1` ... | stable |
+
+The trunk names the release it is heading for, so a beta install says which minor
+it belongs to and `1.1.0` stays free for the stable cut. A beta at `1.1.0-beta.7`
+is offered `1.1.0` the moment it publishes, and a `1.0.2` hotfix on the stable line
+never looks like an upgrade to it.
+
+When `release/1.1` is cut, `main` moves to `1.2.0-beta.1` and the pattern repeats.
 
 ---
 
@@ -255,14 +283,12 @@ For testing new features before stable release:
 
 ### Creating a Pre-release
 
-```bash
-# Beta version
-git tag -a v1.3.0-beta -m "Beta release for testing new AMS features"
-git push origin v1.3.0-beta
+Tag the branch whose `RELEASE_CHANNEL` already routes where you want it to go. The
+suffix expresses precedence; the branch chooses the audience:
 
-# Release candidate
-git tag -a v1.3.0-rc.1 -m "Release candidate 1"
-git push origin v1.3.0-rc.1
+```bash
+git tag -a v1.1.0-beta.2 -m "Beta: new AMS features"
+git push origin v1.1.0-beta.2
 ```
 
 ### Pre-release Behavior
@@ -276,24 +302,35 @@ Channels" for the full table and the reason.
 - `RELEASE_CHANNEL=beta` or `dev` -> marked **prerelease**, not shown as "latest"
 - Users must explicitly choose to install a prerelease:
   ```bash
-  curl -sSL .../install.sh | sh -s -- --version v1.3.0-beta
+  curl -sSL .../install.sh | sh -s -- --version v1.1.0-beta.2
   ```
 
-**Do not use a `-suffix` to mean "devel build".** `helix::version::Version`
-discards prerelease suffixes, so `v1.1.0-dev1` and `v1.1.0-dev2` compare equal and
-the in-app updater stops offering builds. Devel-track releases use plain
-incrementing versions and rely on `RELEASE_CHANNEL` for routing. A suffixed tag on
-a `stable` branch is rejected by `scripts/release-channel.sh`.
+**The suffix is not the routing.** A `-beta.N` suffix says where the version sits
+in the ordering, not who receives it: the dev channel cannot be spelled in a
+version string at all, and a plain `v1.1.0` tag pushed from the trunk would reach
+the stable fleet if the tag decided. `RELEASE_CHANNEL` keeps that decision a
+property of the branch, which is why `scripts/release-channel.sh` rejects a
+suffixed tag on a `stable` branch: a prerelease has no business on the stable
+channel regardless of which branch it was cut from.
 
-### Graduating Pre-releases
+### Graduating the beta line
 
-After testing:
+A stable release is not a re-tag of the last beta. Cut the maintenance branch,
+edit its `RELEASE_CHANNEL` to `stable`, drop the suffix from `VERSION.txt`, and tag
+there:
 
 ```bash
-# When beta is ready for stable
-git tag -a v1.3.0 -m "Stable release"
-git push origin v1.3.0
+git checkout -b release/1.1 main
+$EDITOR RELEASE_CHANNEL          # beta -> stable
+printf '1.1.0\n' > VERSION.txt   # was 1.1.0-beta.N
+git commit -m "chore(release): v1.1.0" RELEASE_CHANNEL VERSION.txt CHANGELOG.md
+git tag -a v1.1.0 -m "1.1.0"
+git push origin release/1.1 v1.1.0
 ```
+
+Dropping the suffix is itself the promotion: `1.1.0` outranks every
+`1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step.
+`main` then moves to `1.2.0-beta.1` and keeps publishing to beta.
 
 ---
 

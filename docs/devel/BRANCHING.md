@@ -25,9 +25,11 @@ writing twice; that is the cost of a maintenance line and it is expected.
 
 `RELEASE_CHANNEL` is a file at the repo root, read by `scripts/release-channel.sh`
 and consumed by `.github/workflows/release.yml`. It is declared per branch rather
-than derived from the tag string, because `helix::version::Version` discards
-prerelease suffixes — so `v1.1.0-dev1` and `v1.1.0-dev2` compare EQUAL and the
-in-app updater stops offering builds after the first install.
+than derived from the tag string, because routing is a property of the branch: the
+`dev` channel cannot be spelled in a version at all, and a plain `vX.Y.Z` tag cut
+from the trunk would reach the stable fleet if the tag decided. The version string
+carries precedence only, and `helix::version::Version` orders a `-beta.N` build
+below the release it names.
 
 **`main` must never declare `stable`.** It carries versions ahead of the released
 line, so a tag there would publish over the stable manifest for every user, and

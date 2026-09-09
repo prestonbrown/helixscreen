@@ -9,11 +9,12 @@ beta
 #   dev    -> dev             GitHub prerelease; bleeding edge only
 #
 # This is declared per-branch rather than derived from the tag string because
-# helix::version::Version discards prerelease suffixes (include/version.h), so
-# tags like v1.1.0-dev1 and v1.1.0-dev2 compare EQUAL and the in-app updater
-# stops offering devel builds after the first install. Declaring the channel
-# here lets the devel track use plain monotonic versions (1.1.0, 1.1.1, ...)
-# without those tags landing on the stable channel.
+# routing is a property of the branch. The dev channel cannot be spelled in a
+# version at all, and a plain vX.Y.Z tag cut from the trunk would otherwise reach
+# the stable fleet. The version string says only where the build sits in the
+# ordering: main ships 1.1.0-beta.N, which helix::version::Version orders below the
+# 1.1.0 that release/1.1 will ship. See docs/devel/RELEASE_PROCESS.md
+# § "The trunk's beta line".
 #
 # This branch is the trunk and says `beta`, so a tag here reaches the beta and
 # dev channels and never stable. The stable channel belongs to release/1.0,
