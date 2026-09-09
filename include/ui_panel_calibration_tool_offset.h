@@ -4,6 +4,7 @@
 #include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
 
+#include "async_lifetime_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
@@ -82,7 +83,7 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
         return "Tool Offset Calibration";
     }
     void on_activate() override;
-    void on_deactivate() override;
+    void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
     /// Whether the connected printer can run the calibration at all.
@@ -108,6 +109,9 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     }
     lv_subject_t* get_status_subject() {
         return &status_;
+    }
+    lv_subject_t* get_active_subject() {
+        return &active_;
     }
     lv_subject_t* get_hint_subject() {
         return &hint_;
@@ -167,6 +171,12 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     ObserverGuard active_tool_observer_;
     helix::ui::ElapsedLabelTimer elapsed_;
     helix::ui::SaveConfigWatch save_watch_;
+    /// Guards the run's completion and the save's outcome - NOT lifetime_,
+    /// which OverlayBase expires on every deactivation: a run deliberately
+    /// outlives the screen (see on_deactivating), so its callbacks must too.
+    /// Expired by Stop, cleanup() and destruction only. Declared last so
+    /// reverse-order destruction expires it before the subjects it writes.
+    helix::AsyncLifetimeGuard run_lifetime_;
 };
 
 /// Register the Advanced-panel row click callback ("on_tool_offset_row_clicked")

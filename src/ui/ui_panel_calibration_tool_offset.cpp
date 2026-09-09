@@ -157,14 +157,17 @@ void ToolOffsetCalibrationPanel::on_activate() {
     refresh_rows();
 }
 
-void ToolOffsetCalibrationPanel::on_deactivate() {
+void ToolOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     // A run keeps going on the printer whether or not the panel is on screen.
     // The observers stay with it: ToolState keeps publishing, and the rows
-    // must be right when the panel comes back.
-    OverlayBase::on_deactivate();
+    // must be right when the panel comes back. So does the run's completion:
+    // the base expires lifetime_ right after this hook returns, which is why
+    // the run and save callbacks ride on run_lifetime_ instead.
+    spdlog::debug("[ToolOffsetCal] on_deactivating({})", deactivate_reason_name(reason));
 }
 
 void ToolOffsetCalibrationPanel::cleanup() {
+    run_lifetime_.invalidate();
     active_tool_observer_.reset();
     tools_observer_.reset();
     elapsed_.cancel();
@@ -326,8 +329,8 @@ void ToolOffsetCalibrationPanel::begin_run() {
     // the success callback IS the completion signal. A full run heats and
     // probes every tool, which can pass the default macro ceiling.
     api->execute_gcode(
-        gcode, lifetime_.bg_cb("ToolOffsetCal::done", [this]() { on_run_finished(true, ""); }),
-        lifetime_.bg_cb(
+        gcode, run_lifetime_.bg_cb("ToolOffsetCal::done", [this]() { on_run_finished(true, ""); }),
+        run_lifetime_.bg_cb(
             "ToolOffsetCal::error",
             [this](const MoonrakerError& err) { on_run_finished(false, err.user_message()); }),
         IMoonrakerAPI::PRE_START_MACRO_TIMEOUT_MS);
@@ -352,8 +355,14 @@ void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& err
     lv_subject_copy_string(&status_, last_error_.c_str());
     refresh_rows();
     // The refusal is a one-time event with a verbatim firmware message; a
-    // dismissible alert, not a permanent card.
-    helix::ui::modal_alert(lv_tr("Calibration failed"), last_error_.c_str(), ModalSeverity::Error);
+    // dismissible alert, not a permanent card. Off screen it is a toast: the
+    // status line carries last_error_ when the panel comes back.
+    if (is_visible()) {
+        helix::ui::modal_alert(lv_tr("Calibration failed"), last_error_.c_str(),
+                               ModalSeverity::Error);
+    } else {
+        NOTIFY_ERROR("{}", last_error_);
+    }
 }
 
 bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
@@ -369,7 +378,7 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
 
     // Drop the in-flight execute_gcode callbacks: they would report the M112
     // shutdown as the run's failure.
-    lifetime_.invalidate();
+    run_lifetime_.invalidate();
     elapsed_.cancel();
     run_.abort();
     lv_subject_set_int(&active_, 0);
@@ -406,7 +415,7 @@ void ToolOffsetCalibrationPanel::save_offsets() {
     // any other way in (as the bypass toggle refuses mid-print in code too).
     // A print can start from the web UI while this overlay is open, and Save
     // ends in SAVE_CONFIG, which restarts Klipper under it.
-    if (helix::job_holds_machine(get_printer_state().get_print_lifecycle())) {
+    if (job_holds_machine(get_printer_state().get_print_lifecycle())) {
         NOTIFY_WARNING(lv_tr("Cannot save offsets while printing"));
         spdlog::info("[ToolOffsetCal] Refused Save - a job holds the machine");
         return;
@@ -440,16 +449,16 @@ void ToolOffsetCalibrationPanel::send_save() {
     helix::zoffset::save_dirty_offsets(
         api, save_watch_, ps.get_z_offset_calibration_strategy(), ps.get_discovery(),
         /*global_dirty=*/false,
-        lifetime_.bg_cb("ToolOffsetCal::saved",
-                        [this]() {
-                            lv_subject_copy_string(&status_, lv_tr("Offsets saved"));
-                            NOTIFY_SUCCESS("{}", lv_tr("Tool offsets saved"));
-                        }),
-        lifetime_.bg_cb("ToolOffsetCal::save_failed",
-                        [this](const std::string& error) {
-                            lv_subject_copy_string(&status_, error.c_str());
-                            NOTIFY_ERROR("{}", error);
-                        }),
+        run_lifetime_.bg_cb("ToolOffsetCal::saved",
+                            [this]() {
+                                lv_subject_copy_string(&status_, lv_tr("Offsets saved"));
+                                NOTIFY_SUCCESS("{}", lv_tr("Tool offsets saved"));
+                            }),
+        run_lifetime_.bg_cb("ToolOffsetCal::save_failed",
+                            [this](const std::string& error) {
+                                lv_subject_copy_string(&status_, error.c_str());
+                                NOTIFY_ERROR("{}", error);
+                            }),
         &ps);
 }
 
