@@ -5,6 +5,8 @@
 #include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "moonraker_error.h"
+#include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
@@ -67,6 +69,13 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
   public:
     /// Fixed subject slots; rows beyond the printer's tool count stay hidden.
     static constexpr int MAX_TOOLS = 8;
+    /// Ceiling on the calibration rpc. Moonraker never times out
+    /// printer.gcode.script, so this is ours alone. The macro heats each tool
+    /// before probing it, one after another: ~30 s to measure and up to ~2 min
+    /// to heat from cold per tool, so a cold four-tool run is ~10 min. Expiry
+    /// does not fail the run while Klipper still reports busy - see
+    /// on_run_rpc_error().
+    static constexpr uint32_t CALIBRATION_TIMEOUT_MS = 900000; // 15 min
 
     ToolOffsetCalibrationPanel();
     ~ToolOffsetCalibrationPanel() override;
@@ -93,6 +102,11 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     void start_calibration();
     /// The run itself, once the user has confirmed
     void begin_run();
+    /// The rpc failed. A TIMEOUT while Klipper still reports idle_timeout
+    /// "Printing" is not a failure: the macro is still running, so the run
+    /// completes on the busy->idle edge instead (public so a test can feed the
+    /// timeout without waiting one out).
+    void on_run_rpc_error(const MoonrakerError& err);
     /// Stop a run: M112 + firmware restart. Returns false if nothing was running.
     bool abort_in_progress_calibration();
     /// Confirm, then persist every unsaved tool offset (restarts Klipper)
@@ -131,6 +145,10 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     /// ToolState's tools changed: during a run, a tool whose offsets moved
     /// since the run began has been measured
     void on_tools_changed();
+    /// The rpc timed out under a still-busy printer: finish on the idle edge,
+    /// with one more ceiling as the backstop
+    void begin_idle_wait();
+    void finish_idle_wait();
     /// The confirmation text: heat, probe, what to check first
     std::string start_prompt() const;
 
@@ -171,6 +189,11 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     ObserverGuard active_tool_observer_;
     helix::ui::ElapsedLabelTimer elapsed_;
     helix::ui::SaveConfigWatch save_watch_;
+    /// The wait for the busy->idle edge after the rpc ceiling expired under a
+    /// macro that was still running (see on_run_rpc_error).
+    bool idle_wait_active_ = false;
+    OperationTimeoutGuard idle_wait_backstop_;
+    ObserverGuard idle_wait_observer_;
     /// Guards the run's completion and the save's outcome - NOT lifetime_,
     /// which OverlayBase expires on every deactivation: a run deliberately
     /// outlives the screen (see on_deactivating), so its callbacks must too.

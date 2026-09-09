@@ -66,6 +66,7 @@ ToolOffsetCalibrationPanel::~ToolOffsetCalibrationPanel() {
     // destroys the panel mid-run skips them, and StaticPanelRegistry runs
     // before lv_deinit() (#1173). ElapsedLabelTimer cancels itself on
     // destruction.
+    idle_wait_observer_.reset();
     active_tool_observer_.reset();
     tools_observer_.reset();
     subjects_.deinit_all();
@@ -168,6 +169,7 @@ void ToolOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
 
 void ToolOffsetCalibrationPanel::cleanup() {
     run_lifetime_.invalidate();
+    finish_idle_wait();
     active_tool_observer_.reset();
     tools_observer_.reset();
     elapsed_.cancel();
@@ -330,17 +332,88 @@ void ToolOffsetCalibrationPanel::begin_run() {
     // probes every tool, which can pass the default macro ceiling.
     api->execute_gcode(
         gcode, run_lifetime_.bg_cb("ToolOffsetCal::done", [this]() { on_run_finished(true, ""); }),
-        run_lifetime_.bg_cb(
-            "ToolOffsetCal::error",
-            [this](const MoonrakerError& err) { on_run_finished(false, err.user_message()); }),
-        IMoonrakerAPI::PRE_START_MACRO_TIMEOUT_MS);
+        run_lifetime_.bg_cb("ToolOffsetCal::error",
+                            [this](const MoonrakerError& err) { on_run_rpc_error(err); }),
+        CALIBRATION_TIMEOUT_MS);
+}
+
+void ToolOffsetCalibrationPanel::on_run_rpc_error(const MoonrakerError& err) {
+    if (!run_.active()) {
+        return; // a Stop already settled it
+    }
+    // The rpc ceiling is not the printer's: Moonraker never times out
+    // printer.gcode.script, so an expiry while Klipper still reports
+    // idle_timeout "Printing" means the macro is still running - and failing
+    // the run here would re-enable Save under a queue the macro still blocks.
+    // Complete on the busy->idle edge instead, as PrintPreparationManager does
+    // for a pre-start macro that outlives its ceiling.
+    if (err.type == MoonrakerErrorType::TIMEOUT &&
+        lv_subject_get_int(get_printer_state().get_idle_timeout_printing_subject()) == 1) {
+        begin_idle_wait();
+        return;
+    }
+    on_run_finished(false, err.user_message());
+}
+
+void ToolOffsetCalibrationPanel::begin_idle_wait() {
+    if (idle_wait_active_) {
+        return;
+    }
+    spdlog::warn("[ToolOffsetCal] Calibration rpc timed out with the printer still busy - "
+                 "waiting for the busy->idle edge");
+    idle_wait_active_ = true;
+    lv_subject_copy_string(&status_,
+                           lv_tr("Calibration may still be running — response timed out"));
+
+    // Backstop: the macro already had a full ceiling on the rpc side; a
+    // printer still busy after another one is wedged. Re-read the subject when
+    // it fires - an edge that landed between the last notification and the
+    // timer is a finished run.
+    idle_wait_backstop_.begin(CALIBRATION_TIMEOUT_MS, [this]() {
+        const bool still_busy =
+            lv_subject_get_int(get_printer_state().get_idle_timeout_printing_subject()) == 1;
+        finish_idle_wait();
+        if (still_busy) {
+            spdlog::error(
+                "[ToolOffsetCal] Printer still busy after the backstop - failing the run");
+            on_run_finished(false, "");
+            return;
+        }
+        on_run_finished(true, "");
+    });
+    // The edge is the normal completion. observe_int_sync defers the handler
+    // through the UpdateQueue, so the observer can be torn down from inside it.
+    helix::PrinterState& ps = get_printer_state();
+    idle_wait_observer_ = helix::ui::observe_int_sync<ToolOffsetCalibrationPanel>(
+        ps.get_idle_timeout_printing_subject(), this,
+        [](ToolOffsetCalibrationPanel* self, int busy) {
+            if (!self->idle_wait_active_ || busy == 1) {
+                return;
+            }
+            self->finish_idle_wait();
+            spdlog::info("[ToolOffsetCal] Printer went idle after the rpc timeout - "
+                         "treating the run as finished");
+            self->on_run_finished(true, "");
+        },
+        ps.get_subjects_lifetime());
+}
+
+void ToolOffsetCalibrationPanel::finish_idle_wait() {
+    idle_wait_active_ = false;
+    // Observer first, so a queued stale notification finds the guard dead.
+    idle_wait_observer_.reset();
+    idle_wait_backstop_.end();
 }
 
 void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& error) {
     if (!run_.active()) {
         return; // a Stop already settled it
     }
+<<<<<<< HEAD
     elapsed_.cancel();
+=======
+    finish_idle_wait();
+>>>>>>> 4960c6cf5 (fix(tool-offsets): own rpc ceiling, and a timeout under a busy printer waits)
     run_.finish(ok);
     lv_subject_set_int(&active_, 0);
 
@@ -379,7 +452,11 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
     // Drop the in-flight execute_gcode callbacks: they would report the M112
     // shutdown as the run's failure.
     run_lifetime_.invalidate();
+<<<<<<< HEAD
     elapsed_.cancel();
+=======
+    finish_idle_wait();
+>>>>>>> 4960c6cf5 (fix(tool-offsets): own rpc ceiling, and a timeout under a busy printer waits)
     run_.abort();
     lv_subject_set_int(&active_, 0);
     lv_subject_copy_string(&status_, lv_tr("Stopped"));

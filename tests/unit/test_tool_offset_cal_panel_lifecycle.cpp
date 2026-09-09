@@ -20,6 +20,7 @@
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "moonraker_error.h"
 #include "printer_state.h"
 #include "tool_offset_calibration.h"
 #include "tool_state.h"
@@ -129,6 +130,67 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: Stop drops the run's c
     pump_until([] { return false; }, 120);
     CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) == "Stopped");
     CHECK_FALSE(panel.run().failed());
+
+    panel.on_deactivate();
+    panel.cleanup();
+}
+
+TEST_CASE_METHOD(ToolCalPanelFixture,
+                 "tool offset panel: an rpc timeout under a busy printer waits for the idle edge",
+                 "[ui_integration][toolchanger][tool_offset_cal]") {
+    // Moonraker never times out printer.gcode.script; our ceiling firing while
+    // Klipper still reports idle_timeout "Printing" means the macro is still
+    // running. Failing the run there re-enabled Save under a blocked queue.
+    helix::PrinterState& ps = get_printer_state();
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    panel.begin_run();
+    REQUIRE(panel.is_calibration_active());
+
+    ps.update_from_status(json{{"idle_timeout", json{{"state", "Printing"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    panel.on_run_rpc_error(MoonrakerError::timeout("printer.gcode.script", 1));
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Still a run: Save stays disabled, and the status says why.
+    CHECK(panel.is_calibration_active());
+    CHECK(lv_subject_get_int(panel.get_active_subject()) == 1);
+    CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) ==
+          "Calibration may still be running — response timed out");
+
+    // The printer going idle is the completion.
+    ps.update_from_status(json{{"idle_timeout", json{{"state", "Ready"}}}});
+    for (int pass = 0; pass < 4; ++pass) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK_FALSE(panel.is_calibration_active());
+    CHECK(lv_subject_get_int(panel.get_active_subject()) == 0);
+    CHECK_FALSE(panel.run().failed());
+    CHECK(panel.run().step(2) == cal::ToolStep::Done);
+
+    panel.on_deactivate();
+    panel.cleanup();
+}
+
+TEST_CASE_METHOD(ToolCalPanelFixture,
+                 "tool offset panel: an rpc timeout under an idle printer fails",
+                 "[ui_integration][toolchanger][tool_offset_cal]") {
+    // No macro running behind the silence: nothing to wait for.
+    helix::PrinterState& ps = get_printer_state();
+    ps.update_from_status(json{{"idle_timeout", json{{"state", "Ready"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    panel.begin_run();
+    REQUIRE(panel.is_calibration_active());
+
+    panel.on_run_rpc_error(MoonrakerError::timeout("printer.gcode.script", 1));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(panel.is_calibration_active());
+    CHECK(panel.run().failed());
 
     panel.on_deactivate();
     panel.cleanup();
