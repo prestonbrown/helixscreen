@@ -164,9 +164,10 @@ void TouchCalibrationPanel::capture_point(Point raw, const Point* device_raw) {
             break;
         }
 
-        // Detect and correct swapped touch axes (e.g., Ender 5 Max screens)
-        // This swaps touch_points_ in-place and recomputes calibration_ if needed
-        detect_and_correct_axis_swap(calibration_, screen_points_, touch_points_);
+        // Record whether the panel is mounted a quarter turn from the display
+        // (e.g. Ender 5 Max screens). The solve above already maps these taps onto
+        // the targets, so this only annotates the result.
+        detect_axis_transposition(calibration_, screen_points_, touch_points_);
 
         // The targets and the taps are both logical, post-rotation coordinates, so
         // the matrix just solved is only meaningful against this rotation. The

@@ -196,8 +196,8 @@ bool is_calibration_valid(const TouchCalibration& cal) {
     return true;
 }
 
-bool detect_and_correct_axis_swap(TouchCalibration& cal, const Point screen_points[3],
-                                  Point touch_points[3]) {
+bool detect_axis_transposition(TouchCalibration& cal, const Point screen_points[3],
+                               const Point touch_points[3]) {
     // Compute cross-coupling ratio: off-diagonal vs diagonal dominance
     // For a well-aligned screen: a,e are large (scaling), b,d are ~0 (no cross-coupling)
     // For swapped axes: b,d are large, a,e may be small or the matrix is chaotic
@@ -259,17 +259,15 @@ bool detect_and_correct_axis_swap(TouchCalibration& cal, const Point screen_poin
         return false;
     }
 
-    spdlog::info("[TouchCalibration] Axis swap corrected cross-coupling "
-                 "(ratio {:.2f} -> {:.2f}, a={:.3f} b={:.3f} d={:.3f} e={:.3f})",
-                 cross_coupling_ratio, swapped_ratio, swapped_cal.a, swapped_cal.b, swapped_cal.d,
-                 swapped_cal.e);
+    spdlog::info("[TouchCalibration] Panel axes are transposed against the display "
+                 "(cross-coupling {:.2f}, {:.2f} when re-solved transposed)",
+                 cross_coupling_ratio, swapped_ratio);
 
-    // Apply the swap: update touch points in-place and use the swapped calibration
-    for (int i = 0; i < 3; i++) {
-        touch_points[i] = swapped_points[i];
-    }
-    swapped_cal.axes_swapped = true;
-    cal = swapped_cal;
+    // Recorded, not applied. `cal` already maps these taps onto the targets - the
+    // three-point solve is exact, so the transposition lives in its cross terms.
+    // Installing the re-solve would hand the read callback a matrix that only works
+    // on transposed input, which is not what arrives.
+    cal.axes_swapped = true;
     return true;
 }
 

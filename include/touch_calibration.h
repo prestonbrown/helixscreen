@@ -346,26 +346,30 @@ bool validate_calibration_result(const TouchCalibration& cal, const Point screen
                                  float max_residual = 10.0f);
 
 /**
- * @brief Detect and correct swapped touch axes in calibration data
+ * @brief Report whether a panel's touch axes are transposed against the display
  *
- * After computing calibration, checks if the off-diagonal (cross-coupling)
- * terms dominate the diagonal (scaling) terms. This indicates the touch
- * controller reports X where Y is expected and vice versa.
+ * Checks whether the off-diagonal (cross-coupling) terms dominate the diagonal
+ * (scaling) terms, then confirms it by re-solving against transposed taps and
+ * requiring the cross-coupling to fall. A panel mounted a quarter turn from its
+ * display reports X where Y is expected, and this is what recognises that.
  *
- * If swap is detected, swaps X/Y in touch_points and recomputes calibration,
- * producing clean diagonal-dominant coefficients. The swap is handled entirely
- * in the affine matrix — no runtime evdev swap is needed.
+ * **It records the finding, it does not change the mapping.** An affine through
+ * three points is exact, so `compute_calibration()` already reproduces the targets
+ * from transposed taps through its cross terms; there is nothing left to correct.
+ * Re-solving against transposed input would produce a matrix that only works on
+ * transposed input, and the read callback has no swap to apply on the way in.
  *
- * Safe for non-swapped screens: only triggers when cross-coupling ratio > 0.5
- * AND swapping produces a measurably better (lower cross-coupling) result.
+ * The evdev-stage swap, which IS applied, is a separate mechanism: it comes from
+ * compute_range_fit()'s own `swap_axes` and reaches the driver through
+ * lv_evdev_set_swap_axes().
  *
- * @param[in,out] cal Calibration to check/fix (recomputed if swap detected)
+ * @param[in,out] cal Calibration to inspect; only `axes_swapped` is written
  * @param[in] screen_points 3 screen coordinate targets
- * @param[in,out] touch_points 3 raw touch coordinates (swapped in-place if needed)
- * @return true if axes were swapped and calibration was recomputed
+ * @param[in] touch_points 3 captured touch coordinates
+ * @return true when the panel's axes are transposed
  */
-bool detect_and_correct_axis_swap(TouchCalibration& cal, const Point screen_points[3],
-                                  Point touch_points[3]);
+bool detect_axis_transposition(TouchCalibration& cal, const Point screen_points[3],
+                               const Point touch_points[3]);
 
 /**
  * @brief Evdev-stage range fit recovered from a three-point calibration

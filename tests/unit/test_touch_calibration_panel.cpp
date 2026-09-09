@@ -700,10 +700,10 @@ TEST_CASE_METHOD(TouchCalibrationPanelFailureFixture,
     REQUIRE(cal->valid == true);
     REQUIRE(cal->axes_swapped == true);
 
-    // Diagonal should dominate (clean matrix, not cross-coupled)
-    float diagonal = std::abs(cal->a) + std::abs(cal->e);
-    float off_diagonal = std::abs(cal->b) + std::abs(cal->d);
-    REQUIRE(off_diagonal / diagonal < 0.5f);
+    // The flag is a note about the panel, not a change to the mapping: the cross
+    // terms carry the transposition and the matrix is left able to consume the
+    // coordinates the read callback actually delivers.
+    REQUIRE((std::abs(cal->b) + std::abs(cal->d)) > 0.0f);
 }
 
 TEST_CASE_METHOD(TouchCalibrationPanelFailureFixture,
