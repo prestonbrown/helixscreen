@@ -325,6 +325,85 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: State transitions work correctl
     }
 }
 
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: icon visibility holds in portrait",
+                 "[navbar][ui_integration]") {
+    REQUIRE(navbar_ != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int32_t saved = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, 1);
+
+    set_nav_buttons_enabled(true);
+    set_active_panel(PanelId::Home);
+
+    // One component serves both orientations, so every invariant the landscape
+    // cases assert has to hold with ui_is_portrait raised too.
+    REQUIRE(is_visible("nav_icon_controls_inactive"));
+    REQUIRE(is_hidden("nav_icon_controls_active"));
+    REQUIRE(is_hidden("nav_icon_controls_disabled"));
+
+    REQUIRE(is_visible("nav_icon_filament_inactive"));
+    REQUIRE(is_hidden("nav_icon_filament_active"));
+    REQUIRE(is_hidden("nav_icon_filament_disabled"));
+
+    set_active_panel(PanelId::Controls);
+    REQUIRE(is_visible("nav_icon_controls_active"));
+    REQUIRE(is_hidden("nav_icon_controls_inactive"));
+
+    lv_subject_set_int(portrait, saved);
+}
+
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_portrait",
+                 "[navbar][ui_integration]") {
+    REQUIRE(navbar_ != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int32_t saved = lv_subject_get_int(portrait);
+
+    // Orientation reaches the bar as two complementary bound styles. An inline
+    // width/height/flex_flow on the view would be a local style, which outranks
+    // both and pins the bar to one axis while every other assertion still
+    // passes. Measuring the box is what catches that.
+    lv_subject_set_int(portrait, 0);
+    lv_obj_update_layout(navbar_);
+    const int32_t land_w = lv_obj_get_width(navbar_);
+    const int32_t land_h = lv_obj_get_height(navbar_);
+
+    lv_subject_set_int(portrait, 1);
+    lv_obj_update_layout(navbar_);
+    const int32_t port_w = lv_obj_get_width(navbar_);
+    const int32_t port_h = lv_obj_get_height(navbar_);
+
+    lv_subject_set_int(portrait, saved);
+
+    INFO("landscape " << land_w << "x" << land_h << ", portrait " << port_w << "x" << port_h);
+    REQUIRE(land_h > land_w); // vertical strip down one edge
+    REQUIRE(port_w > port_h); // horizontal bar across the bottom
+    REQUIRE(port_w > land_w);
+    REQUIRE(port_h < land_h);
+
+    // The buttons follow the bar: a grow item takes the bar's main axis and
+    // spans its cross axis, so the home button's box swaps with it.
+    lv_obj_t* home = lv_obj_find_by_name(navbar_, "nav_btn_home");
+    REQUIRE(home != nullptr);
+
+    lv_subject_set_int(portrait, 0);
+    lv_obj_update_layout(navbar_);
+    const int32_t btn_land_w = lv_obj_get_width(home);
+
+    lv_subject_set_int(portrait, 1);
+    lv_obj_update_layout(navbar_);
+    const int32_t btn_port_h = lv_obj_get_height(home);
+
+    lv_subject_set_int(portrait, saved);
+
+    INFO("home button: landscape width " << btn_land_w << ", portrait height " << btn_port_h);
+    REQUIRE(btn_land_w == land_w);
+    REQUIRE(btn_port_h == port_h);
+}
+
 // ============================================================================
 // Overlay Instance Registration Tests
 // ============================================================================

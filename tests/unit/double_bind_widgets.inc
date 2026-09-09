@@ -35,8 +35,6 @@ static const BindGroup kDoubleBindWidgets[] = {
     {"navigation_bar", "nav_btn_filament", BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
     {"network_settings_overlay", "refresh_btn", BindKind::State, "disabled", {{"wifi_scanning", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"network_settings_overlay", "wifi_disabled_placeholder", BindKind::Flag, "hidden", {{"wifi_enabled", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"portrait/navigation_bar", "nav_btn_controls", BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
-    {"portrait/navigation_bar", "nav_btn_filament", BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
     {"print_status_panel", "speed_flow_row", BindKind::Flag, "hidden", {{"ui_breakpoint", 0}}, 1, {{0, 1}, {0, 2}}, 2, false},
     {"probe_indicator", "probe_indicator", BindKind::Flag, "hidden", {{"probe_count", -1}, {"probe_triggered", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
     {"spool_wizard", "create_btn", BindKind::State, "disabled", {{"spool_wizard_can_proceed", -1}, {"wizard_creating", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
@@ -49,4 +47,4 @@ static constexpr int kUndrivableGroups = 2;
 
 // Total groups in ui_xml/. A new double-bind widget moves this, which is the
 // point: it has to be regenerated and re-run rather than silently uncovered.
-static constexpr int kTotalGroups = 29;
+static constexpr int kTotalGroups = 27;

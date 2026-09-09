@@ -127,7 +127,8 @@ struct OverlayWidths {
  * Both widths give up the horizontal extent the navigation bar occupies.
  * Landscape puts the bar on the leading edge as a full-height vertical strip,
  * so that is nav_width px. Portrait puts it along the bottom at width="100%"
- * (ui_xml/portrait/navigation_bar.xml), where it costs an overlay nothing
+ * (the nav_bar_portrait style in ui_xml/navigation_bar.xml), where it costs
+ * an overlay nothing
  * horizontally — reserving nav_width there strands a column of dead backdrop
  * beside every overlay, 54px of 320 on the Waveshare 11.9".
  *
@@ -156,7 +157,8 @@ OverlayWidths compute_overlay_widths(int32_t hor_res, int32_t ver_res, int32_t n
  * The vertical twin of OverlayWidths. In landscape the navigation bar is a
  * full-height vertical strip, so it consumes no vertical extent and both
  * classes span the whole display. In portrait it is a full-width bottom strip
- * (ui_xml/portrait/navigation_bar.xml), so both classes must stop short of it.
+ * (the nav_bar_portrait style in ui_xml/navigation_bar.xml), so both classes
+ * must stop short of it.
  */
 struct OverlayHeights {
     int32_t transient;   ///< A layer you will return from — leaves the gap above the nav bar.
@@ -810,7 +812,7 @@ int32_t theme_manager_get_font_height(const lv_font_t* font);
  * @brief Apply an overlay's navigation geometry at push time.
  *
  * Sets width always. In portrait also sets height and top alignment, because
- * ui_xml/portrait/navigation_bar.xml is a bottom strip that a full-height
+ * navigation_bar.xml's portrait style makes it a bottom strip that a full-height
  * overlay would cover. Landscape leaves height and alignment to the XML.
  *
  * The sole writer of overlay geometry — see OverlayClass for why the class is

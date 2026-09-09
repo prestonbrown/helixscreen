@@ -8,9 +8,10 @@
  * `overlay_width_transient` / `overlay_width_destination` are computed as
  * `hor_res - nav_width [- gap]`, which reserves room for the navigation bar.
  * That reservation is only correct when the nav bar is a full-height vertical
- * strip at the leading edge — which is what ui_xml/navigation_bar.xml builds.
+ * strip at the leading edge, which is what ui_xml/navigation_bar.xml builds
+ * while ui_is_portrait is 0.
  *
- * ui_xml/portrait/navigation_bar.xml is a full-WIDTH strip along the bottom
+ * Its nav_bar_portrait style makes it a full-WIDTH strip along the bottom
  * (width="100%" height="#button_height_lg"), so in portrait the bar occupies no
  * horizontal extent at all. Subtracting it there leaves a dead strip of
  * backdrop down the side of every overlay — 54px of 320 on the Waveshare 11.9".
@@ -119,7 +120,7 @@ TEST_CASE("Landscape overlays still reserve the nav strip", "[theme][overlay-wid
 }
 
 TEST_CASE("Portrait overlays claim the full screen width", "[theme][overlay-width][portrait]") {
-    // ui_xml/portrait/navigation_bar.xml is a bottom strip: width="100%",
+    // The portrait nav bar is a bottom strip: width="100%",
     // height="#button_height_lg". It consumes zero horizontal extent, so a
     // destination overlay must span the whole display.
     struct Case {

@@ -28,7 +28,8 @@ enum class LayoutType {
 LayoutType detect_layout_type(int width, int height);
 
 /// True for every portrait class, i.e. every geometry whose navigation bar is
-/// the horizontal bottom strip built by ui_xml/portrait/navigation_bar.xml.
+/// the horizontal bottom strip ui_xml/navigation_bar.xml builds when
+/// ui_is_portrait is 1.
 bool is_portrait_layout(LayoutType type);
 
 class LayoutManager {

@@ -897,10 +897,10 @@ void NavigationManager::backdrop_click_event_cb(lv_event_t* e) {
     // Check if click is in navbar area and find which button was clicked.
     //
     // Tested against the bar's own coordinates rather than "x < navbar_width".
-    // The width comparison assumed the bar is a full-height strip pinned to the
-    // leading edge, which is only true of ui_xml/navigation_bar.xml. Portrait
-    // lays the bar along the bottom at width="100%", where that test is true for
-    // every point on the screen.
+    // The width comparison assumes the bar is a full-height strip pinned to the
+    // leading edge, which only holds in landscape. In portrait the bar lies along
+    // the bottom at width="100%", where that test is true for every point on the
+    // screen.
     if (mgr.navbar_widget_) {
         lv_area_t navbar_area;
         lv_obj_get_coords(mgr.navbar_widget_, &navbar_area);

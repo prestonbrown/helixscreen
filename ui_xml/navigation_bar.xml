@@ -25,35 +25,69 @@
     <string name="icon_size_nav_inactive_xlarge" value="md"/>
     <string name="icon_size_nav_inactive_xxlarge" value="md"/>
   </consts>
+  <styles>
+    <!-- One bar, two axes. Each pair is bound complementarily on ui_is_portrait
+         so exactly one is ever live, and the attributes they carry must NOT
+         also appear inline on the element: an inline width/height/pad is a
+         local style and outranks every added style, which would pin the bar to
+         one orientation with nothing failing. -->
+    <!-- Landscape: full-height strip on the leading edge, buttons stacked down it. -->
+    <style name="nav_bar_landscape"
+           width="#nav_width" height="100%" flex_flow="column" pad_top="#space_xl" pad_bottom="#space_xl" pad_left="0"
+           pad_right="0"/>
+    <!-- Portrait: full-width bar across the bottom, buttons spread along it.
+         The height reuses the shared button_height_lg touch-target ladder. -->
+    <style name="nav_bar_portrait"
+           width="100%" height="#button_height_lg" flex_flow="row" pad_left="#space_xl" pad_right="#space_xl"
+           pad_top="0" pad_bottom="0"/>
+    <!-- The edit-mode buttons are the only children without flex_grow, so they
+         are the only ones whose main-axis size the bar does not compute. Height
+         cannot come from these styles: ui_button_create sets a local height,
+         which wins. Landscape therefore caps the inline 100%/90% height back
+         down to one button_height, the value that local style already holds. -->
+    <style name="nav_btn_edit_add_landscape" width="100%" max_height="#button_height" min_height="48"/>
+    <style name="nav_btn_edit_add_portrait" width="content" min_width="48"/>
+    <style name="nav_btn_edit_done_landscape" width="90%" max_height="#button_height" min_height="36"/>
+    <style name="nav_btn_edit_done_portrait" width="content" min_width="36"/>
+  </styles>
   <view extends="lv_obj"
-        width="#nav_width" height="100%" style_pad_top="#space_xl" style_pad_bottom="#space_xl" style_pad_left="0"
-        style_pad_right="0" flex_flow="column" style_flex_main_place="start" style_flex_track_place="center"
+        style_layout="flex" style_flex_main_place="center" style_flex_track_place="center"
         style_flex_cross_place="center" style_border_width="0" style_radius="0" scrollable="false"
         style_bg_color="#card_bg" style_bg_opa="255">
+    <bind_style_if_eq name="nav_bar_portrait" subject="ui_is_portrait" ref_value="1"/>
+    <bind_style_if_not_eq name="nav_bar_landscape" subject="ui_is_portrait" ref_value="1"/>
     <!-- ================================================================== -->
     <!-- Edit Mode Buttons - visible only during home panel grid edit      -->
     <!-- ================================================================== -->
     <!-- Add Widget (+) button -->
     <ui_button name="nav_btn_edit_add"
-               width="100%" style_min_height="48" variant="ghost" flex_flow="column" style_flex_main_place="center"
+               height="100%" variant="ghost" flex_flow="column" style_flex_main_place="center"
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0" hidden="true">
+      <bind_style_if_eq name="nav_btn_edit_add_portrait" subject="ui_is_portrait" ref_value="1"/>
+      <bind_style_if_not_eq name="nav_btn_edit_add_landscape" subject="ui_is_portrait" ref_value="1"/>
       <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="0"/>
       <icon src="plus" size="#icon_size" variant="primary" clickable="false" event_bubble="true"/>
       <event_cb trigger="clicked" callback="on_edit_add_widget_clicked"/>
     </ui_button>
     <!-- Done button (exits edit mode) — filled primary style -->
-    <ui_button name="nav_btn_edit_done"
-               width="90%" style_min_height="36" variant="primary" text="Done" translation_tag="Done" hidden="true">
+    <ui_button name="nav_btn_edit_done" height="90%" variant="primary" text="Done" translation_tag="Done" hidden="true">
+      <bind_style_if_eq name="nav_btn_edit_done_portrait" subject="ui_is_portrait" ref_value="1"/>
+      <bind_style_if_not_eq name="nav_btn_edit_done_landscape" subject="ui_is_portrait" ref_value="1"/>
       <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="on_edit_done_clicked"/>
     </ui_button>
     <!-- ================================================================== -->
     <!-- Navigation Buttons - Dual icon pattern (accent/secondary variants) -->
     <!-- ================================================================== -->
+    <!-- Every button below carries flex_grow, so the bar computes its main-axis
+         size in either orientation and the 100% only ever lands on the cross
+         axis. Their own flex_flow="column" stacks the icon inside the button
+         and is unrelated to the bar's axis. -->
     <!-- Home Button (Panel 0) -->
     <ui_button name="nav_btn_home"
-               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
+               width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
+               style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+               style_border_width="0">
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Active icon (accent color) - shown when active_panel == 0 -->
@@ -68,8 +102,9 @@
     <!-- Controls Button (Panel 2) - CONNECTION + KLIPPY READY REQUIRED -->
     <!-- Uses combined nav_buttons_enabled subject (1=enabled when connected AND klippy ready) -->
     <ui_button name="nav_btn_controls"
-               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
+               width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
+               style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+               style_border_width="0">
       <!-- Disabled clickability when not enabled (disconnected OR klippy not ready) -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- Disabled during grid edit mode -->
@@ -94,8 +129,9 @@
     <!-- Filament Button (Panel 3) - CONNECTION + KLIPPY READY REQUIRED -->
     <!-- Uses combined nav_buttons_enabled subject (1=enabled when connected AND klippy ready) -->
     <ui_button name="nav_btn_filament"
-               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
+               width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
+               style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+               style_border_width="0">
       <!-- Disabled clickability when not enabled (disconnected OR klippy not ready) -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- Disabled during grid edit mode -->
@@ -120,8 +156,9 @@
     </ui_button>
     <!-- Settings Button (Panel 4) -->
     <ui_button name="nav_btn_settings"
-               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
+               width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
+               style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+               style_border_width="0">
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <icon name="nav_icon_settings_active" src="settings" size="#icon_size" variant="primary" hidden="true">
@@ -133,8 +170,9 @@
     </ui_button>
     <!-- Advanced Button (Panel 5) -->
     <ui_button name="nav_btn_advanced"
-               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
+               width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
+               style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+               style_border_width="0">
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <icon name="nav_icon_advanced_active" src="dots_vertical" size="#icon_size" variant="primary" hidden="true">
@@ -146,8 +184,9 @@
     </ui_button>
     <!-- Printer switcher button — visible only when setting enabled -->
     <ui_button name="nav_printer_badge"
-               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0" hidden="true">
+               width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
+               style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+               style_border_width="0" hidden="true">
       <bind_flag_if_eq subject="show_printer_switcher" flag="hidden" ref_value="0"/>
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>

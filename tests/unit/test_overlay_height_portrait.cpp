@@ -6,9 +6,10 @@
  * @brief Overlay height must reserve the nav strip on the VERTICAL axis in portrait
  *
  * The mirror of test_overlay_width_portrait.cpp. ui_xml/navigation_bar.xml is a
- * full-height vertical strip, so landscape overlays reserve horizontal extent
- * and span the full height. ui_xml/portrait/navigation_bar.xml is a full-WIDTH
- * bottom strip (width="100%" height="#button_height_lg"), so portrait overlays
+ * full-height vertical strip while ui_is_portrait is 0, so landscape overlays
+ * reserve horizontal extent and span the full height. Its nav_bar_portrait
+ * style makes it a full-WIDTH bottom strip (width="100%"
+ * height="#button_height_lg"), so portrait overlays
  * must reserve VERTICAL extent instead — otherwise a height="100%" overlay
  * covers the navigation bar completely, which is what shipped.
  *
