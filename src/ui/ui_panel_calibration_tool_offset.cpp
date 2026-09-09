@@ -26,6 +26,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <memory>
 
 namespace helix::ui {
@@ -83,21 +84,9 @@ void ToolOffsetCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(status_, status_buffer_, "", "tool_cal_status", subjects_);
     UI_MANAGED_SUBJECT_STRING(hint_, hint_buffer_, "", "tool_cal_hint", subjects_);
     UI_MANAGED_SUBJECT_INT(active_, 0, "tool_cal_active", subjects_);
-
-    for (int i = 0; i < MAX_TOOLS; ++i) {
-        UI_MANAGED_SUBJECT_INT(row_visible_[i], 0,
-                               fmt::format("tool_cal_row_visible_{}", i).c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row_state_[i], step_value(cal::ToolStep::Idle),
-                               fmt::format("tool_cal_state_{}", i).c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row_state_text_[i], row_state_text_buffer_[i], "",
-                                  fmt::format("tool_cal_state_text_{}", i).c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row_x_[i], row_x_buffer_[i], "--",
-                                  fmt::format("tool_cal_x_{}", i).c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row_y_[i], row_y_buffer_[i], "--",
-                                  fmt::format("tool_cal_y_{}", i).c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row_z_[i], row_z_buffer_[i], "--",
-                                  fmt::format("tool_cal_z_{}", i).c_str(), subjects_);
-    }
+    // The per-row subjects live in pools sized by refresh_rows(); only the
+    // row count is a fixed subject.
+    UI_MANAGED_SUBJECT_INT(tool_count_, 0, "tool_cal_tool_count", subjects_);
 
     static const std::pair<const char*, lv_event_cb_t> callbacks[] = {
         {"on_tool_cal_start", on_start_clicked},
@@ -117,11 +106,29 @@ lv_obj_t* ToolOffsetCalibrationPanel::create(lv_obj_t* parent) {
         return overlay_root_;
     }
     parent_screen_ = parent;
+    // Start the <repeat> at zero rows: on_ui_destroyed() reclaimed the pools,
+    // so a stale count would build rows bound to unregistered subjects.
+    // refresh_rows() below sizes the pools and sets the real count.
+    lv_subject_set_int(&tool_count_, 0);
     if (!create_overlay_from_xml(parent, "calibration_tool_offset_panel")) {
         spdlog::error("[ToolOffsetCal] Failed to create overlay from XML");
         return nullptr;
     }
+    // Build the rows now: a hot-reload rebuild while hidden does not re-run
+    // on_activate(), and this is what the macros panel does in its create().
+    refresh_rows();
     return overlay_root_;
+}
+
+void ToolOffsetCalibrationPanel::on_ui_destroyed() {
+    // The rows are gone; reclaim their name-registered subjects while LVGL is
+    // still live, as the macros panel does for its list.
+    row_state_.reclaim();
+    row_state_text_.reclaim();
+    row_x_.reclaim();
+    row_y_.reclaim();
+    row_z_.reclaim();
+    lv_subject_set_int(&tool_count_, 0);
 }
 
 void ToolOffsetCalibrationPanel::on_activate() {
@@ -192,40 +199,45 @@ void ToolOffsetCalibrationPanel::refresh_rows() {
     if (!subjects_initialized_) {
         return;
     }
-    const auto& tools = helix::ToolState::instance().tools();
-    for (int i = 0; i < MAX_TOOLS; ++i) {
-        const bool visible = i < static_cast<int>(tools.size());
-        lv_subject_set_int(&row_visible_[i], visible ? 1 : 0);
-        if (!visible) {
-            continue;
-        }
-        refresh_row_values(i);
-        refresh_row_state(i);
+    const size_t count = helix::ToolState::instance().tools().size();
+    // Pools first, count last: the <repeat> rebuilds on the count and binds
+    // each new row to tool_cal_*_<i> by name, so every slot must exist and
+    // hold its value before the rows are built.
+    row_state_.ensure_size(count);
+    row_state_text_.ensure_size(count);
+    row_x_.ensure_size(count);
+    row_y_.ensure_size(count);
+    row_z_.ensure_size(count);
+    for (size_t i = 0; i < count; ++i) {
+        refresh_row_values(static_cast<int>(i));
+        refresh_row_state(static_cast<int>(i));
     }
+    lv_subject_set_int(&tool_count_, static_cast<int>(count));
 }
 
 void ToolOffsetCalibrationPanel::refresh_row_values(int tool) {
     auto& tools = helix::ToolState::instance();
-    lv_subject_t* subjects[] = {&row_x_[tool], &row_y_[tool], &row_z_[tool]};
-    char* buffers[] = {row_x_buffer_[tool], row_y_buffer_[tool], row_z_buffer_[tool]};
+    helix::xml::IndexedSubjectPool* pools[] = {&row_x_, &row_y_, &row_z_};
+    const auto slot = static_cast<size_t>(tool);
     for (helix::Axis axis : helix::kAllAxes) {
         const int idx = helix::axis_index(axis);
         if (!tools.tool_offset_known(tool, axis)) {
-            lv_subject_copy_string(subjects[idx], "--");
+            pools[idx]->set_string(slot, "--");
             continue;
         }
-        char text[16];
         // Plain number, no unit: the column header says mm, and the sign is
         // the whole point of an offset.
-        std::snprintf(text, sizeof(text), "%+.3f", tools.tool_offset_mm(tool, axis));
-        std::snprintf(buffers[idx], sizeof(row_x_buffer_[tool]), "%s", text);
-        lv_subject_copy_string(subjects[idx], buffers[idx]);
+        pools[idx]->set_string(slot, fmt::format("{:+.3f}", tools.tool_offset_mm(tool, axis)));
     }
 }
 
 void ToolOffsetCalibrationPanel::refresh_row_state(int tool) {
+    const auto slot = static_cast<size_t>(tool);
+    if (slot >= row_state_.size()) {
+        return; // a row refresh_rows() has not sized yet
+    }
     const cal::ToolStep step = run_.step(tool);
-    lv_subject_set_int(&row_state_[tool], step_value(step));
+    row_state_.set_int(slot, step_value(step));
 
     // The Measuring row's text is the elapsed counter's; everyone else's is
     // static. The counter is (re)armed only when a row ENTERS Measuring, so a
@@ -253,7 +265,7 @@ void ToolOffsetCalibrationPanel::refresh_row_state(int tool) {
     case cal::ToolStep::Measuring:
         break;
     }
-    lv_subject_copy_string(&row_state_text_[tool], text);
+    row_state_text_.set_string(slot, text);
 }
 
 // ============================================================================
@@ -308,7 +320,7 @@ void ToolOffsetCalibrationPanel::begin_run() {
     }
 
     auto& tools = helix::ToolState::instance();
-    const int tool_count = std::min(static_cast<int>(tools.tools().size()), MAX_TOOLS);
+    const int tool_count = static_cast<int>(tools.tools().size());
     if (tool_count == 0) {
         // ToolState is empty between an AMS topology clear and the next
         // init_tools(). Run::begin(0) would stay inactive while the subject
@@ -318,11 +330,13 @@ void ToolOffsetCalibrationPanel::begin_run() {
     }
     // What every tool holds now: a tool whose offsets differ from this later
     // in the run has been measured.
+    run_baseline_known_.assign(static_cast<size_t>(tool_count), {});
+    run_baseline_mm_.assign(static_cast<size_t>(tool_count), {});
     for (int i = 0; i < tool_count; ++i) {
         for (helix::Axis axis : helix::kAllAxes) {
-            const int idx = helix::axis_index(axis);
-            run_baseline_known_[i][idx] = tools.tool_offset_known(i, axis);
-            run_baseline_mm_[i][idx] = tools.tool_offset_mm(i, axis);
+            const auto idx = static_cast<size_t>(helix::axis_index(axis));
+            run_baseline_known_[static_cast<size_t>(i)][idx] = tools.tool_offset_known(i, axis);
+            run_baseline_mm_[static_cast<size_t>(i)][idx] = tools.tool_offset_mm(i, axis);
         }
     }
     run_.begin(tool_count, tools.active_tool_index());
@@ -571,7 +585,7 @@ void ToolOffsetCalibrationPanel::on_active_tool_changed(int tool) {
     if (!is_visible()) {
         return;
     }
-    for (int i = 0; i < std::min(run_.tool_count(), MAX_TOOLS); ++i) {
+    for (int i = 0; i < run_.tool_count(); ++i) {
         refresh_row_state(i);
     }
 }
@@ -579,13 +593,15 @@ void ToolOffsetCalibrationPanel::on_active_tool_changed(int tool) {
 void ToolOffsetCalibrationPanel::on_tools_changed() {
     if (run_.active()) {
         auto& tools = helix::ToolState::instance();
-        for (int i = 0; i < std::min(run_.tool_count(), MAX_TOOLS); ++i) {
+        const int tracked = std::min(run_.tool_count(), static_cast<int>(run_baseline_mm_.size()));
+        for (int i = 0; i < tracked; ++i) {
             bool moved = false;
             for (helix::Axis axis : helix::kAllAxes) {
-                const int idx = helix::axis_index(axis);
+                const auto idx = static_cast<size_t>(helix::axis_index(axis));
+                const auto row = static_cast<size_t>(i);
                 const bool known = tools.tool_offset_known(i, axis);
-                if (known != run_baseline_known_[i][idx] ||
-                    (known && tools.tool_offset_mm(i, axis) != run_baseline_mm_[i][idx])) {
+                if (known != run_baseline_known_[row][idx] ||
+                    (known && tools.tool_offset_mm(i, axis) != run_baseline_mm_[row][idx])) {
                     moved = true;
                     break;
                 }

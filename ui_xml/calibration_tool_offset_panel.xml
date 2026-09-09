@@ -45,15 +45,18 @@
 
         <text_small text="Tool offsets (mm)" translation_tag="Tool offsets (mm)" style_text_color="#text_muted"/>
 
+        <!-- One row per tool, however many the printer has. A subject-bound
+             <repeat> must be the only child of its container: rebuilt rows are
+             appended to the end. The per-row tool_cal_*_${i} subjects are
+             pools the panel sizes before it publishes the count. -->
         <lv_obj name="tool_cal_rows"
                 width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
                 style_bg_opa="0" style_border_width="0" scrollable="false">
-          <repeat count="8">
+          <repeat count="tool_cal_tool_count">
             <lv_obj name="tool_cal_row_${i}"
                     width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
                     style_pad_hor="#space_sm" style_pad_ver="#space_xxs" style_pad_gap="#space_sm"
                     style_radius="#border_radius_small" style_border_width="1" scrollable="false">
-              <bind_flag_if_eq subject="tool_cal_row_visible_${i}" flag="hidden" ref_value="0"/>
               <bind_style_if_not_eq name="tool_cal_row_idle" subject="tool_cal_state_${i}" ref_value="2"/>
               <bind_style_if_eq name="tool_cal_row_measuring" subject="tool_cal_state_${i}" ref_value="2"/>
 

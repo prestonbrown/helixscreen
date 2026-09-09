@@ -5,6 +5,7 @@
 #include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "helix/xml/indexed_subject_pool.h"
 #include "moonraker_error.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
@@ -12,8 +13,10 @@
 #include "subject_managed_panel.h"
 #include "tool_offset_calibration.h"
 
+#include <array>
 #include <lvgl.h>
 #include <string>
+#include <vector>
 
 /**
  * @file ui_panel_calibration_tool_offset.h
@@ -49,7 +52,7 @@
  * - tool_cal_status (string) - one-line status
  * - tool_cal_hint (string) - the macro's `description:`, or a built-in note
  * - tool_cal_active (int) - a run is in flight
- * - tool_cal_row_visible_N (int) - row N exists on this printer
+ * - tool_cal_tool_count (int) - rows the <repeat> builds, one per tool
  * - tool_cal_state_N (int) - ToolStep for tool N
  * - tool_cal_state_text_N (string) - "Queued" / "Measuring... 4s" / "Done" / "Failed"
  * - tool_cal_x_N / _y_N / _z_N (string) - the tool's offsets, mm
@@ -67,8 +70,6 @@ namespace helix::ui {
 
 class ToolOffsetCalibrationPanel : public OverlayBase {
   public:
-    /// Fixed subject slots; rows beyond the printer's tool count stay hidden.
-    static constexpr int MAX_TOOLS = 8;
     /// Ceiling on the calibration rpc. Moonraker never times out
     /// printer.gcode.script, so this is ours alone. The macro heats each tool
     /// before probing it, one after another: ~30 s to measure and up to ~2 min
@@ -94,6 +95,7 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
+    void on_ui_destroyed() override;
 
     /// Whether the connected printer can run the calibration at all.
     static bool printer_supports_calibration();
@@ -127,11 +129,14 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     lv_subject_t* get_active_subject() {
         return &active_;
     }
+    lv_subject_t* get_tool_count_subject() {
+        return &tool_count_;
+    }
     lv_subject_t* get_hint_subject() {
         return &hint_;
     }
     lv_subject_t* get_row_state_subject(int tool) {
-        return &row_state_[tool];
+        return row_state_.at(static_cast<size_t>(tool));
     }
 
   private:
@@ -159,9 +164,10 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
     helix::tool_offset_calibration::Run run_;
     /// Every tool's offsets as they stood when the run began, so a change
-    /// during the run reads as "this tool was measured".
-    float run_baseline_mm_[MAX_TOOLS][3] = {};
-    bool run_baseline_known_[MAX_TOOLS][3] = {};
+    /// during the run reads as "this tool was measured". One entry per tool
+    /// in the run.
+    std::vector<std::array<float, 3>> run_baseline_mm_;
+    std::vector<std::array<bool, 3>> run_baseline_known_;
     /// Text of the failure that ended the last run; empty when it succeeded.
     std::string last_error_;
 
@@ -170,17 +176,23 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     lv_subject_t status_;
     lv_subject_t hint_;
     lv_subject_t active_;
+    /// Drives the XML <repeat>: one row per tool, however many the printer
+    /// has. Published LAST by refresh_rows(), after the pools below hold every
+    /// row's values, so a rebuild binds to populated subjects (the macros
+    /// panel's rule for its own list).
+    lv_subject_t tool_count_;
 
-    lv_subject_t row_visible_[MAX_TOOLS];
-    lv_subject_t row_state_[MAX_TOOLS];
-    lv_subject_t row_state_text_[MAX_TOOLS];
-    lv_subject_t row_x_[MAX_TOOLS];
-    lv_subject_t row_y_[MAX_TOOLS];
-    lv_subject_t row_z_[MAX_TOOLS];
-    char row_state_text_buffer_[MAX_TOOLS][48];
-    char row_x_buffer_[MAX_TOOLS][16];
-    char row_y_buffer_[MAX_TOOLS][16];
-    char row_z_buffer_[MAX_TOOLS][16];
+    // === Per-row subject pools (grow-only; reclaimed when the UI goes) ===
+    helix::xml::IndexedSubjectPool row_state_{"tool_cal_state",
+                                              helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool row_state_text_{"tool_cal_state_text",
+                                                   helix::xml::IndexedSubjectPool::Type::String};
+    helix::xml::IndexedSubjectPool row_x_{"tool_cal_x",
+                                          helix::xml::IndexedSubjectPool::Type::String, 16};
+    helix::xml::IndexedSubjectPool row_y_{"tool_cal_y",
+                                          helix::xml::IndexedSubjectPool::Type::String, 16};
+    helix::xml::IndexedSubjectPool row_z_{"tool_cal_z",
+                                          helix::xml::IndexedSubjectPool::Type::String, 16};
 
     SubjectManager subjects_;
     /// Follows ToolState's tools_version so the values track the printer.

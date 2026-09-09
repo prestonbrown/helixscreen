@@ -91,6 +91,9 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: a run finishes after B
     helix::ui::ToolOffsetCalibrationPanel panel;
     panel.init_subjects();
     panel.on_activate();
+    // One row per tool the printer has - no fixed cap, the pools grew to fit.
+    REQUIRE(lv_subject_get_int(panel.get_tool_count_subject()) == 4);
+    REQUIRE(panel.get_row_state_subject(3) != nullptr);
 
     panel.begin_run();
     REQUIRE(panel.is_calibration_active());
