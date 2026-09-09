@@ -161,14 +161,14 @@ TEST_CASE("Version parsing semantics update detection rests on", "[update_checke
         REQUIRE(*v2 > *v1);
     }
 
-    SECTION("pre-release suffix stripped for comparison") {
-        // Pre-release versions should compare as their base version
+    SECTION("a pre-release ranks below the release of its triple") {
+        // The updater has to offer 1.0.0 to someone running a 1.0.0 beta.
         auto beta = parse_version("1.0.0-beta");
         auto release = parse_version("1.0.0");
         REQUIRE(beta.has_value());
         REQUIRE(release.has_value());
-        // Both parse to 1.0.0, so they're equal
-        REQUIRE(*beta == *release);
+        REQUIRE(*beta < *release);
+        REQUIRE(*beta != *release);
     }
 }
 
@@ -2265,17 +2265,21 @@ TEST_CASE("compare_channel_version: unparseable versions do nothing",
     CHECK(compare_channel_version("", "") == ChannelVersionRelation::Unknown);
 }
 
-TEST_CASE("compare_channel_version: prerelease suffixes are still discarded",
+TEST_CASE("compare_channel_version: prerelease suffixes order by precedence",
           "[update_checker][version][channel]") {
-    // Pins the constraint that forced the release pipeline off suffix-derived
-    // channels: Version carries only major/minor/patch, so two devel builds of
-    // the same x.y.z are indistinguishable here. Releases route by the
-    // RELEASE_CHANNEL file and use plain monotonic versions instead.
-    CHECK(compare_channel_version("1.1.0-dev1", "1.1.0-dev2") == ChannelVersionRelation::Same);
-    CHECK(compare_channel_version("1.1.0", "1.1.0-rc.1") == ChannelVersionRelation::Same);
-    // And with the suffix on the installed side: a beta build is not offered
-    // the plain release of the same x.y.z as an update.
-    CHECK(compare_channel_version("1.0.0-beta", "1.0.0") == ChannelVersionRelation::Same);
+    // The beta lane lives entirely inside one x.y.z, so the suffix is the only
+    // thing that distinguishes two builds on it.
+    CHECK(compare_channel_version("1.1.0-dev1", "1.1.0-dev2") == ChannelVersionRelation::Newer);
+    CHECK(compare_channel_version("1.1.0-beta.2", "1.1.0-beta.11") ==
+          ChannelVersionRelation::Newer);
+    CHECK(compare_channel_version("1.1.0-beta.11", "1.1.0-beta.2") ==
+          ChannelVersionRelation::Older);
+    CHECK(compare_channel_version("1.1.0-beta.1", "1.1.0-beta.1") == ChannelVersionRelation::Same);
+
+    // The stable cut outranks every beta of the same triple, and a channel
+    // serving a beta of the version already installed is behind it.
+    CHECK(compare_channel_version("1.0.0-beta", "1.0.0") == ChannelVersionRelation::Newer);
+    CHECK(compare_channel_version("1.1.0", "1.1.0-rc.1") == ChannelVersionRelation::Older);
 }
 
 TEST_CASE("ReleaseInfo::is_downgrade defaults to false", "[update_checker][channel]") {

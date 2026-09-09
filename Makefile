@@ -193,9 +193,15 @@ endif
 # NOTE: Must use .txt extension to avoid shadowing C++20 <version> header on macOS
 #       (macOS filesystem is case-insensitive, so VERSION would match <version>)
 HELIX_VERSION := $(shell cat VERSION.txt 2>/dev/null || echo "0.0.0")
-HELIX_VERSION_MAJOR := $(word 1,$(subst ., ,$(HELIX_VERSION)))
-HELIX_VERSION_MINOR := $(word 2,$(subst ., ,$(HELIX_VERSION)))
-HELIX_VERSION_PATCH := $(word 3,$(subst ., ,$(HELIX_VERSION)))
+# The numeric fields come from the version's core triple, with any prerelease or
+# build suffix cut off first. Splitting the full string on "." puts "0-beta" in
+# the patch field, and that reaches every translation unit as
+# -DHELIX_VERSION_PATCH=0-beta, where helix_version_at_least() compares it as an
+# integer and nothing compiles.
+HELIX_VERSION_CORE := $(firstword $(subst +, ,$(firstword $(subst -, ,$(HELIX_VERSION)))))
+HELIX_VERSION_MAJOR := $(word 1,$(subst ., ,$(HELIX_VERSION_CORE)))
+HELIX_VERSION_MINOR := $(word 2,$(subst ., ,$(HELIX_VERSION_CORE)))
+HELIX_VERSION_PATCH := $(word 3,$(subst ., ,$(HELIX_VERSION_CORE)))
 # The short git hash is produced by scripts/gen-git-hash.sh into a generated
 # header, not read here: a make variable would be a second source of the same
 # value, free to drift from the one the binary actually reports.

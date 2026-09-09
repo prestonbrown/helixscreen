@@ -1804,8 +1804,15 @@ Absorbed from the `helix-build` skill so there is one home for it. Values verifi
 
 ### Version
 
-Read from `VERSION.txt` (MAJOR.MINOR.PATCH) and injected as `-DHELIX_VERSION="..."`:
-`HELIX_VERSION`, `HELIX_VERSION_MAJOR` / `_MINOR` / `_PATCH`.
+Read from `VERSION.txt` and injected as `-DHELIX_VERSION="..."`: `HELIX_VERSION`,
+`HELIX_VERSION_MAJOR` / `_MINOR` / `_PATCH`.
+
+`HELIX_VERSION` is the whole string, prerelease suffix included
+(`1.1.0-beta.1`). The three numeric defines come from the core triple, because they
+are compiled as integers: splitting the full string on `.` puts `0-beta` in the
+patch field, and `-DHELIX_VERSION_PATCH=0-beta` fails to compile in every
+translation unit that includes `helix_version.h`. Ordering a prerelease against a
+release is `helix::version::Version`'s job, not the preprocessor's.
 
 The short git hash is **not** a global define. It changes on every commit, and
 `VERSION_DEFINES` lands on every translation unit's command line, which ccache's
