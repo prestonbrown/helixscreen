@@ -31,7 +31,7 @@
       "sensors": [
         {
           "enabled": true,
-          "klipper_name": "filament_switch_sensor runout_sensor",
+          "klipper_name": "filament_switch_sensor head_switch_sensor",
           "role": "runout",
           "type": "switch"
         }
@@ -44,7 +44,7 @@
         "fan_generic fanM106",
         "heater_fan heat_fan",
         "fan_generic chamber_fan",
-        "controller_fan driver_fan",
+        "fan_generic pcb_fan",
         "filament_switch_sensor head_switch_sensor"
       ]
     },
