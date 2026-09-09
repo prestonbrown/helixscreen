@@ -351,24 +351,37 @@ python3 -c "import urllib.request as u;print(u.urlopen('http://127.0.0.1:7125/pr
 
 ### K2 Pro
 
-Reported by a community member (2026-09-08), not yet verified by us on our own hardware:
+Reported by a community member (2026-09-08), collected on their machine rather than ours:
 
-| Fact | K2 Pro (reported) | K2 Plus (measured) |
-|------|-------------------|--------------------|
+| Fact | K2 Pro | K2 Plus |
+|------|--------|---------|
+| Device tree | `allwinner,t113_iarm,sun8iw20p1` | `allwinner,t113_iarm,sun8iw20p1` |
 | `uname -m` | `armv7l` | `armv7l` |
 | CPU | 2 x Cortex-A7 rev 5, 57.14 BogoMIPS | 2 x Cortex-A7 rev 5, 57.14 BogoMIPS |
+| `DISTRIB_ARCH` | `arm_cortex-a7_neon` | `arm_cortex-a7_neon` |
+| `DISTRIB_TAINTS` | `no-all glibc busybox` | `no-all glibc busybox` |
 | libc | glibc 2.29, `ld-linux-armhf.so.3` | glibc 2.29, `ld-linux-armhf.so.3` |
+| Tina / OpenWrt | `TINA_VERSION=5.0`, OpenWrt 21.02-SNAPSHOT | `TINA_VERSION=5.0`, OpenWrt 21.02-SNAPSHOT |
+| Kernel | 5.4.61 `#1`, built 2026-04-23 | 5.4.61 `#56`, built 2025-12-17 |
+| **Board** | `t113_i-`**`CR0CN200400C10`**`/generic` | `t113_i-`**`CR0CN240110C10`**`/generic` |
+| Firmware build | `tina.112052.20260506.071020` | `tina.wuhui.20251217.103029` |
+| Hostname | `K2Pro` | `K2Plus-50C1` |
 | `fb0/virtual_size` | `480,1600` | `480,1600` |
 | Input nodes | `event0` only | `event0` only (`gt9xxnew_ts`) |
 
-Every value collected so far is identical to the K2 Plus, so the `k2` build target and its
-270-degree display handling are expected to apply unchanged. Still outstanding: the
-device-tree board string, the OpenWrt `DISTRIB_TARGET`, the touch controller name, and
-`printer.cfg` - bed size and macro set are what the database entry keys on.
+The board ID in `DISTRIB_TARGET` is the field that actually separates the two, and it is a
+better variant discriminator than the hostname: everything else in the identity block is
+byte-identical apart from build stamps. The Pro's firmware is roughly five months newer, so
+expect its macro set to be the thing that differs, not its hardware.
+
+The `k2` build target and its 270-degree display handling apply unchanged. Still outstanding:
+the touch controller name and `printer.cfg` - bed size and macro set are what the database
+entry keys on.
 
 Detection already covers the model. `creality_k2_pro` in `assets/config/printer_database.json`
-carries a `k2pro` hostname heuristic at confidence 90 plus a 290-310 mm build-volume range, so
-a K2 Pro identifies itself without further work. Its `print_start_default_phases` are copied
+carries a `k2pro` hostname heuristic at confidence 90 plus a 290-310 mm build-volume range.
+A stock Pro reports its hostname as `K2Pro`, which matches that heuristic and misses the K2
+Plus's `k2plus`, so the model resolves without further work. Its `print_start_default_phases` are copied
 from the K2 Plus and have never been measured on a Pro, which is worth re-timing once one is
 running.
 
