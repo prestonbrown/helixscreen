@@ -4520,6 +4520,18 @@ void MoonrakerClientMock::temperature_simulation_loop() {
     const double base_dt = SIMULATION_INTERVAL_MS / 1000.0; // Base time step (0.5s)
 
     while (simulation_running_.load()) {
+        // Parked by set_simulation_paused(): no physics, no tick, no push, so a
+        // value a caller wrote into a subject by hand stays written. The wait is
+        // bounded like the one at the bottom of the loop, so a notify that races
+        // the predicate costs one interval rather than wedging shutdown.
+        if (simulation_paused_.load()) {
+            std::unique_lock<std::mutex> lock(sim_mutex_);
+            sim_cv_.wait_for(lock, std::chrono::milliseconds(SIMULATION_INTERVAL_MS), [this] {
+                return !simulation_running_.load() || !simulation_paused_.load();
+            });
+            continue;
+        }
+
         uint32_t tick = tick_count_.fetch_add(1);
 
         // Get speedup factor and calculate effective time step

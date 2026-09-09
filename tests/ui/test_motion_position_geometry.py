@@ -58,6 +58,10 @@ _SIZES = ["800x480", "1024x600", "1280x720", "480x800"]
 _Z_EQUAL = 250
 _Z_DIVERGED = 300
 
+# The mock printer dispatches a status notification every fourth 250 ms physics
+# tick (NOTIFICATION_INTERVAL_TICKS in moonraker_client_mock.h).
+_MOCK_PUSH_INTERVAL_S = 1.0
+
 
 def _geom(app: HelixApp, target: str) -> dict:
     """First widget geom record for `target`."""
@@ -79,9 +83,10 @@ def _act_text(app: HelixApp) -> str | None:
 def motion_app(request, tmp_path):
     """An instance at a given size, on the motion overlay, frozen for measurement.
 
-    freeze() stops the mock's 250 ms status pushes from re-equalising the Z
-    subjects mid-measurement; manual `set` still propagates while frozen
-    (same trick as the AMS loading-error modal fixture in test_modal_geometry).
+    freeze() parks the mock's simulation thread as well as LVGL's timers, so no
+    status push re-equalises the Z subjects mid-measurement; manual `set` still
+    propagates while frozen (same trick as the AMS loading-error modal fixture
+    in test_modal_geometry).
     """
     size = request.param
     if not _BINARY.exists():
@@ -151,6 +156,17 @@ def test_act_row_does_not_shift_stable_geometry(motion_app):
     assert actual == "3.00 mm", (
         f"{size}: Act row text is {actual!r}, expected '3.00 mm' "
         f"(None = row hidden or absent)")
+
+    # The row has to still be there when the geometry below is read, or the
+    # measurement describes an undefined state. A mock status push carries a
+    # full position snapshot with gcode Z and toolhead Z equal, which re-hides
+    # the row; outlasting one push interval is what says the frozen state holds.
+    time.sleep(_MOCK_PUSH_INTERVAL_S * 1.5)
+    held = _act_text(app)
+    assert held == "3.00 mm", (
+        f"{size}: Act row read {held!r} after {_MOCK_PUSH_INTERVAL_S * 1.5:.1f}s frozen, "
+        f"expected it to still say '3.00 mm' - the printer state moved under a "
+        f"frozen instance, so the geometry below would measure nothing definite")
 
     shown = {name: _geom(app, name) for name in ("jog_pad", "position_card", "pos_z")}
 

@@ -640,7 +640,7 @@ refusal — this is how the toast's layout gets checked on a 480x272 panel.
 | Command | Meaning |
 |---------|---------|
 | `wait_idle [--timeout N]` | Block until `UpdateQueue` and `HttpExecutor` are both quiet (default 10s), so a script can gate on real async work instead of a fixed `sleep` |
-| `freeze` | Stop the moving parts for a reproducible capture: `lv_anim_delete_all()` plus `animations_enabled = 0`, and pause every periodic `lv_timer` except two (see below). Returns `{"frozen": true, "timers_paused": N}` |
+| `freeze` | Stop the moving parts for a reproducible capture: `lv_anim_delete_all()` plus `animations_enabled = 0`, pause every periodic `lv_timer` except two, and park the mock printer's simulation loop (see below). Returns `{"frozen": true, "timers_paused": N}` |
 | `unfreeze` | Reverse `freeze`: resume exactly the timers it paused, re-enable animations. Returns `{"frozen": false, "timers_resumed": N}` |
 | `log [-n N]` | Tail the app's in-memory log ring buffer (default 50 lines). Printed as raw lines, so it pipes to `grep` |
 | `shutdown` | Ask the app to exit its main loop (`app_request_quit`), running the normal shutdown path |
@@ -742,7 +742,7 @@ large and grows. Known gaps:
 
 `freeze` pairs with `wait_idle` for screenshot-quality stability: `wait_idle`
 waits for async work to *land*, `freeze` stops the moving parts so a captured
-frame doesn't change again a moment later. It combines three things:
+frame doesn't change again a moment later. It combines four things:
 
 - `lv_anim_delete_all()` — stop animations already running.
 - Flipping the existing `animations_enabled` **subject** to `0` to prevent new
@@ -760,6 +760,15 @@ frame doesn't change again a moment later. It combines three things:
   restores it exactly rather than assuming "on".
 - Pausing every periodic `lv_timer` one at a time via `lv_timer_pause()`,
   **with a two-entry skip list**.
+- Parking the mock printer's simulation loop, on a `--test` run. That loop is
+  its own `std::thread` (`MoonrakerClientMock::temperature_simulation_loop`),
+  not an `lv_timer`, so the timer pass never reaches it. It dispatches a full
+  status snapshot every second, and `PrinterState` applies any field that
+  differs from the subject's own value — so while it runs, a subject a caller
+  wrote with `ctl set` is overwritten within a second, and a card whose
+  visibility derives from printer state flips back under a "frozen" screen.
+  `unfreeze` resumes it. A run against a real printer has no mock to park, and
+  the machine keeps reporting whatever it is doing.
 
 **The skip list, and why a global `lv_timer_enable(false)` cannot be used
 instead:** `UpdateQueue`'s processor is itself an `lv_timer`

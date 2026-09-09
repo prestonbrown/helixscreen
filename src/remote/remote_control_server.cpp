@@ -16,6 +16,9 @@
 #include "input_settings_manager.h"
 #include "logging_init.h"
 #include "mock_scenarios.h"
+#ifdef HELIX_ENABLE_MOCKS
+#include "moonraker_client_mock.h"
+#endif
 #include "panel_factory.h"
 #include "printer_state.h"
 #include "remote_client.h"
@@ -1474,10 +1477,23 @@ nlohmann::json RemoteControlServer::handle_freeze(const nlohmann::json& /*params
             }
             t = next;
         }
+        // The mock printer simulates on its own std::thread, not an lv_timer, so
+        // pausing timers leaves it pushing a full status snapshot every second.
+        // PrinterState applies any field that differs from the subject, which
+        // overwrites values a frozen caller has set by hand.
+        bool sim_parked = false;
+#ifdef HELIX_ENABLE_MOCKS
+        if (auto* mock = get_moonraker_client_mock()) {
+            mock->set_simulation_paused(true);
+            sim_parked = true;
+        }
+#endif
+
         frozen_ = true;
 
-        spdlog::debug("[RemoteControl] freeze: paused {} timers (skipped queue+refresh)",
-                      paused_timers_.size());
+        spdlog::debug("[RemoteControl] freeze: paused {} timers (skipped queue+refresh), "
+                      "mock simulation parked={}",
+                      paused_timers_.size(), sim_parked);
         return {{"frozen", true}, {"timers_paused", static_cast<int>(paused_timers_.size())}};
     });
 }
@@ -1510,6 +1526,11 @@ nlohmann::json RemoteControlServer::handle_unfreeze(const nlohmann::json& /*para
         }
         paused_timers_.clear();
         frozen_ = false;
+#ifdef HELIX_ENABLE_MOCKS
+        if (auto* mock = get_moonraker_client_mock()) {
+            mock->set_simulation_paused(false);
+        }
+#endif
         // Restore the exact pre-freeze value (not a hardcoded "on") via the
         // subject directly — see handle_freeze() for why set_animations_enabled()
         // (which persists to settings.json) must not be used here.

@@ -837,6 +837,27 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         toggle_filament_runout();
     }
 
+    /**
+     * @brief Park or resume the simulation loop
+     *
+     * While parked the loop dispatches no status notifications and the tick
+     * counter stands still, so simulated time does not advance either.
+     *
+     * Every push carries a full snapshot, and PrinterState applies any field
+     * that differs from the subject's own value, so a push landing between a
+     * test's `set` and its read undoes the write. Parking the loop is what
+     * makes a value written by hand hold still long enough to measure.
+     *
+     * @param paused true to park the loop, false to resume it
+     */
+    void set_simulation_paused(bool paused) {
+        {
+            std::lock_guard<std::mutex> lock(sim_mutex_);
+            simulation_paused_.store(paused);
+        }
+        sim_cv_.notify_all();
+    }
+
     // ========== Bed Mesh Accessors (Mock-specific) ==========
     // These were removed from MoonrakerClient and moved to MoonrakerAPI.
     // The mock needs its own accessors for test validation.
@@ -1534,6 +1555,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<bool> simulation_running_{false};
     std::mutex sim_mutex_;           // For condition variable wait
     std::condition_variable sim_cv_; // For interruptible sleep during shutdown
+    // set_simulation_paused(): the loop parks on this, dispatching nothing
+    std::atomic<bool> simulation_paused_{false};
 
     // Protects the discovery_ name lists (heaters/fans/sensors/leds/filament_sensors)
     // against the temperature simulation thread.

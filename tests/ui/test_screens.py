@@ -92,9 +92,10 @@ _RECIPES = _load_recipes()
 #   - `home`, `controls`, `filament`, `fan`: the mock backend's
 #     `simulation_thread_` (moonraker_client_mock.cpp) drifts nozzle/bed/
 #     chamber temps and the motor-idle timer on its own raw background
-#     thread, invisible to `freeze()` (which only pauses LVGL timers/
-#     animations) and to `wait_idle()` (which only tracks UpdateQueue/
-#     HttpExecutor). `fan` looked stable in quick back-to-back checks but
+#     thread. `freeze()` parks that thread, but only from the moment it is
+#     called: the value it parks on is whatever the drift had reached by
+#     then, and `wait_idle()` (which tracks UpdateQueue/HttpExecutor) has
+#     nothing to gate on. `fan` looked stable in quick back-to-back checks but
 #     failed across independent boots once — it's `card_cooling` on the same
 #     Controls panel, not a separate overlay, so it shows the same
 #     temperature card. `filament` additionally renders a usage chart with a
