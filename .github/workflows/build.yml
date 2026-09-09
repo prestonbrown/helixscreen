@@ -54,6 +54,7 @@ jobs:
         timeout_minutes: 20
         max_attempts: 3
         command: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
           sudo apt-get update
           sudo apt-get install -y \
             libsdl2-dev \
@@ -234,6 +235,7 @@ jobs:
     # first log line, which surfaces as every pytest UI test erroring in setup.
     - name: Install runtime dependencies
       run: |
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
         sudo apt-get update
         sudo apt-get install -y libsdl2-2.0-0 libgles2 libfmt-dev libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libpng16-16 libjpeg8
 
@@ -529,6 +531,7 @@ jobs:
         timeout_minutes: 20
         max_attempts: 3
         command: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
           sudo apt-get update
           sudo apt-get install -y \
             clang \

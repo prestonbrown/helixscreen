@@ -152,6 +152,13 @@ TouchCalibration platform_default_calibration() {
     //
     // e is positive on the AD5X and negative on the AD5M: the digitizer reports Y
     // in opposite directions on the two models, and f absorbs the flip.
+    //
+    // Both were measured against logical targets on an unrotated panel, so
+    // capture_rotation stays at the struct default of 0 and
+    // apply_calibration_in_panel_space() places them directly in panel space. A
+    // fit measured on a rotated panel (a K2-class preset ships rotate=270) has to
+    // set capture_rotation to that rotation, or the matrix is placed in a basis it
+    // was never solved in and every tap lands a quarter turn out.
 #if defined(HELIX_PLATFORM_AD5X)
     cal.valid = true;
     cal.a = 1.171731f;

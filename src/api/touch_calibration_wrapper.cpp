@@ -272,11 +272,13 @@ TouchCalibration load_touch_calibration() {
     }
 
     cal.valid = cfg->get<bool>("/input/calibration/valid", false);
-    // A record written before the rotation was stored carries no provenance. The
-    // rotation in effect now is the best available guess, and it is right whenever
-    // the display has not been re-rotated since - which is every case that works
-    // today, including the whole unrotated fleet.
-    cal.capture_rotation = cfg->get<int>("/input/calibration/rotation", display_rotation_degrees());
+    // An absent key is not an unknown rotation: a record that predates the key was
+    // read by a runtime that fed the matrix panel-space points directly, which is
+    // exactly what a capture rotation of zero describes, so the struct's own
+    // default is the faithful reading. Taking the rotation in effect NOW instead
+    // would re-place a working matrix into a basis it was never solved in - a
+    // quarter turn out for anyone who rotated the display after calibrating.
+    cal.capture_rotation = cfg->get<int>("/input/calibration/rotation", cal.capture_rotation);
     if (!cal.valid) {
         // A stored evdev range IS a stored user calibration, even when it left no
         // affine behind - the common outcome on a panel square to the display, where
