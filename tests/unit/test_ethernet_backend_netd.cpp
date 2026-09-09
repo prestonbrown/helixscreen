@@ -352,8 +352,11 @@ TEST_CASE_METHOD(EthernetNetdFixture, "netd ethernet factory selects the netd ba
     REQUIRE(selected != nullptr);
 
     EthernetInfo info;
-    std::thread caller([&selected, &info] { info = selected->get_info(); });
+    // Baseline before the worker starts: it sends its GET as soon as it runs,
+    // and a baseline read after that already counts the line the predicate is
+    // waiting for, so the wait can never be satisfied.
     const size_t baseline = server_->recorded_line_count();
+    std::thread caller([&selected, &info] { info = selected->get_info(); });
     const bool spoke = wait_until([&] { return server_->recorded_line_count() > baseline; });
     if (spoke) {
         server_->push_line("MODE=ETHERNET");
