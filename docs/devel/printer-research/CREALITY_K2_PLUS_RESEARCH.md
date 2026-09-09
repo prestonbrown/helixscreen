@@ -272,7 +272,7 @@ Verified on a K2 Plus (2026-09-08, read-only SSH), board `CR0CN240110C10`, firmw
 |-----------|-------|
 | Size | 4.3 inches |
 | Panel resolution | 480 x 800 native portrait |
-| Panel string | `lcm_id=gc9503cv_ue_480_800` in `/proc/cmdline` |
+| Panel controller | `lcm_id=gc9503cv_ue_480_800` in `/proc/cmdline`. Varies by variant - a K2 Pro reports `st7701_9bit_mipi_tjc_480_800` at identical geometry |
 | Framebuffer mode | `U:480x800p-58` (`/sys/class/graphics/fb0/modes`) |
 | Virtual framebuffer | `480,1600` - two stacked 480x800 buffers for page flipping, not a taller panel |
 | Framebuffer depth / stride | 32 bpp, 1920 bytes (480 x 4) |
@@ -366,8 +366,16 @@ Reported by a community member (2026-09-08), collected on their machine rather t
 | **Board** | `t113_i-`**`CR0CN200400C10`**`/generic` | `t113_i-`**`CR0CN240110C10`**`/generic` |
 | Firmware build | `tina.112052.20260506.071020` | `tina.wuhui.20251217.103029` |
 | Hostname | `K2Pro` | `K2Plus-50C1` |
+| `fb0/modes` | `U:480x800p-58` | `U:480x800p-58` |
 | `fb0/virtual_size` | `480,1600` | `480,1600` |
-| Input nodes | `event0` only | `event0` only (`gt9xxnew_ts`) |
+| `fb0` depth / stride / rotate | 32 bpp, 1920, 0 | 32 bpp, 1920, 0 |
+| DRM | absent (`/dev/dri`) | absent (`/dev/dri`) |
+| **Panel controller** | **`st7701_9bit_mipi_tjc_480_800`** | **`gc9503cv_ue_480_800`** |
+| DRAM | `androidboot.dramsize=512` | 488 MB usable |
+| Touch device | `gt9xxnew_ts`, `Bus=0018`, `dead:beef:28bb` | `gt9xxnew_ts`, `Bus=0018`, `dead:beef:28bb` |
+| Touch `properties` / `abs` | `2` / `2650000 0` | `2` / `2650000 0` |
+| Input nodes | `event0` only | `event0` only |
+| libc / libstdc++ | glibc 2.29 / 6.0.25 | glibc 2.29 / 6.0.25 |
 
 The board ID in `DISTRIB_TARGET` is the field that actually separates the two, and it is a
 better variant discriminator than the hostname: everything else in the identity block is
@@ -390,9 +398,24 @@ The version lives in the U-Boot environment. The update *check* lived in Crealit
 stack, which HelixScreen stops, so an installed machine cannot tell you whether a newer image
 exists.
 
-The `k2` build target and its 270-degree display handling apply unchanged. Still outstanding:
-the touch controller name and `printer.cfg` - bed size and macro set are what the database
-entry keys on.
+**The panel controller differs and the framebuffer contract does not.** A K2 Pro drives a
+Sitronix ST7701 where the Plus drives a GC9503CV, but both present 480x800 at 32 bpp with a
+1920-byte stride, a double-height virtual buffer and no DRM. Everything HelixScreen touches is
+on the framebuffer side of that line, so the `k2` target and its 270-degree rotation apply
+unchanged. Anyone porting a *kernel* between the two variants does have to care, because the
+panel driver and DTS are where the difference lives.
+
+The touch IC *is* shared, even though the display IC is not. Both variants report the same
+Goodix `gt9xxnew_ts` down to the placeholder `dead:beef:28bb` bus IDs and the same capability
+bitmaps. `tlsc6x` ships in the rootfs as an alternate module but has not been seen on either
+machine.
+
+Both report `properties = 2`, which is `INPUT_PROP_DIRECT` (bit 1), and an `abs` bitmap of
+`2650000 0` - `ABS_MT_TOUCH_MAJOR`, `ABS_MT_WIDTH_MAJOR`, `ABS_MT_POSITION_X/Y` and
+`ABS_MT_TRACKING_ID` with **no legacy `ABS_X`/`ABS_Y`**. These are MT-only panels, which is the
+case `src/api/input_device_scanner.cpp#get_input_touch_capabilities` exists to handle.
+
+Still outstanding: `printer.cfg` - bed size and macro set are what the database entry keys on.
 
 Detection already covers the model. `creality_k2_pro` in `assets/config/printer_database.json`
 carries a `k2pro` hostname heuristic at confidence 90 plus a 290-310 mm build-volume range.

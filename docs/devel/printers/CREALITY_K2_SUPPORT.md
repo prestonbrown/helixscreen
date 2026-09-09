@@ -47,7 +47,7 @@ All K2 models use Allwinner ARM Cortex-A7 dual-core processors running Tina Linu
 
 - **No curl** — BusyBox wget only (no HTTPS support). Use `python3 urllib` for HTTP requests.
 - **armv7l** — Dual-core Cortex-A7 (NOT Cortex-A53). Lower performance than K1 series.
-- **480x800 display** — The panel is 480x800 portrait, same as all other K2 models (`lcm_id=gc9503cv_ue_480_800` in cmdline confirms). HelixScreen software-rotates portrait→landscape (applies to all K2). The 480x1600 seen in `/sys/class/graphics/fb0/virtual_size` is a double-buffered virtual framebuffer (two stacked 480x800 buffers), not a taller panel.
+- **480x800 display** — The panel is 480x800 portrait, same as all other K2 models. The controller behind it varies by variant (`lcm_id=gc9503cv_ue_480_800` on a K2 Plus, `st7701_9bit_mipi_tjc_480_800` on a K2 Pro) at identical geometry, depth and stride, so it changes nothing above the framebuffer. HelixScreen software-rotates portrait→landscape (applies to all K2). The 480x1600 seen in `/sys/class/graphics/fb0/virtual_size` is a double-buffered virtual framebuffer (two stacked 480x800 buffers), not a taller panel.
 - **Python 3.9** — Available at `/usr/bin/python3`.
 - **Moonraker's config is outside the file API** — stock firmware launches
   `moonraker.py -c /usr/share/moonraker/moonraker.conf`, while the file manager's only
