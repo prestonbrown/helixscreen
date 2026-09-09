@@ -320,6 +320,18 @@ jobs:
       timeout-minutes: 5
       run: pytest tests/ui/ -v --ignore=tests/ui/test_screens.py
 
+    # tests/ui/conftest.py writes a screenshot, an app log and a state dump per
+    # failing case. Without this they die with the runner, which is what makes a
+    # UI failure that does not reproduce locally undiagnosable.
+    - name: Upload UI failure artifacts
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: ui-artifacts-${{ github.run_id }}
+        path: ui-artifacts/
+        if-no-files-found: ignore
+        retention-days: 7
+
   build-macos:
     name: Build (macOS 14)
     runs-on: macos-14

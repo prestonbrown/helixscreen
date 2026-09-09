@@ -134,8 +134,14 @@ def test_act_row_does_not_shift_stable_geometry(motion_app):
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline and _act_text(app) != "3.00 mm":
         time.sleep(0.25)
-    assert _act_text(app) == "3.00 mm", (
-        f"{size}: Act row did not appear on divergence")
+    # Report the value, not just the expectation: None means the row is hidden or
+    # absent, anything else means it rendered and the text is wrong. A bare
+    # message cannot tell those apart, and a custom message suppresses pytest's
+    # own comparison output.
+    actual = _act_text(app)
+    assert actual == "3.00 mm", (
+        f"{size}: Act row text is {actual!r}, expected '3.00 mm' "
+        f"(None = row hidden or absent)")
 
     shown = {name: _geom(app, name) for name in ("jog_pad", "position_card", "pos_z")}
 
