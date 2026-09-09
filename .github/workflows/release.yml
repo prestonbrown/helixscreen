@@ -462,8 +462,8 @@ jobs:
         # Play Store uploader (r0adkll) expects whatsnew-<locale> files in a flat dir.
         # Fastlane source of truth is android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt
         # Same packing as the script that just wrote the file. Both sides call
-        # scripts/android-version-code.sh; when this step re-derived it locally
-        # the two drifted (10014 vs 99114) and the copy below silently missed.
+        # scripts/android-version-code.sh: a local copy of the arithmetic here
+        # would name a file that does not exist and the copy below would miss.
         VERSION_CODE=$(scripts/android-version-code.sh)
         SRC="android/fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
         if [ -f "$SRC" ]; then
@@ -716,11 +716,14 @@ jobs:
     - name: Resolve release channel
       id: channel
       run: |
-        # The channel comes from the RELEASE_CHANNEL file on the branch being
-        # tagged, not from whether the tag has a hyphen. That old rule forced
-        # every devel build to carry a -devN suffix, which helix::version
-        # discards -- so consecutive devel builds compared EQUAL and the in-app
-        # updater went quiet after the first install.
+        # Channel routing is a property of the BRANCH, so it comes from the
+        # RELEASE_CHANNEL file on the branch being tagged rather than from the
+        # tag string. A version cannot carry the routing: `dev` has no spelling
+        # in a version at all; a plain vX.Y.Z cut from the trunk would reach the
+        # stable fleet, and the downgrade guard could not refuse it because a
+        # higher version IS a forward move; and a stable-line candidate
+        # (1.0.1-rc.1) has to be testable on a prerelease channel while still
+        # belonging to the stable line.
         # pipefail is required: without it `tee` supplies the pipeline's exit
         # status and an invalid RELEASE_CHANNEL would pass as a green step,
         # leaving every downstream channel expression empty.
@@ -1058,6 +1061,11 @@ jobs:
         # hotfix landing on a channel that already serves 1.1.x), and by
         # re-tagging an old commit. Republishing the SAME version is allowed --
         # that is how a partially-failed upload is retried.
+        #
+        # Precedence comes from scripts/version-compare.sh, which implements
+        # Semantic Versioning 2.0.0 section 11. A shell version sort cannot
+        # answer it: `sort -V` ranks 1.1.0 BELOW 1.1.0-beta.1, so on a channel
+        # that has served a prerelease its verdict is inverted.
         FAILED=0
         for CHANNEL in $UPLOAD_CHANNELS; do
           MANIFEST_URL="${R2_PUBLIC_URL}/${CHANNEL}/manifest.json"
@@ -1073,14 +1081,32 @@ jobs:
             continue
           fi
 
-          OLDEST=$(printf '%s\n%s\n' "$SERVED" "$RELEASE_VERSION" | sort -V | head -n1)
-          if [ "$OLDEST" = "$RELEASE_VERSION" ]; then
-            echo "::error::${CHANNEL} currently serves ${SERVED}; publishing ${RELEASE_VERSION} would move it BACKWARD."
-            echo "::error::Clients on ${SERVED} would never be offered another ${CHANNEL} update."
+          # A pair the comparator cannot rank is a failure, not a pass: it exits
+          # non-zero rather than printing an order, so an unparseable manifest
+          # version can never read as "forward".
+          if ! ORDER=$(scripts/version-compare.sh "$RELEASE_VERSION" "$SERVED"); then
+            echo "::error::${CHANNEL}: cannot order ${RELEASE_VERSION} against the served ${SERVED}."
             FAILED=1
-          else
-            echo "${CHANNEL}: ${SERVED} -> ${RELEASE_VERSION} (forward)"
+            continue
           fi
+
+          case "$ORDER" in
+            -1)
+              echo "::error::${CHANNEL} currently serves ${SERVED}; publishing ${RELEASE_VERSION} would move it BACKWARD."
+              echo "::error::Clients on ${SERVED} would never be offered another ${CHANNEL} update."
+              FAILED=1
+              ;;
+            0)
+              echo "${CHANNEL}: ${SERVED} and ${RELEASE_VERSION} rank equal (build metadata only) -- allowed"
+              ;;
+            1)
+              echo "${CHANNEL}: ${SERVED} -> ${RELEASE_VERSION} (forward)"
+              ;;
+            *)
+              echo "::error::${CHANNEL}: version-compare.sh printed '${ORDER}', which is not -1, 0 or 1."
+              FAILED=1
+              ;;
+          esac
         done
 
         if [ "$FAILED" -eq 1 ]; then

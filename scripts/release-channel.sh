@@ -4,15 +4,18 @@
 # release-channel.sh — Resolve which update channels a tagged release publishes to.
 #
 # The channel is declared explicitly by the RELEASE_CHANNEL file at the repo
-# root, NOT derived from the tag string. Deriving it from the tag (the old
-# `tag contains a hyphen -> prerelease` rule) forced every devel-track build to
-# carry a `-devN` suffix, and helix::version::Version discards that suffix
-# (include/version.h) — so v1.1.0-dev1 and v1.1.0-dev2 compared EQUAL and the
-# in-app updater stopped offering devel builds after the first install.
+# root, NOT derived from the tag string. Routing is a property of the branch, and
+# a version cannot express it:
 #
-# With the channel declared out-of-band, the devel track can use plain
-# monotonically increasing versions (1.1.0, 1.1.1, ...) that the updater
-# actually orders, without those tags landing on the stable channel.
+#   - `dev` has no spelling in a version at all.
+#   - A plain vX.Y.Z cut from the trunk would land on the stable channel if the
+#     tag decided, and the downgrade guard could not refuse it: a higher version
+#     is a forward move.
+#   - A stable-line candidate (v1.0.1-rc.1) has to be testable on a prerelease
+#     channel while still belonging to the stable line.
+#
+# Declared out-of-band, each line numbers its releases however that line needs
+# and no tag can route itself.
 #
 # Each maintenance line carries its own RELEASE_CHANNEL, so cutting a release
 # is just tagging the right branch:
@@ -126,17 +129,17 @@ case "$CHANNEL" in
         ;;
 esac
 
-# A tag carrying a prerelease suffix must never reach the stable channel. The
-# suffix is invisible to the in-app version comparison, so a stable fleet that
-# installed v1.0.1-rc.1 would then refuse the real v1.0.1 as "already up to
-# date" — the exact trap this script exists to remove.
+# A tag carrying a prerelease suffix must never reach the stable channel. That
+# manifest is what the stable fleet installs unattended, so it serves finished
+# releases only; a candidate belongs on a prerelease channel, which is where it
+# gets tested without shipping itself to everyone.
 if [ -n "$TAG" ] && [ "$CHANNEL" = "stable" ]; then
     case "${TAG#v}" in
         *-*)
             echo "error: tag '$TAG' carries a prerelease suffix but '$FILE' declares" >&2
-            echo "       channel 'stable'. Prerelease suffixes are invisible to the" >&2
-            echo "       in-app version comparison; tag stable releases as plain" >&2
-            echo "       vX.Y.Z, or publish this tag from a beta/dev branch." >&2
+            echo "       channel 'stable'. The stable manifest is installed unattended," >&2
+            echo "       so it serves finished releases only; tag stable releases as" >&2
+            echo "       plain vX.Y.Z, or publish this candidate from a beta/dev branch." >&2
             exit 1
             ;;
     esac

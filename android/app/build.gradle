@@ -5,10 +5,11 @@ def versionFile = file("../../VERSION.txt")
 def helix_version = versionFile.text.trim()
 
 // versionCode comes from scripts/android-version-code.sh, which is the single
-// definition of the packing (major * 1000000 + minor * 1000 + patch) and of the
-// lane-overflow guard. scripts/generate-whatsnew.sh and
-// .github/workflows/release.yml read the same number from the same place; the
-// arithmetic used to be written out in all three and they diverged.
+// definition of the packing ((major * 1000000 + minor * 1000 + patch) * 100 +
+// a prerelease ordinal) and of the lane-overflow guard.
+// scripts/generate-whatsnew.sh and .github/workflows/release.yml read the same
+// number from the same place, so a second copy of the arithmetic here drifts
+// from the changelog filename those two agree on.
 // The script's own stderr carries the reason for any rejection, so it is
 // forwarded verbatim rather than restated here.
 def versionCodeScript = file("../../scripts/android-version-code.sh")
@@ -32,7 +33,7 @@ android {
         applicationId "org.helixscreen.app"
         minSdkVersion 28
         targetSdkVersion 35
-        versionCode vCode  // 0.99.113 → 99113, 1.0.0 → 1000000
+        versionCode vCode  // 1.0.0 → 100000099, 1.1.0-beta.1 → 100100031
         versionName helix_version
 
         externalNativeBuild {
