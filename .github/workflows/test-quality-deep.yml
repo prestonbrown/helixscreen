@@ -69,6 +69,7 @@ jobs:
 
     - name: Install build deps
       run: |
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
         sudo apt-get update
         sudo apt-get install -y libsdl2-dev libfmt-dev libcairo2-dev libpango1.0-dev \
           libpng-dev libjpeg-dev libnl-3-dev libnl-genl-3-dev
@@ -112,6 +113,7 @@ jobs:
 
     - name: Install build deps
       run: |
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*.list
         sudo apt-get update
         sudo apt-get install -y libsdl2-dev libfmt-dev libcairo2-dev libpango1.0-dev \
           libpng-dev libjpeg-dev libnl-3-dev libnl-genl-3-dev
