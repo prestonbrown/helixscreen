@@ -11,7 +11,7 @@ All K2 models use Allwinner ARM Cortex-A7 dual-core processors running Tina Linu
 | Model | Build Volume | Display | Chamber Heater | CFS | Status |
 |-------|-------------|---------|----------------|-----|--------|
 | K2 | 260 mm cubed | 4.3" 480x800 | No | Optional | Untested |
-| K2 Pro | 300 mm cubed | 4.3" 480x800 | Yes (60C) | Optional | Community bring-up in progress (2026-09) |
+| K2 Pro | 300 mm cubed | 4.3" 480x800 | Yes (60C) | Optional | **Community-confirmed running** (2026-09) |
 | K2 Plus | 350 mm cubed | 4.3" 480x800 | Yes (60C) | Yes (CFS) | **Hardware confirmed** |
 | K2 SE | 220x215x245 mm | Unknown | No | Unknown | User-confirmed install (wget) |
 

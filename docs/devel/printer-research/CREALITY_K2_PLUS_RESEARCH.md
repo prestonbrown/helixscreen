@@ -376,6 +376,9 @@ Reported by a community member (2026-09-08), collected on their machine rather t
 | Touch `properties` / `abs` | `2` / `2650000 0` | `2` / `2650000 0` |
 | Input nodes | `event0` only | `event0` only |
 | libc / libstdc++ | glibc 2.29 / 6.0.25 | glibc 2.29 / 6.0.25 |
+| RAM | 488 MB, no swap | 488 MB, no swap |
+| `/mnt/UDISK` | 27.5 GB | 27.5 GB |
+| Overlay (`/dev/mmcblk0p10`) | 240 MB | 240 MB |
 
 The board ID in `DISTRIB_TARGET` is the field that actually separates the two, and it is a
 better variant discriminator than the hostname: everything else in the identity block is
@@ -415,7 +418,20 @@ Both report `properties = 2`, which is `INPUT_PROP_DIRECT` (bit 1), and an `abs`
 `ABS_MT_TRACKING_ID` with **no legacy `ABS_X`/`ABS_Y`**. These are MT-only panels, which is the
 case `src/api/input_device_scanner.cpp#get_input_touch_capabilities` exists to handle.
 
-Still outstanding: `printer.cfg` - bed size and macro set are what the database entry keys on.
+**HelixScreen runs on a K2 Pro.** The reporting machine has it installed and running from
+`/opt/helixscreen` with `--rotate=270`, alongside our `ustreamer`, our `wpa_supplicant` and an
+`S99helixscreen` init script, with the stock `display-server` stopped. The `k2` target needed
+no modification. That is the K2 Pro's hardware validation.
+
+The stock config set is the same on both variants: `printer.cfg`, `box.cfg`,
+`gcode_macro.cfg`, `motor_control.cfg`, `printer_params.cfg` and `sensorless.cfg` under
+`/mnt/UDISK/printer_data/config/`. The Pro we reached carries `box.cfg`, so that machine has a
+CFS attached and the `box` object our database entry expects is present.
+
+Still outstanding: the contents of `printer.cfg`, since bed size and macro set are what the
+database entry keys on. The one machine we have reached adds community packages (k2-KAMP and a
+`custom/` folder), so its macro set does not establish what a stock K2 Pro ships, and its
+`print_start_default_phases` cannot serve as a stock baseline.
 
 Detection already covers the model. `creality_k2_pro` in `assets/config/printer_database.json`
 carries a `k2pro` hostname heuristic at confidence 90 plus a 290-310 mm build-volume range.
