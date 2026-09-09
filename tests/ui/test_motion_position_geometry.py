@@ -79,6 +79,21 @@ def _act_text(app: HelixApp) -> str | None:
         return None
 
 
+def _wait_act_text(app: HelixApp, expected: str | None,
+                   timeout: float = 15.0) -> str | None:
+    """Poll the Act value until it reads `expected`, then report what it reads.
+
+    wait_idle() is best-effort and does not see raw lv_async_call work, so on a
+    slow machine the row can still be pending when it returns. The caller's
+    assert is the real check - this only stops a fast reader from failing it
+    prematurely.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and _act_text(app) != expected:
+        time.sleep(0.25)
+    return _act_text(app)
+
+
 @pytest.fixture
 def motion_app(request, tmp_path):
     """An instance at a given size, on the motion overlay, frozen for measurement.
@@ -128,34 +143,29 @@ def motion_app(request, tmp_path):
 def test_act_row_does_not_shift_stable_geometry(motion_app):
     app, size = motion_app
 
-    # Equal Z: the Act row is hidden.
+    # Diverged Z first, so the hidden half below asserts a transition rather
+    # than a starting condition: a frozen instance already sits at equal Z, and
+    # "row is hidden" there is true whether or not anything this test did took
+    # effect.
     app.set("gcode_position_z", _Z_EQUAL)
-    app.set("position_z", _Z_EQUAL)
-    app.wait_idle()
-    assert _act_text(app) is None, (
-        f"{size}: Act row visible with equal Z - setup never reached the hidden state")
-
-    hidden = {name: _geom(app, name) for name in ("jog_pad", "position_card", "pos_z")}
-
-    # Diverged Z: the Act row appears. Assert the state BEFORE the geometry:
-    # these tests assert nothing if the row never showed.
     app.set("position_z", _Z_DIVERGED)
     app.wait_idle()
-    # Poll rather than trust wait_idle alone: it is best-effort and does not see
-    # raw lv_async_call work, so on a slow machine the row can still be pending
-    # when it returns. The assert below is the real check - the loop only stops
-    # a fast reader from failing it prematurely.
-    deadline = time.monotonic() + 15.0
-    while time.monotonic() < deadline and _act_text(app) != "3.00 mm":
-        time.sleep(0.25)
     # Report the value, not just the expectation: None means the row is hidden or
     # absent, anything else means it rendered and the text is wrong. A bare
     # message cannot tell those apart, and a custom message suppresses pytest's
     # own comparison output.
-    actual = _act_text(app)
+    actual = _wait_act_text(app, "3.00 mm")
     assert actual == "3.00 mm", (
         f"{size}: Act row text is {actual!r}, expected '3.00 mm' "
         f"(None = row hidden or absent)")
+    # The Act row alone cannot tell "both sets landed" from "only the toolhead
+    # one did" - 0.00 vs 3.00 diverges too. The commanded row reads the other
+    # subject, so it is what pins the divergence to the one set up here.
+    commanded = app.text("pos_z")
+    assert commanded == "2.50 mm", (
+        f"{size}: commanded Z row reads {commanded!r}, expected '2.50 mm' - the "
+        f"gcode_position_z write did not land, so the divergence under test is "
+        f"not the one this test set up")
 
     # The row has to still be there when the geometry below is read, or the
     # measurement describes an undefined state. A mock status push carries a
@@ -169,6 +179,16 @@ def test_act_row_does_not_shift_stable_geometry(motion_app):
         f"frozen instance, so the geometry below would measure nothing definite")
 
     shown = {name: _geom(app, name) for name in ("jog_pad", "position_card", "pos_z")}
+
+    # Equal Z: the row goes away again. The read above is what makes this mean
+    # something - the row was demonstrably there a moment ago.
+    app.set("position_z", _Z_EQUAL)
+    app.wait_idle()
+    gone = _wait_act_text(app, None)
+    assert gone is None, (
+        f"{size}: Act row reads {gone!r} with equal Z, expected it hidden")
+
+    hidden = {name: _geom(app, name) for name in ("jog_pad", "position_card", "pos_z")}
 
     for name in ("jog_pad", "position_card", "pos_z"):
         before, after = hidden[name], shown[name]
