@@ -475,8 +475,10 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
                           pattern, confidence);
             return confidence;
         }
-    } else if (type == "hostname_exclude") {
-        // If hostname matches this pattern, exclude this printer entirely
+    } else if (type == "hostname_exclude" || type == "led_exclude") {
+        // If the named field matches this pattern, exclude this printer entirely.
+        // Encodes hardware a model does not have: the plain AD5M is open-frame,
+        // so a chamber light means its enclosed sibling and not it.
         auto field_data = get_field_data(hardware, field);
         std::string pattern = heuristic.value("pattern", "");
         if (has_pattern(field_data, pattern)) {
@@ -1918,6 +1920,23 @@ std::string PrinterDetector::apply_type_choice(Config* config, const std::string
     return applied;
 }
 
+namespace {
+/// Whether @p candidate names the same printer family as the installed @p family
+/// preset: the family itself, or one of its variants (`ad5m` covers `ad5m_pro`,
+/// `ad5m_pro_forgex`). The separator is required so that `ad5x` is not read as a
+/// variant of `ad5m`.
+bool preset_in_family(const std::string& candidate, const std::string& family) {
+    if (candidate.empty() || family.empty()) {
+        return false;
+    }
+    if (candidate == family) {
+        return true;
+    }
+    return candidate.size() > family.size() && candidate.compare(0, family.size(), family) == 0 &&
+           candidate[family.size()] == '_';
+}
+} // namespace
+
 bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discovery,
                                            Config* config) {
     if (!config) {
@@ -1959,24 +1978,52 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
     PrinterDetectionResult result = auto_detect(discovery);
 
     if (!meets_autosave_threshold(result)) {
-        // Ambiguous. Persist nothing: PRINTER_TYPE stays empty so the wizard's
-        // identify step offers its Custom/Other default for the user to correct,
-        // and a later reconnect with a fuller discovery snapshot gets another
-        // chance instead of being locked out by a non-empty saved type.
         spdlog::info("[PrinterDetector] Detection below auto-save bar (best '{}' at {}%, "
-                     "runner-up '{}' at {}%, margin {}, {} tied; need >={}% and margin >={}) - "
-                     "leaving printer type unset for the user to choose",
+                     "runner-up '{}' at {}%, margin {}, {} tied; need >={}% and margin >={})",
                      result.type_name, result.confidence, result.runner_up_type_name,
                      result.runner_up_confidence, result.margin(), result.tied_count,
                      AUTOSAVE_MIN_CONFIDENCE, DETECT_MIN_MARGIN);
-        // Deliberately NOT compacting: compact_database() strips the heuristics,
-        // and without them a later attempt could never match anything. Holding
-        // them is the cost of staying open to a better answer.
-        return false;
-    }
 
-    spdlog::info("[PrinterDetector] Auto-detected printer: '{}' ({}% confidence, reason: {})",
-                 result.type_name, result.confidence, result.reason);
+        // Handing an ambiguous field back to the user assumes a step that asks.
+        // A platform package seeds its preset into settings.json, and the wizard
+        // skips every hardware step on a preset install - so on those machines
+        // nobody is ever asked, the type stays empty for good, and a known
+        // printer wears the generic image.
+        //
+        // The package named the machine family at install time, so an ambiguous
+        // field inside that family is still an answer: the winner is the variant
+        // carrying the most corroboration, and the family's own name is the
+        // floor under it.
+        const std::string installed_preset = config->get_preset();
+        std::string resolved;
+        if (!installed_preset.empty()) {
+            resolved = (result.detected() && preset_in_family(result.preset, installed_preset))
+                           ? result.type_name
+                           : get_name_for_preset(installed_preset);
+        }
+
+        if (resolved.empty()) {
+            // PRINTER_TYPE stays empty so the wizard's identify step offers its
+            // Custom/Other default for the user to correct, and a later reconnect
+            // with a fuller discovery snapshot gets another chance instead of
+            // being locked out by a non-empty saved type.
+            //
+            // Deliberately NOT compacting: compact_database() strips the heuristics,
+            // and without them a later attempt could never match anything. Holding
+            // them is the cost of staying open to a better answer.
+            spdlog::info("[PrinterDetector] Leaving printer type unset for the user to choose");
+            return false;
+        }
+
+        spdlog::info("[PrinterDetector] Preset '{}' install has no step that asks - resolving "
+                     "printer type to '{}'",
+                     installed_preset, resolved);
+        result.type_name = resolved;
+        result.preset = get_preset_for_name(resolved);
+    } else {
+        spdlog::info("[PrinterDetector] Auto-detected printer: '{}' ({}% confidence, reason: {})",
+                     result.type_name, result.confidence, result.reason);
+    }
 
     // Save to config
     config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, result.type_name);
