@@ -368,7 +368,6 @@
   <translation tag="Calibration may still be running — response timed out" ja="キャリブレーションがまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Calibration move may still be running — response timed out" ja="キャリブレーション移動がまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Calibration saved but cannot apply on SDL display" ja="キャリブレーションは保存されましたが SDL ディスプレイには適用できません"/>
-  <translation tag="Calibration started" ja="キャリブレーションを開始しました"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." ja="キャリブレーションは成功しましたが、周波数グラフのデータを読み取れませんでした。"/>
   <translation tag="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer." ja="キャリブレーションは成功しました。周波数グラフは HelixScreen がプリンター上で動作している場合のみ利用できます。"/>
   <translation tag="Calibration timed out. Please try again." ja="タイムアウトしました。もう一度お試しください。"/>
@@ -943,7 +942,6 @@
   <translation tag="Failed to set temperature: {}" ja="温度の設定に失敗しました: {}"/>
   <translation tag="Failed to set {} temp: {}" ja="{} 温度の設定に失敗しました: {}"/>
   <translation tag="Failed to show confirmation dialog" ja="確認ダイアログの表示に失敗しました"/>
-  <translation tag="Failed to start calibration" ja="キャリブレーションの開始に失敗しました"/>
   <translation tag="Failed to start installer: " ja="インストーラーの起動に失敗しました: "/>
   <translation tag="Failed to start print: {}" ja="印刷の開始に失敗しました: {}"/>
   <translation tag="Failed to start uninstaller: " ja="アンインストーラーの起動に失敗しました: "/>

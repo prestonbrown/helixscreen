@@ -368,7 +368,6 @@
   <translation tag="Calibration may still be running — response timed out" fr="Calibration peut-être encore en cours — délai dépassé"/>
   <translation tag="Calibration move may still be running — response timed out" fr="Mouvement de calibration peut-être encore en cours — délai dépassé"/>
   <translation tag="Calibration saved but cannot apply on SDL display" fr="Calibration enregistrée mais impossible à appliquer sur un écran SDL"/>
-  <translation tag="Calibration started" fr="Calibration démarrée"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." fr="Calibration réussie, mais les données du graphique de fréquence n&apos;ont pas pu être lues."/>
   <translation tag="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer." fr="Calibration réussie. Le graphique de fréquence n&apos;est disponible que lorsque HelixScreen s&apos;exécute sur l&apos;imprimante."/>
   <translation tag="Calibration timed out. Please try again." fr="Délai expiré. Veuillez réessayer."/>
@@ -943,7 +942,6 @@
   <translation tag="Failed to set temperature: {}" fr="Échec du réglage de la température : {}"/>
   <translation tag="Failed to set {} temp: {}" fr="Échec du réglage de la temp. {} : {}"/>
   <translation tag="Failed to show confirmation dialog" fr="Échec de l&apos;affichage du dialogue de confirmation"/>
-  <translation tag="Failed to start calibration" fr="Échec du démarrage de la calibration"/>
   <translation tag="Failed to start installer: " fr="Échec du démarrage de linstallateur : "/>
   <translation tag="Failed to start print: {}" fr="Échec du démarrage de l&apos;impression : {}"/>
   <translation tag="Failed to start uninstaller: " fr="Échec du démarrage du désinstallateur : "/>

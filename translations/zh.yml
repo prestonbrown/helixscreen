@@ -370,7 +370,6 @@ translations:
   Calibration may still be running — response timed out: 校准可能仍在运行 — 响应超时
   Calibration move may still be running — response timed out: 校准移动可能仍在运行 — 响应超时
   Calibration saved but cannot apply on SDL display: 校准已保存，但无法在 SDL 显示上应用
-  Calibration started: 校准已开始
   Calibration succeeded, but the frequency chart data couldn't be read.: 校准成功，但无法读取频率图表数据。
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: 校准成功。频率图表仅在 HelixScreen 运行于打印机上时可用。
   Calibration timed out. Please try again.: 校准超时。请重试。
@@ -953,7 +952,6 @@ translations:
   'Failed to set temperature: {}': '设置温度失败: {}'
   'Failed to set {} temp: {}': '设置 {} 温度失败: {}'
   Failed to show confirmation dialog: 显示确认对话框失败
-  Failed to start calibration: 启动校准失败
   'Failed to start installer: ': '启动安装程序失败: '
   'Failed to start print: {}': '开始打印失败: {}'
   'Failed to start uninstaller: ': '启动卸载程序失败: '

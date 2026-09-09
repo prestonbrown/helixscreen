@@ -368,7 +368,6 @@
   <translation tag="Calibration may still be running — response timed out" de="Kalibrierung läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Calibration move may still be running — response timed out" de="Kalibrierungsbewegung läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Calibration saved but cannot apply on SDL display" de="Kalibrierung gespeichert, kann aber auf SDL-Display nicht angewendet werden"/>
-  <translation tag="Calibration started" de="Kalibrierung gestartet"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." de="Kalibrierung erfolgreich, aber die Frequenzdiagramm-Daten konnten nicht gelesen werden."/>
   <translation tag="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer." de="Kalibrierung erfolgreich. Das Frequenzdiagramm ist nur verfügbar, wenn HelixScreen auf dem Drucker läuft."/>
   <translation tag="Calibration timed out. Please try again." de="Zeitüberschreitung. Bitte erneut versuchen."/>
@@ -943,7 +942,6 @@
   <translation tag="Failed to set temperature: {}" de="Temperatur setzen fehlgeschlagen: {}"/>
   <translation tag="Failed to set {} temp: {}" de="{}-Temperatur setzen fehlgeschlagen: {}"/>
   <translation tag="Failed to show confirmation dialog" de="Bestätigungsdialog konnte nicht angezeigt werden"/>
-  <translation tag="Failed to start calibration" de="Kalibrierung starten fehlgeschlagen"/>
   <translation tag="Failed to start installer: " de="Installationsprogramm konnte nicht gestartet werden: "/>
   <translation tag="Failed to start print: {}" de="Druck starten fehlgeschlagen: {}"/>
   <translation tag="Failed to start uninstaller: " de="Deinstallationsprogramm konnte nicht gestartet werden: "/>

@@ -403,7 +403,6 @@ translations:
     может ещё выполняться — время ожидания истекло
   Calibration saved but cannot apply on SDL display: Калибровка сохранена, но не может
     быть применена на SDL дисплее
-  Calibration started: Калибровка запущена
   Calibration succeeded, but the frequency chart data couldn't be read.: Калибровка завершена
     успешно, но не удалось прочитать данные графика частот.
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: Калибровка
@@ -1036,7 +1035,6 @@ translations:
   'Failed to set temperature: {}': 'Не удалось задать температуру: {}'
   'Failed to set {} temp: {}': 'Не удалось задать темп. {}: {}'
   Failed to show confirmation dialog: Не удалось показать диалог подтверждения
-  Failed to start calibration: Не удалось запустить калибровку
   'Failed to start installer: ': 'Не удалось запустить установщик: '
   'Failed to start print: {}': 'Не удалось начать печать: {}'
   'Failed to start uninstaller: ': 'Не удалось запустить деинсталлятор: '

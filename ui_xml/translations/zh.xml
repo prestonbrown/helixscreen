@@ -368,7 +368,6 @@
   <translation tag="Calibration may still be running — response timed out" zh="校准可能仍在运行 — 响应超时"/>
   <translation tag="Calibration move may still be running — response timed out" zh="校准移动可能仍在运行 — 响应超时"/>
   <translation tag="Calibration saved but cannot apply on SDL display" zh="校准已保存，但无法在 SDL 显示上应用"/>
-  <translation tag="Calibration started" zh="校准已开始"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." zh="校准成功，但无法读取频率图表数据。"/>
   <translation tag="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer." zh="校准成功。频率图表仅在 HelixScreen 运行于打印机上时可用。"/>
   <translation tag="Calibration timed out. Please try again." zh="校准超时。请重试。"/>
@@ -943,7 +942,6 @@
   <translation tag="Failed to set temperature: {}" zh="设置温度失败: {}"/>
   <translation tag="Failed to set {} temp: {}" zh="设置 {} 温度失败: {}"/>
   <translation tag="Failed to show confirmation dialog" zh="显示确认对话框失败"/>
-  <translation tag="Failed to start calibration" zh="启动校准失败"/>
   <translation tag="Failed to start installer: " zh="启动安装程序失败: "/>
   <translation tag="Failed to start print: {}" zh="开始打印失败: {}"/>
   <translation tag="Failed to start uninstaller: " zh="启动卸载程序失败: "/>

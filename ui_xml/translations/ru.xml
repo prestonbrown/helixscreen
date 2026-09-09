@@ -368,7 +368,6 @@
   <translation tag="Calibration may still be running — response timed out" ru="Калибровка может ещё выполняться — время ожидания истекло"/>
   <translation tag="Calibration move may still be running — response timed out" ru="Движение калибровки может ещё выполняться — время ожидания истекло"/>
   <translation tag="Calibration saved but cannot apply on SDL display" ru="Калибровка сохранена, но не может быть применена на SDL дисплее"/>
-  <translation tag="Calibration started" ru="Калибровка запущена"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." ru="Калибровка завершена успешно, но не удалось прочитать данные графика частот."/>
   <translation tag="Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer." ru="Калибровка завершена успешно. График частот доступен, только когда HelixScreen работает на принтере."/>
   <translation tag="Calibration timed out. Please try again." ru="Время истекло. Попробуйте снова."/>
@@ -943,7 +942,6 @@
   <translation tag="Failed to set temperature: {}" ru="Не удалось задать температуру: {}"/>
   <translation tag="Failed to set {} temp: {}" ru="Не удалось задать темп. {}: {}"/>
   <translation tag="Failed to show confirmation dialog" ru="Не удалось показать диалог подтверждения"/>
-  <translation tag="Failed to start calibration" ru="Не удалось запустить калибровку"/>
   <translation tag="Failed to start installer: " ru="Не удалось запустить установщик: "/>
   <translation tag="Failed to start print: {}" ru="Не удалось начать печать: {}"/>
   <translation tag="Failed to start uninstaller: " ru="Не удалось запустить деинсталлятор: "/>

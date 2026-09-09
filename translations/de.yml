@@ -414,7 +414,6 @@ translations:
     läuft möglicherweise noch — Zeitüberschreitung
   Calibration saved but cannot apply on SDL display: Kalibrierung gespeichert, kann
     aber auf SDL-Display nicht angewendet werden
-  Calibration started: Kalibrierung gestartet
   Calibration succeeded, but the frequency chart data couldn't be read.: Kalibrierung
     erfolgreich, aber die Frequenzdiagramm-Daten konnten nicht gelesen werden.
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: Kalibrierung
@@ -1062,7 +1061,6 @@ translations:
   'Failed to set temperature: {}': 'Temperatur setzen fehlgeschlagen: {}'
   'Failed to set {} temp: {}': '{}-Temperatur setzen fehlgeschlagen: {}'
   Failed to show confirmation dialog: Bestätigungsdialog konnte nicht angezeigt werden
-  Failed to start calibration: Kalibrierung starten fehlgeschlagen
   'Failed to start installer: ': 'Installationsprogramm konnte nicht gestartet werden: '
   'Failed to start print: {}': 'Druck starten fehlgeschlagen: {}'
   'Failed to start uninstaller: ': 'Deinstallationsprogramm konnte nicht gestartet
