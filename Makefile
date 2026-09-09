@@ -1277,6 +1277,8 @@ quality:
 # Generated contributors header — sourced from CONTRIBUTORS.txt (committed)
 # so cross-compile Docker builds and shallow CI checkouts produce correct output.
 CONTRIBUTORS_H := $(BUILD_DIR)/generated/contributors.h
+# Lines from this marker down in CONTRIBUTORS.txt are hand-maintained.
+CONTRIB_MARKER := \# --- no commit, but this exists because of them ---
 
 $(CONTRIBUTORS_H): CONTRIBUTORS.txt scripts/gen-contributors.sh
 	$(Q)BUILD_DIR=$(BUILD_DIR) ./scripts/gen-contributors.sh
@@ -1304,6 +1306,9 @@ $(OBJ_DIR)/system/helix_version.o: $(GIT_HASH_H)
 # contributors, then commit the result.
 .PHONY: update-contributors
 update-contributors:
+	@# Everything from MARKER down is hand-maintained (people with no commit:
+	@# field testers, bug reporters, firmware authors) and is preserved verbatim.
+	@sed -n '/^$(CONTRIB_MARKER)$$/,$$p' CONTRIBUTORS.txt > $(BUILD_DIR)/.contrib-extras 2>/dev/null || true
 	@{ \
 		git -c safe.directory='*' log --format='%aN'; \
 		git -c safe.directory='*' log --format='%(trailers:key=Co-authored-by,valueonly,unfold)' \
@@ -1313,6 +1318,8 @@ update-contributors:
 	} | sort -u \
 		| grep -ivE 'bot\b|\[bot\]|dependabot|github-actions|claude' \
 		| awk 'length >= 2' > CONTRIBUTORS.txt
+	@if [ -s $(BUILD_DIR)/.contrib-extras ]; then cat $(BUILD_DIR)/.contrib-extras >> CONTRIBUTORS.txt; fi
+	@rm -f $(BUILD_DIR)/.contrib-extras
 	@echo "$(GREEN)✓ CONTRIBUTORS.txt updated ($$(wc -l < CONTRIBUTORS.txt) contributors)$(RESET)"
 	@echo "  Review the diff and commit: git diff CONTRIBUTORS.txt"
 

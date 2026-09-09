@@ -30,10 +30,12 @@ same pattern as nozzle and bed, with the tests to back it. Also the network-widg
 WiFi re-detection fix (#819) and a pile of font work.
 
 ### Andrew Basson
-Owns the **installer and self-update** machinery — `install.sh`,
-`serve-local-update.sh`, and the hard parts: surviving `NoNewPrivileges`, systemd
-cgroup kills mid-update, atomic `.old` swaps, and Moonraker extraction. The kind of
-infrastructure nobody notices until it breaks, which it now doesn't.
+**Got the installer and self-update path off the ground** in the project's first
+months - `install.sh`, `serve-local-update.sh`, and the early passes at what makes
+unattended updates hard: surviving `NoNewPrivileges`, systemd cgroup kills mid-update,
+atomic `.old` swaps, Moonraker extraction. That machinery has been rewritten and grown
+many times over since, and is now mostly other hands - but somebody had to build the
+first one that worked, and he did.
 
 ### Timo V
 **Responsive and tiny-screen UI** — the `_tiny` breakpoint tokens, responsive and
@@ -143,6 +145,38 @@ Extended firmware enabling SSH (and thus HelixScreen) on the Snapmaker U1.
 Community Klipper + Moonraker stack for QIDI printers, and improvements to
 HelixScreen's own QIDI support docs (#949, #963).
 
+### DrA1ex — [Forge-X / ff5m](https://github.com/DrA1ex/ff5m)
+The firmware HelixScreen runs on for the **Adventurer 5M/5M Pro**. Forge-X is what
+turns those machines into something a third-party screen can sit on at all - the mod
+tree, the chroot, the service model. Our own image is a fork of it.
+
+### xblax — [flashforge_ad5m_klipper_mod](https://github.com/xblax/flashforge_ad5m_klipper_mod)
+The original Klipper mod for the AD5M, and the groundwork everything on that platform
+stands on, Forge-X included.
+
+### topi314 and Irbis3D — MedusaHC
+Two independent takes on hardware control for multi-tool machines:
+[topi314/MedusaHC](https://github.com/topi314/MedusaHC) and
+[Irbis3D/MedusaHC-Python-Controller](https://github.com/Irbis3D/MedusaHC-Python-Controller).
+They expose different config surfaces, and HelixScreen detects between them rather
+than picking a favourite. Irbis3D also builds [Duender](https://github.com/Irbis3D/Duender).
+
+### The alternative K2 firmware crowd
+[jamincollins/k2-improvements](https://github.com/jamincollins/k2-improvements),
+[vsevolod-volkov/K2Plus-entware](https://github.com/vsevolod-volkov/K2Plus-entware),
+[BusPirateV5/Fluidd-K2](https://github.com/BusPirateV5/Fluidd-K2) and
+[minimal3dp/k2_powerups](https://github.com/minimal3dp/k2_powerups). Creality's K2 is
+a locked-down box; these are the people who worked out how to get a package onto it and
+keep it there.
+
+### jbatonnet — [Rinkhals](https://github.com/jbatonnet/Rinkhals)
+The custom firmware for Anycubic machines, and the reason there is a path onto that
+hardware at all.
+
+### OpenCentauri
+The community that opened up the **Elegoo Centauri Carbon**. CC1 support exists
+because they documented the machine first.
+
 ---
 
 ## Bug reports, protocol work & Discord
@@ -150,6 +184,19 @@ HelixScreen's own QIDI support docs (#949, #963).
 Good bug reports with logs, reverse-engineering, and the people who help others get
 HelixScreen running.
 
+- **joschiv1977** - the most prolific reporter on the tracker, and the reports are the
+  kind you wish for: an exact version, the widget or subject involved, and usually a
+  hypothesis worth checking. Notification flooding, discretionary G-code never draining,
+  a part-cooling readout that fell to 0% after a re-bind, overlay widths that did not
+  match the nav dock.
+- **adamcstorm** - AFC and multi-tool behaviour, found by running it: a toolchange count
+  off by one, Spoolman data that would not clear on a lane, lane remapping, and the
+  target-temperature readouts on the home widgets.
+- **TMTYD** - caught the setup script writing a legacy zMod path into the Moonraker
+  config, which broke Mainsail's update panel with a JSON-RPC 500.
+- **jimmyjon711**, **thelazurus**, **shoikan**, **senposage**, **Vexroboticsbuilder**,
+  **R00G3R**, **pijalu** - repeat reporters across print status, filament handling and
+  the update path. Several of these turned into fixes in this release.
 - **J0eB0l** ([@lindnjoe](https://github.com/lindnjoe)) — help with Snapmaker U1
   boot and overlay diagnosis.
 - **ninjamida** — IFS protocol intel and multi-IFS testing on the AD5X.
@@ -158,6 +205,9 @@ HelixScreen running.
 - **Thmsdmsk** ([@Thmsdmsk](https://github.com/Thmsdmsk)) — co-authored fix.
 - **GhostTypes** ([@GhostTypes](https://github.com/GhostTypes)) — Discord support
   and co-authored fix.
+
+The crash reporter has filed a few hundred more on everyone's behalf. If you sent a
+debug bundle, you are in this list whether or not your name is.
 
 ---
 

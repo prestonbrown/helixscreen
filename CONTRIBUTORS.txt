@@ -20,3 +20,35 @@ Thomas Dixon
 Timo V
 cubewhy
 physicsG
+# --- no commit, but this exists because of them ---
+# Hand-maintained. `make update-contributors` preserves everything below this line.
+# Field testing, debug bundles, protocol work, and the firmware HelixScreen runs on.
+DIEHARDave
+DrA1ex
+Guilouz
+Irbis3D
+Jpe230
+Lexanger
+PAXX
+R00G3R
+Sib6019
+TMTYD
+Vexroboticsbuilder
+Vger1700
+adamcstorm
+jacekruf
+jamincollins
+jbatonnet
+jimmyjon711
+joschiv1977
+minimal3dp
+ninjamida
+npa62
+pijalu
+raza616
+senposage
+shoikan
+thelazurus
+topi314
+vsevolod-volkov
+xblax
