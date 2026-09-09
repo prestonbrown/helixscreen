@@ -129,13 +129,11 @@ jobs:
         sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
         df -h /
 
-    # What actually failed every pi leg of v0.99.110 was the OOM killer, not the
-    # clock: exit 137 roughly two minutes after helix-splash and helix-watchdog
-    # link, i.e. during the main helix-screen link, which pi-both performs twice
-    # (one per display variant). It fit on v0.99.108 at ~82 min and no longer
-    # does. A warm ccache does NOT avoid this — the link still runs — so the
-    # cache work in ccache-warm.yml could not have fixed it alone. -j is not the
-    # lever either: the spike is one ld process. Swap lets the link page rather
+    # The main helix-screen link peaks past the runner's RAM and dies to the OOM
+    # killer as exit 137, not to the job timeout. pi-both performs that link
+    # twice, one per display variant. A warm ccache does not avoid it, because
+    # the link still runs; ccache-warm.yml cannot help here. -j is not the lever
+    # either: the spike is a single ld process. Swap lets the link page rather
     # than be killed, and costs wall time only when the peak is exceeded.
     - name: Add swap for the link peak
       run: |
@@ -300,10 +298,8 @@ jobs:
       run: |
         if [ -z "$KEYSTORE_B64" ]; then
           # A release tag has no business producing unsigned or debug-signed
-          # artifacts. This used to be a ::warning:: and the build carried on
-          # with the debug keystore — that is how v0.99.43 shipped a
-          # debug-signed AAB that Play Store rejects. Gradle refuses the same
-          # case now, but failing here names the missing secret instead of
+          # artifacts: Play Store rejects a debug-signed AAB. Gradle refuses the
+          # same case, but failing here names the missing secret instead of
           # surfacing as a build error 40 minutes later.
           echo "::error::ANDROID_KEYSTORE_BASE64 is not set. A release build must be signed with the upload keystore; see docs/devel/ANDROID_PLAY_STORE.md for the four ANDROID_KEYSTORE_* / ANDROID_KEY_* secrets."
           exit 1
@@ -476,7 +472,7 @@ jobs:
           # tolerable condition. publish-android's download-artifact step
           # hard-fails on the missing artifact anyway; fail here where the
           # cause is visible.
-          echo "::error::$SRC is missing right after scripts/generate-whatsnew.sh wrote it — the versionCode used to name the file and the one used to read it disagree."
+          echo "::error::$SRC is missing right after scripts/generate-whatsnew.sh wrote it — that script and this step computed different versionCodes."
           ls -la android/fastlane/metadata/android/en-US/changelogs/ || true
           exit 1
         fi
@@ -498,15 +494,12 @@ jobs:
   # docs/devel/ANDROID_PLAY_STORE.md for one-time setup (service account,
   # first manual upload, Play App Signing enrollment).
   # Gated on `release`, not just `build-android`, and that ordering is load-bearing:
-  # a Play Store versionCode can never be reused or lowered. v0.99.109 and v0.99.110
-  # both published here while their GitHub releases never materialised (109 died on a
-  # non-GLES compile error that Android, being a GLES build, never hit; 110 lost its
-  # Raspberry Pi link to the OOM killer). That burned versionCodes 10009 and 10010 on
-  # builds nobody could download, and made both tags impossible to re-cut — the only
-  # way forward was to skip a version. Depending on `release` (which itself needs the
-  # full build-platforms matrix) means Play only ever receives a version that users
-  # can also download from GitHub. If a platform build fails, this job is skipped and
-  # the version number stays free to re-cut.
+  # a Play Store versionCode can never be reused or lowered. A version published here
+  # whose GitHub release then fails to materialise burns its number permanently and
+  # makes the tag impossible to re-cut, leaving no way forward but skipping a version.
+  # Depending on `release` (which itself needs the full build-platforms matrix) means
+  # Play only ever receives a version users can also download from GitHub. If a
+  # platform build fails, this job is skipped and the number stays free to re-cut.
   #
   # Stable releases only. A Play versionCode is a one-way ratchet per track, and
   # the trunk's versions lead the stable line: a 1.1.0-beta.1 packs to 100100031
@@ -744,14 +737,12 @@ jobs:
       run: |
         # Try to get annotated tag message, fall back to auto-generated notes.
         #
-        # The cap is a runaway guard, NOT an expected limit. It used to be
-        # `head -50`, which silently truncated v0.99.105's notes to 51 of 99
-        # lines — the tail of ### Fixed and the whole of ### Changed vanished
-        # from the release page while the job still reported success. The tag
-        # annotation is authored deliberately at release time (the /release
-        # workflow writes the changelog entry into it), so a short cap discards
-        # exactly the content someone chose to publish. GitHub's own limit is
-        # 125,000 characters; 500 lines stays well inside it.
+        # The cap is a runaway guard, NOT an expected limit. The tag annotation
+        # is authored deliberately at release time (the /release workflow writes
+        # the changelog entry into it), so a cap short enough to bite discards
+        # exactly the content someone chose to publish, and does it silently
+        # while the job still reports success. GitHub's own limit is 125,000
+        # characters; 500 lines stays well inside it.
         TAG_MESSAGE=$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME" 2>/dev/null | head -500)
 
         if [ -n "$TAG_MESSAGE" ] && [ "$TAG_MESSAGE" != "" ]; then
@@ -1142,10 +1133,10 @@ jobs:
         chmod +x scripts/generate-manifest.sh
 
         # Retry wrapper for transient R2 errors. A 504 Gateway Timeout on a large
-        # multipart upload exhausted the AWS CLI's own retries during v0.99.76 and
-        # aborted this step before the manifest uploaded, leaving every client
-        # pinned to the previous version's manifest (.github#952). All R2 puts go
-        # through this so a single transient failure no longer kills the release.
+        # multipart upload can exhaust the AWS CLI's own retries and abort this
+        # step before the manifest uploads, which pins every client to the
+        # previous version's manifest (.github#952). All R2 puts go through this
+        # so one transient failure does not kill the release.
         s3cp() {
           local attempt=1 max=4
           while true; do
@@ -1521,9 +1512,9 @@ jobs:
   # ============================================================================
   # Trigger docs rebuild + deploy on helixscreen-website for stable releases.
   # Gated on the channel declared by RELEASE_CHANNEL, so helixscreen.org tracks
-  # the latest stable docs rather than in-flight devel content. The old gate was
-  # `tag has no hyphen`, which would deploy devel-track docs the moment that
-  # track started tagging plain vX.Y.Z versions.
+  # the latest stable docs rather than in-flight devel content. A tag-string gate
+  # cannot express this: the devel track also tags plain vX.Y.Z versions, so
+  # `tag has no hyphen` would deploy devel-track docs.
   # Requires WEBSITE_DISPATCH_TOKEN: PAT with contents:write on helixscreen-website.
   # ============================================================================
   notify-website:
