@@ -753,7 +753,7 @@ TEST_CASE("commit_calibration_result: a solved range replaces the full affine",
     reset_stored_calibration_keys();
 }
 
-TEST_CASE("commit_calibration_result: a rotated panel keeps the residual affine",
+TEST_CASE("commit_calibration_result: a fit with a residual keeps the affine stage",
           "[touch][touch-calibration][range-fit][commit]") {
     RangeFakeSink sink;
     TouchRangeFit fit{};
@@ -844,6 +844,45 @@ TEST_CASE("commit_calibration_result: a null sink still persists the affine-only
         CHECK_FALSE(cfg->get<bool>("/input/touch_range/valid", true));
         CHECK(cfg->get<bool>("/input/calibration/valid", false));
         CHECK(cfg->get<double>("/input/calibration/e", 0.0) == Approx(1.6));
+    }
+    reset_stored_calibration_keys();
+}
+
+TEST_CASE("commit_calibration_result: the persisted affine carries the solve's rotation",
+          "[touch][touch-calibration][range-fit][commit][rotation]") {
+    // The residual re-parameterises the same solve over the same logical targets,
+    // so it means something only against the same rotation. Persisting it with the
+    // struct's own zero asserts the matrix was solved on an unrotated panel, and
+    // the next boot places it in a basis it was never solved in.
+    //
+    // The pairing is built here rather than driven through TouchCalibrationPanel,
+    // which solves a range only on an unrotated display. That gate lives in
+    // another file; this pins the write site on its own terms so the record stays
+    // honest whether or not the gate moves.
+    RangeFakeSink sink;
+    TouchCalibration cal = some_affine();
+    cal.capture_rotation = 90;
+
+    TouchRangeFit fit{};
+    fit.valid = true;
+    fit.min_x = 0;
+    fit.max_x = 799;
+    fit.min_y = 0;
+    fit.max_y = 479;
+    fit.residual_px = 40.0f;
+    fit.residual = some_affine();
+    REQUIRE(fit.residual.capture_rotation == 0);
+
+    CHECK(commit_calibration_result(&sink, cal, fit));
+
+    // The residual is what got installed and persisted, so both copies of it have
+    // to name the basis it was solved in.
+    REQUIRE(sink.range_called);
+    REQUIRE(sink.applied_count == 1);
+    CHECK(sink.stored.capture_rotation == 90);
+
+    if (Config* cfg = Config::get_instance()) {
+        CHECK(cfg->get<int>("/input/calibration/rotation", -1) == 90);
     }
     reset_stored_calibration_keys();
 }
