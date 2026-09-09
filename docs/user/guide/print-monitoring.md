@@ -174,9 +174,11 @@ Failure detection is **on by default** on supported hardware, and there's curren
 
 ### Creality K2 AI detection
 
-Creality's **K2 Plus** and **K2 Pro** have their own camera-based AI print monitoring. HelixScreen doesn't run this detection or show its results in a dialog — instead it lets you **enable the printer's AI monitoring for a print** as a pre-print option.
+Creality's **K2 Plus** and **K2 Pro** ship their own camera-based AI print monitoring in firmware. HelixScreen never runs that detection or shows its results — the most it can do is ask the printer to switch its own monitoring on for a print, offered as an **AI detection** pre-print option.
 
-When you open a file to print on a K2, look in the **Pre-Print Options** for **AI detection** (*"Monitor for print abnormalities (K2 Plus camera-based)"*). It's **off by default**; turn it on and the printer runs its own AI monitoring during that print. From there, Creality's firmware handles any detection — HelixScreen's job is just to switch the feature on when you ask for it.
+**On current Creality firmware that option does not appear, and that is expected.** HelixScreen only offers it when the printer's firmware provides the command that drives it, and stock K2 firmware registers no AI command at all. Creality's AI stack is also disabled in the printer's own settings and driven by background services that HelixScreen replaces when it takes over the screen, so there would be nothing for the toggle to switch on.
+
+If you run firmware that does provide the command, the option appears in **Pre-Print Options** when you open a file, **off by default**. Turn it on and the printer runs its own monitoring for that print, handling any detection itself.
 
 > **Note:** Because this is handled entirely by the printer, the Resume / Abort / Reduce Sensitivity dialog above does **not** apply to K2 AI detection.
 
