@@ -67,17 +67,10 @@ WizardTouchCalibrationStep::WizardTouchCalibrationStep() {
     // Create the calibration panel
     panel_ = std::make_unique<helix::TouchCalibrationPanel>();
 
-    // Set screen size from DisplayManager
-    DisplayManager* display_mgr = DisplayManager::instance();
-    if (display_mgr && display_mgr->is_initialized()) {
-        panel_->set_screen_size(display_mgr->width(), display_mgr->height());
-        spdlog::debug("[{}] Screen size set to {}x{}", get_name(), display_mgr->width(),
-                      display_mgr->height());
-    } else {
-        // Fallback to defaults
-        panel_->set_screen_size(800, 480);
-        spdlog::warn("[{}] DisplayManager not available, using default 800x480", get_name());
-    }
+    // The screen size is NOT sampled here. This step is a singleton, so a display
+    // rotated after it is built - a printer preset applying rotate during the
+    // wizard, or back-navigation to this step - would leave every crosshair laid
+    // out against the wrong extent. create() samples it on each show.
 
     // Set completion callback
     panel_->set_completion_callback(
@@ -167,6 +160,20 @@ void WizardTouchCalibrationStep::register_callbacks() {
 
 lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
     spdlog::debug("[{}] Creating touch calibration screen", get_name());
+
+    // Sample the live screen size on every show: the targets must be laid out
+    // against the extent in effect now, not whichever one this singleton was
+    // built under.
+    DisplayManager* display_mgr = DisplayManager::instance();
+    if (display_mgr && display_mgr->is_initialized()) {
+        panel_->set_screen_size(display_mgr->width(), display_mgr->height());
+        spdlog::debug("[{}] Screen size set to {}x{}", get_name(), display_mgr->width(),
+                      display_mgr->height());
+    } else {
+        // Fallback to defaults
+        panel_->set_screen_size(800, 480);
+        spdlog::warn("[{}] DisplayManager not available, using default 800x480", get_name());
+    }
 
     // Safety check: cleanup should have been called by wizard navigation
     if (screen_root_) {
