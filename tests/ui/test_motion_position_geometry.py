@@ -35,6 +35,7 @@ Mutation map (each assertion against its fix half):
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -126,6 +127,13 @@ def test_act_row_does_not_shift_stable_geometry(motion_app):
     # these tests assert nothing if the row never showed.
     app.set("position_z", _Z_DIVERGED)
     app.wait_idle()
+    # Poll rather than trust wait_idle alone: it is best-effort and does not see
+    # raw lv_async_call work, so on a slow machine the row can still be pending
+    # when it returns. The assert below is the real check - the loop only stops
+    # a fast reader from failing it prematurely.
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline and _act_text(app) != "3.00 mm":
+        time.sleep(0.25)
     assert _act_text(app) == "3.00 mm", (
         f"{size}: Act row did not appear on divergence")
 
