@@ -176,9 +176,16 @@ def artifacts(request):
     if not failed or app is None:
         return
 
+    dump_failure_diagnostics(app, target)
+
+
+def dump_failure_diagnostics(app, target):
+    """Write screenshot, log and state for `app` into `target`.
+
+    Each dump is independently best-effort: the app may be wedged or dead, and
+    losing the screenshot must not cost us the log.
+    """
     target.mkdir(parents=True, exist_ok=True)
-    # Each dump is independently best-effort: the app may be wedged or dead, and
-    # losing the screenshot must not cost us the log.
     try:
         app.screenshot(str((target / "screen.png").resolve()))
     except Exception as exc:  # noqa: BLE001 - diagnostics must never mask the real failure

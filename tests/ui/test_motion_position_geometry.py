@@ -40,6 +40,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import ARTIFACT_ROOT, dump_failure_diagnostics
 from helix.app import HelixApp, HelixCtlError
 
 _BINARY = Path(os.environ.get(
@@ -102,6 +103,14 @@ def motion_app(request, tmp_path):
             try:
                 yield app, size
             finally:
+                # This fixture builds its own HelixApp, so the `artifacts`
+                # fixture cannot resolve it and writes nothing. Dump here
+                # instead, before unfreeze, so a failure is inspected in the
+                # state it failed in.
+                if any(getattr(request.node, f"rep_{phase}", None) is not None
+                       and getattr(request.node, f"rep_{phase}").failed
+                       for phase in ("setup", "call")):
+                    dump_failure_diagnostics(app, ARTIFACT_ROOT / request.node.name)
                 app.unfreeze()
     finally:
         if before is None:
