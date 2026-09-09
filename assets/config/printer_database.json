@@ -168,6 +168,13 @@
           "pattern": "ad5x",
           "confidence": 0,
           "reason": "Exclude AD5X from matching as AD5M"
+        },
+        {
+          "type": "led_exclude",
+          "field": "leds",
+          "pattern": "chamber_l",
+          "confidence": 0,
+          "reason": "Exclude the enclosed Pro (only it has a chamber light)"
         }
       ],
       "pre_print_options": {
@@ -276,6 +283,13 @@
           "pattern": "ad5x",
           "confidence": 0,
           "reason": "Exclude AD5X from matching as AD5M"
+        },
+        {
+          "type": "led_exclude",
+          "field": "leds",
+          "pattern": "chamber_l",
+          "confidence": 0,
+          "reason": "Exclude the enclosed Pro (only it has a chamber light)"
         }
       ],
       "pre_print_options": {

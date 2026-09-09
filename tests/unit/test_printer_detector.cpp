@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/config_test_access.h"
+#include "app_globals.h"
 #include "config.h"
 #include "data_root_resolver.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "app_globals.h"
 #include "wizard_config_paths.h"
 
 #include <algorithm>
@@ -5466,8 +5466,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     REQUIRE(result.confidence > result.runner_up_confidence + 20);
 }
 
-TEST_CASE_METHOD(PrinterDetectorFixture,
-                 "PrinterDetector: class evidence alone identifies nothing",
+TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: class evidence alone identifies nothing",
                  "[printer][detector]") {
     SECTION("a chamber sensor on a nameless corexy rig names no printer") {
         // Every enclosed machine has these two. If they can identify, they pick
@@ -5517,8 +5516,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     REQUIRE(result.type_name != "Voron 0.2");
 }
 
-TEST_CASE_METHOD(PrinterDetectorFixture,
-                 "PrinterDetector: a real Qidi X-Max 3 is still identified",
+TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: a real Qidi X-Max 3 is still identified",
                  "[printer][detector]") {
     // The demotion must cost the Qidi nothing when its own evidence is present:
     // the chamber HEATER, the M141/M191 macros and the hostname all name it.
@@ -5711,6 +5709,195 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
     CHECK_FALSE(detected);
 
     CHECK(get_printer_state().get_printer_type() == "Voron 2.4");
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
+}
+
+// ============================================================================
+// Preset installs: nobody is asked, so detection has to decide
+// ============================================================================
+
+namespace {
+
+// The AD5M running Forge-X, as its own objects.list reports it. The Pro and the
+// plain machine share every line of this except the chamber light: the Pro's
+// enclosure is the whole physical difference between them, and the firmware is
+// identical either way.
+nlohmann::json ad5m_forgex_objects(bool chamber_light) {
+    nlohmann::json objects = {"gcode",
+                              "webhooks",
+                              "configfile",
+                              "mcu",
+                              "mcu eboard",
+                              "heaters",
+                              "heater_fan heat_fan",
+                              "fan_generic fanM106",
+                              "fan_generic chamber_fan",
+                              "fan_generic internal_fan",
+                              "fan_generic external_fan",
+                              "controller_fan driver_fan",
+                              "tmc2209 stepper_x",
+                              "tmc2209 stepper_y",
+                              "tmc2209 stepper_z",
+                              "tmc2209 extruder",
+                              "temperature_sensor weightValue",
+                              "temperature_sensor tvocValue",
+                              "filament_switch_sensor e0_sensor",
+                              "filament_switch_sensor e1_sensor",
+                              "bed_mesh",
+                              "probe",
+                              "mod_params",
+                              "resurrection",
+                              "firmware_retraction",
+                              "heater_bed",
+                              "extruder",
+                              "toolhead",
+                              "gcode_macro SUPPORT_FORGE_X",
+                              "gcode_macro LOAD_FILAMENT",
+                              "gcode_macro UNLOAD_FILAMENT"};
+    if (chamber_light) {
+        objects.push_back("led chamber_light");
+    }
+    return objects;
+}
+
+helix::PrinterDiscovery ad5m_forgex_discovery(bool chamber_light) {
+    helix::PrinterDiscovery discovery;
+    discovery.parse_objects(ad5m_forgex_objects(chamber_light));
+    discovery.set_hostname("ad5m");
+    discovery.set_kinematics("corexy");
+    return discovery;
+}
+
+// Elegoo Centauri Carbon on COSMOS firmware, from its objects.list. Its
+// hostname is "cosmos", which matches none of the database's Elegoo hostname
+// patterns, so it identifies on load_cell_probe alone and lands below the
+// auto-save bar.
+helix::PrinterDiscovery cc1_discovery() {
+    helix::PrinterDiscovery discovery;
+    discovery.parse_objects({"gcode",
+                             "webhooks",
+                             "configfile",
+                             "mcu",
+                             "mcu bed",
+                             "mcu hotend",
+                             "heaters",
+                             "heater_fan extruder",
+                             "fan",
+                             "heater_bed",
+                             "bed_mesh",
+                             "probe",
+                             "load_cell_probe",
+                             "filament_switch_sensor filament_sensor",
+                             "led case",
+                             "led hotend",
+                             "temperature_sensor chamber",
+                             "fan_generic aux_fan",
+                             "fan_generic case_fan",
+                             "temperature_sensor mcu_toolhead",
+                             "temperature_sensor mcu_bed",
+                             "temperature_host mainboard",
+                             "temperature_fan mainboard",
+                             "screws_tilt_adjust",
+                             "toolhead",
+                             "extruder"});
+    discovery.set_hostname("cosmos");
+    discovery.set_kinematics("corexy");
+    return discovery;
+}
+
+} // namespace
+
+// The two Forge-X entries carry identical identifying evidence: same firmware,
+// same sensors, same hostname. The enclosure is the only thing that tells the
+// machines apart, so the chamber light has to disqualify the open-frame entry
+// outright - scoring it merely higher leaves a tie, and a tie saves nothing and
+// leaves the printer wearing the generic image.
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: the chamber light separates an AD5M Pro from a plain 5M",
+                 "[printer][ad5m]") {
+    auto discovery = ad5m_forgex_discovery(true);
+    auto result = PrinterDetector::auto_detect(discovery);
+
+    CAPTURE(result.confidence, result.uncapped_confidence, result.runner_up_type_name,
+            result.runner_up_uncapped_confidence, result.margin(), result.reason);
+    REQUIRE(result.type_name == "FlashForge Adventurer 5M Pro (ForgeX)");
+    REQUIRE(PrinterDetector::meets_autosave_threshold(result));
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a plain AD5M on Forge-X is not read as the Pro",
+                 "[printer][ad5m]") {
+    auto discovery = ad5m_forgex_discovery(false);
+    auto result = PrinterDetector::auto_detect(discovery);
+
+    CAPTURE(result.confidence, result.runner_up_type_name, result.margin(), result.reason);
+    REQUIRE(result.type_name == "FlashForge Adventurer 5M (ForgeX)");
+}
+
+// A platform package seeds its preset into settings.json, and the wizard skips
+// every hardware step on such an install — so a printer left without a type
+// there keeps the generic image for good. The seeded family makes the tie
+// answerable: both candidates are variants of the machine the package named.
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save settles an ambiguous variant under the installed preset",
+                 "[printer_detector][preset]") {
+    SetUp();
+    get_printer_state().set_printer_type_sync("");
+
+    auto discovery = ad5m_forgex_discovery(false);
+
+    auto probe = PrinterDetector::auto_detect(discovery);
+    CAPTURE(probe.type_name, probe.confidence, probe.runner_up_type_name, probe.margin());
+    REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(probe));
+
+    config.set_preset("ad5m");
+    REQUIRE(PrinterDetector::auto_detect_and_save(discovery, &config));
+    CHECK(config.get<std::string>(config.df() + helix::wizard::PRINTER_TYPE, "") ==
+          "FlashForge Adventurer 5M (ForgeX)");
+    CHECK(get_printer_state().get_printer_type() == "FlashForge Adventurer 5M (ForgeX)");
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
+}
+
+// Without a preset the wizard still asks, so an ambiguous field stays open for
+// the user to answer rather than being settled behind their back.
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save leaves an ambiguous variant unset with no preset",
+                 "[printer_detector][preset]") {
+    SetUp();
+    get_printer_state().set_printer_type_sync("");
+
+    auto discovery = ad5m_forgex_discovery(false);
+    REQUIRE(config.get_preset().empty());
+
+    CHECK_FALSE(PrinterDetector::auto_detect_and_save(discovery, &config));
+    CHECK(config.get<std::string>(config.df() + helix::wizard::PRINTER_TYPE, "").empty());
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
+}
+
+// A win too weak to auto-save is still the answer when the package already
+// named the machine and no step will ever ask.
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save names the Centauri Carbon from its cc1 package",
+                 "[printer_detector][preset]") {
+    SetUp();
+    get_printer_state().set_printer_type_sync("");
+
+    auto discovery = cc1_discovery();
+
+    auto probe = PrinterDetector::auto_detect(discovery);
+    CAPTURE(probe.type_name, probe.confidence, probe.margin());
+    REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(probe));
+
+    config.set_preset("cc1");
+    REQUIRE(PrinterDetector::auto_detect_and_save(discovery, &config));
+    CHECK(config.get<std::string>(config.df() + helix::wizard::PRINTER_TYPE, "") ==
+          "Elegoo Centauri Carbon");
 
     get_printer_state().set_printer_type_sync("");
     TearDown();
