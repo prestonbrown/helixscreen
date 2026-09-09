@@ -8,32 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-09-09
 
 <!-- whatsnew
-The first stable release. Highlights:
+The first stable release.
 
-- Wi-Fi and Ethernet now drive the printer's own network daemon on Forge-X AD5M
-- The AD5M's buzzer plays melodies as clean notes, and works after every boot
-- The AD5X buzzer now works; its filament path is drawn as the machine is built
-- USB mice work on 64-bit machines; touch calibration fixed on rotated displays
-- Fixes home-panel crashes and a memory bug in confirmation dialogs
-- Idle CPU drops on two-core machines; animations off now means off
+Everything your printer can do, on the screen already attached to it: a dashboard
+you arrange yourself, bed mesh and input shaper you can actually see, multi-material
+handling, and print history. It runs on the hardware you own.
+
+80+ printers auto-detected. 9 languages. Nine platforms, from a printer's own MIPS
+panel to a Raspberry Pi.
+
+Coming from 0.99, this is an ordinary update.
 -->
 
-**Upgrading from 0.99?** Sound on the AD5M and AD5X now works properly - the AD5M's
-buzzer plays melodies cleanly where static was the best it could manage before, and the
-AD5X's buzzer, silent until this release, is heard too. If you prefer a quiet machine,
-the speaker on/off override in Settings now genuinely silences it.
+**Upgrading from 0.99?** Nothing to do differently. The version jump is cosmetic:
+every 0.99 install is on config_version 23 already, so this is an ordinary forward
+step for the updater and your settings, layout and printer list carry over untouched.
 
-The first stable release - the stabilization pass over the tail of the 0.99 line. The
-work since v0.99.118 went to three places. Sound on the FlashForge machines: the AD5M's
-buzzer plays music now instead of static, and the AD5X's silent buzzer was found and
-fixed. Networking: on printers whose firmware runs its own
-network daemon, the Wi-Fi and Ethernet page now drives that daemon instead of sitting
-beside it. And the AD5X's filament system, which is drawn the way the machine is actually
-built and now understands the IFS module split out of Z-Mod. Around those: USB mice on
-64-bit machines, touch calibration on rotated displays, previews going monochrome on
-routed multi-tool prints, a quieter pairing prompt, home-panel crashes chased from a field
-report, long-untranslated section titles, and a memory bug in confirmation dialogs that
-the nightly sanitizer run caught before any field report.
+**1.0.** Eleven months and 203 builds after the first commit, HelixScreen is a
+complete touchscreen UI rather than a promising one: 80+ printers it configures itself
+for, a dashboard you arrange yourself, bed mesh and input shaper rendered on the
+machine, multi-material across seven filament systems, and nine languages. It does that
+in about 15MB of RAM on a printer's own board, which is the whole point - the screen you
+already own is enough.
+
+Calling it 1.0 is a statement about the line, not about this build in isolation. The
+0.99 series ran long on purpose, and stable now means the update channel most installs
+track points here.
+
+The last stretch of work went to three places. Networking: on printers whose firmware
+runs its own network daemon, the Wi-Fi and Ethernet page drives that daemon instead of
+sitting beside it. The AD5X's filament system, drawn the way the machine is actually
+built, now understanding the IFS module split out of Z-Mod. And sound on the FlashForge
+machines, where the AD5M's buzzer plays music instead of static and the AD5X's silent
+buzzer was found and fixed. Around those: USB mice on 64-bit machines, touch calibration
+on rotated displays, previews going monochrome on routed multi-tool prints, a quieter
+pairing prompt, home-panel crashes chased from a field report, long-untranslated section
+titles, and a memory bug in confirmation dialogs that the nightly sanitizer run caught
+before any field report.
 
 ### Added
 
@@ -62,9 +73,8 @@ the nightly sanitizer run caught before any field report.
 
 **Filament**
 
-- **The standalone IFS module on the AD5X** - the filament system extracted from Z-Mod
-  ships in Forge-X as a module in its own right, reporting its state through its own
-  status objects. HelixScreen now recognizes those directly: which lanes hold material and
+- **The standalone IFS module on the AD5X** - the filament system now ships as a module
+  in its own right in Z-Mod, reporting its state through its own status objects. HelixScreen now recognizes those directly: which lanes hold material and
   what is on them, which lane is loaded and its colour, read from the module instead of
   polled through the older Z-Mod-era macros - which stand down on their own once the
   module is present.
@@ -75,6 +85,13 @@ the nightly sanitizer run caught before any field report.
   filament-runout dialog ended the print immediately, with no confirmation.
 - **Lanes of unknown type report their real fill** (#1367) - a lane whose type could not
   be determined reported empty rather than the level it actually had.
+**Updates**
+
+- **Choose Stable or Beta on any install** (#1236) - the update channel was a hidden
+  developer setting; it is now a normal choice in Settings. Stable tracks the 1.0 line,
+  Beta tracks what becomes 1.1. Picking a channel that offers an older build than the one
+  you are running asks before it downgrades, and never notifies you unprompted.
+
 **Pairing**
 
 - **Denied pairing requests stop coming back** (#1376) - denying a slicer or phone app's
