@@ -525,15 +525,27 @@ void ToolOffsetCalibrationPanel::save_offsets() {
     if (helix::ToolState::instance().dirty_tool_indices().empty()) {
         return;
     }
-    const auto& hw = get_printer_state().get_discovery();
-    if (!helix::tool_offsets::persist_requires_save_config(hw)) {
+    // Warn only when a restart is actually coming, as the header's save
+    // decides it: a pending machine-wide babystep always ends in SAVE_CONFIG,
+    // and so do staged tool parameters; a firmware that persists immediately
+    // restarts nothing.
+    helix::PrinterState& ps = get_printer_state();
+    const bool global_dirty = lv_subject_get_int(ps.get_gcode_z_offset_subject()) != 0;
+    const bool restart_expected =
+        global_dirty || helix::tool_offsets::persist_requires_save_config(ps.get_discovery());
+    if (!restart_expected) {
         send_save();
         return;
     }
     helix::ui::modal_confirm(
         lv_tr("Save offsets?"),
-        lv_tr("This writes the tool offsets to the printer's config and restarts Klipper, "
-              "which takes a few seconds. Until then they apply only to this session."),
+        // The one restart also commits the babystep; say so in the words the
+        // Controls and header saves use.
+        global_dirty
+            ? lv_tr("This will save the Z-offset and restart Klipper to write the configuration. "
+                    "The printer will briefly disconnect.")
+            : lv_tr("This writes the tool offsets to the printer's config and restarts Klipper, "
+                    "which takes a few seconds. Until then they apply only to this session."),
         ModalSeverity::Warning, lv_tr("Save"),
         []() { get_global_tool_offset_cal_panel().send_save(); });
 }
@@ -546,11 +558,15 @@ void ToolOffsetCalibrationPanel::send_save() {
     }
     helix::PrinterState& ps = get_printer_state();
     lv_subject_copy_string(&status_, lv_tr("Saving offsets..."));
-    // The same path the header's save button takes, minus the machine-wide
-    // baby step: only the tools are this panel's business.
+    // The same path the header's save button takes, babystep included: the
+    // SAVE_CONFIG this ends in restarts Klipper, which resets homing_origin,
+    // so a pending machine-wide babystep is either applied and committed in
+    // this same restart or silently lost by it - and its pending delta would
+    // then go on being shown in Controls for an adjustment that no longer
+    // existed. Computed as the header and Controls saves compute it.
+    const bool global_dirty = lv_subject_get_int(ps.get_gcode_z_offset_subject()) != 0;
     helix::zoffset::save_dirty_offsets(
-        api, save_watch_, ps.get_z_offset_calibration_strategy(), ps.get_discovery(),
-        /*global_dirty=*/false,
+        api, save_watch_, ps.get_z_offset_calibration_strategy(), ps.get_discovery(), global_dirty,
         run_lifetime_.bg_cb("ToolOffsetCal::saved",
                             [this]() {
                                 lv_subject_copy_string(&status_, lv_tr("Offsets saved"));

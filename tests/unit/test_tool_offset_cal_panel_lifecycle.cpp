@@ -223,3 +223,56 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: no tools is a refusal,
     panel.on_deactivate();
     panel.cleanup();
 }
+
+TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: Save commits a pending babystep too",
+                 "[ui_integration][toolchanger][tool_offset_cal]") {
+    // The SAVE_CONFIG a tool save ends in restarts Klipper, which resets
+    // homing_origin: a babystep not applied in that same restart is lost, while
+    // its pending delta went on being shown. Save must apply it, as the header
+    // and Controls saves do.
+    helix::PrinterState& ps = get_printer_state();
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        ps, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    ps.update_from_status(
+        json{{"gcode_move", json{{"homing_origin", json::array({0.0, 0.0, 0.05, 0.0})}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(lv_subject_get_int(ps.get_gcode_z_offset_subject()) == 50);
+
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    client->clear_gcode_script_history();
+    panel.send_save();
+    // The apply's success callback sends SAVE_CONFIG; pump until both are out.
+    REQUIRE(pump_until([&] { return client->gcode_script_history().size() >= 2; }, 50));
+
+    const auto& hist = client->gcode_script_history();
+    CHECK(hist[hist.size() - 2] == "Z_OFFSET_APPLY_PROBE");
+    CHECK(hist.back() == "SAVE_CONFIG");
+
+    panel.on_deactivate();
+    panel.cleanup();
+}
+
+TEST_CASE_METHOD(ToolCalPanelFixture,
+                 "tool offset panel: Save applies no babystep when none is pending",
+                 "[ui_integration][toolchanger][tool_offset_cal]") {
+    helix::PrinterState& ps = get_printer_state();
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        ps, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    REQUIRE(lv_subject_get_int(ps.get_gcode_z_offset_subject()) == 0);
+
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    client->clear_gcode_script_history();
+    panel.send_save();
+    pump_until([] { return false; }, 20);
+
+    for (const auto& script : client->gcode_script_history()) {
+        CHECK(script.find("Z_OFFSET_APPLY") == std::string::npos);
+    }
+
+    panel.on_deactivate();
+    panel.cleanup();
+}
