@@ -435,6 +435,101 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_p
     REQUIRE(port_step >= port_btn_w);
 }
 
+/**
+ * @brief Test fixture for the app shell, built from ui_xml/app_layout.xml
+ *
+ * One component serves both orientations, so the shell's axis and the order it
+ * places the nav bar in are bound styles rather than two files. Only the shell
+ * root is instantiated here; the panel subtrees come with it.
+ */
+class AppShellTestFixture : public LVGLUITestFixture {
+  public:
+    AppShellTestFixture() {
+        shell_ = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "app_layout", nullptr));
+        if (shell_ == nullptr) {
+            spdlog::error("[AppShellTestFixture] Failed to create app_layout!");
+        }
+    }
+
+    ~AppShellTestFixture() override {
+        if (shell_ != nullptr) {
+            lv_obj_delete(shell_);
+            shell_ = nullptr;
+        }
+    }
+
+    lv_obj_t* shell_ = nullptr;
+};
+
+TEST_CASE_METHOD(AppShellTestFixture, "App shell: the nav bar changes edges with ui_is_portrait",
+                 "[navbar][ui_integration]") {
+    REQUIRE(shell_ != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    ScopedSubjectInt restore_portrait(portrait);
+
+    lv_obj_t* navbar = lv_obj_find_by_name(shell_, "navbar");
+    lv_obj_t* content = lv_obj_find_by_name(shell_, "content_area");
+    REQUIRE(navbar != nullptr);
+    REQUIRE(content != nullptr);
+
+    // Where each child LANDS is the only thing that separates a working shell
+    // from the three ways this can break: no layout at all leaves both children
+    // at the content origin, a row flow in portrait starves content_area to zero
+    // width, and a forward column flow puts the bar at the top. Sizes alone hold
+    // in all three.
+    lv_subject_set_int(portrait, 0);
+    lv_obj_update_layout(shell_);
+    // The shell is width/height 100%, so its own box only resolves once a layout
+    // pass has run.
+    const int32_t shell_w = lv_obj_get_width(shell_);
+    const int32_t shell_h = lv_obj_get_height(shell_);
+    const int32_t land_nav_x = lv_obj_get_x(navbar);
+    const int32_t land_nav_y = lv_obj_get_y(navbar);
+    const int32_t land_nav_w = lv_obj_get_width(navbar);
+    const int32_t land_content_x = lv_obj_get_x(content);
+    const int32_t land_content_y = lv_obj_get_y(content);
+    const int32_t land_content_w = lv_obj_get_width(content);
+    const int32_t land_content_h = lv_obj_get_height(content);
+
+    lv_subject_set_int(portrait, 1);
+    lv_obj_update_layout(shell_);
+    const int32_t port_nav_x = lv_obj_get_x(navbar);
+    const int32_t port_nav_y = lv_obj_get_y(navbar);
+    const int32_t port_nav_h = lv_obj_get_height(navbar);
+    const int32_t port_content_x = lv_obj_get_x(content);
+    const int32_t port_content_y = lv_obj_get_y(content);
+    const int32_t port_content_w = lv_obj_get_width(content);
+    const int32_t port_content_h = lv_obj_get_height(content);
+
+    INFO("shell " << shell_w << "x" << shell_h);
+    INFO("landscape navbar at " << land_nav_x << "," << land_nav_y << " w " << land_nav_w
+                                << "; content at " << land_content_x << "," << land_content_y << " "
+                                << land_content_w << "x" << land_content_h);
+    INFO("portrait navbar at " << port_nav_x << "," << port_nav_y << " h " << port_nav_h
+                               << "; content at " << port_content_x << "," << port_content_y << " "
+                               << port_content_w << "x" << port_content_h);
+
+    // Landscape: strip on the leading edge, content filling the rest of the row.
+    REQUIRE(land_nav_x == 0);
+    REQUIRE(land_nav_y == 0);
+    REQUIRE(land_content_y == 0);
+    REQUIRE(land_content_x >= land_nav_x + land_nav_w);
+    REQUIRE(land_content_x + land_content_w == shell_w);
+    REQUIRE(land_content_h == shell_h);
+
+    // Portrait: content on top, bar flush against the bottom edge. The reverse
+    // flow is what puts the first-declared child last, so the bar starting below
+    // where content_area ends is the assertion that proves it.
+    REQUIRE(port_content_x == 0);
+    REQUIRE(port_content_y == 0);
+    REQUIRE(port_content_w == shell_w);
+    REQUIRE(port_nav_x == 0);
+    REQUIRE(port_nav_y >= port_content_y + port_content_h);
+    REQUIRE(port_nav_y + port_nav_h == shell_h);
+}
+
 // ============================================================================
 // Overlay Instance Registration Tests
 // ============================================================================

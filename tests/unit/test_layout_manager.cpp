@@ -381,39 +381,53 @@ TEST_CASE_METHOD(LayoutFixture, "has_override returns true for micro controls_pa
 // ============================================================================
 // Portrait family fallback chain (requires ui_xml/portrait/ files on disk)
 //
-// tiny_portrait and micro_portrait carry no app_layout.xml of their own; they
-// inherit the shared ui_xml/portrait/ layer before falling back to base
+// tiny_portrait and micro_portrait carry no print_status_panel.xml of their own;
+// they inherit the shared ui_xml/portrait/ layer before falling back to base
 // (landscape). This lets the small-portrait classes hold only files that differ
-// from portrait/ instead of duplicating the whole shell.
+// from portrait/ instead of duplicating every reflowed panel.
 // ============================================================================
 
-TEST_CASE_METHOD(LayoutFixture, "tiny_portrait inherits app_layout from portrait layer",
+TEST_CASE_METHOD(LayoutFixture, "tiny_portrait inherits print_status_panel from portrait layer",
                  "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(320, 480);
     REQUIRE(lm.type() == LayoutType::TINY_PORTRAIT);
 
-    // No tiny_portrait/app_layout.xml -> resolves up the chain to portrait/.
-    REQUIRE(lm.resolve_xml_path("app_layout.xml") == "ui_xml/portrait/app_layout.xml");
-    REQUIRE(lm.has_override("app_layout.xml") == true);
+    // No tiny_portrait/print_status_panel.xml -> resolves up the chain to portrait/.
+    REQUIRE(lm.resolve_xml_path("print_status_panel.xml") ==
+            "ui_xml/portrait/print_status_panel.xml");
+    REQUIRE(lm.has_override("print_status_panel.xml") == true);
 }
 
-TEST_CASE_METHOD(LayoutFixture, "micro_portrait inherits app_layout from portrait layer",
+TEST_CASE_METHOD(LayoutFixture, "micro_portrait inherits print_status_panel from portrait layer",
                  "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(272, 480);
     REQUIRE(lm.type() == LayoutType::MICRO_PORTRAIT);
 
-    REQUIRE(lm.resolve_xml_path("app_layout.xml") == "ui_xml/portrait/app_layout.xml");
+    REQUIRE(lm.resolve_xml_path("print_status_panel.xml") ==
+            "ui_xml/portrait/print_status_panel.xml");
 }
 
-TEST_CASE_METHOD(LayoutFixture, "portrait resolves its own app_layout override",
+TEST_CASE_METHOD(LayoutFixture, "portrait resolves its own print_status_panel override",
                  "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(480, 800);
     REQUIRE(lm.type() == LayoutType::PORTRAIT);
 
-    REQUIRE(lm.resolve_xml_path("app_layout.xml") == "ui_xml/portrait/app_layout.xml");
+    REQUIRE(lm.resolve_xml_path("print_status_panel.xml") ==
+            "ui_xml/portrait/print_status_panel.xml");
+}
+
+// The app shell is one file for both orientations: orientation reaches it as
+// styles bound on ui_is_portrait, not as a variant override.
+TEST_CASE_METHOD(LayoutFixture, "portrait resolves the shared app_layout", "[layout-manager]") {
+    auto& lm = LayoutManager::instance();
+    lm.init(480, 800);
+    REQUIRE(lm.type() == LayoutType::PORTRAIT);
+
+    REQUIRE(lm.resolve_xml_path("app_layout.xml") == "ui_xml/app_layout.xml");
+    REQUIRE(lm.has_override("app_layout.xml") == false);
 }
 
 TEST_CASE_METHOD(LayoutFixture, "portrait family still falls back to base for non-overridden files",

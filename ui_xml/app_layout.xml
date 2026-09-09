@@ -2,15 +2,34 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Main application layout: horizontal container with nav bar + content area -->
+  <styles>
+    <!-- One shell, two orientations. The pair is bound complementarily on
+         ui_is_portrait so exactly one is ever live, and flex_flow must NOT also
+         appear inline on the view: an inline flex_flow is a local style and
+         outranks every added style, which would pin the shell to one axis with
+         nothing failing. -->
+    <!-- Landscape: nav strip down the leading edge, content beside it. -->
+    <style name="app_layout_landscape" flex_flow="row"/>
+    <!-- Portrait: nav bar across the bottom, content above it. A reverse flow
+         places children from the far end, so the navbar declared first lands at
+         the bottom and one child order serves both orientations. -->
+    <style name="app_layout_portrait" flex_flow="column_reverse"/>
+  </styles>
+  <!-- Main application layout: nav bar plus content area, on whichever axis the
+       orientation asks for. style_layout is inline because a style block carries
+       the flow alone: layout is a separate style property there, and without it
+       the shell has no layout and every panel stacks at the content origin. -->
   <view extends="lv_obj"
-        width="100%" height="100%" style_bg_opa="0%" style_border_width="0" style_pad_all="0" style_pad_column="0"
-        flex_flow="row">
-    <!-- Navigation bar (left side) -->
+        width="100%" height="100%" style_layout="flex" style_bg_opa="0%" style_border_width="0" style_pad_all="0"
+        style_pad_column="0">
+    <bind_style_if_eq name="app_layout_portrait" subject="ui_is_portrait" ref_value="1"/>
+    <bind_style_if_not_eq name="app_layout_landscape" subject="ui_is_portrait" ref_value="1"/>
+    <!-- Navigation bar: leading edge in landscape, bottom in portrait -->
     <navigation_bar name="navbar"/>
-    <!-- Content area (right side, grows to fill remaining space) -->
-    <!-- Status icons moved to sidebar bottom - full height for panels -->
-    <lv_obj name="content_area" height="100%" flex_grow="1" style_bg_opa="0%" style_pad_all="0" flex_flow="column">
+    <!-- Content area. flex_grow owns the shell's main axis in either flow, so
+         each 100% only ever resolves on the cross axis. -->
+    <lv_obj name="content_area"
+            width="100%" height="100%" flex_grow="1" style_bg_opa="0%" style_pad_all="0" flex_flow="column">
       <!-- Panel container (grows to fill remaining space) -->
       <!-- All panels are stacked here, navigation controls visibility -->
       <lv_obj name="panel_container" width="100%" flex_grow="1" style_bg_opa="0%" style_pad_all="0">
