@@ -352,9 +352,11 @@ jobs:
         restore-keys: |
           deps-macos-14-
 
-    # Restore and save are split so the save can be limited to the refs that
-    # earn a 1.3 GB slice of the shared 10 GB cache. Same budget arithmetic as
-    # the ubuntu family above.
+    # Restore and save are split so the save can be limited to one ref. macOS is
+    # a development platform, never a deployment target, so this job is a
+    # portability check rather than something a release depends on - it does not
+    # earn a slice of the shared 10 GB cache on every long-lived branch. A
+    # release/** run still restores the default branch's generation.
     - name: Restore ccache
       uses: actions/cache/restore@v5
       with:
@@ -406,7 +408,7 @@ jobs:
         ccache -s
 
     - name: Save ccache
-      if: always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+      if: always() && github.ref == 'refs/heads/main'
       uses: actions/cache/save@v5
       with:
         path: ~/Library/Caches/ccache
