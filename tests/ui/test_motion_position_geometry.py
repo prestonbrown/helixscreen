@@ -79,6 +79,21 @@ def _act_text(app: HelixApp) -> str | None:
         return None
 
 
+def _assert_z_subjects(app: HelixApp, size: str, gcode: int, actual: int) -> None:
+    """Fail if the Z subjects do not hold what the caller just wrote.
+
+    Both states this test measures are reachable without either `set` landing:
+    a frozen instance starts at 0/0, which is equal, and equal is what the
+    hidden half looks for. Reading the subjects back is what makes the setup a
+    step that can fail rather than one that is assumed.
+    """
+    for name, expected in (("gcode_position_z", gcode), ("position_z", actual)):
+        got = app.get(name).get("value")
+        assert got == expected, (
+            f"{size}: {name} reads {got!r}, expected {expected} - the write did "
+            f"not land, so what follows measures a state nobody established")
+
+
 def _wait_act_text(app: HelixApp, expected: str | None,
                    timeout: float = 15.0) -> str | None:
     """Poll the Act value until it reads `expected`, then report what it reads.
@@ -150,6 +165,7 @@ def test_act_row_does_not_shift_stable_geometry(motion_app):
     app.set("gcode_position_z", _Z_EQUAL)
     app.set("position_z", _Z_DIVERGED)
     app.wait_idle()
+    _assert_z_subjects(app, size, gcode=_Z_EQUAL, actual=_Z_DIVERGED)
     # Report the value, not just the expectation: None means the row is hidden or
     # absent, anything else means it rendered and the text is wrong. A bare
     # message cannot tell those apart, and a custom message suppresses pytest's
@@ -184,6 +200,7 @@ def test_act_row_does_not_shift_stable_geometry(motion_app):
     # something - the row was demonstrably there a moment ago.
     app.set("position_z", _Z_EQUAL)
     app.wait_idle()
+    _assert_z_subjects(app, size, gcode=_Z_EQUAL, actual=_Z_EQUAL)
     gone = _wait_act_text(app, None)
     assert gone is None, (
         f"{size}: Act row reads {gone!r} with equal Z, expected it hidden")
