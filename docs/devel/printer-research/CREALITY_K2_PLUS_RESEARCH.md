@@ -266,7 +266,7 @@ Remaining work is variant breadth (K2, K2 Pro, K2 SE) and a native CFS implement
 
 ## 12. Display Details
 
-Verified on a K2 Plus (2026-09-08, read-only SSH).
+Verified on a K2 Plus (2026-09-08, read-only SSH), board `CR0CN240110C10`, firmware 1.1.4.11.
 
 | Attribute | Value |
 |-----------|-------|
@@ -371,8 +371,24 @@ Reported by a community member (2026-09-08), collected on their machine rather t
 
 The board ID in `DISTRIB_TARGET` is the field that actually separates the two, and it is a
 better variant discriminator than the hostname: everything else in the identity block is
-byte-identical apart from build stamps. The Pro's firmware is roughly five months newer, so
-expect its macro set to be the thing that differs, not its hardware.
+byte-identical apart from build stamps.
+
+The build-stamp gap is **not** established as a model difference. Our K2 Plus reference unit
+runs firmware **1.1.4.11** and has never been updated, so the roughly five months between the
+two images is at least partly our own version skew. Nothing here separates a Pro from a Plus
+on the strength of a date. Settling it needs a Plus on current firmware, and the macro set is
+where any real difference would show, not the hardware.
+
+Reading the firmware version on a K2 (there is no `/etc/ota_info`, unlike the K1 family):
+
+```bash
+sh /etc/ota_bin/get_ota_board_name.sh        # CR0CN240110C10 on a K2 Plus
+sh /etc/ota_bin/get_ota_current_version.sh   # fw_printenv version, e.g. 1.1.4.11
+```
+
+The version lives in the U-Boot environment. The update *check* lived in Creality's daemon
+stack, which HelixScreen stops, so an installed machine cannot tell you whether a newer image
+exists.
 
 The `k2` build target and its 270-degree display handling apply unchanged. Still outstanding:
 the touch controller name and `printer.cfg` - bed size and macro set are what the database
