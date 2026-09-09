@@ -1,11 +1,11 @@
 # Creality K2 Plus (and K2 Series) Research
 
-**Date**: 2026-02-02 (updated 2026-02-07)
-**Status**: Comprehensive research complete (architecture corrected)
+**Date**: 2026-02-02 (hardware verified on a K2 Plus 2026-09-08)
+**Status**: Hardware confirmed, build target shipping
 
 ## Executive Summary
 
-The Creality K2 Plus is Creality's flagship CoreXY enclosed printer with 350mm³ build volume. It runs **Creality OS** (modified Klipper) and supports multi-material via **CFS (Creality Filament System)** - up to 16 colors with 4 daisy-chained units. **Moonraker is included in stock firmware** on port 4408. The K2 Plus likely uses the same Ingenic X2000E MIPS processor as the K1 series.
+The Creality K2 Plus is Creality's flagship CoreXY enclosed printer with 350mm³ build volume. It runs **Creality OS** (modified Klipper) and supports multi-material via **CFS (Creality Filament System)** - up to 16 colors with 4 daisy-chained units. **Moonraker is included in stock firmware**, on port 7125 directly and 4408 behind nginx. The K2 Plus runs an **Allwinner T113 (`sun8iw20p1`), dual-core ARM Cortex-A7** - not the Ingenic MIPS part used by the K1 series.
 
 ---
 
@@ -31,7 +31,7 @@ The Creality K2 Plus is Creality's flagship CoreXY enclosed printer with 350mm³
 ### Processor
 **CONFIRMED (on device 2026-03-23, K2 Plus hostname K2Plus-50C1)**: The K2 uses a DIFFERENT SoC than the K1 series.
 - **Linux SoC**: Allwinner T113 (sun8iw20p1), dual-core ARM Cortex-A7, armv7l (32-bit only) (NOT Ingenic MIPS like K1)
-- **Evidence**: Tina Linux (Allwinner's distro), entware armv7sf installer; `/proc/cpuinfo` reports sun8iw20p1 / Cortex-A7. linux-sunxi.org lists sun8iw20 = T113. (The earlier "A133/T800 rebadge" guess was wrong — the actual SoC is T113/sun8iw20p1.)
+- **Evidence**: Tina Linux (Allwinner's distro), entware armv7sf installer; `/proc/cpuinfo` reports sun8iw20p1 / Cortex-A7. linux-sunxi.org lists sun8iw20 = T113.
 - **RAM**: ~488 MB total (confirmed on device)
 - **Storage**: 32 GB
 - **Motion MCU**: GD32F303RET6 (ARM Cortex-M3) - same as K1
@@ -50,8 +50,8 @@ The Creality K2 Plus is Creality's flagship CoreXY enclosed printer with 350mm³
 ## 2. Stock Firmware
 
 ### Operating System
-- **Tina Linux 21.02-SNAPSHOT** (Buildroot-based)
-- **Kernel**: Linux 4.x
+- **Tina Linux 21.02-SNAPSHOT** (OpenWrt-based; `DISTRIB_ID='OpenWrt'`)
+- **Kernel**: Linux 5.4.61 armv7l
 - **Klipper**: Custom fork with proprietary extensions
 - **Python**: 3.9
 
@@ -173,9 +173,13 @@ max_z_position: 320
 - **Type**: LCD touchscreen
 - **Interface**: `/dev/fb0`
 
+- **Touch**: Goodix `gt9xxnew_ts`, capacitive, `/dev/input/event0`
+
+Full measured geometry, rotation and DPI are in [Section 12](#12-display-details).
+
 ### Software
-- Stock UI likely LVGL-based (similar to K1)
-- Direct framebuffer rendering
+- Stock UI is `/usr/bin/display-server`, LVGL-based like the K1's
+- Direct framebuffer rendering, no DRM/KMS
 - No X11/Wayland
 
 ---
@@ -201,26 +205,29 @@ ssh root@<printer-ip>
 ## 9. HelixScreen Compatibility Assessment
 
 ### Favorable Factors
-1. **Moonraker included** - Stock firmware has Moonraker on port 4408
+1. **Moonraker included** - stock firmware, port 7125 direct and 4408 behind nginx
 2. **Root access available** - SSH with default credentials
-3. **Linux framebuffer** - Direct `/dev/fb0` access
-4. **LVGL precedent** - Stock UI and GuppyScreen both use LVGL
+3. **Linux framebuffer** - direct `/dev/fb0` access, released cleanly when `display-server` stops
+4. **LVGL precedent** - the stock UI is LVGL too
 
 ### Challenges
 
-| Challenge | Severity | Notes |
-|-----------|----------|-------|
-| Display Resolution | MEDIUM | 480x800 portrait orientation |
-| CFS Integration | MEDIUM | Proprietary blobs for filament system |
-| No Custom UI Precedent | MEDIUM | No GuppyScreen or other LVGL UI deployed on K2 |
-| Declining Community | LOW-MEDIUM | Key maintainers (Guilouz, jamincollins) left |
+| Challenge | Status |
+|-----------|--------|
+| 480x800 portrait panel | Resolved - rotated 270 degrees in software, shipped in the `k2` preset |
+| Dual-core Cortex-A7 headroom | Live constraint - animations are disabled in the preset, and `hooks-k2.sh` allows 120s for Moonraker to answer |
+| CFS integration | Partial - status and control work; the protocol is reverse-engineered from `box_wrapper.cpython-39.so` rather than reimplemented |
+| Boot animation overlay | Resolved - `boot-play` composites a video layer above the framebuffer, so the hooks kill it explicitly |
+| Declining community | Unchanged - key maintainers (Guilouz, jamincollins) left, but stock Moonraker means we depend on them less |
 
 ### Implementation Path
-1. **Confirm SoC** - Check `/proc/cpuinfo` (expected: Allwinner ARM)
-2. **Build toolchain** - Standard ARM aarch64/armv7 cross-compilation (much easier than K1 MIPS)
-3. **Port LVGL drivers** - Framebuffer `/dev/fb0`, evdev touch
-4. **Moonraker integration** - Stock on port 4408
-5. **CFS support** - Use G-code macros (T0-T3, BOX_*)
+
+Steps 1 to 5 are done: the SoC is confirmed T113, the armv7 musl toolchain is in
+`docker/Dockerfile.k2`, fbdev and evdev drive the panel and touch, Moonraker is wired on
+7125, and CFS runs through the `box` object and `M8200`.
+
+Remaining work is variant breadth (K2, K2 Pro, K2 SE) and a native CFS implementation - see
+[Section 14](#14-helixscreen-build-target).
 
 ---
 
@@ -247,9 +254,9 @@ ssh root@<printer-ip>
 | What | Path |
 |------|------|
 | Klipper | `/usr/share/klipper/` |
-| Klipper config | `/usr/share/klipper/config/printer.cfg` |
+| Klipper config | `/mnt/UDISK/printer_data/config/printer.cfg` |
 | G-code macros | `/usr/share/klipper/config/gcode_macro.cfg` |
-| Moonraker | Stock, port **4408** (Fluidd) / **4409** (Mainsail) |
+| Moonraker | Stock, port **7125** direct / **4408** via nginx |
 | Stock UI | `/usr/bin/display-server` |
 | Init system | **procd** (OpenWrt-style, NOT SysV or systemd) |
 | Service startup | `/etc/init.d/app` (starts display-server, master-server, app-server, etc.) |
@@ -259,78 +266,140 @@ ssh root@<printer-ip>
 
 ## 12. Display Details
 
+Verified on a K2 Plus (2026-09-08, read-only SSH).
+
 | Attribute | Value |
 |-----------|-------|
 | Size | 4.3 inches |
-| Panel resolution | 480 x 800 (native portrait panel) |
-| **Displayed orientation** | **Appears landscape from product photos** - likely 800x480 after driver/software rotation |
-| Touch type | **Capacitive** (Goodix GT9xx or TLSC6x controllers) |
-| Touch modules | `gt9xxnew_ts.ko`, `tlsc6x.ko` (two variants for different HW revisions) |
-| Framebuffer | `/dev/fb0` |
-| G2D accelerator | `g2d_sunxi` loaded at boot (Allwinner hardware 2D accel, supports rotation) |
-| Display control | `/sys/kernel/debug/dispdbg` IOCTLs |
+| Panel resolution | 480 x 800 native portrait |
+| Panel string | `lcm_id=gc9503cv_ue_480_800` in `/proc/cmdline` |
+| Framebuffer mode | `U:480x800p-58` (`/sys/class/graphics/fb0/modes`) |
+| Virtual framebuffer | `480,1600` - two stacked 480x800 buffers for page flipping, not a taller panel |
+| Framebuffer depth / stride | 32 bpp, 1920 bytes (480 x 4) |
+| Presented orientation | Landscape, by software rotation 270 degrees |
+| DPI | 218.2, from `src/application/display_metrics.cpp#kKnownPanels` (`{"k2", {480, 800, 108.6}}`) |
+| Touch controller | Goodix `gt9xxnew_ts`, I2C (`Bus=0018`), sole node `/dev/input/event0` |
+| Touch modules on disk | `gt9xxnew_ts.ko`, `tlsc6x.ko` - two variants for different hardware revisions |
+| Framebuffer device | `/dev/fb0`; no DRM (`/dev/dri` absent) |
+| Backlight | No `/sys/class/backlight` class; `platform_enable_backlight()` in `hooks-k2.sh` is a no-op |
+| G2D accelerator | `g2d_sunxi` loaded at boot (Allwinner hardware 2D, supports rotation) |
 
-**UNCONFIRMED**: Whether the framebuffer reports 800x480 (driver-rotated, ideal for us) or 480x800 (would need software rotation). Need `cat /sys/class/graphics/fb0/virtual_size` from actual hardware.
+Rotation is shipped, not probed. `assets/config/presets/k2.json` sets `display.rotate: 270`
+with `rotation_probed: true`, so the interactive orientation probe in
+`src/application/application.cpp#run_rotation_probe_and_layout` never runs on a K2. The same
+preset sets `animations_enabled: false` for the dual-core A7. Override at runtime with
+`HELIX_DISPLAY_ROTATION` or `--rotate`.
+
+The touch device name contains no "touch" substring, so
+`grep -i touch /proc/bus/input/devices` returns nothing on a perfectly healthy K2. Match on
+the handler node or the `gt9`/`goodix` prefix instead. Both of those are in the scoring list
+in `include/touch_calibration.h#is_known_touchscreen_name`; **`tlsc` is not**, so a board
+carrying the `tlsc6x` variant scores lower and leans on its `INPUT_PROP_DIRECT` and ABS
+capability bits to be selected. No K2 with that variant has been observed yet.
 
 ---
 
-## 13. Open Questions (Need Hardware Access)
+## 13. Hardware Profile (answered) and Bring-Up Probe for Other K2 Variants
 
-These can only be answered by someone with SSH access to a K2/K2 Plus:
+The questions this section used to pose are answered for the K2 Plus. The commands are kept
+because they are what a contributor with a different K2 variant should run and report.
+
+| # | Probe | K2 Plus answer |
+|---|-------|----------------|
+| 1 | `cat /sys/class/graphics/fb0/virtual_size` | `480,1600` (portrait panel, double-buffered) |
+| 2 | `uname -m` | `armv7l` |
+| 3 | `tr -d '\0' < /proc/device-tree/compatible` | `allwinner,t113_iarm,sun8iw20p1` |
+| 4 | `ls /lib/ld-*.so* /lib/libc.so.6` | glibc 2.29, `ld-linux-armhf.so.3`; libstdc++ 6.0.25 |
+| 5 | `df -h` | 27.5 GB writable on `/mnt/UDISK` |
+| 6 | stop `display-server`, write to `/dev/fb0` | Releases the framebuffer cleanly |
+| 7 | `cat /proc/bus/input/devices` | `gt9xxnew_ts` on `event0`, the only input node |
+| 8 | Moonraker reachable | Yes, 7125 direct / 4408 via nginx |
+
+Full probe to hand to someone with a different K2. Note the K2 has **no curl** (BusyBox wget,
+no HTTPS, and recent builds drop wget too), so HTTP goes through `python3 urllib`:
 
 ```bash
-# 1. Display - is it already rotated by the driver?
-cat /sys/class/graphics/fb0/virtual_size
-# Expected: "800,480" (great) or "480,800" (need sw rotation)
+# Identity - the board string is what distinguishes variants
+tr -d '\0' < /proc/device-tree/compatible; echo
+cat /etc/openwrt_release            # DISTRIB_TARGET carries the board ID
+hostname; uname -a
 
-# 2. CPU architecture - what ARM variant?
-uname -m
-# Expected: "armv7l" or "aarch64"
+# Display - panel geometry, and whether the driver already rotated it
+for f in modes virtual_size bits_per_pixel stride rotate; do
+  printf '%-16s ' "$f"; cat /sys/class/graphics/fb0/$f
+done
+cat /proc/cmdline                   # lcm_id= panel string, panel_orientation= if present
+ls /dev/fb* /dev/dri 2>&1           # DRM present, or fbdev only?
 
-# 3. SoC confirmation
-cat /proc/cpuinfo
-# Looking for: Allwinner sun8iw20p1 / T113, Cortex-A7, etc.
+# Touch - do NOT grep for "touch", the Goodix node is not named that
+cat /proc/bus/input/devices
+cat /sys/class/input/event0/device/properties     # 0x1 = INPUT_PROP_DIRECT
+cat /sys/class/input/event0/device/capabilities/abs
 
-# 4. Libc - musl or glibc?
-ldd --version 2>&1 || ls /lib/libc.so* /lib/ld-*
-# Determines static linking strategy
+# Toolchain fit
+ls -l /lib/ld-*.so* /lib/libc.so.6 /lib/libstdc++.so.6*
 
-# 5. Writable space - where to install HelixScreen?
-df -h
-mount
-# Need a writable partition with space for our binary + assets
+# Resources, layout, and which process owns the screen
+free -m; df -h; ls /mnt/UDISK
+ps w | grep -vE '\[.*\]'
+ls /etc/init.d/
 
-# 6. Framebuffer release - does killing display-server work cleanly?
-killall display-server
-cat /dev/urandom > /dev/fb0  # should see noise on screen
-
-# 7. Touch device path
-ls /dev/input/event*
-cat /proc/bus/input/devices | grep -A 4 -i touch
-
-# 8. Moonraker confirmation
-curl -s http://localhost:4408/server/info | head
+# Klipper / Moonraker shape - this is what the printer database entry keys on
+cat /mnt/UDISK/printer_data/config/printer.cfg
+python3 -c "import urllib.request as u;print(u.urlopen('http://127.0.0.1:7125/printer/objects/list').read().decode()[:2000])"
 ```
+
+### K2 Pro
+
+Reported by a community member (2026-09-08), not yet verified by us on our own hardware:
+
+| Fact | K2 Pro (reported) | K2 Plus (measured) |
+|------|-------------------|--------------------|
+| `uname -m` | `armv7l` | `armv7l` |
+| CPU | 2 x Cortex-A7 rev 5, 57.14 BogoMIPS | 2 x Cortex-A7 rev 5, 57.14 BogoMIPS |
+| libc | glibc 2.29, `ld-linux-armhf.so.3` | glibc 2.29, `ld-linux-armhf.so.3` |
+| `fb0/virtual_size` | `480,1600` | `480,1600` |
+| Input nodes | `event0` only | `event0` only (`gt9xxnew_ts`) |
+
+Every value collected so far is identical to the K2 Plus, so the `k2` build target and its
+270-degree display handling are expected to apply unchanged. Still outstanding: the
+device-tree board string, the OpenWrt `DISTRIB_TARGET`, the touch controller name, and
+`printer.cfg` - bed size and macro set are what the database entry keys on.
+
+Detection already covers the model. `creality_k2_pro` in `assets/config/printer_database.json`
+carries a `k2pro` hostname heuristic at confidence 90 plus a 290-310 mm build-volume range, so
+a K2 Pro identifies itself without further work. Its `print_start_default_phases` are copied
+from the K2 Plus and have never been measured on a Pro, which is worth re-timing once one is
+running.
 
 ---
 
 ## 14. HelixScreen Build Target
 
-### Status: Build target implemented (UNTESTED)
+### Status: shipping, verified on K2 Plus hardware
 
-The K2 cross-compilation target was added as `PLATFORM_TARGET=k2`. It uses Bootlin's armv7-eabihf musl toolchain with fully static linking — same proven strategy as the K1 target but for ARM instead of MIPS.
+`PLATFORM_TARGET=k2` builds a fully static binary with Bootlin's armv7-eabihf **musl**
+toolchain. The K2 root filesystem is **glibc 2.29**; static linking is what makes the device
+libc irrelevant.
 
-### What's Done
+| Component | Details |
+|-----------|---------|
+| `PLATFORM_TARGET=k2` in `mk/cross.mk` | armv7-a hard-float, neon-vfpv4, musl static, fbdev/evdev |
+| `docker/Dockerfile.k2` | Bootlin `armv7-eabihf--musl--stable-2024.02-1`, static OpenSSL in the sysroot |
+| Deploy targets | `deploy-k2`, `deploy-k2-fg`, `deploy-k2-bin`, `k2-test`, `k2-ssh` (tar over ssh; BusyBox has no rsync) |
+| Release packaging | `release-k2`, `package-k2`; camera via `ustreamer-k2` |
+| Update checker platform key | `HELIX_PLATFORM_K2` -> `"k2"` |
+| Display | fbdev on `/dev/fb0`, 480x800 portrait, rotated 270 degrees to landscape |
+| Touch input | evdev auto-detection, Goodix `gt9xxnew_ts` |
+| Boot persistence | `/etc/init.d/S99helixscreen` plus `config/helixscreen-k2-procd-shim.sh` |
+| Install root | `/opt/helixscreen` -> `/mnt/UDISK/helixscreen` |
 
-| Component | Status | Details |
-|-----------|--------|---------|
-| `PLATFORM_TARGET=k2` in `mk/cross.mk` | **Done** | armv7 hard-float, musl static, fbdev/evdev |
-| `docker/Dockerfile.k2` | **Done** | Bootlin armv7-eabihf musl toolchain |
-| Deploy targets | **Done** | `deploy-k2`, `deploy-k2-fg`, `deploy-k2-bin`, `k2-test`, `k2-ssh` |
-| Release packaging | **Done** | `release-k2`, `package-k2` |
-| Update checker platform key | **Done** | `HELIX_PLATFORM_K2` → `"k2"` |
-| Framebuffer backend | **Done** | Existing fbdev backend auto-detects resolution |
-| Touch input | **Done** | Existing evdev auto-detection handles Goodix/TLSC |
+`K2_HOST` is mandatory for every deploy verb: the K2 has no mDNS, so the hostname does not
+resolve.
+
+procd only runs an init script that carries both `#!/bin/sh /etc/rc.common` and a `DEPEND`
+line. A bare SysV script is skipped silently and the device sits on the Creality logo, which
+is why the shim exists.
 
 ### Build & Deploy
 
@@ -344,41 +413,35 @@ make deploy-k2-fg K2_HOST=192.168.1.100   # foreground with debug output
 make k2-ssh K2_HOST=192.168.1.100          # SSH into the printer
 ```
 
-### Assumptions That May Be Wrong
+### Early assumptions, and how they resolved
 
-These are educated guesses. When someone tests on real hardware, expect some of these to break:
+| Assumption | Resolution |
+|-----------|------------|
+| Ingenic X2000E MIPS, as on the K1 | **Allwinner T113 / sun8iw20p1**, ARM Cortex-A7 dual-core |
+| ARM variant aarch64 | **armv7l**, 32-bit userland. The armv7 toolchain is correct |
+| musl userland | Device is **glibc 2.29**. Irrelevant: the binary is fully static |
+| Framebuffer already landscape | **No.** 480x800 portrait; rotated 270 degrees in software |
+| Deploy dir `/opt/helixscreen` | Correct, as a symlink to `/mnt/UDISK/helixscreen` |
+| Stock UI is `display-server` | Correct; `hooks-k2.sh` also stops `Monitor`, `master-server`, `app-server`, `audio-server`, `wifi-server`, `upgrade-server` and the `boot-play` animation, and deliberately leaves `web-server` running |
+| BusyBox, no rsync | Correct; deploy uses tar over ssh |
 
-| Assumption | Our guess | If wrong... |
-|-----------|-----------|-------------|
-| **ARM variant** | armv7 (32-bit userland) | Switch to aarch64 musl toolchain in Dockerfile |
-| **C library** | musl (OpenWrt default) | Doesn't matter — we're fully static |
-| **Framebuffer** | 800x480 (driver-rotated) | Need LVGL `lv_display_set_rotation()` + touch transform |
-| **Deploy dir** | `/opt/helixscreen` | Change `K2_DEPLOY_DIR` in cross.mk or override at deploy time |
-| **Stock UI process** | `display-server` | Check `ps` output, update the `killall` in deploy target |
-| **Log command** | `logread -f` (OpenWrt) | Might be `tail -f /var/log/messages` or journalctl |
-| **BusyBox (no rsync)** | Yes (tar/ssh deploy) | If rsync available, could use deploy-common instead |
+### Still open
 
-### What Still Needs Work
-
-| Component | Effort | Notes |
-|-----------|--------|-------|
-| Display rotation (if fb is 480x800) | Medium | LVGL `lv_display_set_rotation()` + touch coord transform |
-| procd init script | Low | Different from K1's SysV init, but simple |
-| CFS multi-material support | Medium | Use G-code macros (T0-T3, BOX_*) |
-| Hardware validation | **Blocking** | Need someone with SSH access — see Section 13 |
+| Component | Notes |
+|-----------|-------|
+| CFS reimplementation | Protocol reverse-engineered from `box_wrapper.cpython-39.so`; see the CFS reference in [CREALITY_K2_SUPPORT.md](../printers/CREALITY_K2_SUPPORT.md) |
+| K2, K2 Pro, K2 SE validation | Database entries exist for K2 Plus and K2 Pro; only the K2 Plus has been run by us. A K2 SE is a K1-family MIPS board despite the name - see the routing trap in `src/printer/ams_backend_cfs.cpp` |
 
 ---
 
 ## Conclusion
 
-The K2 Plus is architecturally easier to target than K1 (ARM vs MIPS) with stock Moonraker (no community tools needed). The build target is implemented but **completely untested** — it needs someone with a K2 and SSH access to run the diagnostic commands in Section 13 and report back.
+The K2 Plus is architecturally easier to target than the K1 (ARM rather than MIPS) and ships
+stock Moonraker, so no community firmware is required. The target is built, deployed and
+running on real hardware.
 
-Key remaining unknowns:
-
-1. **Framebuffer orientation** - determines if we need rotation support (the big question)
-2. **ARM variant** - armv7 vs aarch64 determines if we need to change the toolchain
-3. **Install location** - `/opt/helixscreen` is a guess
-4. **CFS integration** - multi-material via existing G-code macros (T0-T3, BOX_*)
-5. **Community ecosystem** - thin and declining, but stock Moonraker means less dependency on community tools
+What remains is breadth rather than depth: the other K2 variants share the SoC, panel and
+touch controller by every signal collected so far, and need a contributor with the hardware to
+run the probe in Section 13 and report the board string and `printer.cfg`.
 
 See also: [K1 vs K2 Community Comparison](CREALITY_K1_VS_K2_COMMUNITY.md)

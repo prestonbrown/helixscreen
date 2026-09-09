@@ -11,7 +11,7 @@ All K2 models use Allwinner ARM Cortex-A7 dual-core processors running Tina Linu
 | Model | Build Volume | Display | Chamber Heater | CFS | Status |
 |-------|-------------|---------|----------------|-----|--------|
 | K2 | 260 mm cubed | 4.3" 480x800 | No | Optional | Untested |
-| K2 Pro | 300 mm cubed | 4.3" 480x800 | Yes (60C) | Optional | Untested |
+| K2 Pro | 300 mm cubed | 4.3" 480x800 | Yes (60C) | Optional | Community bring-up in progress (2026-09) |
 | K2 Plus | 350 mm cubed | 4.3" 480x800 | Yes (60C) | Yes (CFS) | **Hardware confirmed** |
 | K2 SE | 220x215x245 mm | Unknown | No | Unknown | User-confirmed install (wget) |
 
@@ -19,12 +19,16 @@ All K2 models use Allwinner ARM Cortex-A7 dual-core processors running Tina Linu
 
 | Spec | Value |
 |------|-------|
-| SoC | Allwinner sun8iw20p1 (ARM Cortex-A7, dual-core, 57 BogoMIPS) |
-| Display | 480x800 portrait, 32bpp, fbdev (`/dev/fb0`); double-buffered → 480x1600 virtual fb |
+| SoC | Allwinner T113 - `allwinner,t113_iarm,sun8iw20p1` (ARM Cortex-A7, dual-core, 57 BogoMIPS) |
+| Board | OpenWrt `DISTRIB_TARGET=t113_i-CR0CN240110C10/generic`, `DISTRIB_ARCH=arm_cortex-a7_neon` |
+| Display | 480x800 portrait (`U:480x800p-58`), 32bpp, stride 1920, fbdev (`/dev/fb0`); double-buffered → 480x1600 virtual fb. No DRM (`/dev/dri` absent) |
+| Touch | Goodix `gt9xxnew_ts` on I2C (`Bus=0018`), sole input node `/dev/input/event0` |
+| Rotation | 270° in software, from `assets/config/presets/k2.json` (`display.rotate: 270`, `rotation_probed: true`) |
 | Stock UI | `/usr/bin/display-server` (must be stopped to use framebuffer) |
 | RAM | 488 MB total |
 | Storage | 27.5 GB on `/mnt/UDISK` |
-| OS | OpenWrt 21.02-SNAPSHOT, Linux 5.4.61 armv7l |
+| OS | OpenWrt 21.02-SNAPSHOT (Tina Linux), Linux 5.4.61 armv7l |
+| Device libc | glibc 2.29 (`ld-linux-armhf.so.3`), libstdc++ 6.0.25. We ship a fully static musl binary, so it does not matter |
 | Init System | procd (OpenWrt-style, NOT systemd) |
 | MCU | GD32F303RET6 on `/dev/ttyS2` @ 230400 baud |
 | Nozzle MCU | GD32F303CBT6 on `/dev/ttyS3` @ 230400 baud |
@@ -171,11 +175,15 @@ killall helix-screen helix-splash helix-watchdog 2>/dev/null
 
 HelixScreen renders directly to `/dev/fb0`. The platform hooks stop the stock `display-server` to release the framebuffer. This is handled automatically by the deploy targets.
 
-The K2 Plus panel is **480x800 portrait**; the framebuffer is double-buffered (480x1600 virtual). HelixScreen will need software rotation to landscape mode, plus touch coordinate transform.
+The K2 Plus panel is **480x800 portrait**; the framebuffer is double-buffered (480x1600 virtual). HelixScreen rotates it 270° to landscape and transforms touch coordinates to match. The rotation ships in `assets/config/presets/k2.json` with `rotation_probed: true`, so the interactive orientation probe never runs on a K2. `HELIX_DISPLAY_ROTATION` or `--rotate` override it.
 
 ### Touch Input
 
 HelixScreen uses evdev and auto-detects the capacitive touch controller. Running as root (default) avoids permission issues on `/dev/input/event*`.
+
+The K2 Plus reports a Goodix `gt9xxnew_ts` on `/dev/input/event0`, which is the only input node on the machine. **The name contains no "touch" substring**, so `grep -i touch /proc/bus/input/devices` returns nothing on a healthy K2 - match on `gt9`/`goodix` or just read the whole file.
+
+Selection is scored, not name-matched: `src/api/display_backend_fbdev.cpp#auto_detect_touch_device` requires ABS capabilities, then adds points for a known name (`include/touch_calibration.h#is_known_touchscreen_name`), `INPUT_PROP_DIRECT`, and USB. Some K2 hardware revisions carry a `tlsc6x` controller instead; `tlsc` is **not** in the known-name list, so such a panel scores lower and relies on its capability bits. No K2 with that variant has been observed yet.
 
 ## CFS (Creality Filament System) — Full Protocol Reference
 
@@ -766,7 +774,7 @@ Note that `chamber_temp` is **not** universal on K2 hardware either: the Kalico 
 ## Known Limitations
 
 ### Display
-- **480x800 portrait panel (double-buffered framebuffer → 480x1600 virtual)** — needs software rotation to landscape; same as all other K2 models.
+- **480x800 portrait panel (double-buffered framebuffer → 480x1600 virtual)** — presented landscape by a 270° software rotation; same as all other K2 models.
 
 ### CFS
 - **Closed-source protocol** — CFS communication relies on `box_wrapper.cpython-39.so` binary blob. Protocol has been reverse-engineered from strings but full reimplementation is not yet available.

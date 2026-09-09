@@ -1,35 +1,31 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# HelixScreen - Creality K2 Series (ARM Cortex-A53) Cross-Compilation Toolchain
+# HelixScreen - Creality K2 Series (ARM Cortex-A7) Cross-Compilation Toolchain
 #
 # Build: docker build -t helixscreen/toolchain-k2 -f Dockerfile.k2 .
 # Usage: docker run --rm -v $(pwd):/src -w /src helixscreen/toolchain-k2 make PLATFORM_TARGET=k2 -j$(nproc)
 #
-# Target: Creality K2, K2 Pro, K2 Plus (Allwinner A133/T800 devices)
-#   - CPU: Allwinner A133 (ARM Cortex-A53, quad-core)
-#   - Display: 480x800 framebuffer (portrait panel, likely rotated to 800x480 by driver)
-#   - RAM: ~512MB (unconfirmed)
-#   - C Library: musl (assumed - Tina Linux is OpenWrt-based)
+# Target: Creality K2, K2 Pro, K2 Plus
+#   - SoC: Allwinner T113 - allwinner,t113_iarm,sun8iw20p1 (ARM Cortex-A7, dual-core)
+#   - Userland: armv7l 32-bit, Tina Linux (OpenWrt 21.02), kernel 5.4.61
+#   - Display: 480x800 portrait framebuffer, rotated 270 degrees in software
+#   - RAM: 488MB
+#   - C library on device: glibc 2.29
 #
-# Strategy: Use Bootlin's pre-built armv7-eabihf musl toolchain with STATIC linking.
-# Musl produces clean static binaries - same proven approach as K1 target.
+# Strategy: Bootlin's pre-built armv7-eabihf musl toolchain with STATIC linking, the
+# same approach as the K1 target. The binary is fully static, so the device's glibc
+# is never loaded and its version does not constrain us.
 #
-# We target armv7 (32-bit) despite the A53 being aarch64-capable because:
-#   - Tina Linux (OpenWrt) commonly uses 32-bit userland
-#   - Entware packages for K2 are armv7sf
-#   - Static binary has no runtime libc dependency
-#   - If confirmed aarch64 userland, switch to aarch64 musl toolchain
-#
-# UNTESTED: Based on research, not hardware validation.
-# See docs/printer-research/CREALITY_K2_PLUS_RESEARCH.md Section 13 for
-# diagnostic commands to run on actual K2 hardware.
+# Verified on K2 Plus hardware. See
+# docs/devel/printer-research/CREALITY_K2_PLUS_RESEARCH.md Section 13 for the probe
+# to run on a K2 variant we have not seen yet.
 #
 # Toolchain source: https://toolchains.bootlin.com/
 
 FROM debian:bookworm-slim
 
 LABEL maintainer="HelixScreen <dev@helixscreen.io>"
-LABEL description="Cross-compilation toolchain for Creality K2 series (ARM Cortex-A53, Allwinner)"
+LABEL description="Cross-compilation toolchain for Creality K2 series (Allwinner T113, ARM Cortex-A7)"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -127,7 +123,7 @@ ENV STRIP=arm-buildroot-linux-musleabihf-strip
 ENV RANLIB=arm-buildroot-linux-musleabihf-gcc-ranlib
 ENV LD=arm-buildroot-linux-musleabihf-ld
 
-# Target-specific flags for ARM Cortex-A53 (running as armv7)
+# Target-specific flags for ARM Cortex-A7 (armv7-a, hard float, NEON-VFPv4)
 # Note: -static is added in cross.mk, not here (so libs can be built dynamically)
 ENV TARGET_CFLAGS="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"
 ENV TARGET_LDFLAGS=""
