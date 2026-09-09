@@ -22,6 +22,19 @@ Fast, beautiful, and frugal enough to run on hardware you already own — your p
 
 Run it right on your printer, or on a separate device — a spare Pi, a mini PC, even your desktop — as a remote screen pointed at your printer's Moonraker over the network. Great for a floor-standing printer with a screen up on your desk.
 
+<!-- 1.0-ANNOUNCEMENT: remove this block when 1.1 ships -->
+> [!IMPORTANT]
+> ### HelixScreen 1.0 is out
+>
+> The first stable release, eleven months and 203 builds after the first commit.
+> Nine printer platforms, nine languages, and the stable update channel now points
+> at it.
+>
+> Running a 0.99 build? The in-app updater will offer 1.0, or just re-run the
+> installer. Everything that changed is in the [changelog](CHANGELOG.md), and the
+> people who made it happen are in [THANKS](THANKS.md).
+<!-- /1.0-ANNOUNCEMENT -->
+
 ---
 
 **Quick Links:** [Website](https://helixscreen.org) · [Features](#features) · [Screenshots](#screenshots) · [Installation](#installation) · [User Guide](docs/user/USER_GUIDE.md) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Discord](https://discord.gg/RZCT2StKhr)

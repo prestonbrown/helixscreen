@@ -3154,6 +3154,7 @@ release-snapmaker-u1: | build/snapmaker-u1/bin/helix-screen
 	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
 	@cp build/snapmaker-u1/bin/helix-screen $(RELEASE_DIR)/helixscreen/bin/
 	@if [ -f build/snapmaker-u1/bin/helix-splash ]; then cp build/snapmaker-u1/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/; fi
+	@if [ -f build/snapmaker-u1/bin/helix-watchdog ]; then cp build/snapmaker-u1/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
 	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/ 2>/dev/null || true
 	$(call release-copy-xml-config,$(RELEASE_DIR)/helixscreen)
 	@# Install Snapmaker U1 preset as default config (skips hardware wizard on first run)
