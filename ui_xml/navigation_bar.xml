@@ -11,6 +11,19 @@
     <px name="nav_width_large" value="132"/>
     <px name="nav_width_xlarge" value="148"/>
     <px name="nav_width_xxlarge" value="176"/>
+
+    <!-- Nav bar inactive-icon size: one rung below #icon_size, so the selected
+         button reads larger as well as brighter. micro matches #icon_size
+         instead, because one rung down there is a 16px face and a 16px outline
+         glyph has strokes too thin to read in a 42px strip.
+         test_nav_icon_size_ladder.cpp enforces the relationship. -->
+    <string name="icon_size_nav_inactive_micro" value="md"/>
+    <string name="icon_size_nav_inactive_tiny" value="sm"/>
+    <string name="icon_size_nav_inactive_small" value="sm"/>
+    <string name="icon_size_nav_inactive_medium" value="md"/>
+    <string name="icon_size_nav_inactive_large" value="md"/>
+    <string name="icon_size_nav_inactive_xlarge" value="md"/>
+    <string name="icon_size_nav_inactive_xxlarge" value="md"/>
   </consts>
   <view extends="lv_obj"
         width="#nav_width" height="100%" style_pad_top="#space_xl" style_pad_bottom="#space_xl" style_pad_left="0"
