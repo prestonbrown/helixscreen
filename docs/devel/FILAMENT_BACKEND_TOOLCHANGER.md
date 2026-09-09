@@ -64,9 +64,9 @@ differs - the unmount, which a machine whose tools are plain extruders does not 
 |----------|------|-------------|
 | `active` | bool | Is this tool selected? |
 | `mounted` | bool | Is this tool mounted on carriage? |
-| `gcode_x_offset` | float | X offset |
-| `gcode_y_offset` | float | Y offset |
-| `gcode_z_offset` | float | Z offset |
+| `gcode_x_offset` | float | X offset — settable at runtime with `SET_TOOL_PARAMETER T=<n> PARAMETER=gcode_x_offset VALUE=<mm>`, persisted with `SAVE_TOOL_PARAMETER T=<n> PARAMETER=gcode_x_offset` + `SAVE_CONFIG` (see `include/tool_offsets.h`) |
+| `gcode_y_offset` | float | Y offset — same, `PARAMETER=gcode_y_offset` |
+| `gcode_z_offset` | float | Z offset — same, `PARAMETER=gcode_z_offset` |
 | `extruder` | string | Associated extruder name |
 | `fan` | string | Associated fan name |
 
@@ -128,3 +128,25 @@ Hotend changers (MedusaHC) run on this backend with add-ons layered on top - see
 [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md).
 
 Part of the filament system - see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) for the shared architecture, slot metadata, and endless spool model.
+
+## Automatic tool offset calibration
+
+klipper-toolchanger's example config (`examples/calibrate-offsets.cfg`) defines a
+`CALIBRATE_TOOL_OFFSETS` macro that measures every tool on a nozzle-contact sensor and writes
+the result with `SET_TOOL_PARAMETER` + `SAVE_TOOL_PARAMETER` on `gcode_x/y/z_offset`. HelixScreen
+runs that macro and follows it; it does not drive the individual `TOOL_LOCATE_SENSOR` /
+`TOOL_CALIBRATE_TOOL_OFFSET` steps itself, and it makes no assumption about which tool the
+macro measures against, how it heats, or where the sensor is — all of that is the macro's.
+
+| Piece | Where |
+|-------|-------|
+| Capability, gcode | `include/tool_offset_calibration.h` (`helix::tool_offset_calibration`) — capability is `has_tool_changer()` + the macro; the only gcode is the bare macro |
+| Capability subject for XML | `printer_has_tool_offset_cal` (`PrinterCapabilitiesState`) |
+| Screen | `include/ui_panel_calibration_tool_offset.h` — Controls ▸ Tool Offsets, and the Advanced row |
+| Results | never parsed off the console: the macro's `SET_TOOL_PARAMETER` writes land on the `tool T<n>` objects and reach `ToolState` through `helix::tool_offsets`, exactly as a manual adjustment would |
+| Progress | the rpc's completion only: `printer.gcode.script` answers when the macro finishes. The rows fill in as the macro writes, since `ToolState` publishes every offset change, but no row says which tool is under the probe: `toolchanger.tool_number` says which tool is mounted, and the tool the macro measures the others against is mounted without being probed, so mounted and probed differ. Per-tool progress needs the macro to report it |
+| Save | the macro persists nothing; `SAVE_TOOL_PARAMETER` only stages. The panel's Save is the shared `save_dirty_offsets()` path (`src/ui/z_offset_utils.cpp`): re-send SET+SAVE for every dirty axis, then one `SAVE_CONFIG` through `SaveConfigWatch` |
+| Stop | the macro blocks Klipper's gcode queue, so Stop is M112 + `FIRMWARE_RESTART` with the disconnect suppressed as expected; the restart discards the offsets measured so far |
+| Timeout | the rpc ceiling is the panel's own `CALIBRATION_TIMEOUT_MS` (15 min; ~30 s to measure plus heating from cold, per tool, sequentially). Moonraker never times out `printer.gcode.script`, so an expiry while `idle_timeout` still reads Printing is a macro that is still running: the run completes on the busy→idle edge, with one more ceiling as the backstop - `PrintPreparationManager`'s rule for a pre-start macro that outlives its ceiling |
+| Mock | `HELIX_MOCK_AMS=toolchanger` advertises the macro and simulates the run (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`) |
+

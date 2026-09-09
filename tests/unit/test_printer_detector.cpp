@@ -4937,6 +4937,67 @@ TEST_CASE("PrinterDetector: loads printer_database.json from HELIX_DATA_DIR/asse
 }
 
 // ============================================================================
+// hide_manual_z_calibration — opt-in per printer
+// ============================================================================
+
+TEST_CASE("PrinterDetector: hide_manual_z_calibration defaults to false",
+          "[printer_detector][tool_offset_cal]") {
+    // No bundled printer opts in: a stock klipper-toolchanger's example macro
+    // writes nothing for T0, so the paper test must stay unless a database
+    // entry says the routine covers the reference tool.
+    REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Snapmaker U1"));
+    REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Some Random Printer"));
+}
+
+TEST_CASE("PrinterDetector: hide_manual_z_calibration reads the database field",
+          "[printer_detector][tool_offset_cal][seed_resolution]") {
+    namespace fs = std::filesystem;
+    auto temp_root =
+        fs::temp_directory_path() / ("test_printer_detector_toolcal_" + std::to_string(getpid()));
+
+    {
+        EnvGuard data_g("HELIX_DATA_DIR");
+        EnvGuard config_g("HELIX_CONFIG_DIR");
+        CwdGuard cwd_g;
+
+        fs::remove_all(temp_root);
+        fs::create_directories(temp_root / "assets" / "config");
+        fs::create_directories(temp_root / "config_dir");
+
+        std::ofstream(temp_root / "assets" / "config" / "printer_database.json") << R"({
+                "version": "test-toolcal-1.0",
+                "printers": [
+                    {
+                        "id": "covers_reference",
+                        "name": "Covers Reference Tool",
+                        "manufacturer": "TestCorp",
+                        "hide_manual_z_calibration": true
+                    },
+                    {
+                        "id": "stock_toolchanger",
+                        "name": "Stock Toolchanger",
+                        "manufacturer": "TestCorp"
+                    }
+                ]
+            })";
+
+        setenv("HELIX_DATA_DIR", temp_root.c_str(), 1);
+        setenv("HELIX_CONFIG_DIR", (temp_root / "config_dir").c_str(), 1);
+        REQUIRE(chdir(temp_root.c_str()) == 0);
+
+        PrinterDetector::reload();
+        REQUIRE(PrinterDetector::get_load_status().total_printers == 2);
+
+        REQUIRE(PrinterDetector::hide_manual_z_calibration("Covers Reference Tool"));
+        REQUIRE(PrinterDetector::hide_manual_z_calibration("covers reference tool"));
+        REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Stock Toolchanger"));
+    }
+
+    PrinterDetector::reload();
+    fs::remove_all(temp_root);
+}
+
+// ============================================================================
 // print_start_default_phases — per-printer first-print ETA defaults
 // ============================================================================
 

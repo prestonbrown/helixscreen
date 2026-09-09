@@ -81,6 +81,18 @@ class PrinterCapabilitiesState {
     void set_purge_line(bool has_purge_line);
 
     /**
+     * @brief Set whether the manual Z calibration (paper test) is hidden
+     * (from printer type database)
+     *
+     * Called when printer type is set. True only where the database says the
+     * CALIBRATE_TOOL_OFFSETS routine sets every tool's Z, the reference tool
+     * included, so the paper test has nothing left to set.
+     *
+     * @param hide True if the paper test is redundant on this printer
+     */
+    void set_hide_manual_z_calibration(bool hide);
+
+    /**
      * @brief Publish the printer's webcam list (async update from discovery)
      *
      * Keeps every entry so a camera view configured with a `source` name can
@@ -291,6 +303,20 @@ class PrinterCapabilitiesState {
         return const_cast<lv_subject_t*>(&printer_has_screws_tilt_);
     }
 
+    /// 1 if the printer can calibrate its tool offsets automatically (a tool
+    /// changer with the CALIBRATE_TOOL_OFFSETS macro, see
+    /// include/tool_offset_calibration.h)
+    lv_subject_t* get_printer_has_tool_offset_cal_subject() const {
+        return const_cast<lv_subject_t*>(&printer_has_tool_offset_cal_);
+    }
+
+    /// 1 if that automatic calibration sets every tool's Z, reference tool
+    /// included, so the manual Z calibration (paper test) is redundant.
+    /// Opt-in per printer in the database (hide_manual_z_calibration).
+    lv_subject_t* get_hide_manual_z_calibration_subject() const {
+        return const_cast<lv_subject_t*>(&hide_manual_z_calibration_);
+    }
+
     /// 1 if printer has an enabled webcam configured
     lv_subject_t* get_printer_has_webcam_subject() const {
         return const_cast<lv_subject_t*>(&printer_has_webcam_);
@@ -408,6 +434,8 @@ class PrinterCapabilitiesState {
     lv_subject_t printer_has_spoolman_{};            // spoolman filament manager
     lv_subject_t printer_has_speaker_{};             // speaker for M300
     lv_subject_t printer_has_timelapse_{};           // moonraker-timelapse plugin
+    lv_subject_t printer_has_tool_offset_cal_{};     // automatic tool offset calibration
+    lv_subject_t hide_manual_z_calibration_{};       // ...and it covers the reference tool's Z
     lv_subject_t printer_has_purge_line_{};          // purge/priming capability
     lv_subject_t printer_has_firmware_retraction_{}; // firmware retraction (G10/G11)
     lv_subject_t printer_bed_moves_{};               // 0=gantry moves on Z, 1=bed moves on Z

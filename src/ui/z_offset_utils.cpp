@@ -310,7 +310,7 @@ SaveAvailability current_save_availability() {
     facts.manual_save_supported = lv_subject_get_int(ps.get_z_offset_can_save_subject()) != 0;
     facts.global_dirty = lv_subject_get_int(ps.get_gcode_z_offset_subject()) != 0;
     facts.tools_dirty =
-        lv_subject_get_int(helix::ToolState::instance().get_any_tool_z_dirty_subject()) == 1;
+        lv_subject_get_int(helix::ToolState::instance().get_any_tool_offset_dirty_subject()) == 1;
     return facts;
 }
 
@@ -326,7 +326,7 @@ void republish_save_available(lv_observer_t*, lv_subject_t*);
 /// current.
 ///
 /// A `<subject_expr>` cannot express this rule: it resolves its operands when
-/// the component is REGISTERED, and `any_tool_z_dirty` does not exist until
+/// the component is REGISTERED, and `any_tool_offset_dirty` does not exist until
 /// ToolState::init_subjects(). Publishing the answer from C++ is what lets every
 /// surface bind one name instead of repeating the expression at each site
 /// (docs/devel/LVGL9_XML_GUIDE.md § "Expression Conditionals").
@@ -347,7 +347,8 @@ struct SaveAvailabilityPublisher {
         auto& ts = helix::ToolState::instance();
         observe(global_offset_obs, ps.get_gcode_z_offset_subject(), ps.get_subjects_lifetime());
         observe(can_save_obs, ps.get_z_offset_can_save_subject(), ps.get_subjects_lifetime());
-        observe(tools_dirty_obs, ts.get_any_tool_z_dirty_subject(), ts.get_subjects_lifetime());
+        observe(tools_dirty_obs, ts.get_any_tool_offset_dirty_subject(),
+                ts.get_subjects_lifetime());
     }
 
     void publish(int available) {
@@ -507,19 +508,30 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
     }
 
     auto& ts = helix::ToolState::instance();
-    const std::vector<int> dirty_tools = ts.dirty_tool_z_indices();
+    const std::vector<int> dirty_tools = ts.dirty_tool_indices();
 
     // Tool offsets first: on klipper-toolchanger SAVE_TOOL_PARAMETER only STAGES
     // a config change, which the machine-wide SAVE_CONFIG below then commits in
     // the same restart. Sending them after it would leave them staged until
     // some later save happened to flush them.
+    //
+    // EVERY dirty axis of a dirty tool, not only Z. SET_TOOL_PARAMETER is
+    // runtime-only and SAVE_CONFIG restarts Klipper, so a Z-only save here
+    // would silently throw away an unsaved X or Y on the way through.
     for (int tool : dirty_tools) {
-        const int microns = static_cast<int>(std::lround(ts.tool_z_offset_mm(tool) * 1000.0));
-        const std::string gcode = helix::tool_offsets::save_tool_z_gcode(hw, tool, microns);
-        if (gcode.empty()) {
-            continue;
+        for (helix::Axis axis : helix::kAllAxes) {
+            if (!ts.tool_offset_dirty(tool, axis)) {
+                continue;
+            }
+            const int microns =
+                static_cast<int>(std::lround(ts.tool_offset_mm(tool, axis) * 1000.0));
+            const std::string gcode =
+                helix::tool_offsets::save_tool_offset_gcode(hw, axis, tool, microns);
+            if (gcode.empty()) {
+                continue;
+            }
+            api->execute_gcode(gcode, nullptr, nullptr);
         }
-        api->execute_gcode(gcode, nullptr, nullptr);
     }
 
     // Marked saved only once the save is ACKNOWLEDGED, never on send.
@@ -534,7 +546,7 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
     auto mark_saved = [dirty_tools]() {
         auto& tool_state = helix::ToolState::instance();
         for (int tool : dirty_tools) {
-            tool_state.mark_tool_z_saved(tool);
+            tool_state.mark_tool_offsets_saved(tool);
         }
     };
     auto on_saved = [mark_saved, ok = std::move(on_success)]() {

@@ -56,19 +56,21 @@ struct SaveConfigFixture : public HelixTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(SaveConfigFixture, "mock: SET_TOOL_PARAMETER is runtime-only", "[mock][toolchanger]") {
+TEST_CASE_METHOD(SaveConfigFixture, "mock: SET_TOOL_PARAMETER is runtime-only",
+                 "[mock][toolchanger]") {
     REQUIRE_FALSE(client.save_config_pending());
 
     gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
 
     // Live immediately...
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
     // ...and nothing is owed to printer.cfg yet. A mock that marked the config
     // dirty here would hide a UI that never sends the persist half at all.
     CHECK_FALSE(client.save_config_pending());
 }
 
-TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_TOOL_PARAMETER stages without changing anything live",
+TEST_CASE_METHOD(SaveConfigFixture,
+                 "mock: SAVE_TOOL_PARAMETER stages without changing anything live",
                  "[mock][toolchanger]") {
     gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
     gcode("SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset");
@@ -82,7 +84,7 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_TOOL_PARAMETER stages without ch
 
     // klipper-toolchanger's save_parameter() takes no VALUE=: it persists what
     // the tool already holds, so the runtime value is untouched.
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
 }
 
 TEST_CASE_METHOD(SaveConfigFixture, "mock: an unsaved offset does not survive a restart",
@@ -90,15 +92,16 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: an unsaved offset does not survive a 
     // The case the old mock could not express. Without a durable store separate
     // from the runtime one, this reverting and NOT reverting look identical.
     gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
-    REQUIRE(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    REQUIRE(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
 
     gcode("RESTART");
 
     // Back to the distinct per-tool seed, i.e. whatever printer.cfg still says.
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.025));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.025));
 }
 
-TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_CONFIG commits the staged offset across the restart",
+TEST_CASE_METHOD(SaveConfigFixture,
+                 "mock: SAVE_CONFIG commits the staged offset across the restart",
                  "[mock][toolchanger]") {
     gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
     gcode("SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset");
@@ -107,13 +110,13 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_CONFIG commits the staged offset
     // SAVE_CONFIG writes the file and restarts. Ordering is load-bearing:
     // committing after the restart would reload the pre-save value and throw
     // the save away.
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
     CHECK_FALSE(client.save_config_pending());
     CHECK(client.save_config_pending_items().empty());
 
     // And it is durable, not merely still-in-RAM.
     gcode("RESTART");
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
 }
 
 TEST_CASE_METHOD(SaveConfigFixture, "mock: staging one tool leaves the others alone",
@@ -125,8 +128,8 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: staging one tool leaves the others al
 
     // T1 was staged, T0 was not - a per-tool save that quietly persisted every
     // tool would look correct in any single-tool test.
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.200));
-    CHECK(client.tool_z_offset(0) == Catch::Approx(0.0));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.200));
+    CHECK(client.tool_offset(0, helix::Axis::Z) == Catch::Approx(0.0));
 }
 
 TEST_CASE_METHOD(SaveConfigFixture, "mock: printer.restart reverts an unsaved offset too",
@@ -140,7 +143,7 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: printer.restart reverts an unsaved of
     // old handler scheduled its return to READY on an lv_timer that would never
     // fire here.
     gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
-    REQUIRE(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    REQUIRE(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
 
     bool acked = false;
     client.send_jsonrpc(
@@ -150,7 +153,7 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: printer.restart reverts an unsaved of
     // Moonraker's do_restart() catches "Klippy Disconnected" and returns "ok",
     // so unlike SAVE_CONFIG this one really does ack (klippy_apis.py).
     CHECK(acked);
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.025));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.025));
 }
 
 TEST_CASE_METHOD(SaveConfigFixture, "mock: a committed offset survives printer.restart",
@@ -162,7 +165,7 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: a committed offset survives printer.r
     client.send_jsonrpc(
         "printer.restart", json::object(), [](const json&) {}, [](const MoonrakerError&) {});
 
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
 }
 
 TEST_CASE_METHOD(SaveConfigFixture, "mock: a restart clears the print, as Klipper's does",
@@ -191,5 +194,105 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_CONFIG's own rpc still fails, as
     gcode("SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset");
 
     CHECK_FALSE(gcode("SAVE_CONFIG"));
-    CHECK(client.tool_z_offset(1) == Catch::Approx(-0.075));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
+}
+
+// ============================================================================
+// X and Y: the same three stores, per axis
+// ============================================================================
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: SET_TOOL_PARAMETER on X moves only X",
+                 "[mock][toolchanger]") {
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset VALUE=0.125");
+
+    CHECK(client.tool_offset(1, helix::Axis::X) == Catch::Approx(0.125));
+    // Y and Z keep their seeds: a mock that stored "the tool's offset" as one
+    // number would let an X write show up as a Z change on screen.
+    CHECK(client.tool_offset(1, helix::Axis::Y) == Catch::Approx(-0.050));
+    CHECK(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.025));
+    CHECK_FALSE(client.save_config_pending());
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: SAVE_TOOL_PARAMETER on X stages only X",
+                 "[mock][toolchanger]") {
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset VALUE=0.125");
+    gcode("SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset");
+
+    const json items = client.save_config_pending_items();
+    REQUIRE(items.contains("tool T1"));
+    CHECK(items["tool T1"]["gcode_x_offset"].get<std::string>() == "0.125");
+    // The parameter names what it persists; Z was neither set nor staged.
+    CHECK_FALSE(items["tool T1"].contains("gcode_z_offset"));
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: an unsaved X does not survive a restart",
+                 "[mock][toolchanger]") {
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset VALUE=0.125");
+    REQUIRE(client.tool_offset(1, helix::Axis::X) == Catch::Approx(0.125));
+
+    gcode("RESTART");
+
+    CHECK(client.tool_offset(1, helix::Axis::X) == Catch::Approx(0.100));
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: X and Z staged together commit in one SAVE_CONFIG",
+                 "[mock][toolchanger]") {
+    // The save path flushes every dirty axis of a tool before the single
+    // SAVE_CONFIG; both must land in the same section and both must survive.
+    gcode("SET_TOOL_PARAMETER T=2 PARAMETER=gcode_x_offset VALUE=0.250");
+    gcode("SAVE_TOOL_PARAMETER T=2 PARAMETER=gcode_x_offset");
+    gcode("SET_TOOL_PARAMETER T=2 PARAMETER=gcode_z_offset VALUE=-0.075");
+    gcode("SAVE_TOOL_PARAMETER T=2 PARAMETER=gcode_z_offset");
+
+    const json items = client.save_config_pending_items();
+    REQUIRE(items.contains("tool T2"));
+    CHECK(items["tool T2"]["gcode_x_offset"].get<std::string>() == "0.25");
+    CHECK(items["tool T2"]["gcode_z_offset"].get<std::string>() == "-0.075");
+
+    gcode("SAVE_CONFIG");
+    gcode("RESTART");
+
+    CHECK(client.tool_offset(2, helix::Axis::X) == Catch::Approx(0.250));
+    CHECK(client.tool_offset(2, helix::Axis::Z) == Catch::Approx(-0.075));
+    // Y was never touched and comes back as its seed.
+    CHECK(client.tool_offset(2, helix::Axis::Y) == Catch::Approx(-0.100));
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: printer.objects.query serves live X/Y/Z per tool",
+                 "[mock][toolchanger]") {
+    // ToolState seeds itself from this query after init_tools(), so a stale or
+    // hardcoded X/Y here would be what every per-tool display starts from.
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset VALUE=0.125");
+    gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_y_offset VALUE=-0.300");
+
+    json status;
+    client.send_jsonrpc(
+        "printer.objects.query", json{{"objects", {{"tool T1", nullptr}}}},
+        [&status](const json& resp) { status = resp["result"]["status"]; },
+        [](const MoonrakerError&) {});
+
+    REQUIRE(status.contains("tool T1"));
+    CHECK(status["tool T1"]["gcode_x_offset"].get<double>() == Catch::Approx(0.125));
+    CHECK(status["tool T1"]["gcode_y_offset"].get<double>() == Catch::Approx(-0.300));
+    CHECK(status["tool T1"]["gcode_z_offset"].get<double>() == Catch::Approx(-0.025));
+}
+
+TEST_CASE_METHOD(SaveConfigFixture, "mock: the seeds are distinct per tool and per axis",
+                 "[mock][toolchanger]") {
+    // Equal seeds hide the two characteristic bugs of a per-tool, per-axis
+    // display: every tool showing the same number, and X showing Z's.
+    for (int tool = 1; tool < 4; ++tool) {
+        CAPTURE(tool);
+        const double x = client.tool_offset(tool, helix::Axis::X);
+        const double y = client.tool_offset(tool, helix::Axis::Y);
+        const double z = client.tool_offset(tool, helix::Axis::Z);
+        CHECK(x != y);
+        CHECK(y != z);
+        CHECK(x != z);
+        CHECK(x != client.tool_offset(tool - 1, helix::Axis::X));
+    }
+    // T0 is the reference tool: zero on every axis.
+    for (helix::Axis axis : helix::kAllAxes) {
+        CHECK(client.tool_offset(0, axis) == Catch::Approx(0.0));
+    }
 }

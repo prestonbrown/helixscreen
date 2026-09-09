@@ -37,7 +37,7 @@ class SaveAvailableFixture : public LVGLTestFixture {
         ToolState::instance().deinit_subjects();
         ToolState::instance().init_subjects(true);
 
-        // One tool, so set_tool_z_offset_local() has somewhere to land.
+        // One tool, so set_tool_offset_local() has somewhere to land.
         helix::PrinterDiscovery hw;
         json objects = json::array({"gcode_move"});
         hw.parse_objects(objects);
@@ -76,9 +76,9 @@ class SaveAvailableFixture : public LVGLTestFixture {
 
     void set_tool_dirty(bool dirty) {
         if (dirty) {
-            ToolState::instance().set_tool_z_offset_local(0, 60);
+            ToolState::instance().set_tool_offset_local(0, helix::Axis::Z, 60);
         } else {
-            ToolState::instance().mark_tool_z_saved(0);
+            ToolState::instance().mark_tool_offsets_saved(0);
         }
     }
 
@@ -111,7 +111,8 @@ TEST_CASE_METHOD(SaveAvailableFixture,
     // SET_TOOL_PARAMETER is runtime-only. With no affordance here the tool
     // offset dies at the next Klipper restart with nothing on screen to say so.
     set_tool_dirty(true);
-    CHECK(lv_subject_get_int(ToolState::instance().get_any_tool_z_dirty_subject()) == 1);
+    CHECK(lv_subject_get_int(
+              ToolState::instance().get_any_tool_axis_dirty_subject(helix::Axis::Z)) == 1);
     CHECK(published() == 1);
     CHECK(published_via_xml_name() == 1);
 

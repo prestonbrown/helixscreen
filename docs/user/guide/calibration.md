@@ -154,6 +154,52 @@ HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE
 
 > **Quick access:** A **Z Calibration** button is also available on the Controls panel for one-tap access.
 
+> **Tool changer?** Some printers can also measure Z automatically for every tool, including the reference one, as part of [automatic Tool Offsets calibration](#tool-offsets-beta) — on those, this paper-test flow is hidden. Most tool changers only measure the *other* tools' offsets relative to the reference tool, so the paper test stays available to set the reference tool's own Z.
+
+---
+
+## Tool Offsets *(Beta)*
+
+![Tool Offsets Panel](../../images/user/advanced-tool-offsets.png)
+
+For tool-changer printers that can measure their own tool positions: one tap calibrates every tool's X, Y, and Z offset in a single automated pass, instead of adjusting each tool by hand.
+
+### Requirements
+
+This screen only appears on a tool changer whose firmware exposes the calibration macro. If your printer doesn't have it, use the regular [Z-Offset Calibration](#z-offset-calibration) flow instead — it still works per-tool.
+
+Every tool your printer reports gets its own row, however many there are:
+
+![Tool Offsets Panel with many tools](../../images/user/advanced-tool-offsets-many-tools.png)
+
+A tool that has never been calibrated shows `--` on each axis instead of a number, so it's never mistaken for a tool that measured exactly zero.
+
+### Running a Calibration
+
+1. Navigate to **Advanced > Tool Offsets** —
+
+   ![Tool Offsets row in the Advanced panel](../../images/user/advanced-beta-tool-offsets-row.png)
+
+   — or tap **Tool Offsets** on the Controls panel:
+
+   ![Tool Offsets button on the Controls panel](../../images/user/controls-tool-offsets.png)
+
+2. Clean every nozzle first — the confirmation dialog reminds you:
+
+   ![Tool Offsets confirmation dialog](../../images/user/advanced-tool-offsets-confirm.png)
+
+3. Tap **Calibrate all tools**, then confirm. The printer measures each tool in turn against its sensor; the row for whichever tool is currently being probed gets a highlighted border so it's clear which one is changing, while the rest keep showing their last known values
+
+![Tool Offsets Panel while running](../../images/user/advanced-tool-offsets-running.png)
+
+4. When the status line reads **Calibration complete**, tap **Save offsets** to write the results to your Klipper config (this briefly restarts Klipper, same as any other offset save)
+
+![Tool Offsets Panel after a completed run](../../images/user/advanced-tool-offsets-complete.png)
+
+5. If the run fails partway through, the status line explains why and the run stops there — clean the affected tool's nozzle and try again
+
+Tapping **Stop** during a run performs an emergency stop, since the calibration macro can't be paused partway through — only cancelled outright.
+
 ---
 
 ## Belt Tension *(Beta)*

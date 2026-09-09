@@ -31,6 +31,22 @@ static json chamber_heater_configfile_sections(const MoonrakerClientMock* self) 
     return sections;
 }
 
+// The toolchanger persona's calibration macro, as klipper-toolchanger's
+// example config defines it. Its description: is what the Tool Offsets
+// panel shows as the instruction text, read through MacroParamCache like
+// every other macro description; empty when the printer has no toolchanger,
+// as the object list then has no such macro either.
+static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
+    json sections = json::object();
+    if (self->hardware().has_tool_changer()) {
+        sections["gcode_macro CALIBRATE_TOOL_OFFSETS"] = {
+            {"gcode", "_CALIBRATE_TOOL_OFFSETS_IMPL"},
+            {"description",
+             "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first."}};
+    }
+    return sections;
+}
+
 json get_mock_gcode_macro_config() {
     json cfg;
     cfg["gcode_macro clean_nozzle"] = {
@@ -327,6 +343,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json chamber_sections = chamber_heater_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(chamber_sections);
                 status_obj["configfile"]["config"].merge_patch(chamber_sections);
+                const json toolchanger_sections = toolchanger_configfile_sections(self);
+                status_obj["configfile"]["settings"].merge_patch(toolchanger_sections);
+                status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -429,7 +448,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // Per-tool objects. Needed here and not only in subscribe: the
             // subscribe snapshot lands before ToolState has built its tool list
             // and is dropped, so ToolState re-asks through this path once the
-            // tools exist (ToolState::query_tool_z_offsets).
+            // tools exist (ToolState::query_tool_offsets).
             for (auto it = objects.begin(); it != objects.end(); ++it) {
                 const std::string& key = it.key();
                 if (key.rfind("tool ", 0) != 0) {
@@ -441,7 +460,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     std::isdigit(static_cast<unsigned char>(tool_suffix[1]))) {
                     tool_number = tool_suffix[1] - '0';
                 }
-                status_obj[key] = {{"gcode_z_offset", self->tool_z_offset(tool_number)}};
+                status_obj[key] = {
+                    {"gcode_x_offset", self->tool_offset(tool_number, helix::Axis::X)},
+                    {"gcode_y_offset", self->tool_offset(tool_number, helix::Axis::Y)},
+                    {"gcode_z_offset", self->tool_offset(tool_number, helix::Axis::Z)}};
             }
         }
 
@@ -686,19 +708,20 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         std::isdigit(static_cast<unsigned char>(tool_suffix[1]))) {
                         tool_number = tool_suffix[1] - '0';
                     }
-                    status_obj[it.key()] = {{"active", false},
-                                            {"mounted", true},
-                                            {"detect_state", "OK"},
-                                            {"gcode_x_offset", 0.0},
-                                            {"gcode_y_offset", 0.0},
-                                            // Distinct per tool, and live: a
-                                            // SET_TOOL_PARAMETER earlier in the
-                                            // session must be reflected here,
-                                            // or a reconnect would silently
-                                            // revert what the user set.
-                                            {"gcode_z_offset", self->tool_z_offset(tool_number)},
-                                            {"extruder", extruder_for_tool},
-                                            {"fan", "fan"}};
+                    status_obj[it.key()] = {
+                        {"active", false},
+                        {"mounted", true},
+                        {"detect_state", "OK"},
+                        // Distinct per tool and axis, and
+                        // live: a SET_TOOL_PARAMETER earlier
+                        // in the session must be reflected
+                        // here, or a reconnect would
+                        // silently revert what the user set.
+                        {"gcode_x_offset", self->tool_offset(tool_number, helix::Axis::X)},
+                        {"gcode_y_offset", self->tool_offset(tool_number, helix::Axis::Y)},
+                        {"gcode_z_offset", self->tool_offset(tool_number, helix::Axis::Z)},
+                        {"extruder", extruder_for_tool},
+                        {"fan", "fan"}};
                 }
             }
 
@@ -828,6 +851,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json chamber_sections = chamber_heater_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(chamber_sections);
                 status_obj["configfile"]["config"].merge_patch(chamber_sections);
+                const json toolchanger_sections = toolchanger_configfile_sections(self);
+                status_obj["configfile"]["settings"].merge_patch(toolchanger_sections);
+                status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and

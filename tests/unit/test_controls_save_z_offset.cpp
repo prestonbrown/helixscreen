@@ -88,7 +88,7 @@ class ControlsSaveZOffsetFixture : public LVGLUITestFixture {
     }
 
     void dirty_a_tool() {
-        ToolState::instance().set_tool_z_offset_local(0, 60);
+        ToolState::instance().set_tool_offset_local(0, helix::Axis::Z, 60);
         settle();
     }
 

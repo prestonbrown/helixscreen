@@ -1,0 +1,135 @@
+<?xml version="1.0"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Tool Offset Calibration Panel -->
+<!-- Runs klipper-toolchanger's CALIBRATE_TOOL_OFFSETS macro: one row per -->
+<!-- tool showing its X/Y/Z offset straight from the tool objects -->
+<!-- (helix::tool_offsets), never parsed off the console, so the rows fill -->
+<!-- in as the macro writes; the status line is the run's only progress. -->
+<!-- What the macro measures against, and how it heats, is its own business -->
+<!-- - nothing here names a reference tool. -->
+<component>
+  <!-- The row for whichever tool the in-flight run is currently probing gets
+       an accent border, reusing the active_tool subject the toolchanger
+       already publishes for tool selection - no per-tool progress state of
+       its own to leak or wedge. -->
+  <styles>
+    <style name="tool_offset_row_idle" bg_color="#elevated_bg" bg_opa="255" border_color="#border"
+           border_width="1"/>
+    <style name="tool_offset_row_measuring" bg_color="#elevated_bg" bg_opa="255" border_color="#primary"
+           border_width="2"/>
+  </styles>
+  <view name="calibration_tool_offset_panel"
+        extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
+        style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+    <header_bar name="overlay_header" title="Tool Offsets" title_tag="Tool Offsets"/>
+
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm"
+            scrollable="false">
+      <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+
+      <!-- Everything above the footer scrolls as one region so a row is always
+           reachable; the footer stays pinned so Stop is one tap away mid-run. -->
+      <lv_obj name="tool_cal_scroll"
+              width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column" style_bg_opa="0"
+              style_border_width="0" scrollable="true">
+
+        <!-- One-line status of the run, with the one spinner the sibling
+             calibration panels show while their run is in flight, and the
+             macro's own instruction. -->
+        <lv_obj name="tool_cal_status_row"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" scrollable="false">
+          <spinner size="sm">
+            <bind_flag_if_eq subject="tool_cal_active" flag="hidden" ref_value="0"/>
+          </spinner>
+          <text_body name="tool_cal_status" flex_grow="1" long_mode="wrap" bind_text="tool_cal_status"/>
+        </lv_obj>
+        <text_small name="tool_cal_hint"
+                    width="100%" long_mode="wrap" bind_text="tool_cal_hint" style_text_color="#text_muted"/>
+
+        <text_small text="Tool offsets (mm)" translation_tag="Tool offsets (mm)" style_text_color="#text_muted"/>
+
+        <!-- One row per tool, however many the printer has. A subject-bound
+             <repeat> must be the only child of its container: rebuilt rows are
+             appended to the end. The per-row tool_cal_*_${i} subjects are
+             pools the panel sizes before it publishes the count. -->
+        <lv_obj name="tool_cal_rows"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
+                style_bg_opa="0" style_border_width="0" scrollable="false">
+          <repeat count="tool_cal_tool_count">
+            <lv_obj name="tool_cal_row_${i}"
+                    width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
+                    style_pad_hor="#space_sm" style_pad_ver="#space_xxs" style_pad_gap="#space_sm"
+                    style_radius="#border_radius_small" scrollable="false">
+              <bind_style_if name="tool_offset_row_idle" cond="tool_cal_active eq 0 or active_tool ne ${i}"/>
+              <bind_style_if name="tool_offset_row_measuring" cond="tool_cal_active eq 1 and active_tool eq ${i}"/>
+              <lv_obj width="content"
+                      height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xxs" style_bg_opa="255"
+                      style_bg_color="#card_bg" style_radius="#border_radius_small" style_border_width="1"
+                      style_border_color="#border" flex_flow="row" style_flex_main_place="center"
+                      style_flex_cross_place="center" scrollable="false">
+                <text_body text="T${i}"/>
+              </lv_obj>
+
+              <!-- The tool's current offsets. -->
+              <lv_obj name="tool_cal_values_${i}"
+                      width="content" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
+                      style_bg_opa="0" style_border_width="0" scrollable="false">
+                <lv_obj width="content"
+                        height="content" flex_flow="row" style_flex_cross_place="end" style_pad_all="0"
+                        style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false">
+                  <text_small text="X" style_text_color="#text_muted"/>
+                  <text_body bind_text="tool_cal_x_${i}"/>
+                </lv_obj>
+                <lv_obj width="content"
+                        height="content" flex_flow="row" style_flex_cross_place="end" style_pad_all="0"
+                        style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false">
+                  <text_small text="Y" style_text_color="#text_muted"/>
+                  <text_body bind_text="tool_cal_y_${i}"/>
+                </lv_obj>
+                <lv_obj width="content"
+                        height="content" flex_flow="row" style_flex_cross_place="end" style_pad_all="0"
+                        style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false">
+                  <text_small text="Z" style_text_color="#text_muted"/>
+                  <text_body bind_text="tool_cal_z_${i}"/>
+                </lv_obj>
+              </lv_obj>
+            </lv_obj>
+          </repeat>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Run action, then Save. Save appears only while a tool carries an
+           offset that is not yet in printer.cfg - the one global signal that
+           work would be lost on a restart - exactly as the Controls panel's
+           Save Z-Offset does. -->
+      <lv_obj name="tool_cal_actions"
+              width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" scrollable="false">
+        <ui_button name="tool_cal_start_btn"
+                   flex_grow="3" text="Calibrate all tools" translation_tag="Calibrate all tools">
+          <event_cb trigger="clicked" callback="on_tool_cal_start"/>
+          <bind_flag_if_eq subject="tool_cal_active" flag="hidden" ref_value="1"/>
+          <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+        </ui_button>
+        <!-- The macro blocks Klipper's queue, so Stop is an emergency stop
+             plus firmware restart - the only stop there is. -->
+        <ui_button name="tool_cal_stop_btn" flex_grow="3" variant="danger" text="Stop" translation_tag="Stop">
+          <event_cb trigger="clicked" callback="on_tool_cal_stop"/>
+          <bind_flag_if_eq subject="tool_cal_active" flag="hidden" ref_value="0"/>
+        </ui_button>
+        <ui_button name="tool_cal_save_btn"
+                   flex_grow="2" variant="warning" text="Save offsets" translation_tag="Save offsets">
+          <event_cb trigger="clicked" callback="on_tool_cal_save"/>
+          <bind_flag_if_eq subject="any_tool_offset_dirty" flag="hidden" ref_value="0"/>
+          <!-- Save restarts Klipper: never while a job holds the machine, and never
+               under a run that is moving it. One compound bind, not two - each
+               bind_state_* sets or clears the state on its own, so a second one
+               would undo the first (see test_job_holds_machine.cpp). -->
+          <bind_state_if cond="job_holds_machine eq 1 or tool_cal_active eq 1" state="disabled"/>
+        </ui_button>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

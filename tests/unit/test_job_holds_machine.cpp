@@ -283,13 +283,10 @@ struct GuardedFile {
 
 /// Files whose controls carry a toolhead guard, and how many each carries.
 constexpr GuardedFile kGuardedFiles[] = {
-    {"ui_xml/ams_device_operations.xml", 1},
-    {"ui_xml/components/ams_sidebar.xml", 1},
-    {"ui_xml/components/panel_widget_bypass.xml", 1},
-    {"ui_xml/controls_panel.xml", 9},
-    {"ui_xml/header_bar.xml", 1},
-    {"ui_xml/micro/controls_panel.xml", 9},
-    {"ui_xml/micro/header_bar.xml", 1},
+    {"ui_xml/ams_device_operations.xml", 1},  {"ui_xml/calibration_tool_offset_panel.xml", 2},
+    {"ui_xml/components/ams_sidebar.xml", 1}, {"ui_xml/components/panel_widget_bypass.xml", 1},
+    {"ui_xml/controls_panel.xml", 10},        {"ui_xml/header_bar.xml", 1},
+    {"ui_xml/micro/controls_panel.xml", 10},  {"ui_xml/micro/header_bar.xml", 1},
     {"ui_xml/motion_panel.xml", 2},
 };
 

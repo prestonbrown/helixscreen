@@ -41,6 +41,7 @@ When beta features are enabled, the following appear in the UI with an orange "B
 | **Z Calibration** | Controls panel | Quick-access `PROBE_CALIBRATE` button (probe Z endstop) — distinct from the graduated Z-Offset Calibration flow | Functional; requires probe hardware |
 | **MPC Calibration** | Heater Calibration panel | Model Predictive Control calibration as an alternative to PID | Functional; requires Kalico firmware |
 | **Belt Tension** | Advanced panel | Pluck each belt by hand; the tool listens and reports its frequency, for CoreXY | **Early beta - not yet validated on real hardware.** Requires an accelerometer and HelixScreen running on the printer itself |
+| **Tool Offsets** | Advanced panel, Controls panel | Automatically measure every tool's X/Y/Z position in one run, on a tool-changer printer | Functional; requires a tool changer with automatic offset calibration support |
 | **Multi-Printer Management** | Settings panel, Navbar, Printer Manager | Add, switch between, and manage multiple Klipper printers from one touchscreen | Functional; switch/add/delete printers with one-tap switching |
 
 > **Graduated from beta:** the **Sound System**, PID Calibration, Input Shaper, the **Spool Wizard**, the **G-code Console**, **Probe Management**, **Z-Offset Calibration**, and **Timelapse** are now available to all users without enabling beta features.

@@ -1653,6 +1653,37 @@ std::string PrinterDetector::get_z_offset_calibration_strategy(const std::string
     return "";
 }
 
+bool PrinterDetector::hide_manual_z_calibration(const std::string& printer_name) {
+    if (!g_database.load()) {
+        return false;
+    }
+
+    if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
+        return false;
+    }
+
+    std::string name_lower = printer_name;
+    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    for (const auto& printer : g_database.data["printers"]) {
+        std::string db_name_lower = printer.value("name", "");
+        std::transform(db_name_lower.begin(), db_name_lower.end(), db_name_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        if (db_name_lower == name_lower) {
+            bool hide = printer.value("hide_manual_z_calibration", false);
+            if (hide) {
+                spdlog::debug("[PrinterDetector] hide_manual_z_calibration set for printer '{}'",
+                              printer_name);
+            }
+            return hide;
+        }
+    }
+
+    return false;
+}
+
 // ============================================================================
 // Probe Type Lookup
 // ============================================================================

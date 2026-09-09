@@ -1287,6 +1287,11 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
                        (pre_print_option_set_.find("nozzle_priming") != nullptr);
     capabilities_state_.set_purge_line(has_priming);
 
+    // Does the automatic tool offset calibration make the paper test redundant?
+    // Opt-in per printer; the default keeps the paper test for the reference tool.
+    capabilities_state_.set_hide_manual_z_calibration(
+        PrinterDetector::hide_manual_z_calibration(type));
+
     // Recalculate composite visibility subjects
     update_gcode_modification_visibility();
 

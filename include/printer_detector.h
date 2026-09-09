@@ -344,6 +344,21 @@ class PrinterDetector {
      */
     static std::string get_z_offset_calibration_strategy(const std::string& printer_name);
 
+    /**
+     * @brief Does automatic tool offset calibration replace manual Z calibration?
+     *
+     * Looks up the `hide_manual_z_calibration` field from the printer
+     * database JSON. True only for printers whose CALIBRATE_TOOL_OFFSETS
+     * routine sets every tool's Z, the reference tool included, so the paper
+     * test has nothing left to set. Defaults to false: klipper-toolchanger's
+     * example macro measures the other tools against T0 and writes nothing
+     * for T0, so the paper test stays unless the database says otherwise.
+     *
+     * @param printer_name Printer name (e.g., "FlashForge Creator 5 Pro")
+     * @return True when the field is set to true, false otherwise
+     */
+    static bool hide_manual_z_calibration(const std::string& printer_name);
+
     /// Look up probe type override from the printer database.
     /// @return Probe type string (e.g., "prtouch_v2"), or empty if not specified
     static std::string get_probe_type(const std::string& printer_name);

@@ -348,6 +348,27 @@ TEST_CASE("Capabilities characterization: printer_has_purge_line from printer ty
     // printer_types.json database. These tests verify the mechanism works.
 }
 
+TEST_CASE("Capabilities characterization: hide_manual_z_calibration from printer type",
+          "[characterization][capabilities][tool_offset_cal]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(true);
+
+    lv_subject_t* subject = get_subject_by_name("hide_manual_z_calibration");
+    REQUIRE(subject != nullptr);
+
+    SECTION("initial value is 0 (no printer type set)") {
+        REQUIRE(lv_subject_get_int(subject) == 0);
+    }
+
+    SECTION("unknown printer type keeps it at 0, so the paper test stays") {
+        state.set_printer_type_sync("unknown_printer");
+        REQUIRE(lv_subject_get_int(subject) == 0);
+    }
+}
+
 // ============================================================================
 // Observer Notification Tests
 // ============================================================================
