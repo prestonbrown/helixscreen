@@ -93,15 +93,22 @@ live. See `ANDROID_PLAY_STORE.md`.
       declares `RELEASE_CHANNEL=stable` and `release-channel.sh` refuses a
       prerelease-suffixed tag there, because `helix::version::Version` discards
       the suffix and `v1.0.0-rc.1` would compare equal to `v1.0.0`.
-- [ ] **The Android build loads and works.** Build the APK (`android/`, gradle)
+- [x] **The Android build loads and works.** Build the APK (`android/`, gradle)
       and confirm on a device or emulator that it starts, reaches the dashboard,
       and connects to a printer — the desktop and device builds passing says
       nothing about it, since it is the one target with its own toolchain and
-      packaging.
-- [ ] The Play Store "What's new" text is written. `scripts/generate-whatsnew.sh`
+      packaging. **Verified 2026-09-09 on a Galaxy Z Flip 7 (SM-F766U1, Android
+      16, arm64-v8a):** `assembleRelease` APK, uninstall-then-install so first
+      run was genuine, wizard connected to the AD5M Pro at 192.168.1.67, and the
+      dashboard came up with live nozzle/bed temperatures, fan percentages and
+      filament state.
+- [x] The Play Store "What's new" text is written. `scripts/generate-whatsnew.sh`
       renders it from the changelog's `<!-- whatsnew -->` block and **refuses a
       block over 500 characters**, so an over-long block means the release ships
       with no Play changelog at all. Run the script and read its byte count.
+      **412 bytes, under the limit**, at
+      `android/fastlane/metadata/android/en-US/changelogs/1000000.txt`
+      (versionCode 1000000 confirmed by `scripts/android-version-code.sh`).
 - [x] Confirm the `ALLOW_CHANNEL_DOWNGRADE` repository variable is **unset**. It
       is the escape hatch for the downgrade guard and must be off by default.
       *Verified 2026-08-14 (`gh variable list`): not set.*

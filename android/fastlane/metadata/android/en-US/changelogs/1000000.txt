@@ -1,0 +1,10 @@
+The first stable release.
+
+Everything your printer can do, on the screen already attached to it: a dashboard
+you arrange yourself, bed mesh and input shaper you can actually see, multi-material
+handling, and print history. It runs on the hardware you own.
+
+80+ printers auto-detected. 9 languages. Nine platforms, from a printer's own MIPS
+panel to a Raspberry Pi.
+
+Coming from 0.99, this is an ordinary update.
