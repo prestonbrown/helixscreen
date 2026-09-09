@@ -19,6 +19,7 @@
 #include "display_backend.h"
 #include "touch_calibration.h"
 #include "touch_calibration_panel.h"
+#include "touch_calibration_wrapper.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -321,4 +322,71 @@ TEST_CASE("a calibration survives the display being rotated after it was solved"
                       << delivered.y << ")");
     REQUIRE(delivered.x == expected.x);
     REQUIRE(delivered.y == expected.y);
+}
+
+// ---------------------------------------------------------------------------
+// Provenance: what an ABSENT rotation key means
+//
+// The placement above is only as good as the rotation handed to it. A record
+// written before the key existed carries none, and the value chosen for it
+// decides which basis the matrix lands in.
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(LVGLTestFixture, "a stored calibration with no rotation key loads as panel-space",
+                 "[touch-calibration][rotation][provenance]") {
+    // A record with no rotation key was written when the affine was fed
+    // panel-space points directly, which is what a capture rotation of zero
+    // describes. Reading the CURRENT rotation instead re-places a matrix into a
+    // basis it was never solved in: a user who calibrated square and later
+    // rotated the display gets every tap a quarter turn out.
+    Config* cfg = Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    cfg->set<bool>("/input/calibration/valid", true);
+    cfg->set<double>("/input/calibration/a", 1.7);
+    cfg->set<double>("/input/calibration/b", 0.0);
+    cfg->set<double>("/input/calibration/c", -3.0);
+    cfg->set<double>("/input/calibration/d", 0.0);
+    cfg->set<double>("/input/calibration/e", 1.6);
+    cfg->set<double>("/input/calibration/f", -2.0);
+    REQUIRE_FALSE(cfg->exists("/input/calibration/rotation"));
+
+    ScopedRotation rotated(LV_DISPLAY_ROTATION_270);
+    REQUIRE(display_rotation_degrees() == 270);
+
+    const TouchCalibration loaded = load_touch_calibration();
+
+    // Proves the load ran rather than bailing early, so the rotation below is
+    // the loader's answer and not a default-constructed struct.
+    REQUIRE(loaded.valid);
+    REQUIRE(loaded.a == Catch::Approx(1.7f));
+    CHECK(loaded.capture_rotation == 0);
+
+    cfg->set<bool>("/input/calibration/valid", false);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a stored rotation key is honoured over the display's",
+                 "[touch-calibration][rotation][provenance]") {
+    // The other half: a record that DOES carry provenance keeps it, whatever the
+    // display is doing now. Without this the pair above is satisfied by a loader
+    // that hardcodes zero and never reads the key at all.
+    Config* cfg = Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    cfg->set<bool>("/input/calibration/valid", true);
+    cfg->set<double>("/input/calibration/a", 1.7);
+    cfg->set<double>("/input/calibration/b", 0.0);
+    cfg->set<double>("/input/calibration/c", -3.0);
+    cfg->set<double>("/input/calibration/d", 0.0);
+    cfg->set<double>("/input/calibration/e", 1.6);
+    cfg->set<double>("/input/calibration/f", -2.0);
+    cfg->set<int>("/input/calibration/rotation", 90);
+
+    ScopedRotation rotated(LV_DISPLAY_ROTATION_270);
+    REQUIRE(display_rotation_degrees() == 270);
+
+    const TouchCalibration loaded = load_touch_calibration();
+
+    REQUIRE(loaded.valid);
+    CHECK(loaded.capture_rotation == 90);
+
+    cfg->set<bool>("/input/calibration/valid", false);
 }
