@@ -747,6 +747,7 @@
     <str name="icon_code_braces" value="󰅩"/>
     <str name="icon_code_tags" value="󰅴"/>
     <str name="icon_cog" value="󰒓"/>
+    <str name="icon_cog_outline" value="󰢻"/>
     <str name="icon_console" value="󰆍"/>
     <str name="icon_content_copy" value="󰆏"/>
     <str name="icon_coolant_temperature" value="󰏈"/>
@@ -773,6 +774,7 @@
     <str name="icon_fan_off" value="󰠝"/>
     <str name="icon_filament" value="󰹛"/>
     <str name="icon_filament_alert" value="󱇀"/>
+    <str name="icon_filament_outline" value="󰹜"/>
     <str name="icon_filter" value="󰈲"/>
     <str name="icon_fine_tune" value="󰘮"/>
     <str name="icon_fire" value="󰈸"/>
@@ -793,6 +795,7 @@
     <str name="icon_help_circle" value="󰋗"/>
     <str name="icon_home" value="󰋜"/>
     <str name="icon_home_import" value="󰾜"/>
+    <str name="icon_home_outline" value="󰚡"/>
     <str name="icon_home_thermometer" value="󰽔"/>
     <str name="icon_hourglass" value="󰔟"/>
     <str name="icon_image_area" value="󰋫"/>
@@ -885,6 +888,7 @@
     <str name="icon_send" value="󰒊"/>
     <str name="icon_sensor" value="󰶑"/>
     <str name="icon_settings" value="󰒓"/>
+    <str name="icon_settings_outline" value="󰢻"/>
     <str name="icon_sine_wave" value="󰥛"/>
     <str name="icon_sleep" value="󰒲"/>
     <str name="icon_source_branch" value="󰘬"/>

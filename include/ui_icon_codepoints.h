@@ -93,6 +93,7 @@ static const IconMapping ICON_MAP[] = {
     {"code_braces",        "\xF3\xB0\x85\xA9"},  // F0169 code-braces
     {"code_tags",          "\xF3\xB0\x85\xB4"},  // F0174 code-tags
     {"cog",                "\xF3\xB0\x92\x93"},  // F0493 cog/settings
+    {"cog_outline",        "\xF3\xB0\xA2\xBB"},  // F08BB cog-outline
     {"console",            "\xF3\xB0\x86\x8D"},  // F018D console/terminal
     {"content_copy",       "\xF3\xB0\x86\x8F"},  // F018F content-copy (duplicate)
     {"coolant_temperature","\xF3\xB0\x8F\x88"},  // F03C8 coolant-temperature
@@ -125,6 +126,7 @@ static const IconMapping ICON_MAP[] = {
     {"fan_off",            "\xF3\xB0\xA0\x9D"},  // F081D fan-off
     {"filament",           "\xF3\xB0\xB9\x9B"},  // F0E5B printer-3d-nozzle
     {"filament_alert",     "\xF3\xB1\x87\x80"},  // F11C0 printer-3d-nozzle-alert
+    {"filament_outline",   "\xF3\xB0\xB9\x9C"},  // F0E5C printer-3d-nozzle-outline
     {"filter",             "\xF3\xB0\x88\xB2"},  // F0232 filter (funnel)
     {"fine_tune",          "\xF3\xB0\x98\xAE"},  // F062E tune
     {"fire",               "\xF3\xB0\x88\xB8"},  // F0238 fire
@@ -149,6 +151,7 @@ static const IconMapping ICON_MAP[] = {
     {"help_circle",        "\xF3\xB0\x8B\x97"},  // F02D7 help-circle/question
     {"home",               "\xF3\xB0\x8B\x9C"},  // F02DC home
     {"home_import",        "\xF3\xB0\xBE\x9C"},  // F0F9C home-import-outline (home-z)
+    {"home_outline",       "\xF3\xB0\x9A\xA1"},  // F06A1 home-outline
     {"home_thermometer",   "\xF3\xB0\xBD\x94"},  // F0F54 home-thermometer
     {"hourglass",          "\xF3\xB0\x94\x9F"},  // F051F timer-sand (hourglass)
 
@@ -256,6 +259,7 @@ static const IconMapping ICON_MAP[] = {
     {"send",               "\xF3\xB0\x92\x8A"},  // F048A send
     {"sensor",             "\xF3\xB0\xB6\x91"},  // F0D91 motion-sensor (sensor placeholder)
     {"settings",           "\xF3\xB0\x92\x93"},  // F0493 cog
+    {"settings_outline",   "\xF3\xB0\xA2\xBB"},  // F08BB cog-outline (alias, mirrors settings -> cog)
     {"sine_wave",          "\xF3\xB0\xA5\x9B"},  // F095B sine-wave
     {"sleep",              "\xF3\xB0\x92\xB2"},  // F04B2 sleep (moon/zzz)
     {"source_branch",      "\xF3\xB0\x98\xAC"},  // F062C source-branch (bypass/fork)
