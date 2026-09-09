@@ -21,6 +21,7 @@
 #include "tool_state.h"
 #include "width_sensor_manager.h"
 #include "width_sensor_types.h"
+#include "wizard_config_paths.h"
 
 #include <sstream>
 #include <vector>
@@ -149,7 +150,11 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     helix::PrinterNameSync::resolve(api, hardware.hostname());
 
     // Initialize standard macros
-    StandardMacros::instance().init(hardware);
+    // Type from Config, NOT PrinterState: this callback runs before
+    // auto_detect_and_save sets PrinterState's copy, so reading that one hands
+    // StandardMacros an empty string and the shipped tier never fills. Same trap
+    // and same remedy as the CFS backend's K1/K2 dialect latch.
+    StandardMacros::instance().init(hardware, helix::get_saved_printer_type());
 
     // Initialize LED controller and discover LED backends.
     // Application::init_core_subjects ran init(nullptr, nullptr) earlier so the

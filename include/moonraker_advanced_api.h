@@ -46,13 +46,19 @@ class MoonrakerAPI;
  *
  * Usage:
  *   MoonrakerAdvancedAPI advanced(client, api);
- *   advanced.start_bed_mesh_calibrate(on_progress, on_complete, on_error);
+ *   advanced.start_bed_mesh_calibrate(command, on_progress, on_complete, on_error);
  */
 class MoonrakerAdvancedAPI : public IAdvancedAPI {
   public:
     // ========== Timeout constants for long-running G-code commands ==========
     static constexpr uint32_t CALIBRATION_TIMEOUT_MS =
         300000; // 5 min - BED_MESH_CALIBRATE, SCREWS_TILT_CALCULATE
+    /// A printer-shipped calibration sequence does its own heating, homing and
+    /// wipe inside the one script, so its clock starts at heat-begin rather than
+    /// at probe-begin. CALIBRATION_TIMEOUT_MS measures only the probing and
+    /// times out mid-probe here — which flips the panel to ERROR and cools the
+    /// machine while it is still measuring.
+    static constexpr uint32_t SELF_PREPARED_CALIBRATION_TIMEOUT_MS = 900000; // 15 min
     static constexpr uint32_t LEVELING_TIMEOUT_MS = 600000; // 10 min - QGL, Z_TILT_ADJUST
     static constexpr uint32_t SHAPER_TIMEOUT_MS =
         600000; // 10 min - SHAPER_CALIBRATE, MEASURE_AXES_NOISE. Analysis alone
@@ -209,7 +215,8 @@ class MoonrakerAdvancedAPI : public IAdvancedAPI {
      *        or [bltouch] config).  Used to divide the fallback "probe at" line
      *        count back to mesh points.  Default 1.
      */
-    void start_bed_mesh_calibrate(BedMeshProgressCallback on_progress, SuccessCallback on_complete,
+    void start_bed_mesh_calibrate(const BedMeshCommand& command,
+                                  BedMeshProgressCallback on_progress, SuccessCallback on_complete,
                                   ErrorCallback on_error, int expected_probes = 0,
                                   int probe_samples = 1) override;
 

@@ -2825,6 +2825,7 @@
   <translation tag="of" zh="的"/>
   <translation tag="off" zh="关闭"/>
   <translation tag="or type a macro name" zh="或输入宏名称"/>
+  <translation tag="printer default" zh="打印机默认"/>
   <translation tag="prints" zh="打印次数"/>
   <translation tag="remaining" zh="剩余"/>
   <translation tag="remaining before clog detection triggers" zh="剩余即触发堵料检测"/>

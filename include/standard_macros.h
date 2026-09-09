@@ -64,6 +64,7 @@ enum class StandardMacroSlot {
 enum class MacroSource {
     NONE,       ///< No macro assigned
     CONFIGURED, ///< User explicitly configured in Settings
+    SHIPPED,    ///< Sequence the printer database ships for this printer
     DETECTED,   ///< Auto-detected from printer
     FALLBACK    ///< Using HELIX_* fallback macro
 };
@@ -83,8 +84,23 @@ struct StandardMacroInfo {
     [[nodiscard]] const char* translated_name() const;
 
     std::string configured_macro; ///< User override the printer defines (or empty)
-    std::string detected_macro;   ///< Auto-detected (or empty)
-    std::string fallback_macro;   ///< HELIX_* fallback (or empty)
+
+    /**
+     * @brief The sequence the printer database ships for this printer (or empty).
+     *
+     * Outranks detection because it is hand-authored for one machine and
+     * detection is not: detection matches a name and stops, with no way to know
+     * that an Elegoo Centauri Carbon must tare its load cell and run the vendor
+     * wipe wrapper before the mesh means anything.
+     *
+     * Unlike the other three this may be a multi-line SCRIPT rather than a macro
+     * name — printers need a sequence more often than they need a rename. It may
+     * contain `{profile}`; resolve_macro() substitutes it.
+     */
+    std::string shipped_macro;
+
+    std::string detected_macro; ///< Auto-detected (or empty)
+    std::string fallback_macro; ///< HELIX_* fallback (or empty)
 
     /**
      * @brief The user's configured macro when the connected printer has no such
@@ -125,19 +141,26 @@ struct StandardMacroInfo {
      * @return true if all three sources are empty
      */
     [[nodiscard]] bool is_empty() const {
-        return configured_macro.empty() && detected_macro.empty() && fallback_macro.empty();
+        return configured_macro.empty() && shipped_macro.empty() && detected_macro.empty() &&
+               fallback_macro.empty();
     }
 
     /**
      * @brief Get the resolved macro name
      *
-     * Priority: configured > detected > fallback
+     * Priority: configured > shipped > detected > fallback
      *
-     * @return First non-empty macro name, or empty string if none
+     * The user's explicit choice wins over everything, including a sequence we
+     * ship: a printer whose stock macro is wrong is exactly why the override
+     * exists. Below that, specific beats general.
+     *
+     * @return First non-empty macro name or script, or empty string if none
      */
     [[nodiscard]] std::string get_macro() const {
         if (!configured_macro.empty())
             return configured_macro;
+        if (!shipped_macro.empty())
+            return shipped_macro;
         if (!detected_macro.empty())
             return detected_macro;
         return fallback_macro;
@@ -150,6 +173,8 @@ struct StandardMacroInfo {
     [[nodiscard]] MacroSource get_source() const {
         if (!configured_macro.empty())
             return MacroSource::CONFIGURED;
+        if (!shipped_macro.empty())
+            return MacroSource::SHIPPED;
         if (!detected_macro.empty())
             return MacroSource::DETECTED;
         if (!fallback_macro.empty())
@@ -157,6 +182,38 @@ struct StandardMacroInfo {
         return MacroSource::NONE;
     }
 };
+
+/// A slot resolved into something runnable.
+struct ResolvedMacroScript {
+    /// The winning macro name or sequence, with `{profile}` substituted.
+    std::string script;
+
+    /// The script prepares the machine itself, so a caller that would otherwise
+    /// prepend preparation gcode must not. True only for the shipped tier: those
+    /// sequences are authored per machine and open with their own tare or wipe,
+    /// and the database's name-based skip rules cannot recognise a script.
+    bool self_prepares = false;
+};
+
+/**
+ * @brief Resolve @p info into a runnable script.
+ *
+ * The priority is StandardMacroInfo::get_macro()'s; this adds the two things a
+ * caller would otherwise open-code, and get subtly different from the next
+ * caller: substituting `{profile}`, and deciding whether the winner brings its
+ * own preparation.
+ *
+ * @param info    The slot to resolve.
+ * @param profile Replaces `{profile}` wherever it appears.
+ * @param accept_fallback Whether the HELIX_* fallback tier may win. Pass false
+ *        from a caller whose operation must happen unconditionally: the
+ *        fallbacks are "if needed" macros (HELIX_BED_MESH_IF_NEEDED reports
+ *        "using existing mesh" and returns without probing), which is right at
+ *        print start and wrong for a button that means "do it now".
+ */
+[[nodiscard]] ResolvedMacroScript resolve_macro_script(const StandardMacroInfo& info,
+                                                       const std::string& profile,
+                                                       bool accept_fallback = true);
 
 /**
  * @brief Unified registry for standard macro operations (singleton)
@@ -208,8 +265,11 @@ class StandardMacros {
      * Loads user config and runs pattern matching on available macros.
      *
      * @param hardware Hardware discovery with discovered macros
+     * @param printer_type Printer database key, for the shipped-sequence tier.
+     *        Empty simply leaves that tier unfilled, which is what a test with
+     *        no database wants.
      */
-    void init(const helix::PrinterDiscovery& hardware);
+    void init(const helix::PrinterDiscovery& hardware, const std::string& printer_type = "");
 
     // ========================================================================
     // Observability

@@ -77,6 +77,22 @@ constexpr const char* WIFI_PASSWORD = "/wifi/password";
 constexpr const char* PRINTER_IMAGE = "printer_image";
 
 /// Get the printer display name from config: saved name → model/type → fallback.
+/**
+ * @brief The resolved printer type as saved in config, or empty.
+ *
+ * Config is the only source populated during the discovery callback
+ * (init_subsystems_from_hardware). PrinterState's copy is set later, by
+ * auto_detect_and_save, so anything constructed or initialised in that callback
+ * that reads PrinterState gets "" on every run and silently behaves as though
+ * the printer were unknown.
+ */
+inline std::string get_saved_printer_type() {
+    Config* config = Config::get_instance();
+    if (!config)
+        return {};
+    return config->get<std::string>(config->df() + wizard::PRINTER_TYPE, "");
+}
+
 /// Used by both the home screen widget and printer manager overlay.
 inline std::string get_printer_display_name(const std::string& fallback = "My Printer") {
     Config* config = Config::get_instance();
@@ -87,7 +103,7 @@ inline std::string get_printer_display_name(const std::string& fallback = "My Pr
     if (!name.empty())
         return name;
 
-    std::string type = config->get<std::string>(config->df() + wizard::PRINTER_TYPE, "");
+    std::string type = get_saved_printer_type();
     if (!type.empty())
         return type;
 

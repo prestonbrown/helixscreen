@@ -276,7 +276,27 @@ class IAdvancedAPI {
     get_available_objects(std::function<void(const std::vector<std::string>&)> on_success,
                           ErrorCallback on_error) = 0;
 
-    virtual void start_bed_mesh_calibrate(BedMeshProgressCallback on_progress,
+    /**
+     * @brief What to send for a mesh calibration.
+     *
+     * The command is resolved by the caller through StandardMacros, so a printer
+     * that ships its own sequence, a user who configured one in Settings, and a
+     * plain BED_MESH_CALIBRATE all arrive here the same way.
+     */
+    struct BedMeshCommand {
+        /// Resolved gcode. May be multi-line — Klipper's gcode.script accepts it.
+        std::string script;
+
+        /// The script prepares the probe itself, so probe_preparation must not
+        /// prepend its own. True for a printer-shipped sequence: those are
+        /// authored per machine and open with their own tare or wipe, and the
+        /// database's skip_if_macro_in cannot recognise them because they are
+        /// scripts rather than macro names.
+        bool self_prepares = false;
+    };
+
+    virtual void start_bed_mesh_calibrate(const BedMeshCommand& command,
+                                          BedMeshProgressCallback on_progress,
                                           SuccessCallback on_complete, ErrorCallback on_error,
                                           int expected_probes = 0, int probe_samples = 1) = 0;
 

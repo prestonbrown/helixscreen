@@ -1317,13 +1317,12 @@ void MoonrakerAdvancedAPIMock::reset_mock_bed_state() {
     spdlog::info("[MoonrakerAdvancedAPIMock] Mock bed state reset");
 }
 
-void MoonrakerAdvancedAPIMock::start_bed_mesh_calibrate(BedMeshProgressCallback on_progress,
-                                                        SuccessCallback on_complete,
-                                                        ErrorCallback /*on_error*/,
-                                                        int /*expected_probes*/,
-                                                        int /*probe_samples*/) {
-    spdlog::info(
-        "[MoonrakerAdvancedAPIMock] start_bed_mesh_calibrate() - simulating probe sequence");
+void MoonrakerAdvancedAPIMock::start_bed_mesh_calibrate(
+    const BedMeshCommand& command, BedMeshProgressCallback on_progress, SuccessCallback on_complete,
+    ErrorCallback /*on_error*/, int /*expected_probes*/, int /*probe_samples*/) {
+    spdlog::info("[MoonrakerAdvancedAPIMock] start_bed_mesh_calibrate('{}') - simulating probe "
+                 "sequence",
+                 command.script);
 
     // Context struct to track state across timer callbacks
     struct ProbeSimContext {
