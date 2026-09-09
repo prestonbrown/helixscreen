@@ -605,3 +605,53 @@ EOF
     # The reported versionCode in its summary line must be the shared one.
     [[ "$output" == *"versionCode $code"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# Play Store receives stable releases only
+# ---------------------------------------------------------------------------
+
+# The job-level `if:` on publish-android, empty when it carries none.
+publish_android_condition() {
+    python3 - <<'PY'
+import yaml
+with open(".github/workflows/release.yml") as fh:
+    doc = yaml.safe_load(fh)
+print(doc["jobs"]["publish-android"].get("if", ""))
+PY
+}
+
+@test "publish-android uploads on the stable channel only" {
+    # A Play versionCode is a one-way ratchet per track, and the trunk's versions
+    # lead the stable line: 1.1.0-beta.1 packs to 100100031 while a later 1.0.1
+    # hotfix packs to 100001099, so a prerelease reaching Play makes the next
+    # stable hotfix unpublishable. Android beta testers sideload from the GitHub
+    # release. Nothing goes red on its own here, because publish-android is inert
+    # without the service-account secret.
+    run publish_android_condition
+    [ "$status" -eq 0 ]
+    case "$output" in
+        *"needs.release.outputs.channel"*stable*) ;;
+        "") echo "publish-android has no job-level if: condition" >&2; return 1 ;;
+        *)  echo "unexpected publish-android if: $output" >&2; return 1 ;;
+    esac
+}
+
+@test "publish-android can see the channel it gates on" {
+    # The condition reads needs.release.outputs.channel, so `release` has to be a
+    # dependency of this job and has to declare that output. Either half missing
+    # makes the condition silently false and skips every upload.
+    run python3 - <<'PY'
+import sys, yaml
+with open(".github/workflows/release.yml") as fh:
+    jobs = yaml.safe_load(fh)["jobs"]
+problems = []
+if "release" not in (jobs["publish-android"].get("needs") or []):
+    problems.append("publish-android does not need the release job")
+if "channel" not in (jobs["release"].get("outputs") or {}):
+    problems.append("the release job declares no channel output")
+for p in problems:
+    print(p, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+    [ "$status" -eq 0 ]
+}
