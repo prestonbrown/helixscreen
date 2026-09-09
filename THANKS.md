@@ -17,6 +17,14 @@ a judgment — open an issue or ping me and I'll fix it.
 
 People who sent patches and built features.
 
+### just-trey — [@just-trey](https://github.com/just-trey)
+Redesigned the navigation bar's active state. Two identical glyphs differing
+only in color is weak differentiation, worse on the TN panels most of this
+fleet ships with and useless to a colorblind viewer; his outline-and-size
+treatment (#977) fixed that. Reviewing it also turned up the duplicated
+portrait nav layout that had been quietly blocking runtime orientation
+flipping, so the de-duplication in this release traces back to his patch too.
+
 ### Camden Winder — [@Mud](https://github.com/Camden-Winder)
 Brought up **QIDI Q2** support — a printer I ship blind, with no unit on my
 bench. Camden wrote the QIDI support docs (#948) and, more importantly, is the

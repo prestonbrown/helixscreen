@@ -1587,9 +1587,9 @@ A component is named by its file's basename, so `ui_xml/micro/controls_panel.xml
 `ui_xml/controls_panel.xml` both register as `controls_panel`. Registering the second
 replaces the first for every later `lv_xml_create()` in that process, silently.
 
-Eight names exist in both the base tree and a variant directory: `app_layout`,
-`controls_panel`, `header_bar`, `navigation_bar`, `print_status_panel`,
-`print_tune_panel`, `theme_editor_overlay`, `theme_preview_overlay`.
+Six names exist in both the base tree and a variant directory: `controls_panel`,
+`header_bar`, `print_status_panel`, `print_tune_panel`, `theme_editor_overlay`,
+`theme_preview_overlay`.
 
 Tests feel this most, because registering everything under `ui_xml/` so nested
 components resolve is the obvious move and the wrong one:

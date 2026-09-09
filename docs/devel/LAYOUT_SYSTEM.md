@@ -29,7 +29,7 @@ any theme works with any layout.
 |--------|--------|-------------|
 | `standard` | **Complete** | All panels — this is the default UI everyone uses today |
 | `ultrawide` | Not started | Directory doesn't exist yet |
-| `portrait` | **Started** | `app_layout.xml`, `navigation_bar.xml`, `print_status_panel.xml`, `print_tune_panel.xml` |
+| `portrait` | **Started** | `print_status_panel.xml`, `print_tune_panel.xml` |
 | `micro` | **Started** | `controls_panel.xml`, `header_bar.xml`, `theme_editor_overlay.xml`, `theme_preview_overlay.xml` |
 | `micro_portrait` | Not started | Directory exists (empty) |
 | `tiny` | Not started | Directory doesn't exist yet |
@@ -45,7 +45,7 @@ single file and branches in place on the `ui_is_portrait` subject:
 |-----------|----------|----------------------|
 | `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_status_panel.xml`, `portrait/print_tune_panel.xml` |
 | `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `temp_graph_overlay.xml` (3 sites) |
-| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row) |
+| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
 
 Orientation is also composable with the breakpoint rather than separate from it:
@@ -55,8 +55,9 @@ is guarded because a 1024x600 landscape panel and a 480x640 portrait one land on
 breakpoint while only the portrait one is actually short of room.
 
 So "which panels adapt to portrait" is not answered by listing the override directory.
-Beyond the four files there, Motion, Bed Mesh, the temperature graph overlay, the Advanced
-panel's E-stop bar and the bed mesh cards all adapt from inside their shared file.
+Beyond the two files there, the app shell, the navigation bar, Motion, Bed Mesh, the
+temperature graph overlay, the Advanced panel's E-stop bar and the bed mesh cards all adapt
+from inside their shared file.
 
 The home panel's widget grid is a third case again: it adapts to ultrawide and portrait
 geometry in C++ from the measured content box, regardless of which override files exist —
@@ -98,7 +99,7 @@ ui_xml/
   settings_panel.xml       ← ...and ~200 more XML files (226 total)
   ...
 
-  portrait/                ← Portrait overrides (app_layout.xml, navigation_bar.xml)
+  portrait/                ← Portrait overrides (print_status_panel.xml, print_tune_panel.xml)
   micro/                   ← Micro landscape overrides (480x272, e.g. Ender 3 V3 KE)
   micro_portrait/          ← Micro portrait overrides (dir exists, empty)
 
@@ -275,7 +276,7 @@ Your layout XML should use these tokens — not hardcoded values:
 
 **Portrait (480x800, 600x1024):**
 - Lots of vertical space, narrow width
-- Navigation bar probably needs to move to the bottom (override `navigation_bar.xml`)
+- The navigation bar and app shell already move to the bottom automatically (`ui_is_portrait`) — no override needed
 - Content stacks vertically naturally
 - Consider which elements can be stacked vs. side-by-side
 - Portrait is where narrow-axis breakpoint selection bites hardest: the tier comes from
@@ -303,13 +304,15 @@ Not every panel needs a layout-specific version. Start with the ones that matter
 | Priority | Panel | Why |
 |----------|-------|-----|
 | High | `home_panel.xml` | First thing users see, lots of information to arrange |
-| High | `app_layout.xml` | The overall chrome (navbar position, content area) |
-| High | `navigation_bar.xml` | Nav position/orientation differs per layout |
 | Medium | `controls_panel.xml` | Common panel with multiple cards to rearrange |
 | Medium | `print_status_panel.xml` | Important during prints |
 | Medium | `settings_panel.xml` | Compact 6-row category menu; sub-panels may benefit from multi-column |
 | Low | Overlays (`*_overlay.xml`) | Usually modal dialogs that work OK at any size |
 | Low | Simple panels | Panels with minimal content adapt naturally |
+
+`app_layout.xml` and `navigation_bar.xml` are not in this table: both already adapt their
+chrome and nav position to `ui_is_portrait` in place, so a new layout family only needs to
+override them if its chrome is a genuinely different design, not just a different axis.
 
 ### XML Tips for Layout Work
 

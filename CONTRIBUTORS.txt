@@ -19,6 +19,7 @@ Thmsdmsk
 Thomas Dixon
 Timo V
 cubewhy
+just-trey
 physicsG
 # --- no commit, but this exists because of them ---
 # Hand-maintained. `make update-contributors` preserves everything below this line.

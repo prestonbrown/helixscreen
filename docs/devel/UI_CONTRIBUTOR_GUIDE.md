@@ -754,7 +754,9 @@ ui_xml/
     controls_panel.xml
     header_bar.xml
     ...
-  portrait/                <-- Portrait overrides (4 files)
+  portrait/                <-- Portrait overrides (2 files)
+    print_status_panel.xml
+    print_tune_panel.xml
   micro_portrait/          <-- Micro-portrait overrides (dir present, empty)
   ultrawide/               <-- Does NOT exist yet (no overrides created)
   tiny/, tiny_portrait/    <-- Do NOT exist yet
@@ -803,7 +805,7 @@ You're free to rearrange the visual hierarchy, change flex directions, adjust si
 
 **Ultrawide (1920x480):** Tons of horizontal space, very little vertical. Favor `flex_flow="row"` to spread content across columns. Aim for everything visible at once with no scrolling. Think "dashboard with columns" -- put related info side by side instead of stacking it.
 
-**Portrait (480x800):** Lots of vertical space, narrow width. Content stacks naturally with `flex_flow="column"`. The navbar probably needs to move to the bottom of the screen. Consider overriding `navigation_bar.xml` and `app_layout.xml` to change the overall chrome.
+**Portrait (480x800):** Lots of vertical space, narrow width. Content stacks naturally with `flex_flow="column"`. The navbar and app shell already move to the bottom automatically (`ui_is_portrait`) — no override needed.
 
 **Tiny (480x320):** Very limited in both directions. Reduce information density, use bigger touch targets (48px minimum), show fewer labels. Hide optional elements with conditional visibility or just remove decorative content.
 
@@ -814,12 +816,14 @@ Start with the panels that matter most:
 | Priority | Panel | Why |
 |----------|-------|-----|
 | High | `home_panel.xml` | First thing users see |
-| High | `app_layout.xml` | Overall chrome (navbar + content area) |
-| High | `navigation_bar.xml` | Nav position/orientation differs per layout |
 | Medium | `controls_panel.xml` | Multiple cards that benefit from rearranging |
 | Medium | `print_status_panel.xml` | Important during active prints |
 | Medium | `settings_panel.xml` | Compact 6-row category menu; sub-panels may benefit from multi-column |
 | Low | Overlays | Usually modal dialogs that adapt reasonably well |
+
+`app_layout.xml` and `navigation_bar.xml` are not in this table: both already adapt their
+chrome and nav position to `ui_is_portrait` in place, so a new layout family only needs to
+override them if its chrome is a genuinely different design, not just a different axis.
 
 ### Responsive Setting Rows (no micro/ overrides)
 
@@ -960,8 +964,9 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Portrait / Micro Status
 
-- `ui_xml/portrait/` exists with four overrides (`app_layout.xml`,
-  `navigation_bar.xml`, `print_status_panel.xml`, `print_tune_panel.xml`).
+- `ui_xml/portrait/` exists with two overrides (`print_status_panel.xml`,
+  `print_tune_panel.xml`); the app shell and navigation bar are single files that
+  adapt via `ui_is_portrait` instead.
 - `ui_xml/micro/` exists with four overrides (`controls_panel.xml`, `header_bar.xml`,
   `theme_editor_overlay.xml`, `theme_preview_overlay.xml`).
 - `ui_xml/micro_portrait/` exists as a directory but has no overrides yet.
