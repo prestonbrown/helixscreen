@@ -112,6 +112,40 @@ inline AbsCapabilities parse_abs_capabilities(const std::string& caps_hex) {
     return result;
 }
 
+/**
+ * @brief Test the sysfs input properties bitmap for INPUT_PROP_DIRECT
+ *
+ * Reads /sys/class/input/eventN/device/properties, whose format matches the ABS
+ * capabilities file: space-separated hex words, rightmost = lowest bits.  The
+ * property codes in linux/input-event-codes.h are BIT NUMBERS, not masks, so
+ * INPUT_PROP_DIRECT (0x01) is bit 1 and its mask is 0x2.  Bit 0 is
+ * INPUT_PROP_POINTER, which marks the opposite kind of device: a touchpad or
+ * pointing stick that moves a cursor rather than being touched directly.
+ *
+ * A touchscreen therefore reports "2", not "1".
+ *
+ * @param props_hex Raw hex string from sysfs (e.g. "2", "0", "" when unreadable)
+ * @return true when the device is marked as direct input
+ */
+inline bool parse_input_prop_direct(const std::string& props_hex) {
+    if (props_hex.empty()) {
+        return false;
+    }
+
+    // Lowest bits live in the rightmost word, and INPUT_PROP_DIRECT is bit 1,
+    // so only that word can carry it.
+    size_t last_space = props_hex.rfind(' ');
+    std::string low_word =
+        (last_space != std::string::npos) ? props_hex.substr(last_space + 1) : props_hex;
+
+    try {
+        unsigned long long props = std::stoull(low_word, nullptr, 16);
+        return (props & (1ULL << 1)) != 0;
+    } catch (...) {
+        return false;
+    }
+}
+
 struct Point {
     int x = 0;
     int y = 0;

@@ -1125,6 +1125,49 @@ TEST_CASE("TouchCalibration: parse_abs_capabilities edge cases",
 }
 
 // ============================================================================
+// Input Properties Parsing Tests (parse_input_prop_direct)
+// ============================================================================
+
+TEST_CASE("TouchCalibration: parse_input_prop_direct", "[touch-calibration][capabilities]") {
+    SECTION("touchscreen reports INPUT_PROP_DIRECT as bit 1") {
+        // Real value from a Creality K2 Plus and K2 Pro (Goodix gt9xxnew_ts).
+        REQUIRE(parse_input_prop_direct("2") == true);
+    }
+
+    SECTION("INPUT_PROP_POINTER is not direct input") {
+        // Bit 0 marks a cursor-moving device: a touchpad or pointing stick.
+        REQUIRE(parse_input_prop_direct("1") == false);
+    }
+
+    SECTION("both POINTER and DIRECT set") {
+        REQUIRE(parse_input_prop_direct("3") == true);
+    }
+
+    SECTION("no properties") {
+        REQUIRE(parse_input_prop_direct("0") == false);
+    }
+
+    SECTION("unreadable sysfs file") {
+        REQUIRE(parse_input_prop_direct("") == false);
+    }
+
+    SECTION("non-hex garbage") {
+        REQUIRE(parse_input_prop_direct("xyz") == false);
+    }
+
+    SECTION("multi-word: the rightmost word carries the low bits") {
+        REQUIRE(parse_input_prop_direct("0 2") == true);
+        REQUIRE(parse_input_prop_direct("2 0") == false);
+    }
+
+    SECTION("higher property bits alone are not direct input") {
+        // INPUT_PROP_BUTTONPAD is bit 2, INPUT_PROP_SEMI_MT bit 3.
+        REQUIRE(parse_input_prop_direct("4") == false);
+        REQUIRE(parse_input_prop_direct("8") == false);
+    }
+}
+
+// ============================================================================
 // Calibration Decision with MT-only devices
 // ============================================================================
 

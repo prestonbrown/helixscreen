@@ -43,29 +43,16 @@ using helix::is_known_touchscreen_name;
 /**
  * @brief Check if an input device has INPUT_PROP_DIRECT set
  *
- * Reads /sys/class/input/eventN/device/properties and checks bit 0
- * (INPUT_PROP_DIRECT), which indicates a direct-input device like a
- * touchscreen (as opposed to a touchpad or mouse).
+ * Reads /sys/class/input/eventN/device/properties and tests INPUT_PROP_DIRECT,
+ * which marks a device that is touched directly (a touchscreen) rather than one
+ * that moves a cursor (a touchpad or pointing stick).
  *
  * @param event_num Event device number
  * @return true if INPUT_PROP_DIRECT is set
  */
 bool has_direct_input_prop(int event_num) {
     std::string path = "/sys/class/input/event" + std::to_string(event_num) + "/device/properties";
-    std::string props_str = helix::input::read_sysfs_line(path);
-    if (props_str.empty())
-        return false;
-
-    try {
-        // Properties file may have space-separated hex values; lowest bits are rightmost
-        size_t last_space = props_str.rfind(' ');
-        std::string last_hex =
-            (last_space != std::string::npos) ? props_str.substr(last_space + 1) : props_str;
-        unsigned long props = std::stoul(last_hex, nullptr, 16);
-        return (props & 0x1) != 0; // INPUT_PROP_DIRECT
-    } catch (...) {
-        return false;
-    }
+    return helix::parse_input_prop_direct(helix::input::read_sysfs_line(path));
 }
 
 } // anonymous namespace
