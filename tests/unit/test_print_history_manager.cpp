@@ -11,10 +11,10 @@
  * - Observer notification when data changes
  */
 
+#include "../../include/json_utils.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/moonraker_history_api.h"
-#include "../../include/json_utils.h"
 #include "../../include/print_history_data.h"
 #include "../../include/print_history_manager.h"
 #include "../../include/print_history_parse.h"
@@ -134,8 +134,7 @@ class HistoryManagerTestFixture {
         // wait_ms advances LVGL's tick in slices bounded by real time, so one
         // call lands short of its nominal duration. Drive the tick past the
         // quiet period instead of trusting a single wait.
-        const uint32_t deadline =
-            lv_tick_get() + PrintHistoryManager::kInvalidationDebounceMs + 20;
+        const uint32_t deadline = lv_tick_get() + PrintHistoryManager::kInvalidationDebounceMs + 20;
         while (lv_tick_get() < deadline) {
             UITest::wait_ms(50);
         }
@@ -143,13 +142,29 @@ class HistoryManagerTestFixture {
     }
 
     /// A notify_filelist_changed frame shaped like Moonraker's.
-    static nlohmann::json filelist_msg(const char* action, const char* path) {
+    ///
+    /// `source_root` mirrors the `source_item` Moonraker attaches to a move or
+    /// a copy and leaves off everything else, so nullptr is a delete's shape.
+    static nlohmann::json filelist_msg(const char* action, const char* path,
+                                       const char* root = "gcodes",
+                                       const char* source_root = nullptr) {
+        nlohmann::json payload{{"action", action},
+                               {"item", {{"root", root}, {"path", path}, {"size", 1234}}}};
+        if (source_root != nullptr) {
+            payload["source_item"] = nlohmann::json{{"root", source_root}, {"path", path}};
+        }
+        return nlohmann::json{{"jsonrpc", "2.0"},
+                              {"method", "notify_filelist_changed"},
+                              {"params", nlohmann::json::array({payload})}};
+    }
+
+    /// A frame carrying no `item` at all - not a shape Moonraker emits, and the
+    /// one the filter has to fail safe on.
+    static nlohmann::json filelist_msg_without_item(const char* action) {
         return nlohmann::json{
             {"jsonrpc", "2.0"},
             {"method", "notify_filelist_changed"},
-            {"params", nlohmann::json::array({nlohmann::json{
-                           {"action", action},
-                           {"item", {{"root", "gcodes"}, {"path", path}, {"size", 1234}}}}})}};
+            {"params", nlohmann::json::array({nlohmann::json{{"action", action}}})}};
     }
 
     /// Wait for async fetch to complete
@@ -504,6 +519,84 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     pump_debounce();
 
     REQUIRE(notified.load() == after_initial);
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager ignores an orphaning action outside the gcodes root",
+                 "[history_manager][filelist]") {
+    manager_->fetch(HistoryScope::COMPLETE);
+    REQUIRE(wait_for_loaded());
+    pump();
+    const int before = api_->history_list_calls();
+
+    // Moonraker's timelapse component moves frames and renders for the whole
+    // duration of a print, and a klippy restart rotates a config backup. None
+    // of those roots is where a gcode job's file lives, so none of them can
+    // flip a cached `exists` flag.
+    client_.dispatch_method_callback(
+        "notify_filelist_changed",
+        filelist_msg("move_file", "timelapse_0001.jpg", "timelapse", "timelapse"));
+    client_.dispatch_method_callback(
+        "notify_filelist_changed",
+        filelist_msg("delete_file", "frame_0001.jpg", "timelapse_frames"));
+    client_.dispatch_method_callback(
+        "notify_filelist_changed",
+        filelist_msg("move_file", "printer-backup.cfg", "config", "config"));
+    pump_debounce();
+
+    REQUIRE(api_->history_list_calls() == before);
+    REQUIRE(manager_->is_loaded(HistoryScope::RECENT));
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager refetches when either end of a move is in gcodes",
+                 "[history_manager][filelist]") {
+    SECTION("moved out of gcodes") {
+        manager_->fetch(HistoryScope::COMPLETE);
+        REQUIRE(wait_for_loaded());
+        pump();
+        const int before = api_->history_list_calls();
+
+        // The destination root is somewhere else, so only source_item says the
+        // job's file left the place history recorded it.
+        client_.dispatch_method_callback(
+            "notify_filelist_changed",
+            filelist_msg("move_file", "archived.gcode", "gcodes_backup", "gcodes"));
+        pump_debounce();
+
+        REQUIRE(api_->history_list_calls() == before + 1);
+    }
+
+    SECTION("moved into gcodes") {
+        manager_->fetch(HistoryScope::COMPLETE);
+        REQUIRE(wait_for_loaded());
+        pump();
+        const int before = api_->history_list_calls();
+
+        client_.dispatch_method_callback(
+            "notify_filelist_changed",
+            filelist_msg("move_file", "restored.gcode", "gcodes", "gcodes_backup"));
+        pump_debounce();
+
+        REQUIRE(api_->history_list_calls() == before + 1);
+    }
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager refetches when a filelist payload names no root",
+                 "[history_manager][filelist]") {
+    manager_->fetch(HistoryScope::COMPLETE);
+    REQUIRE(wait_for_loaded());
+    pump();
+    const int before = api_->history_list_calls();
+
+    // A shape the parse does not recognise carries no evidence either way.
+    // Going stale is worse than one extra round-trip.
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg_without_item("delete_file"));
+    pump_debounce();
+
+    REQUIRE(api_->history_list_calls() == before + 1);
 }
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
@@ -1121,19 +1214,18 @@ namespace {
 
 /// A notify_history_changed frame shaped like Moonraker's.
 nlohmann::json history_msg(const char* action, const nlohmann::json& job) {
-    return nlohmann::json{{"jsonrpc", "2.0"},
-                          {"method", "notify_history_changed"},
-                          {"params", nlohmann::json::array({nlohmann::json{{"action", action},
-                                                                           {"job", job}}})}};
+    return nlohmann::json{
+        {"jsonrpc", "2.0"},
+        {"method", "notify_history_changed"},
+        {"params", nlohmann::json::array({nlohmann::json{{"action", action}, {"job", job}}})}};
 }
 
 nlohmann::json job_payload(const char* job_id, const char* filename, const char* status,
                            double start_time, bool exists) {
-    return nlohmann::json{{"job_id", job_id},   {"filename", filename},
-                          {"status", status},   {"start_time", start_time},
-                          {"end_time", start_time + 60}, {"print_duration", 60.0},
-                          {"total_duration", 60.0},      {"filament_used", 1234.0},
-                          {"exists", exists}};
+    return nlohmann::json{
+        {"job_id", job_id},         {"filename", filename},        {"status", status},
+        {"start_time", start_time}, {"end_time", start_time + 60}, {"print_duration", 60.0},
+        {"total_duration", 60.0},   {"filament_used", 1234.0},     {"exists", exists}};
 }
 
 } // namespace
@@ -1239,9 +1331,10 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "A history notification with no job 
 
     client_.dispatch_method_callback(
         "notify_history_changed",
-        nlohmann::json{{"jsonrpc", "2.0"},
-                       {"method", "notify_history_changed"},
-                       {"params", nlohmann::json::array({nlohmann::json{{"action", "finished"}}})}});
+        nlohmann::json{
+            {"jsonrpc", "2.0"},
+            {"method", "notify_history_changed"},
+            {"params", nlohmann::json::array({nlohmann::json{{"action", "finished"}}})}});
     pump_debounce();
 
     REQUIRE(api_->history_list_calls() > before);
@@ -1278,7 +1371,8 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "A burst of invalidations costs one 
                                      filelist_msg("delete_file", "a.gcode"));
     client_.dispatch_method_callback("notify_filelist_changed",
                                      filelist_msg("delete_file", "b.gcode"));
-    client_.dispatch_method_callback("notify_filelist_changed", filelist_msg("move_file", "c.gcode"));
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg("move_file", "c.gcode"));
 
     // The cache is stale from the moment the change is known, even though the
     // request that repairs it waits out the quiet period.

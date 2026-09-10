@@ -3682,13 +3682,13 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Profiles without a phase object ignore phase-object frames",
                  "[print][collector][phase_object]") {
-    collector().set_profile(PrintStartProfile::load_default());
+    collector().set_profile(PrintStartProfile::load("creality_k2"));
     collector().start();
     drain_async_updates();
 
-    // The default profile declares no status phase source: the identical
-    // frame must be ignored entirely - phase stays at the start() baseline.
-    // This is the fallback guarantee for every profile without the field.
+    // The K2 profile declares no status phase source: the identical frame
+    // must be ignored entirely - phase stays at the start() baseline. This is
+    // the fallback guarantee for every profile without the field.
     client().dispatch_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
     drain_async_updates();
 
@@ -3841,6 +3841,33 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
     REQUIRE(get_current_message() == "Heating Nozzle...");
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "A status-signal match leaves the proactive detector armed",
+                 "[print][collector][status_signals][proactive]") {
+    collector().start();
+    drain_async_updates();
+    collector().enable_fallbacks();
+
+    // The default profile's heating rules watch heater_bed and extruder - the
+    // same frames the proactive detector reads. A rule holding is inference,
+    // not the firmware narrating, so it must not gate that detector off.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+
+    // Mid-G28 with the bed still climbing. Only the proactive detector can
+    // reach HOMING from here: the heating correction beneath it never leaves
+    // the two heating phases, so a gated-off detector shows HEATING_BED.
+    lv_subject_copy_string(state().get_homed_axes_subject(), "xy");
+    set_all_temps(/*bed*/ 235, 600, /*ext*/ 0, 0);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+
+    INFO("phase=" << static_cast<int>(get_current_phase()) << " msg=" << get_current_message());
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,

@@ -1,0 +1,425 @@
+{
+  "description": "Voron Trident + AFC Box Turtle + Beacon, reconstructed from debug bundle 7945RTNT: the printer's own PRINT_START narration (SET_DISPLAY_TEXT -> display_status.message), the AFC RESPOND lines, and the print_duration edge the Box Turtle tool load produces. Timings are anchored to the entry that bundle recorded: total 701s, CLEANING 136s, PURGING 222s.",
+  "events": [
+    {
+      "t": 0,
+      "type": "status",
+      "object": "print_stats",
+      "payload": {
+        "state": "printing",
+        "filename": "benchy_PLA_2h58m.gcode",
+        "print_duration": 0.0,
+        "total_duration": 0.0,
+        "info": {
+          "current_layer": 0,
+          "total_layer": 279
+        }
+      }
+    },
+    {
+      "t": 0,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 24.0,
+        "target": 0.0
+      }
+    },
+    {
+      "t": 0,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 25.0,
+        "target": 0.0
+      }
+    },
+    {
+      "t": 500,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Starting",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 2000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Heating hotend: 150c",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 2100,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 25.0,
+        "target": 150.0
+      }
+    },
+    {
+      "t": 10000,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 60.0,
+        "target": 150.0
+      }
+    },
+    {
+      "t": 20000,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 100.0,
+        "target": 150.0
+      }
+    },
+    {
+      "t": 35000,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 140.0,
+        "target": 150.0
+      }
+    },
+    {
+      "t": 45000,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 150.0,
+        "target": 150.0
+      }
+    },
+    {
+      "t": 46000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Homing",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 60000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Heating Bed: 100c",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 60100,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 24.0,
+        "target": 100.0
+      }
+    },
+    {
+      "t": 90000,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 40.0,
+        "target": 100.0
+      }
+    },
+    {
+      "t": 150000,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 65.0,
+        "target": 100.0
+      }
+    },
+    {
+      "t": 210000,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 85.0,
+        "target": 100.0
+      }
+    },
+    {
+      "t": 245000,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 99.0,
+        "target": 100.0
+      }
+    },
+    {
+      "t": 250000,
+      "type": "status",
+      "object": "heater_bed",
+      "payload": {
+        "temperature": 100.0,
+        "target": 100.0
+      }
+    },
+    {
+      "t": 252000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Heating chamber: 45c",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 325000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Heating hotend: 150c",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 343000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Cleaning Nozzle",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 343000,
+      "type": "gcode_response",
+      "line": "// AFC_Brush: Clean Nozzle"
+    },
+    {
+      "t": 343500,
+      "type": "gcode_response",
+      "line": "// Brush Servo Extended"
+    },
+    {
+      "t": 344000,
+      "type": "gcode_response",
+      "line": "// AFC_Brush: Move to Brush."
+    },
+    {
+      "t": 346000,
+      "type": "gcode_response",
+      "line": "// AFC_Brush: Y Brush Moves"
+    },
+    {
+      "t": 348000,
+      "type": "gcode_response",
+      "line": "// AFC_Brush: X Brush Moves"
+    },
+    {
+      "t": 352000,
+      "type": "gcode_response",
+      "line": "// AFC_Brush: Finish z_move."
+    },
+    {
+      "t": 353000,
+      "type": "gcode_response",
+      "line": "// Brush Servo Retracted"
+    },
+    {
+      "t": 355000,
+      "type": "gcode_response",
+      "line": "// AFC_Park: Park Toolhead"
+    },
+    {
+      "t": 365000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Homing Z",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 380000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Z-tilt adjust",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 410000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Bed mesh",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 455000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Heating hotend: 245c",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 455100,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 150.0,
+        "target": 245.0
+      }
+    },
+    {
+      "t": 468000,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 200.0,
+        "target": 245.0
+      }
+    },
+    {
+      "t": 470000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Cleaning Nozzle",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 470000,
+      "type": "gcode_response",
+      "line": "// AFC_Brush: Clean Nozzle"
+    },
+    {
+      "t": 472000,
+      "type": "gcode_response",
+      "line": "// AFC_Park: Park Toolhead"
+    },
+    {
+      "t": 477000,
+      "type": "status",
+      "object": "extruder",
+      "payload": {
+        "temperature": 245.0,
+        "target": 245.0
+      }
+    },
+    {
+      "t": 479000,
+      "type": "status",
+      "object": "print_stats",
+      "payload": {
+        "state": "printing",
+        "filename": "benchy_PLA_2h58m.gcode",
+        "print_duration": 2.0,
+        "total_duration": 479,
+        "info": {
+          "current_layer": 0,
+          "total_layer": 279
+        }
+      }
+    },
+    {
+      "t": 480000,
+      "type": "gcode_response",
+      "line": "// AFC_Poop: Starting poop"
+    },
+    {
+      "t": 481000,
+      "type": "gcode_response",
+      "line": "// AFC_Poop: Set Cooling Fan to Full Speed"
+    },
+    {
+      "t": 483000,
+      "type": "gcode_response",
+      "line": "// AFC_Poop: Move To Purge Location"
+    },
+    {
+      "t": 509000,
+      "type": "gcode_response",
+      "line": "// AFC_Poop: Lifting Z to 5.0 mm"
+    },
+    {
+      "t": 511000,
+      "type": "gcode_response",
+      "line": "// AFC_Poop: Restore fan speed and feedrate"
+    },
+    {
+      "t": 550000,
+      "type": "status",
+      "object": "print_stats",
+      "payload": {
+        "state": "printing",
+        "filename": "benchy_PLA_2h58m.gcode",
+        "print_duration": 30.0,
+        "total_duration": 550,
+        "info": {
+          "current_layer": 0,
+          "total_layer": 279
+        }
+      }
+    },
+    {
+      "t": 650000,
+      "type": "status",
+      "object": "print_stats",
+      "payload": {
+        "state": "printing",
+        "filename": "benchy_PLA_2h58m.gcode",
+        "print_duration": 60.0,
+        "total_duration": 650,
+        "info": {
+          "current_layer": 0,
+          "total_layer": 279
+        }
+      }
+    },
+    {
+      "t": 655000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Priming Nozzle",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 701000,
+      "type": "status",
+      "object": "display_status",
+      "payload": {
+        "message": "Printing",
+        "progress": 0.0
+      }
+    },
+    {
+      "t": 701000,
+      "type": "status",
+      "object": "print_stats",
+      "payload": {
+        "state": "printing",
+        "filename": "benchy_PLA_2h58m.gcode",
+        "print_duration": 75.0,
+        "total_duration": 701,
+        "info": {
+          "current_layer": 1,
+          "total_layer": 279
+        }
+      }
+    }
+  ]
+}

@@ -272,8 +272,16 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * Every profile-driven phase match — console line or phase-object state —
      * lands here, so phase weights, progress, ETA re-baselining, and the
      * real-signal gate behave identically whichever feed produced the match.
+     *
+     * @param match The phase/message/weight the profile resolved
+     * @param marks_real_signal Whether this match counts as firmware narration
+     *   and so gates the proactive temperature detector off. A predicate over
+     *   heater temperatures reads the same evidence that detector reads, so a
+     *   status-signal match passes false: silencing the detector with its own
+     *   input costs the HOMING and heating phases only it can supply.
      */
-    void apply_profile_match(const PrintStartProfile::MatchResult& match);
+    void apply_profile_match(const PrintStartProfile::MatchResult& match,
+                             bool marks_real_signal = true);
 
     /**
      * @brief Check a status frame for the profile's phase object
@@ -297,8 +305,9 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * physical predicates hold for whole windows (the head sits at the cutter
      * for seconds) while frames keep re-arriving, so each rule latches by name
      * and re-arms once its predicate stops holding. Matches feed
-     * apply_profile_match(), the same path a console line takes. A profile
-     * without status_signals ignores every frame.
+     * apply_profile_match() without marking a real signal — a predicate over
+     * heater or toolhead frames is inference, not narration. A profile without
+     * status_signals ignores every frame.
      *
      * Thread-safe: runs on the WebSocket background thread, like the other
      * notify_status_update handling in start().
@@ -581,14 +590,15 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     size_t silent_progression_idx_ = 0;
 
     // Set true the moment any real firmware signal is observed for this print
-    // (HELIX:PHASE, K2/CFS tag, profile signal/pattern match, PRINT_START
-    // marker, or RESPOND completion). Gates the proactive temperature
-    // heuristic: once the firmware is actively narrating its PRINT_START
-    // sequence it is authoritative, so the "temps ready → INITIALIZING"
-    // fallback must not bounce the displayed phase back to the generic
-    // "Preparing Print...". Atomic — written from the WebSocket background
-    // thread (on_gcode_response) and read from the main thread
-    // (check_fallback_completion).
+    // (HELIX:PHASE, K2/CFS tag, profile signal/pattern/state match, PRINT_START
+    // marker, or RESPOND completion). Status-signal rules are excluded: they
+    // infer from the same frames the heuristic below reads, not from narration.
+    // Gates the proactive temperature heuristic: once the firmware is actively
+    // narrating its PRINT_START sequence it is authoritative, so the "temps
+    // ready → INITIALIZING" fallback must not bounce the displayed phase back
+    // to the generic "Preparing Print...". Atomic — written from the WebSocket
+    // background thread (on_gcode_response, handle_phase_object_status) and
+    // read from the main thread (check_fallback_completion).
     std::atomic<bool> real_signal_seen_{false};
 
     // Latched true the first time current_layer is observed < 1 since this

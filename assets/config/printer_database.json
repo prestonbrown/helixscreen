@@ -695,6 +695,14 @@
       "name": "Voron 2.4",
       "manufacturer": "Voron",
       "image": "voron-v2.png",
+      "_print_start_default_phases_comment": "Estimates for a 350mm-class gantry machine with a probe-based mesh: G28 plus a four-point QUAD_GANTRY_LEVEL (the 2.4 levels its gantry, never Z_TILT), then a mesh sweep, a brush wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 30,
+        "QGL": 60,
+        "BED_MESH": 90,
+        "CLEANING": 20,
+        "PURGING": 15
+      },
       "calibration": {
         "belt_span_offset_mm": 35.0
       },
@@ -782,6 +790,13 @@
       ],
       "manufacturer": "Voron",
       "image": "voron-v0.png",
+      "_print_start_default_phases_comment": "Estimates for a 120mm single-Z machine: no gantry to level and no three-point tilt, so G28 leads straight into a short mesh (when a probe is fitted), a wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 20,
+        "BED_MESH": 30,
+        "CLEANING": 15,
+        "PURGING": 10
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -929,6 +944,14 @@
       "name": "Voron Trident",
       "manufacturer": "Voron",
       "image": "voron-trident.png",
+      "_print_start_default_phases_comment": "Estimates for a 350mm-class machine with a probe-based mesh: G28 plus a three-point Z_TILT_ADJUST (the Trident tilts its bed, it has no gantry to QGL), then a mesh sweep, a brush wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 30,
+        "Z_TILT": 45,
+        "BED_MESH": 90,
+        "CLEANING": 20,
+        "PURGING": 15
+      },
       "heuristics": [
         {
           "type": "object_exists",
@@ -986,6 +1009,13 @@
       "name": "Voron Switchwire",
       "manufacturer": "Voron",
       "image": "voron-switchwire.png",
+      "_print_start_default_phases_comment": "Estimates for a 250mm bed-slinger with a single Z and a probe-based mesh: neither a gantry to level nor a three-point tilt, so G28 leads into the mesh sweep, a wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 25,
+        "BED_MESH": 60,
+        "CLEANING": 20,
+        "PURGING": 15
+      },
       "heuristics": [
         {
           "type": "kinematics_match",

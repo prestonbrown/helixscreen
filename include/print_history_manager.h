@@ -3,11 +3,11 @@
 
 #pragma once
 
+#include "ui_coalesced_timer.h"
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "print_history_data.h"
-#include "ui_coalesced_timer.h"
 
 #include <atomic>
 #include <functional>
@@ -328,7 +328,8 @@ class PrintHistoryManager {
      * @param requested Job limit the request carried. A response shorter than
      *                  its limit is the whole history, whatever scope asked.
      */
-    void on_history_fetched(std::vector<PrintHistoryJob>&& jobs, helix::HistoryScope scope, int requested);
+    void on_history_fetched(std::vector<PrintHistoryJob>&& jobs, helix::HistoryScope scope,
+                            int requested);
 
     /**
      * @brief Fold a single job from a history notification into the cache
@@ -394,7 +395,7 @@ class PrintHistoryManager {
      *   carries that job, so this one normally patches the cache instead of
      *   re-fetching (see history_action_carries_job).
      * - `notify_filelist_changed` - filtered to the actions that can orphan a
-     *   job (see filelist_action_affects_history); a delete or move flips a
+     *   job (see filelist_change_affects_history); a delete or move flips a
      *   cached job's `exists` flag and Moonraker never reports that through
      *   the history notification.
      *
@@ -403,13 +404,22 @@ class PrintHistoryManager {
     void subscribe_to_notifications();
 
     /**
-     * @brief Whether a notify_filelist_changed action can orphan a history job
+     * @brief Whether a notify_filelist_changed payload can orphan a history job
      *
      * Uploads, metadata scans and directory listings fire the same
      * notification and cannot change any job's `exists` flag, so they must not
-     * trigger a history round-trip.
+     * trigger a history round-trip. Neither can anything confined to a root
+     * other than `gcodes`, which is the only root history names files in.
+     *
+     * @param action      The payload's `action` field
+     * @param item_root   `item.root`. Empty means a payload shape we do not
+     *                    recognise, which invalidates rather than risk going stale
+     * @param source_root `source_item.root`, which Moonraker sends only on a
+     *                    move or copy; empty otherwise
      */
-    [[nodiscard]] static bool filelist_action_affects_history(const std::string& action);
+    [[nodiscard]] static bool filelist_change_affects_history(const std::string& action,
+                                                              const std::string& item_root,
+                                                              const std::string& source_root);
 
     /**
      * @brief Mark the cache stale whenever the Moonraker socket is not up
