@@ -142,10 +142,34 @@ TEST_CASE("SimSpeed: a subsystem multiplier composes over the global flag",
         REQUIRE(SimSpeed::global().composed_with(1).factor() == Catch::Approx(10.0));
     }
 
-    SECTION("the composed product obeys the same ceiling") {
+    SECTION("the product is NOT held to the flag's own ceiling") {
+        // MAX_SPEED bounds what may be asked for, not the rate composition
+        // reaches. Capping the product here would flatten every flag value
+        // above ~16.7 for a subsystem at 60x, which is exactly the behaviour a
+        // subsystem multiplier exists to provide.
         GlobalSpeedScope scope(100.0);
-        REQUIRE(SimSpeed::global().composed_with(60).factor() ==
+        REQUIRE(SimSpeed::global().composed_with(60).factor() == Catch::Approx(6000.0));
+        REQUIRE(SimSpeed::global().composed_with(60).factor() > helix::sim::MAX_SPEED);
+    }
+
+    SECTION("--sim-speed 50 over a 60x subsystem is 3000x") {
+        REQUIRE(SimSpeed::of(50).composed_with(60).factor() == Catch::Approx(3000.0));
+    }
+
+    SECTION("the flag's top end drives a 60x subsystem at 60000x") {
+        GlobalSpeedScope scope(helix::sim::MAX_SPEED);
+        REQUIRE(SimSpeed::global().composed_with(60).factor() == Catch::Approx(60000.0));
+    }
+
+    SECTION("the subsystem's own multiplier is an asked-for factor, so it clamps") {
+        REQUIRE(SimSpeed::of(1.0).composed_with(50000.0).factor() ==
                 Catch::Approx(helix::sim::MAX_SPEED));
+    }
+
+    SECTION("only the overflow guard bounds an absurd product") {
+        // Two in-range factors at their maximum would make 1e6.
+        REQUIRE(SimSpeed::of(helix::sim::MAX_SPEED).composed_with(helix::sim::MAX_SPEED).factor() ==
+                Catch::Approx(helix::sim::MAX_COMPOSED_SPEED));
     }
 
     SECTION("composition scales both operations, in their own directions") {

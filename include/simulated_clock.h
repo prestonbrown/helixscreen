@@ -38,13 +38,23 @@
 
 namespace helix::sim {
 
-/// Slowest factor any simulated-time consumer accepts; matches `--sim-speed`.
+/// Slowest factor anything may ask for; matches `--sim-speed`.
 inline constexpr double MIN_SPEED = 1.0;
-/// Fastest factor any simulated-time consumer accepts; matches `--sim-speed`.
+/// Fastest factor anything may ASK for — the `--sim-speed` range, and the bound
+/// on a single configured multiplier such as `HELIX_MOCK_DRYER_SPEED`. It is not
+/// a bound on the rate a composition may reach; see `MAX_COMPOSED_SPEED`.
 inline constexpr double MAX_SPEED = 1000.0;
+/// Overflow guard on a composed rate, not a policy limit. Composition is meant
+/// to multiply: a subsystem at 60x really does run at 60000x under
+/// `--sim-speed 1000`, and holding the product to MAX_SPEED would instead
+/// flatten every flag value above ~16.7 for that subsystem. This bound exists
+/// only so a malformed or repeatedly-composed product cannot run away, and it
+/// keeps the nanosecond arithmetic in `accelerate_progress()` exact across
+/// roughly a day of real time.
+inline constexpr double MAX_COMPOSED_SPEED = 100000.0;
 
-/// Bring any factor — a flag value, an env override, a composed product — into
-/// the one range every simulated-time consumer shares.
+/// Bring a factor someone ASKED for — a flag value, an env override, a
+/// subsystem's own multiplier — into the range every such source shares.
 [[nodiscard]] constexpr double clamp_speed(double factor) {
     // NaN compares false against both bounds, so test for the valid interval
     // rather than clamping, and fall back to real time when it fails.
@@ -54,12 +64,22 @@ inline constexpr double MAX_SPEED = 1000.0;
     return std::min(factor, MAX_SPEED);
 }
 
+/// Bound a composed rate against overflow, far above any rate composing two
+/// in-range factors is meant to produce.
+[[nodiscard]] constexpr double clamp_composed_speed(double rate) {
+    if (!(rate >= MIN_SPEED)) {
+        return MIN_SPEED;
+    }
+    return std::min(rate, MAX_COMPOSED_SPEED);
+}
+
 /**
  * @brief How much faster than real time a simulation runs.
  *
- * Always in [MIN_SPEED, MAX_SPEED]. A subsystem that has its own multiplier
- * composes it over the global flag with `composed_with()`, so one `--sim-speed`
- * carries every subsystem's own pace with it.
+ * A factor that was ASKED for — `of()`, `global()` — lands in
+ * [MIN_SPEED, MAX_SPEED]. A COMPOSED one may exceed it: `composed_with()`
+ * multiplies, so a subsystem carrying its own 60x runs at 60000x under
+ * `--sim-speed 1000`, bounded only by the MAX_COMPOSED_SPEED overflow guard.
  */
 class SimSpeed {
   public:
@@ -77,15 +97,22 @@ class SimSpeed {
     /**
      * @brief This speed with a subsystem's own multiplier folded in.
      *
-     * The mock dryer runs at 60x with no flag so a 4-hour cycle is watchable;
-     * `SimSpeed::global().composed_with(60)` makes `--sim-speed 10` mean 600x
-     * for the dryer while the rest of the app stays at 10x.
+     * Composition MULTIPLIES, and the product is deliberately not held to
+     * MAX_SPEED. The mock dryer runs at 60x with no flag so a 4-hour cycle is
+     * watchable; `--sim-speed 10` makes that 600x, `--sim-speed 50` makes it
+     * 3000x, and the flag's top end makes it 60000x, while the rest of the app
+     * stays at the flag's own rate. Capping the product would silently flatten
+     * every flag value above ~16.7 for a subsystem at 60x, which is the whole
+     * behaviour a subsystem multiplier exists to provide.
+     *
+     * The subsystem's own multiplier IS an asked-for factor, so it is clamped
+     * to [MIN_SPEED, MAX_SPEED] before it multiplies.
      *
      * @param subsystem_factor The subsystem's own multiplier at 1x global
-     * @return The product, clamped back into [MIN_SPEED, MAX_SPEED]
+     * @return The product, bounded only by the MAX_COMPOSED_SPEED overflow guard
      */
     [[nodiscard]] constexpr SimSpeed composed_with(double subsystem_factor) const {
-        return SimSpeed(clamp_speed(factor_ * clamp_speed(subsystem_factor)));
+        return SimSpeed(clamp_composed_speed(factor_ * clamp_speed(subsystem_factor)));
     }
 
     /// The raw multiplier. Prefer the named operations below.

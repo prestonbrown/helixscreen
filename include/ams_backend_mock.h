@@ -796,7 +796,9 @@ class AmsBackendMock : public AmsBackend {
      *
      * The dryer's own multiplier composed with --sim-speed, so fast-forwarding the
      * simulated clock carries the drying cycle with it instead of leaving it at 60x.
-     * Clamped to helix::sim::MAX_SPEED like every other simulated-time factor.
+     * The product is a composed rate, so it is bounded by
+     * helix::sim::MAX_COMPOSED_SPEED rather than by the flag's own MAX_SPEED:
+     * at the 60x base, --sim-speed 1000 really does dry at 60000x.
      * Caller must hold mutex_.
      */
     [[nodiscard]] int effective_dryer_speed_x() const;

@@ -645,9 +645,20 @@ TEST_CASE("AmsBackendMock: the dryer's own multiplier composes over the flag",
         REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) == 10);
     }
 
-    SECTION("the composed rate obeys the shared ceiling") {
-        get_runtime_config()->sim_speedup = 100.0;
+    SECTION("--sim-speed 50 gives 3000x, not the flag's own 1000 ceiling") {
+        get_runtime_config()->sim_speedup = 50.0;
+        REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) == 3000);
+    }
+
+    SECTION("the flag's top end dries at 60000x") {
+        get_runtime_config()->sim_speedup = helix::sim::MAX_SPEED;
+        REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) == 60000);
+    }
+
+    SECTION("only the overflow guard bounds the composed rate") {
+        AmsBackendMockTimingTestAccess::set_dryer_speed_x(backend, 1000);
+        get_runtime_config()->sim_speedup = helix::sim::MAX_SPEED;
         REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) ==
-                static_cast<int>(helix::sim::MAX_SPEED));
+                static_cast<int>(helix::sim::MAX_COMPOSED_SPEED));
     }
 }
