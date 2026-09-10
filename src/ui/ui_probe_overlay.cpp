@@ -496,9 +496,22 @@ void ProbeOverlay::update_display_subjects() {
 }
 
 void ProbeOverlay::set_accuracy_error(const std::string& msg) {
+    probe_acc_backstop_.end();
     snprintf(probe_acc_error_msg_buf_, sizeof(probe_acc_error_msg_buf_), "%s", msg.c_str());
     lv_subject_copy_string(&probe_acc_error_msg_, probe_acc_error_msg_buf_);
     lv_subject_set_int(&probe_acc_state_, 3); // ERROR
+}
+
+void ProbeOverlay::arm_accuracy_backstop(const std::string& handler_name, uint32_t backstop_ms) {
+    if (probe_acc_handler_name_ != handler_name) {
+        return; // a newer run owns the modal
+    }
+    probe_acc_backstop_.begin(backstop_ms, [this, handler_name]() {
+        if (api_) {
+            api_->unregister_method_callback("notify_gcode_response", handler_name);
+        }
+        set_accuracy_error(lv_tr("Connection lost — probe accuracy result unavailable"));
+    });
 }
 
 // ============================================================================
@@ -623,6 +636,7 @@ void ProbeOverlay::handle_probe_accuracy() {
     }
 
     // Unregister any stale handler from a previous run
+    probe_acc_backstop_.end();
     if (!probe_acc_handler_name_.empty()) {
         api_->unregister_method_callback("notify_gcode_response", probe_acc_handler_name_);
     }
@@ -697,17 +711,22 @@ void ProbeOverlay::handle_probe_accuracy() {
         [handler_name = probe_acc_handler_name_]() {
             spdlog::info("[Probe] PROBE_ACCURACY command completed");
         },
-        [api = api_, handler_name = probe_acc_handler_name_](const MoonrakerError& err) {
+        [api = api_, handler_name = probe_acc_handler_name_,
+         backstop_ms = MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS +
+                       prep_timeout_ms](const MoonrakerError& err) {
             // A dropped socket or an RPC timeout is not a probe result: the
             // printer may still be measuring, and its result lines arrive on
             // the same stream the handler is registered on. Keep listening
             // (prestonbrown/helixscreen#1543); a genuine rejection is still
             // terminal.
-            if (err.type == MoonrakerErrorType::TIMEOUT ||
-                err.type == MoonrakerErrorType::CONNECTION_LOST) {
+            if (err.is_transport_loss()) {
                 spdlog::warn("[Probe] PROBE_ACCURACY RPC lost to the transport ({}); still "
                              "listening for results",
                              err.type == MoonrakerErrorType::TIMEOUT ? "timeout" : "disconnect");
+                helix::ui::queue_update(
+                    "ProbeOverlay::arm_accuracy_backstop", [handler_name, backstop_ms]() {
+                        get_global_probe_overlay().arm_accuracy_backstop(handler_name, backstop_ms);
+                    });
                 return;
             }
             spdlog::error("[Probe] PROBE_ACCURACY failed: {}", err.user_message());
@@ -720,6 +739,7 @@ void ProbeOverlay::handle_probe_accuracy() {
 }
 
 void ProbeOverlay::show_accuracy_results(const std::string& results_line) {
+    probe_acc_backstop_.end();
     // Parse: "probe accuracy results: maximum 1.234, minimum 1.230, range 0.004,
     //         average 1.232, median 1.232, standard deviation 0.001"
     auto extract_value = [&](const std::string& key) -> std::string {

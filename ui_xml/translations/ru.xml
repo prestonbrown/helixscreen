@@ -369,9 +369,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ru="Калибровка завершена! Нажмите «Далее» для продолжения."/>
   <translation tag="Calibration failed - touch targets more precisely." ru="Калибровка не удалась – нажимайте на цели точнее."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." ru="Калибровка постоянно завершалась по тайм-ауту. Прежние настройки сохранены."/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" ru="Калибровка может ещё выполняться — соединение с принтером прервано"/>
   <translation tag="Calibration may still be running — response timed out" ru="Калибровка может ещё выполняться — время ожидания истекло"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" ru="Движение калибровки может ещё выполняться — соединение с принтером прервано"/>
   <translation tag="Calibration move may still be running — response timed out" ru="Движение калибровки может ещё выполняться — время ожидания истекло"/>
   <translation tag="Calibration saved but cannot apply on SDL display" ru="Калибровка сохранена, но не может быть применена на SDL дисплее"/>
   <translation tag="Calibration started" ru="Калибровка запущена"/>
@@ -566,10 +566,11 @@
   <translation tag="Connection failed. Check credentials." ru="Ошибка подключения. Проверьте учётные данные."/>
   <translation tag="Connection failed. Check password." ru="Ошибка подключения. Проверьте пароль."/>
   <translation tag="Connection failed: %s" ru="Ошибка подключения: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" ru="Соединение потеряно — результат теста точности датчика недоступен"/>
   <translation tag="Connection must be tested successfully to continue" ru="Для продолжения соединение должно быть успешно проверено"/>
   <translation tag="Connection successful!" ru="Соединение успешно!"/>
   <translation tag="Connection timeout" ru="Тайм-аут соединения"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" ru="Связь с принтером потеряна — операция может ещё выполняться"/>
   <translation tag="Connects" ru="Подключения"/>
   <translation tag="Console" ru="Консоль"/>
   <translation tag="Console Settings" ru="Настройки консоли"/>

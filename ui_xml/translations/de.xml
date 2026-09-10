@@ -369,9 +369,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." de="Kalibrierung abgeschlossen! Drücken Sie &apos;Weiter&apos; um fortzufahren."/>
   <translation tag="Calibration failed - touch targets more precisely." de="Kalibrierung fehlgeschlagen – Ziele präziser berühren."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." de="Bei der Kalibrierung kam es wiederholt zu einer Zeitüberschreitung. Ihre vorherigen Einstellungen wurden beibehalten."/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" de="Kalibrierung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen"/>
   <translation tag="Calibration may still be running — response timed out" de="Kalibrierung läuft möglicherweise noch — Zeitüberschreitung"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" de="Kalibrierungsbewegung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen"/>
   <translation tag="Calibration move may still be running — response timed out" de="Kalibrierungsbewegung läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Calibration saved but cannot apply on SDL display" de="Kalibrierung gespeichert, kann aber auf SDL-Display nicht angewendet werden"/>
   <translation tag="Calibration started" de="Kalibrierung gestartet"/>
@@ -566,10 +566,11 @@
   <translation tag="Connection failed. Check credentials." de="Verbindung fehlgeschlagen. Zugangsdaten prüfen."/>
   <translation tag="Connection failed. Check password." de="Verbindung fehlgeschlagen. Passwort prüfen."/>
   <translation tag="Connection failed: %s" de="Verbindung fehlgeschlagen: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" de="Verbindung verloren — Ergebnis des Taster-Genauigkeitstests nicht verfügbar"/>
   <translation tag="Connection must be tested successfully to continue" de="Verbindung muss erfolgreich getestet werden, um fortzufahren"/>
   <translation tag="Connection successful!" de="Verbindung erfolgreich!"/>
   <translation tag="Connection timeout" de="Verbindungs-Zeitüberschreitung"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" de="Verbindung zum Drucker verloren — Vorgang läuft möglicherweise noch"/>
   <translation tag="Connects" de="Verbindungen"/>
   <translation tag="Console" de="Konsole"/>
   <translation tag="Console Settings" de="Konsoleneinstellungen"/>

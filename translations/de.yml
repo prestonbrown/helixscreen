@@ -412,10 +412,10 @@ translations:
   Calibration failed - touch targets more precisely.: Kalibrierung fehlgeschlagen
     – Ziele präziser berühren.
   Calibration kept timing out. Your previous settings were kept.: Bei der Kalibrierung kam es wiederholt zu einer Zeitüberschreitung. Ihre vorherigen Einstellungen wurden beibehalten.
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'Kalibrierung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen'
   Calibration may still be running — response timed out: Kalibrierung läuft möglicherweise
     noch — Zeitüberschreitung
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'Kalibrierungsbewegung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen'
   Calibration move may still be running — response timed out: Kalibrierungsbewegung
     läuft möglicherweise noch — Zeitüberschreitung
   Calibration saved but cannot apply on SDL display: Kalibrierung gespeichert, kann
@@ -649,11 +649,12 @@ translations:
   Connection failed. Check credentials.: Verbindung fehlgeschlagen. Zugangsdaten prüfen.
   Connection failed. Check password.: Verbindung fehlgeschlagen. Passwort prüfen.
   'Connection failed: %s': 'Verbindung fehlgeschlagen: %s'
+  Connection lost — probe accuracy result unavailable: 'Verbindung verloren — Ergebnis des Taster-Genauigkeitstests nicht verfügbar'
   Connection must be tested successfully to continue: Verbindung muss erfolgreich
     getestet werden, um fortzufahren
   Connection successful!: Verbindung erfolgreich!
   Connection timeout: Verbindungs-Zeitüberschreitung
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'Verbindung zum Drucker verloren — Vorgang läuft möglicherweise noch'
   Connects: Verbindungen
   Console: Konsole
   Console Settings: Konsoleneinstellungen

@@ -369,9 +369,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ja="&quot;キャリブレーション完了！「次へ」を押して続行してください。&quot;"/>
   <translation tag="Calibration failed - touch targets more precisely." ja="キャリブレーション失敗 – ターゲットをより正確にタッチしてください。"/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." ja="キャリブレーションが繰り返しタイムアウトしました。以前の設定を維持しました。"/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" ja="キャリブレーションがまだ実行中の可能性があります — プリンター接続が中断されました"/>
   <translation tag="Calibration may still be running — response timed out" ja="キャリブレーションがまだ実行中の可能性があります — 応答タイムアウト"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" ja="キャリブレーション移動がまだ実行中の可能性があります — プリンター接続が中断されました"/>
   <translation tag="Calibration move may still be running — response timed out" ja="キャリブレーション移動がまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Calibration saved but cannot apply on SDL display" ja="キャリブレーションは保存されましたが SDL ディスプレイには適用できません"/>
   <translation tag="Calibration started" ja="キャリブレーションを開始しました"/>
@@ -566,10 +566,11 @@
   <translation tag="Connection failed. Check credentials." ja="接続に失敗しました。認証情報を確認してください。"/>
   <translation tag="Connection failed. Check password." ja="接続に失敗しました。パスワードを確認してください。"/>
   <translation tag="Connection failed: %s" ja="接続に失敗しました: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" ja="接続が切断されました — プローブ精度テストの結果が利用できません"/>
   <translation tag="Connection must be tested successfully to continue" ja="続行するには接続テストに成功する必要があります"/>
   <translation tag="Connection successful!" ja="接続成功！"/>
   <translation tag="Connection timeout" ja="接続タイムアウト"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" ja="プリンターとの接続が切断されました — 操作がまだ実行中の可能性があります"/>
   <translation tag="Connects" ja="接続回数"/>
   <translation tag="Console" ja="コンソール"/>
   <translation tag="Console Settings" ja="コンソール設定"/>

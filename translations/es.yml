@@ -406,10 +406,10 @@ translations:
   Calibration failed - touch targets more precisely.: Calibración fallida – toca los
     objetivos con más precisión.
   Calibration kept timing out. Your previous settings were kept.: La calibración siguió agotando el tiempo de espera. Se conservó su configuración anterior.
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'La calibración puede seguir en curso — se interrumpió la conexión con la impresora'
   Calibration may still be running — response timed out: La calibración puede seguir
     en curso — tiempo de espera agotado
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'El movimiento de calibración puede seguir en curso — se interrumpió la conexión con la impresora'
   Calibration move may still be running — response timed out: El movimiento de calibración
     puede seguir en curso — tiempo de espera agotado
   Calibration saved but cannot apply on SDL display: Calibración guardada pero no
@@ -644,11 +644,12 @@ translations:
   Connection failed. Check credentials.: Conexión fallida. Verifica las credenciales.
   Connection failed. Check password.: Conexión fallida. Verifique la contraseña.
   'Connection failed: %s': 'Conexión fallida: %s'
+  Connection lost — probe accuracy result unavailable: 'Conexión perdida — resultado de la prueba de precisión de sonda no disponible'
   Connection must be tested successfully to continue: La conexión debe probarse exitosamente
     para continuar
   Connection successful!: ¡Conexión exitosa!
   Connection timeout: Tiempo de conexión agotado
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'Conexión con la impresora perdida — la operación puede seguir en curso'
   Connects: Conexiones
   Console: Consola
   Console Settings: Ajustes de Consola

@@ -372,9 +372,9 @@ translations:
   Calibration complete! Press 'Next' to continue.: 校准完成！按“下一步”继续。
   Calibration failed - touch targets more precisely.: 校准失败 – 请更精确地触摸目标。
   Calibration kept timing out. Your previous settings were kept.: 校准反复超时，已保留您之前的设置。
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: '校准可能仍在运行 — 打印机连接已中断'
   Calibration may still be running — response timed out: 校准可能仍在运行 — 响应超时
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: '校准移动可能仍在运行 — 打印机连接已中断'
   Calibration move may still be running — response timed out: 校准移动可能仍在运行 — 响应超时
   Calibration saved but cannot apply on SDL display: 校准已保存，但无法在 SDL 显示上应用
   Calibration started: 校准已开始
@@ -572,10 +572,11 @@ translations:
   Connection failed. Check credentials.: 连接失败，请检查凭据。
   Connection failed. Check password.: 连接失败。请检查密码。
   'Connection failed: %s': 连接失败：%s
+  Connection lost — probe accuracy result unavailable: '连接已丢失 — 探针精度测试结果不可用'
   Connection must be tested successfully to continue: 必须成功测试连接才能继续
   Connection successful!: 连接成功！
   Connection timeout: 连接超时
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: '与打印机的连接已丢失 — 操作可能仍在运行'
   Connects: 连接次数
   Console: 控制台
   Console Settings: 控制台设置

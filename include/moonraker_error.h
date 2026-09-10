@@ -43,6 +43,19 @@ struct MoonrakerError {
     }
 
     /**
+     * @brief Did the transport vanish, rather than the printer answering?
+     *
+     * A dropped WebSocket and an RPC timeout a slow command outlived both say
+     * nothing about what the printer did with the command: it may still be
+     * running, and its console output arrives on the notification stream a
+     * collector is already listening to. Anything else carries Klipper's own
+     * complaint and is terminal (prestonbrown/helixscreen#1543).
+     */
+    bool is_transport_loss() const {
+        return type == MoonrakerErrorType::TIMEOUT || type == MoonrakerErrorType::CONNECTION_LOST;
+    }
+
+    /**
      * @brief Get string representation of error type
      * @return Error type as string (e.g., "TIMEOUT", "CONNECTION_LOST")
      */

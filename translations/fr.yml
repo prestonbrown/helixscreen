@@ -412,10 +412,10 @@ translations:
   Calibration failed - touch targets more precisely.: Échec de calibration – touchez
     les cibles plus précisément.
   Calibration kept timing out. Your previous settings were kept.: La calibration a expiré à plusieurs reprises. Vos paramètres précédents ont été conservés.
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'Calibration peut-être encore en cours — connexion à l''imprimante interrompue'
   Calibration may still be running — response timed out: Calibration peut-être encore
     en cours — délai dépassé
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'Mouvement de calibration peut-être encore en cours — connexion à l''imprimante interrompue'
   Calibration move may still be running — response timed out: Mouvement de calibration
     peut-être encore en cours — délai dépassé
   Calibration saved but cannot apply on SDL display: Calibration enregistrée mais
@@ -651,11 +651,12 @@ translations:
   Connection failed. Check credentials.: Connexion échouée. Vérifiez les identifiants.
   Connection failed. Check password.: Connexion échouée. Vérifiez le mot de passe.
   'Connection failed: %s': 'Connexion échouée : %s'
+  Connection lost — probe accuracy result unavailable: 'Connexion perdue — résultat du test de précision de la sonde indisponible'
   Connection must be tested successfully to continue: La connexion doit être testée
     avec succès pour continuer
   Connection successful!: Connexion réussie !
   Connection timeout: Délai de connexion dépassé
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'Connexion à l''imprimante perdue — l''opération est peut-être encore en cours'
   Connects: Connexions
   Console: Console
   Console Settings: Paramètres de la console

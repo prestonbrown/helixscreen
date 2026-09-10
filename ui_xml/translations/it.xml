@@ -369,9 +369,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." it="Calibrazione completata! Premi &apos;Avanti&apos; per continuare."/>
   <translation tag="Calibration failed - touch targets more precisely." it="Calibrazione fallita – tocca i bersagli con più precisione."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." it="La calibrazione è scaduta più volte. Sono state mantenute le impostazioni precedenti."/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" it="Calibrazione potrebbe essere ancora in corso — connessione alla stampante interrotta"/>
   <translation tag="Calibration may still be running — response timed out" it="Calibrazione potrebbe essere ancora in corso — tempo scaduto"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" it="Movimento calibrazione potrebbe essere ancora in corso — connessione alla stampante interrotta"/>
   <translation tag="Calibration move may still be running — response timed out" it="Movimento calibrazione potrebbe essere ancora in corso — tempo scaduto"/>
   <translation tag="Calibration saved but cannot apply on SDL display" it="Calibrazione salvata ma non applicabile su display SDL"/>
   <translation tag="Calibration started" it="Calibrazione avviata"/>
@@ -566,10 +566,11 @@
   <translation tag="Connection failed. Check credentials." it="Connessione fallita. Controlla le credenziali."/>
   <translation tag="Connection failed. Check password." it="Connessione fallita. Verificare la password."/>
   <translation tag="Connection failed: %s" it="Connessione fallita: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" it="Connessione persa — risultato del test precisione sonda non disponibile"/>
   <translation tag="Connection must be tested successfully to continue" it="La connessione deve essere testata con successo per continuare"/>
   <translation tag="Connection successful!" it="Connessione riuscita!"/>
   <translation tag="Connection timeout" it="Connessione scaduta"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" it="Connessione alla stampante persa — l&apos;operazione potrebbe essere ancora in corso"/>
   <translation tag="Connects" it="Connessioni"/>
   <translation tag="Console" it="Console"/>
   <translation tag="Console Settings" it="Impostazioni console"/>

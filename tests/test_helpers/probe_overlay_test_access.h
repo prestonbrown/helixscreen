@@ -25,6 +25,26 @@ struct ProbeOverlayTestAccess {
         o.handle_config_save();
     }
 
+    /// Stage a PROBE_ACCURACY run without the modal that normally starts one:
+    /// the handler name a backstop belongs to, plus the PROBING state the modal
+    /// binds to. handle_probe_accuracy() needs the XML modal stack, so this is
+    /// the only way in from a plain LVGL fixture.
+    static void stage_accuracy_run(ProbeOverlay& o, const std::string& handler_name) {
+        o.probe_acc_handler_name_ = handler_name;
+        lv_subject_set_int(&o.probe_acc_state_, 1);
+    }
+    static lv_timer_t* accuracy_backstop_timer(ProbeOverlay& o) {
+        return o.probe_acc_backstop_.pending_timer();
+    }
+    /// 0=idle, 1=probing, 2=results, 3=error.
+    static int accuracy_state(ProbeOverlay& o) {
+        return lv_subject_get_int(&o.probe_acc_state_);
+    }
+    static std::string accuracy_error(ProbeOverlay& o) {
+        const char* msg = lv_subject_get_string(&o.probe_acc_error_msg_);
+        return msg ? msg : "";
+    }
+
     /// Screen-scoped guard: dropped on every deactivation.
     static helix::LifetimeToken screen_token(ProbeOverlay& o) {
         return o.lifetime_.token();
