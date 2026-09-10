@@ -32,16 +32,19 @@ namespace helix::ui {
 
 namespace {
 
-// Composes zone_verdict() with the dryer activity flag: activity outranks a humidity
-// reading, and a box nobody drives reads as "passive" whether or not it is measured.
-std::string zone_status_text(const helix::printer::EnvironmentZone& zone) {
-    if (zone.dryer.active) {
+// The word for a classification zone_status() already made. The row's colour comes from
+// the severity in that same value, so the two cannot name different states.
+std::string zone_status_text(const ZoneStatus& status) {
+    switch (status.kind) {
+    case ZoneStatusKind::Drying:
         return lv_tr("Drying");
-    }
-    if (!zone.dryer.supported) {
+    case ZoneStatusKind::Passive:
         return lv_tr("passive");
+    case ZoneStatusKind::Verdict:
+    default:
+        break;
     }
-    switch (zone_verdict(zone)) {
+    switch (status.severity) {
     case ZoneVerdict::Ok:
         return lv_tr("OK");
     case ZoneVerdict::Marginal:
@@ -237,8 +240,9 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
         }
         reading_pool_.set_string(i, reading);
 
-        status_pool_.set_string(i, zone_status_text(z));
-        verdict_pool_.set_int(i, static_cast<int>(zone_verdict(z)));
+        const ZoneStatus status = zone_status(z);
+        status_pool_.set_string(i, zone_status_text(status));
+        verdict_pool_.set_int(i, static_cast<int>(status.severity));
 
         // The header shows on the first row of each unit, and never when the set sits
         // inside one unit.

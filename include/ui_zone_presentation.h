@@ -41,6 +41,34 @@ inline constexpr float kZoneHumidityMarginalMax = 55.0f;
  */
 [[nodiscard]] ZoneVerdict zone_verdict(const helix::printer::EnvironmentZone& zone);
 
+/// Which word a status row prints for a zone.
+enum class ZoneStatusKind {
+    Drying,  ///< A cycle is running
+    Passive, ///< No dryer to drive
+    Verdict  ///< Print the humidity verdict itself
+};
+
+/**
+ * @brief What a status row reports for a zone.
+ *
+ * The word a row prints and the colour it renders at both come from this one value, so
+ * a row cannot name one state while colouring for another.
+ */
+struct ZoneStatus {
+    ZoneStatusKind kind;  ///< Which word to print
+    ZoneVerdict severity; ///< Which colour band to render at
+};
+
+/**
+ * @brief Classify what a status row should say about a zone, and how loudly.
+ *
+ * An active cycle carries no severity: the machine is already acting on the humidity, so
+ * a wet reading mid-cycle is the cycle working rather than something to flag. A passive
+ * zone keeps its verdict, because a box nobody can drive is exactly the one whose colour
+ * is the only signal the row gives.
+ */
+[[nodiscard]] ZoneStatus zone_status(const helix::printer::EnvironmentZone& zone);
+
 /**
  * @brief What the zone is called on screen.
  *

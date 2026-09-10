@@ -88,6 +88,45 @@ TEST_CASE("A zone with no humidity sensor has no verdict", "[ams][zones][present
     CHECK(zone_verdict(z) == ZoneVerdict::Unknown);
 }
 
+TEST_CASE("A drying zone carries no severity however wet it reads", "[ams][zones][presentation]") {
+    EnvironmentZone z = passive_lane(0, 70.0f);
+    z.dryer.supported = true;
+    z.dryer.active = true;
+    REQUIRE(zone_verdict(z) == ZoneVerdict::TooHumid);
+
+    const ZoneStatus status = zone_status(z);
+    CHECK(status.kind == ZoneStatusKind::Drying);
+    // The row says "Drying"; colouring it for danger would flag the cycle that is
+    // already fixing the reading.
+    CHECK(status.severity == ZoneVerdict::Ok);
+}
+
+TEST_CASE("A passive zone keeps the verdict it cannot act on", "[ams][zones][presentation]") {
+    EnvironmentZone z = passive_lane(0, 70.0f);
+    REQUIRE_FALSE(z.dryer.supported);
+
+    const ZoneStatus status = zone_status(z);
+    CHECK(status.kind == ZoneStatusKind::Passive);
+    // The colour is the only signal a watched-but-undriveable box gives.
+    CHECK(status.severity == ZoneVerdict::TooHumid);
+}
+
+TEST_CASE("A driveable zone reports its own verdict", "[ams][zones][presentation]") {
+    EnvironmentZone dry = passive_lane(0, 25.0f);
+    dry.dryer.supported = true;
+    CHECK(zone_status(dry).kind == ZoneStatusKind::Verdict);
+    CHECK(zone_status(dry).severity == ZoneVerdict::Ok);
+
+    EnvironmentZone wet = passive_lane(0, 70.0f);
+    wet.dryer.supported = true;
+    CHECK(zone_status(wet).severity == ZoneVerdict::TooHumid);
+
+    EnvironmentZone unmeasured = passive_lane(0, 0.0f);
+    unmeasured.dryer.supported = true;
+    unmeasured.env.has_humidity = false;
+    CHECK(zone_status(unmeasured).severity == ZoneVerdict::Unknown);
+}
+
 TEST_CASE("A named unit labels its own zone", "[ams][zones][presentation]") {
     EnvironmentZone z;
     z.label = "QuattroBox";

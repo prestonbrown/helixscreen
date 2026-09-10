@@ -301,19 +301,22 @@ constants so the row and the detail strip cannot disagree:
 A zone with no humidity sensor is `Unknown` and never `Ok`. An unmeasured box is not a dry box,
 and the passive rigs this serves exist to answer exactly that question.
 
-**The verdict is not the word on the row.** `zone_status_text()` in the overview
-(`src/ui/ui_ams_zone_overview_overlay.cpp`) asks three questions in order, and only reaches the
-verdict on the third:
+**The verdict is not the word on the row.** `zone_status()` classifies a row once and returns
+both halves of what it renders - a `ZoneStatusKind` for the word and a `ZoneVerdict` for the
+color band - so a row cannot name one state while coloring for another:
 
-1. `dryer.active` -> "Drying".
-2. `!dryer.supported` -> "passive", whatever the humidity reads.
-3. Otherwise the verdict: "OK" / "Marginal" / "Too humid", with `Unknown` rendering `--`.
+1. `dryer.active` -> `Drying`, severity `Ok`. An active cycle is the machine already acting on
+   the humidity, so a wet reading mid-cycle is the cycle working rather than something to flag.
+2. `!dryer.supported` -> `Passive`, severity from `zone_verdict()`. A box nobody can drive is
+   exactly the one whose color is the only signal the row gives, so it keeps its verdict.
+3. Otherwise `Verdict`, severity from `zone_verdict()`.
 
-So a heated box with no humidity sensor shows `--`, and a passive box shows "passive" even at
-70% RH. The verdict is still computed for that row - it feeds `verdict_pool_` and the
-`bind_style_if_eq` color rules in `zone_row.xml` - so a damp passive box renders the word
-"passive" in the danger color. Word and color come from two independent calls; changing one
-without the other is how they drift.
+`zone_status_text()` in the overview (`src/ui/ui_ams_zone_overview_overlay.cpp`) turns the kind
+into a word: "Drying", "passive", or the verdict itself as "OK" / "Marginal" / "Too humid", with
+`Unknown` rendering `--`. The severity feeds `verdict_pool_` and the `bind_style_if_eq` rules in
+`zone_row.xml`, which style only `Marginal` (1) and `TooHumid` (2). So a heated box with no
+humidity sensor shows a neutral `--`, and a damp passive box shows "passive" in the danger color
+because that is the one thing the row can still tell you.
 
 **`zone_display_label(zone, unit_word, slot_word, type_name)`** - three cases, in order:
 
@@ -357,8 +360,8 @@ with (`zones_`) and a selected index.
 
 `AmsZoneOverviewOverlay` is the list: one `zone_row` per zone, a subtitle counting units, boxes
 and dryers, and a unit grouping header on the first row of each unit (suppressed entirely when
-the set sits inside one unit). Its status column is `zone_status_text()`, whose three-way order
-is above. It re-pulls and re-matches by `id` in `on_activate()`, because a row that was drilled
+the set sits inside one unit). Its status column is `zone_status()`, whose three-way order is
+above. It re-pulls and re-matches by `id` in `on_activate()`, because a row that was drilled
 into can go stale while the list sits paused underneath.
 
 Both overlays register their repeated component (`zone_tab`, `zone_row`) before their own XML is
