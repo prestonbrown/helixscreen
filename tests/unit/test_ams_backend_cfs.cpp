@@ -568,6 +568,24 @@ TEST_CASE("CFS error message+values decoding", "[ams][cfs]") {
         REQUIRE(out->first.find("on unit 3") != std::string::npos);
     }
 
+    SECTION("key832/key833 decode the generic retract and feed jams") {
+        json values = json::array({1, "A"});
+        auto retract = CfsErrorDecoder::lookup_message_with_values("key832", values);
+        REQUIRE(retract.has_value());
+        REQUIRE(retract->first.find("Retract failed") != std::string::npos);
+        auto feed = CfsErrorDecoder::lookup_message_with_values("key833", values);
+        REQUIRE(feed.has_value());
+        REQUIRE(feed->first.find("Feed failed") != std::string::npos);
+    }
+
+    SECTION("key838 points at the CFS hub rather than the hotend") {
+        json values = json::array({1, "A"});
+        auto out = CfsErrorDecoder::lookup_message_with_values("key838", values);
+        REQUIRE(out.has_value());
+        REQUIRE(out->first.find("CFS hub") != std::string::npos);
+        REQUIRE(out->second.find("hotend") == std::string::npos);
+    }
+
     SECTION("key111 (cold extruder) surfaces pre-heat guidance") {
         json values = json::array();
         auto out = CfsErrorDecoder::lookup_message_with_values("key111", values);
@@ -4475,8 +4493,8 @@ class GcodeRecordingApi : public MoonrakerAPIMock {
   public:
     using MoonrakerAPIMock::MoonrakerAPIMock;
 
-    void execute_gcode(const std::string& gcode, SuccessCallback on_success,
-                       ErrorCallback on_error, uint32_t timeout_ms = 0, bool silent = false,
+    void execute_gcode(const std::string& gcode, SuccessCallback on_success, ErrorCallback on_error,
+                       uint32_t timeout_ms = 0, bool silent = false,
                        SuccessCallback on_queued = nullptr,
                        bool caller_surfaces_errors = true) override {
         (void)timeout_ms;
@@ -4521,13 +4539,11 @@ class UnhomedCfsBackend : public AmsBackendCfs {
     bool toolhead_homed() const override {
         return false;
     }
-
 };
 
 } // namespace
 
-TEST_CASE("CFS: a failed pre-op G28 does not send the envelope unwind",
-          "[ams][cfs][homing]") {
+TEST_CASE("CFS: a failed pre-op G28 does not send the envelope unwind", "[ams][cfs][homing]") {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::CREALITY_K1};
     helix::PrinterState state;
     GcodeRecordingApi api{client, state};

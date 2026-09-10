@@ -65,6 +65,12 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
         if (code.rfind("key8", 0) == 0) {
             e.severity = ErrorSeverity::CRITICAL;
             if (code == "key840") {
+                // key840 is "command not supported in the current scenario": the
+                // box is already running something else and clears when it
+                // finishes. CRITICAL would block on a decision about a healthy
+                // unit, so this stays a toast and keeps the reset reachable for
+                // the case where the box really is wedged.
+                e.severity = ErrorSeverity::WARNING;
                 e.recovery_actions.push_back(
                     {lv_tr("Reset CFS"), "BOX_ERROR_CLEAR", "error_classify::key840_reset"});
             } else if (code == "key843") {
