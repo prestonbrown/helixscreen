@@ -1353,8 +1353,13 @@ if [ "$STAGED_ONLY" = true ]; then
     echo "✅ Build up to date"
   else
     # Something needs building - run actual build
-    # Use SKIP_COMPILE_COMMANDS=1 to avoid slow LSP re-indexing
-    if make SKIP_COMPILE_COMMANDS=1 -j >/dev/null 2>&1; then
+    # Use SKIP_COMPILE_COMMANDS=1 to avoid slow LSP re-indexing.
+    #
+    # Bounded -j: a bare `-j` takes every core, and this build runs from a
+    # commit hook, so on a box with several sessions committing it is N
+    # unbounded builds at once rather than one. HELIX_QC_JOBS raises it for a
+    # box you have to yourself.
+    if make SKIP_COMPILE_COMMANDS=1 -j"${HELIX_QC_JOBS:-6}" >/dev/null 2>&1; then
       section_time $SECTION_START
       echo ""
       echo "✅ Build successful"
