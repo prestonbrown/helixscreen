@@ -199,6 +199,17 @@ class AmsBackendMock : public AmsBackend {
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     AmsError stop_drying(int unit = 0) override;
 
+    /**
+     * @brief Report the capped rig's non-running heated zones as Queued.
+     *
+     * The generic base walk already folds each zone's own DryerInfo::active into
+     * Active or Idle, which is the rig's answer for which zone runs. This layer
+     * only adds the Queued half, via the general concurrency-cap rule in
+     * ams_environment_zone.h.
+     */
+    [[nodiscard]] std::vector<helix::printer::EnvironmentZone>
+    get_environment_zones(int unit = -1) const override;
+
     // Endless spool. The mock keeps its edges in the SlotRegistry, so its config
     // is the same one-liner AFC uses. reset_endless_spool() is NOT overridden -
     // the base's clear-every-slot loop is exactly the behaviour the mock wants,
@@ -779,6 +790,27 @@ class AmsBackendMock : public AmsBackend {
     int get_effective_delay_ms(int base_ms, float variance = 0.0f) const;
 
     /**
+     * @brief Simulated seconds of drying per real second.
+     *
+     * The dryer's own multiplier composed with --sim-speed, so fast-forwarding the
+     * simulated clock carries the drying cycle with it instead of leaving it at 60x.
+     * Caller must hold mutex_.
+     */
+    [[nodiscard]] int effective_dryer_speed_x() const;
+
+    /**
+     * @brief Copy the running cycle's live fields onto a unit's own dryer entry.
+     *
+     * get_dryer_info() answers from the per-unit store whenever one covers the unit,
+     * so a cycle that moved only dryer_state_ reads as frozen on every rig that
+     * declares per-unit boxes. What the box advertises - supported, temperature
+     * limits, maximum duration - stays as that unit declared it; only what the cycle
+     * changes is copied. No-op when no per-unit entry covers @p unit. Caller must
+     * hold mutex_.
+     */
+    void mirror_dryer_to_unit(int unit);
+
+    /**
      * @brief Update action state with thread safety
      * @param action New action state
      * @param detail Operation detail string
@@ -877,13 +909,25 @@ class AmsBackendMock : public AmsBackend {
     std::string environment_mode_; ///< "passive", "dryer", "slot", or "" (auto)
 
     // Dryer simulation state
-    bool dryer_enabled_ = false;                    ///< Whether dryer is simulated
-    int dryer_initial_elapsed_min_ = 0;             ///< One-shot head start for next start_drying()
-    DryerInfo dryer_state_;                         ///< Current dryer state
+    bool dryer_enabled_ = false;        ///< Whether dryer is simulated
+    int dryer_initial_elapsed_min_ = 0; ///< One-shot head start for next start_drying()
+    DryerInfo dryer_state_;             ///< Current dryer state
+    /// Per-unit dryer overrides. Empty = every unit reports dryer_state_, which is the
+    /// single-enclosure shape. A rig with a heated box beside a passive one fills this.
+    std::vector<DryerInfo> unit_dryers_;
     std::thread dryer_thread_;                      ///< Background thread for dryer simulation
     std::atomic<bool> dryer_thread_running_{false}; ///< Guards against double-join
     std::atomic<bool> dryer_stop_requested_{false}; ///< Signal dryer thread to stop
     int dryer_speed_x_ = 60; ///< Speed multiplier (60 = 1 real sec = 1 sim min)
+    int drying_unit_ = -1;   ///< Unit the running cycle belongs to, -1 when none
+
+    /// A cycle a rig declares already running when the user walks up. Applied from
+    /// start(), because start_drying() spawns the simulation thread and takes the
+    /// same lock the rig is configured under.
+    int pending_drying_unit_ = -1;
+    float pending_drying_temp_c_ = 0.0f;
+    int pending_drying_duration_min_ = 0;
+    int pending_drying_elapsed_min_ = 0;
 
     // Tool changer mode (alternative to filament system simulation)
     bool tool_changer_mode_ = false; ///< Simulate tool changer instead of filament system
