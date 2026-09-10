@@ -12,9 +12,11 @@
 
 #include "ui_component_keypad.h"
 
+#include "ui_effects.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_nav_manager.h"
+#include "ui_utils.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
 #include "keypad_input.h"
@@ -40,6 +42,18 @@ static char keypad_title_buf[48] = "";
 // Drives the dot key's disabled state. An integer-only field used to show a
 // live "." that silently did nothing to the buffer.
 static lv_subject_t keypad_allow_decimal_subject;
+
+/// Dims what stays live beside the pad. NavigationManager only backdrops the FIRST
+/// overlay on the stack, and the keypad is almost never that - it opens over a temp
+/// graph or a dryer card. While the pad was overlay-width that went unnoticed, because
+/// it covered what it failed to dim.
+static lv_obj_t* keypad_backdrop = nullptr;
+
+static void destroy_keypad_backdrop() {
+    if (keypad_backdrop) {
+        helix::ui::safe_delete_deferred(keypad_backdrop);
+    }
+}
 static bool subjects_initialized = false;
 static SubjectManager subjects_;
 
@@ -189,7 +203,28 @@ void ui_keypad_show(const ui_keypad_config_t* config) {
     }
 
     // Register with nullptr lifecycle — keypad is function-based, not class-based
+    // The panel authors its own width (#keypad_width, 180-400px by breakpoint): a pad of
+    // three digit columns, not a screen. Neither navigation width class applies, so opt
+    // out of push-time width management or the push stretches it to overlay width.
+    NavigationManager::instance().set_overlay_width_unmanaged(keypad_widget);
     NavigationManager::instance().register_overlay_instance(keypad_widget, nullptr);
+
+    // Same dimming the navigation layer gives a first overlay. Raised before the push so
+    // the pad lands above it, and torn down from the close callback rather than
+    // ui_keypad_hide(), which is only one of the ways out - the header back button and a
+    // tap on the backdrop both pop without going through it.
+    if (lv_obj_t* screen = lv_obj_get_screen(keypad_widget)) {
+        destroy_keypad_backdrop();
+        // Blur when the platform can afford it, a plain dim when it cannot - the same
+        // 40/255 the navigation layer uses for a first overlay, so the pad dims its
+        // surroundings exactly as much as any other layer does.
+        keypad_backdrop = helix::ui::create_fullscreen_backdrop(screen, 40);
+        if (keypad_backdrop) {
+            lv_obj_move_foreground(keypad_backdrop);
+        }
+    }
+    NavigationManager::instance().register_overlay_close_callback(
+        keypad_widget, []() { destroy_keypad_backdrop(); });
 
     // Show via overlay navigation, but keep previous panel visible (transparent overlay)
     NavigationManager::instance().push_overlay(keypad_widget, false /* hide_previous */);

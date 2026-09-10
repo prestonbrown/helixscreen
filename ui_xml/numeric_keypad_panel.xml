@@ -59,11 +59,21 @@
         <ui_button name="btn_2" width="30%" height="#keypad_btn_height" text="2" variant="secondary"/>
         <ui_button name="btn_3" width="30%" height="#keypad_btn_height" text="3" variant="secondary"/>
         <!-- Row 4: dot, 0, backspace -->
-        <ui_button name="btn_dot" width="30%" height="#keypad_btn_height" text="." variant="secondary">
-          <!-- Greyed out for integer-only fields; the buffer refuses the
-               dot there, so a live-looking key would be a dead key. -->
-          <bind_state_if_eq subject="keypad_allow_decimal" state="disabled" ref_value="0"/>
-        </ui_button>
+        <!-- An integer-only field has no decimal key at all. The empty cell around it is
+             what holds the column: the grid is row_wrap with space_evenly, so hiding a
+             30% child directly would re-space the last row and slide 0 and backspace out
+             from under 2 and 3. The cell keeps its width whatever the key does, and it
+             is the key rather than the cell that goes, so the blank lands on the left
+             and the remaining two stay right-justified under their columns.
+             Dimming the key instead cannot work: ui_button stamps a local opa on itself
+             on every apply, and a local style beats a bound one. -->
+        <lv_obj name="btn_dot_cell"
+                width="30%" height="#keypad_btn_height" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                scrollable="false" clickable="false">
+          <ui_button name="btn_dot" width="100%" height="100%" text="." variant="secondary">
+            <bind_flag_if_eq subject="keypad_allow_decimal" flag="hidden" ref_value="0"/>
+          </ui_button>
+        </lv_obj>
         <ui_button name="btn_0" width="30%" height="#keypad_btn_height" text="0" variant="secondary"/>
         <ui_button name="btn_backspace" width="30%" height="#keypad_btn_height" icon="backspace" text=""/>
       </lv_obj>
