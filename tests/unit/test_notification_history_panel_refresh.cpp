@@ -6,11 +6,6 @@
  * @brief The open notification panel must show notifications that arrive while
  *        it is visible (prestonbrown/helixscreen#1525).
  *
- * The list was a one-shot snapshot built when the overlay opened. The store
- * fired nothing on add(), so a notification arriving while the panel was open
- * incremented the bell badge while the list underneath stayed stale until a
- * close-and-reopen destroyed and recreated the whole XML component.
- *
  * The seam this pins: NotificationHistory keeps a revision counter bumped on
  * add()/clear(), NotificationManager publishes it into the
  * notification_history_version subject whenever the badge refreshes, and the
@@ -24,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/notification_history_panel_test_access.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
@@ -113,7 +109,7 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
 }
 
 TEST_CASE_METHOD(NotificationHistoryPanelFixture,
-                 "NotificationHistoryPanel: badge refresh without a new entry does not rebuild",
+                 "NotificationHistoryPanel: repeating the same history version does not rebuild",
                  "[ui][notifications][1525]") {
     REQUIRE(root_ != nullptr);
     lv_obj_t* overlay = content();
@@ -123,10 +119,40 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
     panel_->refresh();
     REQUIRE(lv_obj_get_child_count(overlay) == 1);
 
+    // A first application of a new version is a real change: it rebuilds the
+    // list, so the item widget it created is a fresh object.
+    NotificationHistoryPanelTestAccess::handle_history_version_change(*panel_, 7);
+    lv_obj_t* item_after_first = lv_obj_find_by_name(overlay, "item_title");
+    REQUIRE(item_after_first != nullptr);
+
+    // Re-delivering the same version (the "double-publish" case: refresh()
+    // already applied it directly, e.g. via Clear All, before the manager's
+    // publish caught up) must not rebuild — the item identity must survive
+    // unchanged.
+    NotificationHistoryPanelTestAccess::handle_history_version_change(*panel_, 7);
+    lv_obj_t* item_after_second = lv_obj_find_by_name(overlay, "item_title");
+    CHECK(item_after_second == item_after_first);
+}
+
+TEST_CASE_METHOD(NotificationHistoryPanelFixture,
+                 "NotificationHistoryPanel: a hidden panel does not eat the unread badge",
+                 "[ui][notifications][1525]") {
+    REQUIRE(root_ != nullptr);
+
+    // NavigationManager::go_back() only hides an overlay's widget tree; it is
+    // never destroyed and the version observer stays attached.
+    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+
+    NotificationHistory::instance().add(make_entry("Entry One", "arrived while hidden"));
     helix::ui::notification_refresh_from_history();
     UpdateQueue::instance().drain();
 
-    REQUIRE(lv_obj_get_child_count(overlay) == 1);
+    CHECK(NotificationHistory::instance().get_unread_count() == 1);
+    CHECK(NotificationHistory::instance().get_highest_unread_severity() == ToastSeverity::INFO);
+
+    auto entries = NotificationHistory::instance().get_all();
+    REQUIRE_FALSE(entries.empty());
+    CHECK_FALSE(entries.front().was_read);
 }
 
 TEST_CASE_METHOD(NotificationHistoryPanelFixture,

@@ -39,6 +39,8 @@
  * @see ui_overlay_panel_setup_standard for overlay wiring
  */
 class NotificationHistoryPanel : public PanelBase {
+    friend class NotificationHistoryPanelTestAccess;
+
   public:
     /**
      * @brief Construct NotificationHistoryPanel with injected dependencies
@@ -145,8 +147,10 @@ class NotificationHistoryPanel : public PanelBase {
      * @brief Handle a history revision change observed from NotificationManager
      *
      * Skips revisions already applied (refresh marks entries read without
-     * bumping the revision, but double-publishes can arrive) and rebuilds
-     * the list from the store.
+     * bumping the revision, but double-publishes can arrive). Also skips the
+     * rebuild while the panel is hidden, since the widget tree stays alive
+     * (only hidden) between overlay pushes and would otherwise mark entries
+     * read before the user ever sees them.
      */
     void handle_history_version_change(int32_t version);
 
