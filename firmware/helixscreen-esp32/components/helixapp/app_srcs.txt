@@ -225,6 +225,7 @@ src/system/printer_name_sync.cpp
 src/system/runtime_config.cpp
 src/system/safety_settings_manager.cpp
 src/system/settings_manager.cpp
+src/system/simulated_clock.cpp
 src/system/sound_manager.cpp
 src/system/sound_sequencer.cpp
 src/system/sound_theme.cpp

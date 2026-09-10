@@ -90,7 +90,10 @@ translations:
   = Tighten: = Tighten
   A: A
   A backup of %s is created before applying: A backup of %s is created before applying
+  A motor IO pin couldn't be restored. Power-cycle the printer to recover: A motor IO pin couldn't be restored. Power-cycle the printer to recover
+  A motor's parameters couldn't be written. Power-cycle the printer to retry: A motor's parameters couldn't be written. Power-cycle the printer to retry
   A picture of your printer: A picture of your printer
+  A spool may be tangled or the drive gear is jammed: A spool may be tangled or the drive gear is jammed
   ABS: ABS
   ACCELEROMETERS: ACCELEROMETERS
   ACE Moonraker bridge not found. Install ace_status.py for full support.: ACE Moonraker bridge not found. Install ace_status.py for full support.
@@ -334,6 +337,7 @@ translations:
     guides, configuration references, and troubleshooting resources for HelixScreen.
   Brush nozzle: Brush nozzle
   Buffer Status: Buffer Status
+  Buffer tube problem: Buffer tube problem
   'Build Volume: ': 'Build Volume: '
   Bundle Uploaded: Bundle Uploaded
   Button taps and navigation sounds: Button taps and navigation sounds
@@ -354,6 +358,9 @@ translations:
   CALIBRATION: CALIBRATION
   CAPABILITIES: CAPABILITIES
   CARTOGRAPHER: CARTOGRAPHER
+  CFS is busy: CFS is busy
+  CFS motor overloaded: CFS motor overloaded
+  CFS system error: CFS system error
   CHANGED FROM LAST SESSION: CHANGED FROM LAST SESSION
   CLOG: CLOG
   COLOR SENSORS: COLOR SENSORS
@@ -413,6 +420,7 @@ translations:
   Camera: Camera
   Can't connect — try forgetting and re-pairing the printer: Can't connect — try forgetting
     and re-pairing the printer
+  Can't read filament RFID tag: Can't read filament RFID tag
   Cancel: Cancel
   Cancel Escalation: Cancel Escalation
   Cancel Print: Cancel Print
@@ -479,7 +487,15 @@ translations:
   Check slot failed: Check slot failed
   Check slots: Check slots
   Check slots failed: Check slots failed
+  Check that only one filament path is active: Check that only one filament path is active
+  Check that the cutter mechanism is properly installed: Check that the cutter mechanism is properly installed
+  Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor
+  Check the RS-485 cable between printer and CFS: Check the RS-485 cable between printer and CFS
+  Check the buffer unit on the back of the printer: Check the buffer unit on the back of the printer
   Check the filament path and try again.: Check the filament path and try again.
+  ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
+  : Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
+  Check the spool and the filament path for a jam, then retry: Check the spool and the filament path for a jam, then retry
   Check your heater's rating (typically 40-60W for hotends): Check your heater's rating
     (typically 40-60W for hotends)
   Checking: Checking
@@ -709,6 +725,7 @@ translations:
   Cut filament: Cut filament
   Cut tip: Cut tip
   Cutter Enabled: Cutter Enabled
+  Cutter blade didn't sever filament: Cutter blade didn't sever filament
   Cutter jam: Cutter jam
   Cutting: Cutting
   Cutting filament...: Cutting filament...
@@ -811,6 +828,7 @@ translations:
   E-Stop (M112): E-Stop (M112)
   E-Stop Confirmation: E-Stop Confirmation
   EDDY CURRENT: EDDY CURRENT
+  EEPROM error on CFS unit: EEPROM error on CFS unit
   EMERGENCY STOP: EMERGENCY STOP
   EMPTY: EMPTY
   Each fan can only be selected once: Each fan can only be selected once
@@ -946,9 +964,11 @@ translations:
   Extruder MPC Calibration: Extruder MPC Calibration
   Extruder PID Tuning: Extruder PID Tuning
   Extruder Unload Speed: Extruder Unload Speed
+  Extruder and CFS disagree on filament state — inspect both sensors: Extruder and CFS disagree on filament state — inspect both sensors
   Extruder distances and sensor configuration: Extruder distances and sensor configuration
   Extruder heats automatically based on material: Extruder heats automatically based
     on material
+  Extruder motor calibration failed: Extruder motor calibration failed
   Extruder to Nozzle: Extruder to Nozzle
   'Extruding prime line...': 'Extruding prime line...'
   FAILED: FAILED
@@ -1066,6 +1086,7 @@ translations:
   'Features: ': 'Features: '
   Feed Assist: Feed Assist
   Feed assist and debug tools: Feed assist and debug tools
+  Feed failed: Feed failed
   Feed filament: Feed filament
   Feed filament directly to extruder: Feed filament directly to extruder
   Feed filament from current slot: Feed filament from current slot
@@ -1083,20 +1104,33 @@ translations:
   Filament System Error: Filament System Error
   Filament Used: Filament Used
   Filament already exists: Filament already exists
+  Filament buffer failure during feed: Filament buffer failure during feed
+  Filament buffer stopped moving: Filament buffer stopped moving
   Filament by Type: Filament by Type
+  ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
+  : Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   Filament controls are unavailable while printing.: Filament controls are unavailable while printing.
+  Filament cutter not detected: Filament cutter not detected
+  Filament cutter position error: Filament cutter position error
+  Filament cutter stuck: Filament cutter stuck
   Filament deleted: Filament deleted
   Filament diameter sensors for flow compensation: Filament diameter sensors for flow
     compensation
+  Filament didn't fully retract, may need manual removal: Filament didn't fully retract, may need manual removal
   Filament feeder: Filament feeder
   Filament is clear of the toolhead. Pull it out the rest of the way.: Filament is clear of the toolhead. Pull it out the rest of the way.
+  Filament is dragging: Filament is dragging
   Filament is loose: Filament is loose
   Filament is pulling tight: Filament is pulling tight
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
+  Filament is still present after the cut — the blade may be dull or misaligned: Filament is still present after the cut — the blade may be dull or misaligned
+  Filament jammed at the extruder gear: Filament jammed at the extruder gear
   'Filament load failed: {}': 'Filament load failed: {}'
+  Filament never reached the CFS hub sensor: Filament never reached the CFS hub sensor
   Filament operation failed: Filament operation failed
   Filament operation timed out: Filament operation timed out
+  Filament ran out: Filament ran out
   Filament ran out - nothing at the toolhead and the print is paused.: Filament ran out - nothing at the toolhead and the print is paused.
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
   : Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -1109,6 +1143,10 @@ translations:
   Filament saved: Filament saved
   Filament sensor available for runout detection: Filament sensor available for runout
     detection
+  Filament snapped inside CFS: Filament snapped inside CFS
+  Filament stalled between CFS hub and extruder sensor: Filament stalled between CFS hub and extruder sensor
+  Filament stuck in connector during unload: Filament stuck in connector during unload
+  Filament stuck inside the CFS hub: Filament stuck inside the CFS hub
   Filament tension is balanced: Filament tension is balanced
   Filament tracking & label printing: Filament tracking & label printing
   Filament tracking and inventory: Filament tracking and inventory
@@ -1203,6 +1241,7 @@ translations:
   Heading: Heading
   Heat Capacity: Heat Capacity
   Heat Soak: Heat Soak
+  Heat Soaking...: Heat Soaking...
   Heat bed before calibrating for accurate offset with thermal expansion.: Heat bed
     before calibrating for accurate offset with thermal expansion.
   Heat nozzle: Heat nozzle
@@ -1379,6 +1418,7 @@ translations:
   Invalid status response from printer: Invalid status response from printer
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
+  It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying
   It's a new spool: It's a new spool
   Jammed at the Toolhead: Jammed at the Toolhead
   Job Queue: Job Queue
@@ -1470,6 +1510,7 @@ translations:
   Live view from your webcam: Live view from your webcam
   Load: Load
   Load Filament: Load Filament
+  Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Load a new spool in this slot, or turn on auto-refill to switch to a matching one
   Load complete: Load complete
   Load filament: Load filament
   Load may still be running — response timed out: Load may still be running — response
@@ -1509,6 +1550,7 @@ translations:
   Loosen Path A belt.: Loosen Path A belt.
   Loosen Path B belt.: Loosen Path B belt.
   Lost connection during print — try again: Lost connection during print — try again
+  Lost connection to CFS unit: Lost connection to CFS unit
   'Lot # (optional)': 'Lot # (optional)'
   Lot/Batch Nr: Lot/Batch Nr
   Low Memory: Low Memory
@@ -1520,6 +1562,7 @@ translations:
   MANUAL: MANUAL
   MB RAM: MB RAM
   MCU: MCU
+  MCU bridge daemon is shut down: MCU bridge daemon is shut down
   MCU, host, and auxiliary temperature monitoring: MCU, host, and auxiliary temperature
     monitoring
   'MCU: ': 'MCU: '
@@ -1567,6 +1610,7 @@ translations:
   Manual Feed: Manual Feed
   Manual Retract: Manual Retract
   Manual feed and retract operations: Manual feed and retract operations
+  Manually pull the filament back through the connector: Manually pull the filament back through the connector
   Map to closest colors with matching material: Map to closest colors with matching
     material
   Marginal: Marginal
@@ -1595,6 +1639,7 @@ translations:
   Measurement Failed: Measurement Failed
   Measuring accelerometer noise...: Measuring accelerometer noise...
   Measuring vibrations... {}%: Measuring vibrations... {}%
+  Measuring wheel error: Measuring wheel error
   Median %.0f Hz: Median %.0f Hz
   Memory: Memory
   Memory (MB): Memory (MB)
@@ -1622,12 +1667,15 @@ translations:
     takes longer.
   Motion: Motion
   'Motion: XYZ': 'Motion: XYZ'
+  Motor controller error: Motor controller error
+  Motor parameter setup failed: Motor parameter setup failed
   Motor speeds and acceleration: Motor speeds and acceleration
   Motors Off: Motors Off
   'Motors disable failed: {}': 'Motors disable failed: {}'
   Motors disabled: Motors disabled
   Mount: Mount
   Move: Move
+  Move out of range: Move out of range
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Move
     paper back and forth while adjusting. Stop when paper catches slightly but still
     slides.
@@ -1805,6 +1853,7 @@ translations:
   Nozzle Temperatures: Nozzle Temperatures
   Nozzle Temps: Nozzle Temps
   'Nozzle clean complete': 'Nozzle clean complete'
+  Nozzle clog detected: Nozzle clog detected
   Nozzle did not reach {}°C — {} cancelled: Nozzle did not reach {}°C — {} cancelled
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
   Nozzle target set to {}°C: Nozzle target set to {}°C
@@ -1837,6 +1886,7 @@ translations:
   Open feeder: Open feeder
   Open feeder macro: Open feeder macro
   Open motion controls for jogging: Open motion controls for jogging
+  Open the CFS unit and remove the broken filament from the slot: Open the CFS unit and remove the broken filament from the slot
   Operation already in progress: Operation already in progress
   Operations: Operations
   Optimize Your Printing: Optimize Your Printing
@@ -1874,6 +1924,7 @@ translations:
   PRINT_START has {} skippable operation: PRINT_START has {} skippable operation
   PRINT_START has {} skippable operations: PRINT_START has {} skippable operations
   PROBE SENSORS: PROBE SENSORS
+  PTFE tube connection loose: PTFE tube connection loose
   Pair: Pair
   Pair Bluetooth Printer: Pair Bluetooth Printer
   Pair Bluetooth Scanner: Pair Bluetooth Scanner
@@ -1965,6 +2016,7 @@ translations:
   Power: Power
   Power Devices: Power Devices
   Power off the printer or screen: Power off the printer or screen
+  Pre-heat the extruder first: Pre-heat the extruder first
   'Pre-print command failed: {}': 'Pre-print command failed: {}'
   'Pre-print homing...': 'Pre-print homing...'
   Preheat: Preheat
@@ -2145,6 +2197,8 @@ translations:
   Quick actions, calibration, speed: Quick actions, calibration, speed
   RFCOMM connect failed: RFCOMM connect failed
   'RFCOMM connect failed: ': 'RFCOMM connect failed: '
+  RFID reader malfunction (left): RFID reader malfunction (left)
+  RFID reader malfunction (right): RFID reader malfunction (right)
   RSS: RSS
   'RSS:': 'RSS:'
   Ramming Volume: Ramming Volume
@@ -2153,6 +2207,7 @@ translations:
   Re-identify: Re-identify
   Re-probe: Re-probe
   Re-read spool RFID tags and remaining length: Re-read spool RFID tags and remaining length
+  Re-seat the Bowden tube connector on the CFS unit: Re-seat the Bowden tube connector on the CFS unit
   Re-syncs Happy Hare's tracked state with the hardware.: Re-syncs Happy Hare's tracked
     state with the hardware.
   Readings from extra temperature sensors: Readings from extra temperature sensors
@@ -2284,11 +2339,18 @@ translations:
   Retract Distance: Retract Distance
   Retract Length: Retract Length
   Retract Speed: Retract Speed
+  Retract didn't reach buffer empty position: Retract didn't reach buffer empty position
+  Retract error — failed to exit connector: Retract error — failed to exit connector
+  Retract error — filament still detected: Retract error — filament still detected
+  Retract error — multiple connectors triggered: Retract error — multiple connectors triggered
+  Retract failed: Retract failed
+  Retract failed — filament stuck in connector: Retract failed — filament stuck in connector
   'Retract failed: {}': 'Retract failed: {}'
   Retract filament: Retract filament
   Retract filament to current slot: Retract filament to current slot
   Retract may still be running — response timed out: Retract may still be running
     — response timed out
+  Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Retract to unload. If it comes back cleanly, snip the chewed end off and feed again
   Retraction: Retraction
   Retraction Settings: Retraction Settings
   Retraction distance in the cooling tube: Retraction distance in the cooling tube
@@ -2314,6 +2376,7 @@ translations:
   Run Macro?: Run Macro?
   Run a Klipper macro when preheating this material: Run a Klipper macro when preheating
     this material
+  Run a cold pull or replace the nozzle: Run a cold pull or replace the nozzle
   Run a macro you choose, in one tap: Run a macro you choose, in one tap
   Run brush cleaning sequence: Run brush cleaning sequence
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): Run
@@ -2456,6 +2519,7 @@ translations:
   Sensor Response: Sensor Response
   Sensor Source: Sensor Source
   Sensor Temperature: Sensor Temperature
+  Sensor mismatch — check extruder and CFS sensors: Sensor mismatch — check extruder and CFS sensors
   Sensor to Nozzle: Sensor to Nozzle
   Sensors: Sensors
   Separate on/off macros. HelixScreen tracks the state.: Separate on/off macros. HelixScreen
@@ -2475,6 +2539,8 @@ translations:
   Set and watch the nozzle temperature: Set and watch the nozzle temperature
   Set local timezone for time display: Set local timezone for time display
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
+  ? Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
+  : Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   Set up: Set up
   Set up your label printer in Settings: Set up your label printer in Settings
   Settings: Settings
@@ -2591,6 +2657,8 @@ translations:
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu Spool%s'
   Square Corner Velocity: Square Corner Velocity
   Stable: Stable
+  Stall detection setup failed for the Z motor — power-cycle to retry: Stall detection setup failed for the Z motor — power-cycle to retry
+  Stall detection setup failed for the extruder — power-cycle to retry: Stall detection setup failed for the extruder — power-cycle to retry
   Standard: Standard
   Standby: Standby
   Starfield: Starfield
@@ -2680,6 +2748,7 @@ translations:
   TPU: TPU
   Takes 3-5 min. Do not interrupt.: Takes 3-5 min. Do not interrupt.
   Tap + to add: Tap + to add
+  Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge
   Tap again to confirm this orientation: Tap again to confirm this orientation
   Tap an object to exclude it | {} objects ({} excluded): Tap an object to exclude it | {} objects ({} excluded)
   Tap any tile to open its full controls or toggle its state.: Tap any tile to open its full controls or toggle its state.
@@ -2708,6 +2777,7 @@ translations:
   Temperature Graph Config: Temperature Graph Config
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: Temperature Sensors
+  Temperature and humidity sensor not responding: Temperature and humidity sensor not responding
   Temperature control optimized for {} at {}°C.: Temperature control optimized for {} at {}°C.
   Temperatures: Temperatures
   Temperatures plotted over time: Temperatures plotted over time
@@ -2737,6 +2807,7 @@ translations:
   That did not sound like a pluck - try again: That did not sound like a pluck - try again
   That slot cannot stand in for this one: That slot cannot stand in for this one
   That tool is already loaded: That tool is already loaded
+  The CFS odometer hardware is faulty and needs repair or replacement: The CFS odometer hardware is faulty and needs repair or replacement
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : The HelixPrint plugin enables fast G-code modifications directly on your printer—like
@@ -2747,11 +2818,18 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
+  The buffer may be disconnected, stuck, or faulty. Check it before retrying: The buffer may be disconnected, stuck, or faulty. Check it before retrying
+  The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
+  The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
+  The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS
+  The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
+  The filament may not have fully retracted — try again or manually pull: The filament may not have fully retracted — try again or manually pull
   The filament system reported an error: The filament system reported an error
   The heater will cycle on and off several times.: The heater will cycle on and off
     several times.
+  The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
@@ -2766,8 +2844,11 @@ translations:
   The printer rejected the filament configuration. The print was not started.: The
     printer rejected the filament configuration. The print was not started.
   The printer's firmware chooses the backup spool itself: The printer's firmware chooses the backup spool itself
+  The requested position is outside the printer's bounds: The requested position is outside the printer's bounds
+  The right RFID reader in this CFS unit may need service: The right RFID reader in this CFS unit may need service
   The runout sensor indicates no filament is loaded. Start print anyway?: The runout
     sensor indicates no filament is loaded. Start print anyway?
+  The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service
   The speed of one fan you choose: The speed of one fan you choose
   The time, date, and system uptime: The time, date, and system uptime
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?
@@ -2777,6 +2858,9 @@ translations:
     toolhead sensor indicates filament is already loaded. Proceed with load anyway?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: The
     toolhead sensor indicates no filament is present. Proceed with unload anyway?
+  The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck
+  The unit reported a fault with no further detail. Restart the printer if it repeats: The unit reported a fault with no further detail. Restart the printer if it repeats
+  The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
   Theme: Theme
   Theme Colors: Theme Colors
   Theme Preset: Theme Preset
@@ -3144,6 +3228,7 @@ translations:
   Z Offset: Z Offset
   Z Range: Z Range
   Z Tilt Adjust...: Z Tilt Adjust...
+  Z motor calibration failed: Z motor calibration failed
   Z probes for bed leveling and mesh generation: Z probes for bed leveling and mesh
     generation
   'Z-Off:': 'Z-Off:'
@@ -3189,6 +3274,7 @@ translations:
   fans: fans
   heated bed: heated bed
   idle: idle
+  in unit {} slot {}: in unit {} slot {}
   layers: layers
   left: left
   mm before clog: mm before clog
@@ -3197,6 +3283,7 @@ translations:
   nozzle: nozzle
   of: of
   'off': 'off'
+  on unit {}: on unit {}
   or type a macro name: or type a macro name
   passive: passive
   printer default: printer default

@@ -804,30 +804,11 @@ void PrintStartProfile::parse_status_signals(const json& array, const std::strin
 }
 
 PrintStartPhase PrintStartProfile::parse_phase_name(const std::string& name) {
-    std::string upper = to_upper(name);
-
-    if (upper == "IDLE")
-        return PrintStartPhase::IDLE;
-    if (upper == "INITIALIZING")
-        return PrintStartPhase::INITIALIZING;
-    if (upper == "HOMING")
-        return PrintStartPhase::HOMING;
-    if (upper == "HEATING_BED")
-        return PrintStartPhase::HEATING_BED;
-    if (upper == "HEATING_NOZZLE")
-        return PrintStartPhase::HEATING_NOZZLE;
-    if (upper == "QGL")
-        return PrintStartPhase::QGL;
-    if (upper == "Z_TILT")
-        return PrintStartPhase::Z_TILT;
-    if (upper == "BED_MESH")
-        return PrintStartPhase::BED_MESH;
-    if (upper == "CLEANING")
-        return PrintStartPhase::CLEANING;
-    if (upper == "PURGING")
-        return PrintStartPhase::PURGING;
-    if (upper == "COMPLETE")
-        return PrintStartPhase::COMPLETE;
+    // Profiles are hand-written JSON, so the spelling is case-folded before the
+    // canonical lookup; the lookup itself is exact.
+    if (const auto phase = helix::print_start_phase_from_name(to_upper(name))) {
+        return *phase;
+    }
 
     spdlog::warn("[PrintStartProfile] Unknown phase name: '{}'", name);
     return PrintStartPhase::IDLE;

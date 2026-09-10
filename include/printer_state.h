@@ -9,6 +9,7 @@
 #include "capability_overrides.h"
 #include "hardware_validator.h"
 #include "lvgl/lvgl.h"
+#include "print_start_phase.h"
 #include "printer_calibration_state.h"
 #include "printer_capabilities_state.h"
 #include "printer_composite_visibility_state.h"
@@ -148,30 +149,6 @@ enum class PrintOutcome {
  * @return Corresponding PrintJobState enum value
  */
 PrintJobState parse_print_job_state(const char* state_str);
-
-/**
- * @brief Print start initialization phase (detected from G-code response output)
- *
- * Represents the current phase during PRINT_START macro execution.
- * Used to show progress to the user during the initialization sequence
- * before actual printing begins.
- *
- * @note Phases are detected via best-effort pattern matching on G-code responses.
- *       Not all macros output all phases - progress estimation handles missing phases.
- */
-enum class PrintStartPhase {
-    IDLE = 0,           ///< Not in PRINT_START (normal operation)
-    INITIALIZING = 1,   ///< PRINT_START detected, waiting for phases
-    HOMING = 2,         ///< G28 / Home All Axes detected
-    HEATING_BED = 3,    ///< M140/M190 / Heating bed detected
-    HEATING_NOZZLE = 4, ///< M104/M109 / Heating nozzle detected
-    QGL = 5,            ///< QUAD_GANTRY_LEVEL detected
-    Z_TILT = 6,         ///< Z_TILT_ADJUST detected
-    BED_MESH = 7,       ///< BED_MESH_CALIBRATE or BED_MESH_PROFILE LOAD detected
-    CLEANING = 8,       ///< CLEAN_NOZZLE / nozzle wipe detected
-    PURGING = 9,        ///< VORON_PURGE / LINE_PURGE detected
-    COMPLETE = 10       ///< Transitioning to PRINTING state
-};
 
 /**
  * @brief Z-offset calibration strategy — determines gcode commands for calibration and save

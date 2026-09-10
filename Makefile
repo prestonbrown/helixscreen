@@ -1128,20 +1128,6 @@ ifneq ($(JOBS),1)
     MAKEFLAGS += --output-sync=target
 endif
 
-# Load ceiling for parallel jobs. Several sessions build in this tree and its
-# worktrees at once, and the expensive failure there is not a slow build: it is
-# swap exhaustion, where a link dies with no oom-kill line while the load
-# average still reads survivable. -l gates only the START of a new job, so a
-# build always makes progress - it just stops adding jobs to a box that is
-# already buried. The ceiling sits above nproc so ordinary parallel work is
-# untouched and only a genuine pile-up throttles. HELIX_LOAD_CEILING=0 disables.
-HELIX_LOAD_CEILING ?= $(shell expr $(NPROC) \* 3 / 2)
-ifneq ($(HELIX_LOAD_CEILING),0)
-ifneq ($(JOBS),1)
-    MAKEFLAGS += -l$(HELIX_LOAD_CEILING)
-endif
-endif
-
 # Binaries
 TARGET := $(BIN_DIR)/helix-screen
 MOONRAKER_INSPECTOR := $(BIN_DIR)/moonraker-inspector

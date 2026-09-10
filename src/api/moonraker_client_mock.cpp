@@ -18,6 +18,7 @@
 #include "runtime_config.h"
 #include "sensor_state.h"
 #include "shaper_response.h"
+#include "simulated_clock.h"
 
 #include <spdlog/spdlog.h>
 
@@ -146,7 +147,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     last_activity_time_ = std::chrono::steady_clock::now();
 
     // Set speedup factor (clamped)
-    speedup_factor_.store(std::clamp(speedup_factor, 0.1, 10000.0));
+    speedup_factor_.store(helix::sim::clamp_speed(speedup_factor));
 
     spdlog::debug("[MoonrakerClientMock] Created with printer type: {}, speedup: {}x",
                   static_cast<int>(type), speedup_factor_.load());
@@ -219,13 +220,17 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
 }
 
 void MoonrakerClientMock::set_simulation_speedup(double factor) {
-    double clamped = std::clamp(factor, 0.1, 10000.0);
+    double clamped = helix::sim::clamp_speed(factor);
     speedup_factor_.store(clamped);
     spdlog::info("[MoonrakerClientMock] Simulation speedup set to {}x", clamped);
 }
 
 double MoonrakerClientMock::get_simulation_speedup() const {
     return speedup_factor_.load();
+}
+
+helix::sim::SimSpeed MoonrakerClientMock::sim_speed() const {
+    return helix::sim::SimSpeed::of(speedup_factor_.load());
 }
 
 bool MoonrakerClientMock::arm_event_replay(const std::string& json_path) {
@@ -308,14 +313,15 @@ void MoonrakerClientMock::start_replay_timer() {
 }
 
 void MoonrakerClientMock::pump_replay() {
-    const double speed = std::max(1.0, get_simulation_speedup());
     const auto now = std::chrono::steady_clock::now();
     if (now < replay_start_) {
         return;
     }
-    const auto elapsed_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - replay_start_).count();
-    const uint64_t due_ms = static_cast<uint64_t>(static_cast<double>(elapsed_ms) * speed);
+    // The capture's timestamps are simulated time, so the cursor into it is how
+    // much simulated time the real wait so far bought.
+    const auto due = sim_speed().accelerate_progress(now - replay_start_);
+    const uint64_t due_ms =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(due).count());
 
     while (replay_next_ < replay_events_.size() && replay_events_[replay_next_].t_ms <= due_ms) {
         fire_replay_event(replay_events_[replay_next_]);
@@ -612,9 +618,8 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
     // Simulate connection state change (same as real client)
     set_connection_state(ConnectionState::CONNECTING);
 
-    // Small delay to simulate realistic connection (250ms / speedup)
-    double speedup = speedup_factor_.load();
-    auto delay_ms = static_cast<int>(250.0 / speedup);
+    // Small delay to simulate a realistic connection
+    auto delay_ms = sim_speed().shorten_wait_ms(250);
     if (delay_ms > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
     }
@@ -3968,7 +3973,8 @@ bool MoonrakerClientMock::resume_print_internal() {
 
     // Calculate pause duration and add to total
     auto pause_real = std::chrono::steady_clock::now() - pause_start_time_;
-    double pause_sim = std::chrono::duration<double>(pause_real).count() * speedup_factor_.load();
+    double pause_sim =
+        std::chrono::duration<double>(sim_speed().accelerate_progress(pause_real)).count();
     total_pause_duration_sim_ += pause_sim;
 
     // Resume to PRINTING phase (skip PREHEAT since temps should still be maintained)
@@ -4835,9 +4841,8 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         uint32_t tick = tick_count_.fetch_add(1);
 
-        // Get speedup factor and calculate effective time step
-        double speedup = speedup_factor_.load();
-        double effective_dt = base_dt * speedup; // Simulated time step
+        // Simulated time step covered by one real tick
+        double effective_dt = sim_speed().accelerate_progress(base_dt);
 
         // Get current temperature state
         double ext_temp = extruder_temp_.load();
@@ -6088,8 +6093,8 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
     // IMPORTANT: Must track and join - detached threads cause use-after-free during destruction
     double delay_sec = is_firmware ? 3.0 : 2.0;
 
-    // Apply speedup factor to delay
-    double effective_delay = delay_sec / speedup_factor_.load();
+    // Fast-forward the wait, not the simulated delay it stands for
+    double effective_delay = sim_speed().shorten_wait_seconds(delay_sec);
 
     // Cancel and wait for any existing restart thread (under lock to prevent race with destructor)
     {

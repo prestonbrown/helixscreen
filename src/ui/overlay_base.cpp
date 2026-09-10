@@ -46,11 +46,19 @@ void OverlayBase::cleanup() {
 }
 
 void OverlayBase::destroy_overlay_ui(lv_obj_t*& cached_panel) {
-    if (!overlay_root_) {
-        return;
+    helix::ui::teardown_overlay_ui(overlay_root_, get_name(), helix::ui::TeardownDelete::Deferred,
+                                   cached_panel, nullptr, [this]() { on_ui_destroyed(); });
+}
+
+bool helix::ui::teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
+                                    lv_obj_t*& cached_panel,
+                                    const std::function<void()>& before_delete,
+                                    const std::function<void()>& after_delete) {
+    if (!root) {
+        return false;
     }
 
-    spdlog::info("[{}] Destroying overlay UI to free memory", get_name());
+    spdlog::info("[{}] Destroying overlay UI to free memory", owner_name);
 
     // Drain deferred observer callbacks while all pointers are still valid.
     // observe_int_sync queues lambdas via queue_update() that capture raw
@@ -58,30 +66,46 @@ void OverlayBase::destroy_overlay_ui(lv_obj_t*& cached_panel) {
     auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
     helix::ui::UpdateQueue::instance().drain();
 
-    // Unregister from NavigationManager before deleting the widget
-    NavigationManager::instance().unregister_overlay_close_callback(overlay_root_);
-    NavigationManager::instance().unregister_overlay_instance(overlay_root_);
+    // Unregister from NavigationManager before deleting the widget. Doing it
+    // first also prevents double-invocation when destroy is called manually
+    // while the panel is still in the overlay stack.
+    NavigationManager::instance().unregister_overlay_close_callback(root);
+    NavigationManager::instance().unregister_overlay_instance(root);
 
     // Breadcrumb the destroy so crashes in the close path can be pinned to
-    // which overlay was being torn down. Pairs with existing "overlay+" crumb
-    // on push.
-    crash_handler::breadcrumb::note("ovrl_dst", get_name());
+    // which overlay was being torn down. Pairs with the "overlay+" crumb on
+    // push.
+    crash_handler::breadcrumb::note("ovrl_dst", owner_name);
 
-    // Deferred delete: sync `safe_delete` is banned in overlay close callbacks
-    // (ui_utils.h) — multiple sync deletions in the same UpdateQueue batch
-    // corrupt LVGL's global event list (#776, #190, #80, #840).
-    // destroy_overlay_ui runs as a close callback on memory-constrained devices
-    // via register_overlay_close_callback(), so deferral is mandatory here.
-    helix::ui::safe_delete_deferred(overlay_root_);
+    // Owner hook while every pointer is still valid and the tree is still
+    // attached — owners whose sub-objects own widgets in this subtree (AMS
+    // sidebars, context menus, modals) drop them here.
+    if (before_delete) {
+        before_delete();
+    }
 
-    // Also null the caller's cached pointer (may be the same as overlay_root_,
-    // but could be a separate copy held by the calling panel)
+    if (how == TeardownDelete::DetachSubtree) {
+        // Takes a raw pointer and does not null its argument — the null-out
+        // below covers both strategies.
+        helix::ui::safe_delete_subtree(root);
+    } else {
+        // Sync `safe_delete` is banned in overlay close callbacks
+        // (ui_utils.h) — multiple sync deletions in the same UpdateQueue
+        // batch corrupt LVGL's global event list (#776, #190, #80, #840).
+        // This runs as a close callback on memory-constrained devices via
+        // register_overlay_close_callback(), so deferral is mandatory.
+        helix::ui::safe_delete_deferred(root);
+    }
+    root = nullptr;
     cached_panel = nullptr;
 
-    // Let derived class null its widget pointers. With deferred deletion the
-    // child widgets are still valid (hidden, reparented to top layer) during
-    // this call; the async tick will recursively delete the whole subtree.
-    on_ui_destroyed();
+    // The widget tree is still alive (hidden, off-tree) until the async tick
+    // frees it, so the owner can null child-widget pointers that must stay
+    // dereferenceable during teardown.
+    if (after_delete) {
+        after_delete();
+    }
+    return true;
 }
 
 lv_obj_t* OverlayBase::create_overlay_from_xml(lv_obj_t* parent, const char* component_name) {

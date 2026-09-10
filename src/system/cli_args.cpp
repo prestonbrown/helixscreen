@@ -152,7 +152,7 @@ static void print_help(const char* program_name) {
     printf("    --disconnected     Simulate disconnected state (requires --test)\n");
     printf("    --no-ams           Don't create mock AMS (enables runout modal testing)\n");
     printf("    --test-history     Enable test history API data\n");
-    printf("    --sim-speed <n>    Simulation speedup factor (1.0-1000.0, e.g., 100 for 100x)\n");
+    printf("    --sim-speed <n>    Simulation speedup factor (1.0-1000.0, requires --test)\n");
     printf("    --mock-crash       Write synthetic crash.txt to test crash reporter UI\n");
     printf("    --select-file <name>  Auto-select file in print-select panel\n");
     printf("\nG-code Viewer Options (require --test):\n");
@@ -770,6 +770,14 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
 
     if (config.mock_crash && !config.test_mode) {
         printf("Error: --mock-crash requires --test mode\n");
+        return false;
+    }
+
+    // A speedup outside --test would fast-forward PrintStartCollector's clock
+    // against a real printer, inflating the pre-print durations it measures and
+    // persists as predictions.
+    if (config.sim_speedup != 1.0 && !config.test_mode) {
+        printf("Error: --sim-speed requires --test mode\n");
         return false;
     }
 

@@ -42,6 +42,40 @@ std::string trim_trailing_ellipsis(const std::string& s) {
     }
     return s.substr(0, end);
 }
+
+/// Status text shown while a phase is current.
+///
+/// IDLE has no text of its own: the pre-print banner is hidden outside a print
+/// start, so nothing renders it.
+const char* phase_signal_message(helix::PrintStartPhase phase) {
+    switch (phase) {
+    case helix::PrintStartPhase::IDLE:
+        return "";
+    case helix::PrintStartPhase::INITIALIZING:
+        return lv_tr("Preparing Print...");
+    case helix::PrintStartPhase::HOMING:
+        return lv_tr("Homing...");
+    case helix::PrintStartPhase::HEATING_BED:
+        return lv_tr("Heating Bed...");
+    case helix::PrintStartPhase::SOAKING:
+        return lv_tr("Heat Soaking...");
+    case helix::PrintStartPhase::HEATING_NOZZLE:
+        return lv_tr("Heating Nozzle...");
+    case helix::PrintStartPhase::QGL:
+        return lv_tr("Leveling Gantry...");
+    case helix::PrintStartPhase::Z_TILT:
+        return lv_tr("Z Tilt Adjust...");
+    case helix::PrintStartPhase::BED_MESH:
+        return lv_tr("Loading Bed Mesh...");
+    case helix::PrintStartPhase::CLEANING:
+        return lv_tr("Cleaning Nozzle...");
+    case helix::PrintStartPhase::PURGING:
+        return lv_tr("Purging...");
+    case helix::PrintStartPhase::COMPLETE:
+        return lv_tr("Starting Print...");
+    }
+    return "";
+}
 } // namespace
 
 // ============================================================================
@@ -102,7 +136,7 @@ void PrintStartCollector::start() {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         // Record start time for timeout fallback
-        printing_state_start_ = std::chrono::steady_clock::now();
+        printing_state_start_ = helix::sim::SimulatedClock::now();
         last_activity_time_ = printing_state_start_;
         // Assume the narrower window until something says otherwise.
         window_ = helix::PreprintWindow::PrinterEdge;
@@ -163,7 +197,7 @@ void PrintStartCollector::start() {
     // Position inference starts with a clean slate and a fresh sample clock
     position_classifier_.reset();
     last_position_activity_ = helix::PositionActivity::NONE;
-    position_clock_start_ = std::chrono::steady_clock::now();
+    position_clock_start_ = helix::sim::SimulatedClock::now();
 
     // Reset thermal rate models with current temperatures
     {
@@ -342,7 +376,7 @@ void PrintStartCollector::reset() {
         current_phase_ = PrintStartPhase::INITIALIZING;
         print_start_detected_ = false;
         max_sequential_progress_ = 0;
-        printing_state_start_ = std::chrono::steady_clock::now();
+        printing_state_start_ = helix::sim::SimulatedClock::now();
         last_activity_time_ = printing_state_start_;
         phase_enter_times_.clear();
         mesh_probe_current_ = 0;
@@ -457,7 +491,7 @@ void PrintStartCollector::note_position_sample(float x_mm, float y_mm, float z_m
         if (!profile_ || !profile_->position_signals()) {
             return;
         }
-        const auto now = std::chrono::steady_clock::now();
+        const auto now = helix::sim::SimulatedClock::now();
         const auto ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(now - position_clock_start_)
                 .count();
@@ -514,7 +548,7 @@ void PrintStartCollector::check_fallback_completion() {
     }
 
     // Check current phase under lock
-    std::chrono::steady_clock::time_point start_time;
+    helix::sim::SimulatedClock::time_point start_time;
     PrintStartPhase current;
     bool print_start_was_detected;
     float predicted_total;
@@ -681,12 +715,12 @@ void PrintStartCollector::check_fallback_completion() {
     if (profile_ && !profile_->silent_progression().empty()) {
         if (temps_ready) {
             if (temps_ready_time_.time_since_epoch().count() == 0) {
-                temps_ready_time_ = std::chrono::steady_clock::now();
+                temps_ready_time_ = helix::sim::SimulatedClock::now();
                 spdlog::debug("[PrintStartCollector] Temps ready — silent progression armed");
             }
             const auto& entries = profile_->silent_progression();
             auto since_ready = std::chrono::duration_cast<std::chrono::seconds>(
-                                   std::chrono::steady_clock::now() - temps_ready_time_)
+                                   helix::sim::SimulatedClock::now() - temps_ready_time_)
                                    .count();
             while (silent_progression_idx_ < entries.size()) {
                 const auto& entry = entries[silent_progression_idx_];
@@ -723,7 +757,7 @@ void PrintStartCollector::check_fallback_completion() {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (current_phase_ == PrintStartPhase::BED_MESH &&
             (mesh_probe_current_ > 0 || mesh_points_.points() > 0)) {
-            auto since_last = std::chrono::steady_clock::now() - mesh_last_probe_time_;
+            auto since_last = helix::sim::SimulatedClock::now() - mesh_last_probe_time_;
             if (since_last < MESH_PROBE_GAP_RESET) {
                 return; // Active probing — don't timeout
             }
@@ -743,7 +777,7 @@ void PrintStartCollector::check_fallback_completion() {
     // target (ext_target=0) means we can't confirm temps are ready
     bool temps_near = nozzle_near && bed_near;
 
-    auto now = std::chrono::steady_clock::now();
+    auto now = helix::sim::SimulatedClock::now();
     auto elapsed = now - start_time;
     auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
 
@@ -754,7 +788,7 @@ void PrintStartCollector::check_fallback_completion() {
     // give up mid-sequence on any printer that meshes after heating, and
     // because a timeout completion skips the prediction save, the too-small
     // estimate that set the deadline could never grow.
-    std::chrono::steady_clock::duration quiet_for;
+    helix::sim::SimulatedClock::duration quiet_for;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         quiet_for = now - last_activity_time_;
@@ -953,7 +987,7 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
             bool should_enter = false;
             {
                 std::lock_guard<std::mutex> lock(state_mutex_);
-                auto now = std::chrono::steady_clock::now();
+                auto now = helix::sim::SimulatedClock::now();
 
                 // Gap reset for pre-mesh buffer
                 if (pre_mesh_points_.points() > 0 &&
@@ -994,7 +1028,7 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
                 std::string label;
                 {
                     std::lock_guard<std::mutex> lock(state_mutex_);
-                    auto now = std::chrono::steady_clock::now();
+                    auto now = helix::sim::SimulatedClock::now();
 
                     // Gap reset: if >30s since last probe, earlier probes were
                     // from a different operation (e.g. nozzle wipe)
@@ -1047,7 +1081,7 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
                 std::string label;
                 {
                     std::lock_guard<std::mutex> lock(state_mutex_);
-                    auto now = std::chrono::steady_clock::now();
+                    auto now = helix::sim::SimulatedClock::now();
 
                     // Gap reset: if >30s since last probe, earlier probes were
                     // from a different operation (e.g. nozzle wipe on AD5M)
@@ -1126,7 +1160,7 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
 
 void PrintStartCollector::note_activity() {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    last_activity_time_ = std::chrono::steady_clock::now();
+    last_activity_time_ = helix::sim::SimulatedClock::now();
 }
 
 void PrintStartCollector::check_phase_patterns(const std::string& line) {
@@ -1292,55 +1326,18 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
 
     spdlog::info("[PrintStartCollector] HELIX:PHASE signal: {}", phase_name);
 
-    // Map phase name to PrintStartPhase
-    if (phase_name == "STARTING" || phase_name == "START") {
-        // Mark print start detected and transition to INITIALIZING
-        {
+    const auto phase = helix::print_start_phase_from_name(phase_name);
+    // IDLE is not a signal a macro can raise: accepting it would let a stray
+    // line reset a print start that is already under way.
+    if (phase && *phase != PrintStartPhase::IDLE) {
+        if (*phase == PrintStartPhase::INITIALIZING) {
             std::lock_guard<std::mutex> lock(state_mutex_);
             print_start_detected_ = true;
         }
-        update_phase(PrintStartPhase::INITIALIZING, lv_tr("Preparing Print..."));
-        return true;
-    }
-
-    if (phase_name == "COMPLETE" || phase_name == "DONE") {
-        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
-        spdlog::info("[PrintStartCollector] Print start complete via HELIX:PHASE signal");
-        return true;
-    }
-
-    // Individual phases
-    if (phase_name == "HOMING") {
-        update_phase(PrintStartPhase::HOMING, lv_tr("Homing..."));
-        return true;
-    }
-    if (phase_name == "HEATING_BED" || phase_name == "BED_HEATING") {
-        update_phase(PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."));
-        return true;
-    }
-    if (phase_name == "HEATING_NOZZLE" || phase_name == "NOZZLE_HEATING" ||
-        phase_name == "HEATING_HOTEND") {
-        update_phase(PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."));
-        return true;
-    }
-    if (phase_name == "QGL" || phase_name == "QUAD_GANTRY_LEVEL") {
-        update_phase(PrintStartPhase::QGL, lv_tr("Leveling Gantry..."));
-        return true;
-    }
-    if (phase_name == "Z_TILT" || phase_name == "Z_TILT_ADJUST") {
-        update_phase(PrintStartPhase::Z_TILT, lv_tr("Z Tilt Adjust..."));
-        return true;
-    }
-    if (phase_name == "BED_MESH" || phase_name == "BED_LEVELING") {
-        update_phase(PrintStartPhase::BED_MESH, lv_tr("Loading Bed Mesh..."));
-        return true;
-    }
-    if (phase_name == "CLEANING" || phase_name == "NOZZLE_CLEAN") {
-        update_phase(PrintStartPhase::CLEANING, lv_tr("Cleaning Nozzle..."));
-        return true;
-    }
-    if (phase_name == "PURGING" || phase_name == "PURGE" || phase_name == "PRIMING") {
-        update_phase(PrintStartPhase::PURGING, lv_tr("Purging..."));
+        update_phase(*phase, phase_signal_message(*phase));
+        if (*phase == PrintStartPhase::COMPLETE) {
+            spdlog::info("[PrintStartCollector] Print start complete via HELIX:PHASE signal");
+        }
         return true;
     }
 
@@ -1432,7 +1429,7 @@ void PrintStartCollector::enter_bed_mesh_with_buffer(const char* message) {
     // verdict) are the sweep's first points and must be credited, or the
     // displayed count lags the physical taps by however many buffered.
     helix::ProbePointCounter buffered{1};
-    std::chrono::steady_clock::time_point last_probe_at{};
+    helix::sim::SimulatedClock::time_point last_probe_at{};
     bool has_buffered = false;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -1513,7 +1510,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const char* messag
         if (phase != PrintStartPhase::IDLE && phase != PrintStartPhase::INITIALIZING &&
             phase != PrintStartPhase::COMPLETE) {
             if (phase_enter_times_.find(phase_int) == phase_enter_times_.end()) {
-                phase_enter_times_[phase_int] = std::chrono::steady_clock::now();
+                phase_enter_times_[phase_int] = helix::sim::SimulatedClock::now();
             }
         }
 
@@ -1571,7 +1568,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const std::string&
         if (phase != PrintStartPhase::IDLE && phase != PrintStartPhase::INITIALIZING &&
             phase != PrintStartPhase::COMPLETE) {
             if (phase_enter_times_.find(phase_int) == phase_enter_times_.end()) {
-                phase_enter_times_[phase_int] = std::chrono::steady_clock::now();
+                phase_enter_times_[phase_int] = helix::sim::SimulatedClock::now();
             }
         }
 
@@ -1618,7 +1615,7 @@ void PrintStartCollector::relabel_heating_phase(PrintStartPhase resolved) {
         detected_phases_.insert(resolved);
         int phase_int = static_cast<int>(resolved);
         if (phase_enter_times_.find(phase_int) == phase_enter_times_.end()) {
-            phase_enter_times_[phase_int] = std::chrono::steady_clock::now();
+            phase_enter_times_[phase_int] = helix::sim::SimulatedClock::now();
         }
         progress = calculate_progress_locked();
         has_predictions = predictor_.has_predictions();
@@ -1709,7 +1706,7 @@ int PrintStartCollector::calculate_progress_locked() const {
             if (enter_it != phase_enter_times_.end()) {
                 float elapsed =
                     static_cast<float>(std::chrono::duration_cast<std::chrono::seconds>(
-                                           std::chrono::steady_clock::now() - enter_it->second)
+                                           helix::sim::SimulatedClock::now() - enter_it->second)
                                            .count());
                 auto pred = predictor_.predicted_phases();
                 auto pred_it = pred.find(static_cast<int>(current_phase_));
@@ -1758,6 +1755,17 @@ std::set<int> PrintStartCollector::get_completed_phase_ints_locked() const {
     return result;
 }
 
+int PrintStartCollector::get_current_phase_elapsed_seconds() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    int phase_int = static_cast<int>(current_phase_);
+    auto it = phase_enter_times_.find(phase_int);
+    if (it == phase_enter_times_.end()) {
+        return 0;
+    }
+    auto elapsed = helix::sim::SimulatedClock::now() - it->second;
+    return static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count());
+}
+
 // ============================================================================
 // ETA DISPLAY UPDATE
 // ============================================================================
@@ -1771,7 +1779,7 @@ void PrintStartCollector::update_eta_display() {
     int total_elapsed;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
-        auto now = std::chrono::steady_clock::now();
+        auto now = helix::sim::SimulatedClock::now();
         total_elapsed = static_cast<int>(
             std::chrono::duration_cast<std::chrono::seconds>(now - printing_state_start_).count());
     }
@@ -1796,7 +1804,7 @@ void PrintStartCollector::update_eta_display() {
         auto it = phase_enter_times_.find(current);
         if (it != phase_enter_times_.end()) {
             phase_elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
-                                                 std::chrono::steady_clock::now() - it->second)
+                                                 helix::sim::SimulatedClock::now() - it->second)
                                                  .count());
         }
 
@@ -1968,7 +1976,7 @@ void PrintStartCollector::feed_thermal_sample() {
     auto& mgr = ThermalRateManager::instance();
     auto now_ms =
         static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                  std::chrono::steady_clock::now() - printing_state_start_)
+                                  helix::sim::SimulatedClock::now() - printing_state_start_)
                                   .count());
 
     PrintStartPhase phase;
@@ -2226,15 +2234,15 @@ void PrintStartCollector::save_prediction_entry() {
 
     // Compute per-phase durations from timestamps
     std::map<int, int> phase_durations;
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::steady_clock::time_point start_time;
+    auto now = helix::sim::SimulatedClock::now();
+    helix::sim::SimulatedClock::time_point start_time;
 
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         start_time = printing_state_start_;
 
         // Build sorted list of phase enter times
-        std::vector<std::pair<int, std::chrono::steady_clock::time_point>> sorted_phases(
+        std::vector<std::pair<int, helix::sim::SimulatedClock::time_point>> sorted_phases(
             phase_enter_times_.begin(), phase_enter_times_.end());
         std::sort(sorted_phases.begin(), sorted_phases.end(),
                   [](const auto& a, const auto& b) { return a.second < b.second; });
@@ -2332,29 +2340,8 @@ void PrintStartCollector::save_prediction_entry() {
         }
 
         try {
-            json entries_json = json::array();
-            for (const auto& e : entries) {
-                json entry_json;
-                entry_json["total"] = e.total_seconds;
-                entry_json["timestamp"] = e.timestamp;
-
-                json phases_json = json::object();
-                for (const auto& [phase, duration] : e.phase_durations) {
-                    phases_json[std::to_string(phase)] = duration;
-                }
-                entry_json["phases"] = phases_json;
-                if (e.temp_bucket > 0) {
-                    entry_json["temp_bucket"] = e.temp_bucket;
-                }
-                // Omitted for Unknown so the field only appears once it means
-                // something; a reader treats its absence as PrinterEdge.
-                if (e.window != helix::PreprintWindow::Unknown) {
-                    entry_json["window"] = static_cast<int>(e.window);
-                }
-                entries_json.push_back(entry_json);
-            }
-
-            cfg->set<json>(PREPRINT_HISTORY_PATH, entries_json);
+            cfg->set<json>(PREPRINT_HISTORY_PATH,
+                           helix::PreprintPredictor::entries_to_json(entries));
             ThermalRateManager::instance().save_to_config(*cfg);
             cfg->save();
 

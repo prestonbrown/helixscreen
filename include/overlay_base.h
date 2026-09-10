@@ -72,6 +72,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <functional>
+
 // Include for SubjectManager (needed for deinit_subjects_base)
 #include "subject_managed_panel.h"
 
@@ -344,3 +346,79 @@ class OverlayBase : public ViewLifecycleBase {
   private:
     void on_view_hidden() override;
 };
+
+/**
+ * @namespace helix::ui
+ * @brief Shared overlay teardown sequence
+ */
+namespace helix::ui {
+
+/**
+ * @enum TeardownDelete
+ * @brief How teardown_overlay_ui() frees the widget tree
+ */
+enum class TeardownDelete {
+    /**
+     * Reparent the root to the top layer and async-delete it. The plain
+     * overlay path: the root carries no grid/flex layout of its own, so a
+     * racing ancestor relayout cannot corrupt anything.
+     */
+    Deferred,
+
+    /**
+     * Detach the root into a hidden, layout-less condemned container first,
+     * then async-delete. For roots containing grid/flex layouts whose
+     * grid_update/flex_update must be structurally unable to race teardown
+     * (#983) — detaching off-tree makes an ancestor relayout of the original
+     * parent incapable of iterating the doomed subtree.
+     */
+    DetachSubtree,
+};
+
+/**
+ * @brief The one overlay teardown sequence — drain, unregister, breadcrumb,
+ *        owner hooks, deferred free, pointer null-out
+ *
+ * OverlayBase::destroy_overlay_ui() and the AMS destroy_*_panel_ui() sites
+ * all run this sequence; a site differs only in its delete strategy and in
+ * which owner hooks it needs, never in the sequence itself. Re-implementing
+ * it per site is how the copies drift.
+ *
+ * Performs, in order:
+ * 1. Drains the UpdateQueue under a scoped freeze while all pointers are
+ *    still valid (observe_int_sync callbacks capture raw panel pointers)
+ * 2. Unregisters the close callback and overlay instance from
+ *    NavigationManager (before deletion, so a manual destroy while the panel
+ *    is still stacked cannot double-invoke)
+ * 3. Breadcrumbs "ovrl_dst" so crashes in the close path can be pinned to
+ *    the overlay being torn down
+ * 4. Runs @p before_delete while every pointer is still valid AND the tree
+ *    is still attached — owners whose sub-objects own widgets in the subtree
+ *    (AMS sidebars, context menus, modals) drop them here
+ * 5. Deletes per @p how (both strategies defer the actual free — sync
+ *    deletion inside an overlay close callback corrupts LVGL's global event
+ *    list when chained from an UpdateQueue batch, #776/#840)
+ * 6. Nulls @p root and @p cached_panel (they may alias the same variable)
+ * 7. Runs @p after_delete — the widget tree is still alive (hidden,
+ *    off-tree) until the async tick, so owners can null child-widget
+ *    pointers that must stay dereferenceable during teardown
+ *
+ * The owner object (subjects, state) survives — only the widget tree is
+ * destroyed; the next open re-creates it.
+ *
+ * @param root Root widget to tear down; nulled on return
+ * @param owner_name Logged and breadcrumbed owner name
+ * @param how Delete strategy (see TeardownDelete)
+ * @param cached_panel Caller's cached copy of the root; nulled on return
+ *                     (may be the same variable as @p root)
+ * @param before_delete Owner hook, step 4 (may be empty)
+ * @param after_delete Owner hook, step 7 (may be empty)
+ * @return true if a teardown happened; false when @p root was null (no
+ *         hooks run in that case)
+ */
+bool teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
+                         lv_obj_t*& cached_panel,
+                         const std::function<void()>& before_delete = nullptr,
+                         const std::function<void()>& after_delete = nullptr);
+
+} // namespace helix::ui

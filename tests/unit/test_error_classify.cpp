@@ -236,3 +236,39 @@ TEST_CASE("RecoveryAction carries an optional style", "[error-center][model]") {
     REQUIRE(b.style == "primary");
     REQUIRE(b.gcode == "RESUME");
 }
+
+// ============================================================================
+// Translation reaches the table, not just the hard-coded fallbacks
+// ============================================================================
+
+#include "../lvgl_test_fixture.h"
+#include "translation_loader.h"
+
+/**
+ * clean_error_text() composes its output from KlipperErrorTable's message and
+ * hint plus a runtime locator. All three are separate lv_tr() sites, and a
+ * composed string is no longer a translation key, so each has to resolve
+ * before concatenation. Asserting German proves the tags reach the loaded pack
+ * rather than falling through to the English tag, which is what an un-wired
+ * table would silently do.
+ */
+TEST_CASE_METHOD(LVGLTestFixture, "Klipper error table text and locator translate",
+                 "[error-center][classify][i18n]") {
+    helix::ui::ensure_translation_loaded("de");
+    lv_translation_set_language("de");
+
+    ClassifyContext ctx;
+
+    auto plain = classify(R"(!! {"code":"key585","msg":"Move out of range"})", ctx);
+    REQUIRE(plain.has_value());
+    REQUIRE(plain->detail.find("Bewegung außerhalb des Bereichs") != std::string::npos);
+    REQUIRE(plain->detail.find("Die angeforderte Position") != std::string::npos);
+
+    // The [unit, slot] locator is welded onto the message before the hint, so
+    // an untranslated formatter would leave English inside a German sentence.
+    auto located = classify(R"(!! {"code":"key849","values":[1,"B"]})", ctx);
+    REQUIRE(located.has_value());
+    REQUIRE(located->detail.find("in Einheit 1 Slot B") != std::string::npos);
+
+    lv_translation_set_language("en");
+}

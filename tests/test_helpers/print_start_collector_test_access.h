@@ -14,7 +14,7 @@ class PrintStartCollectorTestAccess {
     /// still narrating its pre-print.
     static void set_elapsed_seconds(PrintStartCollector& c, int seconds) {
         std::lock_guard<std::mutex> lock(c.state_mutex_);
-        auto when = std::chrono::steady_clock::now() - std::chrono::seconds(seconds);
+        auto when = helix::sim::SimulatedClock::now() - std::chrono::seconds(seconds);
         c.printing_state_start_ = when;
         c.last_activity_time_ = when;
     }
@@ -23,7 +23,7 @@ class PrintStartCollectorTestAccess {
     /// was observed, independent of total elapsed time.
     static void set_last_activity_seconds_ago(PrintStartCollector& c, int seconds) {
         std::lock_guard<std::mutex> lock(c.state_mutex_);
-        c.last_activity_time_ = std::chrono::steady_clock::now() - std::chrono::seconds(seconds);
+        c.last_activity_time_ = helix::sim::SimulatedClock::now() - std::chrono::seconds(seconds);
     }
 
     /// Set predicted_total_seconds_ directly for timeout threshold tests
@@ -43,7 +43,7 @@ class PrintStartCollectorTestAccess {
     /// the first tick where bed+nozzle reach target — bypassing the natural
     /// path keeps tests deterministic.
     static void set_temps_ready_elapsed_seconds(PrintStartCollector& c, int seconds) {
-        c.temps_ready_time_ = std::chrono::steady_clock::now() - std::chrono::seconds(seconds);
+        c.temps_ready_time_ = helix::sim::SimulatedClock::now() - std::chrono::seconds(seconds);
     }
 
     /// Reset silent_progression_idx_ to N (default 0) so a test can rewind

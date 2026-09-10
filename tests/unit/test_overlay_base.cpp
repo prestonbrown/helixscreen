@@ -18,36 +18,12 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
-#include "misc/lv_timer_private.h"
+#include "../test_helpers/process_async_timers.h"
 #include "overlay_base.h"
 
 #include "../catch_amalgamated.hpp"
 
 namespace {
-
-/// Process pending lv_async_call / lv_obj_delete_async one-shot timers.
-/// TEST_MIRROR_OK: lv_timer_handler() is LVGL's own API, not our code, and this
-/// helper mirrors another TEST helper (test_cleanup_helpers.cpp) rather than any
-/// production symbol. The gate matched the LVGL name in the vendored headers.
-/// Mirrors the helper in test_cleanup_helpers.cpp — lv_timer_handler() loops
-/// indefinitely on display refresh timers in the fixture.
-void process_async_timers() {
-    for (int safety = 0; safety < 100; ++safety) {
-        bool fired = false;
-        lv_timer_t* t = lv_timer_get_next(nullptr);
-        while (t) {
-            lv_timer_t* next = lv_timer_get_next(t);
-            if (t->repeat_count > 0 && t->timer_cb) {
-                t->timer_cb(t);
-                fired = true;
-                break;
-            }
-            t = next;
-        }
-        if (!fired)
-            break;
-    }
-}
 
 /// Minimal concrete OverlayBase for testing the base class contract.
 /// Exposes overlay_root_ write access and a test-only builder that bypasses
