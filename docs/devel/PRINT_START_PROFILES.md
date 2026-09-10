@@ -40,7 +40,7 @@ A print start is narrated by somebody. Which of the three evidence kinds a print
 
 The line between the first two kinds and the third is enforced in code, not only in review. A narration match - console line or phase-object state - marks a real firmware signal, which tells the collector the printer is narrating its own sequence and switches off the proactive temperature detector in `check_fallback_completion()`. A `status_signals` match deliberately does not: `handle_status_signals()` passes `marks_real_signal=false` (`src/print/print_start_collector.cpp#handle_status_signals`), because a rule's predicates read the same heater and toolhead frames that detector reads, and counting one as narration would silence the detector with its own input - costing the HOMING and heating phases only it can supply on a printer that narrates nothing.
 
-Phase semantics are engine-owned: the `PrintStartPhase` enum (`include/printer_state.h`) is the whole vocabulary, and profiles never invent phases - they only map evidence onto it.
+Phase semantics are engine-owned: the `PrintStartPhase` enum (`include/print_start_phase.h`) is the whole vocabulary, and profiles never invent phases - they only map evidence onto it.
 
 Discipline for inference rules: an unambiguous physical fact (the head parked at a cutter's corner) may carry a high weight; an ambiguous one (a heater at target) is a tie-breaker at most - or stays out of the profile. A confident wrong phase is worse than an honest generic bar. `default.json` follows this rule: it infers only the two rising-edge heating facts and deliberately omits anything more ambiguous.
 
@@ -78,7 +78,7 @@ How evidence arbitrates once matched:
 
 ## All Phases
 
-These are the `PrintStartPhase` enum values from `printer_state.h`. Use the **string name** (case-insensitive) in profile JSON files.
+These are the `PrintStartPhase` enum values from `include/print_start_phase.h`. Use the **string name** (case-insensitive) in profile JSON files. The ints are an implementation detail - they order the sequence and nothing else - so profiles name phases and never number them.
 
 | Enum Value | Int | String Name | Typical Trigger | Default Weight |
 |------------|-----|-------------|-----------------|----------------|
@@ -86,13 +86,16 @@ These are the `PrintStartPhase` enum values from `printer_state.h`. Use the **st
 | `INITIALIZING` | 1 | `INITIALIZING` | PRINT_START detected | - |
 | `HOMING` | 2 | `HOMING` | G28, Home All Axes | 10 |
 | `HEATING_BED` | 3 | `HEATING_BED` | M190, M140 S>0 | 20 |
-| `HEATING_NOZZLE` | 4 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
-| `QGL` | 5 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
-| `Z_TILT` | 6 | `Z_TILT` | Z_TILT_ADJUST | 15 |
-| `BED_MESH` | 7 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
-| `CLEANING` | 8 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
-| `PURGING` | 9 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
-| `COMPLETE` | 10 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
+| `SOAKING` | 4 | `SOAKING` | Heat-soak dwell, chamber temperature wait | - |
+| `HEATING_NOZZLE` | 5 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
+| `QGL` | 6 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
+| `Z_TILT` | 7 | `Z_TILT` | Z_TILT_ADJUST | 15 |
+| `BED_MESH` | 8 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
+| `CLEANING` | 9 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
+| `PURGING` | 10 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
+| `COMPLETE` | 11 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
+
+Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
 
 Notes:
 - `IDLE` and `COMPLETE` are lifecycle states, not matchable phases in profiles.
@@ -492,7 +495,8 @@ Timeouts are deliberately reluctant: active mesh probing suppresses them, and a 
 | `src/print/print_start_collector.cpp` | Detection engine: priority chain, status-frame handlers, progress calculation, ETA timer |
 | `include/preprint_predictor.h` | Pure-logic ETA predictor using historical timing data |
 | `src/print/preprint_predictor.cpp` | Config integration, caching for predictor |
-| `include/printer_state.h` | `PrintStartPhase` enum, subject accessors |
+| `include/print_start_phase.h` | `PrintStartPhase` enum, canonical names, alias table |
+| `include/printer_state.h` | Subject accessors |
 | `include/printer_print_state.h` | Print domain: progress, layers, preprint ETA subjects |
 | `src/application/moonraker_manager.cpp` | Wiring: profile loading, observer setup |
 | `src/api/moonraker_discovery_sequence.cpp` | Subscribes the profile's declared status objects during discovery |

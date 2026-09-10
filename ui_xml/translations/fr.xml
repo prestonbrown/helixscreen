@@ -1148,6 +1148,7 @@
   <translation tag="Heading" fr="Titre"/>
   <translation tag="Heat Capacity" fr="Capacité thermique"/>
   <translation tag="Heat Soak" fr="Stabilisation thermique"/>
+  <translation tag="Heat Soaking..." fr="Stabilisation thermique..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." fr="Chauffez le plateau avant de calibrer pour un offset précis avec la dilatation thermique."/>
   <translation tag="Heat nozzle" fr="Chauffer la buse"/>
   <translation tag="Heat to at least %d°C for filament operations" fr="Chauffez à au moins %d°C pour les opérations sur le filament"/>

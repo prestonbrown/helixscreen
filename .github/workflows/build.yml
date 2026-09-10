@@ -14,16 +14,23 @@ on:
 
 # A push to a claude/** work branch is superseded within minutes on a busy day,
 # and this workflow can hold a runner for hours, so a topic branch and a PR key
-# their group on the ref and let a newer push cancel the older run.
+# their group on the ref and let a newer push cancel the older run. release/**
+# keys on the SHA instead, so every commit that lands there keeps its own run.
 #
-# main and release/** key on the SHA instead, which puts every commit in its own
-# group: runs in different groups cannot cancel each other, so each commit that
-# lands on a protected branch keeps its own run and ends green or red. A
-# cancelled run is neither, and reads as green in every summary that counts
-# failures.
+# main keys on the ref and does NOT cancel: the in-flight run finishes and of
+# the runs queued behind it only the newest survives, so a burst of pushes
+# leaves one completing result and one pending rather than a queue of 2-hour
+# runs. Cancelling instead means a busy hour completes nothing and main reads
+# green because it was never measured. tests/shell/test_workflow_concurrency_gate.bats
+# pins both halves.
+#
+# cancel-in-progress needs fromJSON to get an actual boolean: a bare
+# `${{ github.ref != 'refs/heads/main' }}` yields the STRING "false", which is
+# non-empty and therefore truthy, so the guard reads as disabled and main
+# cancels anyway.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main') && github.sha || github.ref) }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (startsWith(github.ref, 'refs/heads/release/') && github.sha || github.ref) }}
+  cancel-in-progress: ${{ fromJSON(github.ref != 'refs/heads/main') }}
 
 jobs:
   compile-ubuntu:
@@ -471,7 +478,11 @@ jobs:
   build-android:
     name: Build (Android)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    # The job itself runs 26-29 minutes with a warm Gradle cache, so a 30-minute
+    # cap is a coin flip: it timed out at exactly 30:02 on one commit and passed
+    # in 26 on the next. The ceiling is for a hung Gradle or NDK fetch, not for
+    # the build, so it sits well clear of the build's own spread.
+    timeout-minutes: 50
 
     steps:
     - name: Checkout repository

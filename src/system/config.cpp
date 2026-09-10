@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <optional>
 #include <sstream>
@@ -1578,6 +1579,69 @@ static bool lift_root_preset(json& config, const std::string& active_printer_id)
     return true;
 }
 
+/// Re-key the pre-print prediction history from phase ordinals to phase names.
+///
+/// An ordinal is a position in PrintStartPhase, not an identity: inserting a
+/// phase renumbers everything after it and every stored number then names a
+/// different phase. A name survives that, so this is the last migration the
+/// history needs.
+static void migrate_v24_to_v25(json& config) {
+    // PrintStartPhase as it was numbered when these documents were written,
+    // before SOAKING took slot 4. Frozen — it describes stored data, not the
+    // current enum, and must not be regenerated from it.
+    static constexpr const char* LEGACY_PHASE_NAMES[] = {
+        "IDLE",   "INITIALIZING", "HOMING",   "HEATING_BED", "HEATING_NOZZLE", "QGL",
+        "Z_TILT", "BED_MESH",     "CLEANING", "PURGING",     "COMPLETE",
+    };
+    constexpr int LEGACY_PHASE_COUNT = static_cast<int>(std::size(LEGACY_PHASE_NAMES));
+
+    if (!config.contains("print_start_history") ||
+        !config["print_start_history"].contains("entries") ||
+        !config["print_start_history"]["entries"].is_array()) {
+        return;
+    }
+
+    int converted = 0;
+    int dropped = 0;
+    for (auto& entry : config["print_start_history"]["entries"]) {
+        if (!entry.is_object() || !entry.contains("phases") || !entry["phases"].is_object()) {
+            continue;
+        }
+
+        json renamed = json::object();
+        bool changed = false;
+        for (auto it = entry["phases"].begin(); it != entry["phases"].end(); ++it) {
+            const std::string& key = it.key();
+            // A key that is already a name stays put, so replaying the ladder
+            // over a converted document is a no-op. A stamp rollback to an
+            // older build and back does exactly that.
+            if (key.empty() || key.size() > 3 ||
+                key.find_first_not_of("0123456789") != std::string::npos) {
+                renamed[key] = it.value();
+                continue;
+            }
+            const int ordinal = std::stoi(key);
+            changed = true;
+            if (ordinal < 0 || ordinal >= LEGACY_PHASE_COUNT) {
+                ++dropped;
+                continue;
+            }
+            renamed[LEGACY_PHASE_NAMES[ordinal]] = it.value();
+        }
+
+        if (changed) {
+            entry["phases"] = std::move(renamed);
+            ++converted;
+        }
+    }
+
+    if (converted > 0 || dropped > 0) {
+        spdlog::info("[Config] Migration v25: named the phase keys in {} predictor entries "
+                     "({} unrecognised ordinals dropped)",
+                     converted, dropped);
+    }
+}
+
 /// Run all versioned migrations in sequence from current version to CURRENT_CONFIG_VERSION
 static void run_versioned_migrations(json& config, const std::string& config_path = "") {
     int version = 0;
@@ -1651,6 +1715,8 @@ static void run_versioned_migrations(json& config, const std::string& config_pat
         migrate_v22_to_v23(config);
     if (version < 24)
         migrate_v23_to_v24(config);
+    if (version < 25)
+        migrate_v24_to_v25(config);
 
     config["config_version"] = CURRENT_CONFIG_VERSION;
 }

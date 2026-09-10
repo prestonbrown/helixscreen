@@ -550,12 +550,13 @@ using namespace helix::ui;
 /**
  * @brief HELIX:PHASE signal parser for direct testing
  *
- * This standalone function replicates the HELIX:PHASE parsing logic from
- * PrintStartCollector::check_helix_phase_signal() so we can test it directly
- * without the full callback infrastructure.
+ * Mirrors the prefix handling in PrintStartCollector::check_helix_phase_signal()
+ * so the signal format can be exercised without the callback infrastructure.
+ * The name lookup itself is the shipping one, so an alias that stops resolving
+ * shows up here.
  *
- * Returns the PrintStartPhase that would be set by the signal, or
- * PrintStartPhase::IDLE if the signal is not recognized.
+ * Returns the PrintStartPhase the signal would set, or PrintStartPhase::IDLE
+ * when the signal is not recognized.
  */
 static std::pair<PrintStartPhase, std::string> parse_helix_phase_signal(const std::string& line) {
     static const char* HELIX_PHASE_PREFIX = "HELIX:PHASE:";
@@ -572,32 +573,26 @@ static std::pair<PrintStartPhase, std::string> parse_helix_phase_signal(const st
         phase_name = phase_name.substr(0, end);
     }
 
-    // Map to phase (same logic as check_helix_phase_signal)
-    if (phase_name == "STARTING" || phase_name == "START") {
-        return {PrintStartPhase::INITIALIZING, "Preparing Print..."};
-    } else if (phase_name == "COMPLETE" || phase_name == "DONE") {
-        return {PrintStartPhase::COMPLETE, "Starting Print..."};
-    } else if (phase_name == "HOMING") {
-        return {PrintStartPhase::HOMING, "Homing..."};
-    } else if (phase_name == "HEATING_BED" || phase_name == "BED_HEATING") {
-        return {PrintStartPhase::HEATING_BED, "Heating Bed..."};
-    } else if (phase_name == "HEATING_NOZZLE" || phase_name == "NOZZLE_HEATING" ||
-               phase_name == "HEATING_HOTEND") {
-        return {PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."};
-    } else if (phase_name == "QGL" || phase_name == "QUAD_GANTRY_LEVEL") {
-        return {PrintStartPhase::QGL, "Leveling Gantry..."};
-    } else if (phase_name == "Z_TILT" || phase_name == "Z_TILT_ADJUST") {
-        return {PrintStartPhase::Z_TILT, "Z Tilt Adjust..."};
-    } else if (phase_name == "BED_MESH" || phase_name == "BED_LEVELING") {
-        return {PrintStartPhase::BED_MESH, "Loading Bed Mesh..."};
-    } else if (phase_name == "CLEANING" || phase_name == "NOZZLE_CLEAN") {
-        return {PrintStartPhase::CLEANING, "Cleaning Nozzle..."};
-    } else if (phase_name == "PURGING" || phase_name == "PURGE" || phase_name == "PRIMING") {
-        return {PrintStartPhase::PURGING, "Purging..."};
+    const auto phase = helix::print_start_phase_from_name(phase_name);
+    if (!phase || *phase == PrintStartPhase::IDLE) {
+        return {PrintStartPhase::IDLE, ""};
     }
 
-    // Unknown phase
-    return {PrintStartPhase::IDLE, ""};
+    static const std::map<PrintStartPhase, std::string> MESSAGES = {
+        {PrintStartPhase::INITIALIZING, "Preparing Print..."},
+        {PrintStartPhase::HOMING, "Homing..."},
+        {PrintStartPhase::HEATING_BED, "Heating Bed..."},
+        {PrintStartPhase::SOAKING, "Heat Soaking..."},
+        {PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."},
+        {PrintStartPhase::QGL, "Leveling Gantry..."},
+        {PrintStartPhase::Z_TILT, "Z Tilt Adjust..."},
+        {PrintStartPhase::BED_MESH, "Loading Bed Mesh..."},
+        {PrintStartPhase::CLEANING, "Cleaning Nozzle..."},
+        {PrintStartPhase::PURGING, "Purging..."},
+        {PrintStartPhase::COMPLETE, "Starting Print..."},
+    };
+    auto it = MESSAGES.find(*phase);
+    return {*phase, it != MESSAGES.end() ? it->second : ""};
 }
 
 /**

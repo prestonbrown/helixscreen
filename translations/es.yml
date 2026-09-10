@@ -1276,6 +1276,7 @@ translations:
   Heading: Encabezado
   Heat Capacity: Capacidad calorífica
   Heat Soak: Estabilización Térmica
+  Heat Soaking...: Estabilización térmica...
   Heat bed before calibrating for accurate offset with thermal expansion.: Caliente
     la cama antes de calibrar para un offset preciso con expansión térmica.
   Heat nozzle: Calentar boquilla

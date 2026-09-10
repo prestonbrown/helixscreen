@@ -1260,6 +1260,7 @@ translations:
   Heading: Заголовок
   Heat Capacity: Теплоёмкость
   Heat Soak: Прогрев
+  Heat Soaking...: Прогрев...
   Heat bed before calibrating for accurate offset with thermal expansion.: Нагрейте
     стол перед калибровкой для точного смещения с учётом теплового расширения.
   Heat nozzle: Нагреть сопло

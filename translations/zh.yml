@@ -1172,6 +1172,7 @@ translations:
   Heading: 标题
   Heat Capacity: 热容量
   Heat Soak: 预热浸泡
+  Heat Soaking...: 正在预热浸泡...
   Heat bed before calibrating for accurate offset with thermal expansion.: 校准前加热热床，以获得考虑热膨胀的精确偏移。
   Heat nozzle: 加热喷嘴
   Heat to at least %d°C for filament operations: 请加热至至少 %d°C 以进行耗材操作

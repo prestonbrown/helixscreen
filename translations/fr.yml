@@ -1290,6 +1290,7 @@ translations:
   Heading: Titre
   Heat Capacity: Capacité thermique
   Heat Soak: Stabilisation thermique
+  Heat Soaking...: Stabilisation thermique...
   Heat bed before calibrating for accurate offset with thermal expansion.: Chauffez
     le plateau avant de calibrer pour un offset précis avec la dilatation thermique.
   Heat nozzle: Chauffer la buse
