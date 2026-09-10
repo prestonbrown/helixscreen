@@ -351,7 +351,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: State transitions work correctl
         set_nav_buttons_enabled(true);
         set_active_panel(PanelId::Home);
 
-        // Neither icon is ever hidden any more; checked state carries which
+        // Neither icon is ever hidden; checked state carries which
         // one reads as active.
         REQUIRE(is_visible("nav_icon_controls_inactive"));
         REQUIRE(is_visible("nav_icon_controls_active"));

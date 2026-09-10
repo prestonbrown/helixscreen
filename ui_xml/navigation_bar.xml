@@ -51,11 +51,13 @@
     <style name="nav_btn_edit_done_portrait" width="content" min_width="36"/>
     <!-- Nav icon crossfade: each pair's checked icon sits at full opacity and
          scale, the other faded and shrunk. Both icons of a pair carry both
-         styles below - the transition lives on the base style because LVGL
-         only scans the style of the state being ENTERED, so a checked-only
-         declaration is silent when leaving checked; the "on" style then sets
-         the properties explicitly, since equal endpoints are a no-op and
-         text_opa is inheritable. -->
+         styles below - the transition lives on the base style because a
+         style is scanned when its own state bits are a subset of the state
+         being entered: state 0 (the base) is a subset of every state, so it
+         is scanned on both entry and exit, while a checked-only declaration
+         is scanned only when entering checked and stays silent on the way
+         out; the "on" style then sets the properties explicitly, since equal
+         endpoints are a no-op and text_opa is inheritable. -->
     <style name="nav_icon_fade"
            text_opa="0" transform_scale_x="205" transform_scale_y="205" transform_pivot_x="50%" transform_pivot_y="50%"
            transition="text_opa|transform_scale_x|transform_scale_y 180ms ease_out"/>

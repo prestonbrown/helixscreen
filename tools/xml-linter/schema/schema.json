@@ -2637,10 +2637,10 @@
       "type": "int"
     },
     "transform_pivot_x": {
-      "type": "int"
+      "type": "size"
     },
     "transform_pivot_y": {
-      "type": "int"
+      "type": "size"
     },
     "transform_skew_x": {
       "type": "int"
