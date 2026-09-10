@@ -2662,10 +2662,9 @@ RELEASE_VERSION := v$(VERSION)
 
 # Top-level asset dirs to include in release tarballs, derived from the shared
 # packaging manifest (scripts/gen-packaging-manifest.sh) minus test-data dirs
-# that are too large to ship. This replaces the previous hand-maintained
-# whitelist, which silently missed assets/config post-bfeba7c26 (v0.99.33
-# regression, fix e0840a4b6) and has also been missing assets/sounds all along
-# (tracker music used by snake game and settings UI).
+# that are too large to ship. This replaces a hand-maintained whitelist, which
+# is prone to silently missing a directory — assets/config and assets/sounds
+# (tracker music used by snake game and settings UI) both slipped through it.
 #
 # Adding a new assets/<foo>/ directory to the source tree will now ship it
 # automatically. To explicitly exclude something, add it to RELEASE_ASSETS_EXCLUDE.

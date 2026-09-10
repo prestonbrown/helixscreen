@@ -68,10 +68,10 @@ inline constexpr const char* WIZARD_HARDWARE_SETUP_DEFERRED = "hardware_setup_de
 /// Whether a finishing wizard run owes its expected-hardware snapshot to a
 /// later boot.
 ///
-/// b73781ca8 made it possible to finish setup while Klipper is in `error` —
-/// necessary, because that state was previously an inescapable dead end. But
-/// discovery never ran, so the heater/fan/LED/sensor pickers had empty lists
-/// and the user selected nothing. Committing that as the expected-hardware
+/// Finishing setup while Klipper is in `error` is allowed, since otherwise
+/// that state is an inescapable dead end. But discovery never ran, so the
+/// heater/fan/LED/sensor pickers had empty lists and the user selected
+/// nothing. Committing that as the expected-hardware
 /// snapshot makes the first boot where Klipper does come up report every fan,
 /// filament sensor and LED as newly appeared (#1160).
 ///

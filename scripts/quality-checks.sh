@@ -896,8 +896,8 @@ echo "📜 Checking panel-widget scroll declarations..."
 # <lv_obj> keeps LVGL's LV_OBJ_FLAG_SCROLLABLE default, which is ON. Our theme
 # overrides lv_obj's size/border/background/padding but NOT scrollable, so an
 # author who reads it as a pure layout container gets a scroll container. That
-# shipped chevrons drawn over the print-status thumbnail on an 800x480 K-Touch
-# (7d69130df), and inside a drag-scrolled home grid it also steals the drag.
+# draws chevrons over the print-status thumbnail on an 800x480 K-Touch, and
+# inside a drag-scrolled home grid it also steals the drag.
 #
 # Ratcheting baseline. The rule is declared INTENT - scrollable="true" passes
 # just as well as "false"; only saying nothing fails. The remaining 21 sites are
@@ -1249,7 +1249,6 @@ if [ -n "$XML_FILES" ]; then
       # here left a real hole: tests/shell/test_format_xml_gate.bats checks the
       # WHOLE ui_xml tree and fails hard, so an unformatted file that sails past
       # this warning turns the shell suite red on main until someone notices.
-      # panel_widget_bypass.xml sat that way through 58ea1eea2.
       # Which files already had unstaged work — recorded BEFORE formatting,
       # because the reformat itself makes every file differ from the index.
       XML_PRE_DIRTY=""
@@ -1565,7 +1564,7 @@ qc_null_safety() {
 # Background: Moonraker delivers JSON null for subscribed fields the underlying
 # Klipper object lacks. .value() and .get<T>() throw type_error.302 on null;
 # an uncaught throw inside a subscription handler exits 134 → watchdog crash
-# loop (#filament_motion_sensor, fixed in f75b961d8).
+# loop (e.g. a null #filament_motion_sensor field).
 #
 # Baseline ratchets down as violations are fixed. New code adds to the count
 # only via opt-out comment (`// JSON_NULL_SAFE: <reason>`).
@@ -1964,8 +1963,9 @@ if [ -f "scripts/check_x11_macro_collisions.py" ]; then
   # Linux headers reach X.h through GL, so an identifier sharing one of those
   # names preprocesses into a numeric constant in any TU that reaches SDL - and
   # only there. Our own SDL is built without X11, so no local build reproduces
-  # it; for v0.99.118 it surfaced only after the tag was cut, on the x86_64
-  # Debian and Raspberry Pi jobs (InvalidationScope::None, fixed in 3ec0c17be).
+  # it; it surfaces only on the x86_64 Debian and Raspberry Pi CI jobs, whose
+  # SDL does reach X11 (e.g. a symbol like InvalidationScope::None colliding
+  # with X11's None).
   # Annotate a deliberate one `// X11_MACRO_OK: <reason>`.
   if python3 scripts/check_x11_macro_collisions.py --max-allowed 0 >/tmp/x11_macros.out 2>&1; then
     section_time $SECTION_START
@@ -1997,9 +1997,9 @@ echo -n "🐉 Checking clang/GCC divergence..."
 # gate and re-asks it in the tree that has one.
 #
 # The class: CI's Ubuntu job compiles with clang and -Werror while every build
-# here uses g++. v0.99.118 shipped a red build because GCC accepts a comparison
-# clang rejects (-Wtautological-type-limit-compare in json_utils.h, fixed in
-# 5d3ea331c). Nothing local could see it.
+# here uses g++, so GCC accepting a comparison clang rejects (e.g.
+# -Wtautological-type-limit-compare in json_utils.h) ships a red build that
+# nothing local could see.
 if qc_clang_divergence_deferred; then
   section_time $SECTION_START
   echo ""
@@ -2974,12 +2974,12 @@ echo ""
 # mk/patches.mk guards every apply with "is this file already dirty?", never
 # with "is it dirty with the CURRENT revision of this patch". So the first
 # revision to reach a checkout is the one that stays: editing a patch afterwards
-# does nothing for anyone who already carries the old hunks. 86560d156 added
-# lv_evdev_get_last_raw() to patches/lvgl-evdev-protocol-a.patch, main's
-# lib/lvgl kept the previous revision, and every device cross-build failed while
-# the desktop suite stayed green - `make test` skips patch application and
-# lv_evdev.c is compiled out of desktop builds, so nothing here could see it.
-# Which is exactly why this one runs on desktop.
+# does nothing for anyone who already carries the old hunks. A patch whose
+# hunks land only in device-only source (e.g. lv_evdev.c, compiled out of
+# desktop builds) can drift from main's checked-in submodule pin without any
+# device cross-build noticing until it fails - `make test` skips patch
+# application entirely, so nothing here could see it. Which is exactly why
+# this one runs on desktop.
 qc_bats_inert() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)

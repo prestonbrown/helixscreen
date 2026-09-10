@@ -882,9 +882,9 @@ int Application::run(int argc, char** argv) {
     // overlay construction, and the first synchronous render. Any std::exception
     // escaping here unwinds out of run() into main()'s catch and exits 134,
     // which the watchdog interprets as a deterministic crash and (after
-    // CRASH_LOOP_MAX_CRASHES) shows the recovery dialog. The 4ca58af52 hotfix
-    // wraps main_loop() iterations but does not cover this pre-loop window —
-    // the 5ac58e051 follow_overlay regression hit exactly here, in
+    // CRASH_LOOP_MAX_CRASHES) shows the recovery dialog. main_loop()'s own
+    // crash guard wraps its iterations but does not cover this pre-loop
+    // window — a follow_overlay regression can hit exactly here, in
     // HomePanel::finalize_setup() → set_config(null) (json::type_error::306).
     // Catch + log + breadcrumb + toast + continue so the user gets a degraded
     // but usable app instead of a watchdog crash loop they can only escape by
@@ -4139,10 +4139,10 @@ int Application::main_loop() {
     // animations, async calls) unwinds the entire stack out of main_loop into
     // main()'s catch and exits 134 — the watchdog interprets this as a crash
     // and after CRASH_LOOP_MAX_CRASHES same-signature events triggers the
-    // "HelixScreen Keeps Crashing" recovery dialog (#931, v0.99.54). The
-    // 1b643f99c safety net wraps the initial-subscription dispatch path, but
-    // queued/observer/timer callbacks inside lv_timer_handler are not yet
-    // guarded. Catch + log + dump breadcrumbs + continue: the user gets a
+    // "HelixScreen Keeps Crashing" recovery dialog (#931). A separate safety
+    // net wraps the initial-subscription dispatch path, but queued/observer/
+    // timer callbacks inside lv_timer_handler are not yet guarded. Catch +
+    // log + dump breadcrumbs + continue: the user gets a
     // toast and a usable app instead of a crash loop they can only escape
     // by reflashing the previous version. A streak counter breaks out if the
     // catch itself is in a tight retry loop.

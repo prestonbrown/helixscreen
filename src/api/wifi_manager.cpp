@@ -200,14 +200,13 @@ void WiFiManager::register_backend_callbacks(bool silent) {
                 // Mirror image of the off-reassert above: the stored setting
                 // is on, but the radio itself is soft-blocked — e.g. a stale
                 // rfkill soft-block from a previous run, or one this same
-                // process created before commit 8aaac4e78 made a soft block
-                // non-fatal at startup instead of aborting init entirely.
-                // is_radio_enabled() is now seeded from hardware
+                // process created, since a soft block found at startup does
+                // not abort init. is_radio_enabled() is seeded from hardware
                 // (<rfkill>/soft) during resolve_and_store_interface(), so it
-                // reflects reality here rather than a hopeful default. A
-                // device left in this state before that fix stays radio-dead
-                // until someone physically taps the touchscreen (Task 15,
-                // CC1) — clear the stale block automatically instead.
+                // reflects reality here rather than a hopeful default. Left
+                // uncleared, the radio stays dead until someone physically
+                // taps the touchscreen (Task 15, CC1) — clear the stale
+                // block automatically instead.
                 spdlog::info("[WiFiManager] Stored setting is WiFi on, but the radio was "
                              "soft-blocked — clearing the stale block to match the stored "
                              "preference");
