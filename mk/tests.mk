@@ -114,10 +114,10 @@ define diagnose_shards
 	for s in $(2); do \
 		echo ""; \
 		echo "$(BOLD)shard $$s$(RESET)"; \
-		$(TEST_BIN) $(3) --shard-count $(NPROCS) --shard-index $$s --list-tests 2>/dev/null \
-			| grep -E '^  ' | sed 's/^  //' > "$(1)/$$s.tests" 2>/dev/null || true; \
+		$(TEST_BIN) $(3) --shard-count $(NPROCS) --shard-index $$s --list-tests --reporter xml 2>/dev/null \
+			| python3 scripts/catch2_shard_tests.py > "$(1)/$$s.tests" 2>/dev/null || true; \
 		n=$$(wc -l < "$(1)/$$s.tests" 2>/dev/null | tr -d ' '); \
-		echo "  ran $${n:-?} test case(s) → $(1)/$$s.tests"; \
+		echo "  ran $${n:-?} test case(s) → $(1)/$$s.tests ($(TEST_BIN) --input-file replays it)"; \
 		fails=$$(grep -oE '^[A-Za-z0-9_/.-]+\.cpp:[0-9]+: FAILED' "$(1)/$$s.log" 2>/dev/null \
 			| sed 's/: FAILED$$//' | sort -u | tr '\n' ' '); \
 		if [ -n "$$fails" ]; then \
