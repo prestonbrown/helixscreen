@@ -305,6 +305,10 @@ namespace {
 constexpr const char* kSubject = "job_holds_machine";
 constexpr const char* kDisabled = "state=\"disabled\"";
 constexpr const char* kGuardAttribute = "moves_machine=\"true\"";
+/// The attribute at any value. lv_xml_to_bool() reads everything except the
+/// literal "false" as true, so `moves_machine="false"` is an attribute that
+/// carries no guard while reading like a deliberate one.
+constexpr const char* kGuardAttributeName = "moves_machine=\"";
 
 struct GuardedFile {
     const char* path;
@@ -643,25 +647,14 @@ size_t count_occurrences(const std::string& haystack, const std::string& needle)
 }
 
 struct GuardScan {
-    size_t recognized = 0;                 ///< moves_machine="true" attributes
-    size_t mentions = 0;                   ///< every occurrence of the subject name
-    std::vector<std::string> unrecognized; ///< bindings naming the subject directly
+    size_t recognized = 0; ///< moves_machine="true" attributes
+    size_t attributes = 0; ///< moves_machine attributes at any value
 };
 
 GuardScan scan_guards(const std::string& xml) {
     GuardScan scan;
-    scan.mentions = count_occurrences(xml, kSubject);
     scan.recognized = count_occurrences(xml, kGuardAttribute);
-
-    // The attribute is the ONLY way to carry the guard now: a hand-written
-    // bind naming the subject is the failure this gate exists to prevent
-    // (it rots: it can be forgotten, or its spelling can drift). The engine
-    // installs the binding for moves_machine by construction.
-    for (const std::string& bind : state_binds(xml)) {
-        if (bind.find(kSubject) != std::string::npos) {
-            scan.unrecognized.push_back(bind);
-        }
-    }
+    scan.attributes = count_occurrences(xml, kGuardAttributeName);
     return scan;
 }
 
@@ -738,25 +731,13 @@ TEST_CASE("each guarded file carries exactly the toolhead guards its census row 
 
         const GuardScan scan = scan_guards(xml);
         {
-            std::string odd;
-            for (const std::string& bind : scan.unrecognized) {
-                odd += "\n  " + bind;
-            }
-            INFO(row.path << " names job_holds_machine in a hand-written bind. The guard "
-                             "arrives by construction from the moves_machine attribute now; "
-                             "a direct bind is the failure mode this gate exists to prevent:"
-                          << odd
-                          << "\nCarry the guard as moves_machine=\"true\" on the "
-                             "control instead.");
-            REQUIRE(scan.unrecognized.empty());
-        }
-        {
-            INFO(row.path << " names job_holds_machine " << scan.mentions << " times and only "
+            INFO(row.path << " carries " << scan.attributes << " moves_machine attributes but "
                           << scan.recognized
-                          << " of those are covered by moves_machine guards, so the rest are "
-                             "prose that claims a guard without carrying one. Say it in words "
-                             "that are not the subject name.");
-            REQUIRE(scan.mentions <= scan.recognized);
+                          << " spelled \"true\". Every other value installs no guard, or "
+                             "installs one while reading as a refusal - the engine treats "
+                             "everything but the literal \"false\" as true. Spell it "
+                             "\"true\" or drop the attribute.");
+            REQUIRE(scan.attributes == scan.recognized);
         }
         INFO(row.path << " pins " << row.guards << " toolhead guards and carries "
                       << scan.recognized
@@ -772,8 +753,27 @@ TEST_CASE("a file classified as commanding nothing carries no toolhead guard",
         const std::string xml = read_xml(path);
         INFO("reading " << path);
         REQUIRE_FALSE(xml.empty());
-        INFO(path << " carries a toolhead guard, so a control in it does command the printer. "
-                     "Move its row to kGuardedFiles.");
-        REQUIRE(xml.find(kSubject) == std::string::npos);
+        const GuardScan scan = scan_guards(xml);
+        INFO(path << " carries " << scan.attributes
+                  << " moves_machine attributes, so a control in it does command the printer. "
+                     "Move its row to kGuardedFiles with that count.");
+        REQUIRE(scan.attributes == 0);
+    }
+}
+
+TEST_CASE("no XML names the job_holds_machine subject", "[ui][xml][job_holds_machine]") {
+    // The guard arrives by construction from moves_machine, on the element
+    // itself and composed with whatever else drives its state. A layout that
+    // spells the subject is either binding it by hand - which rots, and which
+    // no census row counts - or claiming a guard in prose without carrying one.
+    // Counting occurrences over the whole file rather than inspecting
+    // <bind_state_* elements is what makes a
+    // <bind_flag_if_eq subject="job_holds_machine"/> visible.
+    for (const std::string& path : walk_ui_xml()) {
+        const size_t mentions = count_occurrences(read_xml(path), kSubject);
+        INFO(path << " names job_holds_machine " << mentions
+                  << " times. Carry the guard as moves_machine=\"true\" on the control, and "
+                     "say the rest in words that are not the subject name.");
+        REQUIRE(mentions == 0);
     }
 }

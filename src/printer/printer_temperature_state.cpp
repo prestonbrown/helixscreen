@@ -52,18 +52,24 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
     spdlog::trace("[PrinterTemperatureState] Initializing subjects (register_xml={})",
                   register_xml);
 
-    // Active extruder subjects (track whichever extruder is currently active)
-    // XML names stay as "extruder_temp"/"extruder_target" for XML binding compatibility
+    // Active extruder subjects (track whichever extruder is currently active).
+    // The XML names are "extruder_temp"/"extruder_target" while the members carry
+    // the active_ prefix, so INIT_SUBJECT_INT (which derives one from the other)
+    // does not fit. The name still goes to the manager: it withdraws each name
+    // before freeing its subject, and a PrinterState owned by a stack-allocated
+    // test fixture does not outlive the process, so without it the XML scope
+    // keeps resolving these names into storage that has gone away.
     lv_subject_init_int(&active_extruder_temp_, 0);
-    subjects_.register_subject(&active_extruder_temp_);
+    subjects_.register_subject(&active_extruder_temp_, register_xml ? "extruder_temp" : nullptr);
     if (register_xml) {
-        lv_xml_register_subject(nullptr, "extruder_temp", &active_extruder_temp_);
+        helix::xml::register_subject_in_current_scope("extruder_temp", &active_extruder_temp_);
     }
 
     lv_subject_init_int(&active_extruder_target_, 0);
-    subjects_.register_subject(&active_extruder_target_);
+    subjects_.register_subject(&active_extruder_target_,
+                               register_xml ? "extruder_target" : nullptr);
     if (register_xml) {
-        lv_xml_register_subject(nullptr, "extruder_target", &active_extruder_target_);
+        helix::xml::register_subject_in_current_scope("extruder_target", &active_extruder_target_);
     }
 
     // Bed and chamber temperature subjects
@@ -198,36 +204,6 @@ void PrinterTemperatureState::deinit_subjects() {
 
     subjects_.deinit_all();
     subjects_initialized_ = false;
-}
-
-void PrinterTemperatureState::register_xml_subjects() {
-    if (!subjects_initialized_) {
-        spdlog::warn("[PrinterTemperatureState] Cannot register XML subjects - not initialized");
-        return;
-    }
-
-    spdlog::debug("[PrinterTemperatureState] Re-registering subjects with XML system");
-    lv_xml_register_subject(nullptr, "extruder_temp", &active_extruder_temp_);
-    lv_xml_register_subject(nullptr, "extruder_target", &active_extruder_target_);
-    lv_xml_register_subject(nullptr, "bed_temp", &bed_temp_);
-    lv_xml_register_subject(nullptr, "bed_target", &bed_target_);
-    lv_xml_register_subject(nullptr, "chamber_temp", &chamber_temp_);
-    // chamber_target / chamber_fan_target intentionally omitted — internal inputs only.
-    lv_xml_register_subject(nullptr, "chamber_effective_target", &chamber_effective_target_);
-    lv_xml_register_subject(nullptr, "chamber_mode", &chamber_mode_);
-    lv_xml_register_subject(nullptr, "chamber_heater_fault", &chamber_heater_fault_);
-    lv_xml_register_subject(nullptr, "chamber_heater_inhibited", &chamber_heater_inhibited_);
-    lv_xml_register_subject(nullptr, "chamber_heater_fault_reason_text",
-                            &chamber_heater_fault_reason_text_);
-    // on_chamber_filter_fan_clicked() reads this one by name to compute the toggle.
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_on", &chamber_filter_fan_on_);
-    lv_xml_register_subject(nullptr, "chamber_heater_element_temp_text",
-                            &chamber_heater_element_temp_text_);
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_percent_text",
-                            &chamber_filter_fan_percent_text_);
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_on_text", &chamber_filter_fan_on_text_);
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_icon", &chamber_filter_fan_icon_);
-    lv_xml_register_subject(nullptr, "extruder_version", &extruder_version_);
 }
 
 void PrinterTemperatureState::init_extruders(const std::vector<std::string>& heaters) {

@@ -220,6 +220,14 @@ class SubjectManager {
                 // via the anomaly channel — no logging can run here: this body
                 // reaches the C++ atexit chain, where spdlog may already be
                 // gone (and LV_LOG_* is banned in app code regardless).
+                //
+                // This reaches only what the debug registry knows: the
+                // UI_MANAGED_SUBJECT_*/UI_SUBJECT_INIT_AND_REGISTER_* families
+                // and the handful of explicit register_subject() calls beside
+                // them. A subject published through INIT_SUBJECT_* or a bare
+                // register_subject_in_current_scope() is absent from that
+                // registry, so for those the name has to reach the manager at
+                // the call site — there is nothing here to recover it from.
                 helix_lvgl_anomaly("subject_manager_nameless_registered", info->name.c_str());
                 // Only withdraw when the name still resolves to THIS subject: a
                 // newer owner may have re-published the same name at a

@@ -88,18 +88,6 @@ class PrinterTemperatureState {
     void update_from_status(const nlohmann::json& status);
 
     /**
-     * @brief Re-register subjects with LVGL XML system
-     *
-     * Call this to ensure subjects are registered in LVGL's global XML registry.
-     * Use when other code may have overwritten the registry (e.g., other tests
-     * calling init_subjects(true) on their own PrinterState instances).
-     *
-     * Does NOT reinitialize subjects - only updates LVGL XML registry mappings.
-     * Safe to call multiple times.
-     */
-    void register_xml_subjects();
-
-    /**
      * @brief Initialize extruder tracking from discovered heater objects
      *
      * Filters the heater list for extruder* names, creates ExtruderInfo entries
