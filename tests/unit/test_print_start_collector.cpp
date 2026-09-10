@@ -541,6 +541,7 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 #include "moonraker_client_mock.h"
 #include "print_start_collector.h"
 #include "print_start_profile.h"
+#include "simulated_clock.h"
 #include "thermal_rate_model.h"
 #include "translation_loader.h"
 
@@ -3892,4 +3893,88 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
     REQUIRE(get_current_message() == "Preparing Print...");
+}
+
+// ============================================================================
+// Simulated-Clock Scaling
+// ============================================================================
+//
+// The collector measures how long a pre-print takes. Reading the simulated
+// clock is what lets a mock run reach a 700-second pre-print without spending
+// 700 real seconds on it, and what keeps the numbers it records identical at
+// every --sim-speed.
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: phase durations come from the simulated clock",
+                 "[print][collector][simclock]") {
+    helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
+
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    // Enter a phase the collector timestamps, with no time on the clock yet.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+    REQUIRE(collector().get_current_phase_elapsed_seconds() == 0);
+
+    SECTION("an eleven-minute phase is measured without waiting eleven minutes") {
+        clock.advance(std::chrono::seconds(701));
+        REQUIRE(collector().get_current_phase_elapsed_seconds() == 701);
+    }
+
+    SECTION("the total elapsed the UI shows tracks it too") {
+        clock.advance(std::chrono::seconds(701));
+        PrintStartCollectorTestAccess::run_eta_update(collector());
+        drain_async_updates();
+        REQUIRE(lv_subject_get_int(state().get_preprint_elapsed_subject()) == 701);
+    }
+
+    SECTION("fast-forwarding real time is what buys the simulated seconds") {
+        // 70.1 real seconds at 10x is the same 701 simulated seconds the phase
+        // above took at 1x — the measurement is speed-invariant, the waiting is
+        // not.
+        helix::sim::SimulatedClock::ManualScope fast(helix::sim::SimSpeed::of(10.0));
+        fast.advance_real(std::chrono::milliseconds(70100));
+        REQUIRE(collector().get_current_phase_elapsed_seconds() == 701);
+    }
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: the stuck-pre-print ceiling is simulated seconds too",
+                 "[print][collector][simclock][timeout]") {
+    // Elapsed and the timeout constants must share one unit, or a fast-forwarded
+    // run either never gives up or gives up instantly. FALLBACK_TIMEOUT is 300
+    // simulated seconds; the boundary is walked from both sides so the negative
+    // half cannot pass by the collector simply not running.
+    helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
+
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+    collector().enable_fallbacks();
+
+    // Temps at target and nothing being said: the quiet path. The first call
+    // recomputes weights off the freshly-set targets, so the predicted total is
+    // cleared afterwards to reach FALLBACK_TIMEOUT rather than the adaptive
+    // ceiling derived from it.
+    set_all_temps(600, 600, 2100, 2100);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    PrintStartCollectorTestAccess::clear_prediction_history(collector());
+    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
+
+    clock.advance(std::chrono::seconds(299));
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+
+    // Two more simulated seconds is all it takes — no real waiting at all.
+    clock.advance(std::chrono::seconds(2));
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }

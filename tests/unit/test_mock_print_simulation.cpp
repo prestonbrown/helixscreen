@@ -16,11 +16,15 @@
  * - Moonraker-compatible notification format
  */
 
+#include "../helix_test_fixture.h"
+#include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "moonraker_client_mock.h"
+#include "simulated_clock.h"
 
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <fstream>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -395,20 +399,32 @@ TEST_CASE("Mock print speedup factor behavior", "[print][speedup][slow]") {
         REQUIRE(mock.get_simulation_speedup() == Catch::Approx(100.0));
     }
 
-    SECTION("speedup is clamped to minimum 0.1") {
+    SECTION("speedup is clamped to helix::sim::MIN_SPEED") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24, 0.01);
-        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(0.1));
+        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(helix::sim::MIN_SPEED));
 
         mock.set_simulation_speedup(-5.0);
-        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(0.1));
+        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(helix::sim::MIN_SPEED));
     }
 
-    SECTION("speedup is clamped to maximum 10000") {
+    SECTION("speedup is clamped to helix::sim::MAX_SPEED") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24, 50000.0);
-        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(10000.0));
+        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(helix::sim::MAX_SPEED));
 
         mock.set_simulation_speedup(100000.0);
-        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(10000.0));
+        REQUIRE(mock.get_simulation_speedup() == Catch::Approx(helix::sim::MAX_SPEED));
+    }
+
+    SECTION("sim_speed() exposes the instance factor as the shared scale") {
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24, 20.0);
+        REQUIRE(mock.sim_speed().factor() == Catch::Approx(20.0));
+
+        mock.set_simulation_speedup(4.0);
+        REQUIRE(mock.sim_speed().factor() == Catch::Approx(4.0));
+        // A wait shortens, an elapsed span stretches — opposite directions.
+        REQUIRE(mock.sim_speed().shorten_wait_ms(400) == 100);
+        REQUIRE(mock.sim_speed().accelerate_progress(std::chrono::milliseconds(100)) ==
+                std::chrono::milliseconds(400));
     }
 
     SECTION("higher speedup completes preheat faster") {
@@ -1157,5 +1173,56 @@ TEST_CASE("Mock print pause/resume detailed behavior", "[print][pause_resume][sl
 
         mock->stop_temperature_simulation();
         mock->disconnect();
+    }
+}
+
+// ============================================================================
+// Capture Replay Cursor
+// ============================================================================
+
+TEST_CASE("MoonrakerClientMock: the replay cursor scales with the speedup",
+          "[mock][print][replay][simclock]") {
+    // A capture's timestamps are simulated milliseconds, so the cursor into it
+    // is real-elapsed MULTIPLIED by the speedup. Divide instead and a
+    // fast-forwarded replay crawls.
+    const std::string script_path = helix::test::config_sandbox_dir() + "/replay_cursor.json";
+    {
+        std::ofstream out(script_path);
+        out << R"({"events":[
+              {"t":0,    "type":"gcode_response","line":"first"},
+              {"t":1000, "type":"gcode_response","line":"second"},
+              {"t":9000, "type":"gcode_response","line":"third"}
+            ]})";
+    }
+
+    // The origin is set immediately before pumping, never before constructing the
+    // mock: on a loaded box that construction can take longer than the gap
+    // between two script events, which would carry the cursor past them.
+    auto pump_at = [&](MoonrakerClientMock& mock, int real_ms_elapsed) {
+        helix::MoonrakerClientMockTestAccess::set_replay_start(
+            mock, std::chrono::steady_clock::now() - std::chrono::milliseconds(real_ms_elapsed));
+        helix::MoonrakerClientMockTestAccess::pump_replay(mock);
+        return helix::MoonrakerClientMockTestAccess::replay_next(mock);
+    };
+
+    SECTION("at 1x, 100ms of real time reaches only the t=0 event") {
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24, 1.0);
+        REQUIRE(mock.arm_event_replay(script_path));
+        REQUIRE(pump_at(mock, 100) == 1);
+    }
+
+    SECTION("at 10x the same 100ms reaches the t=1000 event as well") {
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24, 10.0);
+        REQUIRE(mock.arm_event_replay(script_path));
+        REQUIRE(pump_at(mock, 100) == 2);
+    }
+
+    SECTION("nothing fires before the replay origin") {
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24, 100.0);
+        REQUIRE(mock.arm_event_replay(script_path));
+        helix::MoonrakerClientMockTestAccess::set_replay_start(
+            mock, std::chrono::steady_clock::now() + std::chrono::seconds(30));
+        helix::MoonrakerClientMockTestAccess::pump_replay(mock);
+        REQUIRE(helix::MoonrakerClientMockTestAccess::replay_next(mock) == 0);
     }
 }

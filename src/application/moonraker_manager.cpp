@@ -45,6 +45,7 @@
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "runtime_config.h"
+#include "simulated_clock.h"
 #include "sound_manager.h"
 #include "spoolman_manager.h"
 #include "tool_state.h"
@@ -367,7 +368,9 @@ void MoonrakerManager::create_client(const RuntimeConfig& runtime_config) {
 #else
 #ifdef HELIX_ENABLE_MOCKS
     if (runtime_config.should_mock_moonraker()) {
-        double speedup = runtime_config.sim_speedup;
+        // Through the shared accessor so the logged figure is the one the mock
+        // will actually run at, clamp included.
+        double speedup = helix::sim::SimSpeed::global().factor();
         // HELIX_MOCK_PRINTER=voron_24|voron_trident|k1|ad5m|generic_corexy|
         // generic_bedslinger|multi_extruder — defaults to Voron 2.4. K2 and
         // CC1 don't have dedicated mock types yet; they fall through to the
