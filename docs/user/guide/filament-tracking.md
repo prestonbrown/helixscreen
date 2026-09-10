@@ -124,7 +124,7 @@ You can start without Spoolman and add it whenever you like — connecting it do
 
 ## See Also
 
-- [Filament Management](filament.md) — Load/unload, AMS slots, dryer control, and the spool editors referenced above
+- [Filament Management](filament.md) — Load/unload, AMS slots, filament drying and humidity, and the spool editors referenced above
 - [Settings → Hardware → Spoolman](settings/hardware.md#spoolman) — Every Spoolman setting in one place
 - [Barcode Scanner](barcode-scanner.md) — Scan Spoolman QR codes to identify spools
 - [Label Printing](label-printing.md) — Print spool labels with a QR code linking back to Spoolman

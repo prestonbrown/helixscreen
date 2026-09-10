@@ -58,6 +58,9 @@ flowchart TB
 | [`include/ams_error.h`](../../../include/ams_error.h) | `AmsError`/`AmsResult`: the immediate refusal-or-accepted answer every backend op returns |
 | [`include/filament_op_dispatch.h`](../../../include/filament_op_dispatch.h) | The tier planner deciding which UI surface owns a filament operation |
 | [`include/printer_discovery.h`](../../../include/printer_discovery.h) | `detected_ams_systems()` and the detection-priority ladder |
+| [`include/ams_environment_zone.h`](../../../include/ams_environment_zone.h) | `EnvironmentZone` and the pure zone functions: the filament-box model every backend's environment hardware collapses into |
+| [`src/printer/ams_environment_zone.cpp`](../../../src/printer/ams_environment_zone.cpp) | Zone derivation, drying-state folding, the concurrency-cap pass, the selector-shape choice |
+| [`include/ui_zone_presentation.h`](../../../include/ui_zone_presentation.h) | Humidity verdict bands, zone labels and slot text - the decision the row, the tab and the detail header all share |
 | [`docs/devel/FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) | The deep dive: every backend's protocol, op dispatch, endless spool, errors |
 
 ## How it works
@@ -132,7 +135,7 @@ Both paths write change-gated — every value is compared before `lv_subject_set
 | Operation progress | `ams_action`, `ams_action_detail`, `ams_operation_phase`, `toolchange_step` | Step bar, action prompts |
 | Toolchange narration | `toolchange_visible`, `ams_current_toolchange`, `ams_number_of_toolchanges`, `toolchange_text` | Print-status toolchange banner |
 | Path canvas feed | `path_topology`, `path_active_slot`, `path_filament_segment`, `path_error_segment`, `path_anim_progress` | Filament-path canvas (its own doc) |
-| Dryer / environment | `dryer_*`, per-unit `ams_unit_<i>_*` temp + humidity | AMS unit cards, dryer overlay |
+| Dryer / environment | `dryer_*` (mirrored from whichever unit the shown box belongs to), per-unit `ams_unit_<i>_*` and `ams_env_ind_<i>_*` temp + humidity, `env_zone_*` / `zone_ov_*` for the box views | AMS unit card badges, environment detail overlay, box list |
 | Endless spool | `ams_endless_state`, `ams_endless_text` | Endless-spool status line |
 
 The AMS panel itself is nothing but bindings over those subjects — slot cards reading the per-slot family, the header reading the system-identity family, the action buttons calling backend ops through the dispatch ladder:
@@ -255,6 +258,7 @@ For debugging, every class in this chapter logs under a stable tag: `[AMS State]
 ## Going deeper
 
 - [`../FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) — everything this chapter defers: the four-surface filament-op dispatch ladder, endless spool, error channels, `lane_data` slot-metadata persistence, UI panels, and the per-backend leaf docs (`FILAMENT_BACKEND_*.md`) for each backend's protocol and topology.
+- [`../FILAMENT_ENVIRONMENT_ZONES.md`](../FILAMENT_ENVIRONMENT_ZONES.md) - filament boxes: how a QuattroBox, an EMU lane and a QIDI box all become one `EnvironmentZone`, how per-gate firmware states fold into one answer per box, and the rule deciding whether the user gets tabs or a list.
 - [`../TOOL_ABSTRACTION.md`](../TOOL_ABSTRACTION.md) — the ToolState deep dive: `ToolInfo` fields, `DetectState`, tool discovery from `tool T*` objects, backend_index/backend_slot mapping.
 - [`../FILAMENT_SLOT_METADATA.md`](../FILAMENT_SLOT_METADATA.md) + [`../../specs/filament_slots.md`](../../specs/filament_slots.md) — the user-editable slot metadata store and its public wire format (the OrcaSlicer-facing `lane_data` contract).
 - [`06-discovery-capabilities.md`](06-discovery-capabilities.md) — the detection half: how `detected_ams_systems_` is populated and how the AMS home widget gates on `ams_slot_count`.
