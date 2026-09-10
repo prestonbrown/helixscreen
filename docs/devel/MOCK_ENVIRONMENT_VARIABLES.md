@@ -77,7 +77,7 @@ Replay a captured print-start sequence through the mock client's real dispatch p
 
 | Property | Value |
 |----------|-------|
-| **Values** | path to a replay script JSON (see `tests/fixtures/k1c_flowrate_replay.json`) |
+| **Values** | path to a replay script JSON (see `tests/fixtures/k1c_flowrate_replay.json`, or `tests/fixtures/voron_trident_afc_replay.json` for a macro-driven Klipper printer whose phases arrive as `display_status` narration) |
 | **Default** | unset (no replay) |
 | **File** | `src/application/moonraker_manager.cpp` (env read); `src/api/moonraker_client_mock.cpp` (`arm_event_replay`) |
 | **Generating** | `scripts/extract_mock_replay.py` — extracts a script from a klippy.log + app log capture pair |

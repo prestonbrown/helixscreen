@@ -2,15 +2,20 @@
   "name": "Generic",
   "description": "Default heuristic patterns for unknown printers",
   "progress_mode": "weighted",
+  "phase_object": {
+    "object": "display_status",
+    "field": "message"
+  },
   "signal_formats": [],
   "response_patterns": [
     { "pattern": "G28|Homing|Home All|homing axes|homing all", "phase": "HOMING", "message": "Homing...", "weight": 10 },
     { "pattern": "M190|M140\\s+S[1-9]|Heating bed|Heat Bed|BED_TEMP|bed.*heat", "phase": "HEATING_BED", "message": "Heating Bed...", "weight": 20 },
+    { "pattern": "(heat|bed|chamber).?soak|soaking|heating chamber|waiting for chamber", "phase": "HEATING_BED", "message": "Heat Soak", "weight": 20 },
     { "pattern": "M109|M104\\s+S[1-9]|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 20 },
     { "pattern": "QUAD_GANTRY_LEVEL|quad.?gantry.?level|QGL", "phase": "QGL", "message": "Leveling Gantry...", "weight": 15 },
     { "pattern": "Z_TILT_ADJUST|z.?tilt.?adjust", "phase": "Z_TILT", "message": "Z Tilt Adjust...", "weight": 15 },
-    { "pattern": "BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load|Probing mesh|generating mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 10 },
-    { "pattern": "CLEAN_NOZZLE|NOZZLE_CLEAN|NOZZLE_CLEAR|WIPE_NOZZLE|nozzle.?wipe|clean.?nozzle|nozzle.?clear", "phase": "CLEANING", "message": "Cleaning Nozzle...", "weight": 5 },
+    { "pattern": "BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load|Probing mesh|generating mesh|bed mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 10 },
+    { "pattern": "CLEAN_NOZZLE|NOZZLE_CLEAN|NOZZLE_CLEAR|WIPE_NOZZLE|nozzle.?wipe|clean(ing)?.?nozzle|nozzle.?clear", "phase": "CLEANING", "message": "Cleaning Nozzle...", "weight": 5 },
     { "pattern": "VORON_PURGE|LINE_PURGE|PURGE_LINE|Prime.?Line|Priming|KAMP_.*PURGE|purge.?line|prime.?nozzle|PRIME_LINE", "phase": "PURGING", "message": "Purging...", "weight": 5 }
   ],
   "status_signals": [

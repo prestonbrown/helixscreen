@@ -153,14 +153,23 @@ std::shared_ptr<PrintStartProfile> PrintStartProfile::load_default() {
         }
         spdlog::warn("[PrintStartProfile] Failed to parse default.json, using built-in fallback");
     } while (false);
-    // Built-in fallback: same patterns as currently hardcoded in PrintStartCollector
+    return make_builtin_default();
+}
+
+std::shared_ptr<PrintStartProfile> PrintStartProfile::make_builtin_default() {
     auto profile = std::make_shared<PrintStartProfile>();
     profile->name_ = "Generic (built-in)";
     profile->is_default_ = true;
-    profile->description_ = "Built-in fallback patterns matching PrintStartCollector defaults";
+    profile->description_ = "Generic profile compiled in, for when default.json is unreadable";
     profile->progress_mode_ = ProgressMode::WEIGHTED;
 
-    // Response patterns matching the hardcoded patterns in print_start_collector.cpp
+    // Klipper does not echo commands run inside a gcode_macro, so a
+    // macro-driven PRINT_START never reaches the console stream. Its narration
+    // arrives in display_status.message instead, which SET_DISPLAY_TEXT and
+    // M117 write.
+    profile->phase_object_name_ = "display_status";
+    profile->phase_object_field_ = "message";
+
     struct PatternDef {
         const char* pattern;
         PrintStartPhase phase;
@@ -168,23 +177,28 @@ std::shared_ptr<PrintStartProfile> PrintStartProfile::load_default() {
         int weight;
     };
 
+    // Order is the matching order: the first entry whose regex hits wins, so
+    // the heat-soak entry sits below the bed-heating one it would otherwise
+    // claim "Heating Bed: 100c" from.
     // clang-format off
     const PatternDef builtin_patterns[] = {
-        {"G28|Homing|Home All Axes|homing",
+        {"G28|Homing|Home All|homing axes|homing all",
          PrintStartPhase::HOMING, lv_tr("Homing..."), 10},
         {"M190|M140\\s+S[1-9]|Heating bed|Heat Bed|BED_TEMP|bed.*heat",
          PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."), 20},
+        {"(heat|bed|chamber).?soak|soaking|heating chamber|waiting for chamber",
+         PrintStartPhase::HEATING_BED, lv_tr("Heat Soak"), 20},
         {"M109|M104\\s+S[1-9]|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
          PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."), 20},
         {"QUAD_GANTRY_LEVEL|quad.?gantry.?level|QGL",
          PrintStartPhase::QGL, lv_tr("Leveling Gantry..."), 15},
         {"Z_TILT_ADJUST|z.?tilt.?adjust",
          PrintStartPhase::Z_TILT, lv_tr("Z Tilt Adjust..."), 15},
-        {"BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load",
-         PrintStartPhase::BED_MESH, lv_tr("Loading Bed Mesh..."), 10},
-        {"CLEAN_NOZZLE|NOZZLE_CLEAN|WIPE_NOZZLE|nozzle.?wipe|clean.?nozzle",
+        {"BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load|Probing mesh|generating mesh|bed mesh",
+         PrintStartPhase::BED_MESH, lv_tr("Probing Bed Mesh..."), 10},
+        {"CLEAN_NOZZLE|NOZZLE_CLEAN|NOZZLE_CLEAR|WIPE_NOZZLE|nozzle.?wipe|clean(ing)?.?nozzle|nozzle.?clear",
          PrintStartPhase::CLEANING, lv_tr("Cleaning Nozzle..."), 5},
-        {"VORON_PURGE|LINE_PURGE|PURGE_LINE|Prime.?Line|Priming|KAMP_.*PURGE|purge.?line",
+        {"VORON_PURGE|LINE_PURGE|PURGE_LINE|Prime.?Line|Priming|KAMP_.*PURGE|purge.?line|prime.?nozzle|PRIME_LINE",
          PrintStartPhase::PURGING, lv_tr("Purging..."), 5},
     };
     // clang-format on
@@ -203,7 +217,43 @@ std::shared_ptr<PrintStartProfile> PrintStartProfile::load_default() {
         }
     }
 
-    // Phase weights matching the hardcoded values
+    // Both heaters take the same rule: a target is set and the reading is
+    // still short of it. Rule messages stay untranslated here — the lookup
+    // happens in evaluate_status_signal(), the way a parsed rule's does.
+    struct HeaterRuleDef {
+        const char* name;
+        const char* object;
+        PrintStartPhase phase;
+        const char* message;
+    };
+    const HeaterRuleDef heater_rules[] = {
+        {"heating_bed", "heater_bed", PrintStartPhase::HEATING_BED, "Heating Bed..."},
+        {"heating_nozzle", "extruder", PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."},
+    };
+    constexpr double HEATER_RULE_TARGET_OFFSET_DEGREES = -2.0;
+    constexpr int HEATER_RULE_WEIGHT = 15;
+    for (const auto& def : heater_rules) {
+        StatusPredicate target_set;
+        target_set.field = "target";
+        target_set.op = StatusPredicate::Op::GT;
+        target_set.value = 0.0;
+
+        StatusPredicate below_target;
+        below_target.field = "temperature";
+        below_target.op = StatusPredicate::Op::LT;
+        below_target.ref_field = "target";
+        below_target.offset = HEATER_RULE_TARGET_OFFSET_DEGREES;
+
+        StatusSignalRule rule;
+        rule.name = def.name;
+        rule.object = def.object;
+        rule.when = {target_set, below_target};
+        rule.phase = def.phase;
+        rule.message = def.message;
+        rule.weight = HEATER_RULE_WEIGHT;
+        profile->status_signals_.push_back(std::move(rule));
+    }
+
     profile->phase_weights_ = {
         {PrintStartPhase::HOMING, 10},         {PrintStartPhase::HEATING_BED, 20},
         {PrintStartPhase::HEATING_NOZZLE, 20}, {PrintStartPhase::QGL, 15},
@@ -258,7 +308,12 @@ bool PrintStartProfile::try_match_pattern(const std::string& line, MatchResult& 
 }
 
 bool PrintStartProfile::try_match_state(const std::string& state, MatchResult& result) const {
-    return match_pattern_list(state_patterns_, state, result);
+    // A profile that declares a phase object but no state patterns matches its
+    // state text with the response patterns instead: both feeds carry the same
+    // phase vocabulary, so one list serves both and the generic profile needs
+    // no second hand-maintained copy of the same regexes.
+    const auto& patterns = state_patterns_.empty() ? response_patterns_ : state_patterns_;
+    return match_pattern_list(patterns, state, result);
 }
 
 bool PrintStartProfile::match_pattern_list(const std::vector<ResponsePattern>& patterns,

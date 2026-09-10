@@ -22,4 +22,12 @@ class PrintStartProfileTestAccess {
         }
         return profile;
     }
+
+    /// The compiled-in generic profile, without the default.json lookup
+    /// load_default() tries first. Reaching it any other way means making the
+    /// asset unreadable, which no test can do without disturbing the rest of
+    /// the suite's data root.
+    static std::shared_ptr<PrintStartProfile> builtin_default() {
+        return PrintStartProfile::make_builtin_default();
+    }
 };

@@ -1274,13 +1274,107 @@ TEST_CASE("PrintStartProfile: forge_x declares its phase object",
     REQUIRE(objects[0] == "operation_context");
 }
 
+TEST_CASE("PrintStartProfile: the generic profile reads Klipper's display_status",
+          "[profile][print][phase_object]") {
+    auto profile = get_default_profile();
+    REQUIRE(profile != nullptr);
+    // The built-in fallback declares no phase object; the JSON is under test.
+    REQUIRE(profile->name() == "Generic");
+
+    // Klipper does not echo commands issued inside a gcode_macro, so a
+    // macro-driven PRINT_START never reaches the console stream. What it does
+    // reach is display_status.message, which SET_DISPLAY_TEXT and M117 write.
+    REQUIRE(profile->has_phase_object());
+    REQUIRE(profile->phase_object_name() == "display_status");
+    REQUIRE(profile->phase_object_field() == "message");
+
+    // No state_patterns declared: the response patterns serve that feed too.
+    PrintStartProfile::MatchResult result;
+    REQUIRE(profile->try_match_state("Homing...", result));
+    CHECK(result.phase == PrintStartPhase::HOMING);
+    REQUIRE(profile->try_match_state("Cleaning Nozzle", result));
+    CHECK(result.phase == PrintStartPhase::CLEANING);
+    REQUIRE(profile->try_match_state("Bed Mesh", result));
+    CHECK(result.phase == PrintStartPhase::BED_MESH);
+
+    // Slicer layer chatter shares the field and is not a phase.
+    REQUIRE_FALSE(profile->try_match_state("Layer 12/240", result));
+}
+
+TEST_CASE("PrintStartProfile: declared state patterns win over response patterns",
+          "[profile][print][phase_object]") {
+    // The response-pattern fallback applies only to a profile that declares no
+    // state patterns of its own: a profile carrying both keeps the two feeds
+    // separate, so console-only vocabulary never leaks into the state feed.
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"t7",)"
+        R"("response_patterns":[)"
+        R"({"pattern":"G28","phase":"HOMING","message":"Homing...","weight":10}],)"
+        R"("state_patterns":[)"
+        R"({"pattern":"CLEANING","phase":"CLEANING","message":"Cleaning Nozzle...","weight":5}]})"));
+    REQUIRE(profile != nullptr);
+
+    PrintStartProfile::MatchResult result;
+    REQUIRE(profile->try_match_state("CLEANING", result));
+    CHECK(result.phase == PrintStartPhase::CLEANING);
+    REQUIRE_FALSE(profile->try_match_state("G28", result));
+
+    // The console feed is untouched by the fallback either way.
+    REQUIRE(profile->try_match_pattern("G28", result));
+    CHECK(result.phase == PrintStartPhase::HOMING);
+}
+
+TEST_CASE("PrintStartProfile: default patterns match macro narration, not just commands",
+          "[profile][print][pattern]") {
+    auto profile = get_default_profile();
+    REQUIRE(profile != nullptr);
+    REQUIRE(profile->name() == "Generic");
+
+    PrintStartProfile::MatchResult result;
+
+    struct Row {
+        const char* text;
+        PrintStartPhase phase;
+    };
+
+    // A community PRINT_START narrates its phases as prose through
+    // SET_DISPLAY_TEXT, so the command names the patterns key on never appear.
+    const Row rows[] = {
+        {"Cleaning Nozzle", PrintStartPhase::CLEANING},
+        {"Cleaning nozzle...", PrintStartPhase::CLEANING},
+        {"Bed mesh", PrintStartPhase::BED_MESH},
+        {"Bed Mesh", PrintStartPhase::BED_MESH},
+        {"Heating chamber: 45c", PrintStartPhase::HEATING_BED},
+        {"Bed soak - 2 minutes remaining", PrintStartPhase::HEATING_BED},
+        {"Bed soak finished", PrintStartPhase::HEATING_BED},
+        {"Heat soak", PrintStartPhase::HEATING_BED},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.text);
+        REQUIRE(profile->try_match_state(row.text, result));
+        CHECK(result.phase == row.phase);
+    }
+
+    // Patterns resolve in array order, and the soak entry sits after the
+    // bed-heating one: ordinary bed narration keeps its own label. Both entries
+    // carry HEATING_BED, so the message is what separates them.
+    REQUIRE(profile->try_match_pattern("Heating Bed: 100c", result));
+    CHECK(result.phase == PrintStartPhase::HEATING_BED);
+    CHECK(result.message == "Heating Bed...");
+    REQUIRE(profile->try_match_pattern("Heat soak", result));
+    CHECK(result.message == "Heat Soak");
+
+    // A bare "bed mesh" is a mesh signal; the clear command still is not.
+    REQUIRE_FALSE(profile->try_match_pattern("BED_MESH_CLEAR", result));
+}
+
 TEST_CASE("PrintStartProfile: profiles without phase_object declare no status objects",
           "[profile][print][phase_object]") {
     // Absence must read as absence: no object name, no subscription request.
     // The K2 profile doubles as the regression guard that a printer-specific
     // profile with no phase object stays exactly as it was. (default.json
-    // declares status_signals rules, so its objects are pinned separately in
-    // the status-signal tests below.)
+    // declares both a phase object and status_signals rules, so its objects
+    // are pinned separately in the status-signal tests below.)
     const auto k2 = PrintStartProfile::load("creality_k2");
     REQUIRE(k2 != nullptr);
     REQUIRE_FALSE(k2->has_phase_object());
@@ -1518,10 +1612,12 @@ TEST_CASE("PrintStartProfile: default profile carries only the two heating rules
     REQUIRE(nozzle.when[1].ref_field == "target");
     REQUIRE(nozzle.when[1].offset == -2.0);
 
+    // The phase object leads, then the rule objects in file order.
     const auto objects = profile->required_status_objects();
-    REQUIRE(objects.size() == 2);
-    REQUIRE(objects[0] == "heater_bed");
-    REQUIRE(objects[1] == "extruder");
+    REQUIRE(objects.size() == 3);
+    REQUIRE(objects[0] == "display_status");
+    REQUIRE(objects[1] == "heater_bed");
+    REQUIRE(objects[2] == "extruder");
 }
 
 TEST_CASE("PrintStartProfile: profiles without status_signals declare none",
@@ -1648,4 +1744,163 @@ TEST_CASE("PrintStartProfile: status-signal predicate ops table",
     CHECK(result.phase == PrintStartPhase::HEATING_BED);
     CHECK(result.message == "and holds");
     CHECK(result.progress == 7);
+}
+
+// ============================================================================
+// Built-in Fallback Parity Tests
+//
+// default.json and the compiled-in fallback are one rule set written twice.
+// They agree on DECISIONS, not on regex text: each is free to spell a pattern
+// its own way, and what is pinned is where a given string lands.
+// ============================================================================
+
+TEST_CASE("PrintStartProfile: the built-in fallback matches the shipped default.json",
+          "[profile][print][parity]") {
+    auto shipped = get_default_profile();
+    auto builtin = PrintStartProfileTestAccess::builtin_default();
+    REQUIRE(shipped != nullptr);
+    REQUIRE(builtin != nullptr);
+
+    // Two distinct profiles, or every comparison below is the fallback against
+    // itself and cannot fail. An unreadable default.json is precisely what
+    // makes load_default() hand back the fallback, so pin the names first.
+    REQUIRE(shipped->name() == "Generic");
+    REQUIRE(builtin->name() == "Generic (built-in)");
+
+    SECTION("Both read Klipper's display_status for macro narration") {
+        REQUIRE(builtin->has_phase_object() == shipped->has_phase_object());
+        CHECK(builtin->phase_object_name() == shipped->phase_object_name());
+        CHECK(builtin->phase_object_field() == shipped->phase_object_field());
+        CHECK(builtin->required_status_objects() == shipped->required_status_objects());
+    }
+
+    SECTION("Both reach the same phase and the same label for the same text") {
+        const char* corpus[] = {
+            // Command echoes, the console feed's vocabulary
+            "G28",
+            "G28 X Y Z",
+            "Homing axes",
+            "Home All Axes",
+            "Home All",
+            "// homing started",
+            "M190 S60",
+            "M140 S60",
+            "M104 S150",
+            "M109 S250",
+            "QUAD_GANTRY_LEVEL",
+            "quad gantry level",
+            "Running QGL",
+            "Z_TILT_ADJUST",
+            "z tilt adjust",
+            "Z-tilt adjust",
+            "BED_MESH_CALIBRATE",
+            "BED_MESH_PROFILE LOAD=default",
+            "Loading bed mesh",
+            "mesh loading",
+            "BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1",
+            "CLEAN_NOZZLE",
+            "NOZZLE_CLEAN",
+            "NOZZLE_CLEAR",
+            "WIPE_NOZZLE",
+            "nozzle wipe",
+            "clean nozzle",
+            "VORON_PURGE",
+            "LINE_PURGE",
+            "PURGE_LINE",
+            "Prime Line",
+            "PrimeLine",
+            "Priming extruder",
+            "KAMP_ADAPTIVE_PURGE",
+            "purge line done",
+            "PRIME_LINE",
+            // Prose, the display_status feed's vocabulary
+            "Homing",
+            "Cleaning Nozzle",
+            "Cleaning nozzle...",
+            "Bed mesh",
+            "Bed Mesh",
+            "Priming Nozzle",
+            "Heating Bed: 100c",
+            "Heating chamber: 45c",
+            "Bed soak - 2 minutes remaining",
+            "Bed soak finished",
+            "Heat soak",
+            // Neither may claim these
+            "BED_MESH_CLEAR",
+            "G29",
+            "M104",
+            "M140 S0",
+            "M104 S0",
+            "ok",
+            "// Klipper state: Ready",
+            "M141 S45",
+            "SMART_PARK",
+            "TOOLCHANGE TOOL=0",
+            "Leveling 3/9",
+            "Layer 12/240",
+        };
+
+        for (const char* text : corpus) {
+            CAPTURE(text);
+
+            PrintStartProfile::MatchResult from_json;
+            PrintStartProfile::MatchResult from_builtin;
+            const bool json_hit = shipped->try_match_pattern(text, from_json);
+            REQUIRE(builtin->try_match_pattern(text, from_builtin) == json_hit);
+            if (json_hit) {
+                CHECK(from_builtin.phase == from_json.phase);
+                CHECK(from_builtin.message == from_json.message);
+            }
+
+            // Neither declares state_patterns, so the phase-object feed runs
+            // the same list and must land in the same place.
+            PrintStartProfile::MatchResult state_json;
+            PrintStartProfile::MatchResult state_builtin;
+            const bool json_state_hit = shipped->try_match_state(text, state_json);
+            REQUIRE(builtin->try_match_state(text, state_builtin) == json_state_hit);
+            if (json_state_hit) {
+                CHECK(state_builtin.phase == state_json.phase);
+                CHECK(state_builtin.message == state_json.message);
+            }
+        }
+    }
+
+    SECTION("Both carry the same heater inference rules") {
+        const auto& json_rules = shipped->status_signals();
+        const auto& builtin_rules = builtin->status_signals();
+        REQUIRE(builtin_rules.size() == json_rules.size());
+        REQUIRE_FALSE(json_rules.empty());
+
+        for (size_t i = 0; i < json_rules.size(); ++i) {
+            CAPTURE(i, json_rules[i].name);
+            CHECK(builtin_rules[i].name == json_rules[i].name);
+            CHECK(builtin_rules[i].object == json_rules[i].object);
+            CHECK(builtin_rules[i].phase == json_rules[i].phase);
+            CHECK(builtin_rules[i].message == json_rules[i].message);
+            CHECK(builtin_rules[i].weight == json_rules[i].weight);
+
+            REQUIRE(builtin_rules[i].when.size() == json_rules[i].when.size());
+            for (size_t k = 0; k < json_rules[i].when.size(); ++k) {
+                CAPTURE(k, json_rules[i].when[k].field);
+                CHECK(builtin_rules[i].when[k].field == json_rules[i].when[k].field);
+                CHECK(builtin_rules[i].when[k].index == json_rules[i].when[k].index);
+                CHECK(builtin_rules[i].when[k].op == json_rules[i].when[k].op);
+                CHECK(builtin_rules[i].when[k].value == json_rules[i].when[k].value);
+                CHECK(builtin_rules[i].when[k].ref_field == json_rules[i].when[k].ref_field);
+                CHECK(builtin_rules[i].when[k].offset == json_rules[i].when[k].offset);
+                CHECK(builtin_rules[i].when[k].tolerance == json_rules[i].when[k].tolerance);
+            }
+        }
+    }
+
+    SECTION("Both weigh the phases the same") {
+        CHECK(builtin->progress_mode() == shipped->progress_mode());
+        for (PrintStartPhase phase :
+             {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
+              PrintStartPhase::HEATING_NOZZLE, PrintStartPhase::QGL, PrintStartPhase::Z_TILT,
+              PrintStartPhase::BED_MESH, PrintStartPhase::CLEANING, PrintStartPhase::PURGING}) {
+            CAPTURE(static_cast<int>(phase));
+            CHECK(builtin->get_phase_weight(phase) == shipped->get_phase_weight(phase));
+        }
+    }
 }
