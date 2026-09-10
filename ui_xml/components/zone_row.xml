@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Styles live here, not in the overlay that instantiates this row: a component's
+       <styles> block is scoped to that component's own file, so a bind_style_if_eq
+       inside this view cannot see a style declared by its parent. -->
+  <styles>
+    <style name="zone_marginal" text_color="#warning"/>
+    <style name="zone_too_humid" text_color="#danger"/>
+  </styles>
+  <api>
+    <prop name="label_subject" type="string" default=""/>
+    <prop name="slots_subject" type="string" default=""/>
+    <prop name="reading_subject" type="string" default=""/>
+    <prop name="status_subject" type="string" default=""/>
+    <prop name="verdict_subject" type="string" default=""/>
+    <prop name="group_hidden_subject" type="string" default=""/>
+    <prop name="group_text_subject" type="string" default=""/>
+    <prop name="row_index" type="string" default=""/>
+  </api>
+  <view name="zone_row"
+        width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs" scrollable="false" clickable="false">
+    <!-- Unit grouping header. Present on every row, shown only where the unit changes,
+         so the rows stay a flat repeat over one pool. -->
+    <text_small name="group_header" width="100%" bind_text="$group_text_subject" style_text_color="#text_muted">
+      <bind_flag_if_eq subject="$group_hidden_subject" flag="hidden" ref_value="1"/>
+    </text_small>
+
+    <lv_button name="row_button"
+               width="100%" height="content" style_radius="#border_radius" style_bg_color="#card_bg" style_bg_opa="255"
+               style_border_width="0" style_pad_all="#space_md" style_shadow_width="0">
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+              scrollable="false" clickable="false">
+        <lv_obj flex_grow="1" flex_flow="column" style_pad_gap="#space_xs" scrollable="false" clickable="false">
+          <text_body name="zone_label" bind_text="$label_subject"/>
+          <text_small name="zone_slots" bind_text="$slots_subject" style_text_color="#text_muted"/>
+        </lv_obj>
+        <text_body name="zone_reading" width="content" bind_text="$reading_subject"/>
+        <!-- The bind_style_if_eq elements must nest INSIDE zone_status, not beside it:
+             text_small adds its own muted-text style on creation, which is a style local
+             to the label and always wins over one inherited from a sibling or wrapper.
+             Nesting here targets the label itself, so the verdict style is added after
+             (and so takes precedence over) that default. -->
+        <text_small name="zone_status" width="content" bind_text="$status_subject">
+          <bind_style_if_eq name="zone_marginal" subject="$verdict_subject" ref_value="1"/>
+          <bind_style_if_eq name="zone_too_humid" subject="$verdict_subject" ref_value="2"/>
+        </text_small>
+        <icon name="chevron_icon" src="chevron_right" size="sm" variant="secondary"/>
+      </lv_obj>
+      <event_cb trigger="clicked" callback="on_zone_row_clicked" user_data="$row_index"/>
+    </lv_button>
+  </view>
+</component>

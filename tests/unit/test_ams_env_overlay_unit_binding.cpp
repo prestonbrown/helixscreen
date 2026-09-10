@@ -6,8 +6,8 @@
  * @brief Regression test — the environment overlay must read the unit it opened
  *
  * ams_environment_overlay.xml drives every readout from an ams_env_overlay_*
- * subject that AmsEnvironmentOverlay recomputes for whichever unit show() was
- * called with — except the humidity row and the Material Comfort strip, which
+ * subject that AmsEnvironmentOverlay recomputes for whichever unit it was
+ * opened for, except the humidity row and the Material Comfort strip, which
  * were bound straight to `ams_env_ind_0_humidity_visible`. Opening unit 1's
  * overlay therefore asked unit 0 whether a humidity sensor exists: a rig whose
  * second box has a sensor and whose first does not showed "42%" with the row
@@ -53,6 +53,10 @@ class SplitHumidityMock : public AmsBackendMock {
         for (int u = 0; u < 2; ++u) {
             AmsUnit unit;
             unit.unit_index = u;
+            // Distinct per unit: EnvironmentZone::id (derive_environment_zones/
+            // AmsBackend::get_environment_zones) is this name, and two units sharing
+            // the default-constructed empty name would collide on it.
+            unit.name = "split_unit_" + std::to_string(u);
             unit.display_name = "Unit " + std::to_string(u + 1);
             unit.slot_count = 4;
             unit.first_slot_global_index = u * 4;
@@ -131,7 +135,9 @@ bool widget_hidden(LVGLUITestFixture& fixture, const char* name) {
 /// Open the overlay on `unit`, read the humidity state, then tear the push down.
 HumidityRowState humidity_state_for_unit(LVGLUITestFixture& fixture, int unit) {
     auto& overlay = helix::ui::get_ams_environment_overlay();
-    overlay.show(fixture.test_screen(), unit);
+    AmsBackend* backend = AmsState::instance().get_backend();
+    REQUIRE(backend != nullptr);
+    overlay.show_zone(fixture.test_screen(), backend->get_environment_zones(unit), 0, false);
     helix::ui::UpdateQueue::instance().drain();
     fixture.process_lvgl(10);
 

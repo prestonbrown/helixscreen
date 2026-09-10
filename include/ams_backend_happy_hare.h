@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ams_environment_zone.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -216,8 +217,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     // Dryer support (v4 - KMS/EMU hardware with heaters)
     [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
+    [[nodiscard]] std::vector<helix::printer::EnvironmentZone>
+    get_environment_zones(int unit = -1) const override;
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     AmsError stop_drying(int unit = 0) override;
+    AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
+                           int unit = 0) override;
     [[nodiscard]] bool has_environment_sensors() const override {
         return true; // Live temp/target read from heater_generic via Moonraker subscriptions
     }
@@ -508,7 +513,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     std::string environment_sensor_name_; ///< scalar [mmu_machine] environment_sensor
     std::vector<std::string> filament_heaters_; ///< per-gate heaters (plural), empty if shared
     std::vector<std::string>
-        environment_sensors_;                  ///< per-gate env sensors (plural), empty if shared
+        environment_sensors_; ///< per-gate env sensors (plural), empty if shared
+    /// Firmware drying state per gate, indexed globally. Empty on the scalar form.
+    std::vector<std::string> gate_drying_states_;
     std::map<std::string, float> heater_temp_; ///< live temp (°C) keyed by heater object name
     std::map<std::string, float>
         sensor_humidity_; ///< live humidity (%RH) keyed by env-sensor object name

@@ -60,6 +60,16 @@ class AceTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.overrides_[slot_index] = ovr;
     }
+
+    /// Seed a running dry cycle so an update has elapsed time to preserve.
+    static void set_dryer_run(AmsBackendAce& b, float target_c, int duration_min,
+                              int remaining_min) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.dryer_info_.active = true;
+        b.dryer_info_.target_temp_c = target_c;
+        b.dryer_info_.duration_min = duration_min;
+        b.dryer_info_.remaining_min = remaining_min;
+    }
     static std::optional<helix::ams::FilamentSlotOverride> get_override(const AmsBackendAce& b,
                                                                         int slot_index) {
         std::lock_guard<std::mutex> lock(b.mutex_);
@@ -1492,4 +1502,54 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE surfaces an error when the data endpoints
     }
 
     CHECK(error_events >= 1);
+}
+
+TEST_CASE("ACE adjusts a running dryer only by stopping and restarting it",
+          "[ams][ace][dryer][capability]") {
+    AmsBackendAce backend(nullptr, nullptr);
+    auto d = backend.get_dryer_info();
+    REQUIRE(d.supported);
+    // ACE_START_DRYING and ACE_STOP_DRYING are the entire surface; there is no
+    // set-temperature-while-running command, so neither adjustment can be live.
+    CHECK_FALSE(d.supports_live_temp);
+    CHECK_FALSE(d.supports_live_duration);
+}
+
+namespace {
+
+/// Captures what ACE would send, so a restart's DURATION can be inspected.
+class AceCaptureBackend : public AmsBackendAce {
+  public:
+    AceCaptureBackend() : AmsBackendAce(nullptr, nullptr) {}
+    std::vector<std::string> gcodes;
+    helix::AmsError execute_gcode(const std::string& g) override {
+        gcodes.push_back(g);
+        return helix::AmsErrorHelper::success();
+    }
+    [[nodiscard]] bool sent(const std::string& g) const {
+        return std::find(gcodes.begin(), gcodes.end(), g) != gcodes.end();
+    }
+
+    /// Commands refuse until the subscription is up; tests drive the backend directly.
+    void mark_running() {
+        running_ = true;
+    }
+};
+
+} // namespace
+
+TEST_CASE("Retargeting an ACE dryer keeps the time already served", "[ams][ace][dryer][update]") {
+    AceCaptureBackend backend;
+    backend.mark_running();
+    // Three hours into a four-hour session.
+    AceTestAccess::set_dryer_run(backend, 55.0f, 240, 60);
+    backend.gcodes.clear();
+
+    REQUIRE(backend.update_drying(50.0f).success());
+
+    // ACE has no live retarget, so a temperature change restarts the cycle. It has to
+    // restart on what is LEFT: restarting on the original session length silently hands
+    // the user three more hours of drying they did not ask for.
+    CHECK(backend.sent("ACE_START_DRYING TEMP=50 DURATION=60"));
+    CHECK_FALSE(backend.sent("ACE_START_DRYING TEMP=50 DURATION=240"));
 }

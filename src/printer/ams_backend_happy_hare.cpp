@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <map>
 #include <sstream>
 
 namespace helix {
@@ -69,6 +70,19 @@ const nlohmann::json* hh_machine_fields(const nlohmann::json& live_mmu_machine,
 const nlohmann::json& hh_empty_object() {
     static const nlohmann::json empty = nlohmann::json::object();
     return empty;
+}
+
+/// Which unit a global gate index falls in, or -1 when it falls in none.
+int unit_index_for_gate(const AmsSystemInfo& info, int gate) {
+    if (gate < 0) {
+        return -1;
+    }
+    for (const AmsUnit& u : info.units) {
+        if (gate >= u.first_slot_global_index && gate < u.first_slot_global_index + u.slot_count) {
+            return u.unit_index;
+        }
+    }
+    return -1;
 }
 
 } // namespace
@@ -215,57 +229,58 @@ AmsSystemInfo AmsBackendHappyHare::get_system_info() const {
     // with distinct box sensors read correctly. Per-gate *drying control*
     // (start/stop/countdown) still uses the global dryer model — true per-gate
     // drying is a separate gap (drying_state array; see parse_mmu_state).
-    if (dryer_info_.supported) {
-        for (auto& unit : info.units) {
-            const int gi = unit.first_slot_global_index;
+    // Environment is independent of dryer support: a passive enclosure has a sensor and
+    // no heater, and a heater reports a temperature with no sensor configured. Each unit
+    // below is skipped on its own when it has neither, so no outer gate is needed.
+    for (auto& unit : info.units) {
+        const int gi = unit.first_slot_global_index;
 
-            std::string heater = filament_heater_name_;
-            if (heater.empty() && gi >= 0 && gi < static_cast<int>(filament_heaters_.size())) {
-                heater = filament_heaters_[gi];
-            }
-            std::string sensor = environment_sensor_name_;
-            if (sensor.empty() && gi >= 0 && gi < static_cast<int>(environment_sensors_.size())) {
-                sensor = environment_sensors_[gi];
-            }
-
-            // Temperature: prefer a live heater reading, then the env sensor's own
-            // ambient temperature (heater-less enclosures), then the global dryer
-            // temp (scalar/shared, object-form drying_state).
-            float temp = 0.0f;
-            bool have_temp = false;
-            if (auto t = heater_temp_.find(heater); t != heater_temp_.end()) {
-                temp = t->second;
-                have_temp = true;
-            } else if (auto st = sensor_temp_.find(sensor); st != sensor_temp_.end()) {
-                temp = st->second;
-                have_temp = true;
-            } else if (dryer_info_.current_temp_c > 0.0f) {
-                temp = dryer_info_.current_temp_c;
-                have_temp = true;
-            }
-
-            float humidity = 0.0f;
-            bool have_humidity = false;
-            if (auto h = sensor_humidity_.find(sensor); h != sensor_humidity_.end()) {
-                humidity = h->second;
-                have_humidity = true;
-            }
-
-            // Surface the unit's environment whenever ANY reading is present. Gating
-            // on a positive heater temp previously discarded humidity for enclosures
-            // monitored without (or before) a heater reading.
-            if (!have_temp && !have_humidity) {
-                continue;
-            }
-
-            EnvironmentData env;
-            env.temperature_c = temp; // 0 only if humidity-only and no temp source
-            if (have_humidity) {
-                env.humidity_pct = humidity;
-                env.has_humidity = true;
-            }
-            unit.environment = env;
+        std::string heater = filament_heater_name_;
+        if (heater.empty() && gi >= 0 && gi < static_cast<int>(filament_heaters_.size())) {
+            heater = filament_heaters_[gi];
         }
+        std::string sensor = environment_sensor_name_;
+        if (sensor.empty() && gi >= 0 && gi < static_cast<int>(environment_sensors_.size())) {
+            sensor = environment_sensors_[gi];
+        }
+
+        // Temperature: prefer a live heater reading, then the env sensor's own
+        // ambient temperature (heater-less enclosures), then the global dryer
+        // temp (scalar/shared, object-form drying_state).
+        float temp = 0.0f;
+        bool have_temp = false;
+        if (auto t = heater_temp_.find(heater); t != heater_temp_.end()) {
+            temp = t->second;
+            have_temp = true;
+        } else if (auto st = sensor_temp_.find(sensor); st != sensor_temp_.end()) {
+            temp = st->second;
+            have_temp = true;
+        } else if (dryer_info_.current_temp_c > 0.0f) {
+            temp = dryer_info_.current_temp_c;
+            have_temp = true;
+        }
+
+        float humidity = 0.0f;
+        bool have_humidity = false;
+        if (auto h = sensor_humidity_.find(sensor); h != sensor_humidity_.end()) {
+            humidity = h->second;
+            have_humidity = true;
+        }
+
+        // Surface the unit's environment whenever ANY reading is present. Gating
+        // on a positive heater temp previously discarded humidity for enclosures
+        // monitored without (or before) a heater reading.
+        if (!have_temp && !have_humidity) {
+            continue;
+        }
+
+        EnvironmentData env;
+        env.temperature_c = temp; // 0 only if humidity-only and no temp source
+        if (have_humidity) {
+            env.humidity_pct = humidity;
+            env.has_humidity = true;
+        }
+        unit.environment = env;
     }
 
     return info;
@@ -1080,20 +1095,22 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         } else if (drying.is_array()) {
             // EMU per-gate array format: ["", "", ...] or ["active", "", ...]
             // Values: "active", "queued" = heater on; "complete", "canceled", "" = off.
-            dryer_info_.supported = true;
+            // Presence says the environment manager is loaded, which it always is, so it
+            // does NOT imply a heater exists. Only a configured heater sets `supported`.
             bool any_active = false;
+            gate_drying_states_.clear();
+            gate_drying_states_.reserve(drying.size());
             for (const auto& entry : drying) {
-                if (entry.is_string()) {
-                    const std::string s = entry.get<std::string>();
-                    if (s == "active" || s == "queued") {
-                        any_active = true;
-                        break;
-                    }
+                // Every gate keeps a slot even when the firmware sends a non-string, so
+                // the vector stays indexable by global gate number.
+                std::string s = entry.is_string() ? entry.get<std::string>() : std::string{};
+                if (s == "active" || s == "queued") {
+                    any_active = true;
                 }
+                gate_drying_states_.push_back(std::move(s));
             }
             dryer_info_.active = any_active;
-            spdlog::trace("[AMS HappyHare] Dryer state (array): supported=true, active={}",
-                          any_active);
+            spdlog::trace("[AMS HappyHare] Dryer state (array): active={}", any_active);
         }
     }
 
@@ -1743,6 +1760,14 @@ void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings,
         if (mmu_machine.contains("filament_heater") && mmu_machine["filament_heater"].is_string()) {
             std::lock_guard<std::mutex> lock(mutex_);
             filament_heater_name_ = mmu_machine["filament_heater"].get<std::string>();
+            // A named heater is what a dryer IS, on the shared-enclosure form exactly as
+            // on the per-gate one.
+            dryer_info_.supported = !filament_heater_name_.empty();
+            // MMU_HEATER TEMP=<t> with DRY unset re-sends the setpoint and updates the
+            // running cycle's tracked target. TIMER is read only on the DRY=1 path, and
+            // DRY=1 during a cycle is refused, so the duration needs a stop and restart.
+            dryer_info_.supports_live_temp = true;
+            dryer_info_.supports_live_duration = false;
             spdlog::info("[AMS HappyHare] Filament heater: {}", filament_heater_name_);
         }
         // Parse [mmu_machine] environment_sensor — the Klipper object (e.g.
@@ -1762,6 +1787,11 @@ void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings,
                 std::lock_guard<std::mutex> lock(mutex_);
                 filament_heaters_ = std::move(heaters);
                 dryer_info_.supported = true; // per-gate heaters imply a dryer exists
+                // MMU_HEATER TEMP=<t> with DRY unset re-sends the setpoint and updates the
+                // running cycle's tracked target. TIMER is read only on the DRY=1 path, and
+                // DRY=1 during a cycle is refused, so the duration needs a stop and restart.
+                dryer_info_.supports_live_temp = true;
+                dryer_info_.supports_live_duration = false;
                 spdlog::info("[AMS HappyHare] Per-gate filament heaters: {}",
                              filament_heaters_.size());
             }
@@ -1796,8 +1826,9 @@ void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings,
             }
             if (parsed) {
                 std::lock_guard<std::mutex> lock(mutex_);
+                // A ceiling, not a capability: Klipper reports configured defaults, so
+                // this key is present whether or not a heater is fitted.
                 dryer_info_.max_temp_c = max_temp;
-                dryer_info_.supported = true;
                 spdlog::info("[AMS HappyHare] Heater max temp: {:.1f}°C", max_temp);
             }
         }
@@ -3022,6 +3053,66 @@ DryerInfo AmsBackendHappyHare::get_dryer_info(int unit) const {
     return out;
 }
 
+std::vector<helix::printer::EnvironmentZone>
+AmsBackendHappyHare::get_environment_zones(int unit) const {
+    // filament_heaters_, environment_sensors_, gate_drying_states_ and heater_temp_ are
+    // all written from the status thread under mutex_ (handle_status_update for the
+    // first three, apply_filament_heater_status for the last). Snapshot them once here
+    // rather than reading each under no lock at all.
+    std::vector<std::string> heaters;
+    std::vector<std::string> sensors;
+    std::vector<std::string> gate_states;
+    std::map<std::string, float> heater_temps;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        heaters = filament_heaters_;
+        sensors = environment_sensors_;
+        gate_states = gate_drying_states_;
+        heater_temps = heater_temp_;
+    }
+
+    // The scalar form names one heater and one sensor for the whole machine, which the
+    // generic walk already models correctly as one zone per unit.
+    if (heaters.empty() && sensors.empty()) {
+        return AmsBackend::get_environment_zones(unit);
+    }
+
+    const AmsSystemInfo info = get_system_info();
+    int gate_count = 0;
+    for (const AmsUnit& u : info.units) {
+        gate_count += u.slot_count;
+    }
+
+    auto zones =
+        helix::printer::derive_environment_zones(heaters, sensors, gate_count, gate_states);
+
+    // Fill in what the pure collapse cannot know: which unit a zone's gates fall in,
+    // and the dryer behind its heater. target_temp_c, duration_min and remaining_min
+    // stay global: Happy Hare tracks one setpoint and one end-of-cycle clock, not one
+    // per box, so a per-zone value for those would be invented rather than reported.
+    const DryerInfo dryer = get_dryer_info(0);
+    for (auto& z : zones) {
+        z.unit_index = unit_index_for_gate(info, z.gates.empty() ? -1 : z.gates.front());
+        if (!z.heater_name.empty()) {
+            z.dryer = dryer;
+            z.dryer.supported = true;
+            z.dryer.active = z.state == helix::printer::ZoneDryingState::Active;
+            if (auto it = heater_temps.find(z.heater_name); it != heater_temps.end()) {
+                z.dryer.current_temp_c = it->second;
+            }
+        }
+    }
+
+    if (unit >= 0) {
+        zones.erase(std::remove_if(zones.begin(), zones.end(),
+                                   [unit](const helix::printer::EnvironmentZone& z) {
+                                       return z.unit_index != unit;
+                                   }),
+                    zones.end());
+    }
+    return zones;
+}
+
 std::string AmsBackendHappyHare::gates_suffix_for_unit(int unit) const {
     std::lock_guard<std::mutex> lock(mutex_);
     // Single-unit MMU (or unspecified unit): omit GATES so HH targets all
@@ -3087,6 +3178,35 @@ AmsError AmsBackendHappyHare::stop_drying(int unit) {
 
     spdlog::info("[AMS HappyHare] Stopping dryer (unit {})", unit);
     return execute_gcode("MMU_HEATER STOP=1" + gates_suffix_for_unit(unit));
+}
+
+AmsError AmsBackendHappyHare::update_drying(float temp_c, int duration_min, int fan_pct, int unit) {
+    (void)fan_pct; // Happy Hare MMU_HEATER does not accept a FAN parameter
+
+    const bool want_temp = temp_c >= 0.0f;
+    const bool want_duration = duration_min > 0;
+    if (!want_temp && !want_duration) {
+        return AmsErrorHelper::success();
+    }
+
+    // TIMER is read only on the DRY=1 path and DRY=1 mid-cycle is refused, so moving the
+    // clock means a fresh cycle. Carry the running target when only the duration changed.
+    if (want_duration) {
+        float target = temp_c;
+        if (!want_temp) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            target = dryer_info_.target_temp_c;
+        }
+        auto stopped = stop_drying(unit);
+        if (!stopped.success()) {
+            return stopped;
+        }
+        return start_drying(target, duration_min, fan_pct, unit);
+    }
+
+    // Temperature alone re-sends the setpoint and leaves the cycle and its timer alone.
+    return execute_gcode(fmt::format("MMU_HEATER TEMP={:.0f}", temp_c) +
+                         gates_suffix_for_unit(unit));
 }
 
 // ============================================================================

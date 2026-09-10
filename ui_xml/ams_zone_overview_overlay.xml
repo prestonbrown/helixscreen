@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- extends overlay_panel for the shared header, title and back button. An overlay that
+       does not extend it renders as a bare box with no way back. -->
+  <view name="ams_zone_overview_overlay"
+        extends="overlay_panel" title="Filament Humidity" title_tag="Filament Humidity" bg_color="#screen_bg">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" flex_flow="column" style_pad_all="#space_lg" style_pad_gap="#space_sm"
+            scrollable="false">
+      <text_muted name="subtitle_label" width="100%" bind_text="zone_ov_subtitle"/>
+
+      <!-- Rows container: sole child is the reactive repeat. Rebuilt rows append to the
+         end of their parent, so nothing may follow it here. -->
+      <lv_obj name="rows_container"
+              width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_gap="#space_xs">
+        <bind_flag_if_eq subject="zone_ov_count" flag="hidden" ref_value="0"/>
+        <repeat count="zone_ov_count">
+          <zone_row label_subject="zone_ov_label_${i}"
+                    slots_subject="zone_ov_slots_${i}" reading_subject="zone_ov_reading_${i}"
+                    status_subject="zone_ov_status_${i}" verdict_subject="zone_ov_verdict_${i}"
+                    group_hidden_subject="zone_ov_group_hidden_${i}" group_text_subject="zone_ov_group_text_${i}"
+                    row_index="${i}"/>
+        </repeat>
+      </lv_obj>
+
+      <lv_obj name="empty_state"
+              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_pad_gap="#space_md" hidden="true" scrollable="false">
+        <bind_flag_if_not_eq subject="zone_ov_count" flag="hidden" ref_value="0"/>
+        <icon src="thermometer" size="xl" variant="secondary"/>
+        <text_muted width="content"
+                    text="No filament environment sensors" translation_tag="No filament environment sensors"
+                    style_text_align="center"/>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

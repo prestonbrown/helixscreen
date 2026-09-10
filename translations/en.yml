@@ -12,6 +12,7 @@ translations:
   '%d of %d plugins loaded': '%d of %d plugins loaded'
   '%d plugins loaded': '%d plugins loaded'
   '%d slots': '%d slots'
+  '%d units - %d zones - %d dryers': '%d units - %d zones - %d dryers'
   '%lu days ago': '%lu days ago'
   '%lu hours ago': '%lu hours ago'
   '%lu min ago': '%lu min ago'
@@ -1075,6 +1076,7 @@ translations:
   Filament Detected: Filament Detected
   Filament Environment: Filament Environment
   Filament Grade Mismatch: Filament Grade Mismatch
+  Filament Humidity: Filament Humidity
   Filament In The Toolhead: Filament In The Toolhead
   Filament Mapping: Filament Mapping
   Filament Runout: Filament Runout
@@ -1161,6 +1163,8 @@ translations:
   GCode Console: GCode Console
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Game Over!\nScore: {}\nTap to restart"
+  Gate: Gate
+  Gates: Gates
   Gear Buffer Speed: Gear Buffer Speed
   Gear Spool Speed: Gear Spool Speed
   Gear Unload Speed: Gear Unload Speed
@@ -1715,6 +1719,7 @@ translations:
   No effects available: No effects available
   No events queued: No events queued
   No fans detected: No fans detected
+  No filament environment sensors: No filament environment sensors
   No filament loaded to unload: No filament loaded to unload
   No filament sensor detected: No filament sensor detected
   No filaments found: No filaments found
@@ -2535,6 +2540,7 @@ translations:
   Slot {} matches.: Slot {} matches.
   Slot {} spool cleared: Slot {} spool cleared
   Slot {} updated: Slot {} updated
+  Slots: Slots
   Small labels help keep controls calm and focused.: Small labels help keep controls
     calm and focused.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -2952,6 +2958,8 @@ translations:
     script may be stuck.
   Unit: Unit
   'Unit ': 'Unit '
+  'Units: %d   Boxes: %d   Dryers: %d': 'Units: %d   Boxes: %d   Dryers: %d'
+  'Units: %d   Zones: %d   Dryers: %d': 'Units: %d   Zones: %d   Dryers: %d'
   Unknown: Unknown
   Unknown Event: Unknown Event
   Unknown Spool: Unknown Spool
@@ -3023,6 +3031,8 @@ translations:
   View Full History: View Full History
   View Telemetry Data: View Telemetry Data
   View Timelapse: View Timelapse
+  View all boxes: View all boxes
+  View all zones: View all zones
   View and rename fans: View and rename fans
   View installed plugins and status: View installed plugins and status
   View live camera feed: View live camera feed
@@ -3038,7 +3048,10 @@ translations:
   Wait for the current filament operation to finish: Wait for the current filament
     operation to finish
   Wait until the print finishes: Wait until the print finishes
+  Waiting for: Waiting for
   Waiting for Moonraker...: Waiting for Moonraker...
+  Waiting for another box to finish.: Waiting for another box to finish.
+  Waiting for another zone to finish.: Waiting for another zone to finish.
   Waiting for bed to reach temperature for accurate calibration.: Waiting for bed
     to reach temperature for accurate calibration.
   Waiting for the filament system to report its state: Waiting for the filament system to report its state
@@ -3190,6 +3203,7 @@ translations:
   of: of
   'off': 'off'
   or type a macro name: or type a macro name
+  passive: passive
   printer default: printer default
   prints: prints
   remaining: remaining
@@ -3199,6 +3213,7 @@ translations:
   started: started
   steppers: steppers
   tall: tall
+  to finish. One heater at a time.: to finish. One heater at a time.
   tool(s): tool(s)
   used: used
   v%s available: v%s available

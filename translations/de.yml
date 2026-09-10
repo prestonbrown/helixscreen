@@ -13,6 +13,7 @@ translations:
   '%d of %d plugins loaded': '%d von %d Plugins geladen'
   '%d plugins loaded': '%d Plugins geladen'
   '%d slots': '%d Slots'
+  '%d units - %d zones - %d dryers': ''
   '%lu days ago': vor %lu Tagen
   '%lu hours ago': vor %lu Stunden
   '%lu min ago': vor %lu Min.
@@ -1119,6 +1120,7 @@ translations:
   Filament Detected: Filament erkannt
   Filament Environment: Filamentumgebung
   Filament Grade Mismatch: Filamentklassenabweichung
+  Filament Humidity: ''
   Filament In The Toolhead: Filament im Werkzeugkopf
   Filament Mapping: Filament-Zuordnung
   Filament Runout: Filament aufgebraucht
@@ -1204,6 +1206,8 @@ translations:
   GCode Console: 'G-Code-Konsole'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Spiel vorbei!\nPunkte: {}\nZum Neustart tippen"
+  Gate: ''
+  Gates: ''
   Gear Buffer Speed: 'Zahnrad-Puffergeschwindigkeit'
   Gear Spool Speed: 'Zahnrad-Spulengeschwindigkeit'
   Gear Unload Speed: 'Zahnrad-Entladegeschwindigkeit'
@@ -1767,6 +1771,7 @@ translations:
   No effects available: Keine Effekte verfügbar
   No events queued: Keine Ereignisse in Warteschlange
   No fans detected: Keine Lüfter erkannt
+  No filament environment sensors: ''
   No filament loaded to unload: Kein Filament zum Entladen geladen
   No filament sensor detected: 'Kein Filamentsensor erkannt'
   No filaments found: Keine Filamente gefunden
@@ -2602,6 +2607,7 @@ translations:
   Slot {} matches.: 'Slot {} passt.'
   Slot {} spool cleared: Slot {} Spule gelöscht
   Slot {} updated: Slot {} aktualisiert
+  Slots: ''
   Small labels help keep controls calm and focused.: Kleine Beschriftungen helfen,
     Steuerelemente ruhig und fokussiert zu halten.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -3031,6 +3037,8 @@ translations:
     Das Skript hängt möglicherweise.
   Unit: Einheit
   'Unit ': 'Einheit '
+  'Units: %d   Boxes: %d   Dryers: %d': ''
+  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Unbekannt
   Unknown Event: Unbekanntes Ereignis
   Unknown Spool: Unbekannte Spule
@@ -3103,6 +3111,8 @@ translations:
   View Full History: Vollständigen Verlauf anzeigen
   View Telemetry Data: Telemetriedaten anzeigen
   View Timelapse: Zeitraffer ansehen
+  View all boxes: ''
+  View all zones: ''
   View and rename fans: Lüfter anzeigen und umbenennen
   View installed plugins and status: Installierte Plugins und Status anzeigen
   View live camera feed: Live-Kamerabild anzeigen
@@ -3117,7 +3127,10 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Warten Sie, bis der aktuelle Filamentvorgang abgeschlossen ist
   Wait until the print finishes: Warten Sie, bis der Druck abgeschlossen ist
+  Waiting for: ''
   Waiting for Moonraker...: Warte auf Moonraker...
+  Waiting for another box to finish.: ''
+  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: Warte auf Bett-Temperatur
     für genaue Kalibrierung.
   Waiting for the filament system to report its state: Warte auf Statusmeldung des Filamentsystems
@@ -3275,6 +3288,7 @@ translations:
   AI detection: AI-Erkennung
   Monitor for print abnormalities (K2 Plus camera-based): Überwacht auf Druckanomalien (K2 Plus kamerabasiert)
   or type a macro name: oder Makronamen eingeben
+  passive: ''
   printer default: Druckerstandard
   prints: Drucke
   remaining: verbleibend
@@ -3285,6 +3299,7 @@ translations:
   started: gestartet
   steppers: Schrittmotoren
   tall: hoch
+  to finish. One heater at a time.: ''
   tool(s): Werkzeug(e)
   used: verbraucht
   v%s available: v%s verfügbar

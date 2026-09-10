@@ -13,6 +13,7 @@ translations:
   '%d of %d plugins loaded': '%d plugins sur %d chargés'
   '%d plugins loaded': '%d plugins chargés'
   '%d slots': '%d emplacements'
+  '%d units - %d zones - %d dryers': ''
   '%lu days ago': il y a %lu jours
   '%lu hours ago': il y a %lu heures
   '%lu min ago': il y a %lu min
@@ -1122,6 +1123,7 @@ translations:
   Filament Detected: Filament détecté
   Filament Environment: Environnement du filament
   Filament Grade Mismatch: Grade de filament incompatible
+  Filament Humidity: ''
   Filament In The Toolhead: Filament dans la tête d'outil
   Filament Mapping: Mappage du filament
   Filament Runout: Fin de filament
@@ -1208,6 +1210,8 @@ translations:
   GCode Console: 'Console G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Partie terminée !\nScore : {}\nTouchez pour recommencer"
+  Gate: ''
+  Gates: ''
   Gear Buffer Speed: 'Vitesse d''engrenage depuis le tampon'
   Gear Spool Speed: 'Vitesse d''engrenage depuis la bobine'
   Gear Unload Speed: 'Vitesse de déchargement de l''engrenage'
@@ -1774,6 +1778,7 @@ translations:
   No effects available: Aucun effet disponible
   No events queued: Aucun événement en file
   No fans detected: Aucun ventilateur détecté
+  No filament environment sensors: ''
   No filament loaded to unload: Aucun filament chargé à décharger
   No filament sensor detected: 'Aucun capteur de filament détecté'
   No filaments found: Aucun filament trouvé
@@ -2620,6 +2625,7 @@ translations:
   Slot {} matches.: 'Le slot {} correspond.'
   Slot {} spool cleared: Bobine du slot {} effacée
   Slot {} updated: Slot {} mis à jour
+  Slots: ''
   Small labels help keep controls calm and focused.: Les petites étiquettes aident
     à garder les contrôles calmes et concentrés.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -3057,6 +3063,8 @@ translations:
     Le script est peut-être bloqué.
   Unit: Unité
   'Unit ': 'Unité '
+  'Units: %d   Boxes: %d   Dryers: %d': ''
+  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Inconnu
   Unknown Event: Événement inconnu
   Unknown Spool: Bobine inconnue
@@ -3130,6 +3138,8 @@ translations:
   View Full History: Voir l'historique complet
   View Telemetry Data: Voir les données de télémétrie
   View Timelapse: Voir le timelapse
+  View all boxes: ''
+  View all zones: ''
   View and rename fans: Voir et renommer les ventilateurs
   View installed plugins and status: Voir les plugins installés et leur état
   View live camera feed: Voir le flux de la caméra en direct
@@ -3145,7 +3155,10 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Attendez la fin de l'opération de filament en cours
   Wait until the print finishes: Attendez la fin de l'impression
+  Waiting for: ''
   Waiting for Moonraker...: En attente de Moonraker...
+  Waiting for another box to finish.: ''
+  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: En attente que le
     plateau atteigne la température pour une calibration précise.
   Waiting for the filament system to report its state: En attente de l'état du système de filament
@@ -3304,6 +3317,7 @@ translations:
   AI detection: Détection AI
   Monitor for print abnormalities (K2 Plus camera-based): Surveiller les anomalies d'impression (caméra K2 Plus)
   or type a macro name: ou saisissez un nom de macro
+  passive: ''
   printer default: par défaut de l’imprimante
   prints: impressions
   remaining: restant
@@ -3314,6 +3328,7 @@ translations:
   started: lancé
   steppers: moteurs pas à pas
   tall: de haut
+  to finish. One heater at a time.: ''
   tool(s): outil(s)
   used: utilisé
   v%s available: v%s disponible

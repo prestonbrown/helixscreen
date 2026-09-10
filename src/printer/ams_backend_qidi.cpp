@@ -87,6 +87,11 @@ DryerInfo make_qidi_dryer() {
     d.max_temp_c = 90.0f;
     d.max_duration_min = 720;
     d.supports_fan_control = false;
+    // Default is the plain heater_generic path: SET_HEATER_TEMPERATURE retargets live,
+    // and with no box-side timer the duration is our own bookkeeping. apply_box_extras
+    // clears both if the firmware turns out to own the cycle.
+    d.supports_live_temp = true;
+    d.supports_live_duration = true;
     return d;
 }
 
@@ -373,6 +378,13 @@ void AmsBackendQidi::apply_box_extras(const nlohmann::json& box_extras) {
     }
     std::lock_guard<std::mutex> lock(mutex_);
     drying_timer_supported_ = true;
+    // ENABLE_BOX_DRY owns the cycle and takes END_TIME in whole hours with a one-hour
+    // floor, so a duration change re-quantizes and restarts. Whether re-issuing it with
+    // a new TEMP preserves end_time is unverified on hardware, so temp is conservative.
+    for (auto& d : dryer_info_) {
+        d.supports_live_temp = false;
+        d.supports_live_duration = false;
+    }
     const std::time_t now = now_fn_();
     for (auto it = ds_it->begin(); it != ds_it->end(); ++it) {
         if (!it->is_object()) {

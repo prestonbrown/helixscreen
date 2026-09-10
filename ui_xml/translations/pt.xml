@@ -12,6 +12,7 @@
   <translation tag="%d of %d plugins loaded" pt="%d de %d plugins carregados"/>
   <translation tag="%d plugins loaded" pt="%d plugins carregados"/>
   <translation tag="%d slots" pt="%d slots"/>
+  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" pt="há %lu dias"/>
   <translation tag="%lu hours ago" pt="há %lu horas"/>
   <translation tag="%lu min ago" pt="há %lu min"/>
@@ -994,6 +995,7 @@
   <translation tag="Filament Detected" pt="Filamento Detectado"/>
   <translation tag="Filament Environment" pt="Ambiente do filamento"/>
   <translation tag="Filament Grade Mismatch" pt="Grau de Filamento Incompatível"/>
+  <translation tag="Filament Humidity"/>
   <translation tag="Filament In The Toolhead" pt="Filamento no cabeçote"/>
   <translation tag="Filament Mapping" pt="Mapeamento de Filamento"/>
   <translation tag="Filament Runout" pt="Fim de Filamento"/>
@@ -1073,6 +1075,8 @@
   <translation tag="G-code commands will appear here" pt="Os comandos G-code aparecerão aqui"/>
   <translation tag="GCode Console" pt="Console G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" pt="Fim de jogo!&#10;Pontuação: {}&#10;Toque para reiniciar"/>
+  <translation tag="Gate"/>
+  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" pt="Velocidade da engrenagem a partir do buffer"/>
   <translation tag="Gear Spool Speed" pt="Velocidade da engrenagem a partir do carretel"/>
   <translation tag="Gear Unload Speed" pt="Velocidade de descarregamento da engrenagem"/>
@@ -1566,6 +1570,7 @@
   <translation tag="No effects available" pt="Nenhum efeito disponível"/>
   <translation tag="No events queued" pt="Nenhum evento na fila"/>
   <translation tag="No fans detected" pt="Nenhuma ventoinha detectada"/>
+  <translation tag="No filament environment sensors"/>
   <translation tag="No filament loaded to unload" pt="Nenhum filamento carregado para descarregar"/>
   <translation tag="No filament sensor detected" pt="Nenhum sensor de filamento detectado"/>
   <translation tag="No filaments found" pt="Nenhum filamento encontrado"/>
@@ -2317,6 +2322,7 @@
   <translation tag="Slot {} matches." pt="O slot {} corresponde."/>
   <translation tag="Slot {} spool cleared" pt="Bobina do slot {} removida"/>
   <translation tag="Slot {} updated" pt="Slot {} atualizado"/>
+  <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." pt="Rótulos pequenos ajudam a manter os controles calmos e focados."/>
   <translation tag="Snapmaker SnapSwap" pt="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" pt="Snapmaker U1"/>
@@ -2660,6 +2666,8 @@
   <translation tag="Uninstallation timed out. The script may be stuck." pt="A desinstalação — tempo esgotado. O script pode estar travado."/>
   <translation tag="Unit" pt="Unidade"/>
   <translation tag="Unit " pt="Unidade "/>
+  <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
+  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" pt="Desconhecido"/>
   <translation tag="Unknown Event" pt="Evento Desconhecido"/>
   <translation tag="Unknown Spool" pt="Carretel Desconhecido"/>
@@ -2729,6 +2737,8 @@
   <translation tag="View Full History" pt="Ver Histórico Completo"/>
   <translation tag="View Telemetry Data" pt="Ver Dados de Telemetria"/>
   <translation tag="View Timelapse" pt="Ver Timelapse"/>
+  <translation tag="View all boxes"/>
+  <translation tag="View all zones"/>
   <translation tag="View and rename fans" pt="Ver e renomear ventoinhas"/>
   <translation tag="View installed plugins and status" pt="Ver plugins instalados e status"/>
   <translation tag="View live camera feed" pt="Ver transmissão da câmera ao vivo"/>
@@ -2743,7 +2753,10 @@
   <translation tag="WPA3" pt="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" pt="Aguarde a operação de filamento atual terminar"/>
   <translation tag="Wait until the print finishes" pt="Aguarde até a impressão terminar"/>
+  <translation tag="Waiting for"/>
   <translation tag="Waiting for Moonraker..." pt="Aguardando Moonraker..."/>
+  <translation tag="Waiting for another box to finish."/>
+  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." pt="Aguardando a mesa atingir a temperatura para calibração precisa."/>
   <translation tag="Waiting for the filament system to report its state" pt="Aguardando o sistema de filamento informar seu estado"/>
   <translation tag="Warm Bed" pt="Aquecer Mesa"/>
@@ -2874,6 +2887,7 @@
   <translation tag="of" pt="de"/>
   <translation tag="off" pt="desligado"/>
   <translation tag="or type a macro name" pt="ou digite um nome de macro"/>
+  <translation tag="passive"/>
   <translation tag="printer default" pt="padrão da impressora"/>
   <translation tag="prints" pt="impressões"/>
   <translation tag="remaining" pt="restante"/>
@@ -2883,6 +2897,7 @@
   <translation tag="started" pt="iniciado"/>
   <translation tag="steppers" pt="motores de passo"/>
   <translation tag="tall" pt="de altura"/>
+  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" pt="ferramenta(s)"/>
   <translation tag="used" pt="usado"/>
   <translation tag="v%s available" pt="v%s disponível"/>

@@ -12,6 +12,7 @@
   <translation tag="%d of %d plugins loaded" ru="Загружено плагинов: %d из %d"/>
   <translation tag="%d plugins loaded" ru="Загружено плагинов: %d"/>
   <translation tag="%d slots" ru="%d слотов"/>
+  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" ru="%lu дн. назад"/>
   <translation tag="%lu hours ago" ru="%lu ч. назад"/>
   <translation tag="%lu min ago" ru="%lu мин. назад"/>
@@ -994,6 +995,7 @@
   <translation tag="Filament Detected" ru="Филамент обнаружен"/>
   <translation tag="Filament Environment" ru="Среда хранения филамента"/>
   <translation tag="Filament Grade Mismatch" ru="Несоответствие марки филамента"/>
+  <translation tag="Filament Humidity"/>
   <translation tag="Filament In The Toolhead" ru="Филамент в печатающей головке"/>
   <translation tag="Filament Mapping" ru="Назначение филамента"/>
   <translation tag="Filament Runout" ru="Окончание филамента"/>
@@ -1073,6 +1075,8 @@
   <translation tag="G-code commands will appear here" ru="Здесь будут отображаться G-code команды"/>
   <translation tag="GCode Console" ru="Консоль G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ru="Игра окончена!&#10;Счёт: {}&#10;Нажмите, чтобы начать заново"/>
+  <translation tag="Gate"/>
+  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" ru="Скорость шестерни от буфера"/>
   <translation tag="Gear Spool Speed" ru="Скорость шестерни от катушки"/>
   <translation tag="Gear Unload Speed" ru="Скорость выгрузки шестерни"/>
@@ -1566,6 +1570,7 @@
   <translation tag="No effects available" ru="Нет доступных эффектов"/>
   <translation tag="No events queued" ru="Нет событий в очереди"/>
   <translation tag="No fans detected" ru="Вентиляторы не обнаружены"/>
+  <translation tag="No filament environment sensors"/>
   <translation tag="No filament loaded to unload" ru="Нет загруженного филамента для выгрузки"/>
   <translation tag="No filament sensor detected" ru="Датчик филамента не обнаружен"/>
   <translation tag="No filaments found" ru="Филаменты не найдены"/>
@@ -2317,6 +2322,7 @@
   <translation tag="Slot {} matches." ru="Слот {} подходит."/>
   <translation tag="Slot {} spool cleared" ru="Катушка слота {} удалена"/>
   <translation tag="Slot {} updated" ru="Слот {} обновлён"/>
+  <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." ru="Мелкие надписи помогают сохранять элементы управления аккуратными."/>
   <translation tag="Snapmaker SnapSwap" ru="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" ru="Snapmaker U1"/>
@@ -2660,6 +2666,8 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ru="Время удаления истекло. Скрипт мог зависнуть."/>
   <translation tag="Unit" ru="Узел"/>
   <translation tag="Unit " ru="Узел "/>
+  <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
+  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" ru="Неизвестно"/>
   <translation tag="Unknown Event" ru="Неизвестное событие"/>
   <translation tag="Unknown Spool" ru="Неизвестная катушка"/>
@@ -2729,6 +2737,8 @@
   <translation tag="View Full History" ru="Просмотреть полную историю"/>
   <translation tag="View Telemetry Data" ru="Просмотр данных телеметрии"/>
   <translation tag="View Timelapse" ru="Просмотр таймлапса"/>
+  <translation tag="View all boxes"/>
+  <translation tag="View all zones"/>
   <translation tag="View and rename fans" ru="Просмотр и переименование вентиляторов"/>
   <translation tag="View installed plugins and status" ru="Просмотр установленных плагинов и статуса"/>
   <translation tag="View live camera feed" ru="Просмотр трансляции с камеры"/>
@@ -2743,7 +2753,10 @@
   <translation tag="WPA3" ru="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" ru="Дождитесь завершения текущей операции с филаментом"/>
   <translation tag="Wait until the print finishes" ru="Дождитесь завершения печати"/>
+  <translation tag="Waiting for"/>
   <translation tag="Waiting for Moonraker..." ru="Ожидание Moonraker..."/>
+  <translation tag="Waiting for another box to finish."/>
+  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ru="Ожидание нагрева стола для точной калибровки."/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Warm Bed" ru="Прогреть стол"/>
@@ -2874,6 +2887,7 @@
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>
   <translation tag="or type a macro name" ru="или введите название макроса"/>
+  <translation tag="passive"/>
   <translation tag="printer default" ru="по умолчанию для принтера"/>
   <translation tag="prints" ru="печатей"/>
   <translation tag="remaining" ru="осталось"/>
@@ -2883,6 +2897,7 @@
   <translation tag="started" ru="запущено"/>
   <translation tag="steppers" ru="шаговые двигатели"/>
   <translation tag="tall" ru="высотой"/>
+  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" ru="инструмент(ы)"/>
   <translation tag="used" ru="использ."/>
   <translation tag="v%s available" ru="Доступна v%s"/>

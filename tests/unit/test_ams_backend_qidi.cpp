@@ -1883,3 +1883,24 @@ TEST_CASE_METHOD(QidiHomingGuardFixture,
         CHECK_FALSE(backend->sent.empty());
     }
 }
+
+TEST_CASE("QIDI adjusts live on a plain heater and not once the box owns the timer",
+          "[ams][qidi][dryer][capability]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, nlohmann::json{{"box_count", 1}});
+
+    SECTION("plain heater_generic: SET_HEATER_TEMPERATURE retargets, we own the clock") {
+        auto d = backend.get_dryer_info(0);
+        REQUIRE(d.supported);
+        CHECK(d.supports_live_temp);
+        CHECK(d.supports_live_duration);
+    }
+
+    SECTION("box_extras timer: ENABLE_BOX_DRY owns the cycle, END_TIME is whole hours") {
+        QidiBoxTestAccess::apply_box_extras(
+            backend, nlohmann::json{{"box_drying_state", {{"box1", {{"end_time", 0}}}}}});
+        auto d = backend.get_dryer_info(0);
+        CHECK_FALSE(d.supports_live_temp);
+        CHECK_FALSE(d.supports_live_duration);
+    }
+}

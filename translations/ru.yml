@@ -13,6 +13,7 @@ translations:
   '%d of %d plugins loaded': 'Загружено плагинов: %d из %d'
   '%d plugins loaded': 'Загружено плагинов: %d'
   '%d slots': '%d слотов'
+  '%d units - %d zones - %d dryers': ''
   '%lu days ago': '%lu дн. назад'
   '%lu hours ago': '%lu ч. назад'
   '%lu min ago': '%lu мин. назад'
@@ -1092,6 +1093,7 @@ translations:
   Filament Detected: Филамент обнаружен
   Filament Environment: Среда хранения филамента
   Filament Grade Mismatch: Несоответствие марки филамента
+  Filament Humidity: ''
   Filament In The Toolhead: Филамент в печатающей головке
   Filament Mapping: Назначение филамента
   Filament Runout: Окончание филамента
@@ -1177,6 +1179,8 @@ translations:
   GCode Console: 'Консоль G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
+  Gate: ''
+  Gates: ''
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'
@@ -1737,6 +1741,7 @@ translations:
   No effects available: Нет доступных эффектов
   No events queued: Нет событий в очереди
   No fans detected: Вентиляторы не обнаружены
+  No filament environment sensors: ''
   No filament loaded to unload: Нет загруженного филамента для выгрузки
   No filament sensor detected: 'Датчик филамента не обнаружен'
   No filaments found: Филаменты не найдены
@@ -2565,6 +2570,7 @@ translations:
   Slot {} matches.: 'Слот {} подходит.'
   Slot {} spool cleared: Катушка слота {} удалена
   Slot {} updated: Слот {} обновлён
+  Slots: ''
   Small labels help keep controls calm and focused.: Мелкие надписи помогают сохранять
     элементы управления аккуратными.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -2984,6 +2990,8 @@ translations:
     мог зависнуть.
   Unit: Узел
   'Unit ': 'Узел '
+  'Units: %d   Boxes: %d   Dryers: %d': ''
+  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Неизвестно
   Unknown Event: Неизвестное событие
   Unknown Spool: Неизвестная катушка
@@ -3055,6 +3063,8 @@ translations:
   View Full History: Просмотреть полную историю
   View Telemetry Data: Просмотр данных телеметрии
   View Timelapse: Просмотр таймлапса
+  View all boxes: ''
+  View all zones: ''
   View and rename fans: Просмотр и переименование вентиляторов
   View installed plugins and status: Просмотр установленных плагинов и статуса
   View live camera feed: Просмотр трансляции с камеры
@@ -3069,7 +3079,10 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Дождитесь завершения текущей операции с филаментом
   Wait until the print finishes: Дождитесь завершения печати
+  Waiting for: ''
   Waiting for Moonraker...: Ожидание Moonraker...
+  Waiting for another box to finish.: ''
+  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: Ожидание нагрева
     стола для точной калибровки.
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
@@ -3223,6 +3236,7 @@ translations:
   AI detection: AI-детекция
   Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   or type a macro name: или введите название макроса
+  passive: ''
   printer default: по умолчанию для принтера
   prints: печатей
   remaining: осталось
@@ -3232,6 +3246,7 @@ translations:
   started: запущено
   steppers: шаговые двигатели
   tall: высотой
+  to finish. One heater at a time.: ''
   tool(s): инструмент(ы)
   used: использ.
   v%s available: Доступна v%s

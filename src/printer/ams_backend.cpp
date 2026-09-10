@@ -198,6 +198,70 @@ lv_subject_t* AmsBackend::get_operation_step_index_subject(StepOperationType op)
     return nullptr;
 }
 
+std::vector<helix::printer::EnvironmentZone> AmsBackend::get_environment_zones(int unit) const {
+    using helix::printer::EnvironmentZone;
+    using helix::printer::ZoneDryingState;
+
+    std::vector<EnvironmentZone> zones;
+    const AmsSystemInfo info = get_system_info();
+
+    for (size_t u = 0; u < info.units.size(); ++u) {
+        const int unit_idx = static_cast<int>(u);
+        if (unit >= 0 && unit_idx != unit) {
+            continue;
+        }
+        const AmsUnit& au = info.units[u];
+        const DryerInfo dryer = get_dryer_info(unit_idx);
+        // Only a running cycle is visible here. Queued needs a firmware report that
+        // this layer does not receive, so a backend that caps concurrent heaters
+        // overrides to say so.
+        const ZoneDryingState state =
+            dryer.active ? ZoneDryingState::Active : ZoneDryingState::Idle;
+
+        const bool per_slot = std::any_of(au.slots.begin(), au.slots.end(), [](const SlotInfo& s) {
+            return s.environment.has_value();
+        });
+
+        if (per_slot) {
+            for (const SlotInfo& s : au.slots) {
+                if (!s.environment.has_value()) {
+                    continue;
+                }
+                // slot_index is unit-relative; a zone's gates are global.
+                const int gate = au.first_slot_global_index + s.slot_index;
+                EnvironmentZone z;
+                z.id = au.name + "#" + std::to_string(gate);
+                z.gates = {gate};
+                z.unit_index = unit_idx;
+                z.env = *s.environment;
+                z.dryer = dryer;
+                z.state = state;
+                zones.push_back(std::move(z));
+            }
+        } else if (au.environment.has_value() || dryer.supported) {
+            EnvironmentZone z;
+            // Falls back to an ordinal rather than the empty string: AmsUnit::name
+            // carries no non-empty invariant, and two empty names would otherwise
+            // collide on id == "" and let update_from_backend()'s id-match bind the
+            // wrong zone's values.
+            z.id = au.name.empty() ? "unit-" + std::to_string(unit_idx) : au.name;
+            z.label = au.display_name.empty() ? au.name : au.display_name;
+            z.unit_index = unit_idx;
+            z.gates.reserve(static_cast<size_t>(au.slot_count));
+            for (int g = 0; g < au.slot_count; ++g) {
+                z.gates.push_back(au.first_slot_global_index + g);
+            }
+            if (au.environment.has_value()) {
+                z.env = *au.environment;
+            }
+            z.dryer = dryer;
+            z.state = state;
+            zones.push_back(std::move(z));
+        }
+    }
+    return zones;
+}
+
 AmsError AmsBackend::unload_active_filament() {
     // Single source of truth for "unload active slot". Reads current_slot ONCE
     // from the same get_system_info() snapshot the caller would use, then

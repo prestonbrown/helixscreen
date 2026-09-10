@@ -12,6 +12,7 @@
   <translation tag="%d of %d plugins loaded" ja="%d / %d 個のプラグインを読み込み"/>
   <translation tag="%d plugins loaded" ja="%d 個のプラグインを読み込み"/>
   <translation tag="%d slots" ja="%d スロット"/>
+  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" ja="%lu日前"/>
   <translation tag="%lu hours ago" ja="%lu時間前"/>
   <translation tag="%lu min ago" ja="%lu分前"/>
@@ -994,6 +995,7 @@
   <translation tag="Filament Detected" ja="フィラメント検出"/>
   <translation tag="Filament Environment" ja="フィラメント環境"/>
   <translation tag="Filament Grade Mismatch" ja="フィラメントグレード不一致"/>
+  <translation tag="Filament Humidity"/>
   <translation tag="Filament In The Toolhead" ja="ツールヘッドにフィラメントがあります"/>
   <translation tag="Filament Mapping" ja="フィラメントマッピング"/>
   <translation tag="Filament Runout" ja="フィラメント切れ"/>
@@ -1073,6 +1075,8 @@
   <translation tag="G-code commands will appear here" ja="G-code コマンドがここに表示されます"/>
   <translation tag="GCode Console" ja="Gコードコンソール"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ja="ゲームオーバー！&#10;スコア: {}&#10;タップでリスタート"/>
+  <translation tag="Gate"/>
+  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" ja="ギアのバッファ速度"/>
   <translation tag="Gear Spool Speed" ja="ギアのスプール速度"/>
   <translation tag="Gear Unload Speed" ja="ギアのアンロード速度"/>
@@ -1566,6 +1570,7 @@
   <translation tag="No effects available" ja="利用可能なエフェクトがありません"/>
   <translation tag="No events queued" ja="キューにイベントはありません"/>
   <translation tag="No fans detected" ja="ファンが検出されませんでした"/>
+  <translation tag="No filament environment sensors"/>
   <translation tag="No filament loaded to unload" ja="取出すフィラメントが装填されていません"/>
   <translation tag="No filament sensor detected" ja="フィラメントセンサーが検出されません"/>
   <translation tag="No filaments found" ja="フィラメントが見つかりません"/>
@@ -2317,6 +2322,7 @@
   <translation tag="Slot {} matches." ja="スロット {} が一致します。"/>
   <translation tag="Slot {} spool cleared" ja="スロット {} のスプールをクリアしました"/>
   <translation tag="Slot {} updated" ja="スロット {} を更新しました"/>
+  <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." ja="小さなラベルはコントロールを落ち着いた集中した状態に保ちます。"/>
   <translation tag="Snapmaker SnapSwap" ja="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" ja="Snapmaker U1"/>
@@ -2660,6 +2666,8 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ja="アンインストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Unit" ja="ユニット"/>
   <translation tag="Unit " ja="ユニット "/>
+  <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
+  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" ja="不明"/>
   <translation tag="Unknown Event" ja="不明なイベント"/>
   <translation tag="Unknown Spool" ja="不明なスプール"/>
@@ -2729,6 +2737,8 @@
   <translation tag="View Full History" ja="全履歴を表示"/>
   <translation tag="View Telemetry Data" ja="テレメトリデータを表示"/>
   <translation tag="View Timelapse" ja="タイムラプスを表示"/>
+  <translation tag="View all boxes"/>
+  <translation tag="View all zones"/>
   <translation tag="View and rename fans" ja="ファンの表示と名前変更"/>
   <translation tag="View installed plugins and status" ja="インストール済みプラグインとステータスを表示"/>
   <translation tag="View live camera feed" ja="ライブカメラ映像を表示"/>
@@ -2743,7 +2753,10 @@
   <translation tag="WPA3" ja="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" ja="現在のフィラメント操作が完了するまでお待ちください"/>
   <translation tag="Wait until the print finishes" ja="印刷が完了するまでお待ちください"/>
+  <translation tag="Waiting for"/>
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
+  <translation tag="Waiting for another box to finish."/>
+  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
   <translation tag="Warm Bed" ja="ベッドを予熱"/>
@@ -2874,6 +2887,7 @@
   <translation tag="of" ja="の"/>
   <translation tag="off" ja="オフ"/>
   <translation tag="or type a macro name" ja="またはマクロ名を入力"/>
+  <translation tag="passive"/>
   <translation tag="printer default" ja="プリンター既定"/>
   <translation tag="prints" ja="印刷"/>
   <translation tag="remaining" ja="残り"/>
@@ -2883,6 +2897,7 @@
   <translation tag="started" ja="開始"/>
   <translation tag="steppers" ja="ステッパー"/>
   <translation tag="tall" ja="高さ"/>
+  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" ja="ツール"/>
   <translation tag="used" ja="使用"/>
   <translation tag="v%s available" ja="v%s が利用可能です"/>

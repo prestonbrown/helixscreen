@@ -22,7 +22,6 @@
  * its own, not just the binding.
  */
 
-#include "observer_factory.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
@@ -32,11 +31,13 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
+#include <spdlog/fmt/fmt.h>
 
 #include <condition_variable>
 #include <memory>
@@ -44,8 +45,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-#include <spdlog/fmt/fmt.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -242,8 +241,8 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
                            "published_actions=[{}]",
                            backend->is_bypass_active(), ams_action_to_string(info.action),
                            info.current_slot, info.filament_loaded,
-                           ams_action_to_string(static_cast<AmsAction>(lv_subject_get_int(
-                               AmsState::instance().get_ams_action_subject()))),
+                           ams_action_to_string(static_cast<AmsAction>(
+                               lv_subject_get_int(AmsState::instance().get_ams_action_subject()))),
                            edges);
     }
 

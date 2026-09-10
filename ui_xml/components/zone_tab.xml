@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <api>
+    <prop name="label_subject" type="string" default=""/>
+    <prop name="state_subject" type="string" default=""/>
+    <prop name="active_subject" type="string" default=""/>
+    <prop name="tab_index" type="string" default=""/>
+  </api>
+  <styles>
+    <!-- Two styles, not one plus an inline attribute: an inline `style_bg_opa` would
+         override the bound style and the selected pill would never paint (rule 6). -->
+    <style name="zone_tab_selected" bg_opa="255" bg_color="#card_bg"/>
+    <style name="zone_tab_idle" bg_opa="0"/>
+  </styles>
+  <view name="zone_tab"
+        extends="lv_button" width="content" height="content" style_radius="#border_radius" style_border_width="0"
+        style_pad_hor="#space_md" style_pad_ver="#space_sm" style_shadow_width="0">
+    <!-- Selected tab reads as a filled pill; the rest stay flat. -->
+    <bind_style_if_eq name="zone_tab_selected" subject="$active_subject" ref_value="1"/>
+    <bind_style_if_eq name="zone_tab_idle" subject="$active_subject" ref_value="0"/>
+    <lv_obj width="content"
+            height="content" flex_flow="row" style_pad_gap="#space_xs" scrollable="false" clickable="false">
+      <!-- The dot carries the other zone's state, so it is readable without selecting it.
+           An icon's src is a parse-time attribute, so each state gets its own icon and the
+           state subject decides which one is visible. Idle shows none. -->
+      <lv_obj name="tab_dot" width="content" height="content" scrollable="false" clickable="false">
+        <icon src="progress_clock" size="xs" variant="secondary" hidden="true">
+          <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="1"/>
+        </icon>
+        <icon src="heat_wave" size="xs" variant="warning" hidden="true">
+          <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="2"/>
+        </icon>
+        <icon src="check_circle" size="xs" variant="success" hidden="true">
+          <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="3"/>
+        </icon>
+        <icon src="close_circle" size="xs" variant="danger" hidden="true">
+          <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="4"/>
+        </icon>
+      </lv_obj>
+      <text_body name="tab_label" width="content" bind_text="$label_subject"/>
+    </lv_obj>
+    <event_cb trigger="clicked" callback="on_zone_tab_clicked" user_data="$tab_index"/>
+  </view>
+</component>

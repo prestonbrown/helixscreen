@@ -419,6 +419,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/theme_swatch_grid.xml",
     "ui_xml/components/tool_picker_button.xml",
     "ui_xml/components/upgrade_banner.xml",
+    "ui_xml/components/zone_row.xml",
+    "ui_xml/components/zone_tab.xml",
     "ui_xml/console_panel.xml",
     "ui_xml/console_settings_overlay.xml",
     "ui_xml/crash_report_modal.xml",

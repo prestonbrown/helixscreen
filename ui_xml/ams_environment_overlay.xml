@@ -27,15 +27,31 @@
     <style name="comfort_list_wide" layout="flex" flex_flow="column" flex_grow="0"/>
   </styles>
   <view name="ams_environment_overlay"
-        extends="overlay_panel" title="Filament Environment" title_tag="Filament Environment" bg_color="#screen_bg">
+        extends="overlay_panel" title="Filament Humidity" title_tag="Filament Humidity"
+        title_subject="ams_env_overlay_title_text" bg_color="#screen_bg">
 
     <!-- Content area — no scroll, everything must fit -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_top="0" scrollable="false" flex_flow="column"
             style_pad_gap="#space_sm">
 
-      <!-- Subtitle (e.g., "CFS Unit 1") -->
-      <text_muted name="subtitle_label" width="100%" bind_text="ams_env_overlay_title_text"/>
+      <!-- Cross-unit affordance: jumps to the overview of every zone on the printer.
+           Hidden unless the printer has more zones than this view is showing and no
+           overview already sits beneath this overlay on the nav stack. -->
+      <text_muted name="subtitle_label" width="100%" bind_text="env_all_zones_text" clickable="true">
+        <bind_flag_if_eq subject="env_all_zones_visible" flag="hidden" ref_value="0"/>
+        <event_cb trigger="clicked" callback="on_all_zones_clicked"/>
+      </text_muted>
+
+      <!-- Zone selector. Its own container so the subject-bound repeat is the sole child. -->
+      <lv_obj name="zone_tab_strip"
+              width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
+        <bind_flag_if_eq subject="env_zone_count" flag="hidden" ref_value="0"/>
+        <repeat count="env_zone_count">
+          <zone_tab label_subject="env_zone_tab_label_${i}"
+                    state_subject="env_zone_tab_state_${i}" active_subject="env_zone_tab_active_${i}" tab_index="${i}"/>
+        </repeat>
+      </lv_obj>
 
       <!-- ================================================================ -->
       <!-- Details card:                                                     -->
@@ -45,6 +61,22 @@
       <ui_card name="details_card"
                width="100%" flex_grow="1" style_radius="#border_radius" style_pad_all="#space_md" flex_flow="column"
                style_pad_gap="#space_sm">
+
+        <!-- How much of the printer is inside this box. The header names the box the
+             controls below command; this says which lanes that covers, which a view
+             of one zone has no other way to show. -->
+        <text_small name="zone_slots_label"
+                    width="100%" bind_text="ams_env_overlay_slots_text" style_text_color="#text_muted"/>
+
+        <!-- Without this a queued box looks like a control that did nothing. -->
+        <lv_obj name="queued_banner"
+                width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+                style_radius="#border_radius" style_bg_color="#card_bg" style_bg_opa="255" scrollable="false"
+                hidden="true">
+          <bind_flag_if_not_eq subject="env_zone_state" flag="hidden" ref_value="1"/>
+          <icon src="progress_clock" size="sm" variant="secondary"/>
+          <text_small name="queued_banner_label" flex_grow="1" bind_text="env_queued_banner_text" long_mode="wrap"/>
+        </lv_obj>
 
         <!-- Top row: readout | divider | controls -->
         <lv_obj width="100%"
@@ -56,37 +88,46 @@
                   style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_md"
                   scrollable="false">
 
-            <!-- Temperature (current → target when drying) -->
-            <lv_obj width="content"
-                    height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
-                    style_pad_gap="#space_xxs" scrollable="false">
-              <lv_obj width="content"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                      style_pad_gap="#space_xs" scrollable="false">
-                <icon src="thermometer" size="lg" variant="primary"/>
-                <text_heading bind_text="ams_env_overlay_temp_text"/>
-                <icon src="arrow_right" size="sm" variant="warning" hidden="true">
-                  <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
-                </icon>
-                <text_heading bind_text="ams_env_overlay_target_temp_text" hidden="true">
-                  <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
-                </text_heading>
-              </lv_obj>
-              <text_small text="Temperature" translation_tag="Temperature" style_text_color="#text_muted"/>
-            </lv_obj>
+            <!-- Temperature and humidity share a line, and wrap to a second one when
+                 the card is too narrow to seat both. Side by side rather than stacked
+                 so the pair costs one readout height instead of two, which is the
+                 vertical room the dryer stack needs at the narrow breakpoints. -->
+            <lv_obj name="readout_pair"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_flex_main_place="center"
+                    style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
 
-            <!-- Humidity (only when a sensor is present) -->
-            <lv_obj name="humidity_readout"
-                    width="content" height="content" style_pad_all="0" flex_flow="column"
-                    style_flex_cross_place="center" style_pad_gap="#space_xxs" scrollable="false" hidden="true">
-              <bind_flag_if_not_eq subject="ams_env_overlay_humidity_visible" flag="hidden" ref_value="1"/>
+              <!-- Temperature (current → target when drying) -->
               <lv_obj width="content"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                      style_pad_gap="#space_xs" scrollable="false">
-                <icon src="water" size="lg" variant="primary"/>
-                <text_heading bind_text="ams_env_overlay_humidity_text"/>
+                      height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+                      style_pad_gap="#space_xxs" scrollable="false">
+                <lv_obj width="content"
+                        height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                        style_pad_gap="#space_xs" scrollable="false">
+                  <icon src="thermometer" size="lg" variant="primary"/>
+                  <text_heading bind_text="ams_env_overlay_temp_text"/>
+                  <icon src="arrow_right" size="sm" variant="warning" hidden="true">
+                    <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
+                  </icon>
+                  <text_heading bind_text="ams_env_overlay_target_temp_text" hidden="true">
+                    <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
+                  </text_heading>
+                </lv_obj>
+                <text_small text="Temperature" translation_tag="Temperature" style_text_color="#text_muted"/>
               </lv_obj>
-              <text_small text="Humidity" translation_tag="Humidity" style_text_color="#text_muted"/>
+
+              <!-- Humidity (only when a sensor is present) -->
+              <lv_obj name="humidity_readout"
+                      width="content" height="content" style_pad_all="0" flex_flow="column"
+                      style_flex_cross_place="center" style_pad_gap="#space_xxs" scrollable="false" hidden="true">
+                <bind_flag_if_not_eq subject="ams_env_overlay_humidity_visible" flag="hidden" ref_value="1"/>
+                <lv_obj width="content"
+                        height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                        style_pad_gap="#space_xs" scrollable="false">
+                  <icon src="water" size="lg" variant="primary"/>
+                  <text_heading bind_text="ams_env_overlay_humidity_text"/>
+                </lv_obj>
+                <text_small text="Humidity" translation_tag="Humidity" style_text_color="#text_muted"/>
+              </lv_obj>
             </lv_obj>
 
             <!-- Drying countdown + progress, only while drying -->
@@ -98,12 +139,14 @@
                       height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
                       style_pad_gap="#space_xs" scrollable="false">
                 <icon src="heat_wave" size="sm" variant="warning"/>
-                <text_body bind_text="ams_env_overlay_drying_text"/>
+                <text_body name="drying_countdown_label" bind_text="ams_env_overlay_drying_text"/>
               </lv_obj>
               <lv_bar name="drying_progress_bar"
                       width="100%" height="6" bind_value="ams_env_overlay_drying_progress" min_value="0" max_value="100"
                       style_radius="#border_radius" style_radius-indicator="#border_radius" style_bg_color="#screen_bg"
-                      style_bg_opa="255"/>
+                      style_bg_opa="255">
+                <bind_flag_if_eq subject="env_zone_state" flag="hidden" ref_value="1"/>
+              </lv_bar>
             </lv_obj>
           </lv_obj>
 
@@ -137,16 +180,18 @@
                         height="content" flex_grow="2" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                         scrollable="false">
                   <!-- i18n: do not translate - universal unit abbreviation -->
-                  <text_small name="temp_range_label" text="Temp °C" style_text_color="#text_muted"/>
-                  <text_input name="temp_input"
-                              width="100%" text="55" one_line="true" max_length="3" keyboard_hint="numeric"/>
+                  <text_small name="temp_range_label" bind_text="env_temp_range" style_text_color="#text_muted"/>
+                  <text_input name="temp_input" width="100%" text="55" one_line="true" max_length="3">
+                    <event_cb trigger="clicked" callback="on_ams_env_temp_clicked"/>
+                  </text_input>
                 </lv_obj>
                 <lv_obj width="1"
                         height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                         scrollable="false">
                   <text_small text="Minutes" translation_tag="Minutes" style_text_color="#text_muted"/>
-                  <text_input name="duration_input"
-                              width="100%" text="240" one_line="true" max_length="4" keyboard_hint="numeric"/>
+                  <text_input name="duration_input" width="100%" text="240" one_line="true" max_length="4">
+                    <event_cb trigger="clicked" callback="on_ams_env_duration_clicked"/>
+                  </text_input>
                 </lv_obj>
               </lv_obj>
 
