@@ -18,6 +18,7 @@ free -h                          # read the Mem AND Swap rows together
 - Throttle to `-j6` only when BOTH are tight: low `available` *and* swap near 0. That is the case where `-j8` dies mid-link with no `oom-kill` line while load average looks healthy. Tens of GB `available` beside an exhausted swap row is not a throttle signal. With the box to yourself, `-j` at full `nproc`, and ramp back up the moment a peer finishes.
 - Dying at the same step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary (`prune-orphan-test-objs` in `mk/tests.mk` runs `rm -f $(TEST_BIN)` as a sibling prerequisite of the link, so `-j` gives them no order). The tell: `[LD] helix-tests`, then `✓ Unit test binary ready`, NO `✗ Test linking failed!`, then every shard reports `No such file or directory`. Nothing is wrong with your code; a starved link fails loudly and stops make.
 - Who else is building, and in which tree, is a question you ask them: `ListAgents` + `SendMessage` (global CLAUDE.md § Peer Sessions), not a `pgrep` guess.
+- **The commit hook builds too.** `scripts/quality-checks.sh` verifies an incremental build of the app, at `-j${HELIX_QC_JOBS:-6}`. That is the bound that keeps N sessions committing from becoming N unbounded builds; raise `HELIX_QC_JOBS` when the box is yours. `scripts/qc_timing.py [--staged-only]` runs the gate and prints where its time went, which is how you find out whether you are waiting on that build or on a check.
 
 ```bash
 make -j                              # Build ONLY the program binary (NOT tests)
@@ -35,6 +36,11 @@ HELIX_MOCK_AUTO_PRINT=1 ./build/bin/helix-screen --test --sim-speed 6 -vv
 
 make test                            # Build tests only (does NOT run them)
 make test-run                        # Build AND run tests in parallel
+
+scripts/syntax_check.py <file>...    # "does this compile?" in seconds
+#   Takes the file's own flags from compile_commands.json and runs -fsyntax-only,
+#   instead of the minutes `make test` spends re-linking. Proves nothing about
+#   behaviour: run the tag for that. A brand-new file borrows a sibling's flags.
 ./build/bin/helix-tests "[tag]"      # Run specific test tags
 make pi-test                         # Build on thelio + deploy + run
 
