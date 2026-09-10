@@ -8,7 +8,9 @@
 #include "config.h"
 #include "display_manager.h"
 #include "display_metrics.h"
+#include "helix-xml/src/xml/lv_xml_style.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "observer_factory.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "spdlog/spdlog.h"
@@ -269,6 +271,22 @@ void DisplaySettingsManager::init_subjects() {
                           : anim_default;
     UI_MANAGED_SUBJECT_INT(animations_enabled_subject_, animations ? 1 : 0,
                            "settings_animations_enabled", subjects_);
+
+    // Drive the XML style engine's transition scale from this preference —
+    // the engine has no notion of a user setting, so this is the one place
+    // the two meet. lv_subject_add_observer() invokes the handler immediately
+    // with the subject's current value, so the scale matches the preference
+    // before any panel XML is created: a user with animations off never sees
+    // one animated transition before their first toggle. The handler runs
+    // inline on whichever thread writes the subject; every writer (Settings
+    // panel toggles, the ctl freeze/unfreeze pair) is main-thread already,
+    // matching this class's single-threaded contract above.
+    transition_scale_observer_ = helix::ui::observe_int_immediate<DisplaySettingsManager>(
+        &animations_enabled_subject_, this,
+        [](DisplaySettingsManager*, int enabled) {
+            lv_xml_set_transition_scale(enabled ? 256 : 0);
+        },
+        subjects_lifetime_);
 
     // System keyboard preference (default: off — use built-in LVGL keyboard)
     bool sys_kb = config->get<bool>("/display/use_system_keyboard", false);
