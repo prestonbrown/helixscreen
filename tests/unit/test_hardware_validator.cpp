@@ -1521,8 +1521,7 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
 // section prefix from the chamber circulation loop "temperature_fan
 // chamber_fan" (see the "stock K2 naming" fixture in test_printer_hardware.cpp).
 // The preset's hardware/expected list must cover that stock name, or a stock
-// rig double-flags: the real fan reads as newly discovered, and the preset's
-// own (differently named) entry reads as missing.
+// rig's real fan reads as newly discovered on every boot.
 TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
                  "HardwareValidator - shipped k2 preset covers the stock chamber heater fan",
                  "[hardware][validator][k2]") {
@@ -1555,9 +1554,8 @@ TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
     HardwareValidator validator;
     auto result = validator.validate(&config, client.hardware());
 
+    // hardware/expected is a suppression set for non-AMS entries, not a
+    // presence requirement, so a name listed in it is never checked for
+    // absence — result.expected_missing has nothing to assert here.
     REQUIRE_FALSE(has_newly_discovered(result, "heater_fan chamber_fan"));
-    for (const auto& issue : result.expected_missing) {
-        INFO("unexpected missing-hardware warning: " << issue.hardware_name);
-        REQUIRE(issue.hardware_name.find("chamber") == std::string::npos);
-    }
 }
