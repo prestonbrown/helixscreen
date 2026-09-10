@@ -139,8 +139,11 @@ for f in "$DIR"/helixscreen-*-*.tar.gz; do
     # Strip leading 'helixscreen-' and trailing '-{version}.tar.gz' to recover
     # the platform key. Both halves carry hyphens (platforms like snapmaker-u1,
     # prerelease versions like 1.1.0-beta.1), so the split anchors on the last
-    # '-' that opens a version: an optional 'v' followed by a digit.
-    if [[ "$base" =~ ^helixscreen-(.+)-v?([0-9][0-9A-Za-z.+-]*)\.tar\.gz$ ]]; then
+    # '-v' that opens a version. The 'v' is required, not optional: a purely
+    # numeric prerelease identifier (1.1.0-2) is otherwise indistinguishable
+    # from a version, and the platform key swallows the real one. Every
+    # producer emits it -- cross.mk builds RELEASE_VERSION as v$(VERSION).
+    if [[ "$base" =~ ^helixscreen-(.+)-v([0-9][0-9A-Za-z.+-]*)\.tar\.gz$ ]]; then
         PLATFORMS+=("${BASH_REMATCH[1]}")
     fi
 done

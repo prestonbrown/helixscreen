@@ -418,3 +418,22 @@ teardown() {
 
     rm -rf "$PRE_DIR"
 }
+
+@test "a numeric prerelease identifier does not get mistaken for the version" {
+    NUM_DIR="$(mktemp -d)"
+    dd if=/dev/zero bs=1024 count=1 2>/dev/null | gzip \
+        > "$NUM_DIR/helixscreen-pi-v1.1.0-2.tar.gz"
+
+    run bash "$SCRIPT" \
+        --version "1.1.0-2" --tag "v1.1.0-2" --notes "Numeric prerelease" \
+        --dir "$NUM_DIR" \
+        --base-url "https://releases.helixscreen.org/beta" \
+        --output "$NUM_DIR/manifest.json"
+    [ "$status" -eq 0 ] || fail "generate-manifest.sh exited $status: $output"
+
+    # The platform key must be "pi", not "pi-v1.1.0" with "2" as the version.
+    run jq -re '.assets | keys | join(",")' "$NUM_DIR/manifest.json"
+    [ "$output" = "pi" ] || fail "platform key wrong: [$output]"
+
+    rm -rf "$NUM_DIR"
+}
