@@ -17,6 +17,8 @@
   <api>
     <prop name="title" type="string" default="Overlay"/>
     <prop name="title_tag" type="string" default=""/>
+    <!-- Forwarded to header_bar: bind a string subject to retitle the header live. -->
+    <prop name="title_subject" type="string" default=""/>
     <prop name="action_button_text" type="string" default=""/>
     <prop name="action_button_text_tag" type="string" default=""/>
     <prop name="action_button_callback" type="string" default=""/>
@@ -72,10 +74,11 @@
     <style name="transient_edge" selector="user_1"/>
     <!-- Header Bar -->
     <header_bar name="overlay_header"
-                title="$title" title_tag="$title_tag" action_button_text="$action_button_text"
-                action_button_text_tag="$action_button_text_tag" hide_action_button="$hide_action_button"
-                action_button_callback="$action_button_callback" action_button_height="$action_button_height"
-                action_button_pad="$action_button_pad" action_button_disabled_subject="$action_button_disabled_subject"
+                title="$title" title_tag="$title_tag" title_subject="$title_subject"
+                action_button_text="$action_button_text" action_button_text_tag="$action_button_text_tag"
+                hide_action_button="$hide_action_button" action_button_callback="$action_button_callback"
+                action_button_height="$action_button_height" action_button_pad="$action_button_pad"
+                action_button_disabled_subject="$action_button_disabled_subject"
                 action_button_hidden_subject="$action_button_hidden_subject"
                 action_button_2_text="$action_button_2_text" action_button_2_text_tag="$action_button_2_text_tag"
                 action_button_2_bg_color="$action_button_2_bg_color"
