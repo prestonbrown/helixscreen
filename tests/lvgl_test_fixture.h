@@ -25,17 +25,19 @@ constexpr int TEST_DISPLAY_HEIGHT = 480;
  * theme_manager_refresh_layout_constants(), and the rest of the suite assumes
  * the fixture's TEST_DISPLAY_WIDTH x TEST_DISPLAY_HEIGHT.
  *
- * Restoring the resolution does NOT restore the XML constants the refresh
- * rewrote — call the refresh once more after the scope ends if the test moved
- * them.
+ * The destructor restores both halves: the resolution, and then the XML
+ * constants and the ui_breakpoint / ui_breakpoint_v / ui_is_portrait subjects
+ * that are derived from it. Those are process-global, and
+ * helix::widget_size::current_breakpoint() reads the subject rather than the
+ * display, so a scope that put back only the pixels would decide layout for
+ * every later test sharing this display.
  *
- * Refreshing from this guard's own constructor and destructor was tried and
- * reverted: the content-fit sweep (test_widget_content_fits) measures widgets
- * across eight geometries inside these scopes and depends on the token set NOT
- * moving under it, so the extra refreshes broke its measurements and crashed
- * the suite. A caller that needs the constants to follow must say so itself.
- * For the breakpoint subject specifically, use
- * tests/test_helpers/scoped_breakpoint.h, which restores what it sets.
+ * It deliberately does NOT refresh on construction. The content-fit sweep
+ * (test_widget_content_fits) measures widgets across eight geometries inside
+ * these scopes and needs the token set to hold still while it does; a test that
+ * wants the tier to follow the pixels calls
+ * theme_manager_refresh_layout_constants() itself after opening the scope.
+ * For the breakpoint subject alone, use tests/test_helpers/scoped_breakpoint.h.
  */
 class ScopedResolution {
   public:
