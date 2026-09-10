@@ -72,12 +72,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a skipped repeat still reseeds the responsi
     const int32_t want_bp_v = lv_subject_get_int(bp_v);
     const int32_t want_portrait = lv_subject_get_int(portrait);
 
-    {
-        // Refreshing at a taller, narrower panel moves all three; leaving the
-        // scope restores the resolution and none of them.
-        ScopedResolution tall(disp, 1080, 1920);
-        theme_manager_refresh_layout_constants(disp);
-    }
+    // Leave the responsive state disagreeing with the display, by hand: refresh
+    // at a taller, narrower panel and then put only the resolution back.
+    // ScopedResolution is deliberately not used here — it restores both halves,
+    // which is the thing under test rather than the setup for it.
+    const int32_t w0 = lv_display_get_horizontal_resolution(disp);
+    const int32_t h0 = lv_display_get_vertical_resolution(disp);
+    lv_display_set_resolution(disp, 1080, 1920);
+    theme_manager_refresh_layout_constants(disp);
+    lv_display_set_resolution(disp, w0, h0);
     // The tier change fired observers that queue through UpdateQueue; let them
     // run against the widgets they were queued for rather than at teardown.
     helix::ui::UpdateQueue::instance().drain();
