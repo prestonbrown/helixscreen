@@ -1140,6 +1140,7 @@ translations:
   Heading: 見出し
   Heat Capacity: 熱容量
   Heat Soak: ヒートソーク
+  Heat Soaking...: ヒートソーク中...
   Heat bed before calibrating for accurate offset with thermal expansion.: 熱膨張を考慮した正確なオフセットのため、キャリブレーション前にベッドを加熱してください。
   Heat nozzle: ノズルを加熱
   Heat to at least %d°C for filament operations: フィラメント操作には少なくとも %d°C まで加熱してください

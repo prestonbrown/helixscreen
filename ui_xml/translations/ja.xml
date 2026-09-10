@@ -1112,6 +1112,7 @@
   <translation tag="Heading" ja="見出し"/>
   <translation tag="Heat Capacity" ja="熱容量"/>
   <translation tag="Heat Soak" ja="ヒートソーク"/>
+  <translation tag="Heat Soaking..." ja="ヒートソーク中..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." ja="熱膨張を考慮した正確なオフセットのため、キャリブレーション前にベッドを加熱してください。"/>
   <translation tag="Heat nozzle" ja="ノズルを加熱"/>
   <translation tag="Heat to at least %d°C for filament operations" ja="フィラメント操作には少なくとも %d°C まで加熱してください"/>

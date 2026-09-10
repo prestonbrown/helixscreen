@@ -1112,6 +1112,7 @@
   <translation tag="Heading" en="Heading"/>
   <translation tag="Heat Capacity" en="Heat Capacity"/>
   <translation tag="Heat Soak" en="Heat Soak"/>
+  <translation tag="Heat Soaking..." en="Heat Soaking..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." en="Heat bed before calibrating for accurate offset with thermal expansion."/>
   <translation tag="Heat nozzle" en="Heat nozzle"/>
   <translation tag="Heat to at least %d°C for filament operations" en="Heat to at least %d°C for filament operations"/>

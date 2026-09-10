@@ -1112,6 +1112,7 @@
   <translation tag="Heading" ru="Заголовок"/>
   <translation tag="Heat Capacity" ru="Теплоёмкость"/>
   <translation tag="Heat Soak" ru="Прогрев"/>
+  <translation tag="Heat Soaking..." ru="Прогрев..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." ru="Нагрейте стол перед калибровкой для точного смещения с учётом теплового расширения."/>
   <translation tag="Heat nozzle" ru="Нагреть сопло"/>
   <translation tag="Heat to at least %d°C for filament operations" ru="Нагрейте минимум до %d°C для операций с филаментом"/>

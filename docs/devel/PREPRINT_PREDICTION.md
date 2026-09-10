@@ -57,23 +57,31 @@ struct PreprintEntry {
 };
 ```
 
-Phase keys are integer values of the `PrintStartPhase` enum:
+In memory the keys are `PrintStartPhase` enum ints. On disk they are the phase
+NAMES (`include/print_start_phase.h`), because an ordinal is a position rather
+than an identity: inserting a phase renumbers every phase after it, and a stored
+number then names a different one.
 
-| Value | Phase | Description |
-|-------|-------|-------------|
-| 0 | IDLE | Not in PRINT_START |
-| 1 | INITIALIZING | PRINT_START detected |
-| 2 | HOMING | G28 / Home All Axes |
-| 3 | HEATING_BED | M140/M190 |
-| 4 | HEATING_NOZZLE | M104/M109 |
-| 5 | QGL | QUAD_GANTRY_LEVEL |
-| 6 | Z_TILT | Z_TILT_ADJUST |
-| 7 | BED_MESH | Bed mesh calibrate/load |
-| 8 | CLEANING | Nozzle wipe |
-| 9 | PURGING | Purge line |
-| 10 | COMPLETE | Transition to printing |
+| Phase | Stored as | Description |
+|-------|-----------|-------------|
+| IDLE | `IDLE` | Not in PRINT_START |
+| INITIALIZING | `INITIALIZING` | PRINT_START detected |
+| HOMING | `HOMING` | G28 / Home All Axes |
+| HEATING_BED | `HEATING_BED` | M140/M190 |
+| SOAKING | `SOAKING` | Holding at temperature: heat-soak dwell or chamber wait |
+| HEATING_NOZZLE | `HEATING_NOZZLE` | M104/M109 |
+| QGL | `QGL` | QUAD_GANTRY_LEVEL |
+| Z_TILT | `Z_TILT` | Z_TILT_ADJUST |
+| BED_MESH | `BED_MESH` | Bed mesh calibrate/load |
+| CLEANING | `CLEANING` | Nozzle wipe |
+| PURGING | `PURGING` | Purge line |
+| COMPLETE | `COMPLETE` | Transition to printing |
 
-Only phases 2-9 are tracked for timing. IDLE, INITIALIZING, and COMPLETE are lifecycle markers.
+`print_start_phase_stores_duration()` is the single answer to which of these the
+history keeps a duration for: HOMING, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING
+and PURGING. IDLE, INITIALIZING and COMPLETE are lifecycle markers with no dwell
+of their own, and the two heating phases are owned by `ThermalRateModel`, which
+predicts them from measured heat rates.
 
 ### FIFO Entry Management
 
@@ -250,10 +258,10 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
         "total": 165,
         "timestamp": 1700000000,
         "phases": {
-          "2": 25,
-          "3": 90,
-          "7": 30,
-          "9": 20
+          "HOMING": 25,
+          "SOAKING": 90,
+          "BED_MESH": 30,
+          "PURGING": 20
         },
         "temp_bucket": 1,
         "window": 2
@@ -265,7 +273,10 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
 
 - `total`: Total pre-print seconds (sum of phase durations)
 - `timestamp`: Unix timestamp when the entry was recorded
-- `phases`: Map of `PrintStartPhase` enum int (as string key) to duration in seconds
+- `phases`: Map of `PrintStartPhase` NAME to duration in seconds. A name this build does not
+  recognise is skipped and the rest of the entry still loads, so a document written by a newer
+  build stays usable. Configs written before schema version 25 keyed this by enum ordinal;
+  `migrate_v24_to_v25` converts them.
 - `temp_bucket`: Optional. 1 = cold start (bed below 40°C at start), 2 = warm start (40°C or above); omitted means unknown. Older versions stored the raw nozzle target temperature here; those values are dropped at load time as a one-shot migration.
 - `window`: Optional. `PreprintWindow` enum int - 1 = `PrinterEdge`, 2 = `HostPreStart`; omitted means legacy (read back as `Unknown`, treated as `PrinterEdge` when filtering). See "Measurement windows" above.
 

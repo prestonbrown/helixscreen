@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <cstdint>
 #include <map>
 #include <set>
@@ -150,6 +152,16 @@ class PreprintPredictor {
      * @return Parsed entries (may be empty)
      */
     [[nodiscard]] static std::vector<PreprintEntry> load_entries_from_config();
+
+    /**
+     * @brief Serialize entries to the /print_start_history/entries array shape
+     *
+     * The inverse of load_entries_from_config(), and kept beside it so both
+     * directions of the stored format are read in one place.
+     *
+     * @return JSON array, one object per entry
+     */
+    [[nodiscard]] static json entries_to_json(const std::vector<PreprintEntry>& entries);
 
     /**
      * @brief Load history from Config and return predicted total seconds

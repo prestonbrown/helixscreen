@@ -42,6 +42,40 @@ std::string trim_trailing_ellipsis(const std::string& s) {
     }
     return s.substr(0, end);
 }
+
+/// Status text shown while a phase is current.
+///
+/// IDLE has no text of its own: the pre-print banner is hidden outside a print
+/// start, so nothing renders it.
+const char* phase_signal_message(helix::PrintStartPhase phase) {
+    switch (phase) {
+    case helix::PrintStartPhase::IDLE:
+        return "";
+    case helix::PrintStartPhase::INITIALIZING:
+        return lv_tr("Preparing Print...");
+    case helix::PrintStartPhase::HOMING:
+        return lv_tr("Homing...");
+    case helix::PrintStartPhase::HEATING_BED:
+        return lv_tr("Heating Bed...");
+    case helix::PrintStartPhase::SOAKING:
+        return lv_tr("Heat Soaking...");
+    case helix::PrintStartPhase::HEATING_NOZZLE:
+        return lv_tr("Heating Nozzle...");
+    case helix::PrintStartPhase::QGL:
+        return lv_tr("Leveling Gantry...");
+    case helix::PrintStartPhase::Z_TILT:
+        return lv_tr("Z Tilt Adjust...");
+    case helix::PrintStartPhase::BED_MESH:
+        return lv_tr("Loading Bed Mesh...");
+    case helix::PrintStartPhase::CLEANING:
+        return lv_tr("Cleaning Nozzle...");
+    case helix::PrintStartPhase::PURGING:
+        return lv_tr("Purging...");
+    case helix::PrintStartPhase::COMPLETE:
+        return lv_tr("Starting Print...");
+    }
+    return "";
+}
 } // namespace
 
 // ============================================================================
@@ -1286,55 +1320,18 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
 
     spdlog::info("[PrintStartCollector] HELIX:PHASE signal: {}", phase_name);
 
-    // Map phase name to PrintStartPhase
-    if (phase_name == "STARTING" || phase_name == "START") {
-        // Mark print start detected and transition to INITIALIZING
-        {
+    const auto phase = helix::print_start_phase_from_name(phase_name);
+    // IDLE is not a signal a macro can raise: accepting it would let a stray
+    // line reset a print start that is already under way.
+    if (phase && *phase != PrintStartPhase::IDLE) {
+        if (*phase == PrintStartPhase::INITIALIZING) {
             std::lock_guard<std::mutex> lock(state_mutex_);
             print_start_detected_ = true;
         }
-        update_phase(PrintStartPhase::INITIALIZING, lv_tr("Preparing Print..."));
-        return true;
-    }
-
-    if (phase_name == "COMPLETE" || phase_name == "DONE") {
-        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
-        spdlog::info("[PrintStartCollector] Print start complete via HELIX:PHASE signal");
-        return true;
-    }
-
-    // Individual phases
-    if (phase_name == "HOMING") {
-        update_phase(PrintStartPhase::HOMING, lv_tr("Homing..."));
-        return true;
-    }
-    if (phase_name == "HEATING_BED" || phase_name == "BED_HEATING") {
-        update_phase(PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."));
-        return true;
-    }
-    if (phase_name == "HEATING_NOZZLE" || phase_name == "NOZZLE_HEATING" ||
-        phase_name == "HEATING_HOTEND") {
-        update_phase(PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."));
-        return true;
-    }
-    if (phase_name == "QGL" || phase_name == "QUAD_GANTRY_LEVEL") {
-        update_phase(PrintStartPhase::QGL, lv_tr("Leveling Gantry..."));
-        return true;
-    }
-    if (phase_name == "Z_TILT" || phase_name == "Z_TILT_ADJUST") {
-        update_phase(PrintStartPhase::Z_TILT, lv_tr("Z Tilt Adjust..."));
-        return true;
-    }
-    if (phase_name == "BED_MESH" || phase_name == "BED_LEVELING") {
-        update_phase(PrintStartPhase::BED_MESH, lv_tr("Loading Bed Mesh..."));
-        return true;
-    }
-    if (phase_name == "CLEANING" || phase_name == "NOZZLE_CLEAN") {
-        update_phase(PrintStartPhase::CLEANING, lv_tr("Cleaning Nozzle..."));
-        return true;
-    }
-    if (phase_name == "PURGING" || phase_name == "PURGE" || phase_name == "PRIMING") {
-        update_phase(PrintStartPhase::PURGING, lv_tr("Purging..."));
+        update_phase(*phase, phase_signal_message(*phase));
+        if (*phase == PrintStartPhase::COMPLETE) {
+            spdlog::info("[PrintStartCollector] Print start complete via HELIX:PHASE signal");
+        }
         return true;
     }
 
@@ -2347,29 +2344,8 @@ void PrintStartCollector::save_prediction_entry() {
         }
 
         try {
-            json entries_json = json::array();
-            for (const auto& e : entries) {
-                json entry_json;
-                entry_json["total"] = e.total_seconds;
-                entry_json["timestamp"] = e.timestamp;
-
-                json phases_json = json::object();
-                for (const auto& [phase, duration] : e.phase_durations) {
-                    phases_json[std::to_string(phase)] = duration;
-                }
-                entry_json["phases"] = phases_json;
-                if (e.temp_bucket > 0) {
-                    entry_json["temp_bucket"] = e.temp_bucket;
-                }
-                // Omitted for Unknown so the field only appears once it means
-                // something; a reader treats its absence as PrinterEdge.
-                if (e.window != helix::PreprintWindow::Unknown) {
-                    entry_json["window"] = static_cast<int>(e.window);
-                }
-                entries_json.push_back(entry_json);
-            }
-
-            cfg->set<json>(PREPRINT_HISTORY_PATH, entries_json);
+            cfg->set<json>(PREPRINT_HISTORY_PATH,
+                           helix::PreprintPredictor::entries_to_json(entries));
             ThermalRateManager::instance().save_to_config(*cfg);
             cfg->save();
 

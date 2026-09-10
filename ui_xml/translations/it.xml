@@ -1112,6 +1112,7 @@
   <translation tag="Heading" it="Intestazione"/>
   <translation tag="Heat Capacity" it="Capacità termica"/>
   <translation tag="Heat Soak" it="Preriscaldamento"/>
+  <translation tag="Heat Soaking..." it="Preriscaldamento..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." it="Riscalda il piano prima di calibrare per un offset preciso con espansione termica."/>
   <translation tag="Heat nozzle" it="Riscalda ugello"/>
   <translation tag="Heat to at least %d°C for filament operations" it="Riscalda ad almeno %d°C per le operazioni sul filamento"/>
