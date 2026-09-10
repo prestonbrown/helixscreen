@@ -257,8 +257,8 @@ class PrintHistoryManager {
      *
      * Called in constructor. Two of them:
      * - `notify_history_changed` - a job was added or history was cleared.
-     * - `notify_filelist_changed` - filtered to the actions that can orphan a
-     *   job (see filelist_action_affects_history); a delete or move flips a
+     * - `notify_filelist_changed` - filtered to the payloads that can orphan a
+     *   job (see filelist_change_affects_history); a delete or move flips a
      *   cached job's `exists` flag and Moonraker never reports that through
      *   the history notification.
      *
@@ -267,13 +267,22 @@ class PrintHistoryManager {
     void subscribe_to_notifications();
 
     /**
-     * @brief Whether a notify_filelist_changed action can orphan a history job
+     * @brief Whether a notify_filelist_changed payload can orphan a history job
      *
      * Uploads, metadata scans and directory listings fire the same
      * notification and cannot change any job's `exists` flag, so they must not
-     * trigger a history round-trip.
+     * trigger a history round-trip. Neither can anything confined to a root
+     * other than `gcodes`, which is the only root history names files in.
+     *
+     * @param action      The payload's `action` field
+     * @param item_root   `item.root`. Empty means a payload shape we do not
+     *                    recognise, which invalidates rather than risk going stale
+     * @param source_root `source_item.root`, which Moonraker sends only on a
+     *                    move or copy; empty otherwise
      */
-    [[nodiscard]] static bool filelist_action_affects_history(const std::string& action);
+    [[nodiscard]] static bool filelist_change_affects_history(const std::string& action,
+                                                              const std::string& item_root,
+                                                              const std::string& source_root);
 
     /**
      * @brief Mark the cache stale whenever the Moonraker socket is not up
