@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <mutex>
+#include <set>
 
 namespace helix {
 
@@ -260,36 +261,6 @@ int PreprintPredictor::predicted_total() const {
         weighted_sum += weights[i] * static_cast<double>(entries_[i].total_seconds);
     }
     return static_cast<int>(std::round(weighted_sum));
-}
-
-int PreprintPredictor::remaining_seconds(const std::set<int>& completed_phases, int current_phase,
-                                         int elapsed_in_current_phase_seconds) const {
-    // Only return remaining time when we have real history entries.
-    // Defaults are useful for predicted_total()/has_predictions() but not here —
-    // the collector uses thermal model for heating and profile weights for progress
-    // when no history exists yet.
-    if (entries_.empty()) {
-        return 0;
-    }
-    auto phases = predicted_phases();
-    int remaining = 0;
-
-    for (const auto& [phase, predicted_duration] : phases) {
-        if (completed_phases.count(phase)) {
-            // Already done, actual time was spent (not predicted)
-            continue;
-        }
-
-        if (phase == current_phase && current_phase != 0) {
-            // Currently in this phase - subtract elapsed
-            remaining += std::max(0, predicted_duration - elapsed_in_current_phase_seconds);
-        } else {
-            // Future phase
-            remaining += predicted_duration;
-        }
-    }
-
-    return remaining;
 }
 
 std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {

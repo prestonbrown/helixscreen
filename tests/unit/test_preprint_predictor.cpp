@@ -3,15 +3,13 @@
 
 /**
  * @file test_preprint_predictor.cpp
- * @brief Unit tests for PreprintPredictor weighted average and remaining time
+ * @brief Unit tests for PreprintPredictor weighted averages
  *
  * Tests pure prediction logic without LVGL or Config dependencies.
  */
 
 #include "preprint_predictor.h"
 #include "printer_state.h"
-
-#include <set>
 
 #include "../catch_amalgamated.hpp"
 
@@ -32,8 +30,6 @@ TEST_CASE("PreprintPredictor: defaults without history", "[print][predictor]") {
     auto defaults = predictor.predicted_phases();
     REQUIRE_FALSE(defaults.empty());
     REQUIRE(predictor.predicted_total() > 0);
-    // remaining_seconds returns 0 with no history (collector uses thermal model instead)
-    REQUIRE(predictor.remaining_seconds({}, 0, 0) == 0);
 }
 
 TEST_CASE("PreprintPredictor: default_phase_durations returns expected phases",
@@ -172,83 +168,6 @@ TEST_CASE("PreprintPredictor: phases appearing in subset of entries", "[print][p
 }
 
 // ============================================================================
-// Remaining Time: All Future Phases
-// ============================================================================
-
-TEST_CASE("PreprintPredictor: remaining_seconds with no progress", "[print][predictor]") {
-    PreprintPredictor predictor;
-    predictor.load_entries({{185, 1700000000, {{2, 25}, {3, 90}, {7, 30}, {9, 20}}}});
-
-    // No completed phases, current=IDLE(0), no elapsed
-    int remaining = predictor.remaining_seconds({}, 0, 0);
-    // All phases are future: 25+90+30+20 = 165
-    REQUIRE(remaining == 165);
-}
-
-// ============================================================================
-// Remaining Time: Some Completed, Current Active
-// ============================================================================
-
-TEST_CASE("PreprintPredictor: remaining with completed and current phase", "[print][predictor]") {
-    PreprintPredictor predictor;
-    predictor.load_entries({{185, 1700000000, {{2, 25}, {3, 90}, {7, 30}, {9, 20}}}});
-
-    // Homing done, currently heating bed for 30s
-    std::set<int> completed = {2};
-    int remaining = predictor.remaining_seconds(completed, 3, 30);
-    // Current phase (3): max(0, 90-30) = 60
-    // Future phases (7, 9): 30+20 = 50
-    // Total: 60+50 = 110
-    REQUIRE(remaining == 110);
-}
-
-// ============================================================================
-// Remaining Time: Elapsed Exceeds Prediction
-// ============================================================================
-
-TEST_CASE("PreprintPredictor: elapsed exceeds prediction returns 0 for current",
-          "[print][predictor]") {
-    PreprintPredictor predictor;
-    predictor.load_entries({{185, 1700000000, {{2, 25}, {3, 90}, {7, 30}, {9, 20}}}});
-
-    // Heating bed, but we've been at it for 120s (predicted 90s)
-    std::set<int> completed = {2};
-    int remaining = predictor.remaining_seconds(completed, 3, 120);
-    // Current phase: max(0, 90-120) = 0
-    // Future phases: 30+20 = 50
-    REQUIRE(remaining == 50);
-}
-
-// ============================================================================
-// Remaining Time: All Phases Completed
-// ============================================================================
-
-TEST_CASE("PreprintPredictor: all phases completed returns 0", "[print][predictor]") {
-    PreprintPredictor predictor;
-    predictor.load_entries({{185, 1700000000, {{2, 25}, {3, 90}, {7, 30}, {9, 20}}}});
-
-    std::set<int> completed = {2, 3, 7, 9};
-    int remaining = predictor.remaining_seconds(completed, 0, 0);
-    REQUIRE(remaining == 0);
-}
-
-// ============================================================================
-// Remaining Time: Current Phase Not in History
-// ============================================================================
-
-TEST_CASE("PreprintPredictor: unknown current phase contributes 0", "[print][predictor]") {
-    PreprintPredictor predictor;
-    predictor.load_entries({{100, 1700000000, {{2, 25}, {3, 90}}}});
-
-    // Current phase 5 (QGL) not in history - contributes 0 predicted
-    std::set<int> completed = {2};
-    int remaining = predictor.remaining_seconds(completed, 5, 10);
-    // Current (5): not in history -> 0
-    // Future: phase 3 is future (not completed, not current) -> 90
-    REQUIRE(remaining == 90);
-}
-
-// ============================================================================
 // Single Phase Entry
 // ============================================================================
 
@@ -261,10 +180,6 @@ TEST_CASE("PreprintPredictor: single phase entry", "[print][predictor]") {
     auto phases = predictor.predicted_phases();
     REQUIRE(phases.size() == 1);
     REQUIRE(phases[3] == 30);
-
-    // In the middle of the only phase
-    int remaining = predictor.remaining_seconds({}, 3, 10);
-    REQUIRE(remaining == 20);
 }
 
 // ============================================================================
@@ -299,21 +214,6 @@ TEST_CASE("PreprintPredictor: load_entries caps at MAX_ENTRIES", "[print][predic
 
     // Should keep only the last MAX_ENTRIES
     REQUIRE(predictor.get_entries().size() == static_cast<size_t>(PreprintPredictor::MAX_ENTRIES));
-}
-
-// ============================================================================
-// Zero Elapsed in Current Phase
-// ============================================================================
-
-TEST_CASE("PreprintPredictor: zero elapsed in current phase", "[print][predictor]") {
-    PreprintPredictor predictor;
-    predictor.load_entries({{100, 1700000000, {{2, 25}, {3, 90}}}});
-
-    // Just entered phase 3, 0 elapsed
-    std::set<int> completed = {2};
-    int remaining = predictor.remaining_seconds(completed, 3, 0);
-    // Current: 90-0=90, future: none
-    REQUIRE(remaining == 90);
 }
 
 // ============================================================================

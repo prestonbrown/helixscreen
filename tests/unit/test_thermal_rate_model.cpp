@@ -191,9 +191,6 @@ TEST_CASE("ThermalRateManager composite estimate without predictor history", "[t
     auto defaults = predictor.predicted_phases();
     REQUIRE_FALSE(defaults.empty());
 
-    // remaining_seconds returns 0 without history — collector uses thermal model instead
-    REQUIRE(predictor.remaining_seconds({}, 0, 0) == 0);
-
     // Composite total = heating + operation defaults
     float total = ext_heat + bed_heat;
     for (const auto& [phase, dur] : defaults) {
@@ -219,10 +216,6 @@ TEST_CASE("ThermalRateManager composite estimate with predictor history", "[ther
     REQUIRE(predictor.has_predictions());
     auto phases = predictor.predicted_phases();
     REQUIRE(phases[mesh_phase] == 166); // learned, not default 90
-
-    // remaining_seconds works with history
-    int remaining = predictor.remaining_seconds({}, 0, 0);
-    REQUIRE(remaining == 171); // 5 + 166
 
     // Learned bed mesh (166s) should be larger than default (90s)
     helix::PreprintPredictor predictor_default;

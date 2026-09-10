@@ -24,7 +24,7 @@ The system is entirely opportunistic: if no history exists, no prediction is sho
 ```
 PrintStartCollector (owns lifecycle, phase detection, timing)
   |
-  +-> PreprintPredictor (pure logic: weighted averages, remaining time)
+  +-> PreprintPredictor (pure logic: weighted averages, per-phase shape)
   |     No LVGL, no Config, no threads. Fully unit-testable.
   |
   +-> Config persistence (/print_start_history/entries in settings.json)
@@ -202,31 +202,33 @@ IDLE, INITIALIZING, and COMPLETE phases are excluded from timing.
 
 ## Real-Time Remaining Calculation
 
-`remaining_seconds()` provides a live countdown during preparation:
+The live countdown is the collector's, not the predictor's: `PrintStartCollector#update_eta_display`. The predictor supplies the historical shape (per-phase weights and a wall-clock total); the collector is what turns that into a number on screen, because three of the four inputs are live printer state the predictor never sees.
 
-```cpp
-int remaining_seconds(
-    const std::set<int>& completed_phases,  // Phases already done
-    int current_phase,                       // Phase we're currently in
-    int elapsed_in_current_phase_seconds     // Time spent in current phase
-) const;
-```
+Each phase's duration is `weight * predicted_total_seconds_`, and each phase contributes:
 
-The algorithm:
+| Phase | Contribution |
+|-------|--------------|
+| Completed | 0 — the time was actually spent, not predicted |
+| Current, heating | `duration * (1 - compute_heating_fraction())` — temperature progress, not elapsed time |
+| Current, bed mesh with live probe timing | `mesh_seconds_per_probe_ * probes_left` — measured per-probe rate overrides history |
+| Current, anything else | `max(0, duration - elapsed_in_phase)` |
+| Future, heating | `duration * (1 - heating fraction)` — concurrent-heat firmware starts a heater before the chain reaches its phase, so it only owes the unheated remainder |
+| Future, anything else | full duration |
 
-1. Get per-phase predictions from the weighted average
-2. For **completed phases**: skip (actual time was spent, not predicted)
-3. For **current phase**: `max(0, predicted - elapsed)` (counts down as time passes)
-4. For **future phases**: add full predicted duration
+A phase whose elapsed time exceeds its prediction contributes 0, never a negative.
 
-If elapsed exceeds the prediction for the current phase, that phase contributes 0 (never negative). This prevents the remaining time from going negative if a phase runs longer than expected.
+Three guards then shape the raw number before it reaches a subject, because a recomputation of the weights (a newly discovered heater target, say) can move it sharply in either direction:
+
+- **Monotonic clamp** — remaining never increases.
+- **Monotonic bias under two minutes** — inside the last 120s an increase is suppressed outright unless it overruns the predicted total by more than 20%.
+- **Downward rate limit** — each tick may drop at most `max(15, last/6)` seconds, so a phase change eases the number down instead of collapsing it (111 -> 57 -> 31 in three ticks reads as broken).
 
 ### Update Frequency
 
 An LVGL timer (`eta_timer_`) fires every **5 seconds** and calls `update_eta_display()`, which:
 
 1. Updates `preprint_elapsed_seconds` subject (total time since preparation started)
-2. Queries `remaining_seconds()` with current phase state
+2. Computes remaining from the composite weights above
 3. Updates `preprint_remaining_seconds` subject (integer, for programmatic use)
 4. Formats and sets `print_start_time_left` subject (string, e.g. "~3:20 left")
 
@@ -417,9 +419,6 @@ Tests cover:
 - FIFO trimming to `MAX_ENTRIES` (11th entry evicts oldest)
 - `add_entry` accepts any duration - MAD handles outliers (no total-duration cap)
 - Phases appearing in subset of entries (weight redistribution)
-- Remaining time with no progress, partial progress, exceeded prediction
-- All phases completed returns 0
-- Unknown current phase contributes 0
 - `load_entries` replaces existing data
 - `load_entries` caps at `MAX_ENTRIES`
 - `temp_bucket` filtering, including legacy bucket=0 entries matching any filter

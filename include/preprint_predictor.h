@@ -4,7 +4,6 @@
 
 #include <cstdint>
 #include <map>
-#include <set>
 #include <vector>
 
 namespace helix {
@@ -116,17 +115,6 @@ class PreprintPredictor {
      * @brief Per-phase predicted durations (phase_enum -> seconds)
      */
     [[nodiscard]] std::map<int, int> predicted_phases() const;
-
-    /**
-     * @brief Real-time remaining seconds estimate
-     *
-     * @param completed_phases Set of phase enum ints already completed
-     * @param current_phase Current phase enum int (0=IDLE, no contribution)
-     * @param elapsed_in_current_phase_seconds Seconds spent in current phase
-     * @return Estimated remaining seconds, 0 if no predictions
-     */
-    [[nodiscard]] int remaining_seconds(const std::set<int>& completed_phases, int current_phase,
-                                        int elapsed_in_current_phase_seconds) const;
 
     /**
      * @brief Whether any predictions can be made
