@@ -853,7 +853,6 @@ translations:
   Est. Duration: 预计时长
   Estimating...: 估算中...
   Ethernet: 以太网
-  Ethernet is connected. Disconnect it to join a Wi-Fi network.: ''
   Events appear here after sessions and prints: 会话和打印后事件将显示在此处
   Every extruder's temperature at once: 同时查看所有挤出机温度
   Excellent Accuracy: 精度极佳
@@ -1294,6 +1293,7 @@ translations:
   'Jog failed: {}': '移动失败: {}'
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: 加入
     HelixScreen 的 Discord 社区，参与讨论、获取技巧、故障排除帮助和功能请求。
+  Joining Wi-Fi disconnects the wired network.: ''
   Just now: 刚刚
   Just queued: '刚刚加入队列'
   KEYBOARD LAYOUT: 键盘布局

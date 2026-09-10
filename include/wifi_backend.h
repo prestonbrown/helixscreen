@@ -41,7 +41,6 @@ enum class WiFiResult {
     BACKEND_ERROR,          ///< Internal backend error
     NOT_INITIALIZED,        ///< Backend not started/initialized
     NOT_SUPPORTED,          ///< Capability absent on this backend (nothing failed)
-    TRANSPORT_IN_USE,       ///< Another transport owns the link and this one cannot join
     UNKNOWN_ERROR           ///< Unexpected error condition
 };
 
@@ -506,6 +505,30 @@ class WifiBackend {
     /// it to false. WifiBackendNetd is the only one today.
     virtual bool supports_radio_toggle() const {
         return true;
+    }
+
+    /// Whether joining a Wi-Fi network right now would take the link away
+    /// from a wired transport that currently holds it.
+    ///
+    /// A printer network daemon that enforces a single transport answers a
+    /// join by downing eth0 and moving the address to wlan0, so the wired
+    /// address the user may be reachable on dies with the join. That is a
+    /// consequence worth warning about, not a reason to refuse: the join
+    /// itself succeeds, and the daemon's own verdict is the only trustworthy
+    /// answer to whether it can. Callers therefore use this to ADVISE and
+    /// still send the join.
+    ///
+    /// A virtual query rather than a `dynamic_cast` to the concrete backend,
+    /// because the firmware builds -fno-rtti.
+    ///
+    /// Non-const like get_status(), the sibling that reads the same live
+    /// backend state: answering may take the lock the event thread writes
+    /// under.
+    ///
+    /// Default false — a backend that runs the radio alongside the wired
+    /// interface displaces nothing.
+    virtual bool join_displaces_wired_link() {
+        return false;
     }
 
     /// The interface identity this backend resolved (netdev, control socket,

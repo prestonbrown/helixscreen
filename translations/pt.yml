@@ -940,7 +940,6 @@ translations:
   Est. Duration: Duração Est.
   Estimating...: Estimando...
   Ethernet: Ethernet
-  Ethernet is connected. Disconnect it to join a Wi-Fi network.: ''
   Events appear here after sessions and prints: Eventos aparecem aqui após sessões
     e impressões
   Every extruder's temperature at once: A temperatura de todos os extrusores
@@ -1422,6 +1421,7 @@ translations:
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Participe
     da comunidade HelixScreen no Discord para discussões, dicas, ajuda na solução
     de problemas e solicitações de recursos.
+  Joining Wi-Fi disconnects the wired network.: ''
   Just now: Agora mesmo
   Just queued: 'Recém-adicionado à fila'
   KEYBOARD LAYOUT: LAYOUT DO TECLADO
