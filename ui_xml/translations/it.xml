@@ -12,7 +12,6 @@
   <translation tag="%d of %d plugins loaded" it="%d di %d plugin caricati"/>
   <translation tag="%d plugins loaded" it="%d plugin caricati"/>
   <translation tag="%d slots" it="%d slot"/>
-  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" it="%lu giorni fa"/>
   <translation tag="%lu hours ago" it="%lu ore fa"/>
   <translation tag="%lu min ago" it="%lu min fa"/>
@@ -1075,8 +1074,6 @@
   <translation tag="G-code commands will appear here" it="I comandi G-code appariranno qui"/>
   <translation tag="GCode Console" it="Console G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" it="Partita finita!&#10;Punteggio: {}&#10;Tocca per ricominciare"/>
-  <translation tag="Gate"/>
-  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" it="Velocità dell&apos;ingranaggio dal buffer"/>
   <translation tag="Gear Spool Speed" it="Velocità dell&apos;ingranaggio dalla bobina"/>
   <translation tag="Gear Unload Speed" it="Velocità di scarico dell&apos;ingranaggio"/>
@@ -2668,7 +2665,6 @@
   <translation tag="Unit" it="Unità"/>
   <translation tag="Unit " it="Unità "/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
-  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" it="Sconosciuto"/>
   <translation tag="Unknown Event" it="Evento sconosciuto"/>
   <translation tag="Unknown Spool" it="Bobina sconosciuta"/>
@@ -2739,7 +2735,6 @@
   <translation tag="View Telemetry Data" it="Visualizza dati di telemetria"/>
   <translation tag="View Timelapse" it="Visualizza timelapse"/>
   <translation tag="View all boxes"/>
-  <translation tag="View all zones"/>
   <translation tag="View and rename fans" it="Visualizza e rinomina ventole"/>
   <translation tag="View installed plugins and status" it="Visualizza plugin installati e stato"/>
   <translation tag="View live camera feed" it="Visualizza il feed della telecamera dal vivo"/>
@@ -2757,7 +2752,6 @@
   <translation tag="Waiting for"/>
   <translation tag="Waiting for Moonraker..." it="In attesa di Moonraker..."/>
   <translation tag="Waiting for another box to finish."/>
-  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." it="In attesa che il piano raggiunga la temperatura per una calibrazione precisa."/>
   <translation tag="Waiting for the filament system to report its state" it="In attesa dello stato del sistema filamento"/>
   <translation tag="Warm Bed" it="Preriscalda piano"/>

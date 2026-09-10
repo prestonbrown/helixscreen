@@ -12,7 +12,6 @@ translations:
   '%d of %d plugins loaded': '%d of %d plugins loaded'
   '%d plugins loaded': '%d plugins loaded'
   '%d slots': '%d slots'
-  '%d units - %d zones - %d dryers': '%d units - %d zones - %d dryers'
   '%lu days ago': '%lu days ago'
   '%lu hours ago': '%lu hours ago'
   '%lu min ago': '%lu min ago'
@@ -1163,8 +1162,6 @@ translations:
   GCode Console: GCode Console
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Game Over!\nScore: {}\nTap to restart"
-  Gate: Gate
-  Gates: Gates
   Gear Buffer Speed: Gear Buffer Speed
   Gear Spool Speed: Gear Spool Speed
   Gear Unload Speed: Gear Unload Speed
@@ -2960,7 +2957,6 @@ translations:
   Unit: Unit
   'Unit ': 'Unit '
   'Units: %d   Boxes: %d   Dryers: %d': 'Units: %d   Boxes: %d   Dryers: %d'
-  'Units: %d   Zones: %d   Dryers: %d': 'Units: %d   Zones: %d   Dryers: %d'
   Unknown: Unknown
   Unknown Event: Unknown Event
   Unknown Spool: Unknown Spool
@@ -3033,7 +3029,6 @@ translations:
   View Telemetry Data: View Telemetry Data
   View Timelapse: View Timelapse
   View all boxes: View all boxes
-  View all zones: View all zones
   View and rename fans: View and rename fans
   View installed plugins and status: View installed plugins and status
   View live camera feed: View live camera feed
@@ -3052,7 +3047,6 @@ translations:
   Waiting for: Waiting for
   Waiting for Moonraker...: Waiting for Moonraker...
   Waiting for another box to finish.: Waiting for another box to finish.
-  Waiting for another zone to finish.: Waiting for another zone to finish.
   Waiting for bed to reach temperature for accurate calibration.: Waiting for bed
     to reach temperature for accurate calibration.
   Waiting for the filament system to report its state: Waiting for the filament system to report its state

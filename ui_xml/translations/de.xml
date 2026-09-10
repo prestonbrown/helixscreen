@@ -12,7 +12,6 @@
   <translation tag="%d of %d plugins loaded" de="%d von %d Plugins geladen"/>
   <translation tag="%d plugins loaded" de="%d Plugins geladen"/>
   <translation tag="%d slots" de="%d Slots"/>
-  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" de="vor %lu Tagen"/>
   <translation tag="%lu hours ago" de="vor %lu Stunden"/>
   <translation tag="%lu min ago" de="vor %lu Min."/>
@@ -1075,8 +1074,6 @@
   <translation tag="G-code commands will appear here" de="G-Code-Befehle werden hier angezeigt"/>
   <translation tag="GCode Console" de="G-Code-Konsole"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" de="Spiel vorbei!&#10;Punkte: {}&#10;Zum Neustart tippen"/>
-  <translation tag="Gate"/>
-  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" de="Zahnrad-Puffergeschwindigkeit"/>
   <translation tag="Gear Spool Speed" de="Zahnrad-Spulengeschwindigkeit"/>
   <translation tag="Gear Unload Speed" de="Zahnrad-Entladegeschwindigkeit"/>
@@ -2668,7 +2665,6 @@
   <translation tag="Unit" de="Einheit"/>
   <translation tag="Unit " de="Einheit "/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
-  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" de="Unbekannt"/>
   <translation tag="Unknown Event" de="Unbekanntes Ereignis"/>
   <translation tag="Unknown Spool" de="Unbekannte Spule"/>
@@ -2739,7 +2735,6 @@
   <translation tag="View Telemetry Data" de="Telemetriedaten anzeigen"/>
   <translation tag="View Timelapse" de="Zeitraffer ansehen"/>
   <translation tag="View all boxes"/>
-  <translation tag="View all zones"/>
   <translation tag="View and rename fans" de="Lüfter anzeigen und umbenennen"/>
   <translation tag="View installed plugins and status" de="Installierte Plugins und Status anzeigen"/>
   <translation tag="View live camera feed" de="Live-Kamerabild anzeigen"/>
@@ -2757,7 +2752,6 @@
   <translation tag="Waiting for"/>
   <translation tag="Waiting for Moonraker..." de="Warte auf Moonraker..."/>
   <translation tag="Waiting for another box to finish."/>
-  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." de="Warte auf Bett-Temperatur für genaue Kalibrierung."/>
   <translation tag="Waiting for the filament system to report its state" de="Warte auf Statusmeldung des Filamentsystems"/>
   <translation tag="Warm Bed" de="Bett vorheizen"/>

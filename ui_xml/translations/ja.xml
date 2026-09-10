@@ -12,7 +12,6 @@
   <translation tag="%d of %d plugins loaded" ja="%d / %d 個のプラグインを読み込み"/>
   <translation tag="%d plugins loaded" ja="%d 個のプラグインを読み込み"/>
   <translation tag="%d slots" ja="%d スロット"/>
-  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" ja="%lu日前"/>
   <translation tag="%lu hours ago" ja="%lu時間前"/>
   <translation tag="%lu min ago" ja="%lu分前"/>
@@ -1075,8 +1074,6 @@
   <translation tag="G-code commands will appear here" ja="G-code コマンドがここに表示されます"/>
   <translation tag="GCode Console" ja="Gコードコンソール"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ja="ゲームオーバー！&#10;スコア: {}&#10;タップでリスタート"/>
-  <translation tag="Gate"/>
-  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" ja="ギアのバッファ速度"/>
   <translation tag="Gear Spool Speed" ja="ギアのスプール速度"/>
   <translation tag="Gear Unload Speed" ja="ギアのアンロード速度"/>
@@ -2668,7 +2665,6 @@
   <translation tag="Unit" ja="ユニット"/>
   <translation tag="Unit " ja="ユニット "/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
-  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" ja="不明"/>
   <translation tag="Unknown Event" ja="不明なイベント"/>
   <translation tag="Unknown Spool" ja="不明なスプール"/>
@@ -2739,7 +2735,6 @@
   <translation tag="View Telemetry Data" ja="テレメトリデータを表示"/>
   <translation tag="View Timelapse" ja="タイムラプスを表示"/>
   <translation tag="View all boxes"/>
-  <translation tag="View all zones"/>
   <translation tag="View and rename fans" ja="ファンの表示と名前変更"/>
   <translation tag="View installed plugins and status" ja="インストール済みプラグインとステータスを表示"/>
   <translation tag="View live camera feed" ja="ライブカメラ映像を表示"/>
@@ -2757,7 +2752,6 @@
   <translation tag="Waiting for"/>
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
   <translation tag="Waiting for another box to finish."/>
-  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
   <translation tag="Warm Bed" ja="ベッドを予熱"/>

@@ -13,7 +13,6 @@ translations:
   '%d of %d plugins loaded': 'Загружено плагинов: %d из %d'
   '%d plugins loaded': 'Загружено плагинов: %d'
   '%d slots': '%d слотов'
-  '%d units - %d zones - %d dryers': ''
   '%lu days ago': '%lu дн. назад'
   '%lu hours ago': '%lu ч. назад'
   '%lu min ago': '%lu мин. назад'
@@ -1179,8 +1178,6 @@ translations:
   GCode Console: 'Консоль G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
-  Gate: ''
-  Gates: ''
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'
@@ -2992,7 +2989,6 @@ translations:
   Unit: Узел
   'Unit ': 'Узел '
   'Units: %d   Boxes: %d   Dryers: %d': ''
-  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Неизвестно
   Unknown Event: Неизвестное событие
   Unknown Spool: Неизвестная катушка
@@ -3065,7 +3061,6 @@ translations:
   View Telemetry Data: Просмотр данных телеметрии
   View Timelapse: Просмотр таймлапса
   View all boxes: ''
-  View all zones: ''
   View and rename fans: Просмотр и переименование вентиляторов
   View installed plugins and status: Просмотр установленных плагинов и статуса
   View live camera feed: Просмотр трансляции с камеры
@@ -3083,7 +3078,6 @@ translations:
   Waiting for: ''
   Waiting for Moonraker...: Ожидание Moonraker...
   Waiting for another box to finish.: ''
-  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: Ожидание нагрева
     стола для точной калибровки.
   Waiting for the filament system to report its state: Ожидание состояния системы филамента

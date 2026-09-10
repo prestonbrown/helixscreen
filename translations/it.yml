@@ -12,7 +12,6 @@ translations:
   '%d of %d plugins loaded': '%d di %d plugin caricati'
   '%d plugins loaded': '%d plugin caricati'
   '%d slots': '%d slot'
-  '%d units - %d zones - %d dryers': ''
   '%lu days ago': '%lu giorni fa'
   '%lu hours ago': '%lu ore fa'
   '%lu min ago': '%lu min fa'
@@ -1192,8 +1191,6 @@ translations:
   GCode Console: 'Console G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Partita finita!\nPunteggio: {}\nTocca per ricominciare"
-  Gate: ''
-  Gates: ''
   Gear Buffer Speed: 'Velocità dell''ingranaggio dal buffer'
   Gear Spool Speed: 'Velocità dell''ingranaggio dalla bobina'
   Gear Unload Speed: 'Velocità di scarico dell''ingranaggio'
@@ -3029,7 +3026,6 @@ translations:
   Unit: Unità
   'Unit ': 'Unità '
   'Units: %d   Boxes: %d   Dryers: %d': ''
-  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Sconosciuto
   Unknown Event: Evento sconosciuto
   Unknown Spool: Bobina sconosciuta
@@ -3103,7 +3099,6 @@ translations:
   View Telemetry Data: Visualizza dati di telemetria
   View Timelapse: Visualizza timelapse
   View all boxes: ''
-  View all zones: ''
   View and rename fans: Visualizza e rinomina ventole
   View installed plugins and status: Visualizza plugin installati e stato
   View live camera feed: Visualizza il feed della telecamera dal vivo
@@ -3122,7 +3117,6 @@ translations:
   Waiting for: ''
   Waiting for Moonraker...: In attesa di Moonraker...
   Waiting for another box to finish.: ''
-  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: In attesa che il
     piano raggiunga la temperatura per una calibrazione precisa.
   Waiting for the filament system to report its state: In attesa dello stato del sistema filamento
