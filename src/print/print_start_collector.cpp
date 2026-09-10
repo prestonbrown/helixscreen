@@ -1727,13 +1727,8 @@ bool PrintStartCollector::is_completion_marker(const std::string& line) const {
 }
 
 // ============================================================================
-// PUBLIC ACCESSORS FOR PREDICTION
+// COMPLETED-PHASE SET
 // ============================================================================
-
-std::set<int> PrintStartCollector::get_completed_phase_ints() const {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    return get_completed_phase_ints_locked();
-}
 
 std::set<int> PrintStartCollector::get_completed_phase_ints_locked() const {
     std::set<int> result;
@@ -1755,22 +1750,6 @@ std::set<int> PrintStartCollector::get_completed_phase_ints_locked() const {
         }
     }
     return result;
-}
-
-int PrintStartCollector::get_current_phase_int() const {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    return static_cast<int>(current_phase_);
-}
-
-int PrintStartCollector::get_current_phase_elapsed_seconds() const {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    int phase_int = static_cast<int>(current_phase_);
-    auto it = phase_enter_times_.find(phase_int);
-    if (it == phase_enter_times_.end()) {
-        return 0;
-    }
-    auto elapsed = std::chrono::steady_clock::now() - it->second;
-    return static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count());
 }
 
 // ============================================================================

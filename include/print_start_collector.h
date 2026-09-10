@@ -246,30 +246,14 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /**
      * @brief Get the predictor for reading predictions
      *
-     * Thread-safe: predictor is loaded on start() and entries added on COMPLETE,
-     * both under state_mutex_. Callers (LVGL timer) should use remaining_seconds()
-     * which is const and safe to call from main thread.
+     * Thread-safe: the predictor is loaded on start() and gains entries on
+     * COMPLETE, both under state_mutex_. Its readers (predicted_phases(),
+     * predicted_total(), has_predictions()) are const and safe from the main
+     * thread.
      */
     [[nodiscard]] const helix::PreprintPredictor& predictor() const {
         return predictor_;
     }
-
-    /**
-     * @brief Get detected phases as int set (for predictor remaining calculation)
-     *
-     * Must be called under state_mutex_ or from main thread when collector stopped.
-     */
-    [[nodiscard]] std::set<int> get_completed_phase_ints() const;
-
-    /**
-     * @brief Get current phase as int
-     */
-    [[nodiscard]] int get_current_phase_int() const;
-
-    /**
-     * @brief Get elapsed seconds in current phase
-     */
-    [[nodiscard]] int get_current_phase_elapsed_seconds() const;
 
   private:
     /**
