@@ -30,6 +30,7 @@ export LC_ALL=C
 usage() {
     cat <<EOF
 Usage: version-compare.sh A B
+       version-compare.sh --sort < versions
 
 Order two versions by Semantic Versioning 2.0.0 precedence (section 11).
 
@@ -39,6 +40,9 @@ Prints one of:
    1   A ranks above B
 
 Options:
+  --sort       Read versions on stdin, one per line, and print them in
+               ascending precedence order. A version the grammar rejects
+               fails the whole sort rather than being ranked by guess.
   -h, --help   Show this help
 
 Precedence rules:
@@ -59,11 +63,18 @@ Examples:
   version-compare.sh 1.1.0-beta.1 1.1.0     -> -1
   version-compare.sh 1.1.0 1.0.99           ->  1
   version-compare.sh 1.1.0+abc 1.1.0        ->  0
+  printf '1.1.0\\n1.1.0-beta.1\\n' | version-compare.sh --sort
 EOF
 }
 
+SORT_MODE=0
+
 while [ $# -gt 0 ]; do
     case "$1" in
+        --sort)
+            SORT_MODE=1
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -82,12 +93,6 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
-
-if [ $# -ne 2 ]; then
-    echo "error: need exactly two versions to compare, got $#" >&2
-    usage >&2
-    exit 2
-fi
 
 # Validate one dot-separated identifier list. Every identifier must be non-empty
 # and built only from ASCII alphanumerics and hyphens. $4=1 additionally rejects
@@ -280,28 +285,84 @@ compare_prerelease() {
     fi
 }
 
-A_FIELDS=$(parse_version "$1" "first") || exit 1
-B_FIELDS=$(parse_version "$2" "second") || exit 1
+compare_versions() {
+    local a_fields b_fields
+    local a_maj a_min a_pat a_pre b_maj b_min b_pat b_pre order
 
-IFS=' ' read -r A_MAJ A_MIN A_PAT A_PRE <<< "$A_FIELDS"
-IFS=' ' read -r B_MAJ B_MIN B_PAT B_PRE <<< "$B_FIELDS"
+    a_fields=$(parse_version "$1" "first") || return 1
+    b_fields=$(parse_version "$2" "second") || return 1
 
-ORDER=$(compare_numeric "$A_MAJ" "$B_MAJ")
-if [ "$ORDER" = 0 ]; then
-    ORDER=$(compare_numeric "$A_MIN" "$B_MIN")
-fi
-if [ "$ORDER" = 0 ]; then
-    ORDER=$(compare_numeric "$A_PAT" "$B_PAT")
-fi
+    IFS=' ' read -r a_maj a_min a_pat a_pre <<< "$a_fields"
+    IFS=' ' read -r b_maj b_min b_pat b_pre <<< "$b_fields"
 
-if [ "$ORDER" = 0 ]; then
-    if [ -z "$A_PRE" ] && [ -n "$B_PRE" ]; then
-        ORDER=1     # a release outranks every prerelease of the same triple
-    elif [ -n "$A_PRE" ] && [ -z "$B_PRE" ]; then
-        ORDER=-1
-    elif [ -n "$A_PRE" ]; then
-        ORDER=$(compare_prerelease "$A_PRE" "$B_PRE")
+    order=$(compare_numeric "$a_maj" "$b_maj")
+    if [ "$order" = 0 ]; then
+        order=$(compare_numeric "$a_min" "$b_min")
     fi
+    if [ "$order" = 0 ]; then
+        order=$(compare_numeric "$a_pat" "$b_pat")
+    fi
+
+    if [ "$order" = 0 ]; then
+        if [ -z "$a_pre" ] && [ -n "$b_pre" ]; then
+            order=1     # a release outranks every prerelease of the same triple
+        elif [ -n "$a_pre" ] && [ -z "$b_pre" ]; then
+            order=-1
+        elif [ -n "$a_pre" ]; then
+            order=$(compare_prerelease "$a_pre" "$b_pre")
+        fi
+    fi
+
+    printf '%s\n' "$order"
+}
+
+# Order stdin ascending. Callers prune with `head -n -N`, so a version this
+# cannot rank must abort the sort: a partial order silently deletes the wrong
+# release. Every entry is validated before any comparison for that reason.
+sort_versions() {
+    local -a items=()
+    local line key order i j
+
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        items+=("$line")
+    done
+
+    for line in "${items[@]:+${items[@]}}"; do
+        parse_version "$line" "input" >/dev/null || return 1
+    done
+
+    # Insertion sort. The lists are release inventories, tens of entries at
+    # most, and an in-process comparison keeps it to no subprocesses per pair.
+    for ((i = 1; i < ${#items[@]}; i++)); do
+        key="${items[i]}"
+        j=$((i - 1))
+        while [ "$j" -ge 0 ]; do
+            order=$(compare_versions "${items[j]}" "$key") || return 1
+            [ "$order" = 1 ] || break
+            items[j + 1]="${items[j]}"
+            j=$((j - 1))
+        done
+        items[j + 1]="$key"
+    done
+
+    [ "${#items[@]}" -eq 0 ] || printf '%s\n' "${items[@]}"
+}
+
+if [ "$SORT_MODE" = 1 ]; then
+    if [ $# -ne 0 ]; then
+        echo "error: --sort reads versions on stdin and takes no arguments" >&2
+        usage >&2
+        exit 2
+    fi
+    sort_versions
+    exit $?
 fi
 
-printf '%s\n' "$ORDER"
+if [ $# -ne 2 ]; then
+    echo "error: need exactly two versions to compare, got $#" >&2
+    usage >&2
+    exit 2
+fi
+
+compare_versions "$1" "$2"
