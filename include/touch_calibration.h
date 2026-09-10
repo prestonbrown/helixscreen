@@ -908,4 +908,31 @@ inline bool should_invalidate_legacy_calibration(bool recheck_pending, bool is_r
     return recheck_pending && !is_resistive && abs_display_mismatch;
 }
 
+/**
+ * @brief Decide whether a stored affine that records no capture rotation must be
+ * discarded rather than assumed to have been solved square.
+ *
+ * The solve runs against logical, post-rotation targets, so a matrix means nothing
+ * without the rotation it was solved at. A record carrying no rotation states no
+ * basis, and the runtime has to pick one: zero reproduces what such a record did
+ * when it was written, and on an unrotated display that is not an assumption at all.
+ * On a rotated display it is a guess, and a wrong guess lands every tap a quarter
+ * turn out on a screen the user then cannot navigate to Settings to fix
+ * (prestonbrown/helixscreen#1394). One recalibration is recoverable; an unusable
+ * touchscreen is not.
+ *
+ * Deliberately blind to the panel's electrical nature and its declared ABS range:
+ * a resistive panel's matrix sits in the same wrong basis as a capacitive one, so
+ * neither narrows this. That is the whole difference from
+ * should_invalidate_legacy_calibration() above.
+ *
+ * @param has_capture_rotation Whether the record stores a capture rotation at all
+ * @param applied_rotation Rotation the display is at now, from display_rotation_degrees()
+ * @return true when the stored affine must be dropped
+ */
+inline bool should_invalidate_unstamped_calibration(bool has_capture_rotation,
+                                                    int applied_rotation) {
+    return !has_capture_rotation && applied_rotation != 0;
+}
+
 } // namespace helix

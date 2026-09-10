@@ -651,6 +651,60 @@ TEST_CASE_METHOD(LVGLTestFixture, "calibrated_read_cb: stashes the raw reading f
     lv_indev_delete(indev);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "calibrated_read_cb: places a rotated capture's affine in panel space",
+                 "[touch][touch-calibration][range-fit][wrapper][rotation][1394]") {
+    // The callback receives PANEL-space coordinates - it runs before
+    // lv_display_rotate_point() - while the wizard solves against logical,
+    // post-rotation targets. Handing a panel coordinate straight to that matrix
+    // evaluates it in the wrong basis, a quarter turn out on a 90 or 270 capture.
+    //
+    // K2 shape: 480x800 portrait glass, a matrix captured at 270. The affine is a
+    // pure translation so the derivation below is readable end to end:
+    //   panel (100,200) -> logical  {p.y, panel_w - p.x - 1} = (200, 379)
+    //   + (10,20)                                            = (210, 399)
+    //   logical -> panel {panel_w - q.y - 1, q.x}             = ( 80, 210)
+    // The display's own rotation deliberately stays 0 here: the placement is driven
+    // by the capture rotation the record carries, never by what the display is doing
+    // now, and reading the live rotation instead collapses this to (110,220).
+    lv_indev_t* indev = lv_indev_create();
+    REQUIRE(indev != nullptr);
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+
+    TouchCalibration cal;
+    cal.valid = true;
+    cal.a = 1.0f, cal.b = 0.0f, cal.c = 10.0f;
+    cal.d = 0.0f, cal.e = 1.0f, cal.f = 20.0f;
+    cal.capture_rotation = 270;
+
+    CalibrationContext ctx;
+    install_calibration_wrapper(indev, ctx, cal, 480, 800);
+
+    lv_indev_data_t data{};
+    data.point.x = 100;
+    data.point.y = 200;
+    data.state = LV_INDEV_STATE_PRESSED;
+    calibrated_read_cb(indev, &data);
+
+    CHECK(data.point.x == 80);
+    CHECK(data.point.y == 210);
+
+    // The same numbers through the helper, so a change to the rotation convention
+    // moves both together rather than leaving one of them stale.
+    const Point placed = apply_calibration_in_panel_space(cal, {100, 200}, 270, 480, 800);
+    CHECK(data.point.x == placed.x);
+    CHECK(data.point.y == placed.y);
+
+    // And what the matrix applied directly in panel space would have produced. The
+    // two differ, which is the whole reason the placement exists.
+    const Point unplaced = transform_point(cal, {100, 200}, 479, 799);
+    CHECK(unplaced.x == 110);
+    CHECK(data.point.x != unplaced.x);
+
+    uninstall_calibration_wrapper(indev, ctx);
+    lv_indev_delete(indev);
+}
+
 // ============================================================================
 // Committing: exactly one of the two shapes, never both
 // ============================================================================

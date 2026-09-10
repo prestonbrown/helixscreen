@@ -272,12 +272,14 @@ TouchCalibration load_touch_calibration() {
     }
 
     cal.valid = cfg->get<bool>("/input/calibration/valid", false);
-    // An absent key is not an unknown rotation: a record that predates the key was
-    // read by a runtime that fed the matrix panel-space points directly, which is
-    // exactly what a capture rotation of zero describes, so the struct's own
-    // default is the faithful reading. Taking the rotation in effect NOW instead
-    // would re-place a working matrix into a basis it was never solved in - a
-    // quarter turn out for anyone who rotated the display after calibrating.
+    // Every save writes the rotation key (touch_calibration_session.cpp#write_affine),
+    // so a record without one states no basis. Zero reproduces what such a record did
+    // when it was written - the matrix was handed panel-space points directly - and it
+    // is the exact answer for as long as nothing rotates underneath it. Taking the
+    // rotation in effect NOW instead would re-place a working matrix into a basis it
+    // was never solved in, a quarter turn out for anyone who rotated the display after
+    // calibrating.
+    const bool has_capture_rotation = cfg->exists("/input/calibration/rotation");
     cal.capture_rotation = cfg->get<int>("/input/calibration/rotation", cal.capture_rotation);
     if (!cal.valid) {
         // A stored evdev range IS a stored user calibration, even when it left no
@@ -314,6 +316,24 @@ TouchCalibration load_touch_calibration() {
     if (!helix::is_calibration_valid(cal)) {
         spdlog::warn("[TouchCal] Stored calibration failed validation");
         cal.valid = false;
+        return cal;
+    }
+
+    // A rotated display turns the zero above from a faithful reading into a guess,
+    // and the record's real basis is unrecoverable. Drop it and let the user pay one
+    // recalibration instead of owning a screen they cannot navigate to fix. Asked of
+    // the display rather than `/display/rotate` for the reasons on
+    // display_rotation_degrees(); both backends call this from create_input_pointer(),
+    // after DisplayManager has applied rotation.
+    const int applied_rotation = display_rotation_degrees();
+    if (helix::should_invalidate_unstamped_calibration(has_capture_rotation, applied_rotation)) {
+        spdlog::warn("[TouchCal] Discarding a stored calibration that records no capture "
+                     "rotation on a {}°-rotated display - recalibration required "
+                     "(prestonbrown/helixscreen#1394)",
+                     applied_rotation);
+        cal.valid = false;
+        cfg->set<bool>("/input/calibration/valid", false);
+        cfg->save();
         return cal;
     }
 
