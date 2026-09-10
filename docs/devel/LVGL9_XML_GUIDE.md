@@ -1255,6 +1255,67 @@ Many widgets have styleable parts:
 | `items` | dropdown, roller |
 | `scrollbar` | Scrollable containers |
 
+### Transitions
+
+A style can animate a property change between states instead of snapping to it,
+in either of two spellings.
+
+**Longhand** — four separate attributes:
+
+```xml
+<style name="t" transition_props="opa|transform_scale_x"
+       transition_duration="180" transition_easing="ease_out"
+       transition_delay="20"/>
+```
+
+**Shorthand** — one CSS-style attribute, `transition="<props> <duration> [easing] [delay]"`:
+
+```xml
+<style name="t" transition="opa|transform_scale_x 200ms ease_out 30ms"/>
+
+<!-- easing and delay are both optional -->
+<style name="t" transition="opa 90"/>
+```
+
+`<props>` is `|`-separated (never `,` or space), duration and delay are milliseconds
+(a trailing `ms` is accepted and ignored), and easing is one of:
+
+| Easing | | |
+|--------|--|--|
+| `linear` (default) | `ease_in` | `ease_out` |
+| `ease_in_out` | `overshoot` | `bounce` |
+| `step` | | |
+
+The two spellings can combine on one `<style>` element; a longhand attribute always
+wins its own field over the shorthand, whichever attribute the XML happens to list
+first:
+
+```xml
+<!-- duration is 55, easing is still ease_out - the shorthand's duration is
+     shadowed by the explicit longhand attribute, not overwritten by it -->
+<style name="t" transition="opa 200ms ease_out" transition_duration="55"/>
+```
+
+Three things about where a transition takes effect are not guessable from the
+syntax:
+
+- **Put `transition` on the base style, not the state-specific one.** A transition
+  fires when a widget enters a new state, and only the style that applies to the
+  state being *entered* is scanned for a `transition`/`transition_*` attribute — a
+  `<style selector="pressed">` naming the transition never sees it apply, because
+  by the time `pressed` is entered LVGL is looking at what `pressed` declares, not
+  what the base style declares.
+- **The state-specific style must still set the animated property itself.** Two
+  equal endpoints are a silent no-op — there is nothing to interpolate — and this
+  bites `text_opa` in particular, since it is inheritable: a value set on a parent
+  reads as already applied to a child that never set it locally, so the child's
+  state style must set `text_opa` explicitly even though it "already has" that
+  opacity by inheritance.
+- **`LV_STATE_CHECKED` carries a themed background on buttons.** A transition on a
+  checked button's `bg_color`/`bg_opa` fights the theme's own checked-state style.
+  Prefer putting checked-state transitions on labels, or override the button's
+  background explicitly in the checked style.
+
 ### Theme Colors (C++ API)
 
 ```cpp
