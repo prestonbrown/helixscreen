@@ -231,6 +231,15 @@ void NotificationHistoryPanel::handle_history_version_change(int32_t version) {
         return;
     }
     last_applied_history_version_ = version;
+
+    // A hidden panel is not destroyed (NavigationManager::go_back() only hides
+    // the overlay), so the observer stays attached and would otherwise rebuild
+    // an invisible list and mark it read. setup() already does an unconditional
+    // refresh() on every real (re)open, which catches up on anything that
+    // arrived while hidden.
+    if (!panel_ || lv_obj_has_flag(panel_, LV_OBJ_FLAG_HIDDEN)) {
+        return;
+    }
     refresh();
 }
 
