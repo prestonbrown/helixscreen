@@ -387,10 +387,6 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(modal_target_temp, DEFAULT_DRYER_TEMP_C, subjects_, register_xml);
     INIT_SUBJECT_INT(modal_duration_min, DEFAULT_DRYER_DURATION_MIN, subjects_, register_xml);
 
-    // Dryer humidity and info bar visibility subjects
-    INIT_SUBJECT_STRING(dryer_humidity_text, "---", subjects_, register_xml);
-    INIT_SUBJECT_INT(dryer_info_visible, 0, subjects_, register_xml);
-
     // Currently Loaded display subjects (for reactive UI binding)
     // These subjects need ams_ prefix for XML but member vars don't have it
     lv_subject_init_string(&current_material_text_, current_material_text_buf_, nullptr,
@@ -785,10 +781,6 @@ void AmsState::register_xml_subject_names() {
     // Dryer modal editing subjects
     helix::xml::register_subject_in_current_scope("modal_target_temp", &modal_target_temp_);
     helix::xml::register_subject_in_current_scope("modal_duration_min", &modal_duration_min_);
-
-    // Dryer humidity and info bar visibility subjects
-    helix::xml::register_subject_in_current_scope("dryer_humidity_text", &dryer_humidity_text_);
-    helix::xml::register_subject_in_current_scope("dryer_info_visible", &dryer_info_visible_);
 
     // Currently Loaded display subjects
     lv_xml_register_subject(nullptr, "ams_current_material_text", &current_material_text_);
@@ -2678,21 +2670,6 @@ void AmsState::sync_dryer_from_backend() {
     spdlog::trace("[AMS State] Synced dryer - supported={}, active={}, temp={}→{}°C, {}min left",
                   dryer.supported, dryer.active, static_cast<int>(dryer.current_temp_c),
                   static_cast<int>(dryer.target_temp_c), dryer.remaining_min);
-
-    // Update info bar visibility: show only when dryer is supported.
-    // Humidity is displayed as part of the dryer bar, so it's hidden too when no dryer.
-    int new_visible = (lv_subject_get_int(&dryer_supported_) != 0) ? 1 : 0;
-    if (lv_subject_get_int(&dryer_info_visible_) != new_visible) {
-        lv_subject_set_int(&dryer_info_visible_, new_visible);
-    }
-}
-
-lv_subject_t* AmsState::get_dryer_humidity_text_subject() {
-    return &dryer_humidity_text_;
-}
-
-lv_subject_t* AmsState::get_dryer_info_visible_subject() {
-    return &dryer_info_visible_;
 }
 
 void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {

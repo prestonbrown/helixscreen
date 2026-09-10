@@ -969,13 +969,6 @@ class AmsState {
         return &dryer_time_text_;
     }
 
-    /// Get subject for formatted dryer humidity text (e.g., "35%" or "---")
-    [[nodiscard]] lv_subject_t* get_dryer_humidity_text_subject();
-
-    /// Get subject for dryer info bar visibility (1 = show, 0 = hide)
-    /// Shows when dryer_supported OR humidity sensor exists
-    [[nodiscard]] lv_subject_t* get_dryer_info_visible_subject();
-
     /// Select which AMS unit the scalar dryer subjects mirror (the opened unit).
     void set_dryer_mirror_unit(int unit);
 
@@ -1926,11 +1919,6 @@ class AmsState {
     char dryer_target_temp_text_buf_[16];
     lv_subject_t dryer_time_text_;
     char dryer_time_text_buf_[32];
-
-    // Dryer humidity and info bar visibility subjects
-    lv_subject_t dryer_humidity_text_;
-    char dryer_humidity_text_buf_[8]; ///< "35%" or "---"
-    lv_subject_t dryer_info_visible_; ///< 1 when info bar should show
 
     // Dryer modal editing subjects (user-adjustable values)
     lv_subject_t modal_target_temp_;  ///< Modal's target temp in °C (raw int subject)
