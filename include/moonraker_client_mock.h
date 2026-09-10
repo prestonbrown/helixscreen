@@ -5,6 +5,7 @@
 
 #include "moonraker_client.h"
 #include "moonraker_types.h"
+#include "simulated_clock.h"
 
 #include <atomic>
 #include <chrono>
@@ -137,7 +138,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * Affects both thermal simulation and print progress rates.
      * A factor of 10.0 means a 30-minute print completes in 3 minutes wall-clock.
      *
-     * @param factor Speed multiplier (clamped to [0.1, 10000])
+     * @param factor Speed multiplier (clamped to
+     *               [helix::sim::MIN_SPEED, helix::sim::MAX_SPEED])
      */
     void set_simulation_speedup(double factor);
 
@@ -146,6 +148,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return Current speedup multiplier (1.0 = real-time)
      */
     double get_simulation_speedup() const;
+
+    /**
+     * @brief This instance's speedup as the shared simulated-time scale.
+     *
+     * Per-instance rather than helix::sim::SimSpeed::global(): two mocks in one
+     * test process each carry their own factor, and set_simulation_speedup()
+     * changes one of them mid-run.
+     */
+    [[nodiscard]] helix::sim::SimSpeed sim_speed() const;
 
     /**
      * @brief Arm a capture replay through the real dispatch paths
