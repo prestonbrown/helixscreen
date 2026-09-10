@@ -13,6 +13,33 @@ set -uo pipefail
 
 CLAIM_DIR="${HELIX_CLAIM_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")/.helix-claims}"
 
+# A worktree has three names people reach for: its directory basename, the
+# branch checked out in it, and "main". Free-form strings let two sessions claim
+# one tree under two names and both read FREE - an advisory lock that fails OPEN.
+# Resolve every spelling to the directory basename, which is unique per tree.
+canon() {
+    case "$1" in
+        worktree:*) ;;
+        *) printf '%s' "$1"; return;;
+    esac
+    local want=${1#worktree:} path branch base match=""
+    [ -z "$want" ] && { printf 'worktree:%s' "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")")"; return; }
+    while read -r key val; do
+        case "$key" in
+            worktree) path=$val; base=$(basename "$path");;
+            branch)   branch=${val#refs/heads/}
+                      [ "$want" = "$base" ] || [ "$want" = "$branch" ] && match=$base;;
+        esac
+    done <<EOF
+$(git worktree list --porcelain 2>/dev/null)
+EOF
+    # A detached or branchless tree still matches on basename alone.
+    [ -z "$match" ] && for path in $(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2}'); do
+        [ "$want" = "$(basename "$path")" ] && match=$(basename "$path")
+    done
+    printf 'worktree:%s' "${match:-$want}"
+}
+
 die() { printf 'helix-claim: %s\n' "$1" >&2; exit 2; }
 slug() { printf '%s' "$1" | tr '/:' '__' | tr -cd '[:alnum:]_.-'; }
 
@@ -69,6 +96,7 @@ cmd=${1:-}; shift 2>/dev/null || true
 case "$cmd" in
 take)
     res=${1:-}; op=${2:-}; shift 2 2>/dev/null || true
+    res=$(canon "$res")
     [ -n "$res" ] && [ -n "$op" ] || die "usage: helix-claim take <resource> <op> [--note X] [--pid N]"
     note=""; pid=""
     while [ $# -gt 0 ]; do
@@ -101,7 +129,7 @@ EOF
     printf 'CLAIMED %s (pid %s)\n' "$res" "$pid"
     ;;
 check)
-    res=${1:-}; [ -n "$res" ] || die "usage: helix-claim check <resource>"
+    res=$(canon "${1:-}"); [ -n "$res" ] || die "usage: helix-claim check <resource>"
     f="$CLAIM_DIR/$(slug "$res").json"
     s=$(state_of "$f")
     [ "$s" = "FREE" ] && { printf 'FREE       %s\n' "$res"; exit 0; }
@@ -151,7 +179,7 @@ jobs)
     printf '%s\n' "$j"
     ;;
 release)
-    res=${1:-}; [ -n "$res" ] || die "usage: helix-claim release <resource>"
+    res=$(canon "${1:-}"); [ -n "$res" ] || die "usage: helix-claim release <resource>"
     f="$CLAIM_DIR/$(slug "$res").json"
     [ -f "$f" ] || { printf 'not claimed: %s\n' "$res"; exit 0; }
     rm -f "$f" && printf 'RELEASED %s\n' "$res"

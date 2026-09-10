@@ -136,6 +136,11 @@ The protocol is global CLAUDE.md § Peer Sessions. What is shared here:
   make -j"$(scripts/helix-claim jobs)"           # a fair -j, not a guess
   ```
 
+  Resource names for worktrees are **derived, not trusted**: `worktree:main`,
+  `worktree:helixscreen` and a bare `worktree:` all resolve to the same tree, matched by
+  directory basename or checked-out branch. Free-form names let two sessions claim one tree
+  under two spellings and both read FREE, and an advisory lock must never fail open.
+
   Liveness is **derived from process state, never asserted**: a claim records its owner's pid
   and that pid's kernel start-time, so a crashed owner reads STALE on its own, pid reuse
   cannot fake LIVE, and nothing needs cleaning up. Use it for `worktree:<name>` (merge,
