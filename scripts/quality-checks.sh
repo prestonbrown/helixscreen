@@ -1383,9 +1383,15 @@ if [ "$STAGED_ONLY" = true ]; then
     #
     # Bounded -j: a bare `-j` takes every core, and this build runs from a
     # commit hook, so on a box with several sessions committing it is N
-    # unbounded builds at once rather than one. HELIX_QC_JOBS raises it for a
-    # box you have to yourself.
-    if make SKIP_COMPILE_COMMANDS=1 -j"${HELIX_QC_JOBS:-6}" >/dev/null 2>&1; then
+    # unbounded builds at once rather than one.
+    #
+    # The share comes from `helix-claim jobs`, which counts distinct trees with
+    # live compilers, folds in live build claims and caps by MemAvailable - a
+    # measured share rather than a guessed constant. It answers in ~0.1s and
+    # returns a usable number even on bad input; 6 is the fallback for a tree
+    # without the script, and HELIX_QC_JOBS overrides both.
+    QC_JOBS="${HELIX_QC_JOBS:-$(scripts/helix-claim jobs 2>/dev/null || echo 6)}"
+    if make SKIP_COMPILE_COMMANDS=1 -j"$QC_JOBS" >/dev/null 2>&1; then
       section_time $SECTION_START
       echo ""
       echo "✅ Build successful"
