@@ -128,7 +128,7 @@
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
-      <lv_obj name="nav_controls_icons" clickable="false" style_pad_all="0">
+      <lv_obj name="nav_controls_icons" width="100%" height="100%" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
         <!-- Active icon (accent) - full opacity/scale when on controls panel -->
         <icon name="nav_icon_controls_active"
@@ -161,7 +161,7 @@
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
-      <lv_obj name="nav_filament_icons" clickable="false" style_pad_all="0">
+      <lv_obj name="nav_filament_icons" width="100%" height="100%" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
         <!-- Active icon (accent) - full opacity/scale when on filament panel -->
         <icon name="nav_icon_filament_active"
