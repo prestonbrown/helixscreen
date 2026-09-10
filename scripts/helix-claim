@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# Advisory claims on resources shared between concurrent agent sessions.
+#
+# Liveness is DERIVED from process state, never asserted by the claim itself: a
+# claim names a pid plus that pid's kernel start-time, so a crashed owner's
+# claim reads STALE with no heartbeat, timeout or cleanup pass. Start-time is
+# what makes it safe against pid reuse.
+#
+# Advisory by design. It stops a reader reaching a confident wrong conclusion
+# about work in progress; it does not stop a writer that ignores it.
+
+set -uo pipefail
+
+CLAIM_DIR="${HELIX_CLAIM_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")/.helix-claims}"
+
+die() { printf 'helix-claim: %s\n' "$1" >&2; exit 2; }
+slug() { printf '%s' "$1" | tr '/:' '__' | tr -cd '[:alnum:]_.-'; }
+
+# Field 22 of /proc/PID/stat. comm can contain spaces and parens, so count from
+# the last ')' rather than splitting the whole line.
+pid_starttime() {
+    local stat; stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    printf '%s' "${stat##*) }" | awk '{print $20}'
+}
+
+# A Bash tool call is a transient shell, so its own pid is useless as an owner.
+# Walk to the nearest `claude` ancestor, which lives as long as the session.
+session_pid() {
+    local p=$$ ppid comm hops=0
+    while [ "$p" -gt 1 ] && [ "$hops" -lt 40 ]; do
+        comm=$(cat "/proc/$p/comm" 2>/dev/null) || break
+        [ "$comm" = "claude" ] && { printf '%s' "$p"; return 0; }
+        # /proc/PID/stat: comm may hold spaces and parens, so cut through the
+        # final ") "; the remaining fields begin at state, making ppid $2.
+        ppid=$(sed 's/.*) //' "/proc/$p/stat" 2>/dev/null | awk '{print $2}')
+        case "$ppid" in ''|*[!0-9]*) break;; esac
+        [ "$ppid" = "$p" ] && break
+        p=$ppid; hops=$((hops+1))
+    done
+    printf '%s' "$PPID"
+}
+
+json_get() { sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" <<<"$1" | head -1; }
+
+# LIVE = owner process still exists AND is the same process that claimed.
+state_of() {
+    local f=$1 body pid st now
+    [ -f "$f" ] || { printf 'FREE'; return; }
+    body=$(tr -d '\n' < "$f")
+    pid=$(json_get "$body" pid); st=$(json_get "$body" pid_start)
+    [ -z "$pid" ] && { printf 'LIVE'; return; }          # pid-less claim: manual release only
+    kill -0 "$pid" 2>/dev/null || { printf 'STALE'; return; }
+    now=$(pid_starttime "$pid") || { printf 'STALE'; return; }
+    [ "$now" = "$st" ] && printf 'LIVE' || printf 'STALE'   # pid reused => stale
+}
+
+describe() {
+    local f=$1 body
+    body=$(tr -d '\n' < "$f")
+    printf '%-10s %-26s %s\n  owner=%s pid=%s since=%s\n' \
+        "$(state_of "$f")" "$(json_get "$body" resource)" "$(json_get "$body" op)" \
+        "$(json_get "$body" session)" "$(json_get "$body" pid)" "$(json_get "$body" started)"
+    local note; note=$(json_get "$body" note)
+    [ -n "$note" ] && printf '  note=%s\n' "$note"
+    return 0
+}
+
+cmd=${1:-}; shift 2>/dev/null || true
+case "$cmd" in
+take)
+    res=${1:-}; op=${2:-}; shift 2 2>/dev/null || true
+    [ -n "$res" ] && [ -n "$op" ] || die "usage: helix-claim take <resource> <op> [--note X] [--pid N]"
+    note=""; pid=""
+    while [ $# -gt 0 ]; do
+        case $1 in
+            --note) note=${2:-}; shift 2;;
+            --pid)  pid=${2:-};  shift 2;;
+            *) die "unknown option: $1";;
+        esac
+    done
+    [ -n "$pid" ] || pid=$(session_pid)
+    mkdir -p "$CLAIM_DIR" || die "cannot create $CLAIM_DIR"
+    f="$CLAIM_DIR/$(slug "$res").json"
+    if [ "$(state_of "$f")" = "LIVE" ]; then
+        printf 'REFUSED: already claimed\n'; describe "$f"; exit 1
+    fi
+    tmp="$f.$$.tmp"
+    cat > "$tmp" <<EOF
+{
+  "resource": "$res",
+  "op": "$op",
+  "session": "${HELIX_SESSION_NAME:-$(hostname)-$$}",
+  "pid": $pid,
+  "pid_start": "$(pid_starttime "$pid")",
+  "cwd": "$PWD",
+  "started": "$(date -Is)",
+  "note": "$note"
+}
+EOF
+    mv -f "$tmp" "$f" || die "cannot write $f"
+    printf 'CLAIMED %s (pid %s)\n' "$res" "$pid"
+    ;;
+check)
+    res=${1:-}; [ -n "$res" ] || die "usage: helix-claim check <resource>"
+    f="$CLAIM_DIR/$(slug "$res").json"
+    s=$(state_of "$f")
+    [ "$s" = "FREE" ] && { printf 'FREE       %s\n' "$res"; exit 0; }
+    describe "$f"
+    [ "$s" = "LIVE" ] && exit 1 || exit 0
+    ;;
+list)
+    shopt -s nullglob
+    n=0
+    for f in "$CLAIM_DIR"/*.json; do describe "$f"; n=$((n+1)); done
+    [ "$n" = 0 ] && printf 'no claims\n'
+    ;;
+jobs)
+    # A fair -j, derived rather than guessed. Peers are counted from LIVE
+    # build: claims, and cross-checked against compilers actually running, so
+    # a session that never claimed is still counted.
+    ncpu=$(nproc)
+    shopt -s nullglob
+    peers=0
+    for f in "$CLAIM_DIR"/build_*.json; do
+        [ "$(state_of "$f")" = "LIVE" ] || continue
+        body=$(tr -d '\n' < "$f"); pid=$(json_get "$body" pid)
+        [ "$pid" = "$(session_pid)" ] || peers=$((peers+1))
+    done
+    # Claims undercount: a session that never claimed still burns cores. Count
+    # DISTINCT trees with live compilers - that is the real number of competing
+    # builds, where a raw cc1plus count would just be one build's -j.
+    trees=$(for q in $(pgrep -x cc1plus 2>/dev/null; pgrep -x make 2>/dev/null); do
+                readlink "/proc/$q/cwd" 2>/dev/null
+            done | sed 's#\(/\.worktrees/[^/]*\).*#\1#; s#^\(/[^/]*/[^/]*/[^/]*/[^/]*\)$#\1#' \
+              | sort -u | grep -c . )
+    running=$(pgrep -x cc1plus 2>/dev/null | wc -l)
+    [ "$trees" -gt "$peers" ] && peers=$trees
+    avail_kb=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)
+    j=$(( ncpu / (peers + 1) ))
+    # Each cc1plus peaks around 1GB on this tree; never promise more parallel
+    # compiles than memory can hold.
+    mem_cap=$(( avail_kb / 1048576 ))
+    [ "$mem_cap" -lt 1 ] && mem_cap=1
+    [ "$j" -gt "$mem_cap" ] && j=$mem_cap
+    [ "$j" -lt 2 ] && j=2
+    [ "$j" -gt "$ncpu" ] && j=$ncpu
+    if [ "${1:-}" = "-v" ]; then
+        printf 'ncpu=%s peers=%s(claimed+inferred) cc1plus=%s availGB=%s -> -j%s\n' \
+            "$ncpu" "$peers" "$running" "$mem_cap" "$j" >&2
+    fi
+    printf '%s\n' "$j"
+    ;;
+release)
+    res=${1:-}; [ -n "$res" ] || die "usage: helix-claim release <resource>"
+    f="$CLAIM_DIR/$(slug "$res").json"
+    [ -f "$f" ] || { printf 'not claimed: %s\n' "$res"; exit 0; }
+    rm -f "$f" && printf 'RELEASED %s\n' "$res"
+    ;;
+*)
+    cat <<'USAGE'
+helix-claim - advisory claims on resources shared between agent sessions
+
+  take <resource> <op> [--note X] [--pid N]   claim; refuses if a LIVE claim exists
+  check <resource>                            FREE | LIVE | STALE (exit 1 if LIVE)
+  list                                        all claims with derived liveness
+  release <resource>                          drop your claim
+
+Resources are free-form; the useful ones are
+  worktree:<name>  build:<name>  device:<printer>  gh:issues  socket:<path>
+
+LIVE means the owning process still exists and is the same process that claimed
+it. A crashed owner reads STALE automatically - there is nothing to clean up.
+USAGE
+    exit 2;;
+esac

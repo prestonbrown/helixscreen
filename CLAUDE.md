@@ -124,6 +124,35 @@ The protocol is global CLAUDE.md § Peer Sessions. What is shared here:
 - **`build/bin/helix-tests` and `helix-screen` can be one inode across worktrees**: whoever linked last set the bytes both trees run. Compare `stat` inodes before trusting a control run against a sibling tree.
 - **The default `ctl` socket is per-user, not per-instance.** Pin it (box above) or you drive a peer's app and it reports success.
 - **One session per physical printer at a time.** Ask who holds a device before pointing anything at it.
+- **Claim before you take a shared resource: `scripts/helix-claim`.** Plain shell, no Claude
+  dependency — opencode, a human or a script can use it, and `AGENTS.md` is a symlink to this
+  file so every agent reads the same rule.
+
+  ```bash
+  scripts/helix-claim check worktree:main        # FREE | LIVE | STALE  (exit 1 if LIVE)
+  scripts/helix-claim take device:k2plus "hw verify" --note "moves the toolhead"
+  scripts/helix-claim list                       # everything, with derived liveness
+  scripts/helix-claim release device:k2plus
+  make -j"$(scripts/helix-claim jobs)"           # a fair -j, not a guess
+  ```
+
+  Liveness is **derived from process state, never asserted**: a claim records its owner's pid
+  and that pid's kernel start-time, so a crashed owner reads STALE on its own, pid reuse
+  cannot fake LIVE, and nothing needs cleaning up. Use it for `worktree:<name>` (merge,
+  rebase, long commit), `build:<name>`, `device:<printer>`, `gh:issues`, `socket:<path>`.
+
+  **Before concluding anything about someone else's work, run `check`.** A merge mid-commit
+  and an abandoned one look identical in the tree — same `MERGE_HEAD`, same resolved index,
+  same frozen mtime. A `git commit` here can hold the shared tree for 40 minutes while its
+  hook builds.
+
+  `.githooks/pre-commit` claims the tree automatically for a merge and prints **nothing**
+  unless another session already holds it, so ordinary human git use stays quiet. Advisory by
+  design; `HELIX_CLAIM_STRICT=1` makes it refuse instead of warn.
+
+- **`scripts/helix-claim jobs` beats a hardcoded `-j`.** It counts distinct trees with live
+  compilers (a raw `cc1plus` count is just one build's `-j`), folds in live `build:` claims so
+  an unclaimed builder still counts, and caps by `MemAvailable`.
 - **Never `pkill helix-screen`**, nor `pkill -x helix-screen`, nor `pkill -f`. The name is shared, so it reaps every other session's instance, not yours. The victim sees only `[Application] SIGTERM — fast exit` with no cause, so a long mock or `ctl` run dies looking like a crash. Kill the PID you captured at launch; if you lost it, resolve it from your own socket: `for p in $(pgrep -x helix-screen); do grep -qz "$HELIX_SOCK" /proc/$p/cmdline && echo $p; done`.
 
 ---

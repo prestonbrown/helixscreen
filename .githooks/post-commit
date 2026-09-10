@@ -1,0 +1,6 @@
+#!/bin/sh
+# Drop this tree's merge claim once the commit lands. A claim left behind by a
+# killed commit reads STALE on its own, so this is tidiness, not correctness.
+[ -x scripts/helix-claim ] || exit 0
+scripts/helix-claim release "worktree:$(basename "$(git rev-parse --show-toplevel)")" >/dev/null 2>&1
+exit 0
