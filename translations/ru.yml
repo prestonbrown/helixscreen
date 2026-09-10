@@ -3075,8 +3075,8 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Дождитесь завершения текущей операции с филаментом
   Wait until the print finishes: Дождитесь завершения печати
-  Waiting for: ''
   Waiting for Moonraker...: Ожидание Moonraker...
+  'Waiting for %s to finish. One heater at a time.': ''
   Waiting for another box to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: Ожидание нагрева
     стола для точной калибровки.
@@ -3241,7 +3241,6 @@ translations:
   started: запущено
   steppers: шаговые двигатели
   tall: высотой
-  to finish. One heater at a time.: ''
   tool(s): инструмент(ы)
   used: использ.
   v%s available: Доступна v%s

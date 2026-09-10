@@ -572,9 +572,11 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
             snprintf(queued_banner_buf_, sizeof(queued_banner_buf_), "%s",
                      lv_tr("Waiting for another box to finish."));
         } else {
-            snprintf(queued_banner_buf_, sizeof(queued_banner_buf_), "%s %s %s",
-                     lv_tr("Waiting for"), blocker.c_str(),
-                     lv_tr("to finish. One heater at a time."));
+            // One key with the name inside it, not two fragments concatenated around
+            // it: a translator has to move the name to build a sentence in a language
+            // that does not put it in the middle.
+            snprintf(queued_banner_buf_, sizeof(queued_banner_buf_),
+                     lv_tr("Waiting for %s to finish. One heater at a time."), blocker.c_str());
         }
     } else {
         queued_banner_buf_[0] = '\0';

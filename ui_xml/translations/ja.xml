@@ -2749,7 +2749,7 @@
   <translation tag="WPA3" ja="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" ja="現在のフィラメント操作が完了するまでお待ちください"/>
   <translation tag="Wait until the print finishes" ja="印刷が完了するまでお待ちください"/>
-  <translation tag="Waiting for"/>
+  <translation tag="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
   <translation tag="Waiting for another box to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
@@ -2892,7 +2892,6 @@
   <translation tag="started" ja="開始"/>
   <translation tag="steppers" ja="ステッパー"/>
   <translation tag="tall" ja="高さ"/>
-  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" ja="ツール"/>
   <translation tag="used" ja="使用"/>
   <translation tag="v%s available" ja="v%s が利用可能です"/>

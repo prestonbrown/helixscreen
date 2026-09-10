@@ -2749,7 +2749,7 @@
   <translation tag="WPA3" es="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" es="Espere a que termine la operación de filamento actual"/>
   <translation tag="Wait until the print finishes" es="Espere a que termine la impresión"/>
-  <translation tag="Waiting for"/>
+  <translation tag="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." es="Esperando a Moonraker..."/>
   <translation tag="Waiting for another box to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." es="Esperando que la cama alcance la temperatura para una calibración precisa."/>
@@ -2892,7 +2892,6 @@
   <translation tag="started" es="iniciado"/>
   <translation tag="steppers" es="motores paso a paso"/>
   <translation tag="tall" es="de alto"/>
-  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" es="herramienta(s)"/>
   <translation tag="used" es="usado"/>
   <translation tag="v%s available" es="v%s disponible"/>
