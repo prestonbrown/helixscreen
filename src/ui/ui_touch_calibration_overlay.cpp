@@ -356,10 +356,7 @@ void TouchCalibrationOverlay::show(CompletionCallback callback) {
     // early in startup - a display rotated since then would put every crosshair
     // at the wrong ratio and bias the solve. end() unwinds it however this
     // session finishes.
-    controller_.begin(helix::ui::TouchCalibrationPolicy{
-        /*interactive_verify=*/true,
-        /*commit_immediately=*/true,
-    });
+    controller_.begin();
     unattended_verify_rounds_ = 0;
     hold_repeat_count_ = 0;
 
@@ -525,8 +522,8 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
     }
 
     // Persist and install. The controller decides between the affine-only shape and
-    // the evdev-range shape, clears the other, and applies the same validity test
-    // the wizard does, so the two cannot drift apart on any of it (#1259, #1276).
+    // the evdev-range shape, clears the other, and rejects a matrix the residual check
+    // fails - one predicate, shared with the wizard step (#1259, #1276).
     const helix::ui::CommitOutcome outcome = controller_.commit();
     if (outcome == helix::ui::CommitOutcome::NoCalibration) {
         spdlog::error("[{}] No valid calibration to accept", get_name());

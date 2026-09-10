@@ -46,16 +46,6 @@ enum class CommitOutcome {
     Applied,       ///< Written and live on the device
 };
 
-/// Behaviour that genuinely differs between the two entry points.
-struct TouchCalibrationPolicy {
-    /// Let the user test the matrix and press Accept. The wizard accepts as soon
-    /// as VERIFY is reached, so it never runs the interactive verify phase.
-    bool interactive_verify = true;
-
-    /// Persist at accept time. The wizard defers to its own Next button instead.
-    bool commit_immediately = true;
-};
-
 /**
  * @brief The session logic behind a touch calibration, shared by both entry points
  *
@@ -89,7 +79,7 @@ class TouchCalibrationController {
     /// shown many times would otherwise lay its targets out against whatever the
     /// display measured at startup, and a rotation since then puts every crosshair
     /// at the wrong ratio and biases the solve.
-    void begin(TouchCalibrationPolicy policy);
+    void begin();
 
     /// Close the session and put the device back the way it was. Idempotent: the
     /// overlay unwinds from two lifecycle hooks and both call this.
@@ -112,9 +102,6 @@ class TouchCalibrationController {
 
     /// Persist the calibration and close the session.
     CommitOutcome commit();
-
-    /// Abandon the session without persisting.
-    void abort();
 
     /// Which calibration target is being captured: 0, 1 or 2, or -1 when none is
     /// (idle, verifying, or done). The views place their own crosshair; this is the
@@ -153,7 +140,6 @@ class TouchCalibrationController {
     std::unique_ptr<TouchCalibrationPanel> panel_;
     TouchCalibrationSession session_;
     ITouchCalibrationView* view_ = nullptr;
-    TouchCalibrationPolicy policy_{};
     ICalibrationSink* sink_override_ = nullptr;
 
     TouchCalibration pending_calibration_{};
