@@ -6559,9 +6559,24 @@ _sweep_uninstalling_sentinel() {
 
 # Re-enable services that were disabled during installation
 # Reads the state file and reverses each recorded disable action
+#
+# Publishes what it found, because $INSTALL_DIR (and the state file with it) is
+# gone by the time the standalone uninstaller restores the previous screen UI:
+#
+#   HELIX_DISABLED_RECORD_FOUND  1 when a state file existed at all. A run that
+#                                finds one knows exactly what this install
+#                                displaced, and must not go looking for more.
+#   HELIX_REENABLED_UNITS        recorded systemd unit names, space separated
+#   HELIX_REENABLED_SCRIPTS      recorded sysv-chmod targets, space separated
 reenable_disabled_services() {
     local state_file="${INSTALL_DIR}/config/.disabled_services"
+    # shellcheck disable=SC2034  # consumed by reenable_previous_ui (bundle-uninstaller.sh)
+    HELIX_DISABLED_RECORD_FOUND=0
+    HELIX_REENABLED_UNITS=""
+    HELIX_REENABLED_SCRIPTS=""
     [ -f "$state_file" ] || return 0
+    # shellcheck disable=SC2034  # consumed by reenable_previous_ui (bundle-uninstaller.sh)
+    HELIX_DISABLED_RECORD_FOUND=1
 
     log_info "Re-enabling previously disabled services..."
     while IFS= read -r entry; do
@@ -6575,11 +6590,13 @@ reenable_disabled_services() {
             systemd)
                 log_info "Re-enabling systemd service: $target"
                 $SUDO systemctl enable "$target" 2>/dev/null || true
+                HELIX_REENABLED_UNITS="${HELIX_REENABLED_UNITS} ${target}"
                 ;;
             sysv-chmod)
                 if [ -f "$target" ]; then
                     log_info "Re-enabling init script: $target"
                     $SUDO chmod +x "$target" 2>/dev/null || true
+                    HELIX_REENABLED_SCRIPTS="${HELIX_REENABLED_SCRIPTS} ${target}"
                 fi
                 ;;
         esac
@@ -7369,6 +7386,85 @@ clean_old_installation() {
 # Main orchestration
 # ============================================
 
+# True when a recorded disable target names one of the screen UIs in
+# PREVIOUS_UIS. The .disabled_services record also carries Wayland compositors,
+# stock vendor daemons and bare client binaries; those come back enabled, but
+# none of them is a screen to start on the way out.
+# Args: $1 = recorded target (systemd unit name or path)
+_is_previous_ui_target() {
+    local ui
+    for ui in $PREVIOUS_UIS; do
+        case "$1" in *"$ui"*) return 0 ;; esac
+    done
+    return 1
+}
+
+# Start one restored UI, or leave it for the next boot if a UI is already up.
+# reenable_disabled_services() has already re-enabled it; this is what saves the
+# user a reboot. Args: $1 = label, $2.. = the command that starts it
+_start_restored_ui() {
+    local label="$1"
+    shift
+    if [ "$found_ui" = true ]; then
+        log_info "Re-enabled: $label (not started, another UI already running)"
+        return 0
+    fi
+    if "$@" 2>/dev/null; then
+        log_success "Re-enabled and started: $label"
+    else
+        log_warn "Re-enabled but failed to start: $label"
+        log_warn "You may need to reboot"
+    fi
+    found_ui=true
+}
+
+# Restore exactly the screen UIs this install recorded disabling.
+_restore_recorded_previous_uis() {
+    local target
+
+    for target in ${HELIX_REENABLED_SCRIPTS:-}; do
+        [ "$target" = "$PREVIOUS_UI_SCRIPT" ] && continue
+        _is_previous_ui_target "$target" || continue
+        [ -f "$target" ] || continue
+        log_info "Found previous UI: $target"
+        _start_restored_ui "$target" "$target" start
+    done
+
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        for target in ${HELIX_REENABLED_UNITS:-}; do
+            _is_previous_ui_target "$target" || continue
+            log_info "Found previous UI (systemd): $target"
+            _start_restored_ui "$target" $SUDO systemctl start "$target"
+        done
+    fi
+}
+
+# Fallback for an install with no .disabled_services record: find any screen UI
+# on the host and put it back. Cannot tell a UI we disabled from one the user
+# had already switched off, so it only runs when there is no record to consult.
+_scan_for_previous_uis() {
+    local ui initscript
+
+    for ui in $PREVIOUS_UIS; do
+        for initscript in /etc/init.d/S*${ui}* /opt/config/mod/.root/S*${ui}*; do
+            [ "$initscript" = "$PREVIOUS_UI_SCRIPT" ] && continue
+            if [ -f "$initscript" ] 2>/dev/null; then
+                log_info "Found previous UI: $initscript"
+                $SUDO chmod +x "$initscript" 2>/dev/null || true
+                _start_restored_ui "$initscript" "$initscript" start
+            fi
+        done
+
+        if [ "$INIT_SYSTEM" = "systemd" ]; then
+            if systemctl list-unit-files "${ui}.service" >/dev/null 2>&1; then
+                log_info "Found previous UI (systemd): $ui"
+                $SUDO systemctl enable "$ui" 2>/dev/null || true
+                _start_restored_ui "$ui" $SUDO systemctl start "$ui"
+            fi
+        fi
+    done
+}
+
 # Re-enable previous UI (extended version with scanning)
 reenable_previous_ui() {
     log_info "Looking for previous screen UI to re-enable..."
@@ -7439,42 +7535,17 @@ reenable_previous_ui() {
         fi
     fi
 
-    # Scan for other UIs we might have disabled
-    for ui in $PREVIOUS_UIS; do
-        for initscript in /etc/init.d/S*${ui}* /opt/config/mod/.root/S*${ui}*; do
-            [ "$initscript" = "$PREVIOUS_UI_SCRIPT" ] && continue
-            if [ -f "$initscript" ] 2>/dev/null; then
-                log_info "Found previous UI: $initscript"
-                $SUDO chmod +x "$initscript" 2>/dev/null || true
-                if [ "$found_ui" = false ]; then
-                    if "$initscript" start 2>/dev/null; then
-                        log_success "Re-enabled and started: $initscript"
-                        found_ui=true
-                    else
-                        log_warn "Re-enabled but failed to start: $initscript"
-                        log_warn "You may need to reboot"
-                        found_ui=true
-                    fi
-                else
-                    log_info "Re-enabled: $initscript (not started, another UI already running)"
-                fi
-            fi
-        done
-
-        if [ "$INIT_SYSTEM" = "systemd" ]; then
-            if systemctl list-unit-files "${ui}.service" >/dev/null 2>&1; then
-                log_info "Found previous UI (systemd): $ui"
-                $SUDO systemctl enable "$ui" 2>/dev/null || true
-                if $SUDO systemctl start "$ui" 2>/dev/null; then
-                    log_success "Re-enabled and started: $ui"
-                    found_ui=true
-                else
-                    log_warn "Re-enabled but failed to start: $ui"
-                    found_ui=true
-                fi
-            fi
-        fi
-    done
+    # What this install displaced is the recorded set, so that is what comes
+    # back. Scanning the host instead switches a screen UI the user had already
+    # turned off before installing back ON at uninstall - the record is the only
+    # thing that tells the two cases apart. The scan stays as the fallback for an
+    # install that recorded nothing: one predating the state file, or one whose
+    # directory was removed by hand before the uninstaller could read it.
+    if [ "${HELIX_DISABLED_RECORD_FOUND:-0}" = "1" ]; then
+        _restore_recorded_previous_uis
+    else
+        _scan_for_previous_uis
+    fi
 
     # Re-enable tslib for ForgeX (if not already handled by uninstall_forgex)
     if [ -f "/opt/config/mod/.root/S35tslib" ]; then

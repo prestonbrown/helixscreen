@@ -60,9 +60,24 @@ _sweep_uninstalling_sentinel() {
 
 # Re-enable services that were disabled during installation
 # Reads the state file and reverses each recorded disable action
+#
+# Publishes what it found, because $INSTALL_DIR (and the state file with it) is
+# gone by the time the standalone uninstaller restores the previous screen UI:
+#
+#   HELIX_DISABLED_RECORD_FOUND  1 when a state file existed at all. A run that
+#                                finds one knows exactly what this install
+#                                displaced, and must not go looking for more.
+#   HELIX_REENABLED_UNITS        recorded systemd unit names, space separated
+#   HELIX_REENABLED_SCRIPTS      recorded sysv-chmod targets, space separated
 reenable_disabled_services() {
     local state_file="${INSTALL_DIR}/config/.disabled_services"
+    # shellcheck disable=SC2034  # consumed by reenable_previous_ui (bundle-uninstaller.sh)
+    HELIX_DISABLED_RECORD_FOUND=0
+    HELIX_REENABLED_UNITS=""
+    HELIX_REENABLED_SCRIPTS=""
     [ -f "$state_file" ] || return 0
+    # shellcheck disable=SC2034  # consumed by reenable_previous_ui (bundle-uninstaller.sh)
+    HELIX_DISABLED_RECORD_FOUND=1
 
     log_info "Re-enabling previously disabled services..."
     while IFS= read -r entry; do
@@ -76,11 +91,13 @@ reenable_disabled_services() {
             systemd)
                 log_info "Re-enabling systemd service: $target"
                 $SUDO systemctl enable "$target" 2>/dev/null || true
+                HELIX_REENABLED_UNITS="${HELIX_REENABLED_UNITS} ${target}"
                 ;;
             sysv-chmod)
                 if [ -f "$target" ]; then
                     log_info "Re-enabling init script: $target"
                     $SUDO chmod +x "$target" 2>/dev/null || true
+                    HELIX_REENABLED_SCRIPTS="${HELIX_REENABLED_SCRIPTS} ${target}"
                 fi
                 ;;
         esac
