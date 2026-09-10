@@ -128,9 +128,9 @@ struct OverlayWidths {
  * Landscape puts the bar on the leading edge as a full-height vertical strip,
  * so that is nav_width px. Portrait puts it along the bottom at width="100%"
  * (the nav_bar_portrait style in ui_xml/navigation_bar.xml), where it costs
- * an overlay nothing
- * horizontally — reserving nav_width there strands a column of dead backdrop
- * beside every overlay, 54px of 320 on the Waveshare 11.9".
+ * an overlay nothing horizontally — reserving nav_width there strands a
+ * column of dead backdrop beside every overlay, 54px of 320 on the
+ * Waveshare 11.9".
  *
  * The transient class's "you will return from this" gap follows the same
  * rule: it is spent on whichever axis the nav bar occupies. In landscape
