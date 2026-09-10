@@ -90,10 +90,10 @@
   <translation tag="= Tighten" zh="= 拧紧"/>
   <translation tag="A" zh="辅"/>
   <translation tag="A backup of %s is created before applying" zh="应用前会创建 %s 的备份"/>
-  <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover"/>
-  <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry"/>
+  <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" zh="无法恢复电机 IO 引脚。请重新为打印机上电以恢复"/>
+  <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" zh="无法写入电机参数。请重新为打印机上电后重试"/>
   <translation tag="A picture of your printer" zh="打印机的图片"/>
-  <translation tag="A spool may be tangled or the drive gear is jammed"/>
+  <translation tag="A spool may be tangled or the drive gear is jammed" zh="料盘可能缠绕，或驱动齿轮卡住"/>
   <translation tag="ABS" zh="ABS"/>
   <translation tag="ACCELEROMETERS" zh="加速度计"/>
   <translation tag="ACE Moonraker bridge not found. Install ace_status.py for full support." zh="未找到 ACE Moonraker 桥接。请安装 ace_status.py 以获得完整支持。"/>
@@ -316,7 +316,7 @@
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." zh="浏览 HelixScreen 的指南、配置参考和故障排除资源。"/>
   <translation tag="Brush nozzle" zh="刷洗喷嘴"/>
   <translation tag="Buffer Status" zh="缓冲区状态"/>
-  <translation tag="Buffer tube problem"/>
+  <translation tag="Buffer tube problem" zh="缓冲管故障"/>
   <translation tag="Build Volume: " zh="构建尺寸: "/>
   <translation tag="Bundle Uploaded" zh="捆绑包已上传"/>
   <translation tag="Button taps and navigation sounds" zh="按钮点击和导航声音"/>
@@ -336,9 +336,9 @@
   <translation tag="CALIBRATION" zh="校准"/>
   <translation tag="CAPABILITIES" zh="功能"/>
   <translation tag="CARTOGRAPHER" zh="CARTOGRAPHER"/>
-  <translation tag="CFS is busy"/>
-  <translation tag="CFS motor overloaded"/>
-  <translation tag="CFS system error"/>
+  <translation tag="CFS is busy" zh="CFS 正忙"/>
+  <translation tag="CFS motor overloaded" zh="CFS 电机过载"/>
+  <translation tag="CFS system error" zh="CFS 系统错误"/>
   <translation tag="CHANGED FROM LAST SESSION" zh="与上次会话相比有更改"/>
   <translation tag="CLOG" zh="堵料"/>
   <translation tag="COLOR SENSORS" zh="颜色传感器"/>
@@ -390,7 +390,7 @@
   <translation tag="Cam" zh="摄像"/>
   <translation tag="Camera" zh="摄像头"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" zh="无法连接 — 请尝试忘记并重新配对打印机"/>
-  <translation tag="Can&apos;t read filament RFID tag"/>
+  <translation tag="Can&apos;t read filament RFID tag" zh="无法读取耗材 RFID 标签"/>
   <translation tag="Cancel" zh="取消"/>
   <translation tag="Cancel Escalation" zh="取消升级"/>
   <translation tag="Cancel Print" zh="取消打印"/>
@@ -447,14 +447,14 @@
   <translation tag="Check slot failed" zh="检查槽位失败"/>
   <translation tag="Check slots" zh="检查槽位"/>
   <translation tag="Check slots failed" zh="检查槽位失败"/>
-  <translation tag="Check that only one filament path is active"/>
-  <translation tag="Check that the cutter mechanism is properly installed"/>
-  <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor"/>
-  <translation tag="Check the RS-485 cable between printer and CFS"/>
-  <translation tag="Check the buffer unit on the back of the printer"/>
+  <translation tag="Check that only one filament path is active" zh="请确认只有一条耗材通路处于活动状态"/>
+  <translation tag="Check that the cutter mechanism is properly installed" zh="请检查切刀机构是否正确安装"/>
+  <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" zh="请检查拖链沿线的 PTFE 管是否折弯，以及进入挤出机传感器处的弯曲"/>
+  <translation tag="Check the RS-485 cable between printer and CFS" zh="请检查打印机与 CFS 之间的 RS-485 线缆"/>
+  <translation tag="Check the buffer unit on the back of the printer" zh="请检查打印机背面的缓冲单元"/>
   <translation tag="Check the filament path and try again." zh="检查耗材路径并重试。"/>
-  <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed"/>
-  <translation tag="Check the spool and the filament path for a jam, then retry"/>
+  <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" zh="请检查从槽位到集线器的通路是否缠绕或阻力过大。若槽位送料顺畅，可能是集线器传感器或送料电机故障"/>
+  <translation tag="Check the spool and the filament path for a jam, then retry" zh="请检查料盘和耗材通路是否卡住，然后重试"/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" zh="检查加热器功率（热端通常为 40-60W）"/>
   <translation tag="Checking" zh="检查中"/>
   <translation tag="Checking Bed Mesh..." zh="正在检查热床网格..."/>
@@ -664,7 +664,7 @@
   <translation tag="Cut filament" zh="切断耗材"/>
   <translation tag="Cut tip" zh="切断尖端"/>
   <translation tag="Cutter Enabled" zh="切刀已启用"/>
-  <translation tag="Cutter blade didn&apos;t sever filament"/>
+  <translation tag="Cutter blade didn&apos;t sever filament" zh="切刀未能切断耗材"/>
   <translation tag="Cutter jam" zh="切刀卡住"/>
   <translation tag="Cutting" zh="切割中"/>
   <translation tag="Cutting filament..." zh="正在切断耗材..."/>
@@ -763,7 +763,7 @@
   <translation tag="E-Stop (M112)" zh="急停 (M112)"/>
   <translation tag="E-Stop Confirmation" zh="急停确认"/>
   <translation tag="EDDY CURRENT" zh="EDDY CURRENT"/>
-  <translation tag="EEPROM error on CFS unit"/>
+  <translation tag="EEPROM error on CFS unit" zh="CFS 单元 EEPROM 错误"/>
   <translation tag="EMERGENCY STOP" zh="紧急停止"/>
   <translation tag="EMPTY" zh="空"/>
   <translation tag="Each fan can only be selected once" zh="每个风扇只能选择一次"/>
@@ -891,10 +891,10 @@
   <translation tag="Extruder MPC Calibration" zh="挤出机 MPC 校准"/>
   <translation tag="Extruder PID Tuning" zh="挤出机 PID 调优"/>
   <translation tag="Extruder Unload Speed" zh="挤出机卸载速度"/>
-  <translation tag="Extruder and CFS disagree on filament state — inspect both sensors"/>
+  <translation tag="Extruder and CFS disagree on filament state — inspect both sensors" zh="挤出机与 CFS 对耗材状态的判断不一致。请检查两个传感器"/>
   <translation tag="Extruder distances and sensor configuration" zh="挤出机距离与传感器配置"/>
   <translation tag="Extruder heats automatically based on material" zh="挤出机根据材料自动加热"/>
-  <translation tag="Extruder motor calibration failed"/>
+  <translation tag="Extruder motor calibration failed" zh="挤出机电机校准失败"/>
   <translation tag="Extruder to Nozzle" zh="挤出机至喷嘴"/>
   <translation tag="Extruding prime line..." zh="正在挤出引导线..."/>
   <translation tag="FAILED" zh="失败"/>
@@ -1005,7 +1005,7 @@
   <translation tag="Features: " zh="特性: "/>
   <translation tag="Feed Assist" zh="送料辅助"/>
   <translation tag="Feed assist and debug tools" zh="送料辅助与调试工具"/>
-  <translation tag="Feed failed"/>
+  <translation tag="Feed failed" zh="送料失败"/>
   <translation tag="Feed filament" zh="进料"/>
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
   <translation tag="Feed filament from current slot" zh="从当前槽位送入耗材"/>
@@ -1023,30 +1023,30 @@
   <translation tag="Filament System Error" zh="耗材系统错误"/>
   <translation tag="Filament Used" zh="已用耗材"/>
   <translation tag="Filament already exists" zh="耗材已存在"/>
-  <translation tag="Filament buffer failure during feed"/>
-  <translation tag="Filament buffer stopped moving"/>
+  <translation tag="Filament buffer failure during feed" zh="送料时耗材缓冲器故障"/>
+  <translation tag="Filament buffer stopped moving" zh="耗材缓冲器停止移动"/>
   <translation tag="Filament by Type" zh="按类型分类的耗材"/>
-  <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again"/>
+  <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" zh="低于最低挤出温度时无法加载耗材。请设置热端目标温度（例如 PLA 220°C、PETG 240°C），待达到温度后重试"/>
   <translation tag="Filament controls are unavailable while printing." zh="打印过程中耗材控制不可用。"/>
-  <translation tag="Filament cutter not detected"/>
-  <translation tag="Filament cutter position error"/>
-  <translation tag="Filament cutter stuck"/>
+  <translation tag="Filament cutter not detected" zh="未检测到耗材切刀"/>
+  <translation tag="Filament cutter position error" zh="耗材切刀位置错误"/>
+  <translation tag="Filament cutter stuck" zh="耗材切刀卡住"/>
   <translation tag="Filament deleted" zh="耗材已删除"/>
   <translation tag="Filament diameter sensors for flow compensation" zh="耗材直径传感器用于流量补偿"/>
-  <translation tag="Filament didn&apos;t fully retract, may need manual removal"/>
+  <translation tag="Filament didn&apos;t fully retract, may need manual removal" zh="耗材未完全回抽，可能需要手动取出"/>
   <translation tag="Filament feeder" zh="耗材送料器"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." zh="耗材已脱离工具头。请将剩余部分拉出。"/>
-  <translation tag="Filament is dragging"/>
+  <translation tag="Filament is dragging" zh="耗材阻力过大"/>
   <translation tag="Filament is loose" zh="耗材松弛"/>
   <translation tag="Filament is pulling tight" zh="耗材拉紧"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
-  <translation tag="Filament is still present after the cut — the blade may be dull or misaligned"/>
-  <translation tag="Filament jammed at the extruder gear"/>
+  <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" zh="切断后仍有耗材残留。刀片可能已钝或未对准"/>
+  <translation tag="Filament jammed at the extruder gear" zh="耗材卡在挤出机齿轮处"/>
   <translation tag="Filament load failed: {}" zh="耗材加载失败: {}"/>
-  <translation tag="Filament never reached the CFS hub sensor"/>
+  <translation tag="Filament never reached the CFS hub sensor" zh="耗材未到达 CFS 集线器传感器"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
-  <translation tag="Filament ran out"/>
+  <translation tag="Filament ran out" zh="耗材已用尽"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." zh="耗材已用尽 - 工具头处没有耗材，打印已暂停。"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." zh="耗材已用尽，且 CFS 未找到可切换的匹配料盘。请装入相同材料和颜色的料盘后恢复打印。"/>
   <translation tag="Filament ran out at the toolhead" zh="工具头处耗材已用尽"/>
@@ -1056,10 +1056,10 @@
   <translation tag="Filament runout and motion detection sensors" zh="耗材用尽和运动检测传感器"/>
   <translation tag="Filament saved" zh="耗材已保存"/>
   <translation tag="Filament sensor available for runout detection" zh="耗材传感器可用于耗尽检测"/>
-  <translation tag="Filament snapped inside CFS"/>
-  <translation tag="Filament stalled between CFS hub and extruder sensor"/>
-  <translation tag="Filament stuck in connector during unload"/>
-  <translation tag="Filament stuck inside the CFS hub"/>
+  <translation tag="Filament snapped inside CFS" zh="耗材在 CFS 内断裂"/>
+  <translation tag="Filament stalled between CFS hub and extruder sensor" zh="耗材停滞在 CFS 集线器与挤出机传感器之间"/>
+  <translation tag="Filament stuck in connector during unload" zh="退料时耗材卡在接头内"/>
+  <translation tag="Filament stuck inside the CFS hub" zh="耗材卡在 CFS 集线器内"/>
   <translation tag="Filament tension is balanced" zh="耗材张力平衡"/>
   <translation tag="Filament tracking &amp; label printing" zh="耗材跟踪和标签打印"/>
   <translation tag="Filament tracking and inventory" zh="耗材跟踪和库存"/>
@@ -1300,7 +1300,7 @@
   <translation tag="Invalid status response from printer" zh="打印机返回的状态响应无效"/>
   <translation tag="Issue description" zh="问题描述"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
-  <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying"/>
+  <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" zh="它卡在集线器传感器与集线器齿轮之间。请打开 CFS 清理集线器后重试"/>
   <translation tag="It&apos;s a new spool" zh="这是新料盘"/>
   <translation tag="Jammed at the Toolhead" zh="工具头处堵塞"/>
   <translation tag="Job Queue" zh="任务队列"/>
@@ -1379,7 +1379,7 @@
   <translation tag="Live view from your webcam" zh="摄像头实时画面"/>
   <translation tag="Load" zh="加载"/>
   <translation tag="Load Filament" zh="加载耗材"/>
-  <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one"/>
+  <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" zh="请在此槽位装入新料盘，或开启自动续料以切换到匹配的料盘"/>
   <translation tag="Load complete" zh="装载完成"/>
   <translation tag="Load filament" zh="装载耗材"/>
   <translation tag="Load may still be running — response timed out" zh="加载可能仍在运行 — 响应超时"/>
@@ -1417,7 +1417,7 @@
   <translation tag="Loosen Path A belt." zh="松开路径A的皮带。"/>
   <translation tag="Loosen Path B belt." zh="松开路径B的皮带。"/>
   <translation tag="Lost connection during print — try again" zh="打印过程中连接丢失 — 请重试"/>
-  <translation tag="Lost connection to CFS unit"/>
+  <translation tag="Lost connection to CFS unit" zh="与 CFS 单元的连接已断开"/>
   <translation tag="Lot # (optional)" zh="批号（可选）"/>
   <translation tag="Lot/Batch Nr" zh="批次号"/>
   <translation tag="Low Memory" zh="内存不足"/>
@@ -1429,7 +1429,7 @@
   <translation tag="MANUAL" zh="手动"/>
   <translation tag="MB RAM" zh="MB 内存"/>
   <translation tag="MCU" zh="MCU"/>
-  <translation tag="MCU bridge daemon is shut down"/>
+  <translation tag="MCU bridge daemon is shut down" zh="MCU 桥接守护进程已关闭"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" zh="MCU、主机及辅助温度监控"/>
   <translation tag="MCU: " zh="MCU: "/>
   <translation tag="MDI Icons" zh="MDI 图标"/>
@@ -1475,7 +1475,7 @@
   <translation tag="Manual Feed" zh="手动送料"/>
   <translation tag="Manual Retract" zh="手动回抽"/>
   <translation tag="Manual feed and retract operations" zh="手动送料与回抽操作"/>
-  <translation tag="Manually pull the filament back through the connector"/>
+  <translation tag="Manually pull the filament back through the connector" zh="请手动将耗材从接头处抽回"/>
   <translation tag="Map to closest colors with matching material" zh="按匹配材料映射最接近的颜色"/>
   <translation tag="Marginal" zh="偏高"/>
   <translation tag="Master volume level" zh="主音量"/>
@@ -1503,7 +1503,7 @@
   <translation tag="Measurement Failed" zh="测量失败"/>
   <translation tag="Measuring accelerometer noise..." zh="正在测量加速度计噪声..."/>
   <translation tag="Measuring vibrations... {}%" zh="正在测量振动... {}%"/>
-  <translation tag="Measuring wheel error"/>
+  <translation tag="Measuring wheel error" zh="计量轮错误"/>
   <translation tag="Median %.0f Hz" zh="中值 %.0f Hz"/>
   <translation tag="Memory" zh="内存"/>
   <translation tag="Memory (MB)" zh="内存 (MB)"/>
@@ -1528,8 +1528,8 @@
   <translation tag="More points = more accurate, but takes longer." zh="点数越多越精确，但耗时更长。"/>
   <translation tag="Motion" zh="运动"/>
   <translation tag="Motion: XYZ" zh="运动：XYZ"/>
-  <translation tag="Motor controller error"/>
-  <translation tag="Motor parameter setup failed"/>
+  <translation tag="Motor controller error" zh="电机控制器错误"/>
+  <translation tag="Motor parameter setup failed" zh="电机参数设置失败"/>
   <translation tag="Motor speeds and acceleration" zh="电机速度与加速度"/>
   <translation tag="Motors Off" zh="关闭电机"/>
   <translation tag="Motors disable failed: {}" zh="禁用电机失败: {}"/>
@@ -1701,7 +1701,7 @@
   <translation tag="Nozzle Temperatures" zh="喷嘴温度"/>
   <translation tag="Nozzle Temps" zh="喷嘴温度"/>
   <translation tag="Nozzle clean complete" zh="喷嘴清洁完成"/>
-  <translation tag="Nozzle clog detected"/>
+  <translation tag="Nozzle clog detected" zh="检测到喷嘴堵塞"/>
   <translation tag="Nozzle did not reach {}°C — {} cancelled" zh="喷嘴未达到 {}°C — {} 已取消"/>
   <translation tag="Nozzle min cannot exceed max" zh="喷嘴最低温度不能超过最高温度"/>
   <translation tag="Nozzle target set to {}°C" zh="喷嘴目标已设为 {}°C"/>
@@ -1734,7 +1734,7 @@
   <translation tag="Open feeder" zh="打开送料器"/>
   <translation tag="Open feeder macro" zh="打开送料器宏"/>
   <translation tag="Open motion controls for jogging" zh="打开手动移动控制"/>
-  <translation tag="Open the CFS unit and remove the broken filament from the slot"/>
+  <translation tag="Open the CFS unit and remove the broken filament from the slot" zh="请打开 CFS 单元并从槽位中取出断裂的耗材"/>
   <translation tag="Operation already in progress" zh="操作正在进行中"/>
   <translation tag="Operations" zh="操作"/>
   <translation tag="Optimize Your Printing" zh="优化您的打印"/>
@@ -1769,7 +1769,7 @@
   <translation tag="PRINT_START has {} skippable operation" zh="PRINT_START 有 {} 项可跳过的操作"/>
   <translation tag="PRINT_START has {} skippable operations" zh="PRINT_START 有 {} 项可跳过的操作"/>
   <translation tag="PROBE SENSORS" zh="探针传感器"/>
-  <translation tag="PTFE tube connection loose"/>
+  <translation tag="PTFE tube connection loose" zh="PTFE 管接头松动"/>
   <translation tag="Pair" zh="配对"/>
   <translation tag="Pair Bluetooth Printer" zh="配对蓝牙打印机"/>
   <translation tag="Pair Bluetooth Scanner" zh="配对蓝牙扫描器"/>
@@ -1849,7 +1849,7 @@
   <translation tag="Power" zh="电源"/>
   <translation tag="Power Devices" zh="电源设备"/>
   <translation tag="Power off the printer or screen" zh="关闭打印机或屏幕电源"/>
-  <translation tag="Pre-heat the extruder first"/>
+  <translation tag="Pre-heat the extruder first" zh="请先预热挤出机"/>
   <translation tag="Pre-print command failed: {}" zh="打印前命令失败: {}"/>
   <translation tag="Pre-print homing..." zh="打印前归位..."/>
   <translation tag="Preheat" zh="预热"/>
@@ -2018,8 +2018,8 @@
   <translation tag="Quick actions, calibration, speed" zh="快捷操作、校准、速度"/>
   <translation tag="RFCOMM connect failed" zh="RFCOMM 连接失败"/>
   <translation tag="RFCOMM connect failed: " zh="RFCOMM 连接失败: "/>
-  <translation tag="RFID reader malfunction (left)"/>
-  <translation tag="RFID reader malfunction (right)"/>
+  <translation tag="RFID reader malfunction (left)" zh="RFID 读取器故障（左）"/>
+  <translation tag="RFID reader malfunction (right)" zh="RFID 读取器故障（右）"/>
   <translation tag="RSS" zh="RSS"/>
   <translation tag="RSS:" zh="RSS："/>
   <translation tag="Ramming Volume" zh="填充体积"/>
@@ -2028,7 +2028,7 @@
   <translation tag="Re-identify" zh="重新识别"/>
   <translation tag="Re-probe" zh="重新探测"/>
   <translation tag="Re-read spool RFID tags and remaining length" zh="重新读取料盘 RFID 标签与剩余长度"/>
-  <translation tag="Re-seat the Bowden tube connector on the CFS unit"/>
+  <translation tag="Re-seat the Bowden tube connector on the CFS unit" zh="请重新插紧 CFS 单元上的鲍登管接头"/>
   <translation tag="Re-syncs Happy Hare&apos;s tracked state with the hardware." zh="将 Happy Hare 跟踪的状态与硬件重新同步。"/>
   <translation tag="Readings from extra temperature sensors" zh="额外温度传感器的读数"/>
   <translation tag="Ready" zh="就绪"/>
@@ -2153,17 +2153,17 @@
   <translation tag="Retract Distance" zh="回抽距离"/>
   <translation tag="Retract Length" zh="回抽长度"/>
   <translation tag="Retract Speed" zh="回抽速度"/>
-  <translation tag="Retract didn&apos;t reach buffer empty position"/>
-  <translation tag="Retract error — failed to exit connector"/>
-  <translation tag="Retract error — filament still detected"/>
-  <translation tag="Retract error — multiple connectors triggered"/>
-  <translation tag="Retract failed"/>
-  <translation tag="Retract failed — filament stuck in connector"/>
+  <translation tag="Retract didn&apos;t reach buffer empty position" zh="回抽未到达缓冲器空位"/>
+  <translation tag="Retract error — failed to exit connector" zh="回抽错误：未能退出接头"/>
+  <translation tag="Retract error — filament still detected" zh="回抽错误：仍检测到耗材"/>
+  <translation tag="Retract error — multiple connectors triggered" zh="回抽错误：多个接头被触发"/>
+  <translation tag="Retract failed" zh="回抽失败"/>
+  <translation tag="Retract failed — filament stuck in connector" zh="回抽失败：耗材卡在接头内"/>
   <translation tag="Retract failed: {}" zh="回抽失败: {}"/>
   <translation tag="Retract filament" zh="回抽耗材"/>
   <translation tag="Retract filament to current slot" zh="将耗材回抽至当前槽位"/>
   <translation tag="Retract may still be running — response timed out" zh="回抽可能仍在运行 — 响应超时"/>
-  <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again"/>
+  <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" zh="请回抽退料。若能顺利退出，剪掉被啃咬的一端后重新送料"/>
   <translation tag="Retraction" zh="回抽"/>
   <translation tag="Retraction Settings" zh="回抽设置"/>
   <translation tag="Retraction distance in the cooling tube" zh="冷却管内的回抽距离"/>
@@ -2185,7 +2185,7 @@
   <translation tag="Run Macro" zh="运行宏"/>
   <translation tag="Run Macro?" zh="运行宏？"/>
   <translation tag="Run a Klipper macro when preheating this material" zh="预热此材料时运行 Klipper 宏"/>
-  <translation tag="Run a cold pull or replace the nozzle"/>
+  <translation tag="Run a cold pull or replace the nozzle" zh="请执行冷拉清理或更换喷嘴"/>
   <translation tag="Run a macro you choose, in one tap" zh="一键运行选定的宏"/>
   <translation tag="Run brush cleaning sequence" zh="运行刷子清洁流程"/>
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" zh="即使喷嘴处于冷态也执行耗材加载/卸载（适用于自行加热喷嘴的宏）"/>
@@ -2308,7 +2308,7 @@
   <translation tag="Sensor Response" zh="传感器响应"/>
   <translation tag="Sensor Source" zh="传感器来源"/>
   <translation tag="Sensor Temperature" zh="传感器温度"/>
-  <translation tag="Sensor mismatch — check extruder and CFS sensors"/>
+  <translation tag="Sensor mismatch — check extruder and CFS sensors" zh="传感器不一致。请检查挤出机与 CFS 传感器"/>
   <translation tag="Sensor to Nozzle" zh="传感器至喷嘴"/>
   <translation tag="Sensors" zh="传感器"/>
   <translation tag="Separate on/off macros. HelixScreen tracks the state." zh="独立的开/关宏。HelixScreen 跟踪状态。"/>
@@ -2327,7 +2327,7 @@
   <translation tag="Set and watch the nozzle temperature" zh="设置并监控喷嘴温度"/>
   <translation tag="Set local timezone for time display" zh="设置本地时区以显示时间"/>
   <translation tag="Set logging verbosity for troubleshooting" zh="设置日志详细级别以便故障排除"/>
-  <translation tag="Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle"/>
+  <translation tag="Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" zh="请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入"/>
   <translation tag="Set up" zh="设置"/>
   <translation tag="Set up your label printer in Settings" zh="在设置中配置标签打印机"/>
   <translation tag="Settings" zh="设置"/>
@@ -2432,8 +2432,8 @@
   <translation tag="Spoolman: %zu/%zu Spool%s" zh="Spoolman: %zu/%zu 个线轴%s"/>
   <translation tag="Square Corner Velocity" zh="直角转弯速度"/>
   <translation tag="Stable" zh="稳定版"/>
-  <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry"/>
-  <translation tag="Stall detection setup failed for the extruder — power-cycle to retry"/>
+  <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" zh="Z 电机堵转检测设置失败。请重新上电后重试"/>
+  <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" zh="挤出机堵转检测设置失败。请重新上电后重试"/>
   <translation tag="Standard" zh="标准"/>
   <translation tag="Standby" zh="待机"/>
   <translation tag="Starfield" zh="星空"/>
@@ -2514,7 +2514,7 @@
   <translation tag="TPU" zh="TPU"/>
   <translation tag="Takes 3-5 min. Do not interrupt." zh="需要 3-5 分钟。请勿中断。"/>
   <translation tag="Tap + to add" zh="点击 + 添加"/>
-  <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge"/>
+  <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" zh="点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接"/>
   <translation tag="Tap again to confirm this orientation" zh="再次点击确认此方向"/>
   <translation tag="Tap an object to exclude it | {} objects ({} excluded)" zh="点按对象以排除 | {} 个对象（已排除 {} 个）"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." zh="点击任意磁贴以打开其完整控制项或切换其状态。"/>
@@ -2540,7 +2540,7 @@
   <translation tag="Temperature Graph" zh="温度曲线"/>
   <translation tag="Temperature Graph Config" zh="温度图表配置"/>
   <translation tag="Temperature Sensors" zh="温度传感器"/>
-  <translation tag="Temperature and humidity sensor not responding"/>
+  <translation tag="Temperature and humidity sensor not responding" zh="温湿度传感器无响应"/>
   <translation tag="Temperature control optimized for {} at {}°C." zh="已针对 {} 在 {}°C 下优化温度控制。"/>
   <translation tag="Temperatures" zh="温度"/>
   <translation tag="Temperatures plotted over time" zh="温度随时间的变化曲线"/>
@@ -2566,21 +2566,21 @@
   <translation tag="That did not sound like a pluck - try again" zh="听起来不像拨动声 - 请重试"/>
   <translation tag="That slot cannot stand in for this one" zh="该槽位无法替代当前槽位"/>
   <translation tag="That tool is already loaded" zh="该工具已加载耗材"/>
-  <translation tag="The CFS odometer hardware is faulty and needs repair or replacement"/>
+  <translation tag="The CFS odometer hardware is faulty and needs repair or replacement" zh="CFS 计量硬件故障，需维修或更换"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." zh="HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。"/>
   <translation tag="The Spoolman spool currently loaded" zh="当前装载的 Spoolman 料盘"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." zh="加速度计数据流已停止：%s。请检查 Klipper 是否正在运行，然后重试。"/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." zh="为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 &gt; 显示中重新启用。"/>
-  <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
-  <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
-  <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
-  <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS"/>
-  <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend"/>
+  <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" zh="缓冲器可能未连接、卡住或损坏。请检查后重试"/>
+  <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" zh="缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住"/>
+  <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" zh="切刀未复位。请检查切刀机构上是否缠绕耗材"/>
+  <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" zh="切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准"/>
+  <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend" zh="挤出机无法顺畅拉动。请检查料盘是否缠绕或打结，以及 PTFE 管是否严重弯折"/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." zh="耗材未到达喷嘴。CFS 未报告错误，但工具头传感器仍未检测到耗材。请检查料盘是否放置到位、路径是否畅通，然后重试。"/>
-  <translation tag="The filament may not have fully retracted — try again or manually pull"/>
+  <translation tag="The filament may not have fully retracted — try again or manually pull" zh="耗材可能未完全回抽。请重试或手动抽出"/>
   <translation tag="The filament system reported an error" zh="耗材系统报告错误"/>
   <translation tag="The heater will cycle on and off several times." zh="加热器将多次开关循环。"/>
-  <translation tag="The left RFID reader in this CFS unit may need service"/>
+  <translation tag="The left RFID reader in this CFS unit may need service" zh="此 CFS 单元的左侧 RFID 读取器可能需要维修"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." zh="当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." zh="打印已暂停。现在切换工具会移动工具头并更换喷嘴处的耗材。切换完成后请恢复打印。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
@@ -2592,18 +2592,18 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." zh="打印机拒绝了该耗材配置。打印未启动。"/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" zh="备用料盘由打印机固件自行选择"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
-  <translation tag="The right RFID reader in this CFS unit may need service"/>
+  <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
-  <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service"/>
+  <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" zh="无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修"/>
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
-  <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck"/>
-  <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats"/>
-  <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
+  <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" zh="该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS"/>
+  <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" zh="该单元报告了故障但无更多信息。若反复出现，请重启打印机"/>
+  <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
   <translation tag="Theme" zh="主题"/>
   <translation tag="Theme Colors" zh="主题颜色"/>
   <translation tag="Theme Preset" zh="主题预设"/>
@@ -2917,7 +2917,7 @@
   <translation tag="Z Offset" zh="Z 偏移"/>
   <translation tag="Z Range" zh="Z 范围"/>
   <translation tag="Z Tilt Adjust..." zh="正在调整Z倾斜..."/>
-  <translation tag="Z motor calibration failed"/>
+  <translation tag="Z motor calibration failed" zh="Z 电机校准失败"/>
   <translation tag="Z probes for bed leveling and mesh generation" zh="用于热床调平和网格生成的 Z 探针"/>
   <translation tag="Z-Off:" zh="Z 偏移："/>
   <translation tag="Z-Offset" zh="Z 偏移"/>
@@ -2960,7 +2960,7 @@
   <translation tag="fans" zh="风扇"/>
   <translation tag="heated bed" zh="热床"/>
   <translation tag="idle" zh="空闲"/>
-  <translation tag="in unit {} slot {}" zh="在单元 {} 插槽 {}"/>
+  <translation tag="in unit {} slot {}" zh="在单元 {} 槽位 {}"/>
   <translation tag="layers" zh="层"/>
   <translation tag="left" zh="剩余"/>
   <translation tag="mm before clog" zh="毫米后堵料"/>
