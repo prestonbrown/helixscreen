@@ -134,17 +134,3 @@ TEST_CASE_METHOD(LVGLUITestFixture, "applying a theme forces the next init to re
 
     helix::ui::UpdateQueue::instance().drain();
 }
-
-TEST_CASE_METHOD(LVGLUITestFixture, "a deinitialized theme runs the full init again",
-                 "[1526][theme]") {
-    const int before = theme_manager_full_init_count();
-
-    theme_manager_deinit();
-    theme_manager_init(lv_display_get_default(), false);
-    REQUIRE(theme_manager_full_init_count() == before + 1);
-
-    // Deinit cleared the subject-initialized flag, so the NEXT repeat skips
-    // again — the recovery is one rebuild, not a permanently disabled guard.
-    theme_manager_init(lv_display_get_default(), false);
-    REQUIRE(theme_manager_full_init_count() == before + 1);
-}

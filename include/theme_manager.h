@@ -348,11 +348,21 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode);
 int theme_manager_full_init_count();
 
 /**
- * @brief Deinitialize theme subjects before lv_deinit()
+ * @brief Deinitialize the theme subjects, after the XML engine is gone
  *
- * Must be called during shutdown BEFORE lv_deinit() to prevent crash
- * in lv_observer_remove(). Deinits theme_changed_subject and swatch
- * description subjects, removing all observer callbacks from widgets.
+ * Deinits theme_changed_subject, the breakpoint/orientation subjects and the
+ * swatch description subjects, removing every observer callback from them.
+ *
+ * **Ordering is a precondition, not a preference: this runs LAST**, after
+ * lv_deinit() and after lv_xml_deinit() (Application::shutdown() gets that by
+ * calling it after m_display.reset()). A `<subject_expr>` record keeps raw
+ * observer pointers on its input subjects and detaches them when its component
+ * scope is retired, which requires those subjects to still be alive. Deinitializing
+ * them first frees the observers underneath the record, so the next scope
+ * retire - a component re-registration is enough - removes a freed observer.
+ *
+ * The same precondition makes this unsafe to call while the app is running or
+ * mid-test: there is no way to put the XML scopes back.
  */
 void theme_manager_deinit();
 
