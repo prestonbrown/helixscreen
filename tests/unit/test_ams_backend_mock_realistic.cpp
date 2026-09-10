@@ -1,8 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/ams_backend_mock_timing_test_access.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "ams_backend_mock.h"
 #include "runtime_config.h"
+#include "simulated_clock.h"
 
 #include <chrono>
 #include <mutex>
@@ -579,4 +582,72 @@ TEST_CASE("Mock backend in AFC mode still reports manages_active_spool=false",
 TEST_CASE("Mock backend does not track weight locally", "[ams][mock][spoolman]") {
     auto backend = std::make_unique<AmsBackendMock>(4);
     REQUIRE(backend->tracks_weight_locally() == false);
+}
+
+// ============================================================================
+// Simulated-Time Scaling
+// ============================================================================
+//
+// The mock applies --sim-speed in opposite directions: a load-phase delay is a
+// wait to be shortened, while the dryer is progress to be accelerated. The
+// cases below pin each direction as a comparison against 1x, so swapping the
+// two operations has to move a value the wrong way, not merely change it.
+
+TEST_CASE("AmsBackendMock: operation delays shorten as the flag rises",
+          "[ams][mock][realistic][simclock]") {
+    ScopedRuntimeConfig scoped_config;
+    AmsBackendMock backend(4);
+
+    get_runtime_config()->sim_speedup = 1.0;
+    const int at_1x = AmsBackendMockTimingTestAccess::effective_delay_ms(backend, 3000);
+    REQUIRE(at_1x == 3000);
+
+    get_runtime_config()->sim_speedup = 10.0;
+    const int at_10x = AmsBackendMockTimingTestAccess::effective_delay_ms(backend, 3000);
+    REQUIRE(at_10x == 300);
+    REQUIRE(at_10x < at_1x);
+
+    SECTION("a delay never rounds away to a busy loop") {
+        get_runtime_config()->sim_speedup = 1000.0;
+        REQUIRE(AmsBackendMockTimingTestAccess::effective_delay_ms(backend, 5) == 1);
+        REQUIRE(AmsBackendMockTimingTestAccess::effective_delay_ms(backend, 0) == 1);
+    }
+
+    SECTION("variance stays within its band") {
+        get_runtime_config()->sim_speedup = 1.0;
+        for (int i = 0; i < 50; ++i) {
+            const int ms = AmsBackendMockTimingTestAccess::effective_delay_ms(backend, 1000, 0.2f);
+            REQUIRE(ms >= 800);
+            REQUIRE(ms <= 1200);
+        }
+    }
+}
+
+TEST_CASE("AmsBackendMock: the dryer's own multiplier composes over the flag",
+          "[ams][mock][dryer][simclock]") {
+    ScopedRuntimeConfig scoped_config;
+    AmsBackendMock backend(4);
+    AmsBackendMockTimingTestAccess::set_dryer_speed_x(backend, 60);
+
+    SECTION("with no flag the dryer keeps its own 60x") {
+        get_runtime_config()->sim_speedup = 1.0;
+        REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) == 60);
+    }
+
+    SECTION("the flag multiplies the dryer rather than replacing it") {
+        get_runtime_config()->sim_speedup = 10.0;
+        REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) == 600);
+    }
+
+    SECTION("a dryer at 1x tracks the flag exactly") {
+        AmsBackendMockTimingTestAccess::set_dryer_speed_x(backend, 1);
+        get_runtime_config()->sim_speedup = 10.0;
+        REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) == 10);
+    }
+
+    SECTION("the composed rate obeys the shared ceiling") {
+        get_runtime_config()->sim_speedup = 100.0;
+        REQUIRE(AmsBackendMockTimingTestAccess::dryer_speed_x(backend) ==
+                static_cast<int>(helix::sim::MAX_SPEED));
+    }
 }

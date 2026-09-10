@@ -29,6 +29,8 @@ namespace helix {
  */
 class AmsBackendMock : public AmsBackend {
   public:
+    friend class AmsBackendMockTimingTestAccess;
+
     /**
      * @brief Construct mock backend with specified slot count
      * @param slot_count Number of simulated slots (1-16, default 4)
@@ -785,7 +787,7 @@ class AmsBackendMock : public AmsBackend {
      * @brief Get delay with speedup and optional variance applied
      * @param base_ms Base delay in milliseconds (at 1x speed)
      * @param variance Variance factor (0.2 = ±20%, 0 = no variance)
-     * @return Effective delay considering RuntimeConfig::sim_speedup
+     * @return Real milliseconds to wait, shortened by helix::sim::SimSpeed::global()
      */
     int get_effective_delay_ms(int base_ms, float variance = 0.0f) const;
 
@@ -794,6 +796,7 @@ class AmsBackendMock : public AmsBackend {
      *
      * The dryer's own multiplier composed with --sim-speed, so fast-forwarding the
      * simulated clock carries the drying cycle with it instead of leaving it at 60x.
+     * Clamped to helix::sim::MAX_SPEED like every other simulated-time factor.
      * Caller must hold mutex_.
      */
     [[nodiscard]] int effective_dryer_speed_x() const;

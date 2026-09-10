@@ -11,6 +11,7 @@
 #include "filament_database.h"
 #include "hh_defaults.h"
 #include "runtime_config.h"
+#include "simulated_clock.h"
 
 #include <spdlog/spdlog.h>
 
@@ -3183,9 +3184,9 @@ bool AmsBackendMock::slot_has_prep_sensor(int slot_index) const {
 }
 
 int AmsBackendMock::effective_dryer_speed_x() const {
-    const double speedup = get_runtime_config()->sim_speedup;
-    const double effective = static_cast<double>(dryer_speed_x_) * (speedup > 0.0 ? speedup : 1.0);
-    return static_cast<int>(std::max(1.0, std::min(effective, 100000.0)));
+    // The dryer's own multiplier composed over --sim-speed, so one flag carries
+    // the drying cycle with it.
+    return static_cast<int>(helix::sim::SimSpeed::global().composed_with(dryer_speed_x_).factor());
 }
 
 void AmsBackendMock::mirror_dryer_to_unit(int unit) {
@@ -3202,11 +3203,7 @@ void AmsBackendMock::mirror_dryer_to_unit(int unit) {
 }
 
 int AmsBackendMock::get_effective_delay_ms(int base_ms, float variance) const {
-    double speedup = get_runtime_config()->sim_speedup;
-    if (speedup <= 0)
-        speedup = 1.0;
-
-    int effective = static_cast<int>(base_ms / speedup);
+    int effective = helix::sim::SimSpeed::global().shorten_wait_ms(base_ms);
 
     // Apply variance if non-zero
     if (variance > 0.0f && effective > 0) {
