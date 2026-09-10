@@ -20,13 +20,13 @@
       "weight": 5
     },
     {
-      "pattern": "M190|Heating bed|BED_TEMP",
+      "pattern": "M190|Heating bed|^(?!.*BED_MESH_CALIBRATE_START_PRINT).*BED_TEMP",
       "phase": "HEATING_BED",
       "message": "Heating Bed...",
       "weight": 20
     },
     {
-      "pattern": "M109|TEMPERATURE_WAIT SENSOR=extruder|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
+      "pattern": "M109|TEMPERATURE_WAIT SENSOR=extruder|Heating (nozzle|hotend|extruder)|^(?!.*BED_MESH_CALIBRATE_START_PRINT).*EXTRUDER_TEMP",
       "phase": "HEATING_NOZZLE",
       "message": "Heating Nozzle...",
       "weight": 20
@@ -38,7 +38,7 @@
       "weight": 10
     },
     {
-      "pattern": "BED_MESH_CALIBRATE|exist_points\\[|Adapted probe count",
+      "pattern": "BED_MESH_CALIBRATE(?!_START_PRINT)|exist_points\\[|Adapted probe count",
       "phase": "BED_MESH",
       "message": "Bed Mesh...",
       "weight": 10
