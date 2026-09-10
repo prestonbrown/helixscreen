@@ -13,7 +13,6 @@ translations:
   '%d of %d plugins loaded': '%d de %d plugins carregados'
   '%d plugins loaded': '%d plugins carregados'
   '%d slots': '%d slots'
-  '%d units - %d zones - %d dryers': ''
   '%lu days ago': há %lu dias
   '%lu hours ago': há %lu horas
   '%lu min ago': há %lu min
@@ -1233,8 +1232,6 @@ translations:
   GCode Console: 'Console G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Fim de jogo!\nPontuação: {}\nToque para reiniciar"
-  Gate: ''
-  Gates: ''
   Gear Buffer Speed: 'Velocidade da engrenagem a partir do buffer'
   Gear Spool Speed: 'Velocidade da engrenagem a partir do carretel'
   Gear Unload Speed: 'Velocidade de descarregamento da engrenagem'
@@ -3121,7 +3118,6 @@ translations:
   Unit: Unidade
   'Unit ': 'Unidade '
   'Units: %d   Boxes: %d   Dryers: %d': ''
-  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Desconhecido
   Unknown Event: Evento Desconhecido
   Unknown Spool: Carretel Desconhecido
@@ -3195,7 +3191,6 @@ translations:
   View Telemetry Data: Ver Dados de Telemetria
   View Timelapse: Ver Timelapse
   View all boxes: ''
-  View all zones: ''
   View and rename fans: Ver e renomear ventoinhas
   View installed plugins and status: Ver plugins instalados e status
   View live camera feed: Ver transmissão da câmera ao vivo
@@ -3211,10 +3206,9 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Aguarde a operação de filamento atual terminar
   Wait until the print finishes: Aguarde até a impressão terminar
-  Waiting for: ''
   Waiting for Moonraker...: Aguardando Moonraker...
+  'Waiting for %s to finish. One heater at a time.': ''
   Waiting for another box to finish.: ''
-  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: Aguardando a mesa
     atingir a temperatura para calibração precisa.
   Waiting for the filament system to report its state: Aguardando o sistema de filamento informar seu estado
@@ -3384,7 +3378,6 @@ translations:
   started: iniciado
   steppers: motores de passo
   tall: de altura
-  to finish. One heater at a time.: ''
   tool(s): ferramenta(s)
   used: usado
   v%s available: v%s disponível

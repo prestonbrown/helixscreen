@@ -12,7 +12,6 @@ translations:
   '%d of %d plugins loaded': 已加载 %d / %d 个插件
   '%d plugins loaded': 已加载 %d 个插件
   '%d slots': '%d 个槽位'
-  '%d units - %d zones - %d dryers': ''
   '%lu days ago': '%lu天前'
   '%lu hours ago': '%lu小时前'
   '%lu min ago': '%lu分钟前'
@@ -1132,8 +1131,6 @@ translations:
   GCode Console: 'G-code 控制台'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "游戏结束！\n得分：{}\n点按重新开始"
-  Gate: ''
-  Gates: ''
   Gear Buffer Speed: '齿轮缓冲区速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'
@@ -2845,7 +2842,6 @@ translations:
   Unit: 单元
   'Unit ': '单元 '
   'Units: %d   Boxes: %d   Dryers: %d': ''
-  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: 未知
   Unknown Event: 未知事件
   Unknown Spool: 未知料盘
@@ -2916,7 +2912,6 @@ translations:
   View Telemetry Data: 查看遥测数据
   View Timelapse: 查看延时摄影
   View all boxes: ''
-  View all zones: ''
   View and rename fans: 查看和重命名风扇
   View installed plugins and status: 查看已安装的插件和状态
   View live camera feed: 查看实时摄像头画面
@@ -2931,10 +2926,9 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: 请等待当前耗材操作完成
   Wait until the print finishes: 请等待打印完成
-  Waiting for: ''
   Waiting for Moonraker...: 正在等待 Moonraker...
+  'Waiting for %s to finish. One heater at a time.': ''
   Waiting for another box to finish.: ''
-  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: 等待热床达到温度以进行精确校准。
   Waiting for the filament system to report its state: 正在等待耗材系统报告状态
   Warm Bed: 预热热床
@@ -3090,7 +3084,6 @@ translations:
   started: 已启动
   steppers: 步进电机
   tall: 高
-  to finish. One heater at a time.: ''
   tool(s): 工具
   used: 已使用
   v%s available: v%s 可用

@@ -12,7 +12,6 @@
   <translation tag="%d of %d plugins loaded" zh="已加载 %d / %d 个插件"/>
   <translation tag="%d plugins loaded" zh="已加载 %d 个插件"/>
   <translation tag="%d slots" zh="%d 个槽位"/>
-  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" zh="%lu天前"/>
   <translation tag="%lu hours ago" zh="%lu小时前"/>
   <translation tag="%lu min ago" zh="%lu分钟前"/>
@@ -1111,8 +1110,6 @@
   <translation tag="G-code commands will appear here" zh="G-code 命令将显示在此处"/>
   <translation tag="GCode Console" zh="G-code 控制台"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" zh="游戏结束！&#10;得分：{}&#10;点按重新开始"/>
-  <translation tag="Gate"/>
-  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" zh="齿轮缓冲区速度"/>
   <translation tag="Gear Spool Speed" zh="齿轮料盘速度"/>
   <translation tag="Gear Unload Speed" zh="齿轮卸载速度"/>
@@ -2749,7 +2746,6 @@
   <translation tag="Unit" zh="单元"/>
   <translation tag="Unit " zh="单元 "/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
-  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" zh="未知"/>
   <translation tag="Unknown Event" zh="未知事件"/>
   <translation tag="Unknown Spool" zh="未知料盘"/>
@@ -2820,7 +2816,6 @@
   <translation tag="View Telemetry Data" zh="查看遥测数据"/>
   <translation tag="View Timelapse" zh="查看延时摄影"/>
   <translation tag="View all boxes"/>
-  <translation tag="View all zones"/>
   <translation tag="View and rename fans" zh="查看和重命名风扇"/>
   <translation tag="View installed plugins and status" zh="查看已安装的插件和状态"/>
   <translation tag="View live camera feed" zh="查看实时摄像头画面"/>
@@ -2835,10 +2830,9 @@
   <translation tag="WPA3" zh="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" zh="请等待当前耗材操作完成"/>
   <translation tag="Wait until the print finishes" zh="请等待打印完成"/>
-  <translation tag="Waiting for"/>
+  <translation tag="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." zh="正在等待 Moonraker..."/>
   <translation tag="Waiting for another box to finish."/>
-  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." zh="等待热床达到温度以进行精确校准。"/>
   <translation tag="Waiting for the filament system to report its state" zh="正在等待耗材系统报告状态"/>
   <translation tag="Warm Bed" zh="预热热床"/>
@@ -2982,7 +2976,6 @@
   <translation tag="started" zh="已启动"/>
   <translation tag="steppers" zh="步进电机"/>
   <translation tag="tall" zh="高"/>
-  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" zh="工具"/>
   <translation tag="used" zh="已使用"/>
   <translation tag="v%s available" zh="v%s 可用"/>

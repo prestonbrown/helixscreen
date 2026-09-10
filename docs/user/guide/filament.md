@@ -503,40 +503,82 @@ Connecting a server, the full spool-inventory panel, the new-spool wizard, and h
 
 ---
 
-## Filament Drying
+## Filament Drying and Humidity
 
-Many filament materials absorb moisture from the air over time. Wet filament prints poorly — you may see popping, stringing, reduced layer adhesion, or a rough surface finish. Drying the filament before or during a print removes that moisture and restores print quality. Hygroscopic materials that benefit most include Nylon, PA-CF, TPU, and PETG; PLA is less sensitive but still benefits after long storage.
+Many filament materials absorb moisture from the air over time. Wet filament prints poorly - you may see popping, stringing, reduced layer adhesion, or a rough surface finish. Drying the filament before or during a print removes that moisture and restores print quality. Hygroscopic materials that benefit most include Nylon, PA-CF, TPU, and PETG; PLA is less sensitive but still benefits after long storage.
+
+HelixScreen groups all of this into **boxes**. A box is one enclosure it can measure, heat, or both. What counts as a box depends on your hardware: a box can be a whole unit, a group of slots inside a unit, or a single lane with its own heater and sensor.
+
+> **A box is not a unit.** The slot range printed under the box name is the only thing that tells you which lanes that box covers. Read it before you start a dry.
 
 ### Supported Systems
 
-Dryer control is available on hardware that includes an integrated heated chamber:
+| System | What you get |
+|--------|--------------|
+| **Anycubic ACE Pro** | Temperature, humidity, and drying (built-in heated chamber) |
+| **QIDI Box** | Temperature, humidity, and drying (PTC heater; QIDI PLUS4, Q2, MAX4) |
+| **Happy Hare** | Temperature and humidity wherever sensors are configured, drying wherever a filament heater is. A setup with per-lane heaters and sensors reports each lane as its own box |
+| **Creality CFS** | Temperature and humidity, one box per unit. The CFS has no heater, so there is nothing to start |
 
-| System | Notes |
-|--------|-------|
-| **Anycubic ACE Pro** | Built-in drying chamber with fan |
-| **Happy Hare** | On MMU setups where a heater is configured |
-| **QIDI Box** | PTC heater in the filament storage unit (QIDI PLUS4, Q2, MAX4) |
+AFC (Box Turtle, OpenAMS), AD5X IFS, Snapmaker U1 and tool changers report no environment data at all, so nothing appears for them.
 
-Systems without a dedicated drying chamber (AFC Box Turtle, Creality CFS, AD5X IFS, Snapmaker U1, tool changers) do not have dryer controls — the option won't appear for those.
+> **QIDI Box note:** QIDI Box drying control requires recent QIDI firmware that exposes the `box_extras` Klipper plugin. On older firmware the heater still works, but the session timer isn't tracked - the heater runs until you tap Stop.
 
-### Using the Dryer
+### Opening a Box
 
-Open the dryer controls from the **multi-filament panel**:
+On the **Filament** panel, any box with a reading or a heater shows a small badge beside its slots: a thermometer with the temperature, and a water drop with the humidity where a sensor exists. Tap the badge. That is the whole route - there is nothing to open under Settings.
 
-1. Open the **Filament** panel from the sidebar.
-2. Tap **Settings** to open the AMS Management overlay.
-3. The dryer controls appear if your hardware supports drying.
+What opens depends on how many boxes that unit has:
 
-From the dryer panel you can:
+| Boxes | What you get |
+|-------|--------------|
+| One | That box's screen |
+| Two to four of the same kind | That box's screen, with a tab per box across the top |
+| More than four, or a mix of heated and unheated boxes | A list of boxes; tap a row to open one |
 
-- **Set target temperature** — Use the slider or tap the value to type a temperature. The target is automatically clamped to the safe maximum for your unit (typically 55–90 °C depending on your hardware and firmware).
-- **Set duration** — Choose how long to dry, in hours. Some systems accept a custom duration; others offer material-based presets.
-- **Pick a material preset** — If presets are available, tap a material name (PLA, PETG, Nylon, etc.) to fill in the recommended temperature and time automatically.
-- **Start drying** — Tap **Start** to begin. The heater activates and the chamber temperature climbs to your target.
-- **Watch the countdown** — While drying, the panel shows the current chamber temperature, humidity (when a sensor is present), and the time remaining.
-- **Stop early** — Tap **Stop** at any time to turn off the heater. Remaining time is discarded; it is safe to stop mid-session.
+Each tab carries a small icon for the box it names, so you can tell which box is heating, which is waiting and which has finished without selecting it first.
 
-> **QIDI Box note:** QIDI Box drying control requires recent QIDI firmware that exposes the `box_extras` Klipper plugin. On older firmware, the heater still works but the session timer won't be tracked — the heater runs until you tap Stop.
+A mix always goes to the list rather than to tabs, because a tab would hide the difference between a box you can heat and one you can only watch behind a selection you have to make first.
+
+When the screen is showing fewer boxes than the printer has, a **View all boxes** line appears above the card. Tap it for the full list across every unit, with a count of units, boxes and dryers under the title. The list itself has no controls: each row gives the box name, its slot range, its current reading and a one-word status. Tap a row to open that box, where the controls are.
+
+### Reading a Box
+
+The title names the box, and the line under it gives its slot range.
+
+- **Temperature** is always shown.
+- **Humidity** is shown only where that box has its own humidity sensor. A box without one reads `--`, and the **Material Comfort** strip is hidden rather than guessed at. That is deliberate: with no humidity reading, a comfort verdict would be a made-up all-clear.
+- **While a cycle runs**, the temperature reads current then target, a countdown gives the time left, and a progress bar fills.
+
+The same rule reaches the status column in the box list: a box with a heater but no humidity sensor reads `--` there instead of a status word, and a box with no heater at all reads **passive**.
+
+A box with no heater says so on its own screen, and points you at a sealed dry box with desiccant instead.
+
+The reverse case also shows up: a heated box with no sensor of its own still gets a badge, with a dash where the temperature would be, so its controls are still one tap away.
+
+### Starting and Stopping a Dry
+
+The controls are on the right of the box's screen:
+
+1. **Pick a preset** from the dropdown. Each entry names a material with its temperature and time, like "PLA 55°C/4h", and fills in both fields below.
+2. **Or set the values yourself.** Tap the temperature field or the minutes field to bring up a keypad.
+3. Tap **Start Drying**.
+
+While a cycle runs, that same button reads **Stop Drying**, and it is also the cancel - there is no separate cancel button. Stopping is safe at any point: the heater goes off and the remaining time is discarded. There is no fan control.
+
+Three things about the fields are worth knowing:
+
+- **The duration field is in minutes**, not hours. Only the preset labels read in hours, so a preset called "4h" puts `240` in the field. Cycles shorter than an hour are fine.
+- **The temperature range is that box's range**, and it is printed in the field's own label - "Temp °C (35-65)". The keypad won't accept anything outside it. A preset whose usual temperature sits above the ceiling is shown and sent clamped, so a 70 °C preset on a 65 °C box reads 65 °C, and 65 °C is what runs.
+- **Your last values come back.** HelixScreen remembers the temperature and duration you last started a dry with, per printer, and fills them in the next time you open a box.
+
+Left alone, HelixScreen picks the preset that suits the filament in that box - the most conservative one, meaning the lowest drying temperature among the materials loaded there, so a mixed box isn't dried at the temperature its most tolerant spool would take. Type a value yourself and that stops for the rest of the visit; pick a preset by hand and it starts again.
+
+### Material Comfort
+
+Where a box has a humidity sensor, a **Material Comfort** strip sits below the readouts. It lists the materials loaded in that box, each with a verdict - **OK**, **Marginal** or **Too humid** - and the humidity ceiling that material is judged against, written as "PLA: OK (< 50%)". Materials differ enormously in what they tolerate: nylon and the high-temperature engineering plastics want a far drier box than PLA does, so the same reading can be comfortable for one spool and too wet for the one beside it. If none of the box's slots report a material, the strip falls back to the materials on your [temperature presets](temperature.md#reassigning-a-presets-filament-type).
+
+The one-word status in the box list is a second, more general scale, applied to the box rather than to any material in it. So a box can read **OK** in the list while a demanding material reads **Marginal** in the strip. For what you actually have loaded, the strip is the one to go by.
 
 ### Typical Drying Parameters
 
@@ -553,11 +595,21 @@ These are general-purpose starting points. Your filament manufacturer's guidance
 
 Filament that has been stored open for a long time may need the longer end of the range.
 
-### Multi-Unit Setups
+Remember that the duration field takes minutes: 4 hours is `240`, 12 hours is `720`.
 
-If you have multiple Box units connected, each unit has its own dryer with independent controls. The panel shows which unit you are controlling. You can run dryers on multiple units at the same time — each unit heats independently.
+### Several Boxes at Once
 
-The humidity readout and the **Material Comfort** guidance below it belong to the unit you opened, and appear only when that unit actually has a humidity sensor. On older versions they followed the *first* unit instead, so a unit with no humidity sensor could show the readout (or a unit that had one could hide it) depending on what the first unit reported.
+Boxes are measured independently, but they aren't always heated independently. Some hardware runs one heater at a time. Where your filament system reports that, starting a dry on a second box doesn't begin heating it - the box waits its turn, and the screen says so:
+
+- A banner with a clock icon reads "Waiting for *box* to finish. One heater at a time." (or just "Waiting for another box to finish." when the box holding the heater can't be named)
+- That box's tab shows a clock instead of the heat symbol
+- No progress bar appears until the box is actually heating
+
+Nothing has gone wrong and there's nothing to retry. When the running cycle ends, the waiting box takes the heater.
+
+Where the hardware has no such limit, boxes heat independently and more than one cycle can run at a time.
+
+Whichever shape you have, the readouts, the Material Comfort strip and the drying controls all belong to the box named in the title - not to the unit, and not to the first box on the printer.
 
 ---
 

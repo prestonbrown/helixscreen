@@ -12,7 +12,6 @@
   <translation tag="%d of %d plugins loaded" ru="Загружено плагинов: %d из %d"/>
   <translation tag="%d plugins loaded" ru="Загружено плагинов: %d"/>
   <translation tag="%d slots" ru="%d слотов"/>
-  <translation tag="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" ru="%lu дн. назад"/>
   <translation tag="%lu hours ago" ru="%lu ч. назад"/>
   <translation tag="%lu min ago" ru="%lu мин. назад"/>
@@ -1111,8 +1110,6 @@
   <translation tag="G-code commands will appear here" ru="Здесь будут отображаться G-code команды"/>
   <translation tag="GCode Console" ru="Консоль G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ru="Игра окончена!&#10;Счёт: {}&#10;Нажмите, чтобы начать заново"/>
-  <translation tag="Gate"/>
-  <translation tag="Gates"/>
   <translation tag="Gear Buffer Speed" ru="Скорость шестерни от буфера"/>
   <translation tag="Gear Spool Speed" ru="Скорость шестерни от катушки"/>
   <translation tag="Gear Unload Speed" ru="Скорость выгрузки шестерни"/>
@@ -2749,7 +2746,6 @@
   <translation tag="Unit" ru="Узел"/>
   <translation tag="Unit " ru="Узел "/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
-  <translation tag="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" ru="Неизвестно"/>
   <translation tag="Unknown Event" ru="Неизвестное событие"/>
   <translation tag="Unknown Spool" ru="Неизвестная катушка"/>
@@ -2820,7 +2816,6 @@
   <translation tag="View Telemetry Data" ru="Просмотр данных телеметрии"/>
   <translation tag="View Timelapse" ru="Просмотр таймлапса"/>
   <translation tag="View all boxes"/>
-  <translation tag="View all zones"/>
   <translation tag="View and rename fans" ru="Просмотр и переименование вентиляторов"/>
   <translation tag="View installed plugins and status" ru="Просмотр установленных плагинов и статуса"/>
   <translation tag="View live camera feed" ru="Просмотр трансляции с камеры"/>
@@ -2835,10 +2830,9 @@
   <translation tag="WPA3" ru="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" ru="Дождитесь завершения текущей операции с филаментом"/>
   <translation tag="Wait until the print finishes" ru="Дождитесь завершения печати"/>
-  <translation tag="Waiting for"/>
+  <translation tag="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." ru="Ожидание Moonraker..."/>
   <translation tag="Waiting for another box to finish."/>
-  <translation tag="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ru="Ожидание нагрева стола для точной калибровки."/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Warm Bed" ru="Прогреть стол"/>
@@ -2982,7 +2976,6 @@
   <translation tag="started" ru="запущено"/>
   <translation tag="steppers" ru="шаговые двигатели"/>
   <translation tag="tall" ru="высотой"/>
-  <translation tag="to finish. One heater at a time."/>
   <translation tag="tool(s)" ru="инструмент(ы)"/>
   <translation tag="used" ru="использ."/>
   <translation tag="v%s available" ru="Доступна v%s"/>

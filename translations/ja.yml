@@ -12,7 +12,6 @@ translations:
   '%d of %d plugins loaded': '%d / %d 個のプラグインを読み込み'
   '%d plugins loaded': '%d 個のプラグインを読み込み'
   '%d slots': '%d スロット'
-  '%d units - %d zones - %d dryers': ''
   '%lu days ago': '%lu日前'
   '%lu hours ago': '%lu時間前'
   '%lu min ago': '%lu分前'
@@ -1138,8 +1137,6 @@ translations:
   GCode Console: 'Gコードコンソール'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "ゲームオーバー！\nスコア: {}\nタップでリスタート"
-  Gate: ''
-  Gates: ''
   Gear Buffer Speed: 'ギアのバッファ速度'
   Gear Spool Speed: 'ギアのスプール速度'
   Gear Unload Speed: 'ギアのアンロード速度'
@@ -2855,7 +2852,6 @@ translations:
   Unit: ユニット
   'Unit ': 'ユニット '
   'Units: %d   Boxes: %d   Dryers: %d': ''
-  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: 不明
   Unknown Event: 不明なイベント
   Unknown Spool: 不明なスプール
@@ -2926,7 +2922,6 @@ translations:
   View Telemetry Data: テレメトリデータを表示
   View Timelapse: タイムラプスを表示
   View all boxes: ''
-  View all zones: ''
   View and rename fans: ファンの表示と名前変更
   View installed plugins and status: インストール済みプラグインとステータスを表示
   View live camera feed: ライブカメラ映像を表示
@@ -2941,10 +2936,9 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
   Wait until the print finishes: 印刷が完了するまでお待ちください
-  Waiting for: ''
   Waiting for Moonraker...: Moonraker を待機中...
+  'Waiting for %s to finish. One heater at a time.': ''
   Waiting for another box to finish.: ''
-  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: 正確なキャリブレーションのためにベッド温度到達を待機中。
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Warm Bed: ベッドを予熱
@@ -3101,7 +3095,6 @@ translations:
   started: 開始
   steppers: ステッパー
   tall: 高さ
-  to finish. One heater at a time.: ''
   tool(s): ツール
   used: 使用
   v%s available: v%s が利用可能です

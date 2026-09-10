@@ -267,9 +267,9 @@ AmsSystemInfo AmsBackendHappyHare::get_system_info() const {
             have_humidity = true;
         }
 
-        // Surface the unit's environment whenever ANY reading is present. Gating
-        // on a positive heater temp previously discarded humidity for enclosures
-        // monitored without (or before) a heater reading.
+        // Surface the unit's environment whenever ANY reading is present: an
+        // enclosure can be monitored without a heater at all, and a heater's
+        // temperature can arrive after its humidity does.
         if (!have_temp && !have_humidity) {
             continue;
         }

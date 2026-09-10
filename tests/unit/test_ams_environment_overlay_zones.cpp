@@ -448,7 +448,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A badge scoped to one unit still names the rea
         lv_label_get_text(lv_obj_find_by_name(lv_screen_active(), "queued_banner_label"));
     CHECK(text.find(zone_display_label(all_zones[0], "Unit", "Slot", "")) != std::string::npos);
     // Not the fallback that fires when no blocker is found.
-    CHECK(text.find("another zone") == std::string::npos);
+    CHECK(text.find("another box") == std::string::npos);
 
     reset_overlay_singleton();
     AmsState::instance().set_backend(nullptr);

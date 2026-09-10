@@ -90,7 +90,7 @@ Runs on the K2's built-in screen and — unlike the K1 — **works with stock fi
 **What works:**
 - **Full CFS multi-material** — up to 4 units × 4 slots (16 colors): per-slot color, material type, and remaining filament length; per-unit temperature and humidity; load/unload
 - **Auto-refill / backup spool** switching, run by the CFS itself, and tool-to-slot color mapping. A runout always pauses the print first, and the box only swaps to another slot when auto-refill is on and that slot holds the exact same material *and* colour - otherwise the print stays paused
-- **CFS dryer and humidity monitoring** per unit
+- **Humidity and temperature monitoring** - each CFS unit is one box on the [filament environment screen](filament.md#filament-drying-and-humidity). The CFS has no heater, so there are readings to watch but no drying controls
 - **External-spool bypass** — toggle it in the AMS panel: the CFS is stood down, the toolhead runout sensor is switched on for protection, and the spool is published to OrcaSlicer as an extra lane. See [Filament → CFS and the External Spool](filament.md#cfs-and-the-external-spool)
 - **Chamber heater** control (K2 Pro / Plus)
 - **AI print monitoring** offered as a pre-print option when the firmware provides it; stock K2 firmware does not, so the toggle is normally absent (see [Print Monitoring](print-monitoring.md#creality-k2-ai-detection)). Filament runout is detected and acted on by the printer's own firmware, which pauses the job; HelixScreen reports what the CFS decided and offers the recovery buttons
@@ -111,7 +111,7 @@ The 4-series QIDI printers integrate the **QIDI Box** filament changer. The Q2 a
 
 **What works:**
 - **QIDI Box filament changer** (4, 8, 12, or 16 slots) — per-slot status, tool-to-slot mapping, and load / unload / change-tool control
-- **QIDI Box drying** — the box's PTC heater is controllable from the shared [dryer screen](filament.md#filament-drying)
+- **QIDI Box drying** - the box's PTC heater, its temperature and its humidity are all on the box's [filament environment screen](filament.md#filament-drying-and-humidity)
 - **Chamber heater** control on enclosed models
 - **QIDI-specific print-start tracking** (homing → bed heat → nozzle clean → Z-tilt → mesh → nozzle heat → chamber heat)
 - WiFi configuration works out of the box
@@ -163,7 +163,7 @@ Notes:
 The **Anycubic ACE Pro** filament system is integrated on the Kobra 2 Pro, Kobra 3 / 3 V2 / 3 Max, and Kobra S1 / S1 Max, as well as the Sovol SV06 ACE. These are typically run via community firmware, either on-device or remotely.
 
 **What works:**
-- **Native ACE filament system** — per-slot color and material, load/unload, and [filament drying](filament.md#filament-drying) (the ACE has a heated drying chamber)
+- **Native ACE filament system** — per-slot color and material, load/unload, and [filament drying](filament.md#filament-drying-and-humidity) (the ACE has a heated drying chamber)
 
 **Requirements:** Community firmware such as [Rinkhals](https://github.com/jbatonnet/Rinkhals) (Anycubic) providing Moonraker. ACE integration needs the community `ace_status.py` Moonraker component (ValgACE) — if it's missing, HelixScreen shows a prompt telling you to install it.
 

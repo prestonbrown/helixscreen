@@ -105,8 +105,8 @@ class AmsEnvironmentOverlay : public OverlayBase {
 
     /// Materials shown in the comfort table when no AMS slot is loaded.
     /// Falls back to the user's configured quick-preset materials rather than a
-    /// private hardcoded list (which used to disagree with every other preset
-    /// surface in the app on its 4th entry).
+    /// private hardcoded list, so this surface names the same materials as every
+    /// other preset surface in the app.
     static std::vector<std::string> fallback_comfort_materials();
 
   private:

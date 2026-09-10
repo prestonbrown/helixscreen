@@ -12,7 +12,6 @@
   <translation tag="%d of %d plugins loaded" en="%d of %d plugins loaded"/>
   <translation tag="%d plugins loaded" en="%d plugins loaded"/>
   <translation tag="%d slots" en="%d slots"/>
-  <translation tag="%d units - %d zones - %d dryers" en="%d units - %d zones - %d dryers"/>
   <translation tag="%lu days ago" en="%lu days ago"/>
   <translation tag="%lu hours ago" en="%lu hours ago"/>
   <translation tag="%lu min ago" en="%lu min ago"/>
@@ -1111,8 +1110,6 @@
   <translation tag="G-code commands will appear here" en="G-code commands will appear here"/>
   <translation tag="GCode Console" en="GCode Console"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" en="Game Over!&#10;Score: {}&#10;Tap to restart"/>
-  <translation tag="Gate" en="Gate"/>
-  <translation tag="Gates" en="Gates"/>
   <translation tag="Gear Buffer Speed" en="Gear Buffer Speed"/>
   <translation tag="Gear Spool Speed" en="Gear Spool Speed"/>
   <translation tag="Gear Unload Speed" en="Gear Unload Speed"/>
@@ -2749,7 +2746,6 @@
   <translation tag="Unit" en="Unit"/>
   <translation tag="Unit " en="Unit "/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" en="Units: %d   Boxes: %d   Dryers: %d"/>
-  <translation tag="Units: %d   Zones: %d   Dryers: %d" en="Units: %d   Zones: %d   Dryers: %d"/>
   <translation tag="Unknown" en="Unknown"/>
   <translation tag="Unknown Event" en="Unknown Event"/>
   <translation tag="Unknown Spool" en="Unknown Spool"/>
@@ -2820,7 +2816,6 @@
   <translation tag="View Telemetry Data" en="View Telemetry Data"/>
   <translation tag="View Timelapse" en="View Timelapse"/>
   <translation tag="View all boxes" en="View all boxes"/>
-  <translation tag="View all zones" en="View all zones"/>
   <translation tag="View and rename fans" en="View and rename fans"/>
   <translation tag="View installed plugins and status" en="View installed plugins and status"/>
   <translation tag="View live camera feed" en="View live camera feed"/>
@@ -2835,10 +2830,9 @@
   <translation tag="WPA3" en="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" en="Wait for the current filament operation to finish"/>
   <translation tag="Wait until the print finishes" en="Wait until the print finishes"/>
-  <translation tag="Waiting for" en="Waiting for"/>
+  <translation tag="Waiting for %s to finish. One heater at a time." en="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." en="Waiting for Moonraker..."/>
   <translation tag="Waiting for another box to finish." en="Waiting for another box to finish."/>
-  <translation tag="Waiting for another zone to finish." en="Waiting for another zone to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." en="Waiting for bed to reach temperature for accurate calibration."/>
   <translation tag="Waiting for the filament system to report its state" en="Waiting for the filament system to report its state"/>
   <translation tag="Warm Bed" en="Warm Bed"/>
@@ -2982,7 +2976,6 @@
   <translation tag="started" en="started"/>
   <translation tag="steppers" en="steppers"/>
   <translation tag="tall" en="tall"/>
-  <translation tag="to finish. One heater at a time." en="to finish. One heater at a time."/>
   <translation tag="tool(s)" en="tool(s)"/>
   <translation tag="used" en="used"/>
   <translation tag="v%s available" en="v%s available"/>

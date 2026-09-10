@@ -21,4 +21,9 @@ carries its protocol, data sources, G-code commands, topology and capability tab
   `docs/devel/FILAMENT_BACKEND_MEDUSAHC.md` with `docs/devel/FILAMENT_BACKEND_TOOLCHANGER.md`.
 - Slot metadata store: `docs/devel/FILAMENT_SLOT_METADATA.md`. The public wire format
   is `docs/specs/filament_slots.md`.
-- Chamber heaters and dryers live elsewhere: `docs/devel/CHAMBER_HEATER.md`.
+- **Filament boxes (heated and passive) are their own subsystem:**
+  `docs/devel/FILAMENT_ENVIRONMENT_ZONES.md` before touching `ams_environment_zone.*`,
+  `ui_zone_presentation.*`, or either environment overlay. Dryer commands and the
+  `DryerInfo` contract stay in `docs/devel/FILAMENT_MANAGEMENT.md` § Dryer / Box-Heater
+  Control.
+- Printer **chamber** heaters are unrelated to filament boxes: `docs/devel/CHAMBER_HEATER.md`.

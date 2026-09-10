@@ -23,6 +23,16 @@ ZoneVerdict zone_verdict(const helix::printer::EnvironmentZone& zone) {
     return ZoneVerdict::TooHumid;
 }
 
+ZoneStatus zone_status(const helix::printer::EnvironmentZone& zone) {
+    if (zone.dryer.active) {
+        return {ZoneStatusKind::Drying, ZoneVerdict::Ok};
+    }
+    if (!zone.dryer.supported) {
+        return {ZoneStatusKind::Passive, zone_verdict(zone)};
+    }
+    return {ZoneStatusKind::Verdict, zone_verdict(zone)};
+}
+
 std::string zone_display_label(const helix::printer::EnvironmentZone& zone,
                                const std::string& unit_word, const std::string& slot_word,
                                const std::string& type_name) {

@@ -50,6 +50,7 @@ HelixScreen uses a backend abstraction layer to support multiple multi-filament 
 | `include/ams_types.h` | Shared types: `AmsType`, `SlotInfo`, `AmsAction`, `PathTopology`, etc. |
 | `include/ams_error.h` | Error types with user-friendly messages |
 | `include/ams_state.h` | LVGL subject bridge (singleton) |
+| `include/ams_environment_zone.h` | `EnvironmentZone`: the filament-box model the environment UI selects, renders and controls ([FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md)) |
 | `include/slot_registry.h` | SlotRegistry: single source of truth for per-slot state |
 | `src/printer/slot_registry.cpp` | SlotRegistry implementation (name/index mapping, reorganize, tool map) |
 | `include/ams_backend_happy_hare.h` | Happy Hare MMU implementation |
@@ -1008,12 +1009,17 @@ always-off placeholders `ams_env_ind_off_flag` / `ams_env_ind_off_text` at or
 above it. Past the cap the badge is simply hidden - slots, hub dot and error badge
 all still render - and `create_unit_cards()` logs one line naming the cap.
 
-**Do not expand the `ams_env_ind_%d_*` names at the call site.** That is what the
-panel used to do, and a rig with more units than the cap then bound seven names
-nothing had registered per excess card: seven `No subject was found` parser
-warnings each, plus a permanently dark badge with nothing in the log explaining
-it. `AmsState` owns the cap and the registrations, so it owns the naming as well;
-raising `MAX_UNITS` stays a one-constant change.
+**Do not expand the `ams_env_ind_%d_*` names at the call site.** Every card past
+the cap would then bind seven names nothing has registered: seven `No subject was
+found` parser warnings each, plus a permanently dark badge with nothing in the log
+explaining it. `AmsState` owns the cap and the registrations, so it owns the naming
+as well; raising `MAX_UNITS` stays a one-constant change.
+
+The badge is per **unit** because a unit card is; what it opens is not. Tapping it
+calls `open_environment_for_unit(unit)`, which resolves that unit's environment
+**zones** and picks the detail view, a tab strip or the list from their shape - a unit
+whose lanes each have their own box opens a list of boxes, not one card.
+[FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) has the model.
 
 ### Error State Visualization
 
@@ -1704,17 +1710,34 @@ dropdown that could only ever read "None" (see [Context Menu Actions](#context-m
 
 Some AMS backends include an integrated filament dryer — a heated chamber that removes moisture from hygroscopic filaments (Nylon, PA-CF, TPU, PETG, etc.) before or during a print. HelixScreen exposes a common dryer control UI across all backends that support it.
 
+> The zone model - what a box is, how zones are discovered and folded, and which selector
+> shape the user gets - has its own doc: **[FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md)**.
+> This section covers the dryer half: the `DryerInfo` contract and the per-backend commands.
+
 ### Data Flow
 
 ```
-AmsBackend::get_dryer_info()       populates DryerInfo (ams_types.h)
+AmsBackend::get_dryer_info(unit)     populates DryerInfo (ams_types.h)
+AmsBackend::get_environment_zones()  zones carry a DryerInfo each
         │
-        ▼
-AmsState::sync_dryer_from_backend()  bridges to LVGL subjects
-        │
-        ▼
-AmsEnvironmentOverlay              control UI (ui_ams_environment_overlay.cpp
-  + ui_xml/ams_environment_overlay.xml)  target temp, duration, start/stop
+        ├──────────────────────────────┐
+        ▼                              ▼
+AmsState::sync_dryer_from_backend()  select_zone_presentation(zones)
+  mirrors ONE unit's DryerInfo to      │
+  the scalar dryer_* subjects          ├─ List  ──▶ AmsZoneOverviewOverlay
+        │                              │             (ui_ams_zone_overview_overlay.cpp
+        │                              │              + ui_xml/ams_zone_overview_overlay.xml)
+        │                              │             one row per box, drill into detail
+        │                              │                            │
+        ▼                              ▼                            ▼
+AMS panel env badges          AmsEnvironmentOverlay (Tabs / Single)
+                                (ui_ams_environment_overlay.cpp
+                                 + ui_xml/ams_environment_overlay.xml)
+                                readouts, comfort strip, target temp,
+                                duration, start/stop, queued banner
+                                             │
+                                             ▼
+                              start_drying / stop_drying (unit = shown zone's unit_index)
 ```
 
 `DryerInfo` (declared in `include/ams_types.h`) carries:
@@ -1723,47 +1746,58 @@ AmsEnvironmentOverlay              control UI (ui_ams_environment_overlay.cpp
 |-------|------|-------------|
 | `supported` | bool | Whether this backend has a dryer at all |
 | `active` | bool | Dryer is currently running |
-| `current_temp` | float | Current chamber temperature (°C) |
-| `target_temp` | float | Target setpoint (°C) |
-| `remaining_minutes` | int | Countdown to end of session (-1 = no timer) |
-| `max_temp` | float | Hardware maximum for the target slider |
+| `allows_during_print` | bool | Can the cycle run while printing |
+| `current_temp_c` | float | Current chamber temperature (°C) |
+| `target_temp_c` | float | Target setpoint (°C, 0 = off) |
+| `duration_min` / `remaining_min` | int | Session length and countdown, minutes |
+| `fan_pct` | int | Current fan speed, 0-100 |
+| `min_temp_c` / `max_temp_c` / `max_duration_min` | float / float / int | Hardware limits. The overlay clamps both the keypad and the Start command to exactly these |
+| `supports_fan_control` | bool | Can fan speed be set independently |
+| `supports_live_temp` / `supports_live_duration` | bool | Whether a running cycle can be retargeted without stopping. Both default false, so an unchecked backend takes the visible stop-and-restart path rather than silently dropping an adjustment |
 
-> **Humidity is not on `DryerInfo`.** It lives on `EnvironmentData` (per-unit, `AmsUnit::environment`) alongside the box temperature, because humidity is a per-enclosure reading from an environment sensor, not a property of the global dryer session. The dryer overlay and the AMS panel environment indicator both read `AmsUnit::environment`.
+> **Humidity is not on `DryerInfo`.** It lives on `EnvironmentData`, carried either per unit
+> (`AmsUnit::environment`) or per slot (`SlotInfo::environment`), because humidity is a
+> per-enclosure reading from an environment sensor and not a property of a drying session.
+> `EnvironmentZone` pairs one `EnvironmentData` with one `DryerInfo`, which is what lets a box
+> report humidity with no heater behind it.
 
-`AmsEnvironmentOverlay` is opened for one specific unit (`unit_index_`), so it owns its
-own `ams_env_overlay_humidity_visible` subject rather than binding the unit cards'
-`ams_env_ind_<i>_humidity_visible`. Both the humidity readout and the Material Comfort
-strip gate on it, and both need a real reading to say anything true. Binding a
-per-unit-indicator subject here means picking an index at XML-authoring time, which
-answers for whichever unit that index names and not the one on screen - the overlay was
-hard-wired to unit 0's flag, so opening unit 1's environment showed unit 0's humidity
-availability. The overlay's copy is set from the same rule the badge uses: the unit
-reports an environment **and** that environment has a humidity sensor.
+`AmsEnvironmentOverlay` shows a **set of zones** with one selected, not a unit. It owns its own
+`ams_env_overlay_humidity_visible` subject rather than binding the unit cards'
+`ams_env_ind_<i>_humidity_visible`: both the humidity readout and the Material Comfort strip gate
+on it, and binding a per-unit-indicator subject would mean picking an index at XML-authoring
+time, which answers for whichever unit that index names and not the box on screen. The overlay's
+copy is set from the same rule the badge uses - the zone reports an environment **and** that
+environment has a humidity sensor. Which unit the dryer controls act on comes from the shown
+zone (`src/ui/ui_ams_environment_overlay.cpp#acting_unit_index`), and a zone that cannot be
+attributed to one unit refuses to start or stop rather than guessing.
 
 ### Backend Virtual Interface
 
-Declared in `include/ams_backend.h`. Default implementations return `supported=false` / `not_supported` so existing backends that don't have a dryer need no changes.
+Declared in `include/ams_backend.h`. The command virtuals default to `supported=false` / `not_supported` so backends without a dryer need no changes. `get_environment_zones()` is the exception: it has a working default, and a backend that publishes environment data gets a box on screen without overriding anything.
 
 | Virtual | Default | Description |
 |---------|---------|-------------|
-| `get_dryer_info()` | `DryerInfo{.supported=false}` | Read current dryer state |
-| `start_drying(temp, minutes)` | NOT_SUPPORTED | Begin a drying session |
-| `stop_drying()` | NOT_SUPPORTED | End the active session |
-| `update_drying(temp, minutes)` | NOT_SUPPORTED | Change temp/time mid-session |
-| `get_drying_presets()` | empty vector | Return material-preset list |
+| `get_dryer_info(unit)` | `DryerInfo{.supported=false}` | Read one unit's dryer state |
+| `get_environment_zones(unit)` | Derived from `AmsUnit::environment` / `SlotInfo::environment` + `get_dryer_info()` | The boxes this system exposes ([FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md)) |
+| `start_drying(temp, minutes, fan, unit)` | NOT_SUPPORTED | Begin a drying session |
+| `stop_drying(unit)` | NOT_SUPPORTED | End the active session |
+| `update_drying(temp, minutes, fan, unit)` | NOT_SUPPORTED | Change temp/time mid-session |
+| `get_drying_presets()` | `get_default_drying_presets()` | Return material-preset list |
 
 ### Backend Support Matrix
 
-| Backend | Drying | Command |
-|---------|--------|---------|
-| ACE (Anycubic ACE Pro) | ✅ | `ACE_START_DRYING TEMP=<t> DURATION=<m>` / `ACE_STOP_DRYING` |
-| Happy Hare | ✅ | `MMU_HEATER DRY=1 TEMP=<t> TIMER=<mins>` / `MMU_HEATER STOP=1` (TIMER is minutes; see [Happy Hare Specifics](#happy-hare-specifics)) |
-| QIDI Box | ✅ | `ENABLE_BOX_DRY BOX=<n> TEMP=<t> END_TIME=<h>` / `DISABLE_BOX_DRY BOX=<n>`, with `SET_HEATER_TEMPERATURE` fallback when `box_extras` is absent. Write-path always enabled (commands verified vs QIDI firmware, #1030). |
-| CFS (Creality K2) | ❌ | Not supported — CFS has no drying hardware |
-| AFC (Box Turtle / OpenAMS) | ❌ | Not supported |
-| AD5X IFS | ❌ | Not supported |
-| Snapmaker U1 (SnapSwap) | ❌ | Not supported |
-| Tool Changer | ❌ | Not applicable |
+**Boxes** is what the backend reports to the environment-zone layer: heated (a sensor and a heater), passive (a sensor, nothing to drive), or none. A passive box still gets a card, a humidity verdict and storage advice; it just has no controls. Zone shapes are [FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) § Backend matrix.
+
+| Backend | Boxes | Drying | Command |
+|---------|-------|--------|---------|
+| ACE (Anycubic ACE Pro) | Heated, one | ✅ | `ACE_START_DRYING TEMP=<t> DURATION=<m>` / `ACE_STOP_DRYING` |
+| Happy Hare | Heated and/or passive, per box or per gate | ✅ | `MMU_HEATER DRY=1 TEMP=<t> TIMER=<mins>` / `MMU_HEATER STOP=1` (TIMER is minutes; see [Happy Hare Specifics](#happy-hare-specifics)) |
+| QIDI Box | Heated, one per box | ✅ | `ENABLE_BOX_DRY BOX=<n> TEMP=<t> END_TIME=<h>` / `DISABLE_BOX_DRY BOX=<n>`, with `SET_HEATER_TEMPERATURE` fallback when `box_extras` is absent. Write-path always enabled (commands verified vs QIDI firmware, #1030). |
+| CFS (Creality K2) | Passive, one per box | ❌ | No drying hardware - CFS reports temperature and humidity only |
+| AFC (Box Turtle / OpenAMS) | None | ❌ | Not supported |
+| AD5X IFS | None | ❌ | Not supported |
+| Snapmaker U1 (SnapSwap) | None | ❌ | Not supported |
+| Tool Changer | None | ❌ | Not applicable |
 
 ### QIDI Box Specifics
 
@@ -1781,16 +1815,19 @@ Happy Hare's filament dryer is driven by the `MMU_HEATER` command and configured
 - **Box temperature.** Read from the `filament_heater` `heater_generic` object's live `temperature`.
 - **Box humidity.** Happy Hare's `mmu` object deliberately does **not** republish temp/humidity (`mmu_environment_manager.get_status()` omits them by design); the client must read the environment sensor object directly. Humidity therefore comes from the **backing humidity chip** — `bme280` / `htu21d` / `sht3x` / `aht10` `<name>`, where `<name>` is the bare second token of the `environment_sensor` value (e.g. `temperature_sensor box` → `htu21d box`). Discovery subscribes these chips and requests the `humidity` field on all temperature sensors (only objects present in `objects.list` are subscribed, so this is safe for printers without them).
 - **Per-unit / multi-MMU resolution.** Happy Hare has two mutually-exclusive enclosure forms: a **shared** enclosure (scalar `filament_heater` / `environment_sensor`) or **per-gate** hardware (plural `filament_heaters` / `environment_sensors`, one entry per gate, distributed across units for multi-MMU). `get_system_info()` resolves **each unit's** heater + sensor — the scalar form applies to every unit; the per-gate lists map each unit to the object at its first gate (`first_slot_global_index`). So a multi-MMU rig with distinct box sensors shows the correct temp/humidity per unit in the panel indicator and overlay.
+- **Per-gate zones and state.** The per-gate `filament_heaters` / `environment_sensors` lists collapse into `EnvironmentZone`s, and the per-gate `drying_state` array folds per zone, so a box that is waiting behind another shows as Queued rather than idle. `gates_suffix_for_unit()` appends `GATES=` to every `MMU_HEATER` command on a multi-unit rig. See [FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) § Happy Hare specifics.
 
 **What is NOT yet supported (boundary):**
 
-- **Per-gate / per-slot / per-lane *drying control*.** The control surface (`AmsEnvironmentOverlay`) and the `DryerInfo` model are **single-dryer-global**: start/stop drives the default heater (no `GATES=` selector), and the per-gate `drying_state` **array** is collapsed to a single "any gate active" boolean in `parse_mmu_state`. Independently drying specific gates (`MMU_HEATER … GATES=g1,g2`), per-gate countdowns, and the `HUMIDITY=` termination target are tracked post-1.0 in **#1026**.
+- **Drying is commanded per unit, not per box.** `GATES=` lists every gate on the target unit, empty gates included. On an EMU rig, whose boxes are per-lane, a Start on one box commands the whole unit. Drying a chosen subset of gates, per-gate countdowns (Happy Hare tracks one setpoint and one end-of-cycle clock, so `target_temp_c` / `duration_min` / `remaining_min` are the same on every zone), and the `HUMIDITY=` termination target are open in **#1026**.
 
-> Note: the per-unit environment *readout* (above) is unverified on per-gate/EMU hardware — it is unit-tested (scalar + 2-unit per-gate) but we own no EMU rig. The QIDI Box (the common Happy-Hare-on-a-box case) is a single shared sensor.
+> Note: the per-gate paths are unit-tested against synthetic status frames (scalar + 2-unit per-gate) and unverified on real hardware - we own no EMU rig. The QIDI Box (the common Happy-Hare-on-a-box case) is a single shared sensor.
 
 ### Adding Dryer Support to a New Backend
 
 Override the five dryer virtuals in your `AmsBackend` subclass. At minimum implement `get_dryer_info()` — the UI polls this to drive the display. Implement `start_drying()` and `stop_drying()` to make the controls functional. `update_drying()` and `get_drying_presets()` are optional enhancements.
+
+A sixth virtual sits in the same family: `get_environment_zones()`. Unlike the five it has a working default that derives zones from `AmsUnit::environment` / `SlotInfo::environment` plus `get_dryer_info()`, so most backends never override it - publishing an `EnvironmentData` is enough to get a box on screen, with or without a heater behind it. [FILAMENT_ENVIRONMENT_ZONES.md](FILAMENT_ENVIRONMENT_ZONES.md) § "Adding environment support to a new backend" has the full recipe and says when an override is actually needed.
 
 Dryer status flows into `AmsState::sync_dryer_from_backend()` the same way slot state does — no additional wiring is required in `AmsState`.
 

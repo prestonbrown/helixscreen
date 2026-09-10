@@ -13,7 +13,6 @@ translations:
   '%d of %d plugins loaded': '%d plugins sur %d chargés'
   '%d plugins loaded': '%d plugins chargés'
   '%d slots': '%d emplacements'
-  '%d units - %d zones - %d dryers': ''
   '%lu days ago': il y a %lu jours
   '%lu hours ago': il y a %lu heures
   '%lu min ago': il y a %lu min
@@ -1248,8 +1247,6 @@ translations:
   GCode Console: 'Console G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Partie terminée !\nScore : {}\nTouchez pour recommencer"
-  Gate: ''
-  Gates: ''
   Gear Buffer Speed: 'Vitesse d''engrenage depuis le tampon'
   Gear Spool Speed: 'Vitesse d''engrenage depuis la bobine'
   Gear Unload Speed: 'Vitesse de déchargement de l''engrenage'
@@ -3149,7 +3146,6 @@ translations:
   Unit: Unité
   'Unit ': 'Unité '
   'Units: %d   Boxes: %d   Dryers: %d': ''
-  'Units: %d   Zones: %d   Dryers: %d': ''
   Unknown: Inconnu
   Unknown Event: Événement inconnu
   Unknown Spool: Bobine inconnue
@@ -3224,7 +3220,6 @@ translations:
   View Telemetry Data: Voir les données de télémétrie
   View Timelapse: Voir le timelapse
   View all boxes: ''
-  View all zones: ''
   View and rename fans: Voir et renommer les ventilateurs
   View installed plugins and status: Voir les plugins installés et leur état
   View live camera feed: Voir le flux de la caméra en direct
@@ -3240,10 +3235,9 @@ translations:
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Attendez la fin de l'opération de filament en cours
   Wait until the print finishes: Attendez la fin de l'impression
-  Waiting for: ''
   Waiting for Moonraker...: En attente de Moonraker...
+  'Waiting for %s to finish. One heater at a time.': ''
   Waiting for another box to finish.: ''
-  Waiting for another zone to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: En attente que le
     plateau atteigne la température pour une calibration précise.
   Waiting for the filament system to report its state: En attente de l'état du système de filament
@@ -3416,7 +3410,6 @@ translations:
   started: lancé
   steppers: moteurs pas à pas
   tall: de haut
-  to finish. One heater at a time.: ''
   tool(s): outil(s)
   used: utilisé
   v%s available: v%s disponible
