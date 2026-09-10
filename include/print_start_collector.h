@@ -255,23 +255,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
         return predictor_;
     }
 
-    /**
-     * @brief Get detected phases as int set
-     *
-     * Must be called under state_mutex_ or from main thread when collector stopped.
-     */
-    [[nodiscard]] std::set<int> get_completed_phase_ints() const;
-
-    /**
-     * @brief Get current phase as int
-     */
-    [[nodiscard]] int get_current_phase_int() const;
-
-    /**
-     * @brief Get elapsed seconds in current phase
-     */
-    [[nodiscard]] int get_current_phase_elapsed_seconds() const;
-
   private:
     /**
      * @brief Handle incoming G-code response
