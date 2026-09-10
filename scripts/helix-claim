@@ -13,17 +13,20 @@ set -uo pipefail
 
 CLAIM_DIR="${HELIX_CLAIM_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")/.helix-claims}"
 
-# A worktree has three names people reach for: its directory basename, the
-# branch checked out in it, and "main". Free-form strings let two sessions claim
-# one tree under two names and both read FREE - an advisory lock that fails OPEN.
+# A tree has three names people reach for: its directory basename, the branch
+# checked out in it, and "main". Free-form strings let two sessions claim one
+# resource under two names and both read FREE - an advisory lock that fails OPEN.
 # Resolve every spelling to the directory basename, which is unique per tree.
+# worktree: and build: share this name space: both are scoped to one tree.
 canon() {
+    local pfx
     case "$1" in
-        worktree:*) ;;
+        worktree:*) pfx=worktree;;
+        build:*)    pfx=build;;
         *) printf '%s' "$1"; return;;
     esac
-    local want=${1#worktree:} path branch base match=""
-    [ -z "$want" ] && { printf 'worktree:%s' "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")")"; return; }
+    local want=${1#*:} path branch base match=""
+    [ -z "$want" ] && { printf '%s:%s' "$pfx" "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")")"; return; }
     while read -r key val; do
         case "$key" in
             worktree) path=$val; base=$(basename "$path");;
@@ -37,7 +40,7 @@ EOF
     [ -z "$match" ] && for path in $(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2}'); do
         [ "$want" = "$(basename "$path")" ] && match=$(basename "$path")
     done
-    printf 'worktree:%s' "${match:-$want}"
+    printf '%s:%s' "$pfx" "${match:-$want}"
 }
 
 die() { printf 'helix-claim: %s\n' "$1" >&2; exit 2; }
@@ -204,7 +207,8 @@ helix-claim - advisory claims on resources shared between agent sessions
   release <resource>                          drop your claim
   release-if-owned-by <pid> <resource>        drop it only if that pid claimed it
 
-worktree: names are resolved (basename, branch, or bare = the tree you are in).
+worktree: and build: names are resolved (basename, branch, or bare = the tree
+you are in), so two spellings cannot claim one resource twice.
 Other resources are free-form; the useful ones are
   worktree:<name>  build:<name>  device:<printer>  gh:issues  socket:<path>
 
