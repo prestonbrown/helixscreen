@@ -1016,7 +1016,7 @@ translations:
   Filament Detected: フィラメント検出
   Filament Environment: フィラメント環境
   Filament Grade Mismatch: フィラメントグレード不一致
-  Filament Humidity: ''
+  Filament Humidity: フィラメント湿度
   Filament In The Toolhead: ツールヘッドにフィラメントがあります
   Filament Mapping: フィラメントマッピング
   Filament Runout: フィラメント切れ
@@ -1619,7 +1619,7 @@ translations:
   No effects available: 利用可能なエフェクトがありません
   No events queued: キューにイベントはありません
   No fans detected: ファンが検出されませんでした
-  No filament environment sensors: ''
+  No filament environment sensors: フィラメント環境センサーがありません
   No filament loaded to unload: 取出すフィラメントが装填されていません
   No filament sensor detected: 'フィラメントセンサーが検出されません'
   No filaments found: フィラメントが見つかりません

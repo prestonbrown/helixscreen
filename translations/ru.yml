@@ -1093,7 +1093,7 @@ translations:
   Filament Detected: Филамент обнаружен
   Filament Environment: Среда хранения филамента
   Filament Grade Mismatch: Несоответствие марки филамента
-  Filament Humidity: ''
+  Filament Humidity: Влажность филамента
   Filament In The Toolhead: Филамент в печатающей головке
   Filament Mapping: Назначение филамента
   Filament Runout: Окончание филамента
@@ -1742,7 +1742,7 @@ translations:
   No effects available: Нет доступных эффектов
   No events queued: Нет событий в очереди
   No fans detected: Вентиляторы не обнаружены
-  No filament environment sensors: ''
+  No filament environment sensors: Нет датчиков среды филамента
   No filament loaded to unload: Нет загруженного филамента для выгрузки
   No filament sensor detected: 'Датчик филамента не обнаружен'
   No filaments found: Филаменты не найдены

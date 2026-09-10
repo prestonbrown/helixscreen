@@ -1010,7 +1010,7 @@ translations:
   Filament Detected: 检测到耗材
   Filament Environment: 耗材环境
   Filament Grade Mismatch: 耗材等级不匹配
-  Filament Humidity: ''
+  Filament Humidity: 耗材湿度
   Filament In The Toolhead: 工具头处有耗材
   Filament Mapping: 耗材映射
   Filament Runout: 耗材用尽
@@ -1611,7 +1611,7 @@ translations:
   No effects available: 无可用特效
   No events queued: 无排队事件
   No fans detected: 未检测到风扇
-  No filament environment sensors: ''
+  No filament environment sensors: 无耗材环境传感器
   No filament loaded to unload: 没有已加载的耗材可卸载
   No filament sensor detected: '未检测到耗材传感器'
   No filaments found: 未找到耗材

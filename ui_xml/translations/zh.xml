@@ -995,7 +995,7 @@
   <translation tag="Filament Detected" zh="检测到耗材"/>
   <translation tag="Filament Environment" zh="耗材环境"/>
   <translation tag="Filament Grade Mismatch" zh="耗材等级不匹配"/>
-  <translation tag="Filament Humidity"/>
+  <translation tag="Filament Humidity" zh="耗材湿度"/>
   <translation tag="Filament In The Toolhead" zh="工具头处有耗材"/>
   <translation tag="Filament Mapping" zh="耗材映射"/>
   <translation tag="Filament Runout" zh="耗材用尽"/>
@@ -1571,7 +1571,7 @@
   <translation tag="No effects available" zh="无可用特效"/>
   <translation tag="No events queued" zh="无排队事件"/>
   <translation tag="No fans detected" zh="未检测到风扇"/>
-  <translation tag="No filament environment sensors"/>
+  <translation tag="No filament environment sensors" zh="无耗材环境传感器"/>
   <translation tag="No filament loaded to unload" zh="没有已加载的耗材可卸载"/>
   <translation tag="No filament sensor detected" zh="未检测到耗材传感器"/>
   <translation tag="No filaments found" zh="未找到耗材"/>

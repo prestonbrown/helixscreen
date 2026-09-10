@@ -995,7 +995,7 @@
   <translation tag="Filament Detected" fr="Filament détecté"/>
   <translation tag="Filament Environment" fr="Environnement du filament"/>
   <translation tag="Filament Grade Mismatch" fr="Grade de filament incompatible"/>
-  <translation tag="Filament Humidity"/>
+  <translation tag="Filament Humidity" fr="Humidité du filament"/>
   <translation tag="Filament In The Toolhead" fr="Filament dans la tête d&apos;outil"/>
   <translation tag="Filament Mapping" fr="Mappage du filament"/>
   <translation tag="Filament Runout" fr="Fin de filament"/>
@@ -1571,7 +1571,7 @@
   <translation tag="No effects available" fr="Aucun effet disponible"/>
   <translation tag="No events queued" fr="Aucun événement en file"/>
   <translation tag="No fans detected" fr="Aucun ventilateur détecté"/>
-  <translation tag="No filament environment sensors"/>
+  <translation tag="No filament environment sensors" fr="Aucun capteur d&apos;environnement de filament"/>
   <translation tag="No filament loaded to unload" fr="Aucun filament chargé à décharger"/>
   <translation tag="No filament sensor detected" fr="Aucun capteur de filament détecté"/>
   <translation tag="No filaments found" fr="Aucun filament trouvé"/>

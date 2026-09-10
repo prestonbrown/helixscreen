@@ -1106,7 +1106,7 @@ translations:
   Filament Detected: Filamento Detectado
   Filament Environment: Ambiente do filamento
   Filament Grade Mismatch: Grau de Filamento Incompatível
-  Filament Humidity: ''
+  Filament Humidity: Umidade do Filamento
   Filament In The Toolhead: Filamento no cabeçote
   Filament Mapping: Mapeamento de Filamento
   Filament Runout: Fim de Filamento
@@ -1766,7 +1766,7 @@ translations:
   No effects available: Nenhum efeito disponível
   No events queued: Nenhum evento na fila
   No fans detected: Nenhuma ventoinha detectada
-  No filament environment sensors: ''
+  No filament environment sensors: Nenhum sensor ambiental de filamento
   No filament loaded to unload: Nenhum filamento carregado para descarregar
   No filament sensor detected: 'Nenhum sensor de filamento detectado'
   No filaments found: Nenhum filamento encontrado
