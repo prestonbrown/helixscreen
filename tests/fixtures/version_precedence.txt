@@ -1,0 +1,34 @@
+# Versions in strictly ascending precedence order, one per line.
+#
+# Both comparators assert against this file: tests/unit/test_version.cpp for the
+# ordering the in-app updater uses, and tests/shell/test_version_compare.bats for
+# the copy CI runs before it moves a channel manifest forward. A line added here
+# fails both suites until both implementations agree, which is the point: the rule
+# has to live in two languages, so it gets one set of cases.
+#
+# Blank lines and #-comments are skipped. Build metadata (+sha) does not affect
+# precedence, so it never appears here; those equality cases live in the tests.
+#
+# The ladder from 1.1.0-alpha through 1.1.0 is the worked example in Semantic
+# Versioning 2.0.0 section 11, kept verbatim so a reader can check it against the
+# spec rather than against our reasoning.
+
+0.99.118
+1.0.0
+1.0.1
+1.0.2
+1.0.99
+1.1.0-1
+1.1.0-11
+1.1.0-alpha
+1.1.0-alpha.1
+1.1.0-alpha.beta
+1.1.0-beta
+1.1.0-beta.2
+1.1.0-beta.11
+1.1.0-rc.1
+1.1.0
+1.1.1
+1.2.0-beta.1
+1.2.0
+2.0.0

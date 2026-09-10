@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Check out the comparator
+      uses: actions/checkout@v6
+
     - name: Clean up old releases
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -28,8 +31,14 @@ jobs:
         RETAIN_COUNT: ${{ inputs.retain_count }}
         DRY_RUN: ${{ inputs.dry_run }}
       run: |
+        # Semver precedence, not a field sort: splitting on '.' reads the
+        # patch of 1.1.0-beta.1 as "0-beta", which -n truncates to 0, so a
+        # release and its own prereleases collide and the byte fallback ranks
+        # the release BELOW them. `sort -V` inverts the same pair. A version
+        # the comparator cannot rank aborts the step instead of being ordered
+        # by guess, because the caller prunes with `head -n -N`.
         semver_sort() {
-          sort -t. -k1,1n -k2,2n -k3,3n
+          scripts/version-compare.sh --sort
         }
 
         # Prune old versions from releases/ (shared artifact store)
