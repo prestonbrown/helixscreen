@@ -36,6 +36,12 @@ jobs:
   compile-ubuntu:
     name: Compile (Ubuntu 22.04)
     runs-on: ubuntu-22.04
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     # Sized to cover the step budgets below plus setup, rather than silently
     # undercutting them: a job cap shorter than the sum kills the job before
     # either step reaches its own timeout.
@@ -372,6 +378,12 @@ jobs:
   build-macos:
     name: Build (macOS 14)
     runs-on: macos-14
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     timeout-minutes: 65
 
     steps:
@@ -478,6 +490,12 @@ jobs:
   build-android:
     name: Build (Android)
     runs-on: ubuntu-22.04
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     # The job itself runs 26-29 minutes with a warm Gradle cache, so a 30-minute
     # cap is a coin flip: it timed out at exactly 30:02 on one commit and passed
     # in 26 on the next. The ceiling is for a hung Gradle or NDK fetch, not for
@@ -549,6 +567,12 @@ jobs:
   link-aux-binaries:
     name: Link splash + watchdog (non-LTO)
     runs-on: ubuntu-22.04
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     timeout-minutes: 60
 
     steps:
