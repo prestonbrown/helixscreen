@@ -254,17 +254,6 @@ class PrinterState {
     void deinit_subjects();
 
     /**
-     * @brief Re-register temperature subjects with LVGL XML system
-     *
-     * FOR TESTING ONLY. Call this to ensure temperature subjects are registered
-     * in LVGL's global XML registry. Use when other tests may have overwritten
-     * the registry with their own PrinterState instances.
-     *
-     * Does NOT reinitialize subjects - only updates LVGL XML registry mappings.
-     */
-    void register_temperature_xml_subjects();
-
-    /**
      * @brief Update state from Moonraker notification
      *
      * Extracts values from notify_status_update messages and updates subjects.
