@@ -13,24 +13,17 @@ on:
     branches: [ main, "release/**" ]
 
 # A push to a claude/** work branch is superseded within minutes on a busy day,
-# and this workflow can hold a runner for hours. Keying the group on the ref
-# lets a newer push cancel the older run there. release/** keys on the SHA
-# instead, so every commit that lands keeps its own run.
+# and this workflow can hold a runner for hours, so a topic branch and a PR key
+# their group on the ref and let a newer push cancel the older run.
 #
-# main keys on the ref but does NOT cancel: an in-flight run finishes, and of the
-# runs queued behind it only the newest survives, so a burst of pushes leaves one
-# completing run and one pending rather than a pile. Cancelling instead means a
-# busy hour completes nothing at all and main reads green because it was never
-# measured, which is not the same thing.
-#
-# cancel-in-progress needs fromJSON to get an actual boolean. A bare
-# `${{ github.ref != 'refs/heads/main' }}` yields the STRING "false", which is
-# non-empty and therefore truthy, so the guard reads as disabled and in-flight
-# main runs are cancelled anyway - measured here as a run cancelled 22 minutes
-# in by the next push.
+# main and release/** key on the SHA instead, which puts every commit in its own
+# group: runs in different groups cannot cancel each other, so each commit that
+# lands on a protected branch keeps its own run and ends green or red. A
+# cancelled run is neither, and reads as green in every summary that counts
+# failures.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (startsWith(github.ref, 'refs/heads/release/') && github.sha || github.ref) }}
-  cancel-in-progress: ${{ fromJSON(github.ref != 'refs/heads/main') }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main') && github.sha || github.ref) }}
+  cancel-in-progress: true
 
 jobs:
   compile-ubuntu:
