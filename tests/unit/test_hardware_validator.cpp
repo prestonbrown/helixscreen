@@ -1515,3 +1515,49 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
         REQUIRE(name != "output_pin fan1");
     }
 }
+
+// Creality K2 Plus preset regression: the PTC heater's own blower keeps
+// Klipper's factory name "heater_fan chamber_fan" on a stock unit, distinct by
+// section prefix from the chamber circulation loop "temperature_fan
+// chamber_fan" (see the "stock K2 naming" fixture in test_printer_hardware.cpp).
+// The preset's hardware/expected list must cover that stock name, or a stock
+// rig double-flags: the real fan reads as newly discovered, and the preset's
+// own (differently named) entry reads as missing.
+TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
+                 "HardwareValidator - shipped k2 preset covers the stock chamber heater fan",
+                 "[hardware][validator][k2]") {
+    std::filesystem::path shipped =
+        std::filesystem::current_path() / "assets" / "config" / "presets" / "k2.json";
+    INFO("reading " << shipped.string() << " (tests must run from the repo root)");
+    REQUIRE(std::filesystem::exists(shipped));
+    std::ifstream in(shipped);
+    REQUIRE(in.good());
+    json preset = json::parse(in);
+    REQUIRE(preset["printer"].contains("hardware"));
+    REQUIRE(preset["printer"]["hardware"].contains("expected"));
+    REQUIRE(preset["printer"].contains("fans"));
+
+    // Object list as reported by Moonraker /printer/objects/list on a stock K2
+    // Plus, unmodified from the factory config.
+    client.set_heaters({"extruder", "heater_bed", "heater_generic chamber_heater"});
+    client.set_fans({"heater_fan hotend_fan", "output_pin fan0", "output_pin fan2",
+                     "output_pin fan1", "heater_fan chamber_fan", "temperature_fan chamber_fan",
+                     "output_pin extruder_fan"});
+
+    setup_printer_data({{"moonraker_host", "127.0.0.1"},
+                        {"moonraker_port", 7125},
+                        {"fans", preset["printer"]["fans"]},
+                        {"hardware",
+                         {{"optional", json::array()},
+                          {"expected", preset["printer"]["hardware"]["expected"]},
+                          {"last_snapshot", json::object()}}}});
+
+    HardwareValidator validator;
+    auto result = validator.validate(&config, client.hardware());
+
+    REQUIRE_FALSE(has_newly_discovered(result, "heater_fan chamber_fan"));
+    for (const auto& issue : result.expected_missing) {
+        INFO("unexpected missing-hardware warning: " << issue.hardware_name);
+        REQUIRE(issue.hardware_name.find("chamber") == std::string::npos);
+    }
+}
