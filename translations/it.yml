@@ -95,7 +95,10 @@ translations:
   = Tighten: = Stringere
   A: A
   A backup of %s is created before applying: 'Prima di applicare viene creato un backup di %s'
+  A motor IO pin couldn't be restored. Power-cycle the printer to recover: ''
+  A motor's parameters couldn't be written. Power-cycle the printer to retry: ''
   A picture of your printer: Immagine della tua stampante
+  A spool may be tangled or the drive gear is jammed: ''
   ABS: ABS
   ACCELEROMETERS: ACCELEROMETRI
   ACE Moonraker bridge not found. Install ace_status.py for full support.: Bridge
@@ -346,6 +349,7 @@ translations:
     per HelixScreen.
   Brush nozzle: 'Spazzola l''ugello'
   Buffer Status: Stato buffer
+  Buffer tube problem: ''
   'Build Volume: ': 'Volume di stampa: '
   Bundle Uploaded: Bundle caricato
   Button taps and navigation sounds: Suoni pulsanti e navigazione
@@ -366,6 +370,9 @@ translations:
   CALIBRATION: CALIBRAZIONE
   CAPABILITIES: FUNZIONALITÀ
   CARTOGRAPHER: CARTOGRAPHER
+  CFS is busy: ''
+  CFS motor overloaded: ''
+  CFS system error: ''
   CHANGED FROM LAST SESSION: MODIFICATO DALLA SESSIONE PRECEDENTE
   CLOG: INTASAMENTO
   COLOR SENSORS: SENSORI DI COLORE
@@ -425,6 +432,7 @@ translations:
   Camera: Telecamera
   Can't connect — try forgetting and re-pairing the printer: Impossibile connettersi
     — prova a dimenticare e associare di nuovo la stampante
+  Can't read filament RFID tag: ''
   Cancel: Annulla
   Cancel Escalation: Annulla escalation
   Cancel Print: Annulla stampa
@@ -494,8 +502,16 @@ translations:
   Check slot failed: Controllo slot fallito
   Check slots: Controlla slot
   Check slots failed: Controllo slot fallito
+  Check that only one filament path is active: ''
+  Check that the cutter mechanism is properly installed: ''
+  Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: ''
+  Check the RS-485 cable between printer and CFS: ''
+  Check the buffer unit on the back of the printer: ''
   Check the filament path and try again.: Controllare il percorso del filamento e
     riprovare.
+  ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
+  : ''
+  Check the spool and the filament path for a jam, then retry: ''
   Check your heater's rating (typically 40-60W for hotends): Controlla la potenza
     del riscaldatore (tipicamente 40-60W per gli hotend)
   Checking: Verifica
@@ -730,6 +746,7 @@ translations:
   Cut filament: Taglia filamento
   Cut tip: 'Taglia la punta'
   Cutter Enabled: 'Taglierina abilitata'
+  Cutter blade didn't sever filament: ''
   Cutter jam: Inceppamento taglierina
   Cutting: Taglio
   Cutting filament...: Taglio filamento...
@@ -834,6 +851,7 @@ translations:
   E-Stop (M112): Arresto emergenza (M112)
   E-Stop Confirmation: Conferma arresto emergenza
   EDDY CURRENT: EDDY CURRENT
+  EEPROM error on CFS unit: ''
   EMERGENCY STOP: ARRESTO EMERGENZA
   EMPTY: VUOTO
   Each fan can only be selected once: Ogni ventola può essere selezionata solo una
@@ -972,9 +990,11 @@ translations:
   Extruder MPC Calibration: Calibrazione MPC estrusore
   Extruder PID Tuning: Regolazione PID estrusore
   Extruder Unload Speed: 'Velocità di scarico dell''estrusore'
+  Extruder and CFS disagree on filament state — inspect both sensors: ''
   Extruder distances and sensor configuration: 'Distanze dell''estrusore e configurazione dei sensori'
   Extruder heats automatically based on material: L'estrusore si riscalda automaticamente
     in base al materiale
+  Extruder motor calibration failed: ''
   Extruder to Nozzle: 'Estrusore all''ugello'
   Extruding prime line...: Estrusione linea di priming...
   FAILED: FALLITO
@@ -1096,6 +1116,7 @@ translations:
   'Features: ': 'Caratteristiche: '
   Feed Assist: 'Assistenza all''alimentazione'
   Feed assist and debug tools: Assistenza all'alimentazione e strumenti di debug
+  Feed failed: ''
   Feed filament: Alimenta filamento
   Feed filament directly to extruder: Alimenta filamento direttamente all'estrusore
   Feed filament from current slot: 'Alimenta il filamento dallo slot corrente'
@@ -1113,20 +1134,33 @@ translations:
   Filament System Error: Errore del sistema filamento
   Filament Used: Filamento utilizzato
   Filament already exists: Filamento già esistente
+  Filament buffer failure during feed: ''
+  Filament buffer stopped moving: ''
   Filament by Type: Filamento per tipo
+  ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
+  : ''
   Filament controls are unavailable while printing.: I controlli del filamento non sono disponibili durante la stampa.
+  Filament cutter not detected: ''
+  Filament cutter position error: ''
+  Filament cutter stuck: ''
   Filament deleted: Filamento eliminato
   Filament diameter sensors for flow compensation: Sensori diametro filamento per
     compensazione flusso
+  Filament didn't fully retract, may need manual removal: ''
   Filament feeder: Alimentatore filamento
   Filament is clear of the toolhead. Pull it out the rest of the way.: Il filamento non è più nella testina. Estrailo del tutto.
+  Filament is dragging: ''
   Filament is loose: Il filamento è allentato
   Filament is pulling tight: Il filamento è in tensione
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Dopo lo scaricamento il filamento è ancora all'ugello. Il taglio o la retrazione potrebbe non essere completato. Libera la testina prima di caricare un'altra bobina.
+  Filament is still present after the cut — the blade may be dull or misaligned: ''
+  Filament jammed at the extruder gear: ''
   'Filament load failed: {}': 'Caricamento filamento fallito: {}'
+  Filament never reached the CFS hub sensor: ''
   Filament operation failed: Operazione filamento fallita
   Filament operation timed out: Operazione filamento — tempo scaduto
+  Filament ran out: ''
   Filament ran out - nothing at the toolhead and the print is paused.: 'Filamento esaurito - non c''è più nulla alla testina e la stampa è in pausa.'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
   : 'Filamento esaurito e il CFS non ha trovato una bobina compatibile su cui passare. Carica una bobina dello stesso materiale e colore, poi riprendi.'
@@ -1139,6 +1173,10 @@ translations:
   Filament saved: Filamento salvato
   Filament sensor available for runout detection: Sensore filamento disponibile per
     il rilevamento esaurimento
+  Filament snapped inside CFS: ''
+  Filament stalled between CFS hub and extruder sensor: ''
+  Filament stuck in connector during unload: ''
+  Filament stuck inside the CFS hub: ''
   Filament tension is balanced: La tensione del filamento è bilanciata
   Filament tracking & label printing: Tracciamento filamento e stampa etichette
   Filament tracking and inventory: Tracciamento e inventario filamento
@@ -1414,6 +1452,7 @@ translations:
   Invalid status response from printer: Risposta di stato non valida dalla stampante
   Issue description: Descrizione problema
   It can be un-archived in Spoolman's web UI.: Può essere ripristinata dall'interfaccia web di Spoolman.
+  It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: ''
   It's a new spool: È una nuova bobina
   Jammed at the Toolhead: Inceppato nella testina
   Job Queue: Coda lavori
@@ -1510,6 +1549,7 @@ translations:
   Live view from your webcam: Vista live dalla webcam
   Load: Carica
   Load Filament: Carica filamento
+  Load a new spool in this slot, or turn on auto-refill to switch to a matching one: ''
   Load complete: 'Caricamento completato'
   Load filament: 'Carica il filamento'
   Load may still be running — response timed out: Il caricamento potrebbe essere ancora
@@ -1550,6 +1590,7 @@ translations:
   Loosen Path B belt.: Allentare la cinghia del Percorso B.
   Lost connection during print — try again: Connessione persa durante la stampa —
     riprova
+  Lost connection to CFS unit: ''
   'Lot # (optional)': 'Lotto # (facoltativo)'
   Lot/Batch Nr: Nr. Lotto/Batch
   Low Memory: Memoria insufficiente
@@ -1561,6 +1602,7 @@ translations:
   MANUAL: MANUALE
   MB RAM: MB RAM
   MCU: MCU
+  MCU bridge daemon is shut down: ''
   MCU, host, and auxiliary temperature monitoring: Monitoraggio temperature MCU, host
     e ausiliarie
   'MCU: ': 'MCU: '
@@ -1609,6 +1651,7 @@ translations:
   Manual Feed: 'Alimentazione manuale'
   Manual Retract: 'Retrazione manuale'
   Manual feed and retract operations: Operazioni manuali di alimentazione e retrazione
+  Manually pull the filament back through the connector: ''
   Map to closest colors with matching material: Abbina ai colori più vicini con materiale
     compatibile
   Marginal: Marginale
@@ -1638,6 +1681,7 @@ translations:
   Measurement Failed: Misurazione fallita
   Measuring accelerometer noise...: 'Misurazione del rumore dell''accelerometro...'
   Measuring vibrations... {}%: 'Misurazione delle vibrazioni... {}%'
+  Measuring wheel error: ''
   Median %.0f Hz: Mediana %.0f Hz
   Memory: Memoria
   Memory (MB): Memoria (MB)
@@ -1664,12 +1708,15 @@ translations:
     più tempo.
   Motion: Movimento
   'Motion: XYZ': 'Movimento: XYZ'
+  Motor controller error: ''
+  Motor parameter setup failed: ''
   Motor speeds and acceleration: 'Velocità dei motori e accelerazione'
   Motors Off: Motori spenti
   'Motors disable failed: {}': 'Disabilitazione motori fallita: {}'
   Motors disabled: Motori disabilitati
   Mount: Monta
   Move: Sposta
+  Move out of range: 'Movimento fuori intervallo'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Muovere
     la carta avanti e indietro durante la regolazione. Fermarsi quando la carta si
     blocca leggermente ma ancora scorre.
@@ -1850,6 +1897,7 @@ translations:
   Nozzle Temperatures: 'Temperature degli ugelli'
   Nozzle Temps: Temp. ugelli
   Nozzle clean complete: Pulizia ugello completata
+  Nozzle clog detected: ''
   Nozzle did not reach {}°C — {} cancelled: L'ugello non ha raggiunto {}°C — {} annullato
   Nozzle min cannot exceed max: Il minimo dell’ugello non può superare il massimo
   Nozzle target set to {}°C: Obiettivo ugello impostato a {}°C
@@ -1882,6 +1930,7 @@ translations:
   Open feeder macro: Macro di apertura alimentatore
   Open feeder: Apri alimentatore
   Open motion controls for jogging: Apri i controlli di movimento
+  Open the CFS unit and remove the broken filament from the slot: ''
   Operation already in progress: Operazione già in corso
   Operations: Operazioni
   Optimize Your Printing: Ottimizza la tua stampa
@@ -1920,6 +1969,7 @@ translations:
   PRINT_START has {} skippable operation: PRINT_START ha {} operazione ignorabile
   PRINT_START has {} skippable operations: PRINT_START ha {} operazioni ignorabili
   PROBE SENSORS: SENSORI SONDA
+  PTFE tube connection loose: ''
   Pair: Associa
   Pair Bluetooth Printer: Associa stampante Bluetooth
   Pair Bluetooth Scanner: Associa scanner Bluetooth
@@ -2011,6 +2061,7 @@ translations:
   Power: Alimentazione
   Power Devices: Dispositivi di alimentazione
   Power off the printer or screen: Spegni la stampante o lo schermo
+  Pre-heat the extruder first: ''
   'Pre-print command failed: {}': 'Comando pre-stampa fallito: {}'
   Pre-print homing...: Homing pre-stampa...
   Preheat: 'Preriscaldamento'
@@ -2195,6 +2246,8 @@ translations:
   Quick actions, calibration, speed: Azioni rapide, calibrazione, velocità
   RFCOMM connect failed: Connessione RFCOMM fallita
   'RFCOMM connect failed: ': 'Connessione RFCOMM fallita: '
+  RFID reader malfunction (left): ''
+  RFID reader malfunction (right): ''
   RSS: RSS
   'RSS:': 'RSS:'
   Ramming Volume: 'Volume di compattazione'
@@ -2203,6 +2256,7 @@ translations:
   Re-identify: Rileva di nuovo
   Re-probe: Risonda
   Re-read spool RFID tags and remaining length: 'Rileggi i tag RFID delle bobine e la lunghezza rimanente'
+  Re-seat the Bowden tube connector on the CFS unit: ''
   Re-syncs Happy Hare's tracked state with the hardware.: Risincronizza lo stato tracciato
     di Happy Hare con l'hardware.
   Readings from extra temperature sensors: Letture dai sensori di temperatura extra
@@ -2335,11 +2389,18 @@ translations:
   Retract Distance: Distanza retrazione
   Retract Length: Lunghezza retrazione
   Retract Speed: Velocità retrazione
+  Retract didn't reach buffer empty position: ''
+  Retract error — failed to exit connector: ''
+  Retract error — filament still detected: ''
+  Retract error — multiple connectors triggered: ''
+  Retract failed: ''
+  Retract failed — filament stuck in connector: ''
   'Retract failed: {}': 'Ritrazione fallita: {}'
   Retract filament: 'Retrai il filamento'
   Retract filament to current slot: 'Retrai il filamento nello slot corrente'
   Retract may still be running — response timed out: Ritrazione potrebbe essere ancora
     in corso — tempo scaduto
+  Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: ''
   Retraction: Retrazione
   Retraction Settings: Impostazioni retrazione
   Retraction distance in the cooling tube: 'Distanza di retrazione nel tubo di raffreddamento'
@@ -2365,6 +2426,7 @@ translations:
   Run Macro?: Eseguire la macro?
   Run a Klipper macro when preheating this material: Esegui una macro Klipper durante
     il preriscaldamento di questo materiale
+  Run a cold pull or replace the nozzle: ''
   Run a macro you choose, in one tap: Esegui una macro scelta con un tocco
   Run brush cleaning sequence: 'Esegui la sequenza di pulizia con spazzola'
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): Esegui
@@ -2511,6 +2573,7 @@ translations:
   Sensor Response: Risposta sensore
   Sensor Source: Sorgente sensore
   Sensor Temperature: Temperatura sensore
+  Sensor mismatch — check extruder and CFS sensors: ''
   Sensor to Nozzle: 'Sensore all''ugello'
   Sensors: Sensori
   Separate on/off macros. HelixScreen tracks the state.: Macro on/off separate. HelixScreen
@@ -2531,6 +2594,8 @@ translations:
   Set local timezone for time display: Imposta fuso orario locale per l'ora
   Set logging verbosity for troubleshooting: Imposta il livello di dettaglio del log
     per la risoluzione dei problemi
+  ? Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
+  : ''
   Set up: Configura
   Set up your label printer in Settings: Configura la stampante etichette nelle Impostazioni
   Settings: Impostazioni
@@ -2651,6 +2716,8 @@ translations:
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu bobina%s'
   Square Corner Velocity: Velocità angoli retti
   Stable: Stabile
+  Stall detection setup failed for the Z motor — power-cycle to retry: ''
+  Stall detection setup failed for the extruder — power-cycle to retry: ''
   Standard: Standard
   Standby: Standby
   Starfield: Campo stellare
@@ -2742,6 +2809,7 @@ translations:
   TPU: TPU
   Takes 3-5 min. Do not interrupt.: Richiede 3-5 min. Non interrompere.
   Tap + to add: Tocca + per aggiungere
+  Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: ''
   Tap again to confirm this orientation: Tocca di nuovo per confermare questo orientamento
   Tap an object to exclude it | {} objects ({} excluded): 'Tocca un oggetto per escluderlo | {} oggetti ({} esclusi)'
   Tap any tile to open its full controls or toggle its state.: Tocca un riquadro per aprirne i controlli completi o per cambiarne lo stato.
@@ -2769,6 +2837,7 @@ translations:
   Temperature Graph Config: Configurazione grafico temperature
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: 'Sensori di temperatura'
+  Temperature and humidity sensor not responding: ''
   Temperature control optimized for {} at {}°C.: 'Controllo della temperatura ottimizzato per {} a {}°C.'
   Temperatures: Temperature
   Temperatures plotted over time: Temperature nel tempo
@@ -2798,6 +2867,7 @@ translations:
   That did not sound like a pluck - try again: Non sembrava un pizzico - riprova
   That slot cannot stand in for this one: Quello slot non può sostituire questo
   That tool is already loaded: Quell'utensile è già caricato
+  The CFS odometer hardware is faulty and needs repair or replacement: ''
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : Il plugin HelixPrint abilita modifiche G-code rapide direttamente sulla stampante,
@@ -2808,11 +2878,18 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Il salvaschermo animato è stato disattivato su questo dispositivo per evitare
     che interferisca con le stampe. Puoi riattivarlo in Impostazioni > Schermo.
+  The buffer may be disconnected, stuck, or faulty. Check it before retrying: ''
+  The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: ''
+  The cutter blade didn't return — check for filament wrapped around the cutting mechanism: ''
+  The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: ''
+  The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: ''
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : Il filamento non ha raggiunto l'ugello. Il CFS non ha segnalato errori, ma il sensore della testina ancora non rileva filamento. Verifica che la bobina sia ben inserita e che il percorso sia libero, poi riprova.
+  The filament may not have fully retracted — try again or manually pull: ''
   The filament system reported an error: Il sistema filamento ha segnalato un errore
   The heater will cycle on and off several times.: Il riscaldatore si accenderà e
     spegnerà diverse volte.
+  The left RFID reader in this CFS unit may need service: ''
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : La bobina caricata è {}, ma questo file è stato sezionato per {}. Il filamento con cariche richiede un flusso più basso e un ugello indurito.
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
@@ -2831,8 +2908,11 @@ translations:
     stampante ha rifiutato la configurazione del filamento. La stampa non è stata
     avviata.
   The printer's firmware chooses the backup spool itself: Il firmware della stampante sceglie la bobina di riserva
+  The requested position is outside the printer's bounds: 'La posizione richiesta è fuori dai limiti della stampante'
+  The right RFID reader in this CFS unit may need service: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: Il sensore
     di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?
+  The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: ''
   The speed of one fan you choose: La velocità di una ventola a scelta
   The time, date, and system uptime: Ora, data e tempo di attività
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?
@@ -2844,6 +2924,9 @@ translations:
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: Il
     sensore della testina indica che nessun filamento è presente. Procedere comunque
     con lo scaricamento?
+  The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ''
+  The unit reported a fault with no further detail. Restart the printer if it repeats: ''
+  The unit's onboard storage has failed. The CFS mainboard needs replacing: ''
   Theme: Tema
   Theme Colors: Colori tema
   Theme Preset: Preset tema
@@ -3222,6 +3305,7 @@ translations:
   Z Offset: Z Offset
   Z Range: Intervallo Z
   Z Tilt Adjust...: Regolazione inclinazione Z...
+  Z motor calibration failed: ''
   Z probes for bed leveling and mesh generation: Sonde Z per livellamento piano e
     generazione mesh
   'Z-Off:': 'Z-Off:'
@@ -3267,6 +3351,7 @@ translations:
   fans: ventole
   heated bed: piano riscaldato
   idle: inattivo
+  in unit {} slot {}: 'nell''unità {} slot {}'
   layers: layer
   left: rimanente
   mm before clog: mm prima dell'intasamento
@@ -3278,6 +3363,7 @@ translations:
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: remember_spool di AFC conserva le informazioni sulla bobina nel firmware; ha la precedenza su questa opzione
   AI detection: Rilevamento AI
   Monitor for print abnormalities (K2 Plus camera-based): Monitora le anomalie di stampa (basato sulla camera del K2 Plus)
+  on unit {}: 'sull''unità {}'
   or type a macro name: oppure digita un nome di macro
   passive: ''
   printer default: predefinito stampante
