@@ -7,7 +7,6 @@
 
 #include "helix_test_fixture.h"
 #include "lvgl/lvgl.h"
-#include "theme_manager.h"
 
 #include <functional>
 #include <mutex>
@@ -46,10 +45,6 @@ class ScopedResolution {
     }
     ~ScopedResolution() {
         lv_display_set_resolution(disp_, w0_, h0_);
-        // Layout constants are derived from the display size, so restoring the
-        // resolution without recomputing them leaves the theme pinned to this
-        // scope's size for every later test on the same display.
-        theme_manager_refresh_layout_constants(disp_);
     }
 
     ScopedResolution(const ScopedResolution&) = delete;
