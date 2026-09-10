@@ -13,6 +13,10 @@
 ```bash
 pgrep -x -d' ' 'make|cc1plus'   # ONE pattern. Never pgrep -f: it matches its own command line
 free -h                          # read the Mem AND Swap rows together
+ps -eo pid,etime,time,pcpu,comm --sort=-time | head   # abandoned spinners
+#   A helix-tests left behind by a deleted worktree can hold a core at 100% for
+#   a day: high TIME, high %CPU, and `readlink /proc/<pid>/cwd` ends in
+#   "(deleted)". Kill that PID by number - never by name, it is shared.
 ```
 
 - **Every build already carries a load ceiling** (`-l$(nproc)*3/2`, so 48 here — `MAKEFLAGS` in the Makefile). It gates only the start of a *new* job, so a build under a pile-up slows instead of piling on. `HELIX_LOAD_CEILING=0` disables it. Hand-throttling on top of that is for the memory case below, not for load.
@@ -52,6 +56,13 @@ make remote-native                   # build the app there
 #   (unpushed commits AND uncommitted edits) plus untracked files — a few KB.
 #   `make remote-sync` rsyncs the whole tree and is for the Docker cross targets
 #   only; a fresh REMOTE_DIR costs ~260MB, so never make one per branch.
+
+scripts/zeus-mutate.sh --base main --tests '[tag]'   # mutation gate on zeus
+#   mutate_diff.py rebuilds and re-runs per changed hunk, so it is the most
+#   expensive and least interactive thing in the loop: it belongs on the idle
+#   72-core box. The commit has to be pushed - the container fetches it, it does
+#   not take your tree. zeus is memory-bound, not core-bound (ZFS ARC holds most
+#   of its RAM), so its job count is 12, not 72.
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
 scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
