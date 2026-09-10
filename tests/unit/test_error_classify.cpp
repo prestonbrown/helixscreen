@@ -169,11 +169,15 @@ TEST_CASE("key839 is a WARNING toast, not a second blocking modal",
     REQUIRE_FALSE(e->sticky);
 }
 
-TEST_CASE("key840 carries a recovery action", "[error-center][classify]") {
+TEST_CASE("key840 is WARNING with a recovery action", "[error-center][classify]") {
     ClassifyContext ctx;
     auto e = classify(R"(!! {"code":"key840","msg":"box switch state error"})", ctx);
     REQUIRE(e.has_value());
     REQUIRE(e->code == "key840");
+    // The box is mid-operation, not broken. A blocking modal would demand a
+    // decision about a unit that clears itself; the reset stays reachable from
+    // the toast for the case where it does not.
+    REQUIRE(e->severity == helix::ErrorSeverity::WARNING);
     REQUIRE(e->recovery_actions.size() == 1);
     REQUIRE(e->recovery_actions[0].gcode == "BOX_ERROR_CLEAR");
 }
