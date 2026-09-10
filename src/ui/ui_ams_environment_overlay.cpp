@@ -311,7 +311,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     keypad_field_ = field;
 
     // The keypad clamps to this range itself, which is the same range Start Drying
-    // clamps to. Bounding the entry means the field can no longer show a number the
+    // clamps to. Bounding the entry means the field cannot show a number the
     // command would silently replace.
     ui_keypad_config_t config = {
         .initial_value = initial,
