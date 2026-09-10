@@ -4175,7 +4175,8 @@ uninstall_forgex() {
 # Restart=always, so the systemd stop+disable in the loop below is what actually keeps it
 # down; the bare `qidiclient` entry is the process-kill backstop) (#1047).
 # `makerbase-client` is the stock screen unit on QIDI firmware 1.1.x;
-# the loop is is-active gated, so it is a no-op on a host that does not run it.
+# the loop acts only on a unit that is running or enabled (_unit_is_competing),
+# so it is a no-op on a host that has no such unit.
 COMPETING_UIS="guppyscreen GuppyScreen grumpyscreen Grumpyscreen KlipperScreen klipperscreen featherscreen FeatherScreen mksclient qidi-client qidiclient makerbase-client"
 
 # The stock screen unit is `makerbase-client` on firmware 1.1.x and
@@ -4190,9 +4191,9 @@ COMPETING_UIS="guppyscreen GuppyScreen grumpyscreen Grumpyscreen KlipperScreen k
 #     ExecStart runs rather than by what they are called. The tree root alone
 #     is not the match: it would also reach any support unit the vendor places
 #     under it, and disabling one of those can cost the user their network.
-#     This arm is not is-active gated, so a stock screen that is enabled but
-#     stopped is disabled too instead of returning at the next boot, and it
-#     folds case because a unit name's capitalisation is the vendor's to change.
+#     This arm has no state gate at all, so it also reaches a stock screen the
+#     vendor ships neither running nor enabled, and it folds case because a
+#     unit name's capitalisation is the vendor's to change.
 #
 # Nothing either arm matches can exist off a QIDI box, so the handler needs no
 # hostname gate. Both arms are reversible and recorded, so uninstall's
@@ -4230,6 +4231,24 @@ record_disabled_service() {
     echo "$entry" | $(file_sudo "${INSTALL_DIR}/config") tee -a "$state_file" >/dev/null
 }
 
+# True when a systemd unit competes for the display: running right now, or
+# enabled so it takes the display back at the next boot. An enabled-but-stopped
+# unit is the case a bare is-active check misses - nothing stops it, nothing
+# records it, and it returns after the reboot the installer asks for.
+#
+# is-enabled is matched on its exact word rather than its exit status, which is
+# also 0 for `static`, `indirect` and `alias`. None of those name a unit
+# `systemctl disable` can turn off by itself, so acting on the exit status would
+# record a reversal uninstall's `systemctl enable` cannot perform.
+# Args: $1 = unit name
+_unit_is_competing() {
+    systemctl is-active --quiet "$1" 2>/dev/null && return 0
+    case "$(systemctl is-enabled "$1" 2>/dev/null)" in
+        enabled|enabled-runtime) return 0 ;;
+    esac
+    return 1
+}
+
 # Stop Wayland compositors holding the DRM master (cage/weston/labwc/sway/...).
 # Run AFTER the named-UI loop so a compositor launched by a UI service (e.g.
 # KlipperScreen.service ExecStart=cage -- screen.py) is already gone; this catches
@@ -4242,8 +4261,8 @@ stop_wayland_compositors() {
         # Standalone systemd units (cage@tty1.service, weston.service, ...)
         if [ "$INIT_SYSTEM" = "systemd" ]; then
             for svc in "$comp" "${comp}@tty1"; do
-                if systemctl is-active --quiet "$svc" 2>/dev/null; then
-                    log_info "Stopping Wayland compositor service $svc (holds DRM master)..."
+                if _unit_is_competing "$svc"; then
+                    log_info "Stopping and disabling Wayland compositor service $svc (DRM master)..."
                     $SUDO systemctl stop "$svc" 2>/dev/null || true
                     $SUDO systemctl disable "$svc" 2>/dev/null || true
                     record_disabled_service "systemd" "$svc"
@@ -4680,8 +4699,8 @@ stop_competing_uis() {
     for ui in $COMPETING_UIS; do
         # Check systemd services
         if [ "$INIT_SYSTEM" = "systemd" ]; then
-            if systemctl is-active --quiet "$ui" 2>/dev/null; then
-                log_info "Stopping $ui (systemd service)..."
+            if _unit_is_competing "$ui"; then
+                log_info "Stopping and disabling $ui (systemd service)..."
                 $SUDO systemctl stop "$ui" 2>/dev/null || true
                 $SUDO systemctl disable "$ui" 2>/dev/null || true
                 record_disabled_service "systemd" "$ui"
