@@ -20,6 +20,9 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "printer_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -147,6 +150,24 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_subject_t* total_vis = lv_xml_get_subject(nullptr, "wizard_total_visible");
     REQUIRE(total_vis != nullptr);
+
+    // "The connection settles it" means Klipper actually reported hardware —
+    // wizard_total_is_settled() requires that signal past Connection, not just
+    // position. Seed a heater so PrinterIdentify sees a printer discovery
+    // actually completed.
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    MoonrakerAPIMock api{client, state};
+    api.hardware().parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
+    set_moonraker_api(&api);
+    // RAII rather than a trailing reset: a failed REQUIRE below would throw and
+    // skip it, leaving this process-global pointed at a stack object other
+    // wizard tests in the shard then dereference.
+    struct ApiGuard {
+        ~ApiGuard() {
+            set_moonraker_api(nullptr);
+        }
+    } api_guard;
 
     // Language and Wifi sit before Connection: total hidden.
     ui_wizard_navigate_to_step(StepId::Language);
