@@ -17,6 +17,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_responsive_resolution.h"
 #include "../ui_test_utils.h"
 #include "panel_widget_size.h"
 #include "theme_manager.h"
@@ -418,11 +419,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: material label fits it
     lv_display_t* disp = lv_display_get_default();
     REQUIRE(disp != nullptr);
 
-    // Narrow axis 1080 -> XXLarge, where font_small is noto_sans_light_26.
-    // The refresh is what actually moves the font tokens and the breakpoint
-    // subject; ScopedResolution alone only changes the pixel dimensions.
-    ScopedResolution xxlarge(disp, 1080, 1920);
-    theme_manager_refresh_layout_constants(disp);
+    // Narrow axis 1080 -> XXLarge, where font_small is noto_sans_light_26. The
+    // guard moves the font tokens and the breakpoint subject with the pixels,
+    // and puts both back on the way out.
+    helix::test::ScopedResponsiveResolution xxlarge(disp, 1080, 1920);
     ui_ams_mini_status_init();
 
     // Build at the target height rather than resizing afterwards: a widget that
@@ -505,9 +505,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: material label fits it
         lv_obj_delete(r.w);
         lv_obj_delete(r.parent);
     }
-
-    // Put the token table back where the rest of the suite expects it.
-    theme_manager_refresh_layout_constants(disp);
 }
 
 /**
@@ -633,8 +630,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[ui][ams_mini][widget_size]") {
     lv_display_t* disp = lv_display_get_default();
     REQUIRE(disp != nullptr);
-    ScopedResolution xxlarge(disp, 1080, 1920); // font_small = 26px
-    theme_manager_refresh_layout_constants(disp);
+    helix::test::ScopedResponsiveResolution xxlarge(disp, 1080, 1920); // font_small = 26px
 
     // Short row -> small spool -> width left over for a shortened name, and a
     // container too narrow to spell the full one on all four cells.
@@ -679,5 +675,4 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_delete(w);
     lv_obj_delete(parent);
-    theme_manager_refresh_layout_constants(disp);
 }
