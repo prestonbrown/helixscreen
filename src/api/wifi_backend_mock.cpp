@@ -184,11 +184,6 @@ WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::s
                          "WiFi system not ready", "Initialize the WiFi system first");
     }
 
-    if (transport_in_use_) {
-        return WiFiError(WiFiResult::TRANSPORT_IN_USE, "Mock: another transport holds the link",
-                         "Ethernet is connected");
-    }
-
     // Check if network exists in our mock list
     auto it = std::find_if(
         mock_networks_.begin(), mock_networks_.end(),

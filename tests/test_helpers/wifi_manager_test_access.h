@@ -47,7 +47,7 @@ class WiFiManagerTestAccess {
     }
 
     /// Simulate an in-flight connect() without invoking the backend.
-    static void begin_connect(WiFiManager& wm, std::function<void(bool, const std::string&)> cb) {
+    static void begin_connect(WiFiManager& wm, ConnectCallback cb) {
         wm.connect_callback_ = std::move(cb);
         wm.connecting_in_progress_ = true;
     }
@@ -76,6 +76,12 @@ class WiFiManagerTestAccess {
     /// lands on the same bytes.
     static WifiBackend* backend(const WiFiManager& wm) {
         return wm.backend_.get();
+    }
+
+    /// Arm the connect watchdog the way connect() does after the backend
+    /// accepts a join, so a test can drive its expiry with lv_tick_inc().
+    static void arm_connect_watchdog(WiFiManager& wm) {
+        wm.start_connect_timeout();
     }
 
     static bool grace_pending(WiFiManager& wm) {

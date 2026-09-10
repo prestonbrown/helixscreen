@@ -531,7 +531,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi connection management",
     SECTION("Connect to network (mock)") {
         wifi_manager->set_enabled(true);
 
-        auto callback = [this](bool success, const std::string& error) {
+        auto callback = [this](bool success, const std::string& error, WiFiResult) {
             this->connection_callback(success, error);
         };
 
@@ -651,7 +651,8 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi edge cases",
 
         auto networks = wifi_manager->scan_once();
         REQUIRE_FALSE(networks.empty());
-        wifi_manager->connect(networks[0].ssid, "password", [](bool, const std::string&) {});
+        wifi_manager->connect(networks[0].ssid, "password",
+                              [](bool, const std::string&, WiFiResult) {});
 
         // Destroy while connecting - should cleanup safely
         REQUIRE_NOTHROW(wifi_manager.reset());
@@ -783,7 +784,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "State observer fires when backend disp
     NetworkPick pick = pick_strong_secured_network(*wifi_manager);
     REQUIRE_FALSE(pick.ssid.empty());
 
-    wifi_manager->connect(pick.ssid, pick.password, [](bool, const std::string&) {});
+    wifi_manager->connect(pick.ssid, pick.password, [](bool, const std::string&, WiFiResult) {});
 
     // Connect thread sleeps 2-3s before firing CONNECTED. Drain the UpdateQueue
     // from the poll loop so deferred observer callbacks actually run.
@@ -821,7 +822,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "State observer with expired token is n
     NetworkPick pick = pick_strong_secured_network(*wifi_manager);
     REQUIRE_FALSE(pick.ssid.empty());
 
-    wifi_manager->connect(pick.ssid, pick.password, [](bool, const std::string&) {});
+    wifi_manager->connect(pick.ssid, pick.password, [](bool, const std::string&, WiFiResult) {});
 
     // Wait long enough for CONNECTED to have fired, draining all the while.
     // The deferred observer callback sees an expired token and skips silently.

@@ -843,7 +843,6 @@
   <translation tag="Est. Duration" es="Duración est."/>
   <translation tag="Estimating..." es="Estimando..."/>
   <translation tag="Ethernet" es="Ethernet"/>
-  <translation tag="Ethernet is connected. Disconnect it to join a Wi-Fi network."/>
   <translation tag="Events appear here after sessions and prints" es="Los eventos aparecen aquí después de sesiones e impresiones"/>
   <translation tag="Every extruder&apos;s temperature at once" es="La temperatura de todos los extrusores"/>
   <translation tag="Excellent Accuracy" es="Precisión Excelente"/>
@@ -1269,6 +1268,7 @@
   <translation tag="Job Queue" es="Cola de trabajos"/>
   <translation tag="Jog failed: {}" es="Error en movimiento: {}"/>
   <translation tag="Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests." es="Únase a la comunidad de HelixScreen en Discord para discusión, consejos, ayuda con la solución de problemas y solicitudes de funciones."/>
+  <translation tag="Joining Wi-Fi disconnects the wired network."/>
   <translation tag="Just now" es="Justo ahora"/>
   <translation tag="Just queued" es="Recién puesto en cola"/>
   <translation tag="KEYBOARD LAYOUT" es="DISTRIBUCIÓN DE TECLADO"/>

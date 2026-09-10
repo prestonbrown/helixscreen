@@ -952,27 +952,6 @@ WiFiError WifiBackendNetd::connect_network(const std::string& ssid, const std::s
                          "WiFi system not ready");
     }
 
-    // netd enforces single-transport: while a wired link holds the network it
-    // never brings the radio up for a Wi-Fi join, and unlike a busy daemon or
-    // a wrong password it emits NO terminal event for the attempt - the only
-    // answer would be the manager's 45 s watchdog. Refuse up front with the
-    // reason instead. A snapshot that has not caught up (empty mode) or a
-    // reachable-but-down daemon falls through to the normal path, where the
-    // watchdog remains the backstop.
-    {
-        helix::netd::NetdSnapshot current;
-        std::lock_guard<std::mutex> lock(snapshot_mutex_);
-        current = snapshot_;
-        if (connection_live() && current.mode == "ETHERNET" && current.connected_state()) {
-            spdlog::info("[WifiBackendNetd] Refusing Wi-Fi join: Ethernet holds the link "
-                         "(netd single-transport)");
-            return WiFiError(WiFiResult::TRANSPORT_IN_USE,
-                             "netd holds the link on ETHERNET; single-transport "
-                             "enforcement means a Wi-Fi join can never complete",
-                             "Ethernet is connected");
-        }
-    }
-
     // Credential-free reselect of the network the snapshot says we are ON:
     // nothing new is being asked, and the daemon ignores redundant joins, so
     // answering from the snapshot beats riding the manager's 45 s watchdog
@@ -1073,6 +1052,30 @@ WifiBackend::ConnectionStatus WifiBackendNetd::get_status() {
     status.signal_strength = parse_signal_percent(snapshot.signal);
     status.frequency_mhz = 0; // the protocol carries no association frequency
     return status;
+}
+
+bool WifiBackendNetd::join_displaces_wired_link() {
+    // netd runs a single transport: a Wi-Fi join makes it down eth0 and move
+    // the address to wlan0, so whatever wired address the caller is reachable
+    // on stops answering. The join still goes through - the daemon's own
+    // events are the only verdict on it - so this only reports the cost.
+    //
+    // Liveness is a conjunct because the snapshot outlives the socket: with
+    // no daemon to act on the join, nothing gets displaced and the stale
+    // ETHERNET row would advise the user about a consequence that cannot
+    // happen. A snapshot that has not caught up yet (empty mode) answers
+    // false for the same reason.
+    //
+    // Sampled in this order so cmd_mutex_ is never taken under
+    // snapshot_mutex_ — the write path holds cmd_mutex_ and the loop thread
+    // merges snapshots under snapshot_mutex_, so nesting them would invent a
+    // lock order this file does not otherwise have. Neither read has to be
+    // atomic with the other: a race makes the advisory one poll stale.
+    if (!connection_live()) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(snapshot_mutex_);
+    return snapshot_.mode == "ETHERNET" && snapshot_.connected_state();
 }
 
 bool WifiBackendNetd::supports_5ghz() const {

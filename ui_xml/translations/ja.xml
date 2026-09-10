@@ -843,7 +843,6 @@
   <translation tag="Est. Duration" ja="予想時間"/>
   <translation tag="Estimating..." ja="推定中..."/>
   <translation tag="Ethernet" ja="イーサネット"/>
-  <translation tag="Ethernet is connected. Disconnect it to join a Wi-Fi network."/>
   <translation tag="Events appear here after sessions and prints" ja="セッションと印刷の後にイベントがここに表示されます"/>
   <translation tag="Every extruder&apos;s temperature at once" ja="全エクストルーダーの温度を一覧表示"/>
   <translation tag="Excellent Accuracy" ja="非常に高精度"/>
@@ -1269,6 +1268,7 @@
   <translation tag="Job Queue" ja="ジョブキュー"/>
   <translation tag="Jog failed: {}" ja="ジョグに失敗しました: {}"/>
   <translation tag="Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests." ja="Discord で HelixScreen コミュニティに参加して、ディスカッション、ヒント、トラブルシューティング支援、機能リクエストを共有しましょう。"/>
+  <translation tag="Joining Wi-Fi disconnects the wired network."/>
   <translation tag="Just now" ja="たった今"/>
   <translation tag="Just queued" ja="たった今キューへ追加"/>
   <translation tag="KEYBOARD LAYOUT" ja="キーボードレイアウト"/>

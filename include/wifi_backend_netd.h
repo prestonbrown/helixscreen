@@ -110,6 +110,7 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
     bool is_radio_enabled() const override;
     bool supports_radio_toggle() const override;
     bool supports_wpa_supplicant_fallback() const override;
+    bool join_displaces_wired_link() override;
 
   private:
     // ========================================================================

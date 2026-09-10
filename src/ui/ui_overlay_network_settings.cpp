@@ -1329,10 +1329,11 @@ void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
     auto token = lifetime_.token();
 
     wifi_manager_->connect(
-        ssid_str, password, [this, token, ssid_str](bool success, const std::string& error) {
+        ssid_str, password,
+        [this, token, ssid_str](bool success, const std::string& error, WiFiResult result) {
             if (token.expired())
                 return;
-            token.defer([this, success, ssid_str, error]() {
+            token.defer([this, success, ssid_str, error, result]() {
                 lv_subject_t* subj = lv_xml_get_subject(nullptr, "hidden_connecting");
                 if (subj) {
                     lv_subject_set_int(subj, 0);
@@ -1362,8 +1363,11 @@ void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
                         lv_obj_t* error_label =
                             lv_obj_find_by_name(hidden_network_modal_, "error_label");
                         if (error_label) {
-                            lv_label_set_text(error_label,
-                                              lv_tr("Connection failed. Check credentials."));
+                            lv_label_set_text(
+                                error_label,
+                                helix::connect_failure_message(
+                                    result, error, lv_tr("Connection failed. Check credentials."))
+                                    .c_str());
                             lv_obj_remove_flag(error_label, LV_OBJ_FLAG_HIDDEN);
                         }
                     }
@@ -1419,16 +1423,23 @@ void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
 
         auto token = lifetime_.token();
         wifi_manager_->connect(
-            item_data->ssid, "", [this, token](bool success, const std::string& error) {
+            item_data->ssid, "",
+            [this, token](bool success, const std::string& error, WiFiResult result) {
                 if (token.expired())
                     return;
-                token.defer([this, success, error]() {
+                token.defer([this, success, error, result]() {
                     if (success) {
                         spdlog::info("[NetworkSettingsOverlay] Connected to {}",
                                      helix::redact::ssid(current_ssid_));
                         refresh_transport_status();
                     } else {
                         spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}", error);
+                        // An open network opens no modal, so a toast is the
+                        // only surface this branch has. Without it the user
+                        // taps a network and nothing whatsoever happens.
+                        NOTIFY_ERROR("{}", helix::connect_failure_message(
+                                               result, error,
+                                               lv_tr("Connection failed. Check credentials.")));
                     }
                 });
             });
@@ -1717,53 +1728,52 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
     std::string ssid(current_ssid_);
     auto token = lifetime_.token();
 
-    wifi_manager_->connect(ssid, pwd, [this, token, ssid](bool success, const std::string& error) {
-        if (token.expired())
-            return;
-        token.defer([this, success, ssid, error]() {
-            // Reset connecting state
-            lv_subject_set_int(&wifi_connecting_, 0);
+    wifi_manager_->connect(
+        ssid, pwd, [this, token, ssid](bool success, const std::string& error, WiFiResult result) {
+            if (token.expired())
+                return;
+            token.defer([this, success, ssid, error, result]() {
+                // Reset connecting state
+                lv_subject_set_int(&wifi_connecting_, 0);
 
-            if (success) {
-                spdlog::info("[NetworkSettingsOverlay] Connected to {}", helix::redact::ssid(ssid));
-                hide_password_modal();
-                refresh_transport_status();
+                if (success) {
+                    spdlog::info("[NetworkSettingsOverlay] Connected to {}",
+                                 helix::redact::ssid(ssid));
+                    hide_password_modal();
+                    refresh_transport_status();
 
-                // Refresh network list to show checkmark on connected network
-                if (wifi_manager_) {
-                    auto scan_token = lifetime_.token();
-                    wifi_manager_->start_scan([this, scan_token](
-                                                  const std::vector<WiFiNetwork>& networks) {
-                        if (scan_token.expired())
-                            return;
-                        scan_token.defer([this, networks]() { populate_network_list(networks); });
-                    });
-                }
-            } else {
-                spdlog::error("[NetworkSettingsOverlay] Connection failed: {}", error);
+                    // Refresh network list to show checkmark on connected network
+                    if (wifi_manager_) {
+                        auto scan_token = lifetime_.token();
+                        wifi_manager_->start_scan(
+                            [this, scan_token](const std::vector<WiFiNetwork>& networks) {
+                                if (scan_token.expired())
+                                    return;
+                                scan_token.defer(
+                                    [this, networks]() { populate_network_list(networks); });
+                            });
+                    }
+                } else {
+                    spdlog::error("[NetworkSettingsOverlay] Connection failed: {}", error);
 
-                // Show error in modal — use backend detail if available
-                if (password_modal_) {
-                    lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
-                    if (modal_status) {
-                        // Permission errors get backend message; auth failures get generic
-                        auto lower_err = error;
-                        std::transform(lower_err.begin(), lower_err.end(), lower_err.begin(),
-                                       [](unsigned char c) { return std::tolower(c); });
-                        bool is_permission =
-                            lower_err.find("permission denied") != std::string::npos;
-                        if (is_permission) {
-                            lv_label_set_text(modal_status, error.c_str());
-                        } else {
-                            lv_label_set_text(modal_status,
-                                              lv_tr("Connection failed. Check password."));
+                    // Show what actually went wrong. Only a credential rejection
+                    // gets the canned password text - everything else carries a
+                    // reason the user has to read.
+                    if (password_modal_) {
+                        lv_obj_t* modal_status =
+                            lv_obj_find_by_name(password_modal_, "modal_status");
+                        if (modal_status) {
+                            lv_label_set_text(
+                                modal_status,
+                                helix::connect_failure_message(
+                                    result, error, lv_tr("Connection failed. Check password."))
+                                    .c_str());
+                            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
                         }
-                        lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
                     }
                 }
-            }
+            });
         });
-    });
 }
 
 void NetworkSettingsOverlay::on_wifi_password_cancel(lv_event_t* e) {

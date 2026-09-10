@@ -1444,12 +1444,13 @@ TEST_CASE_METHOD(NetdBackendFixture,
 #endif // !__APPLE__ && !__ANDROID__
 
 // ============================================================================
-// 8. Single-transport refusal: netd holds the link on ETHERNET and answers a
-//    Wi-Fi join with nothing at all, so the backend refuses it up front with
-//    TRANSPORT_IN_USE instead of letting the manager's 45 s watchdog speak.
+// 8. Single transport: netd answers a Wi-Fi join by downing eth0 and moving
+//    the address to wlan0 (prestonbrown/helixscreen#1398), so the join must
+//    still reach the wire while Ethernet holds the link. The backend only
+//    ADVISES that the wired link is about to go.
 // ============================================================================
-TEST_CASE_METHOD(NetdBackendFixture, "netd refuses a Wi-Fi join while Ethernet holds the link",
-                 "[1542][netd][wifi]") {
+TEST_CASE_METHOD(NetdBackendFixture, "netd sends a Wi-Fi join while Ethernet holds the link",
+                 "[1542][1398][netd][wifi]") {
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -1459,19 +1460,15 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refuses a Wi-Fi join while Ethernet h
     server_->push_line("STATE=CONNECTED");
     REQUIRE(drain_wire());
 
+    // The wired link is what the join will displace, so the advisory is on.
+    REQUIRE(backend_->join_displaces_wired_link());
+
     WiFiError result{WiFiResult::UNKNOWN_ERROR};
     std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
     caller.join();
-    REQUIRE(result.result == WiFiResult::TRANSPORT_IN_USE);
-    REQUIRE_FALSE(result.success());
-
-    // The refusal is synchronous and silent on the wire: nothing was sent and
-    // no event fired - the caller alone learns why.
-    REQUIRE_FALSE(line_recorded("CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw")));
-    REQUIRE(drain_wire());
-    REQUIRE(event_count("CONNECTED") == 0);
-    REQUIRE(event_count("AUTH_FAILED") == 0);
-    REQUIRE(event_count("DISCONNECTED") == 0);
+    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
+    REQUIRE(result.success());
+    REQUIRE(wait_until([&] { return line_recorded(want); }));
 }
 
 TEST_CASE_METHOD(NetdBackendFixture, "netd join proceeds once Wi-Fi owns the link",
@@ -1483,12 +1480,15 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd join proceeds once Wi-Fi owns the lin
     server_->push_line("STATE=CONNECTED");
     REQUIRE(drain_wire());
 
+    // Nothing wired to displace once the radio already owns the link.
+    REQUIRE_FALSE(backend_->join_displaces_wired_link());
+
     WiFiError result{WiFiResult::UNKNOWN_ERROR};
     std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
-    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
-    REQUIRE(wait_until([&] { return line_recorded(want); }));
     caller.join();
+    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
     REQUIRE(result.success());
+    REQUIRE(wait_until([&] { return line_recorded(want); }));
 }
 
 TEST_CASE_METHOD(NetdBackendFixture, "netd join proceeds when Ethernet holds no link",
@@ -1500,16 +1500,17 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd join proceeds when Ethernet holds no 
     server_->push_line("STATE=DISCONNECTED");
     REQUIRE(drain_wire());
 
+    REQUIRE_FALSE(backend_->join_displaces_wired_link());
+
     WiFiError result{WiFiResult::UNKNOWN_ERROR};
     std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
-    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
-    REQUIRE(wait_until([&] { return line_recorded(want); }));
     caller.join();
+    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
     REQUIRE(result.success());
+    REQUIRE(wait_until([&] { return line_recorded(want); }));
 }
 
-TEST_CASE_METHOD(NetdBackendFixture,
-                 "netd refuses only on a LIVE daemon: dead socket falls through to the watchdog",
+TEST_CASE_METHOD(NetdBackendFixture, "netd advises displacement only while the daemon is live",
                  "[1542][netd][wifi]") {
     register_standard_events();
     REQUIRE(start_and_settle());
@@ -1518,14 +1519,12 @@ TEST_CASE_METHOD(NetdBackendFixture,
     server_->push_line("MODE=ETHERNET");
     server_->push_line("STATE=CONNECTED");
     REQUIRE(drain_wire());
+    REQUIRE(backend_->join_displaces_wired_link());
     server_.reset();
 
-    // Liveness, not the snapshot alone, gates the refusal: with no daemon to
-    // answer, connect_network must NOT claim the transport is held. The
-    // dead-socket failure it returns instead is the pre-existing answer the
-    // manager already reports.
-    WiFiError result{WiFiResult::TRANSPORT_IN_USE};
-    std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
-    caller.join();
-    REQUIRE(result.result != WiFiResult::TRANSPORT_IN_USE);
+    // Liveness, not the snapshot alone, gates the advisory: with no daemon to
+    // act on a join, nothing gets displaced and the stale ETHERNET row would
+    // warn about a consequence that cannot happen. Polled, because the loop
+    // thread has to notice the closed socket first.
+    REQUIRE(wait_until([&] { return !backend_->join_displaces_wired_link(); }));
 }

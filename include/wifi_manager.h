@@ -18,6 +18,30 @@
 
 namespace helix {
 
+/// How a join attempt resolved. `result` carries WHY it failed, which the
+/// error string alone cannot: a backend reason is free-form text, so sniffing
+/// it for a substring misclassifies every reason nobody thought to look for.
+using ConnectCallback =
+    std::function<void(bool success, const std::string& error, WiFiResult result)>;
+
+/// The message to put in front of a user whose Wi-Fi join failed.
+///
+/// A genuine credential rejection is the ONE case where canned text beats the
+/// backend's own words: the password is the only thing the user can act on,
+/// and a supplicant reason code is not actionable. Every other result carries
+/// a reason the user needs to read - a daemon that is down, a network out of
+/// range, a transport that took the link - and substituting "check your
+/// password" for those tells someone whose password is correct to retype it
+/// indefinitely.
+///
+/// @param result       How the attempt resolved.
+/// @param reason       What the backend or manager said, already translated.
+/// @param auth_message Canned text for a credential rejection, already
+///                     translated (callers differ: a password modal says
+///                     "password", a hidden-network modal says "credentials").
+std::string connect_failure_message(WiFiResult result, const std::string& reason,
+                                    const std::string& auth_message);
+
 /**
  * @brief WiFi Manager - Clean interface using backend system
  *
@@ -112,10 +136,9 @@ class WiFiManager {
      *
      * @param ssid Network name
      * @param password Network password (empty for open networks)
-     * @param on_complete Callback with (success, error_message)
+     * @param on_complete Callback with (success, error_message, result)
      */
-    void connect(const std::string& ssid, const std::string& password,
-                 std::function<void(bool success, const std::string& error)> on_complete);
+    void connect(const std::string& ssid, const std::string& password, ConnectCallback on_complete);
 
     /**
      * @brief Disconnect from current network
@@ -357,7 +380,7 @@ class WiFiManager {
     helix::wifi::ScanScheduler scan_scheduler_;
 
     // Connection state
-    std::function<void(bool, const std::string&)> connect_callback_; // guarded by callback_mutex_
+    ConnectCallback connect_callback_;    // guarded by callback_mutex_
     bool connecting_in_progress_ = false; // guarded by callback_mutex_; true during connect
                                           // attempt, prevents false failure on DISCONNECTED
 
