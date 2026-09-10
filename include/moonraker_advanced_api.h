@@ -32,6 +32,31 @@ namespace helix {
 class IMoonrakerClient;
 } // namespace helix
 class MoonrakerAPI;
+class OperationTimeoutGuard; // NAMESPACE_OK: matches the global-namespace class in
+                             // operation_timeout_guard.h
+
+namespace helix::calibration {
+/**
+ * @brief The idle-fallback backstop armed by the most recent absorbed transport
+ *        error, or nullptr when no calibration is waiting one out.
+ *
+ * Test observability only. The collectors are internal to
+ * moonraker_advanced_api.cpp and the backstop budget runs to minutes, so a test
+ * fires the timer the driver installed (`OperationTimeoutGuard::pending_timer()`
+ * + `lv_timer_ready()`) instead of waiting it out. Main thread only.
+ */
+OperationTimeoutGuard* armed_idle_backstop();
+
+/**
+ * @brief The idle-fallback grace window armed by an idle report, or nullptr.
+ *
+ * Test observability only, same contract as armed_idle_backstop(). Firing this
+ * rather than advancing the clock also keeps a case off the mock printer's own
+ * calibration timers: MoonrakerClientMock's PID simulation emits its result at
+ * virtual t=3000ms, which is exactly the grace budget.
+ */
+OperationTimeoutGuard* armed_idle_grace();
+} // namespace helix::calibration
 
 /**
  * @brief Advanced Panel Operations API via Moonraker

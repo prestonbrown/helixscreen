@@ -567,6 +567,7 @@
   <translation tag="Connection failed. Check credentials." en="Connection failed. Check credentials."/>
   <translation tag="Connection failed. Check password." en="Connection failed. Check password."/>
   <translation tag="Connection failed: %s" en="Connection failed: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" en="Connection lost — probe accuracy result unavailable"/>
   <translation tag="Connection must be tested successfully to continue" en="Connection must be tested successfully to continue"/>
   <translation tag="Connection successful!" en="Connection successful!"/>
   <translation tag="Connection timeout" en="Connection timeout"/>

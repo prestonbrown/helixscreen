@@ -408,10 +408,10 @@ translations:
   Calibration failed - touch targets more precisely.: Calibrazione fallita – tocca
     i bersagli con più precisione.
   Calibration kept timing out. Your previous settings were kept.: La calibrazione è scaduta più volte. Sono state mantenute le impostazioni precedenti.
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'Calibrazione potrebbe essere ancora in corso — connessione alla stampante interrotta'
   Calibration may still be running — response timed out: Calibrazione potrebbe essere
     ancora in corso — tempo scaduto
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'Movimento calibrazione potrebbe essere ancora in corso — connessione alla stampante interrotta'
   Calibration move may still be running — response timed out: Movimento calibrazione
     potrebbe essere ancora in corso — tempo scaduto
   Calibration saved but cannot apply on SDL display: Calibrazione salvata ma non applicabile
@@ -641,11 +641,12 @@ translations:
   Connection failed. Check credentials.: Connessione fallita. Controlla le credenziali.
   Connection failed. Check password.: Connessione fallita. Verificare la password.
   'Connection failed: %s': 'Connessione fallita: %s'
+  Connection lost — probe accuracy result unavailable: 'Connessione persa — risultato del test precisione sonda non disponibile'
   Connection must be tested successfully to continue: La connessione deve essere testata
     con successo per continuare
   Connection successful!: Connessione riuscita!
   Connection timeout: Connessione scaduta
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'Connessione alla stampante persa — l''operazione potrebbe essere ancora in corso'
   Connects: Connessioni
   Console: Console
   Console Settings: Impostazioni console

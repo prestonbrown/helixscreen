@@ -624,6 +624,7 @@ translations:
   Connection failed. Check credentials.: Connection failed. Check credentials.
   Connection failed. Check password.: Connection failed. Check password.
   'Connection failed: %s': 'Connection failed: %s'
+  Connection lost — probe accuracy result unavailable: Connection lost — probe accuracy result unavailable
   Connection must be tested successfully to continue: Connection must be tested successfully
     to continue
   Connection successful!: Connection successful!

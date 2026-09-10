@@ -370,9 +370,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." es="¡Calibración completa! Presione &apos;Siguiente&apos; para continuar."/>
   <translation tag="Calibration failed - touch targets more precisely." es="Calibración fallida – toca los objetivos con más precisión."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." es="La calibración siguió agotando el tiempo de espera. Se conservó su configuración anterior."/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" es="La calibración puede seguir en curso — se interrumpió la conexión con la impresora"/>
   <translation tag="Calibration may still be running — response timed out" es="La calibración puede seguir en curso — tiempo de espera agotado"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" es="El movimiento de calibración puede seguir en curso — se interrumpió la conexión con la impresora"/>
   <translation tag="Calibration move may still be running — response timed out" es="El movimiento de calibración puede seguir en curso — tiempo de espera agotado"/>
   <translation tag="Calibration saved but cannot apply on SDL display" es="Calibración guardada pero no se puede aplicar en pantalla SDL"/>
   <translation tag="Calibration started" es="Calibración iniciada"/>
@@ -567,10 +567,11 @@
   <translation tag="Connection failed. Check credentials." es="Conexión fallida. Verifica las credenciales."/>
   <translation tag="Connection failed. Check password." es="Conexión fallida. Verifique la contraseña."/>
   <translation tag="Connection failed: %s" es="Conexión fallida: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" es="Conexión perdida — resultado de la prueba de precisión de sonda no disponible"/>
   <translation tag="Connection must be tested successfully to continue" es="La conexión debe probarse exitosamente para continuar"/>
   <translation tag="Connection successful!" es="¡Conexión exitosa!"/>
   <translation tag="Connection timeout" es="Tiempo de conexión agotado"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" es="Conexión con la impresora perdida — la operación puede seguir en curso"/>
   <translation tag="Connects" es="Conexiones"/>
   <translation tag="Console" es="Consola"/>
   <translation tag="Console Settings" es="Ajustes de Consola"/>

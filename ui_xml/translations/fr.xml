@@ -370,9 +370,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." fr="Calibration terminée ! Appuyez sur &apos;Suivant&apos; pour continuer."/>
   <translation tag="Calibration failed - touch targets more precisely." fr="Échec de calibration – touchez les cibles plus précisément."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." fr="La calibration a expiré à plusieurs reprises. Vos paramètres précédents ont été conservés."/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" fr="Calibration peut-être encore en cours — connexion à l&apos;imprimante interrompue"/>
   <translation tag="Calibration may still be running — response timed out" fr="Calibration peut-être encore en cours — délai dépassé"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" fr="Mouvement de calibration peut-être encore en cours — connexion à l&apos;imprimante interrompue"/>
   <translation tag="Calibration move may still be running — response timed out" fr="Mouvement de calibration peut-être encore en cours — délai dépassé"/>
   <translation tag="Calibration saved but cannot apply on SDL display" fr="Calibration enregistrée mais impossible à appliquer sur un écran SDL"/>
   <translation tag="Calibration started" fr="Calibration démarrée"/>
@@ -567,10 +567,11 @@
   <translation tag="Connection failed. Check credentials." fr="Connexion échouée. Vérifiez les identifiants."/>
   <translation tag="Connection failed. Check password." fr="Connexion échouée. Vérifiez le mot de passe."/>
   <translation tag="Connection failed: %s" fr="Connexion échouée : %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" fr="Connexion perdue — résultat du test de précision de la sonde indisponible"/>
   <translation tag="Connection must be tested successfully to continue" fr="La connexion doit être testée avec succès pour continuer"/>
   <translation tag="Connection successful!" fr="Connexion réussie !"/>
   <translation tag="Connection timeout" fr="Délai de connexion dépassé"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" fr="Connexion à l&apos;imprimante perdue — l&apos;opération est peut-être encore en cours"/>
   <translation tag="Connects" fr="Connexions"/>
   <translation tag="Console" fr="Console"/>
   <translation tag="Console Settings" fr="Paramètres de la console"/>

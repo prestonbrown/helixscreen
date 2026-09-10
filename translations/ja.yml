@@ -374,10 +374,10 @@ translations:
   Calibration complete! Press 'Next' to continue.: '"キャリブレーション完了！「次へ」を押して続行してください。"'
   Calibration failed - touch targets more precisely.: キャリブレーション失敗 – ターゲットをより正確にタッチしてください。
   Calibration kept timing out. Your previous settings were kept.: キャリブレーションが繰り返しタイムアウトしました。以前の設定を維持しました。
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'キャリブレーションがまだ実行中の可能性があります — プリンター接続が中断されました'
   Calibration may still be running — response timed out: キャリブレーションがまだ実行中の可能性があります
     — 応答タイムアウト
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'キャリブレーション移動がまだ実行中の可能性があります — プリンター接続が中断されました'
   Calibration move may still be running — response timed out: キャリブレーション移動がまだ実行中の可能性があります
     — 応答タイムアウト
   Calibration saved but cannot apply on SDL display: キャリブレーションは保存されましたが SDL ディスプレイには適用できません
@@ -577,10 +577,11 @@ translations:
   Connection failed. Check credentials.: 接続に失敗しました。認証情報を確認してください。
   Connection failed. Check password.: 接続に失敗しました。パスワードを確認してください。
   'Connection failed: %s': '接続に失敗しました: %s'
+  Connection lost — probe accuracy result unavailable: '接続が切断されました — プローブ精度テストの結果が利用できません'
   Connection must be tested successfully to continue: 続行するには接続テストに成功する必要があります
   Connection successful!: 接続成功！
   Connection timeout: 接続タイムアウト
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'プリンターとの接続が切断されました — 操作がまだ実行中の可能性があります'
   Connects: 接続回数
   Console: コンソール
   Console Settings: コンソール設定

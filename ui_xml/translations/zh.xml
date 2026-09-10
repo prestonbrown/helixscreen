@@ -370,9 +370,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." zh="校准完成！按“下一步”继续。"/>
   <translation tag="Calibration failed - touch targets more precisely." zh="校准失败 – 请更精确地触摸目标。"/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." zh="校准反复超时，已保留您之前的设置。"/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" zh="校准可能仍在运行 — 打印机连接已中断"/>
   <translation tag="Calibration may still be running — response timed out" zh="校准可能仍在运行 — 响应超时"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" zh="校准移动可能仍在运行 — 打印机连接已中断"/>
   <translation tag="Calibration move may still be running — response timed out" zh="校准移动可能仍在运行 — 响应超时"/>
   <translation tag="Calibration saved but cannot apply on SDL display" zh="校准已保存，但无法在 SDL 显示上应用"/>
   <translation tag="Calibration started" zh="校准已开始"/>
@@ -567,10 +567,11 @@
   <translation tag="Connection failed. Check credentials." zh="连接失败，请检查凭据。"/>
   <translation tag="Connection failed. Check password." zh="连接失败。请检查密码。"/>
   <translation tag="Connection failed: %s" zh="连接失败：%s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" zh="连接已丢失 — 探针精度测试结果不可用"/>
   <translation tag="Connection must be tested successfully to continue" zh="必须成功测试连接才能继续"/>
   <translation tag="Connection successful!" zh="连接成功！"/>
   <translation tag="Connection timeout" zh="连接超时"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" zh="与打印机的连接已丢失 — 操作可能仍在运行"/>
   <translation tag="Connects" zh="连接次数"/>
   <translation tag="Console" zh="控制台"/>
   <translation tag="Console Settings" zh="控制台设置"/>
