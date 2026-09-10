@@ -1,6 +1,8 @@
 #!/bin/sh
-# Drop this tree's merge claim once the commit lands. A claim left behind by a
-# killed commit reads STALE on its own, so this is tidiness, not correctness.
+# Drop only the claim this commit's own git process took (pre-commit stamps the
+# claim with $PPID, the git process). A claim held by a session for work spanning
+# several commits carries that session's pid instead and must survive.
+# A claim left by a killed commit reads STALE on its own, so this is tidiness.
 [ -x scripts/helix-claim ] || exit 0
-scripts/helix-claim release "worktree:$(basename "$(git rev-parse --show-toplevel)")" >/dev/null 2>&1
+scripts/helix-claim release-if-owned-by "$PPID" "worktree:" >/dev/null 2>&1
 exit 0

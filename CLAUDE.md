@@ -151,9 +151,20 @@ The protocol is global CLAUDE.md § Peer Sessions. What is shared here:
   same frozen mtime. A `git commit` here can hold the shared tree for 40 minutes while its
   hook builds.
 
-  `.githooks/pre-commit` claims the tree automatically for a merge and prints **nothing**
-  unless another session already holds it, so ordinary human git use stays quiet. Advisory by
-  design; `HELIX_CLAIM_STRICT=1` makes it refuse instead of warn.
+  **What the git hooks now do** (`core.hooksPath` is `.githooks`, tracked, so this reaches
+  every worktree and every tool — opencode, plain `git`, a human — with no install step):
+
+  | Hook | Behaviour |
+  |------|-----------|
+  | `pre-commit` | If `MERGE_HEAD` exists, claims this tree under the **git process's** pid so the merge announces itself. Prints nothing unless another session already holds the tree. Then runs the existing quality checks unchanged. |
+  | `post-commit` | Releases that claim **only if the claim names this commit's own pid**, so a session claim spanning several commits survives. |
+
+  Ordinary human git use stays silent: the hooks speak only on a real conflict. Advisory by
+  design; `HELIX_CLAIM_STRICT=1` makes `pre-commit` refuse instead of warn. `--no-verify`
+  bypasses both, as before.
+
+  A merge here can hold the tree for **40 minutes** while the hook builds. Claim it, say so,
+  and release when done.
 
 - **`scripts/helix-claim jobs` beats a hardcoded `-j`.** It counts distinct trees with live
   compilers (a raw `cc1plus` count is just one build's `-j`), folds in live `build:` claims so

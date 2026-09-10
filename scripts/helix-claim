@@ -178,6 +178,16 @@ jobs)
     fi
     printf '%s\n' "$j"
     ;;
+release-if-owned-by)
+    # Release only when the claim names this exact pid, so a hook cannot drop a
+    # claim a session is holding across several commits.
+    owner=${1:-}; res=$(canon "${2:-}")
+    f="$CLAIM_DIR/$(slug "$res").json"
+    [ -f "$f" ] || exit 0
+    body=$(tr -d '\n' < "$f")
+    [ "$(json_get "$body" pid)" = "$owner" ] && rm -f "$f"
+    exit 0
+    ;;
 release)
     res=$(canon "${1:-}"); [ -n "$res" ] || die "usage: helix-claim release <resource>"
     f="$CLAIM_DIR/$(slug "$res").json"
@@ -192,8 +202,10 @@ helix-claim - advisory claims on resources shared between agent sessions
   check <resource>                            FREE | LIVE | STALE (exit 1 if LIVE)
   list                                        all claims with derived liveness
   release <resource>                          drop your claim
+  release-if-owned-by <pid> <resource>        drop it only if that pid claimed it
 
-Resources are free-form; the useful ones are
+worktree: names are resolved (basename, branch, or bare = the tree you are in).
+Other resources are free-form; the useful ones are
   worktree:<name>  build:<name>  device:<printer>  gh:issues  socket:<path>
 
 LIVE means the owning process still exists and is the same process that claimed
