@@ -155,7 +155,13 @@ struct TouchCalibration {
     bool valid = false;
     float a = 1.0f, b = 0.0f, c = 0.0f; // screen_x = a*x + b*y + c
     float d = 0.0f, e = 1.0f, f = 0.0f; // screen_y = d*x + e*y + f
-    bool axes_swapped = false;          // true if axis swap was auto-corrected
+
+    /// Set when detect_axis_transposition() finds the panel mounted a quarter turn
+    /// from the display. A record of the finding and nothing more: an affine through
+    /// three points is exact, so the matrix above already reproduces the targets
+    /// through its cross terms. Nothing acts on it; the touch-debug log is its only
+    /// reader.
+    bool axes_swapped = false;
 
     /// Display rotation in effect when this calibration was solved, in degrees.
     ///

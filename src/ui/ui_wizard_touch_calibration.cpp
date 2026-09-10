@@ -221,15 +221,12 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
     }
 
     // Re-sample the screen, snapshot the live calibration and disable the affine
-    // so capture sees raw (post-LVGL-linear) coordinates: leaving a bad
-    // calibration in place would transform them and make recalibration produce
-    // garbage. The wizard accepts as soon as VERIFY is reached and defers writing
-    // until 'Next', so it runs neither the interactive verify nor an immediate
-    // commit. end() (in cleanup) puts it all back.
-    controller_.begin(helix::ui::TouchCalibrationPolicy{
-        /*interactive_verify=*/false,
-        /*commit_immediately=*/false,
-    });
+    // so capture sees raw (post-LVGL-linear) coordinates: leaving a bad calibration
+    // in place would transform them and make recalibration produce garbage. This step
+    // accepts as soon as VERIFY is reached (on_verify_entered) and defers writing
+    // until 'Next', so it neither runs an interactive verify phase nor commits here.
+    // end() (in cleanup) puts it all back.
+    controller_.begin();
 
     // Enable Next button and set initial text to "Skip"
     lv_subject_set_int(&connection_test_passed, 1);

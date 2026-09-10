@@ -156,12 +156,12 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
     // === Event Handlers (called by static trampolines) ===
     //
 
-    /** @brief Handle accept button click - saves calibration */
     // helix::ui::ITouchCalibrationView - what the controller asks this view to draw
     void on_progress() override;
     void on_capture_feedback(helix::Point landed) override;
     void on_verify_feedback(helix::Point p) override;
 
+    /** @brief Handle accept button click - saves calibration */
     void handle_accept_clicked();
 
     /** @brief Handle retry button click - restarts calibration */
@@ -240,11 +240,6 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
     }
 
   private:
-    /**
-     * @brief The sink that receives this session's calibration operations.
-     * @return The injected sink if one is set, else DisplayManager (may be null).
-     */
-
     /** @brief Update state subject from panel state */
     void update_state_subject();
 
@@ -310,12 +305,6 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
 
     CompletionCallback completion_callback_;
     bool callback_invoked_ = false; ///< Guard against double-invoke
-
-    // Backup/disable/restore of the pre-session calibration. Shared with the
-    // first-run wizard; guarantees the affine transform is re-enabled however
-    // the session ends (#943).
-
-    // Test seam for the above: nullptr means "use DisplayManager".
 
     //
     // === Widget References ===

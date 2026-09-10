@@ -5,9 +5,10 @@
  * @file test_touch_calibration_controller.cpp
  * @brief The calibration logic both entry points share
  *
- * The wizard step and the Settings overlay drive the same controller. What it
+ * The wizard step and the Settings overlay drive the same controller, so what it
  * decides - which target is live, where it sits, which sink every phase drives -
- * used to be written once per view and was covered by neither.
+ * is decided once for both. These cases pin those decisions on the controller
+ * itself, where neither view can shadow them.
  */
 
 #include "touch_calibration_controller.h"
@@ -119,7 +120,7 @@ TEST_CASE("controller: every phase drives the injected sink", "[touch-calibratio
 
     // begin() suppresses the global debug ripple through the sink rather than
     // reaching for DisplayManager, which is what lets a test run this at all.
-    controller.begin(TouchCalibrationPolicy{});
+    controller.begin();
     REQUIRE(sink.capture_active == true);
 
     controller.end();
