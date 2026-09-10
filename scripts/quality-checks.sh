@@ -1046,9 +1046,7 @@ echo "🎨 Checking code formatting (clang-format)..."
 # Unformatted when the gate started blocking; each entry leaves when it is
 # next staged and auto-formatted.
 CLANG_FORMAT_BASELINE="
-include/print_history_manager.h
 include/tool_state.h
-src/print/print_history_manager.cpp
 src/printer/filament_mapper.cpp
 src/system/pwm_sound_backend.cpp
 src/system/update_checker.cpp
