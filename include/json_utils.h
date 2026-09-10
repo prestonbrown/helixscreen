@@ -329,4 +329,23 @@ inline std::string notification_action(const nlohmann::json& msg) {
     return payload ? safe_string(*payload, "action") : std::string();
 }
 
+/**
+ * @brief Whether a notify_filelist_changed root is one the gcodes listing cares about.
+ *
+ * Moonraker fires the same notification for every registered directory, and
+ * printers write to `config` constantly: an AFC unit rewrites `AFC/AFC.var.unit`
+ * on every SET_* command and a SAVE_VARIABLE delayed_gcode rewrites
+ * `saved_variables.cfg`. Consumers that only track gcode files must filter on
+ * the root or pay a full round trip for each of those writes.
+ *
+ * An empty root means the payload had no shape we recognise; treat it as
+ * relevant, because going stale is worse than one extra round trip.
+ *
+ * Exact match, not a prefix: a separately registered root such as
+ * "gcodes_backup" is a different directory.
+ */
+inline bool filelist_change_affects_gcodes(const std::string& root) {
+    return root.empty() || root == "gcodes";
+}
+
 } // namespace helix::json_util

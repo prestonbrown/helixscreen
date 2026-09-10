@@ -415,10 +415,13 @@ bool PrintHistoryManager::filelist_change_affects_history(const std::string& act
     // orphans it just as one moved in does. An empty item root is a payload
     // shape we do not recognise: invalidate, since going stale is worse than
     // one extra round-trip.
-    if (item_root.empty()) {
+    if (helix::json_util::filelist_change_affects_gcodes(item_root)) {
         return true;
     }
-    return item_root == "gcodes" || source_root == "gcodes";
+    // The source side carries no empty-means-relevant rule: Moonraker sends
+    // source_item only on a move or copy, so an empty one is the norm for a
+    // delete and treating it as relevant would admit every root again.
+    return source_root == "gcodes";
 }
 
 void PrintHistoryManager::subscribe_to_notifications() {
