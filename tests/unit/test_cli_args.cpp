@@ -9,6 +9,7 @@
  * not require graphics or printer state.
  */
 
+#include "../test_helpers/scoped_runtime_config.h"
 #include "cli_args.h"
 #include "runtime_config.h"
 
@@ -297,4 +298,40 @@ TEST_CASE("parse_cli_args: without --test the wizard gate is untouched", "[cli_a
     REQUIRE(parse({"helix-screen"}, args));
     REQUIRE_FALSE(args.skip_wizard);
     REQUIRE_FALSE(args.force_wizard);
+}
+
+// ============================================================================
+// --sim-speed
+// ============================================================================
+
+TEST_CASE("parse_cli_args: --sim-speed", "[cli_args][simclock]") {
+    ScopedRuntimeConfig scoped_config;
+    CliArgs args;
+    int w = 0, h = 0;
+
+    SECTION("accepted with --test") {
+        const char* argv[] = {"helix-screen", "--test", "--sim-speed", "60"};
+        REQUIRE(parse_cli_args(4, const_cast<char**>(argv), args, w, h));
+        REQUIRE(get_runtime_config()->sim_speedup == Catch::Approx(60.0));
+    }
+
+    SECTION("rejected without --test") {
+        // Outside a mock run the factor would fast-forward the pre-print clock
+        // against a real printer.
+        const char* argv[] = {"helix-screen", "--sim-speed", "60"};
+        REQUIRE_FALSE(parse_cli_args(3, const_cast<char**>(argv), args, w, h));
+    }
+
+    SECTION("1.0 without --test is not a speedup, so it passes") {
+        const char* argv[] = {"helix-screen", "--sim-speed", "1.0"};
+        REQUIRE(parse_cli_args(3, const_cast<char**>(argv), args, w, h));
+    }
+
+    SECTION("out of range is rejected, not clamped") {
+        const char* below[] = {"helix-screen", "--test", "--sim-speed", "0.5"};
+        REQUIRE_FALSE(parse_cli_args(4, const_cast<char**>(below), args, w, h));
+
+        const char* above[] = {"helix-screen", "--test", "--sim-speed", "1001"};
+        REQUIRE_FALSE(parse_cli_args(4, const_cast<char**>(above), args, w, h));
+    }
 }
