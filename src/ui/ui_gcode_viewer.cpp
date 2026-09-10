@@ -792,6 +792,12 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                                                         lv_area_get_height(&widget_coords));
                 st->layer_renderer_2d_->set_framing(st->framing_);
                 st->layer_renderer_2d_->auto_fit();
+                // The renderer defaults both to on, so a tier or HELIX_SSAO=0
+                // that opted out must be re-applied here just like the two
+                // other creation sites, or the fallback pays the ~6x aliased
+                // cost the constrained tier exists to avoid.
+                st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+                st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
             }
             // Repaint on the next tick now that the mode has flipped. Cannot
             // invalidate synchronously inside the draw callback.
