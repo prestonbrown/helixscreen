@@ -12,7 +12,8 @@ concurrency:
   # main does not cancel: at ~28 minutes a run is superseded before it finishes on
   # a busy day, so cancelling leaves main with no firmware result at all rather
   # than a slightly stale one. Queued runs still collapse to the newest.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # fromJSON, or the expression yields the truthy string "false" and main cancels anyway.
+  cancel-in-progress: ${{ fromJSON(github.ref != 'refs/heads/main') }}
 
 jobs:
   build:
