@@ -136,7 +136,7 @@ If you want to add a language HelixScreen doesn't ship with yet:
 cp translations/en.yml translations/<locale>.yml
 ```
 
-Use the [ISO 639-1 code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) for `<locale>` — `pl` for Polish, `ko` for Korean, `nl` for Dutch, etc. For variants (`pt-BR` vs `pt-PT`), open a Discussion first — HelixScreen doesn't currently support locale variants, and adding one has implications.
+Use the [ISO 639-1 code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) for `<locale>` — `pl` for Polish, `ko` for Korean, `nl` for Dutch, etc. For variants (`pt-BR` vs `pt-PT`), open an issue first — HelixScreen doesn't currently support locale variants, and adding one has implications.
 
 ### Step 2: Change `locale:` at the top
 
