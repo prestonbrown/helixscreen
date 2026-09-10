@@ -244,6 +244,18 @@ class NavbarIconTestFixture : public LVGLUITestFixture {
     }
 
     /**
+     * @brief Check whether an icon carries LV_STATE_CHECKED
+     */
+    bool is_checked(const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(navbar_, name);
+        if (!obj) {
+            spdlog::warn("[NavbarIconTestFixture] Could not find object: {}", name);
+            return false;
+        }
+        return lv_obj_has_state(obj, LV_STATE_CHECKED);
+    }
+
+    /**
      * @brief Set nav buttons enabled state directly (combined subject)
      */
     void set_nav_buttons_enabled(bool enabled) {
@@ -260,32 +272,39 @@ class NavbarIconTestFixture : public LVGLUITestFixture {
     lv_obj_t* navbar_ = nullptr;
 };
 
-TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: Only one icon visible per button",
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: checked state marks the active icon",
                  "[navbar][ui_integration]") {
     REQUIRE(navbar_ != nullptr);
 
-    SECTION("Enabled + On Home: shows inactive icons") {
+    SECTION("Enabled + On Home: inactive icon is checked") {
         set_nav_buttons_enabled(true);
         set_active_panel(PanelId::Home); // Not on controls or filament
 
-        // Controls button: inactive should be visible, others hidden
+        // Both icons of a pair resolve and stay unhidden; the inactive one
+        // carries the checked state.
         REQUIRE(is_visible("nav_icon_controls_inactive"));
-        REQUIRE(is_hidden("nav_icon_controls_active"));
+        REQUIRE(is_visible("nav_icon_controls_active"));
+        REQUIRE(is_checked("nav_icon_controls_inactive"));
+        REQUIRE_FALSE(is_checked("nav_icon_controls_active"));
         REQUIRE(is_hidden("nav_icon_controls_disabled"));
 
         // Filament button: same pattern
         REQUIRE(is_visible("nav_icon_filament_inactive"));
-        REQUIRE(is_hidden("nav_icon_filament_active"));
+        REQUIRE(is_visible("nav_icon_filament_active"));
+        REQUIRE(is_checked("nav_icon_filament_inactive"));
+        REQUIRE_FALSE(is_checked("nav_icon_filament_active"));
         REQUIRE(is_hidden("nav_icon_filament_disabled"));
     }
 
-    SECTION("Enabled + On Controls: shows active icon") {
+    SECTION("Enabled + On Controls: active icon is checked") {
         set_nav_buttons_enabled(true);
         set_active_panel(PanelId::Controls);
 
-        // Controls button: active should be visible
+        // Controls button: active icon carries the checked state.
         REQUIRE(is_visible("nav_icon_controls_active"));
-        REQUIRE(is_hidden("nav_icon_controls_inactive"));
+        REQUIRE(is_visible("nav_icon_controls_inactive"));
+        REQUIRE(is_checked("nav_icon_controls_active"));
+        REQUIRE_FALSE(is_checked("nav_icon_controls_inactive"));
         REQUIRE(is_hidden("nav_icon_controls_disabled"));
     }
 
@@ -332,18 +351,22 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: State transitions work correctl
         set_nav_buttons_enabled(true);
         set_active_panel(PanelId::Home);
 
+        // Neither icon is ever hidden any more; checked state carries which
+        // one reads as active.
         REQUIRE(is_visible("nav_icon_controls_inactive"));
-        REQUIRE(is_hidden("nav_icon_controls_active"));
+        REQUIRE(is_visible("nav_icon_controls_active"));
+        REQUIRE(is_checked("nav_icon_controls_inactive"));
+        REQUIRE_FALSE(is_checked("nav_icon_controls_active"));
 
         // Switch to controls panel
         set_active_panel(PanelId::Controls);
-        REQUIRE(is_hidden("nav_icon_controls_inactive"));
-        REQUIRE(is_visible("nav_icon_controls_active"));
+        REQUIRE(is_checked("nav_icon_controls_active"));
+        REQUIRE_FALSE(is_checked("nav_icon_controls_inactive"));
 
         // Switch back to home
         set_active_panel(PanelId::Home);
-        REQUIRE(is_visible("nav_icon_controls_inactive"));
-        REQUIRE(is_hidden("nav_icon_controls_active"));
+        REQUIRE(is_checked("nav_icon_controls_inactive"));
+        REQUIRE_FALSE(is_checked("nav_icon_controls_active"));
     }
 }
 
@@ -360,18 +383,23 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: icon visibility holds in portra
     set_active_panel(PanelId::Home);
 
     // One component serves both orientations, so every invariant the landscape
-    // cases assert has to hold with ui_is_portrait raised too.
+    // cases assert has to hold with ui_is_portrait raised too. Neither icon of
+    // a pair is ever hidden; checked state carries which one is active.
     REQUIRE(is_visible("nav_icon_controls_inactive"));
-    REQUIRE(is_hidden("nav_icon_controls_active"));
+    REQUIRE(is_visible("nav_icon_controls_active"));
+    REQUIRE(is_checked("nav_icon_controls_inactive"));
+    REQUIRE_FALSE(is_checked("nav_icon_controls_active"));
     REQUIRE(is_hidden("nav_icon_controls_disabled"));
 
     REQUIRE(is_visible("nav_icon_filament_inactive"));
-    REQUIRE(is_hidden("nav_icon_filament_active"));
+    REQUIRE(is_visible("nav_icon_filament_active"));
+    REQUIRE(is_checked("nav_icon_filament_inactive"));
+    REQUIRE_FALSE(is_checked("nav_icon_filament_active"));
     REQUIRE(is_hidden("nav_icon_filament_disabled"));
 
     set_active_panel(PanelId::Controls);
-    REQUIRE(is_visible("nav_icon_controls_active"));
-    REQUIRE(is_hidden("nav_icon_controls_inactive"));
+    REQUIRE(is_checked("nav_icon_controls_active"));
+    REQUIRE_FALSE(is_checked("nav_icon_controls_inactive"));
 }
 
 TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_portrait",
