@@ -33,6 +33,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "overlay_base.h"
 #include "printer_detector.h"
 #include "static_panel_registry.h"
 #include "system/crash_handler.h"
@@ -1231,48 +1232,23 @@ static void ensure_overview_registered() {
     spdlog::debug("[AMS Overview] XML registration complete");
 }
 
-// NOTE: this deliberately does NOT call OverlayBase::destroy_overlay_ui().
-// AmsOverviewPanel derives from PanelBase, not OverlayBase — the two are
-// sibling IPanelLifecycle implementations, so the helper is not reachable from
-// here (there is no overlay_root_ and no on_ui_destroyed() on this hierarchy).
-// The sequence below mirrors the helper's, with two required deviations:
-//   1. clear_panel_reference() runs BEFORE deletion (the helper's
-//      on_ui_destroyed() runs after), because it destroys sub-objects that own
-//      widgets in this subtree.
-//   2. safe_delete_subtree() instead of safe_delete_deferred() — see #983.
+// The shared sequence lives in helix::ui::teardown_overlay_ui(); this site
+// differs from OverlayBase::destroy_overlay_ui() only in the two things a
+// site is allowed to differ in:
+//   1. DetachSubtree deletion — the root contains grid/flex layouts whose
+//      grid_update/flex_update must be structurally unable to race teardown
+//      (#983).
+//   2. clear_panel_reference() as the before-delete hook — it destroys the
+//      sidebar/context-menu/modal sub-objects that own widgets in this
+//      subtree, so it must run while the tree is still attached.
 void destroy_ams_overview_panel_ui() {
-    if (s_ams_overview_panel_obj) {
-        spdlog::info("[AMS Overview] Destroying panel UI to free memory");
-
-        // Drain deferred observer callbacks while all pointers are still valid.
-        // observe_int_sync queues lambdas via queue_update() that capture raw
-        // panel/sidebar pointers. If subject changes fired observers between
-        // the last timer tick and now, those lambdas are pending. Processing
-        // them here prevents use-after-free when the panel is destroyed below.
-        auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
-        helix::ui::UpdateQueue::instance().drain();
-
-        NavigationManager::instance().unregister_overlay_close_callback(s_ams_overview_panel_obj);
-        NavigationManager::instance().unregister_overlay_instance(s_ams_overview_panel_obj);
-
-        // Breadcrumb the destroy so crashes in the close path can be pinned to
-        // which overlay was being torn down. Pairs with the "overlay+" crumb on
-        // push, and matches OverlayBase::destroy_overlay_ui().
-        crash_handler::breadcrumb::note("ovrl_dst", "AmsOverviewPanel");
-
-        if (g_ams_overview_panel) {
-            g_ams_overview_panel->clear_panel_reference();
-        }
-
-        // safe_delete_subtree (not safe_delete) because the AMS overview panel
-        // root contains grid/flex layouts whose grid_update/flex_update could
-        // race teardown if an ancestor relayouts during this drain. Detaching
-        // the subtree off-tree before deferred deletion makes that race
-        // structurally impossible (#983). Null the pointer ourselves — the
-        // subtree helper takes a raw pointer and does not null its argument.
-        helix::ui::safe_delete_subtree(s_ams_overview_panel_obj);
-        s_ams_overview_panel_obj = nullptr;
-    }
+    helix::ui::teardown_overlay_ui(s_ams_overview_panel_obj, "AmsOverviewPanel",
+                                   helix::ui::TeardownDelete::DetachSubtree,
+                                   s_ams_overview_panel_obj, []() {
+                                       if (g_ams_overview_panel) {
+                                           g_ams_overview_panel->clear_panel_reference();
+                                       }
+                                   });
 }
 
 AmsOverviewPanel& get_global_ams_overview_panel() {

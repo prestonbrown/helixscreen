@@ -27,6 +27,7 @@
 
 #include "ams_backend.h"
 #include "data_root_resolver.h"
+#include "overlay_base.h"
 #if HELIX_HAS_CFS
 #include "ams_backend_cfs.h"
 #endif
@@ -1599,52 +1600,25 @@ void AmsPanel::dismiss_error_modal_silently(const char* reason) {
 static std::unique_ptr<AmsPanel> g_ams_panel;
 static lv_obj_t* s_ams_panel_obj = nullptr;
 
-// NOTE: this deliberately does NOT call OverlayBase::destroy_overlay_ui().
-// AmsPanel derives from PanelBase, not OverlayBase — the two are sibling
-// IPanelLifecycle implementations, so the helper is not reachable from here
-// (there is no overlay_root_ and no on_ui_destroyed() on this hierarchy).
-// The sequence below mirrors the helper's, with two required deviations:
-//   1. clear_panel_reference() runs BEFORE deletion (the helper's
-//      on_ui_destroyed() runs after), because it destroys the sidebar /
-//      context-menu / modal sub-objects that own widgets in this subtree.
-//   2. safe_delete_subtree() instead of safe_delete_deferred() — see #983.
+// The shared sequence lives in helix::ui::teardown_overlay_ui(); this site
+// differs from OverlayBase::destroy_overlay_ui() only in the two things a
+// site is allowed to differ in:
+//   1. DetachSubtree deletion — the root contains grid/flex layouts whose
+//      grid_update/flex_update must be structurally unable to race teardown
+//      (#983).
+//   2. clear_panel_reference() as the before-delete hook — it destroys the
+//      sidebar/context-menu/modal sub-objects that own widgets in this
+//      subtree, so it must run while the tree is still attached.
 void destroy_ams_panel_ui() {
-    if (s_ams_panel_obj) {
-        spdlog::info("[AMS Panel] Destroying panel UI to free memory");
+    helix::ui::teardown_overlay_ui(s_ams_panel_obj, "AmsPanel",
+                                   helix::ui::TeardownDelete::DetachSubtree, s_ams_panel_obj, []() {
+                                       if (g_ams_panel) {
+                                           g_ams_panel->clear_panel_reference();
+                                       }
+                                   });
 
-        // Drain deferred observer callbacks while pointers are still valid.
-        // observe_int_sync queues lambdas via queue_update() that capture raw
-        // panel/sidebar pointers; processing them here prevents use-after-free.
-        auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
-        helix::ui::UpdateQueue::instance().drain();
-
-        // Unregister close callback BEFORE deleting to prevent double-invocation
-        // (e.g., if destroy called manually while panel is in overlay stack)
-        NavigationManager::instance().unregister_overlay_close_callback(s_ams_panel_obj);
-        NavigationManager::instance().unregister_overlay_instance(s_ams_panel_obj);
-
-        // Breadcrumb the destroy so crashes in the close path can be pinned to
-        // which overlay was being torn down. Pairs with the "overlay+" crumb on
-        // push, and matches OverlayBase::destroy_overlay_ui().
-        crash_handler::breadcrumb::note("ovrl_dst", "AmsPanel");
-
-        // Clear the panel_ reference in AmsPanel before deleting
-        if (g_ams_panel) {
-            g_ams_panel->clear_panel_reference();
-        }
-
-        // safe_delete_subtree (not safe_delete) because the AMS panel root
-        // contains grid/flex layouts whose grid_update/flex_update could race
-        // teardown if an ancestor relayouts during this drain. Detaching the
-        // subtree off-tree before deferred deletion makes that race
-        // structurally impossible (#983). Null the pointer ourselves — the
-        // subtree helper takes a raw pointer and does not null its argument.
-        helix::ui::safe_delete_subtree(s_ams_panel_obj);
-        s_ams_panel_obj = nullptr;
-
-        // Note: Widget registrations remain (LVGL doesn't support unregistration)
-        // Note: g_ams_panel C++ object stays for state preservation
-    }
+    // Note: Widget registrations remain (LVGL doesn't support unregistration)
+    // Note: g_ams_panel C++ object stays for state preservation
 }
 
 AmsPanel& get_global_ams_panel() {
