@@ -15,6 +15,7 @@ pgrep -x -d' ' 'make|cc1plus'   # ONE pattern. Never pgrep -f: it matches its ow
 free -h                          # read the Mem AND Swap rows together
 ```
 
+- **Every build already carries a load ceiling** (`-l$(nproc)*3/2`, so 48 here — `MAKEFLAGS` in the Makefile). It gates only the start of a *new* job, so a build under a pile-up slows instead of piling on. `HELIX_LOAD_CEILING=0` disables it. Hand-throttling on top of that is for the memory case below, not for load.
 - Throttle to `-j6` only when BOTH are tight: low `available` *and* swap near 0. That is the case where `-j8` dies mid-link with no `oom-kill` line while load average looks healthy. Tens of GB `available` beside an exhausted swap row is not a throttle signal. With the box to yourself, `-j` at full `nproc`, and ramp back up the moment a peer finishes.
 - Dying at the same step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary (`prune-orphan-test-objs` in `mk/tests.mk` runs `rm -f $(TEST_BIN)` as a sibling prerequisite of the link, so `-j` gives them no order). The tell: `[LD] helix-tests`, then `✓ Unit test binary ready`, NO `✗ Test linking failed!`, then every shard reports `No such file or directory`. Nothing is wrong with your code; a starved link fails loudly and stops make.
 - Who else is building, and in which tree, is a question you ask them: `ListAgents` + `SendMessage` (global CLAUDE.md § Peer Sessions), not a `pgrep` guess.
