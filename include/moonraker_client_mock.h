@@ -5,7 +5,6 @@
 
 #include "moonraker_client.h"
 #include "moonraker_types.h"
-#include "simulated_clock.h"
 
 #include <atomic>
 #include <chrono>
@@ -31,6 +30,15 @@ class MoonrakerClientMock;
 namespace helix {
 class MoonrakerClientMockTestAccess;
 } // namespace helix
+
+// sim_speed() returns this by value, which a declaration may do with an
+// incomplete type. Forward-declaring rather than including keeps
+// simulated_clock.h off the ~140 translation units that pull this header in
+// for the mock and never touch the speed scale; sim_speed()'s definition and
+// its callers include it themselves.
+namespace helix::sim {
+class SimSpeed;
+} // namespace helix::sim
 
 // Forward declaration for internal handler registry
 namespace mock_internal {
@@ -138,8 +146,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * Affects both thermal simulation and print progress rates.
      * A factor of 10.0 means a 30-minute print completes in 3 minutes wall-clock.
      *
-     * @param factor Speed multiplier (clamped to
-     *               [helix::sim::MIN_SPEED, helix::sim::MAX_SPEED])
+     * @param factor Speed multiplier (clamped to the one range every
+     *               simulated-time consumer shares, helix::sim::clamp_speed())
      */
     void set_simulation_speedup(double factor);
 

@@ -18,6 +18,7 @@
 #include "runtime_config.h"
 #include "sensor_state.h"
 #include "shaper_response.h"
+#include "simulated_clock.h"
 
 #include <spdlog/spdlog.h>
 
