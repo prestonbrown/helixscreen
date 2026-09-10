@@ -205,8 +205,7 @@ SCREENS = [(name, _steps_for(_RECIPES[name])) for name in _SUBSET]
 # `print-select`: `UsbBackendMock::start()` (usb_backend_mock.cpp) spawns a
 # background thread that inserts a demo USB drive exactly 1.5s after boot — a
 # fixed delay, not open-ended jitter. `PrintSelectUsbSource::on_drive_inserted()`
-# (fixed in 232985fed — Rule #2, no more imperative `lv_obj_*_flag` calls here)
-# now writes `print_source_usb_present`, which `wait_for()` can block on
+# writes `print_source_usb_present`, which `wait_for()` can block on
 # directly. A capture taken before 1.5s has elapsed since boot catches the
 # source-selector row still hidden (content occupies the space instead,
 # shifted up); one taken after shows the row. The row-visible state is the

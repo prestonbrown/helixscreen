@@ -229,9 +229,8 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
             // No marker clearing here on purpose. decide_preview_action() already
             // compares BOTH markers against the new identity and reloads whichever
             // is stale; clearing by hand duplicates that, and clearing only the
-            // thumbnail marker - as the first draft of this did - leaves the
-            // viewer holding the previous print's geometry, which is the exact
-            // bug 921200ab1 fixed.
+            // thumbnail marker leaves the viewer holding the previous print's
+            // geometry.
             self->ensure_preview_current();
         },
         ps_subjects);
@@ -331,14 +330,13 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         [](PrintStatusPanel* self, int /*version*/) { self->build_and_apply_tool_colors(); },
         AmsState::instance().get_subjects_lifetime());
 
-    // Adopt the preparing job's identity the moment a job starts preparing, the
-    // way ActivePrintMediaManager already does (adac6f7eb gave it this observer
-    // and gave the panel none). Without it the panel's `desired` stays on the
-    // PREVIOUS print for the whole commit-to-confirmation window, so
-    // ensure_preview_current() compares the viewer against the finished print,
-    // finds no mismatch, and the clear_gcode that 921200ab1 added never fires -
-    // leaving the previous print's model on screen exactly when it was meant to
-    // be dropped.
+    // Adopt the preparing job's identity the moment a job starts preparing,
+    // mirroring the observer ActivePrintMediaManager already has for the same
+    // purpose. Without it the panel's `desired` stays on the PREVIOUS print
+    // for the whole commit-to-confirmation window, so ensure_preview_current()
+    // compares the viewer against the finished print, finds no mismatch, and
+    // clear_gcode never fires - leaving the previous print's model on screen
+    // exactly when it was meant to be dropped.
     //
     // observe_int_immediate for the manager's reason: _sync routes through
     // queue_update, so the identity would land AFTER a synchronously dispatched

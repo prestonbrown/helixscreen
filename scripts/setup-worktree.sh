@@ -1187,8 +1187,8 @@ mkdir -p "$(dirname "$EXCLUDE_FILE")"
 # content there stays visible. In a worktree the path is a symlink, the
 # negation does not apply, and lib/* keeps it hidden — otherwise every worktree
 # reports a permanent `?? lib/mdns` for a symlink this script created. That
-# stray entry is what `git add -A` once swept onto main as a blob replacing the
-# tracked directory (restored in 3b0a8491b). lib/tuibox.h needs no such care:
+# stray entry is exactly what `git add -A` sweeps onto main as a blob
+# replacing the tracked directory. lib/tuibox.h needs no such care:
 # its symlink sits at the tracked path itself, and a path in the index is never
 # reported as untracked.
 EXCLUDES=(

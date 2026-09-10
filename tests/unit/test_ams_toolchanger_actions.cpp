@@ -243,8 +243,7 @@ TEST_CASE("load_filament delegates to change_tool in mock toolchanger mode",
         auto result = backend.load_filament(2);
         REQUIRE(result);
 
-        // Wait for completion
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        REQUIRE(wait_until_ams_idle(backend, std::chrono::seconds(10)));
 
         auto info = backend.get_system_info();
         CHECK(info.current_slot == 2);

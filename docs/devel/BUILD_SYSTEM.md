@@ -1884,7 +1884,7 @@ does not build through this Makefile at all: `android/app/jni/CMakeLists.txt` gl
 | `ENABLE_OPENGLES` | per target | EGL/GLES GPU rendering |
 | `ENABLE_GLES_3D` | yes (Linux) | 3D gcode rendering |
 | `ENABLE_SCREENSAVER` | yes (desktop/Pi) | Flying toasters |
-| `ENABLE_MOCKS` | yes | Mock backends for development |
+| `ENABLE_MOCKS` | yes (no on `cc1`/`ad5m`/`ad5m-br`) | Mock backends for development |
 | `ENABLE_SSL` | per target | OpenSSL for HTTPS/WSS |
 | `HELIX_HAS_LABEL_PRINTER` | 1 | Label printer feature |
 | `HELIX_HAS_CFS` | 1 | CFS feature |

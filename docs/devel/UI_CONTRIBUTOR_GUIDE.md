@@ -227,7 +227,7 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 | `#dialog_content_tall_chrome_max` | vertical | 176px | 229px | 282px | Same, plus a second button row with its divider (measured 85% cap − chrome, #1277) |
 | `#badge_size` | neutral | 16px | 18px | 20px | Status badge diameter |
 | `#nav_width` | horizontal | 76px | 104px | 132px | Nav bar width — see note below |
-| `#icon_size` | neutral | md | lg | xl | Responsive icon size string |
+| `#icon_size` | neutral | md | lg | lg | Responsive icon size string |
 | `#spinner_lg` | neutral | 48px | 56px | 64px | Large spinner |
 | `#spinner_md` | neutral | 24px | 28px | 32px | Standard spinner |
 | `#spinner_sm` | neutral | 16px | 18px | 20px | Small spinner |
