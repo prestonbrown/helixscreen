@@ -1700,6 +1700,13 @@ class AmsState {
     IMoonrakerAPI* api_ = nullptr;
     int last_synced_spoolman_id_ = 0; ///< Track to avoid duplicate set_active_spool calls
 
+    /// Resolved (slot, loaded) identity behind the "Currently Loaded" card.
+    /// Backend status frames arrive several times a second and each one re-runs
+    /// sync_current_loaded_from_backend(), so only a change of this pair is
+    /// worth a log line.
+    int last_synced_loaded_slot_ = -1;
+    bool last_synced_filament_loaded_ = false;
+
     /// S5+S7 store subset shared by both commit_external_spool_edit arms:
     /// persist non-empty records, erase empty ones (kills empty
     /// assigned=true records).
