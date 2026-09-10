@@ -794,7 +794,7 @@ if [ -f "scripts/check_hardcoded_pixels.py" ]; then
     PIXELS_ARGS=""
   fi
   # shellcheck disable=SC2086
-  if python3 scripts/check_hardcoded_pixels.py --max-allowed 154 --summary $PIXELS_ARGS \
+  if python3 scripts/check_hardcoded_pixels.py --max-allowed 150 --summary $PIXELS_ARGS \
       >/tmp/hardcoded_pixels.out 2>&1; then
     tail -1 /tmp/hardcoded_pixels.out
   else
@@ -1793,7 +1793,7 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # main dropped the Plugins overlay and retired three globals without
   # ratcheting, so the merge collects that slack too. 2239 -> 2238 is
   # ResolvedMacroScript and resolve_macro_script moving into helix::.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2216 --summary >/tmp/namespace_check.out 2>&1; then
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2215 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -1841,7 +1841,7 @@ if [ -f "scripts/check_imperative_ui.py" ]; then
   # as deliberate pragmatism (the XML engine couldn't express it at the time), some
   # are plain mistakes — both are debt. The number may go DOWN (port a site, then
   # lower this baseline) but must never go up.
-  if python3 scripts/check_imperative_ui.py --max-allowed 365 --summary >/tmp/imperative_ui.out 2>&1; then
+  if python3 scripts/check_imperative_ui.py --max-allowed 364 --summary >/tmp/imperative_ui.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/imperative_ui.out

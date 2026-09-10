@@ -1,0 +1,75 @@
+{
+  "name": "Creality K2 (k2-improvements)",
+  "description": "K2 Plus running the k2-improvements mod on stock Creality firmware: START_PRINT is replaced, prtouch_v3 gives way to Cartographer, and the macro narrates each step through RESPOND/M117",
+  "progress_mode": "weighted",
+  "adaptive_meshing": true,
+  "position_signals": true,
+  "cfs_signals": true,
+  "signal_formats": [],
+  "response_patterns": [
+    {
+      "pattern": "Rehoming Z|_handle_home_rails_begin|x_park = ",
+      "phase": "HOMING",
+      "message": "Homing...",
+      "weight": 10
+    },
+    {
+      "pattern": "Waiting for bed to reach|Preheating: Nozzle=|M190",
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 20
+    },
+    {
+      "pattern": "Soaking: [0-9]|Soaking for [0-9]",
+      "phase": "SOAKING",
+      "message": "Heat Soaking...",
+      "weight": 25
+    },
+    {
+      "pattern": "Waiting for chamber to reach|chamber heater alone can not reach|Chamber temperature .* reached",
+      "phase": "SOAKING",
+      "message": "Heating Chamber...",
+      "weight": 25
+    },
+    {
+      "pattern": "Waiting for extruder to reach|Setting extruder to|M109|TEMPERATURE_WAIT SENSOR=extruder",
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating Nozzle...",
+      "weight": 15
+    },
+    {
+      "pattern": "Adjusting bed tilt|Z_TILT_ADJUST",
+      "phase": "Z_TILT",
+      "message": "Z Tilt Adjust...",
+      "weight": 10
+    },
+    {
+      "pattern": "Carto meshing bed|Bed meshing|BED_MESH_CALIBRATE(?!_START_PRINT)|Adapted probe count|exist_points\\[",
+      "phase": "BED_MESH",
+      "message": "Bed Mesh...",
+      "weight": 15
+    },
+    {
+      "pattern": "BOX_NOZZLE_CLEAN|NOZZLE_CLEAR|nozzle clean",
+      "phase": "CLEANING",
+      "message": "Cleaning Nozzle...",
+      "weight": 5
+    },
+    {
+      "pattern": "BOX_GO_TO_EXTRUDE_POS|BOX_MATERIAL_FLUSH|flush_len:",
+      "phase": "PURGING",
+      "message": "Flushing Filament...",
+      "weight": 5
+    }
+  ],
+  "phase_weights": {
+    "HOMING": 10,
+    "HEATING_BED": 20,
+    "SOAKING": 25,
+    "HEATING_NOZZLE": 15,
+    "Z_TILT": 10,
+    "BED_MESH": 15,
+    "CLEANING": 5,
+    "PURGING": 5
+  }
+}
