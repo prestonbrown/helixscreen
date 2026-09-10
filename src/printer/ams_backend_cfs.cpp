@@ -300,29 +300,43 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
     {"key831",
      {"Lost connection to CFS unit", "Check the RS-485 cable between printer and CFS",
       AmsAlertLevel::SYSTEM, nullptr}},
+    {"key832",
+     {"Retract failed", "Check the spool and the filament path for a jam, then retry",
+      AmsAlertLevel::SLOT, fmt_unit_slot}},
+    {"key833",
+     {"Feed failed", "Check the spool and the filament path for a jam, then retry",
+      AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key834",
-     {"Invalid parameters sent to CFS", "This may indicate a firmware bug — try restarting",
+     {"CFS system error",
+      "The unit reported a fault with no further detail. Restart the printer if it repeats",
       AmsAlertLevel::SYSTEM, nullptr}},
     {"key835",
-     {"Filament jammed at CFS connector",
-      "Open the CFS lid, check the PTFE tube connection for the stuck slot", AmsAlertLevel::SLOT,
-      fmt_unit_slot}},
+     {"Filament never reached the CFS hub sensor",
+      "Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the "
+      "hub sensor or the feeder motor may have failed",
+      AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key836",
-     {"Filament jammed between CFS and sensor", "Check the Bowden tube for kinks or debris",
+     {"Filament stalled between CFS hub and extruder sensor",
+      "Check the PTFE tube along the drag chain for kinks, and the bend where it enters the "
+      "extruder sensor",
       AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key837",
-     {"Filament jammed before extruder gear",
-      "Check for tangles on the spool and clear the filament path to the printhead",
+     {"Filament jammed at the extruder gear",
+      "Retract to unload. If it comes back cleanly, snip the chewed end off and feed again",
       AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key838",
-     {"Filament reached extruder but won't feed",
-      "Check for a clog in the hotend or a worn drive gear", AmsAlertLevel::SLOT, fmt_unit_slot}},
+     {"Filament stuck inside the CFS hub",
+      "It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before "
+      "retrying",
+      AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key839",
-     {"No filament detected at CFS extrude position",
-      "The selected slot may be empty or the filament didn't reach the CFS extruder",
+     {"Filament ran out",
+      "Load a new spool in this slot, or turn on auto-refill to switch to a matching one",
       AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key840",
-     {"CFS unit state error", "A unit reported an unexpected state — check its current operation",
+     {"CFS is busy",
+      "The unit is already running another operation. Wait for it to finish, or reset the CFS if "
+      "it stays stuck",
       AmsAlertLevel::UNIT, fmt_unit_only}},
     {"key841",
      {"Filament cutter stuck",
@@ -333,8 +347,8 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
       // The busy-box case (#1387) needs no spool handling at all, so the
       // re-seat remedy is conditional, not asserted: the firmware msg names
       // the actual cause.
-      "If it keeps failing once the box is idle, re-seat the spool with the RFID label "
-      "facing the reader",
+      "Set the filament type and colour by hand for this slot. If the tag should be readable, "
+      "re-seat the spool with its label facing the reader once the box is idle",
       AmsAlertLevel::SLOT, fmt_unit_slot, /*prefer_fw_msg=*/true}},
     {"key844",
      {"PTFE tube connection loose", "Re-seat the Bowden tube connector on the CFS unit",
@@ -343,13 +357,15 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
      {"Nozzle clog detected", "Run a cold pull or replace the nozzle", AmsAlertLevel::SYSTEM,
       nullptr}},
     {"key846",
-     {"Empty print detected — feed rate too slow",
-      "CFS feed rate fell below extruder demand. The spool may be empty or jammed",
+     {"Filament buffer stopped moving",
+      "The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the "
+      "extruder, or a stuck buffer",
       AmsAlertLevel::SYSTEM, nullptr}},
     {"key847",
-     {"Empty spool — filament wound around hub",
-      "Remove the empty spool and clear wound filament from the CFS hub", AmsAlertLevel::SLOT,
-      fmt_unit_slot}},
+     {"Filament is dragging",
+      "The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE "
+      "tube for a severe bend",
+      AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key848",
      {"Filament snapped inside CFS",
       "Open the CFS unit and remove the broken filament from the slot", AmsAlertLevel::SLOT,
@@ -369,9 +385,10 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
       "Extruder and CFS disagree on filament state — inspect both sensors", AmsAlertLevel::SYSTEM,
       nullptr}},
     {"key853",
-     {"Humidity sensor malfunction",
-      "CFS unit's humidity sensor is not responding — may need service", AmsAlertLevel::UNIT,
-      fmt_unit_only}},
+     {"Temperature and humidity sensor not responding",
+      "The sensor in this CFS unit cannot be read. Check its connection, or the unit may need "
+      "service",
+      AmsAlertLevel::UNIT, fmt_unit_only}},
     {"key854",
      {"Cutter blade didn't sever filament",
       "Filament is still present after the cut — the blade may be dull or misaligned",
@@ -387,10 +404,12 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
      {"CFS motor overloaded", "A spool may be tangled or the drive gear is jammed",
       AmsAlertLevel::UNIT, fmt_unit_only}},
     {"key858",
-     {"EEPROM error on CFS unit", "CFS unit storage is corrupted — may need firmware reflash",
+     {"EEPROM error on CFS unit",
+      "The unit's onboard storage has failed. The CFS mainboard needs replacing",
       AmsAlertLevel::UNIT, fmt_unit_only}},
     {"key859",
-     {"Measuring wheel error", "The filament length sensor is malfunctioning", AmsAlertLevel::UNIT,
+     {"Measuring wheel error",
+      "The CFS odometer hardware is faulty and needs repair or replacement", AmsAlertLevel::UNIT,
       fmt_unit_only}},
     {"key860",
      {"Buffer tube problem", "Check the buffer unit on the back of the printer",
@@ -406,7 +425,8 @@ static const std::unordered_map<std::string, CfsErrorEntry> CFS_ERROR_TABLE = {
       "Filament didn't fully retract, may need manual removal", AmsAlertLevel::SLOT,
       fmt_unit_slot}},
     {"key864",
-     {"Extrude error — buffer not full", "Filament didn't fill buffer tube during load",
+     {"Filament buffer failure during feed",
+      "The buffer may be disconnected, stuck, or faulty. Check it before retrying",
       AmsAlertLevel::SLOT, fmt_unit_slot}},
     {"key865",
      {"Retract error — failed to exit connector", "Filament stuck in connector during unload",
@@ -3229,8 +3249,7 @@ AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
     // the `!!` stream, which GcodeErrorRouter renders as a second error toast
     // stacked on the real one.
     auto on_predispatch_error = [this, token](const MoonrakerError& err) {
-        token.defer("AmsBackendCfs::predispatch_err",
-                    [this, err]() { abort_action_state(err); });
+        token.defer("AmsBackendCfs::predispatch_err", [this, err]() { abort_action_state(err); });
     };
 
     auto on_error = [this, token](const MoonrakerError& err) {
