@@ -1347,7 +1347,35 @@ if [ "$STAGED_ONLY" = true ]; then
     BUILD_NEEDED=true
   fi
 
-  if [ "$BUILD_NEEDED" = false ]; then
+  # A staged .cpp can only break its own translation unit, and asking the
+  # compiler that question directly costs seconds where a link costs minutes.
+  # A staged HEADER is the case that breaks OTHER units, so that one still pays
+  # for the build. HELIX_QC_FULL_BUILD=1 forces the build either way.
+  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '\.(cpp|cc|cxx|mm)$' || true)
+  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '\.(h|hh|hpp|hxx|inc)$' || true)
+
+  BUILD_HANDLED=false
+  if [ "$BUILD_NEEDED" = true ] && [ -z "$STAGED_HDR" ] && [ -n "$STAGED_CXX" ] \
+     && [ -f compile_commands.json ] && [ -z "${HELIX_QC_FULL_BUILD:-}" ]; then
+    BUILD_HANDLED=true
+    if python3 scripts/syntax_check.py $STAGED_CXX >/tmp/qc_syntax.out 2>&1; then
+      section_time $SECTION_START
+      echo ""
+      echo "✅ $(grep '^summary:' /tmp/qc_syntax.out || echo 'staged sources compile') - pre-push builds the tree"
+    else
+      section_time $SECTION_START
+      echo ""
+      echo "❌ A staged source does not compile"
+      sed -n '1,40p' /tmp/qc_syntax.out
+      EXIT_CODE=1
+    fi
+  fi
+
+  if [ "$BUILD_HANDLED" = true ]; then
+    :
+  elif [ "$BUILD_NEEDED" = false ]; then
     section_time $SECTION_START
     echo ""
     echo "✅ Build up to date"

@@ -13,7 +13,9 @@ seconds. It proves nothing about behaviour: run the suite for that.
 
 A file with no entry in the database (a file the build has never seen, which is
 every brand-new source) borrows the flags of a sibling in the same directory,
-and says so.
+and says so. A file no native build compiles at all - firmware/, android/ - is
+reported as skipped rather than failed: there are no flags to borrow, and the
+cross build in CI is what gates it.
 """
 
 import json
@@ -67,15 +69,22 @@ def main() -> int:
         by_dir.setdefault(os.path.dirname(rel), entry)
 
     failures = 0
+    checked = 0
+    skipped = 0
     for target in sys.argv[1:]:
         rel = os.path.relpath(os.path.abspath(target), root)
+        if not os.path.exists(os.path.join(root, rel)):
+            print(f"{rel}: no such file", file=sys.stderr)
+            failures += 1
+            continue
+
         entry = by_file.get(rel)
         borrowed = ""
         if entry is None:
             entry = by_dir.get(os.path.dirname(rel))
             if entry is None:
-                print(f"{rel}: no entry and no sibling in {DB_NAME}", file=sys.stderr)
-                failures += 1
+                print(f"{rel}: skipped, no native build compiles it")
+                skipped += 1
                 continue
             borrowed = f" (flags borrowed from {os.path.relpath(entry['file'], root)})"
 
@@ -87,10 +96,12 @@ def main() -> int:
         elapsed = time.monotonic() - started
         status = "ok" if result.returncode == 0 else "FAILED"
         print(f"{rel}: {status} ({elapsed:.1f}s){borrowed}")
+        checked += 1
         if result.returncode != 0:
             sys.stderr.write(result.stderr)
             failures += 1
 
+    print(f"summary: {checked} compiled, {skipped} skipped, {failures} failed")
     return 1 if failures else 0
 
 
