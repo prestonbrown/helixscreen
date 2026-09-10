@@ -706,7 +706,7 @@ main() {
         # Extract version from filename if possible. Only the tar.gz layout
         # carries a version in the name (helixscreen-<plat>-v1.2.3.tar.gz).
         # The unversioned helixscreen-<plat>.zip gets "local" as a placeholder.
-        version=$(echo "$local_tarball" | sed -n 's/.*helixscreen-[^-]*-\(v[0-9.]*\)\.tar\.gz/\1/p')
+        version=$(parse_tarball_version "$local_tarball")
         if [ -z "$version" ]; then
             version="local"
         fi

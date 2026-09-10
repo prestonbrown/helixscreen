@@ -5669,6 +5669,16 @@ parse_manifest_version() {
     parse_json_string_field version
 }
 
+# Extract the version from a release tarball path. Args: path or basename.
+# Prints nothing when the name carries no version, which is how the
+# unversioned helixscreen-<plat>.zip layout is detected.
+#
+# Platform names and versions both carry hyphens (android-arm64,
+# v1.1.0-beta.1), so the version is whatever follows the last '-v<digit>'.
+parse_tarball_version() {
+    echo "$1" | sed -n 's/.*helixscreen-.*-\(v[0-9][0-9A-Za-z.+-]*\)\.tar\.gz$/\1/p'
+}
+
 # Extract one string field from a platform's block of the manifest's assets
 # object on stdin. Args: platform key
 #
@@ -11859,7 +11869,7 @@ main() {
         # Extract version from filename if possible. Only the tar.gz layout
         # carries a version in the name (helixscreen-<plat>-v1.2.3.tar.gz).
         # The unversioned helixscreen-<plat>.zip gets "local" as a placeholder.
-        version=$(echo "$local_tarball" | sed -n 's/.*helixscreen-[^-]*-\(v[0-9.]*\)\.tar\.gz/\1/p')
+        version=$(parse_tarball_version "$local_tarball")
         if [ -z "$version" ]; then
             version="local"
         fi

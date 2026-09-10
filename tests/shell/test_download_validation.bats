@@ -1208,3 +1208,43 @@ $unwired"
     [ "$status" -eq 0 ]
     [[ "$output" == *"SHA256 verified"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# parse_tarball_version
+# ---------------------------------------------------------------------------
+
+@test "parse_tarball_version reads a plain version off a single-word platform" {
+    run parse_tarball_version "helixscreen-pi-v0.99.118.tar.gz"
+    [ "$status" -eq 0 ]
+    [ "$output" = "v0.99.118" ]
+}
+
+@test "parse_tarball_version survives a hyphenated platform name" {
+    for plat in snapmaker-u1 android-arm64 android-universal k1-dynamic; do
+        run parse_tarball_version "helixscreen-${plat}-v0.99.118.tar.gz"
+        [ "$output" = "v0.99.118" ] || fail "$plat lost its version: [$output]"
+    done
+}
+
+@test "parse_tarball_version keeps a prerelease suffix intact" {
+    run parse_tarball_version "helixscreen-pi-v1.1.0-beta.1.tar.gz"
+    [ "$output" = "v1.1.0-beta.1" ] || fail "got [$output]"
+
+    run parse_tarball_version "helixscreen-pi-v1.1.0-rc.2.tar.gz"
+    [ "$output" = "v1.1.0-rc.2" ] || fail "got [$output]"
+}
+
+@test "parse_tarball_version handles a hyphenated platform and prerelease together" {
+    run parse_tarball_version "helixscreen-snapmaker-u1-v1.1.0-beta.1.tar.gz"
+    [ "$output" = "v1.1.0-beta.1" ] || fail "got [$output]"
+}
+
+@test "parse_tarball_version reads through a leading directory path" {
+    run parse_tarball_version "/tmp/downloads/helixscreen-android-arm64-v1.1.0-beta.1.tar.gz"
+    [ "$output" = "v1.1.0-beta.1" ] || fail "got [$output]"
+}
+
+@test "parse_tarball_version prints nothing for the unversioned zip layout" {
+    run parse_tarball_version "helixscreen-pi.zip"
+    [ -z "$output" ] || fail "expected empty, got [$output]"
+}

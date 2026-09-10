@@ -623,7 +623,7 @@ PY
 @test "publish-android uploads on the stable channel only" {
     # A Play versionCode is a one-way ratchet per track, and the trunk's versions
     # lead the stable line: 1.1.0-beta.1 packs to 100100031 while a later 1.0.1
-    # hotfix packs to 100001099, so a prerelease reaching Play makes the next
+    # hotfix packs to 100000199, so a prerelease reaching Play makes the next
     # stable hotfix unpublishable. Android beta testers sideload from the GitHub
     # release. Nothing goes red on its own here, because publish-android is inert
     # without the service-account secret.

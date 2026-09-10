@@ -503,7 +503,7 @@ jobs:
   #
   # Stable releases only. A Play versionCode is a one-way ratchet per track, and
   # the trunk's versions lead the stable line: a 1.1.0-beta.1 packs to 100100031
-  # while the 1.0.1 hotfix that may follow it packs to 100001099, so a beta
+  # while the 1.0.1 hotfix that may follow it packs to 100000199, so a beta
   # reaching Play makes the next stable hotfix unpublishable. Android beta testers
   # sideload the APK from the GitHub release instead. The condition reads the
   # channel the branch declares rather than the tag string, for the same reason
