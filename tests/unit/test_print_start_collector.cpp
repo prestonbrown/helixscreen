@@ -1035,6 +1035,90 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_message() == "Heating Bed...");
 }
 
+// ============================================================================
+// display_status narration
+//
+// Klipper does not echo commands run inside a gcode_macro, so a macro-driven
+// PRINT_START reaches the console with nothing. It narrates through
+// SET_DISPLAY_TEXT / M117 instead, which arrives as display_status.message on
+// the same notify_status_update path the macro signals use.
+// ============================================================================
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: display_status narration drives the phase",
+                 "[print][collector][narration]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates(); // INITIALIZING settle
+
+    client().dispatch_status_update({{"display_status", {{"message", "Heat Soak"}}}});
+    drain_async_updates();
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+    REQUIRE(get_current_message() == "Heat Soak");
+
+    client().dispatch_status_update({{"display_status", {{"message", "Cleaning nozzle"}}}});
+    drain_async_updates();
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: a standing display message is not fresh activity",
+                 "[print][collector][narration][timeout]") {
+    collector().start();
+    drain_async_updates();
+    reset_collector_to_idle();
+    collector().enable_fallbacks();
+
+    // No predictions, so FALLBACK_TIMEOUT (300s) is the deadline.
+    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
+
+    const json frame = {{"display_status", {{"message", "Heat Soak"}}}};
+    client().dispatch_status_update(frame);
+    drain_async_updates();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+
+    // Both heaters within tolerance and above 90% of target, 310s in.
+    set_all_temps(1050, 1050, 2610, 2650);
+    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 310);
+
+    // Klipper repeats the standing message on every status frame. A display
+    // nobody has written to since is not the printer saying something, so the
+    // pre-print is still quiet and its timeout must still fire.
+    for (int i = 0; i < 5; ++i) {
+        client().dispatch_status_update(frame);
+    }
+    drain_async_updates();
+
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: an absent or empty display message is not narration",
+                 "[print][collector][narration]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    // Klipper clears the display by writing null, and a status frame carrying
+    // display_status at all need not carry a message.
+    client().dispatch_status_update({{"display_status", {{"progress", 0.5}}}});
+    client().dispatch_status_update({{"display_status", {{"message", nullptr}}}});
+    client().dispatch_status_update({{"display_status", {{"message", ""}}}});
+    drain_async_updates();
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+}
+
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Proactive detection: bed heating stays HEATING_BED until bed reaches target",
                  "[print][collector][proactive][heating]") {

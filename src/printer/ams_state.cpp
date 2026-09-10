@@ -2899,6 +2899,10 @@ bool AmsState::was_slot_recently_unloaded(int slot_index) const {
 }
 
 void AmsState::set_current_loaded_defaults() {
+    // The card is back to empty, so the next real load is a change worth logging.
+    last_synced_loaded_slot_ = -1;
+    last_synced_filament_loaded_ = false;
+
     if (strcmp(lv_subject_get_string(&current_material_text_), "---") != 0) {
         lv_subject_copy_string(&current_material_text_, "---");
     }
@@ -2984,6 +2988,15 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
         return;
     }
 
+    // Every subject write below is guarded against a no-op, and the log line
+    // has to be too: this runs once per backend status frame, several times a
+    // second, and an unguarded line crowds every other subsystem out of the
+    // debug-bundle ring.
+    const bool loaded_identity_changed =
+        slot_index != last_synced_loaded_slot_ || filament_loaded != last_synced_filament_loaded_;
+    last_synced_loaded_slot_ = slot_index;
+    last_synced_filament_loaded_ = filament_loaded;
+
     // Check for bypass mode (slot_index == -2)
     if (slot_index == -2 && loaded_backend->is_bypass_active()) {
         const char* bypass_text = lv_tr("Current: Bypass");
@@ -3046,7 +3059,10 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
         }
     } else if (slot_index >= 0 && filament_loaded) {
         // Filament is loaded - show slot info from the backend that has it loaded
-        spdlog::debug("[AmsState] sync_current_loaded: slot={}, filament_loaded=true", slot_index);
+        if (loaded_identity_changed) {
+            spdlog::debug("[AmsState] sync_current_loaded: slot={}, filament_loaded=true",
+                          slot_index);
+        }
         SlotInfo slot_info = loaded_backend->get_slot_info(slot_index);
 
         // Sync Spoolman active spool when slot with spoolman_id is loaded.

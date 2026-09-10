@@ -283,14 +283,31 @@ void PrintHistoryManager::notify_observers() {
     }
 }
 
-bool PrintHistoryManager::filelist_action_affects_history(const std::string& action) {
+bool PrintHistoryManager::filelist_change_affects_history(const std::string& action,
+                                                          const std::string& item_root,
+                                                          const std::string& source_root) {
     // notify_filelist_changed fires for every file operation, including uploads
     // and Moonraker's own metadata scans (an AFC printer rewrites
     // AFC/AFC.var.unit on every SET_* command). Only the actions that can make
     // a job's file stop being where history says it is invalidate the cached
     // `exists` flags; everything else must not cost a history round-trip.
-    return action == "delete_file" || action == "delete_dir" || action == "move_file" ||
-           action == "move_dir";
+    if (action != "delete_file" && action != "delete_dir" && action != "move_file" &&
+        action != "move_dir") {
+        return false;
+    }
+
+    // History only ever names files in the `gcodes` root, so an operation
+    // confined to another one cannot orphan a job — the timelapse component
+    // moves frames and renders for the whole duration of a print. `item.root`
+    // is on every well-formed frame; `source_item` rides along only on a move,
+    // where either end being `gcodes` counts, because a job's file moved out
+    // orphans it just as one moved in does. An empty item root is a payload
+    // shape we do not recognise: invalidate, since going stale is worse than
+    // one extra round-trip.
+    if (item_root.empty()) {
+        return true;
+    }
+    return item_root == "gcodes" || source_root == "gcodes";
 }
 
 void PrintHistoryManager::subscribe_to_notifications() {
@@ -323,20 +340,31 @@ void PrintHistoryManager::subscribe_to_notifications() {
     client_->register_method_callback(
         "notify_filelist_changed", "PrintHistoryManager",
         [this, token](const nlohmann::json& data) {
-            // bg thread: parse into a plain string only, no member access.
+            // bg thread: parse into plain strings only, no member access.
             // Moonraker can send null/missing fields, so probe before reading.
             std::string action;
+            std::string item_root;
+            std::string source_root;
             const auto params_it = data.find("params");
             if (params_it != data.end() && params_it->is_array() && !params_it->empty()) {
                 const nlohmann::json& p = (*params_it)[0];
                 if (p.is_object()) {
                     action = helix::json_util::safe_string(p, "action");
+                    const auto item_it = p.find("item");
+                    if (item_it != p.end() && item_it->is_object()) {
+                        item_root = helix::json_util::safe_string(*item_it, "root");
+                    }
+                    const auto source_it = p.find("source_item");
+                    if (source_it != p.end() && source_it->is_object()) {
+                        source_root = helix::json_util::safe_string(*source_it, "root");
+                    }
                 }
             }
-            if (!filelist_action_affects_history(action)) {
+            if (!filelist_change_affects_history(action, item_root, source_root)) {
                 return;
             }
-            spdlog::debug("[HistoryManager] filelist action '{}' invalidates history", action);
+            spdlog::debug("[HistoryManager] filelist action '{}' on root '{}' invalidates history",
+                          action, item_root);
             token.defer("PrintHistoryManager::notify_filelist_changed", [this]() {
                 // invalidate() first: fetch() is not gated on is_loaded_, but
                 // every consumer that checks is_loaded_ before reading must see

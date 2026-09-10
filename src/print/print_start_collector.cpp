@@ -121,6 +121,7 @@ void PrintStartCollector::start() {
         pre_mesh_points_.reset();
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
+        last_display_message_.clear();
         bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
@@ -249,6 +250,13 @@ void PrintStartCollector::start() {
                 return;
             }
         }
+
+        // Klipper does not echo commands run inside a gcode_macro, so a
+        // macro-driven PRINT_START reaches the console with nothing at all. It
+        // narrates through SET_DISPLAY_TEXT / M117 instead, which Moonraker
+        // surfaces as display_status.message, and the profile's response
+        // patterns read that text the same way they read a console line.
+        self->check_display_narration(status);
     });
 
     registered_.store(true);
@@ -343,6 +351,7 @@ void PrintStartCollector::reset() {
         pre_mesh_points_.reset();
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
+        last_display_message_.clear();
         bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
@@ -1114,6 +1123,36 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
 void PrintStartCollector::note_activity() {
     std::lock_guard<std::mutex> lock(state_mutex_);
     last_activity_time_ = std::chrono::steady_clock::now();
+}
+
+void PrintStartCollector::check_display_narration(const json& status) {
+    auto display_it = status.find("display_status");
+    if (display_it == status.end() || !display_it->is_object()) {
+        return;
+    }
+    auto message_it = display_it->find("message");
+    if (message_it == display_it->end() || !message_it->is_string()) {
+        return;
+    }
+    std::string message = message_it->get<std::string>();
+    if (message.empty()) {
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        // Klipper repeats the standing message on every status frame. Only a
+        // message the printer is not already showing is a new signal, so a
+        // display left untouched cannot keep re-arming the quiet gate the
+        // timeout fallbacks wait on.
+        if (last_display_message_ == message) {
+            return;
+        }
+        last_display_message_ = message;
+    }
+
+    spdlog::debug("[PrintStartCollector] Display narration: '{}'", message);
+    check_phase_patterns(message);
 }
 
 void PrintStartCollector::check_phase_patterns(const std::string& line) {

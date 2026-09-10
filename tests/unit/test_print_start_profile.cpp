@@ -309,6 +309,68 @@ TEST_CASE("PrintStartProfile: default patterns match purging commands",
 }
 
 // ============================================================================
+// Default Profile Display Narration Tests
+//
+// A macro-driven PRINT_START narrates through SET_DISPLAY_TEXT / M117 rather
+// than through commands the console echoes, so the same response patterns have
+// to read prose as well as G-code.
+// ============================================================================
+
+TEST_CASE("PrintStartProfile: default patterns match PRINT_START display narration",
+          "[profile][print][narration]") {
+    auto profile = get_default_profile();
+    REQUIRE(profile != nullptr);
+    // These entries are shipped in default.json. The compiled-in fallback
+    // carries a narrower set, so matching that would prove nothing about the
+    // file this case is here to pin.
+    REQUIRE(profile->name() == "Generic");
+
+    PrintStartProfile::MatchResult result;
+
+    SECTION("A heat soak is a bed-heating phase") {
+        REQUIRE(profile->try_match_pattern("Heat Soak", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
+        REQUIRE(result.message == "Heat Soak");
+
+        REQUIRE(profile->try_match_pattern("Soaking bed at 100C", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
+
+        REQUIRE(profile->try_match_pattern("Heating chamber", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
+
+        REQUIRE(profile->try_match_pattern("Waiting for chamber to reach 50C", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
+
+        // The bed-heating entry sits above the soak one and keeps its own
+        // label for a plain heat-up.
+        REQUIRE(profile->try_match_pattern("Heating bed", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
+        REQUIRE(result.message == "Heating Bed...");
+    }
+
+    SECTION("Bed mesh narration needs no verb in front of it") {
+        REQUIRE(profile->try_match_pattern("Bed mesh", result));
+        REQUIRE(result.phase == PrintStartPhase::BED_MESH);
+
+        REQUIRE(profile->try_match_pattern("Calibrating bed mesh", result));
+        REQUIRE(result.phase == PrintStartPhase::BED_MESH);
+    }
+
+    SECTION("Cleaning reads as prose as well as a command name") {
+        REQUIRE(profile->try_match_pattern("Cleaning nozzle", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+
+        REQUIRE(profile->try_match_pattern("Cleaning Nozzle", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+    }
+
+    SECTION("Narration a pre-print does not own still matches nothing") {
+        REQUIRE_FALSE(profile->try_match_pattern("Leveling 3/9", result));
+        REQUIRE_FALSE(profile->try_match_pattern("Printing", result));
+    }
+}
+
+// ============================================================================
 // Default Profile Real Voron V2 Macro Test
 // ============================================================================
 

@@ -282,6 +282,18 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     void check_phase_patterns(const std::string& line);
 
+    /**
+     * @brief Feed a status frame's display_status.message to the phase patterns
+     *
+     * Klipper does not echo commands run inside a gcode_macro, so a
+     * macro-driven PRINT_START reaches the console with nothing. It narrates
+     * through SET_DISPLAY_TEXT / M117 instead, which lands here. Only a
+     * message that differs from the standing one is matched.
+     *
+     * @param status The `params[0]` object of a notify_status_update frame
+     */
+    void check_display_narration(const nlohmann::json& status);
+
     /// Record that the printer said something about its pre-print. Feeds the
     /// quiet gate on every timeout branch. Takes state_mutex_ itself, so do not
     /// call it while already holding the lock.
@@ -497,6 +509,12 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // as the human label when rendering "<sub-phase> (N/M)" so the user sees
     // which sub-phase they're in. Empty when not in BED_MESH.
     std::string current_mesh_message_;
+
+    /// Last display_status.message fed to the pattern matcher. Klipper repeats
+    /// an unchanged message on every status frame, so only a message that
+    /// differs from this one is a fresh narration signal. Guarded by
+    /// state_mutex_; cleared in start()/reset().
+    std::string last_display_message_;
 
     /// Last bed-mesh presence reported via note_bed_mesh_presence(). The
     /// leveling trigger is the present→absent edge, so an unknown initial
