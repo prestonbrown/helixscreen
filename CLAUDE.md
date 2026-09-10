@@ -56,12 +56,16 @@ make remote-native                   # build the app there
 #   `make remote-sync` rsyncs the whole tree and is for the Docker cross targets
 #   only; a fresh REMOTE_DIR costs ~260MB, so never make one per branch.
 
-scripts/zeus-mutate.sh --base main --tests '[tag]'   # mutation gate on zeus
-#   mutate_diff.py rebuilds and re-runs per changed hunk, so it is the most
-#   expensive and least interactive thing in the loop: it belongs on the idle
-#   72-core box. The commit has to be pushed - the container fetches it, it does
-#   not take your tree. zeus is memory-bound, not core-bound (ZFS ARC holds most
-#   of its RAM), so its job count is 12, not 72.
+scripts/zeus-run.sh mutate --tests '[tag]'   # mutation gate on zeus
+scripts/zeus-run.sh asan '[tag]'            # AddressSanitizer on zeus
+#   Both are expensive and non-interactive, so they belong on the idle 72-core
+#   box. ASAN especially: thelio's /etc/ld.so.preload makes ASAN's runtime load
+#   second, so the binary produces NO test output and exits 0 - a pass that ran
+#   nothing. The container has no ld.so.preload and its image matches CI's.
+#   The commit has to be pushed; the container fetches it, it does not take your
+#   tree. zeus is memory-bound, not core-bound (ZFS ARC holds most of its 251GB,
+#   leaving ~14GB), so jobs are 12, and 8 for ASAN - a -j48 build there dies
+#   three compiles in with no error text.
 
 # Worktrees — MUST use for MAJOR work. Always in .worktrees/ (project root).
 scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
@@ -111,6 +115,12 @@ scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
 The protocol is global CLAUDE.md § Peer Sessions. What is shared here:
 
 - **The main working tree is live.** Other sessions commit in it. `git status --short | grep '^MM'` means someone is mid-commit: wait, never merge into that, and never let git autostash (`-c merge.autoStash=false`). Commit your own edits promptly, with explicit pathspecs.
+- **A live merge and an abandoned one look identical from outside.** `MERGE_HEAD` present, zero `UU` entries, and an index mtime minutes old and not moving describe a `git commit` whose hook is *building* — the index stops the moment the hook starts, and a staged header takes the full-build path. An absent `ListAgents` row is not evidence either. The only discriminator is process state:
+  ```bash
+  pgrep -x git | while read p; do echo "$p $(readlink /proc/$p/cwd)"; done
+  ps -o pid,etime,args --ppid <pid>      # quality-checks.sh + make = still building
+  ```
+  Run that before concluding anything about a foreign index. Completing someone's merge is non-destructive and aborting is destructive, but both are theirs to run.
 - **`build/bin/helix-tests` and `helix-screen` can be one inode across worktrees**: whoever linked last set the bytes both trees run. Compare `stat` inodes before trusting a control run against a sibling tree.
 - **The default `ctl` socket is per-user, not per-instance.** Pin it (box above) or you drive a peer's app and it reports success.
 - **One session per physical printer at a time.** Ask who holds a device before pointing anything at it.
