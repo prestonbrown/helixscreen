@@ -1140,8 +1140,11 @@ void PrintStartCollector::check_phase_patterns(const std::string& line) {
     }
 }
 
-void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResult& match) {
-    real_signal_seen_.store(true, std::memory_order_relaxed);
+void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResult& match,
+                                              bool marks_real_signal) {
+    if (marks_real_signal) {
+        real_signal_seen_.store(true, std::memory_order_relaxed);
+    }
     note_activity();
     // match.message arrives already translated: the profile matchers
     // resolve the template through the loaded pack before substituting
@@ -1259,7 +1262,10 @@ void PrintStartCollector::handle_status_signals(const json& status) {
         if (fire) {
             spdlog::debug("[PrintStartCollector] Status signal '{}' held -> phase {}", rule.name,
                           static_cast<int>(match.phase));
-            apply_profile_match(match);
+            // Inference, not narration: a rule's predicates read the same
+            // frames the proactive detector reads, so counting one as a real
+            // signal would gate that detector off with its own input.
+            apply_profile_match(match, /*marks_real_signal=*/false);
         }
     }
 }
