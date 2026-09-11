@@ -150,9 +150,14 @@ def check_install_roots(manifest, f):
             for token in re.findall(r"(/[\w./-]*helixscreen)", value or ""):
                 roots.add(token)
 
+    # The C++ side reads one shared list, so a consumer satisfies this by using
+    # that header rather than by spelling every root itself. The header is then
+    # the only place the roots appear, and it is checked like any other consumer.
+    shared_header = "include/helix_install_roots.h"
     consumers = {
         "scripts/lib/installer/common.sh": "HELIX_INSTALL_DIRS",
         "scripts/lib/installer/platform.sh": "_HELIX_KNOWN_INSTALL_DIRS",
+        shared_header: "kInstallRoots",
         "src/system/log_collector.cpp": "log roots",
         "src/system/update_checker.cpp": "find_local_installer",
         "src/system/debug_bundle_collector.cpp": "crash.txt config dirs",
@@ -161,6 +166,8 @@ def check_install_roots(manifest, f):
         text = read(path)
         if text is None:
             f.add("install-roots", f"{path} not found")
+            continue
+        if path != shared_header and "helix_install_roots.h" in text:
             continue
         for root in sorted(roots):
             if root not in text:
