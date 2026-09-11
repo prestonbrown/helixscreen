@@ -165,9 +165,8 @@ TEST_CASE("Two unnamed multi-gate zones get labels that tell them apart",
 TEST_CASE("An unresolved unit index drops the unit number rather than showing it",
           "[ams][zones][presentation]") {
     // Happy Hare can report a representative gate that doesn't resolve to a known
-    // unit, leaving unit_index at its -1 default. Neither the old sentinel-plus-one
-    // ("Unit 0") nor the raw sentinel ("Unit -1") is a unit number anyone should
-    // trust, so the label drops it and keeps just the system type.
+    // unit, leaving unit_index at its -1 default. -1 is not a unit number anyone
+    // should trust, so the label drops it and keeps just the system type.
     EnvironmentZone z;
     z.gates = {0, 1};
     z.unit_index = -1;
@@ -320,10 +319,10 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_subject_t* header_for_unresolved = lv_xml_get_subject(nullptr, "zone_ov_group_text_1");
     REQUIRE(header_for_unresolved != nullptr);
     const std::string text = lv_subject_get_string(header_for_unresolved);
-    // The system type alone - not "Unit -1", and not the pre-lane_number "Unit 0" a
-    // naive +1 would have produced for this sentinel. Equality against the mock's own
-    // type_name (which happens to contain the substring "Unit") is the precise check;
-    // find("-1") on top guards the sentinel specifically.
+    // The header must carry no unit number - just the system type. Checked by
+    // equality against the mock's own type_name, since that name itself contains
+    // the substring "Unit" ("AFC (Mock Multi-Unit)") and would defeat a plain
+    // substring search for "Unit"; find("-1") guards the sentinel specifically.
     CHECK(text == type_name);
     CHECK(text.find("-1") == std::string::npos);
 
