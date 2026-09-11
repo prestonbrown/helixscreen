@@ -72,3 +72,29 @@ TEST_CASE("180° falls back to software when only 0° supported", "[display][drm
     // Only 0° supported — 180° must use software
     REQUIRE(choose_drm_rotation_strategy(ROT_180, MASK_0_ONLY) == DrmRotationStrategy::SOFTWARE);
 }
+
+TEST_CASE("HARDWARE rotation clears LVGL rotation", "[display][drm][rotation]") {
+    // The plane rotates the scanout. LVGL rotating as well applies the
+    // transform twice, and two 180s cancel (prestonbrown/helixscreen#1275).
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::HARDWARE) ==
+            LvglRotationAction::CLEAR_TO_ZERO);
+}
+
+TEST_CASE("SOFTWARE rotation applies the requested angle to LVGL", "[display][drm][rotation]") {
+    // The dumb-buffer flush callback reads lv_display_get_rotation() to decide
+    // whether to reverse the pixel array, so LVGL must carry the angle.
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::SOFTWARE) ==
+            LvglRotationAction::APPLY_REQUESTED);
+}
+
+TEST_CASE("NONE clears LVGL rotation", "[display][drm][rotation]") {
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::NONE) ==
+            LvglRotationAction::CLEAR_TO_ZERO);
+}
+
+TEST_CASE("Only SOFTWARE needs FULL render mode", "[display][drm][rotation]") {
+    // A partial-render buffer cannot be reversed in place.
+    REQUIRE(drm_rotation_needs_full_render(DrmRotationStrategy::SOFTWARE));
+    REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::HARDWARE));
+    REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::NONE));
+}
