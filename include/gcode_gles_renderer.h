@@ -176,6 +176,14 @@ class GCodeGLESRenderer {
         return gl_render_failed_ || gl_init_failed_;
     }
 
+    /// Which half of render_failed() fired: true when GL could not be brought
+    /// up at all, false when a draw batch reported a fatal error (and when
+    /// nothing has failed). The two reach the viewer through the same sticky
+    /// flag but mean different things to anyone reading the log.
+    bool init_failed() const {
+        return gl_init_failed_;
+    }
+
     // ====== Color / Material ======
 
     void set_filament_color(const std::string& hex_color);

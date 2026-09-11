@@ -53,13 +53,15 @@ struct ForceDummyAudioDriver {
 };
 const ForceDummyAudioDriver g_force_dummy_audio_driver;
 
-// Force SDL's dummy VIDEO driver too. No test initializes SDL video today (the
-// only SDL_Init in the test link is AUDIO, in SDLSoundBackend), so this changes
-// no current behavior. It enforces that invariant: the first test that does
-// reach display creation (DisplayBackendSDL -> lv_sdl_window_create) would
-// otherwise open a real "HelixScreen" window on whatever desktop the run lands
-// on, a behavior CI can never catch because its runners have no display
-// server. Same placement and escape hatch as the audio twin above.
+// Force SDL's dummy VIDEO driver too. This is load-bearing, not preventative:
+// the GL-fallback test drives GCodeGLESRenderer::init_gl() into
+// SDL_CreateWindow, and SDL2 self-initializes video there. Without the dummy
+// driver that call succeeds on a developer's GL desktop and the test's whole
+// premise -- that GL init fails -- evaporates. It also keeps any future test
+// reaching display creation (DisplayBackendSDL -> lv_sdl_window_create) from
+// opening a real "HelixScreen" window on whatever desktop the run lands on, a
+// behavior CI can never catch because its runners have no display server.
+// Same placement and escape hatch as the audio twin above.
 struct ForceDummyVideoDriver {
     ForceDummyVideoDriver() {
         ::setenv("SDL_VIDEODRIVER", "dummy", /*overwrite=*/0);
