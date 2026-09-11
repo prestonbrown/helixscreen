@@ -87,5 +87,12 @@ RUN curl -sSL -o /tmp/mold.tar.gz \
 # The checkout on /work is owned by the host user, not by root in here.
 RUN git config --global --add safe.directory '*'
 
+# ccache belongs on the bind mount. Unset, it defaults to /root/.cache/ccache
+# inside the container, which dies with the container: every recreate then starts
+# from a cold cache and the only symptom is that builds got slow. Callers may
+# still override it; scripts/zeus-run.sh passes the same value explicitly so it
+# also holds for a container predating this file.
+ENV CCACHE_DIR=/work/ccache
+
 WORKDIR /work
 CMD ["sleep", "infinity"]
