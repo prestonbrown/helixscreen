@@ -74,4 +74,17 @@ sudo -n docker exec helix-tsan bash -lc '
   exit 0
 ' && echo LINKER_OK || echo LINKER_FAIL
 
+# The suite needs real TZif files on disk, not just a $TZ setting: the timezone
+# test copies /usr/share/zoneinfo entries into a temp fixture. A container without
+# tzdata fails that one case, and a single red case is enough for the mutation gate
+# to refuse to establish a baseline — so the whole gate goes dark on an environment
+# gap that looks nothing like one. Checked here for the same reason the linker is.
+echo "--- zoneinfo the suite can copy from ---"
+sudo -n docker exec helix-tsan bash -lc '
+  for z in UTC America/New_York; do
+    [ -f "/usr/share/zoneinfo/$z" ] || { echo "REFUSING: /usr/share/zoneinfo/$z missing (apt install tzdata)"; exit 1; }
+  done
+  exit 0
+' && echo TZDATA_OK || echo TZDATA_FAIL
+
 echo "=== $(date -Is) setup done ==="
