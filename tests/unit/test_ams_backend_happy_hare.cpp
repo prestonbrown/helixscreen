@@ -4139,3 +4139,8 @@ TEST_CASE("An update that changes nothing sends nothing", "[ams][happy_hare][dry
     CHECK(helper.update_drying().success());
     CHECK(helper.captured_gcodes.empty());
 }
+
+TEST_CASE("Happy Hare names its positions gates", "[ams][happy_hare][numbering]") {
+    helix::AmsBackendHappyHare backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Gate);
+}

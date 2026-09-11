@@ -17,6 +17,7 @@
 #include "ams_error.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
+#include "display_numbering.h"
 #include "error_event.h"
 #include "firmware_routing.h"
 #include "tool_mapping_origin.h"
@@ -2180,6 +2181,18 @@ class AmsBackend {
      */
     [[nodiscard]] virtual bool should_hide_slot_tool_badge() const {
         return false;
+    }
+
+    /**
+     * @brief The word this backend's hardware uses for one filament position.
+     *
+     * Display code composes it with a 1-based number. Returned as an enum so a
+     * caller cannot compare the wrong spelling and silently get the default.
+     *
+     * @return the backend's noun; Slot unless overridden
+     */
+    [[nodiscard]] virtual helix::ui::LaneNoun lane_noun() const {
+        return helix::ui::LaneNoun::Slot;
     }
 
     /**

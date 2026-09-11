@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -11,6 +10,7 @@
 #include "filament_op_router.h"
 #include "moonraker_api.h"
 #include "settings_manager.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/scoped_home_confirm_prompter.h"
 
 #include <algorithm>
@@ -7835,4 +7835,9 @@ TEST_CASE("AFC unresolvable extruder makes no lane attribution claim",
     helper.seed_extruder_klipper_names({{"e0", "extruder"}, {"e1", "extruder1"}});
     helper.feed_afc_extruder("e1", {{"lane_loaded", "lane3"}});
     REQUIRE(helper.get_system_info().current_slot == 2); // lane3
+}
+
+TEST_CASE("AFC names its positions lanes", "[ams][afc][numbering]") {
+    AmsBackendAfc backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Lane);
 }

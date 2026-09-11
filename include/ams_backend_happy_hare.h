@@ -76,6 +76,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     [[nodiscard]] const char* get_klipper_object_name() const override {
         return "mmu"; // Matches the Klipper object name
     }
+    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
+        return helix::ui::LaneNoun::Gate;
+    }
     // Happy Hare reports printer.mmu.sync_feedback_bias; a value > -1.5 means real
     // bias data is available (the buffer meter, path-canvas tint, and clog buffer
     // page render proportional bias). -1.5 is the "no data" sentinel.

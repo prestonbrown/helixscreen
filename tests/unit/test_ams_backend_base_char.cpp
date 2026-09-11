@@ -218,3 +218,8 @@ TEST_CASE("AMS backends: start without client returns not_connected", "[ams][cha
         REQUIRE(err.result == helix::AmsResult::NOT_CONNECTED);
     }
 }
+
+TEST_CASE("Tool changer names its positions tools", "[ams][toolchanger][numbering]") {
+    helix::AmsBackendToolChanger backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Tool);
+}

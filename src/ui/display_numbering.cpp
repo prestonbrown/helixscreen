@@ -3,6 +3,7 @@
 
 #include "display_numbering.h"
 
+#include "ams_state.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 
 #include <cstdio>
@@ -61,6 +62,12 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
     if (body.empty())
         return {};
     return std::string(unit_display_name) + " " + kUnitSeparator + " " + body;
+}
+
+LaneNoun active_lane_noun() {
+    auto& ams = AmsState::instance();
+    const auto* backend = ams.get_backend(ams.active_backend_index());
+    return backend ? backend->lane_noun() : LaneNoun::Slot;
 }
 
 } // namespace helix::ui

@@ -7,6 +7,7 @@
  */
 
 #include "display_numbering.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -53,4 +54,16 @@ TEST_CASE("out-of-range indices do not produce a label", "[numbering]") {
     CHECK(lane_label(LaneNoun::Slot, -1).empty());
     CHECK(lane_label(LaneNoun::Slot, "Turtle 1", -1).empty());
     CHECK(tool_label(-1).empty());
+}
+
+TEST_CASE("noun_text covers every LaneNoun", "[numbering]") {
+    // A new enumerator with no case falls through to Slot, which would be a
+    // silent wrong word rather than a build failure, so pin all four.
+    // With no translation loaded lv_tr() returns the key, which is why these
+    // are literals: test_filament_mapper.cpp already relies on the same
+    // behaviour when it asserts "Slot 3: PLA".
+    CHECK(noun_text(LaneNoun::Slot) == "Slot");
+    CHECK(noun_text(LaneNoun::Lane) == "Lane");
+    CHECK(noun_text(LaneNoun::Gate) == "Gate");
+    CHECK(noun_text(LaneNoun::Tool) == "Tool");
 }

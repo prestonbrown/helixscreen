@@ -1173,6 +1173,7 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
                 as.remaining_weight_g = slot_info.remaining_weight_g;
                 as.current_tool_mapping = slot_info.mapped_tool;
                 as.unit_index = unit.unit_index;
+                as.noun = backend->lane_noun();
                 if (multi_unit) {
                     as.unit_display_name =
                         unit.display_name.empty() ? unit.name : unit.display_name;
