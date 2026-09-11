@@ -122,10 +122,17 @@ ifeq ($(origin CXX),default)
         ifeq ($(call test_cxx_stdlib,clang++),ok)
             CXX := clang++
         else ifneq ($(shell command -v g++ 2>/dev/null),)
-            # Clang has stdlib issues, fall back to g++
+            # clang selects the newest GCC installation it can find and takes
+            # libstdc++ from there, so a gcc-N without a matching libstdc++-N-dev
+            # leaves it unable to link. Usually fixable, and worth fixing: the
+            # sanitizer jobs are clang, so a working local clang is the only way
+            # to reproduce them here.
             CXX := g++
             CC := gcc
-            $(info Note: clang++ has stdlib issues on this system, using g++ instead)
+            $(info Note: clang++ cannot link C++ here, using g++ instead)
+            $(info   Usually a missing libstdc++-<N>-dev for the newest installed gcc.)
+            $(info   Diagnose: clang++ -v -xc++ /dev/null -o /dev/null 2>&1 | grep "Selected GCC")
+            $(info   Fix: install that libstdc++-<N>-dev, or pass --gcc-install-dir=/usr/lib/gcc/<triple>/<N>)
         else
             # No g++ available, try clang++ anyway and let it fail with a clear error
             CXX := clang++
