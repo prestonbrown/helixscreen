@@ -1706,6 +1706,11 @@ When set, all cache subdirectories are created under `$HELIX_CACHE_DIR/<subdir>`
 - **K1**: `/usr/data/helixscreen/cache`
 - **K2**: `/mnt/UDISK/helixscreen/cache` (27.5GB user partition). `/usr/data` on the
   K2 is the ~240MB root overlay, not user storage, so it is only a fallback.
+- **CC1**: `/user-resource/helixscreen/cache` (6.3GB ext4 partition). `/` is a
+  read-only squashfs with no `/opt`, and the box has 117MB of RAM, so a cache root
+  that falls through the cascade lands in tmpfs and competes with the UI.
+- **Pi / M1 / x86**: not set. The install root is discovered rather than fixed, so
+  the XDG rung resolves correctly on its own and an override can only get it wrong.
 
 ```bash
 # Custom cache location

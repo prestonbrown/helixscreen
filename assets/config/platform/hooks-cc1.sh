@@ -118,7 +118,11 @@ platform_wait_for_services() {
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/opt/helixscreen/cache"
+    # /user-resource is the 6.3 GB ext4 partition. / is a read-only squashfs and
+    # has no /opt at all, so a cache rooted there is not merely unwritable: it is
+    # skipped by every rung of the cascade down to /tmp, which is tmpfs carved out
+    # of 117 MB of system RAM. The thumbnail cache alone is allowed 20 MB.
+    export HELIX_CACHE_DIR="/user-resource/helixscreen/cache"
 
     # Let the COSMOS gui-switcher actually stop HelixScreen. The stock resonance
     # macro (_CALIBRATE_ALL_STEP_2) runs GUI_STOP -> `gui-switcher stop` before

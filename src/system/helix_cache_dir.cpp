@@ -84,7 +84,9 @@ static std::vector<CacheCandidate> cache_path_candidates(const std::string& subd
 #if defined(HELIX_PLATFORM_AD5M)
     out.push_back({"/data/helixscreen/cache/" + subdir, "AD5M", false, true});
 #elif defined(HELIX_PLATFORM_CC1)
-    out.push_back({"/opt/helixscreen/cache/" + subdir, "CC1", false, true});
+    // /user-resource is the 6.3GB ext4 partition. / is a read-only squashfs with
+    // no /opt, so anything rooted there falls through to RAM-backed /tmp.
+    out.push_back({"/user-resource/helixscreen/cache/" + subdir, "CC1", false, true});
 #elif defined(HELIX_PLATFORM_K2)
     // The K2 mounts its bulk storage at /mnt/UDISK (27.5GB). /usr/data is
     // on the root overlay, which is only ~240MB and shared with the
