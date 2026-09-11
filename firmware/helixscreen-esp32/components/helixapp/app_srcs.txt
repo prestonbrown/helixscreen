@@ -219,6 +219,7 @@ src/system/platform_capabilities.cpp
 src/system/post_op_cooldown_manager.cpp
 src/system/log_redact.cpp
 src/system/preset_materials.cpp
+src/system/prerender_size_class.cpp
 src/system/prerendered_images.cpp
 src/system/printer_image_manager.cpp
 src/system/printer_name_sync.cpp
