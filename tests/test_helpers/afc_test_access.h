@@ -136,6 +136,9 @@ class AfcTestAccess {
     template <class B> static auto& last_seen_message(B& b) {
         return b.last_seen_message_;
     }
+    template <class B> static auto& last_error_msg(B& b) {
+        return b.last_error_msg_;
+    }
     template <class B> static auto& message_drain_deadline(B& b) {
         return b.message_drain_deadline_;
     }

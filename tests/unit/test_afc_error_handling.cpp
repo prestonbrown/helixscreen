@@ -12,13 +12,15 @@
  * - Message reset when error clears
  */
 
+#include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
 #include "moonraker_api.h"
+#include "test_helpers/afc_test_access.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -47,23 +49,27 @@ class AfcErrorHandlingHelper : public AmsBackendAfc {
 
     // Feed AFC state update with a message object
     void feed_afc_message(const std::string& message_text, const std::string& message_type) {
-        nlohmann::json afc_data;
-        afc_data["message"]["message"] = message_text;
-        afc_data["message"]["type"] = message_type;
-
-        nlohmann::json params;
-        params["AFC"] = afc_data;
-
-        nlohmann::json notification;
-        notification["params"] = nlohmann::json::array({params, 0.0});
-        handle_status_update(notification);
+        feed_afc_payload(message_text, message_type, nullptr);
     }
 
     // Feed AFC state with empty message (error cleared)
     void feed_afc_empty_message() {
+        feed_afc_payload("", "", nullptr);
+    }
+
+    // Feed a message plus the error_state it would ride with in production:
+    // upstream AFC assigns error_state and appends to the message queue in the
+    // same status update.
+    void feed_afc_message_with_error_state(const std::string& message_text,
+                                           const std::string& message_type, bool error_state) {
+        feed_afc_payload(message_text, message_type, &error_state);
+    }
+
+    // Feed a status frame carrying ONLY error_state (a delta where the flag
+    // changed but no message field was included).
+    void feed_afc_error_state(bool error_state) {
         nlohmann::json afc_data;
-        afc_data["message"]["message"] = "";
-        afc_data["message"]["type"] = "";
+        afc_data["error_state"] = error_state;
 
         nlohmann::json params;
         params["AFC"] = afc_data;
@@ -78,7 +84,29 @@ class AfcErrorHandlingHelper : public AmsBackendAfc {
         return AfcTestAccess::last_seen_message(*this);
     }
 
+    // Access last_error_msg_ (the error-event dedup tracker) for assertions
+    std::string get_last_error_msg() const {
+        return AfcTestAccess::last_error_msg(*this);
+    }
+
   private:
+    void feed_afc_payload(const std::string& message_text, const std::string& message_type,
+                          const bool* error_state) {
+        nlohmann::json afc_data;
+        afc_data["message"]["message"] = message_text;
+        afc_data["message"]["type"] = message_type;
+        if (error_state != nullptr) {
+            afc_data["error_state"] = *error_state;
+        }
+
+        nlohmann::json params;
+        params["AFC"] = afc_data;
+
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({params, 0.0});
+        handle_status_update(notification);
+    }
+
     // Override execute_gcode to prevent null pointer access
     AmsError execute_gcode(const std::string& /*gcode*/) override {
         return AmsErrorHelper::success();
@@ -258,5 +286,131 @@ TEST_CASE("AFC Error Handling: Edge cases", "[afc][error_handling][edge]") {
 
         afc.feed_afc_empty_message();
         REQUIRE(afc.get_last_seen_message().empty());
+    }
+}
+
+// ============================================================================
+// Latched Messages vs error_state (#1589)
+// ============================================================================
+//
+// AFC latches printer.AFC.message: the entry stays long after the condition
+// that produced it resolved, while error_state is AFC's own statement of
+// whether it is CURRENTLY in trouble. A message typed "error" arriving with
+// error_state false is history — on a fresh process the text dedup alone
+// would re-toast it as a live error at every connect.
+//
+// Toasts are asserted through the ui_test_utils notification hooks: the test
+// build stubs the UI layer, and every NOTIFY_* severity fires its hook.
+
+namespace {
+class ToastCapture {
+  public:
+    ToastCapture() {
+        helix::ui::set_test_notification_error_hook(
+            [this](const std::string& m) { events_.emplace_back("error", m); });
+        helix::ui::set_test_notification_warning_hook(
+            [this](const std::string& m) { events_.emplace_back("warning", m); });
+        helix::ui::set_test_notification_info_hook(
+            [this](const std::string& m) { events_.emplace_back("info", m); });
+    }
+    ~ToastCapture() {
+        helix::ui::set_test_notification_error_hook(nullptr);
+        helix::ui::set_test_notification_warning_hook(nullptr);
+        helix::ui::set_test_notification_info_hook(nullptr);
+    }
+
+    ToastCapture(const ToastCapture&) = delete;
+    ToastCapture& operator=(const ToastCapture&) = delete;
+
+    size_t total() const {
+        return events_.size();
+    }
+
+    size_t count(const std::string& severity) const {
+        size_t n = 0;
+        for (const auto& e : events_) {
+            n += (e.first == severity) ? 1 : 0;
+        }
+        return n;
+    }
+
+    bool contains(const std::string& severity, const std::string& text) const {
+        for (const auto& e : events_) {
+            if (e.first == severity && e.second.find(text) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+  private:
+    std::vector<std::pair<std::string, std::string>> events_;
+};
+} // namespace
+
+TEST_CASE("AFC Error Handling: a latched message with error_state false is not a fresh error",
+          "[afc][error_handling][1589]") {
+    ActionPromptManager::set_instance(nullptr);
+    const std::string latched =
+        "Error getting data from moonraker, check AFC.log for more information";
+
+    SECTION("Latched error message raises no toast of any severity and no error event") {
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message_with_error_state(latched, "error", false);
+
+        // The dedup tracker still records it (precondition: the frame was parsed).
+        REQUIRE(afc.get_last_seen_message() == latched);
+        // But no toast was requested, and no error event was deferred.
+        REQUIRE(toasts.total() == 0);
+        REQUIRE(afc.get_last_error_msg().empty());
+    }
+
+    SECTION("The same text with error_state true is a live error") {
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message_with_error_state(latched, "error", true);
+
+        REQUIRE(afc.get_last_seen_message() == latched);
+        REQUIRE(afc.get_last_error_msg() == latched);
+        REQUIRE(toasts.count("error") == 1);
+        REQUIRE(toasts.contains("error", latched));
+        REQUIRE(toasts.total() == 1);
+    }
+
+    SECTION("error_state arriving in an earlier frame still counts for the message") {
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        // Moonraker status deltas only carry CHANGED keys: the frame that
+        // flips error_state and the frame that carries the new message can be
+        // two frames, and the message frame alone must not read as latched.
+        afc.feed_afc_error_state(true);
+        afc.feed_afc_message(latched, "error");
+
+        REQUIRE(afc.get_last_error_msg() == latched);
+        REQUIRE(toasts.count("error") == 1);
+    }
+
+    SECTION("A latched message becoming live raises the error once") {
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message_with_error_state(latched, "error", false);
+        REQUIRE(toasts.total() == 0);
+
+        // The condition turns real: same text, now with error_state set.
+        // The text dedup would swallow it, so the error treatment must key on
+        // the error event dedup, not the text dedup alone.
+        afc.feed_afc_message_with_error_state(latched, "error", true);
+        REQUIRE(afc.get_last_error_msg() == latched);
+        REQUIRE(toasts.count("error") == 1);
+    }
+
+    SECTION("Warning messages are unaffected by error_state") {
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message_with_error_state("Buffer not advancing", "warning", false);
+
+        REQUIRE(toasts.count("warning") == 1);
+        REQUIRE(toasts.count("error") == 0);
     }
 }
