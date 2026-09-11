@@ -263,8 +263,8 @@ else ifeq ($(PLATFORM_TARGET),ad5m)
     ENABLE_EVDEV := yes
     BUILD_SUBDIR := ad5m
     # Mock backends are dev/test scaffolding. The Makefile defaults ENABLE_MOCKS
-    # to yes and no cross target has ever overridden it, so every shipped device
-    # binary has carried the full mock Moonraker client. mk/cross.mk is included
+    # to yes, so without this override the shipped binary would carry the full
+    # mock Moonraker client. mk/cross.mk is included
     # before the Makefile's `?=`, so setting it here wins. The
     # #ifdef HELIX_ENABLE_MOCKS guards at every consumer are already complete --
     # the ESP32 port builds this way today.
@@ -398,8 +398,8 @@ else ifeq ($(PLATFORM_TARGET),cc1)
     ENABLE_EVDEV := yes
     BUILD_SUBDIR := cc1
     # Mock backends are dev/test scaffolding. The Makefile defaults ENABLE_MOCKS
-    # to yes and no cross target has ever overridden it, so every shipped device
-    # binary has carried the full mock Moonraker client. mk/cross.mk is included
+    # to yes, so without this override the shipped binary would carry the full
+    # mock Moonraker client. mk/cross.mk is included
     # before the Makefile's `?=`, so setting it here wins. The
     # #ifdef HELIX_ENABLE_MOCKS guards at every consumer are already complete --
     # the ESP32 port builds this way today.
