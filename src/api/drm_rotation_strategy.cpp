@@ -21,3 +21,21 @@ DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
     // Hardware doesn't support it — fall back to software
     return DrmRotationStrategy::SOFTWARE;
 }
+
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
+LvglRotationAction lvgl_rotation_action_for(DrmRotationStrategy strategy) {
+    if (strategy == DrmRotationStrategy::SOFTWARE) {
+        return LvglRotationAction::APPLY_REQUESTED;
+    }
+    return LvglRotationAction::CLEAR_TO_ZERO;
+}
+
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
+bool drm_rotation_needs_full_render(DrmRotationStrategy strategy) {
+    return strategy == DrmRotationStrategy::SOFTWARE;
+}
+
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
+bool plane_may_own_rotation() {
+    return false;
+}

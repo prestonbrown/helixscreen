@@ -19,6 +19,17 @@
 
 #include <lvgl.h>
 
+// lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL from LV_USE_OPENGLES and
+// redefines it with no #ifndef guard, so a value set in lv_conf.h does not
+// survive. Ask the preprocessor what it resolved to, never the header.
+// This gate covers only the request-set direction: HELIX_ENABLE_OPENGLES set
+// without LV_LINUX_DRM_USE_EGL resolving to 1 is an error. LV_USE_OPENGLES set
+// to 1 in lv_conf.h without HELIX_ENABLE_OPENGLES produces neither warning nor
+// error.
+#if defined(HELIX_ENABLE_OPENGLES) && !LV_LINUX_DRM_USE_EGL
+#error "HELIX_ENABLE_OPENGLES set but LVGL resolved LV_LINUX_DRM_USE_EGL to 0"
+#endif
+
 // System includes for device access checks and DRM capability detection
 #include <algorithm>
 #include <cstdlib>
@@ -434,12 +445,12 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
         }
     }
 
-#ifdef HELIX_ENABLE_OPENGLES
-    using_egl_ = true;
-    spdlog::info("[DRM Backend] GPU-accelerated display active (EGL/OpenGL ES)");
-#else
-    spdlog::info("[DRM Backend] DRM display active (dumb buffers, CPU rendering)");
-#endif
+    using_egl_ = (LV_LINUX_DRM_USE_EGL != 0);
+    if (using_egl_) {
+        spdlog::info("[DRM Backend] GPU-accelerated display active (EGL/OpenGL ES)");
+    } else {
+        spdlog::info("[DRM Backend] DRM display active (dumb buffers, CPU rendering)");
+    }
 
     suppress_console();
 
@@ -1047,49 +1058,48 @@ void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys
     }
 
     // Query hardware capabilities and choose strategy.
-    // On EGL builds, lv_linux_drm_get_plane_rotation_mask() and
-    // lv_linux_drm_set_rotation() do not exist (only in the dumb-buffer
-    // driver), so force SOFTWARE fallback.
-#ifdef HELIX_ENABLE_OPENGLES
+    // lv_linux_drm_get_plane_rotation_mask() and lv_linux_drm_set_rotation()
+    // only compile when LV_LINUX_DRM_USE_EGL is 0 (the dumb-buffer driver), so
+    // force SOFTWARE fallback when EGL is in use.
+#if LV_LINUX_DRM_USE_EGL
     uint64_t supported_mask = 0;
 #else
     uint64_t supported_mask = lv_linux_drm_get_plane_rotation_mask(display_);
 #endif
     auto strategy = choose_drm_rotation_strategy(drm_rot, supported_mask);
 
-    switch (strategy) {
-    case DrmRotationStrategy::HARDWARE:
-#ifndef HELIX_ENABLE_OPENGLES
-        lv_linux_drm_set_rotation(display_, drm_rot);
-        spdlog::info("[DRM Backend] Hardware plane rotation set to {}°",
-                     static_cast<int>(rot) * 90);
-#endif
-        break;
-
-    case DrmRotationStrategy::SOFTWARE:
-        // CPU in-place 180° pixel reversal in drm_flush (lv_linux_drm.c patch).
-        // The dumb-buffer flush callback checks lv_display_get_rotation() and
-        // reverses the pixel array before the page flip. FULL render mode
-        // ensures the entire buffer is redrawn each frame.
+    if (drm_rotation_needs_full_render(strategy)) {
         lv_display_set_render_mode(display_, LV_DISPLAY_RENDER_MODE_FULL);
-        lv_display_set_rotation(display_, rot);
+    }
 
-        spdlog::info("[DRM Backend] Software rotation set to {}° "
-                     "(CPU in-place reversal, plane supports 0x{:X})",
-                     static_cast<int>(rot) * 90, supported_mask);
-        break;
-
-    case DrmRotationStrategy::NONE:
+    if (lvgl_rotation_action_for(strategy) == LvglRotationAction::CLEAR_TO_ZERO) {
         lv_display_set_rotation(display_, LV_DISPLAY_ROTATION_0);
         lv_display_set_matrix_rotation(display_, false);
+    } else {
+        lv_display_set_rotation(display_, rot);
+    }
+
+    if (strategy == DrmRotationStrategy::HARDWARE) {
+#if !LV_LINUX_DRM_USE_EGL
+        lv_linux_drm_set_rotation(display_, drm_rot);
+        spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated)",
+                     static_cast<int>(rot) * 90);
+#endif
+    } else if (strategy == DrmRotationStrategy::SOFTWARE) {
+        spdlog::info("[DRM Backend] Software rotation {}° (plane supports 0x{:X})",
+                     static_cast<int>(rot) * 90, supported_mask);
+    } else {
         spdlog::debug("[DRM Backend] No rotation needed");
-        break;
     }
 }
 
 bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) const {
     if (rot == LV_DISPLAY_ROTATION_0) {
         return true;
+    }
+
+    if (!plane_may_own_rotation()) {
+        return false;
     }
 
     if (display_ == nullptr) {
@@ -1111,7 +1121,7 @@ bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) co
         return true;
     }
 
-#ifdef HELIX_ENABLE_OPENGLES
+#if LV_LINUX_DRM_USE_EGL
     // EGL rotation not yet supported: lv_display_set_rotation() triggers
     // layer_reshape_draw_buf which conflicts with the EGL-sized draw buffer.
     // Needs a GL-only rotation path that bypasses LVGL's buffer reshape.

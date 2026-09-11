@@ -869,8 +869,9 @@ else ifneq ($(CROSS_COMPILE)$(filter x86 x86-fbdev x86-both,$(PLATFORM_TARGET)),
         ifneq ($(SNAPMAKER_SKIP_LIBINPUT),yes)
             LDFLAGS += -linput
         endif
-        # GPU-accelerated rendering via EGL/OpenGL ES
-        ifeq ($(ENABLE_OPENGLES),yes)
+        # EGL/GLES/GBM for the 3D G-code renderer (src/rendering/gcode_gles_renderer.cpp)
+        # and any LVGL EGL display path once one is compiled.
+        ifneq ($(filter yes,$(ENABLE_OPENGLES) $(ENABLE_GLES_3D)),)
             LDFLAGS += -lEGL -lGLESv2 -lgbm
         endif
     endif

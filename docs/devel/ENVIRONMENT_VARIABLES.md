@@ -79,17 +79,17 @@ Override the automatic display backend detection.
 
 | Backend | Rendering | Best for |
 |---------|-----------|----------|
-| `fbdev` | CPU (software) | Maximum compatibility, all hardware, SPI displays |
-| `drm` | GPU-accelerated via DRM+EGL (OpenGL ES) | Pi 3B+, Pi 4, Pi 5, BTT CB1 with HDMI/DSI displays |
+| `fbdev` | CPU (software), plain memory copy | Maximum compatibility, all hardware, SPI displays |
+| `drm` | CPU (software), vsynced page flip via dumb buffers | Pi 3B+, Pi 4, Pi 5, BTT CB1 with HDMI/DSI displays |
 | `sdl` | SDL2 (desktop development) | Development on Linux/macOS desktops |
 
-The `drm` backend uses DRM (Direct Rendering Manager) with EGL/OpenGL ES to offload rendering to the GPU. This reduces CPU usage and can improve frame rates, especially on Pi 4 and Pi 5. The `fbdev` backend is the safe default that works everywhere, including SPI displays that lack DRM support.
+The `drm` backend uses DRM (Direct Rendering Manager) dumb buffers with a vsynced page flip, which avoids tearing that a plain memory copy can show. Rendering itself is CPU-based on both `drm` and `fbdev`. The `fbdev` backend is the safe default that works everywhere, including SPI displays that lack DRM support.
 
 ```bash
 # Force SDL backend (useful for debugging on embedded systems)
 HELIX_DISPLAY_BACKEND=sdl ./build/bin/helix-screen
 
-# Force DRM backend with GPU acceleration
+# Force DRM backend (vsynced, avoids tearing)
 HELIX_DISPLAY_BACKEND=drm ./build/bin/helix-screen
 ```
 

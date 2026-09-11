@@ -410,7 +410,7 @@ Display backend is selected via `DISPLAY_BACKEND` in `mk/cross.mk` and controls:
 
 ### Pi Dual-Link Build (Compile Once, Link Twice)
 
-Pi release builds produce two binaries: DRM (GPU-accelerated) and fbdev (framebuffer fallback). Instead of compiling all ~900 source files twice, the **dual-link build** compiles everything once with DRM superset defines, then links two binaries with different display libraries and link flags.
+Pi release builds produce two binaries: DRM (vsynced page flips via dumb buffers) and fbdev (framebuffer fallback). Instead of compiling all ~900 source files twice, the **dual-link build** compiles everything once with DRM superset defines, then links two binaries with different display libraries and link flags.
 
 **This cuts Pi CI build time roughly in half (~40 min instead of 80+).**
 
@@ -426,7 +426,7 @@ make PLATFORM_TARGET=pi-fbdev -j      # fbdev only
 
 #### How It Works
 
-1. **Compile phase**: All source files compile once using DRM superset defines (`-DHELIX_DISPLAY_DRM -DHELIX_DISPLAY_FBDEV -DHELIX_ENABLE_OPENGLES`). Objects go to `build/pi/obj/`.
+1. **Compile phase**: All source files compile once using DRM superset defines (`-DHELIX_DISPLAY_DRM -DHELIX_DISPLAY_FBDEV`). Objects go to `build/pi/obj/`.
 
 2. **Variant-specific compilation** (only 4 files):
    - `display_backend.cpp`, `display_backend_fbdev.cpp`, `touch_calibration.cpp` → compiled into `build/pi/display-fbdev/` without DRM defines, archived as `libhelix-display-fbdev.a`
@@ -1881,7 +1881,7 @@ does not build through this Makefile at all: `android/app/jni/CMakeLists.txt` gl
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `ENABLE_SDL` | yes (native) | SDL2 desktop display |
-| `ENABLE_OPENGLES` | per target | EGL/GLES GPU rendering |
+| `ENABLE_OPENGLES` | no (all targets) | Requests LVGL's DRM EGL path; the #error in display_backend_drm.cpp fails the build if set without LV_USE_OPENGLES |
 | `ENABLE_GLES_3D` | yes (Linux) | 3D gcode rendering |
 | `ENABLE_SCREENSAVER` | yes (desktop/Pi) | Flying toasters |
 | `ENABLE_MOCKS` | yes (no on `cc1`/`ad5m`/`ad5m-br`) | Mock backends for development |

@@ -380,12 +380,12 @@ bool DisplayManager::init(const Config& config) {
             } else {
                 lv_display_set_rotation(m_display, lv_rot);
 
-                // Update tracked dimensions to match rotated resolution
+                // The backend may clear LVGL's rotation when the scanout plane
+                // rotates instead, so read the resolution it settles on.
+                m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
+
                 m_width = lv_display_get_horizontal_resolution(m_display);
                 m_height = lv_display_get_vertical_resolution(m_display);
-
-                // Auto-rotate touch coordinates to match display rotation
-                m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
             }
 
             spdlog::info("[DisplayManager] Display rotated {}° — effective resolution: {}x{}",
