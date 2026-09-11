@@ -11,7 +11,22 @@
 
 set -uo pipefail
 
-CLAIM_DIR="${HELIX_CLAIM_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")/.helix-claims}"
+# The store belongs to the REPOSITORY, not to whichever worktree is asking.
+# --show-toplevel is per-worktree, so anchoring there hands every worktree a
+# private store: two sessions claim one resource, neither sees the other, and
+# both read FREE - the fail-open this tool exists to prevent. A session asking
+# "is main free?" is almost never standing in main, so that is the normal case,
+# not the corner case. --git-common-dir is the same path from every worktree.
+claim_root() {
+    local common
+    common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+        common=$(git rev-parse --git-common-dir 2>/dev/null) || common=""
+    [ -n "$common" ] || { printf '%s' "$PWD"; return; }
+    case "$common" in /*) ;; *) common="$PWD/$common";; esac
+    printf '%s' "$(dirname "$common")"
+}
+
+CLAIM_DIR="${HELIX_CLAIM_DIR:-$(claim_root)/.helix-claims}"
 
 # A tree has three names people reach for: its directory basename, the branch
 # checked out in it, and "main". Free-form strings let two sessions claim one
