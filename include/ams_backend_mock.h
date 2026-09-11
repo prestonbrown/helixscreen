@@ -533,6 +533,29 @@ class AmsBackendMock : public AmsBackend {
     }
 
     /**
+     * @brief The lane noun for whichever backend type this mock is configured to
+     *        simulate.
+     *
+     * Mirrors the per-backend overrides (AFC -> Lane, Happy Hare -> Gate,
+     * TOOL_CHANGER -> Tool) keyed on get_type() rather than on class identity,
+     * since one mock instance stands in for any of them. Every other AmsType
+     * this mock can report (ACE, AD5X IFS, CFS, SNAPMAKER, QIDI_BOX) shares the
+     * base class's Slot default.
+     */
+    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
+        switch (get_type()) {
+        case AmsType::AFC:
+            return helix::ui::LaneNoun::Lane;
+        case AmsType::HAPPY_HARE:
+            return helix::ui::LaneNoun::Gate;
+        case AmsType::TOOL_CHANGER:
+            return helix::ui::LaneNoun::Tool;
+        default:
+            return helix::ui::LaneNoun::Slot;
+        }
+    }
+
+    /**
      * @brief Enable multi-unit mode for testing overview panel
      *
      * Creates a Box Turtle (4 slots) + Night Owl (2 slots) = 6 total slots.
