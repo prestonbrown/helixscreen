@@ -282,9 +282,10 @@ void SpoolmanManager::refresh_spoolman_weights() {
     for (const auto& entry : backends) {
         const int backend_index = entry.first;
         AmsBackend* backend = entry.second;
-        // When the backend tracks weight locally (e.g., AFC decrements weight
-        // via extruder position), we still need total_weight_g (initial weight)
-        // from Spoolman — the backend only provides remaining weight.
+        // When the backend tracks weight locally (e.g., AFC reads a
+        // firmware-reported remaining weight from its own status payload), we
+        // still need total_weight_g (initial weight) from Spoolman - the
+        // backend only provides remaining weight.
         bool local_weight = backend->tracks_weight_locally();
         int slot_count = backend->get_system_info().total_slots;
 
