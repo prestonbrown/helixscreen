@@ -172,10 +172,11 @@ itself or supports no software rotation at all:
 | SDL | yes | yes | driver calls `lv_draw_sw_rotate()` |
 | DRM dumb buffer | yes | **no** | hardware plane rotation, or the CPU reversal in `patches/lvgl-drm-flush-rotation.patch`, which covers 180 only |
 
-Hardware plane rotation is unavailable whenever `HELIX_ENABLE_OPENGLES` is defined, because the
-rotation entry points exist only in the dumb-buffer driver
-([`src/api/display_backend_drm.cpp#set_display_rotation`](../../../src/api/display_backend_drm.cpp)).
-That covers every Pi and x86 DRM build, so those fall to the software strategy and get 180 only.
+Hardware plane rotation is refused outright, even where the dumb-buffer driver's plane
+supports it: the plane rotates the picture but not the touch frame, since LVGL transforms
+pointer input solely from its own display rotation, which the plane path clears
+([`include/drm_rotation_strategy.h#plane_may_own_rotation`](../../../include/drm_rotation_strategy.h)).
+That covers every Pi and x86 DRM build, so those fall to the fbdev backend and get 180 only.
 
 **A panel needing 90 or 270 belongs on the fbdev binary.** Pi targets ship two
 ([`mk/pi-dual-link.mk`](../../../mk/pi-dual-link.mk)): `helix-screen` for DRM and
