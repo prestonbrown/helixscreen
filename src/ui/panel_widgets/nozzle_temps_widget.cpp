@@ -435,19 +435,23 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
 }
 
 void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& row) {
-    // Short label: the tool identifier (e.g. "T0"); falls back to the klipper
-    // extruder name when no tool is mapped (multi-extruder, no toolchanger).
-    std::string short_name = ToolState::instance().tool_name_for_extruder(row.name);
+    auto& tool_state = ToolState::instance();
+
+    // Short label: the tool's physical position (e.g. "Tool 1"); falls back to
+    // the klipper extruder name when no tool is mapped (multi-extruder, no
+    // toolchanger).
+    std::string short_name = tool_state.display_label_for_extruder(row.name);
     if (short_name.empty())
         short_name = row.name;
 
     // Long label: prefer the user-friendly "Nozzle N" from PrinterTemperatureState
-    // when the tool identifier is just the default Tn pattern. For toolchangers
-    // with viesturz-named tools (e.g. "Left", "Right"), the configured tool name
-    // is already meaningful — keep it.
-    std::string long_name = short_name;
-    bool is_default_tn = short_name.size() >= 2 && short_name[0] == 'T' &&
-                         std::all_of(short_name.begin() + 1, short_name.end(), [](char c) {
+    // when the tool's gcode identity is just the default Tn pattern. For
+    // toolchangers with viesturz-named tools (e.g. "Left", "Right"), the
+    // configured tool name is already meaningful — keep it.
+    std::string gcode_name = tool_state.tool_name_for_extruder(row.name);
+    std::string long_name = gcode_name.empty() ? row.name : gcode_name;
+    bool is_default_tn = gcode_name.size() >= 2 && gcode_name[0] == 'T' &&
+                         std::all_of(gcode_name.begin() + 1, gcode_name.end(), [](char c) {
                              return std::isdigit(static_cast<unsigned char>(c));
                          });
     if (is_default_tn) {

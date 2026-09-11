@@ -360,7 +360,7 @@ void ToolSwitcherWidget::rebuild_pills() {
 
         // Create pill button from XML ui_button widget — variant handles base styling
         const char* variant = is_active ? "primary" : "ghost";
-        const char* attrs[] = {"variant", variant, "text", tools[i].name.c_str(), nullptr};
+        const char* attrs[] = {"variant", variant, "text", tools[i].display_label.c_str(), nullptr};
         lv_obj_t* btn = static_cast<lv_obj_t*>(lv_xml_create(container, "ui_button", attrs));
         if (!btn) {
             spdlog::error("[ToolSwitcher] lv_xml_create('ui_button') returned NULL for pill '{}'",
@@ -484,7 +484,7 @@ void ToolSwitcherWidget::rebuild_compact() {
     // Current tool label centered with larger font
     lv_obj_t* label = lv_label_create(container);
     std::string tool_name =
-        (active >= 0 && active < static_cast<int>(tools.size())) ? tools[active].name : "T?";
+        (active >= 0 && active < static_cast<int>(tools.size())) ? tools[active].display_label : "";
     lv_label_set_text(label, tool_name.c_str());
     compact_label_ = label;
     const lv_font_t* body_font = theme_manager_get_font("font_body");
@@ -569,7 +569,7 @@ void ToolSwitcherWidget::ToolPicker::on_created(lv_obj_t* backdrop) {
         bool is_active = (static_cast<int>(i) == active);
 
         // Create picker button from XML template
-        const char* btn_attrs[] = {"tool_text", tools[i].name.c_str(), nullptr};
+        const char* btn_attrs[] = {"tool_text", tools[i].display_label.c_str(), nullptr};
         lv_obj_t* picker_btn =
             static_cast<lv_obj_t*>(lv_xml_create(tool_list, "tool_picker_button", btn_attrs));
         if (!picker_btn) {

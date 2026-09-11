@@ -132,7 +132,6 @@ void configure_tools(int count, int active_index = 0) {
     ToolTopology topo;
     topo.tool_count = count;
     topo.active_tool = active_index;
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
 }
 

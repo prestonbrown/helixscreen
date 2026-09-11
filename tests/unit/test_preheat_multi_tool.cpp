@@ -250,7 +250,6 @@ ToolTopology lane_topology(int lanes) {
     for (int i = 0; i < lanes; ++i) {
         topo.tool_to_slot[static_cast<size_t>(i)] = i;
     }
-    topo.tool_name_prefix = "T";
     return topo;
 }
 

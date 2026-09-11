@@ -1879,12 +1879,12 @@ void FilamentPanel::populate_extruder_dropdown() {
     if (!multi_tool)
         return;
 
-    // Build options string ("T0\nT1\nT2")
+    // Build options string ("Tool 1\nTool 2\nTool 3")
     std::string options;
     for (const auto& tool : ts.tools()) {
         if (!options.empty())
             options += '\n';
-        options += tool.name;
+        options += tool.display_label;
     }
     lv_dropdown_set_options(extruder_dropdown_, options.c_str());
 

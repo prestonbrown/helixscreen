@@ -36,6 +36,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "ams_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/nozzle_temps_widget.h"
@@ -52,9 +53,17 @@ namespace {
 /// LVGLUITestFixture's own init/deinit chain (that fixture only owns
 /// PrinterState-family subjects), so a test that populates it must clear it
 /// itself or later test files in the same binary inherit stale tools.
+///
+/// AmsState::instance() is cleared for the same reason: ToolState's short
+/// labels are the active AMS backend's lane_noun(), so a backend a prior file
+/// left registered would leak into this file's expected "Slot N" strings.
 struct NozzleTempsFixture : public LVGLUITestFixture {
+    NozzleTempsFixture() {
+        AmsState::instance().clear_backends();
+    }
     ~NozzleTempsFixture() override {
         ToolState::instance().deinit_subjects();
+        AmsState::instance().clear_backends();
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 };
@@ -95,9 +104,9 @@ void add_second_extruder(PrinterState& state) {
 /// add_second_extruder(): ToolState first, then the version bump, then drain.
 void add_third_extruder(PrinterState& state) {
     PrinterDiscovery hw;
-    hw.parse_objects(nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "tool T2",
-                                            "extruder", "extruder1", "extruder2", "heater_bed",
-                                            "gcode_move"}));
+    hw.parse_objects(
+        nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "extruder",
+                               "extruder1", "extruder2", "heater_bed", "gcode_move"}));
     ToolState::instance().init_tools(hw);
 
     state.init_extruders({"extruder", "extruder1", "extruder2"});
@@ -174,14 +183,14 @@ TEST_CASE_METHOD(
     h.resize(2, 1, 100, 300);
 
     // Sanity: the resize corrected the existing row to short.
-    REQUIRE(std::string(lv_label_get_text(nth_row_tool_label(container, 0))) == "T0");
+    REQUIRE(std::string(lv_label_get_text(nth_row_tool_label(container, 0))) == "Slot 1");
 
     add_second_extruder(state());
     REQUIRE(lv_obj_get_child_count(container) == 3);
 
     // The freshly created row must stay short: the widget already knows it
     // is narrow. A colspan=2 reading implementation shows "Nozzle 2" here.
-    CHECK(std::string(lv_label_get_text(nth_row_tool_label(container, 1))) == "T1");
+    CHECK(std::string(lv_label_get_text(nth_row_tool_label(container, 1))) == "Slot 2");
 }
 
 /**
