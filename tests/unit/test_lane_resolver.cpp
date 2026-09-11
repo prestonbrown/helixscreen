@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_observation.h"
+#include "lane_resolver.h"
 #include "lane_sources.h"
 
 #include "../catch_amalgamated.hpp"
@@ -59,4 +60,38 @@ TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
     CHECK_FALSE(lane.spoolman.has_value());
     REQUIRE(lane.sensed.has_value());
     CHECK(lane.sensed->present == false);
+}
+
+TEST_CASE("Presence comes from the sensor and nothing else", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+
+    SECTION("identity metadata never implies presence") {
+        // A cache that still remembers the last spool is not evidence a spool
+        // is there. Vendor stores keep colour across an eject by design.
+        Observation cache;
+        cache.source = ObservationSource::VendorCache;
+        cache.color_rgb = 0x8000FF;
+        cache.material = "PLA";
+        lane.apply(cache);
+
+        Observation spool;
+        spool.source = ObservationSource::Spoolman;
+        spool.spoolman_id = 7;
+        spool.material = "PETG";
+        lane.apply(spool);
+
+        CHECK_FALSE(helix::ams::resolve(lane).present);
+    }
+
+    SECTION("the sensor decides, in both directions") {
+        Observation sensed;
+        sensed.source = ObservationSource::Sensed;
+        sensed.present = true;
+        lane.apply(sensed);
+        CHECK(helix::ams::resolve(lane).present);
+
+        sensed.present = false;
+        lane.apply(sensed);
+        CHECK_FALSE(helix::ams::resolve(lane).present);
+    }
 }
