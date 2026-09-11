@@ -15,6 +15,9 @@
   <translation tag="%lu days ago" fr="il y a %lu jours"/>
   <translation tag="%lu hours ago" fr="il y a %lu heures"/>
   <translation tag="%lu min ago" fr="il y a %lu min"/>
+  <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" fr="%s contient environ %.0fg mais %s nécessite environ %.0fg. Démarrer quand même ?"/>
+  <translation tag="%s has no filament loaded — this print will run out." fr="%s n&apos;a pas de filament chargé — cette impression manquera de filament."/>
+  <translation tag="%s needs filament in %s, which is empty — this print will run out." fr="%s nécessite du filament dans %s, qui est vide — cette impression manquera de filament."/>
   <translation tag="%u layers" fr="%u couches"/>
   <translation tag="%zu changes" fr="%zu modifications"/>
   <translation tag="%zu events queued" fr="%zu événements en file"/>
@@ -648,6 +651,7 @@
   <translation tag="Current name:" fr="Nom actuel :"/>
   <translation tag="Current:" fr="Actuel :"/>
   <translation tag="Current: %d°C | Target: %d°C" fr="Actuel : %d°C | Cible : %d°C"/>
+  <translation tag="Current: %s" fr="Actuel : %s"/>
   <translation tag="Current: %s · Slot %d" fr="Actuel : %s · Slot %d"/>
   <translation tag="Current: Bypass" fr="Actuel : Bypass"/>
   <translation tag="Current: Slot %d" fr="Actuel : Slot %d"/>
@@ -1857,6 +1861,7 @@
   <translation tag="Preheat cancelled" fr="Préchauffage annulé"/>
   <translation tag="Preheat: T{} + bed set" fr="Préchauffage : T{} + plateau réglé"/>
   <translation tag="Preheat: all {} tools + bed set" fr="Préchauffage : tous les {} outils + plateau réglé"/>
+  <translation tag="Preheat: {} + bed set" fr="Préchauffage : {} + plateau réglé"/>
   <translation tag="Prepared" fr="Préparé"/>
   <translation tag="Preparing" fr="Préparation"/>
   <translation tag="Preparing Print" fr="Préparation de l&apos;impression"/>
@@ -2491,6 +2496,7 @@
   <translation tag="Switch the active tool or extruder" fr="Changer d&apos;outil ou d&apos;extrudeur actif"/>
   <translation tag="Switch to v%s" fr="Passer à la v%s"/>
   <translation tag="Switched to T{}" fr="Basculé sur T{}"/>
+  <translation tag="Switched to {}" fr="Basculé sur {}"/>
   <translation tag="Switches to a backup spool on runout" fr="Passe à une bobine de secours en fin de filament"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." fr="Basculement du chauffage vers MPC. Klipper va redémarrer."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." fr="Le passage à MPC nécessite une modification de la config et un redémarrage de Klipper."/>
@@ -3008,10 +3014,12 @@
   <translation tag="{} preset{}" fr="{} préréglage{}"/>
   <translation tag="{} set to {}" fr="{} réglé sur {}"/>
   <translation tag="{} set to {} {}" fr="{} réglé sur {} {}"/>
+  <translation tag="{} shares slot with {}" fr="{} partage lemplacement avec {}"/>
   <translation tag="{} slots" fr="{} slots"/>
   <translation tag="{} started" fr="{} démarré"/>
   <translation tag="{} target set to {}°C" fr="Cible {} réglée à {}°C"/>
   <translation tag="{} widgets" fr="{} widgets"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." fr="{} basculera vers un slot dont le type de filament ET la couleur correspondent à la bobine active et dont le capteur de port détecte du filament."/>
   <translation tag="{} — response timed out" fr="{} — réponse expirée"/>
+  <translation tag="{} → {}: no filament loaded." fr="{} → {} : aucun filament chargé."/>
 </translations>

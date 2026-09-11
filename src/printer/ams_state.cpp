@@ -3350,8 +3350,8 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             char tmp[64];
             if (is_tool_changer(sys.type) && sys.units.empty()) {
                 // Pure tool changer with no AMS units — show the physical tool number
-                snprintf(tmp, sizeof(tmp), lv_tr("Current: Tool %d"),
-                         helix::ui::lane_number(slot_index));
+                snprintf(tmp, sizeof(tmp), lv_tr("Current: %s"),
+                         helix::ui::lane_label(helix::ui::LaneNoun::Tool, slot_index).c_str());
             } else {
                 std::string unit_display;
                 int display_slot = slot_index + 1; // 1-based global slot number

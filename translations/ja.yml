@@ -15,6 +15,9 @@ translations:
   '%lu days ago': '%lu日前'
   '%lu hours ago': '%lu時間前'
   '%lu min ago': '%lu分前'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s の残量は約 %.0fg ですが、%s には約 %.0fg 必要です。それでも開始しますか？'
+  '%s has no filament loaded — this print will run out.': '%s にフィラメントが装填されていません — この印刷は途中で切れます。'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s は %s のフィラメントを必要としますが、空です — この印刷は途中で切れます。'
   '%u layers': '%uレイヤー'
   '%zu changes': '%zu件の変更'
   '%zu events queued': '%zu 件のイベントを待機中'
@@ -662,6 +665,7 @@ translations:
   'Current name:': '現在の名前:'
   'Current:': '現在:'
   'Current: %d°C | Target: %d°C': '現在: %d°C | 目標: %d°C'
+  'Current: %s': '現在: %s'
   'Current: %s · Slot %d': '現在: %s · スロット %d'
   'Current: Bypass': '現在: バイパス'
   'Current: Slot %d': '現在: スロット %d'
@@ -1915,6 +1919,7 @@ translations:
   Preheat cancelled: 予熱がキャンセルされました
   'Preheat: T{} + bed set': '予熱: T{} + ベッド設定済み'
   'Preheat: all {} tools + bed set': '予熱: 全 {} ツール + ベッド設定済み'
+  'Preheat: {} + bed set': '予熱: {} + ベッド設定済み'
   Prepared: 準備済み
   Preparing: 準備中
   Preparing Print: 印刷準備中
@@ -2566,6 +2571,7 @@ translations:
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
   Switch to v%s: 'v%s に切り替え'
   Switched to T{}: T{} に切替えました
+  Switched to {}: '{} に切替えました'
   Switches to a backup spool on runout: フィラメント切れ時にバックアップスプールへ切り替えます
   Switching heater control to MPC. Klipper will restart.: ヒーター制御をMPCに切り替えます。Klipperが再起動します。
   Switching to MPC requires a config change and Klipper restart.: MPCへの切り替えには設定変更とKlipperの再起動が必要です。
@@ -3127,6 +3133,7 @@ translations:
   '{} preset{}': '{} 個のプリセット{}'
   '{} set to {}': '{} を {} に設定しました'
   '{} set to {} {}': '{} を {} {} に設定しました'
+  '{} shares slot with {}': '{} は {} とスロットを共有しています'
   '{} slots': '{} スロット'
   '{} started': '{} を開始しました'
   '{} target set to {}°C': '{} 目標温度を {}°C に設定しました'
@@ -3134,3 +3141,4 @@ translations:
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。'
   '{} — response timed out': '{} — 応答タイムアウト'
+  '{} → {}: no filament loaded.': '{} → {}: フィラメントが装填されていません。'

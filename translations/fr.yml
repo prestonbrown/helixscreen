@@ -16,6 +16,9 @@ translations:
   '%lu days ago': il y a %lu jours
   '%lu hours ago': il y a %lu heures
   '%lu min ago': il y a %lu min
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s contient environ %.0fg mais %s nécessite environ %.0fg. Démarrer quand même ?'
+  '%s has no filament loaded — this print will run out.': '%s n''a pas de filament chargé — cette impression manquera de filament.'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s nécessite du filament dans %s, qui est vide — cette impression manquera de filament.'
   '%u layers': '%u couches'
   '%zu changes': '%zu modifications'
   '%zu events queued': '%zu événements en file'
@@ -741,6 +744,7 @@ translations:
   'Current name:': 'Nom actuel :'
   'Current:': 'Actuel :'
   'Current: %d°C | Target: %d°C': 'Actuel : %d°C | Cible : %d°C'
+  'Current: %s': 'Actuel : %s'
   'Current: %s · Slot %d': 'Actuel : %s · Slot %d'
   'Current: Bypass': 'Actuel : Bypass'
   'Current: Slot %d': 'Actuel : Slot %d'
@@ -2090,6 +2094,7 @@ translations:
   'Preheat: T{} + bed set': 'Préchauffage : T{} + plateau réglé'
   'Preheat: all {} tools + bed set': 'Préchauffage : tous les {} outils + plateau
     réglé'
+  'Preheat: {} + bed set': 'Préchauffage : {} + plateau réglé'
   Prepared: Préparé
   Preparing: Préparation
   Preparing Print: Préparation de l'impression
@@ -2811,6 +2816,7 @@ translations:
   Switch the active tool or extruder: Changer d'outil ou d'extrudeur actif
   Switch to v%s: 'Passer à la v%s'
   Switched to T{}: Basculé sur T{}
+  Switched to {}: 'Basculé sur {}'
   Switches to a backup spool on runout: Passe à une bobine de secours en fin de filament
   Switching heater control to MPC. Klipper will restart.: Basculement du chauffage
     vers MPC. Klipper va redémarrer.
@@ -3444,6 +3450,7 @@ translations:
   '{} preset{}': '{} préréglage{}'
   '{} set to {}': '{} réglé sur {}'
   '{} set to {} {}': '{} réglé sur {} {}'
+  '{} shares slot with {}': '{} partage lemplacement avec {}'
   '{} slots': '{} slots'
   '{} started': '{} démarré'
   '{} target set to {}°C': Cible {} réglée à {}°C
@@ -3451,3 +3458,4 @@ translations:
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} basculera vers un slot dont le type de filament ET la couleur correspondent à la bobine active et dont le capteur de port détecte du filament.'
   '{} — response timed out': '{} — réponse expirée'
+  '{} → {}: no filament loaded.': '{} → {} : aucun filament chargé.'

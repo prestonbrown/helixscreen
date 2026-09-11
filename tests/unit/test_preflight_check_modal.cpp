@@ -10,6 +10,7 @@
 #include "preflight_validator.h"
 
 #include <memory>
+#include <string>
 
 // LVGLUITestFixture registers ALL XML components (via
 // helix::register_xml_components()), including preflight_check_modal.xml and
@@ -94,6 +95,54 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreflightCheckModal renders one visible row
 
     modal->hide(); // the entry frees the instance a tick later
     process_lvgl(50);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PreflightCheckModal explanation names the tool and slot as labels, not numbers",
+                 "[preflight][modal][ui]") {
+    SECTION("no lane mapped at all (mapped_slot < 0)") {
+        helix::PreflightResult pf;
+        pf.checks = {
+            make_check(2, 0xF5A623, "PETG", -1, false, helix::ToolCheck::Severity::EmptySlot)};
+
+        auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
+        auto* modal = owned.get();
+        modal->set_checks(pf);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        process_lvgl(50);
+
+        lv_obj_t* explain = lv_obj_find_by_name(test_screen(), "preflight_explanation");
+        REQUIRE(explain != nullptr);
+        std::string text = lv_label_get_text(explain);
+        CHECK(text.find("T2") != std::string::npos);
+        CHECK(text.find("Tool 2") == std::string::npos);
+
+        modal->hide();
+        process_lvgl(50);
+    }
+
+    SECTION("mapped to an empty lane (mapped_slot >= 0)") {
+        helix::PreflightResult pf;
+        pf.checks = {
+            make_check(3, 0xF5A623, "PETG", 4, false, helix::ToolCheck::Severity::EmptySlot)};
+
+        auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
+        auto* modal = owned.get();
+        modal->set_checks(pf);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        process_lvgl(50);
+
+        lv_obj_t* explain = lv_obj_find_by_name(test_screen(), "preflight_explanation");
+        REQUIRE(explain != nullptr);
+        std::string text = lv_label_get_text(explain);
+        CHECK(text.find("T3") != std::string::npos);
+        CHECK(text.find("Slot 5") != std::string::npos); // mapped_slot 4 -> "Slot 5"
+        CHECK(text.find("Tool 3") == std::string::npos);
+        CHECK(text.find("tool 3") == std::string::npos);
+
+        modal->hide();
+        process_lvgl(50);
+    }
 }
 
 // The Remap affordance is offered only when the backend can actually carry out

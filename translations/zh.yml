@@ -15,6 +15,9 @@ translations:
   '%lu days ago': '%lu天前'
   '%lu hours ago': '%lu小时前'
   '%lu min ago': '%lu分钟前'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s 约剩 %.0fg，但%s 需要约 %.0fg。仍要开始吗？'
+  '%s has no filament loaded — this print will run out.': '%s 未加载耗材 —— 此次打印将会耗尽耗材。'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s 需要 %s 中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。'
   '%u layers': '%u 层'
   '%zu changes': '%zu 项更改'
   '%zu events queued': '%zu 个事件已排队'
@@ -658,6 +661,7 @@ translations:
   'Current name:': 当前名称：
   'Current:': 当前：
   'Current: %d°C | Target: %d°C': '当前: %d°C | 目标: %d°C'
+  'Current: %s': '当前: %s'
   'Current: %s · Slot %d': '当前: %s · 插槽 %d'
   'Current: Bypass': '当前: 旁通'
   'Current: Slot %d': '当前: 插槽 %d'
@@ -1907,6 +1911,7 @@ translations:
   Preheat cancelled: 预热已取消
   'Preheat: T{} + bed set': '预热: T{} + 热床已设置'
   'Preheat: all {} tools + bed set': '预热: 全部 {} 工具 + 热床已设置'
+  'Preheat: {} + bed set': '预热: {} + 热床已设置'
   Prepared: 已就绪
   Preparing: 准备中
   Preparing Print: 准备打印
@@ -2557,6 +2562,7 @@ translations:
   Switch the active tool or extruder: 切换当前工具或挤出机
   Switch to v%s: '切换到 v%s'
   Switched to T{}: 已切换到 T{}
+  Switched to {}: '已切换到 {}'
   Switches to a backup spool on runout: 耗材用尽时切换到备用料盘
   Switching heater control to MPC. Klipper will restart.: 正在将加热控制切换为 MPC。Klipper 将重启。
   Switching to MPC requires a config change and Klipper restart.: 切换到 MPC 需要修改配置并重启
@@ -3116,6 +3122,7 @@ translations:
   '{} preset{}': '{} 个预设{}'
   '{} set to {}': '{} 已设为 {}'
   '{} set to {} {}': '{} 已设为 {} {}'
+  '{} shares slot with {}': '{} 与 {} 共用槽位'
   '{} slots': '{} 个槽位'
   '{} started': '已开始{}'
   '{} target set to {}°C': '{} 目标已设为 {}°C'
@@ -3123,3 +3130,4 @@ translations:
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。'
   '{} — response timed out': '{} — 响应超时'
+  '{} → {}: no filament loaded.': '{} → {}: 未加载耗材。'

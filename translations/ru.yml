@@ -16,6 +16,9 @@ translations:
   '%lu days ago': '%lu дн. назад'
   '%lu hours ago': '%lu ч. назад'
   '%lu min ago': '%lu мин. назад'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s осталось около %.0fг, но %s нужно около %.0fг. Всё равно начать?'
+  '%s has no filament loaded — this print will run out.': 'В %s не загружен филамент — печати не хватит филамента.'
+  '%s needs filament in %s, which is empty — this print will run out.': 'Для %s нужен филамент в %s, который пуст — печати не хватит филамента.'
   '%u layers': '%u слоёв'
   '%zu changes': '%zu изменений'
   '%zu events queued': '%zu событий в очереди'
@@ -723,6 +726,7 @@ translations:
   'Current name:': 'Текущее имя:'
   'Current:': 'Текущий:'
   'Current: %d°C | Target: %d°C': 'Текущая: %d°C | Целевая: %d°C'
+  'Current: %s': 'Текущий: %s'
   'Current: %s · Slot %d': 'Текущий: %s · Слот %d'
   'Current: Bypass': 'Текущий: Обход'
   'Current: Slot %d': 'Текущий: Слот %d'
@@ -2047,6 +2051,7 @@ translations:
   Preheat cancelled: Предварительный нагрев отменён
   'Preheat: T{} + bed set': 'Преднагрев: T{} + стол заданы'
   'Preheat: all {} tools + bed set': 'Преднагрев: все {} инструменты + стол заданы'
+  'Preheat: {} + bed set': 'Преднагрев: {} + стол заданы'
   Prepared: Готово
   Preparing: Подготовка
   Preparing Print: Подготовка печати
@@ -2754,6 +2759,7 @@ translations:
   Switch the active tool or extruder: Смена активного инструмента
   Switch to v%s: 'Перейти на v%s'
   Switched to T{}: Переключено на T{}
+  Switched to {}: 'Переключено на {}'
   Switches to a backup spool on runout: При обрыве переключится на резервную катушку
   Switching heater control to MPC. Klipper will restart.: Переключение управления
     нагревом на MPC. Klipper перезапустится.
@@ -3361,6 +3367,7 @@ translations:
   '{} preset{}': '{} пресет{}'
   '{} set to {}': '{} установлено на {}'
   '{} set to {} {}': '{} установлено на {} {}'
+  '{} shares slot with {}': '{} использует общий слот с {}'
   '{} slots': '{} слотов'
   '{} started': '{} запущено'
   '{} target set to {}°C': Целевая температура {} — {}°C
@@ -3368,3 +3375,4 @@ translations:
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент.'
   '{} — response timed out': '{} — время ожидания ответа истекло'
+  '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'

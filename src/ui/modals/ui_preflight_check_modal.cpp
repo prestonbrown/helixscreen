@@ -103,14 +103,16 @@ void PreflightCheckModal::on_show() {
                 char buf[160];
                 if (check.mapped_slot < 0) {
                     snprintf(buf, sizeof(buf),
-                             lv_tr("T%d has no filament loaded — this print will run "
+                             lv_tr("%s has no filament loaded — this print will run "
                                    "out."),
-                             check.tool_index);
+                             helix::ui::tool_label(check.tool_index).c_str());
                 } else {
                     snprintf(buf, sizeof(buf),
-                             lv_tr("T%d needs filament in slot %d, which is empty — "
+                             lv_tr("%s needs filament in %s, which is empty — "
                                    "this print will run out."),
-                             check.tool_index, helix::ui::lane_number(check.mapped_slot));
+                             helix::ui::tool_label(check.tool_index).c_str(),
+                             helix::ui::lane_label(helix::ui::LaneNoun::Slot, check.mapped_slot)
+                                 .c_str());
                 }
                 text = buf;
                 break;

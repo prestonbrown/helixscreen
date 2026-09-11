@@ -90,18 +90,19 @@ CheckResult warn_result(std::string title, std::string body, std::string proceed
 /// Ported verbatim from PrintStartController::build_empty_lane_message.
 std::string build_empty_lane_message(const std::vector<std::pair<int, int>>& empty) {
     // Name the offending tool(s) and the AMS lane each routes to so the user
-    // knows exactly which lane to load. Lane numbers are 1-based for display
-    // (slot 0 -> "Slot 1") to match the rest of the slot UI.
+    // knows exactly which lane to load. tool_label() spells the gcode tool
+    // ("T0"); lane_label() 1-bases the slot for display ("Slot 1").
     std::string message;
     if (empty.size() == 1) {
-        message = fmt::format(lv_tr("Tool {} → Slot {}: no filament loaded."), empty[0].first,
-                              empty[0].second + 1);
+        message = fmt::format(lv_tr("{} → {}: no filament loaded."),
+                              helix::ui::tool_label(empty[0].first),
+                              helix::ui::lane_label(helix::ui::LaneNoun::Slot, empty[0].second));
     } else {
         message = lv_tr("These tools have no filament loaded:");
         message += "\n\n";
         for (const auto& [tool, slot] : empty) {
-            message += fmt::format("  {} {} {} → {} {}\n", LV_SYMBOL_BULLET, lv_tr("Tool"), tool,
-                                   lv_tr("Slot"), slot + 1);
+            message += fmt::format("  {} {} → {}\n", LV_SYMBOL_BULLET, helix::ui::tool_label(tool),
+                                   helix::ui::lane_label(helix::ui::LaneNoun::Slot, slot));
         }
     }
     message += "\n\n";
@@ -137,9 +138,10 @@ CheckResult gate_insufficient_lane_weight(const PrintStartContext& ctx) {
     if (shortfalls.size() == 1) {
         const auto& sf = shortfalls.front();
         std::snprintf(body, sizeof(body),
-                      lv_tr("Slot %d has about %.0fg but tool %d needs about %.0fg. "
+                      lv_tr("%s has about %.0fg but %s needs about %.0fg. "
                             "Start anyway?"),
-                      sf.mapped_slot + 1, sf.remaining_g, sf.tool_index, sf.needed_g);
+                      helix::ui::lane_label(helix::ui::LaneNoun::Slot, sf.mapped_slot).c_str(),
+                      sf.remaining_g, helix::ui::tool_label(sf.tool_index).c_str(), sf.needed_g);
     } else {
         // Name every short lane: the user's next move is to remap one of them,
         // and a count alone would not say which.
