@@ -4,7 +4,7 @@
 #
 # Build: docker build -t helixscreen/sanitizer -f docker/Dockerfile.sanitizer docker/
 # Run:   docker run -d --name helix-tsan \
-#          -v /mnt/tank/users/pbrown/helix-tsan:/work -w /work \
+#          -v "$HOME/helix-tsan":/work -w /work \
 #          helixscreen/sanitizer
 #
 # This is the environment `scripts/zeus-run.sh` drives on zeus. It exists because
