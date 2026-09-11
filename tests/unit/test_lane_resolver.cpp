@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_observation.h"
+#include "lane_sources.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -21,4 +22,41 @@ TEST_CASE("Observation distinguishes an unobserved field from an empty one", "[l
     obs.material = "";
     CHECK(obs.material.has_value());
     CHECK(obs.material->empty());
+}
+
+TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+
+    Observation spool;
+    spool.source = ObservationSource::Spoolman;
+    spool.color_rgb = 0xA4B2BC;
+    lane.apply(spool);
+
+    Observation sensed;
+    sensed.source = ObservationSource::Sensed;
+    sensed.present = false;
+    lane.apply(sensed);
+
+    // Writing one source leaves every other untouched. There is no shared
+    // destination, so no writer can clobber another's value.
+    REQUIRE(lane.spoolman.has_value());
+    CHECK(lane.spoolman->color_rgb == 0xA4B2BC);
+    REQUIRE(lane.sensed.has_value());
+    CHECK(lane.sensed->present == false);
+
+    // Re-applying a source REPLACES that source's record, whole.
+    Observation newer;
+    newer.source = ObservationSource::Spoolman;
+    newer.color_rgb = 0x00FF00;
+    lane.apply(newer);
+    CHECK(lane.spoolman->color_rgb == 0x00FF00);
+    CHECK(lane.sensed->present == false);
+
+    // Dropping one source leaves every other standing. This is the whole
+    // "clear" a lane needs: the hand-partitioned clear paths exist only
+    // because there is a single shared struct to partition.
+    lane.drop(ObservationSource::Spoolman);
+    CHECK_FALSE(lane.spoolman.has_value());
+    REQUIRE(lane.sensed.has_value());
+    CHECK(lane.sensed->present == false);
 }
