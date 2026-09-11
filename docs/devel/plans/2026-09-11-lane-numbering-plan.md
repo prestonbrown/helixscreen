@@ -16,7 +16,8 @@
 - **New source files need a two-line header**, copied exactly: `// Copyright (C) 2025-2026 356C LLC` then `// SPDX-License-Identifier: GPL-3.0-or-later`.
 - **Every new `src/` file must be classified for the ESP32 firmware build** or the pre-commit gate refuses the commit, listing files other branches added too. Add it to `firmware/helixscreen-esp32/components/helixapp/app_srcs.txt` (compiled) or `app_srcs_excluded.txt` (not in the v1 Core+AMS cut). Anchor the insert on a neighbouring file **in the same directory**, not on lexical order: `app_srcs_excluded.txt` has a directory-wide block and a separate per-file block. Never run `--write-exclusions`; it answers "exclude" for every undecided file at once.
 - **`APP_SRCS` and `TEST_SRCS` are globbed** (`Makefile:436`, `Makefile:1150`). A new `.cpp` under `src/` or `tests/unit/` compiles with no Makefile edit.
-- **Never `git add` in this tree.** It is shared with other sessions and `git add` then `git commit` is not atomic. Commit pathspecs directly: `git commit -m "..." -- path/one path/two`.
+- **Never `git add` in this tree for a file git already tracks.** It is shared with other sessions and `git add` then `git commit` is not atomic. Commit pathspecs directly: `git commit -m "..." -- path/one path/two`.
+- **A NEW file must be staged, because `git commit -- <path>` cannot see an untracked file.** Stage it by explicit path in the same command as the commit, never `git add -A` or `git add .`, and check `pgrep -x git` for a peer mid-commit first: `git add path/new.cpp && git commit -m "..." -- path/new.cpp`.
 - **spdlog only.** No `printf`, no `cout`, no `LV_LOG_*`.
 - **No comment archaeology.** A comment explains the code as it is now. No commit SHAs, no "used to", no bug or review stories. Applies to tests and gates too.
 - **Doc and comment citations name a place, not a line:** `` `src/printer/filament_mapper.cpp#format_slot_label` ``.
@@ -352,7 +353,23 @@ std::string FilamentMapper::format_slot_label(const AvailableSlot& slot) {
 
 Add `#include "display_numbering.h"` to the include block.
 
-The noun is hardcoded to `Slot` here on purpose: this overload takes an `AvailableSlot`, which carries no backend identity. Task 4 does not change that; callers that know their backend use `lane_label` directly.
+`AvailableSlot` carries the noun so this stays correct on every backend. Add the
+field in this task, defaulted, following the pattern the struct's own comment
+describes for members added after its original positional initializers:
+
+```cpp
+    /// The word this slot's backend uses for one position. Defaulted so the
+    /// ~200 aggregate initializers in the mapper tests stay valid.
+    helix::ui::LaneNoun noun = helix::ui::LaneNoun::Slot;
+```
+
+and read it: `lane_label(slot.noun, slot.unit_display_name, slot.local_slot_index)`.
+
+Hardcoding `Slot` here was considered and rejected: `format_slot_label` feeds the
+filament mapping card and modal, so on an AFC machine it would render "Slot 1"
+beside an AMS panel saying "Lane 1", which is the same within-one-screen split
+this issue exists to remove. Task 4 populates the field where `AvailableSlot` is
+built from `SlotInfo`; find those sites with `grep -rn 'AvailableSlot' src/`.
 
 - [ ] **Step 3: Reimplement mapped_lane_display_number**
 
@@ -459,12 +476,19 @@ since these cases call `lv_tr` directly:
 TEST_CASE("noun_text covers every LaneNoun", "[numbering]") {
     // A new enumerator with no case falls through to Slot, which would be a
     // silent wrong word rather than a build failure, so pin all four.
-    CHECK(noun_text(LaneNoun::Slot) == std::string(lv_tr("Slot")));
-    CHECK(noun_text(LaneNoun::Lane) == std::string(lv_tr("Lane")));
-    CHECK(noun_text(LaneNoun::Gate) == std::string(lv_tr("Gate")));
-    CHECK(noun_text(LaneNoun::Tool) == std::string(lv_tr("Tool")));
+    // With no translation loaded lv_tr() returns the key, which is why these
+    // are literals: test_filament_mapper.cpp already relies on the same
+    // behaviour when it asserts "Slot 3: PLA".
+    CHECK(noun_text(LaneNoun::Slot) == "Slot");
+    CHECK(noun_text(LaneNoun::Lane) == "Lane");
+    CHECK(noun_text(LaneNoun::Gate) == "Gate");
+    CHECK(noun_text(LaneNoun::Tool) == "Tool");
 }
 ```
+
+Do not write these as `noun_text(x) == lv_tr("...")`. That compares the function to
+its own implementation and asserts nothing; `qc_test_tautology` inspects `tests/`
+and is one of the gates the pre-push hook runs ungated.
 
 Add a backend test in `tests/unit/test_ams_backend_afc.cpp` and its Happy Hare and tool-changer siblings:
 
@@ -549,7 +573,7 @@ git commit -m "feat(ams): give each backend its own word for a filament position
 - Modify: `include/tool_state.h` (add `ToolInfo::display_label`, remove `ToolTopology::tool_name_prefix`)
 - Modify: `src/printer/tool_state.cpp#ToolState::init_tools`, `#ToolState::set_ams_topology`
 - Modify: `src/printer/ams_state.cpp` (drops `topo.tool_name_prefix = "T";`)
-- Modify: `src/ui/panel_widgets/tool_switcher_widget.cpp` (`#rebuild_pills`, `#rebuild_compact`, `#ToolPicker::on_created`), `src/ui/panel_widgets/nozzle_temps_widget.cpp#create_extruder_row`, `src/ui/panel_widgets/preheat_widget.cpp`, `src/ui/ui_panel_filament.cpp#FilamentPanel::populate_extruder_dropdown`
+- Modify: `src/ui/panel_widgets/tool_switcher_widget.cpp` (`#rebuild_pills`, `#rebuild_compact`, `#ToolPicker::on_created`), `src/ui/panel_widgets/nozzle_temps_widget.cpp#create_extruder_row`, `src/ui/ui_panel_filament.cpp#FilamentPanel::populate_extruder_dropdown`. **Not** `preheat_widget.cpp`, which Task 6 owns.
 - Test: `tests/unit/test_tool_state_ams_topology.cpp`
 
 **Interfaces:**
@@ -648,14 +672,16 @@ TEST_CASE("the nozzle badge counts from 1", "[ams][slot][numbering]") {
     CHECK(std::string(lv_subject_get_string(ts.get_tool_badge_text_subject())) == "1");
 }
 
-TEST_CASE("print-start warnings name the gcode tool and the physical slot", "[print_start][numbering]") {
-    // T0 is the slicer's tool; Slot 1 is the lane. Both appear, each correct.
-    const std::string msg = build_empty_lane_message(/* tool 0, slot 0 */);
+TEST_CASE("the material mismatch dialog names the gcode tool", "[print_start][numbering]") {
+    // T0 is the slicer's tool, so it stays 0-based. This dialog concatenates
+    // outside lv_tr(), so its wording changes here rather than in Task 7.
+    const std::string msg = /* drive gate_material_compatibility with tool 0 */;
     CHECK(msg.find("T0") != std::string::npos);
-    CHECK(msg.find("Slot 1") != std::string::npos);
-    CHECK(msg.find("Tool 0") == std::string::npos);
 }
 ```
+
+The empty-lane and insufficient-weight sentences are translated keys and belong to
+Task 7; their assertions are written there.
 
 - [ ] **Step 2: Run and confirm they fail**
 
@@ -689,8 +715,12 @@ These stay 0-based and keep `T<n>`, but stop being hand-built. Each `"T%d"` / `"
 | `src/printer/print_start_checks.cpp#gate_material_compatibility` (Material Mismatch) |
 | `src/printer/print_start_checks.cpp#grade_change_warning` (Filament Grade Mismatch) |
 | `src/printer/print_start_checks.cpp#gate_unresolved_tools` (Color Mismatch) |
-| `src/printer/print_start_checks.cpp#build_empty_lane_message` (both branches: `Tool 0` becomes `T0`, slot stays 1-based) |
-| `src/printer/print_start_checks.cpp#gate_insufficient_lane_weight` (`tool 0` becomes `T0`) |
+
+`build_empty_lane_message` and `gate_insufficient_lane_weight` are **not** in this
+task. Both sentences are `lv_tr()` keys, and changing their English here without
+re-keying leaves the key disagreeing with its 8 translations, which `qc_translation_fmt`
+rejects. Task 7 owns them, and converts the wording and the key in one move.
+
 | `src/ui/ui_filament_mapping_card.cpp#FilamentMappingCard::rebuild_compact_view` (tool pill) |
 | `src/ui/ui_filament_mapping_modal.cpp#FilamentMappingModal::create_tool_row` |
 | `src/ui/modals/ui_preflight_check_modal.cpp#PreflightCheckModal::create_tool_row` and `#on_show` |
