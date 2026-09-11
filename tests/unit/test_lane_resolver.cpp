@@ -96,7 +96,6 @@ TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor ca
     Observation cache(ObservationSource::VendorCache);
     cache.color_rgb = 0xFFFFFF;
     cache.material = "PETG";
-    cache.brand = "";
     lane.apply(cache);
 
     SECTION("the vendor cache is used when it is all there is") {
@@ -315,4 +314,68 @@ TEST_CASE("A sensor that reports no presence reading is not a present lane", "[l
 
     REQUIRE(lane.sensed.has_value());
     CHECK_FALSE(helix::ams::resolve(lane).present);
+}
+
+TEST_CASE("Every rung of the ladders decides something", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+
+    SECTION("the user outranks the cache on a field the spool says nothing about") {
+        Observation cache(ObservationSource::VendorCache);
+        cache.material = "PLA";
+        cache.brand = "Anycubic";
+        lane.apply(cache);
+
+        Observation user(ObservationSource::LocalUser);
+        user.material = "PETG";
+        lane.apply(user);
+
+        Observation spool(ObservationSource::Spoolman);
+        spool.spoolman_id = 4;
+        lane.apply(spool);
+
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.material == "PETG");
+        // Neither stronger source observed the brand, so the cache supplies it.
+        CHECK(r.brand == "Anycubic");
+        CHECK(r.spoolman_id == 4);
+    }
+
+    SECTION("the user's own weight stands when nothing else reports one") {
+        Observation user(ObservationSource::LocalUser);
+        user.remaining_weight_g = 340.0F;
+        user.total_weight_g = 1000.0F;
+        lane.apply(user);
+
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.remaining_weight_g == Catch::Approx(340.0F));
+        CHECK(r.total_weight_g == Catch::Approx(1000.0F));
+
+        // A meter outranks the user's figure, but only on what it measured.
+        Observation metered(ObservationSource::Metered);
+        metered.remaining_weight_g = 218.0F;
+        lane.apply(metered);
+
+        const auto r2 = helix::ams::resolve(lane);
+        CHECK(r2.remaining_weight_g == Catch::Approx(218.0F));
+        CHECK(r2.total_weight_g == Catch::Approx(1000.0F));
+    }
+
+    SECTION("a value observed as empty blanks what a weaker source knows") {
+        Observation cache(ObservationSource::VendorCache);
+        cache.brand = "Kingroon";
+        cache.spool_name = "Kingroon Basic PETG";
+        lane.apply(cache);
+
+        // The server observed the brand and found it blank. That is a reading,
+        // not a gap, so it replaces the cache's. The spool name it never looked
+        // at leaves the cache's standing.
+        Observation spool(ObservationSource::Spoolman);
+        spool.spoolman_id = 4;
+        spool.brand = "";
+        lane.apply(spool);
+
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.brand.empty());
+        CHECK(r.spool_name == "Kingroon Basic PETG");
+    }
 }

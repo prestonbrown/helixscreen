@@ -40,9 +40,11 @@ struct LaneSources {
         }
     }
 
-    /// Drop one source's record. This is the only "clear" a lane needs: the
-    /// four hand-partitioned clear paths exist because there is one shared
-    /// struct to partition.
+    /// Drop one source's record entirely. This covers a clear that discards
+    /// what that source knew; it does not cover `src/ui/ui_ams_edit_overlay.cpp`'s
+    /// unlink, which keeps identity across the clear and needs a record demoted
+    /// to a weaker source rather than dropped. That promotion/demotion operation
+    /// is not something this branch adds yet.
     void drop(ObservationSource s) {
         switch (s) {
         case ObservationSource::Sensed:
