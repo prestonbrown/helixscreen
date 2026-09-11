@@ -27,13 +27,24 @@ HOST="${ZEUS_HOST:-zeus}"
 CONTAINER="${ZEUS_CONTAINER:-helix-tsan}"
 WORKDIR="${ZEUS_WORKDIR:-/work/helixscreen}"
 
-# Bounded by MEMORY, not cores. zeus reports 72 cores and 251 GB, and both
-# mislead: TrueNAS gives almost all of that RAM to the ZFS ARC, leaving ~14 GB,
-# and ARC does not release fast enough for a burst of compilers. A -j48 build
-# there dies three compiles in with no error text. ASAN objects are larger
-# again, so it gets less.
-JOBS="${ZEUS_JOBS:-12}"
-ASAN_JOBS="${ZEUS_ASAN_JOBS:-8}"
+# zeus reports 72 cores and 251 GB and both mislead: TrueNAS hands almost all of
+# that RAM to the ZFS ARC, which leaves ~13 GB for everything else and does not
+# evict fast enough for a burst of compilers starting at once. There is no swap,
+# so the overshoot goes straight to the OOM killer and a compile dies with no
+# error text.
+#
+# So the run caps zfs_arc_max for its duration and restores it afterwards. ARC
+# returns the memory in under ten seconds (219 GB -> 64 GB frees ~155 GB), which
+# costs the pools their cache while the job runs and gives the compilers room.
+# The job count is then derived from what is actually available rather than
+# guessed, so a run that could NOT cap (no sudo, no ZFS) still gets a safe small
+# number instead of an OOM.
+# A compile peaks near 400 MB here, ASAN included, so no single process is the
+# problem - the total is. At 1 GB per job the formula lands on ~72 with the cap
+# applied and on ~13 without it, which is the number this ran at before the cap
+# existed, so a run that cannot cap is no worse off than it was.
+ARC_CAP_GB="${ZEUS_ARC_CAP_GB:-64}"     # 0 disables the cap entirely
+GB_PER_JOB="${ZEUS_GB_PER_JOB:-1}"      # asan overrides to 1.5 below
 
 WHAT="${1:-}"
 [ -n "$WHAT" ] || { sed -n '2,24p' "$0" | sed 's/^# \?//'; exit 2; }
@@ -46,15 +57,17 @@ if ! git branch -r --contains "$SHA" 2>/dev/null | grep -q .; then
     exit 1
 fi
 
+# $HELIX_J is resolved on zeus, after the cap, from the memory that is then free.
+# shellcheck disable=SC2016  # $HELIX_J must reach zeus unexpanded
 case "$WHAT" in
-    mutate) CMD="python3 scripts/mutate_diff.py --jobs $JOBS $*" ; JN=$JOBS ;;
-    asan)   CMD="make test-asan-one TEST=\"${1:-}\" -j$ASAN_JOBS" ; JN=$ASAN_JOBS ;;
-    test)   CMD="make test -j$JOBS && ./build/bin/helix-tests \"${1:-}\"" ; JN=$JOBS ;;
+    mutate) CMD='python3 scripts/mutate_diff.py --jobs $HELIX_J '"$*" ;;
+    asan)   CMD='make test-asan-one TEST="'"${1:-}"'" -j$HELIX_J' ; GB_PER_JOB=1.5 ;;
+    test)   CMD='make test -j$HELIX_J && ./build/bin/helix-tests "'"${1:-}"'"' ;;
     *)      echo "✗ unknown job '$WHAT' (mutate | asan | test)" >&2; exit 2 ;;
 esac
 
 LOG="${TMPDIR:-/tmp}/zeus-$WHAT-$SHORT.log"
-echo "→ $HOST:$CONTAINER $WORKDIR @ $SHORT, -j$JN, log $LOG"
+echo "→ $HOST:$CONTAINER $WORKDIR @ $SHORT, ARC cap ${ARC_CAP_GB}GB, log $LOG"
 
 # The heredoc runs on zeus. docker needs sudo -n there (pbrown is deliberately
 # not in the docker group), and git inside the container looks at a host-owned
@@ -64,7 +77,62 @@ echo "→ $HOST:$CONTAINER $WORKDIR @ $SHORT, -j$JN, log $LOG"
 # that has to stay server-side ($1 in D) is escaped.
 ssh "$HOST" bash -se <<REMOTE | tee "$LOG"
 set -euo pipefail
-D() { sudo -n docker exec -w "$WORKDIR" -e CCACHE_DIR=/work/ccache "$CONTAINER" bash -lc "\$1"; }
+
+# --- ZFS ARC: borrow the RAM for the duration, hand it back on any exit -------
+# The marker records "<pid> <value to restore>". Liveness is derived from that
+# pid, never asserted: a run that died without restoring leaves a marker whose
+# pid is gone, and the next run recovers from it. Asserting instead would let one
+# crash cap this NAS permanently, since every later run would read the CAPPED
+# value as the original.
+ARC_PARAM=/sys/module/zfs/parameters/zfs_arc_max
+ARC_MARK=/tmp/.helix-zeus-arc-orig
+ARC_HELD=no
+
+arc_write() { sudo -n sh -c "echo \$1 > \$ARC_PARAM" 2>/dev/null; }
+
+arc_restore() {
+    [ "\$ARC_HELD" = yes ] || return 0
+    _orig=\$(awk '{print \$2}' "\$ARC_MARK" 2>/dev/null || echo 0)
+    arc_write "\${_orig:-0}" || true
+    sudo -n rm -f "\$ARC_MARK" 2>/dev/null || true
+    echo "→ zfs_arc_max restored to \${_orig:-0}"
+}
+trap arc_restore EXIT INT TERM HUP
+
+if [ -e "\$ARC_MARK" ]; then
+    _mpid=\$(awk '{print \$1}' "\$ARC_MARK" 2>/dev/null)
+    if [ -n "\$_mpid" ] && kill -0 "\$_mpid" 2>/dev/null; then
+        echo "→ zeus-run pid \$_mpid already holds the ARC cap; leaving it alone"
+        ARC_CAP_GB=0
+    else
+        _stale=\$(awk '{print \$2}' "\$ARC_MARK" 2>/dev/null)
+        echo "→ recovering ARC cap abandoned by dead pid \${_mpid:-?}; restoring \${_stale:-0}"
+        arc_write "\${_stale:-0}" || true
+        sudo -n rm -f "\$ARC_MARK" 2>/dev/null || true
+    fi
+fi
+
+if [ "\${ARC_CAP_GB:-$ARC_CAP_GB}" -gt 0 ] && [ -r "\$ARC_PARAM" ]; then
+    _orig=\$(cat "\$ARC_PARAM")
+    if sudo -n sh -c "echo '\$\$ \$_orig' > \$ARC_MARK" 2>/dev/null &&
+       arc_write "\$(( $ARC_CAP_GB * 1024 * 1024 * 1024 ))"; then
+        ARC_HELD=yes
+        sleep 10   # ARC evicts to the new ceiling in well under this
+        echo "→ zfs_arc_max \$_orig -> ${ARC_CAP_GB}GB for this run"
+    else
+        echo "→ could not cap zfs_arc_max; sizing jobs for memory as-is" >&2
+        sudo -n rm -f "\$ARC_MARK" 2>/dev/null || true
+    fi
+fi
+
+# Derive the job count from what is free NOW, bounded by cores. A run that could
+# not cap lands on a small number here rather than OOMing at -j48.
+HELIX_J=\$(awk -v per=$GB_PER_JOB -v cpus="\$(nproc)" '
+    /^MemAvailable/ { j = int((\$2/1048576) / per); if (j > cpus) j = cpus; if (j < 4) j = 4; print j }
+' /proc/meminfo)
+echo "→ MemAvailable \$(awk '/^MemAvailable/{printf "%.0fGB", \$2/1048576}' /proc/meminfo), using -j\$HELIX_J"
+
+D() { sudo -n docker exec -w "$WORKDIR" -e CCACHE_DIR=/work/ccache -e HELIX_J="\$HELIX_J" "$CONTAINER" bash -lc "\$1"; }
 
 D 'git config --global --add safe.directory "*"' >/dev/null
 D 'git fetch --quiet --all --recurse-submodules=on-demand'
