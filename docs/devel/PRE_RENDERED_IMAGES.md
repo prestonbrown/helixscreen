@@ -43,6 +43,28 @@ Nothing is composited above `xlarge`: a larger panel clamps to it and scales.
 Which classes a platform's package contains is derived from its panel geometry in
 `assets/config/platforms.json`; see `scripts/platform_manifest.py`.
 
+### What a release actually ships
+
+Two steps, and both are needed. `gen-splash-3d-<platform>` narrows what gets
+**built**, but a release copies whatever `build/` happens to hold, so a tree left
+over from another platform's build would ship with it. `release-clean-assets` in
+`mk/cross.mk` then calls `platform_manifest.py prune-assets`, which is what bounds
+the payload: it drops splash classes the panel cannot select, printer renders at
+the other size, and the source PNGs.
+
+Dropping the PNGs is safe because `get_prerendered_printer_path()` degrades
+rather than fails - prerendered, then PNG, then `generic-corexy`. The prune keeps
+the `generic-corexy` render always, and keeps every PNG if *any* printer lacks a
+render at the size being kept, so a missing image can never become no image.
+
+Measured against a full asset tree:
+
+| Platform | Before | After | Saved |
+|----------|--------|-------|-------|
+| K2 (800x480, 300px art) | 42.2 MB | 8.9 MB | 33.3 MB |
+| CC1 (480x272, 150px art) | 42.2 MB | 2.8 MB | 39.3 MB |
+| Pi (panel unknown) | 42.2 MB | 42.2 MB | nothing, by design |
+
 ### File Format
 
 `.lvbin` files contain:

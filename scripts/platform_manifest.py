@@ -118,6 +118,81 @@ def splash_3d_classes_for(manifest, platform_id):
     return classes
 
 
+def _kb(paths):
+    return sum(os.path.getsize(x) for x in paths) // 1024
+
+
+def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
+    """Remove staged assets the platform's panel can never ask for.
+
+    Generating fewer classes is not enough on its own: a release copies whatever
+    build/ happens to hold, so a tree left over from another platform's build
+    ships with it. This is the step that actually bounds the payload.
+
+    Returns (removed_paths, notes). A platform whose panel is unknown until
+    runtime keeps everything.
+    """
+    entry = platform(manifest, platform_id)
+    notes = []
+    if not has_fixed_panel(entry):
+        return [], ["panel is not known until runtime; keeping every class"]
+
+    width, _ = effective_resolution(entry)
+    keep_classes = set(splash_3d_classes_for(manifest, platform_id))
+    keep_size = printer_image_size(manifest, width)
+    doomed = []
+
+    # Splash canvases and logos for classes this panel cannot select.
+    splash_dir = os.path.join(root, "assets", "images", "prerendered")
+    for name in sorted(os.listdir(splash_dir)) if os.path.isdir(splash_dir) else []:
+        cls = None
+        if name.startswith("splash-3d-") and name.endswith(".bin"):
+            # splash-3d-<mode>-<class>.bin
+            cls = name[len("splash-3d-"):-len(".bin")].split("-", 1)[-1]
+        elif name.startswith("splash-logo-") and name.endswith(".bin"):
+            cls = name[len("splash-logo-"):-len(".bin")]
+        if cls is not None and cls not in keep_classes:
+            doomed.append(os.path.join(splash_dir, name))
+
+    # Printer art at the other size.
+    printer_dir = os.path.join(root, "assets", "images", "printers")
+    prerendered = os.path.join(printer_dir, "prerendered")
+    have_bin = set()
+    for name in sorted(os.listdir(prerendered)) if os.path.isdir(prerendered) else []:
+        if not name.endswith(".bin"):
+            continue
+        stem, _, size = name[:-len(".bin")].rpartition("-")
+        if not size.isdigit():
+            continue
+        if int(size) == keep_size:
+            have_bin.add(stem)
+        else:
+            doomed.append(os.path.join(prerendered, name))
+
+    # Source PNGs are a fallback for a printer with no render. Dropping them is
+    # only safe where every one of them has a render at the size being kept;
+    # otherwise that printer would silently degrade to the generic image.
+    pngs = []
+    if os.path.isdir(printer_dir):
+        pngs = [n for n in sorted(os.listdir(printer_dir)) if n.endswith(".png")]
+    uncovered = [n for n in pngs if n[:-len(".png")] not in have_bin]
+    if pngs and not uncovered:
+        doomed.extend(os.path.join(printer_dir, n) for n in pngs)
+        notes.append(f"dropped {len(pngs)} source PNG(s); every one has a {keep_size}px render")
+    elif uncovered:
+        notes.append(
+            f"kept source PNGs: {len(uncovered)} printer(s) have no {keep_size}px render "
+            f"({', '.join(uncovered[:3])}{'...' if len(uncovered) > 3 else ''})")
+
+    notes.insert(0, f"keeping splash {sorted(keep_classes)} and {keep_size}px printer art")
+    freed = _kb(doomed)
+    if not dry_run:
+        for path in doomed:
+            os.remove(path)
+    notes.append(f"removed {len(doomed)} file(s), {freed} KB")
+    return doomed, notes
+
+
 def composite_height(manifest, class_name):
     return manifest["size_classes"]["splash_composite_height"].get(class_name, 0)
 
@@ -151,6 +226,15 @@ def _cmd_effective_resolution(manifest, args):
     print("%dx%d" % effective_resolution(entry))
 
 
+def _cmd_prune_assets(manifest, args):
+    platform_id, root = args
+    if not os.path.isdir(root):
+        raise ManifestError(f"staged release root {root!r} does not exist")
+    _removed, notes = prune_assets(manifest, platform_id, root)
+    for note in notes:
+        print(f"  {note}")
+
+
 def _cmd_list(manifest, args):
     for pid in sorted(manifest["platforms"]):
         print(pid)
@@ -179,6 +263,7 @@ COMMANDS = {
     "splash-2d-size": (_cmd_splash_2d_size, 1),
     "printer-image-size": (_cmd_printer_image_size, 1),
     "effective-resolution": (_cmd_effective_resolution, 1),
+    "prune-assets": (_cmd_prune_assets, 2),
     "list": (_cmd_list, 0),
     "get": (_cmd_get, 2),
 }

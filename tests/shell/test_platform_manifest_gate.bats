@@ -190,3 +190,115 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
     run python3 "$GATE" --quiet
     lacks "no manifest entry" "$output"
 }
+
+# --------------------------------------------------------------------------
+# prune-assets: what actually bounds the shipped payload
+# --------------------------------------------------------------------------
+
+# A staged release tree with both printer sizes, every splash class, and source
+# PNGs - the shape a release has before pruning.
+make_stage() {
+    STAGE="$WORK/stage"
+    rm -rf "$STAGE"
+    mkdir -p "$STAGE/assets/images/prerendered" "$STAGE/assets/images/printers/prerendered"
+    for cls in micro tiny small medium large xlarge ultrawide; do
+        for mode in light dark; do
+            echo x > "$STAGE/assets/images/prerendered/splash-3d-$mode-$cls.bin"
+        done
+    done
+    for cls in tiny medium large xlarge; do
+        echo x > "$STAGE/assets/images/prerendered/splash-logo-$cls.bin"
+    done
+    for printer in creality-k2 generic-corexy voron-v2; do
+        echo x > "$STAGE/assets/images/printers/$printer.png"
+        for size in 150 300; do
+            echo x > "$STAGE/assets/images/printers/prerendered/$printer-$size.bin"
+        done
+    done
+}
+
+@test "prune: keeps only the splash class the panel selects" {
+    make_stage
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/images/prerendered"
+    contains "splash-3d-dark-medium.bin" "$output"
+    lacks "splash-3d-dark-micro.bin" "$output"
+    lacks "splash-3d-dark-xlarge.bin" "$output"
+    lacks "ultrawide" "$output"
+}
+
+@test "prune: keeps only the printer render size the panel selects" {
+    make_stage
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/images/printers/prerendered"
+    contains "creality-k2-300.bin" "$output"
+    lacks "creality-k2-150.bin" "$output"
+}
+
+@test "prune: a 480x272 panel keeps micro and the 150px renders" {
+    make_stage
+    run python3 "$DERIVE" prune-assets cc1 "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/images/prerendered"
+    contains "splash-3d-dark-micro.bin" "$output"
+    lacks "splash-3d-dark-medium.bin" "$output"
+    run ls "$STAGE/assets/images/printers/prerendered"
+    contains "voron-v2-150.bin" "$output"
+    lacks "voron-v2-300.bin" "$output"
+}
+
+@test "prune: the generic fallback render always survives" {
+    # get_prerendered_printer_path falls back to generic-corexy for a printer it
+    # has no art for. Pruning that would turn a missing image into no image.
+    make_stage
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ -f "$STAGE/assets/images/printers/prerendered/generic-corexy-300.bin" ] || \
+        fail "generic fallback was pruned"
+}
+
+@test "prune: drops source PNGs once every printer has a render" {
+    make_stage
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    contains "dropped 3 source PNG" "$output"
+    run ls "$STAGE/assets/images/printers"
+    lacks ".png" "$output"
+}
+
+@test "prune: KEEPS source PNGs when a printer has no render at that size" {
+    # The PNG is the fallback for a printer with no prerendered art. Dropping it
+    # would silently degrade that printer to the generic image.
+    make_stage
+    echo x > "$STAGE/assets/images/printers/exotic-printer.png"
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    contains "kept source PNGs" "$output"
+    [ -f "$STAGE/assets/images/printers/exotic-printer.png" ] || fail "uncovered PNG was pruned"
+    [ -f "$STAGE/assets/images/printers/voron-v2.png" ] || fail "covered PNG pruned despite the hold"
+}
+
+@test "prune: a runtime-variable panel keeps everything" {
+    make_stage
+    local before
+    before="$(find "$STAGE" -type f | wc -l)"
+    run python3 "$DERIVE" prune-assets pi "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    contains "not known until runtime" "$output"
+    [ "$(find "$STAGE" -type f | wc -l)" -eq "$before" ] || fail "pruned a variable-panel package"
+}
+
+@test "prune: running twice removes nothing the second time" {
+    make_stage
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "first prune failed: $output"
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "second prune failed: $output"
+    contains "removed 0 file(s)" "$output"
+}
+
+@test "prune: a missing staged root is an error, not a silent success" {
+    run python3 "$DERIVE" prune-assets k2 "$WORK/no-such-release"
+    [ "$status" -ne 0 ] || fail "prune reported success for a root that does not exist"
+}

@@ -2702,6 +2702,13 @@ define release-clean-assets
 	@# its single core busy-waits and kills prints -- and CC1/K1/K2/MIPS have
 	@# neither, so all of them were shipping music they can never play.
 	$(if $(TRACKER_CXXFLAGS),,@rm -rf $(1)/assets/sounds)
+	@# Drop art the platform's panel can never ask for: splash classes other than
+	@# the one its resolution selects, printer renders at the other size, and the
+	@# source PNGs once every printer has a render at the size being kept.
+	@# gen-splash-3d-<platform> already narrows what gets BUILT, but the copy above
+	@# takes whatever build/ happens to hold, so this is the step that bounds the
+	@# payload. A platform whose panel is unknown until runtime keeps everything.
+	$(if $(2),@$(PLATFORM_MANIFEST) prune-assets $(2) $(1))
 endef
 
 # PII / runtime-state files that must NEVER ship in a release tarball.
@@ -2824,7 +2831,7 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,pi)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,pi)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-pi.zip .
@@ -2870,7 +2877,7 @@ release-pi32: | build/pi32/bin/helix-screen build/pi32/bin/helix-splash build/pi
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,pi32)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,pi32)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-pi32.zip .
@@ -2922,7 +2929,7 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,ad5m)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,ad5m)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-ad5m.zip .
@@ -2973,7 +2980,7 @@ release-ad5x: | build/ad5x/bin/helix-screen build/ad5x/bin/helix-splash
 		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,ad5x)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,ad5x)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-ad5x.zip .
@@ -3024,7 +3031,7 @@ release-cc1: | build/cc1/bin/helix-screen build/cc1/bin/helix-splash
 		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,cc1)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,cc1)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-cc1.zip .
@@ -3075,7 +3082,7 @@ release-k1: | build/mips/bin/helix-screen build/mips/bin/helix-splash
 		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,k1)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,k1)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-k1.zip .
@@ -3117,7 +3124,7 @@ release-k1-dynamic: | build/k1-dynamic/bin/helix-screen build/k1-dynamic/bin/hel
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,k1-dynamic)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,k1-dynamic)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-k1-dynamic.zip .
@@ -3170,7 +3177,7 @@ release-k2: | build/k2/bin/helix-screen build/k2/bin/helix-splash
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,k2)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,k2)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-k2.zip .
@@ -3221,7 +3228,7 @@ release-snapmaker-u1: | build/snapmaker-u1/bin/helix-screen
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,snapmaker-u1)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,snapmaker-u1)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-snapmaker-u1.zip .
@@ -3267,7 +3274,7 @@ release-x86: | build/x86/bin/helix-screen build/x86/bin/helix-splash build/x86-f
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,x86)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,x86)
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-x86.zip .
