@@ -266,10 +266,9 @@ else ifeq ($(PLATFORM_TARGET),ad5m)
     BUILD_SUBDIR := ad5m
     # Mock backends are dev/test scaffolding. The Makefile defaults ENABLE_MOCKS
     # to yes, so without this override the shipped binary would carry the full
-    # mock Moonraker client. mk/cross.mk is included
-    # before the Makefile's `?=`, so setting it here wins. The
-    # #ifdef HELIX_ENABLE_MOCKS guards at every consumer are already complete --
-    # the ESP32 port builds this way today.
+    # mock Moonraker client. mk/cross.mk is included before the Makefile's `?=`,
+    # so setting it here wins. The #ifdef HELIX_ENABLE_MOCKS guards at every
+    # consumer are already complete -- the ESP32 port builds this way today.
     ENABLE_MOCKS := no
     # Strip binary for size on memory-constrained device
     STRIP_BINARY := yes
@@ -399,12 +398,7 @@ else ifeq ($(PLATFORM_TARGET),cc1)
     ENABLE_SCREENSAVER := no
     ENABLE_EVDEV := yes
     BUILD_SUBDIR := cc1
-    # Mock backends are dev/test scaffolding. The Makefile defaults ENABLE_MOCKS
-    # to yes, so without this override the shipped binary would carry the full
-    # mock Moonraker client. mk/cross.mk is included
-    # before the Makefile's `?=`, so setting it here wins. The
-    # #ifdef HELIX_ENABLE_MOCKS guards at every consumer are already complete --
-    # the ESP32 port builds this way today.
+    # Matches the `ad5m` target's size treatment (see its ENABLE_MOCKS block).
     ENABLE_MOCKS := no
     # Strip binary for size on memory-constrained device
     STRIP_BINARY := yes
@@ -2695,13 +2689,13 @@ define release-clean-assets
 	@find $(1)/assets/fonts -name '.clang-format' -delete 2>/dev/null || true
 	@find $(1)/assets -name '*.icns' -delete 2>/dev/null || true
 	@find $(1)/assets -name 'mdi-icon-metadata.json.gz' -delete 2>/dev/null || true
-	@# assets/sounds is 919 KB of MOD/MED tracker modules, playable only where
-	@# the tracker player is compiled in. TRACKER_CXXFLAGS (Makefile, sound
-	@# section) is the same switch that gates that code, so the payload and the
-	@# player can't drift apart. AD5M has sound but deliberately no tracker --
-	@# its single core busy-waits and kills prints -- and CC1/K1/K2/MIPS have
-	@# neither, so all of them were shipping music they can never play.
-	$(if $(TRACKER_CXXFLAGS),,@rm -rf $(1)/assets/sounds)
+	@# assets/sounds is ~900 KB of MOD/MED tracker modules, playable only where
+	@# the tracker player is compiled in. AD5M has sound but deliberately no
+	@# tracker (its single core busy-waits and kills prints) and CC1/K1/K2/MIPS
+	@# have neither. Which platform that is gets asked of the manifest below,
+	@# because this recipe runs on the HOST: PLATFORM_TARGET is unset here and
+	@# defaults to native, so a TRACKER_CXXFLAGS test answers for the machine
+	@# doing the packaging rather than the printer receiving it.
 	@# Drop art the platform's panel can never ask for: splash classes other than
 	@# the one its resolution selects, printer renders at the other size, and the
 	@# source PNGs once every printer has a render at the size being kept.

@@ -131,6 +131,12 @@
       "moonraker": {
         "update_manager": true
       },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
       "package": {
         "asset_name": "helixscreen-k2.zip",
         "docker_target": "k2-docker",
@@ -177,6 +183,12 @@
       "moonraker": {
         "update_manager": true
       },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
       "package": {
         "asset_name": "helixscreen-k1.zip",
         "docker_target": "mips-docker",
@@ -222,6 +234,12 @@
       },
       "moonraker": {
         "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
       },
       "package": {
         "asset_name": "helixscreen-k1.zip",
@@ -270,6 +288,11 @@
       "moonraker": {
         "update_manager": true,
         "notes": "Intentionally not skipped: only ever installed via the ZMOD chroot, which ships Mainsail/Fluidd."
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
       },
       "package": {
         "asset_name": "helixscreen-ad5x.zip",
@@ -335,6 +358,12 @@
         "update_manager": false,
         "notes": "Skipped: typically no web UI."
       },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
       "package": {
         "asset_name": "helixscreen-ad5m.zip",
         "docker_target": "ad5m-docker",
@@ -379,6 +408,12 @@
       "moonraker": {
         "update_manager": true
       },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
       "package": {
         "asset_name": "helixscreen-cc1.zip",
         "docker_target": "cc1-docker",
@@ -421,6 +456,12 @@
       },
       "moonraker": {
         "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
       },
       "package": {
         "asset_name": "helixscreen-snapmaker-u1.zip",
@@ -465,6 +506,11 @@
       "moonraker": {
         "update_manager": true
       },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
       "package": {
         "asset_name": "helixscreen-pi.zip",
         "docker_target": "pi-all-docker",
@@ -504,6 +550,11 @@
       },
       "moonraker": {
         "update_manager": true
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
       },
       "package": {
         "asset_name": "helixscreen-pi32.zip",
@@ -547,6 +598,11 @@
       "moonraker": {
         "update_manager": true
       },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
       "package": {
         "asset_name": "helixscreen-pi.zip",
         "docker_target": "pi-all-docker",
@@ -587,6 +643,11 @@
       },
       "moonraker": {
         "update_manager": true
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
       },
       "package": {
         "asset_name": "helixscreen-x86.zip",

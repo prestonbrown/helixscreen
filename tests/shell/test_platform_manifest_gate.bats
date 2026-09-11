@@ -302,3 +302,63 @@ make_stage() {
     run python3 "$DERIVE" prune-assets k2 "$WORK/no-such-release"
     [ "$status" -ne 0 ] || fail "prune reported success for a root that does not exist"
 }
+
+# --------------------------------------------------------------------------
+# Tracker music: a platform fact, asked of the platform
+# --------------------------------------------------------------------------
+
+@test "prune: drops tracker music on a platform with no tracker player" {
+    make_stage
+    mkdir -p "$STAGE/assets/sounds"
+    echo x > "$STAGE/assets/sounds/theme.mod"
+    run python3 "$DERIVE" prune-assets k2 "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    contains "dropped assets/sounds" "$output"
+    [ ! -f "$STAGE/assets/sounds/theme.mod" ] || fail "tracker music shipped to a platform that cannot play it"
+}
+
+@test "prune: keeps tracker music where the player is compiled in" {
+    # ad5x drives the tracker's synth fallback through jz_pwm, so its music is
+    # playable and must survive.
+    make_stage
+    mkdir -p "$STAGE/assets/sounds"
+    echo x > "$STAGE/assets/sounds/theme.mod"
+    run python3 "$DERIVE" prune-assets ad5x "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    lacks "dropped assets/sounds" "$output"
+    [ -f "$STAGE/assets/sounds/theme.mod" ] || fail "pruned music a platform can play"
+}
+
+@test "prune: sound is judged even when the panel is unknown at build time" {
+    # The early return for a variable panel must not skip the sound question.
+    make_stage
+    mkdir -p "$STAGE/assets/sounds"
+    echo x > "$STAGE/assets/sounds/theme.mod"
+    run python3 "$DERIVE" prune-assets pi "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ -f "$STAGE/assets/sounds/theme.mod" ] || fail "pi has a tracker; its music was pruned"
+}
+
+@test "prune: a platform with sound but no tracker still loses the music" {
+    # AD5M has a PWM buzzer for tone SFX but no tracker: its single core
+    # busy-waits and kills prints.
+    make_stage
+    mkdir -p "$STAGE/assets/sounds"
+    echo x > "$STAGE/assets/sounds/theme.mod"
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    contains "dropped assets/sounds" "$output"
+}
+
+@test "every platform declares whether it has a tracker" {
+    run python3 "$DERIVE" list
+    [ "$status" -eq 0 ] || fail "list failed: $output"
+    for p in $output; do
+        run python3 "$DERIVE" get "$p" sound.has_tracker
+        [ "$status" -eq 0 ] || fail "$p: sound.has_tracker lookup failed"
+        case "$output" in
+            true|false) ;;
+            *) fail "$p declares sound.has_tracker as '$output'" ;;
+        esac
+    done
+}

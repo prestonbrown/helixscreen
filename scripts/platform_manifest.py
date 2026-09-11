@@ -122,6 +122,16 @@ def _kb(paths):
     return sum(os.path.getsize(x) for x in paths) // 1024
 
 
+def _remove_all(paths, root):
+    """Delete the files, then any directory they emptied."""
+    for path in paths:
+        os.remove(path)
+    for path in sorted({os.path.dirname(p) for p in paths}, key=len, reverse=True):
+        while os.path.isdir(path) and not os.listdir(path) and os.path.abspath(path) != os.path.abspath(root):
+            os.rmdir(path)
+            path = os.path.dirname(path)
+
+
 def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
     """Remove staged assets the platform's panel can never ask for.
 
@@ -134,8 +144,25 @@ def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
     """
     entry = platform(manifest, platform_id)
     notes = []
+    doomed_pre = []
+
+    # Tracker music is playable only where the tracker player is compiled in.
+    # This is asked of the PLATFORM, not of the host running the release, which
+    # is the distinction the Makefile-flag version of this check could not make.
+    if not entry.get("sound", {}).get("has_tracker", True):
+        sounds = os.path.join(root, "assets", "sounds")
+        if os.path.isdir(sounds):
+            for dirpath, _dirnames, filenames in os.walk(sounds):
+                doomed_pre.extend(os.path.join(dirpath, n) for n in filenames)
+            notes.append("dropped assets/sounds: no tracker player on this platform")
+
     if not has_fixed_panel(entry):
-        return [], ["panel is not known until runtime; keeping every class"]
+        freed = _kb(doomed_pre)
+        if not dry_run:
+            _remove_all(doomed_pre, root)
+        notes.append("panel is not known until runtime; keeping every size class")
+        notes.append(f"removed {len(doomed_pre)} file(s), {freed} KB")
+        return doomed_pre, notes
 
     width, _ = effective_resolution(entry)
     keep_classes = set(splash_3d_classes_for(manifest, platform_id))
@@ -185,10 +212,10 @@ def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
             f"({', '.join(uncovered[:3])}{'...' if len(uncovered) > 3 else ''})")
 
     notes.insert(0, f"keeping splash {sorted(keep_classes)} and {keep_size}px printer art")
+    doomed = doomed_pre + doomed
     freed = _kb(doomed)
     if not dry_run:
-        for path in doomed:
-            os.remove(path)
+        _remove_all(doomed, root)
     notes.append(f"removed {len(doomed)} file(s), {freed} KB")
     return doomed, notes
 

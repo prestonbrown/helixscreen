@@ -57,13 +57,24 @@ rather than fails - prerendered, then PNG, then `generic-corexy`. The prune keep
 the `generic-corexy` render always, and keeps every PNG if *any* printer lacks a
 render at the size being kept, so a missing image can never become no image.
 
-Measured against a full asset tree:
+It also drops `assets/sounds` where the platform has no tracker player. That
+question is asked of `platforms.json`, not of `TRACKER_CXXFLAGS`, because the
+release recipe runs on the host: `PLATFORM_TARGET` is unset there and defaults to
+`native`, so a flag test answers for the packaging machine rather than the printer.
 
-| Platform | Before | After | Saved |
-|----------|--------|-------|-------|
-| K2 (800x480, 300px art) | 42.2 MB | 8.9 MB | 33.3 MB |
-| CC1 (480x272, 150px art) | 42.2 MB | 2.8 MB | 39.3 MB |
-| Pi (panel unknown) | 42.2 MB | 42.2 MB | nothing, by design |
+Measured on a real `make package-k2`, `assets/images` goes from 42 MB to 15 MB:
+
+| Removed | Size |
+|---------|------|
+| Printer source PNGs (75) | 24.1 MB |
+| Printer renders at the unused size | 2.4 MB |
+| Splash classes the panel cannot select | 0.7 MB |
+| Tracker music, unplayable on K2 | 0.9 MB |
+
+The 15 MB that remains is the 300px printer set (7.7 MB), the `medium` splash
+canvases and logo (1.2 MB), and ~6 MB of other UI art that every platform needs.
+A platform whose panel is unknown until runtime keeps every size class, and one
+with a tracker keeps its music.
 
 ### File Format
 
