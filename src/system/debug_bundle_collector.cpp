@@ -6,6 +6,7 @@
 
 #include "app_globals.h"
 #include "data_root_resolver.h"
+#include "helix_install_roots.h"
 #include "helix_version.h"
 #include "host_identity.h"
 #include "http_executor.h"
@@ -605,10 +606,13 @@ std::string DebugBundleCollector::collect_crash_txt() {
         config_dirs.push_back(std::string(home) + "/helixscreen/config");
     }
 
-    // Absolute paths for embedded platforms (AD5M, AD5X, K1, etc.)
-    config_dirs.push_back("/opt/helixscreen/config");
-    config_dirs.push_back("/srv/helixscreen/config");
-    config_dirs.push_back("/usr/data/helixscreen/config");
+    // Every install root, not a subset: $HOME is /root on the Creality and
+    // Flashforge targets and on CC1, so the home-relative entry above covers
+    // none of them. A root missing here is a device whose crash.txt cannot be
+    // recovered from a bundle.
+    for (const char* root : helix::kInstallRoots) {
+        config_dirs.push_back(std::string(root) + "/config");
+    }
 
     // Try crash.txt first, then rotated files (crash_1.txt, crash_2.txt, crash_3.txt).
     // The crash reporter rotates crash.txt → crash_1.txt after consuming it,
