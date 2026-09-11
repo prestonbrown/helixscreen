@@ -657,7 +657,7 @@ uninstall() {
     local restored_xorg="$HELIX_RESTORED_XORG"
 
     # Clean up helixscreen cache directories
-    for cache_dir in /root/.cache/helix /tmp/helix_thumbs /.cache/helix /data/helixscreen/cache /usr/data/helixscreen/cache; do
+    for cache_dir in $(helix_state_sweep_paths); do
         if [ -d "$cache_dir" ] 2>/dev/null; then
             log_info "Removing cache: $cache_dir"
             $SUDO rm -rf "$cache_dir"
@@ -802,8 +802,7 @@ clean_old_installation() {
         "/tmp/helix_thumbs" \
         "/var/tmp/helix_thumbs" \
         "/var/tmp/helix_*" \
-        "/data/helixscreen/cache" \
-        "/usr/data/helixscreen/cache"
+        $(helix_state_sweep_paths)
     do
         for cache_dir in $cache_pattern; do
             if [ -d "$cache_dir" ] 2>/dev/null; then

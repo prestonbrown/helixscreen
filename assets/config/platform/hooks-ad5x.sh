@@ -65,7 +65,12 @@ platform_wait_for_services() {
 platform_pre_start() {
     # Durable and NOT collected by TAR_CONFIG, so a support archive does not carry
     # a cache. /srv/helixscreen lives on /usr/data inside the chroot.
-    export HELIX_CACHE_DIR="/srv/helixscreen/cache"
+    # Cache and logs live beside the payload, never inside it. The install root
+    # is what an update replaces, and not only by our own hand: a Moonraker
+    # `type: web` entry does shutil.rmtree(path) before extracting. Anything
+    # under it goes on every update - logs vanish exactly when someone needs
+    # them, and the thumbnail cache is rebuilt from nothing.
+    export HELIX_CACHE_DIR="/srv/helixscreen-state/cache"
     mkdir -p "$HELIX_CACHE_DIR" 2>/dev/null || true
 
     # Log where the user can actually send it from. ghzserg's tar_config.sh has a

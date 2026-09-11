@@ -175,6 +175,12 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
         paths.emplace_back(std::string(root) + "/logs/helix.log");
         paths.emplace_back(std::string(root) + "/logs/launcher.log");
     }
+    // Platforms that keep state off the payload log here instead, which is
+    // every platform whose install root an update replaces.
+    for (const char* root : helix::kStateRoots) {
+        paths.emplace_back(std::string(root) + "/logs/helix.log");
+        paths.emplace_back(std::string(root) + "/logs/launcher.log");
+    }
 
     // Legacy /tmp location — pre-v0.99.62 installs wrote here. Kept for
     // backward compatibility with debug bundles from older devices.

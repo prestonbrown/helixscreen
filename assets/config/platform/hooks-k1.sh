@@ -86,7 +86,12 @@ platform_wait_for_services() {
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/usr/data/helixscreen/cache"
+    # Cache and logs live beside the payload, never inside it. The install root
+    # is what an update replaces, and not only by our own hand: a Moonraker
+    # `type: web` entry does shutil.rmtree(path) before extracting. Anything
+    # under it goes on every update - logs vanish exactly when someone needs
+    # them, and the thumbnail cache is rebuilt from nothing.
+    export HELIX_CACHE_DIR="/usr/data/helixscreen-state/cache"
 
     # Logging policy: write to /usr/data (mmcblk0p10 ext4, ~5.7 GB free on
     # a typical install), NOT to /tmp. /tmp here is a ~104 MB tmpfs and
@@ -97,10 +102,10 @@ platform_pre_start() {
     # gives months of headroom, and a debug session still has a bounded
     # window before rolling over.
     export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/usr/data/helixscreen/logs/helix.log"
+    export HELIX_LOG_FILE="/usr/data/helixscreen-state/logs/helix.log"
     export HELIX_LOG_ROTATE_BYTES=1048576
     export HELIX_LOG_ROTATE_FILES=3
-    mkdir -p "/usr/data/helixscreen/logs" 2>/dev/null || true
+    mkdir -p "/usr/data/helixscreen-state/logs" 2>/dev/null || true
 }
 
 platform_post_stop() {

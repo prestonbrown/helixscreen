@@ -85,8 +85,9 @@ static std::vector<CacheCandidate> cache_path_candidates(const std::string& subd
     out.push_back({"/data/helixscreen/cache/" + subdir, "AD5M", false, true});
 #elif defined(HELIX_PLATFORM_CC1)
     // /user-resource is the 6.3GB ext4 partition. / is a read-only squashfs with
-    // no /opt, so anything rooted there falls through to RAM-backed /tmp.
-    out.push_back({"/user-resource/helixscreen/cache/" + subdir, "CC1", false, true});
+    // no /opt, so anything rooted there falls through to RAM-backed /tmp. The
+    // -state sibling keeps the cache off the payload, which every update deletes.
+    out.push_back({"/user-resource/helixscreen-state/cache/" + subdir, "CC1", false, true});
 #elif defined(HELIX_PLATFORM_K2)
     // The K2 mounts its bulk storage at /mnt/UDISK (27.5GB). /usr/data is
     // on the root overlay, which is only ~240MB and shared with the
@@ -98,7 +99,9 @@ static std::vector<CacheCandidate> cache_path_candidates(const std::string& subd
         out.push_back({std::string(root) + "/helixscreen/cache/" + subdir, "K2", false, true});
 #elif defined(HELIX_PLATFORM_MIPS)
     // K1 series: /usr/data IS the large user partition here, unlike on the K2.
-    out.push_back({"/usr/data/helixscreen/cache/" + subdir, "MIPS", false, true});
+    // The cache sits in a sibling of the payload rather than inside it, because
+    // the payload is what an update replaces.
+    out.push_back({"/usr/data/helixscreen-state/cache/" + subdir, "MIPS", false, true});
 #elif defined(HELIX_PLATFORM_ANDROID) || defined(__ANDROID__)
     // Use SDL's Android internal storage path (app-private, no permissions needed)
     if (const char* android_path = SDL_AndroidGetInternalStoragePath())

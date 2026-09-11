@@ -218,8 +218,46 @@ def check_shell_roots(manifest, f):
         for root in sorted(cxx - listed):
             f.add(
                 "shell-roots",
-                f"{root} is searched by the app but never swept by uninstall",
+                f"{root} is searched by the app as a payload root, but no "
+                f"uninstall sweeps it",
             )
+
+
+def _under(path, root):
+    """True when `path` is `root` or lives inside it."""
+    if not path or not root or not path.startswith("/") or not root.startswith("/"):
+        return False
+    root = root.rstrip("/")
+    return path == root or path.startswith(root + "/")
+
+
+def check_state_outside_payload(manifest, f):
+    """Cache and logs must not live inside the payload.
+
+    The payload is what an update replaces, and not only by our own hand: a
+    Moonraker `type: web` entry does shutil.rmtree(path) before extracting, and
+    that path is the install root. Anything under it is deleted on every update,
+    so logs disappear exactly when someone needs them and the thumbnail cache is
+    rebuilt from nothing.
+    """
+    for pid, entry in sorted(manifest["platforms"].items()):
+        storage = entry.get("storage", {})
+        root = storage.get("root", "")
+        if not root.startswith("/"):
+            continue  # discovered at runtime; the XDG cascade keeps state elsewhere
+
+        for field in ("cache_dir", "log_file"):
+            value = storage.get(field)
+            if not value:
+                continue
+            # A log FILE sits in a directory; judge the directory.
+            probe = value if field == "cache_dir" else os.path.dirname(value)
+            if _under(probe, root):
+                f.add(
+                    "state-in-payload",
+                    f"{pid}: {field} {value} is inside the payload root {root}, "
+                    f"which every update deletes",
+                )
 
 
 def check_renders_exist(manifest, f, build_dir):
@@ -266,6 +304,7 @@ def main():
     check_no_hardcoded_sizes(manifest, f)
     check_install_roots(manifest, f)
     check_shell_roots(manifest, f)
+    check_state_outside_payload(manifest, f)
     check_renders_exist(manifest, f, args.build_dir)
 
     if not args.quiet:

@@ -24,6 +24,28 @@ _HELIX_COMMON_SOURCED=1
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
+# Where cache/ and logs/ live. Deliberately NOT inside an install root: the
+# payload is what an update replaces, and Moonraker's type:web entry rmtree()s
+# it first. Swept on uninstall, since nothing else ever removes them.
+# Mirrors kStateRoots in include/helix_install_roots.h.
+# shellcheck disable=SC2034  # consumed by uninstall.sh
+HELIX_STATE_DIRS="/mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+
+# Cache and log directories an uninstall removes: every declared state dir, plus
+# the in-payload locations older installs still carry. Emitting the legacy ones
+# is what makes an upgrade-then-uninstall clean, since a box installed before
+# the state moved still has them.
+# shellcheck disable=SC2034  # consumed by uninstall.sh
+helix_state_sweep_paths() {
+    for _hssp in $HELIX_STATE_DIRS; do
+        printf '%s/cache\n%s/logs\n' "$_hssp" "$_hssp"
+    done
+    printf '%s\n' /root/.cache/helix /tmp/helix_thumbs /.cache/helix \
+        /data/helixscreen/cache /usr/data/helixscreen/cache \
+        /user-resource/helixscreen/cache /userdata/helixscreen/cache \
+        /srv/helixscreen/cache
+}
+
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
 # shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh

@@ -942,6 +942,11 @@ set_install_paths() {
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/root"
         INSTALL_DIR="/srv/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/srv/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
         PREVIOUS_UI_SCRIPT=""
         log_info "Platform: FlashForge AD5X (ZMOD)"
@@ -953,6 +958,11 @@ set_install_paths() {
         # KLIPPER_HOME=/root and setup_config_symlink skips with
         # "No printer_data/config found" on every K1 install.
         INSTALL_DIR="/usr/data/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/usr/data/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
@@ -1008,6 +1018,11 @@ set_install_paths() {
         #   printer.cfg, and the vendor *-readonly/ include dirs), which is
         #   also the `config` root Moonraker advertises over /server/files/roots.
         INSTALL_DIR="/user-resource/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/user-resource/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/helixscreen"
         PREVIOUS_UI_SCRIPT=""
         KLIPPER_USER="root"
@@ -1026,6 +1041,11 @@ set_install_paths() {
         # on a freshly-flashed U1 before klipper has ever run that path may
         # not exist yet — make it explicit so the installer is deterministic.
         INSTALL_DIR="/userdata/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/userdata/helixscreen/cache"
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/home/lava"

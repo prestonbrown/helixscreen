@@ -490,5 +490,5 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
 @test "gate: names a root the app reads but the uninstaller never removes" {
     make_tree
     run python3 "$GATE" --quiet --root "$TREE"
-    contains "/data/helixscreen is searched by the app but never swept" "$output"
+    contains "/data/helixscreen is searched by the app as a payload root" "$output"
 }

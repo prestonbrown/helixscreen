@@ -14,6 +14,7 @@
     "scripts/platform_manifest.py), never stored, because K1 and K2 are portrait panels",
     "used rotated and a stored effective size loses that distinction.",
     "",
+    "storage.state_root is where cache/ and logs/ live. It is never the payload root nor inside it: the payload is what an update replaces, and Moonraker's type:web entry rmtree()s it before extracting. cache_dir and log_file stay authoritative per platform because AD5X deliberately splits them - its log has to land where the mod's archiver looks.",
     "Size class names are the UiBreakpoint tiers from include/ui_breakpoint.h."
   ],
   "size_classes": {
@@ -101,6 +102,7 @@
       },
       "storage": {
         "root": "/opt/helixscreen",
+        "state_root": "/mnt/UDISK/helixscreen",
         "cache_dir": "/mnt/UDISK/helixscreen/cache",
         "log_file": "/mnt/UDISK/helixscreen/logs/helix.log",
         "tmp_dir_preferred": "/mnt/UDISK/helixscreen-install",
@@ -159,8 +161,9 @@
       },
       "storage": {
         "root": "/usr/data/helixscreen",
-        "cache_dir": "/usr/data/helixscreen/cache",
-        "log_file": "/usr/data/helixscreen/logs/helix.log"
+        "state_root": "/usr/data/helixscreen-state",
+        "cache_dir": "/usr/data/helixscreen-state/cache",
+        "log_file": "/usr/data/helixscreen-state/logs/helix.log"
       },
       "service": {
         "init_system": "sysv",
@@ -215,8 +218,9 @@
       },
       "storage": {
         "root": "/usr/data/helixscreen",
-        "cache_dir": "/usr/data/helixscreen/cache",
-        "log_file": "/usr/data/helixscreen/logs/helix.log"
+        "state_root": "/usr/data/helixscreen-state",
+        "cache_dir": "/usr/data/helixscreen-state/cache",
+        "log_file": "/usr/data/helixscreen-state/logs/helix.log"
       },
       "service": {
         "init_system": "sysv",
@@ -267,7 +271,8 @@
       },
       "storage": {
         "root": "/srv/helixscreen",
-        "cache_dir": "/srv/helixscreen/cache",
+        "state_root": "/srv/helixscreen-state",
+        "cache_dir": "/srv/helixscreen-state/cache",
         "log_file": "/opt/config/mod_data/log/helix.log",
         "notes": "log_file is deliberately off the install tree so ZMOD's archiver collects it. cache_dir and log_file are independent fields, not derived from root."
       },
@@ -316,6 +321,7 @@
       },
       "storage": {
         "root": "/opt/helixscreen",
+        "state_root": "/data/helixscreen",
         "root_by_firmware": {
           "klipper_mod": "/root/printer_software/helixscreen if that dir exists, else /opt/helixscreen",
           "zmod": "/srv/helixscreen",
@@ -386,8 +392,9 @@
       },
       "storage": {
         "root": "/user-resource/helixscreen",
-        "cache_dir": "/user-resource/helixscreen/cache",
-        "log_file": "/user-resource/helixscreen/logs/helix.log",
+        "state_root": "/user-resource/helixscreen-state",
+        "cache_dir": "/user-resource/helixscreen-state/cache",
+        "log_file": "/user-resource/helixscreen-state/logs/helix.log",
         "notes": "/ is a read-only squashfs with no /opt; /etc is an overlay on /data. /user-resource is the 6.3GB ext4 partition and carries the install, cache and logs. There is no printer_data directory on the device."
       },
       "service": {
@@ -435,7 +442,8 @@
       },
       "storage": {
         "root": "/userdata/helixscreen",
-        "cache_dir": "/userdata/helixscreen/cache",
+        "state_root": "/userdata/helixscreen-state",
+        "cache_dir": "/userdata/helixscreen-state/cache",
         "log_file": null
       },
       "service": {
