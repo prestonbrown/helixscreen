@@ -7,9 +7,11 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -127,4 +129,39 @@ TEST_CASE("A saved WiFi PSK never reaches a debug bundle", "[debug-bundle][wifi]
         std::filesystem::path(helix::wifi::store::store_path()).filename().string();
     INFO("store basename: " << store_basename);
     CHECK(serialized.find(store_basename) == std::string::npos);
+}
+
+/**
+ * The bundle captures Moonraker DB namespaces by explicit allowlist so a
+ * filament-identity report arrives with the override records that decide what
+ * the user actually sees. The same database holds Moonraker's user accounts and
+ * API key, and `gcode_metadata` holds base64 thumbnails, so the allowlist is the
+ * safety property: sanitize_value() is field-aware and cannot know what is
+ * sensitive inside a namespace nobody has looked at.
+ */
+TEST_CASE("Bundled DB namespaces stay an allowlist of filament overrides",
+          "[debug-bundle][security]") {
+    const auto namespaces = helix::DebugBundleCollector::filament_override_namespaces();
+
+    SECTION("it carries the three override stores and nothing else") {
+        REQUIRE(namespaces.size() == 3);
+        CHECK(std::find(namespaces.begin(), namespaces.end(), "lane_data") != namespaces.end());
+        CHECK(std::find(namespaces.begin(), namespaces.end(), "helix-screen-afc-overrides") !=
+              namespaces.end());
+        CHECK(std::find(namespaces.begin(), namespaces.end(), "helix-screen-hh-overrides") !=
+              namespaces.end());
+    }
+
+    SECTION("no credential-bearing or bulk namespace is ever listed") {
+        // A future addition that reaches for one of these trips here rather
+        // than shipping it to whoever the reporter forwards the bundle to.
+        static const char* forbidden[] = {"authorization", "authorized_users", "users",  "secrets",
+                                          "moonraker",     "gcode_metadata",   "history"};
+        for (const auto& ns : namespaces) {
+            for (const char* bad : forbidden) {
+                INFO("namespace: " << ns << " vs forbidden: " << bad);
+                CHECK(ns.find(bad) == std::string::npos);
+            }
+        }
+    }
 }
