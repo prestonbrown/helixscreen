@@ -245,6 +245,27 @@ export function isSharedLibAddr(symbols: Symbol[], fileAddr: number): boolean {
 }
 
 /**
+ * Whether a symbol table already carries runtime addresses rather than
+ * file-relative ones, so nothing may be subtracted from a crash address.
+ *
+ * A PIE image is linked at zero: its symbols sit near zero and a frame's
+ * runtime address is symbol + load base. A static non-PIE image is linked at a
+ * fixed base (0x400000 on the MIPS and ARM device builds) and its symbols are
+ * runtime addresses already. The reported load base cannot separate the two on
+ * its own, because dl_iterate_phdr returns the mapping address rather than a
+ * bias for a static image, so a non-PIE build reports its own link address.
+ * The table separates them: one whose lowest text symbol sits at or above the
+ * load base is linked at that base.
+ *
+ * Takes the table in address order, which lookupSymbol's binary search
+ * requires and the published `nm -n` maps satisfy.
+ */
+export function symbolsAreAbsolute(symbols: Symbol[], loadBase: number): boolean {
+  if (loadBase <= 0 || symbols.length === 0) return false;
+  return symbols[0].address >= loadBase;
+}
+
+/**
  * Resolve a single address against the symbol table.
  */
 function resolveAddr(symbols: Symbol[], addr: number): string | null {
@@ -361,13 +382,17 @@ export async function resolveBacktrace(bucket: R2Bucket, report: CrashReport): P
       result.autoDetectedBase = autoDetected;
     }
 
+    // An absolute-linked table is indexed by runtime address, so subtracting
+    // the reported base would shift every frame onto an unrelated function.
+    const effectiveBase = symbolsAreAbsolute(symbols, loadBase) ? 0 : loadBase;
+
     // Resolve backtrace frames
     if (report.backtrace && report.backtrace.length > 0) {
       result.frames = report.backtrace.map((raw) => {
         const frame: ResolvedFrame = { raw };
         try {
           const runtimeAddr = parseHexAddr(raw);
-          const fileAddr = loadBase > 0 ? runtimeAddr - loadBase : runtimeAddr;
+          const fileAddr = effectiveBase > 0 ? runtimeAddr - effectiveBase : runtimeAddr;
           frame.fileAddr = `0x${fileAddr.toString(16)}`;
           // Detect shared library addresses before attempting resolution
           if (isSharedLibAddr(symbols, fileAddr)) {
@@ -390,7 +415,7 @@ export async function resolveBacktrace(bucket: R2Bucket, report: CrashReport): P
         if (!val) continue;
         try {
           const runtimeAddr = parseHexAddr(val);
-          const fileAddr = loadBase > 0 ? runtimeAddr - loadBase : runtimeAddr;
+          const fileAddr = effectiveBase > 0 ? runtimeAddr - effectiveBase : runtimeAddr;
           const sym = resolveAddr(symbols, fileAddr);
           if (sym) resolved[reg] = sym;
         } catch {
@@ -404,7 +429,7 @@ export async function resolveBacktrace(bucket: R2Bucket, report: CrashReport): P
     // Scan stack dump for return addresses (ARM32/MIPS where backtrace() fails)
     if (report.stack_dump && report.stack_dump.length > 0 && report.stack_base) {
       result.stackScan = scanStackForReturnAddresses(
-        symbols, report.stack_dump, report.stack_base, loadBase
+        symbols, report.stack_dump, report.stack_base, effectiveBase
       );
     }
   } catch {
