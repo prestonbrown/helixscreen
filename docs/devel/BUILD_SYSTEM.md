@@ -1881,7 +1881,7 @@ does not build through this Makefile at all: `android/app/jni/CMakeLists.txt` gl
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `ENABLE_SDL` | yes (native) | SDL2 desktop display |
-| `ENABLE_OPENGLES` | per target | EGL/GLES GPU rendering |
+| `ENABLE_OPENGLES` | no (all targets) | Requests LVGL's DRM EGL path; the #error in display_backend_drm.cpp fails the build if set without LV_USE_OPENGLES |
 | `ENABLE_GLES_3D` | yes (Linux) | 3D gcode rendering |
 | `ENABLE_SCREENSAVER` | yes (desktop/Pi) | Flying toasters |
 | `ENABLE_MOCKS` | yes (no on `cc1`/`ad5m`/`ad5m-br`) | Mock backends for development |
