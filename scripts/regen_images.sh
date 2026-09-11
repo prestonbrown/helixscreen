@@ -49,7 +49,7 @@ NC="$LVGL_NC"
 # Format: "name:width:height:logo_size"
 # logo_size calculated as: width * 0.5 (if height < 500) or width * 0.6 (if height >= 500)
 #
-# Filter with TARGET_SIZES env var (comma-separated): "small" or "tiny,small,medium,large"
+# Filter with TARGET_SIZES env var (comma-separated), e.g. "medium" or "tiny,medium"
 # Examples:
 #   TARGET_SIZES=medium ./scripts/regen_images.sh       # Only 800x480 (AD5M)
 #   TARGET_SIZES=tiny,large ./scripts/regen_images.sh   # Specific sizes
@@ -90,7 +90,7 @@ filter_screen_sizes() {
 
     if [ ${#SCREEN_SIZES[@]} -eq 0 ]; then
         echo -e "${RED}Error: No valid sizes in TARGET_SIZES=$TARGET_SIZES${NC}"
-        echo "Valid sizes: tiny, medium, large, xlarge"
+        echo "Valid sizes: ${ALL_SCREEN_SIZES[*]%%:*}"
         exit 1
     fi
 }
@@ -254,7 +254,7 @@ case "${1:-}" in
         echo "Environment Variables:"
         echo "  OUTPUT_DIR    Output directory (default: build/assets/images/prerendered)"
         echo "  TARGET_SIZES  Comma-separated sizes to generate (default: all)"
-        echo "                Values: tiny, small, medium, large"
+        echo "                Values: ${ALL_SCREEN_SIZES[*]%%:*}"
         echo "                Example: TARGET_SIZES=medium (for AD5M fixed 800x480)"
         echo ""
         echo "All Screen Sizes:"

@@ -395,3 +395,60 @@ make_stage() {
     run grep -cE "(rm -f|-delete).*printer_400" mk/cross.mk
     [ "$output" = "0" ] || fail "mk/cross.mk deletes printer_400.png, which the app registers"
 }
+
+# --------------------------------------------------------------------------
+# Generator and gate wiring
+# --------------------------------------------------------------------------
+
+@test "the splash generator's canvas list matches the manifest" {
+    # prerender_size_class.cpp says "Must match SCREEN_SIZES in gen_splash_3d.py",
+    # which is an instruction to a human rather than a check. This is the check:
+    # every class the generator builds must be one the manifest knows, at the
+    # same composited height, or the app asks for a file the generator never made.
+    run python3 - <<'EOF'
+import json, re, sys
+src = open("scripts/gen_splash_3d.py").read()
+block = re.search(r"SCREEN_SIZES = \[(.*?)\]", src, re.S).group(1)
+gen = {m[0]: int(m[2]) for m in re.findall(r'\("([a-z_]+)",\s*(\d+),\s*(\d+),', block)}
+heights = json.load(open("assets/config/platforms.json"))["size_classes"]["splash_composite_height"]
+bad = [f"{k}: generator {v}px, manifest {heights.get(k)}px" for k, v in gen.items() if heights.get(k) != v]
+missing = [k for k in heights if k not in gen]
+if bad or missing:
+    print("MISMATCH " + "; ".join(bad + [f"manifest class {k} has no canvas" for k in missing]))
+    sys.exit(1)
+print("OK %d classes" % len(gen))
+EOF
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "OK" "$output"
+}
+
+@test "quality-checks.sh actually runs the platform manifest gate" {
+    # A gate nobody invokes reports nothing forever and reads exactly like a
+    # passing one. Match an INVOCATION, not a mention: the file also names the
+    # script in a comment and in the `[ -f ... ]` guard, so a grep for the
+    # filename stays green even when the call itself is gone.
+    run grep -cE '^[[:space:]]*(python3|\$\(PY\)|\.venv/bin/python)[[:space:]]+scripts/check_platform_manifest\.py' scripts/quality-checks.sh
+    [ "$output" != "0" ] || fail "scripts/quality-checks.sh no longer CALLS the manifest gate"
+}
+
+@test "the splash generator accepts every class a platform can select" {
+    # A platform selecting a class the generator refuses would fail the package
+    # build rather than ship wrong, but it fails late and opaquely.
+    run python3 "$DERIVE" list
+    [ "$status" -eq 0 ] || fail "list failed"
+    local names
+    names="$(python3 -c "
+import re
+src = open('scripts/gen_splash_3d.py').read()
+block = re.search(r'SCREEN_SIZES = \[(.*?)\]', src, re.S).group(1)
+print(' '.join(re.findall(r'\(\"([a-z_]+)\",', block)))")"
+    for p in $output; do
+        run python3 "$DERIVE" splash-3d-sizes "$p"
+        for cls in $output; do
+            case " $names " in
+                *" $cls "*) ;;
+                *) fail "$p selects '$cls' but gen_splash_3d.py cannot generate it" ;;
+            esac
+        done
+    done
+}

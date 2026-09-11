@@ -106,3 +106,38 @@ hook_cache_dir() {
     done
     [ -z "$failures" ] || fail "cache roots outside the expected shape:$failures"
 }
+
+# --------------------------------------------------------------------------
+# The install-root consumers must READ the shared list, not restate it
+# --------------------------------------------------------------------------
+#
+# test_install_roots.cpp proves helix::kInstallRoots covers every platform the
+# manifest declares. It cannot prove anything about who reads it, so reverting a
+# consumer back to its own hand-written literals leaves that test green and
+# re-opens the bug: a debug bundle from a CC1 or U1 with crash.txt silently
+# absent. These cases pin the wiring.
+
+CONSUMERS="src/system/log_collector.cpp src/system/debug_bundle_collector.cpp src/system/update_checker.cpp"
+
+@test "every install-root consumer reads the shared list" {
+    for f in $CONSUMERS; do
+        run grep -c "kInstallRoots" "$f"
+        [ "$output" != "0" ] || fail "$f no longer reads helix::kInstallRoots"
+    done
+}
+
+@test "no consumer has re-grown its own root literals" {
+    # These three roots exist ONLY in the shared header. A consumer spelling one
+    # itself is a hand-kept list coming back, which is how the gap opened.
+    for f in $CONSUMERS; do
+        for root in "/srv/helixscreen" "/userdata/helixscreen" "/user-resource/helixscreen"; do
+            run grep -c -- "\"$root" "$f"
+            [ "$output" = "0" ] || fail "$f spells $root itself; it should come from kInstallRoots"
+        done
+    done
+}
+
+@test "the shared list is the only place the roots are written" {
+    run grep -c -- '"/userdata/helixscreen"' include/helix_install_roots.h
+    [ "$output" != "0" ] || fail "the shared header no longer carries the Snapmaker U1 root"
+}

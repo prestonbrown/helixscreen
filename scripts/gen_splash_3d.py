@@ -279,7 +279,8 @@ def main():
         "--sizes",
         nargs="+",
         default=None,
-        help="Size names to generate (default: all). Values: tiny, small, medium, large",
+        help="Size names to generate (default: all). Values: "
+             + ", ".join(n for n, _w, _h, _l in SCREEN_SIZES),
     )
     parser.add_argument(
         "--modes",

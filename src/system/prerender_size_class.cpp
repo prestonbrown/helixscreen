@@ -36,7 +36,13 @@ const char* get_splash_3d_size_name(int screen_width, int screen_height) {
 }
 
 int get_splash_3d_target_height(const char* size_name) {
-    // Must match SCREEN_SIZES in scripts/gen_splash_3d.py
+    // These heights appear in three places: here, splash_composite_height in
+    // assets/config/platforms.json, and SCREEN_SIZES in scripts/gen_splash_3d.py.
+    // Both links are checked - this against the manifest by
+    // tests/unit/test_prerender_size_class.cpp, the manifest against the
+    // generator by tests/shell/test_platform_manifest_gate.bats - so a height
+    // changed in one place turns something red rather than shipping a canvas
+    // the app measures wrongly.
     if (strcmp(size_name, "micro") == 0)
         return 272;
     if (strcmp(size_name, "tiny") == 0)
