@@ -33,6 +33,13 @@ Three consequences that shape the whole phase:
 3. **The U1 has no `libEGL`, `libGLESv2` or `libgbm` at all.** Its only hardware path is
    the plane, and its mask excludes every angle we would ask for.
 
+**The fleet is not the product.** An `x86_64` desktop with `amdgpu` reports plane masks of
+`0xf` - rotate-0, 90, 180 and 270, the full set. `x86` and `x86-both` are shipped targets,
+so a board with a rotation-capable plane is a configuration HelixScreen ships to and nobody
+here owns. Phase 1 nearly shipped a defect on exactly that basis: it reasoned "no owned
+board advertises 90 or 270, so the case is unreachable", which is fleet scope stated as
+product scope. Measure the box in front of you, then ask what else the target reaches.
+
 ## The two things Phase 2 can build
 
 **EGL presentation** replaces a CPU memory copy with a GPU page flip. It accelerates how
