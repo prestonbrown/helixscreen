@@ -9,6 +9,7 @@ import {
   resolveBacktrace,
   isSharedLibAddr,
   scanStackForReturnAddresses,
+  symbolsAreAbsolute,
 } from "../symbol-resolver";
 
 // ---------- Sample nm -nC output ----------
@@ -24,6 +25,40 @@ const SAMPLE_NM_OUTPUT = `00010000 T _start
 00060000 T PrinterState::update()
 00060200 T PrinterState::connect()
 `;
+
+// A static non-PIE device build (k1, ad5m, ad5x, cc1, k2, snapmaker-u1) is
+// linked at a fixed base, so its nm addresses are already runtime addresses.
+// The device still reports a load_base: dl_iterate_phdr hands back the mapping
+// address rather than a bias for a static image, so the report carries the
+// link address itself. Addresses here are the real v1.0.0 k1 layout.
+const NONPIE_NM_OUTPUT = `00410228 T _init
+00410260 T _ftext
+008c9038 T helix::SettingsManager::init_subjects()
+009bc134 t std::_Function_handler<void (), FanControlOverlay::on_activate()>::_M_invoke(std::_Any_data const&)
+009bdcb4 T helix::ui::ExcludeObjectSideList::populate_rows()
+00cc9470 T helix::ui::WizardWifiStep::update_wifi_ip(char const*)
+00dbc0d8 T lv_obj_get_child_count
+00dbdc40 T lv_obj_find_by_name
+0127ee4c T _fini
+`;
+
+// Values may be a string (served via .text(), for uncompressed .sym keys) or a
+// Uint8Array (served via .arrayBuffer(), for compressed .sym.zst keys).
+function createMockBucket(files: Record<string, string | Uint8Array> = {}): R2Bucket {
+  return {
+    async get(key: string) {
+      const content = files[key];
+      if (content == null) return null;
+      if (typeof content === "string") {
+        return { text: async () => content };
+      }
+      return {
+        arrayBuffer: async () =>
+          content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength),
+      };
+    },
+  } as unknown as R2Bucket;
+}
 
 // ---------- parseSymbolTable ----------
 
@@ -207,24 +242,6 @@ describe("isSharedLibAddr", () => {
 // ---------- resolveBacktrace ----------
 
 describe("resolveBacktrace", () => {
-  // Values may be a string (served via .text(), for uncompressed .sym keys) or a
-  // Uint8Array (served via .arrayBuffer(), for compressed .sym.zst keys).
-  function createMockBucket(files: Record<string, string | Uint8Array> = {}): R2Bucket {
-    return {
-      async get(key: string) {
-        const content = files[key];
-        if (content == null) return null;
-        if (typeof content === "string") {
-          return { text: async () => content };
-        }
-        return {
-          arrayBuffer: async () =>
-            content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength),
-        };
-      },
-    } as unknown as R2Bucket;
-  }
-
   const symFileContent = SAMPLE_NM_OUTPUT;
 
   // zstd -19 of SAMPLE_NM_OUTPUT (base64) — the release pipeline publishes maps
@@ -488,6 +505,87 @@ describe("resolveBacktrace", () => {
     expect(result.autoDetectedBase).toBe(false);
     expect(result.frames[0].symbol).toBe("Application::run()+0x0");
     expect(result.frames[1].symbol).toBe("main+0x0");
+  });
+});
+
+// ---------- Absolute-linked (non-PIE) symbol tables ----------
+
+describe("absolute-linked symbol tables", () => {
+  it("treats a table whose lowest symbol is at or above the load base as absolute", () => {
+    const symbols = parseSymbolTable(NONPIE_NM_OUTPUT);
+    expect(symbolsAreAbsolute(symbols, 0x400000)).toBe(true);
+  });
+
+  it("treats a table linked at zero as file-relative", () => {
+    const symbols = parseSymbolTable(SAMPLE_NM_OUTPUT);
+    expect(symbolsAreAbsolute(symbols, 0xaaaa0000)).toBe(false);
+  });
+
+  it("reports file-relative when there is no load base to compare against", () => {
+    const symbols = parseSymbolTable(NONPIE_NM_OUTPUT);
+    expect(symbolsAreAbsolute(symbols, 0)).toBe(false);
+  });
+
+  it("resolves a non-PIE backtrace without shifting it by the load base", async () => {
+    const bucket = createMockBucket({
+      "symbols/v1.0.0/k1.sym": NONPIE_NM_OUTPUT,
+    });
+
+    const report = {
+      app_version: "1.0.0",
+      platform: "k1",
+      load_base: "0x400000",
+      text_start: "0x400000",
+      text_end: "0x127ee68",
+      backtrace: ["0xdbc168", "0xdbdce0", "0xcc97d8"],
+    };
+
+    const result = await resolveBacktrace(bucket, report);
+    expect(result.symbolFileFound).toBe(true);
+    expect(result.frames[0].symbol).toBe("lv_obj_get_child_count+0x90");
+    expect(result.frames[1].symbol).toBe("lv_obj_find_by_name+0xa0");
+    expect(result.frames[2].symbol).toBe(
+      "helix::ui::WizardWifiStep::update_wifi_ip(char const*)+0x368"
+    );
+  });
+
+  it("resolves non-PIE registers against the same unshifted base", async () => {
+    const bucket = createMockBucket({
+      "symbols/v1.0.0/k1.sym": NONPIE_NM_OUTPUT,
+    });
+
+    const report = {
+      app_version: "1.0.0",
+      platform: "k1",
+      load_base: "0x400000",
+      backtrace: ["0xdbc168"],
+      registers: { pc: "0xdbc168", ra: "0xdbdce0" },
+    };
+
+    const result = await resolveBacktrace(bucket, report);
+    expect(result.resolvedRegisters?.pc).toBe("lv_obj_get_child_count+0x90");
+    expect(result.resolvedRegisters?.ra).toBe("lv_obj_find_by_name+0xa0");
+  });
+
+  it("resolves a non-PIE stack scan against the same unshifted base", async () => {
+    const bucket = createMockBucket({
+      "symbols/v1.0.0/k1.sym": NONPIE_NM_OUTPUT,
+    });
+
+    const report = {
+      app_version: "1.0.0",
+      platform: "k1",
+      load_base: "0x400000",
+      backtrace: ["0xdbc168"],
+      stack_base: "0x7f845ec0",
+      stack_dump: ["0x00000001", "0xcc97d8"],
+    };
+
+    const result = await resolveBacktrace(bucket, report);
+    expect(result.stackScan).toHaveLength(1);
+    expect(result.stackScan![0].symbol).toBe(
+      "helix::ui::WizardWifiStep::update_wifi_ip(char const*)+0x368"
+    );
   });
 });
 

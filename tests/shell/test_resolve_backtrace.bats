@@ -325,3 +325,22 @@ printf '%s\n' 'func_a' 'file.c:10' 'func_b' 'file.c:20' 'func_c' 'file.c:30' 'fu
     contains "func_a at file.c:10" "$output"
     [ "$(wc -l < "$a2l_log")" -eq 2 ]
 }
+
+@test "does not shift an absolute-linked (non-PIE) symbol map by its load base" {
+    export HELIX_SYM_FILE="$TEST_DIR/test.sym"
+    run bash "$SCRIPT" --base 0x400000 0.9.9 k1 0x400150
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"main+0x50"* ]]
+}
+
+@test "still subtracts the load base from a PIE symbol map" {
+    cat > "$TEST_DIR/pie.sym" << 'EOF'
+0000000000001000 T _start
+0000000000002000 T main
+0000000000003000 T PrinterState::update()
+EOF
+    export HELIX_SYM_FILE="$TEST_DIR/pie.sym"
+    run bash "$SCRIPT" --base 0xaaaa0000 0.9.9 pi 0xaaaa2050
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"main+0x50"* ]]
+}
