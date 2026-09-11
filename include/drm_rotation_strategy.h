@@ -39,3 +39,36 @@ enum class DrmRotationStrategy {
  */
 DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
                                                  uint64_t supported_mask);
+
+/**
+ * @brief What LVGL should be told about rotation for a given strategy
+ */
+enum class LvglRotationAction { // NAMESPACE_OK: matches DrmRotationStrategy, this file's existing
+                                // global-scope type
+    APPLY_REQUESTED,            ///< Pass the requested angle to lv_display_set_rotation()
+    CLEAR_TO_ZERO,              ///< Something else rotates; LVGL must not rotate as well
+};
+
+/**
+ * @brief Decide whether LVGL carries the rotation, or something else does
+ *
+ * DRM plane rotation happens on the scanout side, after LVGL has produced its
+ * pixels. Setting LVGL's rotation as well applies the transform a second time.
+ *
+ * @param strategy  Result of choose_drm_rotation_strategy()
+ * @return Whether LVGL receives the requested angle or zero
+ */
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
+LvglRotationAction lvgl_rotation_action_for(DrmRotationStrategy strategy);
+
+/**
+ * @brief Whether the display must render whole frames for this strategy
+ *
+ * The software path reverses the pixel array in place in the flush callback,
+ * which needs the entire buffer present.
+ *
+ * @param strategy  Result of choose_drm_rotation_strategy()
+ * @return true when LV_DISPLAY_RENDER_MODE_FULL is required
+ */
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
+bool drm_rotation_needs_full_render(DrmRotationStrategy strategy);
