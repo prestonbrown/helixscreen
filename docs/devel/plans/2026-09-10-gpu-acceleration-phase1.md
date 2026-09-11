@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the DRM backend's rotation and GPU claims true, so that turning EGL on in Phase 2 is a behaviour change rather than a bug reveal.
+**Goal:** Make the display's capability claims true - in the log, in the build, and in what the code will act on - so that turning EGL on in Phase 2 is a behaviour change rather than a bug reveal.
+
+The refusal to use DRM plane rotation is part of that honesty, not an exception to it. A strategy layer reporting HARDWARE while nothing rotates the touch frame is the same defect as a log reporting EGL while nothing compiled it, one layer down.
 
 **Architecture:** `HELIX_ENABLE_OPENGLES` is a *request* that `lv_conf_internal.h` silently overrides, and `display_backend_drm.cpp` reads the request instead of the resolved result. Fixing that read un-masks a `DrmRotationStrategy::HARDWARE` path that double-applies rotation. So the double-apply is fixed first, while HARDWARE is still unreachable on all owned hardware, and only then does the code start telling the truth about EGL. The truth for Phase 1 is "EGL is off": the request is withdrawn from the six DRM targets and a `#error` makes any future disagreement between request and result a build failure.
 
@@ -397,3 +399,11 @@ git commit -m "docs(display): a sideways panel needs no binary choice (prestonbr
 - **The nanovg draw unit**, and with it `LV_DRAW_TRANSFORM_USE_MATRIX`. Worth noting for Phase 2's design: LVGL's matrix rotation needs a matrix-capable draw unit, so nanovg may give DRM real 90/270 rotation and remove the fbdev swap entirely. Unverified.
 - **Context sharing (#1582).** Follows Phase 2; delete the patch if Phase 2 is abandoned.
 - **`docs/devel/architecture/14-build-platforms.md`.** Its rotation section lives on the unmerged `feature/xml-style-transition` branch. Correct it there or after that merge, not here, or the two will conflict.
+
+## What Phase 2 inherits
+
+Three things this plan did not finish, recorded so Phase 2 does not assume otherwise.
+
+- **Rotation ownership only half-moved.** The design says DisplayManager hands the angle down and each backend decides whether LVGL is also told. In the code DisplayManager still calls `lv_display_set_rotation()` itself and then calls the backend, which may clear it, so the value is written twice and the winner depends on call order. Task 2 reordered the resolution cache, not the ownership. `DisplayBackendFbdev::set_display_rotation` is a no-op that relies on DisplayManager having set it, so today no backend owns rotation.
+- **No `DrmRotationStrategy` branch is acted on.** SOFTWARE is unreachable because `DisplayManager::try_drm_to_fbdev_fallback` replaces the backend with fbdev first; HARDWARE is unreachable because `plane_may_own_rotation()` is false. The decision function and its tests are kept intact because Phase 2 needs them, not because anything calls the result.
+- **The drift gate is one-directional.** `#if defined(HELIX_ENABLE_OPENGLES) && !LV_LINUX_DRM_USE_EGL` catches a request without a result. Setting `LV_USE_OPENGLES 1` without the request is silent.
