@@ -52,8 +52,8 @@ std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, 
         return asset_component_uri(path);
     }
 
-    // Fallback: try base "tiny" if tiny_alt not found (backward compat)
-    if (std::string(size_name) == "tiny_alt") {
+    // A 480x400 panel takes the tiny canvas when its own is absent.
+    if (std::string(size_name) == "small") {
         path = "assets/images/prerendered/splash-3d-";
         path += mode_name;
         path += "-tiny.bin";
@@ -68,8 +68,8 @@ std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, 
     return "";
 }
 
-std::string get_prerendered_splash_path(int screen_width) {
-    const char* size_name = get_splash_size_name(screen_width);
+std::string get_prerendered_splash_path(int screen_width, int screen_height) {
+    const char* size_name = get_splash_size_name(screen_width, screen_height);
 
     // Path relative to install directory
     std::string path = "assets/images/prerendered/splash-logo-";

@@ -127,7 +127,7 @@ def check_no_hardcoded_sizes(manifest, f):
     images = read("mk/images.mk")
     if images is None:
         return
-    classes = set(manifest["size_classes"]["splash_3d_composite_height"])
+    classes = set(manifest["size_classes"]["splash_composite_height"])
     for m in re.finditer(r"--sizes\s+([a-z_ ]+)", images):
         named = [c for c in m.group(1).split() if c in classes]
         if named:

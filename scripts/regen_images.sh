@@ -51,19 +51,22 @@ NC="$LVGL_NC"
 #
 # Filter with TARGET_SIZES env var (comma-separated): "small" or "tiny,small,medium,large"
 # Examples:
-#   TARGET_SIZES=small ./scripts/regen_images.sh        # Only 800x480 (AD5M)
-#   TARGET_SIZES=tiny,medium ./scripts/regen_images.sh  # Specific sizes
+#   TARGET_SIZES=medium ./scripts/regen_images.sh       # Only 800x480 (AD5M)
+#   TARGET_SIZES=tiny,large ./scripts/regen_images.sh   # Specific sizes
 #   ./scripts/regen_images.sh                           # All sizes (Pi, generic)
 # SPLASH SCREEN sizes - EXACT pixel sizes matching splash_screen.cpp logic:
 #   if (screen_height < 500) target = screen_width / 2;  // 50%
 #   else                     target = (screen_width * 3) / 5;  // 60%
 #
 # These are the EXACT sizes the splash logo renders at - NO runtime scaling needed!
+# Classes are the UiBreakpoint tiers (include/ui_breakpoint.h). This is a subset
+# of the classes the 3D splash generates; a lookup that misses falls back to
+# scaling the PNG, so the tiers with no logo here cost nothing.
 ALL_SCREEN_SIZES=(
     "tiny:480:320:240"      # 480 * 0.5 = 240 (height 320 < 500)
-    "small:800:480:400"     # 800 * 0.5 = 400 (height 480 < 500) - AD5M
-    "medium:1024:600:614"   # 1024 * 0.6 = 614 (height 600 >= 500)
-    "large:1280:720:768"    # 1280 * 0.6 = 768 (height 720 >= 500)
+    "medium:800:480:400"    # 800 * 0.5 = 400 (height 480 < 500) - K1, K2, AD5M, AD5X
+    "large:1024:600:614"    # 1024 * 0.6 = 614 (height 600 >= 500)
+    "xlarge:1280:720:768"   # 1280 * 0.6 = 768 (height 720 >= 500)
 )
 
 # Filter screen sizes based on TARGET_SIZES environment variable
@@ -87,7 +90,7 @@ filter_screen_sizes() {
 
     if [ ${#SCREEN_SIZES[@]} -eq 0 ]; then
         echo -e "${RED}Error: No valid sizes in TARGET_SIZES=$TARGET_SIZES${NC}"
-        echo "Valid sizes: tiny, small, medium, large"
+        echo "Valid sizes: tiny, medium, large, xlarge"
         exit 1
     fi
 }
@@ -252,7 +255,7 @@ case "${1:-}" in
         echo "  OUTPUT_DIR    Output directory (default: build/assets/images/prerendered)"
         echo "  TARGET_SIZES  Comma-separated sizes to generate (default: all)"
         echo "                Values: tiny, small, medium, large"
-        echo "                Example: TARGET_SIZES=small (for AD5M fixed 800x480)"
+        echo "                Example: TARGET_SIZES=medium (for AD5M fixed 800x480)"
         echo ""
         echo "All Screen Sizes:"
         for screen_spec in "${ALL_SCREEN_SIZES[@]}"; do
@@ -261,7 +264,7 @@ case "${1:-}" in
         done
         echo ""
         echo "Platform Shortcuts:"
-        echo "  AD5M (fixed 800x480):  TARGET_SIZES=small"
+        echo "  AD5M (fixed 800x480):  TARGET_SIZES=medium"
         echo "  Pi (variable):         TARGET_SIZES=  (all sizes)"
         ;;
     *)

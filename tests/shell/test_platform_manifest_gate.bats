@@ -56,17 +56,42 @@ make_tree() {
     [ "$output" = "800x480" ]
 }
 
-@test "deriver: an 800x480 panel selects the small class" {
+@test "deriver: an 800x480 panel selects the medium tier" {
+    # The classes are UiBreakpoint tiers: 800x480 has a narrow axis of 480, which
+    # is Medium. Naming it "small" is the old prerender-only vocabulary.
     run python3 "$DERIVE" splash-3d-sizes k2
     [ "$status" -eq 0 ] || fail "command failed: $output"
-    [ "$output" = "small" ]
+    [ "$output" = "medium" ]
+}
+
+@test "deriver: a 480x272 panel selects micro, not an overdrawing tiny" {
+    run python3 "$DERIVE" splash-3d-sizes cc1
+    [ "$status" -eq 0 ] || fail "command failed: $output"
+    [ "$output" = "micro" ]
 }
 
 @test "deriver: a platform with an unmeasured variant also gets its hedge class" {
     run python3 "$DERIVE" splash-3d-sizes k1
     [ "$status" -eq 0 ] || fail "command failed: $output"
+    contains "medium" "$output"
     contains "small" "$output"
-    contains "tiny_alt" "$output"
+}
+
+@test "deriver: every class it can return is a layout breakpoint name" {
+    # ultrawide is an aspect rather than a tier and is the one deliberate
+    # exception; everything else must be a word ui_breakpoint.h parses.
+    run python3 "$DERIVE" list
+    [ "$status" -eq 0 ] || fail "list failed: $output"
+    for p in $output; do
+        run python3 "$DERIVE" splash-3d-sizes "$p"
+        [ "$status" -eq 0 ] || fail "splash-3d-sizes $p failed: $output"
+        for cls in $output; do
+            case "$cls" in
+                micro|tiny|small|medium|large|xlarge|xxlarge|ultrawide) ;;
+                *) fail "$p selects '$cls', which is not a breakpoint tier" ;;
+            esac
+        done
+    done
 }
 
 @test "deriver: a runtime-variable panel restricts nothing" {
@@ -137,7 +162,7 @@ make_tree() {
 
 @test "gate: reports a size class hardcoded back into the build files" {
     make_tree
-    printf '\ngen-splash-3d-regression:\n\t$(SPLASH_3D_PYTHON) x --sizes tiny_alt\n' >> "$TREE/mk/images.mk"
+    printf '\ngen-splash-3d-regression:\n\t$(SPLASH_3D_PYTHON) x --sizes medium\n' >> "$TREE/mk/images.mk"
     run python3 "$GATE" --quiet --root "$TREE"
     contains "hardcodes --sizes" "$output"
 }

@@ -1650,7 +1650,7 @@ endef
 define deploy-common
 	@echo "$(CYAN)Deploying HelixScreen to $(1):$(2)...$(RESET)"
 	@# Generate pre-rendered splash images if missing (all small-display platforms use the same files)
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
 		$(MAKE) gen-images; \
 	fi
@@ -1929,7 +1929,7 @@ deploy-ad5m:
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
 	@echo "$(DIM)  firmware=$(AD5M_MOD_FLAVOR) hooks=$(AD5M_HOOK_KEY) services=$(AD5M_SERVICE_MECHANISM)$(RESET)"
 	@# Generate pre-rendered images if missing
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
 		$(MAKE) gen-images-ad5m; \
 	fi
@@ -2021,7 +2021,7 @@ deploy-ad5m-legacy:
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@# Generate pre-rendered images if missing (requires Python/PIL)
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(CYAN)Generating pre-rendered splash images for AD5M...$(RESET)"; \
 		$(MAKE) gen-images-ad5m; \
 	fi
@@ -2141,7 +2141,7 @@ deploy-cc1:
 	@test -f build/cc1/bin/helix-splash || { echo "$(RED)Error: build/cc1/bin/helix-splash not found. Run 'make cc1-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(CC1_SSH_TARGET):$(CC1_DEPLOY_DIR)...$(RESET)"
 	@# Generate pre-rendered images if missing
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
 		$(MAKE) gen-images; \
 	fi
@@ -2346,7 +2346,7 @@ deploy-k1:
 	@test -f build/mips/bin/helix-splash || { echo "$(RED)Error: build/mips/bin/helix-splash not found. Run 'make mips-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(K1_SSH_TARGET):$(K1_DEPLOY_DIR)...$(RESET)"
 	@# Generate pre-rendered images if missing
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
 		$(MAKE) gen-images; \
 	fi
@@ -2354,7 +2354,7 @@ deploy-k1:
 		echo "$(DIM)Generating pre-rendered printer images...$(RESET)"; \
 		$(MAKE) gen-printer-images; \
 	fi
-	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-tiny_alt.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-medium.bin ]; then \
 		echo "$(DIM)Generating 3D splash images for K1...$(RESET)"; \
 		$(MAKE) gen-splash-3d-k1; \
 	fi
@@ -2438,7 +2438,7 @@ deploy-k1-dynamic:
 	@test -f build/k1-dynamic/bin/helix-splash || { echo "$(RED)Error: build/k1-dynamic/bin/helix-splash not found. Run 'make k1-dynamic-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen (dynamic) to $(K1_SSH_TARGET):$(K1_DEPLOY_DIR)...$(RESET)"
 	@# Generate pre-rendered images if missing
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
 		$(MAKE) gen-images; \
 	fi
@@ -2446,7 +2446,7 @@ deploy-k1-dynamic:
 		echo "$(DIM)Generating pre-rendered printer images...$(RESET)"; \
 		$(MAKE) gen-printer-images; \
 	fi
-	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-tiny_alt.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-medium.bin ]; then \
 		echo "$(DIM)Generating 3D splash images for K1...$(RESET)"; \
 		$(MAKE) gen-splash-3d-k1; \
 	fi
@@ -2546,7 +2546,7 @@ deploy-k2:
 	@test -f build/k2/bin/helix-splash || { echo "$(RED)Error: build/k2/bin/helix-splash not found. Run 'make k2-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(K2_SSH_TARGET):$(K2_DEPLOY_DIR)...$(RESET)"
 	@# Generate pre-rendered images if missing
-	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
+	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
 		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
 		$(MAKE) gen-images; \
 	fi

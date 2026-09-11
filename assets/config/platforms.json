@@ -9,79 +9,76 @@
     "the doc is corrected in the same change. A panel with no hardware behind it carries",
     "\"verified\": false so the gate can report what is still doc-derived.",
     "",
-    "panel is the only geometry input. Effective resolution, splash size classes and",
-    "printer image size are DERIVED (see include/prerender_size_class.h and",
+    "panel is the only geometry input. Effective resolution, splash size class and printer",
+    "image size are DERIVED (see include/prerender_size_class.h and",
     "scripts/platform_manifest.py), never stored, because K1 and K2 are portrait panels",
     "used rotated and a stored effective size loses that distinction.",
     "",
-    "Size class names here are the pre-render ladder, NOT the UI breakpoint tiers in",
-    "include/ui_breakpoint.h. The two ladders give several of the same words different",
-    "meanings; see the table in include/prerender_size_class.h."
+    "Size class names are the UiBreakpoint tiers from include/ui_breakpoint.h."
   ],
   "size_classes": {
     "_comment": [
-      "The pre-render size-class ladder, as data. src/system/prerender_size_class.cpp is the",
-      "compiled implementation and scripts/platform_manifest.py the build-time one;",
-      "tests/unit/test_prerender_size_class.cpp asserts the compiled selector agrees with",
-      "these rules across a resolution grid, so the two cannot drift apart silently.",
+      "The pre-render size-class ladder, as data. Classes are the UiBreakpoint tiers from",
+      "include/ui_breakpoint.h and the thresholds are its UI_BREAKPOINT_*_MAX values, so an",
+      "asset filename and a layout override mean the same thing by the same word.",
       "",
-      "Rules are evaluated in order and the first match wins, mirroring the if/else chain.",
-      "An absent bound means unbounded on that side.",
+      "max_narrow is min(width, height): a full-screen canvas has to fit the cramped axis,",
+      "which is what breakpoint_for() keys off. Rules are evaluated in order, first match",
+      "wins, and an absent bound means unbounded on that side.",
       "",
-      "These names are NOT the UI breakpoint tiers in include/ui_breakpoint.h."
+      "Two departures from a plain tier lookup. A wide, short bar display takes `ultrawide`",
+      "because its canvas shape is unlike anything else at its tier. And nothing is composited",
+      "above `xlarge`, so the last rule is a catch-all and a larger panel scales.",
+      "",
+      "src/system/prerender_size_class.cpp is the compiled implementation and",
+      "scripts/platform_manifest.py the build-time one; tests/unit/test_prerender_size_class.cpp",
+      "asserts both agree with these rules and that the thresholds still match ui_breakpoint.h."
     ],
-    "splash_2d": [
-      {
-        "class": "tiny",
-        "max_width": 599
-      },
-      {
-        "class": "small",
-        "max_width": 899
-      },
-      {
-        "class": "medium",
-        "max_width": 1099
-      },
-      {
-        "class": "large"
-      }
-    ],
-    "splash_3d": [
+    "splash": [
       {
         "class": "ultrawide",
         "min_width": 1100,
         "max_height": 499
       },
       {
-        "class": "tiny_alt",
-        "max_width": 599,
-        "min_height": 380
+        "class": "micro",
+        "max_narrow": 272
       },
       {
         "class": "tiny",
-        "max_width": 599
+        "max_narrow": 390
       },
       {
         "class": "small",
-        "max_width": 899
+        "max_narrow": 460
       },
       {
         "class": "medium",
-        "max_width": 1099
+        "max_narrow": 550
       },
       {
-        "class": "large"
+        "class": "large",
+        "max_narrow": 700
+      },
+      {
+        "class": "xlarge"
       }
     ],
-    "splash_3d_composite_height": {
+    "splash_composite_height": {
+      "micro": 272,
       "tiny": 320,
-      "tiny_alt": 400,
-      "small": 480,
-      "medium": 600,
-      "large": 720,
+      "small": 400,
+      "medium": 480,
+      "large": 600,
+      "xlarge": 720,
       "ultrawide": 440
     },
+    "splash_2d_logo_classes": [
+      "tiny",
+      "medium",
+      "large",
+      "xlarge"
+    ],
     "printer_image": [
       {
         "size": 150,
@@ -189,9 +186,9 @@
         "in_release_matrix": true,
         "detectable": true,
         "extra_splash_3d_classes": [
-          "tiny_alt"
+          "small"
         ],
-        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. Generating tiny_alt alongside the derived class costs ~1.5MB and guarantees no K1 variant ships without a splash. Drop it once measured."
+        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. A 480x400 variant would select `small`; generating it alongside the derived class costs ~1.5MB and guarantees no K1 ships without a splash. Drop it once measured."
       }
     },
     "k1-dynamic": {
@@ -236,9 +233,9 @@
         "detectable": false,
         "notes": "Build and asset key only. detect_platform never returns k1-dynamic and .github/workflows/release.yml excludes it from the matrix; helix_self_update_asset maps it to helixscreen-k1.zip.",
         "extra_splash_3d_classes": [
-          "tiny_alt"
+          "small"
         ],
-        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. Generating tiny_alt alongside the derived class costs ~1.5MB and guarantees no K1 variant ships without a splash. Drop it once measured."
+        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. A 480x400 variant would select `small`; generating it alongside the derived class costs ~1.5MB and guarantees no K1 ships without a splash. Drop it once measured."
       }
     },
     "ad5x": {
@@ -360,9 +357,9 @@
       },
       "storage": {
         "root": "/user-resource/helixscreen",
-        "cache_dir": "/opt/helixscreen/cache",
+        "cache_dir": "/user-resource/helixscreen/cache",
         "log_file": "/user-resource/helixscreen/logs/helix.log",
-        "notes": "/ is a read-only squashfs; /etc is an overlay on /data. /user-resource is the 6.3GB ext4 partition. There is no printer_data directory on the device. cache_dir points at the read-only root and does not match the install partition."
+        "notes": "/ is a read-only squashfs with no /opt; /etc is an overlay on /data. /user-resource is the 6.3GB ext4 partition and carries the install, cache and logs. There is no printer_data directory on the device."
       },
       "service": {
         "init_system": "sysv",
@@ -529,9 +526,9 @@
       "storage": {
         "root": "detected",
         "root_fallback": "/opt/helixscreen",
-        "cache_dir": "/usr/data/helixscreen/cache",
+        "cache_dir": null,
         "log_file": null,
-        "notes": "cache_dir is a Creality buildroot path this Debian SBC does not have."
+        "notes": "The install root is discovered rather than fixed, so no cache override is set and the XDG rung of the cascade resolves on its own."
       },
       "service": {
         "init_system": "systemd",

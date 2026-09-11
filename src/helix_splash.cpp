@@ -231,8 +231,8 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
     struct stat st;
     bool use_3d = (stat(splash_3d_path, &st) == 0);
 
-    // Fallback: try base "tiny" if tiny_alt not found
-    if (!use_3d && strcmp(size_name, "tiny_alt") == 0) {
+    // A 480x400 panel takes the tiny canvas when its own is absent.
+    if (!use_3d && strcmp(size_name, "small") == 0) {
         snprintf(splash_3d_path, sizeof(splash_3d_path),
                  "assets/images/prerendered/splash-3d-%s-tiny.bin", mode_name);
         use_3d = (stat(splash_3d_path, &st) == 0);
@@ -338,12 +338,17 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
     lv_obj_set_style_border_width(logo, 0, LV_PART_MAIN);
 
     // Check for pre-rendered logo image (centered, not full-screen)
-    const char* prerendered_path = "assets/images/prerendered/splash-logo-small.bin";
+    char prerendered_path[128];
+    snprintf(prerendered_path, sizeof(prerendered_path),
+             "assets/images/prerendered/splash-logo-%s.bin",
+             helix::get_splash_size_name(width, height));
     bool use_prerendered = (stat(prerendered_path, &st) == 0);
 
     if (use_prerendered) {
         // Pre-rendered: instant display, no scaling needed!
-        lv_image_set_src(logo, "A:assets/images/prerendered/splash-logo-small.bin");
+        char lvgl_path[136];
+        snprintf(lvgl_path, sizeof(lvgl_path), "A:%s", prerendered_path);
+        lv_image_set_src(logo, lvgl_path);
         fprintf(stderr, "helix-splash: Using pre-rendered splash (fast path)\n");
     } else {
         // PNG fallback with runtime scaling (slow but works)

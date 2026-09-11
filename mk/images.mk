@@ -30,17 +30,17 @@ REGEN_IMAGES_SCRIPT := scripts/regen_images.sh
 REGEN_PRINTER_IMAGES_SCRIPT := scripts/regen_printer_images.sh
 
 # Pre-rendered image files (build artifacts, not in repo)
-# AD5M only needs 'small' (800x480)
-PRERENDERED_IMAGES_AD5M := $(PRERENDERED_DIR)/splash-logo-small.bin
-# AD5X only needs 'small' (800x480)
-PRERENDERED_IMAGES_AD5X := $(PRERENDERED_DIR)/splash-logo-small.bin
+# AD5M only needs 'medium' (800x480)
+PRERENDERED_IMAGES_AD5M := $(PRERENDERED_DIR)/splash-logo-medium.bin
+# AD5X only needs 'medium' (800x480)
+PRERENDERED_IMAGES_AD5X := $(PRERENDERED_DIR)/splash-logo-medium.bin
 
 # Pi needs all sizes (unknown display at build time)
 PRERENDERED_IMAGES_ALL := \
     $(PRERENDERED_DIR)/splash-logo-tiny.bin \
-    $(PRERENDERED_DIR)/splash-logo-small.bin \
     $(PRERENDERED_DIR)/splash-logo-medium.bin \
-    $(PRERENDERED_DIR)/splash-logo-large.bin
+    $(PRERENDERED_DIR)/splash-logo-large.bin \
+    $(PRERENDERED_DIR)/splash-logo-xlarge.bin
 
 # Generate images for AD5M (800x480 fixed display only)
 # NOTE: Uses mkdir -p instead of $(BUILD_DIR) dependency to avoid triggering 'build' target

@@ -31,13 +31,14 @@ namespace helix {
 /**
  * @brief Get path to pre-rendered splash screen logo
  *
- * Selects the appropriate pre-rendered size based on screen width.
- * Falls back to original PNG if pre-rendered version doesn't exist.
+ * Selects the size class from the resolution and falls back to the original PNG
+ * when that class has no logo render.
  *
  * @param screen_width Display width in pixels
+ * @param screen_height Display height in pixels
  * @return LVGL path (A:...) to the image, or empty string if none found
  */
-[[nodiscard]] std::string get_prerendered_splash_path(int screen_width);
+[[nodiscard]] std::string get_prerendered_splash_path(int screen_width, int screen_height);
 
 /**
  * @brief Get path to pre-rendered printer image

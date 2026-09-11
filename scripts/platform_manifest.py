@@ -10,8 +10,8 @@ with it so the two cannot drift apart.
 Used as a library by scripts/check_platform_manifest.py and as a CLI by
 mk/images.mk, which asks it which splash classes a platform needs:
 
-    scripts/platform_manifest.py splash-3d-sizes k2   -> small
-    scripts/platform_manifest.py splash-3d-sizes k1   -> small tiny_alt
+    scripts/platform_manifest.py splash-3d-sizes k2   -> medium
+    scripts/platform_manifest.py splash-3d-sizes k1   -> medium small
     scripts/platform_manifest.py splash-3d-sizes pi   -> (empty: every class)
 """
 
@@ -64,6 +64,7 @@ def effective_resolution(entry):
 
 
 def _match(rule, width, height):
+    narrow = min(width, height) if height else width
     if "min_width" in rule and width < rule["min_width"]:
         return False
     if "max_width" in rule and width > rule["max_width"]:
@@ -71,6 +72,10 @@ def _match(rule, width, height):
     if "min_height" in rule and height < rule["min_height"]:
         return False
     if "max_height" in rule and height > rule["max_height"]:
+        return False
+    if "min_narrow" in rule and narrow < rule["min_narrow"]:
+        return False
+    if "max_narrow" in rule and narrow > rule["max_narrow"]:
         return False
     return True
 
@@ -82,12 +87,14 @@ def _first_match(rules, width, height, key):
     raise ManifestError(f"no rule matched {width}x{height}; the ladder needs a catch-all")
 
 
-def splash_2d_class(manifest, width):
-    return _first_match(manifest["size_classes"]["splash_2d"], width, 0, "class")
+def splash_class(manifest, width, height):
+    """The size class a resolution selects. One ladder for 2D and 3D alike."""
+    return _first_match(manifest["size_classes"]["splash"], width, height, "class")
 
 
-def splash_3d_class(manifest, width, height):
-    return _first_match(manifest["size_classes"]["splash_3d"], width, height, "class")
+def has_2d_logo(manifest, class_name):
+    """Whether that class has a 2D logo render, or falls back to scaling the PNG."""
+    return class_name in manifest["size_classes"]["splash_2d_logo_classes"]
 
 
 def printer_image_size(manifest, width):
@@ -104,7 +111,7 @@ def splash_3d_classes_for(manifest, platform_id):
     if not has_fixed_panel(entry):
         return []
     width, height = effective_resolution(entry)
-    classes = [splash_3d_class(manifest, width, height)]
+    classes = [splash_class(manifest, width, height)]
     for extra in entry.get("package", {}).get("extra_splash_3d_classes", []):
         if extra not in classes:
             classes.append(extra)
@@ -112,7 +119,7 @@ def splash_3d_classes_for(manifest, platform_id):
 
 
 def composite_height(manifest, class_name):
-    return manifest["size_classes"]["splash_3d_composite_height"].get(class_name, 0)
+    return manifest["size_classes"]["splash_composite_height"].get(class_name, 0)
 
 
 def _cmd_splash_3d_sizes(manifest, args):
@@ -124,7 +131,8 @@ def _cmd_splash_2d_size(manifest, args):
     if not has_fixed_panel(entry):
         print("")
         return
-    print(splash_2d_class(manifest, effective_resolution(entry)[0]))
+    cls = splash_class(manifest, *effective_resolution(entry))
+    print(cls if has_2d_logo(manifest, cls) else "")
 
 
 def _cmd_printer_image_size(manifest, args):

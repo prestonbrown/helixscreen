@@ -14,24 +14,30 @@
  * named for these same classes, and `assets/config/platforms.json` records the
  * panel geometry each platform feeds in.
  *
- * ## These are not UI breakpoints
+ * ## The names are the layout system's names
  *
- * The tiers in `include/ui_breakpoint.h` are a different ladder that reuses
- * several of the same words for different resolutions:
+ * The classes are the `UiBreakpoint` tiers from `include/ui_breakpoint.h`, and
+ * `get_splash_3d_size_name()` resolves them by calling `breakpoint_for()`. One
+ * ladder, one axis, one vocabulary: `medium` is an 800x480 panel whether you
+ * read it in an asset filename or in a layout override.
  *
- * | Resolution | This ladder | UiBreakpoint |
- * |------------|-------------|--------------|
- * | 480x272    | `tiny`      | Micro        |
- * | 480x320    | `tiny`      | Tiny         |
- * | 480x400    | `tiny_alt`  | Small        |
- * | 800x480    | `small`     | Medium       |
- * | 1024x600   | `medium`    | Large        |
- * | 1280x720   | `large`     | XLarge       |
+ * | Canvas   | Class       |
+ * |----------|-------------|
+ * | 480x272  | `micro`     |
+ * | 480x320  | `tiny`      |
+ * | 480x400  | `small`     |
+ * | 800x480  | `medium`    |
+ * | 1024x600 | `large`     |
+ * | 1280x720 | `xlarge`    |
+ * | 1920x440 | `ultrawide` |
  *
- * The ladders disagree because they answer different questions. This one keys
- * off the wide axis and names a file on disk; `breakpoint_for()` keys off the
- * narrow axis because layout has to fit content into the cramped dimension.
- * Convert between them through a resolution, never by matching names.
+ * Two departures from a plain tier lookup, both deliberate. A wide, short bar
+ * display gets `ultrawide` rather than the tier its narrow axis would give it,
+ * because its canvas shape is unlike anything else at that tier. And nothing is
+ * composited above `xlarge`, so a larger panel is clamped to it and scales.
+ *
+ * Only a subset of classes has a 2D logo render; a lookup that misses falls back
+ * to the source PNG, so asking for one costs nothing.
  */
 
 namespace helix {
@@ -39,21 +45,21 @@ namespace helix {
 /**
  * @brief Size class for the 2D splash logo
  *
+ * The same ladder as the 3D splash. Fewer classes have a logo render, and a
+ * caller that finds none falls back to scaling the PNG.
+ *
  * @param screen_width Display width in pixels
- * @return "tiny" (480x320 class), "small" (800x480), "medium" (1024x600),
- *         or "large" (1280x720+)
+ * @param screen_height Display height in pixels
+ * @return A UiBreakpoint tier name, or "ultrawide"
  */
-[[nodiscard]] const char* get_splash_size_name(int screen_width);
+[[nodiscard]] const char* get_splash_size_name(int screen_width, int screen_height);
 
 /**
  * @brief Size class for the composited full-screen 3D splash
  *
- * Uses height as well as width, which separates the 480x400 class from the
- * 480x320 one and catches panels that are wide but very short.
- *
  * @param screen_width Display width in pixels
  * @param screen_height Display height in pixels
- * @return "tiny", "tiny_alt", "small", "medium", "large", or "ultrawide"
+ * @return "micro", "tiny", "small", "medium", "large", "xlarge" or "ultrawide"
  */
 [[nodiscard]] const char* get_splash_3d_size_name(int screen_width, int screen_height);
 
@@ -71,6 +77,9 @@ namespace helix {
 
 /**
  * @brief Pre-rendered printer image size for a screen width
+ *
+ * Keyed on width rather than the narrow axis: this sizes a widget's artwork
+ * against the horizontal room it is given, not a full-screen canvas.
  *
  * @param screen_width Display width in pixels
  * @return 300 for 800x480 and wider, 150 below that

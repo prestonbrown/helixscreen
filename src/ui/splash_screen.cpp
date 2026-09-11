@@ -61,8 +61,8 @@ void show_splash_screen(int screen_width, int screen_height) {
     std::string splash_3d_path = find_prerendered(
         std::string("assets/images/prerendered/splash-3d-") + mode_name + "-" + size_name + ".bin");
 
-    // Fallback: try base "tiny" if tiny_alt not found
-    if (splash_3d_path.empty() && std::string(size_name) == "tiny_alt") {
+    // A 480x400 panel takes the tiny canvas when its own is absent.
+    if (splash_3d_path.empty() && std::string(size_name) == "small") {
         size_name = "tiny";
         splash_3d_path = find_prerendered(std::string("assets/images/prerendered/splash-3d-") +
                                           mode_name + "-tiny.bin");
