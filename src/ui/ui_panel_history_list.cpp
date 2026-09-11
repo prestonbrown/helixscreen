@@ -422,22 +422,25 @@ void HistoryListPanel::refresh_from_api() {
         0,         // start - first page
         0.0,       // since (no filter)
         0.0,       // before (no filter)
-        [this](const std::vector<PrintHistoryJob>& jobs, uint64_t total) {
-            spdlog::info("[{}] Received {} jobs (total: {})", get_name(), jobs.size(), total);
-            jobs_ = jobs;
-            total_job_count_ = total;
-            has_more_data_ = (jobs_.size() < total);
+        lifetime_.bg_cb("HistoryListPanel::fetch_history",
+                        [this](const std::vector<PrintHistoryJob>& jobs, uint64_t total) {
+                            spdlog::info("[{}] Received {} jobs (total: {})", get_name(),
+                                         jobs.size(), total);
+                            jobs_ = jobs;
+                            total_job_count_ = total;
+                            has_more_data_ = (jobs_.size() < total);
 
-            // Fetch timelapse files and associate them with jobs (calls apply_filters_and_sort)
-            fetch_timelapse_files();
-        },
-        [this](const MoonrakerError& error) {
-            spdlog::error("[{}] Failed to fetch history: {}", get_name(), error.message);
-            jobs_.clear();
-            total_job_count_ = 0;
-            has_more_data_ = false;
-            apply_filters_and_sort();
-        });
+                            // Associates timelapse files with jobs, then applies filters.
+                            fetch_timelapse_files();
+                        }),
+        lifetime_.bg_cb(
+            "HistoryListPanel::fetch_history_error", [this](const MoonrakerError& error) {
+                spdlog::error("[{}] Failed to fetch history: {}", get_name(), error.message);
+                jobs_.clear();
+                total_job_count_ = 0;
+                has_more_data_ = false;
+                apply_filters_and_sort();
+            }));
 }
 
 void HistoryListPanel::load_more() {
@@ -470,35 +473,37 @@ void HistoryListPanel::load_more() {
         start_offset, // start - continue from where we left off
         0.0,          // since (no filter)
         0.0,          // before (no filter)
-        [this](const std::vector<PrintHistoryJob>& new_jobs, uint64_t total) {
-            load_more_guard_.release();
-            total_job_count_ = total;
+        lifetime_.bg_cb("HistoryListPanel::load_more",
+                        [this](const std::vector<PrintHistoryJob>& new_jobs, uint64_t total) {
+                            load_more_guard_.release();
+                            total_job_count_ = total;
 
-            if (new_jobs.empty()) {
-                has_more_data_ = false;
-                spdlog::debug("[{}] No more jobs to load", get_name());
-                return;
-            }
+                            if (new_jobs.empty()) {
+                                has_more_data_ = false;
+                                spdlog::debug("[{}] No more jobs to load", get_name());
+                                return;
+                            }
 
-            spdlog::info("[{}] Loaded {} more jobs (now have {}, total: {})", get_name(),
-                         new_jobs.size(), jobs_.size() + new_jobs.size(), total);
+                            spdlog::info("[{}] Loaded {} more jobs (now have {}, total: {})",
+                                         get_name(), new_jobs.size(),
+                                         jobs_.size() + new_jobs.size(), total);
 
-            // Append new jobs
-            jobs_.insert(jobs_.end(), new_jobs.begin(), new_jobs.end());
+                            // Append new jobs
+                            jobs_.insert(jobs_.end(), new_jobs.begin(), new_jobs.end());
 
-            // Check if we've loaded everything
-            has_more_data_ = (jobs_.size() < total);
+                            // Check if we've loaded everything
+                            has_more_data_ = (jobs_.size() < total);
 
-            // Re-apply filters to the full job list
-            apply_filters_and_sort();
+                            // Re-apply filters to the full job list
+                            apply_filters_and_sort();
 
-            // Note: apply_filters_and_sort calls populate_list which rebuilds UI
-            // For smoother infinite scroll, we could optimize this to only append
-        },
-        [this](const MoonrakerError& error) {
+                            // Note: apply_filters_and_sort calls populate_list which rebuilds UI
+                            // For smoother infinite scroll, we could optimize this to only append
+                        }),
+        lifetime_.bg_cb("HistoryListPanel::load_more_error", [this](const MoonrakerError& error) {
             load_more_guard_.release();
             spdlog::error("[{}] Failed to load more history: {}", get_name(), error.message);
-        });
+        }));
 }
 
 void HistoryListPanel::fetch_timelapse_files() {
@@ -513,16 +518,19 @@ void HistoryListPanel::fetch_timelapse_files() {
         "timelapse", // root
         "",          // path (root)
         false,       // non-recursive
-        [this](const std::vector<FileInfo>& timelapse_files) {
-            spdlog::debug("[{}] Found {} timelapse files", get_name(), timelapse_files.size());
-            associate_timelapse_files(timelapse_files);
-            apply_filters_and_sort();
-        },
-        [this](const MoonrakerError& error) {
-            spdlog::debug("[{}] No timelapse files available: {}", get_name(), error.message);
-            // Continue without timelapse association - this is not an error
-            apply_filters_and_sort();
-        });
+        lifetime_.bg_cb("HistoryListPanel::fetch_timelapse_files",
+                        [this](const std::vector<FileInfo>& timelapse_files) {
+                            spdlog::debug("[{}] Found {} timelapse files", get_name(),
+                                          timelapse_files.size());
+                            associate_timelapse_files(timelapse_files);
+                            apply_filters_and_sort();
+                        }),
+        lifetime_.bg_cb(
+            "HistoryListPanel::fetch_timelapse_files_error", [this](const MoonrakerError& error) {
+                spdlog::debug("[{}] No timelapse files available: {}", get_name(), error.message);
+                // A printer with no timelapse plugin is not an error.
+                apply_filters_and_sort();
+            }));
 }
 
 void HistoryListPanel::associate_timelapse_files(const std::vector<FileInfo>& timelapse_files) {
@@ -1271,26 +1279,31 @@ void HistoryListPanel::confirm_delete() {
     if (api) {
         api->history().delete_history_job(
             job_id,
-            [this, job_id, filename]() {
-                spdlog::info("[{}] Job deleted: {} ({})", get_name(), filename, job_id);
+            lifetime_.bg_cb("HistoryListPanel::confirm_delete",
+                            [this, job_id, filename]() {
+                                spdlog::info("[{}] Job deleted: {} ({})", get_name(), filename,
+                                             job_id);
 
-                // Remove from jobs_ and filtered_jobs_
-                jobs_.erase(std::remove_if(
-                                jobs_.begin(), jobs_.end(),
-                                [&job_id](const PrintHistoryJob& j) { return j.job_id == job_id; }),
-                            jobs_.end());
+                                // Remove from jobs_ and filtered_jobs_
+                                jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
+                                                           [&job_id](const PrintHistoryJob& j) {
+                                                               return j.job_id == job_id;
+                                                           }),
+                                            jobs_.end());
 
-                // Close detail overlay and refresh list
-                NavigationManager::instance().go_back();
-                apply_filters_and_sort();
+                                // Close detail overlay and refresh list
+                                NavigationManager::instance().go_back();
+                                apply_filters_and_sort();
 
-                ui_notification_success("Print job deleted");
-            },
-            [this, filename](const MoonrakerError& error) {
-                spdlog::error("[{}] Failed to delete job {}: {}", get_name(), filename,
-                              error.message);
-                ui_notification_error("Delete Failed", error.message.c_str(), false);
-            });
+                                ui_notification_success("Print job deleted");
+                            }),
+            lifetime_.bg_cb("HistoryListPanel::confirm_delete_error",
+                            [this, filename](const MoonrakerError& error) {
+                                spdlog::error("[{}] Failed to delete job {}: {}", get_name(),
+                                              filename, error.message);
+                                ui_notification_error("Delete Failed", error.message.c_str(),
+                                                      false);
+                            }));
     }
 }
 

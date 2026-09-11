@@ -81,6 +81,10 @@ class HistoryDeleteFixture : public LVGLUITestFixture {
         api = std::make_unique<MoonrakerAPI>(client, get_printer_state());
         previous_api_ = get_moonraker_api();
         set_moonraker_api(api.get());
+        // The delete path reaches apply_filters_and_sort(), which notifies
+        // subject_filter_active_. A panel whose subjects were never initialized
+        // notifies through an uninitialized observer list.
+        panel.init_subjects();
         HistoryListPanelTestAccess::select_job(panel, {job("benchy.gcode")}, 0);
     }
 
@@ -163,4 +167,103 @@ TEST_CASE_METHOD(HistoryDeleteFixture,
     HistoryListPanelTestAccess::handle_delete(panel);
     settle();
     CHECK(HistoryListPanelTestAccess::delete_dialog(panel) != nullptr);
+}
+
+namespace {
+
+/// Holds the reply to `server.history.list` instead of delivering it, so a test
+/// can choose the moment it lands. Moonraker replies arrive on the WebSocket
+/// thread, so a panel that has left the screen can still be handed one.
+class ParkingClient : public MoonrakerClientMock {
+  public:
+    ParkingClient() : MoonrakerClientMock(MoonrakerClientMock::PrinterType::VORON_24) {}
+
+    helix::RequestId send_jsonrpc(
+        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
+        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        bool silent = false,
+        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
+        if (method == "server.history.list") {
+            parked = std::move(success_cb);
+            return 0;
+        }
+        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
+                                                 std::move(error_cb), timeout_ms, silent, intent);
+    }
+
+    std::function<void(const json&)> parked;
+};
+
+class HistoryFetchLifetimeFixture : public LVGLUITestFixture {
+  public:
+    HistoryFetchLifetimeFixture() {
+        client.connect("ws://mock/websocket", []() {}, []() {});
+        api = std::make_unique<MoonrakerAPI>(client, get_printer_state());
+        previous_api_ = get_moonraker_api();
+        set_moonraker_api(api.get());
+        panel.init_subjects();
+    }
+
+    ~HistoryFetchLifetimeFixture() override {
+        settle();
+        set_moonraker_api(previous_api_);
+        api.reset();
+        client.stop_temperature_simulation();
+        client.disconnect();
+    }
+
+    static void settle() {
+        for (int i = 0; i < 8; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    }
+
+    /// One completed job, in the shape `server.history.list` returns.
+    static json one_job_reply() {
+        json entry = json::object();
+        entry["job_id"] = "000001";
+        entry["filename"] = "benchy.gcode";
+        entry["status"] = "completed";
+        json result = json::object();
+        result["count"] = 1;
+        result["jobs"] = json::array({entry});
+        json reply = json::object();
+        reply["result"] = result;
+        return reply;
+    }
+
+    ParkingClient client;
+    std::unique_ptr<MoonrakerAPI> api;
+    HistoryListPanel panel;
+
+  private:
+    IMoonrakerAPI* previous_api_ = nullptr;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(HistoryFetchLifetimeFixture,
+                 "A history reply landing after the panel leaves the screen is dropped",
+                 "[history][lifetime][1578]") {
+    panel.refresh_from_api();
+    REQUIRE(client.parked != nullptr);
+    REQUIRE(HistoryListPanelTestAccess::jobs(panel).empty());
+
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+
+    client.parked(one_job_reply());
+    settle();
+
+    CHECK(HistoryListPanelTestAccess::jobs(panel).empty());
+}
+
+TEST_CASE_METHOD(HistoryFetchLifetimeFixture, "A history reply arriving on screen still populates",
+                 "[history][lifetime][1578]") {
+    panel.refresh_from_api();
+    REQUIRE(client.parked != nullptr);
+
+    client.parked(one_job_reply());
+    settle();
+
+    CHECK(HistoryListPanelTestAccess::jobs(panel).size() == 1);
 }
