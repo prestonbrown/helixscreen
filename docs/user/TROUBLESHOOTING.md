@@ -728,9 +728,9 @@ Valid values: `0`, `90`, `180`, `270`. Restart HelixScreen after changing this v
 
 **How rotation works under the hood:**
 
-When you set a rotation value, HelixScreen checks whether your display hardware can rotate the image directly (hardware rotation). No display controller HelixScreen ships to can do this at any angle, including DSI screens on Raspberry Pi.
+When you set a rotation value, HelixScreen checks whether your display hardware can rotate the image directly (hardware rotation). The panels HelixScreen ships to - including DSI screens on Raspberry Pi - cannot do this.
 
-Since hardware rotation is never available, HelixScreen automatically switches from the GPU-accelerated DRM backend to the framebuffer (fbdev) backend for any nonzero rotation, which handles software rotation flicker-free. This happens transparently - you don't need to configure anything. You'll see this in the logs:
+Since hardware rotation isn't available on those panels, HelixScreen automatically switches from the GPU-accelerated DRM backend to the framebuffer (fbdev) backend for any nonzero rotation, which handles software rotation flicker-free. This happens transparently - you don't need to configure anything. You'll see this in the logs:
 
 ```
 DRM lacks hardware rotation for 90°, falling back to fbdev (flicker-free software rotation)
