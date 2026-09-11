@@ -149,3 +149,57 @@ TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor ca
         CHECK(r.color_rgb == 0xBCBCBC);
     }
 }
+
+TEST_CASE("The identity ladder applies sources weakest first", "[lane][resolver]") {
+    // Every ranked field is observed by all three sources, so reversing the
+    // ladder flips every assertion rather than only one that happens to
+    // collide. Colour is deliberately absent: the user-colour override runs
+    // after the ladder and would mask an ordering defect on that field alone.
+    helix::ams::LaneSources lane;
+
+    Observation cache;
+    cache.source = ObservationSource::VendorCache;
+    cache.color_name = "cache";
+    cache.material = "cache";
+    cache.brand = "cache";
+    cache.spool_name = "cache";
+    cache.catalog_id = "cache";
+    cache.product_name = "cache";
+    cache.spoolman_id = 1;
+    cache.spoolman_vendor_id = 1;
+    lane.apply(cache);
+
+    Observation user = cache;
+    user.source = ObservationSource::LocalUser;
+    user.color_name = "user";
+    user.material = "user";
+    user.brand = "user";
+    user.spool_name = "user";
+    user.catalog_id = "user";
+    user.product_name = "user";
+    user.spoolman_id = 2;
+    user.spoolman_vendor_id = 2;
+    lane.apply(user);
+
+    Observation spool = cache;
+    spool.source = ObservationSource::Spoolman;
+    spool.color_name = "spool";
+    spool.material = "spool";
+    spool.brand = "spool";
+    spool.spool_name = "spool";
+    spool.catalog_id = "spool";
+    spool.product_name = "spool";
+    spool.spoolman_id = 3;
+    spool.spoolman_vendor_id = 3;
+    lane.apply(spool);
+
+    const auto r = helix::ams::resolve(lane);
+    CHECK(r.color_name == "spool");
+    CHECK(r.material == "spool");
+    CHECK(r.brand == "spool");
+    CHECK(r.spool_name == "spool");
+    CHECK(r.catalog_id == "spool");
+    CHECK(r.product_name == "spool");
+    CHECK(r.spoolman_id == 3);
+    CHECK(r.spoolman_vendor_id == 3);
+}
