@@ -121,6 +121,21 @@ teardown() {
     git merge --abort 2>/dev/null || true
 }
 
+@test "a claim this session already holds is not reported as a foreign holder" {
+    # The careful workflow is to claim the tree, then merge. The hook claims
+    # under the git process, so without ancestry awareness it reports the caller
+    # to itself - and the warning would then fire for exactly the people
+    # following the protocol. $$ is the test shell, an ancestor of the merge.
+    scripts/helix-claim take worktree:fix "this session" --pid $$ >/dev/null
+    reset_calls
+    run git -c merge.autoStash=false merge --no-ff side -m "merge side"
+    [ "$status" -eq 0 ]
+    lacks "Another session is working in this tree" "$output"
+    # It is left in place, not taken over and not dropped.
+    run scripts/.real-claim check worktree:fix
+    contains "this session" "$output"
+}
+
 @test "a conflicted merge still claims through pre-commit" {
     # Both branches touch one file, so the merge stops and the completing
     # `git commit` is what runs pre-commit.

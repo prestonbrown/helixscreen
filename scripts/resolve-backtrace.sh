@@ -759,6 +759,30 @@ if (( LOAD_BASE == 0 )); then
     fi
 fi
 
+# Whether the symbol map already carries runtime addresses rather than
+# file-relative ones. A PIE image is linked at zero, so its symbols sit near
+# zero and a frame's runtime address is symbol + load base. A static non-PIE
+# image (the MIPS and ARM device builds) is linked at a fixed base and its
+# symbols are runtime addresses already. The reported base cannot separate the
+# two on its own, because dl_iterate_phdr returns the mapping address rather
+# than a bias for a static image. The map can: one whose lowest text symbol
+# sits at or above the base is linked at that base. Reads the first text symbol
+# of an `nm -n` map, which is the lowest.
+symbol_map_is_absolute() {
+    local first
+    first=$(awk '$2 ~ /^[TtWw]$/ { print $1; exit }' "$SYM_FILE")
+    [[ -n "$first" ]] || return 1
+    (( 16#$first >= LOAD_BASE ))
+}
+
+# Subtracting a base from an absolute-linked map shifts every frame onto an
+# unrelated function, which resolves to a plausible name rather than an error.
+if (( LOAD_BASE > 0 )) && symbol_map_is_absolute; then
+    printf "Symbol map is absolute-linked (non-PIE): using addresses as reported, not subtracting 0x%x\n" "$LOAD_BASE" >&2
+    LOAD_BASE=0
+    AUTO_DETECT_BASE=false
+fi
+
 # resolve_address <hex_addr>
 # Scans the sorted symbol table (nm -nC output) to find the
 # containing function. nm output format: "00000000004xxxxx T function_name"

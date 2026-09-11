@@ -1623,26 +1623,32 @@ lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** 
                     "Continue anyway?");
     }
     // The re-entry scaffold lives HERE, once: the caller's stored handle is
-    // cleared on every close path (drop leads both buttons and is the
-    // dismissal report), so a second entry while the dialog is open is the
-    // caller's only remaining guard. The two call sites used to carry this
-    // wiring hand-written, in copy.
+    // cleared on every close path, so a second entry while the dialog is open
+    // is the caller's only remaining guard.
+    //
+    // drop is composed into all three rather than riding on the dismissal
+    // report alone. A button press that reaches a caller callback is an answer,
+    // not a dismissal, so ConfirmationModal suppresses on_dismiss for it - which
+    // means a caller supplying on_cancel would otherwise never get its handle
+    // cleared, and its own `if (!handle)` guard would block every later attempt.
     ConfirmOptions all = options;
     auto drop = [dialog_handle]() {
         if (dialog_handle) {
             *dialog_handle = nullptr;
         }
     };
-    all.on_dismiss = drop;
-    std::function<void()> confirm = on_confirm;
-    if (confirm) {
-        confirm = [drop, confirm = std::move(on_confirm)]() {
+    auto lead_with_drop = [drop](std::function<void()> rest) -> std::function<void()> {
+        if (!rest) {
+            return drop;
+        }
+        return [drop, rest = std::move(rest)]() {
             drop();
-            confirm();
+            rest();
         };
-    } else {
-        confirm = drop;
-    }
+    };
+    all.on_cancel = lead_with_drop(std::move(all.on_cancel));
+    all.on_dismiss = lead_with_drop(std::move(all.on_dismiss));
+    std::function<void()> confirm = lead_with_drop(std::move(on_confirm));
     lv_obj_t* dialog = modal_confirm(lv_tr("Low Memory"), msg.c_str(), ModalSeverity::Warning,
                                      lv_tr("Continue"), std::move(confirm), all);
     if (dialog_handle) {
