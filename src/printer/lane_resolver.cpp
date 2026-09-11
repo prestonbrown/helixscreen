@@ -50,12 +50,14 @@ ResolvedLane resolve(const LaneSources& sources) {
 
     // A colour the user picked for this lane outranks the linked spool's own.
     // The two are different statements: the spool record says what the vendor
-    // sells, the user's pick says what is loaded right now. Ranking the spool
-    // above it discards a pick made on the printer's own screen. Nothing else
-    // in the identity block is overridden this way: brand, name and catalog
-    // identity belong to the spool, not to the lane.
+    // sells, the user's pick says what is loaded right now. The name travels
+    // with the colour, because a swatch labelled with a different colour's name
+    // contradicts itself, and first_non_blank ranks an explicit name above one
+    // derived from the value. Nothing else in the identity block is overridden
+    // this way: brand, spool name and catalog identity belong to the spool.
     if (sources.local_user.has_value() && sources.local_user->color_rgb.has_value()) {
         out.color_rgb = *sources.local_user->color_rgb;
+        out.color_name = sources.local_user->color_name.value_or(std::string{});
     }
 
     // Weight. Spoolman owns consumption for a spool the user assigned from it,

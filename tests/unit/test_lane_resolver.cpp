@@ -267,20 +267,38 @@ TEST_CASE("A colour the user picks outranks the one that came with the spool", "
     spool.spoolman_id = 7;
     spool.brand = "Kingroon";
     spool.color_rgb = 0xFFFFFF;
+    spool.color_name = "Arctic White";
     lane.apply(spool);
 
     REQUIRE(helix::ams::resolve(lane).color_rgb == 0xFFFFFF);
+    REQUIRE(helix::ams::resolve(lane).color_name == "Arctic White");
 
-    // The user picks a colour. It lands in its own record; the binding is
-    // untouched, so the spool link and brand survive.
-    Observation picked(ObservationSource::LocalUser);
-    picked.color_rgb = 0xBCBCBC;
-    lane.apply(picked);
+    SECTION("a pick with a name uses it") {
+        Observation picked(ObservationSource::LocalUser);
+        picked.color_rgb = 0xBCBCBC;
+        picked.color_name = "Concrete Gray";
+        lane.apply(picked);
 
-    const auto r = helix::ams::resolve(lane);
-    CHECK(r.spoolman_id == 7);
-    CHECK(r.brand == "Kingroon");
-    CHECK(r.color_rgb == 0xBCBCBC);
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.spoolman_id == 7);
+        CHECK(r.brand == "Kingroon");
+        CHECK(r.color_rgb == 0xBCBCBC);
+        CHECK(r.color_name == "Concrete Gray");
+    }
+
+    SECTION("a pick with no name clears the spool's rather than keeping it") {
+        // The swatch changed and the label named on it did not observe a
+        // name, so the spool's name would contradict the new swatch.
+        Observation picked(ObservationSource::LocalUser);
+        picked.color_rgb = 0xBCBCBC;
+        lane.apply(picked);
+
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.spoolman_id == 7);
+        CHECK(r.brand == "Kingroon");
+        CHECK(r.color_rgb == 0xBCBCBC);
+        CHECK(r.color_name.empty());
+    }
 }
 
 TEST_CASE("A sensor that reports no presence reading is not a present lane", "[lane][resolver]") {
