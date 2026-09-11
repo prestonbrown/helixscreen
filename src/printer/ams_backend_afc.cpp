@@ -4801,10 +4801,18 @@ void AmsBackendAfc::persist_override(int slot_index, const SlotInfo& info) {
     // a non-empty value is always a user pick.
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
-    if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+    // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
+    // SlotInfo::has_identity), not a color a user would ever pick, so it
+    // stays unrecorded; a deliberate pure black (#000000) still records.
+    if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         o.color_rgb = info.color_rgb;
         o.color_set = true;
     }
+    // SlotInfo carries the user's edit OR the bound Spoolman spool's
+    // filament profile; the material-DB fallback for fields left at 0
+    // is applied at emit time inside resolved_temps(). Centralized in
+    // the helper so the AMS backends stay in sync.
+    helix::ams::populate_temps_from_slot_info(o, info);
     overrides_[slot_index] = o;
 
     if (override_store_) {
