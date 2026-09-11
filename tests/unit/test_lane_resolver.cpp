@@ -203,3 +203,40 @@ TEST_CASE("The identity ladder applies sources weakest first", "[lane][resolver]
     CHECK(r.spoolman_id == 3);
     CHECK(r.spoolman_vendor_id == 3);
 }
+
+TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwise",
+          "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+
+    Observation metered;
+    metered.source = ObservationSource::Metered;
+    metered.remaining_weight_g = 218.0F;
+    lane.apply(metered);
+
+    SECTION("an unlinked lane uses the meter") {
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.remaining_weight_g == Catch::Approx(218.0F));
+    }
+
+    SECTION("a linked lane uses Spoolman, which owns consumption for it") {
+        Observation spool;
+        spool.source = ObservationSource::Spoolman;
+        spool.spoolman_id = 4;
+        spool.remaining_weight_g = 71.0F;
+        spool.total_weight_g = 1000.0F;
+        lane.apply(spool);
+
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.remaining_weight_g == Catch::Approx(71.0F));
+        CHECK(r.total_weight_g == Catch::Approx(1000.0F));
+    }
+
+    SECTION("a linked spool that reports no weight does not blank the meter's") {
+        Observation spool;
+        spool.source = ObservationSource::Spoolman;
+        spool.spoolman_id = 4;
+        lane.apply(spool);
+
+        CHECK(helix::ams::resolve(lane).remaining_weight_g == Catch::Approx(218.0F));
+    }
+}

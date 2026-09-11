@@ -58,6 +58,26 @@ ResolvedLane resolve(const LaneSources& sources) {
         out.color_rgb = *sources.local_user->color_rgb;
     }
 
+    // Weight. Spoolman owns consumption for a spool the user assigned from it,
+    // and Moonraker decrements it directly, so our meter stands down there and
+    // we read the server's number back. An unlinked lane has no external owner,
+    // so the meter's estimate is the only number available.
+    const Observation* weight_ladder[] = {
+        sources.local_user.has_value() ? &*sources.local_user : nullptr,
+        sources.metered.has_value() ? &*sources.metered : nullptr,
+        sources.spoolman.has_value() ? &*sources.spoolman : nullptr,
+    };
+
+    for (const Observation* obs : weight_ladder) {
+        if (obs == nullptr) {
+            continue;
+        }
+        if (obs->remaining_weight_g.has_value())
+            out.remaining_weight_g = *obs->remaining_weight_g;
+        if (obs->total_weight_g.has_value())
+            out.total_weight_g = *obs->total_weight_g;
+    }
+
     return out;
 }
 
