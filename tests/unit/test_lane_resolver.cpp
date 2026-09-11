@@ -95,3 +95,57 @@ TEST_CASE("Presence comes from the sensor and nothing else", "[lane][resolver]")
         CHECK_FALSE(helix::ams::resolve(lane).present);
     }
 }
+
+TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor cache",
+          "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+
+    Observation cache;
+    cache.source = ObservationSource::VendorCache;
+    cache.color_rgb = 0xFFFFFF;
+    cache.material = "PETG";
+    cache.brand = "";
+    lane.apply(cache);
+
+    SECTION("the vendor cache is used when it is all there is") {
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.color_rgb == 0xFFFFFF);
+        CHECK(r.material == "PETG");
+    }
+
+    SECTION("a user record outranks the vendor cache") {
+        Observation user;
+        user.source = ObservationSource::LocalUser;
+        user.color_rgb = 0xBCBCBC;
+        lane.apply(user);
+
+        const auto r = helix::ams::resolve(lane);
+        CHECK(r.color_rgb == 0xBCBCBC);
+        // Material was not observed by the user, so the cache still supplies it.
+        CHECK(r.material == "PETG");
+    }
+
+    SECTION("a linked spool supplies identity, but not a colour the user picked") {
+        Observation user;
+        user.source = ObservationSource::LocalUser;
+        user.color_rgb = 0xBCBCBC;
+        lane.apply(user);
+
+        Observation spool;
+        spool.source = ObservationSource::Spoolman;
+        spool.spoolman_id = 4;
+        spool.color_rgb = 0xA4B2BC;
+        spool.brand = "Kingroon";
+        lane.apply(spool);
+
+        const auto r = helix::ams::resolve(lane);
+        // Brand and the spool link come from the spool: they describe the
+        // spool, not the lane.
+        CHECK(r.brand == "Kingroon");
+        CHECK(r.spoolman_id == 4);
+        // Material was observed by neither, so the cache still supplies it.
+        CHECK(r.material == "PETG");
+        // The colour is the user's, because they chose it for this lane.
+        CHECK(r.color_rgb == 0xBCBCBC);
+    }
+}
