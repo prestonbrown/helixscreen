@@ -49,9 +49,9 @@ TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
     CHECK(lane.spoolman->color_rgb == 0x00FF00);
     CHECK(lane.sensed->present == false);
 
-    // Dropping one source leaves every other standing. This is the whole
-    // "clear" a lane needs: the hand-partitioned clear paths exist only
-    // because there is a single shared struct to partition.
+    // Dropping one source leaves every other source's record standing: this
+    // pins that a lane's sources are independent, not slots into one shared
+    // struct a clear could cross-contaminate.
     lane.drop(ObservationSource::Spoolman);
     CHECK_FALSE(lane.spoolman.has_value());
     REQUIRE(lane.sensed.has_value());
