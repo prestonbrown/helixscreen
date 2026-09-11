@@ -1021,53 +1021,14 @@ ifneq ($(UNAME_S),Darwin)
     # mold first, then lld. Both beat GNU ld by a wide margin on this link, and
     # every test build pays for it, so take the fastest one installed.
     #
-    # mold is only taken from 2.x. 1.0.3 — what Ubuntu 22.04 ships, and what the
-    # sanitizer container has — drops the STB_GNU_UNIQUE symbol GCC emits for a
-    # function-local static inside a template. nlohmann's decode()::utf8d, the
-    # 400-entry UTF-8 DFA table, is one of those: the reference to it then
-    # resolves to the image base, so every json dump() indexes the ELF header
-    # instead of the table and mis-escapes the strings it walks. The link emits
-    # no diagnostic and the binary runs (prestonbrown/helixscreen#1584). Nothing
-    # between 1.0.3 and 2.x has been checked here, so the floor is the major
-    # version. "dump() escapes multi-byte UTF-8 through the real decoder table"
-    # in tests/unit/test_json_utils.cpp is the check that catches a linker this
-    # floor does not.
-    #
-    # Spelled as ifeq/else rather than a nested $(if): a `\`-continued else
-    # branch carries its own indentation into the value, and " lld" reaches the
-    # compiler as `-fuse-ld= lld`.
-    #
-    # The version has to come from the mold the COMPILER will exec, which is not
-    # always the one on PATH: clang resolves ld.mold from its own program
-    # directory first, so a 2.x in /usr/local beside a distro 1.x in /usr/bin
-    # gives `which` one answer and clang another. clang prints an absolute path
-    # here; gcc prints a bare name when it will fall through to PATH.
-    MOLD_BIN := $(shell $(CXX) -print-prog-name=ld.mold 2>/dev/null)
-    ifeq ($(filter /%,$(MOLD_BIN)),)
-        MOLD_BIN := $(shell command -v ld.mold 2>/dev/null)
-    endif
-    MOLD_MAJOR := $(if $(MOLD_BIN),$(shell $(MOLD_BIN) --version 2>/dev/null | sed -n 's/^mold \([0-9][0-9]*\).*/\1/p'))
-    ifneq ($(filter-out 0 1,$(MOLD_MAJOR)),)
-        HOST_FAST_LD := mold
-    else ifneq ($(shell command -v ld.lld 2>/dev/null),)
-        HOST_FAST_LD := lld
-    else
-        HOST_FAST_LD :=
-    endif
-    ifneq ($(MOLD_MAJOR),)
-    ifeq ($(filter-out 0 1,$(MOLD_MAJOR)),)
-        $(warning ⚠️  $(MOLD_BIN) is mold $(MOLD_MAJOR).x, which links this tree incorrectly (prestonbrown/helixscreen#1584) — ignoring it.)
-        $(warning     Install mold 2.x over that path; a newer one elsewhere on PATH does not help, $(CXX) picks this one.)
-    endif
-    endif
+    # Which one is usable is decided by scripts/pick-fast-linker.sh, not here:
+    # scripts/check-deps.sh has to give a developer the same answer, and a rule
+    # written out twice is a rule that drifts. It prints the name for -fuse-ld=
+    # and explains an unusable linker on stderr. Empty means GNU ld, which is
+    # correct everywhere and only slower.
+    HOST_FAST_LD := $(strip $(shell $(CURDIR)/scripts/pick-fast-linker.sh '$(CXX)'))
     ifneq ($(HOST_FAST_LD),)
         LDFLAGS += -fuse-ld=$(HOST_FAST_LD)
-    else
-        # Loud on purpose. Without one of these this box silently pays ~25 extra
-        # seconds on every test link, and the person or agent waiting on it has
-        # no way to tell that from the build simply being big.
-        $(warning ⚠️  neither ld.mold nor ld.lld found — helix-tests will link with GNU ld and take ~25s longer per link.)
-        $(warning     Install one: sudo apt install mold   (or set FAST_LINK=0 to silence this.))
     endif
 endif
 endif
