@@ -211,6 +211,7 @@ TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwis
     Observation metered;
     metered.source = ObservationSource::Metered;
     metered.remaining_weight_g = 218.0F;
+    metered.total_weight_g = 750.0F;
     lane.apply(metered);
 
     SECTION("an unlinked lane uses the meter") {
@@ -239,4 +240,82 @@ TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwis
 
         CHECK(helix::ams::resolve(lane).remaining_weight_g == Catch::Approx(218.0F));
     }
+}
+
+TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolver]") {
+    // The shape that resurrected ejected lanes: a poll that means to change two
+    // weight numbers goes through a path that re-derives other state. With one
+    // record per source there is no path from a weight write to presence.
+    helix::ams::LaneSources lane;
+
+    Observation sensed;
+    sensed.source = ObservationSource::Sensed;
+    sensed.present = false;
+    lane.apply(sensed);
+
+    Observation cache;
+    cache.source = ObservationSource::VendorCache;
+    cache.material = "PETG";
+    cache.color_rgb = 0xED2C2C;
+    lane.apply(cache);
+
+    const auto before = helix::ams::resolve(lane);
+    REQUIRE_FALSE(before.present);
+
+    for (int i = 0; i < 100; ++i) {
+        Observation weight;
+        weight.source = ObservationSource::Metered;
+        weight.remaining_weight_g = static_cast<float>(200 - i);
+        lane.apply(weight);
+
+        const auto after = helix::ams::resolve(lane);
+        REQUIRE_FALSE(after.present);
+        REQUIRE(after.material == "PETG");
+        REQUIRE(after.color_rgb == 0xED2C2C);
+    }
+}
+
+TEST_CASE("A colour the user picks outranks the one that came with the spool", "[lane][resolver]") {
+    // Bundle MYUZZ3RE: assigning a spool recorded its colour as the user's own
+    // choice, so a later pick was discarded. Separate sources make the question
+    // answerable instead of ambiguous.
+    helix::ams::LaneSources lane;
+
+    Observation spool;
+    spool.source = ObservationSource::Spoolman;
+    spool.spoolman_id = 7;
+    spool.brand = "Kingroon";
+    spool.color_rgb = 0xFFFFFF;
+    lane.apply(spool);
+
+    REQUIRE(helix::ams::resolve(lane).color_rgb == 0xFFFFFF);
+
+    // The user picks a colour. It lands in its own record; the binding is
+    // untouched, so the spool link and brand survive.
+    Observation picked;
+    picked.source = ObservationSource::LocalUser;
+    picked.color_rgb = 0xBCBCBC;
+    lane.apply(picked);
+
+    const auto r = helix::ams::resolve(lane);
+    CHECK(r.spoolman_id == 7);
+    CHECK(r.brand == "Kingroon");
+    CHECK(r.color_rgb == 0xBCBCBC);
+}
+
+TEST_CASE("A sensor that reports no presence reading is not a present lane", "[lane][resolver]") {
+    // Three states are distinct and only one of them means occupied: no sensor
+    // record at all, a record that observed something other than presence, and
+    // a record that observed presence. Collapsing the middle one into "present"
+    // is how a lane with a live sensor but no reading resurrects.
+    helix::ams::LaneSources lane;
+
+    Observation sensed;
+    sensed.source = ObservationSource::Sensed;
+    sensed.color_rgb = 0xED2C2C;
+    REQUIRE_FALSE(sensed.present.has_value());
+    lane.apply(sensed);
+
+    REQUIRE(lane.sensed.has_value());
+    CHECK_FALSE(helix::ams::resolve(lane).present);
 }
