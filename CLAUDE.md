@@ -114,8 +114,17 @@ scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
 
 The protocol is global CLAUDE.md § Peer Sessions. What is shared here:
 
-- **The main working tree is live.** Other sessions commit in it. `git status --short | grep '^MM'` means someone is mid-commit: wait, never merge into that, and never let git autostash (`-c merge.autoStash=false`). Commit your own edits promptly, with explicit pathspecs.
-- **Do not `git add` in this tree — commit the pathspec directly.** `git add` then `git commit` is not atomic: your change sits in the *shared* index for however long your hook runs (20s for a script, minutes for a staged header), and a peer committing in that window takes it into their commit. Measured twice in twenty minutes on 2026-09-10. `git commit -- <paths>` commits those paths' current content without going through the index, so there is no window.
+- **The main working tree is live.** Other sessions commit in it. Never let git autostash
+  (`-c merge.autoStash=false`), and commit your own edits promptly, with explicit pathspecs.
+- **`MM` does not mean a peer is mid-commit.** It is ambiguous, and one command settles it:
+  `git diff HEAD -- <path>`. Empty means the committed content is what is on disk, only the
+  INDEX holds an older copy, and nothing is in flight. A `git commit -- <paths>` whose
+  pre-commit hook reformats the file leaves exactly that: the pre-format copy stranded in the
+  index. Clear it with `git add <path>`: index becomes HEAD, so there is nothing unpublished
+  for a peer to sweep, and it discards nothing. A non-empty `git diff HEAD` is the case worth
+  waiting on; confirm with `pgrep -x git` plus each pid's cwd and `helix-claim check
+  worktree:main` before concluding anything about who owns it.
+- **Do not `git add` in this tree — commit the pathspec directly.** `git add` then `git commit` is not atomic: your change sits in the *shared* index for however long your hook runs (20s for a script, minutes for a staged header), and a peer committing in that window takes it into their commit. Measured twice in twenty minutes on 2026-09-10. `git commit -- <paths>` commits those paths' current content without going through the index, so there is no window. The one exception is the stale-index case above, where the content is already in HEAD and staging it exposes nothing.
 - **A live merge and an abandoned one look identical from outside.** `MERGE_HEAD` present, zero `UU` entries, and an index mtime minutes old and not moving describe a `git commit` whose hook is *building* — the index stops the moment the hook starts, and a staged header takes the full-build path. An absent `ListAgents` row is not evidence either. The only discriminator is process state:
   ```bash
   pgrep -x git | while read p; do echo "$p $(readlink /proc/$p/cwd)"; done
