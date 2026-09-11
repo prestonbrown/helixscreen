@@ -162,6 +162,21 @@ TEST_CASE("Two unnamed multi-gate zones get labels that tell them apart",
           zone_display_label(b, "Unit", "Slot", "AFC"));
 }
 
+TEST_CASE("An unresolved unit index drops the unit number rather than showing it",
+          "[ams][zones][presentation]") {
+    // Happy Hare can report a representative gate that doesn't resolve to a known
+    // unit, leaving unit_index at its -1 default. Neither the old sentinel-plus-one
+    // ("Unit 0") nor the raw sentinel ("Unit -1") is a unit number anyone should
+    // trust, so the label drops it and keeps just the system type.
+    EnvironmentZone z;
+    z.gates = {0, 1};
+    z.unit_index = -1;
+    const std::string label = zone_display_label(z, "Unit", "Slot", "AFC");
+    CHECK(label == "AFC");
+    CHECK(label.find("-1") == std::string::npos);
+    CHECK(label.find("Unit") == std::string::npos);
+}
+
 TEST_CASE("Zones spanning units are detected", "[ams][zones][presentation]") {
     CHECK_FALSE(zones_span_units({}));
     CHECK_FALSE(zones_span_units({passive_lane(0, 30.0f)}));
@@ -273,6 +288,45 @@ TEST_CASE_METHOD(XMLTestFixture, "Unit headers appear only where the set spans u
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "zone_ov_group_hidden_1")) == 1);
 
     helix::ui::UpdateQueue::instance().drain();
+    reset_overlay_singletons();
+    AmsState::instance().set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "A zone overview group header for an unresolved unit drops the number",
+                 "[ams][zones][overview]") {
+    reset_overlay_singletons();
+
+    auto backend = std::make_unique<AmsBackendMock>();
+    backend->set_multi_unit_mode(true);
+    backend->set_environment_mode("mixed");
+    auto* raw = backend.get();
+    AmsState::instance().set_backend(std::move(backend));
+    const std::string type_name = raw->get_system_info().type_name;
+
+    EnvironmentZone resolved;
+    resolved.gates = {0, 1};
+    resolved.unit_index = 0;
+
+    EnvironmentZone unresolved;
+    unresolved.gates = {2, 3};
+    unresolved.unit_index = -1;
+
+    // Two zones with different unit_index values (0 and -1) span units, so both
+    // start a group and both group headers get built.
+    get_ams_zone_overview_overlay().show(lv_screen_active(), {resolved, unresolved});
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_subject_t* header_for_unresolved = lv_xml_get_subject(nullptr, "zone_ov_group_text_1");
+    REQUIRE(header_for_unresolved != nullptr);
+    const std::string text = lv_subject_get_string(header_for_unresolved);
+    // The system type alone - not "Unit -1", and not the pre-lane_number "Unit 0" a
+    // naive +1 would have produced for this sentinel. Equality against the mock's own
+    // type_name (which happens to contain the substring "Unit") is the precise check;
+    // find("-1") on top guards the sentinel specifically.
+    CHECK(text == type_name);
+    CHECK(text.find("-1") == std::string::npos);
+
     reset_overlay_singletons();
     AmsState::instance().set_backend(nullptr);
 }
