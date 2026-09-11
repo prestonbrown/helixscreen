@@ -1216,6 +1216,7 @@ translations:
   GCode Console: 'Консоль G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
+  Gate: Слот
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'

@@ -1110,6 +1110,7 @@
   <translation tag="G-code commands will appear here" ja="G-code コマンドがここに表示されます"/>
   <translation tag="GCode Console" ja="Gコードコンソール"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ja="ゲームオーバー！&#10;スコア: {}&#10;タップでリスタート"/>
+  <translation tag="Gate" ja="スロット"/>
   <translation tag="Gear Buffer Speed" ja="ギアのバッファ速度"/>
   <translation tag="Gear Spool Speed" ja="ギアのスプール速度"/>
   <translation tag="Gear Unload Speed" ja="ギアのアンロード速度"/>

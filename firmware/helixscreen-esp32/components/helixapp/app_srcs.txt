@@ -380,6 +380,7 @@ src/ui/ui_filament_runout_handler.cpp
 src/ui/ui_filament_slot_picker.cpp
 src/ui/ui_filename_utils.cpp
 src/ui/ui_format_utils.cpp
+src/ui/display_numbering.cpp
 src/ui/ui_gradient_canvas.cpp
 src/ui/ui_heater_icon_binder.cpp
 src/ui/ui_heating_animator.cpp

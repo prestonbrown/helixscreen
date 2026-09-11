@@ -1200,6 +1200,7 @@ translations:
   GCode Console: GCode Console
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Game Over!\nScore: {}\nTap to restart"
+  Gate: Gate
   Gear Buffer Speed: Gear Buffer Speed
   Gear Spool Speed: Gear Spool Speed
   Gear Unload Speed: Gear Unload Speed

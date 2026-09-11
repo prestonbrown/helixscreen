@@ -1131,6 +1131,7 @@ translations:
   GCode Console: 'G-code 控制台'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "游戏结束！\n得分：{}\n点按重新开始"
+  Gate: 槽位
   Gear Buffer Speed: '齿轮缓冲区速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'

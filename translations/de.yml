@@ -1243,6 +1243,7 @@ translations:
   GCode Console: 'G-Code-Konsole'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Spiel vorbei!\nPunkte: {}\nZum Neustart tippen"
+  Gate: Slot
   Gear Buffer Speed: 'Zahnrad-Puffergeschwindigkeit'
   Gear Spool Speed: 'Zahnrad-Spulengeschwindigkeit'
   Gear Unload Speed: 'Zahnrad-Entladegeschwindigkeit'

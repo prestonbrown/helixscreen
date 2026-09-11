@@ -1110,6 +1110,7 @@
   <translation tag="G-code commands will appear here" fr="Les commandes G-code apparaîtront ici"/>
   <translation tag="GCode Console" fr="Console G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" fr="Partie terminée !&#10;Score : {}&#10;Touchez pour recommencer"/>
+  <translation tag="Gate" fr="Slot"/>
   <translation tag="Gear Buffer Speed" fr="Vitesse d&apos;engrenage depuis le tampon"/>
   <translation tag="Gear Spool Speed" fr="Vitesse d&apos;engrenage depuis la bobine"/>
   <translation tag="Gear Unload Speed" fr="Vitesse de déchargement de l&apos;engrenage"/>
