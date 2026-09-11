@@ -10,8 +10,7 @@ using helix::ams::Observation;
 using helix::ams::ObservationSource;
 
 TEST_CASE("Observation distinguishes an unobserved field from an empty one", "[lane][resolver]") {
-    Observation obs;
-    obs.source = ObservationSource::Sensed;
+    Observation obs(ObservationSource::Sensed);
 
     // Nothing observed yet. This is the whole point of the type: "I have no
     // reading" must not be spelled the same as "the value is blank", which is
@@ -28,13 +27,11 @@ TEST_CASE("Observation distinguishes an unobserved field from an empty one", "[l
 TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
     helix::ams::LaneSources lane;
 
-    Observation spool;
-    spool.source = ObservationSource::Spoolman;
+    Observation spool(ObservationSource::Spoolman);
     spool.color_rgb = 0xA4B2BC;
     lane.apply(spool);
 
-    Observation sensed;
-    sensed.source = ObservationSource::Sensed;
+    Observation sensed(ObservationSource::Sensed);
     sensed.present = false;
     lane.apply(sensed);
 
@@ -46,8 +43,7 @@ TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
     CHECK(lane.sensed->present == false);
 
     // Re-applying a source REPLACES that source's record, whole.
-    Observation newer;
-    newer.source = ObservationSource::Spoolman;
+    Observation newer(ObservationSource::Spoolman);
     newer.color_rgb = 0x00FF00;
     lane.apply(newer);
     CHECK(lane.spoolman->color_rgb == 0x00FF00);
@@ -68,14 +64,12 @@ TEST_CASE("Presence comes from the sensor and nothing else", "[lane][resolver]")
     SECTION("identity metadata never implies presence") {
         // A cache that still remembers the last spool is not evidence a spool
         // is there. Vendor stores keep colour across an eject by design.
-        Observation cache;
-        cache.source = ObservationSource::VendorCache;
+        Observation cache(ObservationSource::VendorCache);
         cache.color_rgb = 0x8000FF;
         cache.material = "PLA";
         lane.apply(cache);
 
-        Observation spool;
-        spool.source = ObservationSource::Spoolman;
+        Observation spool(ObservationSource::Spoolman);
         spool.spoolman_id = 7;
         spool.material = "PETG";
         lane.apply(spool);
@@ -84,8 +78,7 @@ TEST_CASE("Presence comes from the sensor and nothing else", "[lane][resolver]")
     }
 
     SECTION("the sensor decides, in both directions") {
-        Observation sensed;
-        sensed.source = ObservationSource::Sensed;
+        Observation sensed(ObservationSource::Sensed);
         sensed.present = true;
         lane.apply(sensed);
         CHECK(helix::ams::resolve(lane).present);
@@ -100,8 +93,7 @@ TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor ca
           "[lane][resolver]") {
     helix::ams::LaneSources lane;
 
-    Observation cache;
-    cache.source = ObservationSource::VendorCache;
+    Observation cache(ObservationSource::VendorCache);
     cache.color_rgb = 0xFFFFFF;
     cache.material = "PETG";
     cache.brand = "";
@@ -114,8 +106,7 @@ TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor ca
     }
 
     SECTION("a user record outranks the vendor cache") {
-        Observation user;
-        user.source = ObservationSource::LocalUser;
+        Observation user(ObservationSource::LocalUser);
         user.color_rgb = 0xBCBCBC;
         lane.apply(user);
 
@@ -126,13 +117,11 @@ TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor ca
     }
 
     SECTION("a linked spool supplies identity, but not a colour the user picked") {
-        Observation user;
-        user.source = ObservationSource::LocalUser;
+        Observation user(ObservationSource::LocalUser);
         user.color_rgb = 0xBCBCBC;
         lane.apply(user);
 
-        Observation spool;
-        spool.source = ObservationSource::Spoolman;
+        Observation spool(ObservationSource::Spoolman);
         spool.spoolman_id = 4;
         spool.color_rgb = 0xA4B2BC;
         spool.brand = "Kingroon";
@@ -157,8 +146,7 @@ TEST_CASE("The identity ladder applies sources weakest first", "[lane][resolver]
     // after the ladder and would mask an ordering defect on that field alone.
     helix::ams::LaneSources lane;
 
-    Observation cache;
-    cache.source = ObservationSource::VendorCache;
+    Observation cache(ObservationSource::VendorCache);
     cache.color_name = "cache";
     cache.material = "cache";
     cache.brand = "cache";
@@ -208,8 +196,7 @@ TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwis
           "[lane][resolver]") {
     helix::ams::LaneSources lane;
 
-    Observation metered;
-    metered.source = ObservationSource::Metered;
+    Observation metered(ObservationSource::Metered);
     metered.remaining_weight_g = 218.0F;
     metered.total_weight_g = 750.0F;
     lane.apply(metered);
@@ -220,8 +207,7 @@ TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwis
     }
 
     SECTION("a linked lane uses Spoolman, which owns consumption for it") {
-        Observation spool;
-        spool.source = ObservationSource::Spoolman;
+        Observation spool(ObservationSource::Spoolman);
         spool.spoolman_id = 4;
         spool.remaining_weight_g = 71.0F;
         spool.total_weight_g = 1000.0F;
@@ -233,8 +219,7 @@ TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwis
     }
 
     SECTION("a linked spool that reports no weight does not blank the meter's") {
-        Observation spool;
-        spool.source = ObservationSource::Spoolman;
+        Observation spool(ObservationSource::Spoolman);
         spool.spoolman_id = 4;
         lane.apply(spool);
 
@@ -248,13 +233,11 @@ TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolv
     // shared destination for them to pass through.
     helix::ams::LaneSources lane;
 
-    Observation sensed;
-    sensed.source = ObservationSource::Sensed;
+    Observation sensed(ObservationSource::Sensed);
     sensed.present = false;
     lane.apply(sensed);
 
-    Observation cache;
-    cache.source = ObservationSource::VendorCache;
+    Observation cache(ObservationSource::VendorCache);
     cache.material = "PETG";
     cache.color_rgb = 0xED2C2C;
     lane.apply(cache);
@@ -263,8 +246,7 @@ TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolv
     REQUIRE_FALSE(before.present);
 
     for (int i = 0; i < 100; ++i) {
-        Observation weight;
-        weight.source = ObservationSource::Metered;
+        Observation weight(ObservationSource::Metered);
         weight.remaining_weight_g = static_cast<float>(200 - i);
         lane.apply(weight);
 
@@ -281,8 +263,7 @@ TEST_CASE("A colour the user picks outranks the one that came with the spool", "
     // that changes only the colour.
     helix::ams::LaneSources lane;
 
-    Observation spool;
-    spool.source = ObservationSource::Spoolman;
+    Observation spool(ObservationSource::Spoolman);
     spool.spoolman_id = 7;
     spool.brand = "Kingroon";
     spool.color_rgb = 0xFFFFFF;
@@ -292,8 +273,7 @@ TEST_CASE("A colour the user picks outranks the one that came with the spool", "
 
     // The user picks a colour. It lands in its own record; the binding is
     // untouched, so the spool link and brand survive.
-    Observation picked;
-    picked.source = ObservationSource::LocalUser;
+    Observation picked(ObservationSource::LocalUser);
     picked.color_rgb = 0xBCBCBC;
     lane.apply(picked);
 
@@ -310,8 +290,7 @@ TEST_CASE("A sensor that reports no presence reading is not a present lane", "[l
     // is how a lane with a live sensor but no reading resurrects.
     helix::ams::LaneSources lane;
 
-    Observation sensed;
-    sensed.source = ObservationSource::Sensed;
+    Observation sensed(ObservationSource::Sensed);
     sensed.color_rgb = 0xED2C2C;
     REQUIRE_FALSE(sensed.present.has_value());
     lane.apply(sensed);

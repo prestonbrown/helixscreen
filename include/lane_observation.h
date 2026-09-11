@@ -23,7 +23,9 @@ enum class ObservationSource {
 /// is distinct from "observed as empty": a source that says nothing about a
 /// field must not overwrite what another source knows.
 struct Observation {
-    ObservationSource source = ObservationSource::Sensed;
+    explicit Observation(ObservationSource src) : source(src) {}
+
+    ObservationSource source;
 
     std::optional<bool> present;
 
