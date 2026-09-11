@@ -131,6 +131,32 @@ AI-assisted design and build at this project's scale produced duplicated logic i
 
 The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp#L61)) consolidated what were two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
 
+### Provenance debt: a value's origin is inferred from its shape
+
+Nothing carries *where a value came from*, so code infers intent from the value itself, and
+the inference is wrong at the edges. The live instance is AD5X filament colour.
+
+`AmsState::commit_slot_edit` reaches `set_slot_info` with `persist` defaulted true, and that
+arm sets `user_locked_color` unconditionally. Assigning a Spoolman spool therefore records
+"the user chose this colour" when the user chose a *spool*; the colour arrived with the
+binding. A later colour picked from zmod's own menu enters through
+`AmsBackendAd5xIfs::apply_color_menu_slot_row`, which returns before the lock release the
+bare `CHANGE_ZCOLOR` branch performs, so `apply_overrides` re-lays the locked colour and the
+pick never reaches the panel.
+
+Releasing the lock when a menu row moves is **not** the fix. `"AD5X IFS COLOR-menu slot row
+does not clear a user-locked override"` pins the opposite on purpose: every COLOR macro
+emits those rows, so honouring them drops a locked choice just for opening the dialog. The
+line below the offending one already asks the right question for material
+(`user_locked_material = !normalized_material.empty()`); colour has no equivalent signal to
+ask about.
+
+A correct fix needs the origin carried rather than guessed, which is a data-model change and
+not a local one. The same shape already has two hand-built answers here,
+`AmsBackend::own_write_expectation` and `SlotFingerprintTracker::expect`, each suppressing
+one flavour of "is this reading someone else's write or the echo of my own?".
+User-visible symptom and workaround are in `docs/user/TROUBLESHOOTING.md`.
+
 ### Deliberate tolerations: C++ that is correct, not debt
 
 The gate does not merely tolerate these cases — it excludes them structurally, so they never appear in the 367: files that call `lv_xml_register_widget` are skipped whole, widgets created with `lv_*_create` in C++ never had an XML layer, events with no declarative equivalent (`DELETE`, draw hooks, size/scroll) are not flagged, and neither are annotated lines. The table (verified against the root [`AGENTS.md`](../../../AGENTS.md) and the code — the bolded entries were spot-checked for this chapter):
