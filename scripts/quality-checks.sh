@@ -1049,7 +1049,6 @@ CLANG_FORMAT_BASELINE="
 include/tool_state.h
 src/printer/filament_mapper.cpp
 src/system/pwm_sound_backend.cpp
-src/system/update_checker.cpp
 "
 CF_OK=false
 if qc_resolve_clang_format; then CF_OK=true; fi
