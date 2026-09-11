@@ -362,3 +362,31 @@ make_stage() {
         esac
     done
 }
+
+# --------------------------------------------------------------------------
+# Assets stripped from every release because nothing displays them
+# --------------------------------------------------------------------------
+
+# release-clean-assets deletes these outright. That is only safe while no
+# production code registers them, so this is the tripwire: if someone starts
+# using one, the test fails and points at the strip rather than letting a
+# release ship a reference to a file it removed.
+@test "stripped top-level images have no production consumer" {
+    for f in "printer.png" "orcaslicer test cube.PNG"; do
+        run grep -rIl --fixed-strings "$f" src/ include/ ui_xml/ assets/config/
+        [ -z "$output" ] || fail "$f is stripped from releases but referenced by: $output"
+    done
+}
+
+@test "the image the app actually registers is not stripped" {
+    # printer_400.png is the registered one; stripping it would be the mistake
+    # the case above exists to prevent, in the other direction.
+    run grep -rIl --fixed-strings "printer_400.png" src/
+    [ -n "$output" ] || fail "printer_400.png is no longer registered; revisit the strip list"
+    run grep -c "rm -f .*assets/images/printer.png" mk/cross.mk
+    [ "$output" = "1" ] || fail "expected exactly one strip rule for printer.png, got $output"
+    # Look for a deletion of it, not a mention: the strip rule's comment names
+    # printer_400.png to explain which image survives.
+    run grep -cE "(rm -f|-delete).*printer_400" mk/cross.mk
+    [ "$output" = "0" ] || fail "mk/cross.mk deletes printer_400.png, which the app registers"
+}
