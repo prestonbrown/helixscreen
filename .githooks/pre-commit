@@ -25,17 +25,14 @@ cd "$REPO_ROOT"
 # ---- helix-claim: announce a merge so peers need not guess (advisory) -------
 # Silent unless another session holds this tree. $PPID is the git process
 # itself, so the claim dies with the merge and a crash needs no cleanup.
-if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] && [ -x scripts/helix-claim ]; then
-    _tree="worktree:$(basename "$(git rev-parse --show-toplevel)")"
-    if ! scripts/helix-claim check "$_tree" >/dev/null 2>&1; then
-        printf '\n  Another session is merging here:\n' >&2
-        scripts/helix-claim check "$_tree" >&2
-        printf '  Proceeding anyway (advisory). HELIX_CLAIM_STRICT=1 to refuse.\n\n' >&2
-        [ "${HELIX_CLAIM_STRICT:-0}" = "1" ] && exit 1
-    else
-        scripts/helix-claim take "$_tree" \
-            "merge $(git name-rev --name-only MERGE_HEAD 2>/dev/null || echo '?')" \
-            --pid "$PPID" --note "git hook running; may take many minutes" >/dev/null 2>&1
+# A merge that STOPPED to be resolved lands here; a clean one runs
+# pre-merge-commit instead, which takes the same claim.
+if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+    _lib="$(dirname "$0")/lib/claim-tree.sh"
+    if [ -r "$_lib" ]; then
+        # shellcheck source=lib/claim-tree.sh
+        . "$_lib"
+        claim_tree "merge $(git name-rev --name-only MERGE_HEAD 2>/dev/null || echo '?')" || exit 1
     fi
 fi
 # ---------------------------------------------------------------------------

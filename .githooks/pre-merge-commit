@@ -1,0 +1,15 @@
+#!/bin/sh
+# A clean `git merge` runs this hook and never runs pre-commit, so the claim that
+# announces a merge to peers has to be taken here too.
+#
+# MERGE_HEAD does not exist yet at this point - git writes it only when a merge
+# stops for you to resolve - so the description comes from GIT_REFLOG_ACTION
+# ("merge <branch>"), which git sets for the whole operation.
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT" || exit 0
+_lib="$(dirname "$0")/lib/claim-tree.sh"
+[ -r "$_lib" ] || exit 0
+# shellcheck source=lib/claim-tree.sh
+. "$_lib"
+claim_tree "${GIT_REFLOG_ACTION:-merge}" || exit 1
+exit 0
