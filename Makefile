@@ -1035,7 +1035,17 @@ ifneq ($(UNAME_S),Darwin)
     # Spelled as ifeq/else rather than a nested $(if): a `\`-continued else
     # branch carries its own indentation into the value, and " lld" reaches the
     # compiler as `-fuse-ld= lld`.
-    MOLD_MAJOR := $(shell ld.mold --version 2>/dev/null | sed -n 's/^mold \([0-9][0-9]*\).*/\1/p')
+    #
+    # The version has to come from the mold the COMPILER will exec, which is not
+    # always the one on PATH: clang resolves ld.mold from its own program
+    # directory first, so a 2.x in /usr/local beside a distro 1.x in /usr/bin
+    # gives `which` one answer and clang another. clang prints an absolute path
+    # here; gcc prints a bare name when it will fall through to PATH.
+    MOLD_BIN := $(shell $(CXX) -print-prog-name=ld.mold 2>/dev/null)
+    ifeq ($(filter /%,$(MOLD_BIN)),)
+        MOLD_BIN := $(shell command -v ld.mold 2>/dev/null)
+    endif
+    MOLD_MAJOR := $(if $(MOLD_BIN),$(shell $(MOLD_BIN) --version 2>/dev/null | sed -n 's/^mold \([0-9][0-9]*\).*/\1/p'))
     ifneq ($(filter-out 0 1,$(MOLD_MAJOR)),)
         HOST_FAST_LD := mold
     else ifneq ($(shell command -v ld.lld 2>/dev/null),)
@@ -1045,8 +1055,8 @@ ifneq ($(UNAME_S),Darwin)
     endif
     ifneq ($(MOLD_MAJOR),)
     ifeq ($(filter-out 0 1,$(MOLD_MAJOR)),)
-        $(warning ⚠️  ld.mold $(MOLD_MAJOR).x links this tree incorrectly (prestonbrown/helixscreen#1584) — ignoring it.)
-        $(warning     Install mold 2.x for the faster link; the build is correct either way.)
+        $(warning ⚠️  $(MOLD_BIN) is mold $(MOLD_MAJOR).x, which links this tree incorrectly (prestonbrown/helixscreen#1584) — ignoring it.)
+        $(warning     Install mold 2.x over that path; a newer one elsewhere on PATH does not help, $(CXX) picks this one.)
     endif
     endif
     ifneq ($(HOST_FAST_LD),)
