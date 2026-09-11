@@ -3818,6 +3818,57 @@ TEST_CASE("HappyHare clear_slot_override drops the retained identity",
     CHECK(after.spoolman_id == 0);
 }
 
+TEST_CASE("HappyHare persist_override records a deliberate pure black",
+          "[ams][happyhare][override]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SlotInfo info;
+    info.material = "PLA";
+    info.color_rgb = 0x000000;
+    helper.set_slot_info(0, info);
+
+    REQUIRE(helper.has_gate_override(0));
+    const auto& ovr = helix::HappyHareTestAccess::overrides(helper).at(0);
+    CHECK(ovr.color_set);
+    CHECK(ovr.color_rgb == 0x000000);
+    CHECK(ovr.material == "PLA");
+}
+
+TEST_CASE("HappyHare persist_override does not record the no-color sentinel",
+          "[ams][happyhare][override]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SlotInfo info;
+    info.material = "PLA";
+    info.color_rgb = helix::AMS_DEFAULT_SLOT_COLOR;
+    helper.set_slot_info(0, info);
+
+    REQUIRE(helper.has_gate_override(0));
+    const auto& ovr = helix::HappyHareTestAccess::overrides(helper).at(0);
+    CHECK_FALSE(ovr.color_set);
+    CHECK(ovr.material == "PLA");
+}
+
+TEST_CASE("HappyHare persist_override wires nozzle/bed temps into the override",
+          "[ams][happyhare][override]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SlotInfo info;
+    info.material = "PETG";
+    info.bed_temp = 80;
+    info.nozzle_temp_min = 230;
+    info.nozzle_temp_max = 250;
+    helper.set_slot_info(0, info);
+
+    REQUIRE(helper.has_gate_override(0));
+    const auto& ovr = helix::HappyHareTestAccess::overrides(helper).at(0);
+    CHECK(ovr.bed_temp == 80);
+    CHECK(ovr.nozzle_temp == 240); // midpoint of min/max
+}
+
 // ============================================================================
 // Bypass: Happy Hare has to answer for itself, same as AFC (#1229)
 // ============================================================================

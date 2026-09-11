@@ -18,6 +18,7 @@
 #include "operation_patterns.h" // helix::contains_ci
 #include "printer_discovery.h"
 #include "settings_manager.h"
+#include "system/afc_message_dedup.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -203,6 +204,12 @@ AmsBackendAfc::AmsBackendAfc(IMoonrakerAPI* api, IMoonrakerClient* client)
     // Default to hardware sensor. Actual detection happens in set_discovered_sensors()
     // which checks for "filament_switch_sensor virtual_bypass" in the Klipper objects list.
     system_info_.has_hardware_bypass_sensor = true;
+
+    // Seed the error dedup with the last error text a previous session
+    // surfaced. AFC latches printer.AFC.message across our restarts, so an
+    // unseeded dedup treats the latched text as new and re-toasts it at
+    // every connect.
+    dedup_seed_ = AfcMessageDedup::instance().last_error_text();
 
     spdlog::debug("[AMS AFC] Backend created");
 }
@@ -1882,16 +1889,23 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                 last_seen_message_.clear();
                 last_error_msg_.clear();
                 last_message_type_.clear();
+                dedup_seed_.clear();
                 message_drain_budget_ = 0;
                 message_drain_pending_ = false;
+                // The next occurrence of any text is a new event, including
+                // in a later session.
+                AfcMessageDedup::instance().record_cleared();
             } else if (msg_text != last_seen_message_) {
                 // New or changed message - update dedup tracker
                 last_seen_message_ = msg_text;
 
                 // Defer error event for emission outside lock (avoids deadlock)
-                if (msg_type == "error" && msg_text != last_error_msg_) {
+                if (msg_type == "error" && msg_text != last_error_msg_ && msg_text != dedup_seed_) {
                     last_error_msg_ = msg_text;
                     deferred_error_event = msg_text;
+                    // Persist for the next session's dedup seed: this text has
+                    // now been surfaced, and a restart must not re-toast it.
+                    AfcMessageDedup::instance().record_error(msg_text);
                 }
 
                 // Suppress toasts when:
@@ -1913,6 +1927,13 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                     spdlog::debug("[AMS AFC] Toast suppressed (prompt={}, op={}): {}",
                                   afc_prompt_active, operation_active, msg_text);
                     ui_notification_info_with_action("AFC", msg_text.c_str(), "afc_message");
+                } else if (msg_type == "error" && msg_text == dedup_seed_) {
+                    // A previous session already surfaced this text and AFC
+                    // latched it; recorded in operation_detail above, not
+                    // re-toasted.
+                    spdlog::debug("[AMS AFC] Latched message already surfaced by a previous "
+                                  "session, not toasted: {}",
+                                  msg_text);
                 } else {
                     // Show toast based on message type
                     if (msg_type == "error") {
@@ -4801,10 +4822,18 @@ void AmsBackendAfc::persist_override(int slot_index, const SlotInfo& info) {
     // a non-empty value is always a user pick.
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
-    if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+    // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
+    // SlotInfo::has_identity), not a color a user would ever pick, so it
+    // stays unrecorded; a deliberate pure black (#000000) still records.
+    if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         o.color_rgb = info.color_rgb;
         o.color_set = true;
     }
+    // SlotInfo carries the user's edit OR the bound Spoolman spool's
+    // filament profile; the material-DB fallback for fields left at 0
+    // is applied at emit time inside resolved_temps(). Centralized in
+    // the helper so the AMS backends stay in sync.
+    helix::ams::populate_temps_from_slot_info(o, info);
     overrides_[slot_index] = o;
 
     if (override_store_) {

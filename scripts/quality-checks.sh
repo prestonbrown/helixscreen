@@ -1798,7 +1798,12 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # main dropped the Plugins overlay and retired three globals without
   # ratcheting, so the merge collects that slack too. 2239 -> 2238 is
   # ResolvedMacroScript and resolve_macro_script moving into helix::.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2215 --summary >/tmp/namespace_check.out 2>&1; then
+  # 2215 -> 2233 anchors FOREIGN_PREFIXES to real foreign spellings
+  # (#1586): bare 'G', 'Display', 'Window' and 'z_' exempted our own
+  # DisplayManager, DisplayBackend* and capitalised G* types from the gate
+  # entirely. The 18 symbols that become visible are pre-existing
+  # declarations, now COUNTED so the ratchet can only move down from here.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2233 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -2256,6 +2261,34 @@ else
   section_time $SECTION_START
   echo ""
   echo "⚠️  check_touch_rotation_source.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🔄 Checking display rotation cache order..."
+
+# The resolution cache must be read after set_display_rotation() settles: a
+# plane owning 90/270 un-swaps the resolution, and a cache read before the
+# call records a value the display no longer has (#1587). apply_rotation's
+# body is #ifdef'd out of the test binary (HELIX_DISPLAY_SDL), so a lint is
+# the only thing that makes a wrong-order revert fail.
+if [ -f "scripts/check_rotation_cache_order.py" ]; then
+  if python3 scripts/check_rotation_cache_order.py >/tmp/rotation_cache.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ display resolution is cached only after rotation settles"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/rotation_cache.out
+    echo "   Run: python3 scripts/check_rotation_cache_order.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_rotation_cache_order.py not found — skipping"
 fi
 
 echo ""

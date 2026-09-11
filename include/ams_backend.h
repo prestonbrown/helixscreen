@@ -201,10 +201,12 @@ class AmsBackend {
     /**
      * @brief Whether this backend tracks filament weight locally
      *
-     * Some backends (e.g., AFC, Happy Hare) track filament consumption via
-     * extruder position and update slot weight in real time. When true,
-     * HelixScreen must NOT overwrite slot weights from Spoolman polling,
-     * because Spoolman's weight is stale (backends don't write back to it).
+     * Some backends (e.g., AFC) read a firmware-reported remaining weight
+     * from their own status payload and update slot weight in real time.
+     * When true, HelixScreen must NOT overwrite slot weights from Spoolman
+     * polling, because Spoolman's weight is stale (backends don't write back
+     * to it). Happy Hare has no such field - its gate map carries no weight,
+     * so it relies entirely on Spoolman polling and must return false here.
      *
      * @return true if the backend provides live weight tracking
      */
