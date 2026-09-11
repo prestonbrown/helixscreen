@@ -393,7 +393,7 @@ Located in the `display` section:
 
 **Automatic detection:** On first boot, HelixScreen checks the kernel for panel orientation (e.g., `panel_orientation=upside_down` in the kernel command line). If detected, the rotation is applied immediately and saved here — no manual configuration needed. On framebuffer displays only (e.g., AD5M — **not** Raspberry Pi), an interactive rotation wizard runs instead if no kernel hint is found.
 
-**Raspberry Pi and other DRM displays rotate by any angle, using the framebuffer path to do it.** No display controller HelixScreen ships to can rotate a plane by 90 or 270 degrees, so when you set a rotation the app switches itself to the framebuffer backend, which rotates in software. This happens automatically and in-process: nothing needs reinstalling, no setting needs changing, and both binaries are already present. The cost is a full-screen redraw each frame rather than only the changed regions, typically under 1ms per frame on a Pi 5.
+**Raspberry Pi and other DRM displays rotate by any angle.** Where the display hardware cannot do the rotation itself - which is the case for every panel HelixScreen ships to - the app switches itself to the framebuffer backend, which rotates in software. This happens automatically and in-process: nothing needs reinstalling, no setting needs changing, and both binaries are already present. The cost is a full-screen redraw each frame rather than only the changed regions, typically under 1ms per frame on a Pi 5.
 
 To avoid that cost entirely, rotate the panel in the kernel instead with a `video=...,rotate=90` parameter on the kernel command line. That applies before HelixScreen starts, so the app renders unrotated at native speed.
 
