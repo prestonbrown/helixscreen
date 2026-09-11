@@ -376,6 +376,32 @@ enum class TeardownDelete {
 };
 
 /**
+ * @struct TeardownHooks
+ * @brief The two owner callbacks teardown_overlay_ui() runs, named at the
+ *        call site
+ *
+ * The slots differ only in when they run relative to the free, and that
+ * difference is the whole point: a hook that drops widgets the subtree owns
+ * has to run while the tree is still attached. Putting it in the other slot
+ * reaches into an already-condemned subtree (#776/#983) and is the same type,
+ * so build through before()/after() and the slot is spelled where the hook
+ * is written.
+ */
+struct TeardownHooks {
+    /// Step 4 — every pointer still valid, tree still attached.
+    std::function<void()> before_delete;
+    /// Step 7 — free already queued; tree hidden and off-tree but still alive.
+    std::function<void()> after_delete;
+
+    static TeardownHooks before(std::function<void()> fn) {
+        return {std::move(fn), nullptr};
+    }
+    static TeardownHooks after(std::function<void()> fn) {
+        return {nullptr, std::move(fn)};
+    }
+};
+
+/**
  * @brief The one overlay teardown sequence — drain, unregister, breadcrumb,
  *        owner hooks, deferred free, pointer null-out
  *
@@ -392,14 +418,15 @@ enum class TeardownDelete {
  *    is still stacked cannot double-invoke)
  * 3. Breadcrumbs "ovrl_dst" so crashes in the close path can be pinned to
  *    the overlay being torn down
- * 4. Runs @p before_delete while every pointer is still valid AND the tree
+ * 4. Runs hooks.before_delete while every pointer is still valid AND the tree
  *    is still attached — owners whose sub-objects own widgets in the subtree
  *    (AMS sidebars, context menus, modals) drop them here
  * 5. Deletes per @p how (both strategies defer the actual free — sync
  *    deletion inside an overlay close callback corrupts LVGL's global event
  *    list when chained from an UpdateQueue batch, #776/#840)
- * 6. Nulls @p root and @p cached_panel (they may alias the same variable)
- * 7. Runs @p after_delete — the widget tree is still alive (hidden,
+ * 6. Nulls @p root, and @p cached_panel when the caller passed one (it may
+ *    point at @p root itself)
+ * 7. Runs hooks.after_delete — the widget tree is still alive (hidden,
  *    off-tree) until the async tick, so owners can null child-widget
  *    pointers that must stay dereferenceable during teardown
  *
@@ -409,16 +436,14 @@ enum class TeardownDelete {
  * @param root Root widget to tear down; nulled on return
  * @param owner_name Logged and breadcrumbed owner name
  * @param how Delete strategy (see TeardownDelete)
- * @param cached_panel Caller's cached copy of the root; nulled on return
- *                     (may be the same variable as @p root)
- * @param before_delete Owner hook, step 4 (may be empty)
- * @param after_delete Owner hook, step 7 (may be empty)
+ * @param cached_panel Caller's cached copy of the root, nulled on return;
+ *                     null when the caller keeps no second copy, and may
+ *                     point at @p root itself
+ * @param hooks Owner hooks for steps 4 and 7 (either may be empty)
  * @return true if a teardown happened; false when @p root was null (no
  *         hooks run in that case)
  */
 bool teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
-                         lv_obj_t*& cached_panel,
-                         const std::function<void()>& before_delete = nullptr,
-                         const std::function<void()>& after_delete = nullptr);
+                         lv_obj_t** cached_panel = nullptr, TeardownHooks hooks = {});
 
 } // namespace helix::ui

@@ -1611,11 +1611,12 @@ static lv_obj_t* s_ams_panel_obj = nullptr;
 //      subtree, so it must run while the tree is still attached.
 void destroy_ams_panel_ui() {
     helix::ui::teardown_overlay_ui(s_ams_panel_obj, "AmsPanel",
-                                   helix::ui::TeardownDelete::DetachSubtree, s_ams_panel_obj, []() {
+                                   helix::ui::TeardownDelete::DetachSubtree, nullptr,
+                                   helix::ui::TeardownHooks::before([]() {
                                        if (g_ams_panel) {
                                            g_ams_panel->clear_panel_reference();
                                        }
-                                   });
+                                   }));
 
     // Note: Widget registrations remain (LVGL doesn't support unregistration)
     // Note: g_ams_panel C++ object stays for state preservation

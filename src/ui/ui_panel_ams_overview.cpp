@@ -1239,16 +1239,16 @@ static void ensure_overview_registered() {
 //      grid_update/flex_update must be structurally unable to race teardown
 //      (#983).
 //   2. clear_panel_reference() as the before-delete hook — it destroys the
-//      sidebar/context-menu/modal sub-objects that own widgets in this
-//      subtree, so it must run while the tree is still attached.
+//      sidebar and context-menu sub-objects that own widgets in this subtree,
+//      so it must run while the tree is still attached.
 void destroy_ams_overview_panel_ui() {
     helix::ui::teardown_overlay_ui(s_ams_overview_panel_obj, "AmsOverviewPanel",
-                                   helix::ui::TeardownDelete::DetachSubtree,
-                                   s_ams_overview_panel_obj, []() {
+                                   helix::ui::TeardownDelete::DetachSubtree, nullptr,
+                                   helix::ui::TeardownHooks::before([]() {
                                        if (g_ams_overview_panel) {
                                            g_ams_overview_panel->clear_panel_reference();
                                        }
-                                   });
+                                   }));
 }
 
 AmsOverviewPanel& get_global_ams_overview_panel() {

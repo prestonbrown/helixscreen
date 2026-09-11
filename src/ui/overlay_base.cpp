@@ -46,14 +46,13 @@ void OverlayBase::cleanup() {
 }
 
 void OverlayBase::destroy_overlay_ui(lv_obj_t*& cached_panel) {
-    helix::ui::teardown_overlay_ui(overlay_root_, get_name(), helix::ui::TeardownDelete::Deferred,
-                                   cached_panel, nullptr, [this]() { on_ui_destroyed(); });
+    helix::ui::teardown_overlay_ui(
+        overlay_root_, get_name(), helix::ui::TeardownDelete::Deferred, &cached_panel,
+        helix::ui::TeardownHooks::after([this]() { on_ui_destroyed(); }));
 }
 
 bool helix::ui::teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
-                                    lv_obj_t*& cached_panel,
-                                    const std::function<void()>& before_delete,
-                                    const std::function<void()>& after_delete) {
+                                    lv_obj_t** cached_panel, TeardownHooks hooks) {
     if (!root) {
         return false;
     }
@@ -80,8 +79,8 @@ bool helix::ui::teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, Tea
     // Owner hook while every pointer is still valid and the tree is still
     // attached — owners whose sub-objects own widgets in this subtree (AMS
     // sidebars, context menus, modals) drop them here.
-    if (before_delete) {
-        before_delete();
+    if (hooks.before_delete) {
+        hooks.before_delete();
     }
 
     if (how == TeardownDelete::DetachSubtree) {
@@ -97,13 +96,15 @@ bool helix::ui::teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, Tea
         helix::ui::safe_delete_deferred(root);
     }
     root = nullptr;
-    cached_panel = nullptr;
+    if (cached_panel) {
+        *cached_panel = nullptr;
+    }
 
     // The widget tree is still alive (hidden, off-tree) until the async tick
     // frees it, so the owner can null child-widget pointers that must stay
     // dereferenceable during teardown.
-    if (after_delete) {
-        after_delete();
+    if (hooks.after_delete) {
+        hooks.after_delete();
     }
     return true;
 }
