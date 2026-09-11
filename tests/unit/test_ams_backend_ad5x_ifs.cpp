@@ -8405,6 +8405,42 @@ TEST_CASE("AD5X IFS echoed CHANGE_ZCOLOR menu buttons are offers, not edits "
     CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
 }
 
+TEST_CASE("AD5X IFS counts menu renders apart from external colour edits",
+          "[ams][ad5x_ifs][1065]") {
+    // Both burst counters feed one consolidated log line, and that line is
+    // often the only account of what a printer did. Folding menu renders into
+    // the edit count reports a colour change nobody made: a reader chasing a
+    // filament-identity report sees "24 external colour changes" from a dialog
+    // whose options were never picked.
+    TestableAd5xIfsBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
+    Ad5xIfsTestAccess::set_color(backend, 0, "F330F9");
+    Ad5xIfsTestAccess::set_material(backend, 0, "SILK");
+
+    REQUIRE(Ad5xIfsTestAccess::external_change_burst_count(backend) == 0);
+    REQUIRE(Ad5xIfsTestAccess::menu_render_burst_count(backend) == 0);
+
+    SECTION("echoed menu buttons count as renders, never as edits") {
+        for (const char* hex : {"ffffff", "fef043", "75d9f3", "161616"}) {
+            Ad5xIfsTestAccess::on_gcode_response_line(
+                backend,
+                std::string("// action:prompt_button _ |CHANGE_ZCOLOR SLOT=1 TYPE=SILK HEX=") +
+                    hex + "|primary|" + hex);
+        }
+        CHECK(Ad5xIfsTestAccess::menu_render_burst_count(backend) == 4);
+        CHECK(Ad5xIfsTestAccess::external_change_burst_count(backend) == 0);
+    }
+
+    SECTION("a bare CHANGE_ZCOLOR counts as an edit, never as a render") {
+        Ad5xIfsTestAccess::on_gcode_response_line(backend,
+                                                  "// CHANGE_ZCOLOR SLOT=1 TYPE=PETG HEX=BCBCBC");
+        CHECK(Ad5xIfsTestAccess::external_change_burst_count(backend) == 1);
+        CHECK(Ad5xIfsTestAccess::menu_render_burst_count(backend) == 0);
+    }
+}
+
 TEST_CASE("AD5X IFS COLOR-menu slot row is a firmware snapshot (#1065 bundle 482NB943)",
           "[ams][ad5x_ifs][1065]") {
     // The user taps SILK; zmod applies it and re-renders the root menu with the

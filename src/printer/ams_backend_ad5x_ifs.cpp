@@ -3942,7 +3942,7 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
             // One shape IS load-bearing: the root menu's per-slot rows are a
             // four-slot firmware snapshot, and the freshest one in the stream.
             apply_color_menu_slot_row(line);
-            ++external_change_burst_count_;
+            ++menu_render_burst_count_;
             schedule_json_reread();
             schedule_zcolor_query("color_menu_render");
             return false;
@@ -4443,12 +4443,14 @@ void AmsBackendAd5xIfs::schedule_json_reread() {
         // which itself touches api_ and member state.
         token.defer("Ad5xIfsBackend::reread_apply", [this]() {
             reread_pending_.store(false);
-            const int n = external_change_burst_count_;
+            const int edits = external_change_burst_count_;
+            const int renders = menu_render_burst_count_;
             external_change_burst_count_ = 0;
-            if (n > 0) {
-                spdlog::debug("{} Detected {} external color change(s) in gcode stream — "
-                              "re-reading Adventurer5M.json + querying zcolor",
-                              backend_log_tag(), n);
+            menu_render_burst_count_ = 0;
+            if (edits > 0 || renders > 0) {
+                spdlog::debug("{} Re-reading Adventurer5M.json + querying zcolor after {} "
+                              "external colour edit(s) and {} colour-menu render line(s)",
+                              backend_log_tag(), edits, renders);
             } else {
                 // Reread scheduled by a non-stream trigger (klippy_ready, etc.).
                 spdlog::debug("{} Re-reading Adventurer5M.json after external change",

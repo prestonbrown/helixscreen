@@ -1297,15 +1297,22 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     std::atomic<bool> reread_pending_{false};
 
-    // Main-thread-only: counts external color-change detections in the gcode
+    // Main-thread-only: counts CHANGE_ZCOLOR trigger lines seen in the gcode
     // stream since the last coalesced re-read fired. zmod re-emits CHANGE_ZCOLOR
     // on every edit, so a single user action produces a burst of trigger lines
     // (24 in a 3s window in bundle UQG4RNUA). Rather than log one line each, the
-    // count is folded into a single consolidated line when reread_apply runs.
-    // Both the increment (on_gcode_response_line) and the read/reset
+    // counts are folded into a single consolidated line when reread_apply runs.
+    // Both the increments (on_gcode_response_line) and the read/reset
     // (reread_apply) run on the main thread via the UpdateQueue, so no atomic is
     // needed.
+    //
+    // The two are counted apart because they mean opposite things. An edit is
+    // somebody changing a colour; a menu render is zmod echoing the buttons of a
+    // dialog whose options nobody has picked yet. Reporting a menu render as a
+    // detected change describes a printer doing something it is not doing, and
+    // a bundle is often the only account of what happened.
     int external_change_burst_count_ = 0;
+    int menu_render_burst_count_ = 0;
 
     // Signature (count + per-slot color/material) of the slots parsed from the
     // last Adventurer5M.json read. Native ZMOD re-reads the file on every sensor
