@@ -22,6 +22,10 @@
 // lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL from LV_USE_OPENGLES and
 // redefines it with no #ifndef guard, so a value set in lv_conf.h does not
 // survive. Ask the preprocessor what it resolved to, never the header.
+// This gate covers only the request-set direction: LV_USE_OPENGLES set to 1
+// in lv_conf.h without HELIX_ENABLE_OPENGLES produces neither warning nor
+// error here, and lv_conf.h and lv_conf_internal.h agreeing on the token
+// means the compiler's old "redefined" warning no longer fires either.
 #if defined(HELIX_ENABLE_OPENGLES) && !LV_LINUX_DRM_USE_EGL
 #error "HELIX_ENABLE_OPENGLES set but LVGL resolved LV_LINUX_DRM_USE_EGL to 0"
 #endif
@@ -1092,6 +1096,10 @@ void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys
 bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) const {
     if (rot == LV_DISPLAY_ROTATION_0) {
         return true;
+    }
+
+    if (!plane_may_own_rotation()) {
+        return false;
     }
 
     if (display_ == nullptr) {

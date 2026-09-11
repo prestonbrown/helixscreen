@@ -6,8 +6,8 @@
  * @brief DRM plane rotation decision logic (hardware vs software fallback)
  *
  * Pure logic, no DRM dependencies — can be tested without hardware.
- * Used by DisplayBackendDRM::set_display_rotation() to decide whether
- * to use DRM plane rotation or LVGL matrix rotation.
+ * Used by DisplayBackendDRM::set_display_rotation() to decide whether the DRM
+ * plane or LVGL's own rotation carries the requested angle.
  */
 
 #pragma once
@@ -16,11 +16,20 @@
 
 /**
  * @brief Strategy for applying display rotation on DRM backend
+ *
+ * In the shipped configuration neither HARDWARE nor SOFTWARE is ever acted on.
+ * HARDWARE is chosen only when plane_may_own_rotation() allows it, which is never
+ * (touch input does not follow the plane). SOFTWARE is chosen only for a plane that
+ * cannot honor the request, and DisplayManager::try_drm_to_fbdev_fallback has already
+ * replaced this backend with fbdev by that point, so
+ * DisplayBackendDRM::set_display_rotation is never called for it either. Every
+ * nonzero angle rotates through the fbdev backend instead.
  */
 enum class DrmRotationStrategy {
     NONE,     ///< No rotation needed (0°)
-    HARDWARE, ///< Use DRM plane rotation property
-    SOFTWARE  ///< Use LVGL matrix rotation (lv_display_set_matrix_rotation)
+    HARDWARE, ///< Use DRM plane rotation property; LVGL's own rotation is cleared to 0
+    SOFTWARE  ///< LVGL owns rotation via lv_display_set_rotation(); the DRM flush
+              ///< callback reverses pixels in place (patches/lvgl-drm-flush-rotation.patch)
 };
 
 /**
@@ -72,3 +81,14 @@ LvglRotationAction lvgl_rotation_action_for(DrmRotationStrategy strategy);
  */
 // NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
 bool drm_rotation_needs_full_render(DrmRotationStrategy strategy);
+
+/**
+ * @brief Whether the DRM plane is allowed to own the rotation
+ *
+ * Rotating the scanout plane rotates the picture but not the touch frame: LVGL
+ * transforms pointer input solely from its own display rotation, which the plane
+ * path clears. Until something rotates touch to match, every nonzero angle belongs
+ * to the software path (prestonbrown/helixscreen#1275).
+ */
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
+bool plane_may_own_rotation();

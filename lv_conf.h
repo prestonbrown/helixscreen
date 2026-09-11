@@ -1150,7 +1150,10 @@
      * Disabled: Bullseye sysroot has Mesa 20.3, missing gbm_bo_get_fd_for_plane. */
     #define LV_USE_LINUX_DRM_GBM_BUFFERS 0
 
-    /* EGL rendering via lv_linux_drm_egl.c (GPU-accelerated, legacy modesetting) */
+    /* EGL rendering via lv_linux_drm_egl.c (GPU-accelerated, legacy modesetting).
+     * lv_conf_internal.h re-derives this macro from LV_USE_OPENGLES with no guard
+     * and overrides whatever is set here, so enabling EGL means setting
+     * LV_USE_OPENGLES, not this macro. */
     #ifdef HELIX_ENABLE_OPENGLES
         #define LV_LINUX_DRM_USE_EGL     1
     #else
