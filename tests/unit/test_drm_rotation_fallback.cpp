@@ -98,3 +98,10 @@ TEST_CASE("Only SOFTWARE needs FULL render mode", "[display][drm][rotation]") {
     REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::HARDWARE));
     REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::NONE));
 }
+
+TEST_CASE("Plane may not own rotation until touch follows it", "[display][drm][rotation]") {
+    // lv_display_rotate_point() is the only touch transform in the tree, and it
+    // derives solely from LVGL's own display rotation, which the HARDWARE path
+    // clears. Nothing rotates touch to match a plane-rotated picture yet.
+    REQUIRE_FALSE(plane_may_own_rotation());
+}

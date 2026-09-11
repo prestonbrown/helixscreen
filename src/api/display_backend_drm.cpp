@@ -1086,6 +1086,10 @@ bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) co
         return true;
     }
 
+    if (!plane_may_own_rotation()) {
+        return false;
+    }
+
     if (display_ == nullptr) {
         return false;
     }
