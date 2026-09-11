@@ -546,9 +546,11 @@ TEST_CASE("dump() escapes multi-byte UTF-8 through the real decoder table",
     //
     // So these expectations are absolute rather than dump() compared against
     // dump(). Both sides of such a comparison read the same table and agree
-    // with each other whatever it holds, which is why the cases above this one
-    // cannot see a wrong table. ensure_ascii is what forces the multi-byte
-    // path; with it off the bytes are copied through unexamined.
+    // with each other whatever it holds. The invalid-UTF-8 case above reaches a
+    // wrong table only by aborting inside a JSON_ASSERT, which names nothing and
+    // is a plain assert(), so under NDEBUG the mis-escaping is silent.
+    // ensure_ascii is what forces the multi-byte path; with it off the bytes are
+    // copied through unexamined.
     CHECK(json("\xC3\xA9").dump(-1, ' ', true) == "\"\\u00e9\"");                // U+00E9 é
     CHECK(json("\xE2\x82\xAC").dump(-1, ' ', true) == "\"\\u20ac\"");            // U+20AC €
     CHECK(json("\xF0\x9F\x98\x80").dump(-1, ' ', true) == "\"\\ud83d\\ude00\""); // U+1F600
