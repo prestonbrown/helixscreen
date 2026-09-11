@@ -176,6 +176,7 @@
 #include "printer_image_manager.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
+#include "system/afc_message_dedup.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
 #include "system/crash_reporter.h"
@@ -800,6 +801,9 @@ int Application::run(int argc, char** argv) {
     }
     helix::CrashHistory::instance().init(user_config_dir);
     CrashReporter::instance().init(user_config_dir);
+    // Cross-session seed for AFC's latched message dedup (uninitialized
+    // before this point, which reads as "every message is new").
+    AfcMessageDedup::instance().init(user_config_dir);
 
     // Initialize TelemetryManager (opt-in, default OFF)
     // Note: record_session() is called after init_panel_subjects() so that
@@ -5183,6 +5187,7 @@ void Application::shutdown() {
 
     // Shutdown CrashHistory
     helix::CrashHistory::instance().shutdown();
+    AfcMessageDedup::instance().shutdown();
 
     // Shutdown SoundManager BEFORE clearing moonraker client — the M300
     // backend's sender lambda references client_ and the sequencer thread

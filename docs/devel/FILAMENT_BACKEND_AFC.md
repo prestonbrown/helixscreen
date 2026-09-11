@@ -203,6 +203,14 @@ untouched, so entries accumulate across a whole session and anything left behind
 the next session's stale error. (Verified against the add-on source on a live BoxTurtle,
 2026-07-29.)
 
+*The stale head must not re-toast on every HelixScreen start.* Because the latch survives our
+restarts and a fresh process has no prior text to dedup against, the backend seeds its error
+dedup from `AfcMessageDedup` (`system/afc_message_dedup.h`): the last error text a previous
+session surfaced, persisted in the config dir. An unchanged text raises no toast and no
+`EVENT_ERROR`; a text the store has never seen — including a live, non-pausing fault enqueued
+by `AFC_logger.error()` with `error_state` still false — toasts normally. The seed clears with
+the message field, so a recurrence toasts again.
+
 *A single clear is not enough.* `AmsBackendAfc::clear_fault()` drains **until the queue reports
 empty**, bounded by a wall-clock deadline and by `MESSAGE_DRAIN_MAX_CLEARS` as a runaway guard
 (not as the expected stopping point); see `message_drain_budget_` / `message_drain_deadline_`.

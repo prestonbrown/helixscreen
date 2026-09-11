@@ -2099,17 +2099,13 @@ TEST_CASE("AFC message sets operation detail", "[ams][afc][message][phase1]") {
 }
 
 TEST_CASE("AFC error message emits EVENT_ERROR", "[ams][afc][message][phase1]") {
-    // When message.type == "error", we should emit EVENT_ERROR with the message text.
-    // error_state rides in the same frame: upstream's set_error_state() is the
-    // only writer and appends the message in the same event (#1589 keys the
-    // error treatment on it).
+    // When message.type == "error", we should emit EVENT_ERROR with the message text
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.install_event_tracker();
 
     nlohmann::json afc_data = {
-        {"message", {{"message", "AFC Error: lane1 failed to load"}, {"type", "error"}}},
-        {"error_state", true}};
+        {"message", {{"message", "AFC Error: lane1 failed to load"}, {"type", "error"}}}};
     helper.feed_afc_state(afc_data);
 
     // error type messages should emit EVENT_ERROR
@@ -2981,15 +2977,13 @@ TEST_CASE("AFC recover_lane_position fails when not running", "[ams][afc][recove
 }
 
 TEST_CASE("AFC error message surfaces in EVENT_ERROR data", "[ams][afc][recovery][phase4]") {
-    // Verify that AFC error messages contain useful text in the event data.
-    // error_state rides in the same frame (see the phase1 twin).
+    // Verify that AFC error messages contain useful text in the event data
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.install_event_tracker();
 
     nlohmann::json afc_data = {
-        {"message", {{"message", "Lane 1 failed: filament jam detected"}, {"type", "error"}}},
-        {"error_state", true}};
+        {"message", {{"message", "Lane 1 failed: filament jam detected"}, {"type", "error"}}}};
     helper.feed_afc_state(afc_data);
 
     REQUIRE(helper.has_event(AmsBackend::EVENT_ERROR));

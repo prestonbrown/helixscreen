@@ -18,6 +18,7 @@
 #include "operation_patterns.h" // helix::contains_ci
 #include "printer_discovery.h"
 #include "settings_manager.h"
+#include "system/afc_message_dedup.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -203,6 +204,12 @@ AmsBackendAfc::AmsBackendAfc(IMoonrakerAPI* api, IMoonrakerClient* client)
     // Default to hardware sensor. Actual detection happens in set_discovered_sensors()
     // which checks for "filament_switch_sensor virtual_bypass" in the Klipper objects list.
     system_info_.has_hardware_bypass_sensor = true;
+
+    // Seed the error dedup with the last error text a previous session
+    // surfaced. AFC latches printer.AFC.message across our restarts, so an
+    // unseeded dedup treats the latched text as new and re-toasts it at
+    // every connect.
+    dedup_seed_ = AfcMessageDedup::instance().last_error_text();
 
     spdlog::debug("[AMS AFC] Backend created");
 }
@@ -1850,16 +1857,6 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
 
     // Parse message object for operation detail, error events, and toast notifications
     if (afc_data.contains("message") && afc_data["message"].is_object()) {
-        // error_state as of THIS frame, falling back to the last known value:
-        // Moonraker status deltas carry only CHANGED keys, so the frame that
-        // flips error_state and the frame that carries a new message can be
-        // two frames. Read before the message handling below so a latched
-        // message is judged by its same-frame error_state.
-        bool error_state_now = error_state_;
-        if (afc_data.contains("error_state") && afc_data["error_state"].is_boolean()) {
-            error_state_now = afc_data["error_state"].get<bool>();
-        }
-
         const auto& msg = afc_data["message"];
         if (msg.contains("message") && msg["message"].is_string()) {
             std::string msg_text = msg["message"].get<std::string>();
@@ -1892,24 +1889,23 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                 last_seen_message_.clear();
                 last_error_msg_.clear();
                 last_message_type_.clear();
+                dedup_seed_.clear();
                 message_drain_budget_ = 0;
                 message_drain_pending_ = false;
-            } else if (msg_text != last_seen_message_ ||
-                       (msg_type == "error" && error_state_now && msg_text != last_error_msg_)) {
-                // New or changed message - update dedup tracker. The second
-                // disjunct covers a text first seen as latched history that
-                // turns into a live error: the text dedup alone would
-                // swallow it.
+                // The next occurrence of any text is a new event, including
+                // in a later session.
+                AfcMessageDedup::instance().record_cleared();
+            } else if (msg_text != last_seen_message_) {
+                // New or changed message - update dedup tracker
                 last_seen_message_ = msg_text;
 
-                // Defer error event for emission outside lock (avoids deadlock).
-                // error_state gates it: AFC latches printer.AFC.message long
-                // after the condition that produced it resolved, so an
-                // error-typed message with error_state false is history, not
-                // a live fault.
-                if (msg_type == "error" && error_state_now && msg_text != last_error_msg_) {
+                // Defer error event for emission outside lock (avoids deadlock)
+                if (msg_type == "error" && msg_text != last_error_msg_ && msg_text != dedup_seed_) {
                     last_error_msg_ = msg_text;
                     deferred_error_event = msg_text;
+                    // Persist for the next session's dedup seed: this text has
+                    // now been surfaced, and a restart must not re-toast it.
+                    AfcMessageDedup::instance().record_error(msg_text);
                 }
 
                 // Suppress toasts when:
@@ -1931,13 +1927,12 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                     spdlog::debug("[AMS AFC] Toast suppressed (prompt={}, op={}): {}",
                                   afc_prompt_active, operation_active, msg_text);
                     ui_notification_info_with_action("AFC", msg_text.c_str(), "afc_message");
-                } else if (msg_type == "error" && !error_state_now) {
-                    // Latched history: AFC's own error_state says it is not in
-                    // trouble, so this text describes a resolved condition. A
-                    // fresh process has no prior value to dedup against, which
-                    // re-toasted it as a live error at every connect. Recorded
-                    // above (operation_detail), not toasted.
-                    spdlog::debug("[AMS AFC] Latched message not toasted (error_state false): {}",
+                } else if (msg_type == "error" && msg_text == dedup_seed_) {
+                    // A previous session already surfaced this text and AFC
+                    // latched it; recorded in operation_detail above, not
+                    // re-toasted.
+                    spdlog::debug("[AMS AFC] Latched message already surfaced by a previous "
+                                  "session, not toasted: {}",
                                   msg_text);
                 } else {
                     // Show toast based on message type
